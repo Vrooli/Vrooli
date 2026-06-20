@@ -27,6 +27,8 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/maturity-go/assessment"
 	searchregister "github.com/vrooli/searchregister-go"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
 	knowledgeobservatoryv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -78,6 +80,7 @@ type Server struct {
 	graphService         *graph.Service
 	docHealthService     *dochealth.Service
 	docHealthMaturity    *assessment.Spec
+	docHealthEnvironment *commonv1.CaptureEnvironment
 	docSearchService     *docsearch.Service
 	docExplorerService   *explorer.Service
 	docViewerService     *viewer.Service
@@ -154,16 +157,6 @@ func isTruthy(value string) bool {
 	}
 }
 
-func loadDocHealthMaturitySpec(scenariosRoot string) (*assessment.Spec, error) {
-	repoRoot := filepath.Dir(scenariosRoot)
-	path := filepath.Join(repoRoot, "scenarios", "knowledge-observatory", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return assessment.ParseSpec(raw)
-}
-
 func (s *Server) setupServices() {
 	vs := &vectorstore.Qdrant{
 		BaseURL: s.qdrantURL(),
@@ -193,12 +186,22 @@ func (s *Server) setupServices() {
 		} else {
 			s.docHealthService = service
 		}
-		spec, err := loadDocHealthMaturitySpec(s.config.ScenariosRoot)
+		repoRoot := filepath.Dir(s.config.ScenariosRoot)
+		spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "knowledge-observatory"))
 		if err != nil {
 			s.log("doc health maturity assessment unavailable", map[string]interface{}{"error": err.Error()})
 		} else {
 			s.docHealthMaturity = spec
 		}
+		// Capture host facts once; they do not change during the process lifetime.
+		// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+		// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+		environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+		if envErr != nil {
+			s.log("doc health: host inventory unavailable, metrics environment limited to stdlib baseline", map[string]interface{}{"error": envErr.Error()})
+			environment = nil
+		}
+		s.docHealthEnvironment = environment
 	}
 	if s.config != nil && s.config.ScenariosRoot != "" {
 		service, err := explorer.NewService(s.config.ScenariosRoot, s.docHealthService)
@@ -442,6 +445,7 @@ func (s *Server) setupRoutes() {
 		handler := dochealthhandler.NewWithDeps(dochealthhandler.Deps{
 			Service:      s.docHealthService,
 			MaturitySpec: s.docHealthMaturity,
+			Environment:  s.docHealthEnvironment,
 		})
 		path, h := knowledgeobservatoryv1connect.NewKnowledgeObservatoryServiceHandler(handler)
 		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: h})

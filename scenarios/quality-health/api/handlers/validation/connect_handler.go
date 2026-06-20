@@ -13,7 +13,9 @@ import (
 	auditH "quality-health/handlers/audit"
 	internalaudit "quality-health/internal/audit"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
@@ -29,6 +31,10 @@ type Deps struct {
 	Auditor      Auditor
 	Logger       *log.Logger
 	MaturitySpec *assessment.Spec
+	// Environment is the host CaptureEnvironment captured once at module init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment *commonv1.CaptureEnvironment
 }
 
 type connectHandler struct {
@@ -49,20 +55,24 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
 	}
-	report, err := h.deps.Auditor.Audit(ctx, internalaudit.Request{
+	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
+	report, err := h.deps.Auditor.Audit(internalaudit.WithMetrics(ctx, collector), internalaudit.Request{
 		Scenario:                req.Msg.GetScenario(),
 		Path:                    req.Msg.GetPath(),
 		IncludeCommandExecution: req.Msg.GetIncludeExecution(),
 		UseCache:                true,
 	})
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	native, err := auditResponseToProto(report, h.deps.MaturitySpec)
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build quality native detail: %w", err))
 	}
-	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native, statusOverride(native)...)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native, execMetrics, statusOverride(native)...)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

@@ -20,6 +20,8 @@ import (
 	"github.com/google/uuid"
 	apidb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/maturity-go/assessment"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 	analysisapi "scenario-dependency-analyzer/internal/analysis"
 	dependenciesapi "scenario-dependency-analyzer/internal/dependencies"
@@ -320,7 +322,9 @@ func setupTestRouter() *gin.Engine {
 		graphdomain.RegisterHTTPRoutes(api, h.graphService(), h.scenariosDir)
 		proposalapi.RegisterHTTPRoutes(api, h.proposalService())
 	}
-	spec, _ := loadMaturitySpec()
+	// Best-effort maturity spec for test routers — absence is non-fatal.
+	repoRoot, _ := repocontract.ResolveRepoRoot()
+	spec, _ := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "scenario-dependency-analyzer"))
 	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec})
 	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir)
 

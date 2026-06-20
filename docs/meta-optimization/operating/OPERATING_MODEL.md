@@ -95,6 +95,8 @@ flowchart LR
   FREC[(friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>)]
   %% @node TOOL topic:toolchain-audit/YYYY-MM-DD
   TOOL[(toolchain-audit/YYYY-MM-DD)]
+  %% @node SELFHEALTH topic:self-health/test-genie/YYYY-MM-DD
+  SELFHEALTH[(self-health/test-genie/YYYY-MM-DD)]
   %% @node RUNLESS topic:run-lesson-report/YYYY-MM-DD
   RUNLESS[(run-lesson-report/YYYY-MM-DD)]
   %% @node TEAMAUD topic:team-audit/YYYY-MM-DD
@@ -178,11 +180,13 @@ flowchart LR
   OP --> TV
   FTOOL --> TV
   TOOL --> TV
+  SELFHEALTH --> TV
   CHAL --> TV
   RES --> TV
   TCV --> TV
   CAP --> TV
   TV --> TOOL
+  TV --> SELFHEALTH
   TV --> TCV
   TV --> CAP
 
@@ -318,6 +322,7 @@ flowchart LR
 | `topic:friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>` | live | `friction-curator` | `team-agent-optimizer` | Routed friction about prompt-manager team, member, topic, storage, prompt, or coordination structure. |
 | `topic:friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>` | live | `friction-curator` | `debt-curator` | Routed recurring workaround evidence that may become canon, a skill, an Action, CLI backlog, team-structure change, capability gap, or retirement. |
 | `topic:toolchain-audit/YYYY-MM-DD` | live | `toolchain-validator` | `toolchain-validator` | Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities. |
+| `topic:self-health/test-genie/YYYY-MM-DD` | live | `toolchain-validator` | `toolchain-validator` | Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`. |
 | `topic:run-lesson-report/YYYY-MM-DD` | live | `run-introspector` | `run-introspector` | Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions. |
 | `topic:team-audit/YYYY-MM-DD` | live | `team-agent-optimizer` | `team-agent-optimizer` | Snapshot audit of team structure, role boundaries, coordination surfaces, and capability architecture. |
 | `topic:agent-audit/YYYY-MM-DD` | live | `team-agent-optimizer` | `team-agent-optimizer` | Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift. |

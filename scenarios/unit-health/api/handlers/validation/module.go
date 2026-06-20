@@ -1,9 +1,8 @@
 package validation
 
 import (
-	"fmt"
+	"context"
 	"log"
-	"os"
 	"path/filepath"
 
 	"unit-health/internal/discovery"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/maturity-go/assessment"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
@@ -30,17 +30,28 @@ var (
 // timing/status for cross-run diagnostics; pass nil to disable persistence.
 func Module(logger *log.Logger, repoRoot string, history runhistory.Store) module.Module {
 	svc := internalvalidation.New()
-	spec, err := loadMaturitySpec(repoRoot)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "unit-health"))
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment unavailable: %v", err)
 	}
 	svc.Spec = spec
 	svc.Locator = discovery.DefaultLocator{RepoRoot: repoRoot}
 	svc.History = history
+	// Capture host facts once; they do not change during the process lifetime.
+	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+	environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+	if envErr != nil {
+		if logger != nil {
+			logger.Printf("validation: host inventory unavailable, metrics environment limited to stdlib baseline: %v", envErr)
+		}
+		environment = nil
+	}
 	handler := NewHandlerWithDeps(Deps{
 		Service:      svc,
 		Logger:       logger,
 		MaturitySpec: spec,
+		Environment:  environment,
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(handler)
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewSharedHandler(handler))
@@ -52,15 +63,6 @@ func Module(logger *log.Logger, repoRoot string, history runhistory.Store) modul
 		},
 		Endpoints: Endpoints,
 	}
-}
-
-func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
-	path := filepath.Join(repoRoot, "scenarios", "unit-health", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return assessment.ParseSpec(raw)
 }
 
 // Schema returns the empty schema: validation owns no database tables.

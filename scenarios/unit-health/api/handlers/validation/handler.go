@@ -11,6 +11,7 @@ import (
 
 	internalvalidation "unit-health/internal/validation"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -24,6 +25,10 @@ type Deps struct {
 	Service      *internalvalidation.Service
 	Logger       *log.Logger
 	MaturitySpec *assessment.Spec
+	// Environment is the host CaptureEnvironment captured once at module init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment *commonv1.CaptureEnvironment
 }
 
 // Handler implements the generated ValidationServiceHandler.
@@ -32,6 +37,7 @@ type Handler struct {
 	svc    *internalvalidation.Service
 	logger *log.Logger
 	spec   *assessment.Spec
+	env    *commonv1.CaptureEnvironment
 }
 
 // NewHandlerWithDeps builds a Handler, defaulting nil collaborators.
@@ -42,7 +48,7 @@ func NewHandlerWithDeps(deps Deps) *Handler {
 	if deps.Service == nil {
 		deps.Service = internalvalidation.New()
 	}
-	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec}
+	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec, env: deps.Environment}
 }
 
 var _ validationconnect.ValidationServiceHandler = (*Handler)(nil)
@@ -83,19 +89,23 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	if h == nil || h.handler == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("unit validation handler not wired"))
 	}
-	native, err := h.handler.ValidateScenario(ctx, connect.NewRequest(&validationv1.ValidateScenarioRequest{
+	collector := metrics.Start(metrics.WithEnvironment(h.handler.env))
+	native, err := h.handler.ValidateScenario(internalvalidation.WithMetrics(ctx, collector), connect.NewRequest(&validationv1.ValidateScenarioRequest{
 		Scenario:         req.Msg.GetScenario(),
 		Path:             req.Msg.GetPath(),
 		IncludeExecution: req.Msg.GetIncludeExecution(),
 		UseCache:         true,
 	}))
 	if err != nil {
+		collector.Stop()
 		return nil, err
 	}
+	execMetrics := collector.Stop()
 	resp, err := assessment.BuildValidationResponse(
 		native.Msg.GetScenario(),
 		native.Msg.GetAssessment(),
 		native.Msg,
+		execMetrics,
 		statusOverride(native.Msg)...,
 	)
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -313,15 +312,22 @@ type TidinessFinding struct {
 }
 
 func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration) (*TidinessScanResponse, error) {
+	collector := metricsFrom(ctx)
+
+	scanStage := collector.Stage("scan")
 	scanner := NewLightScanner(scenarioPath, timeout)
 	fileMetrics, err := scanner.collectFileMetrics()
 	if err != nil {
+		scanStage.End()
 		return nil, err
 	}
 	languageMetrics, err := scanner.collectLanguageMetrics(ctx)
 	if err != nil {
 		languageMetrics = map[Language]*LanguageMetrics{}
 	}
+	scanStage.End()
+
+	analysisStage := collector.Stage("analysis")
 
 	findings := make([]TidinessFinding, 0)
 	const longFileThreshold = 500
@@ -410,14 +416,22 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 	if len(findings) > 0 {
 		status = "issues_found"
 	}
+	analysisStage.Gauge("findings", float64(len(findings)))
+	analysisStage.End()
+
+	maturityStage := collector.Stage("maturity")
 	spec, err := loadTidinessMaturitySpec()
 	if err != nil {
+		maturityStage.End()
 		return nil, err
 	}
 	maturityAssessment, err := buildTidinessMaturityAssessment(scenarioName, findings, spec)
 	if err != nil {
+		maturityStage.End()
 		return nil, err
 	}
+	maturityStage.End()
+
 	return &TidinessScanResponse{
 		Scenario:   scenarioName,
 		Status:     status,
@@ -433,12 +447,7 @@ func loadTidinessMaturitySpec() (*assessment.Spec, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolve repo root for tidiness maturity spec: %w", err)
 	}
-	path := filepath.Join(repoRoot, "scenarios", "tidiness-manager", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read tidiness maturity spec: %w", err)
-	}
-	return assessment.ParseSpec(raw)
+	return assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "tidiness-manager"))
 }
 
 func buildTidinessMaturityAssessment(scenarioName string, findings []TidinessFinding, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {

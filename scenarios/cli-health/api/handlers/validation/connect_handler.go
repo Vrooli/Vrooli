@@ -13,6 +13,7 @@ import (
 
 	"cli-health/internal/services/manifestvalidation"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -28,6 +29,10 @@ type Deps struct {
 	// the aisearch ExternalCLIs config so vrooli (and any future ExternalCLI)
 	// can't be misinterpreted as a scenario.
 	ReservedNames []string
+	// Environment is the host CaptureEnvironment captured once at module init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment *commonv1.CaptureEnvironment
 }
 
 // Validator is the slice of manifestvalidation.Service the handler exercises.
@@ -59,15 +64,19 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is not a scenario; only scenario CLIs are validated", scenario))
 		}
 	}
-	report, err := h.deps.Validator.ValidateScenario(ctx, scenario)
+	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
+	report, err := h.deps.Validator.ValidateScenario(manifestvalidation.WithMetrics(ctx, collector), scenario)
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
-	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

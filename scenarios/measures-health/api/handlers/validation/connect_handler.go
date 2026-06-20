@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/measures-go/manifestscan"
 	"measures-health/internal/runhistory"
@@ -42,6 +43,10 @@ type Deps struct {
 	Recorder     RunRecorder
 	Logger       *log.Logger
 	MaturitySpec *assessment.Spec
+	// Environment is the host CaptureEnvironment captured once at module init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment *commonv1.CaptureEnvironment
 }
 
 type connectHandler struct {
@@ -57,8 +62,10 @@ func NewConnectHandler(d Deps) *connectHandler {
 }
 
 func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
-	rep, err := h.deps.Validator.ValidateScenario(ctx, req.Msg.GetScenario(), req.Msg.GetIncludeExecution())
+	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
+	rep, err := h.deps.Validator.ValidateScenario(internal.WithMetrics(ctx, collector), req.Msg.GetScenario(), req.Msg.GetIncludeExecution())
 	if err != nil {
+		collector.Stop()
 		h.deps.Logger.Printf("validation.ValidateScenario(%q): %v", req.Msg.GetScenario(), err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -78,9 +85,11 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	}
 	native, err := reportToProto(rep, h.deps.MaturitySpec)
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native, nil)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

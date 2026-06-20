@@ -12,6 +12,7 @@ import (
 
 	"security-health/internal/validation"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -28,6 +29,10 @@ type Deps struct {
 	Logger       *log.Logger
 	Validator    Validator
 	MaturitySpec *assessment.Spec
+	// Environment is the host CaptureEnvironment captured once at module init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment *commonv1.CaptureEnvironment
 }
 
 type connectHandler struct {
@@ -45,15 +50,19 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation.ValidateScenario: validator not wired"))
 	}
-	report, err := h.deps.Validator.ValidateScenario(ctx, req.Msg.GetScenario())
+	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
+	report, err := h.deps.Validator.ValidateScenario(validation.WithMetrics(ctx, collector), req.Msg.GetScenario())
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
-	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

@@ -72,7 +72,7 @@ func New(repoRoot string, logger *log.Logger) *Service {
 }
 
 // ValidateScenario is the entrypoint the Connect handler calls.
-func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, error) {
+func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return Report{}, errors.New("scenario is required")
@@ -92,13 +92,17 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 		return Report{}, fmt.Errorf("scenario %q path is not a directory", scenario)
 	}
 
+	collector := metricsFrom(ctx)
+
 	rep := Report{Scenario: scenario}
 
 	// Short-circuit scenarios that have no UI surface at all.
 	// A scenario "has UI" if it ships a ui/ directory with a package.json
 	// (the react-vite template guarantees this) or any framework-recognizable
 	// entry. Without one, manifest validation has nothing to assert against.
+	uiCheck := collector.Stage("ui-check")
 	if !scenarioHasUI(scenarioDir) {
+		uiCheck.End()
 		rep.Findings = append(rep.Findings, Finding{
 			Severity: SeverityInfo,
 			Code:     "no_ui_surface",
@@ -107,9 +111,12 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 		})
 		return finalize(rep), nil
 	}
+	uiCheck.End()
 
+	loadTemplate := collector.Stage("load-template")
 	tmplManifest, tmplPath, tmplFinds := s.loadTemplateManifest(scenario)
 	rep.Findings = append(rep.Findings, tmplFinds...)
+	loadTemplate.End()
 	if tmplManifest == nil {
 		return finalize(rep), nil
 	}
@@ -117,6 +124,7 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 	overlay, overlayPath, overlayFinds := s.loadOverlayManifest(scenario)
 	rep.Findings = append(rep.Findings, overlayFinds...)
 
+	crossCheck := collector.Stage("cross-check")
 	merged := mergeManifests(tmplManifest, overlay)
 	rep.Findings = append(rep.Findings, validateOverlayKeys(tmplManifest, overlay, overlayPath)...)
 	slotFinds := validateSlotsOnDisk(s.RepoRoot, scenario, merged, tmplPath)
@@ -124,6 +132,9 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 	rep.Findings = append(rep.Findings, slotFinds...)
 	rep.Findings = append(rep.Findings, validateSlotPaths(merged, tmplPath)...)
 	rep.Findings = append(rep.Findings, validateSlotOverlap(merged, tmplPath)...)
+	crossCheck.Gauge("findings", float64(len(rep.Findings)))
+	crossCheck.End()
+
 	return finalize(rep), nil
 }
 

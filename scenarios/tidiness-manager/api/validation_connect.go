@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -40,8 +41,10 @@ func (h *scenarioValidationHandler) ValidateScenario(ctx context.Context, req *c
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	result, err := buildTidinessScan(ctx, scenarioName, scenarioPath, validationTimeout(req.Msg.GetIncludeExecution()))
+	collector := metrics.Start(metrics.WithEnvironment(h.server.environment))
+	result, err := buildTidinessScan(WithMetrics(ctx, collector), scenarioName, scenarioPath, validationTimeout(req.Msg.GetIncludeExecution()))
 	if err != nil {
+		collector.Stop()
 		h.server.log("tidiness validation failed", map[string]interface{}{
 			"error":    err.Error(),
 			"scenario": scenarioName,
@@ -50,9 +53,11 @@ func (h *scenarioValidationHandler) ValidateScenario(ctx context.Context, req *c
 	}
 	native, err := tidinessScanToProto(result)
 	if err != nil {
+		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build tidiness native detail: %w", err))
 	}
-	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

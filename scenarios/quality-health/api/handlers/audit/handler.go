@@ -177,14 +177,16 @@ func buildMaturityAssessment(in internalaudit.Response, spec *assessment.Spec) (
 	findings := make([]assessment.Finding, 0, len(in.Findings))
 	for _, f := range in.Findings {
 		findings = append(findings, assessment.Finding{
-			Code:        f.RuleID,
-			Severity:    severityToAssessment(f.Severity),
-			Title:       f.RuleID,
-			Message:     f.Message,
-			Location:    f.FilePath,
-			Remediation: f.Remediation,
-			Source:      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
-			Phase:       spec.Phase,
+			Code:             f.RuleID,
+			Severity:         severityToAssessment(f.Severity),
+			Title:            f.RuleID,
+			Message:          f.Message,
+			Location:         f.FilePath,
+			Remediation:      f.Remediation,
+			Source:           architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+			Phase:            spec.Phase,
+			AutofixAvailable: f.AutofixAvailable,
+			FixClass:         f.FixClass,
 		})
 	}
 	return assessment.BuildProtoAssessment(assessment.BuildInput{

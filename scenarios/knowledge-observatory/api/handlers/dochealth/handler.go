@@ -17,6 +17,7 @@ import (
 
 	"knowledge-observatory/internal/services/dochealth"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -26,14 +27,19 @@ import (
 
 // Handler implements the generated KnowledgeObservatoryServiceHandler.
 type Handler struct {
-	service *dochealth.Service
-	spec    *assessment.Spec
-	now     func() time.Time
+	service     *dochealth.Service
+	spec        *assessment.Spec
+	now         func() time.Time
+	environment *commonv1.CaptureEnvironment
 }
 
 type Deps struct {
 	Service      *dochealth.Service
 	MaturitySpec *assessment.Spec
+	// Environment is the host CaptureEnvironment captured once at server init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment *commonv1.CaptureEnvironment
 }
 
 // New builds a Connect handler backed by the provided dochealth service.
@@ -44,7 +50,7 @@ func New(service *dochealth.Service) *Handler {
 }
 
 func NewWithDeps(deps Deps) *Handler {
-	return &Handler{service: deps.Service, spec: deps.MaturitySpec, now: time.Now}
+	return &Handler{service: deps.Service, spec: deps.MaturitySpec, now: time.Now, environment: deps.Environment}
 }
 
 // WithClock overrides the timestamp source (tests).
@@ -67,11 +73,21 @@ func (h *Handler) DocHealth(ctx context.Context, req *connect.Request[kov1.DocHe
 		Path:                     in.GetPath(),
 		Checks:                   in.GetChecks(),
 	}
+	collector := metricsFrom(ctx)
+	st := collector.Stage("doc-health")
 	result, err := h.service.DocHealth(ctx, in.GetScenarioName(), opts)
 	if err != nil {
+		st.End()
 		return nil, mapError(err)
 	}
+	totalFindings := len(result.MisplacedDocs) + len(result.MissingDocs) + len(result.ExtraDocs) +
+		len(result.TemporaryDocs) + len(result.ContractFindings) + len(result.ContentFindings) +
+		len(result.ReferenceFindings) + len(result.ManifestFindings)
+	st.Gauge("findings", float64(totalFindings))
+	st.End()
+	translateSt := collector.Stage("translate")
 	resp, err := translate(result, h.now(), h.spec)
+	translateSt.End()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build docs maturity assessment: %w", err))
 	}
@@ -90,13 +106,16 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
-	native, err := h.DocHealth(ctx, connect.NewRequest(&kov1.DocHealthRequest{
+	collector := metrics.Start(metrics.WithEnvironment(h.environment))
+	native, err := h.DocHealth(WithMetrics(ctx, collector), connect.NewRequest(&kov1.DocHealthRequest{
 		ScenarioName: scenario,
 	}))
 	if err != nil {
+		collector.Stop()
 		return nil, err
 	}
-	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenarioName(), native.Msg.GetAssessment(), native.Msg)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenarioName(), native.Msg.GetAssessment(), native.Msg, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

@@ -34,7 +34,7 @@ func TestBaselineDiffResultFromProto_NilMessage(t *testing.T) {
 }
 
 func TestBaselineDiffResultFromProto_RegressionSplit(t *testing.T) {
-	msg := &baselinesv1.DiffBaselineResponse{
+	msg := &baselinesv1.DiffResult{
 		Verdict: baselineVerdictRegression,
 		Staleness: &baselinesv1.Staleness{
 			LikelyStale: true,
@@ -96,7 +96,7 @@ func TestBaselineDiffResultFromProto_RegressionSplit(t *testing.T) {
 }
 
 func TestBaselineDiffResultFromProto_NotComparable(t *testing.T) {
-	msg := &baselinesv1.DiffBaselineResponse{Verdict: baselineVerdictNotComparable}
+	msg := &baselinesv1.DiffResult{Verdict: baselineVerdictNotComparable}
 	got := baselineDiffResultFromProto("git-control-tower", msg)
 	if got.Comparable {
 		t.Errorf("not-comparable verdict must set Comparable=false")

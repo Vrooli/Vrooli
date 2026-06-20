@@ -1,9 +1,8 @@
 package validation
 
 import (
-	"fmt"
+	"context"
 	"log"
-	"os"
 	"path/filepath"
 
 	internalaudit "quality-health/internal/audit"
@@ -12,6 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/maturity-go/assessment"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -20,14 +20,25 @@ import (
 var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
 
 func Module(logger *log.Logger, repoRoot string) module.Module {
-	spec, err := loadMaturitySpec(repoRoot)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "quality-health"))
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment unavailable: %v", err)
+	}
+	// Capture host facts once; they do not change during the process lifetime.
+	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+	environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+	if envErr != nil {
+		if logger != nil {
+			logger.Printf("validation: host inventory unavailable, metrics environment limited to stdlib baseline: %v", envErr)
+		}
+		environment = nil
 	}
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewConnectHandler(Deps{
 		Auditor:      internalaudit.New(nil),
 		Logger:       logger,
 		MaturitySpec: spec,
+		Environment:  environment,
 	}))
 	return module.Module{
 		Name: "validation",
@@ -36,15 +47,6 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
-}
-
-func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
-	path := filepath.Join(repoRoot, "scenarios", "quality-health", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return assessment.ParseSpec(raw)
 }
 
 func Schema() string { return "" }

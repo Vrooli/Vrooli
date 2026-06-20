@@ -94,25 +94,34 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario string, probe
 		return Report{}, errors.New("validation: scenario is required")
 	}
 
+	collector := metricsFrom(ctx)
+
+	load := collector.Stage("load-manifest")
 	raw, err := v.manifests.Manifest(scenario)
 	if err != nil {
+		load.End()
 		return Report{}, err
 	}
 	mm := &manifestscan.ManifestMeasures{}
 	if len(raw) > 0 {
 		mm, err = manifestscan.Parse(raw)
 		if err != nil {
+			load.End()
 			return Report{}, err
 		}
 	}
+	load.End()
 
+	derive := collector.Stage("derive-domains")
 	derived, err := v.domains.StatefulDomains(scenario)
 	if err != nil {
+		derive.End()
 		return Report{}, err
 	}
 
 	mode, err := v.domains.Mode(scenario)
 	if err != nil {
+		derive.End()
 		return Report{}, err
 	}
 
@@ -120,10 +129,13 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario string, probe
 	if v.substrate != nil {
 		detected, err = v.substrate.DetectedEntities(scenario)
 		if err != nil {
+			derive.End()
 			return Report{}, err
 		}
 	}
+	derive.End()
 
+	classify := collector.Stage("classify")
 	in := Inputs{
 		Scenario:  scenario,
 		Mode:      mode,
@@ -134,6 +146,8 @@ func (v *Validator) ValidateScenario(ctx context.Context, scenario string, probe
 		Detected:  detected,
 	}
 	rep := Classify(in)
+	classify.Gauge("findings", float64(len(rep.Findings)))
+	classify.End()
 
 	if probe {
 		v.runProbe(ctx, scenario, mm, &rep)

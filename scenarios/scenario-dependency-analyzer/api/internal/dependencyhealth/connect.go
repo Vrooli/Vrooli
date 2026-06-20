@@ -9,8 +9,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
-
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health/dependency_health_v1connect"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -24,6 +25,10 @@ const (
 
 type Options struct {
 	MaturitySpec *assessment.Spec
+	// Environment is the host CaptureEnvironment captured once at server init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	Environment *commonv1.CaptureEnvironment
 }
 
 // RegisterConnectRoutes mounts the dependency-health producer contract.
@@ -35,6 +40,7 @@ func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts 
 	handler := &connectHandler{
 		scenariosDir: scenariosDir,
 		spec:         cfg.MaturitySpec,
+		environment:  cfg.Environment,
 	}
 	nativePath, nativeHandler := healthconnect.NewDependencyHealthServiceHandler(handler)
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
@@ -49,6 +55,9 @@ type connectHandler struct {
 	commandRunner     commandRunner
 	statusFetcher     runtimeStatusFetcher
 	spec              *assessment.Spec
+	// environment is the host CaptureEnvironment captured once at server init.
+	// nil is safe — the metrics collector backfills os/arch/num_cpu from stdlib.
+	environment *commonv1.CaptureEnvironment
 }
 
 func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *connect.Request[healthv1.ValidateDependencyHealthRequest]) (*connect.Response[healthv1.DependencyHealthResponse], error) {
@@ -64,6 +73,8 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
 
+	collector := metricsFrom(ctx)
+
 	resp := &healthv1.DependencyHealthResponse{
 		Scenario:    scenario,
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339Nano),
@@ -76,12 +87,27 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 		},
 	}
 
+	readiness := collector.Stage("readiness")
 	surfaces, surfacesSection, readinessSection, readinessFindings, commandResults, degraded := h.evaluateReadiness(ctx, scenario, msg.GetUseCache())
 	resp.Surfaces = append(resp.Surfaces, surfaces...)
+	readiness.End()
+
+	runtime := collector.Stage("runtime")
 	runtimeSection, runtimeFindings, runtimeDegraded := h.evaluateRuntime(ctx, scenario)
+	runtime.End()
+
+	governance := collector.Stage("governance")
 	governanceSection, governanceFindings, governanceSummary := h.evaluateGovernance(scenario, surfaces)
+	governance.End()
+
+	releaseAge := collector.Stage("release-age")
 	releaseAgeSection, releaseAgeFindings, policySummary := h.evaluateReleaseAge(scenario, surfaces)
+	releaseAge.End()
+
+	security := collector.Stage("security")
 	securitySection, securityFindings, securityDegraded := h.evaluateSecurityHealth(ctx, scenario)
+	security.End()
+
 	resp.GovernanceSummary = governanceSummary
 	resp.PolicySummary = policySummary
 	resp.Sections = append(resp.Sections,
@@ -101,12 +127,20 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	resp.DegradedDependencies = append(resp.DegradedDependencies, degraded...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, runtimeDegraded...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, securityDegraded...)
+
+	drift := collector.Stage("drift")
 	driftSection, driftFindings, degraded := h.evaluateDrift(ctx, scenario)
+	drift.End()
+
 	resp.Sections = append(resp.Sections, driftSection)
 	resp.Findings = append(resp.Findings, driftFindings...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, degraded...)
 	finalize(resp)
+	collector.Gauge("findings", float64(len(resp.GetFindings())))
+
+	maturityStage := collector.Stage("maturity-assessment")
 	assessment, err := buildMaturityAssessment(resp, h.spec)
+	maturityStage.End()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build dependency maturity assessment: %w", err))
 	}
@@ -129,14 +163,17 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
-	native, err := h.ValidateDependencyHealth(ctx, connect.NewRequest(&healthv1.ValidateDependencyHealthRequest{
+	collector := metrics.Start(metrics.WithEnvironment(h.environment))
+	native, err := h.ValidateDependencyHealth(withMetrics(ctx, collector), connect.NewRequest(&healthv1.ValidateDependencyHealthRequest{
 		Scenario: scenario,
 		UseCache: true,
 	}))
 	if err != nil {
+		collector.Stop()
 		return nil, err
 	}
-	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenario(), native.Msg.GetAssessment(), native.Msg)
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenario(), native.Msg.GetAssessment(), native.Msg, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
@@ -150,5 +187,7 @@ func (h *connectHandler) resolveScenariosDir() string {
 	return strings.TrimSpace(h.scenariosDir())
 }
 
-var _ healthconnect.DependencyHealthServiceHandler = (*connectHandler)(nil)
-var _ scenariovalidationconnect.ScenarioValidationServiceHandler = (*connectHandler)(nil)
+var (
+	_ healthconnect.DependencyHealthServiceHandler               = (*connectHandler)(nil)
+	_ scenariovalidationconnect.ScenarioValidationServiceHandler = (*connectHandler)(nil)
+)

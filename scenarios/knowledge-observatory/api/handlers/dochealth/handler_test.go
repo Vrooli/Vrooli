@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/vrooli/maturity-go/assessment"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 func writeFile(t *testing.T, path, content string) {
@@ -178,5 +180,36 @@ func TestHandler_DocHealth_UnavailableWhenServiceNil(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Errorf("code = %v, want Unavailable", connect.CodeOf(err))
+	}
+}
+
+func TestValidateScenarioAttachesMetrics(t *testing.T) {
+	svc, name := newServiceFixture(t)
+	h := NewWithDeps(Deps{Service: svc, MaturitySpec: testMaturitySpec(t)})
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: name,
+	}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	m := resp.Msg.GetMetrics()
+	if m == nil {
+		t.Fatal("metrics must be attached to the response")
+	}
+	if m.GetWallClockMs() < 0 {
+		t.Fatalf("wall clock must be non-negative, got %d", m.GetWallClockMs())
+	}
+	env := m.GetEnvironment()
+	if env == nil {
+		t.Fatal("metrics environment must be populated with the stdlib baseline")
+	}
+	if env.GetOs() != runtime.GOOS {
+		t.Fatalf("env os = %q, want %q", env.GetOs(), runtime.GOOS)
+	}
+	if env.GetArch() != runtime.GOARCH {
+		t.Fatalf("env arch = %q, want %q", env.GetArch(), runtime.GOARCH)
+	}
+	if env.GetNumCpu() != int32(runtime.NumCPU()) {
+		t.Fatalf("env num_cpu = %d, want %d", env.GetNumCpu(), runtime.NumCPU())
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"quality-health/internal/contracts"
 	"quality-health/internal/rules"
 
+	autofixcore "github.com/vrooli/maturity-go/autofix"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,81 +22,36 @@ const TSConfigProtectiveCommentBlock = `    // SAFETY-CRITICAL RULES - DO NOT RE
     // These rules exist because UI crashes are the #1 production issue.
 `
 
-type Candidate struct {
-	RuleID      string
-	FilePath    string
-	Description string
-	Before      string
-	After       string
-	Applied     bool
-}
+// Candidate aliases the shared auto-fix candidate so quality-health consumers
+// keep a single source of truth with the maturity-go/autofix orchestrator.
+type Candidate = autofixcore.Candidate
 
+// registry is the quality-health fixer set bound to the shared orchestrator.
+var registry = autofixcore.NewRegistry(
+	autofixcore.Fixer{RuleID: contracts.RuleTSConfigStrict, Preview: previewTSConfigStrict, CanFix: canFixTSConfigStrict},
+	autofixcore.Fixer{RuleID: contracts.RuleESLintSafetyRules, Preview: previewESLintSafetyRules, CanFix: canFixESLint},
+	autofixcore.Fixer{RuleID: contracts.RuleESLintTypedConfig, Preview: previewESLintTypedConfig, CanFix: canFixESLint},
+	autofixcore.Fixer{RuleID: contracts.RuleNodeBuildTypecheck, Preview: previewNodeBuildTypecheck, CanFix: canFixNodeBuildTypecheck},
+	autofixcore.Fixer{RuleID: contracts.RuleTestingConfigStrict, Preview: previewTestingConfigStrict, CanFix: canFixTestingConfigStrict},
+	autofixcore.Fixer{RuleID: contracts.RuleGoModPresent, Preview: previewGoModPresent, CanFix: canFixGoModPresent},
+	autofixcore.Fixer{RuleID: contracts.RuleGoLintConfigPresent, Preview: previewGoLintConfigPresent, CanFix: canFixGoLintConfigPresent},
+	autofixcore.Fixer{RuleID: contracts.RuleGoLintRequiredLinters, Preview: previewGoLintRequiredLinters, CanFix: canFixGoLintRequiredLinters},
+	autofixcore.Fixer{RuleID: contracts.RuleMakefileQualityGates, Preview: previewMakefileQualityGates, CanFix: canFixMakefileQualityGates},
+)
+
+// Preview returns the candidate edits for the requested rules without writing.
 func Preview(root string, ruleIDs []string) ([]Candidate, error) {
-	var out []Candidate
-	for _, fixer := range fixers() {
-		if !wantsRule(ruleIDs, fixer.ruleID) {
-			continue
-		}
-		candidates, err := fixer.preview(root)
-		if err != nil {
-			return out, err
-		}
-		out = append(out, candidates...)
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].FilePath != out[j].FilePath {
-			return out[i].FilePath < out[j].FilePath
-		}
-		return out[i].RuleID < out[j].RuleID
-	})
-	return out, nil
+	return registry.Preview(root, ruleIDs)
 }
 
+// Apply previews then writes the candidate edits for the requested rules.
 func Apply(root string, ruleIDs []string) ([]Candidate, error) {
-	candidates, err := Preview(root, ruleIDs)
-	if err != nil {
-		return nil, err
-	}
-	for i := range candidates {
-		if err := os.MkdirAll(filepath.Dir(candidates[i].FilePath), 0o755); err != nil {
-			return candidates, err
-		}
-		if err := os.WriteFile(candidates[i].FilePath, []byte(candidates[i].After), 0o644); err != nil {
-			return candidates, err
-		}
-		candidates[i].Applied = true
-	}
-	return candidates, nil
+	return registry.Apply(root, ruleIDs)
 }
 
+// CanFix reports whether the rule can currently remediate the given finding.
 func CanFix(root, ruleID, findingPath string) bool {
-	for _, fixer := range fixers() {
-		if fixer.ruleID != ruleID {
-			continue
-		}
-		return fixer.canFix(root, findingPath)
-	}
-	return false
-}
-
-type fixer struct {
-	ruleID  string
-	preview func(root string) ([]Candidate, error)
-	canFix  func(root, findingPath string) bool
-}
-
-func fixers() []fixer {
-	return []fixer{
-		{contracts.RuleTSConfigStrict, previewTSConfigStrict, canFixTSConfigStrict},
-		{contracts.RuleESLintSafetyRules, previewESLintSafetyRules, canFixESLint},
-		{contracts.RuleESLintTypedConfig, previewESLintTypedConfig, canFixESLint},
-		{contracts.RuleNodeBuildTypecheck, previewNodeBuildTypecheck, canFixNodeBuildTypecheck},
-		{contracts.RuleTestingConfigStrict, previewTestingConfigStrict, canFixTestingConfigStrict},
-		{contracts.RuleGoModPresent, previewGoModPresent, canFixGoModPresent},
-		{contracts.RuleGoLintConfigPresent, previewGoLintConfigPresent, canFixGoLintConfigPresent},
-		{contracts.RuleGoLintRequiredLinters, previewGoLintRequiredLinters, canFixGoLintRequiredLinters},
-		{contracts.RuleMakefileQualityGates, previewMakefileQualityGates, canFixMakefileQualityGates},
-	}
+	return registry.CanFix(root, ruleID, findingPath)
 }
 
 func previewTSConfigStrict(root string) ([]Candidate, error) {
@@ -794,16 +750,4 @@ func targetRuns(targets map[string]string, target string, required ...string) bo
 
 func targetRunsAny(targets map[string]string, target string, required ...string) bool {
 	return rules.TargetRunsAny(targets, target, required...)
-}
-
-func wantsRule(ruleIDs []string, ruleID string) bool {
-	if len(ruleIDs) == 0 {
-		return true
-	}
-	for _, id := range ruleIDs {
-		if strings.EqualFold(strings.TrimSpace(id), ruleID) {
-			return true
-		}
-	}
-	return false
 }

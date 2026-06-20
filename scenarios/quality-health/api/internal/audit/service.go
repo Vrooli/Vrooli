@@ -14,7 +14,26 @@ import (
 	"quality-health/internal/contracts"
 	"quality-health/internal/rules"
 	"quality-health/internal/surfaces"
+
+	"github.com/vrooli/api-core/metrics"
 )
+
+// metricsCtxKey carries an optional execution-metrics collector through the
+// audit call without changing the Audit signature or the Auditor interface.
+type metricsCtxKey struct{}
+
+// WithMetrics attaches a metrics collector to ctx for the audit service to use.
+func WithMetrics(ctx context.Context, collector *metrics.Collector) context.Context {
+	if collector == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, metricsCtxKey{}, collector)
+}
+
+func metricsFrom(ctx context.Context) *metrics.Collector {
+	collector, _ := ctx.Value(metricsCtxKey{}).(*metrics.Collector)
+	return collector
+}
 
 type Service struct {
 	Discoverer surfaces.Discoverer
@@ -90,12 +109,17 @@ func New(disc surfaces.Discoverer) *Service {
 }
 
 func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
+	collector := metricsFrom(ctx)
+
 	now := s.now()
 	disc := s.Discoverer
 	if disc == nil {
 		disc = surfaces.CodeFactsClient{Locator: s.Locator}
 	}
+
+	discover := collector.Stage("discover")
 	inv, err := disc.Discover(ctx, req.Scenario, req.Path, req.UseCache)
+	discover.End()
 	if err != nil {
 		return Response{}, err
 	}
@@ -105,6 +129,8 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 		RunID:     "qh-" + now.UTC().Format("20060102-150405"),
 		Inventory: inv,
 	}
+
+	evaluate := collector.Stage("evaluate-rules")
 	var uncoveredSurfaces []string
 	for _, surface := range filtered {
 		allSurfaceRules := rules.SurfaceRules(surface)
@@ -139,8 +165,13 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 		Status:     statusFromFindings(res.Findings[beforeScenario:]),
 		RuleIDs:    ruleIDs(allScenarioRules),
 	})
+	evaluate.Gauge("findings", float64(len(res.Findings)))
+	evaluate.End()
+
 	if req.IncludeCommandExecution {
+		cmds := collector.Stage("command-execution")
 		res.CommandResults = commands.RunAll(ctx, s.Executor, inv)
+		cmds.End()
 	}
 	if req.IncludeAutofixPreview {
 		candidates, err := autofix.Preview(inv.RootPath, req.RuleIDs)

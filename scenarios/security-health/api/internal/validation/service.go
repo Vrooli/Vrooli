@@ -68,8 +68,13 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	if scenario == "" {
 		return Report{}, fmt.Errorf("scenario name is required")
 	}
+
+	collector := metricsFrom(ctx)
+
+	detect := collector.Stage("detect-substrate")
 	scenarioDir, ok := resolveScenarioDir(s.repoRoot, scenario)
 	if !ok {
+		detect.End()
 		// Mirror the cli-health sibling: a missing target is a graceful skip
 		// (WARNING, passed=true), not a hard error. This keeps the test-genie
 		// `security` phase non-failing when pointed at a scenario that doesn't
@@ -86,6 +91,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	}
 
 	sub, err := DetectSubstrate(scenarioDir)
+	detect.End()
 	if err != nil {
 		return Report{}, fmt.Errorf("detect substrate for %q: %w", scenario, err)
 	}
@@ -93,6 +99,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	var findings []Finding
 	var skipped []string
 
+	scan := collector.Stage("scan")
 	for _, sc := range s.scanners {
 		if !sc.Applies(sub) {
 			continue
@@ -126,6 +133,8 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		}
 		findings = append(findings, scanFindings...)
 	}
+	scan.Gauge("findings", float64(len(findings)))
+	scan.End()
 
 	// Record unsupported substrates as INFO context (never a failure).
 	for _, u := range sub.Unsupported {

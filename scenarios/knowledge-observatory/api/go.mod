@@ -23,6 +23,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.3 // indirect
 	github.com/go-chi/chi/v5 v5.2.5 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/vrooli-cli-go v0.0.0
 	golang.org/x/sync v0.20.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
@@ -42,3 +43,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go

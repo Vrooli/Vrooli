@@ -20,6 +20,7 @@ import (
 	"unit-health/internal/executor"
 	"unit-health/internal/runhistory"
 
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 )
 
@@ -231,33 +232,50 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	nowStr := now.UTC().Format(time.RFC3339)
 	runID := "uh-" + now.UTC().Format("20060102-150405")
 
+	collector := metricsFrom(ctx)
+
+	// discover and static-analysis are ALWAYS-ON: they run regardless of the
+	// include_execution flag (cheap source-fact reads), so they belong to every
+	// validation's profile.
 	disc := s.Discoverer
 	if disc == nil {
 		disc = discovery.CodeFactsClient{Locator: s.Locator}
 	}
+	discover := collector.Stage("discover")
 	inv, err := disc.Discover(ctx, req.Scenario, req.Path, req.UseCache)
 	if err != nil {
+		discover.End()
 		return Response{}, fmt.Errorf("discover surfaces: %w", err)
 	}
+	discover.Gauge("surfaces", float64(len(inv.Surfaces)))
+	discover.End()
 
 	scenario := inv.Scenario
 	if scenario == "" {
 		scenario = req.Scenario
 	}
 
+	static := collector.Stage("static-analysis")
 	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
 
 	// Static analyzers run regardless of execution: they read source facts only.
 	findings = append(findings, analyzeArchitecture(scenario, workspaces, nowStr)...)
 	findings = append(findings, analyzeQuality(scenario, inv.RootPath, workspaces, nowStr)...)
+	static.Gauge("workspaces", float64(len(workspaces)))
+	static.End()
 
+	// The execute stage is GATED: it is opened ONLY when execution is requested
+	// and there is something to run. Default (no-execution) validations leave
+	// the profile free of execute-path timing entirely.
 	var commandResults []CommandResult
 	var coverage []CoverageTarget
 	if req.IncludeExecution && len(plan.Commands) > 0 {
-		commandResults, findings = s.execute(ctx, scenario, plan, findings, nowStr)
+		execStage := collector.Stage("execute")
+		commandResults, findings = s.execute(ctx, scenario, plan, findings, nowStr, execStage)
 		var covFindings []Finding
 		coverage, covFindings = analyzeCoverage(scenario, inv.RootPath, workspaces, nowStr)
 		findings = append(findings, covFindings...)
+		execStage.End()
 	}
 
 	// Load cross-run history before computing diagnostics so runtime-growth and
@@ -376,7 +394,7 @@ func buildRunRecord(resp Response, plan ExecutionPlan, started time.Time) runhis
 // execute runs the planned commands under the bounded executor and appends
 // execution findings (failures, missing dependencies, hangs, misconfig) to the
 // supplied findings. It returns the command results and the augmented findings.
-func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPlan, findings []Finding, now string) ([]CommandResult, []Finding) {
+func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPlan, findings []Finding, now string, execStage *metrics.Stage) ([]CommandResult, []Finding) {
 	runner := s.Executor
 	if runner == nil {
 		runner = executor.Bounded{}
@@ -387,6 +405,30 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 			concurrency = 1
 		}
 	}
+
+	// Per-workspace child stages narrow execute-path timing to each workspace,
+	// with a `tests` gauge counting the test commands planned for it. A nil
+	// execStage (no collector) makes every child call a no-op.
+	wsStages := map[string]*metrics.Stage{}
+	testCounts := map[string]int{}
+	for _, pc := range plan.Commands {
+		if pc.Kind == kindTest {
+			testCounts[pc.WorkspaceID]++
+		}
+	}
+	for _, pc := range plan.Commands {
+		if _, seen := wsStages[pc.WorkspaceID]; seen {
+			continue
+		}
+		st := execStage.Stage(pc.WorkspaceID)
+		st.Gauge("tests", float64(testCounts[pc.WorkspaceID]))
+		wsStages[pc.WorkspaceID] = st
+	}
+	defer func() {
+		for _, st := range wsStages {
+			st.End()
+		}
+	}()
 
 	// Pass 1: dependency installs. These are independent across workspaces, so
 	// they run concurrently, but each gates its own workspace's test command —

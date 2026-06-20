@@ -1,14 +1,21 @@
 package validation
 
 import (
+	"context"
+	"errors"
+	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
+
+	"connectrpc.com/connect"
 
 	"ui-health/internal/services/manifestvalidation"
 
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 func TestBuildMaturityAssessmentMapsUIFindings(t *testing.T) {
@@ -74,6 +81,47 @@ func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 		if _, ok := spec.Findings[code]; !ok {
 			t.Fatalf("maturity spec does not map emitted finding code %q", code)
 		}
+	}
+}
+
+type stubValidator struct{}
+
+func (s *stubValidator) ValidateScenario(_ context.Context, scenario string) (manifestvalidation.Report, error) {
+	if scenario == "" {
+		return manifestvalidation.Report{}, errors.New("scenario is required")
+	}
+	return manifestvalidation.Report{Scenario: scenario, Passed: true}, nil
+}
+
+func TestValidateScenarioAttachesMetrics(t *testing.T) {
+	h := NewConnectHandler(Deps{
+		Logger:       log.New(log.Writer(), "", 0),
+		Validator:    &stubValidator{},
+		MaturitySpec: testMaturitySpec(),
+	})
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "ui-health"}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	m := resp.Msg.GetMetrics()
+	if m == nil {
+		t.Fatal("metrics must be attached to the response")
+	}
+	if m.GetWallClockMs() < 0 {
+		t.Fatalf("wall clock must be non-negative, got %d", m.GetWallClockMs())
+	}
+	env := m.GetEnvironment()
+	if env == nil {
+		t.Fatal("metrics environment must be populated with the stdlib baseline")
+	}
+	if env.GetOs() != runtime.GOOS {
+		t.Fatalf("env os = %q, want %q", env.GetOs(), runtime.GOOS)
+	}
+	if env.GetArch() != runtime.GOARCH {
+		t.Fatalf("env arch = %q, want %q", env.GetArch(), runtime.GOARCH)
+	}
+	if env.GetNumCpu() != int32(runtime.NumCPU()) {
+		t.Fatalf("env num_cpu = %d, want %d", env.GetNumCpu(), runtime.NumCPU())
 	}
 }
 

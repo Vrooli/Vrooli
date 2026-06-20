@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -102,6 +103,52 @@ func TestListFleetCoverage_MapsEntries(t *testing.T) {
 	}
 	if resp.Msg.GetEntries()[0].GetWorstTier() != validationv1.Tier_TIER_FULL {
 		t.Fatalf("tier mapping wrong: %+v", resp.Msg.GetEntries()[0])
+	}
+}
+
+func TestValidateScenarioAttachesMetrics(t *testing.T) {
+	rep := internal.Report{
+		Scenario: "swarm-manager",
+		Passed:   true,
+		Domains: []internal.DomainCoverage{
+			{Domain: "backlog", Status: internal.StatusCovered, MeasureCount: 1, Tier: manifestscan.TierFull},
+		},
+	}
+	h := NewConnectHandler(Deps{
+		Validator:    fakeValidator{rep: rep},
+		MaturitySpec: testMaturitySpec(),
+	})
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "swarm-manager"}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	m := resp.Msg.GetMetrics()
+	if m == nil {
+		t.Fatal("metrics must be attached to the response")
+	}
+	if m.GetWallClockMs() < 0 {
+		t.Fatalf("wall clock must be non-negative, got %d", m.GetWallClockMs())
+	}
+	env := m.GetEnvironment()
+	if env == nil {
+		t.Fatal("metrics environment must be populated with the stdlib baseline")
+	}
+	if env.GetOs() != runtime.GOOS {
+		t.Fatalf("env os = %q, want %q", env.GetOs(), runtime.GOOS)
+	}
+	if env.GetArch() != runtime.GOARCH {
+		t.Fatalf("env arch = %q, want %q", env.GetArch(), runtime.GOARCH)
+	}
+	if env.GetNumCpu() != int32(runtime.NumCPU()) {
+		t.Fatalf("env num_cpu = %d, want %d", env.GetNumCpu(), runtime.NumCPU())
+	}
+	// native_detail must still be populated (coverage report payload unchanged).
+	native := &validationv1.ScenarioCoverageReport{}
+	if err := resp.Msg.GetNativeDetail().UnmarshalTo(native); err != nil {
+		t.Fatalf("native_detail must remain populated: %v", err)
+	}
+	if native.GetScenario() != "swarm-manager" {
+		t.Fatalf("native_detail scenario = %q, want %q", native.GetScenario(), "swarm-manager")
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -48,6 +49,46 @@ func TestScenarioValidationHandlerPacksTidinessNativeDetail(t *testing.T) {
 	}
 	if native.GetSummary().GetLongFiles() == 0 || len(native.GetFindings()) == 0 {
 		t.Fatalf("native detail missing tidiness findings: %+v", native.GetSummary())
+	}
+}
+
+func TestValidateScenarioAttachesMetrics(t *testing.T) {
+	tmpDir := t.TempDir()
+	apiDir := filepath.Join(tmpDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	handler := newScenarioValidationHandler(&Server{})
+	resp, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: "demo",
+		Path:     tmpDir,
+	}))
+	if err != nil {
+		t.Fatalf("ValidateScenario() error = %v", err)
+	}
+	m := resp.Msg.GetMetrics()
+	if m == nil {
+		t.Fatal("metrics must be attached to the response")
+	}
+	if m.GetWallClockMs() < 0 {
+		t.Fatalf("wall clock must be non-negative, got %d", m.GetWallClockMs())
+	}
+	env := m.GetEnvironment()
+	if env == nil {
+		t.Fatal("metrics environment must be populated with the stdlib baseline")
+	}
+	if env.GetOs() != runtime.GOOS {
+		t.Fatalf("env os = %q, want %q", env.GetOs(), runtime.GOOS)
+	}
+	if env.GetArch() != runtime.GOARCH {
+		t.Fatalf("env arch = %q, want %q", env.GetArch(), runtime.GOARCH)
+	}
+	if env.GetNumCpu() != int32(runtime.NumCPU()) {
+		t.Fatalf("env num_cpu = %d, want %d", env.GetNumCpu(), runtime.NumCPU())
 	}
 }
 

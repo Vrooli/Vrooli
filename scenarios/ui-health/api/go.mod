@@ -40,6 +40,7 @@ require (
 	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/searchregister-go v0.0.0
+	github.com/vrooli/vrooli-cli-go v0.0.0
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
@@ -55,3 +56,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go

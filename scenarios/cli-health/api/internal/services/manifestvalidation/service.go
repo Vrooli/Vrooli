@@ -67,18 +67,25 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		return Report{}, fmt.Errorf("scenario name is required")
 	}
 
+	collector := metricsFrom(ctx)
+
+	load := collector.Stage("load-manifest")
 	raw, path, err := s.manifests.Load(ctx, scenario)
 	if err != nil {
+		load.End()
 		if errors.Is(err, os.ErrNotExist) {
 			return s.missingManifest(ctx, scenario), nil
 		}
 		return Report{}, fmt.Errorf("load manifest for %q: %w", scenario, err)
 	}
+	load.End()
 
 	var findings []Finding
 
+	schema := collector.Stage("schema-validate")
 	schemaFindings, schemaErr := s.schema.Validate(ctx, raw)
 	if schemaErr != nil {
+		schema.End()
 		findings = append(findings, Finding{
 			Severity: SeverityError,
 			Code:     CodeManifestSchemaError,
@@ -88,9 +95,12 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		return finalize(scenario, findings), nil
 	}
 	findings = append(findings, schemaFindings...)
+	schema.End()
 
+	parse := collector.Stage("parse-manifest")
 	m, parseErr := cliapp.ParseManifest(raw)
 	if parseErr != nil {
+		parse.End()
 		findings = append(findings, Finding{
 			Severity: SeverityError,
 			Code:     CodeManifestParseError,
@@ -99,9 +109,12 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		})
 		return finalize(scenario, findings), nil
 	}
+	parse.End()
 
+	loadProto := collector.Stage("load-proto")
 	surface, protoErr := s.protos.Load(ctx, scenario)
 	if protoErr != nil {
+		loadProto.End()
 		findings = append(findings, Finding{
 			Severity:   SeverityError,
 			Code:       CodeProtoBuildFailed,
@@ -111,9 +124,13 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		})
 		return finalize(scenario, findings), nil
 	}
+	loadProto.End()
 
+	cross := collector.Stage("cross-check")
 	findings = append(findings, crossCheck(m, surface, path)...)
 	findings = append(findings, s.measureCheck(raw, path)...)
+	cross.Gauge("findings", float64(len(findings)))
+	cross.End()
 
 	return finalize(scenario, findings), nil
 }

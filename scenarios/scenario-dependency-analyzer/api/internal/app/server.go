@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	repocontract "github.com/vrooli/repo-contract-go"
 	searchregister "github.com/vrooli/searchregister-go"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 
 	"scenario-dependency-analyzer/internal/aisearch"
 	analysisapi "scenario-dependency-analyzer/internal/analysis"
@@ -57,11 +57,23 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		CacheTTL:     cfg.InterfaceGraphCacheTTL,
 		BuildTimeout: cfg.InterfaceGraphBuildTimeout,
 	})
-	spec, err := loadMaturitySpec()
-	if err != nil {
-		log.Printf("dependency-health: maturity assessment unavailable: %v", err)
+	repoRoot, repoRootErr := repocontract.ResolveRepoRoot()
+	if repoRootErr != nil {
+		log.Printf("dependency-health: could not resolve repo root for maturity spec: %v", repoRootErr)
 	}
-	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec})
+	spec, specErr := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "scenario-dependency-analyzer"))
+	if specErr != nil {
+		log.Printf("dependency-health: maturity assessment unavailable: %v", specErr)
+	}
+	// Capture host facts once; they do not change during the process lifetime.
+	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+	environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+	if envErr != nil {
+		log.Printf("dependency-health: host inventory unavailable, metrics environment limited to stdlib baseline: %v", envErr)
+		environment = nil
+	}
+	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec, Environment: environment})
 
 	// AI semantic search over the governance records. The provider registry reads
 	// the approved-dependencies corpus; the search service indexes it into Qdrant
@@ -94,19 +106,6 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		IdleTimeout:       60 * time.Second,
 	}
 	return server.ListenAndServe()
-}
-
-func loadMaturitySpec() (*assessment.Spec, error) {
-	repoRoot, err := repocontract.ResolveRepoRoot()
-	if err != nil {
-		return nil, fmt.Errorf("resolve repo root: %w", err)
-	}
-	path := filepath.Join(repoRoot, "scenarios", "scenario-dependency-analyzer", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return assessment.ParseSpec(raw)
 }
 
 func registerRoutes(router *gin.Engine, handler *handler) {

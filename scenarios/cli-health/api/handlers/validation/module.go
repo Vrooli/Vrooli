@@ -1,9 +1,8 @@
 package validation
 
 import (
-	"fmt"
+	"context"
 	"log"
-	"os"
 	"path/filepath"
 
 	"cli-health/internal/module"
@@ -13,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/measures-go/manifestscan"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -35,15 +35,26 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 		Measures:  manifestscan.NewDescriptorSchemaReader(repoRoot),
 		Logger:    logger,
 	})
-	spec, err := loadMaturitySpec(repoRoot)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "cli-health"))
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment disabled: %v", err)
+	}
+	// Capture host facts once; they do not change during the process lifetime.
+	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+	environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+	if envErr != nil {
+		if logger != nil {
+			logger.Printf("validation: host inventory unavailable, metrics environment limited to stdlib baseline: %v", envErr)
+		}
+		environment = nil
 	}
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewConnectHandler(Deps{
 		Logger:        logger,
 		Validator:     validator,
 		ReservedNames: reservedNames,
 		MaturitySpec:  spec,
+		Environment:   environment,
 	}))
 	return module.Module{
 		Name: "validation",
@@ -52,15 +63,6 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 		},
 		Endpoints: Endpoints,
 	}
-}
-
-func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
-	path := filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return assessment.ParseSpec(raw)
 }
 
 // Schema returns "" — validation is stateless in Phase 1 (no tables). The

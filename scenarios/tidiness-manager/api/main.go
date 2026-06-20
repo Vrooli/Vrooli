@@ -17,6 +17,8 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Config holds minimal runtime configuration
@@ -34,6 +36,10 @@ type Server struct {
 	campaignOrchestrator *AutoCampaignOrchestrator
 	scanCoordinator      *ScanCoordinator
 	scenarioLocator      *ScenarioLocator
+	// environment is the host CaptureEnvironment captured once at init
+	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
+	// backfills os/arch/num_cpu from the stdlib.
+	environment *commonv1.CaptureEnvironment
 }
 
 // NewServer initializes configuration, database, and routes
@@ -55,6 +61,13 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize scenario locator: %w", err)
 	}
+	// Capture host facts once; they do not change during the process lifetime.
+	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+	environment, envErr := vroolicli.New().HostCaptureEnvironment(context.Background())
+	if envErr != nil {
+		environment = nil
+	}
 	srv := &Server{
 		config:          &Config{},
 		db:              db,
@@ -62,6 +75,7 @@ func NewServer() (*Server, error) {
 		router:          mux.NewRouter(),
 		campaignMgr:     NewCampaignManager(),
 		scenarioLocator: scenarioLocator,
+		environment:     environment,
 	}
 
 	srv.scanCoordinator = NewScanCoordinator(

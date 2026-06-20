@@ -165,14 +165,35 @@ func (c *ConnectBaselineClient) Diff(ctx context.Context, scenario, name string)
 	if err != nil {
 		return BaselineDiffResult{}, err
 	}
-	resp, err := cl.DiffBaseline(ctx, connect.NewRequest(&baselinesv1.DiffBaselineRequest{
+	// The diff API is durable/async: StartDiff resolves (or starts/coalesces) the
+	// comprehensive run the baseline compares against and returns immediately with
+	// its run_id; GetDiffResult with Wait=true blocks server-side until the run is
+	// terminal and returns the cached verdict — no client-side polling.
+	start, err := cl.StartDiff(ctx, connect.NewRequest(&baselinesv1.StartDiffRequest{
 		Scenario: scenario,
 		Name:     name,
 	}))
 	if err != nil {
+		return BaselineDiffResult{}, fmt.Errorf("start diff baseline %s/%s: %w", scenario, name, err)
+	}
+	resp, err := cl.GetDiffResult(ctx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
+		Scenario: scenario,
+		Name:     name,
+		RunId:    start.Msg.GetRunId(),
+		Wait:     true,
+	}))
+	if err != nil {
 		return BaselineDiffResult{}, fmt.Errorf("diff baseline %s/%s: %w", scenario, name, err)
 	}
-	return baselineDiffResultFromProto(scenario, resp.Msg), nil
+	switch resp.Msg.GetStatus() {
+	case "failed":
+		return BaselineDiffResult{}, fmt.Errorf("diff baseline %s/%s failed: %s", scenario, name, resp.Msg.GetError())
+	case "in_progress":
+		// Wait=true should never return in_progress; treat it as not-comparable
+		// rather than fabricating a clean verdict.
+		return BaselineDiffResult{}, fmt.Errorf("diff baseline %s/%s still in progress after blocking wait", scenario, name)
+	}
+	return baselineDiffResultFromProto(scenario, resp.Msg.GetDiff()), nil
 }
 
 // Delete removes the named baseline.
@@ -217,7 +238,7 @@ func (c *ConnectBaselineClient) Ping(ctx context.Context) error {
 // baselineDiffResultFromProto folds the proto DiffBaselineResponse into the
 // execution package's neutral BaselineDiffResult, attributing every per-surface
 // finding to its surface and deriving the CLI-equivalent exit code.
-func baselineDiffResultFromProto(scenario string, msg *baselinesv1.DiffBaselineResponse) BaselineDiffResult {
+func baselineDiffResultFromProto(scenario string, msg *baselinesv1.DiffResult) BaselineDiffResult {
 	out := BaselineDiffResult{
 		ScenarioName: scenario,
 		Verdict:      baselineVerdictClean,

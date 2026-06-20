@@ -108,6 +108,11 @@ type Finding struct {
 	Phase       string
 	Maturity    FindingMapping
 	HasMaturity bool
+	// AutofixAvailable marks that a provider auto-fix can remediate this finding.
+	AutofixAvailable bool
+	// FixClass is the provider fix classification, e.g. "autofix" or
+	// "detection_only".
+	FixClass string
 }
 
 type FindingAssessment struct {
@@ -263,6 +268,7 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 		},
 	}
 	skills := map[string]struct{}{}
+	autofixable := int32(0)
 	for i, finding := range input.Findings {
 		assessed := local.Findings[i]
 		severity := assessed.Severity.String()
@@ -271,6 +277,9 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 		out.FindingsByGlobalImpact[impact]++
 		out.FindingsBySeverity[severity]++
 		out.FindingsByCleanRequirement[string(cleanRequirement)]++
+		if finding.AutofixAvailable {
+			autofixable++
+		}
 		for _, skill := range assessed.Mapping.RecommendedSkillIDs {
 			skill = strings.TrimSpace(skill)
 			if skill != "" {
@@ -278,12 +287,14 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 			}
 		}
 		out.Findings = append(out.Findings, &commonv1.AssessmentFinding{
-			Code:        finding.Code,
-			Severity:    severity,
-			Title:       finding.Title,
-			Message:     finding.Message,
-			Location:    finding.Location,
-			Remediation: finding.Remediation,
+			Code:             finding.Code,
+			Severity:         severity,
+			Title:            finding.Title,
+			Message:          finding.Message,
+			Location:         finding.Location,
+			Remediation:      finding.Remediation,
+			AutofixAvailable: finding.AutofixAvailable,
+			FixClass:         strings.TrimSpace(finding.FixClass),
 			Maturity: &commonv1.FindingMaturity{
 				LocalLevel:          assessed.Mapping.LocalLevelImpact,
 				GlobalImpact:        GlobalImpactToProto(assessed.Mapping.GlobalImpact),
@@ -293,6 +304,8 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 			},
 		})
 	}
+	out.AutofixableCount = autofixable
+	out.AutofixableTotal = int32(len(input.Findings))
 	out.RecommendedSkillIds = sortedKeys(skills)
 	if err := ValidateAssessment(out); err != nil {
 		return nil, err
