@@ -73,6 +73,10 @@ message AssessmentFinding {
   string location = 5;
   string remediation = 6;
   FindingMaturity maturity = 7;
+  // True when a provider auto-fix can deterministically remediate this finding.
+  bool autofix_available = 8;
+  // Provider fix classification, e.g. "autofix" or "detection_only".
+  string fix_class = 9;
 }
 
 // LocalMaturityAssessment explains the provider-local current and next rung.
@@ -97,4 +101,8 @@ message MaturityAssessment {
   map<string, int32> findings_by_severity = 8;
   repeated string recommended_skill_ids = 9;
   map<string, int32> findings_by_clean_requirement = 10;
+  // Number of findings a provider auto-fix can deterministically remediate.
+  int32 autofixable_count = 11;
+  // Total findings considered for auto-fix coverage (the coverage denominator).
+  int32 autofixable_total = 12;
 }

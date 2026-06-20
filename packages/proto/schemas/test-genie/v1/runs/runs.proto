@@ -512,6 +512,11 @@ message GetSelfHealthRequest {
   // one time-boxed probe per delegated provider). The reliability ledger and
   // catalog summary still come back. Default (false) includes conformance.
   bool skip_conformance = 2;
+  // include_trend, when set, fills the persisted-snapshot trend series on the
+  // response (newest-first, bounded by window_days). The current ledger's
+  // captured_at + trend delta against the last differing snapshot are always
+  // filled when a snapshot history exists, independent of this flag.
+  bool include_trend = 3;
 }
 
 message GetSelfHealthResponse {
@@ -528,6 +533,30 @@ message SelfHealth {
   // "skipped" when skip_conformance was set. Conformance is never cached.
   string conformance_freshness = 3;
   ReliabilityLedger ledger = 4;
+  // trend_series is the persisted self-health snapshot history, newest-first.
+  // Populated only when include_trend was requested and snapshots exist.
+  repeated SelfHealthTrendPoint trend_series = 5;
+}
+
+// SelfHealthTrendPoint is one persisted self-health snapshot in the trend
+// series — the headline metrics at a capture time.
+message SelfHealthTrendPoint {
+  string captured_at = 1; // RFC3339Nano UTC
+  double availability = 2;
+  int32 run_count = 3;
+  int32 hard_violations = 4;
+  int32 metrics_adopted = 5; // delegated providers emitting ExecutionMetrics
+}
+
+// TrendDelta compares the current ledger against the last persisted snapshot
+// whose content differed, so consumers can render "availability 0.97 ↑0.04
+// since <date>" without recomputing history.
+message TrendDelta {
+  string previous_captured_at = 1; // RFC3339Nano UTC of the baseline snapshot
+  double previous_availability = 2;
+  int32 previous_run_count = 3;
+  double availability_delta = 4; // current - previous
+  int32 run_count_delta = 5; // current - previous
 }
 
 // CatalogSummary describes the registered phase set.
@@ -557,7 +586,7 @@ message ProviderConformance {
   bool contract_valid = 4;
   bool identity_ok = 5;
   bool spec_valid = 6;
-  bool metrics_adopted = 7; // advisory during the partial rollout
+  bool metrics_adopted = 7; // required: a reachable provider that drops ExecutionMetrics is a hard violation
   double adoption_score = 8; // fraction of the five dimensions satisfied
   repeated string violations = 9;
 }
@@ -572,6 +601,12 @@ message ReliabilityLedger {
   repeated RunOutcomeCount run_outcomes = 4;
   repeated PhaseReliability phases = 5;
   repeated ProviderReliability providers = 6;
+  // captured_at is the persist time of the most recent self-health snapshot
+  // (RFC3339Nano UTC), empty when no snapshot history exists yet.
+  string captured_at = 7;
+  // trend is the delta of this ledger vs the last differing snapshot. Nil when
+  // there is no prior differing snapshot to compare against.
+  TrendDelta trend = 8;
 }
 
 // RunOutcomeCount is one bucket of the run-level terminal-outcome histogram.

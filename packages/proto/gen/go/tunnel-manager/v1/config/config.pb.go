@@ -165,7 +165,7 @@ type ConfigReadiness struct {
 	// Canonical missing inputs, e.g. CLOUDFLARE_API_TOKEN.
 	MissingFields []string `protobuf:"bytes,3,rep,name=missing_fields,json=missingFields,proto3" json:"missing_fields,omitempty"`
 	// Human-readable source label such as "env:CLOUDFLARE_*",
-	// "env:CF_*", "env:mixed", or "none".
+	// "file:scenario", "file:user", "mixed", or "missing".
 	CredentialSource string `protobuf:"bytes,4,opt,name=credential_source,json=credentialSource,proto3" json:"credential_source,omitempty"`
 	// Non-secret token reference, e.g. "env:CLOUDFLARE_API_TOKEN".
 	CredentialRef string `protobuf:"bytes,5,opt,name=credential_ref,json=credentialRef,proto3" json:"credential_ref,omitempty"`

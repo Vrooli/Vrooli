@@ -302,14 +302,18 @@ func (x *FindingMaturity) GetCleanRequirement() CleanRequirement {
 // AssessmentFinding is the shared finding projection used by the assessment.
 // Provider responses may still expose richer native findings in parallel.
 type AssessmentFinding struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	Severity      string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
-	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	Location      string                 `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"`
-	Remediation   string                 `protobuf:"bytes,6,opt,name=remediation,proto3" json:"remediation,omitempty"`
-	Maturity      *FindingMaturity       `protobuf:"bytes,7,opt,name=maturity,proto3" json:"maturity,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Code        string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Severity    string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	Title       string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Message     string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	Location    string                 `protobuf:"bytes,5,opt,name=location,proto3" json:"location,omitempty"`
+	Remediation string                 `protobuf:"bytes,6,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	Maturity    *FindingMaturity       `protobuf:"bytes,7,opt,name=maturity,proto3" json:"maturity,omitempty"`
+	// True when a provider auto-fix can deterministically remediate this finding.
+	AutofixAvailable bool `protobuf:"varint,8,opt,name=autofix_available,json=autofixAvailable,proto3" json:"autofix_available,omitempty"`
+	// Provider fix classification, e.g. "autofix" or "detection_only".
+	FixClass      string `protobuf:"bytes,9,opt,name=fix_class,json=fixClass,proto3" json:"fix_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -391,6 +395,20 @@ func (x *AssessmentFinding) GetMaturity() *FindingMaturity {
 		return x.Maturity
 	}
 	return nil
+}
+
+func (x *AssessmentFinding) GetAutofixAvailable() bool {
+	if x != nil {
+		return x.AutofixAvailable
+	}
+	return false
+}
+
+func (x *AssessmentFinding) GetFixClass() string {
+	if x != nil {
+		return x.FixClass
+	}
+	return ""
 }
 
 // LocalMaturityAssessment explains the provider-local current and next rung.
@@ -491,8 +509,12 @@ type MaturityAssessment struct {
 	FindingsBySeverity         map[string]int32         `protobuf:"bytes,8,rep,name=findings_by_severity,json=findingsBySeverity,proto3" json:"findings_by_severity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	RecommendedSkillIds        []string                 `protobuf:"bytes,9,rep,name=recommended_skill_ids,json=recommendedSkillIds,proto3" json:"recommended_skill_ids,omitempty"`
 	FindingsByCleanRequirement map[string]int32         `protobuf:"bytes,10,rep,name=findings_by_clean_requirement,json=findingsByCleanRequirement,proto3" json:"findings_by_clean_requirement,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// Number of findings a provider auto-fix can deterministically remediate.
+	AutofixableCount int32 `protobuf:"varint,11,opt,name=autofixable_count,json=autofixableCount,proto3" json:"autofixable_count,omitempty"`
+	// Total findings considered for auto-fix coverage (the coverage denominator).
+	AutofixableTotal int32 `protobuf:"varint,12,opt,name=autofixable_total,json=autofixableTotal,proto3" json:"autofixable_total,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *MaturityAssessment) Reset() {
@@ -595,6 +617,20 @@ func (x *MaturityAssessment) GetFindingsByCleanRequirement() map[string]int32 {
 	return nil
 }
 
+func (x *MaturityAssessment) GetAutofixableCount() int32 {
+	if x != nil {
+		return x.AutofixableCount
+	}
+	return 0
+}
+
+func (x *MaturityAssessment) GetAutofixableTotal() int32 {
+	if x != nil {
+		return x.AutofixableTotal
+	}
+	return 0
+}
+
 var File_common_v1_maturity_proto protoreflect.FileDescriptor
 
 const file_common_v1_maturity_proto_rawDesc = "" +
@@ -612,7 +648,7 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\rglobal_impact\x18\x02 \x01(\x0e2\x17.common.v1.GlobalImpactR\fglobalImpact\x12\x1c\n" +
 	"\tdimension\x18\x03 \x01(\tR\tdimension\x122\n" +
 	"\x15recommended_skill_ids\x18\x04 \x03(\tR\x13recommendedSkillIds\x12H\n" +
-	"\x11clean_requirement\x18\x05 \x01(\x0e2\x1b.common.v1.CleanRequirementR\x10cleanRequirement\"\xe9\x01\n" +
+	"\x11clean_requirement\x18\x05 \x01(\x0e2\x1b.common.v1.CleanRequirementR\x10cleanRequirement\"\xb3\x02\n" +
 	"\x11AssessmentFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
 	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x14\n" +
@@ -620,7 +656,9 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1a\n" +
 	"\blocation\x18\x05 \x01(\tR\blocation\x12 \n" +
 	"\vremediation\x18\x06 \x01(\tR\vremediation\x126\n" +
-	"\bmaturity\x18\a \x01(\v2\x1a.common.v1.FindingMaturityR\bmaturity\"\x85\x02\n" +
+	"\bmaturity\x18\a \x01(\v2\x1a.common.v1.FindingMaturityR\bmaturity\x12+\n" +
+	"\x11autofix_available\x18\b \x01(\bR\x10autofixAvailable\x12\x1b\n" +
+	"\tfix_class\x18\t \x01(\tR\bfixClass\"\x85\x02\n" +
 	"\x17LocalMaturityAssessment\x12#\n" +
 	"\rcurrent_level\x18\x01 \x01(\tR\fcurrentLevel\x12\x1d\n" +
 	"\n" +
@@ -628,7 +666,7 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x06levels\x18\x03 \x03(\v2\x1d.common.v1.LocalMaturityLevelR\x06levels\x124\n" +
 	"\x16blocking_finding_codes\x18\x04 \x03(\tR\x14blockingFindingCodes\x12\x14\n" +
 	"\x05clean\x18\x05 \x01(\bR\x05clean\x12#\n" +
-	"\runknown_count\x18\x06 \x01(\x05R\funknownCount\"\xe7\x06\n" +
+	"\runknown_count\x18\x06 \x01(\x05R\funknownCount\"\xc1\a\n" +
 	"\x12MaturityAssessment\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x14\n" +
@@ -640,7 +678,9 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x14findings_by_severity\x18\b \x03(\v25.common.v1.MaturityAssessment.FindingsBySeverityEntryR\x12findingsBySeverity\x122\n" +
 	"\x15recommended_skill_ids\x18\t \x03(\tR\x13recommendedSkillIds\x12\x80\x01\n" +
 	"\x1dfindings_by_clean_requirement\x18\n" +
-	" \x03(\v2=.common.v1.MaturityAssessment.FindingsByCleanRequirementEntryR\x1afindingsByCleanRequirement\x1aI\n" +
+	" \x03(\v2=.common.v1.MaturityAssessment.FindingsByCleanRequirementEntryR\x1afindingsByCleanRequirement\x12+\n" +
+	"\x11autofixable_count\x18\v \x01(\x05R\x10autofixableCount\x12+\n" +
+	"\x11autofixable_total\x18\f \x01(\x05R\x10autofixableTotal\x1aI\n" +
 	"\x1bFindingsByGlobalImpactEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aE\n" +

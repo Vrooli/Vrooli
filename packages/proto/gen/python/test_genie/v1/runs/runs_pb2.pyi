@@ -529,12 +529,14 @@ class CheckFreshnessResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., tree_digest: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseFreshness, _Mapping]]] = ..., suggested_command: _Optional[str] = ...) -> None: ...
 
 class GetSelfHealthRequest(_message.Message):
-    __slots__ = ("window_days", "skip_conformance")
+    __slots__ = ("window_days", "skip_conformance", "include_trend")
     WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
     SKIP_CONFORMANCE_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_TREND_FIELD_NUMBER: _ClassVar[int]
     window_days: int
     skip_conformance: bool
-    def __init__(self, window_days: _Optional[int] = ..., skip_conformance: _Optional[bool] = ...) -> None: ...
+    include_trend: bool
+    def __init__(self, window_days: _Optional[int] = ..., skip_conformance: _Optional[bool] = ..., include_trend: _Optional[bool] = ...) -> None: ...
 
 class GetSelfHealthResponse(_message.Message):
     __slots__ = ("self_health",)
@@ -543,16 +545,46 @@ class GetSelfHealthResponse(_message.Message):
     def __init__(self, self_health: _Optional[_Union[SelfHealth, _Mapping]] = ...) -> None: ...
 
 class SelfHealth(_message.Message):
-    __slots__ = ("catalog", "conformance", "conformance_freshness", "ledger")
+    __slots__ = ("catalog", "conformance", "conformance_freshness", "ledger", "trend_series")
     CATALOG_FIELD_NUMBER: _ClassVar[int]
     CONFORMANCE_FIELD_NUMBER: _ClassVar[int]
     CONFORMANCE_FRESHNESS_FIELD_NUMBER: _ClassVar[int]
     LEDGER_FIELD_NUMBER: _ClassVar[int]
+    TREND_SERIES_FIELD_NUMBER: _ClassVar[int]
     catalog: CatalogSummary
     conformance: _containers.RepeatedCompositeFieldContainer[ProviderConformance]
     conformance_freshness: str
     ledger: ReliabilityLedger
-    def __init__(self, catalog: _Optional[_Union[CatalogSummary, _Mapping]] = ..., conformance: _Optional[_Iterable[_Union[ProviderConformance, _Mapping]]] = ..., conformance_freshness: _Optional[str] = ..., ledger: _Optional[_Union[ReliabilityLedger, _Mapping]] = ...) -> None: ...
+    trend_series: _containers.RepeatedCompositeFieldContainer[SelfHealthTrendPoint]
+    def __init__(self, catalog: _Optional[_Union[CatalogSummary, _Mapping]] = ..., conformance: _Optional[_Iterable[_Union[ProviderConformance, _Mapping]]] = ..., conformance_freshness: _Optional[str] = ..., ledger: _Optional[_Union[ReliabilityLedger, _Mapping]] = ..., trend_series: _Optional[_Iterable[_Union[SelfHealthTrendPoint, _Mapping]]] = ...) -> None: ...
+
+class SelfHealthTrendPoint(_message.Message):
+    __slots__ = ("captured_at", "availability", "run_count", "hard_violations", "metrics_adopted")
+    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    RUN_COUNT_FIELD_NUMBER: _ClassVar[int]
+    HARD_VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    METRICS_ADOPTED_FIELD_NUMBER: _ClassVar[int]
+    captured_at: str
+    availability: float
+    run_count: int
+    hard_violations: int
+    metrics_adopted: int
+    def __init__(self, captured_at: _Optional[str] = ..., availability: _Optional[float] = ..., run_count: _Optional[int] = ..., hard_violations: _Optional[int] = ..., metrics_adopted: _Optional[int] = ...) -> None: ...
+
+class TrendDelta(_message.Message):
+    __slots__ = ("previous_captured_at", "previous_availability", "previous_run_count", "availability_delta", "run_count_delta")
+    PREVIOUS_CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_RUN_COUNT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_DELTA_FIELD_NUMBER: _ClassVar[int]
+    RUN_COUNT_DELTA_FIELD_NUMBER: _ClassVar[int]
+    previous_captured_at: str
+    previous_availability: float
+    previous_run_count: int
+    availability_delta: float
+    run_count_delta: int
+    def __init__(self, previous_captured_at: _Optional[str] = ..., previous_availability: _Optional[float] = ..., previous_run_count: _Optional[int] = ..., availability_delta: _Optional[float] = ..., run_count_delta: _Optional[int] = ...) -> None: ...
 
 class CatalogSummary(_message.Message):
     __slots__ = ("total_phases", "delegated_phases", "native_phases", "phases")
@@ -605,20 +637,24 @@ class ProviderConformance(_message.Message):
     def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ReliabilityLedger(_message.Message):
-    __slots__ = ("window_days", "run_count", "availability", "run_outcomes", "phases", "providers")
+    __slots__ = ("window_days", "run_count", "availability", "run_outcomes", "phases", "providers", "captured_at", "trend")
     WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
     RUN_COUNT_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
     RUN_OUTCOMES_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
     PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    TREND_FIELD_NUMBER: _ClassVar[int]
     window_days: int
     run_count: int
     availability: float
     run_outcomes: _containers.RepeatedCompositeFieldContainer[RunOutcomeCount]
     phases: _containers.RepeatedCompositeFieldContainer[PhaseReliability]
     providers: _containers.RepeatedCompositeFieldContainer[ProviderReliability]
-    def __init__(self, window_days: _Optional[int] = ..., run_count: _Optional[int] = ..., availability: _Optional[float] = ..., run_outcomes: _Optional[_Iterable[_Union[RunOutcomeCount, _Mapping]]] = ..., phases: _Optional[_Iterable[_Union[PhaseReliability, _Mapping]]] = ..., providers: _Optional[_Iterable[_Union[ProviderReliability, _Mapping]]] = ...) -> None: ...
+    captured_at: str
+    trend: TrendDelta
+    def __init__(self, window_days: _Optional[int] = ..., run_count: _Optional[int] = ..., availability: _Optional[float] = ..., run_outcomes: _Optional[_Iterable[_Union[RunOutcomeCount, _Mapping]]] = ..., phases: _Optional[_Iterable[_Union[PhaseReliability, _Mapping]]] = ..., providers: _Optional[_Iterable[_Union[ProviderReliability, _Mapping]]] = ..., captured_at: _Optional[str] = ..., trend: _Optional[_Union[TrendDelta, _Mapping]] = ...) -> None: ...
 
 class RunOutcomeCount(_message.Message):
     __slots__ = ("outcome", "count")

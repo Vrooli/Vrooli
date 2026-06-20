@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "unit-health",
-  "input_digest": "sha256:9ef9e48153ad99a529abbabce7892164f2ade713282d8706a36e82e6501105a3",
+  "input_digest": "sha256:1a625060ca240cb96d962d2aa72eb8a160e6a049c879fccd49b4341ed76fb60d",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/unit-health/v1/errors/errors.proto",

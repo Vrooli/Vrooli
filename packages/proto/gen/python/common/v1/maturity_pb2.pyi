@@ -66,7 +66,7 @@ class FindingMaturity(_message.Message):
     def __init__(self, local_level: _Optional[str] = ..., global_impact: _Optional[_Union[GlobalImpact, str]] = ..., dimension: _Optional[str] = ..., recommended_skill_ids: _Optional[_Iterable[str]] = ..., clean_requirement: _Optional[_Union[CleanRequirement, str]] = ...) -> None: ...
 
 class AssessmentFinding(_message.Message):
-    __slots__ = ("code", "severity", "title", "message", "location", "remediation", "maturity")
+    __slots__ = ("code", "severity", "title", "message", "location", "remediation", "maturity", "autofix_available", "fix_class")
     CODE_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -74,6 +74,8 @@ class AssessmentFinding(_message.Message):
     LOCATION_FIELD_NUMBER: _ClassVar[int]
     REMEDIATION_FIELD_NUMBER: _ClassVar[int]
     MATURITY_FIELD_NUMBER: _ClassVar[int]
+    AUTOFIX_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    FIX_CLASS_FIELD_NUMBER: _ClassVar[int]
     code: str
     severity: str
     title: str
@@ -81,7 +83,9 @@ class AssessmentFinding(_message.Message):
     location: str
     remediation: str
     maturity: FindingMaturity
-    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., title: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., remediation: _Optional[str] = ..., maturity: _Optional[_Union[FindingMaturity, _Mapping]] = ...) -> None: ...
+    autofix_available: bool
+    fix_class: str
+    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., title: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., remediation: _Optional[str] = ..., maturity: _Optional[_Union[FindingMaturity, _Mapping]] = ..., autofix_available: _Optional[bool] = ..., fix_class: _Optional[str] = ...) -> None: ...
 
 class LocalMaturityAssessment(_message.Message):
     __slots__ = ("current_level", "next_level", "levels", "blocking_finding_codes", "clean", "unknown_count")
@@ -100,7 +104,7 @@ class LocalMaturityAssessment(_message.Message):
     def __init__(self, current_level: _Optional[str] = ..., next_level: _Optional[str] = ..., levels: _Optional[_Iterable[_Union[LocalMaturityLevel, _Mapping]]] = ..., blocking_finding_codes: _Optional[_Iterable[str]] = ..., clean: _Optional[bool] = ..., unknown_count: _Optional[int] = ...) -> None: ...
 
 class MaturityAssessment(_message.Message):
-    __slots__ = ("scenario", "provider", "phase", "version", "local", "findings", "findings_by_global_impact", "findings_by_severity", "recommended_skill_ids", "findings_by_clean_requirement")
+    __slots__ = ("scenario", "provider", "phase", "version", "local", "findings", "findings_by_global_impact", "findings_by_severity", "recommended_skill_ids", "findings_by_clean_requirement", "autofixable_count", "autofixable_total")
     class FindingsByGlobalImpactEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -132,6 +136,8 @@ class MaturityAssessment(_message.Message):
     FINDINGS_BY_SEVERITY_FIELD_NUMBER: _ClassVar[int]
     RECOMMENDED_SKILL_IDS_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_BY_CLEAN_REQUIREMENT_FIELD_NUMBER: _ClassVar[int]
+    AUTOFIXABLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    AUTOFIXABLE_TOTAL_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     provider: str
     phase: str
@@ -142,4 +148,6 @@ class MaturityAssessment(_message.Message):
     findings_by_severity: _containers.ScalarMap[str, int]
     recommended_skill_ids: _containers.RepeatedScalarFieldContainer[str]
     findings_by_clean_requirement: _containers.ScalarMap[str, int]
-    def __init__(self, scenario: _Optional[str] = ..., provider: _Optional[str] = ..., phase: _Optional[str] = ..., version: _Optional[str] = ..., local: _Optional[_Union[LocalMaturityAssessment, _Mapping]] = ..., findings: _Optional[_Iterable[_Union[AssessmentFinding, _Mapping]]] = ..., findings_by_global_impact: _Optional[_Mapping[str, int]] = ..., findings_by_severity: _Optional[_Mapping[str, int]] = ..., recommended_skill_ids: _Optional[_Iterable[str]] = ..., findings_by_clean_requirement: _Optional[_Mapping[str, int]] = ...) -> None: ...
+    autofixable_count: int
+    autofixable_total: int
+    def __init__(self, scenario: _Optional[str] = ..., provider: _Optional[str] = ..., phase: _Optional[str] = ..., version: _Optional[str] = ..., local: _Optional[_Union[LocalMaturityAssessment, _Mapping]] = ..., findings: _Optional[_Iterable[_Union[AssessmentFinding, _Mapping]]] = ..., findings_by_global_impact: _Optional[_Mapping[str, int]] = ..., findings_by_severity: _Optional[_Mapping[str, int]] = ..., recommended_skill_ids: _Optional[_Iterable[str]] = ..., findings_by_clean_requirement: _Optional[_Mapping[str, int]] = ..., autofixable_count: _Optional[int] = ..., autofixable_total: _Optional[int] = ...) -> None: ...

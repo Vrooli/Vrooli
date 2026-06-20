@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "tunnel-manager",
-  "input_digest": "sha256:b23aec704ae7a940d536afaed66d1462484c1ba996662b7ad2c9e6f26e300230",
+  "input_digest": "sha256:31c3862f18936c5b6645132326ba55fbdbfe9ccb87e98da7aeae6afe5958c4f7",
   "input_files": [
     "schemas/tunnel-manager/v1/audit/audit.proto",
     "schemas/tunnel-manager/v1/config/config.proto",
@@ -26,7 +26,7 @@
   "outputs": {
     "gen/go/tunnel-manager/v1/audit/audit.pb.go": "sha256:3cafaef8628a7455f4e518eeb91f86e385c515360230e4b8ade20b091b66685a",
     "gen/go/tunnel-manager/v1/audit/audit_v1connect/audit.connect.go": "sha256:00121dbaacb9cb6751ed90a5171fdcac5488434269d0d58e2f8f0cb070e1bc42",
-    "gen/go/tunnel-manager/v1/config/config.pb.go": "sha256:1ebe4369669588a1a1a0d9f8236d82f4ef9df7c8e4e976d7dc3cc28e7af91be8",
+    "gen/go/tunnel-manager/v1/config/config.pb.go": "sha256:3019e8f9364acc4d4f01c396e02a2c0a513afc7676f0e1125995ed53e0eeadd3",
     "gen/go/tunnel-manager/v1/config/config_v1connect/config.connect.go": "sha256:8a55b49f973b18f3b42f802a4e062a2e9bbcc365553fae0f31088f455f4c967c",
     "gen/go/tunnel-manager/v1/errors/errors.pb.go": "sha256:78d828cca2019d4ac358435b62281b0f40ada256f8a9bb4bb8cd6b1fa54e0e8b",
     "gen/go/tunnel-manager/v1/exposure/exposure.pb.go": "sha256:2d6710a4a399a46084e39ea53714cd84fd6bed57b712da1ff78781b5eaae5522",
@@ -79,7 +79,7 @@
     "gen/typescript/js/tunnel-manager/v1/routes/routes_pb.js": "sha256:aaf83e8c4e581137d62904c44ac5767c70eda95acf21929c3c8e610c7751518a",
     "gen/typescript/js/tunnel-manager/v1/tunnel/tunnel_pb.js": "sha256:5d7f411e1a25ce3f2b095611443e0b48bb5d06a6cb7c4e0ec374111881692ae7",
     "gen/typescript/tunnel-manager/v1/audit/audit_pb.ts": "sha256:404b92beedb4b5e0c0816f9727bce89888e7e9c6979c246690bb08d9c37c6723",
-    "gen/typescript/tunnel-manager/v1/config/config_pb.ts": "sha256:3791123bfa0a12362f848d599fc36bd8086237fa51c562a85ac60f11512f193b",
+    "gen/typescript/tunnel-manager/v1/config/config_pb.ts": "sha256:cfbef60de5218f67ba5294a519f48e17cfbf9e5afcbade88ce4f3086f79b9c0f",
     "gen/typescript/tunnel-manager/v1/errors/errors_pb.ts": "sha256:a92ad06996fd29f22b8aef486cb2bcc53e81c368f814c23718fdcce2e77841bc",
     "gen/typescript/tunnel-manager/v1/exposure/exposure_pb.ts": "sha256:f1da420aeb9ae30ec0f72e082c7599e20ae6173a447b120fd474426f7712b823",
     "gen/typescript/tunnel-manager/v1/health/health_pb.ts": "sha256:52fa2da0d1868f96f0bb3815cdd0ef2f517c0ed0e063a1df65fb41034b53a4c8",

@@ -87,7 +87,7 @@ export type ConfigReadiness = Message<"vrooli.tunnel_manager.v1.config.ConfigRea
 
   /**
    * Human-readable source label such as "env:CLOUDFLARE_*",
-   * "env:CF_*", "env:mixed", or "none".
+   * "file:scenario", "file:user", "mixed", or "missing".
    *
    * @generated from field: string credential_source = 4;
    */

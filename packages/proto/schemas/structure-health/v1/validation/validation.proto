@@ -1,0 +1,151 @@
+syntax = "proto3";
+
+package vrooli.structure_health.v1.validation;
+
+import "common/v1/maturity.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation;validation_v1";
+
+// =============================================================================
+// STRUCTURE VALIDATION SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain structure-health
+// @stability beta
+//
+// ValidationService is structure-health's native, rich validation contract. It
+// reconciles a scenario's code-facts ground truth (actual surfaces, languages,
+// frameworks, artifacts) against its declared service.json intent (ports,
+// lifecycle steps, health checks, dependencies) and reports profile-aware
+// skeleton + lifecycle-wiring findings.
+//
+// The shared scenario-validation/v1 ScenarioValidationService is mounted beside
+// this service (dual-mount); it carries the common maturity assessment for
+// test-genie while this native response carries the rich reconcile detail for
+// structure-health's own CLI and UI.
+// =============================================================================
+
+service ValidationService {
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+  // PreviewFixConfig reports the deterministic structure/service.json fixes that
+  // structure-health could apply, without writing anything (dry-run default).
+  rpc PreviewFixConfig(FixConfigRequest) returns (FixConfigResponse);
+  // ApplyFixConfig applies the deterministic fixes (format-preserving
+  // service.json edits / skeleton file creation) and reports what changed.
+  rpc ApplyFixConfig(FixConfigRequest) returns (FixConfigResponse);
+}
+
+message ValidateScenarioRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Reserved for parity with the shared contract; structure-health does not
+  // execute the scenario, so this is currently advisory.
+  bool include_execution = 3;
+}
+
+message ValidateScenarioResponse {
+  string run_id = 1;
+  // Provider verdict string ("PASSED"/"FAILED"/"DEGRADED"/"ERROR").
+  string status = 2;
+  string summary = 3;
+  string scenario = 4;
+  string target_path = 5;
+  // Non-empty when validation ran in a degraded mode (e.g. code-facts down and
+  // structure-health fell back to filesystem facts).
+  string degraded_reason = 6;
+  // The code-facts-derived profile used to key conformance rules.
+  DetectedProfile profile = 7;
+  // Per-surface reconcile of declared intent vs detected actuality.
+  repeated SurfaceReconcile surfaces = 8;
+  // Rich native findings (the shared assessment carries the maturity view).
+  repeated StructureFinding findings = 9;
+  // Shared maturity assessment (mirrors what the shared mount emits).
+  common.v1.MaturityAssessment assessment = 10;
+  repeated string next_steps = 11;
+}
+
+// DetectedProfile is the language/framework shape structure-health detected from
+// code facts; conformance rule packs are keyed off it.
+message DetectedProfile {
+  // Stable profile id, e.g. "react-vite-go" (the default) or "unknown".
+  string id = 1;
+  // Detected backend language, e.g. "go", "python", "rust".
+  string backend_language = 2;
+  // Detected UI framework, e.g. "react", "vue", "svelte", or "" when none.
+  string ui_framework = 3;
+  // Whether structure-health recognizes this profile (false => advisory rules).
+  bool recognized = 4;
+  // Human-readable evidence strings explaining the detection.
+  repeated string evidence = 5;
+}
+
+// SurfaceReconcile pairs a surface's declared intent with its detected actual
+// state. A surface present in one but not the other is the core finding signal.
+message SurfaceReconcile {
+  // Surface id, e.g. "api", "cli", "ui".
+  string surface = 1;
+  // Surface kind, e.g. "API", "CLI", "UI", "WORKER", "JOB".
+  string kind = 2;
+  // True when service.json (or convention) declares this surface.
+  bool declared = 3;
+  // True when code facts detected this surface.
+  bool actual = 4;
+  string declared_detail = 5;
+  string actual_detail = 6;
+}
+
+// StructureFinding is structure-health's native finding shape.
+message StructureFinding {
+  string code = 1;
+  string severity = 2;
+  string title = 3;
+  string message = 4;
+  string location = 5;
+  string remediation = 6;
+  // Surface this finding pertains to, when applicable.
+  string surface = 7;
+  // True when a structure-health auto-fix can remediate this finding.
+  bool autofix_available = 8;
+  // Fix classification, e.g. "autofix" or "detection_only".
+  string fix_class = 9;
+}
+
+// FixConfigRequest selects the scenario and (optionally) a subset of rule ids to
+// preview or apply deterministic structure/service.json fixes for.
+message FixConfigRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Restrict fixes to these finding/rule codes; empty means all auto-fixable.
+  repeated string rule_ids = 3;
+  // When true (ApplyFixConfig), write the edits; preview leaves it false.
+  bool apply = 4;
+}
+
+// FixConfigResponse lists the proposed (or applied) fix candidates.
+message FixConfigResponse {
+  string scenario = 1;
+  // True when the candidates were written to disk (ApplyFixConfig).
+  bool applied = 2;
+  repeated AutofixCandidate candidates = 3;
+  repeated string messages = 4;
+}
+
+// AutofixCandidate is one deterministic edit structure-health can make.
+message AutofixCandidate {
+  // Finding/rule code this candidate remediates.
+  string rule_id = 1;
+  // Path (repo-relative or absolute) of the file the edit targets.
+  string file_path = 2;
+  string description = 3;
+  // File contents before the edit (empty when creating a new file).
+  string before = 4;
+  // File contents after the edit.
+  string after = 5;
+  // True when this candidate was written to disk.
+  bool applied = 6;
+}

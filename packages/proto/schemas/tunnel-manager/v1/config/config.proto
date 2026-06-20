@@ -62,7 +62,7 @@ message ConfigReadiness {
   // Canonical missing inputs, e.g. CLOUDFLARE_API_TOKEN.
   repeated string missing_fields = 3;
   // Human-readable source label such as "env:CLOUDFLARE_*",
-  // "env:CF_*", "env:mixed", or "none".
+  // "file:scenario", "file:user", "mixed", or "missing".
   string credential_source = 4;
   // Non-secret token reference, e.g. "env:CLOUDFLARE_API_TOKEN".
   string credential_ref = 5;
