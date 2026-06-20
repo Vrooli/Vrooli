@@ -23,7 +23,7 @@ func newTestService(t *testing.T) (*Service, string) {
 	}
 	// The read-only index RPCs under test need neither the run manager nor the
 	// planner.
-	return NewService(root, nil, nil), root
+	return NewService(root, nil, nil, nil), root
 }
 
 func seedRecord(t *testing.T, root string, rec sharedruns.RunRecord) {

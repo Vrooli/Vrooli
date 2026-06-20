@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -83,12 +84,15 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		}
 	}
 
+	startedAt := time.Now().UTC()
 	result, err := s.engine.ExecuteWithEvents(ctx, input.Request, emit)
 	if err != nil {
+		s.recordTerminalOutcome(ctx, input, suiteID, startedAt, classifyTerminalError(ctx, err))
 		s.markSuiteFailed(ctx, suiteID)
 		return nil, err
 	}
 	if result == nil {
+		s.recordTerminalOutcome(ctx, input, suiteID, startedAt, classifyTerminalError(ctx, nil))
 		s.markSuiteFailed(ctx, suiteID)
 		return nil, errors.New("suite execution engine returned no result")
 	}
@@ -164,4 +168,31 @@ func (s *SuiteExecutionService) markSuiteFailed(ctx context.Context, suiteID *uu
 		return
 	}
 	_ = s.suiteRequests.UpdateStatus(ctx, *suiteID, queue.StatusFailed)
+}
+
+// recordTerminalOutcome persists a minimal suite_executions row for a
+// catastrophic run that never produced a result (engine error, nil result,
+// abort, or timeout). Without it, availability denominators silently omit these
+// outcomes. Best-effort: a persistence failure here must not mask the original
+// execution error, so it is logged-by-omission (the caller already returns the
+// real error). The write uses a detached context because the request context
+// may already be cancelled (the very condition we are recording).
+func (s *SuiteExecutionService) recordTerminalOutcome(ctx context.Context, input SuiteExecutionInput, suiteID *uuid.UUID, startedAt time.Time, outcome TerminalOutcome) {
+	if s.executions == nil {
+		return
+	}
+	writeCtx := context.WithoutCancel(ctx)
+	record := &SuiteExecutionRecord{
+		ID:              uuid.New(),
+		SuiteRequestID:  suiteID,
+		ScenarioName:    input.Request.ScenarioName,
+		Success:         false,
+		TerminalOutcome: outcome,
+		// Empty (non-nil) so it marshals to a valid JSON "[]" for the
+		// NOT NULL / json_valid(phases) column constraint.
+		Phases:      []phases.ExecutionResult{},
+		StartedAt:   startedAt,
+		CompletedAt: time.Now().UTC(),
+	}
+	_ = s.executions.Create(writeCtx, record)
 }

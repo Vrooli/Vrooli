@@ -62,6 +62,9 @@ const (
 	// RunsServiceCheckFreshnessProcedure is the fully-qualified name of the RunsService's
 	// CheckFreshness RPC.
 	RunsServiceCheckFreshnessProcedure = "/vrooli.test_genie.v1.runs.RunsService/CheckFreshness"
+	// RunsServiceGetSelfHealthProcedure is the fully-qualified name of the RunsService's GetSelfHealth
+	// RPC.
+	RunsServiceGetSelfHealthProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetSelfHealth"
 	// RunsServiceStartRunProcedure is the fully-qualified name of the RunsService's StartRun RPC.
 	RunsServiceStartRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/StartRun"
 	// RunsServiceFollowRunProcedure is the fully-qualified name of the RunsService's FollowRun RPC.
@@ -121,6 +124,21 @@ type RunsServiceClient interface {
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
 	// the `test-genie runs freshness` CLI verb.
 	CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error)
+	// GetSelfHealth aggregates Test Genie's own observability into one read:
+	//
+	//	(a) catalog summary (phases, delegated vs native, per-phase provider +
+	//	    finding source),
+	//	(b) per-provider conformance/adoption against the shared validation
+	//	    contract (reachable, contract-valid, identity, maturity.json valid,
+	//	    metrics_adopted) — probed LIVE and time-boxed,
+	//	(c) the reliability ledger over a recent window (per phase/provider:
+	//	    availability %, failure-class + skip-reason histograms, degraded
+	//	    counts, duration p50/p95/min/max/avg, worst-scenarios-per-phase) plus
+	//	    run-level terminal-outcome counts.
+	//
+	// Read-only; compute-on-read (no persisted rollups). Consumed by the
+	// `test-genie health` CLI verb and the meta-optimization heartbeat.
+	GetSelfHealth(context.Context, *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error)
 	// StartRun starts a suite run under a server-lifetime context and returns its
 	// run id synchronously (before the suite executes). The run survives client
 	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
@@ -222,6 +240,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("CheckFreshness")),
 			connect.WithClientOptions(opts...),
 		),
+		getSelfHealth: connect.NewClient[runs.GetSelfHealthRequest, runs.GetSelfHealthResponse](
+			httpClient,
+			baseURL+RunsServiceGetSelfHealthProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("GetSelfHealth")),
+			connect.WithClientOptions(opts...),
+		),
 		startRun: connect.NewClient[runs.StartRunRequest, runs.StartRunResponse](
 			httpClient,
 			baseURL+RunsServiceStartRunProcedure,
@@ -269,6 +293,7 @@ type runsServiceClient struct {
 	compareRunVisuals *connect.Client[runs.CompareRunVisualsRequest, runs.CompareRunVisualsResponse]
 	findRun           *connect.Client[runs.FindRunRequest, runs.FindRunResponse]
 	checkFreshness    *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
+	getSelfHealth     *connect.Client[runs.GetSelfHealthRequest, runs.GetSelfHealthResponse]
 	startRun          *connect.Client[runs.StartRunRequest, runs.StartRunResponse]
 	followRun         *connect.Client[runs.FollowRunRequest, runs.RunEvent]
 	waitRun           *connect.Client[runs.WaitRunRequest, runs.WaitRunResponse]
@@ -334,6 +359,11 @@ func (c *runsServiceClient) FindRun(ctx context.Context, req *connect.Request[ru
 // CheckFreshness calls vrooli.test_genie.v1.runs.RunsService.CheckFreshness.
 func (c *runsServiceClient) CheckFreshness(ctx context.Context, req *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {
 	return c.checkFreshness.CallUnary(ctx, req)
+}
+
+// GetSelfHealth calls vrooli.test_genie.v1.runs.RunsService.GetSelfHealth.
+func (c *runsServiceClient) GetSelfHealth(ctx context.Context, req *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error) {
+	return c.getSelfHealth.CallUnary(ctx, req)
 }
 
 // StartRun calls vrooli.test_genie.v1.runs.RunsService.StartRun.
@@ -407,6 +437,21 @@ type RunsServiceHandler interface {
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
 	// the `test-genie runs freshness` CLI verb.
 	CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error)
+	// GetSelfHealth aggregates Test Genie's own observability into one read:
+	//
+	//	(a) catalog summary (phases, delegated vs native, per-phase provider +
+	//	    finding source),
+	//	(b) per-provider conformance/adoption against the shared validation
+	//	    contract (reachable, contract-valid, identity, maturity.json valid,
+	//	    metrics_adopted) — probed LIVE and time-boxed,
+	//	(c) the reliability ledger over a recent window (per phase/provider:
+	//	    availability %, failure-class + skip-reason histograms, degraded
+	//	    counts, duration p50/p95/min/max/avg, worst-scenarios-per-phase) plus
+	//	    run-level terminal-outcome counts.
+	//
+	// Read-only; compute-on-read (no persisted rollups). Consumed by the
+	// `test-genie health` CLI verb and the meta-optimization heartbeat.
+	GetSelfHealth(context.Context, *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error)
 	// StartRun starts a suite run under a server-lifetime context and returns its
 	// run id synchronously (before the suite executes). The run survives client
 	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
@@ -504,6 +549,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("CheckFreshness")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceGetSelfHealthHandler := connect.NewUnaryHandler(
+		RunsServiceGetSelfHealthProcedure,
+		svc.GetSelfHealth,
+		connect.WithSchema(runsServiceMethods.ByName("GetSelfHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
 	runsServiceStartRunHandler := connect.NewUnaryHandler(
 		RunsServiceStartRunProcedure,
 		svc.StartRun,
@@ -560,6 +611,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceFindRunHandler.ServeHTTP(w, r)
 		case RunsServiceCheckFreshnessProcedure:
 			runsServiceCheckFreshnessHandler.ServeHTTP(w, r)
+		case RunsServiceGetSelfHealthProcedure:
+			runsServiceGetSelfHealthHandler.ServeHTTP(w, r)
 		case RunsServiceStartRunProcedure:
 			runsServiceStartRunHandler.ServeHTTP(w, r)
 		case RunsServiceFollowRunProcedure:
@@ -625,6 +678,10 @@ func (UnimplementedRunsServiceHandler) FindRun(context.Context, *connect.Request
 
 func (UnimplementedRunsServiceHandler) CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.CheckFreshness is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) GetSelfHealth(context.Context, *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetSelfHealth is not implemented"))
 }
 
 func (UnimplementedRunsServiceHandler) StartRun(context.Context, *connect.Request[runs.StartRunRequest]) (*connect.Response[runs.StartRunResponse], error) {

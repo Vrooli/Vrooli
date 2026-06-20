@@ -67,6 +67,9 @@ INSERT INTO suite_requests (
 	if len(stored.PlannedPhases) != 2 || stored.PlannedPhases[1] != "unit" {
 		t.Fatalf("expected planned phases to round-trip: %#v", stored)
 	}
+	if stored.TerminalOutcome != TerminalOutcomePassed {
+		t.Fatalf("expected terminal_outcome derived as passed, got %q", stored.TerminalOutcome)
+	}
 }
 
 func TestSuiteExecutionRepositoryListRecent(t *testing.T) {
@@ -159,6 +162,76 @@ INSERT INTO suite_executions (
 	}
 	if len(record.RequestedSkipPhases) != 1 || record.RequestedSkipPhases[0] != "performance" {
 		t.Fatalf("expected requested skip phases to round-trip: %#v", record)
+	}
+}
+
+func TestSuiteExecutionRepositoryAggregation(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	now := time.Now().UTC()
+
+	insert := func(scenario, outcome string, success int, phasesJSON string, age time.Duration) {
+		t.Helper()
+		if _, err := db.Exec(`
+INSERT INTO suite_executions (
+	id, scenario_name, requested_phases, requested_skip_phases, planned_phases,
+	fail_fast, success, terminal_outcome, phases, started_at, completed_at
+) VALUES (?, ?, '[]', '[]', '[]', 0, ?, ?, ?, ?, ?)`,
+			uuid.NewString(), scenario, success, outcome, phasesJSON,
+			sqliteutil.FormatTimestamp(now.Add(-age-time.Minute)),
+			sqliteutil.FormatTimestamp(now.Add(-age)),
+		); err != nil {
+			t.Fatalf("seed execution: %v", err)
+		}
+	}
+
+	// A completed run with a passing + failing phase (the failing one carries metrics).
+	insert("demo", "failed", 0, `[
+		{"name":"proto","status":"passed","durationSeconds":12},
+		{"name":"unit","status":"failed","durationSeconds":7,"metrics":{"wall_clock_ms":7000}}
+	]`, time.Hour)
+	// A passing run.
+	insert("demo", "passed", 1, `[
+		{"name":"proto","status":"passed","durationSeconds":10}
+	]`, 2*time.Hour)
+	// A catastrophic run: no phases blob, errored outcome (the B4a case).
+	insert("demo", "errored", 0, `[]`, 3*time.Hour)
+	// An out-of-window run that must be excluded.
+	insert("demo", "passed", 1, `[{"name":"proto","status":"passed","durationSeconds":99}]`, 90*24*time.Hour)
+
+	since := now.Add(-30 * 24 * time.Hour)
+
+	outcomes, err := repo.CountRunOutcomes(context.Background(), since, 0)
+	if err != nil {
+		t.Fatalf("CountRunOutcomes: %v", err)
+	}
+	got := map[string]int{}
+	for _, o := range outcomes {
+		got[o.TerminalOutcome] = o.Count
+	}
+	if got["passed"] != 1 || got["failed"] != 1 || got["errored"] != 1 {
+		t.Fatalf("unexpected outcome histogram: %#v", got)
+	}
+
+	observations, err := repo.AggregatePhaseObservations(context.Background(), since, 0)
+	if err != nil {
+		t.Fatalf("AggregatePhaseObservations: %v", err)
+	}
+	// 2 phases (failed run) + 1 phase (passed run) = 3; catastrophic run yields 0.
+	if len(observations) != 3 {
+		t.Fatalf("expected 3 phase observations, got %d: %#v", len(observations), observations)
+	}
+	var unitMetrics bool
+	for _, o := range observations {
+		if o.PhaseName == "unit" {
+			unitMetrics = o.MetricsPresent
+			if o.Status != "failed" || o.DurationSeconds != 7 {
+				t.Fatalf("unexpected unit observation: %#v", o)
+			}
+		}
+	}
+	if !unitMetrics {
+		t.Fatalf("expected unit observation to report metrics present")
 	}
 }
 

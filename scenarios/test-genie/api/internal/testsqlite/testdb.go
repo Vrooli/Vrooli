@@ -55,6 +55,12 @@ func openRouted(t *testing.T, includeSeed bool) *database.RoutedDB {
 	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "schema.sql")); err != nil {
 		t.Fatalf("apply sqlite schema: %v", err)
 	}
+	// suite_executions is owned by the execution domain (its schema.sql), applied
+	// by path here to mirror the per-domain registry without importing the
+	// execution package (which would create an import cycle with its own tests).
+	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "api", "internal", "execution", "schema.sql")); err != nil {
+		t.Fatalf("apply execution schema: %v", err)
+	}
 	if _, err := db.ExecContext(context.Background(), playbooksclaims.Schema()); err != nil {
 		t.Fatalf("apply playbooksclaims schema: %v", err)
 	}
@@ -83,6 +89,12 @@ func open(t *testing.T, includeSeed bool) *sql.DB {
 
 	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "initialization", "sqlite", "schema.sql")); err != nil {
 		t.Fatalf("apply sqlite schema: %v", err)
+	}
+	// suite_executions is owned by the execution domain (its schema.sql), applied
+	// by path here to mirror the per-domain registry without importing the
+	// execution package (which would create an import cycle with its own tests).
+	if err := sqlfiles.ExecFile(db, filepath.Join(scenarioRoot(), "api", "internal", "execution", "schema.sql")); err != nil {
+		t.Fatalf("apply execution schema: %v", err)
 	}
 	if _, err := db.Exec(playbooksclaims.Schema()); err != nil {
 		t.Fatalf("apply playbooksclaims schema: %v", err)

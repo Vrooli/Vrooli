@@ -2,6 +2,7 @@ package local
 
 import (
 	"test-genie/cli/eligibility"
+	"test-genie/cli/health"
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/playbooksseed"
 	"test-genie/cli/providercontract"
@@ -61,6 +62,12 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Inspect, pin, compare, delete, and check freshness of recorded test runs",
 				Run:         func(args []string) error { return runs.Run(runtime.APIClient, args) },
+			},
+			{
+				Name:        "health",
+				NeedsAPI:    true,
+				Description: "Show Test Genie self-health: catalog, provider conformance, reliability ledger",
+				Run:         func(args []string) error { return health.Run(runtime.APIClient, args) },
 			},
 			{
 				Name:        "playbooks-seed",

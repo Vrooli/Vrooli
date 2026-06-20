@@ -56,7 +56,7 @@ func (f *rpcFakeExecutor) ExecuteWithEvents(ctx context.Context, input execution
 func TestLifecycleRPC_StartWaitStatus(t *testing.T) {
 	root := t.TempDir()
 	fake := newRPCFake(root + "/demo")
-	svc := NewService(root, runmanager.New(fake, root), nil)
+	svc := NewService(root, runmanager.New(fake, root), nil, nil)
 	ctx := context.Background()
 
 	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Scenario: "demo"}))
@@ -111,7 +111,7 @@ func TestLifecycleRPC_Abort(t *testing.T) {
 	fake := newRPCFake(root + "/demo")
 	fake.blockOnCtx = true
 	fake.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: false, Verdict: "FAIL", CompletedAt: time.Now().UTC()}
-	svc := NewService(root, runmanager.New(fake, root), nil)
+	svc := NewService(root, runmanager.New(fake, root), nil, nil)
 	ctx := context.Background()
 
 	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Scenario: "demo"}))
@@ -155,7 +155,7 @@ func TestKeepFollowEvent(t *testing.T) {
 }
 
 func TestLifecycleRPC_StartRejectsEmptyScenario(t *testing.T) {
-	svc := NewService(t.TempDir(), runmanager.New(newRPCFake(t.TempDir()), t.TempDir()), nil)
+	svc := NewService(t.TempDir(), runmanager.New(newRPCFake(t.TempDir()), t.TempDir()), nil, nil)
 	if _, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{})); err == nil {
 		t.Fatal("expected error for empty scenario")
 	}

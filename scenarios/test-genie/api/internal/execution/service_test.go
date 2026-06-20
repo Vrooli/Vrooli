@@ -128,6 +128,76 @@ func TestSuiteExecutionService_MarksSuiteRequestFailedOnRunnerError(t *testing.T
 	}
 }
 
+func TestSuiteExecutionService_PersistsTerminalOutcomeOnRunnerError(t *testing.T) {
+	cases := []struct {
+		name   string
+		ctx    func() (context.Context, context.CancelFunc)
+		engine *stubExecutionEngine
+		want   TerminalOutcome
+	}{
+		{
+			name:   "engine error",
+			ctx:    func() (context.Context, context.CancelFunc) { return context.Background(), func() {} },
+			engine: &stubExecutionEngine{err: errors.New("runner failed")},
+			want:   TerminalOutcomeErrored,
+		},
+		{
+			name:   "nil result",
+			ctx:    func() (context.Context, context.CancelFunc) { return context.Background(), func() {} },
+			engine: &stubExecutionEngine{result: nil},
+			want:   TerminalOutcomeErrored,
+		},
+		{
+			name: "aborted",
+			ctx: func() (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
+				return ctx, func() {}
+			},
+			engine: &stubExecutionEngine{err: context.Canceled},
+			want:   TerminalOutcomeAborted,
+		},
+		{
+			name: "timeout",
+			ctx: func() (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+				return ctx, cancel
+			},
+			engine: &stubExecutionEngine{err: context.DeadlineExceeded},
+			want:   TerminalOutcomeTimeout,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := tc.ctx()
+			defer cancel()
+			recorder := &fakeExecutionRecorder{}
+			service := NewSuiteExecutionService(tc.engine, recorder, &fakeSuiteRequestManager{})
+
+			_, err := service.Execute(ctx, SuiteExecutionInput{
+				Request: orchestrator.SuiteExecutionRequest{ScenarioName: "demo"},
+			})
+			if err == nil {
+				t.Fatalf("expected error")
+			}
+			if len(recorder.records) != 1 {
+				t.Fatalf("expected exactly one terminal-outcome row, got %d", len(recorder.records))
+			}
+			rec := recorder.records[0]
+			if rec.TerminalOutcome != tc.want {
+				t.Fatalf("terminal outcome = %q, want %q", rec.TerminalOutcome, tc.want)
+			}
+			if rec.Success {
+				t.Fatalf("catastrophic record must have success=false")
+			}
+			if rec.ScenarioName != "demo" {
+				t.Fatalf("scenario = %q, want demo", rec.ScenarioName)
+			}
+		})
+	}
+}
+
 type stubExecutionEngine struct {
 	result *orchestrator.SuiteExecutionResult
 	err    error

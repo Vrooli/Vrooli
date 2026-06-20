@@ -21,9 +21,15 @@ type SuiteExecutionRecord struct {
 	PlannedPhases       []string
 	FailFast            bool
 	Success             bool
-	Phases              []phases.ExecutionResult
-	StartedAt           time.Time
-	CompletedAt         time.Time
+	// TerminalOutcome classifies the run-level result (passed | failed |
+	// errored | aborted | timeout). It is the reliability ledger's denominator
+	// vocabulary; catastrophic runs (no result produced) persist a row carrying
+	// errored/aborted/timeout. Empty on records read from pre-migration rows
+	// before backfill.
+	TerminalOutcome TerminalOutcome
+	Phases          []phases.ExecutionResult
+	StartedAt       time.Time
+	CompletedAt     time.Time
 }
 
 // ToExecutionResult converts the repository record into the orchestrator payload shared with callers.

@@ -42,6 +42,7 @@ These options apply to all commands:
 | `playbooks-seed` | Apply or clean up playbooks seed data |
 | `storage` | Run storage maintenance tasks |
 | `status` | Check test-genie operational status |
+| `health` | Show Test Genie self-health: catalog, provider conformance, reliability ledger |
 
 ---
 
@@ -650,6 +651,50 @@ Vault Execution: my-scenario
 Vault Result: PASSED
 Total Duration: 8m 15s
 ```
+
+---
+
+## health
+
+Show **Test Genie's own** self-health — distinct from `status` (which checks
+liveness). `health` is a thin client over `RunsService.GetSelfHealth` and stitches
+three reads into one payload: the phase catalog summary, per-provider conformance
+(the same scorecard `provider-contract scan` produces, probed live + time-boxed),
+and the reliability ledger over a recent window (suite availability, run-level
+terminal-outcome histogram, and per-phase/per-provider availability %, failure
+rate, degraded counts, skip-reason + classification histograms, duration
+p50/p95/min/max/avg, and worst-scenarios-per-phase). Compute-on-read and
+advisory — nothing here gates a build.
+
+```bash
+test-genie health [--json] [--window-days N] [--skip-conformance]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--json` | `false` | Emit the full self-health payload as proto JSON |
+| `--window-days <N>` | `0` (server default = 30) | Reliability-ledger look-back window |
+| `--skip-conformance` | `false` | Skip the live per-provider conformance scan (faster) |
+
+### Examples
+
+```bash
+# Human summary (catalog, conformance, worst phases)
+test-genie health
+
+# Full machine-readable payload
+test-genie health --json
+
+# Reliability ledger only, last 7 days, skip the live conformance probes
+test-genie health --window-days 7 --skip-conformance
+```
+
+Availability is denominator-correct because every terminal run — including
+catastrophic aborts/timeouts/engine-errors that produce no result — is persisted
+with a `terminal_outcome` classification. See
+[Health Maturity Assessments → Test Genie Self-Health](../../../../docs/reference/health-maturity-assessments.md).
 
 ---
 

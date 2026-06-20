@@ -527,3 +527,197 @@ class CheckFreshnessResponse(_message.Message):
     phases: _containers.RepeatedCompositeFieldContainer[PhaseFreshness]
     suggested_command: str
     def __init__(self, scenario: _Optional[str] = ..., tree_digest: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseFreshness, _Mapping]]] = ..., suggested_command: _Optional[str] = ...) -> None: ...
+
+class GetSelfHealthRequest(_message.Message):
+    __slots__ = ("window_days", "skip_conformance")
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
+    SKIP_CONFORMANCE_FIELD_NUMBER: _ClassVar[int]
+    window_days: int
+    skip_conformance: bool
+    def __init__(self, window_days: _Optional[int] = ..., skip_conformance: _Optional[bool] = ...) -> None: ...
+
+class GetSelfHealthResponse(_message.Message):
+    __slots__ = ("self_health",)
+    SELF_HEALTH_FIELD_NUMBER: _ClassVar[int]
+    self_health: SelfHealth
+    def __init__(self, self_health: _Optional[_Union[SelfHealth, _Mapping]] = ...) -> None: ...
+
+class SelfHealth(_message.Message):
+    __slots__ = ("catalog", "conformance", "conformance_freshness", "ledger")
+    CATALOG_FIELD_NUMBER: _ClassVar[int]
+    CONFORMANCE_FIELD_NUMBER: _ClassVar[int]
+    CONFORMANCE_FRESHNESS_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_FIELD_NUMBER: _ClassVar[int]
+    catalog: CatalogSummary
+    conformance: _containers.RepeatedCompositeFieldContainer[ProviderConformance]
+    conformance_freshness: str
+    ledger: ReliabilityLedger
+    def __init__(self, catalog: _Optional[_Union[CatalogSummary, _Mapping]] = ..., conformance: _Optional[_Iterable[_Union[ProviderConformance, _Mapping]]] = ..., conformance_freshness: _Optional[str] = ..., ledger: _Optional[_Union[ReliabilityLedger, _Mapping]] = ...) -> None: ...
+
+class CatalogSummary(_message.Message):
+    __slots__ = ("total_phases", "delegated_phases", "native_phases", "phases")
+    TOTAL_PHASES_FIELD_NUMBER: _ClassVar[int]
+    DELEGATED_PHASES_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_PHASES_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    total_phases: int
+    delegated_phases: int
+    native_phases: int
+    phases: _containers.RepeatedCompositeFieldContainer[CatalogPhase]
+    def __init__(self, total_phases: _Optional[int] = ..., delegated_phases: _Optional[int] = ..., native_phases: _Optional[int] = ..., phases: _Optional[_Iterable[_Union[CatalogPhase, _Mapping]]] = ...) -> None: ...
+
+class CatalogPhase(_message.Message):
+    __slots__ = ("name", "optional", "source", "delegated", "provider", "finding_source")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    OPTIONAL_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    DELEGATED_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    FINDING_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    optional: bool
+    source: str
+    delegated: bool
+    provider: str
+    finding_source: str
+    def __init__(self, name: _Optional[str] = ..., optional: _Optional[bool] = ..., source: _Optional[str] = ..., delegated: _Optional[bool] = ..., provider: _Optional[str] = ..., finding_source: _Optional[str] = ...) -> None: ...
+
+class ProviderConformance(_message.Message):
+    __slots__ = ("provider", "phase", "reachable", "contract_valid", "identity_ok", "spec_valid", "metrics_adopted", "adoption_score", "violations")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_VALID_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_OK_FIELD_NUMBER: _ClassVar[int]
+    SPEC_VALID_FIELD_NUMBER: _ClassVar[int]
+    METRICS_ADOPTED_FIELD_NUMBER: _ClassVar[int]
+    ADOPTION_SCORE_FIELD_NUMBER: _ClassVar[int]
+    VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    phase: str
+    reachable: bool
+    contract_valid: bool
+    identity_ok: bool
+    spec_valid: bool
+    metrics_adopted: bool
+    adoption_score: float
+    violations: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ReliabilityLedger(_message.Message):
+    __slots__ = ("window_days", "run_count", "availability", "run_outcomes", "phases", "providers")
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
+    RUN_COUNT_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    RUN_OUTCOMES_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    window_days: int
+    run_count: int
+    availability: float
+    run_outcomes: _containers.RepeatedCompositeFieldContainer[RunOutcomeCount]
+    phases: _containers.RepeatedCompositeFieldContainer[PhaseReliability]
+    providers: _containers.RepeatedCompositeFieldContainer[ProviderReliability]
+    def __init__(self, window_days: _Optional[int] = ..., run_count: _Optional[int] = ..., availability: _Optional[float] = ..., run_outcomes: _Optional[_Iterable[_Union[RunOutcomeCount, _Mapping]]] = ..., phases: _Optional[_Iterable[_Union[PhaseReliability, _Mapping]]] = ..., providers: _Optional[_Iterable[_Union[ProviderReliability, _Mapping]]] = ...) -> None: ...
+
+class RunOutcomeCount(_message.Message):
+    __slots__ = ("outcome", "count")
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    outcome: str
+    count: int
+    def __init__(self, outcome: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
+
+class LabeledCount(_message.Message):
+    __slots__ = ("label", "count")
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    label: str
+    count: int
+    def __init__(self, label: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
+
+class DurationStats(_message.Message):
+    __slots__ = ("samples", "p50", "p95", "min", "max", "avg")
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    P50_FIELD_NUMBER: _ClassVar[int]
+    P95_FIELD_NUMBER: _ClassVar[int]
+    MIN_FIELD_NUMBER: _ClassVar[int]
+    MAX_FIELD_NUMBER: _ClassVar[int]
+    AVG_FIELD_NUMBER: _ClassVar[int]
+    samples: int
+    p50: int
+    p95: int
+    min: int
+    max: int
+    avg: int
+    def __init__(self, samples: _Optional[int] = ..., p50: _Optional[int] = ..., p95: _Optional[int] = ..., min: _Optional[int] = ..., max: _Optional[int] = ..., avg: _Optional[int] = ...) -> None: ...
+
+class ScenarioFailureRate(_message.Message):
+    __slots__ = ("scenario", "executed", "failures", "failure_rate")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_FIELD_NUMBER: _ClassVar[int]
+    FAILURES_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_RATE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    executed: int
+    failures: int
+    failure_rate: float
+    def __init__(self, scenario: _Optional[str] = ..., executed: _Optional[int] = ..., failures: _Optional[int] = ..., failure_rate: _Optional[float] = ...) -> None: ...
+
+class PhaseReliability(_message.Message):
+    __slots__ = ("phase", "provider", "finding_source", "total_observations", "passed", "failed", "skipped", "degraded", "availability", "failure_rate", "metrics_adopted", "skip_reasons", "classifications", "duration", "worst_scenarios")
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    FINDING_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_RATE_FIELD_NUMBER: _ClassVar[int]
+    METRICS_ADOPTED_FIELD_NUMBER: _ClassVar[int]
+    SKIP_REASONS_FIELD_NUMBER: _ClassVar[int]
+    CLASSIFICATIONS_FIELD_NUMBER: _ClassVar[int]
+    DURATION_FIELD_NUMBER: _ClassVar[int]
+    WORST_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    phase: str
+    provider: str
+    finding_source: str
+    total_observations: int
+    passed: int
+    failed: int
+    skipped: int
+    degraded: int
+    availability: float
+    failure_rate: float
+    metrics_adopted: int
+    skip_reasons: _containers.RepeatedCompositeFieldContainer[LabeledCount]
+    classifications: _containers.RepeatedCompositeFieldContainer[LabeledCount]
+    duration: DurationStats
+    worst_scenarios: _containers.RepeatedCompositeFieldContainer[ScenarioFailureRate]
+    def __init__(self, phase: _Optional[str] = ..., provider: _Optional[str] = ..., finding_source: _Optional[str] = ..., total_observations: _Optional[int] = ..., passed: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., degraded: _Optional[int] = ..., availability: _Optional[float] = ..., failure_rate: _Optional[float] = ..., metrics_adopted: _Optional[int] = ..., skip_reasons: _Optional[_Iterable[_Union[LabeledCount, _Mapping]]] = ..., classifications: _Optional[_Iterable[_Union[LabeledCount, _Mapping]]] = ..., duration: _Optional[_Union[DurationStats, _Mapping]] = ..., worst_scenarios: _Optional[_Iterable[_Union[ScenarioFailureRate, _Mapping]]] = ...) -> None: ...
+
+class ProviderReliability(_message.Message):
+    __slots__ = ("provider", "phases", "total_observations", "passed", "failed", "skipped", "availability", "failure_rate", "metrics_adopted", "duration")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_RATE_FIELD_NUMBER: _ClassVar[int]
+    METRICS_ADOPTED_FIELD_NUMBER: _ClassVar[int]
+    DURATION_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    phases: _containers.RepeatedScalarFieldContainer[str]
+    total_observations: int
+    passed: int
+    failed: int
+    skipped: int
+    availability: float
+    failure_rate: float
+    metrics_adopted: int
+    duration: DurationStats
+    def __init__(self, provider: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., total_observations: _Optional[int] = ..., passed: _Optional[int] = ..., failed: _Optional[int] = ..., skipped: _Optional[int] = ..., availability: _Optional[float] = ..., failure_rate: _Optional[float] = ..., metrics_adopted: _Optional[int] = ..., duration: _Optional[_Union[DurationStats, _Mapping]] = ...) -> None: ...

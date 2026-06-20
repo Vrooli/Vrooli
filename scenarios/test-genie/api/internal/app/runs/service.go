@@ -38,13 +38,23 @@ type Service struct {
 	scenariosRoot string
 	runManager    *runmanager.Manager
 	planner       executionPlanner
+	// ledgerSource feeds the GetSelfHealth reliability ledger (compute-on-read
+	// aggregation over persisted runs). Satisfied by *execution.SuiteExecutionRepository.
+	ledgerSource ledgerSource
+}
+
+// ledgerSource is the read seam GetSelfHealth's reliability ledger composes over.
+type ledgerSource interface {
+	AggregatePhaseObservations(ctx context.Context, since time.Time, limit int) ([]execution.PhaseObservation, error)
+	CountRunOutcomes(ctx context.Context, since time.Time, limit int) ([]execution.RunOutcomeCount, error)
 }
 
 // NewService returns a Service. scenariosRoot resolves each request's scenario
 // slug to its physical directory so the run index can be addressed. runManager
-// and planner power the durable run-lifecycle RPCs.
-func NewService(scenariosRoot string, runManager *runmanager.Manager, planner executionPlanner) *Service {
-	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner}
+// and planner power the durable run-lifecycle RPCs. ledgerSource feeds the
+// GetSelfHealth reliability ledger.
+func NewService(scenariosRoot string, runManager *runmanager.Manager, planner executionPlanner, ledgerSource ledgerSource) *Service {
+	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner, ledgerSource: ledgerSource}
 }
 
 func (s *Service) scenarioDir(scenario string) (string, error) {

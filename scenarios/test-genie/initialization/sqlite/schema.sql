@@ -1,5 +1,7 @@
 -- SQLite schema for Test Genie operational storage.
--- Stores queued suite requests and persisted suite executions.
+-- Stores queued suite requests. The persisted suite_executions table is owned
+-- by the execution domain (internal/execution/schema.sql) and applied via the
+-- per-domain schema registry — it is intentionally NOT defined here.
 
 CREATE TABLE IF NOT EXISTS suite_requests (
     id TEXT PRIMARY KEY,
@@ -22,25 +24,3 @@ CREATE INDEX IF NOT EXISTS idx_suite_requests_status
 
 CREATE INDEX IF NOT EXISTS idx_suite_requests_updated_at
     ON suite_requests (updated_at DESC);
-
-CREATE TABLE IF NOT EXISTS suite_executions (
-    id TEXT PRIMARY KEY,
-    suite_request_id TEXT REFERENCES suite_requests(id) ON DELETE SET NULL,
-    scenario_name TEXT NOT NULL,
-    preset_used TEXT,
-    requested_preset TEXT,
-    requested_phases TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(requested_phases)),
-    requested_skip_phases TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(requested_skip_phases)),
-    planned_phases TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(planned_phases)),
-    fail_fast INTEGER NOT NULL DEFAULT 0 CHECK (fail_fast IN (0, 1)),
-    success INTEGER NOT NULL CHECK (success IN (0, 1)),
-    phases TEXT NOT NULL CHECK (json_valid(phases)),
-    started_at TEXT NOT NULL,
-    completed_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_suite_executions_scenario
-    ON suite_executions (scenario_name);
-
-CREATE INDEX IF NOT EXISTS idx_suite_executions_completed_at
-    ON suite_executions (completed_at DESC);

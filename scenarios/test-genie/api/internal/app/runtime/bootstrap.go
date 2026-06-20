@@ -137,7 +137,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// RunsService exposes the append-only run index AND the durable run
 	// lifecycle (start/follow/wait/abort/status) over Connect-RPC, delegating
 	// execution to the run manager.
-	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner)
+	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner, executionRepo)
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"

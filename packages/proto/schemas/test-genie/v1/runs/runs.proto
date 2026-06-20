@@ -72,6 +72,19 @@ service RunsService {
   // Read-only; consumed by git-control-tower's advisory pre-commit step and
   // the `test-genie runs freshness` CLI verb.
   rpc CheckFreshness(CheckFreshnessRequest) returns (CheckFreshnessResponse);
+  // GetSelfHealth aggregates Test Genie's own observability into one read:
+  //   (a) catalog summary (phases, delegated vs native, per-phase provider +
+  //       finding source),
+  //   (b) per-provider conformance/adoption against the shared validation
+  //       contract (reachable, contract-valid, identity, maturity.json valid,
+  //       metrics_adopted) — probed LIVE and time-boxed,
+  //   (c) the reliability ledger over a recent window (per phase/provider:
+  //       availability %, failure-class + skip-reason histograms, degraded
+  //       counts, duration p50/p95/min/max/avg, worst-scenarios-per-phase) plus
+  //       run-level terminal-outcome counts.
+  // Read-only; compute-on-read (no persisted rollups). Consumed by the
+  // `test-genie health` CLI verb and the meta-optimization heartbeat.
+  rpc GetSelfHealth(GetSelfHealthRequest) returns (GetSelfHealthResponse);
 
   // --- Durable run lifecycle (server-owned, request-decoupled) ---------------
   // The run manager owns execution under a server-lifetime context, so a run
@@ -485,4 +498,141 @@ message CheckFreshnessResponse {
   // suggested_command reproduces freshness for every stale/unknown phase
   // (e.g. "test-genie execute <scenario> --preset quick").
   string suggested_command = 4;
+}
+
+// =============================================================================
+// SELF-HEALTH — Test Genie's own reliability/conformance surface (GetSelfHealth)
+// =============================================================================
+
+message GetSelfHealthRequest {
+  // window_days bounds the reliability ledger look-back. 0 = server default
+  // (30 days).
+  int32 window_days = 1;
+  // skip_conformance omits the LIVE provider conformance scan (the slow part:
+  // one time-boxed probe per delegated provider). The reliability ledger and
+  // catalog summary still come back. Default (false) includes conformance.
+  bool skip_conformance = 2;
+}
+
+message GetSelfHealthResponse {
+  SelfHealth self_health = 1;
+}
+
+// SelfHealth stitches catalog, conformance, and reliability into one snapshot.
+message SelfHealth {
+  CatalogSummary catalog = 1;
+  // conformance is the per-provider adoption scorecard. Empty when
+  // skip_conformance was set.
+  repeated ProviderConformance conformance = 2;
+  // conformance_freshness is "live" when conformance was probed this call, or
+  // "skipped" when skip_conformance was set. Conformance is never cached.
+  string conformance_freshness = 3;
+  ReliabilityLedger ledger = 4;
+}
+
+// CatalogSummary describes the registered phase set.
+message CatalogSummary {
+  int32 total_phases = 1;
+  int32 delegated_phases = 2;
+  int32 native_phases = 3;
+  repeated CatalogPhase phases = 4;
+}
+
+// CatalogPhase is one registered phase's catalog metadata.
+message CatalogPhase {
+  string name = 1;
+  bool optional = 2;
+  string source = 3; // "native" or "delegated"
+  bool delegated = 4;
+  string provider = 5; // delegated provider scenario; empty for native
+  string finding_source = 6; // lower-case finding-source token; empty when none
+}
+
+// ProviderConformance is one provider's adoption scorecard against the shared
+// ScenarioValidationService contract.
+message ProviderConformance {
+  string provider = 1;
+  string phase = 2;
+  bool reachable = 3;
+  bool contract_valid = 4;
+  bool identity_ok = 5;
+  bool spec_valid = 6;
+  bool metrics_adopted = 7; // advisory during the partial rollout
+  double adoption_score = 8; // fraction of the five dimensions satisfied
+  repeated string violations = 9;
+}
+
+// ReliabilityLedger is the compute-on-read reliability + performance rollup.
+message ReliabilityLedger {
+  int32 window_days = 1;
+  int32 run_count = 2;
+  // availability is the fraction of terminal runs that produced a result
+  // (passed or failed) out of all runs (incl. errored/aborted/timeout).
+  double availability = 3;
+  repeated RunOutcomeCount run_outcomes = 4;
+  repeated PhaseReliability phases = 5;
+  repeated ProviderReliability providers = 6;
+}
+
+// RunOutcomeCount is one bucket of the run-level terminal-outcome histogram.
+message RunOutcomeCount {
+  string outcome = 1; // passed | failed | errored | aborted | timeout | unknown
+  int32 count = 2;
+}
+
+// LabeledCount is one bucket of a string-keyed histogram.
+message LabeledCount {
+  string label = 1;
+  int32 count = 2;
+}
+
+// DurationStats summarizes executed-phase durations (seconds).
+message DurationStats {
+  int32 samples = 1;
+  int32 p50 = 2;
+  int32 p95 = 3;
+  int32 min = 4;
+  int32 max = 5;
+  int32 avg = 6;
+}
+
+// ScenarioFailureRate ranks a scenario's failure rate for one phase.
+message ScenarioFailureRate {
+  string scenario = 1;
+  int32 executed = 2;
+  int32 failures = 3;
+  double failure_rate = 4;
+}
+
+// PhaseReliability is the per-phase reliability + performance rollup.
+message PhaseReliability {
+  string phase = 1;
+  string provider = 2; // empty for native phases
+  string finding_source = 3;
+  int32 total_observations = 4;
+  int32 passed = 5;
+  int32 failed = 6;
+  int32 skipped = 7;
+  int32 degraded = 8;
+  double availability = 9; // executed / total observations
+  double failure_rate = 10; // failed / executed
+  int32 metrics_adopted = 11; // observations carrying ExecutionMetrics
+  repeated LabeledCount skip_reasons = 12;
+  repeated LabeledCount classifications = 13;
+  DurationStats duration = 14;
+  repeated ScenarioFailureRate worst_scenarios = 15;
+}
+
+// ProviderReliability is the per-provider rollup across its phase(s).
+message ProviderReliability {
+  string provider = 1;
+  repeated string phases = 2;
+  int32 total_observations = 3;
+  int32 passed = 4;
+  int32 failed = 5;
+  int32 skipped = 6;
+  double availability = 7;
+  double failure_rate = 8;
+  int32 metrics_adopted = 9;
+  DurationStats duration = 10;
 }

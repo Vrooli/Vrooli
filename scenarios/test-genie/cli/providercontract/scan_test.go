@@ -1,175 +1,60 @@
 package providercontract
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/vrooli/maturity-go/assessment"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"test-genie/internal/selfhealth"
 )
 
-func writeSpec(t *testing.T, repoRoot, provider, phase string) {
-	t.Helper()
-	dir := filepath.Join(repoRoot, "scenarios", provider, ".vrooli")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	spec := assessment.Spec{
-		Provider: provider,
-		Phase:    phase,
-		Version:  "1",
-		Levels:   []assessment.Level{{ID: "L0", Name: "base"}, {ID: "L1", Name: "next"}},
-		Findings: map[string]assessment.FindingMapping{},
-		Fallback: assessment.FallbackPolicy{
-			LocalLevelImpact: "L0",
-			GlobalImpact:     assessment.ImpactUnknown,
-			Dimension:        "measures",
-			SeverityDefault:  "WARNING",
-		},
-	}
-	raw, err := json.Marshal(spec)
+// The conformance-scan core (scanProvider, probing, scoring, hard-violation
+// rules) now lives in test-genie/internal/selfhealth and is tested there
+// (conformance_test.go). These tests cover the thin CLI wrapper: arg parsing and
+// the report-shape mapping that preserves the stable snake_case JSON contract.
+
+func TestParseScanArgsDefaults(t *testing.T) {
+	args, err := ParseScanArgs([]string{"scan"})
 	if err != nil {
-		t.Fatalf("marshal spec: %v", err)
+		t.Fatalf("ParseScanArgs: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "maturity.json"), raw, 0o644); err != nil {
-		t.Fatalf("write spec: %v", err)
+	if args.Target != selfhealth.DefaultScanTarget {
+		t.Fatalf("default target = %q, want %q", args.Target, selfhealth.DefaultScanTarget)
 	}
-}
-
-func validProbeResponse(provider, phase string, withMetrics bool) *scenariovalidationv1.ValidateScenarioResponse {
-	resp := &scenariovalidationv1.ValidateScenarioResponse{
-		Scenario: "test-genie",
-		Status:   scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
-		Assessment: &commonv1.MaturityAssessment{
-			Scenario: "test-genie",
-			Provider: provider,
-			Phase:    phase,
-			Version:  "1",
-			Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1"},
-		},
+	if args.Timeout != 30*time.Second {
+		t.Fatalf("default timeout = %v, want 30s", args.Timeout)
 	}
-	if withMetrics {
-		resp.Metrics = &commonv1.ExecutionMetrics{WallClockMs: 1840}
-	}
-	return resp
-}
-
-func TestScanProviderFullAdoption(t *testing.T) {
-	repo := t.TempDir()
-	writeSpec(t, repo, "proto-health", "proto")
-	probe := func(context.Context, string, string, time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
-		return validProbeResponse("proto-health", "proto", true), nil
-	}
-	restore := swapProbe(probe)
-	defer restore()
-
-	pr := scanProvider(context.Background(), repo, "test-genie", "proto", "proto-health", time.Second)
-	if !pr.Reachable || !pr.ContractValid || !pr.IdentityOK || !pr.SpecValid || !pr.MetricsAdopted {
-		t.Fatalf("expected full adoption, got %+v", pr)
-	}
-	if pr.AdoptionScore != 1.0 {
-		t.Fatalf("adoption_score = %v, want 1.0", pr.AdoptionScore)
-	}
-	if len(pr.Violations) != 0 {
-		t.Fatalf("unexpected violations: %v", pr.Violations)
-	}
-	if pr.hasHardViolation() {
-		t.Fatal("full adoption should have no hard violation")
+	if args.JSON {
+		t.Fatal("JSON should default to false")
 	}
 }
 
-func TestScanProviderMetricsAdvisory(t *testing.T) {
-	repo := t.TempDir()
-	writeSpec(t, repo, "cli-health", "contracts")
-	probe := func(context.Context, string, string, time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
-		return validProbeResponse("cli-health", "contracts", false), nil
+func TestParseScanArgsOverrides(t *testing.T) {
+	args, err := ParseScanArgs([]string{"scan", "--json", "--target", "proto-health", "--timeout", "5s"})
+	if err != nil {
+		t.Fatalf("ParseScanArgs: %v", err)
 	}
-	restore := swapProbe(probe)
-	defer restore()
-
-	pr := scanProvider(context.Background(), repo, "test-genie", "contracts", "cli-health", time.Second)
-	if pr.MetricsAdopted {
-		t.Fatal("expected metrics_adopted=false for un-migrated provider")
-	}
-	if pr.hasHardViolation() {
-		t.Fatalf("missing metrics must not be a hard violation: %+v", pr)
-	}
-	if pr.AdoptionScore != 0.8 {
-		t.Fatalf("adoption_score = %v, want 0.8", pr.AdoptionScore)
+	if !args.JSON || args.Target != "proto-health" || args.Timeout != 5*time.Second {
+		t.Fatalf("unexpected parsed args: %+v", args)
 	}
 }
 
-func TestScanProviderBrokenSpec(t *testing.T) {
-	repo := t.TempDir()
-	dir := filepath.Join(repo, "scenarios", "proto-health", ".vrooli")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "maturity.json"), []byte(`{"provider":""}`), 0o644); err != nil {
-		t.Fatalf("write: %v", err)
-	}
-	probe := func(context.Context, string, string, time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
-		return validProbeResponse("proto-health", "proto", true), nil
-	}
-	restore := swapProbe(probe)
-	defer restore()
-
-	pr := scanProvider(context.Background(), repo, "test-genie", "proto", "proto-health", time.Second)
-	if pr.SpecValid {
-		t.Fatal("expected spec_valid=false for broken maturity.json")
-	}
-	if !pr.hasHardViolation() {
-		t.Fatal("broken spec must be a hard violation")
+func TestParseScanArgsRejectsNonScan(t *testing.T) {
+	if _, err := ParseScanArgs([]string{"check"}); err == nil {
+		t.Fatal("expected error for non-scan subcommand")
 	}
 }
 
-func TestScanProviderUnreachableNotHard(t *testing.T) {
-	repo := t.TempDir()
-	writeSpec(t, repo, "proto-health", "proto")
-	probe := func(context.Context, string, string, time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
-		return nil, errors.New("connection refused")
+func TestHasHardViolationMapping(t *testing.T) {
+	// spec-invalid is always hard.
+	if !hasHardViolation(ProviderReport{SpecValid: false}) {
+		t.Fatal("spec-invalid must be a hard violation")
 	}
-	restore := swapProbe(probe)
-	defer restore()
-
-	pr := scanProvider(context.Background(), repo, "test-genie", "proto", "proto-health", time.Second)
-	if pr.Reachable {
-		t.Fatal("expected unreachable")
+	// reachable + contract-invalid is hard.
+	if !hasHardViolation(ProviderReport{SpecValid: true, Reachable: true, ContractValid: false}) {
+		t.Fatal("reachable contract-invalid must be hard")
 	}
-	if pr.hasHardViolation() {
-		t.Fatal("unreachable (env) should not be a hard violation when the spec is valid")
+	// unreachable with valid spec is not hard.
+	if hasHardViolation(ProviderReport{SpecValid: true, Reachable: false}) {
+		t.Fatal("unreachable with valid spec must not be hard")
 	}
-	if len(pr.Violations) == 0 {
-		t.Fatal("unreachable should still be reported as a violation")
-	}
-}
-
-func TestScanProviderIdentityMismatch(t *testing.T) {
-	repo := t.TempDir()
-	writeSpec(t, repo, "proto-health", "proto")
-	probe := func(context.Context, string, string, time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
-		return validProbeResponse("imposter", "proto", true), nil
-	}
-	restore := swapProbe(probe)
-	defer restore()
-
-	pr := scanProvider(context.Background(), repo, "test-genie", "proto", "proto-health", time.Second)
-	if pr.IdentityOK {
-		t.Fatal("expected identity mismatch")
-	}
-	if !pr.hasHardViolation() {
-		t.Fatal("identity mismatch among reachable providers is a hard violation")
-	}
-}
-
-func swapProbe(fn func(context.Context, string, string, time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error)) func() {
-	prev := scanProbe
-	scanProbe = fn
-	return func() { scanProbe = prev }
 }

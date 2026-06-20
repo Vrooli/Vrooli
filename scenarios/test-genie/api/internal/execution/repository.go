@@ -55,16 +55,25 @@ INSERT INTO suite_executions (
 	planned_phases,
 	fail_fast,
 	success,
+	terminal_outcome,
 	phases,
 	started_at,
 	completed_at
 ) VALUES (
-	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
 	var suiteRequestID any
 	if record.SuiteRequestID != nil {
 		suiteRequestID = record.SuiteRequestID.String()
+	}
+
+	// terminal_outcome is the run-level classification. A caller that did not
+	// set it (the normal completed-run path) gets passed/failed derived from
+	// the success flag; catastrophic callers set errored/aborted/timeout.
+	outcome := record.TerminalOutcome
+	if outcome == "" {
+		outcome = outcomeForSuccess(record.Success)
 	}
 
 	_, err = r.db.ExecContext(
@@ -80,6 +89,7 @@ INSERT INTO suite_executions (
 		plannedPhases,
 		boolToInt(record.FailFast),
 		boolToInt(record.Success),
+		outcome.String(),
 		string(payload),
 		sqliteutil.FormatTimestamp(record.StartedAt),
 		sqliteutil.FormatTimestamp(record.CompletedAt),
@@ -107,6 +117,7 @@ SELECT
 	planned_phases,
 	fail_fast,
 	success,
+	terminal_outcome,
 	phases,
 	started_at,
 	completed_at
@@ -152,6 +163,7 @@ SELECT
 	planned_phases,
 	fail_fast,
 	success,
+	terminal_outcome,
 	phases,
 	started_at,
 	completed_at
@@ -270,6 +282,7 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	var plannedPhases any
 	var failFast int
 	var success int
+	var terminalOutcome sql.NullString
 	var phasesJSON any
 	var startedAt any
 	var completedAt any
@@ -285,6 +298,7 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		&plannedPhases,
 		&failFast,
 		&success,
+		&terminalOutcome,
 		&phasesJSON,
 		&startedAt,
 		&completedAt,
@@ -323,6 +337,9 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	}
 	record.FailFast = failFast == 1
 	record.Success = success == 1
+	if terminalOutcome.Valid {
+		record.TerminalOutcome = TerminalOutcome(terminalOutcome.String)
+	}
 
 	if err := sqliteutil.UnmarshalJSON(phasesJSON, &record.Phases); err != nil {
 		return record, err

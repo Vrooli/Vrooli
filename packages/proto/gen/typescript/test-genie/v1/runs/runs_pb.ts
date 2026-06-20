@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file test-genie/v1/runs/runs.proto.
  */
 export const file_test_genie_v1_runs_runs: GenFile = /*@__PURE__*/
-  fileDesc("Ch10ZXN0LWdlbmllL3YxL3J1bnMvcnVucy5wcm90bxIZdnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucyK2AgoIUnVuRXZlbnQSDQoFZXZlbnQYASABKAkSFwoPZWxhcHNlZF9zZWNvbmRzGAIgASgBEg4KBnJ1bl9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIUCgxhcnRpZmFjdF9kaXIYBSABKAkSDgoGcHJlc2V0GAYgASgJEg0KBXBoYXNlGAcgASgJEhMKC3BoYXNlX2luZGV4GAggASgFEhMKC3BoYXNlX3RvdGFsGAkgASgFEg4KBnN0YXR1cxgKIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAsgASgFEhUKDXF1aWV0X3NlY29uZHMYDCABKAESDwoHbWVzc2FnZRgNIAEoCRIPCgdzdWNjZXNzGA4gASgIEg8KB3ZlcmRpY3QYDyABKAkSDQoFZXJyb3IYECABKAki8AIKDVJ1bkxpdmVTdGF0dXMSDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIUCgxhY3RpdmVfcGhhc2UYBCABKAkSEwoLcGhhc2VfaW5kZXgYBSABKAUSEwoLcGhhc2VfdG90YWwYBiABKAUSEgoKc3RhcnRlZF9hdBgHIAEoCRIXCg9lbGFwc2VkX3NlY29uZHMYCCABKAESHwoXZXN0aW1hdGVkX3RvdGFsX3NlY29uZHMYCSABKAUSIwobZXN0aW1hdGVkX3JlbWFpbmluZ19zZWNvbmRzGAogASgFEhEKCWV0YV9rbm93bhgLIAEoCBImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYDCABKAUSDwoHdmVyZGljdBgNIAEoCRIPCgdzdWNjZXNzGA4gASgIEg0KBWVycm9yGA8gASgJEg4KBmFjdGl2ZRgQIAEoCCLAAgoPU3RhcnRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnByZXNldBgCIAEoCRIOCgZwaGFzZXMYAyADKAkSDAoEc2tpcBgEIAMoCRIRCglmYWlsX2Zhc3QYBSABKAgSGgoSZGlhZ25vc3RpY3NfcHJlc2V0GAYgASgJEg4KBnVpX3VybBgHIAEoCRIPCgdhcGlfdXJsGAggASgJEhUKDXNjZW5hcmlvX3BhdGgYCiABKAkSGQoRbG9naWNhbF9yZXBvX3Jvb3QYCyABKAkSIQoZbG9naWNhbF9zY2VuYXJpb19yZWxfcGF0aBgMIAEoCRIYChBzdWl0ZV9yZXF1ZXN0X2lkGA0gASgJEhcKD2NhcHR1cmVfcHJvZmlsZRgOIAEoCUoECAkQClIPYnJvd3Nlcmxlc3NfdXJsInsKEFN0YXJ0UnVuUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAMgASgFEhEKCWV0YV9rbm93bhgEIAEoCBIRCgljb2FsZXNjZWQYBSABKAgiPwoLUnVuQnVzeUluZm8SEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnByZXNldBgDIAEoCSJRChBGb2xsb3dSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIbChNzdXBwcmVzc19oZWFydGJlYXRzGAMgASgIIksKDldhaXRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYAyABKAUiXgoPV2FpdFJ1blJlc3BvbnNlEjgKBnN0YXR1cxgBIAEoCzIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuTGl2ZVN0YXR1cxIRCgl0aW1lZF9vdXQYAiABKAgiMwoPQWJvcnRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJMChBBYm9ydFJ1blJlc3BvbnNlEjgKBnN0YXR1cxgBIAEoCzIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuTGl2ZVN0YXR1cyI3ChNHZXRSdW5TdGF0dXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJrCg9EaWFnbm9zdGljc0luZm8SDQoFdmlkZW8YASABKAgSDwoHY29uc29sZRgCIAEoCBIPCgduZXR3b3JrGAMgASgIEgsKA2hhchgEIAEoCBINCgV0cmFjZRgFIAEoCBILCgNkb20YBiABKAgiPwoHUGluSW5mbxIRCglwaW5uZWRfYnkYASABKAkSEQoJcGlubmVkX2F0GAIgASgJEg4KBnJlYXNvbhgDIAEoCSJDCglQaGFzZUluZm8SDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoQZHVyYXRpb25fc2Vjb25kcxgDIAEoASKfAwoHUnVuSW5mbxIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3RhcnRlZF9hdBgDIAEoCRIUCgxjb21wbGV0ZWRfYXQYBCABKAkSDgoGc3RhdHVzGAUgASgJEjQKBnBoYXNlcxgGIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VJbmZvEg8KB2dpdF9zaGEYByABKAkSEgoKZ2l0X2JyYW5jaBgIIAEoCRIRCglnaXRfZGlydHkYCSABKAgSGQoRZ2l0X2RpcnR5X3N1bW1hcnkYCiABKAkSPwoLZGlhZ25vc3RpY3MYCyABKAsyKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRpYWdub3N0aWNzSW5mbxIwCgRwaW5zGAwgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaW5JbmZvEhMKC3RyZWVfZGlnZXN0GA0gASgJEg4KBnByZXNldBgOIAEoCRIXCg9jYXB0dXJlX3Byb2ZpbGUYDyABKAkiQgoPTGlzdFJ1bnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgVsaW1pdBgDIAEoBSJEChBMaXN0UnVuc1Jlc3BvbnNlEjAKBHJ1bnMYASADKAsyIi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkluZm8iMQoNR2V0UnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiQQoOR2V0UnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIkMKEERlbGV0ZVJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg0KBWZvcmNlGAMgASgIIiQKEURlbGV0ZVJ1blJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiVAoNUGluUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSEQoJcGlubmVkX2J5GAMgASgJEg4KBnJlYXNvbhgEIAEoCSJBCg5QaW5SdW5SZXNwb25zZRIvCgNydW4YASABKAsyIi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkluZm8iRgoPVW5waW5SdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIRCglwaW5uZWRfYnkYAyABKAkiQwoQVW5waW5SdW5SZXNwb25zZRIvCgNydW4YASABKAsyIi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkluZm8iWQoSQ29tcGFyZVJ1bnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhAKCHJ1bl9pZF9hGAIgASgJEhAKCHJ1bl9pZF9iGAMgASgJEg0KBXBoYXNlGAQgASgJIrIBCglQaGFzZURpZmYSDQoFcGhhc2UYASABKAkSEAoIc3RhdHVzX2EYAiABKAkSEAoIc3RhdHVzX2IYAyABKAkSDwoHdmVyZGljdBgEIAEoCRITCgtyZWdyZXNzaW9ucxgFIAMoCRIUCgxuZXdfZmFpbHVyZXMYBiADKAkSHAoUcHJlZXhpc3RpbmdfZmFpbHVyZXMYByADKAkSGAoQY2xlYXJlZF9mYWlsdXJlcxgIIAMoCSJcChNDb21wYXJlUnVuc1Jlc3BvbnNlEjQKBnBoYXNlcxgBIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VEaWZmEg8KB3ZlcmRpY3QYAiABKAkimAEKDkZpbmRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg8KB2dpdF9zaGEYAiABKAkSEwoLdHJlZV9kaWdlc3QYAyABKAkSDgoGcHJlc2V0GAQgASgJEhcKD2NhcHR1cmVfcHJvZmlsZRgFIAEoCRIOCgZzdGF0dXMYBiABKAkSFQoNcmVxdWlyZV9jbGVhbhgHIAEoCCJRCg9GaW5kUnVuUmVzcG9uc2USDQoFZm91bmQYASABKAgSLwoDcnVuGAIgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIkoKF0dldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVwaGFzZRgDIAEoCSJBChhHZXRQaGFzZUFydGlmYWN0UmVzcG9uc2USDwoHY29udGVudBgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkiQgoIUnVuVmlkZW8SEAoId29ya2Zsb3cYASABKAkSEAoIcmVsX3BhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAyI4ChRMaXN0UnVuVmlkZW9zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiTAoVTGlzdFJ1blZpZGVvc1Jlc3BvbnNlEjMKBnZpZGVvcxgBIAMoCzIjLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuVmlkZW8ifAoJUnVuVmlzdWFsEgwKBHBhZ2UYASABKAkSDQoFbGFiZWwYAiABKAkSGwoTc2NyZWVuc2hvdF9yZWxfcGF0aBgDIAEoCRIWCg52aWRlb19yZWxfcGF0aBgEIAEoCRIdChVzY3JlZW5zaG90X3NpemVfYnl0ZXMYBSABKAMiOQoVTGlzdFJ1blZpc3VhbHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJPChZMaXN0UnVuVmlzdWFsc1Jlc3BvbnNlEjUKB3Zpc3VhbHMYASADKAsyJC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1blZpc3VhbCJZChhDb21wYXJlUnVuVmlzdWFsc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEwoLYmFzZV9ydW5faWQYAiABKAkSFgoOY3VycmVudF9ydW5faWQYAyABKAkiVAoLVmlzdWFsRGVsdGESDAoEcGFnZRgBIAEoCRINCgVsYWJlbBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSGAoQY2hhbmdlZF9mcmFjdGlvbhgEIAEoASJTChlDb21wYXJlUnVuVmlzdWFsc1Jlc3BvbnNlEjYKBmRlbHRhcxgBIAMoCzImLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVmlzdWFsRGVsdGEiOQoVQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnBoYXNlcxgCIAMoCSJjCg5QaGFzZUZyZXNobmVzcxINCgVwaGFzZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLbGFzdF9ydW5faWQYAyABKAkSHQoVbGFzdF9ydW5fY29tcGxldGVkX2F0GAQgASgJIpUBChZDaGVja0ZyZXNobmVzc1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhMKC3RyZWVfZGlnZXN0GAIgASgJEjkKBnBoYXNlcxgDIAMoCzIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VGcmVzaG5lc3MSGQoRc3VnZ2VzdGVkX2NvbW1hbmQYBCABKAkyow4KC1J1bnNTZXJ2aWNlEmMKCExpc3RSdW5zEioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuc1JlcXVlc3QaKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5zUmVzcG9uc2USXQoGR2V0UnVuEigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXF1ZXN0GikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXNwb25zZRJmCglEZWxldGVSdW4SKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlcXVlc3QaLC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlc3BvbnNlEl0KBlBpblJ1bhIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVxdWVzdBopLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVzcG9uc2USYwoIVW5waW5SdW4SKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlVucGluUnVuUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVW5waW5SdW5SZXNwb25zZRJsCgtDb21wYXJlUnVucxItLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ29tcGFyZVJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Db21wYXJlUnVuc1Jlc3BvbnNlEnsKEEdldFBoYXNlQXJ0aWZhY3QSMi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0GjMudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRQaGFzZUFydGlmYWN0UmVzcG9uc2UScgoNTGlzdFJ1blZpZGVvcxIvLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpZGVvc1JlcXVlc3QaMC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5WaWRlb3NSZXNwb25zZRJ1Cg5MaXN0UnVuVmlzdWFscxIwLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpc3VhbHNSZXF1ZXN0GjEudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuVmlzdWFsc1Jlc3BvbnNlEn4KEUNvbXBhcmVSdW5WaXN1YWxzEjMudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Db21wYXJlUnVuVmlzdWFsc1JlcXVlc3QaNC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkNvbXBhcmVSdW5WaXN1YWxzUmVzcG9uc2USYAoHRmluZFJ1bhIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuRmluZFJ1blJlcXVlc3QaKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkZpbmRSdW5SZXNwb25zZRJ1Cg5DaGVja0ZyZXNobmVzcxIwLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0GjEudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5DaGVja0ZyZXNobmVzc1Jlc3BvbnNlEmMKCFN0YXJ0UnVuEioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5TdGFydFJ1blJlcXVlc3QaKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlN0YXJ0UnVuUmVzcG9uc2USXwoJRm9sbG93UnVuEisudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Gb2xsb3dSdW5SZXF1ZXN0GiMudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5FdmVudDABEmAKB1dhaXRSdW4SKS52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLldhaXRSdW5SZXF1ZXN0GioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5XYWl0UnVuUmVzcG9uc2USYwoIQWJvcnRSdW4SKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkFib3J0UnVuUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQWJvcnRSdW5SZXNwb25zZRJoCgxHZXRSdW5TdGF0dXMSLi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFJ1blN0YXR1c1JlcXVlc3QaKC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkxpdmVTdGF0dXNCS1pJZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90ZXN0LWdlbmllL3YxL3J1bnM7cnVuc192MWIGcHJvdG8z");
+  fileDesc("Ch10ZXN0LWdlbmllL3YxL3J1bnMvcnVucy5wcm90bxIZdnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucyK2AgoIUnVuRXZlbnQSDQoFZXZlbnQYASABKAkSFwoPZWxhcHNlZF9zZWNvbmRzGAIgASgBEg4KBnJ1bl9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIUCgxhcnRpZmFjdF9kaXIYBSABKAkSDgoGcHJlc2V0GAYgASgJEg0KBXBoYXNlGAcgASgJEhMKC3BoYXNlX2luZGV4GAggASgFEhMKC3BoYXNlX3RvdGFsGAkgASgFEg4KBnN0YXR1cxgKIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAsgASgFEhUKDXF1aWV0X3NlY29uZHMYDCABKAESDwoHbWVzc2FnZRgNIAEoCRIPCgdzdWNjZXNzGA4gASgIEg8KB3ZlcmRpY3QYDyABKAkSDQoFZXJyb3IYECABKAki8AIKDVJ1bkxpdmVTdGF0dXMSDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIUCgxhY3RpdmVfcGhhc2UYBCABKAkSEwoLcGhhc2VfaW5kZXgYBSABKAUSEwoLcGhhc2VfdG90YWwYBiABKAUSEgoKc3RhcnRlZF9hdBgHIAEoCRIXCg9lbGFwc2VkX3NlY29uZHMYCCABKAESHwoXZXN0aW1hdGVkX3RvdGFsX3NlY29uZHMYCSABKAUSIwobZXN0aW1hdGVkX3JlbWFpbmluZ19zZWNvbmRzGAogASgFEhEKCWV0YV9rbm93bhgLIAEoCBImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYDCABKAUSDwoHdmVyZGljdBgNIAEoCRIPCgdzdWNjZXNzGA4gASgIEg0KBWVycm9yGA8gASgJEg4KBmFjdGl2ZRgQIAEoCCLAAgoPU3RhcnRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnByZXNldBgCIAEoCRIOCgZwaGFzZXMYAyADKAkSDAoEc2tpcBgEIAMoCRIRCglmYWlsX2Zhc3QYBSABKAgSGgoSZGlhZ25vc3RpY3NfcHJlc2V0GAYgASgJEg4KBnVpX3VybBgHIAEoCRIPCgdhcGlfdXJsGAggASgJEhUKDXNjZW5hcmlvX3BhdGgYCiABKAkSGQoRbG9naWNhbF9yZXBvX3Jvb3QYCyABKAkSIQoZbG9naWNhbF9zY2VuYXJpb19yZWxfcGF0aBgMIAEoCRIYChBzdWl0ZV9yZXF1ZXN0X2lkGA0gASgJEhcKD2NhcHR1cmVfcHJvZmlsZRgOIAEoCUoECAkQClIPYnJvd3Nlcmxlc3NfdXJsInsKEFN0YXJ0UnVuUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAMgASgFEhEKCWV0YV9rbm93bhgEIAEoCBIRCgljb2FsZXNjZWQYBSABKAgiPwoLUnVuQnVzeUluZm8SEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg4KBnByZXNldBgDIAEoCSJRChBGb2xsb3dSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIbChNzdXBwcmVzc19oZWFydGJlYXRzGAMgASgIIksKDldhaXRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYAyABKAUiXgoPV2FpdFJ1blJlc3BvbnNlEjgKBnN0YXR1cxgBIAEoCzIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuTGl2ZVN0YXR1cxIRCgl0aW1lZF9vdXQYAiABKAgiMwoPQWJvcnRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJMChBBYm9ydFJ1blJlc3BvbnNlEjgKBnN0YXR1cxgBIAEoCzIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuTGl2ZVN0YXR1cyI3ChNHZXRSdW5TdGF0dXNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJrCg9EaWFnbm9zdGljc0luZm8SDQoFdmlkZW8YASABKAgSDwoHY29uc29sZRgCIAEoCBIPCgduZXR3b3JrGAMgASgIEgsKA2hhchgEIAEoCBINCgV0cmFjZRgFIAEoCBILCgNkb20YBiABKAgiPwoHUGluSW5mbxIRCglwaW5uZWRfYnkYASABKAkSEQoJcGlubmVkX2F0GAIgASgJEg4KBnJlYXNvbhgDIAEoCSJDCglQaGFzZUluZm8SDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoQZHVyYXRpb25fc2Vjb25kcxgDIAEoASKfAwoHUnVuSW5mbxIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3RhcnRlZF9hdBgDIAEoCRIUCgxjb21wbGV0ZWRfYXQYBCABKAkSDgoGc3RhdHVzGAUgASgJEjQKBnBoYXNlcxgGIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VJbmZvEg8KB2dpdF9zaGEYByABKAkSEgoKZ2l0X2JyYW5jaBgIIAEoCRIRCglnaXRfZGlydHkYCSABKAgSGQoRZ2l0X2RpcnR5X3N1bW1hcnkYCiABKAkSPwoLZGlhZ25vc3RpY3MYCyABKAsyKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRpYWdub3N0aWNzSW5mbxIwCgRwaW5zGAwgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaW5JbmZvEhMKC3RyZWVfZGlnZXN0GA0gASgJEg4KBnByZXNldBgOIAEoCRIXCg9jYXB0dXJlX3Byb2ZpbGUYDyABKAkiQgoPTGlzdFJ1bnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnN0YXR1cxgCIAEoCRINCgVsaW1pdBgDIAEoBSJEChBMaXN0UnVuc1Jlc3BvbnNlEjAKBHJ1bnMYASADKAsyIi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkluZm8iMQoNR2V0UnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiQQoOR2V0UnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIkMKEERlbGV0ZVJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg0KBWZvcmNlGAMgASgIIiQKEURlbGV0ZVJ1blJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiVAoNUGluUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSEQoJcGlubmVkX2J5GAMgASgJEg4KBnJlYXNvbhgEIAEoCSJBCg5QaW5SdW5SZXNwb25zZRIvCgNydW4YASABKAsyIi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkluZm8iRgoPVW5waW5SdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIRCglwaW5uZWRfYnkYAyABKAkiQwoQVW5waW5SdW5SZXNwb25zZRIvCgNydW4YASABKAsyIi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkluZm8iWQoSQ29tcGFyZVJ1bnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhAKCHJ1bl9pZF9hGAIgASgJEhAKCHJ1bl9pZF9iGAMgASgJEg0KBXBoYXNlGAQgASgJIrIBCglQaGFzZURpZmYSDQoFcGhhc2UYASABKAkSEAoIc3RhdHVzX2EYAiABKAkSEAoIc3RhdHVzX2IYAyABKAkSDwoHdmVyZGljdBgEIAEoCRITCgtyZWdyZXNzaW9ucxgFIAMoCRIUCgxuZXdfZmFpbHVyZXMYBiADKAkSHAoUcHJlZXhpc3RpbmdfZmFpbHVyZXMYByADKAkSGAoQY2xlYXJlZF9mYWlsdXJlcxgIIAMoCSJcChNDb21wYXJlUnVuc1Jlc3BvbnNlEjQKBnBoYXNlcxgBIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VEaWZmEg8KB3ZlcmRpY3QYAiABKAkimAEKDkZpbmRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg8KB2dpdF9zaGEYAiABKAkSEwoLdHJlZV9kaWdlc3QYAyABKAkSDgoGcHJlc2V0GAQgASgJEhcKD2NhcHR1cmVfcHJvZmlsZRgFIAEoCRIOCgZzdGF0dXMYBiABKAkSFQoNcmVxdWlyZV9jbGVhbhgHIAEoCCJRCg9GaW5kUnVuUmVzcG9uc2USDQoFZm91bmQYASABKAgSLwoDcnVuGAIgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIkoKF0dldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVwaGFzZRgDIAEoCSJBChhHZXRQaGFzZUFydGlmYWN0UmVzcG9uc2USDwoHY29udGVudBgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkiQgoIUnVuVmlkZW8SEAoId29ya2Zsb3cYASABKAkSEAoIcmVsX3BhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAyI4ChRMaXN0UnVuVmlkZW9zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiTAoVTGlzdFJ1blZpZGVvc1Jlc3BvbnNlEjMKBnZpZGVvcxgBIAMoCzIjLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuVmlkZW8ifAoJUnVuVmlzdWFsEgwKBHBhZ2UYASABKAkSDQoFbGFiZWwYAiABKAkSGwoTc2NyZWVuc2hvdF9yZWxfcGF0aBgDIAEoCRIWCg52aWRlb19yZWxfcGF0aBgEIAEoCRIdChVzY3JlZW5zaG90X3NpemVfYnl0ZXMYBSABKAMiOQoVTGlzdFJ1blZpc3VhbHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJPChZMaXN0UnVuVmlzdWFsc1Jlc3BvbnNlEjUKB3Zpc3VhbHMYASADKAsyJC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1blZpc3VhbCJZChhDb21wYXJlUnVuVmlzdWFsc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEwoLYmFzZV9ydW5faWQYAiABKAkSFgoOY3VycmVudF9ydW5faWQYAyABKAkiVAoLVmlzdWFsRGVsdGESDAoEcGFnZRgBIAEoCRINCgVsYWJlbBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSGAoQY2hhbmdlZF9mcmFjdGlvbhgEIAEoASJTChlDb21wYXJlUnVuVmlzdWFsc1Jlc3BvbnNlEjYKBmRlbHRhcxgBIAMoCzImLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVmlzdWFsRGVsdGEiOQoVQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnBoYXNlcxgCIAMoCSJjCg5QaGFzZUZyZXNobmVzcxINCgVwaGFzZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLbGFzdF9ydW5faWQYAyABKAkSHQoVbGFzdF9ydW5fY29tcGxldGVkX2F0GAQgASgJIpUBChZDaGVja0ZyZXNobmVzc1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhMKC3RyZWVfZGlnZXN0GAIgASgJEjkKBnBoYXNlcxgDIAMoCzIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VGcmVzaG5lc3MSGQoRc3VnZ2VzdGVkX2NvbW1hbmQYBCABKAkiRQoUR2V0U2VsZkhlYWx0aFJlcXVlc3QSEwoLd2luZG93X2RheXMYASABKAUSGAoQc2tpcF9jb25mb3JtYW5jZRgCIAEoCCJTChVHZXRTZWxmSGVhbHRoUmVzcG9uc2USOgoLc2VsZl9oZWFsdGgYASABKAsyJS52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlNlbGZIZWFsdGgi6gEKClNlbGZIZWFsdGgSOgoHY2F0YWxvZxgBIAEoCzIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ2F0YWxvZ1N1bW1hcnkSQwoLY29uZm9ybWFuY2UYAiADKAsyLi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlByb3ZpZGVyQ29uZm9ybWFuY2USHQoVY29uZm9ybWFuY2VfZnJlc2huZXNzGAMgASgJEjwKBmxlZGdlchgEIAEoCzIsLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUmVsaWFiaWxpdHlMZWRnZXIikAEKDkNhdGFsb2dTdW1tYXJ5EhQKDHRvdGFsX3BoYXNlcxgBIAEoBRIYChBkZWxlZ2F0ZWRfcGhhc2VzGAIgASgFEhUKDW5hdGl2ZV9waGFzZXMYAyABKAUSNwoGcGhhc2VzGAQgAygLMicudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5DYXRhbG9nUGhhc2UiewoMQ2F0YWxvZ1BoYXNlEgwKBG5hbWUYASABKAkSEAoIb3B0aW9uYWwYAiABKAgSDgoGc291cmNlGAMgASgJEhEKCWRlbGVnYXRlZBgEIAEoCBIQCghwcm92aWRlchgFIAEoCRIWCg5maW5kaW5nX3NvdXJjZRgGIAEoCSLPAQoTUHJvdmlkZXJDb25mb3JtYW5jZRIQCghwcm92aWRlchgBIAEoCRINCgVwaGFzZRgCIAEoCRIRCglyZWFjaGFibGUYAyABKAgSFgoOY29udHJhY3RfdmFsaWQYBCABKAgSEwoLaWRlbnRpdHlfb2sYBSABKAgSEgoKc3BlY192YWxpZBgGIAEoCBIXCg9tZXRyaWNzX2Fkb3B0ZWQYByABKAgSFgoOYWRvcHRpb25fc2NvcmUYCCABKAESEgoKdmlvbGF0aW9ucxgJIAMoCSKTAgoRUmVsaWFiaWxpdHlMZWRnZXISEwoLd2luZG93X2RheXMYASABKAUSEQoJcnVuX2NvdW50GAIgASgFEhQKDGF2YWlsYWJpbGl0eRgDIAEoARJACgxydW5fb3V0Y29tZXMYBCADKAsyKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bk91dGNvbWVDb3VudBI7CgZwaGFzZXMYBSADKAsyKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlBoYXNlUmVsaWFiaWxpdHkSQQoJcHJvdmlkZXJzGAYgAygLMi4udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Qcm92aWRlclJlbGlhYmlsaXR5IjEKD1J1bk91dGNvbWVDb3VudBIPCgdvdXRjb21lGAEgASgJEg0KBWNvdW50GAIgASgFIiwKDExhYmVsZWRDb3VudBINCgVsYWJlbBgBIAEoCRINCgVjb3VudBgCIAEoBSJhCg1EdXJhdGlvblN0YXRzEg8KB3NhbXBsZXMYASABKAUSCwoDcDUwGAIgASgFEgsKA3A5NRgDIAEoBRILCgNtaW4YBCABKAUSCwoDbWF4GAUgASgFEgsKA2F2ZxgGIAEoBSJhChNTY2VuYXJpb0ZhaWx1cmVSYXRlEhAKCHNjZW5hcmlvGAEgASgJEhAKCGV4ZWN1dGVkGAIgASgFEhAKCGZhaWx1cmVzGAMgASgFEhQKDGZhaWx1cmVfcmF0ZRgEIAEoASL1AwoQUGhhc2VSZWxpYWJpbGl0eRINCgVwaGFzZRgBIAEoCRIQCghwcm92aWRlchgCIAEoCRIWCg5maW5kaW5nX3NvdXJjZRgDIAEoCRIaChJ0b3RhbF9vYnNlcnZhdGlvbnMYBCABKAUSDgoGcGFzc2VkGAUgASgFEg4KBmZhaWxlZBgGIAEoBRIPCgdza2lwcGVkGAcgASgFEhAKCGRlZ3JhZGVkGAggASgFEhQKDGF2YWlsYWJpbGl0eRgJIAEoARIUCgxmYWlsdXJlX3JhdGUYCiABKAESFwoPbWV0cmljc19hZG9wdGVkGAsgASgFEj0KDHNraXBfcmVhc29ucxgMIAMoCzInLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGFiZWxlZENvdW50EkAKD2NsYXNzaWZpY2F0aW9ucxgNIAMoCzInLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGFiZWxlZENvdW50EjoKCGR1cmF0aW9uGA4gASgLMigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5EdXJhdGlvblN0YXRzEkcKD3dvcnN0X3NjZW5hcmlvcxgPIAMoCzIuLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuU2NlbmFyaW9GYWlsdXJlUmF0ZSKFAgoTUHJvdmlkZXJSZWxpYWJpbGl0eRIQCghwcm92aWRlchgBIAEoCRIOCgZwaGFzZXMYAiADKAkSGgoSdG90YWxfb2JzZXJ2YXRpb25zGAMgASgFEg4KBnBhc3NlZBgEIAEoBRIOCgZmYWlsZWQYBSABKAUSDwoHc2tpcHBlZBgGIAEoBRIUCgxhdmFpbGFiaWxpdHkYByABKAESFAoMZmFpbHVyZV9yYXRlGAggASgBEhcKD21ldHJpY3NfYWRvcHRlZBgJIAEoBRI6CghkdXJhdGlvbhgKIAEoCzIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuRHVyYXRpb25TdGF0czKXDwoLUnVuc1NlcnZpY2USYwoITGlzdFJ1bnMSKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5zUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1bnNSZXNwb25zZRJdCgZHZXRSdW4SKC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFJ1blJlcXVlc3QaKS52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFJ1blJlc3BvbnNlEmYKCURlbGV0ZVJ1bhIrLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuRGVsZXRlUnVuUmVxdWVzdBosLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuRGVsZXRlUnVuUmVzcG9uc2USXQoGUGluUnVuEigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaW5SdW5SZXF1ZXN0GikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaW5SdW5SZXNwb25zZRJjCghVbnBpblJ1bhIqLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVW5waW5SdW5SZXF1ZXN0GisudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5VbnBpblJ1blJlc3BvbnNlEmwKC0NvbXBhcmVSdW5zEi0udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Db21wYXJlUnVuc1JlcXVlc3QaLi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkNvbXBhcmVSdW5zUmVzcG9uc2USewoQR2V0UGhhc2VBcnRpZmFjdBIyLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuR2V0UGhhc2VBcnRpZmFjdFJlcXVlc3QaMy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFBoYXNlQXJ0aWZhY3RSZXNwb25zZRJyCg1MaXN0UnVuVmlkZW9zEi8udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuVmlkZW9zUmVxdWVzdBowLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpZGVvc1Jlc3BvbnNlEnUKDkxpc3RSdW5WaXN1YWxzEjAudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuVmlzdWFsc1JlcXVlc3QaMS52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5WaXN1YWxzUmVzcG9uc2USfgoRQ29tcGFyZVJ1blZpc3VhbHMSMy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkNvbXBhcmVSdW5WaXN1YWxzUmVxdWVzdBo0LnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ29tcGFyZVJ1blZpc3VhbHNSZXNwb25zZRJgCgdGaW5kUnVuEikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5GaW5kUnVuUmVxdWVzdBoqLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuRmluZFJ1blJlc3BvbnNlEnUKDkNoZWNrRnJlc2huZXNzEjAudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5DaGVja0ZyZXNobmVzc1JlcXVlc3QaMS52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkNoZWNrRnJlc2huZXNzUmVzcG9uc2UScgoNR2V0U2VsZkhlYWx0aBIvLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuR2V0U2VsZkhlYWx0aFJlcXVlc3QaMC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFNlbGZIZWFsdGhSZXNwb25zZRJjCghTdGFydFJ1bhIqLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuU3RhcnRSdW5SZXF1ZXN0GisudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5TdGFydFJ1blJlc3BvbnNlEl8KCUZvbGxvd1J1bhIrLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuRm9sbG93UnVuUmVxdWVzdBojLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuRXZlbnQwARJgCgdXYWl0UnVuEikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5XYWl0UnVuUmVxdWVzdBoqLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuV2FpdFJ1blJlc3BvbnNlEmMKCEFib3J0UnVuEioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5BYm9ydFJ1blJlcXVlc3QaKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkFib3J0UnVuUmVzcG9uc2USaAoMR2V0UnVuU3RhdHVzEi4udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5TdGF0dXNSZXF1ZXN0GigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5MaXZlU3RhdHVzQktaSWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdGVzdC1nZW5pZS92MS9ydW5zO3J1bnNfdjFiBnByb3RvMw");
 
 /**
  * RunEvent is the single canonical run-event vocabulary every follower observes
@@ -1577,6 +1577,576 @@ export const CheckFreshnessResponseSchema: GenMessage<CheckFreshnessResponse> = 
   messageDesc(file_test_genie_v1_runs_runs, 43);
 
 /**
+ * @generated from message vrooli.test_genie.v1.runs.GetSelfHealthRequest
+ */
+export type GetSelfHealthRequest = Message<"vrooli.test_genie.v1.runs.GetSelfHealthRequest"> & {
+  /**
+   * window_days bounds the reliability ledger look-back. 0 = server default
+   * (30 days).
+   *
+   * @generated from field: int32 window_days = 1;
+   */
+  windowDays: number;
+
+  /**
+   * skip_conformance omits the LIVE provider conformance scan (the slow part:
+   * one time-boxed probe per delegated provider). The reliability ledger and
+   * catalog summary still come back. Default (false) includes conformance.
+   *
+   * @generated from field: bool skip_conformance = 2;
+   */
+  skipConformance: boolean;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.GetSelfHealthRequest.
+ * Use `create(GetSelfHealthRequestSchema)` to create a new message.
+ */
+export const GetSelfHealthRequestSchema: GenMessage<GetSelfHealthRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 44);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.GetSelfHealthResponse
+ */
+export type GetSelfHealthResponse = Message<"vrooli.test_genie.v1.runs.GetSelfHealthResponse"> & {
+  /**
+   * @generated from field: vrooli.test_genie.v1.runs.SelfHealth self_health = 1;
+   */
+  selfHealth?: SelfHealth | undefined;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.GetSelfHealthResponse.
+ * Use `create(GetSelfHealthResponseSchema)` to create a new message.
+ */
+export const GetSelfHealthResponseSchema: GenMessage<GetSelfHealthResponse> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 45);
+
+/**
+ * SelfHealth stitches catalog, conformance, and reliability into one snapshot.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.SelfHealth
+ */
+export type SelfHealth = Message<"vrooli.test_genie.v1.runs.SelfHealth"> & {
+  /**
+   * @generated from field: vrooli.test_genie.v1.runs.CatalogSummary catalog = 1;
+   */
+  catalog?: CatalogSummary | undefined;
+
+  /**
+   * conformance is the per-provider adoption scorecard. Empty when
+   * skip_conformance was set.
+   *
+   * @generated from field: repeated vrooli.test_genie.v1.runs.ProviderConformance conformance = 2;
+   */
+  conformance: ProviderConformance[];
+
+  /**
+   * conformance_freshness is "live" when conformance was probed this call, or
+   * "skipped" when skip_conformance was set. Conformance is never cached.
+   *
+   * @generated from field: string conformance_freshness = 3;
+   */
+  conformanceFreshness: string;
+
+  /**
+   * @generated from field: vrooli.test_genie.v1.runs.ReliabilityLedger ledger = 4;
+   */
+  ledger?: ReliabilityLedger | undefined;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.SelfHealth.
+ * Use `create(SelfHealthSchema)` to create a new message.
+ */
+export const SelfHealthSchema: GenMessage<SelfHealth> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 46);
+
+/**
+ * CatalogSummary describes the registered phase set.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.CatalogSummary
+ */
+export type CatalogSummary = Message<"vrooli.test_genie.v1.runs.CatalogSummary"> & {
+  /**
+   * @generated from field: int32 total_phases = 1;
+   */
+  totalPhases: number;
+
+  /**
+   * @generated from field: int32 delegated_phases = 2;
+   */
+  delegatedPhases: number;
+
+  /**
+   * @generated from field: int32 native_phases = 3;
+   */
+  nativePhases: number;
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.CatalogPhase phases = 4;
+   */
+  phases: CatalogPhase[];
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.CatalogSummary.
+ * Use `create(CatalogSummarySchema)` to create a new message.
+ */
+export const CatalogSummarySchema: GenMessage<CatalogSummary> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 47);
+
+/**
+ * CatalogPhase is one registered phase's catalog metadata.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.CatalogPhase
+ */
+export type CatalogPhase = Message<"vrooli.test_genie.v1.runs.CatalogPhase"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool optional = 2;
+   */
+  optional: boolean;
+
+  /**
+   * "native" or "delegated"
+   *
+   * @generated from field: string source = 3;
+   */
+  source: string;
+
+  /**
+   * @generated from field: bool delegated = 4;
+   */
+  delegated: boolean;
+
+  /**
+   * delegated provider scenario; empty for native
+   *
+   * @generated from field: string provider = 5;
+   */
+  provider: string;
+
+  /**
+   * lower-case finding-source token; empty when none
+   *
+   * @generated from field: string finding_source = 6;
+   */
+  findingSource: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.CatalogPhase.
+ * Use `create(CatalogPhaseSchema)` to create a new message.
+ */
+export const CatalogPhaseSchema: GenMessage<CatalogPhase> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 48);
+
+/**
+ * ProviderConformance is one provider's adoption scorecard against the shared
+ * ScenarioValidationService contract.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.ProviderConformance
+ */
+export type ProviderConformance = Message<"vrooli.test_genie.v1.runs.ProviderConformance"> & {
+  /**
+   * @generated from field: string provider = 1;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string phase = 2;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: bool reachable = 3;
+   */
+  reachable: boolean;
+
+  /**
+   * @generated from field: bool contract_valid = 4;
+   */
+  contractValid: boolean;
+
+  /**
+   * @generated from field: bool identity_ok = 5;
+   */
+  identityOk: boolean;
+
+  /**
+   * @generated from field: bool spec_valid = 6;
+   */
+  specValid: boolean;
+
+  /**
+   * advisory during the partial rollout
+   *
+   * @generated from field: bool metrics_adopted = 7;
+   */
+  metricsAdopted: boolean;
+
+  /**
+   * fraction of the five dimensions satisfied
+   *
+   * @generated from field: double adoption_score = 8;
+   */
+  adoptionScore: number;
+
+  /**
+   * @generated from field: repeated string violations = 9;
+   */
+  violations: string[];
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.ProviderConformance.
+ * Use `create(ProviderConformanceSchema)` to create a new message.
+ */
+export const ProviderConformanceSchema: GenMessage<ProviderConformance> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 49);
+
+/**
+ * ReliabilityLedger is the compute-on-read reliability + performance rollup.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.ReliabilityLedger
+ */
+export type ReliabilityLedger = Message<"vrooli.test_genie.v1.runs.ReliabilityLedger"> & {
+  /**
+   * @generated from field: int32 window_days = 1;
+   */
+  windowDays: number;
+
+  /**
+   * @generated from field: int32 run_count = 2;
+   */
+  runCount: number;
+
+  /**
+   * availability is the fraction of terminal runs that produced a result
+   * (passed or failed) out of all runs (incl. errored/aborted/timeout).
+   *
+   * @generated from field: double availability = 3;
+   */
+  availability: number;
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.RunOutcomeCount run_outcomes = 4;
+   */
+  runOutcomes: RunOutcomeCount[];
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.PhaseReliability phases = 5;
+   */
+  phases: PhaseReliability[];
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.ProviderReliability providers = 6;
+   */
+  providers: ProviderReliability[];
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.ReliabilityLedger.
+ * Use `create(ReliabilityLedgerSchema)` to create a new message.
+ */
+export const ReliabilityLedgerSchema: GenMessage<ReliabilityLedger> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 50);
+
+/**
+ * RunOutcomeCount is one bucket of the run-level terminal-outcome histogram.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.RunOutcomeCount
+ */
+export type RunOutcomeCount = Message<"vrooli.test_genie.v1.runs.RunOutcomeCount"> & {
+  /**
+   * passed | failed | errored | aborted | timeout | unknown
+   *
+   * @generated from field: string outcome = 1;
+   */
+  outcome: string;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.RunOutcomeCount.
+ * Use `create(RunOutcomeCountSchema)` to create a new message.
+ */
+export const RunOutcomeCountSchema: GenMessage<RunOutcomeCount> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 51);
+
+/**
+ * LabeledCount is one bucket of a string-keyed histogram.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.LabeledCount
+ */
+export type LabeledCount = Message<"vrooli.test_genie.v1.runs.LabeledCount"> & {
+  /**
+   * @generated from field: string label = 1;
+   */
+  label: string;
+
+  /**
+   * @generated from field: int32 count = 2;
+   */
+  count: number;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.LabeledCount.
+ * Use `create(LabeledCountSchema)` to create a new message.
+ */
+export const LabeledCountSchema: GenMessage<LabeledCount> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 52);
+
+/**
+ * DurationStats summarizes executed-phase durations (seconds).
+ *
+ * @generated from message vrooli.test_genie.v1.runs.DurationStats
+ */
+export type DurationStats = Message<"vrooli.test_genie.v1.runs.DurationStats"> & {
+  /**
+   * @generated from field: int32 samples = 1;
+   */
+  samples: number;
+
+  /**
+   * @generated from field: int32 p50 = 2;
+   */
+  p50: number;
+
+  /**
+   * @generated from field: int32 p95 = 3;
+   */
+  p95: number;
+
+  /**
+   * @generated from field: int32 min = 4;
+   */
+  min: number;
+
+  /**
+   * @generated from field: int32 max = 5;
+   */
+  max: number;
+
+  /**
+   * @generated from field: int32 avg = 6;
+   */
+  avg: number;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.DurationStats.
+ * Use `create(DurationStatsSchema)` to create a new message.
+ */
+export const DurationStatsSchema: GenMessage<DurationStats> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 53);
+
+/**
+ * ScenarioFailureRate ranks a scenario's failure rate for one phase.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.ScenarioFailureRate
+ */
+export type ScenarioFailureRate = Message<"vrooli.test_genie.v1.runs.ScenarioFailureRate"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: int32 executed = 2;
+   */
+  executed: number;
+
+  /**
+   * @generated from field: int32 failures = 3;
+   */
+  failures: number;
+
+  /**
+   * @generated from field: double failure_rate = 4;
+   */
+  failureRate: number;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.ScenarioFailureRate.
+ * Use `create(ScenarioFailureRateSchema)` to create a new message.
+ */
+export const ScenarioFailureRateSchema: GenMessage<ScenarioFailureRate> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 54);
+
+/**
+ * PhaseReliability is the per-phase reliability + performance rollup.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.PhaseReliability
+ */
+export type PhaseReliability = Message<"vrooli.test_genie.v1.runs.PhaseReliability"> & {
+  /**
+   * @generated from field: string phase = 1;
+   */
+  phase: string;
+
+  /**
+   * empty for native phases
+   *
+   * @generated from field: string provider = 2;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string finding_source = 3;
+   */
+  findingSource: string;
+
+  /**
+   * @generated from field: int32 total_observations = 4;
+   */
+  totalObservations: number;
+
+  /**
+   * @generated from field: int32 passed = 5;
+   */
+  passed: number;
+
+  /**
+   * @generated from field: int32 failed = 6;
+   */
+  failed: number;
+
+  /**
+   * @generated from field: int32 skipped = 7;
+   */
+  skipped: number;
+
+  /**
+   * @generated from field: int32 degraded = 8;
+   */
+  degraded: number;
+
+  /**
+   * executed / total observations
+   *
+   * @generated from field: double availability = 9;
+   */
+  availability: number;
+
+  /**
+   * failed / executed
+   *
+   * @generated from field: double failure_rate = 10;
+   */
+  failureRate: number;
+
+  /**
+   * observations carrying ExecutionMetrics
+   *
+   * @generated from field: int32 metrics_adopted = 11;
+   */
+  metricsAdopted: number;
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.LabeledCount skip_reasons = 12;
+   */
+  skipReasons: LabeledCount[];
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.LabeledCount classifications = 13;
+   */
+  classifications: LabeledCount[];
+
+  /**
+   * @generated from field: vrooli.test_genie.v1.runs.DurationStats duration = 14;
+   */
+  duration?: DurationStats | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.ScenarioFailureRate worst_scenarios = 15;
+   */
+  worstScenarios: ScenarioFailureRate[];
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.PhaseReliability.
+ * Use `create(PhaseReliabilitySchema)` to create a new message.
+ */
+export const PhaseReliabilitySchema: GenMessage<PhaseReliability> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 55);
+
+/**
+ * ProviderReliability is the per-provider rollup across its phase(s).
+ *
+ * @generated from message vrooli.test_genie.v1.runs.ProviderReliability
+ */
+export type ProviderReliability = Message<"vrooli.test_genie.v1.runs.ProviderReliability"> & {
+  /**
+   * @generated from field: string provider = 1;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: repeated string phases = 2;
+   */
+  phases: string[];
+
+  /**
+   * @generated from field: int32 total_observations = 3;
+   */
+  totalObservations: number;
+
+  /**
+   * @generated from field: int32 passed = 4;
+   */
+  passed: number;
+
+  /**
+   * @generated from field: int32 failed = 5;
+   */
+  failed: number;
+
+  /**
+   * @generated from field: int32 skipped = 6;
+   */
+  skipped: number;
+
+  /**
+   * @generated from field: double availability = 7;
+   */
+  availability: number;
+
+  /**
+   * @generated from field: double failure_rate = 8;
+   */
+  failureRate: number;
+
+  /**
+   * @generated from field: int32 metrics_adopted = 9;
+   */
+  metricsAdopted: number;
+
+  /**
+   * @generated from field: vrooli.test_genie.v1.runs.DurationStats duration = 10;
+   */
+  duration?: DurationStats | undefined;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.ProviderReliability.
+ * Use `create(ProviderReliabilitySchema)` to create a new message.
+ */
+export const ProviderReliabilitySchema: GenMessage<ProviderReliability> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 56);
+
+/**
  * @generated from service vrooli.test_genie.v1.runs.RunsService
  */
 export const RunsService: GenService<{
@@ -1719,6 +2289,27 @@ export const RunsService: GenService<{
     methodKind: "unary";
     input: typeof CheckFreshnessRequestSchema;
     output: typeof CheckFreshnessResponseSchema;
+  },
+  /**
+   * GetSelfHealth aggregates Test Genie's own observability into one read:
+   *   (a) catalog summary (phases, delegated vs native, per-phase provider +
+   *       finding source),
+   *   (b) per-provider conformance/adoption against the shared validation
+   *       contract (reachable, contract-valid, identity, maturity.json valid,
+   *       metrics_adopted) — probed LIVE and time-boxed,
+   *   (c) the reliability ledger over a recent window (per phase/provider:
+   *       availability %, failure-class + skip-reason histograms, degraded
+   *       counts, duration p50/p95/min/max/avg, worst-scenarios-per-phase) plus
+   *       run-level terminal-outcome counts.
+   * Read-only; compute-on-read (no persisted rollups). Consumed by the
+   * `test-genie health` CLI verb and the meta-optimization heartbeat.
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.GetSelfHealth
+   */
+  getSelfHealth: {
+    methodKind: "unary";
+    input: typeof GetSelfHealthRequestSchema;
+    output: typeof GetSelfHealthResponseSchema;
   },
   /**
    * StartRun starts a suite run under a server-lifetime context and returns its
