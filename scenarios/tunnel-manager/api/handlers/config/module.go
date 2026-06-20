@@ -23,10 +23,11 @@ import (
 //
 // The config service reconciles ingress against the routes manifest, so it
 // reads routes through internalroutes.Service (the RoutesReader seam) and
-// actuates Cloudflare through the IngressClient built from env credentials
-// (canonical CLOUDFLARE_* names, with deterministic legacy CF_* fallback).
-// When credentials are absent the IngressClient is nil and remote apply
-// operations return ErrRemoteUnavailable (mapped to FailedPrecondition).
+// actuates Cloudflare through the IngressClient built from the config-domain
+// credential store. Canonical CLOUDFLARE_* env values are runtime overrides;
+// legacy CF_* aliases are intentionally not accepted. When credentials are
+// absent the IngressClient is nil and remote apply operations return
+// ErrRemoteUnavailable (mapped to FailedPrecondition).
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	svc := internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{})
 

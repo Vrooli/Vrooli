@@ -42,7 +42,8 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 	doer.AddResponse(200, []byte(`{"success":true,"result":{}}`))
 
 	svc := config.NewProductionService(d, clk, config.ProductionOptions{
-		Doer: doer,
+		Doer:    doer,
+		HomeDir: t.TempDir(),
 		EnvLookup: func(key string) string {
 			switch key {
 			case "CLOUDFLARE_ACCOUNT_ID":

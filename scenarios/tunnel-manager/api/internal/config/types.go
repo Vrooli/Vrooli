@@ -77,9 +77,49 @@ type ConfigReadiness struct {
 	MissingFields    []string
 	CredentialSource string
 	CredentialRef    string
+	CredentialStatus CredentialStatus
 	LocalConfigPath  string
 	SyncReady        bool
 	ModeReason       string
+}
+
+// CredentialStatus reports Cloudflare credential presence without carrying
+// secret values. It is safe for readiness, CLI, and UI surfaces.
+type CredentialStatus struct {
+	Fields        []CredentialFieldStatus
+	MissingFields []string
+	Source        string
+	Ref           string
+	Ready         bool
+}
+
+// CredentialFieldStatus is field-level source metadata for one required
+// Cloudflare credential input.
+type CredentialFieldStatus struct {
+	Name     string
+	Present  bool
+	Source   string
+	Ref      string
+	Writable bool
+}
+
+// CredentialUpdate is the write-only input accepted by CredentialStore.Save.
+// Empty fields are ignored so callers can update one field without knowing the
+// existing values.
+type CredentialUpdate struct {
+	AccountID string
+	TunnelID  string
+	APIToken  string
+}
+
+// CredentialStore is the seam over Cloudflare credential persistence and
+// resolution. Resolve may return the API token in process memory; Status never
+// returns secret values.
+type CredentialStore interface {
+	Status(ctx context.Context) (CredentialStatus, error)
+	Resolve(ctx context.Context) (CFConfig, error)
+	Save(ctx context.Context, values CredentialUpdate) (CredentialStatus, error)
+	Delete(ctx context.Context, keys []string) (CredentialStatus, error)
 }
 
 // SyncResult is the outcome of a reconcile: which hostnames changed and
@@ -129,7 +169,7 @@ type ErrRemoteUnavailable struct {
 
 func (e ErrRemoteUnavailable) Error() string {
 	if e.Reason == "" {
-		return "remote mode unavailable: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and CLOUDFLARE_TUNNEL_ID are required"
+		return "remote mode unavailable: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_TUNNEL_ID, and CLOUDFLARE_API_TOKEN are required"
 	}
 	return fmt.Sprintf("remote mode unavailable: %s", e.Reason)
 }

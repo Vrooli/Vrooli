@@ -45,12 +45,13 @@ type Service interface {
 // when Cloudflare credentials are absent — remote operations then return
 // ErrRemoteUnavailable instead of touching the network.
 type Deps struct {
-	Repo    ConfigRepository
-	Routes  RoutesReader
-	Ingress IngressClient
-	CF      CFConfig
-	Runner  cmdrunner.Runner
-	Clock   clock.Clock
+	Repo             ConfigRepository
+	Routes           RoutesReader
+	Ingress          IngressClient
+	CF               CFConfig
+	CredentialStatus CredentialStatus
+	Runner           cmdrunner.Runner
+	Clock            clock.Clock
 	// LocalConfigPath is where local mode writes the cloudflared config.yml.
 	// Defaults to ~/.cloudflared/config.yml when empty.
 	LocalConfigPath string
@@ -233,41 +234,103 @@ func (s *service) applyIngress(ctx context.Context, cfg TunnelConfig, desired []
 }
 
 func (s *service) readiness(cfg TunnelConfig) ConfigReadiness {
-	missing := s.deps.CF.Missing
-	if len(missing) == 0 && (s.deps.CF.APIToken == "" || s.deps.CF.AccountID == "" || s.deps.CF.TunnelID == "") {
-		missing = []string{"CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_TUNNEL_ID", "CLOUDFLARE_API_TOKEN"}
+	status := s.effectiveCredentialStatus()
+	missing := status.MissingFields
+	if len(missing) == 0 && !cfConfigComplete(s.deps.CF) {
+		missing = append([]string(nil), cloudflareCredentialFields...)
+		status.MissingFields = append([]string(nil), missing...)
+		status.Ready = false
 	}
-	remoteAvailable := len(missing) == 0 && s.deps.CF.APIToken != "" && s.deps.CF.AccountID != "" && s.deps.CF.TunnelID != ""
+	remoteAvailable := len(missing) == 0 && cfConfigComplete(s.deps.CF)
 	if s.deps.Ingress != nil {
 		remoteAvailable = true
+		status.Ready = true
 	}
-	source := s.deps.CF.Source
-	if source == "" {
-		source = "none"
-	}
-	desiredMode := cfg.Mode
-	if desiredMode == ModeUnspecified {
-		desiredMode = DefaultMode
-	}
+	desiredMode := defaultedMode(cfg.Mode)
 	syncReady := desiredMode == ModeLocal || remoteAvailable
-	reason := "Local mode is ready; sync writes the cloudflared config file and restarts cloudflared."
-	if desiredMode == ModeRemote {
-		if remoteAvailable {
-			reason = "Remote mode is ready; Cloudflare API credentials are present."
-		} else {
-			reason = "Remote mode is unavailable until CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_TUNNEL_ID, and CLOUDFLARE_API_TOKEN are configured."
-		}
-	}
 	return ConfigReadiness{
 		DesiredMode:      desiredMode,
 		RemoteAvailable:  remoteAvailable,
 		MissingFields:    append([]string(nil), missing...),
-		CredentialSource: source,
-		CredentialRef:    s.deps.CF.TokenRef,
+		CredentialSource: credentialStatusSource(status),
+		CredentialRef:    status.Ref,
+		CredentialStatus: status,
 		LocalConfigPath:  s.deps.LocalConfigPath,
 		SyncReady:        syncReady,
-		ModeReason:       reason,
+		ModeReason:       readinessReason(desiredMode, remoteAvailable),
 	}
+}
+
+func (s *service) effectiveCredentialStatus() CredentialStatus {
+	status := s.deps.CredentialStatus
+	if hasCredentialStatus(status) {
+		if len(status.Fields) == 0 {
+			status.Ready = len(status.MissingFields) == 0
+		}
+		return status
+	}
+	return statusFromCFConfig(s.deps.CF)
+}
+
+func hasCredentialStatus(status CredentialStatus) bool {
+	return len(status.Fields) > 0 || len(status.MissingFields) > 0 || status.Source != "" || status.Ref != "" || status.Ready
+}
+
+func cfConfigComplete(cfg CFConfig) bool {
+	return cfg.APIToken != "" && cfg.AccountID != "" && cfg.TunnelID != ""
+}
+
+func defaultedMode(mode Mode) Mode {
+	if mode == ModeUnspecified {
+		return DefaultMode
+	}
+	return mode
+}
+
+func credentialStatusSource(status CredentialStatus) string {
+	if status.Source == "" {
+		return credentialSourceMissing
+	}
+	return status.Source
+}
+
+func readinessReason(mode Mode, remoteAvailable bool) string {
+	if mode != ModeRemote {
+		return "Local mode is ready; sync writes the cloudflared config file and restarts cloudflared."
+	}
+	if remoteAvailable {
+		return "Remote mode is ready; Cloudflare API credentials are present."
+	}
+	return "Remote mode is unavailable until CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_TUNNEL_ID, and CLOUDFLARE_API_TOKEN are configured."
+}
+
+func statusFromCFConfig(cfg CFConfig) CredentialStatus {
+	fields := []CredentialFieldStatus{
+		{Name: cloudflareAccountIDField, Present: cfg.AccountID != ""},
+		{Name: cloudflareTunnelIDField, Present: cfg.TunnelID != ""},
+		{Name: cloudflareAPITokenField, Present: cfg.APIToken != "", Ref: cfg.TokenRef},
+	}
+	for i := range fields {
+		if fields[i].Present {
+			fields[i].Source = cfg.Source
+			fields[i].Writable = false
+		} else {
+			fields[i].Source = credentialSourceMissing
+			fields[i].Writable = true
+		}
+	}
+	status := buildCredentialStatus(fields)
+	if cfg.Source != "" && cfg.Source != "none" {
+		status.Source = cfg.Source
+	}
+	if cfg.TokenRef != "" {
+		status.Ref = cfg.TokenRef
+	}
+	if len(cfg.Missing) > 0 {
+		status.MissingFields = append([]string(nil), cfg.Missing...)
+		status.Ready = false
+	}
+	return status
 }
 
 // readLocalIngress parses the ingress hostnames/services out of the local

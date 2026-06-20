@@ -41,7 +41,8 @@ func TestIngressAdapter_ReconcileUsesConfiguredRemoteIngress(t *testing.T) {
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}`))
 	doer.AddResponse(200, []byte(`{"success":true,"result":{}}`))
 	cfgSvc := internalconfig.NewProductionService(d, clk, internalconfig.ProductionOptions{
-		Doer: doer,
+		Doer:    doer,
+		HomeDir: t.TempDir(),
 		EnvLookup: func(key string) string {
 			switch key {
 			case "CLOUDFLARE_ACCOUNT_ID":

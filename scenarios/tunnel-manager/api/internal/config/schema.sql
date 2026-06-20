@@ -7,7 +7,7 @@
 -- (migrate, never recreate).
 CREATE TABLE IF NOT EXISTS tunnel_config (
   id            TEXT PRIMARY KEY DEFAULT 'singleton',
-  mode          TEXT NOT NULL DEFAULT 'remote',
+  mode          TEXT NOT NULL DEFAULT 'local',
   tunnel_id     TEXT NOT NULL DEFAULT '',
   account_id    TEXT NOT NULL DEFAULT '',
   cred_ref      TEXT NOT NULL DEFAULT '',

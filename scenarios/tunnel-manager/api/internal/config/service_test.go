@@ -254,7 +254,7 @@ func TestGetConfigState_ReportsLocalReadinessByDefault(t *testing.T) {
 	require.Equal(t, config.ModeLocal, state.Readiness.DesiredMode)
 	require.False(t, state.Readiness.RemoteAvailable)
 	require.True(t, state.Readiness.SyncReady)
-	require.Equal(t, "none", state.Readiness.CredentialSource)
+	require.Equal(t, "missing", state.Readiness.CredentialSource)
 	require.NotEmpty(t, state.Readiness.LocalConfigPath)
 	require.ElementsMatch(t, []string{"CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_TUNNEL_ID", "CLOUDFLARE_API_TOKEN"}, state.Readiness.MissingFields)
 }

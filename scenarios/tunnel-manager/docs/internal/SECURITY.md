@@ -24,7 +24,7 @@ no external store.
 
 | Data | Sensitivity | Owner | Details |
 |---|---|---|---|
-| Cloudflare API token | **high (secret)** | `config` | Remote-mode credential. Resolved from process env (`CLOUDFLARE_API_TOKEN`, legacy fallback `CF_API_TOKEN`), held in memory only, and represented to clients only as a non-secret reference such as `env:CLOUDFLARE_API_TOKEN`. Never inline in `tunnel_config`, SQLite rows, UI payloads, CLI output, or logs. |
+| Cloudflare API token | **high (secret)** | `config` | Remote-mode credential. Resolved through the config-domain credential store: canonical `CLOUDFLARE_API_TOKEN` env override first, then scenario-scoped and shared user secret files under the operator runtime home. Held in memory only for Cloudflare API calls and represented to clients only as non-secret source/reference metadata. Never inline in `tunnel_config`, SQLite rows, UI payloads, CLI output, or logs. |
 | Tunnel id / account id | medium | `config` | Identifies the managed tunnel/account; not a secret but enables targeted action if combined with the token. |
 | Exposure manifest (`routes`) | medium | `routes` | The list of what is publicly reachable, at which subdomain/port/tier. Disclosure reveals public attack surface and internal port mapping. |
 | Leases (`leases`) | low-medium | `exposure` | Who requested exposure of what, and until when. Useful for attribution; no secrets. |
@@ -65,7 +65,7 @@ opens an internet-facing route — so it must be authorized.
 
 | Secret | Source | Required? | Details |
 |---|---|---|---|
-| Cloudflare API token | process env (`CLOUDFLARE_API_TOKEN`; legacy fallback `CF_API_TOKEN`) | remote mode only | Least-privilege token scoped to the managed tunnel's ingress config. Resolved at boot, kept in memory, and exposed only as a non-secret env reference. Local config-mode (`~/.cloudflared/config.yml`) needs no API token. |
+| Cloudflare API token | credential store (`CLOUDFLARE_API_TOKEN` env override, then scenario/user secret files) | remote mode only | Least-privilege token scoped to the managed tunnel's ingress config. Resolved inside the API process, kept in memory only for Cloudflare calls, and exposed only as non-secret source/reference metadata. Local config-mode (`~/.cloudflared/config.yml`) needs no API token. |
 
 ## Threat Model
 
