@@ -7,7 +7,12 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
+import { FleetPage } from "../pages/FleetPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import {
+  dataRouterFutureFlags,
+  routerProviderFutureFlags,
+} from "./routerFuture";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -21,6 +26,7 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "fleet", element: <FleetPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -34,8 +40,8 @@ export const routes: RouteObject[] = [
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes);
-  return <RouterProvider router={router} />;
+  const router = createBrowserRouter(routes, { future: dataRouterFutureFlags });
+  return <RouterProvider router={router} future={routerProviderFutureFlags} />;
 }
 
 /**
@@ -43,6 +49,9 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries });
-  return <RouterProvider router={router} />;
+  const router = createMemoryRouter(routes, {
+    initialEntries,
+    future: dataRouterFutureFlags,
+  });
+  return <RouterProvider router={router} future={routerProviderFutureFlags} />;
 }

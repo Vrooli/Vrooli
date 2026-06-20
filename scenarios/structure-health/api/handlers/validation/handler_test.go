@@ -62,6 +62,7 @@ func newTestHandler() *Handler {
 	return NewHandlerWithDeps(Deps{Service: svc, MaturitySpec: spec})
 }
 
+// [REQ:SH-BOUND-001] [REQ:SH-BOUND-002]
 func TestNativeValidateScenarioStub(t *testing.T) {
 	h := newTestHandler()
 	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "demo"}))
@@ -94,6 +95,7 @@ func TestNativeValidateScenarioRequiresTarget(t *testing.T) {
 	}
 }
 
+// [REQ:SH-BOUND-001] [REQ:SH-FIX-004]
 func TestSharedValidateScenarioStub(t *testing.T) {
 	shared := NewSharedHandler(newTestHandler())
 	resp, err := shared.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
@@ -157,6 +159,7 @@ func writeFixScenario(t *testing.T) string {
 	return root
 }
 
+// [REQ:SH-FIX-001]
 func TestPreviewFixConfigIsDryRun(t *testing.T) {
 	root := writeFixScenario(t)
 	path := filepath.Join(root, ".vrooli", "service.json")
@@ -184,6 +187,7 @@ func TestPreviewFixConfigIsDryRun(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-001]
 func TestApplyFixConfigWrites(t *testing.T) {
 	root := writeFixScenario(t)
 	h := newFixHandler(root)

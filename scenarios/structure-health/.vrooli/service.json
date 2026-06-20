@@ -208,7 +208,17 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "code-facts": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Provides the code-facts ground truth (surface inventory + parse units) that structure-health derives each target's language/framework profile from and reconciles service.json intent against."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/structure-health.db"
   }

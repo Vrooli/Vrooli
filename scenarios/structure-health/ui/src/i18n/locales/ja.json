@@ -1,15 +1,15 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Structure Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Structure Health",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Structure Health"
   },
   "layout": {
+    "mainLabel": "メインコンテンツ",
     "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
+      "fleet": "フリート",
       "settings": "設定"
     }
   },
@@ -31,6 +31,10 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "fleet": {
+      "title": "フリート",
+      "description": "検出されたすべてのシナリオにわたる構造適合性。構造ゲートに失敗したシナリオ、最も多くのシナリオで違反したルール、検出されたプロファイル別の内訳を確認できます。"
     }
   },
   "health": {
@@ -71,5 +75,53 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "fleet": {
+    "title": "フリート適合性",
+    "refresh": "再読み込み",
+    "loading": "フリートをスキャン中…",
+    "empty": "評価されたシナリオがありません。",
+    "summary": {
+      "scenarios": "シナリオ",
+      "passing": "合格",
+      "missingFreshness": "鮮度チェックなし",
+      "autofixable": "自動修正可能"
+    },
+    "profiles": {
+      "title": "プロファイル分布",
+      "unrecognized": "未認識",
+      "countLabel": "{{count}} 件のシナリオ"
+    },
+    "rules": {
+      "title": "ルール適合性",
+      "empty": "フリート全体でルールの検出はありません。",
+      "col": {
+        "code": "ルール",
+        "severity": "重大度",
+        "offenders": "シナリオ",
+        "findings": "検出数",
+        "autofixable": "自動修正可能"
+      }
+    },
+    "scenarios": {
+      "title": "違反シナリオ",
+      "passed": "合格",
+      "failed": "不合格",
+      "recognized": "認識済み",
+      "unrecognized": "アドバイザリ",
+      "missingFreshnessBadge": "鮮度チェックなし",
+      "col": {
+        "scenario": "シナリオ",
+        "verdict": "判定",
+        "profile": "プロファイル",
+        "errors": "エラー",
+        "warnings": "警告",
+        "autofixable": "自動修正可能",
+        "freshness": "鮮度"
+      }
+    },
+    "errors": {
+      "title": "未評価のシナリオ"
+    }
   }
 }

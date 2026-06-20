@@ -1,15 +1,15 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Structure Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Structure Health",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Structure Health"
   },
   "layout": {
+    "mainLabel": "Main content",
     "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
+      "fleet": "Fleet",
       "settings": "Settings"
     }
   },
@@ -31,6 +31,10 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "fleet": {
+      "title": "Fleet",
+      "description": "Structure conformance across every discovered scenario. Spot which scenarios fail structure gating, which rules offend the most scenarios, and how the fleet breaks down by detected profile."
     }
   },
   "health": {
@@ -74,5 +78,54 @@
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again"
+  },
+  "fleet": {
+    "title": "Fleet conformance",
+    "refresh": "Refresh",
+    "loading": "Scanning the fleet…",
+    "empty": "No scenarios were graded.",
+    "summary": {
+      "scenarios": "Scenarios",
+      "passing": "Passing",
+      "missingFreshness": "Missing freshness",
+      "autofixable": "Auto-fixable"
+    },
+    "profiles": {
+      "title": "Profile distribution",
+      "unrecognized": "unrecognized",
+      "countLabel": "{{count}} scenarios",
+      "countLabel_one": "1 scenario"
+    },
+    "rules": {
+      "title": "Rule conformance",
+      "empty": "No rule findings across the fleet.",
+      "col": {
+        "code": "Rule",
+        "severity": "Severity",
+        "offenders": "Scenarios",
+        "findings": "Findings",
+        "autofixable": "Auto-fixable"
+      }
+    },
+    "scenarios": {
+      "title": "Scenario offenders",
+      "passed": "Pass",
+      "failed": "Fail",
+      "recognized": "recognized",
+      "unrecognized": "advisory",
+      "missingFreshnessBadge": "missing freshness",
+      "col": {
+        "scenario": "Scenario",
+        "verdict": "Verdict",
+        "profile": "Profile",
+        "errors": "Errors",
+        "warnings": "Warnings",
+        "autofixable": "Auto-fixable",
+        "freshness": "Freshness"
+      }
+    },
+    "errors": {
+      "title": "Ungraded scenarios"
+    }
   }
 }

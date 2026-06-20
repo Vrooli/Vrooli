@@ -40,6 +40,30 @@ const (
 // maxFileSizeBytes is the auditor's 1 MiB per-file guardrail.
 const maxFileSizeBytes = 1 << 20
 
+// ruleDefinitionRoots are scenario-relative directory prefixes that hold
+// migrated rule-definition sources. Those files deliberately embed
+// example-violation strings/regexes (hardcoded ports, unvalidated env vars,
+// repo-local storage paths) as part of the rule logic, so scanning them as if
+// they were product code produces false positives — exactly the artifact
+// scenario-auditor has for its own api/rules/ tree. Skipping the subtree keeps
+// structure-health's self-scan honest without weakening any other scenario's
+// scan (no other scenario carries this path). This is the rule-example-file
+// suppression the structure-phase migration requires.
+var ruleDefinitionRoots = []string{
+	"api/internal/packs",
+}
+
+// isRuleDefinitionDir reports whether a scenario-relative slash directory path
+// is at or under a rule-definition root.
+func isRuleDefinitionDir(rel string) bool {
+	for _, root := range ruleDefinitionRoots {
+		if rel == root || strings.HasPrefix(rel, root+"/") {
+			return true
+		}
+	}
+	return false
+}
+
 // allowedExtensions mirrors the auditor's scannable-file allowlist.
 var allowedExtensions = map[string]struct{}{
 	".go": {}, ".ts": {}, ".tsx": {}, ".js": {}, ".jsx": {}, ".sh": {},
@@ -83,6 +107,11 @@ func Build(scenario, rootPath string) (*Context, error) {
 		if info.IsDir() {
 			if pathfilter.SkipDir(filepath.Base(path)) {
 				return filepath.SkipDir
+			}
+			if rel, relErr := filepath.Rel(rootPath, path); relErr == nil {
+				if isRuleDefinitionDir(filepath.ToSlash(rel)) {
+					return filepath.SkipDir
+				}
 			}
 			return nil
 		}

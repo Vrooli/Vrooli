@@ -324,7 +324,26 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
+    fleet: "page-fleet",
     settings: "page-settings",
+  },
+  fleet: {
+    view: "fleet-view",
+    refreshButton: "fleet-refresh-button",
+    loading: "fleet-loading",
+    error: "fleet-error",
+    empty: "fleet-empty",
+    summary: "fleet-summary",
+    summaryScenarios: "fleet-summary-scenarios",
+    summaryPassing: "fleet-summary-passing",
+    summaryMissingFreshness: "fleet-summary-missing-freshness",
+    summaryAutofixable: "fleet-summary-autofixable",
+    profiles: "fleet-profiles",
+    rules: "fleet-rules",
+    rulesEmpty: "fleet-rules-empty",
+    scenarios: "fleet-scenarios",
+    scenariosEmpty: "fleet-scenarios-empty",
+    errors: "fleet-errors",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -357,6 +376,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "fleet",
             "settings",
           ] as const,
         },
@@ -370,10 +390,28 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "fleet",
             "settings",
           ] as const,
         },
       },
+    }),
+  },
+  fleet: {
+    scenarioRow: defineDynamicSelector({
+      description: "Scenario offenders table row by scenario slug",
+      testIdPattern: "fleet-scenario-row-${scenario}",
+      params: { scenario: { type: "string" } },
+    }),
+    ruleRow: defineDynamicSelector({
+      description: "Rule conformance table row by finding code",
+      testIdPattern: "fleet-rule-row-${code}",
+      params: { code: { type: "string" } },
+    }),
+    profileRow: defineDynamicSelector({
+      description: "Profile distribution row by profile id",
+      testIdPattern: "fleet-profile-row-${profileId}",
+      params: { profileId: { type: "string" } },
     }),
   },
   settingsPage: {

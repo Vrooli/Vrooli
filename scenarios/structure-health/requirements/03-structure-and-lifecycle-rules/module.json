@@ -1,0 +1,89 @@
+{
+  "_metadata": {
+    "module": "structure-and-lifecycle-rules",
+    "description": "Universal structure checks plus lifecycle-wiring reconcile rules: freshness-check presence, production-serving conformance, and dependency well-formedness.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SH-RULE-001",
+      "title": "Validate scenario skeleton invariants",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The validator flags missing/invalid service.json, a service.name that does not match the directory, and missing required top-level files or per-surface directories; a conformant scenario produces no structural findings.",
+      "tags": ["structure", "skeleton", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go covers the conformant-clean, service.json-missing, and service-name-mismatch cases."}
+      ]
+    },
+    {
+      "id": "SH-RULE-002",
+      "title": "Flag missing per-surface freshness checks",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Each buildable surface must declare a well-formed freshness check (binaries / ui-bundle); a missing or malformed check is a finding, closing the silent-rebuild gap where a scenario rebuilds on every start.",
+      "tags": ["freshness", "lifecycle-wiring", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a buildable surface without a freshness check emits FRESHNESS_CHECK_MISSING."}
+      ]
+    },
+    {
+      "id": "SH-RULE-003",
+      "title": "Require a complete lifecycle-wiring chain",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Each declared surface must have a build(setup)→start(develop)→port/env→health-check chain; a missing health check or lifecycle step in that chain is a finding.",
+      "tags": ["lifecycle-wiring", "health-check", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a surface without a health check emits HEALTH_CHECK_MISSING."}
+      ]
+    },
+    {
+      "id": "SH-RULE-004",
+      "title": "Enforce production-serving conformance",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "A UI surface's develop step must serve the built production bundle (NODE_ENV=production, conditioned on dist) rather than a dev server, preserving the hashed-asset caching guarantee; a dev-server develop step is a finding.",
+      "tags": ["production-serving", "ui", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a dev-server UI develop step emits PRODUCTION_SERVE_NONCONFORMANT."}
+      ]
+    },
+    {
+      "id": "SH-RULE-005",
+      "title": "Reconcile declared-vs-actual surfaces",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "A surface declared in service.json with no actual implementation (and the reverse) emits a reconcile-mismatch finding so dangling or undeclared surfaces are caught.",
+      "tags": ["reconcile", "surface", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts a declared-not-actual surface emits SURFACE_RECONCILE_MISMATCH."}
+      ]
+    },
+    {
+      "id": "SH-RULE-006",
+      "title": "Validate dependency declarations",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Dependency declarations must be well-formed (valid startup_policy/freshness_policy, resolvable, acyclic); an invalid policy or unresolved/cyclic dependency is a finding.",
+      "tags": ["dependencies", "lifecycle-wiring", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "rules/rules_test.go asserts an invalid dependency policy emits DEPENDENCY_DECLARATION_INVALID."}
+      ]
+    }
+  ]
+}

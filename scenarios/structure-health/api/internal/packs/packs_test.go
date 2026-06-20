@@ -104,6 +104,7 @@ func TestPerFileRuleFeedsAPIFiles(t *testing.T) {
 // promise: a scenario whose profile is not the recognized default is never
 // failed by react-vite/Go conventions — every pack finding becomes an advisory
 // PROFILE_CONFORMANCE_VIOLATION warning instead of a blocking error.
+// [REQ:SH-PROF-002]
 func TestUnrecognizedProfileDowngradesToAdvisory(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "api/main.go", envViolatingAPIFile)
@@ -131,6 +132,7 @@ func TestUnrecognizedProfileDowngradesToAdvisory(t *testing.T) {
 // rules block under the default profile (error severity), so verdicts match
 // today's. A scenario missing its required top-level files trips the
 // critical-severity Required Structure rule.
+// [REQ:SH-PROF-002]
 func TestRecognizedProfileEnforcesSeverity(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, ".vrooli/service.json", `{"name":"demo"}`)

@@ -80,6 +80,7 @@ func codes(findings []Finding) map[string]int {
 	return out
 }
 
+// [REQ:SH-RULE-001] [REQ:SH-PROF-001]
 func TestConformantScenarioHasNoFindings(t *testing.T) {
 	root := conformantRoot(t)
 	got := evalAt(root, conformantIntent(), fullProfile())
@@ -88,6 +89,7 @@ func TestConformantScenarioHasNoFindings(t *testing.T) {
 	}
 }
 
+// [REQ:SH-RULE-001]
 func TestServiceJSONMissing(t *testing.T) {
 	root := t.TempDir()
 	model := reconcile.Build("demo", root, intent.Intent{}, profile.Profile{})
@@ -97,6 +99,7 @@ func TestServiceJSONMissing(t *testing.T) {
 	}
 }
 
+// [REQ:SH-RULE-001]
 func TestServiceNameMismatch(t *testing.T) {
 	root := conformantRoot(t)
 	in := conformantIntent()
@@ -108,6 +111,7 @@ func TestServiceNameMismatch(t *testing.T) {
 	}
 }
 
+// [REQ:SH-RULE-002]
 func TestMissingFreshnessCheck(t *testing.T) {
 	root := conformantRoot(t)
 	in := conformantIntent()
@@ -118,6 +122,7 @@ func TestMissingFreshnessCheck(t *testing.T) {
 	}
 }
 
+// [REQ:SH-RULE-003]
 func TestMissingHealthCheck(t *testing.T) {
 	root := conformantRoot(t)
 	in := conformantIntent()
@@ -128,6 +133,7 @@ func TestMissingHealthCheck(t *testing.T) {
 	}
 }
 
+// [REQ:SH-RULE-004]
 func TestProductionServeNonconformant(t *testing.T) {
 	root := conformantRoot(t)
 	in := conformantIntent()
@@ -141,6 +147,7 @@ func TestProductionServeNonconformant(t *testing.T) {
 	}
 }
 
+// [REQ:SH-RULE-005]
 func TestReconcileMismatchDeclaredNotActual(t *testing.T) {
 	root := conformantRoot(t)
 	in := conformantIntent()
@@ -154,6 +161,7 @@ func TestReconcileMismatchDeclaredNotActual(t *testing.T) {
 	}
 }
 
+// [REQ:SH-RULE-006]
 func TestInvalidDependencyPolicy(t *testing.T) {
 	root := conformantRoot(t)
 	in := conformantIntent()

@@ -9,6 +9,8 @@ import (
 // the cli-core wiring declared in app.go. This catches the most common
 // regression class — a misconfigured StandardScenarioOptions or a missing
 // dependency from cli-core — before any tests touch real commands.
+//
+// [REQ:SH-CLI-001]
 func TestNewAppConstructs(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -36,6 +38,8 @@ func TestRunVersion(t *testing.T) {
 // app's wiring. Help is rendered to stdout by cli-core; we only verify
 // Run returns without error. The presence of each registered command in
 // the actual help surface is covered by cli-core's own tests.
+//
+// [REQ:SH-CLI-001]
 func TestRunHelp(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {

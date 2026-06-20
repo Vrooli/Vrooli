@@ -25,6 +25,9 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
+  // lib.dom types `matchMedia` as always-present, but jsdom (and SSR) omit it;
+  // keep the runtime guard so "system" resolution degrades instead of throwing.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (typeof window === "undefined" || !window.matchMedia) return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
@@ -55,6 +58,8 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
+    // See resolveChoice: jsdom/SSR can lack matchMedia despite lib.dom types.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
     if (choice !== "system") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

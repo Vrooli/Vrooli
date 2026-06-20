@@ -16,6 +16,7 @@ func find(m Model, surface string) (SurfaceState, bool) {
 	return SurfaceState{}, false
 }
 
+// [REQ:SH-GT-004]
 func TestBuildReconcile(t *testing.T) {
 	in := intent.Intent{
 		Name:       "demo",

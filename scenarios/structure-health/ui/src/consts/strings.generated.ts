@@ -14,14 +14,14 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   layout: {
+    mainLabel: "layout.mainLabel",
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
+      fleet: "layout.nav.fleet",
       settings: "layout.nav.settings",
     },
   },
@@ -43,6 +43,10 @@ export const strings = {
       title: "pages.settings.title",
       themeHeading: "pages.settings.themeHeading",
       localeHeading: "pages.settings.localeHeading",
+    },
+    fleet: {
+      title: "pages.fleet.title",
+      description: "pages.fleet.description",
     },
   },
   health: {
@@ -86,6 +90,55 @@ export const strings = {
     title: "errorBoundary.title",
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
+  },
+  fleet: {
+    title: "fleet.title",
+    refresh: "fleet.refresh",
+    loading: "fleet.loading",
+    empty: "fleet.empty",
+    summary: {
+      scenarios: "fleet.summary.scenarios",
+      passing: "fleet.summary.passing",
+      missingFreshness: "fleet.summary.missingFreshness",
+      autofixable: "fleet.summary.autofixable",
+    },
+    profiles: {
+      title: "fleet.profiles.title",
+      unrecognized: "fleet.profiles.unrecognized",
+      countLabel: "fleet.profiles.countLabel",
+      countLabel_one: "fleet.profiles.countLabel_one",
+    },
+    rules: {
+      title: "fleet.rules.title",
+      empty: "fleet.rules.empty",
+      col: {
+        code: "fleet.rules.col.code",
+        severity: "fleet.rules.col.severity",
+        offenders: "fleet.rules.col.offenders",
+        findings: "fleet.rules.col.findings",
+        autofixable: "fleet.rules.col.autofixable",
+      },
+    },
+    scenarios: {
+      title: "fleet.scenarios.title",
+      passed: "fleet.scenarios.passed",
+      failed: "fleet.scenarios.failed",
+      recognized: "fleet.scenarios.recognized",
+      unrecognized: "fleet.scenarios.unrecognized",
+      missingFreshnessBadge: "fleet.scenarios.missingFreshnessBadge",
+      col: {
+        scenario: "fleet.scenarios.col.scenario",
+        verdict: "fleet.scenarios.col.verdict",
+        profile: "fleet.scenarios.col.profile",
+        errors: "fleet.scenarios.col.errors",
+        warnings: "fleet.scenarios.col.warnings",
+        autofixable: "fleet.scenarios.col.autofixable",
+        freshness: "fleet.scenarios.col.freshness",
+      },
+    },
+    errors: {
+      title: "fleet.errors.title",
+    },
   },
 } as const;
 

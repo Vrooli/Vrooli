@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "profile-conformance",
+    "description": "Profile-keyed conformance packs migrated from scenario-auditor structure/config/ui rules, with default-profile verdict parity and advisory relaxation for unknown profiles.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SH-PROF-001",
+      "title": "Default profile reproduces pre-migration verdicts",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "For the default react-vite/Go profile, the migrated conformance packs (required layout, Makefile shape, ports, runtime storage, UI structure, focus-visible, lifecycle-protect markers) reproduce the pre-migration Structure + scenario-auditor verdicts verbatim — no new findings on already-conformant scenarios.",
+      "tags": ["parity", "profile", "auditor-migration"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "packs structurepack/configpack/uipack tests accept canonical layouts/Makefiles/ports and reject the same drift the legacy rules rejected."}
+      ]
+    },
+    {
+      "id": "SH-PROF-002",
+      "title": "Unknown profile downgrades profile rules to advisory",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "When the detected profile is unrecognized (e.g. non-Go backend or non-React UI), profile-specific conformance rules are emitted as advisory rather than blocking, so a valid alternative stack is not falsely failed; recognized profiles keep enforcement severity.",
+      "tags": ["profile", "advisory", "de-rigidify"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "packs_test.go proves an unrecognized profile downgrades to advisory while a recognized profile enforces severity."}
+      ]
+    },
+    {
+      "id": "SH-PROF-003",
+      "title": "Conformance scan excludes the rule-definition tree",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P1",
+      "description": "When structure-health scans itself, the pack scanner skips its own rule-definition directories so self-scan does not inflate findings from rule source/fixtures.",
+      "tags": ["self-scan", "scan", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "packs/scan/scan_test.go asserts the rule-definition tree is skipped during the conformance scan."}
+      ]
+    }
+  ]
+}

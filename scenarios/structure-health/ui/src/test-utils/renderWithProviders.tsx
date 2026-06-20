@@ -30,6 +30,7 @@ import type { ReactElement, ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
 import { MemoryRouter } from "react-router-dom";
 
+import { routerFutureFlags } from "../app/routerFuture";
 import { i18n } from "../i18n";
 import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -86,7 +87,9 @@ export function renderWithProviders(
       <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
     );
     const routed = withoutRouter ? themed : (
-      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+      <MemoryRouter initialEntries={routerEntries} future={routerFutureFlags}>
+        {themed}
+      </MemoryRouter>
     );
     return (
       <QueryClientProvider client={queryClient}>

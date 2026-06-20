@@ -35,6 +35,7 @@ const sample = `{
 }
 `
 
+// [REQ:SH-FIX-002]
 func TestRoundTripIsByteIdentical(t *testing.T) {
 	doc, err := Parse([]byte(sample))
 	if err != nil {
@@ -49,6 +50,7 @@ func TestRoundTripIsByteIdentical(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-002]
 func TestEditPreservesKeyOrderAndUnknownFields(t *testing.T) {
 	doc, err := Parse([]byte(sample))
 	if err != nil {
@@ -90,6 +92,7 @@ func TestEditPreservesKeyOrderAndUnknownFields(t *testing.T) {
 // TestHTMLCharactersStayEscaped proves shell metacharacters (&, <, >) survive a
 // round trip in the generated \uXXXX escaped form (matching how service.json is
 // generated), so an edit never silently rewrites a lifecycle command.
+// [REQ:SH-FIX-002]
 func TestHTMLCharactersStayEscaped(t *testing.T) {
 	in := "{\n  \"run\": \"a \\u0026\\u0026 b\"\n}\n"
 	doc, err := Parse([]byte(in))

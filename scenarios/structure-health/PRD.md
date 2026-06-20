@@ -1,47 +1,54 @@
 # Product Requirements Document (PRD)
 
-> **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
-> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
-> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
-
 ## 🎯 Overview
-- **Purpose**: [Summarize the permanent capability this scenario adds]
-- **Primary users/verticals**: [Who benefits]
-- **Deployment surfaces**: [CLI, API, UI, automations]
-- **Value promise**: [How this changes business outcomes]
+Purpose: Structure Health is Vrooli's scenario-skeleton and lifecycle-wiring authority. It validates a scenario's structure by reconciling **code-facts ground truth** (actual surfaces, languages, frameworks, artifacts) against **declared `service.json` intent** (ports, lifecycle steps, health checks, dependencies, freshness checks), reports a profile-aware, agent-readable maturity assessment, and auto-fixes the deterministic majority of structural defects. It replaces Test Genie's native Structure phase and absorbs scenario-auditor's `structure/`+`config/`+`ui/` rule packs so structural conformance is profile-keyed instead of hardcoded to a single react-vite/Go shape.
+
+Primary users/verticals: Vrooli agents, Test Genie (as its delegated `structure` phase provider), the Ecosystem Manager / meta-optimization maturity flows, scenario maintainers, and operators inspecting fleet structural health. The primary vertical is Vrooli's engineering-quality loop, where reliable scaffolding is the precondition for every scenario starting at all.
+
+Deployment surfaces: Go API (native `structure-health/v1 ValidationService` + shared `scenario-validation/v1 ScenarioValidationService` dual-mount, plus `FleetService` and `PerfService`), Go CLI (`structure-health validate|fix-config|fleet|perf`), and a React/Vite UI operator console (validation workbench + fleet dashboard). The API and CLI are the canonical programmatic surfaces; the UI is an inspection console.
+
+Value promise: Structural conformance and lifecycle wiring become discoverable, profile-aware, and auto-remediable. Agents get one command — `structure-health validate scenario <name>` — that explains current structural maturity, the next level, exactly what blocks it (declared-vs-actual mismatches, missing freshness checks that cause invisible rebuilds, dev servers shipped instead of production bundles), and which of those are auto-fixable. Test Genie stops hardcoding the react-vite/Go shape; non-Go/non-React scenarios are no longer falsely failed; fleet-wide structural intelligence and resource-aware startup-performance trends become durable inputs to meta-optimization.
 
 ## 🎯 Operational Targets
 
+Operational targets are measurable outcomes; checkboxes may auto-update based on validation.
+
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | [Outcome title] | [One-line description]
-- [ ] OT-P0-002 | [Outcome title] | [One-line description]
+- [ ] OT-P0-001 | Code-Facts-vs-Intent Reconcile | `structure-health validate scenario <name>` derives actual surfaces/languages/frameworks/artifacts from Code Facts (Connect client with a filesystem fallback that sets a degraded reason when Code Facts is unavailable), reads declared `service.json` intent (ports, lifecycle steps, health checks, dependencies), and builds a per-surface `{declared, actual}` reconcile model — no filesystem-only assumptions on the happy path.
+- [ ] OT-P0-002 | Structure & Lifecycle-Wiring Validation | The validator emits findings for invalid/missing `service.json`, `service.name`≠directory, missing required files/surface directories, incomplete build→start→port/env→health-check chains, **missing or malformed per-surface freshness checks** (closing the silent-rebuild gap), **production-serving nonconformance** (UI develop step that serves a dev server instead of the built bundle), and malformed/cyclic dependency declarations.
+- [ ] OT-P0-003 | Profile-Aware Conformance with Default Parity | Conformance rules (binary naming, UI-framework structure, port bands, Makefile shape, lifecycle-protect markers, setup/develop/test steps) are keyed off the code-facts-detected profile. The **default react-vite/Go profile reproduces the pre-migration Structure + scenario-auditor verdicts** (no new findings on already-conformant scenarios); an unknown/non-default profile downgrades profile-specific rules to advisory rather than falsely failing.
+- [ ] OT-P0-004 | Agent-Readable Maturity Assessment | Responses carry stable finding codes, severity, evidence, location, remediation, current and next Structure Health local maturity (L0–L4), the blocking findings for the next level, and global semantic impact — and every emitted finding code maps in `.vrooli/maturity.json`. Severity owns pass/fail: ERROR/BLOCKER findings fail the phase.
+- [ ] OT-P0-005 | Test Genie Structure Phase Provider | Test Genie's `structure` phase is served by `structure-health` over `scenario-validation/v1`; the native Structure runner and scenario-auditor's `structure/`+`config/`+`ui/` rule packs are deleted (not shimmed); the provider-contract scan recognizes the provider with `adoption_score=1`.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | [Outcome title] | [One-line description]
-- [ ] OT-P1-002 | [Outcome title] | [One-line description]
+- [ ] OT-P1-001 | Shared Auto-Fix Helper & Standardized Coverage | A domain-neutral auto-fix helper lives in `packages/maturity-go/autofix` (`FixClass`, `Candidate`, `Fixer`/`Registry`, generic `Preview`/`Apply` with dry-run default and idempotent `CanFix`); `quality-health` is migrated onto it with identical behavior and its scenario-local duplication deleted; `autofixable_count`/`autofixable_total` are standardized in the shared validation/assessment response and emitted by both scenarios.
+- [ ] OT-P1-002 | Structured Service.json Auto-Fix | `structure-health fix-config run|apply <name>` previews (default) and applies (`--apply`) the deterministic majority of structure/`service.json` fixes — add missing health/freshness checks, add missing Makefile targets, fix binary name/port band, create missing surface dirs, fix the production-serve develop step — via **format-preserving** targeted JSON edits (unknown fields and key order survive; apply-twice is a single change).
+- [ ] OT-P1-003 | Fleet Structural Intelligence | `FleetService.ScanFleet` + `structure-health fleet scan` roll up offenders, profile/surface distribution, per-rule conformance, and auto-fixable coverage across the fleet via deterministic structured queries (not a search-hub data provider); a UI dashboard renders fleet conformance for humans and meta-optimization.
+- [ ] OT-P1-004 | CLI Discoverability & Human Default | CLI commands render useful human output by default with `--json` as the opt-in programmatic format; thin Connect-client wrappers carry no business logic; the fleet verbs are discoverable through cli-health's CLI→search-hub command index.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | [Outcome title] | [One-line description]
-- [ ] OT-P2-002 | [Outcome title] | [One-line description]
+- [ ] OT-P2-001 | Resource-Aware Startup-Performance Benchmark | `structure-health perf measure <name>` restarts a scenario and records per-surface time-to-healthy plus a `common.v1.ExecutionMetrics` resource envelope (CPU/mem/GPU/host-load) to a persisted SQLite trend; `perf trend <name>` reads it newest-first. The capability is **never invoked by any Test Genie phase** — it is the measurement substrate for the deferred lifecycle-startup optimizations.
+- [ ] OT-P2-002 | Expanded Profile Contracts | As Code Facts exposes reliable parse units for more languages/frameworks (Rust/Python backends, Vue/Svelte UIs), structure-health gains first-class profile packs so those scenarios get conformant validation instead of advisory-only relaxation.
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks / frameworks: [React, Go, etc.]
-- Data + storage expectations: [sqlite]
-- Integration strategy: [shared workflows > resource CLI > direct API]
-- Non-goals / guardrails: [What this scenario will not do]
+- Preferred stacks / frameworks: generated React/Vite UI, Go API, Go CLI, proto/Connect contracts. SQLite (`api-core/database`) backs only the startup-performance trend store. CLI business logic stays thin over API behavior.
+- Data + storage expectations: live validation is stateless. The perf benchmark persists per-run startup measurements + resource envelopes to scenario-local SQLite with deterministic retention. Fleet scans are computed on demand over the validation engine.
+- Integration strategy: Code Facts is the source of actual surface/parse-unit/framework discovery; `service.json` is read directly for declared intent (Code Facts does not read config). Test Genie consumes structure-health as its `structure` phase provider over `scenario-validation/v1`. `packages/maturity-go` validates the `.vrooli/maturity.json` ladder and turns finding impacts into global signals; `packages/maturity-go/autofix` is the shared remediation substrate. `packages/api-core/metrics` supplies the ExecutionMetrics envelope.
+- Non-goals / guardrails: Do **not** add a `profile` block to `service.json`/`service.schema.json` (profile is derived). Do **not** invoke the perf benchmark from any Test Genie phase. Do **not** create a new top-level autofix package or a standalone perf scenario. Do **not** build a search-hub data provider for fleet intelligence (queries are deterministic/structured). Do **not** put business logic in the CLI. Do **not** implement the deferred lifecycle latency optimizations here — they are gated by this benchmark. Do **not** keep legacy native-structure or auditor rule-pack code after cutover (greenfield; default-profile *verdict* parity is required, not code backwards-compat).
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: [scenario-auditor]
-- Scenario dependencies: [name other scenarios leveraged]
-- Operational risks: [Key flags]
-- Launch sequencing: [Steps or milestones to hit GA]
+- Required resources: none for live validation. SQLite is used only for the perf trend store.
+- Scenario dependencies: Code Facts (surface/framework discovery), Test Genie (phase orchestration + provider-contract scan), quality-health (sibling that co-adopts `maturity-go/autofix`), scenario-auditor (relinquishes structure/config/ui rules, keeps cross-cutting policy/content), cli-health (registers CLI verbs into search-hub's command index). Maturity wiring uses `packages/maturity-go`; metrics use `packages/api-core/metrics`.
+- Operational risks: parity drift when migrating rules (mitigated by the default-profile parity gate and verbatim default rules); `service.json` auto-fix corruption (mitigated by format-preserving targeted edits, dry-run default, schema-aware idempotency); Structure being the first/fast-fail phase now depending on a provider (mitigated by the provider-contract scan + a degraded code-facts path that never passes cleanly on failure); perf benchmark resource load (mitigated by a runner seam, real starts gated behind the explicit verb, never in the test phase).
+- Launch sequencing: (1) Extract the shared `maturity-go/autofix` helper and migrate quality-health. (2) Generate the scenario, lock PRD/requirements/maturity/docs. (3) Code-facts client + `service.json` intent reader + reconcile model. (4) Structure + lifecycle-wiring validation rules. (5) Profile-aware conformance packs with default parity. (6) Auto-fix adoption on the shared helper. (7) Cut Test Genie's Structure phase to the provider and remove the auditor rule packs. (8) Fleet structural intelligence. (9) Startup-performance benchmark. (10) Full validation and cleanup.
 
 ## 🎨 UX & Branding
-- Look & feel: [Light/dark themes, visual tone, typography guidance]
-- Accessibility: [WCAG targets, interaction considerations]
-- Voice & messaging: [Product personality or language cues]
-- Branding hooks: [Logos, colors, iconography expectations]
+- Look & feel: operational engineering console using the `vrooli-default` design kit. The first screen is the structural-maturity workbench (validate a scenario, see blocking findings + auto-fixable coverage), with a separate fleet-conformance dashboard — not a marketing landing page.
+- Accessibility: WCAG AA contrast, keyboard-operable filters/actions, ARIA labels for status controls, stable `data-testid` selectors on all actionable and status-bearing elements.
+- Voice & messaging: direct, diagnostic, agent-ready. Findings explain what mismatched (declared vs actual), why it matters (e.g. silent rebuilds, broken asset caching), and what to do next — flagging which fixes are auto-applicable.
+- Branding hooks: `vrooli-default` design tokens; diagnostic iconography for pass/warn/error states; no external logos.
 
 ## 📎 Appendix
-[Add references or research links here if needed.]
+- Source plan: `~/.vrooli/plans/structure-health-scenario-profile-aware-structure-lifecycle-validation-shared-autofix-helper-fleet-intelligence-startup-perf-benchmark.md`
+- Sibling reference scenarios: `scenarios/unit-health` (test/coverage cutover, dual-mount pattern), `scenarios/quality-health` (static-quality cutover, autofix origin).
+- Local maturity ladder: `.vrooli/maturity.json` (L0–L4, provider=`structure-health`, phase=`structure`).

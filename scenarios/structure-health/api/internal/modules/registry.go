@@ -23,9 +23,13 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/fleet"
+	perfv1 "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/perf"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation"
 
+	fleetH "structure-health/handlers/fleet"
 	healthH "structure-health/handlers/health"
+	perfH "structure-health/handlers/perf"
 	validationH "structure-health/handlers/validation"
 	localdb "structure-health/internal/database"
 )
@@ -37,6 +41,8 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, fleetH.Endpoints...)
+	out = append(out, perfH.Endpoints...)
 	out = append(out, validationH.Endpoints...)
 	return out
 }
@@ -64,6 +70,8 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "fleet", File: fleetv1.File_structure_health_v1_fleet_fleet_proto},
+		{Module: "perf", File: perfv1.File_structure_health_v1_perf_perf_proto},
 		{Module: "validation", File: validationv1.File_structure_health_v1_validation_validation_proto},
 		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 	}
@@ -80,6 +88,8 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(fleetH.Schema),
+		apidb.SchemaProviderFunc(perfH.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),
 	}
 }

@@ -2,6 +2,7 @@ package profile
 
 import "testing"
 
+// [REQ:SH-GT-002]
 func TestDeriveDefaultProfile(t *testing.T) {
 	f := Facts{
 		Scenario: "demo",
@@ -26,6 +27,7 @@ func TestDeriveDefaultProfile(t *testing.T) {
 	}
 }
 
+// [REQ:SH-GT-002]
 func TestDeriveAPIOnlyProfile(t *testing.T) {
 	f := Facts{Surfaces: []Surface{{ID: "api", Kind: "api", Language: "go"}}}
 	p := Derive(f)
@@ -40,6 +42,7 @@ func TestDeriveAPIOnlyProfile(t *testing.T) {
 	}
 }
 
+// [REQ:SH-GT-002] [REQ:SH-PROF-002]
 func TestDeriveNonGoBackendUnrecognized(t *testing.T) {
 	f := Facts{Surfaces: []Surface{
 		{ID: "api", Kind: "api", Language: "python"},

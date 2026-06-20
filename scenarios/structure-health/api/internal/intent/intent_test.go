@@ -14,6 +14,7 @@ const sample = `{
   "dependencies": {"resources": {"postgres": {"startup_policy": "must_start", "freshness_policy": "reuse_running"}}}
 }`
 
+// [REQ:SH-GT-003]
 func TestParse(t *testing.T) {
 	in, err := Parse([]byte(sample))
 	if err != nil {

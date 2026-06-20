@@ -62,6 +62,7 @@ func ruleSet(candidates []Candidate) map[string]bool {
 	return out
 }
 
+// [REQ:SH-FIX-001] [REQ:SH-FIX-004]
 func TestPreviewIsDryRunAndProducesFixes(t *testing.T) {
 	root := writeScenario(t, serviceJSON)
 	path := filepath.Join(root, ".vrooli", "service.json")
@@ -83,6 +84,7 @@ func TestPreviewIsDryRunAndProducesFixes(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-001]
 func TestApplyComposesServiceJSONEditsAndIsIdempotent(t *testing.T) {
 	root := writeScenario(t, serviceJSON)
 	path := filepath.Join(root, ".vrooli", "service.json")
@@ -136,6 +138,7 @@ func TestApplyComposesServiceJSONEditsAndIsIdempotent(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-003]
 func TestApplyRuleFilterScopesEdits(t *testing.T) {
 	root := writeScenario(t, serviceJSON)
 	applied, err := Apply(root, []string{RuleServiceNameMismatch})
@@ -151,6 +154,7 @@ func TestApplyRuleFilterScopesEdits(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-003]
 func TestApplyCreatesMissingSurfaceDirs(t *testing.T) {
 	root := writeScenario(t, serviceJSON)
 	applied, err := Apply(root, []string{RuleSurfaceDirMissing})
@@ -167,6 +171,7 @@ func TestApplyCreatesMissingSurfaceDirs(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-003]
 func TestApplyCreatesReadmeNotMakefile(t *testing.T) {
 	root := writeScenario(t, serviceJSON)
 	applied, err := Apply(root, []string{RuleRequiredFileMissing})
@@ -185,6 +190,7 @@ func TestApplyCreatesReadmeNotMakefile(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-003]
 func TestFixClassFor(t *testing.T) {
 	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing} {
 		if !FixClassFor(code).Autofixable() {
@@ -199,6 +205,7 @@ func TestFixClassFor(t *testing.T) {
 	}
 }
 
+// [REQ:SH-FIX-003]
 func TestNoFixesWhenConformant(t *testing.T) {
 	// A scenario whose name matches its dir, with no declared surfaces, has no
 	// auto-fixable findings.

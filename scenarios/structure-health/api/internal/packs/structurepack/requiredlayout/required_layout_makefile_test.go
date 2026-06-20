@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+// [REQ:SH-PROF-001]
 func TestRequiredLayoutAcceptsCanonicalMakefile(t *testing.T) {
 	root := t.TempDir()
 	writeRequiredLayoutFixture(t, root, canonicalScenarioMakefile())

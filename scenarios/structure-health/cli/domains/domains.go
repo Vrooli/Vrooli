@@ -4,6 +4,8 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 
 	"structure-health/cli/domains/fixconfig"
+	"structure-health/cli/domains/fleet"
+	"structure-health/cli/domains/perf"
 	"structure-health/cli/domains/validate"
 )
 
@@ -45,5 +47,13 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{validateGroup, fixConfigGroup}, nil
+	fleetGroup, err := fleet.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	perfGroup, err := perf.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{validateGroup, fixConfigGroup, fleetGroup, perfGroup}, nil
 }

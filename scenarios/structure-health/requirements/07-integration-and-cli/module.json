@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "integration-and-cli",
+    "description": "Test Genie structure-phase provider cutover and the thin, discoverable, human-default CLI surface.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SH-INT-001",
+      "title": "Test Genie structure phase served by structure-health",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "Test Genie's structure phase delegates to structure-health over scenario-validation/v1; the native Structure runner and scenario-auditor structure/config/ui packs are deleted; the provider-contract scan recognizes the provider with adoption_score=1.",
+      "tags": ["test-genie", "provider", "cutover"],
+      "validation": [
+        {"type": "manual", "status": "planned", "notes": "provider-contract scan reports structure-health as a recognized provider (adoption_score=1, 0 offenders); test-genie/scenario-auditor baseline diffs exit 0 (phase-relocation triaged)."}
+      ]
+    },
+    {
+      "id": "SH-CLI-001",
+      "title": "Thin Connect-client CLI with stable command surface",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "The CLI exposes validate/fix-config/fleet/perf as thin manifest-bound Connect-client wrappers with no business logic; the app constructs, reports version/metadata, and renders help listing the command groups.",
+      "tags": ["cli", "thin-wrapper", "discoverability"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "cli/app_test.go covers construction, version, metadata, and help rendering of the registered command groups."}
+      ]
+    },
+    {
+      "id": "SH-CLI-002",
+      "title": "Human output by default, JSON opt-in",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "Every command renders a useful human report by default via the shared maturity/proto renderers; --json emits the structurally equivalent payload for programmatic consumers and is never required for the command to be useful.",
+      "tags": ["cli", "human-output", "json-parity"],
+      "validation": [
+        {"type": "manual", "status": "planned", "notes": "Live `structure-health validate scenario <id>` and `... --json` produce a useful human report and structurally equivalent JSON respectively."}
+      ]
+    }
+  ]
+}

@@ -20,6 +20,7 @@ func (erroringResolver) ResolveScenarioURLDefault(context.Context, string) (stri
 	return "", errors.New("code-facts down")
 }
 
+// [REQ:SH-GT-001]
 func TestDescribeFallsBackToFilesystemWhenCodeFactsDown(t *testing.T) {
 	root := t.TempDir()
 	for _, dir := range []string{"api", "ui"} {
