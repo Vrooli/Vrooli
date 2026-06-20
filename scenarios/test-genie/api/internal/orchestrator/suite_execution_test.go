@@ -157,6 +157,7 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	// Provider-backed phases are covered in the phase package. Orchestration
 	// tests replace them so a minimal fake scenario does not depend on live
 	// health-provider APIs.
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Structure, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Contracts, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Standards, Runner: noOp})
@@ -526,21 +527,22 @@ func TestNewRunIDIsUniqueAndSortable(t *testing.T) {
 func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] fail-fast halts remaining phases", func(t *testing.T) {
 		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
+		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
 			return "/tmp/" + name, nil
 		})
-		// Force the structure phase to fail by removing a required file.
-		requiredFile := filepath.Join(scenarioDir, "README.md")
-		if err := os.Remove(requiredFile); err != nil {
-			t.Fatalf("failed to remove %s: %v", requiredFile, err)
-		}
 
 		orchestrator, err := NewSuiteOrchestrator(root)
 		if err != nil {
 			t.Fatalf("failed to init orchestrator: %v", err)
 		}
 		stubRuntimePhaseRunners(orchestrator)
+		// Force the first phase (structure) to fail so fail-fast halts the rest.
+		// Structure is now delegated to structure-health, so the failure is
+		// injected via the runner rather than by corrupting the fake layout.
+		orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Structure, Runner: func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
+			return phasespkg.RunReport{Err: fmt.Errorf("forced structure failure")}
+		}})
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",

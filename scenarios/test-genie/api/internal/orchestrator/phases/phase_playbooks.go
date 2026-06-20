@@ -27,6 +27,7 @@ import (
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/metrics"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
@@ -117,12 +118,25 @@ func (s staticRegistryLoader) Load() (playbooks.Registry, error) {
 	return s.registry, nil
 }
 
-// runPlaybooksPhase executes BAS playbook workflows using the playbooks
+// runPlaybooksPhase wraps the playbooks runner with an execution-metrics
+// collector so the phase emits ExecutionMetrics like the native chokepoint
+// (RunNativePhase) does. Playbooks carries lifecycle/isolation/lease
+// orchestration that doesn't fit the RunNativePhase shape, so it keeps its own
+// flow and the collector measures the whole phase (wall-clock + CPU/RSS +
+// baseline env) across every routed/fallback return path.
+func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
+	m := metrics.Start()
+	report := runPlaybooksPhaseInner(ctx, env, logWriter)
+	report.Metrics = m.Stop()
+	return report
+}
+
+// runPlaybooksPhaseInner executes BAS playbook workflows using the playbooks
 // package. It branches at the top on routing eligibility: scenarios that
 // qualify take the in-place "routed" path (no scenario restart; runtime
 // test-pool install via RoutingService); scenarios that don't qualify take
 // the original "fallback" path with a leading violations block in the log.
-func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
+func runPlaybooksPhaseInner(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if err := ctx.Err(); err != nil {
 		return RunReport{
 			Err:                   err,

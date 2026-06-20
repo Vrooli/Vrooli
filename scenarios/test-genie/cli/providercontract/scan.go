@@ -48,8 +48,9 @@ type ScanReport struct {
 
 // RunScan parses args, runs the scan via the shared selfhealth conformance core,
 // prints the report, and returns a non-zero error when any provider is
-// mis-specified or breaks the contract while reachable (metrics adoption and
-// unreachability never fail the gate).
+// mis-specified, or — while reachable — breaks the contract, mismatches
+// identity, or has dropped ExecutionMetrics. Unreachability is environmental
+// and never fails the gate.
 func RunScan(args []string) error {
 	parsed, err := ParseScanArgs(args)
 	if err != nil {
@@ -68,7 +69,7 @@ func RunScan(args []string) error {
 
 	var offenders []string
 	for _, pr := range report.Providers {
-		if hasHardViolation(pr) {
+		if selfhealth.IsHardViolation(pr.SpecValid, pr.Reachable, pr.ContractValid, pr.IdentityOK, pr.MetricsAdopted) {
 			offenders = append(offenders, pr.Phase+"→"+pr.Provider)
 		}
 	}
@@ -123,18 +124,6 @@ func Scan(ctx context.Context, args ScanArgs) ScanReport {
 		})
 	}
 	return out
-}
-
-// hasHardViolation mirrors selfhealth.ProviderConformance.HasHardViolation over
-// the CLI report shape.
-func hasHardViolation(r ProviderReport) bool {
-	if !r.SpecValid {
-		return true
-	}
-	if r.Reachable && (!r.ContractValid || !r.IdentityOK) {
-		return true
-	}
-	return false
 }
 
 func printScanReport(report ScanReport) {

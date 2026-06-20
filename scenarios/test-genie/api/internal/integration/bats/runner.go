@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
 // Runner executes BATS test suites.
@@ -37,7 +37,7 @@ func AdaptLookup(lookup func(name string) (string, error)) CommandLookup {
 
 // RunResult contains the outcome of BATS execution.
 type RunResult struct {
-	types.Result
+	shared.Result
 
 	// PrimarySuite is the path to the primary BATS suite that was executed.
 	PrimarySuite string
@@ -106,23 +106,23 @@ func WithLookup(lookup CommandLookup) Option {
 }
 
 // FailureClassMissingDependency indicates a required tool is not installed.
-const FailureClassMissingDependency types.FailureClass = "missing_dependency"
+const FailureClassMissingDependency shared.FailureClass = "missing_dependency"
 
 // Run executes all BATS validation checks.
 func (r *runner) Run(ctx context.Context) RunResult {
 	if err := ctx.Err(); err != nil {
 		return RunResult{
-			Result: types.FailSystem(err, "Context cancelled"),
+			Result: shared.FailSystem(err, "Context cancelled"),
 		}
 	}
 
-	var observations []types.Observation
-	observations = append(observations, types.NewSectionObservation("🧪", "Running BATS acceptance tests..."))
+	var observations []shared.Observation
+	observations = append(observations, shared.NewSectionObservation("🧪", "Running BATS acceptance tests..."))
 
 	// Step 1: Verify bats is available
 	if _, err := r.lookup("bats"); err != nil {
 		return RunResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("required command 'bats' is not available: %w", err),
 				FailureClass: FailureClassMissingDependency,
@@ -132,7 +132,7 @@ func (r *runner) Run(ctx context.Context) RunResult {
 		}
 	}
 	r.logStep("bats command detected")
-	observations = append(observations, types.NewSuccessObservation("bats runtime available"))
+	observations = append(observations, shared.NewSuccessObservation("bats runtime available"))
 
 	cliDir := filepath.Join(r.config.ScenarioDir, "cli")
 
@@ -140,10 +140,10 @@ func (r *runner) Run(ctx context.Context) RunResult {
 	primarySuite, err := r.findPrimarySuite(cliDir)
 	if err != nil {
 		// No .bats files is not an error - just skip BATS validation
-		observations = append(observations, types.NewSkipObservation("no .bats suites found (BATS validation skipped)"))
+		observations = append(observations, shared.NewSkipObservation("no .bats suites found (BATS validation skipped)"))
 		r.logStep("no .bats suites found, skipping BATS validation")
 		return RunResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      true,
 				Observations: observations,
 			},
@@ -155,10 +155,10 @@ func (r *runner) Run(ctx context.Context) RunResult {
 	baseName := filepath.Base(primarySuite)
 	if err := r.runSuite(ctx, cliDir, baseName); err != nil {
 		return RunResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("%s failed: %w", baseName, err),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  fmt.Sprintf("Inspect %s to resolve acceptance test failures.", baseName),
 				Observations: observations,
 			},
@@ -166,16 +166,16 @@ func (r *runner) Run(ctx context.Context) RunResult {
 		}
 	}
 	r.logStep("%s executed successfully", baseName)
-	observations = append(observations, types.NewSuccessObservation("primary Bats suite passed"))
+	observations = append(observations, shared.NewSuccessObservation("primary Bats suite passed"))
 
 	// Step 4: Run additional suites
 	additionalCount, err := r.runAdditionalSuites(ctx, cliDir)
 	if err != nil {
 		return RunResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        err,
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  "Ensure cli/test contains valid .bats files with readable permissions.",
 				Observations: observations,
 			},
@@ -183,13 +183,13 @@ func (r *runner) Run(ctx context.Context) RunResult {
 		}
 	}
 	if additionalCount > 0 {
-		observations = append(observations, types.NewInfoObservation(fmt.Sprintf("additional Bats suites: %d", additionalCount)))
+		observations = append(observations, shared.NewInfoObservation(fmt.Sprintf("additional Bats suites: %d", additionalCount)))
 	}
 
 	r.logStep("BATS validation complete")
 
 	return RunResult{
-		Result: types.Result{
+		Result: shared.Result{
 			Success:      true,
 			Observations: observations,
 		},

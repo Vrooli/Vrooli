@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
 // Default argument patterns for help and version commands.
@@ -55,7 +55,7 @@ func AdaptCapture(cap func(ctx context.Context, dir string, logWriter io.Writer,
 
 // ValidationResult contains the outcome of CLI validation.
 type ValidationResult struct {
-	types.Result
+	shared.Result
 
 	// BinaryPath is the discovered CLI binary path.
 	BinaryPath string
@@ -188,32 +188,32 @@ func WithLookup(lookup CommandLookup) Option {
 func (v *validator) Validate(ctx context.Context) ValidationResult {
 	if err := ctx.Err(); err != nil {
 		return ValidationResult{
-			Result: types.FailSystem(err, "Context cancelled"),
+			Result: shared.FailSystem(err, "Context cancelled"),
 		}
 	}
 
-	var observations []types.Observation
-	observations = append(observations, types.NewSectionObservation("🖥️", "Validating CLI..."))
+	var observations []shared.Observation
+	observations = append(observations, shared.NewSectionObservation("🖥️", "Validating CLI..."))
 
 	// Step 1: Discover CLI invocation target
 	binaryPath, err := v.discoverBinary(ctx)
 	if err != nil {
 		return ValidationResult{
-			Result: types.FailMisconfiguration(err, "Declare a valid cli.invoke command and ensure the scenario can install or expose that executable."),
+			Result: shared.FailMisconfiguration(err, "Declare a valid cli.invoke command and ensure the scenario can install or expose that executable."),
 		}
 	}
 	v.logStep("CLI binary verified: %s", binaryPath)
-	observations = append(observations, types.NewSuccessObservation("CLI binary executable"))
+	observations = append(observations, shared.NewSuccessObservation("CLI binary executable"))
 
 	// Step 2: Validate no-args behavior (if enabled)
 	// Run this early since it can detect hangs
 	if v.config.CheckNoArgs {
 		if err := v.validateNoArgs(ctx, binaryPath); err != nil {
 			return ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success:      false,
 					Error:        fmt.Errorf("CLI no-args check failed: %w", err),
-					FailureClass: types.FailureClassSystem,
+					FailureClass: shared.FailureClassSystem,
 					Remediation:  fmt.Sprintf("Ensure %s handles being called with no arguments gracefully (should print help and exit 0).", filepath.Base(binaryPath)),
 					Observations: observations,
 				},
@@ -221,17 +221,17 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 			}
 		}
 		v.logStep("CLI handles no-args gracefully")
-		observations = append(observations, types.NewSuccessObservation("CLI no-args behavior verified"))
+		observations = append(observations, shared.NewSuccessObservation("CLI no-args behavior verified"))
 	}
 
 	// Step 3: Validate help command
 	helpArg, err := v.validateHelp(ctx, binaryPath)
 	if err != nil {
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("CLI help command failed: %w", err),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  fmt.Sprintf("Run `%s %s` manually to inspect the error output. Tried: %v", filepath.Base(binaryPath), v.config.HelpArgs[0], v.config.HelpArgs),
 				Observations: observations,
 			},
@@ -239,16 +239,16 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 		}
 	}
 	v.logStep("CLI help command succeeded (using '%s')", helpArg)
-	observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("CLI help verified (%s)", helpArg)))
+	observations = append(observations, shared.NewSuccessObservation(fmt.Sprintf("CLI help verified (%s)", helpArg)))
 
 	// Step 4: Validate version command
 	versionOutput, versionArg, err := v.validateVersion(ctx, binaryPath)
 	if err != nil {
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("CLI version command failed: %w", err),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  fmt.Sprintf("Ensure %s supports a version command. Tried: %v", filepath.Base(binaryPath), v.config.VersionArgs),
 				Observations: observations,
 			},
@@ -259,10 +259,10 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	// Validate version output content
 	if err := v.validateVersionOutput(versionOutput); err != nil {
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("CLI version output invalid: %w", err),
-				FailureClass: types.FailureClassMisconfiguration,
+				FailureClass: shared.FailureClassMisconfiguration,
 				Remediation:  fmt.Sprintf("Update %s to print a valid version string (got: %q).", filepath.Base(binaryPath), strings.TrimSpace(versionOutput)),
 				Observations: observations,
 			},
@@ -272,16 +272,16 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	}
 
 	v.logStep("CLI version output: %s (using '%s')", strings.TrimSpace(versionOutput), versionArg)
-	observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("CLI version reported (%s)", versionArg)))
+	observations = append(observations, shared.NewSuccessObservation(fmt.Sprintf("CLI version reported (%s)", versionArg)))
 
 	// Step 5: Validate unknown command handling (if enabled)
 	if v.config.CheckUnknownCommand {
 		if err := v.validateUnknownCommand(ctx, binaryPath); err != nil {
 			return ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success:      false,
 					Error:        fmt.Errorf("CLI unknown command check failed: %w", err),
-					FailureClass: types.FailureClassMisconfiguration,
+					FailureClass: shared.FailureClassMisconfiguration,
 					Remediation:  fmt.Sprintf("Update %s to return non-zero exit code for unknown commands.", filepath.Base(binaryPath)),
 					Observations: observations,
 				},
@@ -290,11 +290,11 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 			}
 		}
 		v.logStep("CLI handles unknown commands correctly")
-		observations = append(observations, types.NewSuccessObservation("CLI unknown command handling verified"))
+		observations = append(observations, shared.NewSuccessObservation("CLI unknown command handling verified"))
 	}
 
 	return ValidationResult{
-		Result: types.Result{
+		Result: shared.Result{
 			Success:      true,
 			Observations: observations,
 		},

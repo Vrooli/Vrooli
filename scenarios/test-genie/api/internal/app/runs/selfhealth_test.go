@@ -8,9 +8,24 @@ import (
 	"connectrpc.com/connect"
 
 	"test-genie/internal/execution"
+	"test-genie/internal/selfhealthsnapshots"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
+
+type fakeSnapshotReader struct {
+	latest    selfhealthsnapshots.Snapshot
+	hasLatest bool
+	series    []selfhealthsnapshots.Snapshot
+}
+
+func (f fakeSnapshotReader) Latest(context.Context) (selfhealthsnapshots.Snapshot, bool, error) {
+	return f.latest, f.hasLatest, nil
+}
+
+func (f fakeSnapshotReader) Series(context.Context, selfhealthsnapshots.SeriesQuery) ([]selfhealthsnapshots.Snapshot, error) {
+	return f.series, nil
+}
 
 type fakeLedgerSource struct {
 	observations []execution.PhaseObservation
@@ -109,5 +124,62 @@ func TestGetSelfHealthAssemblesPayload(t *testing.T) {
 	}
 	if protoRel.GetProvider() == "" {
 		t.Fatal("proto reliability should carry its provider from catalog meta")
+	}
+}
+
+func TestGetSelfHealthAttachesTrend(t *testing.T) {
+	src := fakeLedgerSource{
+		outcomes: []execution.RunOutcomeCount{{TerminalOutcome: "passed", Count: 9}, {TerminalOutcome: "failed", Count: 1}},
+	}
+	prev := time.Date(2026, 6, 19, 10, 0, 0, 0, time.UTC)
+	reader := fakeSnapshotReader{
+		latest:    selfhealthsnapshots.Snapshot{CapturedAt: prev, Availability: 0.85, RunCount: 6},
+		hasLatest: true,
+		series: []selfhealthsnapshots.Snapshot{
+			{CapturedAt: prev.Add(time.Hour), Availability: 0.90, RunCount: 8, HardViolations: 1, MetricsAdopted: 11},
+			{CapturedAt: prev, Availability: 0.85, RunCount: 6},
+		},
+	}
+	svc := NewService(t.TempDir(), nil, nil, src).SetSnapshotReader(reader)
+
+	resp, err := svc.GetSelfHealth(context.Background(), connect.NewRequest(&runspb.GetSelfHealthRequest{
+		WindowDays:      30,
+		SkipConformance: true,
+		IncludeTrend:    true,
+	}))
+	if err != nil {
+		t.Fatalf("GetSelfHealth: %v", err)
+	}
+	ledger := resp.Msg.GetSelfHealth().GetLedger()
+	if ledger.GetCapturedAt() == "" {
+		t.Fatal("captured_at must be filled from the latest snapshot")
+	}
+	trend := ledger.GetTrend()
+	if trend == nil {
+		t.Fatal("trend delta must be attached when a snapshot exists")
+	}
+	// availability = (passed+failed)/total = 10/10 = 1.0 (only errored/aborted/
+	// timeout reduce it); previous = 0.85 → delta ~0.15.
+	if d := trend.GetAvailabilityDelta(); d < 0.14 || d > 0.16 {
+		t.Fatalf("availability delta = %v, want ~0.15", d)
+	}
+	if trend.GetRunCountDelta() != ledger.GetRunCount()-6 {
+		t.Fatalf("run_count delta = %d, want %d", trend.GetRunCountDelta(), ledger.GetRunCount()-6)
+	}
+	if len(resp.Msg.GetSelfHealth().GetTrendSeries()) != 2 {
+		t.Fatalf("trend series length = %d, want 2", len(resp.Msg.GetSelfHealth().GetTrendSeries()))
+	}
+}
+
+func TestGetSelfHealthNoSnapshotReaderHasNoTrend(t *testing.T) {
+	src := fakeLedgerSource{outcomes: []execution.RunOutcomeCount{{TerminalOutcome: "passed", Count: 1}}}
+	svc := NewService(t.TempDir(), nil, nil, src) // no snapshot reader wired
+	resp, err := svc.GetSelfHealth(context.Background(), connect.NewRequest(&runspb.GetSelfHealthRequest{SkipConformance: true}))
+	if err != nil {
+		t.Fatalf("GetSelfHealth: %v", err)
+	}
+	ledger := resp.Msg.GetSelfHealth().GetLedger()
+	if ledger.GetTrend() != nil || ledger.GetCapturedAt() != "" {
+		t.Fatal("compute-on-read path must carry no trend fields without a snapshot store")
 	}
 }

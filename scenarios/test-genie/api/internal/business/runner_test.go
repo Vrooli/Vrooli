@@ -14,7 +14,7 @@ import (
 
 	reqparsing "test-genie/internal/requirements/parsing"
 
-	structtypes "test-genie/internal/structure/types"
+	structtypes "test-genie/internal/shared"
 )
 
 // =============================================================================

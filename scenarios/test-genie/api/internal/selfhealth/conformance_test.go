@@ -84,18 +84,61 @@ func TestScanProviderFullAdoption(t *testing.T) {
 	}
 }
 
-func TestScanProviderMetricsAdvisory(t *testing.T) {
+func TestScanProviderMetricsRequired(t *testing.T) {
+	// Plan 3 Part B: metrics adoption is no longer advisory. A reachable
+	// provider whose response carries no ExecutionMetrics is a hard violation.
 	repo := t.TempDir()
 	writeSpec(t, repo, "cli-health", "contracts")
 	pr := scanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", false), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
 	if pr.MetricsAdopted {
-		t.Fatal("expected metrics_adopted=false for un-migrated provider")
+		t.Fatal("expected metrics_adopted=false when the response carries no metrics")
 	}
-	if pr.HasHardViolation() {
-		t.Fatalf("missing metrics must not be a hard violation: %+v", pr)
+	if !pr.HasHardViolation() {
+		t.Fatalf("a reachable provider that dropped metrics must be a hard violation: %+v", pr)
 	}
 	if pr.AdoptionScore != 0.8 {
 		t.Fatalf("adoption_score = %v, want 0.8", pr.AdoptionScore)
+	}
+}
+
+func TestScanProviderScenarioAuditorSynthesized(t *testing.T) {
+	// scenario-auditor (standards) has no Connect service: its scorecard is
+	// synthesized client-side from the shipped maturity.json + a reachability
+	// check. When reachable it must be fully adopted (incl. metrics) and not a
+	// hard violation; the injected probe is never consulted for it.
+	repo := t.TempDir()
+	writeSpec(t, repo, "scenario-auditor", "standards")
+
+	prev := resolveAuditorURL
+	resolveAuditorURL = func(context.Context) (string, error) { return "http://127.0.0.1:9", nil }
+	t.Cleanup(func() { resolveAuditorURL = prev })
+
+	failProbe := probeFn(nil, errors.New("connect probe must not be used for scenario-auditor"))
+	pr := scanProvider(context.Background(), failProbe, repo, "test-genie", "standards", "scenario-auditor", time.Second)
+	if !pr.Reachable || !pr.ContractValid || !pr.IdentityOK || !pr.SpecValid || !pr.MetricsAdopted {
+		t.Fatalf("expected full synthesized adoption, got %+v", pr)
+	}
+	if pr.HasHardViolation() {
+		t.Fatalf("synthesized scenario-auditor scorecard must not be a hard violation: %+v", pr)
+	}
+}
+
+func TestScanProviderScenarioAuditorUnreachable(t *testing.T) {
+	// When scenario-auditor is not running, it degrades to environmental
+	// unreachability (reported, not a hard violation) — never a metrics gate fail.
+	repo := t.TempDir()
+	writeSpec(t, repo, "scenario-auditor", "standards")
+
+	prev := resolveAuditorURL
+	resolveAuditorURL = func(context.Context) (string, error) { return "", errors.New("not running") }
+	t.Cleanup(func() { resolveAuditorURL = prev })
+
+	pr := scanProvider(context.Background(), probeFn(nil, nil), repo, "test-genie", "standards", "scenario-auditor", time.Second)
+	if pr.Reachable {
+		t.Fatal("expected unreachable when auditor is absent")
+	}
+	if pr.HasHardViolation() {
+		t.Fatalf("unreachable scenario-auditor (valid spec) must not be a hard violation: %+v", pr)
 	}
 }
 

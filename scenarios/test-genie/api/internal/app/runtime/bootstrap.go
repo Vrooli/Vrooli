@@ -21,6 +21,7 @@ import (
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
+	"test-genie/internal/selfhealthsnapshots"
 	"test-genie/internal/toolexecution"
 	"test-genie/internal/toolregistry"
 
@@ -138,6 +139,13 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// lifecycle (start/follow/wait/abort/status) over Connect-RPC, delegating
 	// execution to the run manager.
 	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner, executionRepo)
+
+	// Persisted self-health trend store + background sweeper (Plan 3 Part C).
+	// The read path (GetSelfHealth trend delta/series) composes the repo; the
+	// sweeper is the sole writer, digest-deduped + env-disableable.
+	selfHealthSnapshots := selfhealthsnapshots.NewSqliteRepository(db)
+	runsService.SetSnapshotReader(selfHealthSnapshots)
+	startSelfHealthSweeper(selfHealthSnapshots, newSelfHealthRollupBuilder(executionRepo, repoRootFromScenariosRoot(cfg.ScenariosRoot)))
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"

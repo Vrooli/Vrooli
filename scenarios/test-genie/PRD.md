@@ -23,8 +23,8 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Internal Test Orchestrator | Run Test Genie phases from scenario-local Go packages with explicit presets, phase toggles, artifacts, and requirement sync decisions.
-- [ ] OT-P0-002 | AI Suite Generation | Support AI-assisted suite generation and repair workflows through CLI, API, and the operator UI without requiring manual shell orchestration.
+- [x] OT-P0-001 | Internal Test Orchestrator | Run Test Genie phases from scenario-local Go packages with explicit presets, phase toggles, artifacts, and requirement sync decisions.
+- [x] OT-P0-002 | AI Suite Generation | Support AI-assisted suite generation and repair workflows through CLI, API, and the operator UI without requiring manual shell orchestration.
 
 ### 🟠 P1 – Should have post-launch
 

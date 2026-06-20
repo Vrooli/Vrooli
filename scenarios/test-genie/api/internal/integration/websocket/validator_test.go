@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 
 	"github.com/gorilla/websocket"
 )
@@ -82,7 +82,7 @@ func TestValidateConnectionFailure(t *testing.T) {
 		if result.Success {
 			t.Fatal("expected failure for connection error")
 		}
-		if result.FailureClass != types.FailureClassSystem {
+		if result.FailureClass != shared.FailureClassSystem {
 			t.Errorf("expected system failure class, got %s", result.FailureClass)
 		}
 		if result.Endpoint == "" {
@@ -128,7 +128,7 @@ func TestValidateContextCancellation(t *testing.T) {
 		if result.Success {
 			t.Fatal("expected failure for cancelled context")
 		}
-		if result.FailureClass != types.FailureClassSystem {
+		if result.FailureClass != shared.FailureClassSystem {
 			t.Errorf("expected system failure class, got %s", result.FailureClass)
 		}
 	})
@@ -178,7 +178,7 @@ func TestValidateObservationsRecorded(t *testing.T) {
 		// Should have section header
 		hasSection := false
 		for _, obs := range result.Observations {
-			if obs.Type == types.ObservationSection {
+			if obs.Type == shared.ObservationSection {
 				hasSection = true
 				break
 			}
@@ -249,7 +249,7 @@ func TestValidateHTTPStatusInError(t *testing.T) {
 		// Check that observations mention the HTTP status
 		found := false
 		for _, obs := range result.Observations {
-			if obs.Type == types.ObservationError && obs.Message != "" {
+			if obs.Type == shared.ObservationError && obs.Message != "" {
 				// The error should contain HTTP status info
 				found = true
 				break

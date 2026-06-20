@@ -2,45 +2,45 @@ package parsing
 
 import (
 	"test-genie/internal/requirements/parsing"
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
 // Re-export shared types for convenience within this package.
 type (
-	FailureClass    = types.FailureClass
-	ObservationType = types.ObservationType
-	Observation     = types.Observation
-	Result          = types.Result
+	FailureClass    = shared.FailureClass
+	ObservationType = shared.ObservationType
+	Observation     = shared.Observation
+	Result          = shared.Result
 )
 
 // Re-export constants.
 const (
-	FailureClassNone             = types.FailureClassNone
-	FailureClassMisconfiguration = types.FailureClassMisconfiguration
-	FailureClassSystem           = types.FailureClassSystem
+	FailureClassNone             = shared.FailureClassNone
+	FailureClassMisconfiguration = shared.FailureClassMisconfiguration
+	FailureClassSystem           = shared.FailureClassSystem
 
-	ObservationSection = types.ObservationSection
-	ObservationSuccess = types.ObservationSuccess
-	ObservationWarning = types.ObservationWarning
-	ObservationError   = types.ObservationError
-	ObservationInfo    = types.ObservationInfo
-	ObservationSkip    = types.ObservationSkip
+	ObservationSection = shared.ObservationSection
+	ObservationSuccess = shared.ObservationSuccess
+	ObservationWarning = shared.ObservationWarning
+	ObservationError   = shared.ObservationError
+	ObservationInfo    = shared.ObservationInfo
+	ObservationSkip    = shared.ObservationSkip
 )
 
 // Re-export constructor functions.
 var (
-	NewSectionObservation = types.NewSectionObservation
-	NewSuccessObservation = types.NewSuccessObservation
-	NewWarningObservation = types.NewWarningObservation
-	NewErrorObservation   = types.NewErrorObservation
-	NewInfoObservation    = types.NewInfoObservation
-	NewSkipObservation    = types.NewSkipObservation
+	NewSectionObservation = shared.NewSectionObservation
+	NewSuccessObservation = shared.NewSuccessObservation
+	NewWarningObservation = shared.NewWarningObservation
+	NewErrorObservation   = shared.NewErrorObservation
+	NewInfoObservation    = shared.NewInfoObservation
+	NewSkipObservation    = shared.NewSkipObservation
 
-	OK                   = types.OK
-	OKWithCount          = types.OKWithCount
-	Fail                 = types.Fail
-	FailMisconfiguration = types.FailMisconfiguration
-	FailSystem           = types.FailSystem
+	OK                   = shared.OK
+	OKWithCount          = shared.OKWithCount
+	Fail                 = shared.Fail
+	FailMisconfiguration = shared.FailMisconfiguration
+	FailSystem           = shared.FailSystem
 )
 
 // ParsingResult extends Result with parsing-specific data.

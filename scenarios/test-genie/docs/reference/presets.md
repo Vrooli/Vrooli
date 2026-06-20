@@ -16,7 +16,7 @@ test-genie execute my-scenario --preset quick
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Validates scenario layout, manifests, and JSON health before any tests run. | 15m |
+| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
 | Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
 | Business | Audits requirements modules to guarantee operational targets stay mapped. | 15m |
@@ -33,7 +33,7 @@ test-genie execute my-scenario --preset smoke
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Validates scenario layout, manifests, and JSON health before any tests run. | 15m |
+| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
 | Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
 | Quality | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. | 2m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
@@ -51,7 +51,7 @@ test-genie execute my-scenario --preset architecture-audit
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Validates scenario layout, manifests, and JSON health before any tests run. | 15m |
+| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
 | Contracts | Validates cli/manifest.json bindings against proto descriptors via cli-health. | 1m |
 | UI Health | Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health. | 1m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
@@ -69,7 +69,7 @@ test-genie execute my-scenario --preset comprehensive
 
 | Phase | Description | Timeout |
 |-------|-------------|---------|
-| Structure | Validates scenario layout, manifests, and JSON health before any tests run. | 15m |
+| Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
 | Contracts | Validates cli/manifest.json bindings against proto descriptors via cli-health. | 1m |
 | UI Health | Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health. | 1m |
 | Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |

@@ -18,6 +18,7 @@ import (
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/runmanager"
+	"test-genie/internal/selfhealthsnapshots"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/visualcheck"
@@ -41,12 +42,30 @@ type Service struct {
 	// ledgerSource feeds the GetSelfHealth reliability ledger (compute-on-read
 	// aggregation over persisted runs). Satisfied by *execution.SuiteExecutionRepository.
 	ledgerSource ledgerSource
+	// snapshotReader is the optional persisted self-health trend store. When
+	// wired, GetSelfHealth fills the ledger's captured_at + trend delta against
+	// the latest snapshot and (on include_trend) the windowed series. nil keeps
+	// the compute-on-read path unchanged (no trend fields).
+	snapshotReader snapshotReader
 }
 
 // ledgerSource is the read seam GetSelfHealth's reliability ledger composes over.
 type ledgerSource interface {
 	AggregatePhaseObservations(ctx context.Context, since time.Time, limit int) ([]execution.PhaseObservation, error)
 	CountRunOutcomes(ctx context.Context, since time.Time, limit int) ([]execution.RunOutcomeCount, error)
+}
+
+// snapshotReader is the read seam over the persisted self-health snapshot store.
+type snapshotReader interface {
+	Latest(ctx context.Context) (selfhealthsnapshots.Snapshot, bool, error)
+	Series(ctx context.Context, q selfhealthsnapshots.SeriesQuery) ([]selfhealthsnapshots.Snapshot, error)
+}
+
+// SetSnapshotReader wires the optional persisted-trend read store. Returns the
+// service for chaining at construction sites.
+func (s *Service) SetSnapshotReader(r snapshotReader) *Service {
+	s.snapshotReader = r
+	return s
 }
 
 // NewService returns a Service. scenariosRoot resolves each request's scenario

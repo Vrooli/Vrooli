@@ -300,6 +300,7 @@ const literalSelectors = {
     runs: "test-genie-tab-runs",
     generate: "test-genie-tab-generate",
     docs: "test-genie-tab-docs",
+    health: "test-genie-tab-health",
     settings: "test-genie-tab-settings"
   },
   // Dashboard page
@@ -310,6 +311,16 @@ const literalSelectors = {
     stats: "test-genie-stats",
     queueHealth: "test-genie-queue-health",
     lastExecution: "test-genie-last-execution"
+  },
+  // Self-Health page
+  health: {
+    page: "test-genie-health-page",
+    catalog: "test-genie-health-catalog",
+    conformance: "test-genie-health-conformance",
+    ledger: "test-genie-health-ledger",
+    providers: "test-genie-health-providers",
+    trend: "test-genie-health-trend",
+    empty: "test-genie-health-empty"
   },
   // Runs page
   runs: {

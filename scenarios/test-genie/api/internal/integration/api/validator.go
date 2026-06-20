@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
 // Validator validates API health endpoints.
@@ -24,7 +24,7 @@ type HTTPClient interface {
 
 // ValidationResult contains the outcome of API validation.
 type ValidationResult struct {
-	types.Result
+	shared.Result
 
 	// HealthEndpoint is the endpoint that was checked.
 	HealthEndpoint string
@@ -105,12 +105,12 @@ func WithHTTPClient(client HTTPClient) Option {
 func (v *validator) Validate(ctx context.Context) ValidationResult {
 	if err := ctx.Err(); err != nil {
 		return ValidationResult{
-			Result: types.FailSystem(err, "Context cancelled"),
+			Result: shared.FailSystem(err, "Context cancelled"),
 		}
 	}
 
-	var observations []types.Observation
-	observations = append(observations, types.NewSectionObservation("🌐", "Validating API health..."))
+	var observations []shared.Observation
+	observations = append(observations, shared.NewSectionObservation("🌐", "Validating API health..."))
 
 	// Build the full URL
 	url := v.config.BaseURL + v.config.HealthEndpoint
@@ -120,7 +120,7 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return ValidationResult{
-			Result:         types.FailSystem(fmt.Errorf("failed to create request: %w", err), "Check that the API URL is valid."),
+			Result:         shared.FailSystem(fmt.Errorf("failed to create request: %w", err), "Check that the API URL is valid."),
 			HealthEndpoint: v.config.HealthEndpoint,
 		}
 	}
@@ -132,12 +132,12 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	responseMs := elapsed.Milliseconds()
 
 	if err != nil {
-		observations = append(observations, types.NewErrorObservation(fmt.Sprintf("health check failed: %v", err)))
+		observations = append(observations, shared.NewErrorObservation(fmt.Sprintf("health check failed: %v", err)))
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("health endpoint unreachable: %w", err),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  fmt.Sprintf("Ensure the scenario is running and %s is accessible.", url),
 				Observations: observations,
 			},
@@ -149,12 +149,12 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 
 	// Check status code
 	if resp.StatusCode != v.config.ExpectedStatus {
-		observations = append(observations, types.NewErrorObservation(fmt.Sprintf("unexpected status: %d (expected %d)", resp.StatusCode, v.config.ExpectedStatus)))
+		observations = append(observations, shared.NewErrorObservation(fmt.Sprintf("unexpected status: %d (expected %d)", resp.StatusCode, v.config.ExpectedStatus)))
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("health endpoint returned %d, expected %d", resp.StatusCode, v.config.ExpectedStatus),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  "Check API logs for errors. Ensure the health endpoint is correctly implemented.",
 				Observations: observations,
 			},
@@ -164,16 +164,16 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 		}
 	}
 	v.logStep("Health endpoint returned status %d", resp.StatusCode)
-	observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("health endpoint returned %d", resp.StatusCode)))
+	observations = append(observations, shared.NewSuccessObservation(fmt.Sprintf("health endpoint returned %d", resp.StatusCode)))
 
 	// Check response time
 	if responseMs > v.config.MaxResponseMs {
-		observations = append(observations, types.NewWarningObservation(fmt.Sprintf("response time %dms exceeds threshold %dms", responseMs, v.config.MaxResponseMs)))
+		observations = append(observations, shared.NewWarningObservation(fmt.Sprintf("response time %dms exceeds threshold %dms", responseMs, v.config.MaxResponseMs)))
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("response time %dms exceeds threshold %dms", responseMs, v.config.MaxResponseMs),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  "Investigate API performance. Consider optimizing the health check or increasing the threshold.",
 				Observations: observations,
 			},
@@ -183,19 +183,19 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 		}
 	}
 	v.logStep("Response time: %dms (threshold: %dms)", responseMs, v.config.MaxResponseMs)
-	observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("response time %dms within threshold", responseMs)))
+	observations = append(observations, shared.NewSuccessObservation(fmt.Sprintf("response time %dms within threshold", responseMs)))
 
 	// Try to parse response body for additional info
 	var healthResponse map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&healthResponse); err == nil {
 		if status, ok := healthResponse["status"].(string); ok {
 			v.logStep("Health status: %s", status)
-			observations = append(observations, types.NewInfoObservation(fmt.Sprintf("health status: %s", status)))
+			observations = append(observations, shared.NewInfoObservation(fmt.Sprintf("health status: %s", status)))
 		}
 	}
 
 	return ValidationResult{
-		Result: types.Result{
+		Result: shared.Result{
 			Success:      true,
 			Observations: observations,
 		},

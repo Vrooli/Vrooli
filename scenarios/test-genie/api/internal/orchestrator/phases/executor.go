@@ -8,6 +8,8 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
+
+	"github.com/vrooli/api-core/metrics"
 )
 
 // seam: StandardRunResult is the contract native phase runners satisfy so the
@@ -72,7 +74,13 @@ func RunNativePhase[TExpect any](
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	// seam: every native phase that flows through RunNativePhase is measured at
+	// this single chokepoint, mirroring the delegated path's report.Metrics wiring
+	// (phase_validationprovider.go). The collector's default baseline environment
+	// (stdlib os/arch/num_cpu) is sufficient — no host-inventory shell per phase.
+	m := metrics.Start()
 	finish := func(report RunReport, result StandardRunResult, summary string) RunReport {
+		report.Metrics = m.Stop()
 		if cfg.onReport != nil {
 			cfg.onReport(&report, result)
 		}

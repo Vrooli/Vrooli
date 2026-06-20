@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Scenario-local orchestration pipeline replacing scripts/scenarios/testing/",
-    "last_validated_at": "2026-06-18T14:30:52-04:00",
+    "last_validated_at": "2026-06-20T11:56:50-04:00",
     "module_name": "Internal Test Orchestrator",
     "prd_ref": "OT-P0-001",
     "priority": "P0"
@@ -10,7 +10,7 @@
     {
       "id": "TESTGENIE-ORCH-P0",
       "title": "Scenario-local orchestrator replaces scripts/scenarios/testing",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Implement structure, dependency, unit, integration, and performance runners directly inside the scenario, exposing CLI + API triggers.",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/internal/orchestrator/workspace/testing_config_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates .vrooli/testing.json ingestion, phase toggles, preset overrides, and timeout enforcement"
         },
         {

@@ -10,7 +10,7 @@ import (
 	"test-genie/internal/integration/bats"
 	"test-genie/internal/integration/cli"
 	"test-genie/internal/integration/websocket"
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
 // Mock validators for testing the runner orchestration logic in isolation
@@ -84,12 +84,12 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
 			result: cli.ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success: true,
-					Observations: []types.Observation{
-						types.NewSuccessObservation("CLI binary found"),
-						types.NewSuccessObservation("help works"),
-						types.NewSuccessObservation("version works"),
+					Observations: []shared.Observation{
+						shared.NewSuccessObservation("CLI binary found"),
+						shared.NewSuccessObservation("help works"),
+						shared.NewSuccessObservation("version works"),
 					},
 				},
 				BinaryPath:    "/mock/scenario/cli/mock-scenario",
@@ -98,11 +98,11 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 		},
 		&mockBatsRunner{
 			result: bats.RunResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success: true,
-					Observations: []types.Observation{
-						types.NewSuccessObservation("bats available"),
-						types.NewSuccessObservation("primary suite passed"),
+					Observations: []shared.Observation{
+						shared.NewSuccessObservation("bats available"),
+						shared.NewSuccessObservation("primary suite passed"),
 					},
 				},
 				PrimarySuite:        "/mock/scenario/cli/mock-scenario.bats",
@@ -134,14 +134,14 @@ func TestRunner_CLIValidationFails(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
 			result: cli.ValidationResult{
-				Result: types.FailMisconfiguration(
+				Result: shared.FailMisconfiguration(
 					errors.New("no executable found"),
 					"Add CLI binary",
 				),
 			},
 		},
 		&mockBatsRunner{
-			result: bats.RunResult{Result: types.OK()},
+			result: bats.RunResult{Result: shared.OK()},
 		},
 	)
 
@@ -162,12 +162,12 @@ func TestRunner_BatsValidationFails(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
 			result: cli.ValidationResult{
-				Result: types.OK().WithObservations(types.NewSuccessObservation("CLI ok")),
+				Result: shared.OK().WithObservations(shared.NewSuccessObservation("CLI ok")),
 			},
 		},
 		&mockBatsRunner{
 			result: bats.RunResult{
-				Result: types.FailSystem(
+				Result: shared.FailSystem(
 					errors.New("primary suite failed"),
 					"Fix test failures",
 				),
@@ -193,12 +193,12 @@ func TestRunner_BatsMissingDependency(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
 			result: cli.ValidationResult{
-				Result: types.OK().WithObservations(types.NewSuccessObservation("CLI ok")),
+				Result: shared.OK().WithObservations(shared.NewSuccessObservation("CLI ok")),
 			},
 		},
 		&mockBatsRunner{
 			result: bats.RunResult{
-				Result: types.Fail(
+				Result: shared.Fail(
 					errors.New("bats not installed"),
 					bats.FailureClassMissingDependency,
 					"Install bats",
@@ -222,8 +222,8 @@ func TestRunner_ContextCancelled(t *testing.T) {
 	cancel() // Cancel immediately
 
 	runner := newMockedRunner(
-		&mockCLIValidator{result: cli.ValidationResult{Result: types.OK()}},
-		&mockBatsRunner{result: bats.RunResult{Result: types.OK()}},
+		&mockCLIValidator{result: cli.ValidationResult{Result: shared.OK()}},
+		&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}},
 	)
 
 	result := runner.Run(ctx)
@@ -244,7 +244,7 @@ func TestRunner_NoCLIValidator(t *testing.T) {
 		},
 		WithLogger(io.Discard),
 		// No CLI validator, no command executor
-		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: types.OK()}}),
+		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}}),
 	)
 
 	result := runner.Run(context.Background())
@@ -265,7 +265,7 @@ func TestRunner_NoBatsRunner(t *testing.T) {
 		},
 		WithLogger(io.Discard),
 		WithCLIValidator(&mockCLIValidator{
-			result: cli.ValidationResult{Result: types.OK()},
+			result: cli.ValidationResult{Result: shared.OK()},
 		}),
 		// No BATS runner, no command executor
 	)
@@ -410,11 +410,11 @@ func TestRunner_APIValidationPasses(t *testing.T) {
 	runner := newFullyMockedRunner(
 		&mockAPIValidator{
 			result: api.ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success: true,
-					Observations: []types.Observation{
-						types.NewSuccessObservation("health endpoint returned 200"),
-						types.NewSuccessObservation("response time 50ms within threshold"),
+					Observations: []shared.Observation{
+						shared.NewSuccessObservation("health endpoint returned 200"),
+						shared.NewSuccessObservation("response time 50ms within threshold"),
 					},
 				},
 				HealthEndpoint: "/health",
@@ -423,10 +423,10 @@ func TestRunner_APIValidationPasses(t *testing.T) {
 			},
 		},
 		&mockCLIValidator{
-			result: cli.ValidationResult{Result: types.OK()},
+			result: cli.ValidationResult{Result: shared.OK()},
 		},
 		&mockBatsRunner{
-			result: bats.RunResult{Result: types.OK()},
+			result: bats.RunResult{Result: shared.OK()},
 		},
 		nil,
 	)
@@ -445,7 +445,7 @@ func TestRunner_APIValidationFails(t *testing.T) {
 	runner := newFullyMockedRunner(
 		&mockAPIValidator{
 			result: api.ValidationResult{
-				Result: types.FailSystem(
+				Result: shared.FailSystem(
 					errors.New("health endpoint returned 503"),
 					"Check API logs for errors",
 				),
@@ -453,10 +453,10 @@ func TestRunner_APIValidationFails(t *testing.T) {
 			},
 		},
 		&mockCLIValidator{
-			result: cli.ValidationResult{Result: types.OK()},
+			result: cli.ValidationResult{Result: shared.OK()},
 		},
 		&mockBatsRunner{
-			result: bats.RunResult{Result: types.OK()},
+			result: bats.RunResult{Result: shared.OK()},
 		},
 		nil,
 	)
@@ -482,10 +482,10 @@ func TestRunner_APIValidationFails(t *testing.T) {
 func TestRunner_APIValidationSkippedWhenNotConfigured(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
-			result: cli.ValidationResult{Result: types.OK()},
+			result: cli.ValidationResult{Result: shared.OK()},
 		},
 		&mockBatsRunner{
-			result: bats.RunResult{Result: types.OK()},
+			result: bats.RunResult{Result: shared.OK()},
 		},
 	)
 
@@ -516,17 +516,17 @@ func TestRunner_WebSocketValidationPasses(t *testing.T) {
 	runner := newFullyMockedRunner(
 		nil, // No API validator
 		&mockCLIValidator{
-			result: cli.ValidationResult{Result: types.OK()},
+			result: cli.ValidationResult{Result: shared.OK()},
 		},
 		&mockBatsRunner{
-			result: bats.RunResult{Result: types.OK()},
+			result: bats.RunResult{Result: shared.OK()},
 		},
 		&mockWebSocketValidator{
 			result: websocket.ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success: true,
-					Observations: []types.Observation{
-						types.NewSuccessObservation("WebSocket connected in 100ms"),
+					Observations: []shared.Observation{
+						shared.NewSuccessObservation("WebSocket connected in 100ms"),
 					},
 				},
 				Endpoint:         "/ws",
@@ -549,14 +549,14 @@ func TestRunner_WebSocketValidationFails(t *testing.T) {
 	runner := newFullyMockedRunner(
 		nil,
 		&mockCLIValidator{
-			result: cli.ValidationResult{Result: types.OK()},
+			result: cli.ValidationResult{Result: shared.OK()},
 		},
 		&mockBatsRunner{
-			result: bats.RunResult{Result: types.OK()},
+			result: bats.RunResult{Result: shared.OK()},
 		},
 		&mockWebSocketValidator{
 			result: websocket.ValidationResult{
-				Result: types.FailSystem(
+				Result: shared.FailSystem(
 					errors.New("WebSocket connection refused"),
 					"Ensure scenario is running",
 				),
@@ -581,10 +581,10 @@ func TestRunner_WebSocketValidationFails(t *testing.T) {
 func TestRunner_WebSocketValidationSkippedWhenNotConfigured(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
-			result: cli.ValidationResult{Result: types.OK()},
+			result: cli.ValidationResult{Result: shared.OK()},
 		},
 		&mockBatsRunner{
-			result: bats.RunResult{Result: types.OK()},
+			result: bats.RunResult{Result: shared.OK()},
 		},
 	)
 
@@ -615,9 +615,9 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 	runner := newFullyMockedRunner(
 		&mockAPIValidator{
 			result: api.ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success:      true,
-					Observations: []types.Observation{types.NewSuccessObservation("API healthy")},
+					Observations: []shared.Observation{shared.NewSuccessObservation("API healthy")},
 				},
 				StatusCode:     200,
 				ResponseTimeMs: 50,
@@ -625,26 +625,26 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 		},
 		&mockCLIValidator{
 			result: cli.ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success:      true,
-					Observations: []types.Observation{types.NewSuccessObservation("CLI ok")},
+					Observations: []shared.Observation{shared.NewSuccessObservation("CLI ok")},
 				},
 			},
 		},
 		&mockBatsRunner{
 			result: bats.RunResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success:      true,
-					Observations: []types.Observation{types.NewSuccessObservation("BATS ok")},
+					Observations: []shared.Observation{shared.NewSuccessObservation("BATS ok")},
 				},
 				AdditionalSuitesRun: 1,
 			},
 		},
 		&mockWebSocketValidator{
 			result: websocket.ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success:      true,
-					Observations: []types.Observation{types.NewSuccessObservation("WS ok")},
+					Observations: []shared.Observation{shared.NewSuccessObservation("WS ok")},
 				},
 				ConnectionTimeMs: 100,
 			},
@@ -692,8 +692,8 @@ func TestRunner_CreatesAPIValidatorFromConfig(t *testing.T) {
 			APIMaxResponseMs:  500,
 		},
 		WithLogger(io.Discard),
-		WithCLIValidator(&mockCLIValidator{result: cli.ValidationResult{Result: types.OK()}}),
-		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: types.OK()}}),
+		WithCLIValidator(&mockCLIValidator{result: cli.ValidationResult{Result: shared.OK()}}),
+		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}}),
 	)
 
 	if runner.apiValidator == nil {
@@ -710,8 +710,8 @@ func TestRunner_CreatesWebSocketValidatorFromConfig(t *testing.T) {
 			WebSocketMaxConnectionMs: 1000,
 		},
 		WithLogger(io.Discard),
-		WithCLIValidator(&mockCLIValidator{result: cli.ValidationResult{Result: types.OK()}}),
-		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: types.OK()}}),
+		WithCLIValidator(&mockCLIValidator{result: cli.ValidationResult{Result: shared.OK()}}),
+		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}}),
 	)
 
 	if runner.websocketValidator == nil {

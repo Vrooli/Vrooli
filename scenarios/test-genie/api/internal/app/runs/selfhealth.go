@@ -9,10 +9,57 @@ import (
 
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/selfhealth"
+	"test-genie/internal/selfhealthsnapshots"
 
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
+
+// snapshotTimeLayout matches the persisted snapshot encoding so trend
+// timestamps round-trip as text in the proto response.
+const snapshotTimeLayout = time.RFC3339Nano
+
+// attachTrend fills the ledger's captured_at + trend delta (current ledger vs
+// the latest persisted snapshot) and, when requested, the windowed trend
+// series. It is a no-op when no snapshot store is wired or none exist yet, so
+// the compute-on-read path is unchanged without the sweeper.
+func (s *Service) attachTrend(ctx context.Context, sh *runspb.SelfHealth, includeTrend bool, window time.Duration) {
+	if s.snapshotReader == nil || sh.GetLedger() == nil {
+		return
+	}
+	latest, ok, err := s.snapshotReader.Latest(ctx)
+	if err == nil && ok {
+		sh.Ledger.CapturedAt = latest.CapturedAt.UTC().Format(snapshotTimeLayout)
+		sh.Ledger.Trend = &runspb.TrendDelta{
+			PreviousCapturedAt:   latest.CapturedAt.UTC().Format(snapshotTimeLayout),
+			PreviousAvailability: latest.Availability,
+			PreviousRunCount:     int32(latest.RunCount),
+			AvailabilityDelta:    sh.Ledger.GetAvailability() - latest.Availability,
+			RunCountDelta:        sh.Ledger.GetRunCount() - int32(latest.RunCount),
+		}
+	}
+
+	if !includeTrend {
+		return
+	}
+	q := selfhealthsnapshots.SeriesQuery{Limit: 500}
+	if window > 0 {
+		q.Since = time.Now().Add(-window)
+	}
+	series, err := s.snapshotReader.Series(ctx, q)
+	if err != nil {
+		return
+	}
+	for _, snap := range series {
+		sh.TrendSeries = append(sh.TrendSeries, &runspb.SelfHealthTrendPoint{
+			CapturedAt:     snap.CapturedAt.UTC().Format(snapshotTimeLayout),
+			Availability:   snap.Availability,
+			RunCount:       int32(snap.RunCount),
+			HardViolations: int32(snap.HardViolations),
+			MetricsAdopted: int32(snap.MetricsAdopted),
+		})
+	}
+}
 
 // GetSelfHealth assembles Test Genie's self-observability snapshot: the phase
 // catalog summary, per-provider conformance (probed live + time-boxed unless
@@ -34,6 +81,7 @@ func (s *Service) GetSelfHealth(ctx context.Context, req *connect.Request[runspb
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		sh.Ledger = ledgerToProto(ledger)
+		s.attachTrend(ctx, sh, req.Msg.GetIncludeTrend(), window)
 	}
 
 	if req.Msg.GetSkipConformance() {

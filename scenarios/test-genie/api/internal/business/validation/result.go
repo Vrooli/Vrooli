@@ -2,7 +2,7 @@ package validation
 
 import (
 	"test-genie/internal/requirements/types"
-	structtypes "test-genie/internal/structure/types"
+	structtypes "test-genie/internal/shared"
 )
 
 // Re-export shared types for convenience within this package.

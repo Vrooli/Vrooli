@@ -899,15 +899,7 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environmen
 	definitions := make(map[string]phases.Definition)
 	if o.catalog != nil {
 		for _, spec := range o.catalog.All() {
-			definitions[spec.Name.Key()] = phases.Definition{
-				Name:          spec.Name,
-				Runner:        spec.Runner,
-				Timeout:       spec.DefaultTimeout,
-				Optional:      spec.Optional,
-				SkipEnvVar:    spec.SkipEnvVar,
-				Capabilities:  spec.Capabilities,
-				FindingSource: spec.FindingSource,
-			}
+			definitions[spec.Name.Key()] = spec.ToDefinition()
 		}
 	}
 	for _, entry := range entries {

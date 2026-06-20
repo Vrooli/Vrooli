@@ -17,6 +17,7 @@ import (
 	"test-genie/internal/shared"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/metrics"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
@@ -44,7 +45,25 @@ func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, base
 	return eligibility.FetchSummary(ctx, logWriter, baseURL, scenarioName, mapping, summaryLimit)
 }
 
-func standardsDelegatedClient(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider) *validationprovider.Result {
+// standardsDelegatedClient runs the standards phase against scenario-auditor's
+// REST API. scenario-auditor is the one delegated provider with no Connect
+// ScenarioValidationService, so — unlike the mechanical providers — it cannot
+// emit ExecutionMetrics provider-side. We therefore CLIENT-SYNTHESIZE metrics
+// here (A2-thin): the collector measures the test-genie-side cost of the REST
+// call (wall clock + this process's CPU/RSS + request/parse stages). The
+// gauge client_synthesized=1 marks that these metrics reflect the client call,
+// not scenario-auditor's internal work. The metrics are stamped onto every
+// returned Result via the named-return defer so all error paths carry them too.
+func standardsDelegatedClient(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider) (result *validationprovider.Result) {
+	collector := metrics.Start()
+	collector.Gauge("client_synthesized", 1)
+	defer func() {
+		execMetrics := collector.Stop()
+		if result != nil {
+			result.Metrics = execMetrics
+		}
+	}()
+
 	cleanLog := wrapLogSansANSI(logWriter)
 
 	failOn := normalizeSeverity(os.Getenv("TEST_GENIE_STANDARDS_FAIL_ON"))
@@ -63,7 +82,9 @@ func standardsDelegatedClient(ctx context.Context, env workspace.Environment, lo
 	}
 
 	shared.LogStep(cleanLog, "running standards scan via scenario-auditor API (timeout=%ds, fail_on=%s)", timeoutSeconds, failOn)
+	resolveStage := collector.Stage("resolve-auditor")
 	baseURL, err := resolveScenarioAuditorBaseURL(ctx)
+	resolveStage.End()
 	if err != nil {
 		classification, remediation := classifyAuditorError(err)
 		return standardsResult(validationprovider.Summary{Scenario: env.ScenarioName, Status: "error"}, false, shared.FailureClass(classification), err, remediation, []shared.Observation{
@@ -73,7 +94,9 @@ func standardsDelegatedClient(ctx context.Context, env workspace.Environment, lo
 	}
 
 	mapping := standardsMapping(env)
+	scanStage := collector.Stage("standards-scan")
 	summary, err := fetchAuditorStandardsSummary(ctx, cleanLog, baseURL, env.ScenarioName, mapping, summaryLimit)
+	scanStage.End()
 	observations := buildStandardsObservations(summary, failOn, minDisplay)
 	archFindings := standardsArchFindings(env.ScenarioName, summary)
 	providerSummary := standardsProviderSummary(env.ScenarioName, summary, "passed")

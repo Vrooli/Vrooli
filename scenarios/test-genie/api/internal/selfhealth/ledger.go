@@ -136,8 +136,11 @@ func NewBuilder(source observationSource, window time.Duration) *Builder {
 }
 
 // Build computes the ledger over the configured window. phaseMeta maps a
-// normalized (lower-case) phase name to its catalog metadata; phases absent from
-// the map are still reported (with empty provider).
+// normalized (lower-case) phase name to its catalog metadata; it is built
+// authoritatively from the catalog, so its key set IS the live-phase set.
+// Observations whose phase is absent from the map (legacy pseudo-phases like
+// `coverage`/`lint` from historical runs) are excluded so the rollup stays ⊆
+// catalog.
 func (b *Builder) Build(ctx context.Context, phaseMeta map[string]PhaseMeta) (*Ledger, error) {
 	since := b.now().UTC().Add(-b.window)
 
@@ -219,9 +222,17 @@ func buildPhaseReliability(observations []execution.PhaseObservation, phaseMeta 
 		if obs.PhaseName == "" {
 			continue
 		}
+		meta, known := phaseMeta[obs.PhaseName]
+		if !known {
+			// Non-catalog (legacy) phase — historical runs persist pseudo-phases
+			// like `coverage`/`lint` that are no longer catalog phases. Drop them
+			// so the rollup is ⊆ catalog and consumers (UI, meta-opt) see only
+			// live phases. phaseMeta is built authoritatively from the catalog, so
+			// membership is the catalog-scope test.
+			continue
+		}
 		acc := accs[obs.PhaseName]
 		if acc == nil {
-			meta := phaseMeta[obs.PhaseName]
 			acc = &phaseAccumulator{
 				phase:           obs.PhaseName,
 				provider:        meta.Provider,

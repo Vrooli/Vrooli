@@ -13,12 +13,70 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	catalog "test-genie/internal/orchestrator/phases"
 )
+
+// DefaultPhaseMeta builds the phase→meta attribution map from the default phase
+// catalog. The reliability ledger Builder needs it to attribute phases to
+// providers; both the GetSelfHealth handler and the background snapshot sweeper
+// derive it from this one source so they cannot drift.
+func DefaultPhaseMeta() map[string]PhaseMeta {
+	specs := catalog.DefaultCatalog().All()
+	meta := make(map[string]PhaseMeta, len(specs))
+	for _, spec := range specs {
+		provider := ""
+		if spec.Delegated != nil {
+			provider = spec.Delegated.ProviderScenario
+		}
+		meta[spec.Name.String()] = PhaseMeta{
+			Provider:  provider,
+			Delegated: spec.Delegated != nil,
+		}
+	}
+	return meta
+}
+
+// AuditorProviderScenario is the one delegated provider (the standards phase)
+// with no Connect ScenarioValidationService. Its conformance scorecard is
+// synthesized client-side rather than probed over Connect (A2-thin).
+const AuditorProviderScenario = "scenario-auditor"
+
+// resolveAuditorURL reports scenario-auditor's lifecycle reachability. It is a
+// package var so tests can simulate a running/absent auditor without live
+// discovery. A non-nil error means "not reachable" (environmental).
+var resolveAuditorURL = func(ctx context.Context) (string, error) {
+	return discovery.ResolveScenarioURLDefault(ctx, AuditorProviderScenario)
+}
+
+// synthesizeAuditorScorecard builds scenario-auditor's ValidateScenarioResponse
+// client-side: it confirms the auditor is reachable (lifecycle presence), loads
+// its shipped maturity.json, and assembles a contract-valid assessment plus
+// client-synthesized ExecutionMetrics (gauge client_synthesized=1). The metrics
+// reflect the test-genie-side synthesis cost, not the auditor's internal work —
+// the honest caveat documented for A2-thin.
+func synthesizeAuditorScorecard(ctx context.Context, repoRoot, target string) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", AuditorProviderScenario))
+	if err != nil {
+		return nil, fmt.Errorf("load scenario-auditor maturity spec: %w", err)
+	}
+	if _, err := resolveAuditorURL(ctx); err != nil {
+		return nil, fmt.Errorf("scenario-auditor not reachable: %w", err)
+	}
+	collector := metrics.Start()
+	collector.Gauge("client_synthesized", 1)
+	a, err := assessment.BuildProtoAssessment(assessment.BuildInput{Scenario: target, Spec: *spec})
+	if err != nil {
+		collector.Stop()
+		return nil, fmt.Errorf("build scenario-auditor assessment: %w", err)
+	}
+	execMetrics := collector.Stop()
+	return assessment.BuildValidationResponse(target, a, nil, execMetrics)
+}
 
 // DefaultScanTarget is the fixture scenario every provider is asked to validate
 // during a conformance scan. It is always present (the orchestrator's own
@@ -51,18 +109,33 @@ type ProviderConformance struct {
 	Violations     []string `json:"violations,omitempty"`
 }
 
-// HasHardViolation reports whether this provider is mis-specified or
-// contract-breaking among reachable providers. metrics_adopted is advisory and
-// never counts; unreachability is environmental (a liveness signal) and is
-// reported but not treated as a mis-specification.
-func (r ProviderConformance) HasHardViolation() bool {
-	if !r.SpecValid {
+// IsHardViolation is the single source of truth for whether a delegated
+// provider's conformance scorecard is a contract violation (as opposed to an
+// environmental/liveness signal). It is called by the API conformance method,
+// the `provider-contract scan` CLI, and the `test-genie health` CLI so the
+// rule never drifts across the three surfaces (utils-unification).
+//
+// spec_valid is a local, always-evaluable requirement. contract_valid,
+// identity_ok, and metrics_adopted are judged only when the provider is
+// reachable — an unreachable provider is an environmental signal (reported,
+// not a mis-specification). Now that the delegated fleet has adopted
+// ExecutionMetrics (Plan 3, Part A), a reachable provider that stops emitting
+// metrics is a hard violation: metrics_adopted is no longer advisory.
+func IsHardViolation(specValid, reachable, contractValid, identityOK, metricsAdopted bool) bool {
+	if !specValid {
 		return true
 	}
-	if r.Reachable && (!r.ContractValid || !r.IdentityOK) {
+	if reachable && (!contractValid || !identityOK || !metricsAdopted) {
 		return true
 	}
 	return false
+}
+
+// HasHardViolation reports whether this provider is mis-specified or
+// contract-breaking among reachable providers. It delegates to the
+// IsHardViolation SSOT so the API and both CLIs share one rule.
+func (r ProviderConformance) HasHardViolation() bool {
+	return IsHardViolation(r.SpecValid, r.Reachable, r.ContractValid, r.IdentityOK, r.MetricsAdopted)
 }
 
 // ConformanceReport is the fleet-wide conformance report.
@@ -169,7 +242,21 @@ func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 		pr.SpecValid = true
 	}
 
-	resp, probeErr := probe(ctx, provider, target, timeout)
+	// scenario-auditor (the standards phase) has no Connect ScenarioValidationService
+	// — it is REST/Postgres. The generic Connect probe cannot reach it, so we
+	// synthesize its scorecard client-side (A2-thin): reachability is its
+	// lifecycle presence, and the response (assessment + client-synthesized
+	// metrics) is built from its shipped maturity.json. This lets standards
+	// participate in the metrics-required gate without a REST→Connect rewrite.
+	var (
+		resp     *scenariovalidationv1.ValidateScenarioResponse
+		probeErr error
+	)
+	if provider == AuditorProviderScenario {
+		resp, probeErr = synthesizeAuditorScorecard(ctx, repoRoot, target)
+	} else {
+		resp, probeErr = probe(ctx, provider, target, timeout)
+	}
 	if probeErr != nil {
 		pr.Violations = append(pr.Violations, fmt.Sprintf("unreachable: %v", probeErr))
 		pr.AdoptionScore = adoptionScore(pr)
@@ -193,8 +280,9 @@ func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 		pr.Violations = append(pr.Violations, fmt.Sprintf("identity: %v", identErr))
 	}
 
-	// metrics_adopted is advisory during the partial rollout: reported, never a
-	// violation.
+	// metrics_adopted is a hard requirement among reachable providers (Plan 3
+	// Part B). For scenario-auditor it is client-synthesized; for the Connect
+	// fleet it is provider-emitted.
 	pr.MetricsAdopted = resp.GetMetrics() != nil
 
 	pr.AdoptionScore = adoptionScore(pr)

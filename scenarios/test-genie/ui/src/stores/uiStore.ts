@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { DashboardTabKey, RunsSubtabKey, ScenarioDetailTabKey, QueueFormState, ExecutionFormState } from "../types";
 
 const DEFAULT_REQUEST_TYPES = ["unit", "integration"];
-const dashboardTabSet = new Set(["dashboard", "runs", "generate", "docs", "settings"]);
+const dashboardTabSet = new Set(["dashboard", "runs", "generate", "docs", "health", "settings"]);
 const runsSubtabSet = new Set(["scenarios", "history"]);
 
 const initialQueueForm: QueueFormState = {

@@ -202,6 +202,179 @@ export async function fetchHealth(): Promise<ApiHealthResponse> {
   return parseResponse<ApiHealthResponse>(res);
 }
 
+// --- Self-health (RunsService.GetSelfHealth) -------------------------------
+// GetSelfHealth is a Connect-RPC mounted at the service root (not under
+// /api/v1), so it is addressed by its fully-qualified procedure path. Connect's
+// unary JSON protocol is a plain POST: the request message is the JSON body and
+// the response message is the JSON body on 200 (camelCase proto-JSON). Fields
+// are omit-on-default server-side, so every field here is optional.
+const SELF_HEALTH_PROCEDURE = "/vrooli.test_genie.v1.runs.RunsService/GetSelfHealth";
+
+export interface CatalogPhase {
+  name?: string;
+  optional?: boolean;
+  source?: string;
+  delegated?: boolean;
+  provider?: string;
+  findingSource?: string;
+}
+
+export interface CatalogSummary {
+  totalPhases?: number;
+  delegatedPhases?: number;
+  nativePhases?: number;
+  phases?: CatalogPhase[];
+}
+
+export interface ProviderConformance {
+  provider?: string;
+  phase?: string;
+  reachable?: boolean;
+  contractValid?: boolean;
+  identityOk?: boolean;
+  specValid?: boolean;
+  metricsAdopted?: boolean;
+  adoptionScore?: number;
+  violations?: string[];
+}
+
+export interface LabeledCount {
+  label?: string;
+  count?: number;
+}
+
+export interface DurationStats {
+  samples?: number;
+  p50?: number;
+  p95?: number;
+  min?: number;
+  max?: number;
+  avg?: number;
+}
+
+export interface ScenarioFailureRate {
+  scenario?: string;
+  executed?: number;
+  failures?: number;
+  failureRate?: number;
+}
+
+export interface RunOutcomeCount {
+  outcome?: string;
+  count?: number;
+}
+
+export interface PhaseReliability {
+  phase?: string;
+  provider?: string;
+  findingSource?: string;
+  totalObservations?: number;
+  passed?: number;
+  failed?: number;
+  skipped?: number;
+  degraded?: number;
+  availability?: number;
+  failureRate?: number;
+  metricsAdopted?: number;
+  skipReasons?: LabeledCount[];
+  classifications?: LabeledCount[];
+  duration?: DurationStats;
+  worstScenarios?: ScenarioFailureRate[];
+}
+
+export interface ProviderReliability {
+  provider?: string;
+  phases?: string[];
+  totalObservations?: number;
+  passed?: number;
+  failed?: number;
+  skipped?: number;
+  availability?: number;
+  failureRate?: number;
+  metricsAdopted?: number;
+  duration?: DurationStats;
+}
+
+export interface TrendDelta {
+  previousCapturedAt?: string;
+  previousAvailability?: number;
+  previousRunCount?: number;
+  availabilityDelta?: number;
+  runCountDelta?: number;
+}
+
+export interface ReliabilityLedger {
+  windowDays?: number;
+  runCount?: number;
+  availability?: number;
+  runOutcomes?: RunOutcomeCount[];
+  phases?: PhaseReliability[];
+  providers?: ProviderReliability[];
+  capturedAt?: string;
+  trend?: TrendDelta;
+}
+
+export interface SelfHealthTrendPoint {
+  capturedAt?: string;
+  availability?: number;
+  runCount?: number;
+  hardViolations?: number;
+  metricsAdopted?: number;
+}
+
+export interface SelfHealth {
+  catalog?: CatalogSummary;
+  conformance?: ProviderConformance[];
+  conformanceFreshness?: string;
+  ledger?: ReliabilityLedger;
+  trendSeries?: SelfHealthTrendPoint[];
+}
+
+export interface GetSelfHealthOptions {
+  windowDays?: number;
+  skipConformance?: boolean;
+  includeTrend?: boolean;
+}
+
+function connectBaseUrl(): string {
+  // API_BASE ends with /api/v1; the Connect handler is mounted at the origin
+  // root, so strip the REST suffix to reach the procedure path.
+  return API_BASE.replace(/\/api\/v1\/?$/, "");
+}
+
+export async function getSelfHealth(options: GetSelfHealthOptions = {}): Promise<SelfHealth> {
+  const url = `${connectBaseUrl()}${SELF_HEALTH_PROCEDURE}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      windowDays: options.windowDays ?? 0,
+      skipConformance: options.skipConformance ?? false,
+      includeTrend: options.includeTrend ?? false
+    })
+  });
+
+  let payload: unknown;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+  if (!res.ok) {
+    // Connect errors carry { code, message }.
+    const message =
+      isRecord(payload) && typeof payload.message === "string"
+        ? payload.message
+        : `Self-health request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+  if (isRecord(payload) && isRecord(payload.selfHealth)) {
+    return payload.selfHealth as SelfHealth;
+  }
+  return {};
+}
+
 export async function fetchSuiteRequests(): Promise<SuiteRequest[]> {
   const url = buildTestGenieApiUrl("/suite-requests");
   const res = await fetch(url, {

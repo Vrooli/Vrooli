@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
 func TestRunner_Success(t *testing.T) {
@@ -93,7 +93,7 @@ func TestRunner_NoPrimarySuiteFound(t *testing.T) {
 	// Should have skip observation
 	foundSkip := false
 	for _, obs := range result.Observations {
-		if obs.Type == types.ObservationSkip {
+		if obs.Type == shared.ObservationSkip {
 			foundSkip = true
 			break
 		}

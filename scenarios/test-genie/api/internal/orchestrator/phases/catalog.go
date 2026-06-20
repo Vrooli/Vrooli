@@ -39,12 +39,15 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		catalog.Register(spec)
 	}
 
-	register(Spec{
-		Name:          Structure,
-		Runner:        runStructurePhase,
-		Description:   "Validates scenario layout, manifests, and JSON health before any tests run.",
-		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
-	})
+	register(delegatedSpec(Delegated{
+		Name:             Structure,
+		ProviderScenario: "structure-health",
+		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
+		Emoji:            "🏗️",
+		DetailCommand:    "structure-health validate scenario {{scenario}}",
+		Timeout:          60 * time.Second,
+		Description:      "Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run.",
+	}))
 	register(delegatedSpec(Delegated{
 		Name:             Contracts,
 		ProviderScenario: "cli-health",

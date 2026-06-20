@@ -44,17 +44,29 @@ func TestParseScanArgsRejectsNonScan(t *testing.T) {
 	}
 }
 
-func TestHasHardViolationMapping(t *testing.T) {
+func TestHardViolationDelegatesToSSOT(t *testing.T) {
+	hard := func(r ProviderReport) bool {
+		return selfhealth.IsHardViolation(r.SpecValid, r.Reachable, r.ContractValid, r.IdentityOK, r.MetricsAdopted)
+	}
 	// spec-invalid is always hard.
-	if !hasHardViolation(ProviderReport{SpecValid: false}) {
+	if !hard(ProviderReport{SpecValid: false}) {
 		t.Fatal("spec-invalid must be a hard violation")
 	}
 	// reachable + contract-invalid is hard.
-	if !hasHardViolation(ProviderReport{SpecValid: true, Reachable: true, ContractValid: false}) {
+	if !hard(ProviderReport{SpecValid: true, Reachable: true, ContractValid: false}) {
 		t.Fatal("reachable contract-invalid must be hard")
 	}
-	// unreachable with valid spec is not hard.
-	if hasHardViolation(ProviderReport{SpecValid: true, Reachable: false}) {
+	// unreachable with valid spec is not hard (environmental, never gated on metrics).
+	if hard(ProviderReport{SpecValid: true, Reachable: false}) {
 		t.Fatal("unreachable with valid spec must not be hard")
+	}
+	// reachable + fully valid contract/identity but metrics dropped is now hard
+	// (Plan 3 Part B flip — metrics_adopted is no longer advisory).
+	if !hard(ProviderReport{SpecValid: true, Reachable: true, ContractValid: true, IdentityOK: true, MetricsAdopted: false}) {
+		t.Fatal("reachable provider that dropped metrics must be a hard violation")
+	}
+	// reachable + fully adopted is clean.
+	if hard(ProviderReport{SpecValid: true, Reachable: true, ContractValid: true, IdentityOK: true, MetricsAdopted: true}) {
+		t.Fatal("full adoption must not be a hard violation")
 	}
 }

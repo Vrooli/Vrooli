@@ -17,7 +17,6 @@ flowchart TB
     phases --> playbooks["internal/playbooks"]
     phases --> requirements["internal/requirements"]
     phases --> smoke["internal/smoke"]
-    phases --> structure["internal/structure"]
 
     queue --> sqlite[(SQLite)]
     execution --> sqlite

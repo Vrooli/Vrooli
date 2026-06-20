@@ -1,204 +1,72 @@
 # Structure Phase
 
 **ID**: `structure`
-**Timeout**: 15 seconds
+**Timeout**: 60 seconds
 **Optional**: No
-**Requires Runtime**: No
+**Source**: validation-provider (`structure-health`)
 
-The structure phase validates that a scenario has the required files, directories, and configuration to be considered well-formed. It runs first and fails fast if basic requirements aren't met.
+The structure phase validates that a scenario has a well-formed skeleton and
+correctly wired lifecycle before any tests run. It runs first and fails fast if
+basic requirements aren't met.
+
+Test Genie no longer runs a native structure checker. The phase is **delegated
+to the [`structure-health`](../../../../structure-health/) scenario** through the
+shared `ScenarioValidationService` contract (the same delegation model used by
+unit-health, measures-health, scenario-dependency-analyzer, and the other
+provider-backed phases). Test Genie calls
+`structure-health validate scenario <scenario>`, maps the returned
+`MaturityAssessment` findings into the `FINDING_SOURCE_STRUCTURE` channel, and
+gates the phase on finding severity.
 
 ## What Gets Validated
 
-```mermaid
-graph TB
-    subgraph "Structure Phase Checks"
-        DIRS[Required Directories<br/>api, cli, docs, requirements, ui]
-        FILES[Required Files<br/>README.md, PRD.md, Makefile]
-        CLI[CLI Validation<br/>Manifest-declared adapter]
-        MANIFEST[Service Manifest<br/>.vrooli/service.json]
-        SCHEMA[Schema Validation<br/>.vrooli config files]
-    end
+structure-health reconciles **code-facts ground truth** (the surfaces,
+languages, and frameworks actually present, from the `code-facts` scenario)
+against the scenario's **declared `service.json` intent**, profile-aware:
 
-    START[Start] --> DIRS
-    DIRS --> FILES
-    FILES --> CLI
-    CLI --> MANIFEST
-    MANIFEST --> SCHEMA
-    SCHEMA --> DONE[Complete]
+- **Skeleton**: `service.json` present/valid, `service.name == directory`,
+  required top-level files, a surface directory per declared surface.
+- **Lifecycle wiring**: each declared surface has a build → start →
+  port + env_var → health-check chain; freshness checks are present per
+  buildable surface (a missing `binaries`/`ui-bundle` check causes silent
+  rebuilds and is flagged); the UI develop step serves the built production
+  bundle rather than a dev server; dependency declarations are well-formed.
+- **Profile-keyed conformance packs** (migrated from scenario-auditor's
+  `structure`/`config`/`ui` rule packs): for the recognized default
+  `react-vite-go` profile these reproduce the previous verdicts; an
+  unrecognized profile downgrades them to advisory so non-Go / non-react-vite
+  scenarios are not falsely failed.
 
-    DIRS -.->|missing| FAIL[Fail]
-    FILES -.->|missing| FAIL
-    CLI -.->|invalid| FAIL
-    MANIFEST -.->|invalid| FAIL
-    SCHEMA -.->|invalid| FAIL
+Many of these findings are **auto-fixable** —
+`structure-health fix-config run|apply <scenario>` previews/applies
+format-preserving `service.json` and skeleton repairs (dry-run by default).
 
-    style DIRS fill:#e8f5e9
-    style FILES fill:#e8f5e9
-    style CLI fill:#fff3e0
-    style MANIFEST fill:#e3f2fd
-    style SCHEMA fill:#f3e5f5
-```
+See the structure-health scenario's own documentation for the full rule
+catalog, profile model, and auto-fix behavior.
 
-## Required Directories
+## Severity & Gating
 
-By default, scenarios must have these directories:
+Findings carry a severity; `ERROR`/`BLOCKER` findings fail the phase. Because
+the default profile reproduces the previous Structure + scenario-auditor
+verdicts, already-conformant react-vite/Go scenarios see no new failures.
 
-| Directory | Purpose |
-|-----------|---------|
-| `api/` | Go API source code |
-| `cli/` | Command-line interface |
-| `docs/` | Documentation |
-| `requirements/` | PRD requirements tracking |
-| `ui/` | Frontend source code |
+## Resilience
 
-Optional directories (not required for all scenarios):
-| Directory | Purpose |
-|-----------|---------|
-| `bas/` | Browser automation playbooks (cases/actions/flows + `bas/registry.json`) |
-| `coverage/` | Test artifacts and reports (logs, phase-results, traces) |
-
-## Required Files
-
-| File | Purpose |
-|------|---------|
-| `README.md` | Scenario overview |
-| `PRD.md` | Product requirements document |
-| `Makefile` | Build and test commands |
-| `.vrooli/service.json` | Scenario configuration |
-| `.vrooli/testing.json` | Test-genie configuration |
-| `api/main.go` | API entry point |
-| `cli/install.sh` | Optional adapter asset referenced by `service.json` |
-
-## CLI Validation
-
-The structure phase validates the top-level `cli` block in `.vrooli/service.json`.
-
-When `cli.enabled=true`, Test Genie checks:
-
-- `cli.command`
-- `cli.adapter.kind`
-- `cli.install`
-- `cli.invoke`
-
-It then validates the concrete files referenced by that adapter. Repository layout is no longer treated as the contract.
-
-See [CLI Manifest Contract](cli-approaches.md) for the supported adapter shapes.
-
-## Service Manifest Validation
-
-The `.vrooli/service.json` file must:
-- Be valid JSON
-- Have `service.name` matching the scenario directory name
-- Define at least one health check under `lifecycle.health.checks`
-
-Example:
-```json
-{
-  "service": {
-    "name": "my-scenario"
-  },
-  "lifecycle": {
-    "health": {
-      "checks": [
-        {
-          "name": "api",
-          "type": "http",
-          "endpoint": "/health"
-        }
-      ]
-    }
-  }
-}
-```
-
-## Schema Validation
-
-The `.vrooli/` configuration files are validated against JSON schemas to ensure they have the correct structure and values:
-
-| Config File | Schema | Required |
-|-------------|--------|----------|
-| `service.json` | `service.schema.json` | Yes |
-| `testing.json` | `testing.schema.json` | No |
-| `endpoints.json` | `endpoints.schema.json` | No |
-| `lighthouse.json` | `lighthouse.schema.json` | No |
-
-Schema validation catches:
-- Missing required fields
-- Invalid field types
-- Unknown properties
-- Constraint violations (min/max values, patterns, etc.)
-
-## Playbooks Structure
-
-When a scenario includes UI automation playbooks (`bas/`), it should follow the canonical layout:
-
-```
-bas/
-├── registry.json       # Auto-generated manifest (required)
-├── capabilities/       # Feature tests with NN- prefixes
-│   └── 01-foundation/
-├── journeys/           # Multi-surface user flows
-├── __subflows/         # Reusable fixtures
-└── __seeds/            # Setup/cleanup scripts
-```
-
-Key conventions:
-- **Two-digit prefixes** (`01-`, `02-`) ensure deterministic execution order
-- **`__subflows/`** fixtures must declare `fixture_id` in metadata
-- **`registry.json`** must be regenerated after adding/moving playbooks
-
-See [Playbooks Directory Structure](../playbooks/directory-structure.md) for complete documentation.
-
-> **Note**: Playbooks structure validation is currently informational. Future versions may enforce these conventions during structure phase.
-
-## Configuration
-
-Customize structure validation in `.vrooli/testing.json`:
-
-```json
-{
-  "structure": {
-    "additional_dirs": ["extensions"],
-    "additional_files": ["configs/custom.json"],
-    "exclude_dirs": ["legacy"],
-    "exclude_files": ["deprecated.md"],
-    "validations": {
-      "service_json_name_matches_directory": true
-    }
-  }
-}
-```
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `additional_dirs` | string[] | `[]` | Extra required directories |
-| `additional_files` | string[] | `[]` | Extra required files |
-| `exclude_dirs` | string[] | `[]` | Skip these directories |
-| `exclude_files` | string[] | `[]` | Skip these files |
-| `validations.service_json_name_matches_directory` | bool | `true` | Enforce name match |
-
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | All structure checks pass |
-| 1 | Missing files, invalid config, or validation failure |
-
-## Common Failures
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Missing directory: api" | Required directory doesn't exist | Create the directory |
-| "Missing file: .vrooli/service.json" | Service manifest not found | Run `vrooli scenario init` |
-| "service.name does not match scenario" | Name mismatch in service.json | Update `service.name` to match directory |
-| "schema validation failed" | Config file doesn't match schema | Check schema error details for specific field issues |
-| "No health checks defined" | Missing health configuration | Add health checks to service.json |
+Structure is the first/fast-fail phase, so it now depends on the
+`structure-health` provider being reachable. The provider-contract scan tracks
+provider conformance, and Test Genie's delegated-phase path degrades gracefully
+(treating an unreachable provider as an environmental skip rather than a hard
+failure) — the same contract every other delegated phase relies on.
 
 ## Related Documentation
 
-- [CLI Manifest Contract](cli-approaches.md) - Manifest-driven scenario CLI adapters
-- [UI Smoke Tests](ui-smoke.md) - BAS-based UI validation
-- [Playbooks Directory Structure](../playbooks/directory-structure.md) - Canonical playbooks layout
+- [structure-health scenario](../../../../structure-health/) - the provider that
+  backs this phase (rules, profiles, auto-fix, fleet intelligence)
+- [CLI Manifest Contract](cli-approaches.md) - manifest-driven scenario CLI
+  adapters (the CLI surface itself is validated by the `contracts` phase via
+  cli-health)
+- [UI Smoke Tests](ui-smoke.md) - BAS-based UI validation (the `smoke` phase)
+- [Playbooks Directory Structure](../playbooks/directory-structure.md)
 
 ## See Also
 

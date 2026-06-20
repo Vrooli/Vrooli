@@ -6,7 +6,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 
 | Order | Phase | Timeout | Optional | Runtime | Source | Purpose |
 |-------|-------|---------|----------|---------|--------|---------|
-| 1 | [Structure](structure/README.md) | 15m | No | No | native | Validates scenario layout, manifests, and JSON health before any tests run. |
+| 1 | [Structure](structure/README.md) | 1m | No | No | validation-provider | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. |
 | 2 | [Contracts](contracts/README.md) | 1m | No | No | validation-provider | Validates cli/manifest.json bindings against proto descriptors via cli-health. |
 | 3 | [UI Health](ui-health/README.md) | 1m | No | No | validation-provider | Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health. |
 | 4 | [Standards](standards/README.md) | 1m | No | No | validation-provider | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). |
@@ -27,7 +27,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 
 ## Static Phases
 
-- [Structure](structure/README.md) - Validates scenario layout, manifests, and JSON health before any tests run.
+- [Structure](structure/README.md) - Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run.
 - [Contracts](contracts/README.md) - Validates cli/manifest.json bindings against proto descriptors via cli-health.
 - [UI Health](ui-health/README.md) - Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health.
 - [Standards](standards/README.md) - Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config).

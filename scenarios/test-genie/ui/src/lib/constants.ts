@@ -12,6 +12,7 @@ export const DASHBOARD_TABS: DashboardTab[] = [
   { key: "runs", label: "Runs", description: "Scenarios and test history" },
   { key: "generate", label: "Generate", description: "AI-powered test generation" },
   { key: "docs", label: "Docs", description: "Documentation browser" },
+  { key: "health", label: "Self-Health", description: "Test Genie's own reliability, conformance, and performance" },
   { key: "settings", label: "Settings", description: "Global phase toggles and safety rails" }
 ];
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 
 	"github.com/gorilla/websocket"
 )
@@ -26,7 +26,7 @@ type Dialer interface {
 
 // ValidationResult contains the outcome of WebSocket validation.
 type ValidationResult struct {
-	types.Result
+	shared.Result
 
 	// Endpoint is the WebSocket endpoint that was checked.
 	Endpoint string
@@ -126,12 +126,12 @@ func WithDialer(dialer Dialer) Option {
 func (v *validator) Validate(ctx context.Context) ValidationResult {
 	if err := ctx.Err(); err != nil {
 		return ValidationResult{
-			Result: types.FailSystem(err, "Context cancelled"),
+			Result: shared.FailSystem(err, "Context cancelled"),
 		}
 	}
 
-	var observations []types.Observation
-	observations = append(observations, types.NewSectionObservation("🔌", "Validating WebSocket connection..."))
+	var observations []shared.Observation
+	observations = append(observations, shared.NewSectionObservation("🔌", "Validating WebSocket connection..."))
 
 	// Extract endpoint path from URL for display
 	endpoint := v.config.URL
@@ -153,12 +153,12 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 		if resp != nil {
 			statusInfo = fmt.Sprintf(" (HTTP %d)", resp.StatusCode)
 		}
-		observations = append(observations, types.NewErrorObservation(fmt.Sprintf("connection failed%s: %v", statusInfo, err)))
+		observations = append(observations, shared.NewErrorObservation(fmt.Sprintf("connection failed%s: %v", statusInfo, err)))
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("WebSocket connection failed: %w", err),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  fmt.Sprintf("Ensure the scenario is running and WebSocket endpoint %s is accessible.", v.config.URL),
 				Observations: observations,
 			},
@@ -169,16 +169,16 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	defer conn.Close()
 
 	v.logStep("Connected in %dms", connectionMs)
-	observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("WebSocket connected in %dms", connectionMs)))
+	observations = append(observations, shared.NewSuccessObservation(fmt.Sprintf("WebSocket connected in %dms", connectionMs)))
 
 	// Check connection time
 	if connectionMs > v.config.MaxConnectionMs {
-		observations = append(observations, types.NewWarningObservation(fmt.Sprintf("connection time %dms exceeds threshold %dms", connectionMs, v.config.MaxConnectionMs)))
+		observations = append(observations, shared.NewWarningObservation(fmt.Sprintf("connection time %dms exceeds threshold %dms", connectionMs, v.config.MaxConnectionMs)))
 		return ValidationResult{
-			Result: types.Result{
+			Result: shared.Result{
 				Success:      false,
 				Error:        fmt.Errorf("connection time %dms exceeds threshold %dms", connectionMs, v.config.MaxConnectionMs),
-				FailureClass: types.FailureClassSystem,
+				FailureClass: shared.FailureClassSystem,
 				Remediation:  "Investigate WebSocket server performance or increase the connection threshold.",
 				Observations: observations,
 			},
@@ -192,12 +192,12 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	if v.config.PingMessage != "" {
 		roundTripMs, err = v.testPingPong(conn, observations)
 		if err != nil {
-			observations = append(observations, types.NewErrorObservation(fmt.Sprintf("ping-pong failed: %v", err)))
+			observations = append(observations, shared.NewErrorObservation(fmt.Sprintf("ping-pong failed: %v", err)))
 			return ValidationResult{
-				Result: types.Result{
+				Result: shared.Result{
 					Success:      false,
 					Error:        err,
-					FailureClass: types.FailureClassSystem,
+					FailureClass: shared.FailureClassSystem,
 					Remediation:  "Ensure the WebSocket server handles messages correctly.",
 					Observations: observations,
 				},
@@ -206,22 +206,22 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 				MessageRoundTripMs: roundTripMs,
 			}
 		}
-		observations = append(observations, types.NewSuccessObservation(fmt.Sprintf("ping-pong round trip: %dms", roundTripMs)))
+		observations = append(observations, shared.NewSuccessObservation(fmt.Sprintf("ping-pong round trip: %dms", roundTripMs)))
 	} else {
-		observations = append(observations, types.NewInfoObservation("ping-pong test skipped (no ping message configured)"))
+		observations = append(observations, shared.NewInfoObservation("ping-pong test skipped (no ping message configured)"))
 	}
 
 	// Test graceful close
 	err = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	if err != nil {
 		v.logStep("Warning: graceful close failed: %v", err)
-		observations = append(observations, types.NewWarningObservation("graceful close send failed"))
+		observations = append(observations, shared.NewWarningObservation("graceful close send failed"))
 	} else {
-		observations = append(observations, types.NewSuccessObservation("graceful close initiated"))
+		observations = append(observations, shared.NewSuccessObservation("graceful close initiated"))
 	}
 
 	return ValidationResult{
-		Result: types.Result{
+		Result: shared.Result{
 			Success:      true,
 			Observations: observations,
 		},
@@ -232,7 +232,7 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 }
 
 // testPingPong sends a ping message and waits for a response.
-func (v *validator) testPingPong(conn *websocket.Conn, observations []types.Observation) (int64, error) {
+func (v *validator) testPingPong(conn *websocket.Conn, observations []shared.Observation) (int64, error) {
 	v.logStep("Sending ping message: %s", v.config.PingMessage)
 
 	// Set write deadline

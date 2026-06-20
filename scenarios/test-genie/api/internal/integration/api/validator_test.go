@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"test-genie/internal/structure/types"
+	"test-genie/internal/shared"
 )
 
 // mockHTTPClient implements HTTPClient for testing.
@@ -78,7 +78,7 @@ func TestValidateUnhealthyEndpoint(t *testing.T) {
 		if result.StatusCode != 503 {
 			t.Errorf("expected status 503, got %d", result.StatusCode)
 		}
-		if result.FailureClass != types.FailureClassSystem {
+		if result.FailureClass != shared.FailureClassSystem {
 			t.Errorf("expected system failure class, got %s", result.FailureClass)
 		}
 	})
@@ -146,7 +146,7 @@ func TestValidateContextCancellation(t *testing.T) {
 		if result.Success {
 			t.Fatal("expected failure for cancelled context")
 		}
-		if result.FailureClass != types.FailureClassSystem {
+		if result.FailureClass != shared.FailureClassSystem {
 			t.Errorf("expected system failure class, got %s", result.FailureClass)
 		}
 	})
@@ -217,10 +217,10 @@ func TestValidateObservationsRecorded(t *testing.T) {
 		hasSection := false
 		hasSuccess := false
 		for _, obs := range result.Observations {
-			if obs.Type == types.ObservationSection {
+			if obs.Type == shared.ObservationSection {
 				hasSection = true
 			}
-			if obs.Type == types.ObservationSuccess {
+			if obs.Type == shared.ObservationSuccess {
 				hasSuccess = true
 			}
 		}

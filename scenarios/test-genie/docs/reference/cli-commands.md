@@ -666,6 +666,13 @@ rate, degraded counts, skip-reason + classification histograms, duration
 p50/p95/min/max/avg, and worst-scenarios-per-phase). Compute-on-read and
 advisory — nothing here gates a build.
 
+Both delegated **and** native phases report `ExecutionMetrics`: native runners
+(`business`, `integration`, `performance`, `playbooks`, `smoke`) are measured at
+the shared `RunNativePhase` chokepoint, so `metricsAdopted` and the duration
+columns are populated for every phase. The ledger's phase rollup is scoped to
+live catalog phases — legacy pseudo-phases (`coverage`, `lint`) from historical
+runs are excluded. The same payload backs the dashboard's **Self-Health** tab.
+
 ```bash
 test-genie health [--json] [--window-days N] [--skip-conformance]
 ```

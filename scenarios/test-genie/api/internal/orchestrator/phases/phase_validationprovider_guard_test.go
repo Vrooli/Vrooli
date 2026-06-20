@@ -11,6 +11,7 @@ import (
 
 func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 	expected := map[Name]string{
+		Structure:    "structure-health",
 		Contracts:    "cli-health",
 		Standards:    "scenario-auditor",
 		Proto:        "proto-health",

@@ -10,6 +10,7 @@ import (
 	"test-genie/internal/dbexec"
 	"test-genie/internal/execution"
 	"test-genie/internal/playbooksclaims"
+	"test-genie/internal/selfhealthsnapshots"
 	"test-genie/internal/storage/sqlfiles"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -60,6 +61,7 @@ func applyDomainSchemas(db dbexec.Executor) error {
 	}{
 		{"execution", execution.Schema()},
 		{"playbooksclaims", playbooksclaims.Schema()},
+		{"selfhealthsnapshots", selfhealthsnapshots.Schema()},
 	}
 	for _, d := range domains {
 		if _, err := db.ExecContext(context.Background(), d.ddl); err != nil {

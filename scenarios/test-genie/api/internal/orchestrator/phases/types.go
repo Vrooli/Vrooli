@@ -235,6 +235,24 @@ type Spec struct {
 	Delegated *Delegated
 }
 
+// ToDefinition projects a catalog Spec into the runner Definition consumed
+// during plan selection. The three phase-metadata layers intentionally share
+// field names — Spec is the catalog's registration record, Definition its
+// selection-time projection, and Descriptor (see Catalog.Descriptors) its
+// serialized view — so this single converter is the only place Spec→Definition
+// fields are copied, keeping the layers from drifting.
+func (s Spec) ToDefinition() Definition {
+	return Definition{
+		Name:          s.Name,
+		Runner:        s.Runner,
+		Timeout:       s.DefaultTimeout,
+		Optional:      s.Optional,
+		SkipEnvVar:    s.SkipEnvVar,
+		Capabilities:  s.Capabilities,
+		FindingSource: s.FindingSource,
+	}
+}
+
 // ExecutionResult captures per-phase outcome information.
 type ExecutionResult struct {
 	Name            string `json:"name"`

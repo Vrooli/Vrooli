@@ -85,27 +85,6 @@ func TestStandardsArchFindings(t *testing.T) {
 	}
 }
 
-func TestStructureArchFindings(t *testing.T) {
-	obs := []Observation{
-		{Prefix: "ERROR", Text: "missing required dir: api/"},
-		{Prefix: "WARNING", Text: "schema drift in service.json"},
-		{Prefix: "SUCCESS", Text: "all dirs present"},
-		{Section: "Structure", Icon: "✅"},
-		{Prefix: "INFO", Text: "12 files checked"},
-	}
-	got := structureArchFindings("demo", obs)
-	if len(got) != 2 {
-		t.Fatalf("want 2 structure findings (error+warning only), got %d", len(got))
-	}
-	if got[0].Source != architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE {
-		t.Errorf("source = %v, want STRUCTURE", got[0].Source)
-	}
-	// message is the identity (code == message until coded findings exist).
-	if got[0].Code != got[0].Message {
-		t.Errorf("structure code should equal message, got code=%q msg=%q", got[0].Code, got[0].Message)
-	}
-}
-
 // TestExecutionResultJSONCarriesFindings asserts the suite `--json` shape
 // gains a `findings` array while leaving `observations` intact. This is the
 // machine seam `campaign create --from-audit` reads.

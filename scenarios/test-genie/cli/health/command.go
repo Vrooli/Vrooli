@@ -16,11 +16,13 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"test-genie/internal/selfhealth"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
@@ -46,6 +48,7 @@ func run(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	asJSON := fs.Bool("json", false, "Emit the full self-health payload as proto JSON")
 	windowDays := fs.Int("window-days", 0, "Reliability-ledger look-back window (0 = server default)")
 	skipConformance := fs.Bool("skip-conformance", false, "Skip the live provider conformance scan (faster)")
+	includeTrend := fs.Bool("trend", false, "Include the persisted self-health snapshot trend series (newest-first)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -57,6 +60,7 @@ func run(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	resp, err := client.GetSelfHealth(context.Background(), connect.NewRequest(&runspb.GetSelfHealthRequest{
 		WindowDays:      int32(*windowDays),
 		SkipConformance: *skipConformance,
+		IncludeTrend:    *includeTrend,
 	}))
 	if err != nil {
 		return fmt.Errorf("get self-health: %w", err)
@@ -101,18 +105,40 @@ func printConformance(w io.Writer, sh *runspb.SelfHealth) {
 		if c.GetMetricsAdopted() {
 			adopted++
 		}
-		if hasHardViolation(c) {
+		if conformanceHardViolation(c) {
 			hardViolations++
 		}
 	}
 	fmt.Fprintf(w, "  Conformance (%s): %d providers, %d metrics-adopted, %d hard violation(s)\n",
 		freshness, len(conformance), adopted, hardViolations)
 	for _, c := range conformance {
-		if hasHardViolation(c) {
+		if conformanceHardViolation(c) {
 			fmt.Fprintf(w, "      ! %s→%s adoption=%.0f%% %s\n",
 				c.GetPhase(), c.GetProvider(), c.GetAdoptionScore()*100, strings.Join(c.GetViolations(), "; "))
 		}
 	}
+}
+
+// printTrend renders the persisted-snapshot trend delta ("availability 0.97
+// ↑0.04 since <date>"). It is a no-op until at least one prior snapshot exists.
+func printTrend(w io.Writer, ledger *runspb.ReliabilityLedger) {
+	trend := ledger.GetTrend()
+	if trend == nil || ledger.GetCapturedAt() == "" {
+		return
+	}
+	arrow := "→"
+	switch {
+	case trend.GetAvailabilityDelta() > 0:
+		arrow = "↑"
+	case trend.GetAvailabilityDelta() < 0:
+		arrow = "↓"
+	}
+	since := ledger.GetCapturedAt()
+	if t, err := time.Parse(time.RFC3339Nano, since); err == nil {
+		since = t.Format("2006-01-02 15:04")
+	}
+	fmt.Fprintf(w, "      trend: availability %s%.2f (run_count %+d) since %s\n",
+		arrow, trend.GetAvailabilityDelta(), trend.GetRunCountDelta(), since)
 }
 
 func printLedger(w io.Writer, ledger *runspb.ReliabilityLedger) {
@@ -121,6 +147,7 @@ func printLedger(w io.Writer, ledger *runspb.ReliabilityLedger) {
 	}
 	fmt.Fprintf(w, "  Reliability (%dd window, %d runs): availability=%.1f%%\n",
 		ledger.GetWindowDays(), ledger.GetRunCount(), ledger.GetAvailability()*100)
+	printTrend(w, ledger)
 	if outcomes := ledger.GetRunOutcomes(); len(outcomes) > 0 {
 		parts := make([]string, 0, len(outcomes))
 		for _, o := range outcomes {
@@ -152,13 +179,9 @@ func printLedger(w io.Writer, ledger *runspb.ReliabilityLedger) {
 	}
 }
 
-// hasHardViolation mirrors the API's conformance hard-violation rule.
-func hasHardViolation(c *runspb.ProviderConformance) bool {
-	if !c.GetSpecValid() {
-		return true
-	}
-	if c.GetReachable() && (!c.GetContractValid() || !c.GetIdentityOk()) {
-		return true
-	}
-	return false
+// conformanceHardViolation adapts the proto conformance scorecard to the
+// selfhealth.IsHardViolation SSOT so the `health` CLI shares the API's exact
+// hard-violation rule (utils-unification — no mirrored copy).
+func conformanceHardViolation(c *runspb.ProviderConformance) bool {
+	return selfhealth.IsHardViolation(c.GetSpecValid(), c.GetReachable(), c.GetContractValid(), c.GetIdentityOk(), c.GetMetricsAdopted())
 }

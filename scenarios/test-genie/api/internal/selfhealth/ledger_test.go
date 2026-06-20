@@ -43,6 +43,34 @@ func phaseByName(t *testing.T, l *Ledger, name string) PhaseReliability {
 	return PhaseReliability{}
 }
 
+// TestBuildLedgerExcludesLegacyPhases asserts the rollup stays ⊆ catalog: phases
+// whose name is absent from phaseMeta (legacy pseudo-phases like coverage/lint
+// from historical runs) are dropped so they no longer masquerade as live phases.
+func TestBuildLedgerExcludesLegacyPhases(t *testing.T) {
+	src := fakeSource{
+		observations: []execution.PhaseObservation{
+			obs("a", "passed", "proto", "passed", 10, true),
+			obs("a", "passed", "coverage", "passed", 5, false), // legacy
+			obs("b", "failed", "lint", "failed", 7, false),     // legacy
+		},
+		outcomes: []execution.RunOutcomeCount{{TerminalOutcome: "passed", Count: 1}},
+	}
+	meta := map[string]PhaseMeta{"proto": {Provider: "proto-health", Delegated: true}}
+
+	l, err := NewBuilder(src, 0).Build(context.Background(), meta)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if len(l.Phases) != 1 || l.Phases[0].Phase != "proto" {
+		t.Fatalf("expected only the catalog phase 'proto', got %+v", l.Phases)
+	}
+	for _, p := range l.Phases {
+		if _, ok := meta[p.Phase]; !ok {
+			t.Errorf("ledger surfaced non-catalog phase %q", p.Phase)
+		}
+	}
+}
+
 func TestBuildLedgerRollups(t *testing.T) {
 	src := fakeSource{
 		observations: []execution.PhaseObservation{
@@ -148,7 +176,7 @@ func TestBuildLedgerEmptyAndMetricsAbsent(t *testing.T) {
 			obs("a", "passed", "structure", "passed", 0, false),
 		},
 	}
-	l, err := NewBuilder(src, 0).Build(context.Background(), nil)
+	l, err := NewBuilder(src, 0).Build(context.Background(), map[string]PhaseMeta{"structure": {}})
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -182,7 +210,7 @@ func TestWorstScenariosRanking(t *testing.T) {
 	// scenario "rare": only 1 executed → excluded (below minRunsForWorstRanking)
 	observations = append(observations, obs("rare", "failed", "proto", "failed", 1, false))
 
-	l, err := NewBuilder(fakeSource{observations: observations}, 0).Build(context.Background(), nil)
+	l, err := NewBuilder(fakeSource{observations: observations}, 0).Build(context.Background(), map[string]PhaseMeta{"proto": {Provider: "proto-health", Delegated: true}})
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
