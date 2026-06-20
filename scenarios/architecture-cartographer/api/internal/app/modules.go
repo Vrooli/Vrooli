@@ -62,7 +62,7 @@ func Modules(db *database.RoutedDB, repoRoot string, cfg config.Config) []module
 		healthH.Module(db, "architecture-cartographer-api", "1.0.0"),
 		analyticsH.Module(analyticsSvc),
 		applyH.Module(applySvc),
-		auditH.Module(auditSvc),
+		auditH.Module(auditSvc, repoRoot, nil),
 		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Domains: domainsSvc, Signals: signalsSvc, Suppressions: suppressionProvider}),
 		domainsH.Module(domainsSvc),
 		graphH.Module(graphSvc),

@@ -5,16 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"architecture-cartographer/internal/audit"
 	"architecture-cartographer/internal/conflicts"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
-	repocontract "github.com/vrooli/repo-contract-go"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit/audit_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
@@ -28,11 +26,24 @@ import (
 // Handler implements audit_v1connect.AuditServiceHandler.
 type Handler struct {
 	audit_v1connect.UnimplementedAuditServiceHandler
-	svc audit.Service
+	svc          audit.Service
+	maturitySpec *assessment.Spec
+	// environment is the host CaptureEnvironment captured once at module init.
+	// nil is safe — the metrics collector backfills os/arch/num_cpu from the stdlib.
+	environment *commonv1.CaptureEnvironment
+}
+
+// HandlerDeps holds the seams the audit Connect handler needs beyond the core service.
+type HandlerDeps struct {
+	Svc          audit.Service
+	MaturitySpec *assessment.Spec
+	Environment  *commonv1.CaptureEnvironment
 }
 
 // NewHandler constructs the Connect handler.
-func NewHandler(svc audit.Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(deps HandlerDeps) *Handler {
+	return &Handler{svc: deps.Svc, maturitySpec: deps.MaturitySpec, environment: deps.Environment}
+}
 
 var (
 	_ audit_v1connect.AuditServiceHandler                        = (*Handler)(nil)
@@ -62,7 +73,7 @@ func (h *Handler) RunAll(ctx context.Context, req *connect.Request[auditv1.Audit
 		Duration:        durationpb.New(sweep.Duration),
 	}
 	for _, r := range sweep.Reports {
-		out.Reports = append(out.Reports, reportToProto(r))
+		out.Reports = append(out.Reports, reportToProto(r, h.maturitySpec))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -82,7 +93,7 @@ func (h *Handler) Run(ctx context.Context, req *connect.Request[auditv1.AuditRun
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(reportToProto(rep)), nil
+	return connect.NewResponse(reportToProto(rep, h.maturitySpec)), nil
 }
 
 func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
@@ -94,13 +105,21 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
-	native, err := h.Run(ctx, connect.NewRequest(&auditv1.AuditRunRequest{
+
+	collector := metrics.Start(metrics.WithEnvironment(h.environment))
+
+	st := collector.Stage("audit-run")
+	native, err := h.Run(WithMetrics(ctx, collector), connect.NewRequest(&auditv1.AuditRunRequest{
 		Scenario:          scenario,
 		AllowLowAuthority: true,
 	}))
+	st.End()
 	if err != nil {
+		collector.Stop()
 		return nil, err
 	}
+
+	st2 := collector.Stage("build-response")
 	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
 	switch native.Msg.GetOutcome() {
 	case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
@@ -110,7 +129,11 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	case auditv1.AuditOutcome_AUDIT_OUTCOME_CLEAN:
 		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
 	}
-	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenario(), native.Msg.GetAssessment(), native.Msg, assessment.WithValidationStatus(status))
+	st2.Gauge("findings", float64(native.Msg.GetTotalFindings()))
+	st2.End()
+
+	execMetrics := collector.Stop()
+	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenario(), native.Msg.GetAssessment(), native.Msg, execMetrics, assessment.WithValidationStatus(status))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
@@ -162,7 +185,7 @@ func outcomeToProto(o audit.Outcome) auditv1.AuditOutcome {
 	}
 }
 
-func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
+func reportToProto(r audit.Report, spec *assessment.Spec) *auditv1.AuditRunResponse {
 	out := &auditv1.AuditRunResponse{
 		Scenario:            r.Scenario,
 		Outcome:             outcomeToProto(r.Outcome),
@@ -207,7 +230,7 @@ func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
 			Headline:     headlineFor(c),
 		})
 	}
-	if maturity, err := buildMaturityAssessment(r); err == nil {
+	if maturity, err := buildMaturityAssessment(r, spec); err == nil {
 		out.Assessment = maturity
 	}
 	return out
@@ -263,10 +286,9 @@ func coverageBucketToProto(b audit.CoverageBucket) *auditv1.CoverageBucket {
 	}
 }
 
-func buildMaturityAssessment(r audit.Report) (*commonv1.MaturityAssessment, error) {
-	spec, err := loadMaturitySpec()
-	if err != nil {
-		return nil, err
+func buildMaturityAssessment(r audit.Report, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	if spec == nil {
+		return nil, nil
 	}
 	findings := make([]assessment.Finding, 0, len(r.Findings)+2)
 	if r.Outcome == audit.OutcomeToolError {
@@ -318,19 +340,6 @@ func buildMaturityAssessment(r audit.Report) (*commonv1.MaturityAssessment, erro
 		Spec:     *spec,
 		Findings: findings,
 	})
-}
-
-func loadMaturitySpec() (*assessment.Spec, error) {
-	_, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
-	if err != nil {
-		return nil, fmt.Errorf("resolve repo root for architecture maturity spec: %w", err)
-	}
-	path := filepath.Join(repoRoot, "scenarios", "architecture-cartographer", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read architecture maturity spec: %w", err)
-	}
-	return assessment.ParseSpec(raw)
 }
 
 func architectureFindingCode(c conflicts.Conflict) string {

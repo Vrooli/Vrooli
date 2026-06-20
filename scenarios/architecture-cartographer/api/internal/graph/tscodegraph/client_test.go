@@ -154,6 +154,83 @@ func TestClient_Extract_HappyPath(t *testing.T) {
 	}
 }
 
+// TestClient_Extract_PackageNodeDiscrimination is the regression guard
+// for the import-cluster DoS: the typescript-code-graph producer rides
+// symbol-level nodes (calls, references, components, …) under
+// NODE_KIND_PACKAGE with the real kind in attributes["kind"]. Only nodes
+// whose kind attribute is empty or "package" are true packages. Without
+// the gate, a single UI extraction injects thousands of fake packages
+// into the import-cluster graph and explodes its O(N²) modularity pass.
+func TestClient_Extract_PackageNodeDiscrimination(t *testing.T) {
+	svc := &fakeService{
+		extractFn: func(_ context.Context, _ *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
+			return connect.NewResponse(&graphv1.ExtractResponse{
+				Graph: &commonv1.CodeGraph{
+					Nodes: []*commonv1.CodeGraphNode{
+						// A real module → package.
+						{Id: "ts_module:src/a", Kind: commonv1.NodeKind_NODE_KIND_MODULE, Name: "src/a"},
+						// A real package node (empty kind) → package.
+						{
+							Id:         "pkg:src",
+							Kind:       commonv1.NodeKind_NODE_KIND_PACKAGE,
+							Name:       "src",
+							Attributes: map[string]string{"kind": "package"},
+						},
+						// A call site ridden under NODE_KIND_PACKAGE → symbol, NOT package.
+						{
+							Id:         "ts_call:src/a.ts:19:1:describe",
+							Kind:       commonv1.NodeKind_NODE_KIND_PACKAGE,
+							Name:       "describe",
+							Path:       "src/a.ts",
+							Attributes: map[string]string{"kind": "TS_NODE_KIND_CALL", "file_id": "file:src/a.ts"},
+						},
+						// A reference ridden under NODE_KIND_PACKAGE → symbol.
+						{
+							Id:         "ts_reference:src/a.ts:20:5:foo",
+							Kind:       commonv1.NodeKind_NODE_KIND_PACKAGE,
+							Name:       "foo",
+							Attributes: map[string]string{"kind": "TS_NODE_KIND_REFERENCE", "exported": "true"},
+						},
+					},
+				},
+			}), nil
+		},
+	}
+	c := newClient(startServer(t, svc))
+
+	raw, err := c.Extract(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if got, want := len(raw.Packages), 2; got != want {
+		t.Fatalf("Packages len=%d want %d (only the module and the true package): %+v", got, want, raw.Packages)
+	}
+	if got, want := len(raw.Symbols), 2; got != want {
+		t.Fatalf("Symbols len=%d want %d (the call + the reference): %+v", got, want, raw.Symbols)
+	}
+	for _, p := range raw.Packages {
+		if p.ID == "ts_call:src/a.ts:19:1:describe" || p.ID == "ts_reference:src/a.ts:20:5:foo" {
+			t.Fatalf("symbol-kind node leaked into Packages: %q", p.ID)
+		}
+	}
+	// The call-site symbol must preserve its TS kind and file linkage.
+	var foundCall bool
+	for _, s := range raw.Symbols {
+		if s.ID == "ts_call:src/a.ts:19:1:describe" {
+			foundCall = true
+			if s.Kind != "TS_NODE_KIND_CALL" {
+				t.Fatalf("call symbol Kind=%q want TS_NODE_KIND_CALL", s.Kind)
+			}
+			if s.FileID != "file:src/a.ts" {
+				t.Fatalf("call symbol FileID=%q want file:src/a.ts", s.FileID)
+			}
+		}
+	}
+	if !foundCall {
+		t.Fatal("call-site node not found among symbols")
+	}
+}
+
 func TestClient_Extract_ErrorMapping(t *testing.T) {
 	cases := []struct {
 		name     string

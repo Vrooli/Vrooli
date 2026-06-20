@@ -9,6 +9,7 @@ package importcluster
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
 	"sort"
 
@@ -97,25 +98,47 @@ func (Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.
 
 const modularityEpsilon = 1e-9
 
+// maxClusterNodes bounds the number of connected packages fed into the
+// Louvain pass. Real internal import graphs are small (tens to low
+// hundreds of packages). A count far above that means an upstream
+// producer mis-classified symbol-level nodes as packages (the
+// typescript-code-graph NODE_KIND_PACKAGE call/reference nodes are the
+// canonical offender). Rather than spend minutes pegging a core on an
+// O(N²) modularity pass over garbage, we degrade to singleton clusters
+// and log the drop so the regression is visible instead of silent.
+const maxClusterNodes = 2000
+
 // computeClusters returns a per-internal-package cluster id derived
 // from deterministic Louvain modularity communities over the import graph.
 // Cached on GraphContext.Caches so subsequent calls in the same
 // scoring batch share the work; access is goroutine-safe.
+//
+// Only packages that participate in at least one internal import edge are
+// fed to the Louvain pass; isolated packages carry no co-import evidence,
+// so they are assigned deterministic singleton clusters without inflating
+// the O(N²) modularity computation.
 func computeClusters(ctx context.Context, gctx signals.GraphContext) (map[string]int, error) {
 	if gctx.Caches != nil {
 		if cached := gctx.Caches.CommunitySnapshot(); cached != nil {
 			return cached, nil
 		}
 	}
-	graph := newWeightedGraph()
 	inScenario := make(map[string]struct{}, len(gctx.Snapshot.Packages))
+	allPackages := make([]string, 0, len(gctx.Snapshot.Packages))
 	for _, p := range gctx.Snapshot.Packages {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
+		if _, dup := inScenario[p.ID]; dup {
+			continue
+		}
 		inScenario[p.ID] = struct{}{}
-		graph.addNode(p.ID)
+		allPackages = append(allPackages, p.ID)
 	}
+
+	// Build the connected subgraph: addEdge introduces only the endpoints
+	// of kept edges, so isolated packages never enter the weighted graph.
+	graph := newWeightedGraph()
 	for _, e := range gctx.Snapshot.Imports {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -133,14 +156,52 @@ func computeClusters(ctx context.Context, gctx signals.GraphContext) (map[string
 		graph.addEdge(from, e.ToPackageID, 1)
 	}
 
-	cluster, err := louvainCommunities(ctx, graph)
-	if err != nil {
-		return nil, err
+	var cluster map[string]int
+	if len(graph.nodes) > maxClusterNodes {
+		log.Printf("import-cluster: %d connected packages exceeds cap %d (likely an upstream producer emitting symbol-level nodes as packages); degrading to singleton clusters", len(graph.nodes), maxClusterNodes)
+		cluster = map[string]int{}
+	} else {
+		var err error
+		cluster, err = louvainCommunities(ctx, graph)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	// Assign each isolated (or, on degrade, every) package its own
+	// deterministic singleton cluster id above the Louvain-assigned range.
+	cluster = appendSingletonClusters(cluster, allPackages)
+
 	if gctx.Caches != nil {
 		gctx.Caches.SetCommunity(cluster)
 	}
 	return cluster, nil
+}
+
+// appendSingletonClusters gives every package in all that the Louvain
+// pass did not place its own cluster id, numbered deterministically above
+// the existing maximum so ids never collide.
+func appendSingletonClusters(cluster map[string]int, all []string) map[string]int {
+	if cluster == nil {
+		cluster = make(map[string]int, len(all))
+	}
+	maxID := 0
+	for _, id := range cluster {
+		if id > maxID {
+			maxID = id
+		}
+	}
+	missing := make([]string, 0, len(all))
+	for _, pkg := range all {
+		if _, ok := cluster[pkg]; !ok {
+			missing = append(missing, pkg)
+		}
+	}
+	sort.Strings(missing)
+	for i, pkg := range missing {
+		cluster[pkg] = maxID + 1 + i
+	}
+	return cluster
 }
 
 func clusterIDLabel(id int) string {
@@ -179,13 +240,6 @@ func (g *weightedGraph) addEdge(a, b string, weight float64) {
 	g.adj[b][a] += weight
 }
 
-func (g weightedGraph) edgeWeight(a, b string) float64 {
-	if neighbors, ok := g.adj[a]; ok {
-		return neighbors[b]
-	}
-	return 0
-}
-
 func (g weightedGraph) totalEdgeWeight() float64 {
 	var total float64
 	for _, a := range g.nodes {
@@ -196,6 +250,16 @@ func (g weightedGraph) totalEdgeWeight() float64 {
 	return total / 2
 }
 
+// maxLocalMovingSweeps bounds the local-moving phase of a single Louvain
+// level. Local moving converges in a handful of sweeps in practice; the
+// cap is a non-termination backstop (defensive against pathological
+// oscillation), not an expected limit.
+const maxLocalMovingSweeps = 100
+
+// louvainCommunities runs deterministic multi-level Louvain over g and
+// returns a node→community-id assignment. Modularity gains are computed
+// incrementally in O(degree) per candidate move (see optimizePartition);
+// the global modularity is never recomputed from scratch.
 func louvainCommunities(ctx context.Context, g weightedGraph) (map[string]int, error) {
 	if len(g.nodes) == 0 {
 		return map[string]int{}, nil
@@ -213,27 +277,20 @@ func louvainCommunities(ctx context.Context, g weightedGraph) (map[string]int, e
 	}
 
 	current := g
-	previousModularity := math.Inf(-1)
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		partition, err := optimizePartition(ctx, current)
+		partition, changed, err := optimizePartition(ctx, current)
 		if err != nil {
 			return nil, err
 		}
 		for original, node := range originalToNode {
 			originalToNode[original] = partition[node]
 		}
-
-		modularity, err := modularity(ctx, current, partition)
-		if err != nil {
-			return nil, err
-		}
-		if modularity <= previousModularity+modularityEpsilon {
+		if !changed {
 			break
 		}
-		previousModularity = modularity
 
 		next := aggregateGraph(current, partition)
 		if len(next.nodes) == len(current.nodes) {
@@ -245,100 +302,100 @@ func louvainCommunities(ctx context.Context, g weightedGraph) (map[string]int, e
 	return normalizeCommunities(originalToNode), nil
 }
 
-func optimizePartition(ctx context.Context, g weightedGraph) (map[string]string, error) {
-	partition := make(map[string]string, len(g.nodes))
-	for _, node := range g.nodes {
-		if err := ctx.Err(); err != nil {
-			return nil, err
+// optimizePartition runs the Louvain local-moving phase on g using
+// incremental modularity gain: each candidate move is evaluated in
+// O(degree) from the per-community degree sums (sigmaTot) and the node's
+// edge weight into each neighbouring community, instead of recomputing
+// the global O(N²) modularity. It returns the node→community-label
+// partition and whether any node changed community. Determinism comes
+// from the sorted node order (g.nodes is kept sorted) and a sorted,
+// lexicographic tie-break across candidate communities.
+func optimizePartition(ctx context.Context, g weightedGraph) (map[string]string, bool, error) {
+	twoM := 2 * g.totalEdgeWeight()
+	if twoM == 0 {
+		partition := make(map[string]string, len(g.nodes))
+		for _, node := range g.nodes {
+			partition[node] = node
 		}
-		partition[node] = node
+		return partition, false, nil
 	}
 
-	for improved := true; improved; {
-		improved = false
+	degree := make(map[string]float64, len(g.nodes))
+	comm := make(map[string]string, len(g.nodes))
+	sigmaTot := make(map[string]float64, len(g.nodes))
+	for _, node := range g.nodes {
+		var d float64
+		for _, w := range g.adj[node] {
+			d += w
+		}
+		degree[node] = d
+		comm[node] = node
+		sigmaTot[node] = d
+	}
+
+	changedAny := false
+	for sweep := 0; sweep < maxLocalMovingSweeps; sweep++ {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+		moved := false
 		for _, node := range g.nodes {
 			if err := ctx.Err(); err != nil {
-				return nil, err
+				return nil, false, err
 			}
-			bestCommunity := partition[node]
-			bestModularity, err := modularity(ctx, g, partition)
-			if err != nil {
-				return nil, err
-			}
-			for _, community := range candidateCommunities(g, partition, node) {
-				if community == partition[node] {
+			cur := comm[node]
+			// Detach node from its current community before scoring moves.
+			sigmaTot[cur] -= degree[node]
+
+			// Edge weight from node into each neighbouring community
+			// (self-loops are internal to the node and irrelevant here).
+			toCommunity := make(map[string]float64, len(g.adj[node]))
+			for nb, w := range g.adj[node] {
+				if nb == node {
 					continue
 				}
-				trial := clonePartition(partition)
-				trial[node] = community
-				score, err := modularity(ctx, g, trial)
-				if err != nil {
-					return nil, err
+				toCommunity[comm[nb]] += w
+			}
+
+			candidates := make([]string, 0, len(toCommunity)+1)
+			seen := map[string]struct{}{cur: {}}
+			candidates = append(candidates, cur)
+			for c := range toCommunity {
+				if _, ok := seen[c]; ok {
+					continue
 				}
-				if betterCommunity(score, bestModularity, community, bestCommunity) {
-					bestCommunity = community
-					bestModularity = score
+				seen[c] = struct{}{}
+				candidates = append(candidates, c)
+			}
+			sort.Strings(candidates)
+
+			best := cur
+			bestGain := toCommunity[cur] - sigmaTot[cur]*degree[node]/twoM
+			for _, c := range candidates {
+				if c == cur {
+					continue
+				}
+				gain := toCommunity[c] - sigmaTot[c]*degree[node]/twoM
+				if gain > bestGain+modularityEpsilon ||
+					(math.Abs(gain-bestGain) <= modularityEpsilon && c < best) {
+					best = c
+					bestGain = gain
 				}
 			}
-			if bestCommunity != partition[node] {
-				partition[node] = bestCommunity
-				improved = true
+
+			// Reattach into the chosen community.
+			sigmaTot[best] += degree[node]
+			if best != cur {
+				comm[node] = best
+				moved = true
+				changedAny = true
 			}
 		}
-	}
-	return partition, nil
-}
-
-func candidateCommunities(g weightedGraph, partition map[string]string, node string) []string {
-	seen := map[string]struct{}{partition[node]: {}}
-	for neighbor := range g.adj[node] {
-		seen[partition[neighbor]] = struct{}{}
-	}
-	out := make([]string, 0, len(seen))
-	for community := range seen {
-		out = append(out, community)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func betterCommunity(score, bestScore float64, community, bestCommunity string) bool {
-	if score > bestScore+modularityEpsilon {
-		return true
-	}
-	return math.Abs(score-bestScore) <= modularityEpsilon && community < bestCommunity
-}
-
-func modularity(ctx context.Context, g weightedGraph, partition map[string]string) (float64, error) {
-	totalWeight := g.totalEdgeWeight()
-	if totalWeight == 0 {
-		return 0, nil
-	}
-	twoM := 2 * totalWeight
-	degrees := make(map[string]float64, len(g.nodes))
-	for _, node := range g.nodes {
-		if err := ctx.Err(); err != nil {
-			return 0, err
-		}
-		for _, weight := range g.adj[node] {
-			degrees[node] += weight
+		if !moved {
+			break
 		}
 	}
-
-	var sum float64
-	for _, a := range g.nodes {
-		if err := ctx.Err(); err != nil {
-			return 0, err
-		}
-		for _, b := range g.nodes {
-			if partition[a] != partition[b] {
-				continue
-			}
-			expected := degrees[a] * degrees[b] / twoM
-			sum += g.edgeWeight(a, b) - expected
-		}
-	}
-	return sum / twoM, nil
+	return comm, changedAny, nil
 }
 
 func aggregateGraph(g weightedGraph, partition map[string]string) weightedGraph {
@@ -359,14 +416,6 @@ func aggregateGraph(g weightedGraph, partition map[string]string) weightedGraph 
 		}
 	}
 	return next
-}
-
-func clonePartition(in map[string]string) map[string]string {
-	out := make(map[string]string, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
-	return out
 }
 
 func sortedUniqueValues(in map[string]string) []string {

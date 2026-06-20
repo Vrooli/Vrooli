@@ -35,7 +35,10 @@ require (
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
-require github.com/vrooli/cli-core v0.0.0 // indirect
+require (
+	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/vrooli-cli-go v0.0.0
+)
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
@@ -48,3 +51,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace intent-go => ../../../packages/intent-go
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go

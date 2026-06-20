@@ -109,10 +109,24 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 // protoToRawGraph translates the proto envelope into the
 // language-agnostic RawGraph cartographer normalizes downstream.
 // Mapping:
-//   - NODE_KIND_FILE   → FileNode
-//   - NODE_KIND_PACKAGE or NODE_KIND_MODULE → PackageNode
-//   - anything else (including TS-specific kinds 200..299) → SymbolNode
+//   - NODE_KIND_FILE                                          → FileNode
+//   - NODE_KIND_MODULE                                        → PackageNode
+//   - NODE_KIND_PACKAGE without a symbol kind in attributes   → PackageNode
+//   - NODE_KIND_PACKAGE with a TS-specific kind in attributes → SymbolNode
+//   - anything else (including TS-specific kinds 200..299)    → SymbolNode
 //   - every edge → ImportEdge (cartographer's Normalize() reclassifies)
+//
+// The NODE_KIND_PACKAGE discrimination mirrors the Go adapter
+// (gocodegraph): the typescript-code-graph producer rides every
+// symbol-level node (calls, references, functions, components, …)
+// under NODE_KIND_PACKAGE with the real kind in attributes["kind"]
+// (TS_NODE_KIND_CALL/REFERENCE/…). Only nodes whose kind attribute is
+// empty or literally "package" are true packages. Without this gate a
+// single UI extraction injects thousands of fake packages into the
+// import-cluster graph, exploding its O(N²) modularity pass (see
+// scenarios/architecture-cartographer/docs/internal/DECISIONS.md and
+// the import-cluster signal). True modules arrive as NODE_KIND_MODULE
+// and are always packages.
 //
 // Producers are expected to emit stable ids; this translator does
 // not re-sort. graph.Normalize() handles canonicalization.
@@ -130,18 +144,26 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 	}
 	for _, n := range g.GetNodes() {
 		attrs := n.GetAttributes()
-		switch n.GetKind() {
-		case commonv1.NodeKind_NODE_KIND_FILE:
+		switch {
+		case n.GetKind() == commonv1.NodeKind_NODE_KIND_FILE:
 			out.Files = append(out.Files, graph.FileNodeFromProto(n, graph.LanguageTypeScript))
-		case commonv1.NodeKind_NODE_KIND_PACKAGE, commonv1.NodeKind_NODE_KIND_MODULE:
+		case n.GetKind() == commonv1.NodeKind_NODE_KIND_MODULE:
+			out.Packages = append(out.Packages, graph.PackageNode{
+				ID:         n.GetId(),
+				ImportPath: n.GetName(),
+				Language:   graph.LanguageTypeScript,
+			})
+		case n.GetKind() == commonv1.NodeKind_NODE_KIND_PACKAGE && isTruePackage(attrs):
 			out.Packages = append(out.Packages, graph.PackageNode{
 				ID:         n.GetId(),
 				ImportPath: n.GetName(),
 				Language:   graph.LanguageTypeScript,
 			})
 		default:
-			// TS-specific kinds (200..299) and any future producer kinds
-			// surface as SymbolNodes with the kind preserved in the
+			// Everything else — NODE_KIND_PACKAGE carrying a TS-specific
+			// symbol kind (calls/references/functions/…), the reserved
+			// TS kinds (200..299), and any future producer kinds — surfaces
+			// as a SymbolNode with the kind preserved in the
 			// attributes-derived Kind string. Cartographer's Normalize()
 			// does not care about the specific enum value.
 			out.Symbols = append(out.Symbols, graph.SymbolNode{
@@ -165,4 +187,15 @@ func symbolKind(fallback string, attrs map[string]string) string {
 		return attrs["kind"]
 	}
 	return fallback
+}
+
+// isTruePackage reports whether a NODE_KIND_PACKAGE node is a genuine
+// package rather than a symbol-level node the producer rode under the
+// PACKAGE enum. The typescript-code-graph producer tags real packages
+// with an empty or "package" kind attribute and every symbol with a
+// concrete TS_NODE_KIND_* value, mirroring how go-code-graph
+// distinguishes package nodes from go_func/go_type/… symbol nodes.
+func isTruePackage(attrs map[string]string) bool {
+	kind := attrs["kind"]
+	return kind == "" || kind == "package"
 }
