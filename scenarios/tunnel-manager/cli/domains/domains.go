@@ -3,6 +3,7 @@ package domains
 import (
 	"tunnel-manager/cli/domains/audit"
 	"tunnel-manager/cli/domains/config"
+	"tunnel-manager/cli/domains/drift"
 	"tunnel-manager/cli/domains/exposure"
 	"tunnel-manager/cli/domains/probes"
 	"tunnel-manager/cli/domains/recovery"
@@ -52,6 +53,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	for _, reg := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
 		audit.Register,
 		config.Register,
+		drift.Register,
 		exposure.Register,
 		probes.Register,
 		recovery.Register,

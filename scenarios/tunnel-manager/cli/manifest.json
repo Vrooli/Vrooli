@@ -63,13 +63,11 @@
             },
             {
               "name": "scenario",
-              "required": true,
-              "description": "Scenario the route exposes"
+              "description": "Scenario the route exposes (required for scenario routes)"
             },
             {
               "name": "local-port",
-              "required": true,
-              "description": "Local port (1-65535)"
+              "description": "Local port 1-65535 (required for scenario routes)"
             },
             {
               "name": "domain",
@@ -82,6 +80,14 @@
             {
               "name": "health-path",
               "description": "Health probe path (default /health)"
+            },
+            {
+              "name": "external",
+              "description": "Create an external route (uses --target instead of --scenario/--local-port)"
+            },
+            {
+              "name": "target",
+              "description": "External service target URL (e.g. http://127.0.0.1:9000); required with --external"
             }
           ],
           "binding": {
@@ -135,6 +141,10 @@
             {
               "name": "enabled",
               "description": "Set enabled (true/false)"
+            },
+            {
+              "name": "target",
+              "description": "New external service target URL"
             }
           ],
           "binding": {
@@ -225,6 +235,10 @@
             {
               "name": "dry-run",
               "description": "Compute the diff without applying it"
+            },
+            {
+              "name": "prune",
+              "description": "Also remove orphaned entries (ledger-managed hostnames whose routes are gone). Never removes unmanaged drift."
             }
           ],
           "binding": {
@@ -336,8 +350,115 @@
       ]
     },
     {
+      "name": "drift",
+      "description": "Inspect and reconcile ingress ownership drift (live vs. desired vs. unmanaged)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List every live/desired/tracked hostname classified by ownership state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetDrift"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "adopt",
+          "description": "Adopt an unmanaged hostname as a scenario or external route",
+          "positionals": [
+            {
+              "name": "hostname",
+              "required": true,
+              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Adopt as this scenario route"
+            },
+            {
+              "name": "target",
+              "description": "Adopt as an external route pointing here (e.g. http://127.0.0.1:9000)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "AdoptIngress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "ignore",
+          "description": "Acknowledge a hostname as external; never push or prune it",
+          "positionals": [
+            {
+              "name": "hostname",
+              "required": true,
+              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "note",
+              "description": "Operator note for why this ingress is acknowledged"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "IgnoreIngress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "prune",
+          "description": "Remove a single named hostname from live ingress and the ledger",
+          "positionals": [
+            {
+              "name": "hostname",
+              "required": true,
+              "description": "Full ingress hostname (e.g. api.itsagitime.com)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "PruneIngress"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "exposure",
-      "description": "Tiered exposure broker — request/extend/revoke leases, list exposures, reconcile",
+      "description": "Tiered exposure broker \u2014 request/extend/revoke leases, list exposures, reconcile",
       "commands": [
         {
           "name": "expose",

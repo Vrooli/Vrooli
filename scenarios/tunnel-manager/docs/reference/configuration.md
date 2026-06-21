@@ -68,7 +68,7 @@ Fixed-port values (`UI_PORT`, `API_PORT` range) are declared in
 | `CLOUDFLARE_ACCOUNT_ID` | unset | Read-only runtime override for the Cloudflare account id (remote mode). Prefer Settings/CLI credential setup for normal use. |
 | `CLOUDFLARE_TUNNEL_ID` | unset | Read-only runtime override for the managed tunnel id (remote mode). Prefer Settings/CLI credential setup for normal use. |
 | `CLOUDFLARE_API_TOKEN` | unset | Read-only runtime override for the Cloudflare API v4 token. **Required for remote mode only**; absent → local mode remains supported. |
-| Tunnel mode | `local` on first boot | `remote` = programmatic ingress via Cloudflare API (hot-reload); `local` = generate/maintain `~/.cloudflared/config.yml` (restart on change). Persisted in the `tunnel_config` row; switch via `tunnel-manager config mode`. |
+| Tunnel mode | `local` on first boot | `remote` = programmatic ingress via Cloudflare API (hot-reload); `local` = generate/maintain `~/.cloudflared/config.yml` (restart on change). Persisted in the `tunnel_config` row; switch via `tunnel-manager config mode`. **Switching mode is pure — it never writes ingress; run `config sync` afterward to apply.** |
 | Local config path | `~/.cloudflared/config.yml` | Source of ingress in local mode, generated from the manifest. |
 | Prometheus endpoint | `127.0.0.1:20241` | cloudflared metrics endpoint scraped by the `tunnel` domain (HA connections, request errors, RTT, active streams). |
 | `TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL` | `5m` | Periodic exposure scheduler cadence. The scheduler runs once at boot, then on this interval, reconciling CORE routes and reaping expired leases. Go duration syntax (`30s`, `5m`, `1h`) is accepted. |
@@ -131,12 +131,65 @@ canonical fields rather than attempting a Cloudflare API call. Applying
 remote sync or switching to remote still requires the complete
 Cloudflare credential set.
 
+#### Additive reconcile, drift & ownership
+
+`config sync` is **additive by default**: it publishes the desired
+manifest (scenario + external routes) merged onto whatever ingress is
+currently live, and never removes an entry it does not own. Pre-existing
+ingress TM did not author survives every sync. Removal is always
+explicit:
+
+- `tunnel-manager config sync --prune true` removes only **orphaned**
+  entries — hostnames TM previously created (recorded `MANAGED` in the
+  `ingress_ownership` ledger) whose routes are now gone. It never removes
+  unmanaged drift.
+- `tunnel-manager drift prune <hostname>` removes one named hostname from
+  live ingress and the ledger.
+
+`tunnel-manager drift` (alias `drift list`) reconciles the desired
+manifest, the live tunnel, and the ownership ledger into a classified
+view. Each hostname lands in exactly one state: `managed` (scenario route,
+live), `missing` (desired, not yet live), `external` (external route or
+adopted-external, live), `orphaned` (we made it, route gone), `ignored`
+(acknowledged external, never touched), or `unmanaged` (live drift needing
+a decision). Per-entry decisions:
+
+```bash
+tunnel-manager drift list
+tunnel-manager drift adopt api.itsagitime.com --scenario web-console   # → managed scenario route
+tunnel-manager drift adopt api.itsagitime.com --target http://127.0.0.1:9000  # → external route
+tunnel-manager drift ignore legacy.itsagitime.com --note "operator dashboard"  # → never push/prune
+tunnel-manager drift prune stale.itsagitime.com                          # → remove this one entry
+```
+
+The ownership ledger (`ingress_ownership`) is keyed on the full hostname
+and is the authoritative answer to "managed vs. external vs. ignored";
+absence of a record means a live hostname is treated as `unmanaged`
+drift (the safe default — surfaced, never silently removed).
+
+#### External routes
+
+Routes carry a `source` (`scenario` or `external`). External routes point
+at an arbitrary local `service_target` and skip the scenario/fixed-UI-port
+rule, so non-scenario services can be exposed through the same governed
+plane:
+
+```bash
+tunnel-manager routes create --external --subdomain api --target http://127.0.0.1:9000 [--domain itsagitime.com]
+```
+
+External routes reconcile as `external` (EXTERNAL_OK) once live and are
+full-CRUD across CLI and UI alongside scenario routes. TM still touches
+only tunnel *ingress configurations* — never DNS records or Cloudflare
+Access.
+
 Privileged mutation RPCs are local/operator-open by default and can be
 fail-closed with `TUNNEL_MANAGER_AUTHZ_ENFORCED=1`. When enabled, the
 API requires `Authorization: Bearer <token>` or
-`X-Vrooli-Operator-Token: <token>` for config sync/mode changes, route
-create/update/delete, exposure expose/extend/revoke/reconcile, and
-manual recovery. The token must match `TUNNEL_MANAGER_OPERATOR_TOKEN`,
+`X-Vrooli-Operator-Token: <token>` for config sync/mode changes, drift
+adopt/ignore/prune, route create/update/delete, exposure
+expose/extend/revoke/reconcile, and manual recovery. `GetDrift` is a read
+RPC and stays open. The token must match `TUNNEL_MANAGER_OPERATOR_TOKEN`,
 falling back to `API_TOKEN`. Read RPCs remain available so operators
 and monitors can inspect state.
 

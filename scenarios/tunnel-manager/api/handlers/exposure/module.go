@@ -85,7 +85,13 @@ type ingressAdapter struct {
 }
 
 func (a ingressAdapter) Reconcile(ctx context.Context) error {
-	_, err := a.cfg.Sync(ctx, false)
+	// Additive + prune-orphaned: exposure publishes the leased/core desired set
+	// AND retracts ingress for its own routes once their lease is revoked/reaped
+	// (those become ORPHANED — ledger-managed, route gone). Genuine unmanaged
+	// drift is still preserved; prune only removes entries TM created. This is
+	// the lease lifecycle's legitimate, TM-owned removal — distinct from the
+	// operator's conservative manual `config sync` (additive-only).
+	_, err := a.cfg.Sync(ctx, false, true)
 	return err
 }
 

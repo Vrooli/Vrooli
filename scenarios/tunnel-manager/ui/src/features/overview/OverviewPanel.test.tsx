@@ -5,9 +5,16 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import { Mode } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { renderWithProviders } from "../../test-utils";
-import { makeConfigMocks, makeConfigReadiness, makeConfigResponse, makeTunnelConfig } from "../../test-utils/mocks/config";
+import {
+  makeConfigMocks,
+  makeConfigReadiness,
+  makeConfigResponse,
+  makeDriftResponse,
+  makeTunnelConfig,
+} from "../../test-utils/mocks/config";
 import { makeTunnelMocks, makeTunnelStatus } from "../../test-utils/mocks/tunnel";
 import { makeExposureMocks, makeExposure, makeLeasedExposure } from "../../test-utils/mocks/exposure";
 import { makeRecoveryMocks, makeRecoveryState } from "../../test-utils/mocks/recovery";
@@ -119,6 +126,75 @@ describe("OverviewPanel", () => {
     renderWithProviders(<OverviewPanel />);
     await waitFor(() => {
       expect(screen.getAllByTestId(selectors.queryState.error).length).toBeGreaterThan(0);
+    });
+  });
+
+  it("shows the remote tally when credentials are configured even if the persisted mode is the local default", async () => {
+    // Regression for the reported bug: a tunnel set up via the Cloudflare
+    // dashboard with credentials configured but the toggle never flipped off
+    // the local default. The backend now reports the EFFECTIVE mode (remote),
+    // so the operator sees the real managed/drift tally — not a misleading
+    // "keys configured but not in use" callout.
+    const { configClient } = await import("../../api/config");
+    vi.mocked(configClient.getConfig).mockResolvedValueOnce(
+      makeConfigResponse({
+        config: makeTunnelConfig({ mode: Mode.LOCAL }),
+        readiness: makeConfigReadiness({ desiredMode: Mode.REMOTE, remoteAvailable: true, missingFields: [] }),
+      }),
+    );
+    vi.mocked(configClient.getDrift).mockResolvedValueOnce(
+      makeDriftResponse({
+        counts: { managed: 7, missing: 0, externalOk: 0, orphaned: 0, ignored: 0, unmanaged: 11 },
+      }),
+    );
+
+    renderWithProviders(<OverviewPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.overview.modeCallout)).toHaveTextContent(
+        "Mode: remote — 7 managed · 0 external · 11 drift",
+      );
+    });
+    expect(screen.getByTestId(selectors.overview.modeCallout)).not.toHaveTextContent("not in use");
+  });
+
+  it("reads 'remote — N managed · M external · K drift' in remote mode", async () => {
+    const { configClient } = await import("../../api/config");
+    vi.mocked(configClient.getConfig).mockResolvedValueOnce(
+      makeConfigResponse({
+        config: makeTunnelConfig({ mode: Mode.REMOTE }),
+        readiness: makeConfigReadiness({ desiredMode: Mode.REMOTE, remoteAvailable: true, missingFields: [] }),
+      }),
+    );
+    vi.mocked(configClient.getDrift).mockResolvedValueOnce(
+      makeDriftResponse({
+        counts: { managed: 3, missing: 0, externalOk: 2, orphaned: 0, ignored: 0, unmanaged: 1 },
+      }),
+    );
+
+    renderWithProviders(<OverviewPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.overview.modeCallout)).toHaveTextContent(
+        "Mode: remote — 3 managed · 2 external · 1 drift",
+      );
+    });
+    expect(screen.getByTestId(selectors.overview.driftManaged)).toHaveTextContent("3");
+    expect(screen.getByTestId(selectors.overview.driftUnmanaged)).toHaveTextContent("1");
+  });
+
+  it("reads plain local copy when local mode has no credentials", async () => {
+    const { configClient } = await import("../../api/config");
+    vi.mocked(configClient.getConfig).mockResolvedValueOnce(
+      makeConfigResponse({
+        config: makeTunnelConfig({ mode: Mode.LOCAL }),
+        readiness: makeConfigReadiness({ remoteAvailable: false }),
+      }),
+    );
+
+    renderWithProviders(<OverviewPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.overview.modeCallout)).toHaveTextContent(
+        "Mode: local — ingress is managed from the local cloudflared config",
+      );
     });
   });
 });

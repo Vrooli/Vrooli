@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Mode } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
+import { Mode, type ConfigReadiness, type DriftCounts } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { QueryState } from "../../components/ui/QueryState";
 import { StatusBadge, type BadgeTone } from "../../components/ui/StatusBadge";
@@ -12,6 +12,27 @@ import { tunnelClient } from "../../api/tunnel";
 import { exposureClient } from "../../api/exposure";
 import { recoveryClient } from "../../api/recovery";
 import { recoveryStatusLabel, recoveryStatusTone } from "../recovery/labels";
+
+type ModeCalloutKey =
+  | typeof strings.overview.modeLocal
+  | typeof strings.overview.modeLocalKeysConfigured
+  | typeof strings.overview.modeRemote;
+
+/**
+ * Pick the mode-callout copy. Remote mode reports the managed/external/drift
+ * tally; local mode describes the local cloudflared config. Callers pass the
+ * EFFECTIVE mode (readiness.desiredMode): when Cloudflare credentials are
+ * complete the tunnel is remote-managed, so the callout shows the remote tally
+ * even if the persisted toggle was never flipped off the local default. The
+ * keys-configured-but-unused branch is retained for back-compat but is no
+ * longer reached, since complete credentials now make the mode effectively
+ * remote.
+ */
+function modeCalloutKey(mode: Mode, readiness?: ConfigReadiness): ModeCalloutKey {
+  if (mode === Mode.REMOTE) return strings.overview.modeRemote;
+  if (readiness?.remoteAvailable) return strings.overview.modeLocalKeysConfigured;
+  return strings.overview.modeLocal;
+}
 
 function tunnelTone(status: string): BadgeTone {
   if (status === "healthy") return "success";
@@ -62,6 +83,7 @@ export function OverviewPanel() {
   const tunnelQuery = useQuery({ queryKey: ["tunnel-status"], queryFn: () => tunnelClient.getStatus({}) });
   const exposuresQuery = useQuery({ queryKey: ["exposures"], queryFn: () => exposureClient.listExposures({}) });
   const recoveryQuery = useQuery({ queryKey: ["recovery-state"], queryFn: () => recoveryClient.getState({}) });
+  const driftQuery = useQuery({ queryKey: ["drift"], queryFn: () => configClient.getDrift({}) });
 
   const config = configQuery.data?.config;
   const readiness = configQuery.data?.readiness;
@@ -69,6 +91,8 @@ export function OverviewPanel() {
   const coreCount = exposures.filter((e) => e.tier === "core").length;
   const leasedCount = exposures.filter((e) => e.tier === "leased").length;
   const recoveryState = recoveryQuery.data?.state;
+  const driftCounts: DriftCounts | undefined = driftQuery.data?.counts;
+  const externalTracked = (driftCounts?.externalOk ?? 0) + (driftCounts?.ignored ?? 0);
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -86,9 +110,16 @@ export function OverviewPanel() {
                     : t(strings.overview.readinessSetupRequired)}
                 </StatusBadge>
                 <StatusBadge tone="neutral" data-testid={selectors.overview.modeBadge}>
-                  {t(modeLabelKey(config.mode))}
+                  {t(modeLabelKey(readiness.desiredMode))}
                 </StatusBadge>
               </div>
+              <p data-testid={selectors.overview.modeCallout} className="text-sm text-app-foreground">
+                {t(modeCalloutKey(readiness.desiredMode, readiness), {
+                  managed: driftCounts?.managed ?? 0,
+                  external: externalTracked,
+                  drift: driftCounts?.unmanaged ?? 0,
+                })}
+              </p>
               <p className="text-sm text-app-muted-foreground">
                 {readiness.modeReason || t(strings.overview.readinessFallback)}
               </p>
@@ -168,6 +199,38 @@ export function OverviewPanel() {
               </Link>
             </div>
           )}
+        </QueryState>
+      </Card>
+
+      <Card testId={selectors.overview.driftCard} heading={t(strings.overview.driftHeading)}>
+        <QueryState isLoading={driftQuery.isLoading} error={driftQuery.error}>
+          <dl className="flex flex-col gap-1 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-app-muted-foreground">
+                {t(strings.overview.driftManaged)} ({t(strings.overview.urlStateLive)})
+              </dt>
+              <dd data-testid={selectors.overview.driftManaged} className="font-semibold tabular-nums">
+                {driftCounts?.managed ?? 0}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-app-muted-foreground">{t(strings.overview.driftExternal)}</dt>
+              <dd data-testid={selectors.overview.driftExternal} className="font-semibold tabular-nums">
+                {externalTracked}
+              </dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-app-muted-foreground">
+                {t(strings.overview.driftUnmanaged)} ({t(strings.overview.urlStateDesired)})
+              </dt>
+              <dd data-testid={selectors.overview.driftUnmanaged} className="font-semibold tabular-nums">
+                {(driftCounts?.unmanaged ?? 0) + (driftCounts?.missing ?? 0)}
+              </dd>
+            </div>
+          </dl>
+          <Link to="/drift" className="text-sm text-app-primary underline-offset-2 hover:underline">
+            {t(strings.overview.viewDrift)}
+          </Link>
         </QueryState>
       </Card>
     </div>

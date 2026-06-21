@@ -98,7 +98,7 @@ func (h *connectHandler) Sync(ctx context.Context, req *connect.Request[configv1
 	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
 		return nil, authz.ToConnectError(err)
 	}
-	result, err := h.deps.Service.Sync(ctx, req.Msg.DryRun)
+	result, err := h.deps.Service.Sync(ctx, req.Msg.DryRun, req.Msg.Prune)
 	if err != nil {
 		connectErr := internalconfig.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
@@ -125,4 +125,61 @@ func (h *connectHandler) SwitchMode(ctx context.Context, req *connect.Request[co
 		PreviousMode: modeToProto(prev),
 		CurrentMode:  modeToProto(cur),
 	}), nil
+}
+
+func (h *connectHandler) GetDrift(ctx context.Context, _ *connect.Request[configv1.GetDriftRequest]) (*connect.Response[configv1.GetDriftResponse], error) {
+	rep, err := h.deps.Service.GetDrift(ctx)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.GetDrift: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(driftReportToProto(rep)), nil
+}
+
+func (h *connectHandler) AdoptIngress(ctx context.Context, req *connect.Request[configv1.AdoptIngressRequest]) (*connect.Response[configv1.AdoptIngressResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	entry, err := h.deps.Service.AdoptIngress(ctx, req.Msg.Hostname, req.Msg.Scenario, req.Msg.Target)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.AdoptIngress: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.AdoptIngressResponse{Entry: ingressEntryToProto(entry)}), nil
+}
+
+func (h *connectHandler) IgnoreIngress(ctx context.Context, req *connect.Request[configv1.IgnoreIngressRequest]) (*connect.Response[configv1.IgnoreIngressResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	entry, err := h.deps.Service.IgnoreIngress(ctx, req.Msg.Hostname, req.Msg.Note)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.IgnoreIngress: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.IgnoreIngressResponse{Entry: ingressEntryToProto(entry)}), nil
+}
+
+func (h *connectHandler) PruneIngress(ctx context.Context, req *connect.Request[configv1.PruneIngressRequest]) (*connect.Response[configv1.PruneIngressResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	pruned, err := h.deps.Service.PruneIngress(ctx, req.Msg.Hostname)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.PruneIngress: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.PruneIngressResponse{Pruned: pruned}), nil
 }

@@ -13,7 +13,8 @@
       "recovery": "復旧",
       "metrics": "メトリクス",
       "audit": "監査",
-      "settings": "設定"
+      "settings": "設定",
+      "drift": "ドリフト"
     }
   },
   "theme": {
@@ -56,6 +57,10 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "drift": {
+      "title": "ドリフト",
+      "description": "ライブのイングレスホスト名をマニフェストと所有権台帳に照らして分類—採用、無視、または削除します。"
     }
   },
   "overview": {
@@ -72,7 +77,17 @@
     "recoveryHeading": "復旧",
     "circuitOpenWarning": "サーキットブレーカーが開いています — 自動復旧は一時停止中です。",
     "viewExposure": "公開を管理",
-    "viewRecovery": "復旧を表示"
+    "viewRecovery": "復旧を表示",
+    "modeLocal": "モード: ローカル — イングレスはローカルの cloudflared 設定から管理されます。",
+    "modeLocalKeysConfigured": "モード: ローカル — Cloudflare キーは設定済みですが使用されていません。",
+    "modeRemote": "モード: リモート — 管理 {{managed}} · 外部 {{external}} · ドリフト {{drift}}",
+    "driftHeading": "ドリフト",
+    "driftManaged": "管理対象",
+    "driftExternal": "外部（追跡中）",
+    "driftUnmanaged": "未管理",
+    "viewDrift": "ドリフトを確認",
+    "urlStateLive": "稼働中",
+    "urlStateDesired": "予定"
   },
   "config": {
     "setupHeading": "トンネル設定",
@@ -128,7 +143,12 @@
     "syncApply": "同期を適用",
     "syncSetupRequired": "同期前にセットアップが必要です: {{fields}}",
     "syncNoChanges": "Ingress はすでにマニフェストと一致しています。",
-    "syncChanged": "同期により {{added}} 件追加、{{removed}} 件削除されました。"
+    "syncChanged": "同期により {{added}} 件追加、{{removed}} 件削除されました。",
+    "switchModeNote": "リモートモードへの切り替えではイングレスは自動プッシュされなくなりました。再調整でマニフェストルートを追加的に適用し、その後マニフェストが所有しない稼働中の項目についてドリフトを確認してください。",
+    "reconcileHeading": "再調整とドリフト",
+    "reconcileNow": "今すぐ再調整（追加）",
+    "reconcileResult": "再調整により {{added}} 件追加、{{removed}} 件削除されました。",
+    "reviewDrift": "ドリフトを確認"
   },
   "exposure": {
     "heading": "公開中のシナリオ",
@@ -356,5 +376,67 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "drift": {
+    "heading": "イングレスのドリフト",
+    "summary": "イングレス {{total}} · 管理 {{managed}} · 外部 {{external}} · ドリフト {{drift}}",
+    "loading": "ドリフトレポートを読み込み中…",
+    "error": "ドリフトレポートを読み込めませんでした。",
+    "empty": "稼働中のイングレスホスト名はまだありません。",
+    "modeHint": "ドリフトはライブのトンネルイングレスをマニフェストと所有権台帳に照らして比較します。Cloudflare の認証情報が設定されている場合、ライブのイングレスは Cloudflare API（実際のトンネル）から読み取られます。設定されていない場合は、ローカルの cloudflared 設定から読み取られます。",
+    "colHostname": "ホスト名",
+    "colTarget": "ターゲット",
+    "colState": "状態",
+    "colSource": "ソース",
+    "colActions": "操作",
+    "adoptButton": "採用",
+    "ignoreButton": "無視",
+    "pruneButton": "削除",
+    "actionError": "操作に失敗しました。再試行してください。",
+    "pruneConfirmTitle": "このホスト名を削除しますか？",
+    "pruneConfirmBody": "これにより {{hostname}} がライブイングレスと所有権台帳から削除されます。ルートがまだ必要としている場合、次回の同期で再追加されます。",
+    "pruneConfirm": "削除",
+    "pruneCancel": "キャンセル",
+    "state": {
+      "managed": "管理対象",
+      "missing": "欠落",
+      "externalOk": "外部OK",
+      "orphaned": "孤立",
+      "ignored": "無視済み",
+      "unmanaged": "未管理",
+      "unknown": "不明"
+    },
+    "source": {
+      "scenario": "シナリオ",
+      "external": "外部",
+      "unknown": "—"
+    }
+  },
+  "routes": {
+    "externalHeading": "外部ルート",
+    "externalDescription": "既知のシナリオの UI ポートではなく、任意のローカルサービスターゲットを指すルート。",
+    "loading": "ルートを読み込み中…",
+    "error": "ルートを読み込めませんでした。",
+    "empty": "外部ルートはまだありません。",
+    "subdomainLabel": "サブドメイン",
+    "subdomainPlaceholder": "my-service",
+    "targetLabel": "ターゲット URL",
+    "targetPlaceholder": "http://127.0.0.1:9000",
+    "domainLabel": "ドメイン（任意）",
+    "domainPlaceholder": "itsagitime.com",
+    "addButton": "外部ルートを追加",
+    "deleteButton": "削除",
+    "addError": "ルートを追加できませんでした。再試行してください。",
+    "deleteError": "ルートを削除できませんでした。再試行してください。",
+    "colSubdomain": "サブドメイン",
+    "colTarget": "ターゲット",
+    "colSource": "ソース",
+    "colUrl": "公開 URL",
+    "colActions": "操作",
+    "source": {
+      "scenario": "シナリオ",
+      "external": "外部",
+      "unknown": "—"
+    }
   }
 }

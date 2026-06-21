@@ -150,3 +150,42 @@ func TestList_PassesTierFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, routes.TierCore, repo.listTier)
 }
+
+// --- External routes (Phase 3) --------------------------------------------
+
+func TestCreate_ExternalRouteValidatesTargetNotScenario(t *testing.T) {
+	repo := &fakeRepo{}
+	svc := routes.NewService(repo)
+
+	got, err := svc.Create(context.Background(), routes.CreateInput{
+		Subdomain:     "api",
+		Source:        routes.SourceExternal,
+		ServiceTarget: "http://127.0.0.1:9000",
+		// no scenario, no local_port — external routes don't require them
+	})
+	require.NoError(t, err)
+	require.Equal(t, routes.SourceExternal, got.Source)
+	require.Equal(t, "http://127.0.0.1:9000", got.ServiceTarget)
+	require.Equal(t, "https://api.itsagitime.com", got.PublicURL())
+	require.Equal(t, routes.SourceExternal, repo.created.Source)
+}
+
+func TestCreate_ExternalRouteRejectsBadTarget(t *testing.T) {
+	svc := routes.NewService(&fakeRepo{})
+	_, err := svc.Create(context.Background(), routes.CreateInput{
+		Subdomain:     "api",
+		Source:        routes.SourceExternal,
+		ServiceTarget: "not-a-url",
+	})
+	var invalid routes.ErrInvalidRoute
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "service_target", invalid.Field)
+}
+
+func TestCreate_ScenarioRouteStillRequiresScenarioAndPort(t *testing.T) {
+	svc := routes.NewService(&fakeRepo{})
+	_, err := svc.Create(context.Background(), routes.CreateInput{Subdomain: "api"})
+	var invalid routes.ErrInvalidRoute
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "scenario", invalid.Field)
+}

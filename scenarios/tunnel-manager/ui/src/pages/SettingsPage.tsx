@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { CheckCircle2, KeyRound, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckCircle2, GitCompareArrows, KeyRound, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { Mode, type ConfigReadiness, type CredentialFieldStatus } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { Button } from "../components/ui/button";
@@ -81,6 +82,10 @@ export function SettingsPage() {
     mutationFn: (targetMode: Mode) => configClient.switchMode({ targetMode }),
     onSuccess: () => void refreshConfig(),
   });
+  const reconcileMutation = useMutation({
+    mutationFn: () => configClient.sync({}),
+    onSuccess: () => void refreshConfig(),
+  });
   const saveCredentialsMutation = useMutation({
     mutationFn: () => configClient.setCloudflareCredentials({ accountId, tunnelId, apiToken }),
     onSuccess: () => {
@@ -108,14 +113,17 @@ export function SettingsPage() {
     dryRunMutation.error ??
     syncMutation.error ??
     switchModeMutation.error ??
+    reconcileMutation.error ??
     saveCredentialsMutation.error ??
     clearCredentialsMutation.error;
   const actionPending =
     dryRunMutation.isPending ||
     syncMutation.isPending ||
     switchModeMutation.isPending ||
+    reconcileMutation.isPending ||
     saveCredentialsMutation.isPending ||
     clearCredentialsMutation.isPending;
+  const reconcileResult = reconcileMutation.data;
 
   return (
     <section
@@ -328,6 +336,41 @@ export function SettingsPage() {
                   {syncSummary(syncResult, t)}
                 </p>
               )}
+
+              <div className="flex flex-col gap-3 border-t border-app-border pt-4">
+                <h4 className="text-sm font-semibold">{t(strings.config.reconcileHeading)}</h4>
+                <p data-testid={selectors.settingsPage.switchModeNote} className="text-sm text-app-muted-foreground">
+                  {t(strings.config.switchModeNote)}
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    disabled={actionPending}
+                    data-testid={selectors.settingsPage.reconcileNowButton}
+                    onClick={() => reconcileMutation.mutate()}
+                  >
+                    <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+                    {t(strings.config.reconcileNow)}
+                  </Button>
+                  <Link
+                    to="/drift"
+                    data-testid={selectors.settingsPage.reviewDriftLink}
+                    className="inline-flex items-center gap-2 text-sm text-app-primary underline-offset-2 hover:underline"
+                  >
+                    <GitCompareArrows aria-hidden="true" className="h-4 w-4" />
+                    {t(strings.config.reviewDrift)}
+                  </Link>
+                </div>
+                {reconcileResult && (
+                  <p data-testid={selectors.settingsPage.reconcileResult} className="text-sm text-app-muted-foreground">
+                    {t(strings.config.reconcileResult, {
+                      added: reconcileResult.added.length,
+                      removed: reconcileResult.removed.length,
+                    })}
+                  </p>
+                )}
+              </div>
+
               {credentialMutationResult && (
                 <p className="text-sm text-app-muted-foreground">
                   {saveCredentialsMutation.data ? t(strings.config.credentialSaved) : t(strings.config.credentialCleared)}

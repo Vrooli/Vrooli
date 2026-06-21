@@ -13,6 +13,7 @@
       "recovery": "Recovery",
       "metrics": "Metrics",
       "audit": "Audit",
+      "drift": "Drift",
       "settings": "Settings"
     }
   },
@@ -52,6 +53,10 @@
       "title": "Audit",
       "description": "Port-compliance findings: where a scenario's service.json drifts from the manifest."
     },
+    "drift": {
+      "title": "Drift",
+      "description": "Every live ingress hostname classified against the manifest and ownership ledger — adopt, ignore, or prune."
+    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
@@ -72,7 +77,17 @@
     "recoveryHeading": "Recovery",
     "circuitOpenWarning": "Circuit breaker is open — automatic recovery is paused.",
     "viewExposure": "Manage exposure",
-    "viewRecovery": "View recovery"
+    "viewRecovery": "View recovery",
+    "modeLocal": "Mode: local — ingress is managed from the local cloudflared config.",
+    "modeLocalKeysConfigured": "Mode: local — Cloudflare keys configured but not in use.",
+    "modeRemote": "Mode: remote — {{managed}} managed · {{external}} external · {{drift}} drift",
+    "driftHeading": "Drift",
+    "driftManaged": "Managed",
+    "driftExternal": "External (tracked)",
+    "driftUnmanaged": "Unmanaged",
+    "viewDrift": "Review drift",
+    "urlStateLive": "live",
+    "urlStateDesired": "desired"
   },
   "config": {
     "setupHeading": "Tunnel setup",
@@ -128,7 +143,12 @@
     "syncApply": "Apply sync",
     "syncSetupRequired": "Setup required before sync: {{fields}}",
     "syncNoChanges": "Ingress already matches the manifest.",
-    "syncChanged": "Sync changed {{added}} added and {{removed}} removed hostnames."
+    "syncChanged": "Sync changed {{added}} added and {{removed}} removed hostnames.",
+    "switchModeNote": "Switching to remote mode no longer auto-pushes ingress. Use Reconcile to apply manifest routes additively, then review drift for anything live that the manifest does not own.",
+    "reconcileHeading": "Reconcile & drift",
+    "reconcileNow": "Reconcile now (additive)",
+    "reconcileResult": "Reconcile added {{added}} and removed {{removed}} hostnames.",
+    "reviewDrift": "Review drift"
   },
   "exposure": {
     "heading": "Exposed scenarios",
@@ -317,6 +337,68 @@
       "missingScenario": "Restore or remove the manifest route before the next ingress sync.",
       "missingPort": "Declare one fixed UI port in the scenario service.json before exposing it.",
       "unknown": "Inspect the scenario service manifest and rerun the audit."
+    }
+  },
+  "drift": {
+    "heading": "Ingress drift",
+    "summary": "{{total}} ingress · {{managed}} managed · {{external}} external · {{drift}} drift",
+    "loading": "Loading drift report…",
+    "error": "Unable to load the drift report.",
+    "empty": "No ingress hostnames are live yet.",
+    "modeHint": "Drift compares the live tunnel ingress against the manifest and the ownership ledger. When Cloudflare credentials are configured, the live ingress is read from the Cloudflare API (the real tunnel); otherwise it is read from the local cloudflared config.",
+    "colHostname": "Hostname",
+    "colTarget": "Target",
+    "colState": "State",
+    "colSource": "Source",
+    "colActions": "Actions",
+    "adoptButton": "Adopt",
+    "ignoreButton": "Ignore",
+    "pruneButton": "Prune",
+    "actionError": "Action failed. Please retry.",
+    "pruneConfirmTitle": "Prune this hostname?",
+    "pruneConfirmBody": "This removes {{hostname}} from live ingress and the ownership ledger. If a route still desires it, the next sync re-adds it.",
+    "pruneConfirm": "Prune",
+    "pruneCancel": "Cancel",
+    "state": {
+      "managed": "Managed",
+      "missing": "Missing",
+      "externalOk": "External OK",
+      "orphaned": "Orphaned",
+      "ignored": "Ignored",
+      "unmanaged": "Unmanaged",
+      "unknown": "Unknown"
+    },
+    "source": {
+      "scenario": "Scenario",
+      "external": "External",
+      "unknown": "—"
+    }
+  },
+  "routes": {
+    "externalHeading": "External routes",
+    "externalDescription": "Routes that point at an arbitrary local service target rather than a known scenario's UI port.",
+    "loading": "Loading routes…",
+    "error": "Unable to load routes.",
+    "empty": "No external routes yet.",
+    "subdomainLabel": "Subdomain",
+    "subdomainPlaceholder": "my-service",
+    "targetLabel": "Target URL",
+    "targetPlaceholder": "http://127.0.0.1:9000",
+    "domainLabel": "Domain (optional)",
+    "domainPlaceholder": "itsagitime.com",
+    "addButton": "Add external route",
+    "deleteButton": "Delete",
+    "addError": "Could not add the route. Please retry.",
+    "deleteError": "Could not delete the route. Please retry.",
+    "colSubdomain": "Subdomain",
+    "colTarget": "Target",
+    "colSource": "Source",
+    "colUrl": "Public URL",
+    "colActions": "Actions",
+    "source": {
+      "scenario": "Scenario",
+      "external": "External",
+      "unknown": "—"
     }
   },
   "health": {

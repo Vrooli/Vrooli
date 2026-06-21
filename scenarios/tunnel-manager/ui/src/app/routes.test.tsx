@@ -43,6 +43,11 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.audit)).toBeInTheDocument();
   });
 
+  it("renders the drift surface at /drift", () => {
+    renderAt("/drift");
+    expect(screen.getByTestId(selectors.pages.drift)).toBeInTheDocument();
+  });
+
   it("renders the settings page at /settings", () => {
     renderAt("/settings");
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();

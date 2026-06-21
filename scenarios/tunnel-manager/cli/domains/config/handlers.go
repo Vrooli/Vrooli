@@ -58,27 +58,41 @@ func (h *handlers) sync(ctx cliapp.RunContext) error {
 		}
 		dryRun = parsed
 	}
-	resp, err := h.client.Sync(context.Background(), connect.NewRequest(&configv1.SyncRequest{DryRun: dryRun}))
+	prune := false
+	if v := strings.TrimSpace(ctx.Flag("prune")); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--prune must be true or false: %w", err)
+		}
+		prune = parsed
+	}
+	resp, err := h.client.Sync(context.Background(), connect.NewRequest(&configv1.SyncRequest{DryRun: dryRun, Prune: prune}))
 	if err != nil {
 		return cliapp.WrapAPIError("sync ingress", err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no sync response")
 	}
-	changes := make([]string, 0, len(resp.Msg.Added)+len(resp.Msg.Removed))
+	changes := make([]string, 0, len(resp.Msg.Added)+len(resp.Msg.Pruned)+len(resp.Msg.DriftUnmanaged)+len(resp.Msg.Orphaned))
 	for _, host := range resp.Msg.Added {
 		changes = append(changes, "+ "+host)
 	}
-	for _, host := range resp.Msg.Removed {
+	for _, host := range resp.Msg.Pruned {
 		changes = append(changes, "- "+host)
 	}
-	result := fmt.Sprintf("Synced ingress (%s mode).", strings.ToLower(resp.Msg.Mode.String()))
+	for _, host := range resp.Msg.Orphaned {
+		changes = append(changes, "orphaned (prune candidate): "+host)
+	}
+	for _, host := range resp.Msg.DriftUnmanaged {
+		changes = append(changes, "drift/unmanaged (left intact): "+host)
+	}
+	result := fmt.Sprintf("Synced ingress additively (%s mode).", strings.ToLower(resp.Msg.Mode.String()))
 	if resp.Msg.NoChanges {
 		result = fmt.Sprintf("Ingress already in sync (%s mode); no changes.", strings.ToLower(resp.Msg.Mode.String()))
 	} else if resp.Msg.SetupRequired {
 		result = "Dry-run: remote mode setup is incomplete; no live ingress diff was attempted."
 	} else if dryRun {
-		result = fmt.Sprintf("Dry-run: %d added, %d removed (not applied).", len(resp.Msg.Added), len(resp.Msg.Removed))
+		result = fmt.Sprintf("Dry-run: %d to add, %d to prune, %d unmanaged (not applied).", len(resp.Msg.Added), len(resp.Msg.Pruned), len(resp.Msg.DriftUnmanaged))
 	}
 	if resp.Msg.Message != "" {
 		result = result + " " + resp.Msg.Message

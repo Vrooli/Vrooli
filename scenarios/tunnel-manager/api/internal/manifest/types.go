@@ -16,6 +16,19 @@ const (
 	TierLeased Tier = "leased"
 )
 
+// RouteSource distinguishes scenario-backed routes (the local UI port of a
+// known scenario) from external routes that point at an arbitrary
+// service_target (e.g. http://127.0.0.1:9000). It is orthogonal to Tier:
+// tiering is an exposure-policy axis, source is a provenance axis. Empty
+// defaults to SourceScenario for backwards compatibility with rows written
+// before the column existed.
+type RouteSource string
+
+const (
+	SourceScenario RouteSource = "scenario"
+	SourceExternal RouteSource = "external"
+)
+
 const (
 	DefaultDomain     = "itsagitime.com"
 	DefaultHealthPath = "/health"
@@ -34,8 +47,16 @@ type Route struct {
 	LeaseID    string
 	Enabled    bool
 	HealthPath string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	// Source distinguishes scenario-backed routes from external ones. Empty
+	// is treated as SourceScenario (the default and only kind before external
+	// routes existed).
+	Source RouteSource
+	// ServiceTarget is the explicit local service URL an external route
+	// forwards to (e.g. http://127.0.0.1:9000). Empty for scenario routes,
+	// which derive http://localhost:<local_port>.
+	ServiceTarget string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 func (r Route) PublicURL() string {
@@ -43,24 +64,28 @@ func (r Route) PublicURL() string {
 }
 
 type CreateInput struct {
-	Subdomain  string
-	Scenario   string
-	Domain     string
-	LocalPort  int
-	Tier       Tier
-	LeaseID    string
-	HealthPath string
-	Enabled    *bool
+	Subdomain     string
+	Scenario      string
+	Domain        string
+	LocalPort     int
+	Tier          Tier
+	LeaseID       string
+	HealthPath    string
+	Enabled       *bool
+	Source        RouteSource
+	ServiceTarget string
 }
 
 type UpdateInput struct {
-	Subdomain  string
-	Scenario   string
-	Domain     string
-	LocalPort  int
-	Tier       Tier
-	HealthPath string
-	Enabled    *bool
+	Subdomain     string
+	Scenario      string
+	Domain        string
+	LocalPort     int
+	Tier          Tier
+	HealthPath    string
+	Enabled       *bool
+	Source        RouteSource
+	ServiceTarget string
 }
 
 type Reader interface {

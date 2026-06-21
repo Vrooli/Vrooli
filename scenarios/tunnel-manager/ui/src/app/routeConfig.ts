@@ -3,6 +3,7 @@ import type { RouteObject } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
 import { AuditPage } from "../pages/AuditPage";
+import { DriftPage } from "../pages/DriftPage";
 import { ExposurePage } from "../pages/ExposurePage";
 import { MetricsPage } from "../pages/MetricsPage";
 import { OverviewPage } from "../pages/OverviewPage";
@@ -22,6 +23,7 @@ export const routes: RouteObject[] = [
       { path: "recovery", element: createElement(RecoveryPage) },
       { path: "metrics", element: createElement(MetricsPage) },
       { path: "audit", element: createElement(AuditPage) },
+      { path: "drift", element: createElement(DriftPage) },
       { path: "settings", element: createElement(SettingsPage) },
     ],
   },

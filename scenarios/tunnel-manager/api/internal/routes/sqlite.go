@@ -40,16 +40,16 @@ const (
 	// RFC3339Nano matches the wire format and the round-trip in scanRoute.
 	routeTimeFormat = time.RFC3339Nano
 
-	routeColumns = `id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, created_at, updated_at`
+	routeColumns = `id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, source, service_target, created_at, updated_at`
 
 	insertRouteSQL = `
-INSERT INTO routes (id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO routes (id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, source, service_target, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	updateRouteSQL = `
 UPDATE routes
-SET subdomain = ?, scenario = ?, domain = ?, local_port = ?, tier = ?, lease_id = ?, enabled = ?, health_path = ?, updated_at = ?
+SET subdomain = ?, scenario = ?, domain = ?, local_port = ?, tier = ?, lease_id = ?, enabled = ?, health_path = ?, source = ?, service_target = ?, updated_at = ?
 WHERE id = ?
 `
 )
@@ -65,9 +65,13 @@ func (s *sqliteRepository) Create(ctx context.Context, r Route) (Route, error) {
 		r.UpdatedAt = r.CreatedAt
 	}
 
+	if r.Source == "" {
+		r.Source = SourceScenario
+	}
 	_, err := s.db.ExecContext(ctx, insertRouteSQL,
 		r.ID, r.Subdomain, r.Scenario, r.Domain, r.LocalPort,
 		string(r.Tier), r.LeaseID, boolToInt(r.Enabled), r.HealthPath,
+		string(r.Source), r.ServiceTarget,
 		r.CreatedAt.Format(routeTimeFormat), r.UpdatedAt.Format(routeTimeFormat),
 	)
 	if err != nil {
@@ -134,9 +138,13 @@ func (s *sqliteRepository) List(ctx context.Context, tier Tier) ([]Route, error)
 
 func (s *sqliteRepository) Update(ctx context.Context, r Route) (Route, error) {
 	r.UpdatedAt = s.clock.Now().UTC()
+	if r.Source == "" {
+		r.Source = SourceScenario
+	}
 	res, err := s.db.ExecContext(ctx, updateRouteSQL,
 		r.Subdomain, r.Scenario, r.Domain, r.LocalPort,
 		string(r.Tier), r.LeaseID, boolToInt(r.Enabled), r.HealthPath,
+		string(r.Source), r.ServiceTarget,
 		r.UpdatedAt.Format(routeTimeFormat), r.ID,
 	)
 	if err != nil {
@@ -178,15 +186,20 @@ func scanRoute(sc rowScanner) (Route, error) {
 		r          Route
 		tierRaw    string
 		enabledRaw int
+		sourceRaw  string
 		createdRaw string
 		updatedRaw string
 	)
 	if err := sc.Scan(&r.ID, &r.Subdomain, &r.Scenario, &r.Domain, &r.LocalPort,
-		&tierRaw, &r.LeaseID, &enabledRaw, &r.HealthPath, &createdRaw, &updatedRaw); err != nil {
+		&tierRaw, &r.LeaseID, &enabledRaw, &r.HealthPath, &sourceRaw, &r.ServiceTarget, &createdRaw, &updatedRaw); err != nil {
 		return Route{}, err
 	}
 	r.Tier = Tier(tierRaw)
 	r.Enabled = enabledRaw != 0
+	r.Source = RouteSource(sourceRaw)
+	if r.Source == "" {
+		r.Source = SourceScenario
+	}
 	created, err := time.Parse(routeTimeFormat, createdRaw)
 	if err != nil {
 		return Route{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)

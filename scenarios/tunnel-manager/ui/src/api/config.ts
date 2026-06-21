@@ -2,6 +2,8 @@ import { createClient } from "@connectrpc/connect";
 import {
   ConfigService,
   Mode,
+  OwnershipState,
+  IngressSource,
   type ConfigReadiness,
   type CredentialStatus,
   type TunnelConfig,
@@ -10,6 +12,12 @@ import {
   type SetCloudflareCredentialsResponse,
   type ClearCloudflareCredentialsResponse,
   type SyncResponse,
+  type GetDriftResponse,
+  type IngressEntry,
+  type DriftCounts,
+  type AdoptIngressResponse,
+  type IgnoreIngressResponse,
+  type PruneIngressResponse,
 } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { transport } from "./client";
@@ -30,9 +38,41 @@ export async function getConfig(): Promise<TunnelConfig | undefined> {
   return resp.config;
 }
 
-/** sync reconciles live ingress with the routes manifest (dryRun previews). */
-export async function sync(dryRun = false): Promise<SyncResponse> {
-  return configClient.sync({ dryRun });
+/**
+ * sync reconciles live ingress with the routes manifest. Additive by default;
+ * `prune` also removes orphaned (ledger-managed-but-gone) hostnames. `dryRun`
+ * previews without writing.
+ */
+export async function sync(options: { dryRun?: boolean; prune?: boolean } = {}): Promise<SyncResponse> {
+  return configClient.sync({ dryRun: options.dryRun ?? false, prune: options.prune ?? false });
+}
+
+/** getDrift returns the classified ingress entries plus per-state counts. */
+export async function getDrift(): Promise<GetDriftResponse> {
+  return configClient.getDrift({});
+}
+
+/**
+ * adoptIngress records an unmanaged hostname into the ledger. Pass `scenario`
+ * to adopt as a scenario route, or `target` to adopt as an external route;
+ * with neither the service resolves provenance automatically.
+ */
+export async function adoptIngress(values: {
+  hostname: string;
+  scenario?: string;
+  target?: string;
+}): Promise<AdoptIngressResponse> {
+  return configClient.adoptIngress(values);
+}
+
+/** ignoreIngress acknowledges an external hostname so drift stops flagging it. */
+export async function ignoreIngress(values: { hostname: string; note?: string }): Promise<IgnoreIngressResponse> {
+  return configClient.ignoreIngress(values);
+}
+
+/** pruneIngress removes a single hostname from live ingress and/or the ledger. */
+export async function pruneIngress(hostname: string): Promise<PruneIngressResponse> {
+  return configClient.pruneIngress({ hostname });
 }
 
 export async function getCredentialStatus(): Promise<GetCredentialStatusResponse> {
@@ -51,7 +91,7 @@ export async function clearCloudflareCredentials(fields = ["all"]): Promise<Clea
   return configClient.clearCloudflareCredentials({ fields });
 }
 
-export { Mode };
+export { Mode, OwnershipState, IngressSource };
 export type {
   ClearCloudflareCredentialsResponse,
   ConfigReadiness,
@@ -61,4 +101,10 @@ export type {
   SetCloudflareCredentialsResponse,
   TunnelConfig,
   SyncResponse,
+  GetDriftResponse,
+  IngressEntry,
+  DriftCounts,
+  AdoptIngressResponse,
+  IgnoreIngressResponse,
+  PruneIngressResponse,
 };

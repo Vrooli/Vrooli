@@ -59,7 +59,7 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 		},
 	})
 
-	res, err := svc.Sync(ctx, false)
+	res, err := svc.Sync(ctx, false, false)
 	require.NoError(t, err)
 	require.Equal(t, config.ModeRemote, res.Mode)
 	require.Equal(t, []string{"web-console.itsagitime.com"}, res.Added)

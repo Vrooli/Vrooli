@@ -141,4 +141,28 @@ describe("SettingsPage", () => {
       expect(configClient.clearCloudflareCredentials).toHaveBeenCalledWith({ fields: ["all"] });
     });
   });
+
+  it("explains that switching to remote no longer auto-pushes ingress", async () => {
+    renderWithProviders(<SettingsPage />);
+    expect(await screen.findByTestId(selectors.settingsPage.switchModeNote)).toHaveTextContent(
+      "no longer auto-pushes ingress",
+    );
+    expect(screen.getByTestId(selectors.settingsPage.reviewDriftLink)).toHaveAttribute("href", "/drift");
+  });
+
+  it("reconciles additively via sync({}) and shows the result", async () => {
+    const { configClient } = await import("../api/config");
+    vi.mocked(configClient.sync).mockResolvedValueOnce(
+      makeSyncResponse({ noChanges: false, message: "", added: ["a.itsagitime.com"], removed: [] }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+
+    await user.click(await screen.findByTestId(selectors.settingsPage.reconcileNowButton));
+    await waitFor(() => {
+      expect(configClient.sync).toHaveBeenCalledWith({});
+    });
+    expect(screen.getByTestId(selectors.settingsPage.reconcileResult)).toHaveTextContent("added 1");
+  });
 });

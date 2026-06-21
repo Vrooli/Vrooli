@@ -60,13 +60,79 @@ func credentialFieldsToProto(fields []internalconfig.CredentialFieldStatus) []*c
 // syncResultToProto converts a SyncResult into the SyncResponse wire shape.
 func syncResultToProto(r internalconfig.SyncResult) *configv1.SyncResponse {
 	return &configv1.SyncResponse{
-		Mode:          modeToProto(r.Mode),
-		Added:         r.Added,
-		Removed:       r.Removed,
-		NoChanges:     r.NoChanges,
-		SetupRequired: r.SetupRequired,
-		MissingFields: r.MissingFields,
-		Message:       r.Message,
+		Mode:           modeToProto(r.Mode),
+		Added:          r.Added,
+		Removed:        r.Removed,
+		NoChanges:      r.NoChanges,
+		SetupRequired:  r.SetupRequired,
+		MissingFields:  r.MissingFields,
+		Message:        r.Message,
+		DriftUnmanaged: r.DriftUnmanaged,
+		Orphaned:       r.Orphaned,
+		Pruned:         r.Pruned,
+	}
+}
+
+// driftReportToProto converts a DriftReport into the GetDriftResponse wire
+// shape.
+func driftReportToProto(rep internalconfig.DriftReport) *configv1.GetDriftResponse {
+	entries := make([]*configv1.IngressEntry, 0, len(rep.Entries))
+	for _, e := range rep.Entries {
+		entries = append(entries, ingressEntryToProto(e))
+	}
+	return &configv1.GetDriftResponse{
+		Mode:    modeToProto(rep.Mode),
+		Entries: entries,
+		Counts: &configv1.DriftCounts{
+			Managed:    int32(rep.Counts[internalconfig.StateManaged]),
+			Missing:    int32(rep.Counts[internalconfig.StateMissing]),
+			ExternalOk: int32(rep.Counts[internalconfig.StateExternalOK]),
+			Orphaned:   int32(rep.Counts[internalconfig.StateOrphaned]),
+			Ignored:    int32(rep.Counts[internalconfig.StateIgnored]),
+			Unmanaged:  int32(rep.Counts[internalconfig.StateUnmanaged]),
+		},
+	}
+}
+
+func ingressEntryToProto(e internalconfig.IngressEntry) *configv1.IngressEntry {
+	return &configv1.IngressEntry{
+		Hostname:      e.Hostname,
+		ServiceTarget: e.ServiceTarget,
+		State:         ownershipStateToProto(e.State),
+		Source:        ingressSourceToProto(e.Source),
+		Scenario:      e.Scenario,
+		LeaseId:       e.LeaseID,
+		Note:          e.Note,
+	}
+}
+
+func ownershipStateToProto(s internalconfig.OwnershipState) configv1.OwnershipState {
+	switch s {
+	case internalconfig.StateManaged:
+		return configv1.OwnershipState_OWNERSHIP_STATE_MANAGED
+	case internalconfig.StateMissing:
+		return configv1.OwnershipState_OWNERSHIP_STATE_MISSING
+	case internalconfig.StateExternalOK:
+		return configv1.OwnershipState_OWNERSHIP_STATE_EXTERNAL_OK
+	case internalconfig.StateOrphaned:
+		return configv1.OwnershipState_OWNERSHIP_STATE_ORPHANED
+	case internalconfig.StateIgnored:
+		return configv1.OwnershipState_OWNERSHIP_STATE_IGNORED
+	case internalconfig.StateUnmanaged:
+		return configv1.OwnershipState_OWNERSHIP_STATE_UNMANAGED
+	default:
+		return configv1.OwnershipState_OWNERSHIP_STATE_UNSPECIFIED
+	}
+}
+
+func ingressSourceToProto(s internalconfig.RouteSource) configv1.IngressSource {
+	switch s {
+	case internalconfig.SourceScenario:
+		return configv1.IngressSource_INGRESS_SOURCE_SCENARIO
+	case internalconfig.SourceExternal:
+		return configv1.IngressSource_INGRESS_SOURCE_EXTERNAL
+	default:
+		return configv1.IngressSource_INGRESS_SOURCE_UNSPECIFIED
 	}
 }
 

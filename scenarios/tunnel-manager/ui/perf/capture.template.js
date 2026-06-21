@@ -4,9 +4,11 @@
  *
  * Copy this file to /tmp/<scenario>/perf/capture.js and edit `exerciseTarget`
  * to drive the specific user interaction the audit is investigating. The full
- * methodology is in the `scenario-performance-audit` skill — read that first:
+ * methodology is now productized in the performance-health scenario; read the
+ * `performance` steer skill first:
  *
- *   prompt-manager skill read scenario-performance-audit
+ *   prompt-manager skill read performance
+ *   performance-health audit <scenario>
  *
  * Usage:
  *   node /tmp/<scenario>/perf/capture.js \

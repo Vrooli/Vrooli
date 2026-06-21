@@ -49,8 +49,13 @@ CLI verbs in [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md).
 | Run port audit | `tunnel-manager audit run` | Verifies each exposed scenario's `service.json` fixed UI port matches the manifest; reports mismatches/missing/ranged ports. |
 | Manually trigger recovery | `tunnel-manager recovery run` | Forces a recovery cycle (restart cloudflared). Background recovery is opt-in with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; use manual recovery when escalating an incident. |
 | Configure Cloudflare credentials | `tunnel-manager config credentials-status` / `credentials-set` / `credentials-clear` | Writes file-backed operator secrets under `~/.vrooli`; `CLOUDFLARE_*` env values are read-only overrides and shadow saved values. |
-| Switch remote/local mode | `tunnel-manager config mode --target <remote\|local>` | Remote = Cloudflare API ingress (needs complete credentials); local = generate `~/.cloudflared/config.yml`. Migrates ingress on switch. |
-| Inspect / sync config | `tunnel-manager config get` / `tunnel-manager config sync` | Reconciles ingress with the manifest. |
+| Switch remote/local mode | `tunnel-manager config mode --target <remote\|local>` | Remote = Cloudflare API ingress (needs complete credentials); local = generate `~/.cloudflared/config.yml`. **Pure — never writes ingress; run `config sync` after to apply.** |
+| Inspect / sync config | `tunnel-manager config get` / `tunnel-manager config sync` | Additive reconcile: adds desired hostnames, preserves unmanaged/foreign ones. Add `--prune true` to remove orphaned entries. |
+| Inspect ingress drift | `tunnel-manager drift list` | Classifies every live/desired/tracked hostname (managed/missing/external/orphaned/ignored/unmanaged). Read-only. |
+| Adopt an unmanaged hostname | `tunnel-manager drift adopt <host> [--scenario <s> \| --target <url>]` | Brings drift under management as a scenario or external route + records ownership. |
+| Acknowledge an external hostname | `tunnel-manager drift ignore <host> [--note <text>]` | Marks it IGNORED; reconcile never pushes or prunes it. |
+| Remove one ingress hostname | `tunnel-manager drift prune <host>` | The only per-entry removal path; clears live ingress + ledger. |
+| Add an external route | `tunnel-manager routes create --external --subdomain <s> --target <url>` | Exposes a non-scenario target through the tunnel; reconciles as `external`. |
 
 ### When auto-recovery trips the circuit breaker
 
@@ -77,6 +82,37 @@ restart**. `vrooli-autoheal`'s cloudflared check is downgraded to
 you observe autoheal restarting cloudflared, that is a misconfiguration —
 confirm autoheal is alert-only before manually recovering. See
 [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
+
+### Reviewing and resolving ingress drift
+
+TM is non-destructive: it never removes ingress it does not own. After
+switching to remote mode (or any time the live tunnel may have entries TM
+did not author), reconcile the picture before applying:
+
+1. `tunnel-manager drift list` — see every hostname classified. `unmanaged`
+   entries are live but TM neither created nor acknowledged them.
+2. For each `unmanaged` entry, decide:
+   - It belongs to a scenario you want TM to manage →
+     `tunnel-manager drift adopt <host> --scenario <name>` (the local port
+     is read from the live target).
+   - It points at a non-scenario service you want to keep →
+     `tunnel-manager drift adopt <host> --target <url>` (becomes an
+     external route).
+   - It is legitimate but TM should never touch it →
+     `tunnel-manager drift ignore <host> --note "<why>"`.
+   - It is stale and should go → `tunnel-manager drift prune <host>`.
+3. `tunnel-manager config sync` — additively publish the desired manifest.
+   Foreign/ignored entries remain intact. Add `--prune true` only to clear
+   **orphaned** entries (routes TM made that are now gone).
+
+**Local-mode round-trip caveat:** in `local` mode, "live" is parsed from
+`~/.cloudflared/config.yml`, and only the ingress shapes TM understands
+(`- hostname:` / `service:` pairs) round-trip. A sync merges and preserves
+those, but an entry written in a shape TM cannot parse will not survive a
+rewrite. For full-fidelity drift handling on a tunnel with hand-authored
+config, prefer `remote` mode (the Cloudflare API is the source of truth)
+or back up `config.yml` before the first sync. The previous file is always
+backed up to `config.yml.backup.<timestamp>` on write.
 
 ## Common Incidents
 

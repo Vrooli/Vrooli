@@ -2,6 +2,9 @@ package config
 
 import (
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/clock"
@@ -16,8 +19,41 @@ import (
 	internalconfig "tunnel-manager/internal/config"
 )
 
-func NewProductionService(db *database.RoutedDB, clk clock.Clock, routes internalconfig.RoutesReader) internalconfig.Service {
-	return internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{Routes: routes})
+// resolveScenariosRoot finds the scenarios directory used to resolve a
+// scenario's fixed UI port during adopt. VROOLI_SCENARIOS_ROOT wins; otherwise
+// walk up from the working directory for a "scenarios" dir; failing that, fall
+// back to "scenarios" relative to cwd. Mirrors the exposure/audit resolvers
+// (each domain keeps its own to avoid a cross-handler import).
+func resolveScenariosRoot() string {
+	if v := strings.TrimSpace(os.Getenv("VROOLI_SCENARIOS_ROOT")); v != "" {
+		return v
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		dir := cwd
+		for {
+			candidate := filepath.Join(dir, "scenarios")
+			if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
+				return candidate
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+	return "scenarios"
+}
+
+func NewProductionService(db *database.RoutedDB, clk clock.Clock, routes internalconfig.Routes) internalconfig.Service {
+	return internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{
+		Routes:       routes,
+		RoutesWriter: routes,
+		// Lets AdoptIngress auto-classify an adopted hostname as a scenario
+		// route (real port) when its subdomain matches a known scenario,
+		// instead of always falling back to an external route with port 0.
+		Scenarios: internalconfig.NewFileScenarioResolver(resolveScenariosRoot()),
+	})
 }
 
 // Module returns the config domain's contribution to the API: the
@@ -215,6 +251,114 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Switch to local", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/SwitchMode -H 'Content-Type: application/json' -d '{\"target_mode\":\"MODE_LOCAL\"}'"},
+		},
+	},
+	{
+		ID:          "config_get_drift",
+		Path:        configconnect.ConfigServiceGetDriftProcedure,
+		Method:      "POST",
+		Summary:     "Get ingress drift",
+		Description: "Reconciles the desired manifest, the live tunnel, and the ownership ledger into a classified read model (managed/missing/external_ok/orphaned/ignored/unmanaged). Read-only — never applies.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"mode":    "Mode",
+				"entries": "array<IngressEntry> (hostname, service_target, state, source, scenario, lease_id, note)",
+				"counts":  "DriftCounts (per-state tally)",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 412, Code: "failed_precondition", Description: "Remote mode requested but Cloudflare credentials are absent"},
+			{Status: 500, Code: "internal", Description: "Ingress read failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Get drift", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetDrift -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
+		ID:          "config_adopt_ingress",
+		Path:        configconnect.ConfigServiceAdoptIngressProcedure,
+		Method:      "POST",
+		Summary:     "Adopt an unmanaged ingress hostname",
+		Description: "Brings an unmanaged live hostname under management: as a scenario route when it resolves to a known scenario, otherwise as an external route. Records MANAGED/EXTERNAL ownership in the ledger.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"hostname": "string (required)",
+				"scenario": "string (adopt as this scenario route)",
+				"target":   "string (adopt as external route pointing here)",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"entry": "IngressEntry (reclassified)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing hostname or unadoptable target"},
+			{Status: 401, Code: "unauthenticated", Description: "Operator token required when authz is enforced"},
+			{Status: 409, Code: "already_exists", Description: "A route already exists for the subdomain"},
+			{Status: 500, Code: "internal", Description: "Route create or ledger write failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Adopt as external", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"api.itsagitime.com\",\"target\":\"http://127.0.0.1:9000\"}'"},
+		},
+	},
+	{
+		ID:          "config_ignore_ingress",
+		Path:        configconnect.ConfigServiceIgnoreIngressProcedure,
+		Method:      "POST",
+		Summary:     "Ignore an external ingress hostname",
+		Description: "Acknowledges a live hostname as external and records it IGNORED, so reconcile never pushes or prunes it.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"hostname": "string (required)",
+				"note":     "string (optional operator note)",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"entry": "IngressEntry (reclassified)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing hostname"},
+			{Status: 401, Code: "unauthenticated", Description: "Operator token required when authz is enforced"},
+			{Status: 500, Code: "internal", Description: "Ledger write failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Ignore hostname", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\",\"note\":\"operator dashboard\"}'"},
+		},
+	},
+	{
+		ID:          "config_prune_ingress",
+		Path:        configconnect.ConfigServicePruneIngressProcedure,
+		Method:      "POST",
+		Summary:     "Prune a single ingress hostname",
+		Description: "Removes a single named hostname from live ingress and the ownership ledger. The only path that removes a specific entry.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"hostname": "string (required)"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"pruned": "bool (true when removed)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing hostname"},
+			{Status: 401, Code: "unauthenticated", Description: "Operator token required when authz is enforced"},
+			{Status: 412, Code: "failed_precondition", Description: "Remote mode requested but Cloudflare credentials are absent"},
+			{Status: 500, Code: "internal", Description: "Ingress apply or ledger delete failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Prune hostname", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\"}'"},
 		},
 	},
 }

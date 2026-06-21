@@ -32,12 +32,34 @@ type fakeService struct {
 	syncOut    internalconfig.SyncResult
 	syncErr    error
 	syncDry    bool
+	syncPrune  bool
 	syncCalls  int
 	swPrev     internalconfig.Mode
 	swCur      internalconfig.Mode
 	swErr      error
 	swTgt      internalconfig.Mode
 	swCalls    int
+	driftOut   internalconfig.DriftReport
+	driftErr   error
+	driftCalls int
+
+	adoptOut      internalconfig.IngressEntry
+	adoptErr      error
+	adoptCalls    int
+	adoptHost     string
+	adoptScenario string
+	adoptTarget   string
+
+	ignoreOut   internalconfig.IngressEntry
+	ignoreErr   error
+	ignoreCalls int
+	ignoreHost  string
+	ignoreNote  string
+
+	pruneOut   bool
+	pruneErr   error
+	pruneCalls int
+	pruneHost  string
 }
 
 func (f *fakeService) GetConfig(context.Context) (internalconfig.TunnelConfig, error) {
@@ -64,9 +86,10 @@ func (f *fakeService) ClearCloudflareCredentials(_ context.Context, keys []strin
 	return f.credOut, f.credErr
 }
 
-func (f *fakeService) Sync(_ context.Context, dryRun bool) (internalconfig.SyncResult, error) {
+func (f *fakeService) Sync(_ context.Context, dryRun, prune bool) (internalconfig.SyncResult, error) {
 	f.syncCalls++
 	f.syncDry = dryRun
+	f.syncPrune = prune
 	return f.syncOut, f.syncErr
 }
 
@@ -74,6 +97,29 @@ func (f *fakeService) SwitchMode(_ context.Context, target internalconfig.Mode) 
 	f.swCalls++
 	f.swTgt = target
 	return f.swPrev, f.swCur, f.swErr
+}
+
+func (f *fakeService) GetDrift(context.Context) (internalconfig.DriftReport, error) {
+	f.driftCalls++
+	return f.driftOut, f.driftErr
+}
+
+func (f *fakeService) AdoptIngress(_ context.Context, hostname, scenario, target string) (internalconfig.IngressEntry, error) {
+	f.adoptCalls++
+	f.adoptHost, f.adoptScenario, f.adoptTarget = hostname, scenario, target
+	return f.adoptOut, f.adoptErr
+}
+
+func (f *fakeService) IgnoreIngress(_ context.Context, hostname, note string) (internalconfig.IngressEntry, error) {
+	f.ignoreCalls++
+	f.ignoreHost, f.ignoreNote = hostname, note
+	return f.ignoreOut, f.ignoreErr
+}
+
+func (f *fakeService) PruneIngress(_ context.Context, hostname string) (bool, error) {
+	f.pruneCalls++
+	f.pruneHost = hostname
+	return f.pruneOut, f.pruneErr
 }
 
 func newClient(t *testing.T, svc internalconfig.Service) configconnect.ConfigServiceClient {
@@ -254,4 +300,71 @@ func TestHandlerSwitchModeInvalidArgument(t *testing.T) {
 	_, err := client.SwitchMode(context.Background(), connect.NewRequest(&configv1.SwitchModeRequest{}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+func TestHandlerGetDriftMapsReport(t *testing.T) {
+	fake := &fakeService{driftOut: internalconfig.DriftReport{
+		Mode: internalconfig.ModeRemote,
+		Entries: []internalconfig.IngressEntry{
+			{Hostname: "a.itsagitime.com", State: internalconfig.StateManaged, Source: internalconfig.SourceScenario, Scenario: "agent-manager", ServiceTarget: "http://localhost:21100"},
+			{Hostname: "b.example.com", State: internalconfig.StateUnmanaged},
+		},
+		Counts: map[internalconfig.OwnershipState]int{
+			internalconfig.StateManaged:   1,
+			internalconfig.StateUnmanaged: 1,
+		},
+	}}
+	client := newClient(t, fake)
+
+	resp, err := client.GetDrift(context.Background(), connect.NewRequest(&configv1.GetDriftRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, 1, fake.driftCalls)
+	require.Equal(t, configv1.Mode_MODE_REMOTE, resp.Msg.Mode)
+	require.Len(t, resp.Msg.Entries, 2)
+	require.Equal(t, configv1.OwnershipState_OWNERSHIP_STATE_MANAGED, resp.Msg.Entries[0].State)
+	require.Equal(t, configv1.IngressSource_INGRESS_SOURCE_SCENARIO, resp.Msg.Entries[0].Source)
+	require.Equal(t, configv1.OwnershipState_OWNERSHIP_STATE_UNMANAGED, resp.Msg.Entries[1].State)
+	require.Equal(t, int32(1), resp.Msg.Counts.Managed)
+	require.Equal(t, int32(1), resp.Msg.Counts.Unmanaged)
+}
+
+func TestHandlerAdoptIngressPassesArgs(t *testing.T) {
+	fake := &fakeService{adoptOut: internalconfig.IngressEntry{Hostname: "api.itsagitime.com", State: internalconfig.StateExternalOK, Source: internalconfig.SourceExternal}}
+	client := newClient(t, fake)
+
+	resp, err := client.AdoptIngress(context.Background(), connect.NewRequest(&configv1.AdoptIngressRequest{
+		Hostname: "api.itsagitime.com", Target: "http://127.0.0.1:9000",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "api.itsagitime.com", fake.adoptHost)
+	require.Equal(t, "http://127.0.0.1:9000", fake.adoptTarget)
+	require.Equal(t, configv1.OwnershipState_OWNERSHIP_STATE_EXTERNAL_OK, resp.Msg.Entry.State)
+}
+
+func TestHandlerAdoptIngressRequiresOperatorTokenWhenEnforced(t *testing.T) {
+	fake := &fakeService{}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	_, err := client.AdoptIngress(context.Background(), connect.NewRequest(&configv1.AdoptIngressRequest{Hostname: "x.itsagitime.com"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Zero(t, fake.adoptCalls, "denied adopt must not reach the service")
+}
+
+func TestHandlerIgnoreIngressPassesNote(t *testing.T) {
+	fake := &fakeService{ignoreOut: internalconfig.IngressEntry{Hostname: "legacy.itsagitime.com", State: internalconfig.StateIgnored}}
+	client := newClient(t, fake)
+	resp, err := client.IgnoreIngress(context.Background(), connect.NewRequest(&configv1.IgnoreIngressRequest{Hostname: "legacy.itsagitime.com", Note: "dashboard"}))
+	require.NoError(t, err)
+	require.Equal(t, "legacy.itsagitime.com", fake.ignoreHost)
+	require.Equal(t, "dashboard", fake.ignoreNote)
+	require.Equal(t, configv1.OwnershipState_OWNERSHIP_STATE_IGNORED, resp.Msg.Entry.State)
+}
+
+func TestHandlerPruneIngressReturnsPruned(t *testing.T) {
+	fake := &fakeService{pruneOut: true}
+	client := newClient(t, fake)
+	resp, err := client.PruneIngress(context.Background(), connect.NewRequest(&configv1.PruneIngressRequest{Hostname: "legacy.itsagitime.com"}))
+	require.NoError(t, err)
+	require.Equal(t, "legacy.itsagitime.com", fake.pruneHost)
+	require.True(t, resp.Msg.Pruned)
 }

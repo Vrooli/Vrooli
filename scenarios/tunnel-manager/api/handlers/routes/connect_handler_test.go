@@ -42,6 +42,10 @@ func (f *fakeService) Get(_ context.Context, _ string) (internalroutes.Route, er
 	return f.getOut, f.getErr
 }
 
+func (f *fakeService) GetBySubdomain(_ context.Context, _ string) (internalroutes.Route, error) {
+	return f.getOut, f.getErr
+}
+
 func (f *fakeService) List(_ context.Context, _ internalroutes.Tier) ([]internalroutes.Route, error) {
 	return f.listOut, nil
 }

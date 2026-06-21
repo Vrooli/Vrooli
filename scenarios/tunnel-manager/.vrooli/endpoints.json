@@ -313,6 +313,185 @@
       ]
     },
     {
+      "id": "config_get_drift",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/GetDrift",
+      "method": "POST",
+      "summary": "Get ingress drift",
+      "description": "Reconciles the desired manifest, the live tunnel, and the ownership ledger into a classified read model (managed/missing/external_ok/orphaned/ignored/unmanaged). Read-only — never applies.",
+      "category": "config",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "counts": "DriftCounts (per-state tally)",
+          "entries": "array<IngressEntry> (hostname, service_target, state, source, scenario, lease_id, note)",
+          "mode": "Mode"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Remote mode requested but Cloudflare credentials are absent"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ingress read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get drift",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetDrift -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "config_adopt_ingress",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress",
+      "method": "POST",
+      "summary": "Adopt an unmanaged ingress hostname",
+      "description": "Brings an unmanaged live hostname under management: as a scenario route when it resolves to a known scenario, otherwise as an external route. Records MANAGED/EXTERNAL ownership in the ledger.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "hostname": "string (required)",
+          "scenario": "string (adopt as this scenario route)",
+          "target": "string (adopt as external route pointing here)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entry": "IngressEntry (reclassified)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing hostname or unadoptable target"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "A route already exists for the subdomain"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Route create or ledger write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Adopt as external",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"api.itsagitime.com\",\"target\":\"http://127.0.0.1:9000\"}'"
+        }
+      ]
+    },
+    {
+      "id": "config_ignore_ingress",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress",
+      "method": "POST",
+      "summary": "Ignore an external ingress hostname",
+      "description": "Acknowledges a live hostname as external and records it IGNORED, so reconcile never pushes or prunes it.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "hostname": "string (required)",
+          "note": "string (optional operator note)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entry": "IngressEntry (reclassified)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing hostname"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ledger write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Ignore hostname",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\",\"note\":\"operator dashboard\"}'"
+        }
+      ]
+    },
+    {
+      "id": "config_prune_ingress",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress",
+      "method": "POST",
+      "summary": "Prune a single ingress hostname",
+      "description": "Removes a single named hostname from live ingress and the ownership ledger. The only path that removes a specific entry.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "hostname": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "pruned": "bool (true when removed)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing hostname"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Remote mode requested but Cloudflare credentials are absent"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Ingress apply or ledger delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Prune hostname",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\"}'"
+        }
+      ]
+    },
+    {
       "id": "exposure_expose",
       "path": "/vrooli.tunnel_manager.v1.exposure.ExposureService/Expose",
       "method": "POST",

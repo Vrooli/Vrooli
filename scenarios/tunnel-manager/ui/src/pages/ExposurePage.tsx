@@ -2,6 +2,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { ExposurePanel } from "../features/exposure/ExposurePanel";
+import { ExternalRoutesPanel } from "../features/routes/ExternalRoutesPanel";
 import { Page } from "./Page";
 
 /** Exposure surface — the core+leased exposure table and broker actions. */
@@ -15,6 +16,7 @@ export function ExposurePage() {
       description={t(strings.pages.exposure.description)}
     >
       <ExposurePanel />
+      <ExternalRoutesPanel />
     </Page>
   );
 }

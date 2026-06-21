@@ -3,13 +3,20 @@ import { vi } from "vitest";
 import {
   ConfigReadinessSchema,
   CredentialStatusSchema,
+  DriftCountsSchema,
   GetConfigResponseSchema,
+  GetDriftResponseSchema,
+  IngressEntrySchema,
   Mode,
+  OwnershipState,
+  IngressSource,
   SyncResponseSchema,
   TunnelConfigSchema,
   type ConfigReadiness,
   type CredentialStatus,
   type GetConfigResponse,
+  type GetDriftResponse,
+  type IngressEntry,
   type SyncResponse,
   type TunnelConfig,
 } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
@@ -75,6 +82,35 @@ export const makeSyncResponse = (
     ...overrides,
   });
 
+export const makeIngressEntry = (
+  overrides: MessageInitShape<typeof IngressEntrySchema> = {},
+): IngressEntry =>
+  create(IngressEntrySchema, {
+    hostname: "agent-manager.itsagitime.com",
+    serviceTarget: "http://localhost:21001",
+    state: OwnershipState.MANAGED,
+    source: IngressSource.SCENARIO,
+    scenario: "agent-manager",
+    ...overrides,
+  });
+
+export const makeDriftResponse = (
+  overrides: MessageInitShape<typeof GetDriftResponseSchema> = {},
+): GetDriftResponse =>
+  create(GetDriftResponseSchema, {
+    mode: Mode.LOCAL,
+    entries: [makeIngressEntry()],
+    counts: create(DriftCountsSchema, {
+      managed: 1,
+      missing: 0,
+      externalOk: 0,
+      orphaned: 0,
+      ignored: 0,
+      unmanaged: 0,
+    }),
+    ...overrides,
+  });
+
 export const makeConfigMocks = () => ({
   configClient: {
     getConfig: vi.fn().mockResolvedValue(makeConfigResponse()),
@@ -86,8 +122,13 @@ export const makeConfigMocks = () => ({
       previousMode: Mode.LOCAL,
       currentMode: Mode.REMOTE,
     }),
+    getDrift: vi.fn().mockResolvedValue(makeDriftResponse()),
+    adoptIngress: vi.fn().mockResolvedValue({ entry: makeIngressEntry({ state: OwnershipState.MANAGED }) }),
+    ignoreIngress: vi.fn().mockResolvedValue({ entry: makeIngressEntry({ state: OwnershipState.IGNORED }) }),
+    pruneIngress: vi.fn().mockResolvedValue({ pruned: true }),
   },
   getConfigState: vi.fn().mockResolvedValue(makeConfigResponse()),
   getConfig: vi.fn().mockResolvedValue(makeTunnelConfig()),
   sync: vi.fn().mockResolvedValue(makeSyncResponse()),
+  getDrift: vi.fn().mockResolvedValue(makeDriftResponse()),
 });

@@ -14,6 +14,7 @@ export interface NavItem {
     | "recovery"
     | "metrics"
     | "audit"
+    | "drift"
     | "settings";
   /** Router path. */
   path: string;
@@ -29,5 +30,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "recovery", path: "/recovery", labelKey: strings.layout.nav.recovery },
   { key: "metrics", path: "/metrics", labelKey: strings.layout.nav.metrics },
   { key: "audit", path: "/audit", labelKey: strings.layout.nav.audit },
+  { key: "drift", path: "/drift", labelKey: strings.layout.nav.drift },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

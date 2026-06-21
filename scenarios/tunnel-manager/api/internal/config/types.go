@@ -122,12 +122,25 @@ type CredentialStore interface {
 	Delete(ctx context.Context, keys []string) (CredentialStatus, error)
 }
 
-// SyncResult is the outcome of a reconcile: which hostnames changed and
-// whether anything changed at all.
+// SyncResult is the outcome of an additive reconcile. Sync is additive by
+// default: Added are the desired hostnames newly published; DriftUnmanaged and
+// Orphaned are surfaced for operator awareness but NEVER removed unless prune
+// is explicitly requested; Removed/Pruned are the hostnames a prune actually
+// removed (orphaned entries on a batch --prune, or a named hostname).
 type SyncResult struct {
-	Mode          Mode
-	Added         []string
-	Removed       []string
+	Mode Mode
+	// Added are desired hostnames published this sync (or that would be on a
+	// dry-run).
+	Added []string
+	// Removed mirrors Pruned for backward compatibility.
+	Removed []string
+	// DriftUnmanaged are live hostnames TM does not manage and did not touch.
+	DriftUnmanaged []string
+	// Orphaned are ledger-managed hostnames whose routes are gone (prune
+	// candidates). Surfaced, removed only with prune.
+	Orphaned []string
+	// Pruned are hostnames removed this sync (empty unless prune was set).
+	Pruned        []string
 	NoChanges     bool
 	SetupRequired bool
 	MissingFields []string
@@ -157,6 +170,48 @@ type IngressClient interface {
 // the routes domain. Satisfied by routes.Service (which exposes List).
 type RoutesReader interface {
 	List(ctx context.Context, tier manifest.Tier) ([]manifest.Route, error)
+}
+
+// RoutesManager is the write surface AdoptIngress needs: it creates a
+// scenario or external route to bring an unmanaged hostname under management,
+// and looks up an existing route by subdomain to detect collisions / known
+// scenarios. Declared at the consumer per seam-discovery; satisfied by
+// routes.Service. Optional in Deps — adopt is unavailable when it is nil.
+type RoutesManager interface {
+	GetBySubdomain(ctx context.Context, subdomain string) (manifest.Route, error)
+	Create(ctx context.Context, in manifest.CreateInput) (manifest.Route, error)
+	// Update re-points an existing route by ID. AdoptIngress uses it to make
+	// adopt idempotent: re-adopting a hostname (or repairing a previously
+	// mis-classified one) updates the existing route's classification instead
+	// of failing on the unique-subdomain conflict.
+	Update(ctx context.Context, id string, in manifest.UpdateInput) (manifest.Route, error)
+}
+
+// ScenarioResolver resolves a scenario slug to its fixed UI port. AdoptIngress
+// uses it to auto-classify a bare-adopted hostname (no explicit scenario or
+// target) as a scenario route when its subdomain matches a known scenario —
+// so an operator who adopts e.g. agent-inbox.itsagitime.com gets a
+// scenario-backed route with the real port, not an external route with port 0.
+// Declared at the consumer per seam-discovery; the production impl reads
+// <scenarios-root>/<scenario>/.vrooli/service.json. Optional in Deps: when nil,
+// auto-detect is disabled and bare adopt falls back to an external route.
+type ScenarioResolver interface {
+	UIPort(ctx context.Context, scenario string) (int, error)
+	// IsScenario reports whether the slug is a known scenario at all
+	// (regardless of whether it declares a fixed UI port). It lets adopt
+	// classify a ranged-port scenario — one whose UI port is dynamically
+	// allocated, so UIPort can't resolve it — as a scenario route using the
+	// live localhost port, rather than mislabeling it external.
+	IsScenario(ctx context.Context, scenario string) bool
+}
+
+// Routes is the combined routes surface the config service can consume — the
+// read side (desired computation) plus the write side (adopt). Satisfied by
+// routes.Service; wired in production so config can both reconcile against and
+// extend the manifest.
+type Routes interface {
+	RoutesReader
+	RoutesManager
 }
 
 // ErrRemoteUnavailable is the typed sentinel returned when a remote-mode

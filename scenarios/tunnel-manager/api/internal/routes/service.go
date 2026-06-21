@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -26,6 +27,10 @@ type Service interface {
 
 	// Get is a thin pass-through; ErrRouteNotFound propagates verbatim.
 	Get(ctx context.Context, id string) (Route, error)
+
+	// GetBySubdomain returns the route for a subdomain or ErrRouteNotFound.
+	// Used by adopt to detect a collision / known scenario before creating.
+	GetBySubdomain(ctx context.Context, subdomain string) (Route, error)
 
 	// List returns routes ordered by subdomain, optionally filtered by tier.
 	List(ctx context.Context, tier Tier) ([]Route, error)
@@ -57,24 +62,42 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Route, error) {
 	if !dnsLabel.MatchString(subdomain) {
 		return Route{}, ErrInvalidRoute{Field: "subdomain", Reason: "must be a valid DNS label (lowercase alphanumerics and hyphens, 1-63 chars)"}
 	}
-	scenario := strings.TrimSpace(in.Scenario)
-	if scenario == "" {
-		return Route{}, ErrInvalidRoute{Field: "scenario", Reason: "required"}
-	}
-	if in.LocalPort < 1 || in.LocalPort > 65535 {
-		return Route{}, ErrInvalidRoute{Field: "local_port", Reason: "must be between 1 and 65535"}
-	}
 
 	r := Route{
 		Subdomain:  subdomain,
-		Scenario:   scenario,
 		Domain:     orDefault(in.Domain, DefaultDomain),
-		LocalPort:  in.LocalPort,
 		Tier:       in.Tier,
 		LeaseID:    strings.TrimSpace(in.LeaseID),
 		HealthPath: orDefault(in.HealthPath, DefaultHealthPath),
+		Source:     in.Source,
 		Enabled:    true,
 	}
+	if r.Source == "" {
+		r.Source = SourceScenario
+	}
+
+	if r.Source == SourceExternal {
+		// External routes point at an arbitrary local target and skip the
+		// scenario/fixed-UI-port rule scenario routes enforce.
+		target := strings.TrimSpace(in.ServiceTarget)
+		if !validServiceTarget(target) {
+			return Route{}, ErrInvalidRoute{Field: "service_target", Reason: "must be an absolute http(s) URL (e.g. http://127.0.0.1:9000)"}
+		}
+		r.ServiceTarget = target
+		// scenario is an optional free-form label for external routes.
+		r.Scenario = strings.TrimSpace(in.Scenario)
+	} else {
+		scenario := strings.TrimSpace(in.Scenario)
+		if scenario == "" {
+			return Route{}, ErrInvalidRoute{Field: "scenario", Reason: "required"}
+		}
+		if in.LocalPort < 1 || in.LocalPort > 65535 {
+			return Route{}, ErrInvalidRoute{Field: "local_port", Reason: "must be between 1 and 65535"}
+		}
+		r.Scenario = scenario
+		r.LocalPort = in.LocalPort
+	}
+
 	if r.Tier == "" {
 		r.Tier = TierLeased
 	}
@@ -86,6 +109,10 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Route, error) {
 
 func (s *service) Get(ctx context.Context, id string) (Route, error) {
 	return s.repo.Get(ctx, id)
+}
+
+func (s *service) GetBySubdomain(ctx context.Context, subdomain string) (Route, error) {
+	return s.repo.GetBySubdomain(ctx, subdomain)
 }
 
 func (s *service) List(ctx context.Context, tier Tier) ([]Route, error) {
@@ -122,10 +149,32 @@ func (s *service) Update(ctx context.Context, id string, in UpdateInput) (Route,
 	if v := strings.TrimSpace(in.HealthPath); v != "" {
 		existing.HealthPath = v
 	}
+	if in.Source != "" {
+		existing.Source = in.Source
+	}
+	if v := strings.TrimSpace(in.ServiceTarget); v != "" {
+		if !validServiceTarget(v) {
+			return Route{}, ErrInvalidRoute{Field: "service_target", Reason: "must be an absolute http(s) URL (e.g. http://127.0.0.1:9000)"}
+		}
+		existing.ServiceTarget = v
+	}
+	if existing.Source == SourceExternal && !validServiceTarget(existing.ServiceTarget) {
+		return Route{}, ErrInvalidRoute{Field: "service_target", Reason: "external routes require an absolute http(s) URL target"}
+	}
 	if in.Enabled != nil {
 		existing.Enabled = *in.Enabled
 	}
 	return s.repo.Update(ctx, existing)
+}
+
+// validServiceTarget reports whether target is an absolute http(s) URL with a
+// host — the shape an external route forwards to.
+func validServiceTarget(target string) bool {
+	u, err := url.Parse(target)
+	if err != nil {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
 func (s *service) Delete(ctx context.Context, id string) (bool, error) {

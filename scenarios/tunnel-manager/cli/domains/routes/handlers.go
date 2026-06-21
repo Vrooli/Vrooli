@@ -70,22 +70,43 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) create(ctx cliapp.RunContext) error {
-	port, err := strconv.ParseInt(strings.TrimSpace(ctx.Flag("local-port")), 10, 32)
-	if err != nil {
-		return fmt.Errorf("--local-port must be an integer: %w", err)
-	}
 	tier, err := tierFlag(ctx.Flag("tier"))
 	if err != nil {
 		return err
 	}
-	resp, err := h.client.CreateRoute(context.Background(), connect.NewRequest(&routesv1.CreateRouteRequest{
+	external := false
+	if v := strings.TrimSpace(ctx.Flag("external")); v != "" {
+		external, err = strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("--external must be true or false: %w", err)
+		}
+	}
+	target := strings.TrimSpace(ctx.Flag("target"))
+	if target != "" {
+		external = true
+	}
+
+	req := &routesv1.CreateRouteRequest{
 		Subdomain:  ctx.Flag("subdomain"),
 		Scenario:   ctx.Flag("scenario"),
 		Domain:     ctx.Flag("domain"),
-		LocalPort:  int32(port),
 		Tier:       tier,
 		HealthPath: ctx.Flag("health-path"),
-	}))
+	}
+	if external {
+		if target == "" {
+			return fmt.Errorf("--target is required with --external (e.g. http://127.0.0.1:9000)")
+		}
+		req.Source = routesv1.RouteSource_ROUTE_SOURCE_EXTERNAL
+		req.ServiceTarget = target
+	} else {
+		port, err := strconv.ParseInt(strings.TrimSpace(ctx.Flag("local-port")), 10, 32)
+		if err != nil {
+			return fmt.Errorf("--local-port must be an integer for scenario routes (or use --external --target): %w", err)
+		}
+		req.LocalPort = int32(port)
+	}
+	resp, err := h.client.CreateRoute(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("create route", err, nil)
 	}
@@ -104,11 +125,12 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 
 func (h *handlers) update(ctx cliapp.RunContext) error {
 	req := &routesv1.UpdateRouteRequest{
-		Id:         ctx.Positional("id"),
-		Subdomain:  ctx.Flag("subdomain"),
-		Scenario:   ctx.Flag("scenario"),
-		Domain:     ctx.Flag("domain"),
-		HealthPath: ctx.Flag("health-path"),
+		Id:            ctx.Positional("id"),
+		Subdomain:     ctx.Flag("subdomain"),
+		Scenario:      ctx.Flag("scenario"),
+		Domain:        ctx.Flag("domain"),
+		HealthPath:    ctx.Flag("health-path"),
+		ServiceTarget: strings.TrimSpace(ctx.Flag("target")),
 	}
 	if v := strings.TrimSpace(ctx.Flag("local-port")); v != "" {
 		port, err := strconv.ParseInt(v, 10, 32)
@@ -182,6 +204,10 @@ func formatRoute(r *routesv1.Route) string {
 	state := "enabled"
 	if !r.Enabled {
 		state = "disabled"
+	}
+	if r.Source == routesv1.RouteSource_ROUTE_SOURCE_EXTERNAL {
+		return fmt.Sprintf("%s — external → %s [%s, %s, id=%s]",
+			r.Subdomain, r.PublicUrl, r.ServiceTarget, state, r.Id)
 	}
 	return fmt.Sprintf("%s — %s → %s :%d [%s, %s, id=%s]",
 		r.Subdomain, r.Scenario, r.PublicUrl, r.LocalPort, strings.ToLower(r.Tier.String()), state, r.Id)

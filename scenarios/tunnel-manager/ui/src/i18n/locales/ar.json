@@ -13,7 +13,8 @@
       "recovery": "التعافي",
       "metrics": "المقاييس",
       "audit": "التدقيق",
-      "settings": "الإعدادات"
+      "settings": "الإعدادات",
+      "drift": "الانحراف"
     }
   },
   "theme": {
@@ -56,6 +57,10 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    },
+    "drift": {
+      "title": "الانحراف",
+      "description": "كل اسم مضيف إدخال حيّ مصنّف مقابل البيان وسجل الملكية — التبنّي أو التجاهل أو التقليم."
     }
   },
   "overview": {
@@ -72,7 +77,17 @@
     "recoveryHeading": "التعافي",
     "circuitOpenWarning": "قاطع الدائرة مفتوح — تم إيقاف التعافي التلقائي مؤقتًا.",
     "viewExposure": "إدارة الإتاحة",
-    "viewRecovery": "عرض التعافي"
+    "viewRecovery": "عرض التعافي",
+    "modeLocal": "الوضع: محلي — تُدار المنافذ من إعداد cloudflared المحلي.",
+    "modeLocalKeysConfigured": "الوضع: محلي — مفاتيح Cloudflare مُعدّة لكنها غير مستخدمة.",
+    "modeRemote": "الوضع: بعيد — {{managed}} مُدارة · {{external}} خارجية · {{drift}} انحراف",
+    "driftHeading": "الانحراف",
+    "driftManaged": "مُدارة",
+    "driftExternal": "خارجية (متتبَّعة)",
+    "driftUnmanaged": "غير مُدارة",
+    "viewDrift": "مراجعة الانحراف",
+    "urlStateLive": "حيّ",
+    "urlStateDesired": "مطلوب"
   },
   "config": {
     "setupHeading": "إعداد النفق",
@@ -128,7 +143,12 @@
     "syncApply": "تطبيق المزامنة",
     "syncSetupRequired": "الإعداد مطلوب قبل المزامنة: {{fields}}",
     "syncNoChanges": "يتطابق ingress بالفعل مع البيان.",
-    "syncChanged": "غيّرت المزامنة {{added}} مضيفة مضافة و {{removed}} مضيفة محذوفة."
+    "syncChanged": "غيّرت المزامنة {{added}} مضيفة مضافة و {{removed}} مضيفة محذوفة.",
+    "switchModeNote": "لم يعد التبديل إلى الوضع البعيد يدفع المنافذ تلقائيًا. استخدم إعادة التوفيق لتطبيق مسارات البيان بشكل إضافي، ثم راجع الانحراف لأي شيء حيّ لا يملكه البيان.",
+    "reconcileHeading": "إعادة التوفيق والانحراف",
+    "reconcileNow": "إعادة التوفيق الآن (إضافي)",
+    "reconcileResult": "أضافت إعادة التوفيق {{added}} وأزالت {{removed}} مضيفًا.",
+    "reviewDrift": "مراجعة الانحراف"
   },
   "exposure": {
     "heading": "السيناريوهات المُتاحة",
@@ -360,5 +380,67 @@
     "title": "حدث خطأ ما",
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
     "retry": "إعادة المحاولة"
+  },
+  "drift": {
+    "heading": "انحراف الإدخال",
+    "summary": "{{total}} إدخال · {{managed}} مُدارة · {{external}} خارجية · {{drift}} انحراف",
+    "loading": "جارٍ تحميل تقرير الانحراف…",
+    "error": "تعذّر تحميل تقرير الانحراف.",
+    "empty": "لا توجد أسماء مضيفي إدخال حيّة بعد.",
+    "modeHint": "يقارن الانحراف إدخال النفق الحيّ بالبيان وسجل الملكية. عند تهيئة بيانات اعتماد Cloudflare، يُقرأ الإدخال الحيّ من واجهة Cloudflare البرمجية (النفق الفعلي)؛ وإلا فيُقرأ من إعداد cloudflared المحلي.",
+    "colHostname": "اسم المضيف",
+    "colTarget": "الهدف",
+    "colState": "الحالة",
+    "colSource": "المصدر",
+    "colActions": "الإجراءات",
+    "adoptButton": "تبنّي",
+    "ignoreButton": "تجاهل",
+    "pruneButton": "تقليم",
+    "actionError": "فشل الإجراء. يرجى إعادة المحاولة.",
+    "pruneConfirmTitle": "تقليم اسم المضيف هذا؟",
+    "pruneConfirmBody": "يؤدي هذا إلى إزالة {{hostname}} من الإدخال الحيّ وسجل الملكية. إذا كان هناك مسار ما زال يطلبه، فستعيد المزامنة التالية إضافته.",
+    "pruneConfirm": "تقليم",
+    "pruneCancel": "إلغاء",
+    "state": {
+      "managed": "مُدارة",
+      "missing": "مفقودة",
+      "externalOk": "خارجية سليمة",
+      "orphaned": "يتيمة",
+      "ignored": "متجاهَلة",
+      "unmanaged": "غير مُدارة",
+      "unknown": "غير معروفة"
+    },
+    "source": {
+      "scenario": "سيناريو",
+      "external": "خارجي",
+      "unknown": "—"
+    }
+  },
+  "routes": {
+    "externalHeading": "المسارات الخارجية",
+    "externalDescription": "مسارات تشير إلى هدف خدمة محلي عشوائي بدلاً من منفذ واجهة سيناريو معروف.",
+    "loading": "جارٍ تحميل المسارات…",
+    "error": "تعذّر تحميل المسارات.",
+    "empty": "لا توجد مسارات خارجية بعد.",
+    "subdomainLabel": "النطاق الفرعي",
+    "subdomainPlaceholder": "my-service",
+    "targetLabel": "عنوان الهدف",
+    "targetPlaceholder": "http://127.0.0.1:9000",
+    "domainLabel": "النطاق (اختياري)",
+    "domainPlaceholder": "itsagitime.com",
+    "addButton": "إضافة مسار خارجي",
+    "deleteButton": "حذف",
+    "addError": "تعذّرت إضافة المسار. يرجى إعادة المحاولة.",
+    "deleteError": "تعذّر حذف المسار. يرجى إعادة المحاولة.",
+    "colSubdomain": "النطاق الفرعي",
+    "colTarget": "الهدف",
+    "colSource": "المصدر",
+    "colUrl": "العنوان العام",
+    "colActions": "الإجراءات",
+    "source": {
+      "scenario": "سيناريو",
+      "external": "خارجي",
+      "unknown": "—"
+    }
   }
 }

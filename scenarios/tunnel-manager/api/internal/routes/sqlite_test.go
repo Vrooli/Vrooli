@@ -141,3 +141,31 @@ func TestSQLite_Delete(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ok, "deleting a missing id reports false, not error")
 }
+
+func TestSQLite_ExternalRouteSourceRoundTrip(t *testing.T) {
+	repo, _ := newRepo(t)
+	ctx := context.Background()
+	created, err := repo.Create(ctx, routes.Route{
+		Subdomain:     "api",
+		Domain:        "itsagitime.com",
+		Source:        routes.SourceExternal,
+		ServiceTarget: "http://127.0.0.1:9000",
+		Tier:          routes.TierLeased,
+		HealthPath:    "/health",
+		Enabled:       true,
+	})
+	require.NoError(t, err)
+
+	got, err := repo.Get(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, routes.SourceExternal, got.Source)
+	require.Equal(t, "http://127.0.0.1:9000", got.ServiceTarget)
+
+	// A scenario route defaults source to scenario.
+	sc, err := repo.Create(ctx, routes.Route{Subdomain: "web", Scenario: "web-console", Domain: "itsagitime.com", LocalPort: 3000, Tier: routes.TierLeased, HealthPath: "/health", Enabled: true})
+	require.NoError(t, err)
+	gotSc, err := repo.Get(ctx, sc.ID)
+	require.NoError(t, err)
+	require.Equal(t, routes.SourceScenario, gotSc.Source)
+	require.Empty(t, gotSc.ServiceTarget)
+}

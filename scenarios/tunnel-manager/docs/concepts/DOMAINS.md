@@ -41,12 +41,17 @@ belong in [`DATA.md`](DATA.md).
 ### `routes` — exposure manifest (SSOT)
 - Owns the `routes` table: `subdomain`, `scenario`, `domain` (a field,
   not a constant; default `itsagitime.com`), `local_port`, `tier`
-  (`core`|`leased`), `lease_id` (nullable), `enabled`, `health_path`.
+  (`core`|`leased`), `lease_id` (nullable), `enabled`, `health_path`,
+  `source` (`scenario`|`external`), `service_target` (external only).
   Derives `public_url` = `https://<subdomain>.<domain>`.
 - Does not own ingress creation (`config`) or tier policy (`exposure`);
   it is the record of truth other domains reconcile against.
-- Validation: subdomain is a valid DNS label; port matches the
-  scenario's fixed UI port; one route per subdomain.
+- Validation: subdomain is a valid DNS label; one route per subdomain.
+  **Scenario routes** require `scenario` + `local_port` (the fixed UI
+  port). **External routes** (`source=external`) skip that rule and
+  instead require an absolute `http(s)` `service_target` (e.g.
+  `http://127.0.0.1:9000`) — first-class CRUD for exposing non-scenario
+  targets. `source` is orthogonal to `tier`.
 - Why: every other domain reads the manifest, so it is foundational.
 
 ### `exposure` — tiered exposure broker
@@ -64,17 +69,32 @@ belong in [`DATA.md`](DATA.md).
 - Why: the conceptual heart — turns "should this be reachable, for how
   long?" into manifest + ingress + run state.
 
-### `config` — Cloudflare ingress & mode management
+### `config` — Cloudflare ingress, mode & drift management
 - Owns `tunnel_config`: mode (`remote`|`local`), tunnel id, account id,
-  credential reference, Prometheus endpoint. Owns the credential status
-  and write-only setup workflow, while secret values are stored outside
-  SQLite through the shared operator secret store.
-- Behavior: remote mode pushes ingress via Cloudflare API v4
-  (hot-reload); local mode generates `~/.cloudflared/config.yml` from
-  the manifest (restart on change); `Sync` reconciles ingress with the
-  manifest; `SwitchMode` migrates.
-- Why: the adapter that makes exposure programmatic — replacing the
-  operator's manual dashboard step.
+  credential reference, Prometheus endpoint. Also owns the
+  **`ingress_ownership` ledger** (keyed on full hostname; owner ∈
+  `MANAGED`|`EXTERNAL`|`IGNORED`) — the authoritative record of who owns
+  each live ingress entry. Owns the credential status and write-only
+  setup workflow; secret values live outside SQLite in the shared
+  operator secret store.
+- Behavior:
+  - `Sync` is **additive by default**: it publishes the desired manifest
+    merged onto current live ingress (union), preserving unmanaged/ignored
+    entries. `prune` removes only orphaned entries (ledger-managed, route
+    gone). Remote mode pushes via Cloudflare API v4 (hot-reload); local
+    mode merges into `~/.cloudflared/config.yml` (restart on change).
+  - `SwitchMode` is **pure** — it persists the mode and performs zero
+    ingress writes (switching to remote does a read-only credential check).
+  - `GetDrift` reconciles desired ∪ live ∪ ledger into a classified read
+    model: `MANAGED` / `MISSING` / `EXTERNAL_OK` / `ORPHANED` / `IGNORED` /
+    `UNMANAGED`. `AdoptIngress` / `IgnoreIngress` / `PruneIngress` are the
+    per-entry decisions an operator applies to drift.
+- Non-destructive by construction: unmanaged ingress TM did not author is
+  never auto-removed under any code path. No DNS-record writes (ingress
+  configurations only).
+- Why: the adapter that makes exposure programmatic and legible —
+  replacing the operator's manual dashboard step while never clobbering
+  what it doesn't own.
 
 ### `audit` — port-compliance auditor
 - Owns nothing persistent; computes findings from scenario

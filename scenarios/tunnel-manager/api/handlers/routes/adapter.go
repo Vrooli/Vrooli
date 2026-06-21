@@ -12,18 +12,44 @@ import (
 // conversion is mechanical and only used at the transport edge.
 func domainToProto(r routes.Route) *routesv1.Route {
 	return &routesv1.Route{
-		Id:         r.ID,
-		Subdomain:  r.Subdomain,
-		Scenario:   r.Scenario,
-		Domain:     r.Domain,
-		LocalPort:  int32(r.LocalPort),
-		Tier:       tierToProto(r.Tier),
-		LeaseId:    r.LeaseID,
-		Enabled:    r.Enabled,
-		HealthPath: r.HealthPath,
-		PublicUrl:  r.PublicURL(),
-		CreatedAt:  timestamppb.New(r.CreatedAt.UTC()),
-		UpdatedAt:  timestamppb.New(r.UpdatedAt.UTC()),
+		Id:            r.ID,
+		Subdomain:     r.Subdomain,
+		Scenario:      r.Scenario,
+		Domain:        r.Domain,
+		LocalPort:     int32(r.LocalPort),
+		Tier:          tierToProto(r.Tier),
+		LeaseId:       r.LeaseID,
+		Enabled:       r.Enabled,
+		HealthPath:    r.HealthPath,
+		PublicUrl:     r.PublicURL(),
+		Source:        sourceToProto(r.Source),
+		ServiceTarget: r.ServiceTarget,
+		CreatedAt:     timestamppb.New(r.CreatedAt.UTC()),
+		UpdatedAt:     timestamppb.New(r.UpdatedAt.UTC()),
+	}
+}
+
+func sourceToProto(s routes.RouteSource) routesv1.RouteSource {
+	switch s {
+	case routes.SourceScenario:
+		return routesv1.RouteSource_ROUTE_SOURCE_SCENARIO
+	case routes.SourceExternal:
+		return routesv1.RouteSource_ROUTE_SOURCE_EXTERNAL
+	default:
+		return routesv1.RouteSource_ROUTE_SOURCE_UNSPECIFIED
+	}
+}
+
+// sourceFromProto maps a wire source to the domain source. UNSPECIFIED returns
+// the empty RouteSource so the service applies its default (scenario).
+func sourceFromProto(s routesv1.RouteSource) routes.RouteSource {
+	switch s {
+	case routesv1.RouteSource_ROUTE_SOURCE_SCENARIO:
+		return routes.SourceScenario
+	case routesv1.RouteSource_ROUTE_SOURCE_EXTERNAL:
+		return routes.SourceExternal
+	default:
+		return ""
 	}
 }
 

@@ -32,6 +32,16 @@ const (
 	TierLeased = manifest.TierLeased
 )
 
+// RouteSource distinguishes scenario-backed routes from external ones. Aliased
+// from the manifest type so the routes domain owns its validation while other
+// domains share one shape.
+type RouteSource = manifest.RouteSource
+
+const (
+	SourceScenario = manifest.SourceScenario
+	SourceExternal = manifest.SourceExternal
+)
+
 // DefaultDomain is the apex domain a subdomain hangs off when a route is
 // created without one. It is a field, never a hardcoded constant baked
 // into URLs — the old scenario hardcoded ".vrooli.com"; the live tunnel
