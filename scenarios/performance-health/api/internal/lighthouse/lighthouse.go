@@ -30,7 +30,13 @@ type PageScore struct {
 	Accessibility float64
 	BestPractices float64
 	SEO           float64
-	Violations    []string
+	// Violations holds every threshold breach (error- and warn-level) as a
+	// human string, for display and the proto response.
+	Violations []string
+	// ErrorViolations holds only the error-threshold breaches — the subset that
+	// must FAIL the phase (restoring the native perf phase's Lighthouse gating).
+	// Warn-level breaches stay in Violations only and do not fail.
+	ErrorViolations []string
 }
 
 // Result is the outcome of a Lighthouse run.

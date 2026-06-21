@@ -28,11 +28,12 @@ meta self-improvement (it advances Vrooli's testing/optimization meta-capability
 - **Role:** interface-enabler (programmatic perf surface) with a meta
   self-improvement payload.
 - **Cheap multiplier raise spotted:** the legacy `scenario-performance-audit`
-  skill is a hand-rolled LLM/agent flow (throwaway `capture.js`, `node -e`
-  one-liners). This scenario turns that judgment into **deterministic Go code**
+  skill was a hand-rolled LLM/agent flow (throwaway `capture.js`, `node -e`
+  one-liners). This scenario turned that judgment into **deterministic Go code**
   (per-component aggregation, located findings via symbol lookup) — an LLM-to-code
   conversion that removes an entire class of per-run agent cost. Findings are
-  deterministic by mandate (no AI hotspot hypotheses).
+  deterministic by mandate (no AI hotspot hypotheses). The practice skill has
+  since been removed; the `performance` steer skill now drives this engine.
 
 ## Cluster 3 — Compound-value seams
 

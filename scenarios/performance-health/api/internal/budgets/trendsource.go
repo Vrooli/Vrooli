@@ -46,10 +46,9 @@ func SampleToMeasurement(s trend.Sample) Measurement {
 		UIBuildMs:            s.UIBuildMs,
 		BundleBytes:          s.BundleBytes,
 		LCPMs:                s.LCPMs,
-		P95Ms:                s.P95Ms,
 		StartupMs:            s.StartupMs,
 		ComponentCommitAvgMs: s.SlowestComponentAvgMs,
-		ComponentCommitMaxMs: s.SlowestComponentAvgMs,
+		ComponentCommitMaxMs: s.SlowestComponentMaxMs,
 		SlowestComponent:     s.SlowestComponent,
 	}
 }

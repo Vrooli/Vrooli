@@ -39,7 +39,8 @@ type Facts struct {
 
 // FactsClient is the code-facts intake seam: ask Code Facts for a scenario's
 // surfaces + framework, with a filesystem fallback that records a degraded
-// reason. The real implementation lands in P5; tests drive a fake.
+// reason. The production implementation is CodeFactsClient (facts_client.go);
+// tests drive a fake.
 type FactsClient interface {
 	Describe(ctx context.Context, scenario, path string) (Facts, error)
 }

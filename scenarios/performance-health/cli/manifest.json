@@ -168,7 +168,6 @@
             {"name": "ui-build-max-ms", "description": "Maximum UI build time in milliseconds"},
             {"name": "bundle-max-bytes", "description": "Maximum bundle size in bytes"},
             {"name": "lcp-max-ms", "description": "Maximum Largest Contentful Paint in milliseconds"},
-            {"name": "p95-max-ms", "description": "Maximum p95 interaction/latency in milliseconds (where measured)"},
             {"name": "startup-max-ms", "description": "Maximum time-to-healthy in milliseconds"},
             {"name": "component-commit-avg-max-ms", "description": "Maximum per-component average commit time in milliseconds"},
             {"name": "component-commit-max-ms", "description": "Maximum per-component (slowest) commit time in milliseconds"},

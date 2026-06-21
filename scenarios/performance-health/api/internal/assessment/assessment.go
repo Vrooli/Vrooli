@@ -1,11 +1,9 @@
 // Package assessment converts performance-health readiness findings into the
 // shared common.v1.MaturityAssessment that the scenario-validation contract
 // carries to test-genie. It composes packages/maturity-go/assessment so the
-// scoring + clean-requirement rollups stay centralized.
-//
-// SCAFFOLD (P4): readiness emits no findings yet, so the assessment is the
-// empty-findings baseline for the scenario's maturity spec. The mapping enriches
-// automatically once readiness emits real findings in P5.
+// scoring + clean-requirement rollups stay centralized. Readiness findings (one
+// per missing Tier-1 perf-build piece) map into the maturity findings here; a
+// clean scenario yields the empty-findings baseline for its maturity spec.
 package assessment
 
 import (

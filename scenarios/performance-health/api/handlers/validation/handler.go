@@ -48,6 +48,11 @@ type Deps struct {
 	RepoRoot string
 	// Environment is the host CaptureEnvironment captured once at module init.
 	Environment *commonv1.CaptureEnvironment
+	// Execution runs the deterministic perf producers (benchmark + bundle,
+	// Lighthouse-if-UI) and folds breaches into findings when a caller requests
+	// execution-mode validation (include_execution=true). Optional (nil =>
+	// execution mode degrades to readiness + budget-on-existing-trend).
+	Execution ExecutionRunner
 }
 
 // Handler implements the generated native ReadinessServiceHandler.
@@ -60,6 +65,7 @@ type Handler struct {
 	spec      *assessment.Spec
 	repoRoot  string
 	env       *commonv1.CaptureEnvironment
+	execution ExecutionRunner
 }
 
 // NewHandlerWithDeps builds a Handler, defaulting nil collaborators.
@@ -75,26 +81,48 @@ func NewHandlerWithDeps(deps Deps) *Handler {
 		spec:      deps.MaturitySpec,
 		repoRoot:  deps.RepoRoot,
 		env:       deps.Environment,
+		execution: deps.Execution,
 	}
 }
 
 var _ readinessconnect.ReadinessServiceHandler = (*Handler)(nil)
 
 // ValidateReadiness reports the reachable capture tier and the perf-build infra
-// findings for a scenario without writing.
+// findings for a scenario without writing. It is readiness-only (no process is
+// spawned): execution-mode measurement is reached through the shared
+// ScenarioValidationService with include_execution=true.
 func (h *Handler) ValidateReadiness(ctx context.Context, req *connect.Request[readinessv1.ValidateReadinessRequest]) (*connect.Response[readinessv1.ValidateReadinessResponse], error) {
-	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
+	return h.validate(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), false)
+}
+
+// validate is the shared core for both the readiness-only RPC and the shared
+// ScenarioValidationService. When includeExecution is true and an execution
+// runner is wired, it runs the deterministic producers (which persist a fresh
+// perf_samples row) BEFORE evaluating budgets, then folds the execution
+// threshold-breach findings into the assessment alongside readiness + budget
+// findings. When false it is exactly the prior readiness + budget-on-existing-
+// trend behavior (no process spawned).
+func (h *Handler) validate(ctx context.Context, scenario, path string, includeExecution bool) (*connect.Response[readinessv1.ValidateReadinessResponse], error) {
+	if scenario == "" && path == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
 	}
 	if h.readiness == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("readiness engine not wired"))
 	}
-	res, err := h.readiness.Validate(ctx, req.Msg.GetScenario(), req.Msg.GetPath())
+	// Execution mode runs the producers first so the budget gate below reads the
+	// freshly persisted sample. Its findings (build-over-threshold, broken build,
+	// Lighthouse error-threshold) are folded into the assessment.
+	var executionFindings []phassessment.Finding
+	if includeExecution && h.execution != nil {
+		executionFindings = h.execution.Run(ctx, scenario, path)
+	}
+	res, err := h.readiness.Validate(ctx, scenario, path)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	budgetFindings := h.budgetFindings(ctx, res.Scenario)
-	maturity, err := buildAssessment(res, budgetFindings, h.spec)
+	extraFindings := append(executionFindings, budgetFindings...)
+	maturity, err := buildAssessment(res, extraFindings, h.spec)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
@@ -203,8 +231,8 @@ func (h *Handler) budgetFindings(ctx context.Context, scenario string) []phasses
 	return out
 }
 
-func buildAssessment(res readiness.Result, budgetFindings []phassessment.Finding, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
-	findings := make([]phassessment.Finding, 0, len(res.Findings)+len(budgetFindings))
+func buildAssessment(res readiness.Result, extraFindings []phassessment.Finding, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	findings := make([]phassessment.Finding, 0, len(res.Findings)+len(extraFindings))
 	for _, f := range res.Findings {
 		findings = append(findings, phassessment.Finding{
 			Code:             f.Code,
@@ -214,7 +242,20 @@ func buildAssessment(res readiness.Result, budgetFindings []phassessment.Finding
 			AutofixAvailable: f.Autofixable,
 		})
 	}
-	findings = append(findings, budgetFindings...)
+	// Dedupe extra findings by code: the native build-time floor and a declared
+	// budget can both emit e.g. PERF_BUDGET_BREACH_GO_BUILD; the gate only needs
+	// one. First occurrence (execution floor) wins.
+	seen := make(map[string]struct{}, len(findings))
+	for _, f := range findings {
+		seen[f.Code] = struct{}{}
+	}
+	for _, f := range extraFindings {
+		if _, dup := seen[f.Code]; dup {
+			continue
+		}
+		seen[f.Code] = struct{}{}
+		findings = append(findings, f)
+	}
 	return phassessment.Build(res.Scenario, spec, findings)
 }
 
@@ -234,10 +275,12 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("readiness handler not wired"))
 	}
 	collector := metrics.Start(metrics.WithEnvironment(h.handler.env))
-	native, err := h.handler.ValidateReadiness(ctx, connect.NewRequest(&readinessv1.ValidateReadinessRequest{
-		Scenario: req.Msg.GetScenario(),
-		Path:     req.Msg.GetPath(),
-	}))
+	// include_execution honored end-to-end: true => run the deterministic
+	// producers (benchmark + bundle, Lighthouse-if-UI), persist a fresh sample,
+	// then gate on budgets + native thresholds; false => readiness + budget-on-
+	// existing-trend only (no process spawned). The metrics collector wraps the
+	// whole path so the resource envelope covers the builds.
+	native, err := h.handler.validate(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetIncludeExecution())
 	if err != nil {
 		collector.Stop()
 		return nil, err

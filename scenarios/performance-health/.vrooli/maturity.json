@@ -27,7 +27,7 @@
     {
       "id": "L3",
       "name": "Performance budgets honored",
-      "description": "The scenario's declared performance budgets (build time, bundle size, LCP, p95, startup time-to-healthy, component-commit avg/max) are not breached by the newest persisted measurement. A budget breach is an ERROR that fails baseline-diff like any other health regression.",
+      "description": "The scenario's declared performance budgets (build time, bundle size, LCP, startup time-to-healthy, component-commit avg/max) are not breached by the newest persisted measurement, the native build-time floors (go/ui build thresholds from .vrooli/testing.json) hold, and no Lighthouse category scores below its configured error threshold. A breach is an ERROR that fails baseline-diff like any other health regression.",
       "entry_criteria": ["Tier-1 perf-build infra is in place (or vacuous)"],
       "exit_criteria": ["No performance-budget breach is reported against the latest measurement/trend sample"]
     },
@@ -54,7 +54,7 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["scenario-performance-audit", "react-stability"]
+      "recommended_skill_ids": ["performance", "react-stability"]
     },
     "perf_build_profile_script": {
       "local_level_impact": "L2",
@@ -63,7 +63,7 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["scenario-performance-audit", "react-stability"]
+      "recommended_skill_ids": ["performance", "react-stability"]
     },
     "perf_build_profiler_util": {
       "local_level_impact": "L2",
@@ -72,7 +72,7 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["scenario-performance-audit", "react-stability"]
+      "recommended_skill_ids": ["performance", "react-stability"]
     },
     "perf_build_profiler_boundary": {
       "local_level_impact": "L2",
@@ -81,7 +81,7 @@
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
       "fixer_status": "implemented",
-      "recommended_skill_ids": ["scenario-performance-audit", "react-stability"]
+      "recommended_skill_ids": ["performance", "react-stability"]
     },
     "PERF_BUDGET_BREACH_GO_BUILD": {
       "local_level_impact": "L3",
@@ -90,7 +90,7 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "A build-time-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit"]
+      "recommended_skill_ids": ["performance"]
     },
     "PERF_BUDGET_BREACH_UI_BUILD": {
       "local_level_impact": "L3",
@@ -99,7 +99,7 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "A UI-build-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit"]
+      "recommended_skill_ids": ["performance"]
     },
     "PERF_BUDGET_BREACH_BUNDLE": {
       "local_level_impact": "L3",
@@ -108,7 +108,7 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "A bundle-size-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit"]
+      "recommended_skill_ids": ["performance"]
     },
     "PERF_BUDGET_BREACH_LCP": {
       "local_level_impact": "L3",
@@ -117,16 +117,7 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "An LCP-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit"]
-    },
-    "PERF_BUDGET_BREACH_P95": {
-      "local_level_impact": "L3",
-      "global_impact": "hardening_gap",
-      "dimension": "performance",
-      "severity_default": "SEVERITY_ERROR",
-      "fix_class": "manual",
-      "reason": "A p95-latency-budget breach is a real performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit"]
+      "recommended_skill_ids": ["performance"]
     },
     "PERF_BUDGET_BREACH_STARTUP": {
       "local_level_impact": "L3",
@@ -135,7 +126,7 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "A startup time-to-healthy budget breach is a real performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit"]
+      "recommended_skill_ids": ["performance"]
     },
     "PERF_BUDGET_BREACH_COMPONENT_COMMIT_AVG": {
       "local_level_impact": "L3",
@@ -144,7 +135,7 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "A component-commit-average budget breach is a real UI performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit", "react-stability"]
+      "recommended_skill_ids": ["performance", "react-stability"]
     },
     "PERF_BUDGET_BREACH_COMPONENT_COMMIT_MAX": {
       "local_level_impact": "L3",
@@ -153,7 +144,25 @@
       "severity_default": "SEVERITY_ERROR",
       "fix_class": "manual",
       "reason": "A component-commit-max budget breach is a real UI performance regression that requires investigation, not a mechanical fix.",
-      "recommended_skill_ids": ["scenario-performance-audit", "react-stability"]
+      "recommended_skill_ids": ["performance", "react-stability"]
+    },
+    "PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "performance",
+      "severity_default": "SEVERITY_ERROR",
+      "fix_class": "manual",
+      "reason": "A Lighthouse category scoring below its configured error threshold (in .vrooli/lighthouse.json) is a real UI quality/performance regression that requires investigation, not a mechanical fix. This restores the native test-genie perf phase's Lighthouse gating.",
+      "recommended_skill_ids": ["performance", "react-stability"]
+    },
+    "PERF_BUILD_FAILED": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "performance",
+      "severity_default": "SEVERITY_ERROR",
+      "fix_class": "manual",
+      "reason": "A build that fails to compile during execution-mode benchmarking is a hard regression: the scenario cannot ship. This restores the native test-genie perf phase's early-exit-on-broken-build behavior.",
+      "recommended_skill_ids": ["performance"]
     }
   },
   "fallback": {

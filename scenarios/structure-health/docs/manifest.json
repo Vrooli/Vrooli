@@ -337,7 +337,7 @@
           "maturity": "stub",
           "requiredBy": ["deployable", "monetizable"],
           "completion": "required",
-          "ownerSkills": ["deployment-coordinator", "scenario-performance-audit"],
+          "ownerSkills": ["deployment-coordinator", "performance"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Signals", "Logs", "Metrics", "Alerts / Health", "Telemetry Gaps", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"]
@@ -523,25 +523,6 @@
           "ownerSkills": ["security-posture"],
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Data Sensitivity", "Auth And Authorization", "Secrets", "Threat Model", "Security Gaps", "Cross-References"],
-            "forbiddenPlaceholders": ["[TODO]"],
-            "allowNotApplicable": true
-          }
-        },
-        {
-          "path": "internal/PERFORMANCE.md",
-          "docType": "performance",
-          "title": "Performance",
-          "aliases": ["perf", "performance-budgets"],
-          "description": "Performance budgets, measurements, constraints, and regression procedures",
-          "audience": ["developers", "agents", "operators"],
-          "canonicalFor": ["performance", "budgets", "measurements"],
-          "maturity": "stub",
-          "requiredBy": ["validated", "deployable"],
-          "completion": "conditional",
-          "condition": "Required once the scenario has performance-sensitive UX, data, AI, or deployment targets.",
-          "ownerSkills": ["scenario-performance-audit"],
-          "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Budgets", "Current Measurements", "Known Constraints", "Regression Procedure", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"],
             "allowNotApplicable": true
           }

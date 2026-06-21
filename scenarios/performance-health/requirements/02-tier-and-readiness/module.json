@@ -10,40 +10,40 @@
     {
       "id": "PH-TIER-001",
       "title": "Code-Facts-gated tier detection",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "api",
       "criticality": "P0",
       "description": "readiness derives surfaces and UI framework from Code Facts (Connect client with a filesystem fallback that records a degraded reason when Code Facts is unavailable) and decides the reachable tier: no UI → skip browser perf; UI non-React → Tier 0 only; React → Tier 0 + Tier 1; React-but-divergent → flagged. React is never assumed from the filesystem.",
       "tags": ["code-facts", "tier", "react"],
       "validation": [
-        {"type": "test", "ref": "api/internal/readiness/tier_test.go", "phase": "unit", "status": "planned", "notes": "Fake Code Facts client drives the tier matrix (no-UI / non-React / React / divergent); unavailable Code Facts yields a degraded result with an explicit finding."}
+        {"type": "test", "ref": "api/internal/readiness/tier_test.go", "phase": "unit", "status": "implemented", "notes": "Fake Code Facts client drives the tier matrix (no-UI / non-React / React / divergent); unavailable Code Facts yields a degraded result with an explicit finding."}
       ]
     },
     {
       "id": "PH-TIER-002",
       "title": "Detect Tier-1 perf-build infrastructure",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "api",
       "criticality": "P0",
       "description": "Readiness detects the four perf-build infra pieces (vite profile-mode react-dom/profiling alias + keepNames:true, a build:profile script, lib/profiler.ts onProfilerRender, a top-level <React.Profiler> boundary) and emits a finding per missing piece with autofixable_count.",
       "tags": ["readiness", "profiling", "findings"],
       "validation": [
-        {"type": "test", "ref": "api/internal/readiness/readiness_test.go", "phase": "unit", "status": "planned", "notes": "Fixtures cover fully-instrumented, each-single-piece-missing, and fully-bare react-vite scenarios."}
+        {"type": "test", "ref": "api/internal/readiness/readiness_test.go", "phase": "unit", "status": "implemented", "notes": "Fixtures cover fully-instrumented, each-single-piece-missing, and fully-bare react-vite scenarios."}
       ]
     },
     {
       "id": "PH-TIER-003",
       "title": "Format-preserving readiness autofix",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "api",
       "criticality": "P0",
       "description": "Autofix uses the shared packages/maturity-go/autofix helper to add the missing perf-build infra via format-preserving edits; dry-run is the default, --apply writes, and apply-twice is a single change (idempotent).",
       "tags": ["autofix", "maturity-go", "idempotent"],
       "validation": [
-        {"type": "test", "ref": "api/internal/autofix/autofix_test.go", "phase": "unit", "status": "planned", "notes": "Preview/apply on a bare react-vite scenario reaches Tier-1-ready; apply-twice is a no-op; unknown fields and key order survive."}
+        {"type": "test", "ref": "api/internal/autofix/autofix_test.go", "phase": "unit", "status": "implemented", "notes": "Preview/apply on a bare react-vite scenario reaches Tier-1-ready; apply-twice is a no-op; unknown fields and key order survive."}
       ]
     }
   ]

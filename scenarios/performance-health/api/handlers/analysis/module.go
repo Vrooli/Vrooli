@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"database/sql"
 	"log"
 
 	internalanalysis "performance-health/internal/analysis"
 	"performance-health/internal/module"
+	"performance-health/internal/trend"
 
 	"github.com/gorilla/mux"
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/analysis"
@@ -22,13 +24,17 @@ const DefaultCommitBudgetMs = 8.0
 // blink.user_timing begin/end marks by id2.local into a per-component table,
 // derives long-task / paint / LCP from the sibling web-vitals, and locates hot
 // components (component → file:line) within the scenario's ui/src.
-func Module(logger *log.Logger, repoRoot string) module.Module {
+func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
 	loader := internalanalysis.FileTraceLoader{
 		Locator:  internalanalysis.SourceLocator{RepoRoot: repoRoot},
 		BudgetMs: DefaultCommitBudgetMs,
 	}
 	svc := internalanalysis.NewService(loader)
-	handler := NewHandler(svc, logger)
+	var trendWriter SampleWriter
+	if db != nil {
+		trendWriter = trend.NewStore(db)
+	}
+	handler := NewHandler(svc, trendWriter, logger)
 	path, connectHandler := analysisconnect.NewAnalysisServiceHandler(handler)
 	return module.Module{
 		Name: "analysis",

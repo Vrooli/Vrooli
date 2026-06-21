@@ -103,7 +103,6 @@
       "uiBuild": "UI build",
       "bundle": "Bundle size",
       "lcp": "LCP",
-      "p95": "p95 interaction",
       "component": "Slowest component",
       "startup": "Startup"
     },
@@ -220,8 +219,7 @@
       "uiBuild": "UI build max (ms)",
       "bundle": "Bundle max (bytes)",
       "lcp": "LCP max (ms)",
-      "startup": "Startup max (ms)",
-      "p95": "p95 max (ms)"
+      "startup": "Startup max (ms)"
     },
     "checkResult": {
       "title": "Budget check",

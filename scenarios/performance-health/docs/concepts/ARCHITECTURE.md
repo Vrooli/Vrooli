@@ -144,6 +144,45 @@ should return a proto-typed metadata message (e.g.
 Drift between API/UI/CLI is eliminated as long as the wire payload type
 is shared.
 
+### Execution-mode validation & failure policy
+
+`handlers/validation` dual-mounts the native `ReadinessService` and the
+shared `scenario-validation/v1 ScenarioValidationService`. The shared
+service is what test-genie's **Performance phase** delegates to, and it
+honors the request's `include_execution` flag:
+
+- **`include_execution=false`** (readiness/inspection only): decide the
+  capture tier + perf-build infra findings and evaluate declared budgets
+  against the *newest already-persisted* trend sample. No process is
+  spawned, no build is run. This is the fast path the native
+  `ReadinessService` RPC and `performance-health audit` use.
+- **`include_execution=true`** (execution mode; test-genie's Performance
+  delegate sends this): the `ExecutionOrchestrator` runs the deterministic
+  producers first — the build benchmark (Go + UI, with a cheap bundle-size
+  stat) and Lighthouse-if-UI — persists ONE combined `perf_samples` row,
+  then evaluates budgets + the native build-time thresholds against it.
+  Startup is intentionally **not** run here (see *Intentional Deviations*).
+
+**What FAILS the phase** (`VALIDATION_STATUS_FAILED` → baseline-diff exit 1),
+all mapped to ERROR-severity findings folded into the assessment:
+
+| Cause | Finding code |
+|---|---|
+| Go/UI build over the `.vrooli/testing.json` native floor (default 90s/180s) | `PERF_BUDGET_BREACH_GO_BUILD` / `_UI_BUILD` |
+| Declared `.vrooli/perf-budgets.json` budget breach (any axis) | `PERF_BUDGET_BREACH_<AXIS>` |
+| Build fails to compile during the benchmark | `PERF_BUILD_FAILED` |
+| Lighthouse category below its configured **error** threshold | `PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD` |
+
+**What only WARNS** (non-failing): missing Tier-1 perf-build infra
+(autofixable readiness findings). **What SKIPS (never fails):** absent Go
+toolchain / package manager, no resolvable UI URL or absent Lighthouse
+CLI, and any producer error — all degrade to skip-not-fail. A budget axis
+with no measured value this run (zero) is "not measured" and never trips.
+
+The native build-time floor (testing.json thresholds) is the default
+budget every scenario inherits; a declared `perf-budgets.json` budget
+tightens it further and the ratchet keeps it tighten-only.
+
 ## Shared Infrastructure
 
 Shared infrastructure is allowed only when the code is

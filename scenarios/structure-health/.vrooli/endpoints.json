@@ -79,73 +79,6 @@
       ]
     },
     {
-      "id": "perf_benchmark_startup",
-      "path": "/vrooli.structure_health.v1.perf.PerfService/BenchmarkStartup",
-      "method": "POST",
-      "summary": "Benchmark a scenario's startup performance",
-      "description": "Restarts the target scenario, records per-surface time-to-healthy plus a resource envelope (CPU/mem/GPU/host facts), persists a trend row, and returns the measurement. Decoupled from validation — never invoked by a test-genie phase.",
-      "category": "perf",
-      "request": {
-        "type": "object",
-        "properties": {
-          "scenario": "string",
-          "timeout_seconds": "int32"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "measurement": "PerfMeasurement"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Scenario is missing"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Restart/measurement failure"
-        }
-      ]
-    },
-    {
-      "id": "perf_get_perf_trend",
-      "path": "/vrooli.structure_health.v1.perf.PerfService/GetPerfTrend",
-      "method": "POST",
-      "summary": "Read a scenario's persisted startup-performance trend",
-      "description": "Returns the persisted startup measurements for a scenario, newest first.",
-      "category": "perf",
-      "request": {
-        "type": "object",
-        "properties": {
-          "limit": "int32",
-          "scenario": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "measurements": "array<PerfMeasurement>",
-          "scenario": "string"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Scenario is missing"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Trend read failure"
-        }
-      ]
-    },
-    {
       "id": "validation_validate_scenario",
       "path": "/vrooli.structure_health.v1.validation.ValidationService/ValidateScenario",
       "method": "POST",
@@ -266,6 +199,70 @@
           "native_detail": "google.protobuf.Any<structure_health.v1.validation.ValidateScenarioResponse>",
           "scenario": "string",
           "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic structure fixes through the shared provider contract",
+      "description": "Returns the format-preserving service.json edits and skeleton files structure-health could apply for the requested rules, in the shared scenario-validation FixResponse shape, without writing anything.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic structure fixes through the shared provider contract",
+      "description": "Applies the format-preserving service.json edits and skeleton files for the requested rules and reports what changed, in the shared scenario-validation FixResponse shape.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
         }
       },
       "errors": [

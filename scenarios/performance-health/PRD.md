@@ -52,6 +52,6 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 ## 📎 Appendix
 - Source plan: `~/.vrooli/plans/performance-health-scenario-bas-perf-capture-test-genie-perf-phase-migration.md`
 - Sibling reference scenarios: `scenarios/unit-health` (dual-mount + code-facts-with-fallback pattern), `scenarios/structure-health` (perf-store + fleet pattern; its `perf` domain moves here in a later phase), `scenarios/quality-health` (autofix origin).
-- Productized skill: `scenario-performance-audit` (the hand-rolled capture+analysis flow this scenario turns into a real capability).
+- Productized skill: the legacy `scenario-performance-audit` practice skill (the hand-rolled capture+analysis flow this scenario turned into a real capability; the skill has since been removed and the `performance` steer skill now drives this engine).
 - Ecosystem fit: see `docs/internal/ECOSYSTEM_FIT.md`.
 - Local maturity ladder: `.vrooli/maturity.json` (provider=`performance-health`, phase=`performance`).

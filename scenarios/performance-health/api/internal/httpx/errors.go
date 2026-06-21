@@ -77,6 +77,9 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		status = http.StatusInternalServerError
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// Defense-in-depth: tell the browser not to MIME-sniff the body away from the
+	// declared JSON type (OWASP Secure Headers — X-Content-Type-Options).
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }
@@ -91,6 +94,7 @@ func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

@@ -5,9 +5,10 @@
 // (file:line via symbol lookup). NO AI — findings are deterministic. A
 // before/after comparison primitive diffs two traces of the same interaction.
 //
-// The real aggregation (ported from the scenario-performance-audit skill's
-// Phase 5) lives in FileTraceLoader (parser.go) behind the TraceLoader seam;
-// SourceLocator (locate.go) does deterministic component→file:line resolution.
+// The real aggregation (which productizes the legacy hand-rolled perf-audit
+// analysis step) lives in FileTraceLoader (parser.go) behind the TraceLoader
+// seam; SourceLocator (locate.go) does deterministic component→file:line
+// resolution.
 package analysis
 
 import (

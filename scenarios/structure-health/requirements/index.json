@@ -10,7 +10,7 @@
     "03-structure-and-lifecycle-rules/module.json",
     "04-profile-conformance/module.json",
     "05-autofix/module.json",
-    "06-fleet-and-perf/module.json",
+    "06-fleet/module.json",
     "07-integration-and-cli/module.json"
   ]
 }

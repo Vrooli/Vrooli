@@ -52,7 +52,6 @@ describe("TrendsView (cimode — copy-independent)", () => {
           uiBuildMs: 5000n,
           bundleBytes: 2_000_000n,
           lcpMs: 800n,
-          p95Ms: 120n,
           slowestComponent: "List",
           slowestComponentAvgMs: 4.2,
           note: "first sample",

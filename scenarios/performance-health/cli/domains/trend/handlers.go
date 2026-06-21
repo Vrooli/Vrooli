@@ -36,10 +36,10 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	}
 	results := make([]string, 0, len(resp.Msg.GetSamples()))
 	for _, s := range resp.Msg.GetSamples() {
-		line := fmt.Sprintf("%s — go=%dms ui=%dms bundle=%dB lcp=%dms p95=%dms startup=%dms",
-			s.GetCapturedAt(), s.GetGoBuildMs(), s.GetUiBuildMs(), s.GetBundleBytes(), s.GetLcpMs(), s.GetP95Ms(), s.GetStartupMs())
+		line := fmt.Sprintf("%s — go=%dms ui=%dms bundle=%dB lcp=%dms startup=%dms",
+			s.GetCapturedAt(), s.GetGoBuildMs(), s.GetUiBuildMs(), s.GetBundleBytes(), s.GetLcpMs(), s.GetStartupMs())
 		if s.GetSlowestComponent() != "" {
-			line += fmt.Sprintf(" slowest=%s@%.1fms", s.GetSlowestComponent(), s.GetSlowestComponentAvgMs())
+			line += fmt.Sprintf(" slowest=%s@%.1fms(max %.1fms)", s.GetSlowestComponent(), s.GetSlowestComponentAvgMs(), s.GetSlowestComponentMaxMs())
 		}
 		results = append(results, line)
 	}

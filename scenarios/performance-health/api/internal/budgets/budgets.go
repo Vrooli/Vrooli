@@ -1,6 +1,6 @@
 // Package budgets owns per-scenario performance budgets (build time, bundle
-// size, LCP, p95-where-available, startup, and component-commit budgets — avg
-// and max) plus a ratchet (tighten-only). Budgets are declarative in scenario
+// size, LCP, startup, and component-commit budgets — avg and max) plus a
+// ratchet (tighten-only). Budgets are declarative in scenario
 // config (.vrooli/perf-budgets.json); CheckBudget evaluates the latest measured
 // sample against the budget and reports violations — the signal a baseline-diff
 // turns into an exit-1 regression through the maturity finding pipeline.
@@ -24,7 +24,6 @@ type Budget struct {
 	UIBuildMaxMs   int64
 	BundleMaxBytes int64
 	LCPMaxMs       int64
-	P95MaxMs       int64
 	StartupMaxMs   int64
 	// ComponentCommitAvgMaxMs caps the slowest component's AVERAGE commit time.
 	ComponentCommitAvgMaxMs float64
@@ -38,7 +37,7 @@ type Budget struct {
 // IsSet reports whether the budget declares at least one positive threshold.
 func (b Budget) IsSet() bool {
 	return b.GoBuildMaxMs > 0 || b.UIBuildMaxMs > 0 || b.BundleMaxBytes > 0 ||
-		b.LCPMaxMs > 0 || b.P95MaxMs > 0 || b.StartupMaxMs > 0 ||
+		b.LCPMaxMs > 0 || b.StartupMaxMs > 0 ||
 		b.ComponentCommitAvgMaxMs > 0 || b.ComponentCommitMaxMs > 0
 }
 
@@ -50,7 +49,6 @@ type Measurement struct {
 	UIBuildMs            int64
 	BundleBytes          int64
 	LCPMs                int64
-	P95Ms                int64
 	StartupMs            int64
 	ComponentCommitAvgMs float64
 	ComponentCommitMaxMs float64
@@ -160,7 +158,6 @@ func enforceRatchet(existing, incoming Budget) error {
 		loosened("ui_build", existing.UIBuildMaxMs, incoming.UIBuildMaxMs),
 		loosened("bundle", existing.BundleMaxBytes, incoming.BundleMaxBytes),
 		loosened("lcp", existing.LCPMaxMs, incoming.LCPMaxMs),
-		loosened("p95", existing.P95MaxMs, incoming.P95MaxMs),
 		loosened("startup", existing.StartupMaxMs, incoming.StartupMaxMs),
 		loosenedF("component_commit_avg", existing.ComponentCommitAvgMaxMs, incoming.ComponentCommitAvgMaxMs),
 		loosenedF("component_commit_max", existing.ComponentCommitMaxMs, incoming.ComponentCommitMaxMs),
@@ -255,7 +252,6 @@ func Evaluate(b Budget, m Measurement) []Violation {
 	checkInt("ui_build", m.UIBuildMs, b.UIBuildMaxMs, "ms")
 	checkInt("bundle", m.BundleBytes, b.BundleMaxBytes, "bytes")
 	checkInt("lcp", m.LCPMs, b.LCPMaxMs, "ms")
-	checkInt("p95", m.P95Ms, b.P95MaxMs, "ms")
 	checkInt("startup", m.StartupMs, b.StartupMaxMs, "ms")
 
 	checkFloat := func(axis string, measured, budget float64, detail string) {

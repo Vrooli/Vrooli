@@ -34,7 +34,6 @@ type budgetRecord struct {
 	UIBuildMaxMs            int64   `json:"ui_build_max_ms,omitempty"`
 	BundleMaxBytes          int64   `json:"bundle_max_bytes,omitempty"`
 	LCPMaxMs                int64   `json:"lcp_max_ms,omitempty"`
-	P95MaxMs                int64   `json:"p95_max_ms,omitempty"`
 	StartupMaxMs            int64   `json:"startup_max_ms,omitempty"`
 	ComponentCommitAvgMaxMs float64 `json:"component_commit_avg_max_ms,omitempty"`
 	ComponentCommitMaxMs    float64 `json:"component_commit_max_ms,omitempty"`
@@ -48,7 +47,6 @@ func (r budgetRecord) toBudget(scenario string) Budget {
 		UIBuildMaxMs:            r.UIBuildMaxMs,
 		BundleMaxBytes:          r.BundleMaxBytes,
 		LCPMaxMs:                r.LCPMaxMs,
-		P95MaxMs:                r.P95MaxMs,
 		StartupMaxMs:            r.StartupMaxMs,
 		ComponentCommitAvgMaxMs: r.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    r.ComponentCommitMaxMs,
@@ -62,7 +60,6 @@ func recordFromBudget(b Budget) budgetRecord {
 		UIBuildMaxMs:            b.UIBuildMaxMs,
 		BundleMaxBytes:          b.BundleMaxBytes,
 		LCPMaxMs:                b.LCPMaxMs,
-		P95MaxMs:                b.P95MaxMs,
 		StartupMaxMs:            b.StartupMaxMs,
 		ComponentCommitAvgMaxMs: b.ComponentCommitAvgMaxMs,
 		ComponentCommitMaxMs:    b.ComponentCommitMaxMs,

@@ -130,7 +130,7 @@ func (r *CLIRunner) Run(ctx context.Context, scenario, path string) (Result, err
 
 	// Surface: UI build (ui/). Skipped cleanly when there is no UI workspace,
 	// no build script, or no package manager.
-	uiTiming, uiReason, uiFailed := r.benchmarkUI(ctx, root, th, exec, lookup)
+	uiTiming, bundleBytes, uiReason, uiFailed := r.benchmarkUI(ctx, root, th, exec, lookup)
 	if uiTiming != nil {
 		timings = append(timings, *uiTiming)
 	}
@@ -141,23 +141,25 @@ func (r *CLIRunner) Run(ctx context.Context, scenario, path string) (Result, err
 	if len(timings) == 0 {
 		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Reason: "no buildable surfaces (no api/ or ui/)"}, nil
 	}
-	return Result{Scenario: scenario, Outcome: OutcomeMeasured, Timings: MarkOverBudget(timings)}, nil
+	return Result{Scenario: scenario, Outcome: OutcomeMeasured, Timings: MarkOverBudget(timings), BundleBytes: bundleBytes}, nil
 }
 
-// benchmarkUI times the UI build, returning (timing, reason, failed). A nil
-// timing with empty reason means the UI surface was cleanly skipped.
-func (r *CLIRunner) benchmarkUI(ctx context.Context, root string, th thresholds, exec CommandExecutor, lookup CommandLookup) (*BuildTiming, string, bool) {
+// benchmarkUI times the UI build, returning (timing, bundleBytes, reason,
+// failed). A nil timing with empty reason means the UI surface was cleanly
+// skipped. bundleBytes is the total size of the production build output dir,
+// measured right after a successful build (0 when no output dir is found).
+func (r *CLIRunner) benchmarkUI(ctx context.Context, root string, th thresholds, exec CommandExecutor, lookup CommandLookup) (*BuildTiming, int64, string, bool) {
 	uiDir := detectWorkspaceDir(root)
 	if uiDir == "" {
-		return nil, "", false
+		return nil, 0, "", false
 	}
 	manifest, ok := loadPackageManifest(filepath.Join(uiDir, "package.json"))
 	if !ok || strings.TrimSpace(manifest.Scripts["build"]) == "" {
-		return nil, "", false
+		return nil, 0, "", false
 	}
 	pm := detectPackageManager(manifest, uiDir)
 	if _, lerr := lookup(pm); lerr != nil {
-		return nil, "", false
+		return nil, 0, "", false
 	}
 	dur, berr := timeBuild(ctx, exec, uiDir, pm, "run", "build")
 	timing := &BuildTiming{
@@ -167,9 +169,36 @@ func (r *CLIRunner) benchmarkUI(ctx context.Context, root string, th thresholds,
 		OverBudget: th.uiBuildMax > 0 && dur > th.uiBuildMax,
 	}
 	if berr != nil {
-		return timing, "ui build failed: " + berr.Error(), true
+		return timing, 0, "ui build failed: " + berr.Error(), true
 	}
-	return timing, "", false
+	return timing, measureBundleBytes(uiDir), "", false
+}
+
+// measureBundleBytes sums the file sizes under the UI build output dir. Vite's
+// default output is <uiDir>/dist; it falls back to build/ and out/ for other
+// toolchains. Returns 0 when no known output dir exists (cheap stat walk; never
+// fails the benchmark).
+func measureBundleBytes(uiDir string) int64 {
+	for _, name := range []string{"dist", "build", "out"} {
+		dir := filepath.Join(uiDir, name)
+		if !isDir(dir) {
+			continue
+		}
+		var total int64
+		_ = filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil //nolint:nilerr // best-effort sizing; skip unreadable entries
+			}
+			if info, ierr := d.Info(); ierr == nil {
+				total += info.Size()
+			}
+			return nil
+		})
+		if total > 0 {
+			return total
+		}
+	}
+	return 0
 }
 
 func (r *CLIRunner) resolveRoot(scenario, path string) (string, error) {

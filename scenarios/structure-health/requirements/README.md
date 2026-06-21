@@ -13,7 +13,7 @@ requirement's `prd_ref` / `criticality`).
 | `03-structure-and-lifecycle-rules` | OT-P0-001, OT-P0-002 — skeleton, freshness, lifecycle-wiring, production-serving, dependency rules |
 | `04-profile-conformance` | OT-P0-003 — profile-keyed packs, default-profile parity, advisory relaxation |
 | `05-autofix` | OT-P1-001, OT-P1-002 — shared `maturity-go/autofix`, format-preserving fixers, coverage metric |
-| `06-fleet-and-perf` | OT-P1-003, OT-P2-001 — fleet structural intelligence, startup-perf benchmark |
+| `06-fleet` | OT-P1-003 — fleet structural intelligence |
 | `07-integration-and-cli` | OT-P0-005, OT-P1-004 — Test Genie provider cutover, thin human-default CLI |
 
 ## Auto-Sync Behavior

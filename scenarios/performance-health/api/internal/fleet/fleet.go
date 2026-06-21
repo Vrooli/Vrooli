@@ -5,8 +5,10 @@
 // search-hub data provider; the CLI verbs are discoverable through cli-health's
 // command index.
 //
-// SCAFFOLD (P4): the per-scenario grader is stubbed behind the Grader seam. The
-// real grader (composing readiness + budgets + trend) lands in P8.
+// Per-scenario grading sits behind the Grader seam; the production grader
+// (composing readiness tier + budget config + persisted trend) lives in
+// handlers/fleet and is injected here, so this package stays testable with a
+// fake grader.
 package fleet
 
 import (

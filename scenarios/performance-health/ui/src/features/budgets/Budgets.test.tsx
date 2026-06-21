@@ -39,7 +39,6 @@ const declaredBudget = {
     bundleMaxBytes: 0n,
     lcpMaxMs: 2500n,
     startupMaxMs: 0n,
-    p95MaxMs: 0n,
     ratchet: true,
   },
   declared: true,

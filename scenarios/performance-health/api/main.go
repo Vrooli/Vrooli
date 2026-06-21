@@ -141,7 +141,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "performance-health-api", "1.0.0"),
-		analysisH.Module(logger, repoRoot),
+		analysisH.Module(logger, repoRoot, db.Primary()),
 		auditH.Module(logger, repoRoot),
 		benchmarkH.Module(logger, repoRoot, db.Primary()),
 		budgetsH.Module(logger, repoRoot, db.Primary()),

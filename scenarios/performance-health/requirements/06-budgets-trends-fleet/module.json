@@ -10,53 +10,53 @@
     {
       "id": "PH-BUDGET-001",
       "title": "Declarative budgets with ratchet",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "api",
       "criticality": "P1",
       "description": "A per-scenario budget model (build time, bundle size, LCP, component-commit budgets, p95 where available) with a ratchet; budget view/edit is exposed and a breach is computed as a regression.",
       "tags": ["budgets", "ratchet", "regression"],
       "validation": [
-        {"type": "test", "ref": "api/internal/budgets/budgets_test.go", "phase": "unit", "status": "planned", "notes": "Budget load/edit round-trip; breach detection per dimension; ratchet tightening behavior."}
+        {"type": "test", "ref": "api/internal/budgets/budgets_test.go", "phase": "unit", "status": "implemented", "notes": "Budget load/edit round-trip; breach detection per dimension; ratchet tightening behavior."}
       ]
     },
     {
       "id": "PH-BUDGET-002",
       "title": "Baseline-diff gating",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "api",
       "criticality": "P1",
       "description": "A perf regression vs. budget/trend fails through git-control-tower baseline diff (exit 1) like any other health regression.",
       "tags": ["baseline-diff", "gating", "regression"],
       "validation": [
-        {"type": "test", "ref": "api/internal/budgets/baseline_test.go", "phase": "unit", "status": "planned", "notes": "A regression produces a baseline-diff-failing verdict; a within-budget run is clean."}
+        {"type": "test", "ref": "api/internal/budgets/baseline_test.go", "phase": "unit", "status": "implemented", "notes": "A regression produces a baseline-diff-failing verdict; a within-budget run is clean."}
       ]
     },
     {
       "id": "PH-TREND-001",
       "title": "Additive SQLite trend storage",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "api",
       "criticality": "P1",
       "description": "A SQLite trend seam (schema.sql, modeled on structure-health's perf store and test-genie self-health snapshots) persists per-run measurements additively (never destructive); trend reads newest-first, scoped per scenario.",
       "tags": ["trend", "sqlite", "additive"],
       "validation": [
-        {"type": "test", "ref": "api/internal/trend/store_test.go", "phase": "unit", "status": "planned", "notes": "Store round-trip, newest-first scoping, and non-destructive append across runs."}
+        {"type": "test", "ref": "api/internal/trend/store_test.go", "phase": "unit", "status": "implemented", "notes": "Store round-trip, newest-first scoping, and non-destructive append across runs."}
       ]
     },
     {
       "id": "PH-FLEET-001",
       "title": "Deterministic fleet offender queries",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "api",
       "criticality": "P1",
       "description": "fleet rolls up deterministic structured offender queries (no perf budget, slowest builds, recent regressions, tier distribution) — NOT a search-hub semantic provider; a failing scenario is recorded and the scan continues.",
       "tags": ["fleet", "rollup", "resilience"],
       "validation": [
-        {"type": "test", "ref": "api/internal/fleet/fleet_test.go", "phase": "unit", "status": "planned", "notes": "Scan aggregates offenders and tier distribution; a failing scenario is recorded and the scan continues over the rest."}
+        {"type": "test", "ref": "api/internal/fleet/fleet_test.go", "phase": "unit", "status": "implemented", "notes": "Scan aggregates offenders and tier distribution; a failing scenario is recorded and the scan continues over the rest."}
       ]
     }
   ]

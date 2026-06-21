@@ -47,46 +47,6 @@
       ]
     },
     {
-      "name": "perf",
-      "description": "Benchmark scenario startup performance and read the persisted trend (decoupled from validation; never run by a test phase)",
-      "commands": [
-        {
-          "name": "measure",
-          "description": "Restart a scenario and record its startup performance (time-to-healthy + resource envelope) to the persisted trend. This restarts the target scenario.",
-          "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to benchmark" }
-          ],
-          "flags": [
-            { "name": "timeout", "description": "Max seconds to wait for the scenario to report healthy (0 = default)" },
-            { "name": "json", "description": "Emit JSON output" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "PerfService", "method": "BenchmarkStartup" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "trend",
-          "description": "Read a scenario's persisted startup-performance measurements, newest first",
-          "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to read the trend for" }
-          ],
-          "flags": [
-            { "name": "limit", "description": "Maximum measurements to return (0 = default)" },
-            { "name": "json", "description": "Emit JSON output" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "PerfService", "method": "GetPerfTrend" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        }
-      ]
-    },
-    {
       "name": "fix-config",
       "description": "Preview or apply deterministic structure and service.json fixes",
       "commands": [
@@ -138,6 +98,16 @@
       "service": "ScenarioValidationService",
       "method": "ValidateScenario",
       "reason": "Shared cross-scenario validation surface exposed alongside this scenario's own ValidationService; the CLI 'validate scenario' command targets the scenario-local ValidationService."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Shared cross-scenario fix surface exposed alongside this scenario's own ValidationService; the CLI 'fix-config' commands target the scenario-local ValidationService autofix path."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Shared cross-scenario fix surface exposed alongside this scenario's own ValidationService; the CLI 'fix-config' commands target the scenario-local ValidationService autofix path."
     }
   ]
 }

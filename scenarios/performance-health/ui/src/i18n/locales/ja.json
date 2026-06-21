@@ -103,7 +103,6 @@
       "uiBuild": "UIビルド",
       "bundle": "バンドルサイズ",
       "lcp": "LCP",
-      "p95": "p95インタラクション",
       "component": "最も遅いコンポーネント",
       "startup": "起動"
     },
@@ -219,8 +218,7 @@
       "uiBuild": "UIビルド最大値 (ms)",
       "bundle": "バンドル最大値 (bytes)",
       "lcp": "LCP最大値 (ms)",
-      "startup": "起動最大値 (ms)",
-      "p95": "p95最大値 (ms)"
+      "startup": "起動最大値 (ms)"
     },
     "checkResult": {
       "title": "予算チェック",

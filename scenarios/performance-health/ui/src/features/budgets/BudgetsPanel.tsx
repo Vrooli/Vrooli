@@ -22,8 +22,7 @@ type IntField =
   | "uiBuildMaxMs"
   | "bundleMaxBytes"
   | "lcpMaxMs"
-  | "startupMaxMs"
-  | "p95MaxMs";
+  | "startupMaxMs";
 
 type LeafKeys<T> = T extends string ? T : T extends object ? LeafKeys<T[keyof T]> : never;
 type TKey = LeafKeys<typeof strings>;
@@ -34,7 +33,6 @@ const INT_FIELDS: { key: IntField; labelKey: TKey }[] = [
   { key: "bundleMaxBytes", labelKey: strings.budgets.field.bundle },
   { key: "lcpMaxMs", labelKey: strings.budgets.field.lcp },
   { key: "startupMaxMs", labelKey: strings.budgets.field.startup },
-  { key: "p95MaxMs", labelKey: strings.budgets.field.p95 },
 ];
 
 /**
@@ -66,7 +64,6 @@ export function BudgetsPanel() {
       bundleMaxBytes: intToInput(b.bundleMaxBytes),
       lcpMaxMs: intToInput(b.lcpMaxMs),
       startupMaxMs: intToInput(b.startupMaxMs),
-      p95MaxMs: intToInput(b.p95MaxMs),
     });
     setRatchet(b.ratchet);
   }, [budgetQuery.data]);
@@ -257,7 +254,6 @@ function emptyDraft(): Record<IntField, string> {
     bundleMaxBytes: "",
     lcpMaxMs: "",
     startupMaxMs: "",
-    p95MaxMs: "",
   };
 }
 
@@ -283,7 +279,6 @@ function buildBudget(
     bundleMaxBytes: inputToInt(draft.bundleMaxBytes),
     lcpMaxMs: inputToInt(draft.lcpMaxMs),
     startupMaxMs: inputToInt(draft.startupMaxMs),
-    p95MaxMs: inputToInt(draft.p95MaxMs),
     ratchet,
   });
 }

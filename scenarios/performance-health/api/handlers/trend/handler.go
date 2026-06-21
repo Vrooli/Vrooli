@@ -52,9 +52,9 @@ func (h *Handler) GetTrend(ctx context.Context, req *connect.Request[trendv1.Get
 			BundleBytes:           s.BundleBytes,
 			LcpMs:                 s.LCPMs,
 			StartupMs:             s.StartupMs,
-			P95Ms:                 s.P95Ms,
 			SlowestComponent:      s.SlowestComponent,
 			SlowestComponentAvgMs: s.SlowestComponentAvgMs,
+			SlowestComponentMaxMs: s.SlowestComponentMaxMs,
 			Note:                  s.Note,
 		})
 	}

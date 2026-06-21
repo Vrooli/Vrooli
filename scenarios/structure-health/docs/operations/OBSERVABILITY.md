@@ -33,7 +33,6 @@ Use this document to answer:
 |---|---|---|
 | Product activation | deferred | Define after PRD users and workflows are real. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
-| Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |
 
 ## Alerts / Health
 
@@ -53,4 +52,3 @@ expectations are known.
 - [`RUNBOOK.md`](RUNBOOK.md) — operational procedures
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — readiness gates
 - [`../business/MONETIZATION.md`](../business/MONETIZATION.md) — business validation signals
-- [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) — performance measurements

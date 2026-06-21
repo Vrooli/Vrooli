@@ -1,10 +1,8 @@
 // Package trend persists and reads per-scenario performance samples (build time,
 // startup, LCP, bundle size) as an additive, newest-first trend. Writes are
 // never destructive. Modeled on structure-health's perf store and the
-// test-genie self-health snapshots.
-//
-// SCAFFOLD (P4): the store + service are functional; the producers that write
-// samples (benchmark, audit/analysis, startup) wire into Insert in P6–P8.
+// test-genie self-health snapshots. Sample producers (the benchmark and startup
+// domains) write through Insert.
 package trend
 
 import (
@@ -40,9 +38,9 @@ type Sample struct {
 	BundleBytes           int64
 	LCPMs                 int64
 	StartupMs             int64
-	P95Ms                 int64
 	SlowestComponent      string
 	SlowestComponentAvgMs float64
+	SlowestComponentMaxMs float64
 	Note                  string
 }
 
@@ -69,11 +67,11 @@ func (s *Store) Insert(ctx context.Context, sample Sample) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO perf_samples
 			(scenario, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
-			 p95_ms, slowest_component, slowest_component_avg_ms, note)
+			 slowest_component, slowest_component_avg_ms, slowest_component_max_ms, note)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		sample.Scenario, capturedAt.UTC().Format(timeLayout), sample.GoBuildMs, sample.UIBuildMs,
 		sample.BundleBytes, sample.LCPMs, sample.StartupMs,
-		sample.P95Ms, sample.SlowestComponent, sample.SlowestComponentAvgMs, sample.Note,
+		sample.SlowestComponent, sample.SlowestComponentAvgMs, sample.SlowestComponentMaxMs, sample.Note,
 	)
 	if err != nil {
 		return fmt.Errorf("trend: insert sample: %w", err)
@@ -95,7 +93,7 @@ func (s *Store) Series(ctx context.Context, scenario string, limit int) ([]Sampl
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT scenario, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
-			p95_ms, slowest_component, slowest_component_avg_ms, note
+			slowest_component, slowest_component_avg_ms, slowest_component_max_ms, note
 		FROM perf_samples
 		WHERE scenario = ?
 		ORDER BY captured_at DESC, id DESC
@@ -113,7 +111,7 @@ func (s *Store) Series(ctx context.Context, scenario string, limit int) ([]Sampl
 		)
 		if scanErr := rows.Scan(&sample.Scenario, &capturedAt, &sample.GoBuildMs, &sample.UIBuildMs,
 			&sample.BundleBytes, &sample.LCPMs, &sample.StartupMs,
-			&sample.P95Ms, &sample.SlowestComponent, &sample.SlowestComponentAvgMs, &sample.Note); scanErr != nil {
+			&sample.SlowestComponent, &sample.SlowestComponentAvgMs, &sample.SlowestComponentMaxMs, &sample.Note); scanErr != nil {
 			return nil, fmt.Errorf("trend: scan sample: %w", scanErr)
 		}
 		if t, perr := time.Parse(timeLayout, capturedAt); perr == nil {
@@ -170,9 +168,9 @@ func EnsureColumns(ctx context.Context, db Executor) error {
 		return nil
 	}
 	additive := []struct{ name, ddl string }{
-		{"p95_ms", "ALTER TABLE perf_samples ADD COLUMN p95_ms INTEGER NOT NULL DEFAULT 0"},
 		{"slowest_component", "ALTER TABLE perf_samples ADD COLUMN slowest_component TEXT NOT NULL DEFAULT ''"},
 		{"slowest_component_avg_ms", "ALTER TABLE perf_samples ADD COLUMN slowest_component_avg_ms REAL NOT NULL DEFAULT 0"},
+		{"slowest_component_max_ms", "ALTER TABLE perf_samples ADD COLUMN slowest_component_max_ms REAL NOT NULL DEFAULT 0"},
 	}
 	for _, col := range additive {
 		if _, ok := existing[col.name]; ok {

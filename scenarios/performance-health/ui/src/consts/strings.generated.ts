@@ -115,7 +115,6 @@ export const strings = {
       uiBuild: "trends.metric.uiBuild",
       bundle: "trends.metric.bundle",
       lcp: "trends.metric.lcp",
-      p95: "trends.metric.p95",
       component: "trends.metric.component",
       startup: "trends.metric.startup",
     },
@@ -233,7 +232,6 @@ export const strings = {
       bundle: "budgets.field.bundle",
       lcp: "budgets.field.lcp",
       startup: "budgets.field.startup",
-      p95: "budgets.field.p95",
     },
     checkResult: {
       title: "budgets.checkResult.title",

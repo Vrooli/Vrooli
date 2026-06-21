@@ -104,7 +104,9 @@ func scorePage(url string, scores map[string]float64, thresholds map[string]thre
 		}
 		switch {
 		case th.Error > 0 && score < th.Error:
-			ps.Violations = append(ps.Violations, fmt.Sprintf("%s %.2f < error %.2f", category, score, th.Error))
+			v := fmt.Sprintf("%s %.2f < error %.2f", category, score, th.Error)
+			ps.Violations = append(ps.Violations, v)
+			ps.ErrorViolations = append(ps.ErrorViolations, v)
 		case th.Warn > 0 && score < th.Warn:
 			ps.Violations = append(ps.Violations, fmt.Sprintf("%s %.2f < warn %.2f", category, score, th.Warn))
 		}

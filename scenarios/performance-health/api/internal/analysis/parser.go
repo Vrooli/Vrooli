@@ -54,8 +54,8 @@ type traceFile struct {
 	TraceEvents []traceEvent `json:"traceEvents"`
 }
 
-// webVitals is the shape written by the injected PerformanceObserver
-// (see scenario-performance-audit Phase 4 WEB_VITALS_INIT).
+// webVitals is the shape written by the injected PerformanceObserver in the
+// perf-capture template (ui/perf/capture.template.js, WEB_VITALS_INIT).
 type webVitals struct {
 	LongTasks []struct {
 		Start    float64 `json:"start"`

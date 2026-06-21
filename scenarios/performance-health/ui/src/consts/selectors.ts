@@ -356,7 +356,6 @@ const literalSelectors = {
     cardUiBuild: "trends-card-ui-build",
     cardBundle: "trends-card-bundle",
     cardLcp: "trends-card-lcp",
-    cardP95: "trends-card-p95",
     cardComponent: "trends-card-component",
     cardStartup: "trends-card-startup",
     samples: "trends-samples",

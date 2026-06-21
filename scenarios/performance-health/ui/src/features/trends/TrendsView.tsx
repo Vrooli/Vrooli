@@ -15,7 +15,7 @@ import { Sparkline } from "./Sparkline";
 
 /**
  * "Scenario perf over time" workflow. Plots the perf trend series from GetTrend
- * (build time, bundle size, LCP, p95, slowest-component) and the startup trend
+ * (build time, bundle size, LCP, slowest-component) and the startup trend
  * from GetStartupTrend, oldest → newest. Each metric shows its latest value and
  * a sparkline. All real data — the series are exactly what the backend persists.
  */
@@ -113,12 +113,6 @@ export function TrendsView() {
             title={t(strings.trends.metric.lcp)}
             latest={formatMs(samples.at(-1)?.lcpMs)}
             values={samples.map((s) => Number(s.lcpMs))}
-          />
-          <MetricCard
-            testId={selectors.trends.cardP95}
-            title={t(strings.trends.metric.p95)}
-            latest={formatMs(samples.at(-1)?.p95Ms)}
-            values={samples.map((s) => Number(s.p95Ms))}
           />
           <MetricCard
             testId={selectors.trends.cardComponent}

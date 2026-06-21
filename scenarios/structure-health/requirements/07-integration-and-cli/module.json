@@ -27,7 +27,7 @@
       "prd_ref": "OT-P1-004",
       "category": "cli",
       "criticality": "P1",
-      "description": "The CLI exposes validate/fix-config/fleet/perf as thin manifest-bound Connect-client wrappers with no business logic; the app constructs, reports version/metadata, and renders help listing the command groups.",
+      "description": "The CLI exposes validate/fix-config/fleet as thin manifest-bound Connect-client wrappers with no business logic; the app constructs, reports version/metadata, and renders help listing the command groups.",
       "tags": ["cli", "thin-wrapper", "discoverability"],
       "validation": [
         {"type": "unit", "status": "planned", "notes": "cli/app_test.go covers construction, version, metadata, and help rendering of the registered command groups."}

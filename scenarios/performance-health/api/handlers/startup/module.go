@@ -6,6 +6,7 @@ import (
 
 	"performance-health/internal/module"
 	internalstartup "performance-health/internal/startup"
+	"performance-health/internal/trend"
 
 	"github.com/gorilla/mux"
 	vroolicli "github.com/vrooli/vrooli-cli-go"
@@ -35,7 +36,10 @@ func Module(logger *log.Logger, db internalstartup.Executor) module.Module {
 		environment = nil
 	}
 	runner := &internalstartup.CLIRunner{Status: cli, Env: environment}
-	svc := internalstartup.NewService(runner, store, SelfScenario)
+	// Cross-write time-to-healthy into the shared perf_samples trend so the
+	// startup budget axis has a producer (in addition to the rich
+	// startup_measurements store).
+	svc := internalstartup.NewService(runner, store, SelfScenario, internalstartup.WithPerfTrend(trend.NewStore(db)))
 	handler := NewHandler(svc, logger)
 	path, connectHandler := startupconnect.NewStartupServiceHandler(handler)
 	return module.Module{

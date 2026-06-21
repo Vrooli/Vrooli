@@ -24,7 +24,6 @@ import (
 
 	fleetH "structure-health/handlers/fleet"
 	healthH "structure-health/handlers/health"
-	perfH "structure-health/handlers/perf"
 	validationH "structure-health/handlers/validation"
 )
 
@@ -126,7 +125,6 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "structure-health-api", "1.0.0"),
 		fleetH.Module(logger, repoRoot),
-		perfH.Module(logger, db.Primary()),
 		validationH.Module(logger, repoRoot),
 	)
 

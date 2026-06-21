@@ -306,9 +306,8 @@ implementation hardens around them.
       `docs/operations/RUNBOOK.md`, and
       `docs/operations/OBSERVABILITY.md`; confirm local-run assumptions
       are accurate.
-- [ ] Review `docs/internal/SECURITY.md`,
-      `docs/internal/PERFORMANCE.md`, and
-      `docs/internal/DECISIONS.md`; fill any risk, budget, or durable
+- [ ] Review `docs/internal/SECURITY.md` and
+      `docs/internal/DECISIONS.md`; fill any risk or durable
       choice discovered during initialization.
 - [ ] Keep `docs/manifest.json` maturity values aligned with the real
       state of these documents.

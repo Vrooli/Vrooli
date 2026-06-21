@@ -71,10 +71,11 @@ func (h *Handler) RunBenchmark(ctx context.Context, req *connect.Request[benchma
 	// the measurement is still valid and returned.
 	if h.trend != nil && res.Outcome == internalbench.OutcomeMeasured {
 		sample := trend.Sample{
-			Scenario:  res.Scenario,
-			GoBuildMs: timingFor(res.Timings, "go", "api"),
-			UIBuildMs: timingFor(res.Timings, "ui"),
-			Note:      "benchmark",
+			Scenario:    res.Scenario,
+			GoBuildMs:   timingFor(res.Timings, "go", "api"),
+			UIBuildMs:   timingFor(res.Timings, "ui"),
+			BundleBytes: res.BundleBytes,
+			Note:        "benchmark",
 		}
 		if err := h.trend.Insert(ctx, sample); err != nil {
 			h.logger.Printf("benchmark.RunBenchmark(%s): persist trend sample: %v", scenario, err)

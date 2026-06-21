@@ -38,7 +38,12 @@ type Result struct {
 	Scenario string
 	Outcome  Outcome
 	Timings  []BuildTiming
-	Reason   string
+	// BundleBytes is the total size of the built UI bundle (the production build
+	// output dir) in bytes, measured cheaply right after the UI build. 0 when
+	// there is no UI surface or the build did not produce an output dir. It feeds
+	// the bundle-size budget axis through the trend store.
+	BundleBytes int64
+	Reason      string
 }
 
 // Runner is the seam that times the build surfaces of a scenario. The real

@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS perf_samples (
   bundle_bytes INTEGER NOT NULL DEFAULT 0,
   lcp_ms INTEGER NOT NULL DEFAULT 0,
   startup_ms INTEGER NOT NULL DEFAULT 0,
-  p95_ms INTEGER NOT NULL DEFAULT 0,
   slowest_component TEXT NOT NULL DEFAULT '',
   slowest_component_avg_ms REAL NOT NULL DEFAULT 0,
+  slowest_component_max_ms REAL NOT NULL DEFAULT 0,
   note TEXT NOT NULL DEFAULT ''
 );
 

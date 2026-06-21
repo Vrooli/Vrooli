@@ -4,11 +4,8 @@
 // domain (axis ② of the three-axis performance model). It is decoupled from
 // validation: it is NEVER invoked by a test-genie phase, only by its own RPC /
 // the `startup` CLI verbs, because it restarts the target scenario and is
-// resource-intensive.
-//
-// SCAFFOLD (P4): the store + service + runner seam are in place; the real
-// CLIRunner (which restarts the target and polls status) arrives in P9 when
-// structure-health's perf domain is moved in.
+// resource-intensive. The production CLIRunner (runner.go) restarts the target
+// and polls status; this store persists its measurements as the trend.
 package startup
 
 import (

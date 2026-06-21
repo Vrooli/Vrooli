@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 
 	"performance-health/internal/autofix"
+	internalbench "performance-health/internal/benchmark"
 	"performance-health/internal/budgets"
+	internallh "performance-health/internal/lighthouse"
 	"performance-health/internal/module"
 	"performance-health/internal/readiness"
 	"performance-health/internal/trend"
@@ -49,6 +51,23 @@ func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
 	}
 	budgetSvc := budgets.NewService(budgets.NewConfigStore(repoRoot, nil), budgetOpts...)
 
+	// Execution-mode orchestrator: runs the deterministic producers (build +
+	// bundle benchmark, Lighthouse-if-UI), persists a fresh trend sample, and
+	// folds threshold breaches into the assessment when a caller sends
+	// include_execution=true. Startup is intentionally NOT wired here: restarting
+	// the scenario-under-test mid test-run collides with the harness lifecycle, so
+	// the startup axis stays standalone-fed (see Contract Decisions in PROGRESS.md).
+	// Needs the trend store, so it is only wired when a DB is present.
+	var execution ExecutionRunner
+	if db != nil {
+		execution = NewExecutionOrchestrator(ExecutionDeps{
+			Benchmark:  internalbench.NewService(&internalbench.CLIRunner{RepoRoot: repoRoot}),
+			Lighthouse: internallh.NewService(&internallh.CLIRunner{RepoRoot: repoRoot}),
+			Trend:      trend.NewStore(db),
+			Logger:     logger,
+		})
+	}
+
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "performance-health"))
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment unavailable: %v", err)
@@ -70,6 +89,7 @@ func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
 		MaturitySpec: spec,
 		RepoRoot:     repoRoot,
 		Environment:  environment,
+		Execution:    execution,
 	})
 	connectPath, connectHandler := readinessconnect.NewReadinessServiceHandler(handler)
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewSharedHandler(handler))
@@ -86,6 +106,31 @@ func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
 // Schema returns the empty schema: validation owns no database tables.
 func Schema() string { return "" }
 
+// scenarioPathErrors is the invalid-argument error every validation endpoint
+// returns when the scenario/path cannot be resolved.
+func scenarioPathErrors() []module.ErrorDesc {
+	return []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}}
+}
+
+// fixEndpoint builds the descriptor for a deterministic-fix endpoint (preview or
+// apply). All four fix endpoints — native ReadinessService and the shared
+// ScenarioValidationService — take the same {scenario, path, rule_ids} request
+// and return the same FixResponse shape, so only the id/path/summary/description
+// vary.
+func fixEndpoint(id, path, summary, description string) module.EndpointDescriptor {
+	return module.EndpointDescriptor{
+		ID:          id,
+		Path:        path,
+		Method:      "POST",
+		Summary:     summary,
+		Description: description,
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "applied": "bool", "candidates": "array<scenario_validation.v1.FixCandidate>", "messages": "array<string>"}},
+		Errors:      scenarioPathErrors(),
+	}
+}
+
 // Endpoints is the static endpoint metadata for codegen and the parity test.
 var Endpoints = []module.EndpointDescriptor{
 	{
@@ -97,30 +142,20 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "validation",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "tier": "CaptureTier", "ui_framework": "string", "surfaces": "array<string>", "assessment": "common.v1.MaturityAssessment", "autofixable_count": "int32"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
+		Errors:      scenarioPathErrors(),
 	},
-	{
-		ID:          "readiness_preview_readiness_fix",
-		Path:        readinessconnect.ReadinessServicePreviewReadinessFixProcedure,
-		Method:      "POST",
-		Summary:     "Preview deterministic readiness fixes",
-		Description: "Returns the format-preserving edits readiness could apply to move a scenario toward Tier 1, without writing.",
-		Category:    "validation",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "applied": "bool", "candidates": "array<scenario_validation.v1.FixCandidate>", "messages": "array<string>"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
-	},
-	{
-		ID:          "readiness_apply_readiness_fix",
-		Path:        readinessconnect.ReadinessServiceApplyReadinessFixProcedure,
-		Method:      "POST",
-		Summary:     "Apply deterministic readiness fixes",
-		Description: "Applies the format-preserving edits to move a scenario toward Tier 1 and reports what changed.",
-		Category:    "validation",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "applied": "bool", "candidates": "array<scenario_validation.v1.FixCandidate>", "messages": "array<string>"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
-	},
+	fixEndpoint(
+		"readiness_preview_readiness_fix",
+		readinessconnect.ReadinessServicePreviewReadinessFixProcedure,
+		"Preview deterministic readiness fixes",
+		"Returns the format-preserving edits readiness could apply to move a scenario toward Tier 1, without writing.",
+	),
+	fixEndpoint(
+		"readiness_apply_readiness_fix",
+		readinessconnect.ReadinessServiceApplyReadinessFixProcedure,
+		"Apply deterministic readiness fixes",
+		"Applies the format-preserving edits to move a scenario toward Tier 1 and reports what changed.",
+	),
 	{
 		ID:          "scenario_validation_validate_scenario",
 		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,
@@ -130,28 +165,18 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "validation",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "include_execution": "bool"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "status": "scenario_validation.v1.ValidationStatus", "assessment": "common.v1.MaturityAssessment", "native_detail": "google.protobuf.Any<performance_health.v1.readiness.ValidateReadinessResponse>"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
+		Errors:      scenarioPathErrors(),
 	},
-	{
-		ID:          "scenario_validation_preview_fix",
-		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
-		Method:      "POST",
-		Summary:     "Preview deterministic readiness fixes through the shared provider contract",
-		Description: "Returns the format-preserving readiness edits in the shared scenario-validation FixResponse shape, without writing.",
-		Category:    "validation",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "applied": "bool", "candidates": "array<scenario_validation.v1.FixCandidate>", "messages": "array<string>"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
-	},
-	{
-		ID:          "scenario_validation_apply_fix",
-		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
-		Method:      "POST",
-		Summary:     "Apply deterministic readiness fixes through the shared provider contract",
-		Description: "Applies the format-preserving readiness edits and reports what changed, in the shared scenario-validation FixResponse shape.",
-		Category:    "validation",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "applied": "bool", "candidates": "array<scenario_validation.v1.FixCandidate>", "messages": "array<string>"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
-	},
+	fixEndpoint(
+		"scenario_validation_preview_fix",
+		scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		"Preview deterministic readiness fixes through the shared provider contract",
+		"Returns the format-preserving readiness edits in the shared scenario-validation FixResponse shape, without writing.",
+	),
+	fixEndpoint(
+		"scenario_validation_apply_fix",
+		scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		"Apply deterministic readiness fixes through the shared provider contract",
+		"Applies the format-preserving readiness edits and reports what changed, in the shared scenario-validation FixResponse shape.",
+	),
 }
