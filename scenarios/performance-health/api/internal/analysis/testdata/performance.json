@@ -1,0 +1,18 @@
+{
+  "traceEvents": [
+    { "cat": "loading", "name": "navigationStart", "ph": "R", "ts": 1000 },
+    { "cat": "blink.user_timing", "name": "⚛ App (mount)", "ph": "b", "ts": 10000, "id2": { "local": "0x1" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (mount)", "ph": "e", "ts": 12000, "id2": { "local": "0x1" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "b", "ts": 20000, "id2": { "local": "0x2" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "e", "ts": 21000, "id2": { "local": "0x2" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "b", "ts": 30000, "id2": { "local": "0x3" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "e", "ts": 33000, "id2": { "local": "0x3" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "b", "ts": 40000, "id2": { "local": "0x4" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 55000, "id2": { "local": "0x4" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "b", "ts": 60000, "id2": { "local": "0x5" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 85000, "id2": { "local": "0x5" } },
+    { "cat": "blink.user_timing", "name": "⚛ Sidebar (update)", "ph": "b", "ts": 90000, "id2": { "local": "0x6" } },
+    { "cat": "blink.user_timing", "name": "⚛ Sidebar (update)", "ph": "e", "ts": 90500, "id2": { "local": "0x6" } },
+    { "cat": "disabled-by-default-v8.cpu_profiler", "name": "ProfileChunk", "ph": "P", "ts": 91000 }
+  ]
+}

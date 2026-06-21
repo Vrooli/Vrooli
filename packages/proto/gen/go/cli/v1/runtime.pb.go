@@ -1315,6 +1315,127 @@ func (x *CliHostProvenance) GetFile() string {
 	return ""
 }
 
+// CliHostInstallStatus is the typed `vrooli host install <tool> --json` result:
+// the outcome of ensuring a single host tool (url/release fetch or
+// package/manual path) through the runtime tool handler.
+type CliHostInstallStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Tool name requested (matches internal/tools/<name>).
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Resolved command on PATH or in ~/.vrooli/bin; empty if not installed.
+	Command string `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	// Whether the tool is present after the operation.
+	Installed bool `protobuf:"varint,3,opt,name=installed,proto3" json:"installed,omitempty"`
+	// support_class: supported | unsupported | not_applicable | manual_only.
+	SupportClass string `protobuf:"bytes,4,opt,name=support_class,json=supportClass,proto3" json:"support_class,omitempty"`
+	// execution_state: already_present | would_install | installed | failed |
+	// unsupported | not_applicable | manual_action_required | pending.
+	ExecutionState string `protobuf:"bytes,5,opt,name=execution_state,json=executionState,proto3" json:"execution_state,omitempty"`
+	// blocking_reason: "" | needs_sudo | needs_env | needs_reboot | manual | ...
+	BlockingReason string `protobuf:"bytes,6,opt,name=blocking_reason,json=blockingReason,proto3" json:"blocking_reason,omitempty"`
+	// Detected version string when readable; empty otherwise.
+	Version string `protobuf:"bytes,7,opt,name=version,proto3" json:"version,omitempty"`
+	// Human-readable notes (target URL, errors, hints, remediation).
+	Notes []string `protobuf:"bytes,8,rep,name=notes,proto3" json:"notes,omitempty"`
+	// True when the operation succeeded or the tool was already present.
+	Ok            bool `protobuf:"varint,9,opt,name=ok,proto3" json:"ok,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CliHostInstallStatus) Reset() {
+	*x = CliHostInstallStatus{}
+	mi := &file_cli_v1_runtime_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CliHostInstallStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CliHostInstallStatus) ProtoMessage() {}
+
+func (x *CliHostInstallStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_runtime_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CliHostInstallStatus.ProtoReflect.Descriptor instead.
+func (*CliHostInstallStatus) Descriptor() ([]byte, []int) {
+	return file_cli_v1_runtime_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CliHostInstallStatus) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CliHostInstallStatus) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *CliHostInstallStatus) GetInstalled() bool {
+	if x != nil {
+		return x.Installed
+	}
+	return false
+}
+
+func (x *CliHostInstallStatus) GetSupportClass() string {
+	if x != nil {
+		return x.SupportClass
+	}
+	return ""
+}
+
+func (x *CliHostInstallStatus) GetExecutionState() string {
+	if x != nil {
+		return x.ExecutionState
+	}
+	return ""
+}
+
+func (x *CliHostInstallStatus) GetBlockingReason() string {
+	if x != nil {
+		return x.BlockingReason
+	}
+	return ""
+}
+
+func (x *CliHostInstallStatus) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *CliHostInstallStatus) GetNotes() []string {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *CliHostInstallStatus) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
 var File_cli_v1_runtime_proto protoreflect.FileDescriptor
 
 const file_cli_v1_runtime_proto_rawDesc = "" +
@@ -1450,7 +1571,17 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"confidence\x18\x04 \x01(\tR\n" +
 	"confidence\x12\x18\n" +
 	"\acommand\x18\x05 \x01(\tR\acommand\x12\x12\n" +
-	"\x04file\x18\x06 \x01(\tR\x04fileB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"\x04file\x18\x06 \x01(\tR\x04file\"\x99\x02\n" +
+	"\x14CliHostInstallStatus\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12\x1c\n" +
+	"\tinstalled\x18\x03 \x01(\bR\tinstalled\x12#\n" +
+	"\rsupport_class\x18\x04 \x01(\tR\fsupportClass\x12'\n" +
+	"\x0fexecution_state\x18\x05 \x01(\tR\x0eexecutionState\x12'\n" +
+	"\x0fblocking_reason\x18\x06 \x01(\tR\x0eblockingReason\x12\x18\n" +
+	"\aversion\x18\a \x01(\tR\aversion\x12\x14\n" +
+	"\x05notes\x18\b \x03(\tR\x05notes\x12\x0e\n" +
+	"\x02ok\x18\t \x01(\bR\x02okB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_runtime_proto_rawDescOnce sync.Once
@@ -1464,7 +1595,7 @@ func file_cli_v1_runtime_proto_rawDescGZIP() []byte {
 	return file_cli_v1_runtime_proto_rawDescData
 }
 
-var file_cli_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_cli_v1_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_cli_v1_runtime_proto_goTypes = []any{
 	(*CliVersion)(nil),                 // 0: vrooli.cli.v1.CliVersion
 	(*CliSupervisorStatus)(nil),        // 1: vrooli.cli.v1.CliSupervisorStatus
@@ -1480,9 +1611,10 @@ var file_cli_v1_runtime_proto_goTypes = []any{
 	(*CliHostDockerGPU)(nil),           // 11: vrooli.cli.v1.CliHostDockerGPU
 	(*CliHostTool)(nil),                // 12: vrooli.cli.v1.CliHostTool
 	(*CliHostProvenance)(nil),          // 13: vrooli.cli.v1.CliHostProvenance
-	nil,                                // 14: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
-	nil,                                // 15: vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
-	nil,                                // 16: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
+	(*CliHostInstallStatus)(nil),       // 14: vrooli.cli.v1.CliHostInstallStatus
+	nil,                                // 15: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
+	nil,                                // 16: vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
+	nil,                                // 17: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
 }
 var file_cli_v1_runtime_proto_depIdxs = []int32{
 	2,  // 0: vrooli.cli.v1.CliSupervisorStatus.last_tick:type_name -> vrooli.cli.v1.CliSupervisorTick
@@ -1492,10 +1624,10 @@ var file_cli_v1_runtime_proto_depIdxs = []int32{
 	8,  // 4: vrooli.cli.v1.CliHostSnapshot.swap:type_name -> vrooli.cli.v1.CliHostSwap
 	9,  // 5: vrooli.cli.v1.CliHostSnapshot.gpus:type_name -> vrooli.cli.v1.CliHostGPU
 	10, // 6: vrooli.cli.v1.CliHostSnapshot.gpu_processes:type_name -> vrooli.cli.v1.CliHostGPUProcess
-	14, // 7: vrooli.cli.v1.CliHostSnapshot.runtime_tools:type_name -> vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
+	15, // 7: vrooli.cli.v1.CliHostSnapshot.runtime_tools:type_name -> vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry
 	11, // 8: vrooli.cli.v1.CliHostSnapshot.docker_gpu:type_name -> vrooli.cli.v1.CliHostDockerGPU
-	15, // 9: vrooli.cli.v1.CliHostSnapshot.probe_statuses:type_name -> vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
-	16, // 10: vrooli.cli.v1.CliHostSnapshot.field_provenance:type_name -> vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
+	16, // 9: vrooli.cli.v1.CliHostSnapshot.probe_statuses:type_name -> vrooli.cli.v1.CliHostSnapshot.ProbeStatusesEntry
+	17, // 10: vrooli.cli.v1.CliHostSnapshot.field_provenance:type_name -> vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry
 	12, // 11: vrooli.cli.v1.CliHostSnapshot.RuntimeToolsEntry.value:type_name -> vrooli.cli.v1.CliHostTool
 	13, // 12: vrooli.cli.v1.CliHostSnapshot.FieldProvenanceEntry.value:type_name -> vrooli.cli.v1.CliHostProvenance
 	13, // [13:13] is the sub-list for method output_type
@@ -1516,7 +1648,7 @@ func file_cli_v1_runtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_runtime_proto_rawDesc), len(file_cli_v1_runtime_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

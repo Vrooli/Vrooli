@@ -339,3 +339,36 @@ message CliHostProvenance {
   // Originating file; empty if unset.
   string file = 6;
 }
+
+// CliHostInstallStatus is the typed `vrooli host install <tool> --json` result:
+// the outcome of ensuring a single host tool (url/release fetch or
+// package/manual path) through the runtime tool handler.
+message CliHostInstallStatus {
+  // Tool name requested (matches internal/tools/<name>).
+  string name = 1;
+
+  // Resolved command on PATH or in ~/.vrooli/bin; empty if not installed.
+  string command = 2;
+
+  // Whether the tool is present after the operation.
+  bool installed = 3;
+
+  // support_class: supported | unsupported | not_applicable | manual_only.
+  string support_class = 4;
+
+  // execution_state: already_present | would_install | installed | failed |
+  // unsupported | not_applicable | manual_action_required | pending.
+  string execution_state = 5;
+
+  // blocking_reason: "" | needs_sudo | needs_env | needs_reboot | manual | ...
+  string blocking_reason = 6;
+
+  // Detected version string when readable; empty otherwise.
+  string version = 7;
+
+  // Human-readable notes (target URL, errors, hints, remediation).
+  repeated string notes = 8;
+
+  // True when the operation succeeded or the tool was already present.
+  bool ok = 9;
+}

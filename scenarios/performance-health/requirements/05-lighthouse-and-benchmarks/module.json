@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "lighthouse-and-benchmarks",
+    "description": "The performance-health-owned Lighthouse runner and the migrated build-time (axis ①) benchmarks.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PH-LH-001",
+      "title": "Lighthouse runner with config thresholds",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P1",
+      "description": "lighthouse wraps the Lighthouse CLI (its own Chrome, not via BAS) with per-page error/warn thresholds from .vrooli/lighthouse.json (Tier 0, any URL), migrating the config shape from test-genie.",
+      "tags": ["lighthouse", "tier-0", "thresholds"],
+      "validation": [
+        {"type": "test", "ref": "api/internal/lighthouse/lighthouse_test.go", "phase": "unit", "status": "planned", "notes": "Faked Lighthouse CLI output drives threshold evaluation; per-page error/warn findings are emitted from the config."}
+      ]
+    },
+    {
+      "id": "PH-LH-002",
+      "title": "Lighthouse silent-skip when CLI absent",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P1",
+      "description": "When the Lighthouse CLI is absent or no UI URL is available, the runner silently skips with a reason rather than failing.",
+      "tags": ["lighthouse", "skip", "graceful"],
+      "validation": [
+        {"type": "test", "ref": "api/internal/lighthouse/skip_test.go", "phase": "unit", "status": "planned", "notes": "Missing CLI and missing UI URL both return a skipped result with a reason."}
+      ]
+    },
+    {
+      "id": "PH-BENCH-001",
+      "title": "Build-time benchmarks (axis ①)",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P1",
+      "description": "benchmark times go build ./... and the UI build with thresholds from .vrooli/testing.json (go_build_max_seconds, ui_build_max_seconds), preserving the test-genie early-exit semantics.",
+      "tags": ["benchmark", "build-time", "thresholds"],
+      "validation": [
+        {"type": "test", "ref": "api/internal/benchmark/benchmark_test.go", "phase": "unit", "status": "planned", "notes": "Faked exec/timer asserts threshold breach findings and that early-exit semantics match the migrated config."}
+      ]
+    }
+  ]
+}

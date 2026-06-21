@@ -1,0 +1,274 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "performance-health",
+  "description": "performance-health CLI surface. Single source of truth for the scenario's command shape: schema-validated against cli-manifest/v1 and cross-validated against the proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. Each group mirrors one API domain; the shared ScenarioValidationService procedures are intentionally omitted (they are the test-genie delegation surface, not a developer CLI verb).",
+  "groups": [
+    {
+      "name": "readiness",
+      "description": "Validate a scenario's capture-tier readiness and apply format-preserving fixes toward Tier 1",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Decide a scenario's reachable capture tier from Code Facts and report missing Tier-1 perf-build infra",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to validate"}
+          ],
+          "flags": [
+            {"name": "path", "description": "Filesystem path to validate instead of a scenario slug"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ValidateReadiness"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "fix",
+          "description": "Preview the format-preserving edits readiness would apply to move a scenario toward Tier 1 (dry-run)",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to fix"}
+          ],
+          "flags": [
+            {"name": "path", "description": "Filesystem path to fix instead of a scenario slug"},
+            {"name": "rule", "description": "Restrict the fix to a finding code (repeatable)"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "PreviewReadinessFix"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "apply",
+          "description": "Apply the format-preserving readiness edits to move a scenario toward Tier 1",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to fix"}
+          ],
+          "flags": [
+            {"name": "path", "description": "Filesystem path to fix instead of a scenario slug"},
+            {"name": "rule", "description": "Restrict the fix to a finding code (repeatable)"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ReadinessService", "method": "ApplyReadinessFix"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["filesystem:write", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "description": "Orchestrate a profile-mode perf capture of a scenario (cleanly skips when capture is impossible)",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Restart a scenario in profile build mode, drive a BAS perf capture, and restore the default build",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to audit"}
+          ],
+          "flags": [
+            {"name": "path", "description": "Filesystem path of the scenario"},
+            {"name": "workflow", "description": "BAS recorded-workflow slug for the interaction (default navigate+mount-settle)"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AuditService", "method": "RunAudit"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "lighthouse",
+      "description": "Score a scenario's UI with Lighthouse (silent-skip when unavailable)",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run Lighthouse against a scenario's pages and report category scores plus threshold violations",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to score"}
+          ],
+          "flags": [
+            {"name": "path", "description": "Filesystem path of the scenario"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "LighthouseService", "method": "RunLighthouse"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "benchmark",
+      "description": "Time a scenario's build surfaces against thresholds",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Time go build and the UI build against thresholds and report per-surface timings",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to benchmark"}
+          ],
+          "flags": [
+            {"name": "path", "description": "Filesystem path of the scenario"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BenchmarkService", "method": "RunBenchmark"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "analysis",
+      "description": "Analyze captured perf traces into deterministic, located findings",
+      "commands": [
+        {
+          "name": "analyze",
+          "description": "Parse a captured perf trace into a per-component table plus deterministic, located findings",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug the trace belongs to"}
+          ],
+          "flags": [
+            {"name": "trace", "required": true, "description": "Storage key / path of the captured performance.json trace"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AnalysisService", "method": "AnalyzeTrace"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        },
+        {
+          "name": "compare",
+          "description": "Diff two perf traces of the same interaction (component-commit delta + long-task delta)",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug the traces belong to"}
+          ],
+          "flags": [
+            {"name": "baseline", "required": true, "description": "Baseline (before) trace artifact"},
+            {"name": "candidate", "required": true, "description": "Candidate (after) trace artifact"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AnalysisService", "method": "CompareTraces"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "budget",
+      "description": "Read, write, and check per-scenario performance budgets",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read a scenario's declared performance budget",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug"}
+          ],
+          "flags": [
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BudgetService", "method": "GetBudget"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "set",
+          "description": "Write/update a scenario's performance budget",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug"}
+          ],
+          "flags": [
+            {"name": "go-build-max-ms", "description": "Maximum go build time in milliseconds"},
+            {"name": "ui-build-max-ms", "description": "Maximum UI build time in milliseconds"},
+            {"name": "bundle-max-bytes", "description": "Maximum bundle size in bytes"},
+            {"name": "lcp-max-ms", "description": "Maximum Largest Contentful Paint in milliseconds"},
+            {"name": "p95-max-ms", "description": "Maximum p95 interaction/latency in milliseconds (where measured)"},
+            {"name": "startup-max-ms", "description": "Maximum time-to-healthy in milliseconds"},
+            {"name": "component-commit-avg-max-ms", "description": "Maximum per-component average commit time in milliseconds"},
+            {"name": "component-commit-max-ms", "description": "Maximum per-component (slowest) commit time in milliseconds"},
+            {"name": "ratchet", "bool": true, "description": "Tighten-only: reject any future write that loosens this budget"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BudgetService", "method": "SetBudget"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "check",
+          "description": "Check a scenario's latest measurements against its budget (the baseline-diff regression gate)",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug"}
+          ],
+          "flags": [
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "BudgetService", "method": "CheckBudget"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "trend",
+      "description": "Read a scenario's persisted performance trend",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read the persisted performance samples for a scenario, newest first",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug"}
+          ],
+          "flags": [
+            {"name": "limit", "description": "Maximum samples to return (0 = default)"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "TrendService", "method": "GetTrend"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "fleet",
+      "description": "Scan the fleet for performance offenders (deterministic, structured queries)",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Grade the requested scenarios (or every discovered scenario) and roll up offender lists plus the capture-tier distribution",
+          "positionals": [],
+          "flags": [
+            {"name": "scenario", "description": "Restrict the scan to a scenario slug (repeatable)"},
+            {"name": "view", "description": "Offender view: all (default), no-budget, slowest, regressed, tiers"},
+            {"name": "limit", "description": "Cap the number of rows for the slowest view (0 = all)"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "FleetService", "method": "ScanFleet"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "startup",
+      "description": "Benchmark scenario startup performance and read the persisted trend (decoupled from validation; never run by a test phase)",
+      "commands": [
+        {
+          "name": "measure",
+          "description": "Restart a scenario and record its startup performance (time-to-healthy + resource envelope). This restarts the target scenario.",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to benchmark"}
+          ],
+          "flags": [
+            {"name": "timeout", "description": "Max seconds to wait for the scenario to report healthy (0 = default)"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "StartupService", "method": "BenchmarkStartup"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "trend",
+          "description": "Read a scenario's persisted startup-performance measurements, newest first",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to read the trend for"}
+          ],
+          "flags": [
+            {"name": "limit", "description": "Maximum measurements to return (0 = default)"},
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "StartupService", "method": "GetStartupTrend"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {"service": "ScenarioValidationService", "method": "ValidateScenario", "reason": "Shared cross-scenario validation surface for test-genie delegation (axes ①/③); the developer CLI uses `readiness validate`, which targets the scenario-native ReadinessService."},
+    {"service": "ScenarioValidationService", "method": "PreviewFix", "reason": "Shared cross-scenario fix-preview surface for test-genie delegation; the developer CLI uses `readiness fix`, which targets the scenario-native ReadinessService."},
+    {"service": "ScenarioValidationService", "method": "ApplyFix", "reason": "Shared cross-scenario fix-apply surface for test-genie delegation; the developer CLI uses `readiness apply`, which targets the scenario-native ReadinessService."}
+  ]
+}

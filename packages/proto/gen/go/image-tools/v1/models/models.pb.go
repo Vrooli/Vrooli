@@ -1909,15 +1909,23 @@ func (x *DoctorCatalogResponse) GetFindings() []*CatalogFinding {
 }
 
 type BackendStatus struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Operations    []string               `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
-	Available     bool                   `protobuf:"varint,3,opt,name=available,proto3" json:"available,omitempty"`
-	Standalone    bool                   `protobuf:"varint,4,opt,name=standalone,proto3" json:"standalone,omitempty"`
-	Cloud         bool                   `protobuf:"varint,5,opt,name=cloud,proto3" json:"cloud,omitempty"`
-	GpuCapable    bool                   `protobuf:"varint,6,opt,name=gpu_capable,json=gpuCapable,proto3" json:"gpu_capable,omitempty"`
-	Detail        string                 `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
-	Provision     string                 `protobuf:"bytes,8,opt,name=provision,proto3" json:"provision,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Name       string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Operations []string               `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
+	Available  bool                   `protobuf:"varint,3,opt,name=available,proto3" json:"available,omitempty"`
+	Standalone bool                   `protobuf:"varint,4,opt,name=standalone,proto3" json:"standalone,omitempty"`
+	Cloud      bool                   `protobuf:"varint,5,opt,name=cloud,proto3" json:"cloud,omitempty"`
+	GpuCapable bool                   `protobuf:"varint,6,opt,name=gpu_capable,json=gpuCapable,proto3" json:"gpu_capable,omitempty"`
+	Detail     string                 `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
+	Provision  string                 `protobuf:"bytes,8,opt,name=provision,proto3" json:"provision,omitempty"`
+	// host_tool is the platform host-tool this backend needs (empty for cloud /
+	// in-process providers).
+	HostTool string `protobuf:"bytes,9,opt,name=host_tool,json=hostTool,proto3" json:"host_tool,omitempty"`
+	// host_tool_ready reports whether that host tool is present on this host.
+	HostToolReady bool `protobuf:"varint,10,opt,name=host_tool_ready,json=hostToolReady,proto3" json:"host_tool_ready,omitempty"`
+	// remediation is the exact command to provision the host tool
+	// (`vrooli host install <tool>`), empty when none applies.
+	Remediation   string `protobuf:"bytes,11,opt,name=remediation,proto3" json:"remediation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2008,6 +2016,27 @@ func (x *BackendStatus) GetProvision() string {
 	return ""
 }
 
+func (x *BackendStatus) GetHostTool() string {
+	if x != nil {
+		return x.HostTool
+	}
+	return ""
+}
+
+func (x *BackendStatus) GetHostToolReady() bool {
+	if x != nil {
+		return x.HostToolReady
+	}
+	return false
+}
+
+func (x *BackendStatus) GetRemediation() string {
+	if x != nil {
+		return x.Remediation
+	}
+	return ""
+}
+
 type DoctorBackendsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2094,6 +2123,172 @@ func (x *DoctorBackendsResponse) GetBackends() []*BackendStatus {
 		return x.Backends
 	}
 	return nil
+}
+
+type EnsureBackendRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// tool is the host-tool name to ensure (e.g. "realesrgan-ncnn-vulkan").
+	// Exactly one of tool / operation must be set.
+	Tool string `protobuf:"bytes,1,opt,name=tool,proto3" json:"tool,omitempty"`
+	// operation, when set, resolves to the host tool of the backend that serves
+	// that op (UI convenience: it knows the op the user clicked).
+	Operation string `protobuf:"bytes,2,opt,name=operation,proto3" json:"operation,omitempty"`
+	// dry_run reports what would be fetched without downloading.
+	DryRun        bool `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureBackendRequest) Reset() {
+	*x = EnsureBackendRequest{}
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureBackendRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureBackendRequest) ProtoMessage() {}
+
+func (x *EnsureBackendRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureBackendRequest.ProtoReflect.Descriptor instead.
+func (*EnsureBackendRequest) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *EnsureBackendRequest) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *EnsureBackendRequest) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
+}
+
+func (x *EnsureBackendRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type EnsureBackendResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Host tool being ensured (resolved from tool / operation).
+	Tool string `protobuf:"bytes,1,opt,name=tool,proto3" json:"tool,omitempty"`
+	// Job id of the durable ensure operation (empty when no job was submitted).
+	JobId string `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	// Initial ETA seconds (0 unknown).
+	EtaSeconds int32 `protobuf:"varint,3,opt,name=eta_seconds,json=etaSeconds,proto3" json:"eta_seconds,omitempty"`
+	// True when the tool was already present (no job submitted).
+	AlreadyInstalled bool `protobuf:"varint,4,opt,name=already_installed,json=alreadyInstalled,proto3" json:"already_installed,omitempty"`
+	// True when the tool cannot be auto-fetched (manual / unsupported /
+	// not-applicable); see detail for guidance. No job submitted.
+	Manual bool `protobuf:"varint,5,opt,name=manual,proto3" json:"manual,omitempty"`
+	// state is the immediate inspect verdict: already_present | would_install |
+	// manual_action_required | not_applicable | unsupported | pending.
+	State string `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`
+	// detail is human guidance (install hint / remediation / not-applicable reason).
+	Detail        string `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnsureBackendResponse) Reset() {
+	*x = EnsureBackendResponse{}
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnsureBackendResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnsureBackendResponse) ProtoMessage() {}
+
+func (x *EnsureBackendResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnsureBackendResponse.ProtoReflect.Descriptor instead.
+func (*EnsureBackendResponse) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *EnsureBackendResponse) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *EnsureBackendResponse) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *EnsureBackendResponse) GetEtaSeconds() int32 {
+	if x != nil {
+		return x.EtaSeconds
+	}
+	return 0
+}
+
+func (x *EnsureBackendResponse) GetAlreadyInstalled() bool {
+	if x != nil {
+		return x.AlreadyInstalled
+	}
+	return false
+}
+
+func (x *EnsureBackendResponse) GetManual() bool {
+	if x != nil {
+		return x.Manual
+	}
+	return false
+}
+
+func (x *EnsureBackendResponse) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *EnsureBackendResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
 }
 
 var File_image_tools_v1_models_models_proto protoreflect.FileDescriptor
@@ -2226,7 +2421,7 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x14DoctorCatalogRequest\"q\n" +
 	"\x15DoctorCatalogResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12H\n" +
-	"\bfindings\x18\x02 \x03(\v2,.vrooli.image_tools.v1.models.CatalogFindingR\bfindings\"\xee\x01\n" +
+	"\bfindings\x18\x02 \x03(\v2,.vrooli.image_tools.v1.models.CatalogFindingR\bfindings\"\xd5\x02\n" +
 	"\rBackendStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -2240,11 +2435,28 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\vgpu_capable\x18\x06 \x01(\bR\n" +
 	"gpuCapable\x12\x16\n" +
 	"\x06detail\x18\a \x01(\tR\x06detail\x12\x1c\n" +
-	"\tprovision\x18\b \x01(\tR\tprovision\"\x17\n" +
+	"\tprovision\x18\b \x01(\tR\tprovision\x12\x1b\n" +
+	"\thost_tool\x18\t \x01(\tR\bhostTool\x12&\n" +
+	"\x0fhost_tool_ready\x18\n" +
+	" \x01(\bR\rhostToolReady\x12 \n" +
+	"\vremediation\x18\v \x01(\tR\vremediation\"\x17\n" +
 	"\x15DoctorBackendsRequest\"q\n" +
 	"\x16DoctorBackendsResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12G\n" +
-	"\bbackends\x18\x02 \x03(\v2+.vrooli.image_tools.v1.models.BackendStatusR\bbackends*~\n" +
+	"\bbackends\x18\x02 \x03(\v2+.vrooli.image_tools.v1.models.BackendStatusR\bbackends\"a\n" +
+	"\x14EnsureBackendRequest\x12\x12\n" +
+	"\x04tool\x18\x01 \x01(\tR\x04tool\x12\x1c\n" +
+	"\toperation\x18\x02 \x01(\tR\toperation\x12\x17\n" +
+	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\xd6\x01\n" +
+	"\x15EnsureBackendResponse\x12\x12\n" +
+	"\x04tool\x18\x01 \x01(\tR\x04tool\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12\x1f\n" +
+	"\veta_seconds\x18\x03 \x01(\x05R\n" +
+	"etaSeconds\x12+\n" +
+	"\x11already_installed\x18\x04 \x01(\bR\x10alreadyInstalled\x12\x16\n" +
+	"\x06manual\x18\x05 \x01(\bR\x06manual\x12\x14\n" +
+	"\x05state\x18\x06 \x01(\tR\x05state\x12\x16\n" +
+	"\x06detail\x18\a \x01(\tR\x06detail*~\n" +
 	"\rCommercialUse\x12\x1e\n" +
 	"\x1aCOMMERCIAL_USE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12COMMERCIAL_USE_YES\x10\x01\x12\x15\n" +
@@ -2253,7 +2465,7 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x16CatalogFindingSeverity\x12(\n" +
 	"$CATALOG_FINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eCATALOG_FINDING_SEVERITY_ERROR\x10\x01\x12$\n" +
-	" CATALOG_FINDING_SEVERITY_WARNING\x10\x022\xac\f\n" +
+	" CATALOG_FINDING_SEVERITY_WARNING\x10\x022\xa6\r\n" +
 	"\rModelsService\x12o\n" +
 	"\n" +
 	"ListModels\x12/.vrooli.image_tools.v1.models.ListModelsRequest\x1a0.vrooli.image_tools.v1.models.ListModelsResponse\x12i\n" +
@@ -2268,7 +2480,8 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x0fSetDefaultModel\x124.vrooli.image_tools.v1.models.SetDefaultModelRequest\x1a5.vrooli.image_tools.v1.models.SetDefaultModelResponse\x12u\n" +
 	"\fListDefaults\x121.vrooli.image_tools.v1.models.ListDefaultsRequest\x1a2.vrooli.image_tools.v1.models.ListDefaultsResponse\x12x\n" +
 	"\rDoctorCatalog\x122.vrooli.image_tools.v1.models.DoctorCatalogRequest\x1a3.vrooli.image_tools.v1.models.DoctorCatalogResponse\x12{\n" +
-	"\x0eDoctorBackends\x123.vrooli.image_tools.v1.models.DoctorBackendsRequest\x1a4.vrooli.image_tools.v1.models.DoctorBackendsResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models;models_v1b\x06proto3"
+	"\x0eDoctorBackends\x123.vrooli.image_tools.v1.models.DoctorBackendsRequest\x1a4.vrooli.image_tools.v1.models.DoctorBackendsResponse\x12x\n" +
+	"\rEnsureBackend\x122.vrooli.image_tools.v1.models.EnsureBackendRequest\x1a3.vrooli.image_tools.v1.models.EnsureBackendResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models;models_v1b\x06proto3"
 
 var (
 	file_image_tools_v1_models_models_proto_rawDescOnce sync.Once
@@ -2283,7 +2496,7 @@ func file_image_tools_v1_models_models_proto_rawDescGZIP() []byte {
 }
 
 var file_image_tools_v1_models_models_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_image_tools_v1_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_image_tools_v1_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_image_tools_v1_models_models_proto_goTypes = []any{
 	(CommercialUse)(0),              // 0: vrooli.image_tools.v1.models.CommercialUse
 	(CatalogFindingSeverity)(0),     // 1: vrooli.image_tools.v1.models.CatalogFindingSeverity
@@ -2321,6 +2534,8 @@ var file_image_tools_v1_models_models_proto_goTypes = []any{
 	(*BackendStatus)(nil),           // 33: vrooli.image_tools.v1.models.BackendStatus
 	(*DoctorBackendsRequest)(nil),   // 34: vrooli.image_tools.v1.models.DoctorBackendsRequest
 	(*DoctorBackendsResponse)(nil),  // 35: vrooli.image_tools.v1.models.DoctorBackendsResponse
+	(*EnsureBackendRequest)(nil),    // 36: vrooli.image_tools.v1.models.EnsureBackendRequest
+	(*EnsureBackendResponse)(nil),   // 37: vrooli.image_tools.v1.models.EnsureBackendResponse
 }
 var file_image_tools_v1_models_models_proto_depIdxs = []int32{
 	0,  // 0: vrooli.image_tools.v1.models.CapabilityLabels.commercial_use:type_name -> vrooli.image_tools.v1.models.CommercialUse
@@ -2351,21 +2566,23 @@ var file_image_tools_v1_models_models_proto_depIdxs = []int32{
 	28, // 25: vrooli.image_tools.v1.models.ModelsService.ListDefaults:input_type -> vrooli.image_tools.v1.models.ListDefaultsRequest
 	31, // 26: vrooli.image_tools.v1.models.ModelsService.DoctorCatalog:input_type -> vrooli.image_tools.v1.models.DoctorCatalogRequest
 	34, // 27: vrooli.image_tools.v1.models.ModelsService.DoctorBackends:input_type -> vrooli.image_tools.v1.models.DoctorBackendsRequest
-	8,  // 28: vrooli.image_tools.v1.models.ModelsService.ListModels:output_type -> vrooli.image_tools.v1.models.ListModelsResponse
-	10, // 29: vrooli.image_tools.v1.models.ModelsService.GetModel:output_type -> vrooli.image_tools.v1.models.GetModelResponse
-	12, // 30: vrooli.image_tools.v1.models.ModelsService.ListOperations:output_type -> vrooli.image_tools.v1.models.ListOperationsResponse
-	14, // 31: vrooli.image_tools.v1.models.ModelsService.SelectModel:output_type -> vrooli.image_tools.v1.models.SelectModelResponse
-	16, // 32: vrooli.image_tools.v1.models.ModelsService.SetModelEnabled:output_type -> vrooli.image_tools.v1.models.SetModelEnabledResponse
-	18, // 33: vrooli.image_tools.v1.models.ModelsService.ListBlocklist:output_type -> vrooli.image_tools.v1.models.ListBlocklistResponse
-	20, // 34: vrooli.image_tools.v1.models.ModelsService.InstallModel:output_type -> vrooli.image_tools.v1.models.InstallModelResponse
-	22, // 35: vrooli.image_tools.v1.models.ModelsService.RemoveModel:output_type -> vrooli.image_tools.v1.models.RemoveModelResponse
-	24, // 36: vrooli.image_tools.v1.models.ModelsService.AddCustomModel:output_type -> vrooli.image_tools.v1.models.AddCustomModelResponse
-	26, // 37: vrooli.image_tools.v1.models.ModelsService.SetDefaultModel:output_type -> vrooli.image_tools.v1.models.SetDefaultModelResponse
-	29, // 38: vrooli.image_tools.v1.models.ModelsService.ListDefaults:output_type -> vrooli.image_tools.v1.models.ListDefaultsResponse
-	32, // 39: vrooli.image_tools.v1.models.ModelsService.DoctorCatalog:output_type -> vrooli.image_tools.v1.models.DoctorCatalogResponse
-	35, // 40: vrooli.image_tools.v1.models.ModelsService.DoctorBackends:output_type -> vrooli.image_tools.v1.models.DoctorBackendsResponse
-	28, // [28:41] is the sub-list for method output_type
-	15, // [15:28] is the sub-list for method input_type
+	36, // 28: vrooli.image_tools.v1.models.ModelsService.EnsureBackend:input_type -> vrooli.image_tools.v1.models.EnsureBackendRequest
+	8,  // 29: vrooli.image_tools.v1.models.ModelsService.ListModels:output_type -> vrooli.image_tools.v1.models.ListModelsResponse
+	10, // 30: vrooli.image_tools.v1.models.ModelsService.GetModel:output_type -> vrooli.image_tools.v1.models.GetModelResponse
+	12, // 31: vrooli.image_tools.v1.models.ModelsService.ListOperations:output_type -> vrooli.image_tools.v1.models.ListOperationsResponse
+	14, // 32: vrooli.image_tools.v1.models.ModelsService.SelectModel:output_type -> vrooli.image_tools.v1.models.SelectModelResponse
+	16, // 33: vrooli.image_tools.v1.models.ModelsService.SetModelEnabled:output_type -> vrooli.image_tools.v1.models.SetModelEnabledResponse
+	18, // 34: vrooli.image_tools.v1.models.ModelsService.ListBlocklist:output_type -> vrooli.image_tools.v1.models.ListBlocklistResponse
+	20, // 35: vrooli.image_tools.v1.models.ModelsService.InstallModel:output_type -> vrooli.image_tools.v1.models.InstallModelResponse
+	22, // 36: vrooli.image_tools.v1.models.ModelsService.RemoveModel:output_type -> vrooli.image_tools.v1.models.RemoveModelResponse
+	24, // 37: vrooli.image_tools.v1.models.ModelsService.AddCustomModel:output_type -> vrooli.image_tools.v1.models.AddCustomModelResponse
+	26, // 38: vrooli.image_tools.v1.models.ModelsService.SetDefaultModel:output_type -> vrooli.image_tools.v1.models.SetDefaultModelResponse
+	29, // 39: vrooli.image_tools.v1.models.ModelsService.ListDefaults:output_type -> vrooli.image_tools.v1.models.ListDefaultsResponse
+	32, // 40: vrooli.image_tools.v1.models.ModelsService.DoctorCatalog:output_type -> vrooli.image_tools.v1.models.DoctorCatalogResponse
+	35, // 41: vrooli.image_tools.v1.models.ModelsService.DoctorBackends:output_type -> vrooli.image_tools.v1.models.DoctorBackendsResponse
+	37, // 42: vrooli.image_tools.v1.models.ModelsService.EnsureBackend:output_type -> vrooli.image_tools.v1.models.EnsureBackendResponse
+	29, // [29:43] is the sub-list for method output_type
+	15, // [15:29] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name
@@ -2382,7 +2599,7 @@ func file_image_tools_v1_models_models_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_models_models_proto_rawDesc), len(file_image_tools_v1_models_models_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   34,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

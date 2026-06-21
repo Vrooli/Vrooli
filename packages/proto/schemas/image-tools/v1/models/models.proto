@@ -90,6 +90,12 @@ service ModelsService {
   // backends. Hardware fit remains reported by SelectModel; this answers
   // whether the backend program/module is actually provisioned on this host.
   rpc DoctorBackends(DoctorBackendsRequest) returns (DoctorBackendsResponse);
+
+  // EnsureBackend installs a missing host-tool backend on demand as a durable
+  // job (mirrors InstallModel: returns job_id + ETA + progress; survives client
+  // cancellation). The job shells `vrooli host install <tool> --json`. Manual /
+  // capability-gated tools return immediately with guidance and no job.
+  rpc EnsureBackend(EnsureBackendRequest) returns (EnsureBackendResponse);
 }
 
 // CommercialUse classifies a model's commercial-use license posture.
@@ -327,6 +333,14 @@ message BackendStatus {
   bool gpu_capable = 6;
   string detail = 7;
   string provision = 8;
+  // host_tool is the platform host-tool this backend needs (empty for cloud /
+  // in-process providers).
+  string host_tool = 9;
+  // host_tool_ready reports whether that host tool is present on this host.
+  bool host_tool_ready = 10;
+  // remediation is the exact command to provision the host tool
+  // (`vrooli host install <tool>`), empty when none applies.
+  string remediation = 11;
 }
 
 message DoctorBackendsRequest {}
@@ -334,4 +348,34 @@ message DoctorBackendsRequest {}
 message DoctorBackendsResponse {
   bool ok = 1;
   repeated BackendStatus backends = 2;
+}
+
+message EnsureBackendRequest {
+  // tool is the host-tool name to ensure (e.g. "realesrgan-ncnn-vulkan").
+  // Exactly one of tool / operation must be set.
+  string tool = 1;
+  // operation, when set, resolves to the host tool of the backend that serves
+  // that op (UI convenience: it knows the op the user clicked).
+  string operation = 2;
+  // dry_run reports what would be fetched without downloading.
+  bool dry_run = 3;
+}
+
+message EnsureBackendResponse {
+  // Host tool being ensured (resolved from tool / operation).
+  string tool = 1;
+  // Job id of the durable ensure operation (empty when no job was submitted).
+  string job_id = 2;
+  // Initial ETA seconds (0 unknown).
+  int32 eta_seconds = 3;
+  // True when the tool was already present (no job submitted).
+  bool already_installed = 4;
+  // True when the tool cannot be auto-fetched (manual / unsupported /
+  // not-applicable); see detail for guidance. No job submitted.
+  bool manual = 5;
+  // state is the immediate inspect verdict: already_present | would_install |
+  // manual_action_required | not_applicable | unsupported | pending.
+  string state = 6;
+  // detail is human guidance (install hint / remediation / not-applicable reason).
+  string detail = 7;
 }

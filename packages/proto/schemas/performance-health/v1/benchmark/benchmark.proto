@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.benchmark;
+
+import "common/v1/metrics.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/benchmark;benchmark_v1";
+
+// =============================================================================
+// BUILD-BENCHMARK SERVICE (migrated axis ① build-time)
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// BenchmarkService times build-time performance: `go build ./...` and the UI
+// package-manager build, against thresholds from .vrooli/testing.json
+// (go_build_max_seconds, ui_build_max_seconds). It preserves the early-exit
+// semantics of the migrated test-genie native perf phase. Tier 0 by nature
+// (no browser, no instrumentation needed).
+// =============================================================================
+
+service BenchmarkService {
+  // RunBenchmark times the build surfaces for one scenario and reports timings
+  // plus any threshold violations.
+  rpc RunBenchmark(RunBenchmarkRequest) returns (RunBenchmarkResponse);
+}
+
+message RunBenchmarkRequest {
+  string scenario = 1;
+  string path = 2;
+}
+
+enum BenchmarkOutcome {
+  BENCHMARK_OUTCOME_UNSPECIFIED = 0;
+  BENCHMARK_OUTCOME_MEASURED = 1;
+  BENCHMARK_OUTCOME_SKIPPED = 2;
+  BENCHMARK_OUTCOME_FAILED = 3;
+}
+
+message RunBenchmarkResponse {
+  string scenario = 1;
+  BenchmarkOutcome outcome = 2;
+  repeated BuildTiming timings = 3;
+  string reason = 4;
+  common.v1.ExecutionMetrics metrics = 5;
+}
+
+// BuildTiming is one build surface's measured duration against its budget.
+message BuildTiming {
+  // Surface id, e.g. "go" or "ui".
+  string surface = 1;
+  int64 duration_ms = 2;
+  // Budget in milliseconds (0 = no budget).
+  int64 budget_ms = 3;
+  // True when duration_ms exceeded budget_ms.
+  bool over_budget = 4;
+}

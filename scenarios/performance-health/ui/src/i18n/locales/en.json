@@ -1,0 +1,279 @@
+{
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Performance Health are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "app": {
+    "title": "Performance Health"
+  },
+  "common": {
+    "loading": "Loading…",
+    "errorTitle": "Something went wrong",
+    "retry": "Retry"
+  },
+  "tier": {
+    "none": "No UI",
+    "tier0": "Tier 0",
+    "tier1": "Tier 1",
+    "unknown": "Unknown tier"
+  },
+  "layout": {
+    "sidebarLabel": "Primary navigation",
+    "bottomNavLabel": "Quick navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "dashboard": "Overview",
+      "audit": "Audit",
+      "trends": "Trends",
+      "fleet": "Fleet",
+      "trace": "Trace",
+      "readiness": "Readiness",
+      "budgets": "Budgets",
+      "settings": "Settings"
+    }
+  },
+  "theme": {
+    "switcherLabel": "Theme",
+    "choice": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "perf": {
+    "picker": {
+      "label": "Scenario"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Overview",
+      "description": "A live snapshot of fleet performance plus quick access to every workflow.",
+      "snapshotTitle": "Fleet snapshot",
+      "snapshotError": "Couldn't load the fleet snapshot.",
+      "workflowsTitle": "Workflows",
+      "snapshotEmpty": "No scenarios graded yet — run an audit to populate the fleet.",
+      "snapshotCta": "Open the fleet dashboard"
+    },
+    "settings": {
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language"
+    }
+  },
+  "audit": {
+    "title": "Audit a scenario",
+    "description": "Decide the capture tier and run a real performance audit, producing a trace and located findings.",
+    "run": "Run audit",
+    "running": "Running audit…",
+    "tier": {
+      "title": "Capture tier",
+      "framework": "Framework",
+      "surfaces": "Surfaces",
+      "errorTitle": "Couldn't load readiness",
+      "loadingTitle": "Deciding capture tier"
+    },
+    "findings": {
+      "title": "Readiness findings",
+      "empty": "No readiness findings — this scenario is performance-ready.",
+      "autofixable": "Auto-fixable",
+      "readinessLink": "Open Readiness to apply fixes"
+    },
+    "result": {
+      "title": "Audit result",
+      "trace": "Trace artifact",
+      "webVitals": "Web vitals artifact"
+    },
+    "outcome": {
+      "captured": "Captured",
+      "skipped": "Skipped",
+      "failed": "Failed",
+      "unknown": "Unknown"
+    }
+  },
+  "trends": {
+    "title": "Performance over time",
+    "description": "Build, startup, and browser-perf trends for the selected scenario.",
+    "empty": "No trend samples yet. Run an audit or benchmark to start a series.",
+    "emptyTitle": "No trends yet",
+    "emptyCta": "Run an audit",
+    "errorTitle": "Couldn't load trends",
+    "loadingTitle": "Loading trends",
+    "sparklineLabel": "{{metric}} trend",
+    "samplesTitle": "Recent samples",
+    "metric": {
+      "goBuild": "Go build",
+      "uiBuild": "UI build",
+      "bundle": "Bundle size",
+      "lcp": "LCP",
+      "p95": "p95 interaction",
+      "component": "Slowest component",
+      "startup": "Startup"
+    },
+    "col": {
+      "captured": "Captured",
+      "note": "Note"
+    }
+  },
+  "fleet": {
+    "title": "Fleet dashboard",
+    "description": "Cross-scenario performance offenders and tier distribution.",
+    "refresh": "Refresh",
+    "empty": "No scenarios were graded.",
+    "emptyTitle": "Fleet is empty",
+    "errorTitle": "Couldn't scan the fleet",
+    "loadingTitle": "Scanning the fleet",
+    "summary": {
+      "scenarios": "Scenarios",
+      "noBudget": "No budget",
+      "regressed": "Regressed"
+    },
+    "tiers": {
+      "title": "Tier distribution"
+    },
+    "slowest": {
+      "title": "Slowest builds",
+      "empty": "No build timings recorded."
+    },
+    "regressedSection": {
+      "title": "Regressed scenarios",
+      "empty": "No regressions detected.",
+      "flagged": "Flagged as regressed"
+    },
+    "noBudgetSection": {
+      "title": "Scenarios without a budget",
+      "empty": "Every graded scenario has a budget."
+    },
+    "errors": {
+      "title": "Could not grade"
+    },
+    "col": {
+      "scenario": "Scenario",
+      "tier": "Tier",
+      "goBuild": "Go build",
+      "uiBuild": "UI build",
+      "reason": "Reason"
+    }
+  },
+  "trace": {
+    "title": "Open a trace",
+    "description": "Analyze a captured trace artifact: web vitals, per-component commit attribution, and located findings.",
+    "artifactLabel": "Trace artifact",
+    "artifactPlaceholder": "Path to performance.json",
+    "analyze": "Analyze",
+    "empty": "Provide a trace artifact and analyze it to see component attribution.",
+    "emptyTitle": "No trace analyzed yet",
+    "errorTitle": "Couldn't analyze the trace",
+    "loadingTitle": "Analyzing trace",
+    "devtoolsHint": "The artifact handle is a path to the raw performance.json — load it in Chrome DevTools or chrome://tracing for the full timeline.",
+    "componentsTitle": "Component commits",
+    "componentsEmpty": "No component attribution in this trace (Tier 0 capture).",
+    "findingsTitle": "Findings",
+    "findingsEmpty": "No performance findings in this trace.",
+    "vital": {
+      "lcp": "LCP",
+      "fcp": "FCP",
+      "longTask": "Longest task",
+      "components": "Components"
+    },
+    "col": {
+      "component": "Component",
+      "commits": "Commits",
+      "avg": "Avg",
+      "max": "Max",
+      "definition": "Definition"
+    }
+  },
+  "readiness": {
+    "title": "Readiness & autofix",
+    "description": "Show the missing Tier-1 perf-build infra and apply the fixes in one click.",
+    "framework": "Framework",
+    "errorTitle": "Couldn't load readiness",
+    "loadingTitle": "Checking readiness",
+    "autofixableCount": "{{count}} auto-fixable",
+    "autofixableCount_one": "1 auto-fixable",
+    "autofixableCount_zero": "Nothing to auto-fix",
+    "preview": "Preview fix",
+    "apply": "Apply fix",
+    "applying": "Applying…",
+    "gaps": {
+      "title": "Readiness gaps",
+      "empty": "No gaps — this scenario carries the full perf-build infra.",
+      "autofixable": "Auto-fixable"
+    },
+    "fixResult": {
+      "title": "Fix result",
+      "applied": "Applied",
+      "previewed": "Previewed (dry run)"
+    }
+  },
+  "budgets": {
+    "title": "Budgets",
+    "description": "View and edit the per-scenario performance budget, then check it against the latest data.",
+    "errorTitle": "Couldn't load the budget",
+    "loadingTitle": "Loading budget",
+    "notDeclared": "No budget is declared for this scenario yet. Set thresholds below to create one.",
+    "unsetPlaceholder": "unset",
+    "ratchet": "Ratchet (tighten budget to latest measurement)",
+    "save": "Save budget",
+    "saved": "Saved",
+    "check": "Check budget",
+    "field": {
+      "goBuild": "Go build max (ms)",
+      "uiBuild": "UI build max (ms)",
+      "bundle": "Bundle max (bytes)",
+      "lcp": "LCP max (ms)",
+      "startup": "Startup max (ms)",
+      "p95": "p95 max (ms)"
+    },
+    "checkResult": {
+      "title": "Budget check",
+      "passed": "Within budget",
+      "failed": "Over budget",
+      "col": {
+        "axis": "Axis",
+        "measured": "Measured",
+        "budget": "Budget"
+      }
+    }
+  },
+  "health": {
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_zero": "No notifications",
+    "summary_one": "1 notification"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
+  }
+}

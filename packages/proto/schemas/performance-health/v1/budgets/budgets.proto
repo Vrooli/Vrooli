@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.budgets;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/budgets;budgets_v1";
+
+// =============================================================================
+// PERFORMANCE BUDGET SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// BudgetService owns per-scenario performance budgets (build time, bundle size,
+// LCP, p95-where-available, component-commit budgets) plus a ratchet. Budgets
+// are declarative in scenario config; a regression vs. budget fails via
+// baseline-diff exactly like any other health regression.
+// =============================================================================
+
+service BudgetService {
+  // GetBudget returns the declared performance budget for a scenario.
+  rpc GetBudget(GetBudgetRequest) returns (GetBudgetResponse);
+  // SetBudget writes/updates the declared budget for a scenario (dry-run via
+  // the X-Dry-Run header honored by cli-core --dry-run).
+  rpc SetBudget(SetBudgetRequest) returns (SetBudgetResponse);
+  // CheckBudget evaluates a scenario's latest measurements against its budget
+  // and reports violations; this is the baseline-diff gate.
+  rpc CheckBudget(CheckBudgetRequest) returns (CheckBudgetResponse);
+}
+
+// Budget is one scenario's declared performance thresholds.
+message Budget {
+  string scenario = 1;
+  int64 go_build_max_ms = 2;
+  int64 ui_build_max_ms = 3;
+  int64 bundle_max_bytes = 4;
+  int64 lcp_max_ms = 5;
+  int64 startup_max_ms = 6;
+  // Per-component commit budget in milliseconds (max for the slowest component).
+  double component_commit_max_ms = 7;
+  // p95 interaction/latency budget in milliseconds (where measured; 0 = unset).
+  int64 p95_max_ms = 8;
+  // Per-component average-commit budget in milliseconds (0 = unset).
+  double component_commit_avg_max_ms = 9;
+  // Ratchet: when true SetBudget may only tighten an existing budget, never
+  // loosen it (a relaxation is rejected). Tighten-only protects against
+  // silently regressing the budget after a measured improvement.
+  bool ratchet = 10;
+}
+
+message GetBudgetRequest {
+  string scenario = 1;
+}
+
+message GetBudgetResponse {
+  Budget budget = 1;
+  // True when a budget is declared (false => defaults returned).
+  bool declared = 2;
+}
+
+message SetBudgetRequest {
+  Budget budget = 1;
+}
+
+message SetBudgetResponse {
+  Budget budget = 1;
+  bool dry_run = 2;
+}
+
+message CheckBudgetRequest {
+  string scenario = 1;
+}
+
+message CheckBudgetResponse {
+  string scenario = 1;
+  // True when every measured axis is within budget.
+  bool passed = 2;
+  repeated BudgetViolation violations = 3;
+}
+
+// BudgetViolation is one axis exceeding its budget.
+message BudgetViolation {
+  // Axis id, e.g. "go_build", "bundle", "lcp", "startup".
+  string axis = 1;
+  int64 measured = 2;
+  int64 budget = 3;
+  string unit = 4;
+}

@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.audit;
+
+import "common/v1/metrics.proto";
+import "performance-health/v1/readiness/readiness.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/audit;audit_v1";
+
+// =============================================================================
+// PERFORMANCE AUDIT SERVICE — capture orchestration conductor
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// AuditService is the capture-orchestration conductor: it does a profile-mode
+// restart of the target scenario, verifies the served bundle is instrumented,
+// drives a BAS perf capture (Tier 0 always; Tier 1 ⚛ marks ride along when the
+// page emits them) on a chosen interaction, then restores the default build. It
+// gracefully skips (never fails) when there is no browser / no UI / headless,
+// mirroring the Lighthouse silent-skip. BAS stays a dumb mechanism; tier and
+// build-mode meaning live here.
+// =============================================================================
+
+service AuditService {
+  // RunAudit orchestrates a profile-mode capture of one scenario and returns
+  // the captured artifacts (or a clean skip when capture is impossible).
+  rpc RunAudit(RunAuditRequest) returns (RunAuditResponse);
+}
+
+message RunAuditRequest {
+  string scenario = 1;
+  string path = 2;
+  // Optional BAS recorded-workflow slug to drive the interaction; empty uses
+  // the default navigate+mount-settle interaction.
+  string workflow = 3;
+}
+
+// AuditOutcome describes whether the capture ran or was cleanly skipped.
+enum AuditOutcome {
+  AUDIT_OUTCOME_UNSPECIFIED = 0;
+  AUDIT_OUTCOME_CAPTURED = 1;
+  AUDIT_OUTCOME_SKIPPED = 2;
+  AUDIT_OUTCOME_FAILED = 3;
+}
+
+message RunAuditResponse {
+  string scenario = 1;
+  AuditOutcome outcome = 2;
+  // The capture tier actually reached for this run.
+  readiness.CaptureTier tier = 3;
+  // Storage key / path of the captured CDP trace (performance.json), if any.
+  string trace_artifact = 4;
+  // Storage key / path of the captured web-vitals artifact, if any.
+  string web_vitals_artifact = 5;
+  // Human-readable reason when the capture was skipped or failed.
+  string reason = 6;
+  common.v1.ExecutionMetrics metrics = 7;
+}

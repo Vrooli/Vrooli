@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.analysis;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/analysis;analysis_v1";
+
+// =============================================================================
+// TRACE-ANALYSIS SERVICE (deterministic findings)
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// AnalysisService parses a captured performance.json (CDP trace) + web-vitals:
+// it pairs ⚛ blink.user_timing begin/end marks by id2.local into a per-component
+// count/avg/max table, derives long-task / paint / LCP deltas, and locates each
+// hot component definition (file:line via symbol lookup). Findings are
+// DETERMINISTIC — no AI hotspot hypotheses. A before/after comparison primitive
+// diffs two traces by the same interaction.
+// =============================================================================
+
+service AnalysisService {
+  // AnalyzeTrace turns one captured trace into a located, quantified findings
+  // set plus a per-component table.
+  rpc AnalyzeTrace(AnalyzeTraceRequest) returns (AnalyzeTraceResponse);
+  // CompareTraces diffs two traces of the same interaction (component-commit
+  // delta + long-task delta).
+  rpc CompareTraces(CompareTracesRequest) returns (CompareTracesResponse);
+}
+
+message AnalyzeTraceRequest {
+  string scenario = 1;
+  // Storage key / path of the captured performance.json trace.
+  string trace_artifact = 2;
+}
+
+message AnalyzeTraceResponse {
+  string scenario = 1;
+  repeated ComponentTiming components = 2;
+  // Long-task time over the trace, in milliseconds.
+  int64 long_task_ms = 3;
+  // Largest Contentful Paint, in milliseconds.
+  int64 lcp_ms = 4;
+  // First Contentful Paint, in milliseconds.
+  int64 fcp_ms = 5;
+  // Deterministic, located findings (component → file:line + quantified
+  // evidence).
+  repeated PerfFinding findings = 6;
+}
+
+// ComponentTiming is one React component's commit profile across the trace.
+message ComponentTiming {
+  string component = 1;
+  int32 commit_count = 2;
+  double avg_ms = 3;
+  double max_ms = 4;
+  // Located definition, e.g. "ui/src/features/list/List.tsx:42" (empty if not
+  // located).
+  string definition = 5;
+}
+
+// PerfFinding is one deterministic, located performance finding.
+message PerfFinding {
+  string code = 1;
+  string component = 2;
+  string definition = 3;
+  string message = 4;
+  // Quantified evidence, e.g. "count=120 avg=8.4ms max=31ms over budget by 6ms".
+  string evidence = 5;
+  string severity = 6;
+}
+
+message CompareTracesRequest {
+  string scenario = 1;
+  // Baseline (before) trace artifact.
+  string baseline_artifact = 2;
+  // Candidate (after) trace artifact.
+  string candidate_artifact = 3;
+}
+
+message CompareTracesResponse {
+  string scenario = 1;
+  repeated ComponentDelta components = 2;
+  // Long-task delta (candidate - baseline), in milliseconds.
+  int64 long_task_delta_ms = 3;
+  // LCP delta (candidate - baseline), in milliseconds.
+  int64 lcp_delta_ms = 4;
+}
+
+// ComponentDelta is one component's commit-profile delta between two traces.
+// Cardinality (count) and per-commit cost (avg/max) are tracked together so the
+// "fix raised commit count but dropped per-commit cost" case is visible.
+message ComponentDelta {
+  string component = 1;
+  double baseline_avg_ms = 2;
+  double candidate_avg_ms = 3;
+  double delta_ms = 4;
+  int32 baseline_count = 5;
+  int32 candidate_count = 6;
+  int32 count_delta = 7;
+  double baseline_max_ms = 8;
+  double candidate_max_ms = 9;
+  double max_delta_ms = 10;
+}

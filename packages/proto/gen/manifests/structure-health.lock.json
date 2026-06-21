@@ -1,12 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "structure-health",
-  "input_digest": "sha256:9b260cfa2fbb9f61b8734f00be677a283cdcbfa0ea5ec055c49ba6a08306badc",
+  "input_digest": "sha256:ddd07724234aaa85984b51ba3cb6d4d9562a22f5e25f8b571ced575d86cf54e1",
   "input_files": [
     "schemas/common/v1/maturity.proto",
-    "schemas/common/v1/metrics.proto",
     "schemas/structure-health/v1/fleet/fleet.proto",
-    "schemas/structure-health/v1/perf/perf.proto",
     "schemas/structure-health/v1/shared/errors.proto",
     "schemas/structure-health/v1/shared/health.proto",
     "schemas/structure-health/v1/validation/validation.proto"
@@ -24,8 +22,6 @@
   "outputs": {
     "gen/go/structure-health/v1/fleet/fleet.pb.go": "sha256:8303e9352610db03c79ee2db9d011700e0691bb28628bba424b108af3e6b070d",
     "gen/go/structure-health/v1/fleet/fleet_v1connect/fleet.connect.go": "sha256:277bb5ec4c690a7f98f5889f81b34d80f52d9a5841a76be0a9fa61d45d84f20c",
-    "gen/go/structure-health/v1/perf/perf.pb.go": "sha256:75fd63f3ce4cf7f698fe40f54075cb25a49e100decf7ba4929e5e753e27ed600",
-    "gen/go/structure-health/v1/perf/perf_v1connect/perf.connect.go": "sha256:490c7cae9a33afc88bf1d3c7a270e4f4b783d976e04f9aae2fa2c2be634b229d",
     "gen/go/structure-health/v1/shared/errors.pb.go": "sha256:c82e1adc0d5fd2d223159724bcd18f7f6366fef7853d6798e8fabcc706467311",
     "gen/go/structure-health/v1/shared/health.pb.go": "sha256:ea3432573d9767596e96bacaae8ec9e163511d881e9e4abce0a896515732019c",
     "gen/go/structure-health/v1/validation/validation.pb.go": "sha256:fee12022e086ed29064efb06218564e335acc38a080210c0d1b66db25b665e38",
@@ -34,9 +30,6 @@
     "gen/python/structure_health/v1/fleet/fleet_pb2.py": "sha256:77381dc21130b37a7bc2e4597716a49ea522c488f50a6d1415dc1835fab396ed",
     "gen/python/structure_health/v1/fleet/fleet_pb2.pyi": "sha256:4ad2ba651dec0463210c3af0d024aa4d2c84fe213fa95baad7508bb3bcbb51bc",
     "gen/python/structure_health/v1/fleet/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/structure_health/v1/perf/perf_pb2.py": "sha256:db4be85b9825475d65b1ee05fd8c10c9d9716446b512d4cb292f07f243f8c08c",
-    "gen/python/structure_health/v1/perf/perf_pb2.pyi": "sha256:472eccc34384fc176698059956db6c02b21ebf2f3a2f3c0868d1e5bba8c94972",
-    "gen/python/structure_health/v1/perf/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/structure_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/structure_health/v1/shared/errors_pb2.py": "sha256:d9ee1f1cb3f5a182e340ccb0059d208558689ac26be5a36398f2275912599958",
     "gen/python/structure_health/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
@@ -47,12 +40,10 @@
     "gen/python/structure_health/v1/validation/validation_pb2.py": "sha256:50d8d4bac826e8b2e86daeb86ea849496c366f024e2d808e09211cf23d94bddb",
     "gen/python/structure_health/v1/validation/validation_pb2.pyi": "sha256:29e94d79b47e71a91fcb1b5b97850657e403a03d79bf2e3629f78d32cab24b28",
     "gen/typescript/js/structure-health/v1/fleet/fleet_pb.js": "sha256:0bfefae2d317acc1ab3845247299d40829a15f7c32e1321a2db31c5d5b42e558",
-    "gen/typescript/js/structure-health/v1/perf/perf_pb.js": "sha256:3e8d6defe688ba336c99fd701c6c554fd4bd21bd9474160861fffaafe587169c",
     "gen/typescript/js/structure-health/v1/shared/errors_pb.js": "sha256:5a28a52f17cd4469dd4692c09919afc8fda3e2b338010c64d008c5572e9a1ba4",
     "gen/typescript/js/structure-health/v1/shared/health_pb.js": "sha256:3172211e8f1238af4760f1f05f5a660a66e8972622e5e590a1fbfab1eb65b352",
     "gen/typescript/js/structure-health/v1/validation/validation_pb.js": "sha256:f1fad591c1269af5ef8cd4e7f1e1362dc8737c355678ee366ee8b0c4af3c142f",
     "gen/typescript/structure-health/v1/fleet/fleet_pb.ts": "sha256:847410f46230459169de600da925223b76149f748a686efe6fe693d36c78920e",
-    "gen/typescript/structure-health/v1/perf/perf_pb.ts": "sha256:0822b95426b929e77aad2380afaf2aefa6c2b8c60e56a0b1272ee5aa4cc1edbf",
     "gen/typescript/structure-health/v1/shared/errors_pb.ts": "sha256:e0365c95315e4381cd46510dcf292aaa4d6f9b567f7189d5512e447df30da6c0",
     "gen/typescript/structure-health/v1/shared/health_pb.ts": "sha256:9fedcb58dfe98e08ce469734d654542e0e21cefa5d6deaf8aebeb917a50338cc",
     "gen/typescript/structure-health/v1/validation/validation_pb.ts": "sha256:cd559c59195d0d68e4d1e827044fe02f175fc65b87091f1069849294142c043e"

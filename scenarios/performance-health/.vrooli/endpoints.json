@@ -1,0 +1,635 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.performance_health.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.performance_health.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "analysis_analyze_trace",
+      "path": "/vrooli.performance_health.v1.analysis.AnalysisService/AnalyzeTrace",
+      "method": "POST",
+      "summary": "Analyze a captured perf trace",
+      "description": "Parses a captured performance.json into a per-component count/avg/max table plus deterministic, located findings (component → file:line with quantified evidence).",
+      "category": "analysis",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "trace_artifact": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "components": "array<ComponentTiming>",
+          "fcp_ms": "int64",
+          "findings": "array<PerfFinding>",
+          "lcp_ms": "int64",
+          "long_task_ms": "int64",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario or trace artifact is missing"
+        }
+      ]
+    },
+    {
+      "id": "analysis_compare_traces",
+      "path": "/vrooli.performance_health.v1.analysis.AnalysisService/CompareTraces",
+      "method": "POST",
+      "summary": "Compare two perf traces of the same interaction",
+      "description": "Diffs two traces by component (commit-time delta) plus long-task and LCP deltas.",
+      "category": "analysis",
+      "request": {
+        "type": "object",
+        "properties": {
+          "baseline_artifact": "string",
+          "candidate_artifact": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "components": "array<ComponentDelta>",
+          "lcp_delta_ms": "int64",
+          "long_task_delta_ms": "int64",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario or artifacts are missing"
+        }
+      ]
+    },
+    {
+      "id": "audit_run_audit",
+      "path": "/vrooli.performance_health.v1.audit.AuditService/RunAudit",
+      "method": "POST",
+      "summary": "Orchestrate a profile-mode perf capture of a scenario",
+      "description": "Restarts the scenario in profile build mode, drives a BAS perf capture on a chosen interaction, and restores the default build — cleanly skipping when capture is impossible (no browser / no UI / headless).",
+      "category": "audit",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "scenario": "string",
+          "workflow": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "outcome": "AuditOutcome",
+          "reason": "string",
+          "scenario": "string",
+          "tier": "CaptureTier",
+          "trace_artifact": "string",
+          "web_vitals_artifact": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Capture orchestration failure"
+        }
+      ]
+    },
+    {
+      "id": "benchmark_run_benchmark",
+      "path": "/vrooli.performance_health.v1.benchmark.BenchmarkService/RunBenchmark",
+      "method": "POST",
+      "summary": "Time a scenario's build surfaces",
+      "description": "Times go build and the UI build against thresholds from .vrooli/testing.json, preserving the early-exit semantics of the migrated test-genie native perf phase.",
+      "category": "benchmark",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "outcome": "BenchmarkOutcome",
+          "reason": "string",
+          "scenario": "string",
+          "timings": "array<BuildTiming>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Benchmark failure"
+        }
+      ]
+    },
+    {
+      "id": "budget_get_budget",
+      "path": "/vrooli.performance_health.v1.budgets.BudgetService/GetBudget",
+      "method": "POST",
+      "summary": "Read a scenario's declared performance budget",
+      "description": "Returns the declared performance budget for a scenario (defaults when none is declared).",
+      "category": "budgets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "budget": "Budget",
+          "declared": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        }
+      ]
+    },
+    {
+      "id": "budget_set_budget",
+      "path": "/vrooli.performance_health.v1.budgets.BudgetService/SetBudget",
+      "method": "POST",
+      "summary": "Write a scenario's performance budget",
+      "description": "Writes/updates a scenario's declared performance budget; honors X-Dry-Run for a no-write validation.",
+      "category": "budgets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "budget": "Budget"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "budget": "Budget",
+          "dry_run": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        }
+      ]
+    },
+    {
+      "id": "budget_check_budget",
+      "path": "/vrooli.performance_health.v1.budgets.BudgetService/CheckBudget",
+      "method": "POST",
+      "summary": "Check a scenario's measurements against its budget",
+      "description": "Evaluates a scenario's latest measurements against its budget and reports violations — the baseline-diff regression gate.",
+      "category": "budgets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "passed": "bool",
+          "scenario": "string",
+          "violations": "array<BudgetViolation>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        }
+      ]
+    },
+    {
+      "id": "fleet_scan_fleet",
+      "path": "/vrooli.performance_health.v1.fleet.FleetService/ScanFleet",
+      "method": "POST",
+      "summary": "Scan the fleet for performance offenders",
+      "description": "Grades the requested scenarios (or every discovered scenario) and rolls up offender lists (no budget, slow build, regressed) plus the capture-tier distribution.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenarios": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "entries": "array<FleetScenarioEntry>",
+          "errors": "array<FleetScanError>",
+          "no_budget_count": "int32",
+          "regressed_count": "int32",
+          "scenario_count": "int32",
+          "tier_distribution": "array<TierDistribution>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Fleet scan failure"
+        }
+      ]
+    },
+    {
+      "id": "lighthouse_run_lighthouse",
+      "path": "/vrooli.performance_health.v1.lighthouse.LighthouseService/RunLighthouse",
+      "method": "POST",
+      "summary": "Score a scenario's UI with Lighthouse",
+      "description": "Wraps the Lighthouse CLI to score a scenario's pages against per-page thresholds; silently skips when the CLI is absent or there is no UI URL.",
+      "category": "lighthouse",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "outcome": "LighthouseOutcome",
+          "pages": "array<PageScore>",
+          "reason": "string",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Lighthouse run failure"
+        }
+      ]
+    },
+    {
+      "id": "startup_benchmark_startup",
+      "path": "/vrooli.performance_health.v1.startup.StartupService/BenchmarkStartup",
+      "method": "POST",
+      "summary": "Benchmark a scenario's startup performance",
+      "description": "Restarts the target scenario, records per-surface time-to-healthy plus a resource envelope, persists a trend row, and returns the measurement. Decoupled from validation — never invoked by a test-genie phase.",
+      "category": "startup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "timeout_seconds": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "measurement": "StartupMeasurement"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Restart/measurement failure"
+        }
+      ]
+    },
+    {
+      "id": "startup_get_startup_trend",
+      "path": "/vrooli.performance_health.v1.startup.StartupService/GetStartupTrend",
+      "method": "POST",
+      "summary": "Read a scenario's persisted startup-performance trend",
+      "description": "Returns the persisted startup measurements for a scenario, newest first.",
+      "category": "startup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "measurements": "array<StartupMeasurement>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Trend read failure"
+        }
+      ]
+    },
+    {
+      "id": "trend_get_trend",
+      "path": "/vrooli.performance_health.v1.trend.TrendService/GetTrend",
+      "method": "POST",
+      "summary": "Read a scenario's persisted performance trend",
+      "description": "Returns the persisted performance samples (build time, startup, LCP, bundle size) for a scenario, newest first.",
+      "category": "trend",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "samples": "array<TrendSample>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Trend read failure"
+        }
+      ]
+    },
+    {
+      "id": "readiness_validate_readiness",
+      "path": "/vrooli.performance_health.v1.readiness.ReadinessService/ValidateReadiness",
+      "method": "POST",
+      "summary": "Validate a scenario's capture-tier readiness",
+      "description": "Decides the reachable capture tier from Code Facts and detects the Tier-1 perf-build infra, emitting a finding per missing piece with a shared maturity assessment.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "autofixable_count": "int32",
+          "status": "string",
+          "surfaces": "array<string>",
+          "tier": "CaptureTier",
+          "ui_framework": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "readiness_preview_readiness_fix",
+      "path": "/vrooli.performance_health.v1.readiness.ReadinessService/PreviewReadinessFix",
+      "method": "POST",
+      "summary": "Preview deterministic readiness fixes",
+      "description": "Returns the format-preserving edits readiness could apply to move a scenario toward Tier 1, without writing.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "readiness_apply_readiness_fix",
+      "path": "/vrooli.performance_health.v1.readiness.ReadinessService/ApplyReadinessFix",
+      "method": "POST",
+      "summary": "Apply deterministic readiness fixes",
+      "description": "Applies the format-preserving edits to move a scenario toward Tier 1 and reports what changed.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate scenario performance readiness through the shared provider contract",
+      "description": "Runs performance-health's readiness engine and returns the shared scenario-validation response; the native readiness response is packed into native_detail. This is the contract test-genie delegates axes ①/③ to.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<performance_health.v1.readiness.ValidateReadinessResponse>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic readiness fixes through the shared provider contract",
+      "description": "Returns the format-preserving readiness edits in the shared scenario-validation FixResponse shape, without writing.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    },
+    {
+      "id": "scenario_validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic readiness fixes through the shared provider contract",
+      "description": "Applies the format-preserving readiness edits and reports what changed, in the shared scenario-validation FixResponse shape.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<scenario_validation.v1.FixCandidate>",
+          "messages": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
+    }
+  ]
+}

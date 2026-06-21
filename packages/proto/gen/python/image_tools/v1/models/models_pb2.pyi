@@ -308,7 +308,7 @@ class DoctorCatalogResponse(_message.Message):
     def __init__(self, ok: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[CatalogFinding, _Mapping]]] = ...) -> None: ...
 
 class BackendStatus(_message.Message):
-    __slots__ = ("name", "operations", "available", "standalone", "cloud", "gpu_capable", "detail", "provision")
+    __slots__ = ("name", "operations", "available", "standalone", "cloud", "gpu_capable", "detail", "provision", "host_tool", "host_tool_ready", "remediation")
     NAME_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
@@ -317,6 +317,9 @@ class BackendStatus(_message.Message):
     GPU_CAPABLE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     PROVISION_FIELD_NUMBER: _ClassVar[int]
+    HOST_TOOL_FIELD_NUMBER: _ClassVar[int]
+    HOST_TOOL_READY_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
     name: str
     operations: _containers.RepeatedScalarFieldContainer[str]
     available: bool
@@ -325,7 +328,10 @@ class BackendStatus(_message.Message):
     gpu_capable: bool
     detail: str
     provision: str
-    def __init__(self, name: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., available: _Optional[bool] = ..., standalone: _Optional[bool] = ..., cloud: _Optional[bool] = ..., gpu_capable: _Optional[bool] = ..., detail: _Optional[str] = ..., provision: _Optional[str] = ...) -> None: ...
+    host_tool: str
+    host_tool_ready: bool
+    remediation: str
+    def __init__(self, name: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., available: _Optional[bool] = ..., standalone: _Optional[bool] = ..., cloud: _Optional[bool] = ..., gpu_capable: _Optional[bool] = ..., detail: _Optional[str] = ..., provision: _Optional[str] = ..., host_tool: _Optional[str] = ..., host_tool_ready: _Optional[bool] = ..., remediation: _Optional[str] = ...) -> None: ...
 
 class DoctorBackendsRequest(_message.Message):
     __slots__ = ()
@@ -338,3 +344,31 @@ class DoctorBackendsResponse(_message.Message):
     ok: bool
     backends: _containers.RepeatedCompositeFieldContainer[BackendStatus]
     def __init__(self, ok: _Optional[bool] = ..., backends: _Optional[_Iterable[_Union[BackendStatus, _Mapping]]] = ...) -> None: ...
+
+class EnsureBackendRequest(_message.Message):
+    __slots__ = ("tool", "operation", "dry_run")
+    TOOL_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    tool: str
+    operation: str
+    dry_run: bool
+    def __init__(self, tool: _Optional[str] = ..., operation: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+
+class EnsureBackendResponse(_message.Message):
+    __slots__ = ("tool", "job_id", "eta_seconds", "already_installed", "manual", "state", "detail")
+    TOOL_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    ETA_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    MANUAL_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    tool: str
+    job_id: str
+    eta_seconds: int
+    already_installed: bool
+    manual: bool
+    state: str
+    detail: str
+    def __init__(self, tool: _Optional[str] = ..., job_id: _Optional[str] = ..., eta_seconds: _Optional[int] = ..., already_installed: _Optional[bool] = ..., manual: _Optional[bool] = ..., state: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...

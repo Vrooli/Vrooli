@@ -1,0 +1,278 @@
+{
+  "_comment": "Arabic catalog. Keys mirror en.json exactly (parity contract). Plural variants may differ per locale rules.",
+  "app": {
+    "title": "Performance Health"
+  },
+  "common": {
+    "loading": "جارٍ التحميل…",
+    "errorTitle": "حدث خطأ ما",
+    "retry": "إعادة المحاولة"
+  },
+  "tier": {
+    "none": "لا واجهة",
+    "tier0": "المستوى 0",
+    "tier1": "المستوى 1",
+    "unknown": "مستوى غير معروف"
+  },
+  "layout": {
+    "sidebarLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "تنقّل سريع",
+    "mainLabel": "المحتوى الرئيسي",
+    "nav": {
+      "dashboard": "نظرة عامة",
+      "audit": "تدقيق",
+      "trends": "الاتجاهات",
+      "fleet": "الأسطول",
+      "trace": "التتبّع",
+      "readiness": "الجاهزية",
+      "budgets": "الميزانيات",
+      "settings": "الإعدادات"
+    }
+  },
+  "theme": {
+    "switcherLabel": "السمة",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "perf": {
+    "picker": {
+      "label": "السيناريو"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "نظرة عامة",
+      "description": "لقطة حيّة لأداء الأسطول مع وصول سريع إلى كل سير عمل.",
+      "snapshotTitle": "لقطة الأسطول",
+      "snapshotError": "تعذّر تحميل لقطة الأسطول.",
+      "workflowsTitle": "سير العمل",
+      "snapshotEmpty": "لم يتم تقييم أي سيناريو بعد — شغّل تدقيقًا لملء الأسطول.",
+      "snapshotCta": "افتح لوحة الأسطول"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة"
+    }
+  },
+  "audit": {
+    "title": "تدقيق سيناريو",
+    "description": "حدّد مستوى الالتقاط وشغّل تدقيق أداء حقيقيًا ينتج تتبّعًا ونتائج محدّدة الموقع.",
+    "run": "تشغيل التدقيق",
+    "running": "جارٍ تشغيل التدقيق…",
+    "tier": {
+      "title": "مستوى الالتقاط",
+      "errorTitle": "تعذّر تحميل الجاهزية",
+      "loadingTitle": "جارٍ تحديد مستوى الالتقاط",
+      "framework": "إطار العمل",
+      "surfaces": "الأسطح"
+    },
+    "findings": {
+      "title": "نتائج الجاهزية",
+      "empty": "لا توجد نتائج جاهزية — هذا السيناريو جاهز للأداء.",
+      "autofixable": "قابل للإصلاح التلقائي",
+      "readinessLink": "افتح الجاهزية لتطبيق الإصلاحات"
+    },
+    "result": {
+      "title": "نتيجة التدقيق",
+      "trace": "أداة التتبّع",
+      "webVitals": "أداة Web Vitals"
+    },
+    "outcome": {
+      "captured": "تم الالتقاط",
+      "skipped": "تم التخطّي",
+      "failed": "فشل",
+      "unknown": "غير معروف"
+    }
+  },
+  "trends": {
+    "title": "الأداء عبر الزمن",
+    "description": "اتجاهات البناء وبدء التشغيل وأداء المتصفّح للسيناريو المحدد.",
+    "empty": "لا توجد عيّنات اتجاه بعد. شغّل تدقيقًا أو معيارًا لبدء سلسلة.",
+    "emptyTitle": "لا توجد اتجاهات بعد",
+    "emptyCta": "تشغيل التدقيق",
+    "errorTitle": "تعذّر تحميل الاتجاهات",
+    "loadingTitle": "جارٍ تحميل الاتجاهات",
+    "sparklineLabel": "اتجاه {{metric}}",
+    "samplesTitle": "العيّنات الأخيرة",
+    "metric": {
+      "goBuild": "بناء Go",
+      "uiBuild": "بناء الواجهة",
+      "bundle": "حجم الحزمة",
+      "lcp": "LCP",
+      "p95": "تفاعل p95",
+      "component": "أبطأ مكوّن",
+      "startup": "بدء التشغيل"
+    },
+    "col": {
+      "captured": "وقت الالتقاط",
+      "note": "ملاحظة"
+    }
+  },
+  "fleet": {
+    "title": "لوحة الأسطول",
+    "description": "مخالفات الأداء عبر السيناريوهات وتوزيع المستويات.",
+    "refresh": "تحديث",
+    "empty": "لم يتم تقييم أي سيناريو.",
+    "emptyTitle": "الأسطول فارغ",
+    "errorTitle": "تعذّر فحص الأسطول",
+    "loadingTitle": "جارٍ فحص الأسطول",
+    "summary": {
+      "scenarios": "السيناريوهات",
+      "noBudget": "بلا ميزانية",
+      "regressed": "تراجع"
+    },
+    "tiers": {
+      "title": "توزيع المستويات"
+    },
+    "slowest": {
+      "title": "أبطأ عمليات البناء",
+      "empty": "لا توجد قياسات بناء."
+    },
+    "regressedSection": {
+      "title": "السيناريوهات المتراجعة",
+      "empty": "لم يتم اكتشاف تراجعات.",
+      "flagged": "مُعلَّم كتراجع"
+    },
+    "noBudgetSection": {
+      "title": "سيناريوهات بلا ميزانية",
+      "empty": "كل سيناريو مُقيَّم له ميزانية."
+    },
+    "errors": {
+      "title": "تعذّر التقييم"
+    },
+    "col": {
+      "scenario": "السيناريو",
+      "tier": "المستوى",
+      "goBuild": "بناء Go",
+      "uiBuild": "بناء الواجهة",
+      "reason": "السبب"
+    }
+  },
+  "trace": {
+    "title": "افتح تتبّعًا",
+    "description": "حلّل أداة تتبّع ملتقَطة: Web Vitals، إسناد التزام المكوّنات، والنتائج محدّدة الموقع.",
+    "artifactLabel": "أداة التتبّع",
+    "artifactPlaceholder": "المسار إلى performance.json",
+    "analyze": "تحليل",
+    "empty": "قدّم أداة تتبّع وحلّلها لرؤية إسناد المكوّنات.",
+    "emptyTitle": "لم يتم تحليل أي تتبّع بعد",
+    "errorTitle": "تعذّر تحليل التتبّع",
+    "loadingTitle": "جارٍ تحليل التتبّع",
+    "devtoolsHint": "مُعرّف الأداة هو مسار إلى performance.json الخام — حمّله في Chrome DevTools أو chrome://tracing للحصول على المخطط الزمني الكامل.",
+    "componentsTitle": "التزامات المكوّنات",
+    "componentsEmpty": "لا يوجد إسناد مكوّنات في هذا التتبّع (التقاط المستوى 0).",
+    "findingsTitle": "النتائج",
+    "findingsEmpty": "لا توجد نتائج أداء في هذا التتبّع.",
+    "vital": {
+      "lcp": "LCP",
+      "fcp": "FCP",
+      "longTask": "أطول مهمة",
+      "components": "المكوّنات"
+    },
+    "col": {
+      "component": "المكوّن",
+      "commits": "الالتزامات",
+      "avg": "المتوسّط",
+      "max": "الأقصى",
+      "definition": "التعريف"
+    }
+  },
+  "readiness": {
+    "title": "الجاهزية والإصلاح التلقائي",
+    "description": "أظهر بنية بناء الأداء المفقودة للمستوى 1 وطبّق الإصلاحات بنقرة واحدة.",
+    "framework": "إطار العمل",
+    "errorTitle": "تعذّر تحميل الجاهزية",
+    "loadingTitle": "جارٍ التحقق من الجاهزية",
+    "autofixableCount": "{{count}} قابلة للإصلاح التلقائي",
+    "autofixableCount_zero": "لا شيء للإصلاح التلقائي",
+    "preview": "معاينة الإصلاح",
+    "apply": "تطبيق الإصلاح",
+    "applying": "جارٍ التطبيق…",
+    "gaps": {
+      "title": "ثغرات الجاهزية",
+      "empty": "لا ثغرات — هذا السيناريو يحمل بنية بناء الأداء الكاملة.",
+      "autofixable": "قابل للإصلاح التلقائي"
+    },
+    "fixResult": {
+      "title": "نتيجة الإصلاح",
+      "applied": "تم التطبيق",
+      "previewed": "معاينة (تشغيل تجريبي)"
+    }
+  },
+  "budgets": {
+    "title": "الميزانيات",
+    "description": "اعرض وعدّل ميزانية الأداء لكل سيناريو، ثم افحصها مقابل أحدث البيانات.",
+    "errorTitle": "تعذّر تحميل الميزانية",
+    "loadingTitle": "جارٍ تحميل الميزانية",
+    "notDeclared": "لم يتم تعريف ميزانية لهذا السيناريو بعد. اضبط الحدود أدناه لإنشائها.",
+    "unsetPlaceholder": "غير مضبوط",
+    "ratchet": "السقّاطة (شدّ الميزانية إلى أحدث قياس)",
+    "save": "حفظ الميزانية",
+    "saved": "تم الحفظ",
+    "check": "فحص الميزانية",
+    "field": {
+      "goBuild": "أقصى بناء Go (ms)",
+      "uiBuild": "أقصى بناء الواجهة (ms)",
+      "bundle": "أقصى حجم حزمة (bytes)",
+      "lcp": "أقصى LCP (ms)",
+      "startup": "أقصى بدء تشغيل (ms)",
+      "p95": "أقصى p95 (ms)"
+    },
+    "checkResult": {
+      "title": "فحص الميزانية",
+      "passed": "ضمن الميزانية",
+      "failed": "تجاوز الميزانية",
+      "col": {
+        "axis": "المحور",
+        "measured": "المقيس",
+        "budget": "الميزانية"
+      }
+    }
+  },
+  "health": {
+    "title": "صحة الواجهة البرمجية",
+    "loading": "جارٍ التحقق من حالة الواجهة البرمجية…",
+    "error": "تعذّر الوصول إلى الواجهة البرمجية. تأكّد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "refresh": "تحديث",
+    "refreshCount": "تم التحديث {{count}} مرات",
+    "refreshCount_one": "تم التحديث مرة واحدة",
+    "statusLabel": "الحالة:",
+    "serviceLabel": "الخدمة:",
+    "timestampLabel": "الطابع الزمني:"
+  },
+  "notifications": {
+    "summary": "{{count}} إشعارات",
+    "summary_zero": "لا إشعارات",
+    "summary_one": "إشعار واحد"
+  },
+  "errors": {
+    "canceled": "تم إلغاء العملية.",
+    "unknown": "حدث خطأ غير معروف.",
+    "invalid_argument": "إدخال غير صالح: {{message}}",
+    "deadline_exceeded": "انتهت مهلة العملية.",
+    "not_found": "المورد غير موجود.",
+    "already_exists": "موجود بالفعل.",
+    "permission_denied": "تم رفض الإذن.",
+    "resource_exhausted": "تم بلوغ حد الموارد.",
+    "failed_precondition": "لا يمكن تنفيذ هذا الإجراء: {{message}}",
+    "aborted": "تم إجهاض العملية.",
+    "out_of_range": "خارج النطاق.",
+    "unimplemented": "غير منفّذ بعد.",
+    "internal": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+    "unavailable": "الخدمة غير متاحة مؤقتًا.",
+    "data_loss": "تم اكتشاف فقدان بيانات.",
+    "unauthenticated": "يرجى تسجيل الدخول للمتابعة."
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقّع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد التحميل إن استمرت المشكلة.",
+    "retry": "حاول مرة أخرى"
+  }
+}

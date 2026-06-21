@@ -1,0 +1,229 @@
+// Package trend persists and reads per-scenario performance samples (build time,
+// startup, LCP, bundle size) as an additive, newest-first trend. Writes are
+// never destructive. Modeled on structure-health's perf store and the
+// test-genie self-health snapshots.
+//
+// SCAFFOLD (P4): the store + service are functional; the producers that write
+// samples (benchmark, audit/analysis, startup) wire into Insert in P6–P8.
+package trend
+
+import (
+	"context"
+	"database/sql"
+	_ "embed"
+	"errors"
+	"fmt"
+	"time"
+)
+
+//go:embed schema.sql
+var schemaSQL string
+
+// Schema returns the declarative DDL for the trend store (idempotent).
+func Schema() string { return schemaSQL }
+
+const timeLayout = time.RFC3339Nano
+
+// Executor is the narrow database seam the store needs; *sql.DB satisfies it.
+type Executor interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
+
+// Sample is one persisted performance sample. Every axis is optional; a zero
+// value means "not measured this run".
+type Sample struct {
+	Scenario              string
+	CapturedAt            time.Time
+	GoBuildMs             int64
+	UIBuildMs             int64
+	BundleBytes           int64
+	LCPMs                 int64
+	StartupMs             int64
+	P95Ms                 int64
+	SlowestComponent      string
+	SlowestComponentAvgMs float64
+	Note                  string
+}
+
+// Store persists and reads performance samples.
+type Store struct {
+	db Executor
+}
+
+// NewStore binds a store to the database executor seam.
+func NewStore(db Executor) *Store { return &Store{db: db} }
+
+// Insert appends one sample (additive; never overwrites).
+func (s *Store) Insert(ctx context.Context, sample Sample) error {
+	if s == nil || s.db == nil {
+		return errors.New("trend: nil store")
+	}
+	if sample.Scenario == "" {
+		return errors.New("trend: scenario is required")
+	}
+	capturedAt := sample.CapturedAt
+	if capturedAt.IsZero() {
+		capturedAt = time.Now()
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO perf_samples
+			(scenario, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
+			 p95_ms, slowest_component, slowest_component_avg_ms, note)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sample.Scenario, capturedAt.UTC().Format(timeLayout), sample.GoBuildMs, sample.UIBuildMs,
+		sample.BundleBytes, sample.LCPMs, sample.StartupMs,
+		sample.P95Ms, sample.SlowestComponent, sample.SlowestComponentAvgMs, sample.Note,
+	)
+	if err != nil {
+		return fmt.Errorf("trend: insert sample: %w", err)
+	}
+	return nil
+}
+
+// Series returns a scenario's samples newest-first, bounded by limit
+// (limit <= 0 returns the default page).
+func (s *Store) Series(ctx context.Context, scenario string, limit int) ([]Sample, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("trend: nil store")
+	}
+	if scenario == "" {
+		return nil, errors.New("trend: scenario is required")
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT scenario, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
+			p95_ms, slowest_component, slowest_component_avg_ms, note
+		FROM perf_samples
+		WHERE scenario = ?
+		ORDER BY captured_at DESC, id DESC
+		LIMIT ?`, scenario, limit)
+	if err != nil {
+		return nil, fmt.Errorf("trend: query series: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Sample
+	for rows.Next() {
+		var (
+			sample     Sample
+			capturedAt string
+		)
+		if scanErr := rows.Scan(&sample.Scenario, &capturedAt, &sample.GoBuildMs, &sample.UIBuildMs,
+			&sample.BundleBytes, &sample.LCPMs, &sample.StartupMs,
+			&sample.P95Ms, &sample.SlowestComponent, &sample.SlowestComponentAvgMs, &sample.Note); scanErr != nil {
+			return nil, fmt.Errorf("trend: scan sample: %w", scanErr)
+		}
+		if t, perr := time.Parse(timeLayout, capturedAt); perr == nil {
+			sample.CapturedAt = t
+		}
+		out = append(out, sample)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("trend: iterate series: %w", err)
+	}
+	return out, nil
+}
+
+// Latest returns the newest sample for a scenario and whether one exists. It
+// reads at most one row, so it never holds an open rows cursor across another
+// query (avoiding the SQLite pool=1 nested-query deadlock).
+func (s *Store) Latest(ctx context.Context, scenario string) (Sample, bool, error) {
+	if s == nil || s.db == nil {
+		return Sample{}, false, errors.New("trend: nil store")
+	}
+	if scenario == "" {
+		return Sample{}, false, errors.New("trend: scenario is required")
+	}
+	series, err := s.Series(ctx, scenario, 1)
+	if err != nil {
+		return Sample{}, false, err
+	}
+	if len(series) == 0 {
+		return Sample{}, false, nil
+	}
+	return series[0], true, nil
+}
+
+// EnsureColumns is the idempotent additive migration for the trend store: it
+// adds any perf_samples column missing from an OLDER, already-created database
+// (the P4 scaffold shipped a narrower table). It must run BEFORE EnsureSchemas
+// so the declared CREATE TABLE block matches the on-disk shape (SQLite silently
+// no-ops a column added to CREATE TABLE IF NOT EXISTS on an existing table, so
+// the api-core drift detector would otherwise fail the boot).
+//
+// On a fresh database (the table does not exist yet) this is a no-op: the
+// subsequent CREATE TABLE creates the full, current shape. It never drops or
+// rewrites data.
+func EnsureColumns(ctx context.Context, db Executor) error {
+	if db == nil {
+		return errors.New("trend: nil executor")
+	}
+	existing, err := columnSet(ctx, db)
+	if err != nil {
+		return err
+	}
+	if len(existing) == 0 {
+		// Table not created yet — CREATE TABLE will produce the current shape.
+		return nil
+	}
+	additive := []struct{ name, ddl string }{
+		{"p95_ms", "ALTER TABLE perf_samples ADD COLUMN p95_ms INTEGER NOT NULL DEFAULT 0"},
+		{"slowest_component", "ALTER TABLE perf_samples ADD COLUMN slowest_component TEXT NOT NULL DEFAULT ''"},
+		{"slowest_component_avg_ms", "ALTER TABLE perf_samples ADD COLUMN slowest_component_avg_ms REAL NOT NULL DEFAULT 0"},
+	}
+	for _, col := range additive {
+		if _, ok := existing[col.name]; ok {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, col.ddl); err != nil {
+			return fmt.Errorf("trend: add column %s: %w", col.name, err)
+		}
+	}
+	return nil
+}
+
+func columnSet(ctx context.Context, db Executor) (map[string]struct{}, error) {
+	rows, err := db.QueryContext(ctx, `PRAGMA table_info(perf_samples)`)
+	if err != nil {
+		return nil, fmt.Errorf("trend: read columns: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]struct{}{}
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			ctype      string
+			notnull    int
+			dfltValue  sql.NullString
+			primaryKey int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &primaryKey); err != nil {
+			return nil, fmt.Errorf("trend: scan column: %w", err)
+		}
+		out[name] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("trend: iterate columns: %w", err)
+	}
+	return out, nil
+}
+
+// Service is the engine behind TrendService.
+type Service struct {
+	store *Store
+}
+
+// NewService wires a trend Service.
+func NewService(store *Store) *Service { return &Service{store: store} }
+
+// Trend returns a scenario's persisted samples, newest first.
+func (s *Service) Trend(ctx context.Context, scenario string, limit int) ([]Sample, error) {
+	if s == nil || s.store == nil {
+		return nil, errors.New("trend: service not wired")
+	}
+	return s.store.Series(ctx, scenario, limit)
+}

@@ -252,3 +252,25 @@ class CliHostProvenance(_message.Message):
     command: str
     file: str
     def __init__(self, source_kind: _Optional[str] = ..., source: _Optional[str] = ..., observed_at: _Optional[str] = ..., confidence: _Optional[str] = ..., command: _Optional[str] = ..., file: _Optional[str] = ...) -> None: ...
+
+class CliHostInstallStatus(_message.Message):
+    __slots__ = ("name", "command", "installed", "support_class", "execution_state", "blocking_reason", "version", "notes", "ok")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    SUPPORT_CLASS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_STATE_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_REASON_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    OK_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    command: str
+    installed: bool
+    support_class: str
+    execution_state: str
+    blocking_reason: str
+    version: str
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    ok: bool
+    def __init__(self, name: _Optional[str] = ..., command: _Optional[str] = ..., installed: _Optional[bool] = ..., support_class: _Optional[str] = ..., execution_state: _Optional[str] = ..., blocking_reason: _Optional[str] = ..., version: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., ok: _Optional[bool] = ...) -> None: ...

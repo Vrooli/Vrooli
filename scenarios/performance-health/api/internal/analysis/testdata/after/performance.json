@@ -1,0 +1,16 @@
+{
+  "traceEvents": [
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "b", "ts": 20000, "id2": { "local": "0xa1" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "e", "ts": 22000, "id2": { "local": "0xa1" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "b", "ts": 30000, "id2": { "local": "0xa2" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "e", "ts": 33000, "id2": { "local": "0xa2" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "b", "ts": 40000, "id2": { "local": "0xa3" } },
+    { "cat": "blink.user_timing", "name": "⚛ App (update)", "ph": "e", "ts": 41000, "id2": { "local": "0xa3" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "b", "ts": 50000, "id2": { "local": "0xa4" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 53000, "id2": { "local": "0xa4" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "b", "ts": 54000, "id2": { "local": "0xa5" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 56000, "id2": { "local": "0xa5" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "b", "ts": 57000, "id2": { "local": "0xa6" } },
+    { "cat": "blink.user_timing", "name": "⚛ ProjectList (update)", "ph": "e", "ts": 60000, "id2": { "local": "0xa6" } }
+  ]
+}

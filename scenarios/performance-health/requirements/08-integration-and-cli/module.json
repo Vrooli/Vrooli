@@ -1,0 +1,76 @@
+{
+  "_metadata": {
+    "module": "integration-and-cli",
+    "description": "Thin human-default CLI surface, discoverability, and the operator UI console.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PH-CLI-001",
+      "title": "Human-default CLI with JSON opt-in",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "performance-health readiness|audit|lighthouse|benchmark|budget|trend|fleet|startup render useful human output by default using the shared maturity renderer; --json emits the same structure for programmatic consumers. Thin Connect-client wrappers carry no business logic.",
+      "tags": ["cli", "human-output", "json-parity"],
+      "validation": [
+        {"type": "test", "ref": "cli/domains/readiness/readiness_test.go", "phase": "unit", "status": "planned", "notes": "CLI tests assert human output without --json and structural JSON parity with --json across the verb set."}
+      ]
+    },
+    {
+      "id": "PH-CLI-002",
+      "title": "CLI verbs discoverable through cli-health",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "Every verb is registered in cli/manifest.json (each bound to a connect-rpc service/method or listed in omitted[]) and is discoverable through cli-health's CLI→search-hub command index.",
+      "tags": ["cli", "discoverability", "manifest"],
+      "validation": [
+        {"type": "test", "ref": "cli/app_test.go", "phase": "unit", "status": "planned", "notes": "Asserts every domain group is registered and the manifest covers every Connect endpoint (bound or omitted)."}
+      ]
+    },
+    {
+      "id": "PH-UI-001",
+      "title": "Audit workbench over real data",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The UI audit workbench (pick a scenario → see its tier → run → trace + located findings) is reachable and functional against the Connect RPCs over real data, with loading/error/empty states and accessible navigation landmarks.",
+      "tags": ["ui", "audit-workbench", "a11y"],
+      "validation": [
+        {"type": "test", "ref": "ui/src/features/audit/Audit.test.tsx", "phase": "unit", "status": "planned", "notes": "Renders the workbench against mocked Connect responses; asserts tier display, run flow, findings list, and loading/error/empty states."}
+      ]
+    },
+    {
+      "id": "PH-UI-002",
+      "title": "Trend and fleet dashboards",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The UI renders the perf-over-time trend view (build time, startup, LCP, component hotspots) and the fleet-performance dashboard (offenders: no budget / slow build / regressed) for humans and meta-optimization.",
+      "tags": ["ui", "trend", "fleet"],
+      "validation": [
+        {"type": "test", "ref": "ui/src/features/fleet/Fleet.test.tsx", "phase": "unit", "status": "planned", "notes": "Renders trend charts and the fleet offender table from mocked data with empty/loading/error states."}
+      ]
+    },
+    {
+      "id": "PH-UI-003",
+      "title": "Readiness + one-click autofix surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The UI shows readiness gaps (missing perf-build infra) and offers a one-click autofix (preview → apply) wired to the readiness/autofix RPCs, with a budgets view/edit surface.",
+      "tags": ["ui", "readiness", "autofix"],
+      "validation": [
+        {"type": "test", "ref": "ui/src/features/readiness/Readiness.test.tsx", "phase": "unit", "status": "planned", "notes": "Renders readiness gaps and drives preview/apply against mocked autofix responses."}
+      ]
+    }
+  ]
+}

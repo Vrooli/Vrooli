@@ -71,6 +71,9 @@ const (
 	// ModelsServiceDoctorBackendsProcedure is the fully-qualified name of the ModelsService's
 	// DoctorBackends RPC.
 	ModelsServiceDoctorBackendsProcedure = "/vrooli.image_tools.v1.models.ModelsService/DoctorBackends"
+	// ModelsServiceEnsureBackendProcedure is the fully-qualified name of the ModelsService's
+	// EnsureBackend RPC.
+	ModelsServiceEnsureBackendProcedure = "/vrooli.image_tools.v1.models.ModelsService/EnsureBackend"
 )
 
 // ModelsServiceClient is a client for the vrooli.image_tools.v1.models.ModelsService service.
@@ -120,6 +123,11 @@ type ModelsServiceClient interface {
 	// backends. Hardware fit remains reported by SelectModel; this answers
 	// whether the backend program/module is actually provisioned on this host.
 	DoctorBackends(context.Context, *connect.Request[models.DoctorBackendsRequest]) (*connect.Response[models.DoctorBackendsResponse], error)
+	// EnsureBackend installs a missing host-tool backend on demand as a durable
+	// job (mirrors InstallModel: returns job_id + ETA + progress; survives client
+	// cancellation). The job shells `vrooli host install <tool> --json`. Manual /
+	// capability-gated tools return immediately with guidance and no job.
+	EnsureBackend(context.Context, *connect.Request[models.EnsureBackendRequest]) (*connect.Response[models.EnsureBackendResponse], error)
 }
 
 // NewModelsServiceClient constructs a client for the vrooli.image_tools.v1.models.ModelsService
@@ -211,6 +219,12 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("DoctorBackends")),
 			connect.WithClientOptions(opts...),
 		),
+		ensureBackend: connect.NewClient[models.EnsureBackendRequest, models.EnsureBackendResponse](
+			httpClient,
+			baseURL+ModelsServiceEnsureBackendProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("EnsureBackend")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -229,6 +243,7 @@ type modelsServiceClient struct {
 	listDefaults    *connect.Client[models.ListDefaultsRequest, models.ListDefaultsResponse]
 	doctorCatalog   *connect.Client[models.DoctorCatalogRequest, models.DoctorCatalogResponse]
 	doctorBackends  *connect.Client[models.DoctorBackendsRequest, models.DoctorBackendsResponse]
+	ensureBackend   *connect.Client[models.EnsureBackendRequest, models.EnsureBackendResponse]
 }
 
 // ListModels calls vrooli.image_tools.v1.models.ModelsService.ListModels.
@@ -296,6 +311,11 @@ func (c *modelsServiceClient) DoctorBackends(ctx context.Context, req *connect.R
 	return c.doctorBackends.CallUnary(ctx, req)
 }
 
+// EnsureBackend calls vrooli.image_tools.v1.models.ModelsService.EnsureBackend.
+func (c *modelsServiceClient) EnsureBackend(ctx context.Context, req *connect.Request[models.EnsureBackendRequest]) (*connect.Response[models.EnsureBackendResponse], error) {
+	return c.ensureBackend.CallUnary(ctx, req)
+}
+
 // ModelsServiceHandler is an implementation of the vrooli.image_tools.v1.models.ModelsService
 // service.
 type ModelsServiceHandler interface {
@@ -344,6 +364,11 @@ type ModelsServiceHandler interface {
 	// backends. Hardware fit remains reported by SelectModel; this answers
 	// whether the backend program/module is actually provisioned on this host.
 	DoctorBackends(context.Context, *connect.Request[models.DoctorBackendsRequest]) (*connect.Response[models.DoctorBackendsResponse], error)
+	// EnsureBackend installs a missing host-tool backend on demand as a durable
+	// job (mirrors InstallModel: returns job_id + ETA + progress; survives client
+	// cancellation). The job shells `vrooli host install <tool> --json`. Manual /
+	// capability-gated tools return immediately with guidance and no job.
+	EnsureBackend(context.Context, *connect.Request[models.EnsureBackendRequest]) (*connect.Response[models.EnsureBackendResponse], error)
 }
 
 // NewModelsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -431,6 +456,12 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("DoctorBackends")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceEnsureBackendHandler := connect.NewUnaryHandler(
+		ModelsServiceEnsureBackendProcedure,
+		svc.EnsureBackend,
+		connect.WithSchema(modelsServiceMethods.ByName("EnsureBackend")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.image_tools.v1.models.ModelsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ModelsServiceListModelsProcedure:
@@ -459,6 +490,8 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceDoctorCatalogHandler.ServeHTTP(w, r)
 		case ModelsServiceDoctorBackendsProcedure:
 			modelsServiceDoctorBackendsHandler.ServeHTTP(w, r)
+		case ModelsServiceEnsureBackendProcedure:
+			modelsServiceEnsureBackendHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -518,4 +551,8 @@ func (UnimplementedModelsServiceHandler) DoctorCatalog(context.Context, *connect
 
 func (UnimplementedModelsServiceHandler) DoctorBackends(context.Context, *connect.Request[models.DoctorBackendsRequest]) (*connect.Response[models.DoctorBackendsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.DoctorBackends is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) EnsureBackend(context.Context, *connect.Request[models.EnsureBackendRequest]) (*connect.Response[models.EnsureBackendResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.EnsureBackend is not implemented"))
 }

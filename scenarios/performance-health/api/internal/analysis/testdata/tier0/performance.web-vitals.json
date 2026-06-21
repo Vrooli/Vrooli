@@ -1,0 +1,10 @@
+{
+  "longTasks": [
+    { "start": 5000, "duration": 41.0, "name": "self" }
+  ],
+  "paint": [
+    { "name": "first-contentful-paint", "start": 210 }
+  ],
+  "lcp": { "start": 980, "size": 12000 },
+  "marks": []
+}
