@@ -8,16 +8,16 @@ import (
 	"time"
 
 	"tunnel-manager/internal/clock"
-	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/manifest"
 )
 
 // Manifest is the subset of the routes service this domain needs. Declared
 // here (consumer-side) and satisfied by *routes.service; it lets exposure
 // reconcile the manifest without owning it.
 type Manifest interface {
-	List(ctx context.Context, tier internalroutes.Tier) ([]internalroutes.Route, error)
-	Create(ctx context.Context, in internalroutes.CreateInput) (internalroutes.Route, error)
-	Update(ctx context.Context, id string, in internalroutes.UpdateInput) (internalroutes.Route, error)
+	List(ctx context.Context, tier manifest.Tier) ([]manifest.Route, error)
+	Create(ctx context.Context, in manifest.CreateInput) (manifest.Route, error)
+	Update(ctx context.Context, id string, in manifest.UpdateInput) (manifest.Route, error)
 	Delete(ctx context.Context, id string) (bool, error)
 }
 
@@ -204,7 +204,7 @@ func (s *service) ListExposures(ctx context.Context) ([]Exposure, error) {
 			Tier:      string(r.Tier),
 			Enabled:   r.Enabled,
 		}
-		if r.Tier == internalroutes.TierLeased {
+		if r.Tier == manifest.TierLeased {
 			if lease, lerr := s.repo.ActiveForScenario(ctx, r.Scenario); lerr == nil {
 				l := lease
 				e.Lease = &l
@@ -229,7 +229,7 @@ func (s *service) IsExposed(ctx context.Context, scenario string) (bool, string,
 			continue
 		}
 		// CORE routes are always reachable; LEASED routes need an active lease.
-		if r.Tier == internalroutes.TierCore {
+		if r.Tier == manifest.TierCore {
 			return true, r.PublicURL(), nil
 		}
 		if _, lerr := s.repo.ActiveForScenario(ctx, scenario); lerr == nil {
@@ -244,7 +244,7 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	bySubdomain := make(map[string]internalroutes.Route, len(routes))
+	bySubdomain := make(map[string]manifest.Route, len(routes))
 	for _, r := range routes {
 		bySubdomain[r.Subdomain] = r
 	}
@@ -255,10 +255,10 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 		existing, ok := bySubdomain[scenario]
 		if ok {
 			// Promote to CORE + enable if it drifted.
-			if existing.Tier != internalroutes.TierCore || !existing.Enabled {
-				core := internalroutes.TierCore
+			if existing.Tier != manifest.TierCore || !existing.Enabled {
+				core := manifest.TierCore
 				enabled := true
-				if _, uerr := s.manifest.Update(ctx, existing.ID, internalroutes.UpdateInput{Tier: core, Enabled: &enabled}); uerr != nil {
+				if _, uerr := s.manifest.Update(ctx, existing.ID, manifest.UpdateInput{Tier: core, Enabled: &enabled}); uerr != nil {
 					return coreEnsured, 0, uerr
 				}
 				coreEnsured++
@@ -271,11 +271,11 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 			// than failing the whole reconcile — surface it but keep going.
 			continue
 		}
-		if _, cerr := s.manifest.Create(ctx, internalroutes.CreateInput{
+		if _, cerr := s.manifest.Create(ctx, manifest.CreateInput{
 			Subdomain: scenario,
 			Scenario:  scenario,
 			LocalPort: port,
-			Tier:      internalroutes.TierCore,
+			Tier:      manifest.TierCore,
 		}); cerr != nil {
 			return coreEnsured, 0, cerr
 		}
@@ -317,29 +317,29 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 
 // ensureRoute returns the existing route for a scenario or creates a
 // LEASED one. The local port comes from the PortResolver.
-func (s *service) ensureRoute(ctx context.Context, scenario string) (internalroutes.Route, error) {
+func (s *service) ensureRoute(ctx context.Context, scenario string) (manifest.Route, error) {
 	routes, err := s.manifest.List(ctx, "")
 	if err != nil {
-		return internalroutes.Route{}, err
+		return manifest.Route{}, err
 	}
 	for _, r := range routes {
 		if r.Scenario == scenario {
 			if !r.Enabled {
 				enabled := true
-				return s.manifest.Update(ctx, r.ID, internalroutes.UpdateInput{Enabled: &enabled})
+				return s.manifest.Update(ctx, r.ID, manifest.UpdateInput{Enabled: &enabled})
 			}
 			return r, nil
 		}
 	}
 	port, err := s.ports.UIPort(ctx, scenario)
 	if err != nil {
-		return internalroutes.Route{}, err
+		return manifest.Route{}, err
 	}
-	return s.manifest.Create(ctx, internalroutes.CreateInput{
+	return s.manifest.Create(ctx, manifest.CreateInput{
 		Subdomain: scenario,
 		Scenario:  scenario,
 		LocalPort: port,
-		Tier:      internalroutes.TierLeased,
+		Tier:      manifest.TierLeased,
 	})
 }
 
@@ -351,7 +351,7 @@ func (s *service) retractRoute(ctx context.Context, scenario string) error {
 		return err
 	}
 	for _, r := range routes {
-		if r.Scenario != scenario || r.Tier == internalroutes.TierCore {
+		if r.Scenario != scenario || r.Tier == manifest.TierCore {
 			continue
 		}
 		if _, derr := s.manifest.Delete(ctx, r.ID); derr != nil {

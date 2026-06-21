@@ -151,6 +151,124 @@
       ]
     },
     {
+      "id": "config_credentials_status",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/GetCredentialStatus",
+      "method": "POST",
+      "summary": "Get Cloudflare credential status",
+      "description": "Returns browser-safe Cloudflare credential presence/source metadata. Secret values are never returned.",
+      "category": "config",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "CredentialStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Credential store read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Credential status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetCredentialStatus -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "config_credentials_set",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/SetCloudflareCredentials",
+      "method": "POST",
+      "summary": "Set Cloudflare credentials",
+      "description": "Stores write-only Cloudflare credential values in the operator secret store and returns redacted status metadata.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "account_id": "string",
+          "api_token": "string (write-only)",
+          "tunnel_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "CredentialStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Operator token denied"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Credential store write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Set credentials",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/SetCloudflareCredentials -H 'Content-Type: application/json' -d '{\"account_id\":\"acct\",\"tunnel_id\":\"tun\",\"api_token\":\"<token>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "config_credentials_clear",
+      "path": "/vrooli.tunnel_manager.v1.config.ConfigService/ClearCloudflareCredentials",
+      "method": "POST",
+      "summary": "Clear Cloudflare credentials",
+      "description": "Removes file-backed Cloudflare credential values from the operator secret store. Env-sourced credentials remain effective until the process environment changes.",
+      "category": "config",
+      "request": {
+        "type": "object",
+        "properties": {
+          "fields": "array<string> (account_id | tunnel_id | api_token | all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "CredentialStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Operator token required when authz is enforced"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Operator token denied"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Credential store delete failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Clear token",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/ClearCloudflareCredentials -H 'Content-Type: application/json' -d '{\"fields\":[\"api_token\"]}'"
+        }
+      ]
+    },
+    {
       "id": "config_switch_mode",
       "path": "/vrooli.tunnel_manager.v1.config.ConfigService/SwitchMode",
       "method": "POST",

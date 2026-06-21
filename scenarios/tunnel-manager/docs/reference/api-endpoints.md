@@ -102,7 +102,10 @@ method satisfies.
 
 | RPC | Purpose |
 |---|---|
-| `GetConfig` | Read current mode (`remote`/`local`), tunnel/account id, Prometheus endpoint. |
+| `GetConfig` | Read current mode (`remote`/`local`), tunnel/account id, Prometheus endpoint, and browser-safe setup readiness. |
+| `GetCredentialStatus` | Read Cloudflare credential presence/source metadata without secret values. |
+| `SetCloudflareCredentials` | Store write-only Cloudflare credential values in the operator secret store. Privileged mutation. |
+| `ClearCloudflareCredentials` | Clear file-backed Cloudflare credential values from the operator secret store. Privileged mutation. |
 | `Sync` | Reconcile Cloudflare ingress (remote) or `~/.cloudflared/config.yml` (local) with the manifest. Privileged mutation. |
 | `SwitchMode` | Switch and migrate between remote and local mode. Privileged mutation. |
 

@@ -16,6 +16,7 @@ import (
 	"tunnel-manager/internal/modules"
 	internalprobes "tunnel-manager/internal/probes"
 	internalrecovery "tunnel-manager/internal/recovery"
+	internalroutes "tunnel-manager/internal/routes"
 	"tunnel-manager/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -130,8 +131,10 @@ func main() {
 
 	clk := clock.System{}
 	logger := log.Default()
-	exposureSvc := exposureH.NewProductionService(db, clk)
-	probesSvc := probesH.NewProductionService(db, clk)
+	routesSvc := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
+	configSvc := configH.NewProductionService(db, clk, routesSvc)
+	exposureSvc := exposureH.NewProductionService(db, clk, routesSvc, configSvc)
+	probesSvc := probesH.NewProductionService(routesSvc, db, clk)
 	recoverySvc := recoveryH.NewProductionService(db, clk)
 
 	var schedulerStops []func(context.Context)
@@ -175,8 +178,8 @@ func main() {
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "tunnel-manager-api", "1.0.0"),
 		routesH.Module(db, clk, logger),
-		auditH.Module(db, clk, logger),
-		configH.Module(db, clk, logger),
+		auditH.ModuleWithRoutes(routesSvc, logger),
+		configH.ModuleWithService(configSvc, logger),
 		exposureH.ModuleWithService(exposureSvc, logger),
 		probesH.ModuleWithService(probesSvc, logger),
 		recoveryH.ModuleWithService(recoverySvc, logger),

@@ -18,7 +18,7 @@ import (
 const (
 	OperationConfigSync        = "config.sync"
 	OperationConfigSwitchMode  = "config.switch_mode"
-	OperationConfigCredentials = "config.credentials"
+	OperationConfigCredentials = "config.credentials" // #nosec G101 -- operation label only, not a credential value.
 	OperationRoutesCreate      = "routes.create"
 	OperationRoutesUpdate      = "routes.update"
 	OperationRoutesDelete      = "routes.delete"

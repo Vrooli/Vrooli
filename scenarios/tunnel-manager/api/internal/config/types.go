@@ -22,7 +22,7 @@ import (
 	"context"
 	"fmt"
 
-	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/manifest"
 )
 
 // Mode is the tunnel management mode. Remote pushes ingress through the
@@ -156,7 +156,7 @@ type IngressClient interface {
 // RoutesReader is the narrow read surface the config service needs from
 // the routes domain. Satisfied by routes.Service (which exposes List).
 type RoutesReader interface {
-	List(ctx context.Context, tier internalroutes.Tier) ([]internalroutes.Route, error)
+	List(ctx context.Context, tier manifest.Tier) ([]manifest.Route, error)
 }
 
 // ErrRemoteUnavailable is the typed sentinel returned when a remote-mode

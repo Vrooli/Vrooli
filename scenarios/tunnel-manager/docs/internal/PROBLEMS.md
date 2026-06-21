@@ -132,15 +132,15 @@ As of the Phase 7 follow-up reconciliation, PRD/requirements no longer mark the 
 
 ### 2026-06-20 — Credential setup API/UI still needs dynamic re-resolution
 
-**Symptom:** Tunnel Manager now has a Greenfield credential store backend, but operators still cannot provision Cloudflare credentials through dedicated CLI/UI setup commands.
+**Status:** Resolved by the follow-up greenfield config/secrets slice.
 
-**Root cause:** The first consolidation slice deliberately stopped at the backend seam and production resolver. The config service still constructs the Cloudflare ingress client at service-build time, so adding write RPCs before dynamic re-resolution would save credentials but could leave remote sync using the old nil/stale client until restart.
+**Symptom:** Tunnel Manager had a Greenfield credential store backend, but operators still could not provision Cloudflare credentials through dedicated CLI/UI setup commands.
 
-**Workaround:** Local mode remains fully usable without Cloudflare credentials. Remote-mode credentials can be provided through canonical `CLOUDFLARE_*` env overrides, or through the operator runtime-home secret files used by the new `CredentialStore` backend.
+**Root cause:** The first consolidation slice deliberately stopped at the backend seam and production resolver. The config service constructed the Cloudflare ingress client at service-build time, so write RPCs before dynamic re-resolution would have saved credentials but left remote sync using the old nil/stale client until restart.
 
-**Real fix:** Continue `tunnel-manager-greenfield-config-and-secrets-consolidation`: add dynamic credential/ingress resolution inside the config service, then expose write-only credential status/set/clear/validate RPCs with CLI and UI setup flows.
+**Fix:** The config production builder now wires a resolving ingress client that re-resolves credentials per remote read/push. `ConfigService` exposes browser-safe credential status plus write-only set/clear RPCs, credential writes are covered by the privileged mutation authz gate, the CLI exposes `config credentials-status|credentials-set|credentials-clear`, and Settings provides the same write-only setup/clear flow. The follow-up UX hardening pass made the final policy explicit at the point of setup: Settings writes file-backed operator secrets under `~/.vrooli`, `CLOUDFLARE_*` values are read-only lifecycle overrides, and env-sourced fields warn operators that saved file values are shadowed until restart. Live Cloudflare validation remains attended/deferred until real operator credentials are available.
 
-**Owner:** unassigned. **Refs:** `api/internal/config/credentials.go`, `api/internal/config/production.go`, plan `tunnel-manager-greenfield-config-and-secrets-consolidation`.
+**Owner:** tunnel-manager maintainers. **Refs:** `api/internal/config/credentials.go`, `api/internal/config/production.go`, `api/handlers/config/connect_handler.go`, `cli/domains/config/handlers.go`, `ui/src/pages/SettingsPage.tsx`, plan `tunnel-manager-greenfield-config-and-secrets-consolidation`.
 
 ## Architecture Drift
 

@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, RefreshCw, RotateCcw } from "lucide-react";
-import { Mode } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
+import { useState } from "react";
+import { CheckCircle2, KeyRound, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
+import { Mode, type ConfigReadiness, type CredentialFieldStatus } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import { QueryState } from "../components/ui/QueryState";
 import { StatusBadge, type BadgeTone } from "../components/ui/StatusBadge";
 import { configClient } from "../api/config";
@@ -10,8 +12,9 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { errorMessage } from "../lib/errorMessage";
-import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import type { ThemeChoice } from "../theme/themeContext";
 import { THEME_CHOICE_LABEL } from "../theme/themeChoiceLabels";
+import { useTheme } from "../theme/useTheme";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 const CONFIG_QUERY_KEY = ["config-state"] as const;
@@ -40,6 +43,17 @@ function syncSummary(resp: Awaited<ReturnType<typeof configClient.sync>>, t: Ret
   });
 }
 
+function hasReadOnlyCredentialOverride(fields: readonly CredentialFieldStatus[]) {
+  return fields.some((field) => field.present && !field.writable);
+}
+
+function credentialNextActionKey(readiness: ConfigReadiness) {
+  if (readiness.missingFields.length > 0) return strings.config.nextActionMissing;
+  if (!readiness.remoteAvailable) return strings.config.nextActionUnavailable;
+  if (readiness.desiredMode === Mode.REMOTE) return strings.config.nextActionRemote;
+  return strings.config.nextActionReady;
+}
+
 /**
  * Settings page. Owns first-run setup and operator preferences: config
  * readiness, local/remote mode, ingress sync, theme, and locale.
@@ -49,6 +63,9 @@ export function SettingsPage() {
   const queryClient = useQueryClient();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
+  const [accountId, setAccountId] = useState("");
+  const [tunnelId, setTunnelId] = useState("");
+  const [apiToken, setApiToken] = useState("");
 
   const configQuery = useQuery({ queryKey: CONFIG_QUERY_KEY, queryFn: () => configClient.getConfig({}) });
   const refreshConfig = () => queryClient.invalidateQueries({ queryKey: CONFIG_QUERY_KEY });
@@ -64,12 +81,41 @@ export function SettingsPage() {
     mutationFn: (targetMode: Mode) => configClient.switchMode({ targetMode }),
     onSuccess: () => void refreshConfig(),
   });
+  const saveCredentialsMutation = useMutation({
+    mutationFn: () => configClient.setCloudflareCredentials({ accountId, tunnelId, apiToken }),
+    onSuccess: () => {
+      setApiToken("");
+      void refreshConfig();
+    },
+  });
+  const clearCredentialsMutation = useMutation({
+    mutationFn: () => configClient.clearCloudflareCredentials({ fields: ["all"] }),
+    onSuccess: () => {
+      setAccountId("");
+      setTunnelId("");
+      setApiToken("");
+      void refreshConfig();
+    },
+  });
 
   const config = configQuery.data?.config;
   const readiness = configQuery.data?.readiness;
   const syncResult = syncMutation.data ?? dryRunMutation.data;
-  const actionError = dryRunMutation.error ?? syncMutation.error ?? switchModeMutation.error;
-  const actionPending = dryRunMutation.isPending || syncMutation.isPending || switchModeMutation.isPending;
+  const credentialFields = readiness?.credentialFields ?? [];
+  const hasEnvOverride = hasReadOnlyCredentialOverride(credentialFields);
+  const credentialMutationResult = saveCredentialsMutation.data ?? clearCredentialsMutation.data;
+  const actionError =
+    dryRunMutation.error ??
+    syncMutation.error ??
+    switchModeMutation.error ??
+    saveCredentialsMutation.error ??
+    clearCredentialsMutation.error;
+  const actionPending =
+    dryRunMutation.isPending ||
+    syncMutation.isPending ||
+    switchModeMutation.isPending ||
+    saveCredentialsMutation.isPending ||
+    clearCredentialsMutation.isPending;
 
   return (
     <section
@@ -136,6 +182,105 @@ export function SettingsPage() {
                 </p>
               )}
 
+              <form
+                data-testid={selectors.settingsPage.credentialsForm}
+                className="grid gap-3 border-t border-app-border pt-4 md:grid-cols-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveCredentialsMutation.mutate();
+                }}
+              >
+                <div className="md:col-span-3">
+                  <h4 className="text-sm font-semibold">{t(strings.config.credentialsHeading)}</h4>
+                  <p className="text-sm text-app-muted-foreground">{t(strings.config.credentialsDescription)}</p>
+                </div>
+                <div
+                  data-testid={selectors.settingsPage.credentialPolicy}
+                  className="flex gap-3 rounded-control border border-app-border bg-app-surface-muted p-3 text-sm md:col-span-3"
+                >
+                  <ShieldCheck aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-primary" />
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium">{t(strings.config.credentialPolicyTitle)}</span>
+                    <span className="text-app-muted-foreground">{t(strings.config.credentialPolicyBody)}</span>
+                    <span className="text-app-muted-foreground">{t(strings.config.cloudflareTokenHelp)}</span>
+                  </div>
+                </div>
+                <p
+                  data-testid={selectors.settingsPage.credentialNextAction}
+                  className="rounded-control border border-app-border bg-app-background p-3 text-sm text-app-muted-foreground md:col-span-3"
+                >
+                  {t(credentialNextActionKey(readiness))}
+                </p>
+                {hasEnvOverride && (
+                  <p
+                    data-testid={selectors.settingsPage.credentialShadowWarning}
+                    className="rounded-control border border-app-warning/40 bg-app-warning/10 p-3 text-sm text-app-warning md:col-span-3"
+                  >
+                    {t(strings.config.credentialEnvShadowWarning)}
+                  </p>
+                )}
+                <label className="flex flex-col gap-1 text-sm">
+                  {t(strings.config.accountId)}
+                  <Input
+                    value={accountId}
+                    onChange={(event) => setAccountId(event.target.value)}
+                    data-testid={selectors.settingsPage.accountIdInput}
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  {t(strings.config.tunnelId)}
+                  <Input
+                    value={tunnelId}
+                    onChange={(event) => setTunnelId(event.target.value)}
+                    data-testid={selectors.settingsPage.tunnelIdInput}
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  {t(strings.config.apiToken)}
+                  <Input
+                    type="password"
+                    value={apiToken}
+                    onChange={(event) => setApiToken(event.target.value)}
+                    data-testid={selectors.settingsPage.apiTokenInput}
+                    autoComplete="off"
+                  />
+                </label>
+                <p className="text-xs text-app-muted-foreground md:col-span-3">{t(strings.config.apiTokenHelp)}</p>
+                <div className="flex flex-wrap gap-2 md:col-span-3">
+                  <Button
+                    type="submit"
+                    disabled={actionPending || (!accountId.trim() && !tunnelId.trim() && !apiToken.trim())}
+                    data-testid={selectors.settingsPage.credentialsSaveButton}
+                  >
+                    <KeyRound aria-hidden="true" className="mr-2 h-4 w-4" />
+                    {t(strings.config.saveCredentials)}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={actionPending}
+                    data-testid={selectors.settingsPage.credentialsClearButton}
+                    onClick={() => clearCredentialsMutation.mutate()}
+                  >
+                    <Trash2 aria-hidden="true" className="mr-2 h-4 w-4" />
+                    {t(strings.config.clearCredentials)}
+                  </Button>
+                </div>
+                {credentialFields.length > 0 && (
+                  <ul
+                    data-testid={selectors.settingsPage.credentialFields}
+                    className="grid gap-2 text-sm md:col-span-3 md:grid-cols-3"
+                    aria-label={t(strings.config.credentialFields)}
+                  >
+                    {credentialFields.map((field) => (
+                      <CredentialFieldItem key={field.name} field={field} t={t} />
+                    ))}
+                  </ul>
+                )}
+              </form>
+
               <div className="flex flex-wrap gap-2 border-t border-app-border pt-4">
                 <Button
                   type="button"
@@ -181,6 +326,11 @@ export function SettingsPage() {
               {syncResult && (
                 <p data-testid={selectors.settingsPage.syncResult} className="text-sm text-app-muted-foreground">
                   {syncSummary(syncResult, t)}
+                </p>
+              )}
+              {credentialMutationResult && (
+                <p className="text-sm text-app-muted-foreground">
+                  {saveCredentialsMutation.data ? t(strings.config.credentialSaved) : t(strings.config.credentialCleared)}
                 </p>
               )}
               {actionError && (
@@ -273,5 +423,29 @@ function Detail({ label, value }: { label: string; value: string }) {
       <dt className="text-xs uppercase text-app-muted-foreground">{label}</dt>
       <dd className="break-words font-medium">{value}</dd>
     </div>
+  );
+}
+
+function formatCredentialField(field: CredentialFieldStatus, t: ReturnType<typeof useTranslation>["t"]) {
+  return t(strings.config.credentialFieldStatus, {
+    name: field.name,
+    state: field.present ? t(strings.config.credentialPresent) : t(strings.config.credentialMissing),
+    source: field.source || t(strings.config.none),
+    writable: field.writable ? t(strings.config.credentialWritable) : t(strings.config.credentialReadOnly),
+  });
+}
+
+function CredentialFieldItem({
+  field,
+  t,
+}: {
+  field: CredentialFieldStatus;
+  t: ReturnType<typeof useTranslation>["t"];
+}) {
+  return (
+    <li className="rounded-control border border-app-border bg-app-surface-muted p-3">
+      <span className="block break-words font-medium text-app-foreground">{field.name}</span>
+      <span className="block text-app-muted-foreground">{formatCredentialField(field, t)}</span>
+    </li>
   );
 }

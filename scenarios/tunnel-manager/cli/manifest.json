@@ -241,6 +241,76 @@
           }
         },
         {
+          "name": "credentials-status",
+          "description": "Show Cloudflare credential readiness without printing secret values",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetCredentialStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "credentials-set",
+          "description": "Store write-only Cloudflare credentials in the operator secret store",
+          "flags": [
+            {
+              "name": "account-id",
+              "description": "Cloudflare account id"
+            },
+            {
+              "name": "tunnel-id",
+              "description": "Managed Cloudflare tunnel id"
+            },
+            {
+              "name": "api-token",
+              "description": "Cloudflare API token (write-only; prefer UI setup to avoid shell history)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "SetCloudflareCredentials"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "credentials-clear",
+          "description": "Clear file-backed Cloudflare credentials from the operator secret store",
+          "flags": [
+            {
+              "name": "field",
+              "description": "Field to clear: account_id, tunnel_id, api_token, or all"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "ClearCloudflareCredentials"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
           "name": "mode",
           "description": "Switch tunnel management mode (remote or local)",
           "flags": [

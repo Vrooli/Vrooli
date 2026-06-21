@@ -3,8 +3,12 @@ import {
   ConfigService,
   Mode,
   type ConfigReadiness,
+  type CredentialStatus,
   type TunnelConfig,
+  type GetCredentialStatusResponse,
   type GetConfigResponse,
+  type SetCloudflareCredentialsResponse,
+  type ClearCloudflareCredentialsResponse,
   type SyncResponse,
 } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
@@ -31,5 +35,30 @@ export async function sync(dryRun = false): Promise<SyncResponse> {
   return configClient.sync({ dryRun });
 }
 
+export async function getCredentialStatus(): Promise<GetCredentialStatusResponse> {
+  return configClient.getCredentialStatus({});
+}
+
+export async function setCloudflareCredentials(values: {
+  accountId?: string;
+  tunnelId?: string;
+  apiToken?: string;
+}): Promise<SetCloudflareCredentialsResponse> {
+  return configClient.setCloudflareCredentials(values);
+}
+
+export async function clearCloudflareCredentials(fields = ["all"]): Promise<ClearCloudflareCredentialsResponse> {
+  return configClient.clearCloudflareCredentials({ fields });
+}
+
 export { Mode };
-export type { ConfigReadiness, GetConfigResponse, TunnelConfig, SyncResponse };
+export type {
+  ClearCloudflareCredentialsResponse,
+  ConfigReadiness,
+  CredentialStatus,
+  GetCredentialStatusResponse,
+  GetConfigResponse,
+  SetCloudflareCredentialsResponse,
+  TunnelConfig,
+  SyncResponse,
+};

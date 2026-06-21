@@ -8,14 +8,14 @@ import (
 
 	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/httpc"
-	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/manifest"
 )
 
 // RoutesReader is the narrow slice of the routes domain this service
 // depends on: read the manifest to learn which routes to probe. Declared
 // at the consumer (seam-discovery) and satisfied by routes.Service.
 type RoutesReader interface {
-	List(ctx context.Context, tier internalroutes.Tier) ([]internalroutes.Route, error)
+	List(ctx context.Context, tier manifest.Tier) ([]manifest.Route, error)
 }
 
 // Service is the application-layer surface the probes handlers depend on.
@@ -73,7 +73,7 @@ func (s *service) RunProbes(ctx context.Context) ([]ProbeResult, error) {
 			continue
 		}
 		wg.Add(1)
-		go func(r internalroutes.Route) {
+		go func(r manifest.Route) {
 			defer wg.Done()
 
 			internal := s.probe(ctx, r.Subdomain, ProbeKindInternal,

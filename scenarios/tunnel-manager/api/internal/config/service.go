@@ -11,7 +11,7 @@ import (
 
 	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
-	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/manifest"
 )
 
 // Service is the application-layer surface the config handlers depend on.
@@ -239,7 +239,7 @@ func (s *service) SwitchMode(ctx context.Context, target Mode) (Mode, Mode, erro
 // The old scenario hardcoded ".vrooli.com"; the live tunnel is
 // ".itsagitime.com" and the manifest now carries the domain per route.
 func (s *service) desiredIngress(ctx context.Context) ([]IngressRule, error) {
-	routes, err := s.deps.Routes.List(ctx, internalroutes.Tier(""))
+	routes, err := s.deps.Routes.List(ctx, manifest.Tier(""))
 	if err != nil {
 		return nil, fmt.Errorf("list routes: %w", err)
 	}

@@ -152,7 +152,7 @@ func (c *cfClient) ReadIngress(ctx context.Context) ([]IngressRule, error) {
 	}
 	rules := make([]IngressRule, 0, len(envelope.Result.Config.Ingress))
 	for _, r := range envelope.Result.Config.Ingress {
-		rules = append(rules, IngressRule{Hostname: r.Hostname, Service: r.Service})
+		rules = append(rules, IngressRule(r))
 	}
 	return rules, nil
 }
@@ -176,7 +176,7 @@ func toCFRules(rules []IngressRule) []cfIngressRule {
 	out := make([]cfIngressRule, 0, len(rules)+1)
 	hasCatchAll := false
 	for _, r := range rules {
-		out = append(out, cfIngressRule{Hostname: r.Hostname, Service: r.Service})
+		out = append(out, cfIngressRule(r))
 		if r.Hostname == "" {
 			hasCatchAll = true
 		}

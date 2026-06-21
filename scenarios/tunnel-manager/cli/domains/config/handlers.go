@@ -92,6 +92,70 @@ func (h *handlers) sync(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) credentialsStatus(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetCredentialStatus(context.Background(), connect.NewRequest(&configv1.GetCredentialStatusRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get credential status", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
+		return fmt.Errorf("server returned no credential status")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{credentialStatusSummary(resp.Msg.Status)},
+		ResultsHeading: "Credential fields",
+		Results:        formatCredentialFields(resp.Msg.Status.Fields),
+		RetrievalHints: []string{
+			"`config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>` — save missing credentials",
+			"`config sync --dry-run` — preview ingress reconciliation after credentials are ready",
+		},
+	})
+}
+
+func (h *handlers) credentialsSet(ctx cliapp.RunContext) error {
+	req := &configv1.SetCloudflareCredentialsRequest{
+		AccountId: strings.TrimSpace(ctx.Flag("account-id")),
+		TunnelId:  strings.TrimSpace(ctx.Flag("tunnel-id")),
+		ApiToken:  strings.TrimSpace(ctx.Flag("api-token")),
+	}
+	if req.AccountId == "" && req.TunnelId == "" && req.ApiToken == "" {
+		return fmt.Errorf("at least one credential flag is required")
+	}
+	resp, err := h.client.SetCloudflareCredentials(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("set Cloudflare credentials", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
+		return fmt.Errorf("server returned no credential status")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{credentialStatusSummary(resp.Msg.Status)},
+		Changes: append([]string{
+			"Saved provided credential fields; token value will not be shown again.",
+		}, formatCredentialFields(resp.Msg.Status.Fields)...),
+	})
+}
+
+func (h *handlers) credentialsClear(ctx cliapp.RunContext) error {
+	field := strings.TrimSpace(ctx.Flag("field"))
+	fields := []string{"all"}
+	if field != "" {
+		fields = []string{field}
+	}
+	resp, err := h.client.ClearCloudflareCredentials(context.Background(), connect.NewRequest(&configv1.ClearCloudflareCredentialsRequest{
+		Fields: fields,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("clear Cloudflare credentials", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Status == nil {
+		return fmt.Errorf("server returned no credential status")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{credentialStatusSummary(resp.Msg.Status)},
+		Changes: formatCredentialFields(resp.Msg.Status.Fields),
+	})
+}
+
 func (h *handlers) mode(ctx cliapp.RunContext) error {
 	target, err := modeFlag(ctx.Flag("target"))
 	if err != nil {
@@ -153,4 +217,43 @@ func formatReadiness(r *configv1.ConfigReadiness) string {
 		parts = append(parts, "reason="+r.ModeReason)
 	}
 	return "readiness " + strings.Join(parts, " ")
+}
+
+func credentialStatusSummary(status *configv1.CredentialStatus) string {
+	if status == nil {
+		return "Cloudflare credential status unavailable."
+	}
+	if status.Ready {
+		return fmt.Sprintf("Cloudflare credentials are ready (source=%s).", status.Source)
+	}
+	if len(status.MissingFields) == 0 {
+		return fmt.Sprintf("Cloudflare credentials are incomplete (source=%s).", status.Source)
+	}
+	return fmt.Sprintf("Cloudflare credentials are incomplete; missing %s.", strings.Join(status.MissingFields, ", "))
+}
+
+func formatCredentialFields(fields []*configv1.CredentialFieldStatus) []string {
+	if len(fields) == 0 {
+		return []string{"credential_fields=(none)"}
+	}
+	out := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if field == nil {
+			continue
+		}
+		state := "missing"
+		if field.Present {
+			state = "present"
+		}
+		writable := "read-only"
+		if field.Writable {
+			writable = "writable"
+		}
+		parts := []string{field.Name, state, "source=" + field.Source, writable}
+		if field.Ref != "" {
+			parts = append(parts, "ref="+field.Ref)
+		}
+		out = append(out, strings.Join(parts, " "))
+	}
+	return out
 }

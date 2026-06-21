@@ -44,6 +44,7 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 	svc := config.NewProductionService(d, clk, config.ProductionOptions{
 		Doer:    doer,
 		HomeDir: t.TempDir(),
+		Routes:  routesSvc,
 		EnvLookup: func(key string) string {
 			switch key {
 			case "CLOUDFLARE_ACCOUNT_ID":

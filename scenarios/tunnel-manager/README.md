@@ -75,7 +75,8 @@ tunnel-manager exposure leases|extend|revoke
 tunnel-manager probes run             # run internal + external liveness probes
 tunnel-manager audit run              # port-compliance findings
 tunnel-manager recovery state|events|run       # inspect / trigger recovery
-tunnel-manager config sync|mode       # reconcile ingress / switch remote↔local
+tunnel-manager config credentials-status|credentials-set|credentials-clear
+tunnel-manager config sync|mode       # reconcile ingress / switch remote<->local
 ```
 
 ## Architecture
@@ -106,8 +107,11 @@ tunnel-manager config sync|mode       # reconcile ingress / switch remote↔loca
   falls back to HTTP polling).
 - **External:** the `cloudflared` daemon (managed by systemd; setup
   installs it — Tunnel Manager does not). A **Cloudflare API token** is
-  required for remote mode only; without it, Tunnel Manager falls back to
-  **local mode** (`~/.cloudflared/config.yml`).
+  required for remote mode only; without it, Tunnel Manager remains in
+  supported **local mode** (`~/.cloudflared/config.yml`). Configure
+  remote-mode credentials through Settings or
+  `tunnel-manager config credentials-set`; environment variables are
+  read-only runtime overrides, not the primary setup path.
 
 ## Relationship To Other Scenarios
 

@@ -167,15 +167,18 @@ log; optionally trigger a recovery attempt. Operational contract.
 | `events --limit <n>` | Limit returned recovery events. |
 | `run --force true` | Bypass the circuit breaker for a manual recovery attempt. |
 
-### `tunnel-manager config <get|sync|mode>`
+### `tunnel-manager config <get|credentials-status|credentials-set|credentials-clear|sync|mode>`
 
 Manage Cloudflare ingress and mode.
 
 | Subcommand | Purpose | Key args/flags |
 |---|---|---|
 | `config get` | Show browser-safe configuration readiness. | — |
+| `config credentials-status` | Show Cloudflare credential presence/source metadata without printing secrets; env-sourced fields are reported as read-only. | — |
+| `config credentials-set` | Store write-only Cloudflare credentials in the operator secret store under `~/.vrooli`. | `--account-id`, `--tunnel-id`, `--api-token` |
+| `config credentials-clear` | Clear file-backed Cloudflare credentials. Environment overrides cannot be cleared through this command. | `--field account_id\|tunnel_id\|api_token\|all` |
 | `config sync` | Reconcile ingress (remote API or local `config.yml`) with the manifest. | — |
-| `config mode <remote\|local>` | Switch and migrate ingress mode. | positional `remote`/`local` |
+| `config mode` | Switch and migrate ingress mode. | `--target remote\|local` |
 
 ## Output contracts
 

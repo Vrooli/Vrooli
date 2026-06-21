@@ -42,10 +42,13 @@ wherever the local stack and its tunnel daemon run.
   are down (see DECISIONS: "SQLite only").
 - External daemon: `cloudflared` running under systemd (installed by
   `make setup`/Vrooli setup, **not** managed by this scenario).
-- Cloudflare API token: required only for **remote mode** (programmatic
-  ingress via Cloudflare API v4). **Local mode** — generating
-  `~/.cloudflared/config.yml` from the manifest — is the fallback when
-  no token is available.
+- Cloudflare credentials: required only for **remote mode**
+  (programmatic ingress via Cloudflare API v4). Configure through
+  Settings or `tunnel-manager config credentials-set` so values land in
+  the operator secret store under `~/.vrooli`. `CLOUDFLARE_*`
+  environment values are deployment overrides, not the normal setup path.
+  **Local mode** — generating `~/.cloudflared/config.yml` from the
+  manifest — remains supported when no credentials are available.
 - Resources: none required; `redis` optional (UI pub/sub, falls back to
   HTTP polling).
 - Network: local API/UI communication plus outbound to the Cloudflare

@@ -21,7 +21,7 @@ import (
 
 	internalconfig "tunnel-manager/internal/config"
 	internalexposure "tunnel-manager/internal/exposure"
-	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/manifest"
 )
 
 // Module returns the exposure domain's contribution to the API: the
@@ -34,23 +34,23 @@ import (
 // CORE set comes from api-core/coreset; UI ports come from each scenario's
 // service.json via the FilePortResolver.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
-	return ModuleWithService(NewProductionService(db, clk), logger)
+	return ModuleWithService(NewProductionService(db, clk, nil, nil), logger)
 }
 
 // NewProductionService wires the exposure broker with the same production
 // seams used by the Connect handler and the background scheduler.
-func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalexposure.Service {
+func NewProductionService(db *database.RoutedDB, clk clock.Clock, manifestReader manifest.Store, configSvc internalconfig.Service) internalexposure.Service {
 	repo := internalexposure.NewSQLiteRepository(db, clk)
-	manifest := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
-
+	if configSvc == nil {
+		configSvc = internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{Routes: manifestReader})
+	}
 	// Reuse the config service's Sync as the ingress reconciler so exposure
 	// never owns Cloudflare calls or local cloudflared restart behavior.
-	configSvc := internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{})
 
 	scenariosRoot := resolveScenariosRoot()
 	return internalexposure.NewService(
 		repo,
-		manifest,
+		manifestReader,
 		ingressAdapter{cfg: configSvc},
 		internalexposure.NewCLIRunner(cmdrunner.Default),
 		internalexposure.NewFilePortResolver(scenariosRoot),

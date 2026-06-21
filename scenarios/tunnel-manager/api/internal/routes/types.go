@@ -18,77 +18,44 @@ package routes
 
 import (
 	"fmt"
-	"time"
+
+	"tunnel-manager/internal/manifest"
 )
 
 // Tier classifies why a route exists. CORE routes come from the
 // api-core/coreset closure and are always exposed; LEASED routes back an
 // on-demand lease and auto-expire (owned by the exposure domain).
-type Tier string
+type Tier = manifest.Tier
 
 const (
-	TierCore   Tier = "core"
-	TierLeased Tier = "leased"
+	TierCore   = manifest.TierCore
+	TierLeased = manifest.TierLeased
 )
 
 // DefaultDomain is the apex domain a subdomain hangs off when a route is
 // created without one. It is a field, never a hardcoded constant baked
 // into URLs — the old scenario hardcoded ".vrooli.com"; the live tunnel
 // is ".itsagitime.com".
-const DefaultDomain = "itsagitime.com"
+const DefaultDomain = manifest.DefaultDomain
 
 // DefaultHealthPath is the per-route liveness path used when unset.
-const DefaultHealthPath = "/health"
+const DefaultHealthPath = manifest.DefaultHealthPath
 
 // Route is the internal domain shape for one manifest entry. Distinct
 // from the proto wire type at packages/proto/gen/go/.../v1/routes.Route —
 // handlers translate at the boundary so the domain never imports proto.
-type Route struct {
-	ID         string
-	Subdomain  string
-	Scenario   string
-	Domain     string
-	LocalPort  int
-	Tier       Tier
-	LeaseID    string
-	Enabled    bool
-	HealthPath string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-}
+type Route = manifest.Route
 
 // PublicURL derives the route's reachable URL from its subdomain and
 // domain. Derived (never stored) so the apex domain can change without a
 // migration.
-func (r Route) PublicURL() string {
-	return fmt.Sprintf("https://%s.%s", r.Subdomain, r.Domain)
-}
-
 // CreateInput is the explicit input DTO Service.Create accepts. Distinct
 // from Route so callers cannot pass an ID or timestamp the service has no
 // way to honour — those belong to the persistence layer.
-type CreateInput struct {
-	Subdomain  string
-	Scenario   string
-	Domain     string
-	LocalPort  int
-	Tier       Tier
-	LeaseID    string
-	HealthPath string
-	// Enabled is tri-state: nil defaults to true on create.
-	Enabled *bool
-}
+type CreateInput = manifest.CreateInput
 
 // UpdateInput is a partial update; only non-zero/non-nil fields change.
-type UpdateInput struct {
-	Subdomain  string
-	Scenario   string
-	Domain     string
-	LocalPort  int
-	Tier       Tier
-	HealthPath string
-	Enabled    *bool
-}
+type UpdateInput = manifest.UpdateInput
 
 // ErrRouteNotFound is the typed sentinel returned when no row matches.
 // Handlers translate via errors.As into a 404 (connect.CodeNotFound).

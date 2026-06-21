@@ -42,12 +42,6 @@ func (f *fakeRepo) ListEvents(_ context.Context, limit int) ([]recovery.Recovery
 	return f.persisted, nil
 }
 
-func (f *fakeRepo) count() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return len(f.persisted)
-}
-
 // fakeHealth returns a scripted readiness value. When readyAfterCall is
 // >0, Ready returns false for the first readyAfterCall calls and true
 // thereafter — modelling a tunnel that only comes back once the restart's

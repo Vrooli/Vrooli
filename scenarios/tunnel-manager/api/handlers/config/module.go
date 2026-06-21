@@ -16,6 +16,10 @@ import (
 	internalconfig "tunnel-manager/internal/config"
 )
 
+func NewProductionService(db *database.RoutedDB, clk clock.Clock, routes internalconfig.RoutesReader) internalconfig.Service {
+	return internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{Routes: routes})
+}
+
 // Module returns the config domain's contribution to the API: the
 // generated Connect-RPC ConfigService handler. The center (server.New)
 // does not change — adding a domain is one Module() call in main.go plus
@@ -29,8 +33,11 @@ import (
 // absent the IngressClient is nil and remote apply operations return
 // ErrRemoteUnavailable (mapped to FailedPrecondition).
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
-	svc := internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{})
+	svc := NewProductionService(db, clk, nil)
+	return ModuleWithService(svc, logger)
+}
 
+func ModuleWithService(svc internalconfig.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := configconnect.NewConfigServiceHandler(NewConnectHandler(Deps{
 		Service:    svc,
 		Logger:     logger,
@@ -107,6 +114,80 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Dry-run sync", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/Sync -H 'Content-Type: application/json' -d '{\"dry_run\":true}'"},
+		},
+	},
+	{
+		ID:          "config_credentials_status",
+		Path:        configconnect.ConfigServiceGetCredentialStatusProcedure,
+		Method:      "POST",
+		Summary:     "Get Cloudflare credential status",
+		Description: "Returns browser-safe Cloudflare credential presence/source metadata. Secret values are never returned.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"status": "CredentialStatus"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 500, Code: "internal", Description: "Credential store read failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Credential status", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetCredentialStatus -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
+		ID:          "config_credentials_set",
+		Path:        configconnect.ConfigServiceSetCloudflareCredentialsProcedure,
+		Method:      "POST",
+		Summary:     "Set Cloudflare credentials",
+		Description: "Stores write-only Cloudflare credential values in the operator secret store and returns redacted status metadata.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"account_id": "string",
+				"tunnel_id":  "string",
+				"api_token":  "string (write-only)",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"status": "CredentialStatus"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Operator token required when authz is enforced"},
+			{Status: 403, Code: "permission_denied", Description: "Operator token denied"},
+			{Status: 500, Code: "internal", Description: "Credential store write failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Set credentials", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/SetCloudflareCredentials -H 'Content-Type: application/json' -d '{\"account_id\":\"acct\",\"tunnel_id\":\"tun\",\"api_token\":\"<token>\"}'"},
+		},
+	},
+	{
+		ID:          "config_credentials_clear",
+		Path:        configconnect.ConfigServiceClearCloudflareCredentialsProcedure,
+		Method:      "POST",
+		Summary:     "Clear Cloudflare credentials",
+		Description: "Removes file-backed Cloudflare credential values from the operator secret store. Env-sourced credentials remain effective until the process environment changes.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"fields": "array<string> (account_id | tunnel_id | api_token | all)"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"status": "CredentialStatus"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Operator token required when authz is enforced"},
+			{Status: 403, Code: "permission_denied", Description: "Operator token denied"},
+			{Status: 500, Code: "internal", Description: "Credential store delete failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Clear token", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/ClearCloudflareCredentials -H 'Content-Type: application/json' -d '{\"fields\":[\"api_token\"]}'"},
 		},
 	},
 	{

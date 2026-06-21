@@ -56,14 +56,14 @@ func (f *fakeIngress) PushIngress(_ context.Context, r []config.IngressRule) err
 }
 
 type fakeCredentialStore struct {
-	cfg        config.CFConfig
-	status     config.CredentialStatus
-	resolveN   int
-	statusN    int
-	saveIn     config.CredentialUpdate
-	saveN      int
-	deleteIn   []string
-	deleteN    int
+	cfg      config.CFConfig
+	status   config.CredentialStatus
+	resolveN int
+	statusN  int
+	saveIn   config.CredentialUpdate
+	saveN    int
+	deleteIn []string
+	deleteN  int
 }
 
 func (f *fakeCredentialStore) Status(context.Context) (config.CredentialStatus, error) {

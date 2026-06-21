@@ -14,8 +14,8 @@ import (
 
 	probesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/probes/probes_v1connect"
 
+	"tunnel-manager/internal/manifest"
 	internalprobes "tunnel-manager/internal/probes"
-	internalroutes "tunnel-manager/internal/routes"
 )
 
 // probeHTTPTimeout bounds each outbound liveness GET so a hung upstream
@@ -33,13 +33,12 @@ const probeHTTPTimeout = 5 * time.Second
 // *http.Client (the httpc.Doer seam) so a slow scenario cannot wedge the
 // cycle.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
-	return ModuleWithService(NewProductionService(db, clk), logger)
+	return ModuleWithService(NewProductionService(nil, db, clk), logger)
 }
 
 // NewProductionService wires the probes service with the same production
 // seams used by the Connect handler and the background scheduler.
-func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalprobes.Service {
-	routesReader := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
+func NewProductionService(routesReader manifest.Reader, db *database.RoutedDB, clk clock.Clock) internalprobes.Service {
 	repo := internalprobes.NewSQLiteRepository(db, clk)
 	httpClient := &http.Client{Timeout: probeHTTPTimeout}
 	return internalprobes.NewService(routesReader, repo, httpClient, clk)

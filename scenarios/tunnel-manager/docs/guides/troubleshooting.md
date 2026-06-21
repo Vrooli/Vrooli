@@ -261,18 +261,23 @@ daemon and its systemd unit are installed. Do **not** restart
 `cloudflared` from a separate tool — Tunnel Manager's `recovery` domain
 is the single authoritative owner of cloudflared restarts (see below).
 
-### Cloudflare API token missing → local mode fallback
+### Cloudflare credentials missing → local mode remains active
 
 Remote mode (programmatic ingress via the Cloudflare API v4) requires a
-Cloudflare API token. If the token is unset, Tunnel Manager falls back to
-**local mode**, generating `~/.cloudflared/config.yml` from the manifest
-and restarting cloudflared on change instead of hot-reloading via the
-API.
+Cloudflare account id, tunnel id, and API token. If any field is
+missing, Tunnel Manager remains in **local mode**, generating
+`~/.cloudflared/config.yml` from the manifest and restarting cloudflared
+on change instead of hot-reloading via the API.
 
-- Confirm the current mode with `tunnel-manager config` / `status`.
-- To enable remote mode, set the Cloudflare account id, tunnel id, and
-  API token (see [`../reference/configuration.md`](../reference/configuration.md))
-  and switch: `tunnel-manager config mode remote`.
+- Confirm the current mode and missing fields with
+  `tunnel-manager config get` or the Settings page.
+- To enable remote mode, save credentials through Settings or
+  `tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>`.
+- Preview changes with `tunnel-manager config sync --dry-run true`, then
+  switch with `tunnel-manager config mode --target remote`.
+- If status shows `env:CLOUDFLARE_*`, those values are read-only
+  lifecycle overrides and shadow saved file values until removed and the
+  scenario restarts.
 - Local mode is a correct, supported fallback — not an error state. Use
   it when no token is available.
 

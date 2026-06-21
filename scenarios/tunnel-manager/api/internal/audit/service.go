@@ -7,18 +7,18 @@ import (
 	"os"
 	"path/filepath"
 
-	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/manifest"
 )
 
 // RoutesReader is the narrow seam the audit service depends on to read the
 // exposure manifest. The production wiring satisfies it with
-// internalroutes.Service; service unit tests wire a fake. Locally declared
+// manifest.Reader; service unit tests wire a fake. Locally declared
 // (not imported from routes) so the audit domain depends only on the one
 // method it actually uses.
 type RoutesReader interface {
 	// List returns manifest routes, optionally filtered by tier. The audit
 	// service passes the empty Tier to read every route.
-	List(ctx context.Context, tier internalroutes.Tier) ([]internalroutes.Route, error)
+	List(ctx context.Context, tier manifest.Tier) ([]manifest.Route, error)
 }
 
 // Service is the application-layer surface the audit handlers depend on. It
@@ -67,7 +67,7 @@ func (s *service) RunAudit(ctx context.Context) ([]PortAuditResult, error) {
 
 // newResult builds a base PortAuditResult from a route with the common fields
 // pre-filled.
-func newResult(route internalroutes.Route, status AuditStatus, detail string) PortAuditResult {
+func newResult(route manifest.Route, status AuditStatus, detail string) PortAuditResult {
 	return PortAuditResult{
 		Subdomain:    route.Subdomain,
 		Scenario:     route.Scenario,
@@ -81,7 +81,7 @@ func newResult(route internalroutes.Route, status AuditStatus, detail string) Po
 // real service.json shape is `{"ports": {"ui": {"port": <int>, "env_var":
 // "...", "range": "..."}}}`; a fixed UI port lives at ports.ui.port and is 0
 // (absent) when the scenario uses a ranged/dynamic port instead.
-func (s *service) auditRoute(route internalroutes.Route) PortAuditResult {
+func (s *service) auditRoute(route manifest.Route) PortAuditResult {
 	svcPath := filepath.Join(s.scenariosRoot, route.Scenario, ".vrooli", "service.json")
 	data, err := os.ReadFile(svcPath)
 	if err != nil {

@@ -74,8 +74,9 @@ describe("ExposurePanel", () => {
     await waitFor(() => expect(screen.getAllByTestId(selectors.exposure.row)).toHaveLength(2));
 
     await user.type(screen.getByTestId(selectors.exposure.searchInput), "image");
-    expect(screen.getAllByTestId(selectors.exposure.row)).toHaveLength(1);
-    expect(screen.getByText("image-tools")).toBeInTheDocument();
+    const rows = screen.getAllByTestId(selectors.exposure.row);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toHaveTextContent("image-tools");
 
     await user.selectOptions(screen.getByTestId(selectors.exposure.tierFilter), "core");
     await waitFor(() => {

@@ -2,11 +2,13 @@ import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import { vi } from "vitest";
 import {
   ConfigReadinessSchema,
+  CredentialStatusSchema,
   GetConfigResponseSchema,
   Mode,
   SyncResponseSchema,
   TunnelConfigSchema,
   type ConfigReadiness,
+  type CredentialStatus,
   type GetConfigResponse,
   type SyncResponse,
   type TunnelConfig,
@@ -32,6 +34,25 @@ export const makeConfigReadiness = (
     localConfigPath: "/home/operator/.cloudflared/config.yml",
     syncReady: true,
     modeReason: "Local mode is active until Cloudflare credentials are available.",
+    credentialFields: [
+      { name: "CLOUDFLARE_API_TOKEN", source: "missing", writable: true },
+      { name: "CLOUDFLARE_ACCOUNT_ID", source: "missing", writable: true },
+      { name: "CLOUDFLARE_TUNNEL_ID", source: "missing", writable: true },
+    ],
+    ...overrides,
+  });
+
+export const makeCredentialStatus = (
+  overrides: MessageInitShape<typeof CredentialStatusSchema> = {},
+): CredentialStatus =>
+  create(CredentialStatusSchema, {
+    source: "missing",
+    missingFields: ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_TUNNEL_ID"],
+    fields: [
+      { name: "CLOUDFLARE_API_TOKEN", source: "missing", writable: true },
+      { name: "CLOUDFLARE_ACCOUNT_ID", source: "missing", writable: true },
+      { name: "CLOUDFLARE_TUNNEL_ID", source: "missing", writable: true },
+    ],
     ...overrides,
   });
 
@@ -57,6 +78,9 @@ export const makeSyncResponse = (
 export const makeConfigMocks = () => ({
   configClient: {
     getConfig: vi.fn().mockResolvedValue(makeConfigResponse()),
+    getCredentialStatus: vi.fn().mockResolvedValue({ status: makeCredentialStatus() }),
+    setCloudflareCredentials: vi.fn().mockResolvedValue({ status: makeCredentialStatus({ ready: true, source: "file:scenario", missingFields: [] }) }),
+    clearCloudflareCredentials: vi.fn().mockResolvedValue({ status: makeCredentialStatus() }),
     sync: vi.fn().mockResolvedValue(makeSyncResponse()),
     switchMode: vi.fn().mockResolvedValue({
       previousMode: Mode.LOCAL,

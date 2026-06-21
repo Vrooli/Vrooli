@@ -50,8 +50,8 @@ Or check the URL directly:
 vrooli scenario port tunnel-manager UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-worked example feature pane backed by the local SQLite store.
+You should see the Tunnel Manager dashboard. The first screen summarizes
+tunnel health, exposure state, recovery state, and setup readiness.
 
 ## 4 — Talk to the API
 
@@ -80,11 +80,20 @@ tunnel-manager probes run              # run internal + external liveness probes
 tunnel-manager audit run               # port-compliance findings
 tunnel-manager recovery state          # inspect recovery state
 tunnel-manager recovery run            # manually trigger recovery
+tunnel-manager config credentials-status
+tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>
+tunnel-manager config credentials-clear --field all
+tunnel-manager config sync --dry-run true  # preview ingress changes safely
 tunnel-manager config sync             # reconcile Cloudflare ingress with the manifest
-tunnel-manager config mode <remote|local>  # switch ingress mode
+tunnel-manager config mode --target remote  # switch ingress mode
 ```
 
 Every command supports proto-typed `--json` output.
+
+For remote mode, use Settings or the `config credentials-*` CLI commands
+to save Cloudflare credentials into the operator secret store. The
+canonical `CLOUDFLARE_*` environment variables remain read-only
+lifecycle overrides for deployment, not the normal first-run path.
 
 Or directly via HTTP:
 
@@ -129,8 +138,6 @@ common first-time issues are:
 
 ## Next steps
 
-- Read [`START-HERE.md`](START-HERE.md) before implementing product
-  behavior. It owns the first-session workflow after generation.
 - Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
   mental model: three surfaces, proto bridge, layered API, where to
   add code.

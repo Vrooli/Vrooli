@@ -20,24 +20,24 @@ import (
 
 // fakeService implements internalconfig.Service for handler tests.
 type fakeService struct {
-	getOut    internalconfig.TunnelConfig
-	ready     internalconfig.ConfigReadiness
-	getErr    error
-	credOut   internalconfig.CredentialStatus
-	credErr   error
-	setIn     internalconfig.CredentialUpdate
-	setCalls  int
-	clearIn   []string
+	getOut     internalconfig.TunnelConfig
+	ready      internalconfig.ConfigReadiness
+	getErr     error
+	credOut    internalconfig.CredentialStatus
+	credErr    error
+	setIn      internalconfig.CredentialUpdate
+	setCalls   int
+	clearIn    []string
 	clearCalls int
-	syncOut   internalconfig.SyncResult
-	syncErr   error
-	syncDry   bool
-	syncCalls int
-	swPrev    internalconfig.Mode
-	swCur     internalconfig.Mode
-	swErr     error
-	swTgt     internalconfig.Mode
-	swCalls   int
+	syncOut    internalconfig.SyncResult
+	syncErr    error
+	syncDry    bool
+	syncCalls  int
+	swPrev     internalconfig.Mode
+	swCur      internalconfig.Mode
+	swErr      error
+	swTgt      internalconfig.Mode
+	swCalls    int
 }
 
 func (f *fakeService) GetConfig(context.Context) (internalconfig.TunnelConfig, error) {
@@ -104,9 +104,9 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 		CredentialStatus: internalconfig.CredentialStatus{Fields: []internalconfig.CredentialFieldStatus{{
 			Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "env:CLOUDFLARE_*", Ref: "env:CLOUDFLARE_API_TOKEN",
 		}}},
-		LocalConfigPath:  "/tmp/config.yml",
-		SyncReady:        true,
-		ModeReason:       "ready",
+		LocalConfigPath: "/tmp/config.yml",
+		SyncReady:       true,
+		ModeReason:      "ready",
 	}})
 
 	resp, err := client.GetConfig(context.Background(), connect.NewRequest(&configv1.GetConfigRequest{}))

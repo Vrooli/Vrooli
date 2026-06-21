@@ -85,13 +85,13 @@ export function ExposurePanel() {
     mutationFn: (name: string) => exposureClient.expose({ scenario: name }),
     onSuccess: () => {
       setScenario("");
-      void invalidate();
+      invalidate();
     },
   });
 
   const extendMutation = useMutation({
     mutationFn: (leaseId: string) => exposureClient.extendLease({ leaseId }),
-    onSuccess: () => void invalidate(),
+    onSuccess: () => invalidate(),
   });
 
   const reconcileMutation = useMutation({
@@ -107,7 +107,7 @@ export function ExposurePanel() {
 
   const revokeMutation = useMutation({
     mutationFn: (leaseId: string) => exposureClient.revokeLease({ leaseId }),
-    onSuccess: () => void invalidate(),
+    onSuccess: () => invalidate(),
   });
 
   const actionError = extendMutation.error ?? revokeMutation.error ?? reconcileMutation.error;

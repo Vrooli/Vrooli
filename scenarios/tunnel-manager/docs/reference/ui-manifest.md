@@ -24,12 +24,12 @@ both when adding or renaming a slot.
 
 | Surface | Feature folder | Shows |
 |---|---|---|
-| **Overview** | `ui/src/features/routes/` | Tunnel + exposure health at a glance: the manifest (routes, tiers, leases), color-coded status. |
+| **Overview** | `ui/src/features/overview/` | Tunnel + exposure health at a glance: setup readiness, route counts, recovery state, and color-coded status. |
 | **Exposure** | `ui/src/features/exposure/` | Lease management and reconcile workflow — request / extend / revoke leased exposure; CORE vs LEASED filtering; search; route-classification badges from probes. |
 | **Recovery & Events** | `ui/src/features/recovery/` | Auto-recovery state, breaker/backoff risk, next operator action, guarded manual recover/force action, and recovery event details. |
 | **Metrics** | `ui/src/features/metrics/` | cloudflared Prometheus summary + time-series (HA connections, RTT, errors, active streams), probe history, route classifications, current diagnostic-signal limits, and scrape/probe actions. Backed by the `tunnel` and `probes` domains. |
 | **Audit** | `ui/src/features/audit/` | Port-compliance summary, status filters, findings, and remediation hints for mismatched / missing / ranged UI ports. |
-| **Settings / Setup** | `ui/src/pages/SettingsPage.tsx`, `ui/src/api/config.ts` | Local/remote mode, Cloudflare credential readiness, missing fields, local config path, sync dry-run, sync apply, theme, and locale. |
+| **Settings / Setup** | `ui/src/pages/SettingsPage.tsx`, `ui/src/api/config.ts` | Local/remote mode, Cloudflare credential readiness, final config policy guidance, write-only Cloudflare credential save/clear, env-shadow warnings, field source status, missing fields, local config path, sync dry-run, sync apply, theme, and locale. |
 
 The scaffold `health` feature lives at `ui/src/features/health/`.
 

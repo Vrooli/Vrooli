@@ -48,7 +48,8 @@ CLI verbs in [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md).
 | Run probes | `tunnel-manager probes run` | Internal probes the local port; external probes the public URL end-to-end. |
 | Run port audit | `tunnel-manager audit run` | Verifies each exposed scenario's `service.json` fixed UI port matches the manifest; reports mismatches/missing/ranged ports. |
 | Manually trigger recovery | `tunnel-manager recovery run` | Forces a recovery cycle (restart cloudflared). Background recovery is opt-in with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; use manual recovery when escalating an incident. |
-| Switch remote/local mode | `tunnel-manager config mode <remote\|local>` | Remote = Cloudflare API ingress (needs API token); local = generate `~/.cloudflared/config.yml`. Migrates ingress on switch. |
+| Configure Cloudflare credentials | `tunnel-manager config credentials-status` / `credentials-set` / `credentials-clear` | Writes file-backed operator secrets under `~/.vrooli`; `CLOUDFLARE_*` env values are read-only overrides and shadow saved values. |
+| Switch remote/local mode | `tunnel-manager config mode --target <remote\|local>` | Remote = Cloudflare API ingress (needs complete credentials); local = generate `~/.cloudflared/config.yml`. Migrates ingress on switch. |
 | Inspect / sync config | `tunnel-manager config get` / `tunnel-manager config sync` | Reconciles ingress with the manifest. |
 
 ### When auto-recovery trips the circuit breaker

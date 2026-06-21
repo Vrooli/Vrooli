@@ -1,5 +1,5 @@
 import { strings } from "../consts/strings";
-import type { ThemeChoice } from "./ThemeProvider";
+import type { ThemeChoice } from "./themeContext";
 
 /**
  * Static theme-choice → translation-key map. Referencing each key explicitly

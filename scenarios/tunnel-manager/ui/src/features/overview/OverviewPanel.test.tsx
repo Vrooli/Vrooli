@@ -50,7 +50,7 @@ describe("OverviewPanel", () => {
       makeConfigResponse({
         config: makeTunnelConfig({ mode: 2 }),
         readiness: makeConfigReadiness({ syncReady: true, remoteAvailable: false, missingFields: [] }),
-      }) as never,
+      }),
     );
     vi.mocked(exposureClient.listExposures).mockResolvedValueOnce({
       exposures: [makeExposure(), makeExposure({ scenario: "swarm-manager" }), makeLeasedExposure()],
@@ -77,7 +77,7 @@ describe("OverviewPanel", () => {
           syncReady: false,
           missingFields: ["CLOUDFLARE_API_TOKEN"],
         }),
-      }) as never,
+      }),
     );
 
     renderWithProviders(<OverviewPanel />);

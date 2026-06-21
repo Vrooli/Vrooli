@@ -16,7 +16,6 @@ import (
 	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/audit/audit_v1connect"
 
 	internalaudit "tunnel-manager/internal/audit"
-	internalroutes "tunnel-manager/internal/routes"
 )
 
 // Module returns the audit domain's contribution to the API: the generated
@@ -30,8 +29,15 @@ import (
 // (the RoutesReader seam) and the scenarios filesystem tree through the
 // scenarios root resolved by resolveScenariosRoot.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
-	routesSvc := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
-	svc := internalaudit.NewService(routesSvc, resolveScenariosRoot(logger))
+	return ModuleWithService(internalaudit.NewService(nil, resolveScenariosRoot(logger)), logger)
+}
+
+func ModuleWithRoutes(routes internalaudit.RoutesReader, logger *log.Logger) module.Module {
+	svc := internalaudit.NewService(routes, resolveScenariosRoot(logger))
+	return ModuleWithService(svc, logger)
+}
+
+func ModuleWithService(svc internalaudit.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := auditconnect.NewAuditServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,

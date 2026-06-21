@@ -9,7 +9,7 @@ import (
 
 	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
-	internalroutes "tunnel-manager/internal/routes"
+	"tunnel-manager/internal/manifest"
 )
 
 // ProductionDB is the database surface required by the config service and
@@ -17,7 +17,6 @@ import (
 // production; *sql.DB satisfies it in integration tests.
 type ProductionDB interface {
 	SQLExecutor
-	internalroutes.SQLExecutor
 }
 
 // ProductionOptions contains the side-effecting seams used only by the
@@ -30,6 +29,7 @@ type ProductionOptions struct {
 	HomeDir         string
 	CredentialStore CredentialStore
 	Runner          cmdrunner.Runner
+	Routes          RoutesReader
 	LocalConfigPath string
 }
 
@@ -59,16 +59,25 @@ func NewProductionService(db ProductionDB, clk clock.Clock, opts ProductionOptio
 			store = staticCredentialStore{cfg: ResolveCloudflareEnv(opts.EnvLookup), err: err}
 		}
 	}
-	routesReader := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
+	routesReader := opts.Routes
+	if routesReader == nil {
+		routesReader = unavailableRoutesReader{}
+	}
 	return NewService(Deps{
 		Repo:            NewSQLiteRepository(db),
 		Routes:          routesReader,
 		Ingress:         resolvingIngressClient{store: store, doer: opts.Doer},
 		CredentialStore: store,
-		Runner:         opts.Runner,
+		Runner:          opts.Runner,
 		Clock:           clk,
 		LocalConfigPath: opts.LocalConfigPath,
 	})
+}
+
+type unavailableRoutesReader struct{}
+
+func (unavailableRoutesReader) List(context.Context, manifest.Tier) ([]manifest.Route, error) {
+	return nil, fmt.Errorf("routes reader is not configured")
 }
 
 type resolvingIngressClient struct {

@@ -43,6 +43,7 @@ func TestIngressAdapter_ReconcileUsesConfiguredRemoteIngress(t *testing.T) {
 	cfgSvc := internalconfig.NewProductionService(d, clk, internalconfig.ProductionOptions{
 		Doer:    doer,
 		HomeDir: t.TempDir(),
+		Routes:  routesSvc,
 		EnvLookup: func(key string) string {
 			switch key {
 			case "CLOUDFLARE_ACCOUNT_ID":

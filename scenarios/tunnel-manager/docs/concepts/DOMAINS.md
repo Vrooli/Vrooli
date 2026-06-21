@@ -5,7 +5,7 @@ contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
 `health` is the scaffold domain. Tunnel Manager adds seven product
-domains beside it (below). The old template example domain has been
+domains plus one presentation boundary beside it (below). The old template example domain has been
 removed; if `notes` reappears, treat it as regression unless a new PRD
 explicitly introduces that product scope.
 
@@ -26,14 +26,15 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
-| `routes` | Exposure manifest (SSOT): which scenario is exposed at which subdomain/port, tier, lease, enabled. | CRUD / entity | `routes` table | API, CLI, UI | 01-exposure-manifest (OT-P0-001) | `api/internal/routes/`, `api/handlers/routes/`, `cli/domains/routes/`, `ui/src/features/routes/`, `packages/proto/schemas/tunnel-manager/v1/routes/` |
-| `exposure` | Tiered exposure broker: CORE always-on (from `api-core/coreset`) + LEASED on-demand (TTL request/extend/revoke/reap); ensure-running delegation; exposure-query for app-monitor. | Policy / orchestration | `leases` table | API, CLI, UI | 03-exposure-tiers (OT-P0-003/004/005/006), 10-app-monitor-integration (OT-P1-007) | `api/internal/exposure/`, `api/handlers/exposure/`, `cli/domains/exposure/`, `ui/src/features/exposure/`, `packages/proto/schemas/tunnel-manager/v1/exposure/` |
-| `config` | Cloudflare API ingress management (remote), local `config.yml` generation (fallback), mode switching, config sync. | Adapter / integration | `tunnel_config` | API, CLI | 02-cloudflare-ingress (OT-P0-002, OT-P1-002) | `api/internal/config/`, `api/handlers/config/`, `cli/domains/config/`, `packages/proto/schemas/tunnel-manager/v1/config/` |
-| `audit` | Port-compliance auditor: verify exposed scenarios declare fixed UI ports in `service.json` matching the manifest. | Reporting / query | None (computed) | API, CLI, UI | 04-port-compliance (OT-P0-007) | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `ui/src/features/audit/`, `packages/proto/schemas/tunnel-manager/v1/audit/` |
-| `tunnel` | Tunnel health (systemd + `/ready`), Prometheus metrics scraping + time-series, degraded-mode detection. | Monitoring | `metrics` table | API, CLI, UI | 05-tunnel-health (OT-P0-008, OT-P1-003/006) | `api/internal/tunnel/`, `api/handlers/tunnel/`, `cli/domains/tunnel/`, `ui/src/features/metrics/`, `packages/proto/schemas/tunnel-manager/v1/tunnel/` |
-| `probes` | Internal + external liveness probing, scheduler, failure classification, probe history. | Monitoring | `probes` table | API, CLI, UI | 06-liveness-probes (OT-P0-009/010, OT-P1-001) | `api/internal/probes/`, `api/handlers/probes/`, `cli/domains/probes/`, `ui/src/features/probes/`, `packages/proto/schemas/tunnel-manager/v1/probes/` |
-| `recovery` | Auto-recovery engine (backoff + circuit breaker, live), recovery event log; single cloudflared-restart owner. | Control / actuation | `recovery_events` table | API, CLI, UI | 07-auto-recovery (OT-P0-011, OT-P1-005) | `api/internal/recovery/`, `api/handlers/recovery/`, `cli/domains/recovery/`, `ui/src/features/recovery/`, `packages/proto/schemas/tunnel-manager/v1/recovery/` |
-| `health` | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tunnel-manager/v1/health/` |
+| routes | Exposure manifest (SSOT): which scenario is exposed at which subdomain/port, tier, lease, enabled. | CRUD / entity | `routes` table | API, CLI, UI | 01-exposure-manifest (OT-P0-001) | `api/internal/routes/`, `api/handlers/routes/`, `cli/domains/routes/`, `ui/src/features/routes/`, `packages/proto/schemas/tunnel-manager/v1/routes/` |
+| exposure | Tiered exposure broker: CORE always-on (from `api-core/coreset`) + LEASED on-demand (TTL request/extend/revoke/reap); ensure-running delegation; exposure-query for app-monitor. | Policy / orchestration | `leases` table | API, CLI, UI | 03-exposure-tiers (OT-P0-003/004/005/006), 10-app-monitor-integration (OT-P1-007) | `api/internal/exposure/`, `api/handlers/exposure/`, `cli/domains/exposure/`, `ui/src/features/exposure/`, `packages/proto/schemas/tunnel-manager/v1/exposure/` |
+| config | Cloudflare API ingress management (remote), local `config.yml` generation (fallback), credential-store status/write flow, mode switching, config sync. | Adapter / integration | `tunnel_config` plus operator secret-store references | API, CLI, UI settings | 02-cloudflare-ingress (OT-P0-002, OT-P1-002) | `api/internal/config/`, `api/handlers/config/`, `cli/domains/config/`, `ui/src/pages/SettingsPage.tsx`, `packages/proto/schemas/tunnel-manager/v1/config/` |
+| audit | Port-compliance auditor: verify exposed scenarios declare fixed UI ports in `service.json` matching the manifest. | Reporting / query | None (computed) | API, CLI, UI | 04-port-compliance (OT-P0-007) | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `ui/src/features/audit/`, `packages/proto/schemas/tunnel-manager/v1/audit/` |
+| tunnel | Tunnel health (systemd + `/ready`), Prometheus metrics scraping + time-series, degraded-mode detection. | Monitoring | `metrics` table | API, CLI, UI | 05-tunnel-health (OT-P0-008, OT-P1-003/006) | `api/internal/tunnel/`, `api/handlers/tunnel/`, `cli/domains/tunnel/`, `ui/src/features/metrics/`, `packages/proto/schemas/tunnel-manager/v1/tunnel/` |
+| probes | Internal + external liveness probing, scheduler, failure classification, probe history. | Monitoring | `probes` table | API, CLI, UI | 06-liveness-probes (OT-P0-009/010, OT-P1-001) | `api/internal/probes/`, `api/handlers/probes/`, `cli/domains/probes/`, `ui/src/features/probes/`, `packages/proto/schemas/tunnel-manager/v1/probes/` |
+| recovery | Auto-recovery engine (backoff + circuit breaker, live), recovery event log; single cloudflared-restart owner. | Control / actuation | `recovery_events` table | API, CLI, UI | 07-auto-recovery (OT-P0-011, OT-P1-005) | `api/internal/recovery/`, `api/handlers/recovery/`, `cli/domains/recovery/`, `ui/src/features/recovery/`, `packages/proto/schemas/tunnel-manager/v1/recovery/` |
+| presentation | Aggregate operator surfaces that compose several product domains: CLI command registry, overview dashboard, settings, app shell, and cross-domain UI state. | Adapter / interface | Browser/local UI preferences only. | CLI, UI | 08-cli-interface (OT-P0-012), 09-web-dashboard (OT-P1-004) | `cli/domains/domains_test.go`, `ui/src/features/overview/`, `ui/src/pages/`, `ui/src/App.tsx` |
+| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tunnel-manager/v1/health/` |
 
 ## Domain Details
 
@@ -65,7 +66,9 @@ belong in [`DATA.md`](DATA.md).
 
 ### `config` — Cloudflare ingress & mode management
 - Owns `tunnel_config`: mode (`remote`|`local`), tunnel id, account id,
-  credential reference, Prometheus endpoint.
+  credential reference, Prometheus endpoint. Owns the credential status
+  and write-only setup workflow, while secret values are stored outside
+  SQLite through the shared operator secret store.
 - Behavior: remote mode pushes ingress via Cloudflare API v4
   (hot-reload); local mode generates `~/.cloudflared/config.yml` from
   the manifest (restart on change); `Sync` reconciles ingress with the
@@ -108,6 +111,18 @@ belong in [`DATA.md`](DATA.md).
 - Why: hands-off recovery is the core value promise; live action is an
   explicit operator decision (see
   [`../internal/DECISIONS.md`](../internal/DECISIONS.md)).
+
+### presentation
+
+- Purpose: own the aggregate operator-facing shell that composes multiple
+  domains without inventing separate business state.
+- Owns: CLI registry coverage, overview dashboard composition, settings
+  page composition, app shell/routing, and cross-domain UI tests.
+- Does not own: route manifests, ingress credentials, leases, probes,
+  recovery events, audit findings, or tunnel metrics.
+- Why: CLI and dashboard requirements intentionally validate the complete
+  operator surface. Assigning those tests to one product domain would make
+  the domain map misleading.
 
 ### health
 
@@ -153,6 +168,10 @@ These are important but should not become product domains:
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
 - `api/internal/testutil/` — cross-domain test harnesses.
+- `api/internal/authz/` — shared authorization guard used by privileged
+  mutation handlers; policy ownership remains with the called domain.
+- `api/internal/scheduler/` — shared cancellable loop helper; concrete
+  schedules belong to exposure, probes, and recovery.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
 

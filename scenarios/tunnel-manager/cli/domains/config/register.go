@@ -22,9 +22,12 @@ const GroupName = "config"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ConfigService.GetConfig":  h.get,
-		"ConfigService.Sync":       h.sync,
-		"ConfigService.SwitchMode": h.mode,
+		"ConfigService.GetConfig":                  h.get,
+		"ConfigService.GetCredentialStatus":        h.credentialsStatus,
+		"ConfigService.SetCloudflareCredentials":   h.credentialsSet,
+		"ConfigService.ClearCloudflareCredentials": h.credentialsClear,
+		"ConfigService.Sync":                       h.sync,
+		"ConfigService.SwitchMode":                 h.mode,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
