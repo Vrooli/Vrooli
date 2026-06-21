@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"structure-health/internal/intent"
+	"structure-health/internal/rules"
 	"structure-health/internal/svcedit"
 
 	autofixcore "github.com/vrooli/maturity-go/autofix"
@@ -28,6 +30,9 @@ const (
 	RuleFreshnessMissing    = "FRESHNESS_CHECK_MISSING"
 	RuleSurfaceDirMissing   = "SURFACE_DIR_MISSING"
 	RuleRequiredFileMissing = "REQUIRED_FILE_MISSING"
+	RulePortBand            = "PORT_BAND_NONCONFORMANT"
+	RuleAPIBinaryName       = "API_BINARY_NAME_NONCONFORMANT"
+	RuleProductionServe     = "PRODUCTION_SERVE_NONCONFORMANT"
 )
 
 var registry = autofixcore.NewRegistry(
@@ -36,6 +41,9 @@ var registry = autofixcore.NewRegistry(
 	autofixcore.Fixer{RuleID: RuleFreshnessMissing, Preview: previewFreshnessChecks, CanFix: canFix(previewFreshnessChecks)},
 	autofixcore.Fixer{RuleID: RuleSurfaceDirMissing, Preview: previewSurfaceDirs, CanFix: canFix(previewSurfaceDirs)},
 	autofixcore.Fixer{RuleID: RuleRequiredFileMissing, Preview: previewRequiredFiles, CanFix: canFix(previewRequiredFiles)},
+	autofixcore.Fixer{RuleID: RulePortBand, Preview: previewPortBand, CanFix: canFix(previewPortBand)},
+	autofixcore.Fixer{RuleID: RuleAPIBinaryName, Preview: previewAPIBinaryName, CanFix: canFix(previewAPIBinaryName)},
+	autofixcore.Fixer{RuleID: RuleProductionServe, Preview: previewProductionServe, CanFix: canFix(previewProductionServe)},
 )
 
 // Preview returns the proposed edits for the requested rules (all when empty).
@@ -93,7 +101,8 @@ func CanFix(root, ruleID, findingPath string) bool {
 // fixer is registered for it, detection_only otherwise.
 func FixClassFor(code string) autofixcore.FixClass {
 	switch code {
-	case RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing:
+	case RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing,
+		RulePortBand, RuleAPIBinaryName, RuleProductionServe:
 		return autofixcore.FixClassAutofix
 	default:
 		return autofixcore.FixClassDetectionOnly
@@ -259,6 +268,185 @@ func previewFreshnessChecks(root string) ([]Candidate, error) {
 	}}, nil
 }
 
+// previewPortBand rewrites each canonical listener port (api/ui/websocket) whose
+// env_var or range is present but off its canonical band, in a single
+// format-preserving edit. Missing allocations and out-of-band fixed ports are
+// left untouched (the rule does not flag them) so the fix is always a safe
+// in-place correction.
+func previewPortBand(root string) ([]Candidate, error) {
+	in, err := intent.Load(root)
+	if err != nil {
+		return nil, nil
+	}
+	type change struct{ name, env, band string }
+	var changes []change
+	for _, name := range sortedPortNames(in.Ports) {
+		p := in.Ports[name]
+		band, env, ok := rules.CanonicalPortBand(name, p.EnvVar)
+		if !ok {
+			continue
+		}
+		envWrong := strings.TrimSpace(p.EnvVar) != "" && strings.TrimSpace(p.EnvVar) != env
+		rangeWrong := strings.TrimSpace(p.Range) != "" && strings.TrimSpace(p.Range) != band
+		if envWrong || rangeWrong {
+			changes = append(changes, change{name: name, env: env, band: band})
+		}
+	}
+	if len(changes) == 0 {
+		return nil, nil
+	}
+	doc, before, err := loadServiceJSON(root)
+	if err != nil {
+		return nil, nil
+	}
+	ports := svcedit.EnsureMap(doc.Root(), "ports")
+	names := make([]string, 0, len(changes))
+	for _, c := range changes {
+		port, ok := svcedit.GetMap(ports, c.name)
+		if !ok {
+			continue
+		}
+		if v := strings.TrimSpace(svcedit.StringField(port, "env_var")); v != "" && v != c.env {
+			port.Set("env_var", c.env)
+		}
+		if v := strings.TrimSpace(svcedit.StringField(port, "range")); v != "" && v != c.band {
+			port.Set("range", c.band)
+		}
+		names = append(names, c.name)
+	}
+	after, err := doc.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	return []Candidate{{
+		RuleID:      RulePortBand,
+		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
+		Description: "Move canonical port(s) " + strings.Join(names, ", ") + " back onto their allocated env_var/band.",
+		Before:      string(before),
+		After:       string(after),
+	}}, nil
+}
+
+// previewAPIBinaryName renames the start-api invocation (and its file_exists
+// condition) to the canonical api/<scenario>-api binary, preserving the rest of
+// the command. It only fires on the two lifecycle-recognized run shapes, so the
+// rename is always surgical.
+func previewAPIBinaryName(root string) ([]Candidate, error) {
+	in, err := intent.Load(root)
+	if err != nil {
+		return nil, nil
+	}
+	expected := rules.ExpectedAPIBinaryName(scenarioName(root, in))
+	if expected == "" {
+		return nil, nil
+	}
+	var step *intent.Step
+	for i := range in.Lifecycle.Develop.Steps {
+		if strings.TrimSpace(in.Lifecycle.Develop.Steps[i].Name) == "start-api" {
+			step = &in.Lifecycle.Develop.Steps[i]
+			break
+		}
+	}
+	if step == nil {
+		return nil, nil
+	}
+	current, fixedRun, ok := rules.RewriteAPIBinary(step.Run, expected)
+	if !ok {
+		return nil, nil
+	}
+	doc, before, err := loadServiceJSON(root)
+	if err != nil {
+		return nil, nil
+	}
+	develop, ok := svcedit.GetMap(svcedit.EnsureMap(doc.Root(), "lifecycle"), "develop")
+	if !ok {
+		return nil, nil
+	}
+	stepMap, ok := svcedit.FindMapInSlice(develop, "steps", func(m *svcedit.Map) bool {
+		return strings.TrimSpace(svcedit.StringField(m, "name")) == "start-api"
+	})
+	if !ok {
+		return nil, nil
+	}
+	stepMap.Set("run", fixedRun)
+	// Repoint the staleness condition at the renamed binary when it referenced
+	// the old name (the condition.file_exists tracks the api binary).
+	if cond, ok := svcedit.GetMap(stepMap, "condition"); ok {
+		if fe := svcedit.StringField(cond, "file_exists"); strings.Contains(fe, current) {
+			cond.Set("file_exists", strings.Replace(fe, current, expected, 1))
+		}
+	}
+	after, err := doc.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	return []Candidate{{
+		RuleID:      RuleAPIBinaryName,
+		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
+		Description: fmt.Sprintf("Rename the start-api binary from %q to the canonical %q.", current, expected),
+		Before:      string(before),
+		After:       string(after),
+	}}, nil
+}
+
+// previewProductionServe rewrites a UI develop step that runs a dev server into
+// one that serves the built production bundle, preserving the hashed-asset
+// caching guarantee. It edits only the step's run command.
+func previewProductionServe(root string) ([]Candidate, error) {
+	in, err := intent.Load(root)
+	if err != nil {
+		return nil, nil
+	}
+	if _, ui, _ := declaredSurfaces(in); !ui {
+		return nil, nil
+	}
+	// Mirror productionServeRules' UI-step selection exactly (name lowercased,
+	// run matched as-is) so the fixer rewrites the same step the rule flagged.
+	var step *intent.Step
+	for i := range in.Lifecycle.Develop.Steps {
+		s := &in.Lifecycle.Develop.Steps[i]
+		if strings.Contains(strings.ToLower(s.Name), "ui") || strings.Contains(s.Run, "ui") {
+			step = s
+			break
+		}
+	}
+	if step == nil || !rules.IsDevServer(step.Run) {
+		return nil, nil
+	}
+	doc, before, err := loadServiceJSON(root)
+	if err != nil {
+		return nil, nil
+	}
+	develop, ok := svcedit.GetMap(svcedit.EnsureMap(doc.Root(), "lifecycle"), "develop")
+	if !ok {
+		return nil, nil
+	}
+	stepName := strings.TrimSpace(step.Name)
+	stepMap, ok := svcedit.FindMapInSlice(develop, "steps", func(m *svcedit.Map) bool {
+		name := strings.TrimSpace(svcedit.StringField(m, "name"))
+		if stepName != "" {
+			return name == stepName
+		}
+		return rules.IsDevServer(svcedit.StringField(m, "run"))
+	})
+	if !ok {
+		return nil, nil
+	}
+	const productionRun = "cd ui && NODE_ENV=production node server.js"
+	stepMap.Set("run", productionRun)
+	after, err := doc.Bytes()
+	if err != nil {
+		return nil, err
+	}
+	return []Candidate{{
+		RuleID:      RuleProductionServe,
+		FilePath:    filepath.Join(root, filepath.FromSlash(serviceJSONRel)),
+		Description: "Serve the built ui/dist bundle (" + productionRun + ") instead of a dev server.",
+		Before:      string(before),
+		After:       string(after),
+	}}, nil
+}
+
 // --- filesystem fixers ----------------------------------------------------
 
 // previewSurfaceDirs creates a .gitkeep for each declared surface whose
@@ -338,6 +526,16 @@ func declaredSurfaces(in intent.Intent) (api, ui, cli bool) {
 
 func scenarioDir(root string) string {
 	return filepath.Base(strings.TrimRight(root, string(filepath.Separator)))
+}
+
+// sortedPortNames returns the declared port names in deterministic order.
+func sortedPortNames(ports map[string]intent.Port) []string {
+	out := make([]string, 0, len(ports))
+	for name := range ports {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func scenarioName(root string, in intent.Intent) string {

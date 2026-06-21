@@ -9,6 +9,7 @@ package rules
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"structure-health/internal/intent"
@@ -50,6 +51,8 @@ func Evaluate(in Input) []Finding {
 	out = append(out, freshnessRules(in)...)
 	out = append(out, healthCheckRules(in)...)
 	out = append(out, dependencyRules(in)...)
+	out = append(out, portBandRules(in)...)
+	out = append(out, apiBinaryNameRules(in)...)
 	out = append(out, productionServeRules(in)...)
 	out = append(out, reconcileRules(in)...)
 	return out
@@ -294,6 +297,72 @@ func dependencyRules(in Input) []Finding {
 	return out
 }
 
+// portBandRules asserts that each canonical listener port (api/ui/websocket)
+// declares its canonical env_var and, when it uses a range, the canonical band.
+// It fires only on the safe-to-rewrite cases (a present-but-wrong env_var or
+// range on a canonically-identified port) so the matching auto-fixer can correct
+// it deterministically; missing allocations and fixed-port out-of-band cases are
+// left to the broader (detection-only) PROFILE_PORTS pack. Advisory: the coarse
+// pack already carries the blocking severity for the same misconfiguration.
+func portBandRules(in Input) []Finding {
+	var out []Finding
+	for _, name := range sortedKeys(in.Model.Intent.Ports) {
+		p := in.Model.Intent.Ports[name]
+		band, env, ok := CanonicalPortBand(name, p.EnvVar)
+		if !ok {
+			continue
+		}
+		var problems []string
+		if v := strings.TrimSpace(p.EnvVar); v != "" && v != env {
+			problems = append(problems, "env_var "+v+" should be "+env)
+		}
+		if r := strings.TrimSpace(p.Range); r != "" && r != band {
+			problems = append(problems, "range "+r+" should be "+band)
+		}
+		if len(problems) == 0 {
+			continue
+		}
+		out = append(out, Finding{
+			Code:        "PORT_BAND_NONCONFORMANT",
+			Severity:    sevWarning,
+			Title:       "canonical port " + name + " is outside its allocated band",
+			Message:     "ports." + name + ": " + strings.Join(problems, "; ") + " (canonical " + name + " band).",
+			Location:    ".vrooli/service.json",
+			Remediation: "Set ports." + name + ".env_var to " + env + " and its range to " + band + ".",
+		})
+	}
+	return out
+}
+
+// apiBinaryNameRules asserts the start-api develop step invokes the canonical
+// api/<scenario>-api binary. It fires only when the step uses one of the two
+// lifecycle-recognized invocation shapes (`cd api && ./<bin>` or `./api/<bin>`)
+// with the wrong binary name, so the fix is a deterministic in-place rename;
+// non-canonical shapes are left to the detection-only PROFILE_DEVELOP_STEPS pack.
+func apiBinaryNameRules(in Input) []Finding {
+	expected := ExpectedAPIBinaryName(firstNonEmpty(in.Model.Intent.Name, in.Model.Scenario))
+	if expected == "" {
+		return nil
+	}
+	step := findStep(in.Model.Intent.Lifecycle.Develop.Steps, "start-api")
+	if step == nil {
+		return nil
+	}
+	current, _, ok := RewriteAPIBinary(step.Run, expected)
+	if !ok {
+		return nil
+	}
+	return []Finding{{
+		Code:        "API_BINARY_NAME_NONCONFORMANT",
+		Severity:    sevWarning,
+		Title:       "start-api invokes the wrong binary name",
+		Message:     "start-api runs ./" + current + " but the canonical api binary is " + expected + "; lifecycle restart detection keys on api/" + expected + ".",
+		Location:    ".vrooli/service.json",
+		Remediation: "Rename the start-api invocation (and its file_exists condition) to api/" + expected + ".",
+		Surface:     "api",
+	}}
+}
+
 // productionServeRules asserts the UI develop step serves the built bundle
 // rather than a dev server, preserving the hashed-asset caching guarantee.
 func productionServeRules(in Input) []Finding {
@@ -411,6 +480,117 @@ func isDevServer(run string) bool {
 		return true
 	}
 	return false
+}
+
+// IsDevServer reports whether a UI develop-step run command launches a dev
+// server instead of serving the built production bundle. Exported so the
+// matching auto-fixer detects exactly the steps this rule flags.
+func IsDevServer(run string) bool { return isDevServer(run) }
+
+// CanonicalPortBand returns the canonical range + env_var for a canonically
+// identified listener port (api/ui/websocket, by name or env_var) and ok=false
+// for scenario-defined ports that receive no band enforcement. It is the single
+// source of truth shared by portBandRules and the port-band auto-fixer.
+func CanonicalPortBand(name, envVar string) (band, env string, ok bool) {
+	switch {
+	case name == "api" || envVar == "API_PORT":
+		return "15000-19999", "API_PORT", true
+	case name == "ui" || envVar == "UI_PORT":
+		return "20000-24999", "UI_PORT", true
+	case name == "websocket" || name == "ws" || envVar == "WS_PORT":
+		return "25000-29999", "WS_PORT", true
+	default:
+		return "", "", false
+	}
+}
+
+// ExpectedAPIBinaryName returns the canonical api binary name (<scenario>-api)
+// for a scenario, or "" when the scenario is unknown.
+func ExpectedAPIBinaryName(scenario string) string {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return ""
+	}
+	return scenario + "-api"
+}
+
+// RewriteAPIBinary rewrites a start-api run command so it invokes the expected
+// binary, preserving any surrounding command (env preamble, cd, args). It
+// recognizes the two lifecycle-sanctioned shapes — `cd api && ./<bin>` and
+// `./api/<bin>` — and returns the current (wrong) binary base name, the
+// rewritten command, and ok=true only when a safe rename applies. Shared by
+// apiBinaryNameRules and the binary-name auto-fixer so detection and remediation
+// never drift.
+func RewriteAPIBinary(run, expected string) (current, fixed string, ok bool) {
+	expected = strings.TrimSpace(expected)
+	if strings.TrimSpace(run) == "" || expected == "" {
+		return "", "", false
+	}
+	// Shape: ./api/<bin>
+	if idx := strings.Index(run, "./api/"); idx >= 0 {
+		rest := run[idx+len("./api/"):]
+		bin := leadingBinaryToken(rest)
+		if bin == "" || bin == expected {
+			return "", "", false
+		}
+		return bin, run[:idx] + "./api/" + expected + rest[len(bin):], true
+	}
+	// Shape: cd api && … ./<bin>
+	if strings.Contains(run, "cd api") {
+		if idx := strings.LastIndex(run, "./"); idx >= 0 {
+			rest := run[idx+len("./"):]
+			bin := leadingBinaryToken(rest)
+			if bin == "" || bin == expected {
+				return "", "", false
+			}
+			return bin, run[:idx] + "./" + expected + rest[len(bin):], true
+		}
+	}
+	return "", "", false
+}
+
+// leadingBinaryToken returns the leading binary-name token (letters, digits,
+// '.', '-', '_') from the start of s, stopping at the first other character.
+func leadingBinaryToken(s string) string {
+	end := 0
+	for _, r := range s {
+		if r == '.' || r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			end += len(string(r))
+			continue
+		}
+		break
+	}
+	return s[:end]
+}
+
+// firstNonEmpty returns the first non-blank string.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// findStep returns a pointer to the named lifecycle step, or nil.
+func findStep(steps []intent.Step, name string) *intent.Step {
+	for i := range steps {
+		if strings.TrimSpace(steps[i].Name) == name {
+			return &steps[i]
+		}
+	}
+	return nil
+}
+
+// sortedKeys returns the map keys in deterministic order.
+func sortedKeys(m map[string]intent.Port) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func validStartupPolicy(p string) bool {

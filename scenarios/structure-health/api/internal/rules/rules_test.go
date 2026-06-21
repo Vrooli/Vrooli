@@ -11,10 +11,15 @@ import (
 )
 
 // conformantRoot writes a minimal react-vite/Go scenario skeleton that passes
-// the universal structure rules.
+// the universal structure rules. The root is named "demo" so the directory base
+// (which evalAt adopts as the scenario name) stays consistent with the fixture's
+// demo-api binary references and demo cli command.
 func conformantRoot(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
+	root := filepath.Join(t.TempDir(), "demo")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	mustWrite(t, filepath.Join(root, "Makefile"), "start:\n\tvrooli scenario start\n")
 	mustWrite(t, filepath.Join(root, "README.md"), "# demo\n")
 	for _, dir := range []string{"api", "ui", "cli"} {
@@ -144,6 +149,32 @@ func TestProductionServeNonconformant(t *testing.T) {
 	got := evalAt(root, in, fullProfile())
 	if codes(got)["PRODUCTION_SERVE_NONCONFORMANT"] == 0 {
 		t.Fatalf("expected PRODUCTION_SERVE_NONCONFORMANT, got %+v", got)
+	}
+}
+
+// [REQ:SH-RULE-004]
+func TestPortBandNonconformant(t *testing.T) {
+	root := conformantRoot(t)
+	in := conformantIntent()
+	// api declared in a non-canonical band (and a wrong env var) → fixable.
+	in.Ports["api"] = intent.Port{EnvVar: "PORT", Range: "10000-12000"}
+	got := evalAt(root, in, fullProfile())
+	if codes(got)["PORT_BAND_NONCONFORMANT"] == 0 {
+		t.Fatalf("expected PORT_BAND_NONCONFORMANT, got %+v", got)
+	}
+}
+
+// [REQ:SH-RULE-004]
+func TestAPIBinaryNameNonconformant(t *testing.T) {
+	root := conformantRoot(t)
+	in := conformantIntent()
+	in.Lifecycle.Develop.Steps = []intent.Step{
+		{Name: "start-api", Run: "cd api && ./wrong-binary", Background: true},
+		{Name: "start-ui", Run: "cd ui && node server.js", Background: true},
+	}
+	got := evalAt(root, in, fullProfile())
+	if codes(got)["API_BINARY_NAME_NONCONFORMANT"] == 0 {
+		t.Fatalf("expected API_BINARY_NAME_NONCONFORMANT, got %+v", got)
 	}
 }
 

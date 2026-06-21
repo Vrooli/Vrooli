@@ -110,6 +110,20 @@
       "severity_default": "SEVERITY_WARNING",
       "clean_requirement": "advisory"
     },
+    "PORT_BAND_NONCONFORMANT": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "API_BINARY_NAME_NONCONFORMANT": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
     "SURFACE_RECONCILE_MISMATCH": {
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",

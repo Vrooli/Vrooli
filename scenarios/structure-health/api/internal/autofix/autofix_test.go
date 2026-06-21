@@ -42,6 +42,52 @@ const serviceJSON = `{
 }
 `
 
+// serviceJSONBandBinaryServe declares a canonical api port off its band with the
+// wrong env var, a start-api step invoking the wrong binary (with a matching
+// stale condition), and a start-ui step running a dev server — so PORT_BAND,
+// API_BINARY_NAME and PRODUCTION_SERVE are all auto-fixable. service.name is set
+// so the expected api binary is deterministic regardless of the temp dir. A
+// deliberate key order + unknown field prove edits are format-preserving.
+const serviceJSONBandBinaryServe = `{
+  "service": {
+    "name": "demo",
+    "customField": "preserved"
+  },
+  "ports": {
+    "api": {
+      "env_var": "PORT",
+      "range": "10000-12000"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "develop": {
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "export DB=1 && cd api && ./wrong",
+          "background": true,
+          "condition": {
+            "file_exists": "api/wrong"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && pnpm dev",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    }
+  }
+}
+`
+
 func writeScenario(t *testing.T, body string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -60,6 +106,22 @@ func ruleSet(candidates []Candidate) map[string]bool {
 		out[c.RuleID] = true
 	}
 	return out
+}
+
+// startAPIRun digs the start-api step's run command out of a parsed service.json.
+func startAPIRun(t *testing.T, doc map[string]any) string {
+	t.Helper()
+	lc, _ := doc["lifecycle"].(map[string]any)
+	dev, _ := lc["develop"].(map[string]any)
+	steps, _ := dev["steps"].([]any)
+	for _, s := range steps {
+		m, _ := s.(map[string]any)
+		if name, _ := m["name"].(string); name == "start-api" {
+			run, _ := m["run"].(string)
+			return run
+		}
+	}
+	return ""
 }
 
 // [REQ:SH-FIX-001] [REQ:SH-FIX-004]
@@ -190,15 +252,117 @@ func TestApplyCreatesReadmeNotMakefile(t *testing.T) {
 	}
 }
 
+// newFixerRules are the three deterministic service.json remediations added on
+// top of the original set.
+var newFixerRules = []string{RulePortBand, RuleAPIBinaryName, RuleProductionServe}
+
+// [REQ:SH-FIX-002]
+func TestNewFixersPreviewProducesCandidates(t *testing.T) {
+	root := writeScenario(t, serviceJSONBandBinaryServe)
+	candidates, err := Preview(root, newFixerRules)
+	if err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	got := ruleSet(candidates)
+	for _, want := range newFixerRules {
+		if !got[want] {
+			t.Fatalf("preview missing candidate %s; got %v", want, got)
+		}
+	}
+}
+
+// [REQ:SH-FIX-001] [REQ:SH-FIX-002]
+func TestNewFixersApplyComposeAndAreIdempotent(t *testing.T) {
+	root := writeScenario(t, serviceJSONBandBinaryServe)
+	path := filepath.Join(root, ".vrooli", "service.json")
+
+	applied, err := Apply(root, newFixerRules)
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if len(applied) != len(newFixerRules) {
+		t.Fatalf("expected %d applied candidates, got %d: %+v", len(newFixerRules), len(applied), applied)
+	}
+
+	raw, _ := os.ReadFile(path)
+	out := string(raw)
+	for _, want := range []string{
+		`"env_var": "API_PORT"`,         // port band: env var corrected
+		`"range": "15000-19999"`,        // port band: range corrected
+		`./demo-api`,                    // binary renamed (preamble preserved)
+		`"file_exists": "api/demo-api"`, // condition repointed
+		`node server.js`,                // ui serves the built bundle
+		`"customField": "preserved"`,    // unknown field survives
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("apply result missing %q:\n%s", want, out)
+		}
+	}
+	for _, gone := range []string{`./wrong`, `pnpm dev`, `"range": "10000-12000"`, `"env_var": "PORT"`} {
+		if strings.Contains(out, gone) {
+			t.Fatalf("apply result still contains %q:\n%s", gone, out)
+		}
+	}
+	var sink map[string]any
+	if err := json.Unmarshal(raw, &sink); err != nil {
+		t.Fatalf("apply produced invalid json: %v", err)
+	}
+	// The env preamble on start-api is preserved (surgical rename). Compared
+	// semantically because svcedit canonically HTML-escapes && (&&) on
+	// write, exactly as the generated service.json files store it.
+	if run := startAPIRun(t, sink); run != "export DB=1 && cd api && ./demo-api" {
+		t.Fatalf("start-api preamble not preserved, run = %q", run)
+	}
+
+	again, err := Apply(root, newFixerRules)
+	if err != nil {
+		t.Fatalf("re-apply: %v", err)
+	}
+	if len(again) != 0 {
+		t.Fatalf("expected no further candidates on re-apply, got %+v", again)
+	}
+	raw2, _ := os.ReadFile(path)
+	if string(raw2) != out {
+		t.Fatalf("re-apply changed the file")
+	}
+}
+
+// [REQ:SH-FIX-003]
+func TestPortBandFilterLeavesDevelopStepsUntouched(t *testing.T) {
+	root := writeScenario(t, serviceJSONBandBinaryServe)
+	applied, err := Apply(root, []string{RulePortBand})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if len(applied) != 1 || applied[0].RuleID != RulePortBand {
+		t.Fatalf("rule filter not honored: %+v", applied)
+	}
+	raw, _ := os.ReadFile(filepath.Join(root, ".vrooli", "service.json"))
+	out := string(raw)
+	if !strings.Contains(out, `"range": "15000-19999"`) {
+		t.Fatalf("port band not fixed:\n%s", out)
+	}
+	// The develop-step fixers were filtered out.
+	if !strings.Contains(out, `./wrong`) || !strings.Contains(out, `pnpm dev`) {
+		t.Fatalf("develop steps changed despite port-band-only filter:\n%s", out)
+	}
+}
+
 // [REQ:SH-FIX-003]
 func TestFixClassFor(t *testing.T) {
-	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing} {
+	for _, code := range []string{RuleServiceNameMismatch, RuleHealthCheckMissing, RuleFreshnessMissing, RuleSurfaceDirMissing, RuleRequiredFileMissing, RulePortBand, RuleAPIBinaryName, RuleProductionServe} {
 		if !FixClassFor(code).Autofixable() {
 			t.Fatalf("%s should be autofixable", code)
 		}
 	}
+	// The coarse profile-pack codes stay detection_only — their findings bundle
+	// many non-fixable violations; the focused universal codes above carry the
+	// precise autofix signal instead.
 	if FixClassFor("PROFILE_PORTS").Autofixable() {
 		t.Fatal("PROFILE_PORTS should be detection_only")
+	}
+	if FixClassFor("PROFILE_DEVELOP_STEPS").Autofixable() {
+		t.Fatal("PROFILE_DEVELOP_STEPS should be detection_only")
 	}
 	if FixClassFor("SERVICE_JSON_MISSING").Autofixable() {
 		t.Fatal("SERVICE_JSON_MISSING should be detection_only")

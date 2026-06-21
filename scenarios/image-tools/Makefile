@@ -30,10 +30,6 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
-	@printf "  make coverage-model-lifecycle   Check model lifecycle package coverage floors\n"
-	@printf "  make model-install-e2e          Attended install loop for enabled model weights\n"
-	@printf "  make headless-ai-e2e            Run no-download AI/analyze CLI E2E checks\n"
-	@printf "  make gpu-e2e                    Attended GPU text-to-image E2E when provisioned\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
@@ -153,7 +149,14 @@ model-install-e2e: ## Attended install loop for enabled model weights
 	printf "Model install E2E starting for %s enabled weight-backed model(s).\n" "$$count"; \
 	for id in $$ids; do \
 		printf "Installing/verifying model %s\n" "$$id"; \
-		IMAGE_TOOLS_HTTP_TIMEOUT="$$wait_timeout" image-tools models install "$$id" --wait; \
+		if ! IMAGE_TOOLS_HTTP_TIMEOUT="$$wait_timeout" image-tools models install "$$id" --wait; then \
+			if image-tools models get "$$id" --json | jq -e '.model.install.installed == true' >/dev/null; then \
+				printf "Install wait disconnected after %s completed; continuing.\n" "$$id"; \
+			else \
+				printf "model-install-e2e failed: %s did not install successfully.\n" "$$id"; \
+				exit 1; \
+			fi; \
+		fi; \
 	done; \
 	printf "Model install E2E passed for %s enabled weight-backed model(s).\n" "$$count"
 

@@ -16,6 +16,11 @@ import (
 	"github.com/iancoleman/orderedmap"
 )
 
+// Map is the in-place-editable object type used throughout svcedit (an alias for
+// the underlying ordered map) so callers can navigate documents without
+// importing the orderedmap package directly.
+type Map = orderedmap.OrderedMap
+
 // Doc is a parsed, in-place-editable service.json document.
 type Doc struct {
 	root *orderedmap.OrderedMap
@@ -87,6 +92,37 @@ func GetSlice(parent *orderedmap.OrderedMap, key string) ([]interface{}, bool) {
 func AppendToSlice(parent *orderedmap.OrderedMap, key string, item interface{}) {
 	s, _ := GetSlice(parent, key)
 	parent.Set(key, append(s, item))
+}
+
+// StringField returns the string value at key under parent (empty when absent
+// or not a string).
+func StringField(parent *orderedmap.OrderedMap, key string) string {
+	v, ok := parent.Get(key)
+	if !ok {
+		return ""
+	}
+	s, _ := v.(string)
+	return s
+}
+
+// FindMapInSlice returns the first object element of the array at sliceKey that
+// satisfies match, allowing in-place edits (elements are normalized to
+// pointers). It returns false when the array is absent or no element matches.
+func FindMapInSlice(parent *orderedmap.OrderedMap, sliceKey string, match func(*orderedmap.OrderedMap) bool) (*orderedmap.OrderedMap, bool) {
+	s, ok := GetSlice(parent, sliceKey)
+	if !ok {
+		return nil, false
+	}
+	for _, item := range s {
+		m, ok := item.(*orderedmap.OrderedMap)
+		if !ok {
+			continue
+		}
+		if match(m) {
+			return m, true
+		}
+	}
+	return nil, false
 }
 
 // NewObject builds an ordered object from alternating key/value pairs. Keys must
