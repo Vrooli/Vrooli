@@ -1,24 +1,24 @@
 {
   "_metadata": {
-    "description": "AI workflow generation requirements",
-    "last_validated_at": "2025-11-15T00:00:00.000Z",
     "auto_sync_enabled": true,
+    "description": "AI workflow generation requirements",
+    "last_validated_at": "2026-06-20T23:54:18-04:00",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
       "id": "BAS-AI-GENERATION-SMOKE",
-      "category": "ai.generation",
-      "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI prompts generate executable workflows",
-      "description": "Validates that natural language prompts produce valid workflow JSON that compiles and executes without manual intervention.",
       "status": "in_progress",
+      "prd_ref": "Functional Requirements \u003e Must Have \u003e AI workflow generation",
+      "category": "ai.generation",
+      "description": "Validates that natural language prompts produce valid workflow JSON that compiles and executes without manual intervention.",
       "validation": [
         {
           "type": "automation",
           "ref": "bas/cases/04-ai/01-automation/generated-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow exercising AI prompt → workflow generation → execution pipeline."
         },
         {
@@ -32,11 +32,11 @@
     },
     {
       "id": "BAS-AI-GENERATION-VALIDATION",
-      "category": "ai.generation",
-      "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "Generated workflows pass deterministic validation",
-      "description": "Ensures AI-generated workflows satisfy compilation constraints, have valid node references, and produce consistent execution plans.",
       "status": "in_progress",
+      "prd_ref": "Functional Requirements \u003e Must Have \u003e AI workflow generation",
+      "category": "ai.generation",
+      "description": "Ensures AI-generated workflows satisfy compilation constraints, have valid node references, and produce consistent execution plans.",
       "validation": [
         {
           "type": "test",
@@ -49,7 +49,7 @@
           "type": "automation",
           "ref": "bas/cases/04-ai/01-automation/generated-smoke.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "BAS workflow validates AI-generated workflow compilation, node references, and execution plan consistency."
         },
         {
@@ -63,34 +63,34 @@
     },
     {
       "id": "BAS-AI-SWITCH-MANUAL",
-      "category": "ai.generation",
-      "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "Switch from AI modal to manual workflow builder",
+      "status": "complete",
+      "prd_ref": "Functional Requirements \u003e Must Have \u003e AI workflow generation",
+      "category": "ai.generation",
       "description": "Users can bypass AI generation and create workflows manually by clicking 'Switch to Manual Builder' button in the AI prompt modal",
-      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "bas/cases/04-ai/02-ui/ai-modal-switch-to-manual.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates switching from AI modal to manual builder creates empty workflow and loads builder"
         }
       ]
     },
     {
       "id": "BAS-AI-EXAMPLE-PROMPT",
-      "category": "ai.generation",
-      "prd_ref": "Functional Requirements > Must Have > AI workflow generation",
       "title": "AI modal provides example prompts",
+      "status": "complete",
+      "prd_ref": "Functional Requirements \u003e Must Have \u003e AI workflow generation",
+      "category": "ai.generation",
       "description": "The AI prompt modal displays example prompts to guide users in creating effective workflow generation requests",
-      "status": "in_progress",
       "validation": [
         {
           "type": "automation",
           "ref": "bas/cases/04-ai/02-ui/ai-modal-example-prompt.json",
           "phase": "integration",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates example prompt display and interaction in AI modal"
         }
       ]

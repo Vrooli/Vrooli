@@ -330,24 +330,6 @@ func buildCaptureRequest(f captureFlags) (*capturev1.CaptureRequest, error) {
 	return req, nil
 }
 
-func parseCaptureType(tok string) (capturev1.CaptureType, error) {
-	switch strings.ToLower(strings.ReplaceAll(tok, "_", "-")) {
-	case "screenshot":
-		return capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT, nil
-	case "console-logs", "console", "logs":
-		return capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS, nil
-	case "network":
-		return capturev1.CaptureType_CAPTURE_TYPE_NETWORK, nil
-	case "video":
-		return capturev1.CaptureType_CAPTURE_TYPE_VIDEO, nil
-	case "dom":
-		return capturev1.CaptureType_CAPTURE_TYPE_DOM, nil
-	case "performance", "perf":
-		return capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE, nil
-	}
-	return capturev1.CaptureType_CAPTURE_TYPE_UNSPECIFIED, fmt.Errorf("unknown capture type %q (want one of: screenshot,console-logs,network,video,dom,performance)", tok)
-}
-
 func parseDimensionsPreset(s string) (capturev1.DimensionsPreset, error) {
 	switch s {
 	case "mobile":
@@ -427,22 +409,4 @@ func protoToJSON(m *capturev1.CaptureResponse) map[string]interface{} {
 		"dry_run":      m.DryRun,
 		"artifacts":    arts,
 	}
-}
-
-func captureTypeLabel(t capturev1.CaptureType) string {
-	switch t {
-	case capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:
-		return "screenshot"
-	case capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS:
-		return "console-logs"
-	case capturev1.CaptureType_CAPTURE_TYPE_NETWORK:
-		return "network"
-	case capturev1.CaptureType_CAPTURE_TYPE_VIDEO:
-		return "video"
-	case capturev1.CaptureType_CAPTURE_TYPE_DOM:
-		return "dom"
-	case capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:
-		return "performance"
-	}
-	return "unspecified"
 }

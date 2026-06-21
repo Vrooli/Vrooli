@@ -226,6 +226,7 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 				HAR:       spec.Capabilities.NeedsHAR,
 				Video:     spec.Capabilities.NeedsVideo,
 				Tracing:   spec.Capabilities.NeedsTracing,
+				PerfTrace: spec.Capabilities.NeedsPerfTrace,
 			}
 		}
 		if paths := m.buildArtifactPaths(spec, req.RequiredCapabilities); paths != nil {
@@ -257,8 +258,12 @@ func (m *Manager) buildArtifactPaths(spec Spec, caps *driver.CapabilityRequest) 
 	if caps.Tracing {
 		paths.TracePath = filepath.Join(artifactRoot, "traces", fmt.Sprintf("execution-%s.zip", execID))
 	}
+	if caps.PerfTrace {
+		paths.PerfDir = filepath.Join(artifactRoot, "performance")
+	}
 
-	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" && strings.TrimSpace(paths.TracePath) == "" {
+	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" &&
+		strings.TrimSpace(paths.TracePath) == "" && strings.TrimSpace(paths.PerfDir) == "" {
 		return nil
 	}
 

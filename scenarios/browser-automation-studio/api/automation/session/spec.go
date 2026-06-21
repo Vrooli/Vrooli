@@ -138,6 +138,7 @@ type CapabilityRequirement struct {
 	NeedsHAR          bool
 	NeedsVideo        bool
 	NeedsTracing      bool
+	NeedsPerfTrace    bool
 	MinViewportWidth  int
 	MinViewportHeight int
 }

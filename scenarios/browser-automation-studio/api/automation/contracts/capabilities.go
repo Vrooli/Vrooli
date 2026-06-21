@@ -21,6 +21,7 @@ type EngineCapabilities struct {
 	SupportsFileUploads   bool   `json:"supports_file_uploads"`
 	SupportsDownloads     bool   `json:"supports_downloads"`
 	SupportsTracing       bool   `json:"supports_tracing"`
+	SupportsPerfTrace     bool   `json:"supports_perf_trace"`           // CDP performance trace + web-vitals capture.
 	MaxViewportWidth      int    `json:"max_viewport_width,omitempty"`  // 0 = unknown/unbounded.
 	MaxViewportHeight     int    `json:"max_viewport_height,omitempty"` // 0 = unknown/unbounded.
 	Notes                 string `json:"notes,omitempty"`
@@ -36,6 +37,7 @@ type CapabilityRequirement struct {
 	NeedsFileUploads  bool
 	NeedsDownloads    bool
 	NeedsTracing      bool
+	NeedsPerfTrace    bool
 	MinViewportWidth  int
 	MinViewportHeight int
 }
@@ -97,6 +99,7 @@ func (c EngineCapabilities) CheckCompatibility(req CapabilityRequirement) Capabi
 	appendIf(req.NeedsFileUploads && !c.SupportsFileUploads, "file_uploads")
 	appendIf(req.NeedsDownloads && !c.SupportsDownloads, "downloads")
 	appendIf(req.NeedsTracing && !c.SupportsTracing, "tracing")
+	appendIf(req.NeedsPerfTrace && !c.SupportsPerfTrace, "perf_trace")
 
 	if req.MinViewportWidth > 0 {
 		switch {

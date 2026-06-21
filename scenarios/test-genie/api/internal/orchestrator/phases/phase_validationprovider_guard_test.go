@@ -24,6 +24,7 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		Architecture: "architecture-cartographer",
 		Docs:         "knowledge-observatory",
 		Tidiness:     "tidiness-manager",
+		Performance:  "performance-health",
 	}
 	catalog := NewDefaultCatalog(DefaultTimeout)
 	delegatedCount := 0

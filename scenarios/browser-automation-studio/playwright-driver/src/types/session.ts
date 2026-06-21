@@ -3,6 +3,7 @@ import type { RecordingContextInitializer, RecordingPipelineManager } from '../r
 import type { BrowserProfile } from './browser-profile';
 import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
+import type { PerformanceTracer } from '../tracing';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -24,6 +25,8 @@ export interface SessionSpec {
     har?: boolean;
     video?: boolean;
     tracing?: boolean;
+    /** CDP performance trace + web-vitals capture (Tier 0). */
+    performance_trace?: boolean;
     viewport_width?: number;
     viewport_height?: number;
   };
@@ -32,6 +35,8 @@ export interface SessionSpec {
     video_dir?: string;
     har_path?: string;
     trace_path?: string;
+    /** Directory the perf trace + web-vitals JSON are written to. */
+    perf_dir?: string;
   };
   // Browser context configuration
   user_agent?: string;
@@ -263,6 +268,14 @@ export interface SessionState {
    * Shared across all recording sessions in this browser context.
    */
   recordingInitializer?: RecordingContextInitializer;
+
+  /**
+   * Performance tracer for this session, present only when the session was
+   * started with required_capabilities.performance_trace. Started after the
+   * page is created (before navigation) and stopped at session close, where
+   * it writes the CDP trace + web-vitals JSON into the perf artifact dir.
+   */
+  perfTracer?: PerformanceTracer;
 }
 
 export interface SessionCloseResult {
@@ -318,6 +331,7 @@ export interface StartSessionRequest {
     har?: boolean;
     video?: boolean;
     tracing?: boolean;
+    performance_trace?: boolean;
     viewport_width?: number;
     viewport_height?: number;
   };
@@ -326,6 +340,7 @@ export interface StartSessionRequest {
     video_dir?: string;
     har_path?: string;
     trace_path?: string;
+    perf_dir?: string;
   };
   storage_state?: SessionSpec['storage_state'];
   /**

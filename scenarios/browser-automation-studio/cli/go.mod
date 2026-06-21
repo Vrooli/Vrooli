@@ -10,7 +10,7 @@ require (
 require (
 	connectrpc.com/connect v1.19.2
 	github.com/vrooli/browser-automation-studio v0.0.0-00010101000000-000000000000
-	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
+	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -37,6 +37,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sony/gobreaker/v2 v2.3.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/vrooli-cli-go v0.0.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
@@ -59,3 +60,5 @@ replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go

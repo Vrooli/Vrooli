@@ -32,6 +32,10 @@ type SimpleExecutor struct {
 	sequencer    events.Sequencer
 	telemetrySeq map[string]uint64
 	telemetryMu  sync.Mutex
+
+	// telemetry is the instrumentation seam invoked around each step.
+	// Defaults to driver.NoOpCollector (inert); P2 supplies a real one.
+	telemetry driver.TelemetryCollector
 }
 
 type executionContext struct {
@@ -66,7 +70,19 @@ func NewSimpleExecutor(seq events.Sequencer) *SimpleExecutor {
 	return &SimpleExecutor{
 		sequencer:    seq,
 		telemetrySeq: make(map[string]uint64),
+		telemetry:    driver.NoOpCollector{},
 	}
+}
+
+// WithTelemetryCollector sets the instrumentation seam invoked around each
+// step. A nil collector resets to the inert NoOpCollector. Returns the
+// executor for chaining at construction time.
+func (e *SimpleExecutor) WithTelemetryCollector(c driver.TelemetryCollector) *SimpleExecutor {
+	if c == nil {
+		c = driver.NoOpCollector{}
+	}
+	e.telemetry = c
+	return e
 }
 
 // Execute runs the plan sequentially. Retries/branching will be layered on
@@ -1522,6 +1538,15 @@ func extractFrameStreamingConfig(metadata map[string]any, executionID uuid.UUID)
 	return config
 }
 
+// telemetryCollector returns the configured collector, defaulting to the
+// inert NoOpCollector so a zero-value executor never panics.
+func (e *SimpleExecutor) telemetryCollector() driver.TelemetryCollector {
+	if e.telemetry == nil {
+		return driver.NoOpCollector{}
+	}
+	return e.telemetry
+}
+
 func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, session engine.EngineSession, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
 	cfg := retryConfigFromInstruction(instruction)
 	var lastOutcome contracts.StepOutcome
@@ -1546,7 +1571,10 @@ func (e *SimpleExecutor) runWithRetries(ctx context.Context, req Request, sessio
 			attemptCtx, cancel = context.WithTimeout(ctx, timeout+httpBufferTime)
 		}
 
+		collector := e.telemetryCollector()
+		attemptCtx = collector.BeforeStep(attemptCtx, instruction)
 		outcome, err := session.Run(attemptCtx, instruction)
+		collector.AfterStep(attemptCtx, instruction, outcome, err)
 		if cancel != nil {
 			cancel()
 		}

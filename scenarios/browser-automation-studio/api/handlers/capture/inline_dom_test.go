@@ -57,7 +57,7 @@ func TestCapture_InlineDom_ReturnsRenderedHTML(t *testing.T) {
 	require.Len(t, flow.GetNodes(), 2)
 	eval := flow.GetNodes()[1].GetAction().GetEvaluate()
 	require.NotNil(t, eval)
-	require.Equal(t, inlineDomExpression, eval.GetExpression())
+	require.Equal(t, defaultInlineDomExpression, eval.GetExpression())
 	require.Len(t, flow.GetEdges(), 1)
 	require.Equal(t, flow.GetNodes()[0].GetId(), flow.GetEdges()[0].GetSource())
 	require.Equal(t, flow.GetNodes()[1].GetId(), flow.GetEdges()[0].GetTarget())
@@ -91,7 +91,7 @@ func TestCapture_InlineDom_MissingTimelineResult_DegradesToEmpty(t *testing.T) {
 }
 
 func TestCapture_InlineDom_TruncatesOversizedPayload(t *testing.T) {
-	oversized := "<html>" + strings.Repeat("x", inlineDomMaxBytes) + "</html>"
+	oversized := "<html>" + strings.Repeat("x", defaultInlineDomMaxBytes) + "</html>"
 	exec := &fakeExecutor{
 		ExportFunc: func(f *fakeExecutor, outputDir string) error {
 			writeTimelineForDomNode(t, f, outputDir, oversized)
@@ -105,7 +105,7 @@ func TestCapture_InlineDom_TruncatesOversizedPayload(t *testing.T) {
 		InlineDom: true,
 	}))
 	require.NoError(t, err)
-	require.Len(t, resp.Msg.DomHtml, inlineDomMaxBytes)
+	require.Len(t, resp.Msg.DomHtml, defaultInlineDomMaxBytes)
 }
 
 func TestCapture_InlineDom_DryRun_StaysEmpty(t *testing.T) {

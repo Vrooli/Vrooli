@@ -127,5 +127,7 @@ function requiresArtifactRoot(capabilities?: StartSessionRequest['required_capab
   if (!capabilities) {
     return false;
   }
-  return Boolean(capabilities.video || capabilities.har || capabilities.tracing);
+  return Boolean(
+    capabilities.video || capabilities.har || capabilities.tracing || capabilities.performance_trace
+  );
 }

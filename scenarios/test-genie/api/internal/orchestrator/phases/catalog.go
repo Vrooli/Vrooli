@@ -113,13 +113,25 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Timeout:          60 * time.Second,
 		Description:      "Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService.",
 	}))
-	register(Spec{
-		Name:         Performance,
-		Runner:       runPerformancePhase,
-		Optional:     true,
-		Description:  "Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.",
-		Capabilities: runnability.PhaseCapabilities{NeedsUI: true},
+	performanceSpec := delegatedSpec(Delegated{
+		Name:             Performance,
+		ProviderScenario: "performance-health",
+		// Performance produces no machine-readable findings into a campaign
+		// channel; it stays a non-producing phase (guarded by
+		// TestFindingSourceCoversEveryProducingPhase).
+		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED,
+		Emoji:         "⚡",
+		DetailCommand: "performance-health audit {{scenario}}",
+		Optional:      true,
+		Timeout:       5 * time.Minute,
+		Description:   "Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService.",
 	})
+	// Preserve the native phase's runnability contract: Performance needs a UI
+	// surface (Lighthouse + UI build), so the runnability gate skips it when no
+	// UI is present rather than failing it. Pinned by
+	// TestCapabilityManifestCoversEveryPhase.
+	performanceSpec.Capabilities = runnability.PhaseCapabilities{NeedsUI: true}
+	register(performanceSpec)
 	register(Spec{
 		Name:        Smoke,
 		Runner:      runSmokePhase,

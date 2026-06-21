@@ -46,6 +46,7 @@ describe('handleSessionRun', () => {
         }
       }),
       incrementInstructionCount: jest.fn(),
+      getInstrumentation: jest.fn().mockReturnValue({}),
     }) as unknown as SessionManager;
 
   const buildSession = (overrides?: Partial<{

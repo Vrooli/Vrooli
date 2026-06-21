@@ -52,6 +52,12 @@ import {
   type DriverOutcome,
 } from '../outcome';
 import { logger, scopedLog, LogContext } from '../utils';
+import {
+  resolveInstrumentation,
+  safeInvoke,
+  type Instrumentation,
+  type InstructionInstrumentationContext,
+} from '../instrumentation';
 
 // =============================================================================
 // Types
@@ -186,9 +192,17 @@ export function createInstructionKey(instruction: HandlerInstruction): string {
 export async function executeInstruction(
   instruction: HandlerInstruction,
   context: ExecutionContext,
-  handlerRegistry: HandlerRegistry
+  handlerRegistry: HandlerRegistry,
+  instrumentation?: Instrumentation
 ): Promise<ExecutionResult> {
   const startedAt = new Date();
+  const instr = resolveInstrumentation(instrumentation);
+  const instrCtx: InstructionInstrumentationContext = {
+    sessionId: context.sessionId,
+    type: instruction.type,
+    index: instruction.index,
+    nodeId: instruction.nodeId,
+  };
 
   logger.info(scopedLog(LogContext.INSTRUCTION, 'executing'), {
     sessionId: context.sessionId,
@@ -206,6 +220,9 @@ export async function executeInstruction(
   const telemetryOrchestrator = new TelemetryOrchestrator(context.page, context.config);
   telemetryOrchestrator.start();
 
+  // Per-instruction instrumentation hook (no-op by default).
+  await safeInvoke(instr.onInstructionStart?.bind(instr), instrCtx);
+
   // Execute the instruction
   let handlerResult: HandlerResult;
   let instructionDuration: number;
@@ -216,10 +233,20 @@ export async function executeInstruction(
     handlerResult = await handler.execute(instruction, context);
     instructionDuration = Date.now() - instructionStart;
   } catch (error) {
+    await safeInvoke(instr.onInstructionEnd?.bind(instr), instrCtx, {
+      success: false,
+      durationMs: Date.now() - startedAt.getTime(),
+      error,
+    });
     // Ensure telemetry is disposed on error
     telemetryOrchestrator.dispose();
     throw error;
   }
+
+  await safeInvoke(instr.onInstructionEnd?.bind(instr), instrCtx, {
+    success: handlerResult.success,
+    durationMs: instructionDuration,
+  });
 
   // Record metrics
   recordMetrics(context.metrics, instruction.type, handlerResult, instructionDuration);

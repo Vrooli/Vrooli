@@ -49,13 +49,18 @@ type FrameStreamingConfig struct {
 
 // CapabilityRequest specifies required browser capabilities for execution.
 type CapabilityRequest struct {
-	Tabs       bool `json:"tabs,omitempty"`
-	Iframes    bool `json:"iframes,omitempty"`
-	Uploads    bool `json:"uploads,omitempty"`
-	Downloads  bool `json:"downloads,omitempty"`
-	HAR        bool `json:"har,omitempty"`
-	Video      bool `json:"video,omitempty"`
-	Tracing    bool `json:"tracing,omitempty"`
+	Tabs      bool `json:"tabs,omitempty"`
+	Iframes   bool `json:"iframes,omitempty"`
+	Uploads   bool `json:"uploads,omitempty"`
+	Downloads bool `json:"downloads,omitempty"`
+	HAR       bool `json:"har,omitempty"`
+	Video     bool `json:"video,omitempty"`
+	Tracing   bool `json:"tracing,omitempty"`
+	// PerfTrace requests a CDP performance trace (devtools.timeline + CPU
+	// profiler + blink.user_timing) plus an injected web-vitals observer
+	// for the session. The driver streams the trace + web-vitals JSON into
+	// ArtifactPaths.PerfDir on close.
+	PerfTrace  bool `json:"performance_trace,omitempty"`
 	ViewportW  int  `json:"viewport_width,omitempty"`
 	ViewportH  int  `json:"viewport_height,omitempty"`
 	MaxTimeout int  `json:"max_timeout_ms,omitempty"`
@@ -67,6 +72,9 @@ type ArtifactPaths struct {
 	VideoDir  string `json:"video_dir,omitempty"`
 	HARPath   string `json:"har_path,omitempty"`
 	TracePath string `json:"trace_path,omitempty"`
+	// PerfDir is the directory the driver writes performance.json (the CDP
+	// trace) and performance.web-vitals.json into when PerfTrace is set.
+	PerfDir string `json:"perf_dir,omitempty"`
 }
 
 // CreateSessionRequest is the unified request to create a browser session.

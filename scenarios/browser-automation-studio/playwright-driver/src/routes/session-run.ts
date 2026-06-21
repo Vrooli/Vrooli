@@ -241,7 +241,12 @@ export async function handleSessionRun(
       sessionId,
     };
 
-    const executionResult = await executeInstruction(instruction, executionContext, handlerRegistry);
+    const executionResult = await executeInstruction(
+      instruction,
+      executionContext,
+      handlerRegistry,
+      sessionManager.getInstrumentation()
+    );
     sessionManager.incrementInstructionCount(sessionId);
 
     const { driverOutcome, success } = executionResult;

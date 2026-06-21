@@ -14,7 +14,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 | 6 | [Dependencies](dependencies/README.md) | 15m | No | No | validation-provider | Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService. |
 | 7 | [Quality](quality/README.md) | 2m | No | No | validation-provider | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. |
 | 8 | [DOCS](docs/README.md) | 1m | No | No | validation-provider | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. |
-| 9 | [Performance](performance/README.md) | 15m | Yes | Yes | native | Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO. |
+| 9 | [Performance](performance/README.md) | 5m | Yes | Yes | validation-provider | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService. |
 | 10 | [Smoke](smoke/README.md) | 15m | Yes | Yes | native | Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors. |
 | 11 | [Unit](unit/README.md) | 15m | No | No | validation-provider | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. |
 | 12 | [Integration](integration/README.md) | 15m | No | Yes | native | Exercises the CLI/Bats suite plus scenario-local orchestrator listings. |
@@ -44,7 +44,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 
 ## Runtime Phases
 
-- [Performance](performance/README.md) - Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO.
+- [Performance](performance/README.md) - Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService.
 - [Smoke](smoke/README.md) - Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.
 - [Integration](integration/README.md) - Exercises the CLI/Bats suite plus scenario-local orchestrator listings.
 - [Playbooks](playbooks/README.md) - Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.

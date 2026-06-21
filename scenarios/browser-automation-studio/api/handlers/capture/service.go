@@ -2,7 +2,6 @@ package capture
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -29,17 +28,6 @@ var (
 	scenarioSlugRE = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 	truthyValues   = map[string]struct{}{"true": {}, "1": {}, "yes": {}}
 )
-
-// inlineDomMaxBytes caps CaptureResponse.dom_html so a pathological page
-// cannot balloon the RPC response. Truncation is silent (documented on the
-// proto field); readable-text consumers tolerate a cut-off tail by design.
-const inlineDomMaxBytes = 2 << 20
-
-// inlineDomExpression is evaluated in-page to read the rendered DOM. An
-// EVALUATE node is used (not EXTRACT) because the Playwright driver's extract
-// handler only does textContent today, while evaluate returns the raw
-// expression result through extracted_data.
-const inlineDomExpression = "document.documentElement.outerHTML"
 
 // Capture loads a URL once and produces every requested artifact from
 // that one session. Contract: plan
@@ -82,12 +70,14 @@ func (s *service) Capture(
 		}), nil
 	}
 
-	adhocReq, domNodeID := buildAdhocRequest(resolvedURL, msg, width, height)
+	adhocReq, domNodeID := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
 	opts := &workflow.ExecuteOptions{}
 	for _, ct := range captures {
-		if ct == capturev1.CaptureType_CAPTURE_TYPE_VIDEO {
+		switch ct {
+		case capturev1.CaptureType_CAPTURE_TYPE_VIDEO:
 			opts.RequiresVideo = true
-			break
+		case capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:
+			opts.RequiresPerfTrace = true
 		}
 	}
 
@@ -107,7 +97,7 @@ func (s *service) Capture(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("export artifacts: %w", err))
 	}
 
-	artifacts, err := harvestArtifacts(executionOutDir, captures)
+	artifacts, err := s.deps.Producers.ProduceAll(captures, executionOutDir)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
 	}
@@ -117,7 +107,7 @@ func (s *service) Capture(
 	// whose other artifacts are already on disk.
 	domHTML := ""
 	if domNodeID != "" {
-		domHTML, err = readInlineDom(executionOutDir, domNodeID)
+		domHTML, err = s.deps.InlineDom.readInlineDom(executionOutDir, domNodeID)
 		if err != nil && s.deps.Logger != nil {
 			s.deps.Logger.WithError(err).Warn("capture: inline DOM read failed")
 		}
@@ -131,38 +121,6 @@ func (s *service) Capture(
 		DryRun:      false,
 		DomHtml:     domHTML,
 	}), nil
-}
-
-// readInlineDom pulls the evaluate node's expression result out of the
-// exported timeline.json. The driver's evaluate handler returns the raw
-// result under the "result" key of extracted_data, which the execution
-// writer persists verbatim as the frame's extracted_data_preview.
-func readInlineDom(outDir, nodeID string) (string, error) {
-	raw, err := os.ReadFile(filepath.Join(outDir, "timeline.json"))
-	if err != nil {
-		return "", fmt.Errorf("read timeline.json: %w", err)
-	}
-	var timeline struct {
-		Frames []struct {
-			NodeID               string         `json:"node_id"`
-			ExtractedDataPreview map[string]any `json:"extracted_data_preview"`
-		} `json:"frames"`
-	}
-	if err := json.Unmarshal(raw, &timeline); err != nil {
-		return "", fmt.Errorf("decode timeline.json: %w", err)
-	}
-	for _, frame := range timeline.Frames {
-		if frame.NodeID != nodeID {
-			continue
-		}
-		if value, ok := frame.ExtractedDataPreview["result"].(string); ok && value != "" {
-			if len(value) > inlineDomMaxBytes {
-				value = value[:inlineDomMaxBytes]
-			}
-			return value, nil
-		}
-	}
-	return "", errors.New("timeline has no DOM evaluate result")
 }
 
 // resolveURL accepts either a fully-qualified http(s) URL or the
@@ -281,6 +239,7 @@ func buildAdhocRequest(
 	resolvedURL string,
 	msg *capturev1.CaptureRequest,
 	width, height int32,
+	inlineDomExpression string,
 ) (*basexecution.ExecuteAdhocRequest, string) {
 	navigateNode := &workflowsv1.WorkflowNodeV2{
 		Id: uuid.NewString(),
@@ -373,82 +332,15 @@ func synthesizeArtifacts(outDir string, captures []capturev1.CaptureType) []*cap
 	for _, c := range captures {
 		out = append(out, &capturev1.CaptureArtifact{
 			Type: c,
-			Path: filepath.Join(outDir, captureTypeShortName(c)+captureTypeExt(c)),
+			Path: filepath.Join(outDir, canonicalFileName(c)),
 		})
 	}
 	return out
 }
 
-// harvestArtifacts walks the executor's output directory and assembles
-// one CaptureArtifact per requested CaptureType. ExportToFolder owns the
-// write layout (`screenshots/step-NN-*.png`, `console-logs.md`,
-// `network-activity.md`, …); harvest is the read-side counterpart.
-//
-// For SCREENSHOT, every file under screenshots/ is exposed as its own
-// artifact — single-location captures usually produce one PNG, but
-// nothing in the contract forbids multi-step (a future wait-for selector
-// step, e.g.).
-//
-// CaptureTypes the executor's folder export does not produce today
-// (VIDEO, DOM, PERFORMANCE) return an artifact with the canonical
-// per-type filename and metadata.unavailable=true so callers see the
-// gap explicitly rather than a silent omission.
-func harvestArtifacts(outDir string, captures []capturev1.CaptureType) ([]*capturev1.CaptureArtifact, error) {
-	out := make([]*capturev1.CaptureArtifact, 0, len(captures))
-	for _, c := range captures {
-		arts, err := harvestOne(outDir, c)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, arts...)
-	}
-	return out, nil
-}
-
-func harvestOne(outDir string, c capturev1.CaptureType) ([]*capturev1.CaptureArtifact, error) {
-	switch c {
-	case capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:
-		shotsDir := filepath.Join(outDir, "screenshots")
-		entries, err := os.ReadDir(shotsDir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return []*capturev1.CaptureArtifact{unavailableArtifact(c, filepath.Join(shotsDir, "screenshot.png"))}, nil
-			}
-			return nil, fmt.Errorf("read screenshots dir: %w", err)
-		}
-		out := make([]*capturev1.CaptureArtifact, 0, len(entries))
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-			full := filepath.Join(shotsDir, e.Name())
-			info, err := e.Info()
-			if err != nil {
-				return nil, fmt.Errorf("stat %s: %w", full, err)
-			}
-			out = append(out, &capturev1.CaptureArtifact{
-				Type:      c,
-				Path:      full,
-				SizeBytes: info.Size(),
-				Metadata:  map[string]string{"filename": e.Name()},
-			})
-		}
-		if len(out) == 0 {
-			return []*capturev1.CaptureArtifact{unavailableArtifact(c, filepath.Join(shotsDir, "screenshot.png"))}, nil
-		}
-		return out, nil
-	case capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS:
-		return []*capturev1.CaptureArtifact{artifactFromFile(c, filepath.Join(outDir, "console-logs.md"))}, nil
-	case capturev1.CaptureType_CAPTURE_TYPE_NETWORK:
-		return []*capturev1.CaptureArtifact{artifactFromFile(c, filepath.Join(outDir, "network-activity.md"))}, nil
-	case capturev1.CaptureType_CAPTURE_TYPE_VIDEO,
-		capturev1.CaptureType_CAPTURE_TYPE_DOM,
-		capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:
-		return []*capturev1.CaptureArtifact{unavailableArtifact(c, filepath.Join(outDir, captureTypeShortName(c)+captureTypeExt(c)))}, nil
-	}
-	return nil, fmt.Errorf("unsupported capture type: %v", c)
-}
-
+// artifactFromFile builds an artifact for a single named export file,
+// degrading to an unavailable artifact when the file is absent. Shared
+// with producer.go's fileProducer.
 func artifactFromFile(c capturev1.CaptureType, path string) *capturev1.CaptureArtifact {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -462,49 +354,21 @@ func artifactFromFile(c capturev1.CaptureType, path string) *capturev1.CaptureAr
 	}
 }
 
+// unavailableArtifact builds the placeholder artifact returned for a
+// capture type the executor's folder export cannot produce. The reason
+// is sourced from the captureTypeMetadata table so it stays in lockstep
+// with availability.
 func unavailableArtifact(c capturev1.CaptureType, path string) *capturev1.CaptureArtifact {
+	reason := metaFor(c).availableReason
+	if reason == "" {
+		reason = unavailableExportReason
+	}
 	return &capturev1.CaptureArtifact{
 		Type: c,
 		Path: path,
 		Metadata: map[string]string{
 			"unavailable": "true",
-			"reason":      "executor folder export does not produce this artifact type yet",
+			"reason":      reason,
 		},
-	}
-}
-
-func captureTypeShortName(c capturev1.CaptureType) string {
-	switch c {
-	case capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:
-		return "screenshot"
-	case capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS:
-		return "console-logs"
-	case capturev1.CaptureType_CAPTURE_TYPE_NETWORK:
-		return "network"
-	case capturev1.CaptureType_CAPTURE_TYPE_VIDEO:
-		return "video"
-	case capturev1.CaptureType_CAPTURE_TYPE_DOM:
-		return "dom"
-	case capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:
-		return "performance"
-	default:
-		return "unknown"
-	}
-}
-
-func captureTypeExt(c capturev1.CaptureType) string {
-	switch c {
-	case capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT:
-		return ".png"
-	case capturev1.CaptureType_CAPTURE_TYPE_CONSOLE_LOGS:
-		return ".md"
-	case capturev1.CaptureType_CAPTURE_TYPE_NETWORK, capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE:
-		return ".json"
-	case capturev1.CaptureType_CAPTURE_TYPE_VIDEO:
-		return ".webm"
-	case capturev1.CaptureType_CAPTURE_TYPE_DOM:
-		return ".html"
-	default:
-		return ""
 	}
 }

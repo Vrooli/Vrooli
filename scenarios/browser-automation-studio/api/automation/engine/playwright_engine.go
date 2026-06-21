@@ -93,6 +93,7 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 		SupportsFileUploads:   true,
 		SupportsDownloads:     true,
 		SupportsTracing:       true,
+		SupportsPerfTrace:     true,
 		MaxViewportWidth:      1920,
 		MaxViewportHeight:     1080,
 	}, nil
@@ -118,6 +119,7 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 			NeedsHAR:          spec.Capabilities.NeedsHAR,
 			NeedsVideo:        spec.Capabilities.NeedsVideo,
 			NeedsTracing:      spec.Capabilities.NeedsTracing,
+			NeedsPerfTrace:    spec.Capabilities.NeedsPerfTrace,
 			MinViewportWidth:  spec.Capabilities.MinViewportWidth,
 			MinViewportHeight: spec.Capabilities.MinViewportHeight,
 		},

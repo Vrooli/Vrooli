@@ -77,7 +77,7 @@ test-genie execute my-scenario --preset comprehensive
 | Dependencies | Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService. | 15m |
 | Quality | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. | 2m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
-| Performance | Benchmarks Go API and UI builds, runs Lighthouse audits via Google Lighthouse CLI to validate performance, accessibility, and SEO. | 15m |
+| Performance | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService. | 5m |
 | Smoke | Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors. | 15m |
 | Unit | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. | 15m |
 | Integration | Exercises the CLI/Bats suite plus scenario-local orchestrator listings. | 15m |

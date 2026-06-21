@@ -86,6 +86,11 @@ type ExecuteOptions struct {
 	RequiresTrace bool
 	// RequiresHAR forces HAR capture capability on the execution plan metadata.
 	RequiresHAR bool
+	// RequiresPerfTrace forces CDP performance-trace + web-vitals capture
+	// capability on the execution plan metadata. The driver attaches a
+	// PerformanceTracer to the session and emits performance.json +
+	// performance.web-vitals.json into the execution's artifact root.
+	RequiresPerfTrace bool
 }
 
 // ExecuteWorkflowAPI starts a workflow execution using proto request/response types.
@@ -423,6 +428,12 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 			plan.Metadata = make(map[string]any)
 		}
 		plan.Metadata["requiresHar"] = true
+	}
+	if opts != nil && opts.RequiresPerfTrace {
+		if plan.Metadata == nil {
+			plan.Metadata = make(map[string]any)
+		}
+		plan.Metadata["requiresPerformanceTrace"] = true
 	}
 
 	// Inject frame streaming config into plan metadata if enabled.

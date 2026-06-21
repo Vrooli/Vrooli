@@ -18,6 +18,8 @@ import {
   findIdleSessions,
 } from './session-decisions';
 import { setupDiagnosticLogging } from './diagnostic-logger';
+import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
+import { PerformanceTracer, injectWebVitalsObserver } from '../tracing';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -60,6 +62,13 @@ export class SessionManager {
   private browserManager: BrowserManager;
   private config: Config;
 
+  /**
+   * Cross-cutting instrumentation seam (no-op by default). Session-level
+   * hooks fire when a session becomes ready and when it is closed. P2
+   * supplies a real implementation; P1 keeps it inert.
+   */
+  private instrumentation: Instrumentation;
+
   /** Track sessions currently being closed to prevent double-close */
   private closingSessionIds: Set<string> = new Set();
 
@@ -70,13 +79,22 @@ export class SessionManager {
    */
   private sessionCreationGuard: InFlightGuard<string, SessionCreationResult>;
 
-  constructor(config: Config, browserManager?: BrowserManager) {
+  constructor(config: Config, browserManager?: BrowserManager, instrumentation?: Instrumentation) {
     this.config = config;
     this.browserManager = browserManager ?? new BrowserManager(config);
+    this.instrumentation = resolveInstrumentation(instrumentation);
     this.sessionCreationGuard = createInFlightGuard<string, SessionCreationResult>({
       name: 'session-creation',
       logContext: LogContext.SESSION,
     });
+  }
+
+  /**
+   * Returns the instrumentation seam. Exposed so the route layer can
+   * thread the same instance into per-instruction execution.
+   */
+  getInstrumentation(): Instrumentation {
+    return this.instrumentation;
   }
 
   /**
@@ -381,6 +399,33 @@ export class SessionManager {
     metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
     metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
 
+    // Performance tracing (Tier 0 CDP trace + web-vitals). Started here —
+    // after the page exists but before the first navigate instruction — so
+    // the web-vitals init script applies to the page under test and the CDP
+    // trace spans the entire session. Best-effort: a failure leaves the
+    // session fully functional, just without a perf artifact.
+    if (spec.required_capabilities?.performance_trace) {
+      const perfDir = spec.artifact_paths?.perf_dir?.trim()
+        || (spec.artifact_paths?.root?.trim() ? path.join(spec.artifact_paths.root.trim(), 'performance') : '');
+      if (perfDir) {
+        await injectWebVitalsObserver(context);
+        const tracer = new PerformanceTracer(perfDir);
+        await tracer.start(page);
+        session.perfTracer = tracer;
+      } else {
+        logger.warn(scopedLog(LogContext.TELEMETRY, 'performance trace requested without artifact path'), {
+          sessionId,
+          hint: 'set artifact_paths.perf_dir or artifact_paths.root to capture a perf trace',
+        });
+      }
+    }
+
+    // Session-level instrumentation hook (no-op by default).
+    await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
+      sessionId,
+      executionId: spec.execution_id,
+    });
+
     // Return actualViewport from buildContext (includes source attribution)
     return { sessionId, reused: false, createdAt, actualViewport };
   }
@@ -677,6 +722,14 @@ export class SessionManager {
     const previousPhase = session.phase;
     session.phase = 'closing';
 
+    // Session-level instrumentation hook (no-op by default). Fires once
+    // per real close, before teardown, so a collector can flush per-
+    // session telemetry (e.g. stop a trace) while the context still lives.
+    await safeInvoke(this.instrumentation.onSessionClose?.bind(this.instrumentation), {
+      sessionId,
+      executionId: session.spec.execution_id,
+    });
+
     logger.info(scopedLog(LogContext.SESSION, 'closing'), {
       sessionId,
       previousPhase,
@@ -706,6 +759,18 @@ export class SessionManager {
       if (session.serviceWorkerController) {
         await session.serviceWorkerController.disable().catch((err: unknown) => {
           logger.warn(scopedLog(LogContext.CLEANUP, 'SW controller disable failed'), {
+            sessionId,
+            error: getErrorMessage(err),
+          });
+        });
+      }
+
+      // Stop performance tracing (CDP trace + web-vitals) before context
+      // teardown so the trace stream and the page's web-vitals global are
+      // still readable. Best-effort: never blocks session cleanup.
+      if (session.perfTracer) {
+        await session.perfTracer.stop(session.page).catch((err: unknown) => {
+          logger.warn(scopedLog(LogContext.TELEMETRY, 'performance tracer stop failed'), {
             sessionId,
             error: getErrorMessage(err),
           });
