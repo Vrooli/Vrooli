@@ -43,6 +43,7 @@ These options apply to all commands:
 | `storage` | Run storage maintenance tasks |
 | `status` | Check test-genie operational status |
 | `health` | Show Test Genie self-health: catalog, provider conformance, reliability ledger |
+| `fleet` | Fleet-wide health aggregated over stored runs (`fleet status`) |
 
 ---
 
@@ -702,6 +703,72 @@ Availability is denominator-correct because every terminal run — including
 catastrophic aborts/timeouts/engine-errors that produce no result — is persisted
 with a `terminal_outcome` classification. See
 [Health Maturity Assessments → Test Genie Self-Health](../../../../docs/reference/health-maturity-assessments.md).
+
+---
+
+## fleet
+
+Where `health` is Test Genie looking at **itself**, `fleet` is Test Genie looking
+at the **whole fleet**. `fleet status` is a thin client over
+`RunsService.GetFleetHealth`, which aggregates the **stored runs of every
+scenario** into a fleet-wide health snapshot: per-scenario run counts,
+availability, failure rate, issue counts (failed phase observations), and the
+newest run's age + outcome; a **most-errored-first** ranking; finding-source
+clustering across the fleet; and — with `--roster` — the scenarios that exist on
+disk but have **no run in the window** (an explicit coverage gap, never a silent
+zero).
+
+This is **compute-on-read over runs that already executed** — it does NOT launch
+a fleet run. Every datum is **as-of stamped** (`captured_at` for the whole
+rollup; `last_run_at` + `age_days` per scenario) so stale data can never read as
+fresh. Keeping those stored runs reasonably fresh is the job of the **default-OFF
+background fleet scheduler** (see below); `fleet status` simply reads whatever is
+there and labels its age honestly.
+
+```bash
+test-genie fleet status [--json] [--window-days N] [--roster]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--json` | `false` | Emit the full fleet-health payload as proto JSON |
+| `--window-days <N>` | `0` (server default = 30) | Fleet aggregation look-back window |
+| `--roster` | `false` | Cross-reference the on-disk fleet roster to list never-tested-in-window scenarios |
+
+### Examples
+
+```bash
+# Human summary: most-errored scenarios, top finding sources, coverage gaps
+test-genie fleet status --roster
+
+# Full machine-readable payload (consumed by the meta-optimization loop)
+test-genie fleet status --json --roster
+```
+
+### Background fleet scheduler (default-OFF)
+
+The fleet scheduler is the **write side** of the fleet backbone: a
+priority-weighted background loop that cycles full suites across the fleet so the
+stored runs `fleet status` reads stay fresh — **without** anyone paying an
+hours-long synchronous fleet run. It is **OFF unless explicitly enabled** and
+bounded by explicit budgets; it never weakens the run manager's
+one-in-progress-per-scenario invariant (it queues by priority, it does not
+parallelize a single scenario). Selection is staleness-weighted priority from
+`scenario-completeness-scoring score list` (importance × score gap, scaled by
+test age; never-tested scenarios get the strongest pull).
+
+| Env var | Default | Meaning |
+|---------|---------|---------|
+| `TEST_GENIE_FLEET_SCHEDULER_ENABLED` | `false` | Start the scheduler (required to enable) |
+| `TEST_GENIE_FLEET_SCHEDULER_INTERVAL` | `6h` | Tick cadence |
+| `TEST_GENIE_FLEET_SCHEDULER_START_JITTER` | `0` | Initial delay before the first cycle |
+| `TEST_GENIE_FLEET_SCHEDULER_MAX_CONCURRENT` | `1` | Simultaneously-launched runs (compute cap) |
+| `TEST_GENIE_FLEET_SCHEDULER_MAX_PER_CYCLE` | `5` | Runs launched per cycle (count budget) |
+| `TEST_GENIE_FLEET_SCHEDULER_CYCLE_BUDGET` | `0` (none) | Per-cycle wall-clock cap |
+| `TEST_GENIE_FLEET_SCHEDULER_STALENESS_HORIZON` | `168h` | Window over which test age scales priority |
+| `TEST_GENIE_FLEET_SCHEDULER_PRESET` | `comprehensive` | Suite shape the scheduler cycles |
 
 ---
 

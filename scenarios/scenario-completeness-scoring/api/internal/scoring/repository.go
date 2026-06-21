@@ -18,6 +18,14 @@ type Snapshot struct {
 	Importance     *float64
 	Source         string
 	CreatedAt      time.Time
+
+	// LastRunAt / LastStatus are scenario-level test recency carried alongside
+	// the score: the newest test run in the scenario's run index and its
+	// overall status. Zero/empty when no run is recorded or the row predates
+	// recency capture. Unlike the score (digest-deduplicated), recency advances
+	// monotonically even when the score digest is unchanged (see UpsertSnapshot).
+	LastRunAt  time.Time
+	LastStatus string
 }
 
 // TrendQuery selects a scenario's score history, newest first.

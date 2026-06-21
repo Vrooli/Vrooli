@@ -256,6 +256,8 @@ func (s *Server) setupRoutes() {
 
 	// Fix routes (agent-based test fixing)
 	apiRouter.HandleFunc("/scenarios/{name}/fix", s.handleSpawnFix).Methods("POST")
+	// Deterministic fix (provider-driven autofix aggregate; dry-run by default)
+	apiRouter.HandleFunc("/scenarios/{name}/fix/deterministic", s.handleDeterministicFix).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/fixes", s.handleListFixes).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/fixes/active", s.handleGetActiveFix).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/fixes/{id}", s.handleGetFix).Methods("GET")

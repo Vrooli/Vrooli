@@ -31,7 +31,7 @@ class TunnelConfig(_message.Message):
     def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., tunnel_id: _Optional[str] = ..., account_id: _Optional[str] = ..., cred_ref: _Optional[str] = ..., prom_endpoint: _Optional[str] = ...) -> None: ...
 
 class ConfigReadiness(_message.Message):
-    __slots__ = ("desired_mode", "remote_available", "missing_fields", "credential_source", "credential_ref", "local_config_path", "sync_ready", "mode_reason")
+    __slots__ = ("desired_mode", "remote_available", "missing_fields", "credential_source", "credential_ref", "local_config_path", "sync_ready", "mode_reason", "credential_fields")
     DESIRED_MODE_FIELD_NUMBER: _ClassVar[int]
     REMOTE_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     MISSING_FIELDS_FIELD_NUMBER: _ClassVar[int]
@@ -40,6 +40,7 @@ class ConfigReadiness(_message.Message):
     LOCAL_CONFIG_PATH_FIELD_NUMBER: _ClassVar[int]
     SYNC_READY_FIELD_NUMBER: _ClassVar[int]
     MODE_REASON_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     desired_mode: Mode
     remote_available: bool
     missing_fields: _containers.RepeatedScalarFieldContainer[str]
@@ -48,7 +49,36 @@ class ConfigReadiness(_message.Message):
     local_config_path: str
     sync_ready: bool
     mode_reason: str
-    def __init__(self, desired_mode: _Optional[_Union[Mode, str]] = ..., remote_available: _Optional[bool] = ..., missing_fields: _Optional[_Iterable[str]] = ..., credential_source: _Optional[str] = ..., credential_ref: _Optional[str] = ..., local_config_path: _Optional[str] = ..., sync_ready: _Optional[bool] = ..., mode_reason: _Optional[str] = ...) -> None: ...
+    credential_fields: _containers.RepeatedCompositeFieldContainer[CredentialFieldStatus]
+    def __init__(self, desired_mode: _Optional[_Union[Mode, str]] = ..., remote_available: _Optional[bool] = ..., missing_fields: _Optional[_Iterable[str]] = ..., credential_source: _Optional[str] = ..., credential_ref: _Optional[str] = ..., local_config_path: _Optional[str] = ..., sync_ready: _Optional[bool] = ..., mode_reason: _Optional[str] = ..., credential_fields: _Optional[_Iterable[_Union[CredentialFieldStatus, _Mapping]]] = ...) -> None: ...
+
+class CredentialFieldStatus(_message.Message):
+    __slots__ = ("name", "present", "source", "ref", "writable")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PRESENT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    WRITABLE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    present: bool
+    source: str
+    ref: str
+    writable: bool
+    def __init__(self, name: _Optional[str] = ..., present: _Optional[bool] = ..., source: _Optional[str] = ..., ref: _Optional[str] = ..., writable: _Optional[bool] = ...) -> None: ...
+
+class CredentialStatus(_message.Message):
+    __slots__ = ("fields", "missing_fields", "source", "ref", "ready")
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    fields: _containers.RepeatedCompositeFieldContainer[CredentialFieldStatus]
+    missing_fields: _containers.RepeatedScalarFieldContainer[str]
+    source: str
+    ref: str
+    ready: bool
+    def __init__(self, fields: _Optional[_Iterable[_Union[CredentialFieldStatus, _Mapping]]] = ..., missing_fields: _Optional[_Iterable[str]] = ..., source: _Optional[str] = ..., ref: _Optional[str] = ..., ready: _Optional[bool] = ...) -> None: ...
 
 class GetConfigRequest(_message.Message):
     __slots__ = ()
@@ -61,6 +91,44 @@ class GetConfigResponse(_message.Message):
     config: TunnelConfig
     readiness: ConfigReadiness
     def __init__(self, config: _Optional[_Union[TunnelConfig, _Mapping]] = ..., readiness: _Optional[_Union[ConfigReadiness, _Mapping]] = ...) -> None: ...
+
+class GetCredentialStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetCredentialStatusResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: CredentialStatus
+    def __init__(self, status: _Optional[_Union[CredentialStatus, _Mapping]] = ...) -> None: ...
+
+class SetCloudflareCredentialsRequest(_message.Message):
+    __slots__ = ("account_id", "tunnel_id", "api_token")
+    ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    TUNNEL_ID_FIELD_NUMBER: _ClassVar[int]
+    API_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    account_id: str
+    tunnel_id: str
+    api_token: str
+    def __init__(self, account_id: _Optional[str] = ..., tunnel_id: _Optional[str] = ..., api_token: _Optional[str] = ...) -> None: ...
+
+class SetCloudflareCredentialsResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: CredentialStatus
+    def __init__(self, status: _Optional[_Union[CredentialStatus, _Mapping]] = ...) -> None: ...
+
+class ClearCloudflareCredentialsRequest(_message.Message):
+    __slots__ = ("fields",)
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ClearCloudflareCredentialsResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: CredentialStatus
+    def __init__(self, status: _Optional[_Union[CredentialStatus, _Mapping]] = ...) -> None: ...
 
 class SyncRequest(_message.Message):
     __slots__ = ("dry_run",)

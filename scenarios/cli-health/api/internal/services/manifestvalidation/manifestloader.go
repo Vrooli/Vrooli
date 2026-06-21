@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -22,10 +23,22 @@ func NewFilesystemManifestLoader(repoRoot string) *FilesystemManifestLoader {
 
 // Load returns (raw, absolute path, err). If the file doesn't exist Load
 // returns os.ErrNotExist so the service can emit a manifest_missing warning.
-func (l *FilesystemManifestLoader) Load(_ context.Context, scenario string) ([]byte, string, error) {
-	path, err := repocontract.ScenarioCLIManifestPath(l.RepoRoot, scenario)
-	if err != nil {
-		return nil, "", fmt.Errorf("resolve manifest path: %w", err)
+//
+// When ctx carries an explicit scenario root (WithScenarioPath) — used when the
+// caller validates a scenario outside the repo scenarios/ tree, such as deep
+// template validation's temp-generated scenario — the manifest is read from that
+// directory's cli/manifest.json. Otherwise it resolves through the repo contract
+// keyed by scenario name.
+func (l *FilesystemManifestLoader) Load(ctx context.Context, scenario string) ([]byte, string, error) {
+	var path string
+	if root := scenarioPathFrom(ctx); root != "" {
+		path = filepath.Join(root, "cli", "manifest.json")
+	} else {
+		p, err := repocontract.ScenarioCLIManifestPath(l.RepoRoot, scenario)
+		if err != nil {
+			return nil, "", fmt.Errorf("resolve manifest path: %w", err)
+		}
+		path = p
 	}
 	raw, err := os.ReadFile(path)
 	if err != nil {

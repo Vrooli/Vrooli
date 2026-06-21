@@ -107,6 +107,13 @@ type ProviderConformance struct {
 	MetricsAdopted bool     `json:"metricsAdopted"`
 	AdoptionScore  float64  `json:"adoptionScore"`
 	Violations     []string `json:"violations,omitempty"`
+	// Autofix is the spec-derived autofix declaration rollup (Stage 1). It is the
+	// 6th, advisory conformance dimension: DeclarationComplete is the gated-later
+	// signal (every finding classified, every manual justified); Pending is the
+	// headline backlog. It is always computed from the shipped spec — available
+	// even when the provider is unreachable — and never enters AdoptionScore or
+	// the hard-violation set.
+	Autofix assessment.AutofixCoverage `json:"autofix"`
 }
 
 // IsHardViolation is the single source of truth for whether a delegated
@@ -240,6 +247,11 @@ func scanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target,
 			spec.Provider, spec.Phase, provider, phase))
 	default:
 		pr.SpecValid = true
+	}
+	// Autofix coverage is a declaration property — compute it whenever the spec
+	// parsed, even if its identity mismatched or the provider is unreachable.
+	if spec != nil {
+		pr.Autofix = assessment.ComputeAutofixCoverage(*spec)
 	}
 
 	// scenario-auditor (the standards phase) has no Connect ScenarioValidationService

@@ -10,6 +10,12 @@ CREATE TABLE IF NOT EXISTS score_snapshots (
   importance REAL,
   source TEXT NOT NULL DEFAULT 'sweeper',
   created_at TEXT NOT NULL,
+  -- Scenario-level test recency (newest run in the scenario's run index and its
+  -- overall status), orthogonal to the digest-deduplicated score. Empty when no
+  -- run is recorded. Pre-existing databases gain these via scoring.Migrate
+  -- (ALTER ADD COLUMN), never a recreate — score history is the trend denominator.
+  last_run_at TEXT NOT NULL DEFAULT '',
+  last_status TEXT NOT NULL DEFAULT '',
   UNIQUE (scenario, digest)
 );
 

@@ -288,6 +288,43 @@ type uiManifestFix struct {
 	MultiFile   bool   `json:"multiFile,omitempty"`
 }
 
+// TestValidateScenario_ExplicitOutOfTreePath proves WithScenarioPath lets the
+// validator inspect a scenario generated outside the repo scenarios/ tree (deep
+// template validation's temp dir) while still resolving its template from the
+// repo. Without the path the same name is correctly not found under scenarios/.
+func TestValidateScenario_ExplicitOutOfTreePath(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	// Template lives under the repo root (templates are always repo-rooted).
+	mustMkdirAll(t, filepath.Join(root, "templates", "scenarios", "demo-template", "ui"))
+	mustWriteJSON(t, filepath.Join(root, "templates", "scenarios", "demo-template", "ui", "manifest.json"), map[string]any{
+		"contract": map[string]any{"kind": "scenario-ui", "schema": "scenario-ui-manifest/v1"},
+		"slots":    map[string]uiManifestFix{"layout-shell": {Dir: "ui/src/layout"}},
+	})
+	// Scenario generated OUTSIDE root/scenarios.
+	outDir := filepath.Join(t.TempDir(), "scenarios", "generated-demo")
+	mustMkdirAll(t, filepath.Join(outDir, "ui", "src", "layout"))
+	mustWriteFile(t, filepath.Join(outDir, "ui", "package.json"), "{}")
+	mustMkdirAll(t, filepath.Join(outDir, ".vrooli"))
+	mustWriteJSON(t, filepath.Join(outDir, ".vrooli", "service.json"), map[string]any{
+		"generation": map[string]any{"template": map[string]any{"id": "demo-template"}},
+	})
+
+	svc := New(root, nil)
+
+	if _, err := svc.ValidateScenario(context.Background(), "generated-demo"); err == nil {
+		t.Fatal("expected not-found without explicit path")
+	}
+
+	rep, err := svc.ValidateScenario(WithScenarioPath(context.Background(), outDir), "generated-demo")
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if !rep.Passed || rep.Summary.Errors != 0 {
+		t.Fatalf("expected clean pass for out-of-tree scenario, got %+v", rep.Findings)
+	}
+}
+
 func setupFixture(t *testing.T, root, scenario, template string, templateSlots, overlaySlots map[string]uiManifestFix) {
 	t.Helper()
 	mustMkdirAll(t, filepath.Join(root, "scenarios", scenario, "ui"))

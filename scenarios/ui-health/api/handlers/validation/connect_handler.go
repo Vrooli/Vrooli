@@ -49,8 +49,12 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation.ValidateScenario: validator not wired"))
 	}
+	// When the caller resolved an explicit scenario path (e.g. Test Genie running
+	// deep template validation against a temp scenario outside the repo
+	// scenarios/ tree), thread it so the validator reads from that directory.
+	validateCtx := manifestvalidation.WithScenarioPath(ctx, req.Msg.GetPath())
 	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
-	report, err := h.deps.Validator.ValidateScenario(manifestvalidation.WithMetrics(ctx, collector), req.Msg.GetScenario())
+	report, err := h.deps.Validator.ValidateScenario(manifestvalidation.WithMetrics(validateCtx, collector), req.Msg.GetScenario())
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

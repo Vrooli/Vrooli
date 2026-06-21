@@ -544,6 +544,74 @@ class GetSelfHealthResponse(_message.Message):
     self_health: SelfHealth
     def __init__(self, self_health: _Optional[_Union[SelfHealth, _Mapping]] = ...) -> None: ...
 
+class GetFleetHealthRequest(_message.Message):
+    __slots__ = ("window_days", "include_roster")
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_ROSTER_FIELD_NUMBER: _ClassVar[int]
+    window_days: int
+    include_roster: bool
+    def __init__(self, window_days: _Optional[int] = ..., include_roster: _Optional[bool] = ...) -> None: ...
+
+class GetFleetHealthResponse(_message.Message):
+    __slots__ = ("fleet_health",)
+    FLEET_HEALTH_FIELD_NUMBER: _ClassVar[int]
+    fleet_health: FleetHealth
+    def __init__(self, fleet_health: _Optional[_Union[FleetHealth, _Mapping]] = ...) -> None: ...
+
+class FleetHealth(_message.Message):
+    __slots__ = ("window_days", "captured_at", "scenarios_tested", "scenarios_total", "total_runs", "total_issues", "scenarios", "top_finding_sources", "never_tested_in_window")
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
+    SCENARIOS_TESTED_FIELD_NUMBER: _ClassVar[int]
+    SCENARIOS_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_RUNS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_ISSUES_FIELD_NUMBER: _ClassVar[int]
+    SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    TOP_FINDING_SOURCES_FIELD_NUMBER: _ClassVar[int]
+    NEVER_TESTED_IN_WINDOW_FIELD_NUMBER: _ClassVar[int]
+    window_days: int
+    captured_at: str
+    scenarios_tested: int
+    scenarios_total: int
+    total_runs: int
+    total_issues: int
+    scenarios: _containers.RepeatedCompositeFieldContainer[FleetScenarioHealth]
+    top_finding_sources: _containers.RepeatedCompositeFieldContainer[FleetFindingSource]
+    never_tested_in_window: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, window_days: _Optional[int] = ..., captured_at: _Optional[str] = ..., scenarios_tested: _Optional[int] = ..., scenarios_total: _Optional[int] = ..., total_runs: _Optional[int] = ..., total_issues: _Optional[int] = ..., scenarios: _Optional[_Iterable[_Union[FleetScenarioHealth, _Mapping]]] = ..., top_finding_sources: _Optional[_Iterable[_Union[FleetFindingSource, _Mapping]]] = ..., never_tested_in_window: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class FleetScenarioHealth(_message.Message):
+    __slots__ = ("scenario", "runs", "passed_runs", "failed_runs", "availability", "failure_rate", "issues", "last_run_at", "last_outcome", "age_days")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUNS_FIELD_NUMBER: _ClassVar[int]
+    PASSED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    FAILED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_RATE_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    LAST_RUN_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    runs: int
+    passed_runs: int
+    failed_runs: int
+    availability: float
+    failure_rate: float
+    issues: int
+    last_run_at: str
+    last_outcome: str
+    age_days: float
+    def __init__(self, scenario: _Optional[str] = ..., runs: _Optional[int] = ..., passed_runs: _Optional[int] = ..., failed_runs: _Optional[int] = ..., availability: _Optional[float] = ..., failure_rate: _Optional[float] = ..., issues: _Optional[int] = ..., last_run_at: _Optional[str] = ..., last_outcome: _Optional[str] = ..., age_days: _Optional[float] = ...) -> None: ...
+
+class FleetFindingSource(_message.Message):
+    __slots__ = ("source", "issues")
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    ISSUES_FIELD_NUMBER: _ClassVar[int]
+    source: str
+    issues: int
+    def __init__(self, source: _Optional[str] = ..., issues: _Optional[int] = ...) -> None: ...
+
 class SelfHealth(_message.Message):
     __slots__ = ("catalog", "conformance", "conformance_freshness", "ledger", "trend_series")
     CATALOG_FIELD_NUMBER: _ClassVar[int]
@@ -615,7 +683,7 @@ class CatalogPhase(_message.Message):
     def __init__(self, name: _Optional[str] = ..., optional: _Optional[bool] = ..., source: _Optional[str] = ..., delegated: _Optional[bool] = ..., provider: _Optional[str] = ..., finding_source: _Optional[str] = ...) -> None: ...
 
 class ProviderConformance(_message.Message):
-    __slots__ = ("provider", "phase", "reachable", "contract_valid", "identity_ok", "spec_valid", "metrics_adopted", "adoption_score", "violations")
+    __slots__ = ("provider", "phase", "reachable", "contract_valid", "identity_ok", "spec_valid", "metrics_adopted", "adoption_score", "violations", "autofix")
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
     REACHABLE_FIELD_NUMBER: _ClassVar[int]
@@ -625,6 +693,7 @@ class ProviderConformance(_message.Message):
     METRICS_ADOPTED_FIELD_NUMBER: _ClassVar[int]
     ADOPTION_SCORE_FIELD_NUMBER: _ClassVar[int]
     VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    AUTOFIX_FIELD_NUMBER: _ClassVar[int]
     provider: str
     phase: str
     reachable: bool
@@ -634,7 +703,28 @@ class ProviderConformance(_message.Message):
     metrics_adopted: bool
     adoption_score: float
     violations: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ...) -> None: ...
+    autofix: AutofixCoverage
+    def __init__(self, provider: _Optional[str] = ..., phase: _Optional[str] = ..., reachable: _Optional[bool] = ..., contract_valid: _Optional[bool] = ..., identity_ok: _Optional[bool] = ..., spec_valid: _Optional[bool] = ..., metrics_adopted: _Optional[bool] = ..., adoption_score: _Optional[float] = ..., violations: _Optional[_Iterable[str]] = ..., autofix: _Optional[_Union[AutofixCoverage, _Mapping]] = ...) -> None: ...
+
+class AutofixCoverage(_message.Message):
+    __slots__ = ("total", "fixable_universe", "implemented", "pending", "manual", "declared", "declaration_complete", "implementation_rate")
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    FIXABLE_UNIVERSE_FIELD_NUMBER: _ClassVar[int]
+    IMPLEMENTED_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    MANUAL_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_FIELD_NUMBER: _ClassVar[int]
+    DECLARATION_COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    IMPLEMENTATION_RATE_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    fixable_universe: int
+    implemented: int
+    pending: int
+    manual: int
+    declared: int
+    declaration_complete: bool
+    implementation_rate: float
+    def __init__(self, total: _Optional[int] = ..., fixable_universe: _Optional[int] = ..., implemented: _Optional[int] = ..., pending: _Optional[int] = ..., manual: _Optional[int] = ..., declared: _Optional[int] = ..., declaration_complete: _Optional[bool] = ..., implementation_rate: _Optional[float] = ...) -> None: ...
 
 class ReliabilityLedger(_message.Message):
     __slots__ = ("window_days", "run_count", "availability", "run_outcomes", "phases", "providers", "captured_at", "trend")

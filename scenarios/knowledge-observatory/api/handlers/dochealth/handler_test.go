@@ -9,12 +9,58 @@ import (
 
 	"connectrpc.com/connect"
 
+	"knowledge-observatory/internal/services/dochealing"
 	"knowledge-observatory/internal/services/dochealth"
 
 	"github.com/vrooli/maturity-go/assessment"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
+
+// stubFixer satisfies DocFixer for the shared Fix RPC tests.
+type stubFixer struct {
+	dryRunResult *dochealing.AutoFixResult
+	applyResult  *dochealing.AutoFixResult
+}
+
+func (s *stubFixer) AutoFix(_ context.Context, scenario string, dryRun bool) (*dochealing.AutoFixResult, error) {
+	if dryRun {
+		return s.dryRunResult, nil
+	}
+	return s.applyResult, nil
+}
+
+func TestPreviewFixMapsMovesToCandidates(t *testing.T) {
+	h := NewWithDeps(Deps{Fixer: &stubFixer{dryRunResult: &dochealing.AutoFixResult{
+		ScenarioName: "demo",
+		Moved:        []dochealing.MovedDoc{{FromPath: "X.md", ToPath: "docs/X.md", DocType: "guide"}},
+		Skipped:      []dochealing.SkippedDoc{{FromPath: "Y.md", ToPath: "docs/Y.md", Reason: "destination already exists"}},
+	}}})
+	resp, err := h.PreviewFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{Scenario: "demo"}))
+	if err != nil {
+		t.Fatalf("PreviewFix: %v", err)
+	}
+	if resp.Msg.GetApplied() {
+		t.Fatalf("preview applied = true, want false")
+	}
+	cands := resp.Msg.GetCandidates()
+	if len(cands) != 1 || cands[0].GetRuleId() != "misplaced_doc" || cands[0].GetFilePath() != "docs/X.md" {
+		t.Fatalf("unexpected candidates: %+v", cands)
+	}
+	if cands[0].GetApplied() {
+		t.Fatalf("preview candidate must not be applied")
+	}
+	if len(resp.Msg.GetMessages()) != 1 {
+		t.Fatalf("expected one skipped message, got %v", resp.Msg.GetMessages())
+	}
+}
+
+func TestFixUnimplementedWithoutFixer(t *testing.T) {
+	h := NewWithDeps(Deps{})
+	if _, err := h.PreviewFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{Scenario: "demo"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Fatalf("code = %v, want Unimplemented", connect.CodeOf(err))
+	}
+}
 
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()

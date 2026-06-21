@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	snapshotColumns      = "id, scenario, category, digest, composite, classification, working_rung, breakdown_json, importance, source, created_at"
+	snapshotColumns      = "id, scenario, category, digest, composite, classification, working_rung, breakdown_json, importance, source, created_at, last_run_at, last_status"
 	latestSnapshotIDsCTE = `WITH latest AS (
 	SELECT id FROM (
 		SELECT id, ROW_NUMBER() OVER (PARTITION BY scenario ORDER BY created_at DESC, id DESC) AS rn
@@ -72,9 +72,13 @@ func (r *SQLiteSnapshotRepository) UpsertSnapshot(ctx context.Context, snap Snap
 	if snap.CreatedAt.IsZero() {
 		return false, errors.New("created_at is required")
 	}
+	lastRunAt := ""
+	if !snap.LastRunAt.IsZero() {
+		lastRunAt = formatSnapshotTime(snap.LastRunAt)
+	}
 	res, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO score_snapshots
-		(scenario, category, digest, composite, classification, working_rung, breakdown_json, importance, source, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(scenario, category, digest, composite, classification, working_rung, breakdown_json, importance, source, created_at, last_run_at, last_status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		snap.Scenario,
 		defaultString(snap.Category, "utility"),
 		snap.Digest,
@@ -85,6 +89,8 @@ func (r *SQLiteSnapshotRepository) UpsertSnapshot(ctx context.Context, snap Snap
 		nullableFloat(snap.Importance),
 		defaultString(snap.Source, "sweeper"),
 		formatSnapshotTime(snap.CreatedAt),
+		lastRunAt,
+		snap.LastStatus,
 	)
 	if err != nil {
 		return false, err
@@ -92,6 +98,21 @@ func (r *SQLiteSnapshotRepository) UpsertSnapshot(ctx context.Context, snap Snap
 	n, err := res.RowsAffected()
 	if err != nil {
 		return false, err
+	}
+	// Test recency is orthogonal to the digest-deduplicated score: a new test
+	// run can complete without the tree (and thus the digest) changing, so the
+	// INSERT OR IGNORE above is a no-op for that row. Always advance recency on
+	// the (scenario, digest) row when the incoming run is newer, so re-scores
+	// and `--recompute` keep last_run_at/last_status current without minting a
+	// duplicate score row. Monotonic guard: never regress to an older run.
+	if lastRunAt != "" {
+		if _, err := r.db.ExecContext(ctx, `UPDATE score_snapshots
+			SET last_run_at = ?, last_status = ?
+			WHERE scenario = ? AND digest = ? AND (last_run_at = '' OR last_run_at < ?)`,
+			lastRunAt, snap.LastStatus, snap.Scenario, snap.Digest, lastRunAt,
+		); err != nil {
+			return false, err
+		}
 	}
 	return n > 0, nil
 }
@@ -291,6 +312,7 @@ func scanSnapshots(rows *sql.Rows) ([]Snapshot, error) {
 func scanSnapshot(row rowScanner, snap *Snapshot) error {
 	var importance sql.NullFloat64
 	var createdAt string
+	var lastRunAt string
 	if err := row.Scan(
 		&snap.ID,
 		&snap.Scenario,
@@ -303,6 +325,8 @@ func scanSnapshot(row rowScanner, snap *Snapshot) error {
 		&importance,
 		&snap.Source,
 		&createdAt,
+		&lastRunAt,
+		&snap.LastStatus,
 	); err != nil {
 		return err
 	}
@@ -315,6 +339,13 @@ func scanSnapshot(row rowScanner, snap *Snapshot) error {
 		return fmt.Errorf("parse created_at %q: %w", createdAt, err)
 	}
 	snap.CreatedAt = parsed
+	if strings.TrimSpace(lastRunAt) != "" {
+		runAt, err := time.Parse(time.RFC3339Nano, lastRunAt)
+		if err != nil {
+			return fmt.Errorf("parse last_run_at %q: %w", lastRunAt, err)
+		}
+		snap.LastRunAt = runAt
+	}
 	return nil
 }
 

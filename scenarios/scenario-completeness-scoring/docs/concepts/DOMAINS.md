@@ -90,6 +90,15 @@ exit criterion); only health plus real product domains remain.
   `cli/domains/scores/`; UI: `ui/src/features/scoring/`.
 - Storage: SQLite `score_snapshots`; the background sweeper is the normal
   writer, and `ListScores.recompute` can persist only the returned page.
+  `ScoreRow`/`score_snapshots` also carry **scenario-level test recency**
+  (`last_run_at` + `last_status`): the newest run in the scenario's run index
+  and its overall status, orthogonal to the digest-deduplicated score. Recency
+  advances monotonically even when the score digest is unchanged (a new test
+  run with the same tree updates recency without minting a duplicate score row).
+  This makes `score list --json` the single fleet query carrying importance +
+  staleness + last status together — the keystone signal Test Genie's fleet
+  scheduler ranks by. Pre-recency databases gain these columns via
+  `scoring.Migrate` (guarded `ALTER ADD COLUMN`, never a recreate).
 - Tests: scoring table tests pinning rung derivation and classification
   boundaries, repository history/fleet/measure aggregate tests, CLI
   golden-output test, perf assertion (<1s warm).

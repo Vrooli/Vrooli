@@ -158,7 +158,10 @@ func run() error {
 		return fmt.Errorf("write install metadata: %w", err)
 	}
 
-	fmt.Printf("✅ installed CLI to %s\n", dst)
+	// Install/replace notices are diagnostics, not program output — route them to
+	// stderr so a scenario CLI's `--json` stdout stays parseable on the FIRST call
+	// after a source change triggers a rebuild+reinstall (mirrors stalechecker.go).
+	fmt.Fprintf(os.Stderr, "✅ installed CLI to %s\n", dst)
 	ensurePathHint(dst)
 	ensureShellRefreshHint()
 	return nil
@@ -395,19 +398,19 @@ func ensurePathHint(binaryPath string) {
 	}
 
 	if runtime.GOOS == "windows" {
-		fmt.Printf("⚠️  Add to PATH (PowerShell): $Env:Path = \"%s;$Env:Path\"\n", installDir)
+		fmt.Fprintf(os.Stderr, "⚠️  Add to PATH (PowerShell): $Env:Path = \"%s;$Env:Path\"\n", installDir)
 		return
 	}
 
-	fmt.Printf("⚠️  Add to PATH: export PATH=\"%s:$PATH\"\n", installDir)
+	fmt.Fprintf(os.Stderr, "⚠️  Add to PATH: export PATH=\"%s:$PATH\"\n", installDir)
 }
 
 func ensureShellRefreshHint() {
 	if runtime.GOOS == "windows" {
-		fmt.Println("ℹ️  If you are replacing an existing CLI command, open a new shell so command lookup refreshes.")
+		fmt.Fprintln(os.Stderr, "ℹ️  If you are replacing an existing CLI command, open a new shell so command lookup refreshes.")
 		return
 	}
-	fmt.Println("ℹ️  If you are replacing an existing CLI command in this shell, run: hash -r")
+	fmt.Fprintln(os.Stderr, "ℹ️  If you are replacing an existing CLI command in this shell, run: hash -r")
 }
 
 func escapeLdflagValue(value string) string {

@@ -41,6 +41,16 @@ type Result struct {
 
 	Phases []PhaseStatus
 
+	// LastRun* describe the newest run recorded in the scenario's run index,
+	// regardless of phase or digest — scenario-level test recency. This is the
+	// keystone fleet signal (persisted onto the score snapshot) that lets a
+	// priority-weighted scheduler reason about "when was this last tested and
+	// did it pass" across the fleet in one query. Empty/zero when no run is
+	// recorded.
+	LastRunID  string
+	LastRunAt  time.Time
+	LastStatus string
+
 	// SuggestedCommand refreshes every non-fresh phase; empty when all
 	// verdicts are fresh.
 	SuggestedCommand string
@@ -83,6 +93,21 @@ func (s *Service) Check(scenarioName, root string) Result {
 		records = nil
 	}
 	runindex.SortNewestFirst(records)
+
+	// Scenario-level recency: the newest run overall (records are sorted
+	// newest-first). Prefer the completion time; fall back to the start time
+	// for a run still in progress. This is digest- and phase-independent — it
+	// answers "when was this scenario last tested" for fleet scheduling.
+	if len(records) > 0 {
+		newest := records[0]
+		out.LastRunID = newest.RunID
+		out.LastStatus = newest.Status
+		if !newest.CompletedAt.IsZero() {
+			out.LastRunAt = newest.CompletedAt
+		} else {
+			out.LastRunAt = newest.StartedAt
+		}
+	}
 
 	phases := sharedfresh.RequiredPhases()
 	var verdicts []sharedfresh.PhaseVerdict

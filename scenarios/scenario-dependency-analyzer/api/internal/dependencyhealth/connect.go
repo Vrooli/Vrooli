@@ -101,7 +101,7 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	governance.End()
 
 	releaseAge := collector.Stage("release-age")
-	releaseAgeSection, releaseAgeFindings, policySummary := h.evaluateReleaseAge(scenario, surfaces)
+	releaseAgeSection, releaseAgeFindings, policySummary := h.evaluateReleaseAge(ctx, scenario, surfaces)
 	releaseAge.End()
 
 	security := collector.Stage("security")
@@ -163,8 +163,13 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
+	// When the caller resolved an explicit scenario path (e.g. Test Genie running
+	// deep template validation against a temp scenario outside the repo
+	// scenarios/ tree), thread it so the evaluation stages read service.json,
+	// surfaces, and release-age policy from that directory.
+	evalCtx := withScenarioPath(ctx, msg.GetPath())
 	collector := metrics.Start(metrics.WithEnvironment(h.environment))
-	native, err := h.ValidateDependencyHealth(withMetrics(ctx, collector), connect.NewRequest(&healthv1.ValidateDependencyHealthRequest{
+	native, err := h.ValidateDependencyHealth(withMetrics(evalCtx, collector), connect.NewRequest(&healthv1.ValidateDependencyHealthRequest{
 		Scenario: scenario,
 		UseCache: true,
 	}))

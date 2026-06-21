@@ -163,6 +163,10 @@ provider, so neither command requires model downloads or host AI packages.
 Model-backed commands such as `generate`, `upscale`, `bg-removal`, `depth`, and
 `colorize` keep the same submit/wait shape but correctly refuse with actionable
 install/provisioning guidance until their weights and backend runtime are ready.
+For an attended clean-host install proof, run
+`IMAGE_TOOLS_ALLOW_MODEL_DOWNLOADS=1 make model-install-e2e` from the scenario
+directory; it loops enabled weight-backed models through `models install --wait`
+and resumes safely on already-installed models.
 
 ## Scenario commands — `models` (registry read + enable/disable)
 

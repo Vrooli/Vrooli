@@ -4,6 +4,9 @@
       "prefix": "toolchain-audit/YYYY-MM-DD"
     },
     {
+      "prefix": "self-health/test-genie/YYYY-MM-DD"
+    },
+    {
       "prefix": "friction-report/toolchain/<YYYY-MM-DD>/<slug>"
     }
   ],
@@ -26,6 +29,10 @@
   "output": [
     {
       "prefix": "toolchain-audit/*",
+      "destination_kind": "knowledge"
+    },
+    {
+      "prefix": "self-health/test-genie/*",
       "destination_kind": "knowledge"
     }
   ],

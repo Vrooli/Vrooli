@@ -31,6 +31,46 @@ func (f fakeClient) ValidateScenario(context.Context, *connect.Request[scenariov
 	return connect.NewResponse(f.resp), nil
 }
 
+// capturingClient records the request it was called with so tests can assert
+// what Run put on the wire.
+type capturingClient struct {
+	resp *scenariovalidationv1.ValidateScenarioResponse
+	got  *scenariovalidationv1.ValidateScenarioRequest
+}
+
+func (c *capturingClient) ValidateScenario(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	c.got = req.Msg
+	return connect.NewResponse(c.resp), nil
+}
+
+// TestRunSendsScenarioPath proves Run forwards the physical scenario path as
+// ValidateScenarioRequest.path, so providers can validate scenarios that live
+// outside the repo scenarios/ registry (deep template validation's temp dir).
+func TestRunSendsScenarioPath(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	cap := &capturingClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario:   "demo",
+		Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		Assessment: testAssessment(""),
+	}}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	const wantPath = "/tmp/vrooli-template-deep-123/scenarios/demo"
+	Run(context.Background(), testProvider(false), "demo", wantPath)
+
+	if cap.got == nil {
+		t.Fatal("ValidateScenario was not called")
+	}
+	if cap.got.GetScenario() != "demo" {
+		t.Fatalf("scenario = %q, want demo", cap.got.GetScenario())
+	}
+	if cap.got.GetPath() != wantPath {
+		t.Fatalf("path = %q, want %q", cap.got.GetPath(), wantPath)
+	}
+}
+
 func testProvider(optional bool) Provider {
 	return Provider{
 		Phase:            "proto",
@@ -140,7 +180,7 @@ func TestArchitectureGateKeepsHeuristicBlockersAdvisory(t *testing.T) {
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "")
 
-	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	got := Run(context.Background(), testArchitectureProvider(), "demo", "")
 	if !got.Success {
 		t.Fatalf("heuristic blocker should remain advisory: %v", got.Error)
 	}
@@ -170,7 +210,7 @@ func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 	}
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 
-	got := Run(context.Background(), testProvider(false), "demo")
+	got := Run(context.Background(), testProvider(false), "demo", "")
 	if got.Success {
 		t.Fatal("expected failed shared status to fail the phase")
 	}
@@ -205,7 +245,7 @@ func TestRunFailedStatusUsesProviderDetailCommand(t *testing.T) {
 
 	provider := testProvider(false)
 	provider.DetailCommand = "scenario-dependency-analyzer health {{scenario}}"
-	got := Run(context.Background(), provider, "demo")
+	got := Run(context.Background(), provider, "demo", "")
 	if got.Remediation != "Run `scenario-dependency-analyzer health demo` for details." {
 		t.Fatalf("Remediation = %q", got.Remediation)
 	}
@@ -223,7 +263,7 @@ func TestRunSummaryCountsFindingSeverityAliases(t *testing.T) {
 	}
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 
-	got := Run(context.Background(), testProvider(false), "demo")
+	got := Run(context.Background(), testProvider(false), "demo", "")
 	if got.Summary.Warnings != 1 {
 		t.Fatalf("Warnings = %d, want 1", got.Summary.Warnings)
 	}
@@ -234,7 +274,7 @@ func TestRunOptionalProviderUnavailableSkips(t *testing.T) {
 	ResolveBaseURL = func(context.Context, string) (string, error) { return "", errors.New("not running") }
 	t.Cleanup(func() { ResolveBaseURL = prevResolve })
 
-	got := Run(context.Background(), testProvider(true), "demo")
+	got := Run(context.Background(), testProvider(true), "demo", "")
 	if !got.Success || !got.Summary.Skipped {
 		t.Fatalf("optional unavailable provider should skip successfully, got success=%v summary=%+v", got.Success, got.Summary)
 	}
@@ -254,7 +294,7 @@ func TestRunMissingAssessmentIsMaturityContract(t *testing.T) {
 	}
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 
-	got := Run(context.Background(), testProvider(false), "demo")
+	got := Run(context.Background(), testProvider(false), "demo", "")
 	if got.FailureClass != shared.FailureClassMaturityContract {
 		t.Fatalf("FailureClass = %q, want maturity_contract", got.FailureClass)
 	}
@@ -269,7 +309,7 @@ func TestArchitectureGateFailsBlockersAtHighConfidence(t *testing.T) {
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "")
 
-	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	got := Run(context.Background(), testArchitectureProvider(), "demo", "")
 	if got.Success {
 		t.Fatal("expected high-confidence blocker to fail the architecture phase")
 	}
@@ -319,7 +359,7 @@ func TestArchitectureGateKeepsLowConfidenceBlockersAdvisoryByDefault(t *testing.
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "")
 
-	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	got := Run(context.Background(), testArchitectureProvider(), "demo", "")
 	if !got.Success {
 		t.Fatalf("low-confidence blocker should remain advisory by default: %v", got.Error)
 	}
@@ -337,7 +377,7 @@ func TestArchitectureGateAllFailsLowConfidenceBlockers(t *testing.T) {
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "all")
 
-	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	got := Run(context.Background(), testArchitectureProvider(), "demo", "")
 	if got.Success {
 		t.Fatal("TEST_GENIE_ARCHITECTURE_GATE=all should fail low-confidence blockers")
 	}
@@ -355,7 +395,7 @@ func TestArchitectureGateOffKeepsHighConfidenceBlockersAdvisory(t *testing.T) {
 	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
 	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "off")
 
-	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	got := Run(context.Background(), testArchitectureProvider(), "demo", "")
 	if !got.Success {
 		t.Fatalf("TEST_GENIE_ARCHITECTURE_GATE=off should keep blockers advisory: %v", got.Error)
 	}
@@ -374,7 +414,7 @@ func TestArchitectureGateKeepsIntentFindingsAdvisoryByDefault(t *testing.T) {
 	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "")
 	t.Setenv("INTENT_ALIGNMENT_GATE", "")
 
-	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	got := Run(context.Background(), testArchitectureProvider(), "demo", "")
 	if !got.Success {
 		t.Fatalf("default intent gate should keep deterministic intent findings advisory: %v", got.Error)
 	}
@@ -393,7 +433,7 @@ func TestArchitectureGateStrictIntentFindingsGate(t *testing.T) {
 	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "")
 	t.Setenv("INTENT_ALIGNMENT_GATE", "strict")
 
-	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	got := Run(context.Background(), testArchitectureProvider(), "demo", "")
 	if got.Success {
 		t.Fatal("strict intent gate should fail deterministic intent blockers")
 	}

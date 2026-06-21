@@ -36,7 +36,7 @@ type dependencyScenario struct {
 }
 
 func (h *connectHandler) evaluateRuntime(ctx context.Context, scenario string) (*healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, []*healthv1.DegradedDependency) {
-	manifest, err := loadDependencyManifest(filepath.Join(h.resolveScenariosDir(), scenario, ".vrooli", "service.json"))
+	manifest, err := loadDependencyManifest(filepath.Join(h.scenarioDir(ctx, scenario), ".vrooli", "service.json"))
 	if err != nil {
 		finding := &healthv1.DependencyHealthFinding{
 			Id:           "runtime.manifest.unreadable",

@@ -35,6 +35,15 @@ const (
 const (
 	// ConfigServiceGetConfigProcedure is the fully-qualified name of the ConfigService's GetConfig RPC.
 	ConfigServiceGetConfigProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/GetConfig"
+	// ConfigServiceGetCredentialStatusProcedure is the fully-qualified name of the ConfigService's
+	// GetCredentialStatus RPC.
+	ConfigServiceGetCredentialStatusProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/GetCredentialStatus"
+	// ConfigServiceSetCloudflareCredentialsProcedure is the fully-qualified name of the ConfigService's
+	// SetCloudflareCredentials RPC.
+	ConfigServiceSetCloudflareCredentialsProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/SetCloudflareCredentials"
+	// ConfigServiceClearCloudflareCredentialsProcedure is the fully-qualified name of the
+	// ConfigService's ClearCloudflareCredentials RPC.
+	ConfigServiceClearCloudflareCredentialsProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/ClearCloudflareCredentials"
 	// ConfigServiceSyncProcedure is the fully-qualified name of the ConfigService's Sync RPC.
 	ConfigServiceSyncProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/Sync"
 	// ConfigServiceSwitchModeProcedure is the fully-qualified name of the ConfigService's SwitchMode
@@ -45,6 +54,15 @@ const (
 // ConfigServiceClient is a client for the vrooli.tunnel_manager.v1.config.ConfigService service.
 type ConfigServiceClient interface {
 	GetConfig(context.Context, *connect.Request[config.GetConfigRequest]) (*connect.Response[config.GetConfigResponse], error)
+	// GetCredentialStatus returns Cloudflare credential presence/source metadata.
+	// It never returns credential values.
+	GetCredentialStatus(context.Context, *connect.Request[config.GetCredentialStatusRequest]) (*connect.Response[config.GetCredentialStatusResponse], error)
+	// SetCloudflareCredentials stores write-only Cloudflare credential values in
+	// the configured operator secret store. Secret values are never echoed back.
+	SetCloudflareCredentials(context.Context, *connect.Request[config.SetCloudflareCredentialsRequest]) (*connect.Response[config.SetCloudflareCredentialsResponse], error)
+	// ClearCloudflareCredentials removes one or more file-backed Cloudflare
+	// credential values from the configured operator secret store.
+	ClearCloudflareCredentials(context.Context, *connect.Request[config.ClearCloudflareCredentialsRequest]) (*connect.Response[config.ClearCloudflareCredentialsResponse], error)
 	// Sync reconciles ingress (remote API or local config.yml) with the routes
 	// manifest. Idempotent: a no-drift sync applies nothing.
 	Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error)
@@ -69,6 +87,24 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("GetConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		getCredentialStatus: connect.NewClient[config.GetCredentialStatusRequest, config.GetCredentialStatusResponse](
+			httpClient,
+			baseURL+ConfigServiceGetCredentialStatusProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetCredentialStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		setCloudflareCredentials: connect.NewClient[config.SetCloudflareCredentialsRequest, config.SetCloudflareCredentialsResponse](
+			httpClient,
+			baseURL+ConfigServiceSetCloudflareCredentialsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("SetCloudflareCredentials")),
+			connect.WithClientOptions(opts...),
+		),
+		clearCloudflareCredentials: connect.NewClient[config.ClearCloudflareCredentialsRequest, config.ClearCloudflareCredentialsResponse](
+			httpClient,
+			baseURL+ConfigServiceClearCloudflareCredentialsProcedure,
+			connect.WithSchema(configServiceMethods.ByName("ClearCloudflareCredentials")),
+			connect.WithClientOptions(opts...),
+		),
 		sync: connect.NewClient[config.SyncRequest, config.SyncResponse](
 			httpClient,
 			baseURL+ConfigServiceSyncProcedure,
@@ -86,14 +122,34 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // configServiceClient implements ConfigServiceClient.
 type configServiceClient struct {
-	getConfig  *connect.Client[config.GetConfigRequest, config.GetConfigResponse]
-	sync       *connect.Client[config.SyncRequest, config.SyncResponse]
-	switchMode *connect.Client[config.SwitchModeRequest, config.SwitchModeResponse]
+	getConfig                  *connect.Client[config.GetConfigRequest, config.GetConfigResponse]
+	getCredentialStatus        *connect.Client[config.GetCredentialStatusRequest, config.GetCredentialStatusResponse]
+	setCloudflareCredentials   *connect.Client[config.SetCloudflareCredentialsRequest, config.SetCloudflareCredentialsResponse]
+	clearCloudflareCredentials *connect.Client[config.ClearCloudflareCredentialsRequest, config.ClearCloudflareCredentialsResponse]
+	sync                       *connect.Client[config.SyncRequest, config.SyncResponse]
+	switchMode                 *connect.Client[config.SwitchModeRequest, config.SwitchModeResponse]
 }
 
 // GetConfig calls vrooli.tunnel_manager.v1.config.ConfigService.GetConfig.
 func (c *configServiceClient) GetConfig(ctx context.Context, req *connect.Request[config.GetConfigRequest]) (*connect.Response[config.GetConfigResponse], error) {
 	return c.getConfig.CallUnary(ctx, req)
+}
+
+// GetCredentialStatus calls vrooli.tunnel_manager.v1.config.ConfigService.GetCredentialStatus.
+func (c *configServiceClient) GetCredentialStatus(ctx context.Context, req *connect.Request[config.GetCredentialStatusRequest]) (*connect.Response[config.GetCredentialStatusResponse], error) {
+	return c.getCredentialStatus.CallUnary(ctx, req)
+}
+
+// SetCloudflareCredentials calls
+// vrooli.tunnel_manager.v1.config.ConfigService.SetCloudflareCredentials.
+func (c *configServiceClient) SetCloudflareCredentials(ctx context.Context, req *connect.Request[config.SetCloudflareCredentialsRequest]) (*connect.Response[config.SetCloudflareCredentialsResponse], error) {
+	return c.setCloudflareCredentials.CallUnary(ctx, req)
+}
+
+// ClearCloudflareCredentials calls
+// vrooli.tunnel_manager.v1.config.ConfigService.ClearCloudflareCredentials.
+func (c *configServiceClient) ClearCloudflareCredentials(ctx context.Context, req *connect.Request[config.ClearCloudflareCredentialsRequest]) (*connect.Response[config.ClearCloudflareCredentialsResponse], error) {
+	return c.clearCloudflareCredentials.CallUnary(ctx, req)
 }
 
 // Sync calls vrooli.tunnel_manager.v1.config.ConfigService.Sync.
@@ -110,6 +166,15 @@ func (c *configServiceClient) SwitchMode(ctx context.Context, req *connect.Reque
 // service.
 type ConfigServiceHandler interface {
 	GetConfig(context.Context, *connect.Request[config.GetConfigRequest]) (*connect.Response[config.GetConfigResponse], error)
+	// GetCredentialStatus returns Cloudflare credential presence/source metadata.
+	// It never returns credential values.
+	GetCredentialStatus(context.Context, *connect.Request[config.GetCredentialStatusRequest]) (*connect.Response[config.GetCredentialStatusResponse], error)
+	// SetCloudflareCredentials stores write-only Cloudflare credential values in
+	// the configured operator secret store. Secret values are never echoed back.
+	SetCloudflareCredentials(context.Context, *connect.Request[config.SetCloudflareCredentialsRequest]) (*connect.Response[config.SetCloudflareCredentialsResponse], error)
+	// ClearCloudflareCredentials removes one or more file-backed Cloudflare
+	// credential values from the configured operator secret store.
+	ClearCloudflareCredentials(context.Context, *connect.Request[config.ClearCloudflareCredentialsRequest]) (*connect.Response[config.ClearCloudflareCredentialsResponse], error)
 	// Sync reconciles ingress (remote API or local config.yml) with the routes
 	// manifest. Idempotent: a no-drift sync applies nothing.
 	Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error)
@@ -130,6 +195,24 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("GetConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceGetCredentialStatusHandler := connect.NewUnaryHandler(
+		ConfigServiceGetCredentialStatusProcedure,
+		svc.GetCredentialStatus,
+		connect.WithSchema(configServiceMethods.ByName("GetCredentialStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceSetCloudflareCredentialsHandler := connect.NewUnaryHandler(
+		ConfigServiceSetCloudflareCredentialsProcedure,
+		svc.SetCloudflareCredentials,
+		connect.WithSchema(configServiceMethods.ByName("SetCloudflareCredentials")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceClearCloudflareCredentialsHandler := connect.NewUnaryHandler(
+		ConfigServiceClearCloudflareCredentialsProcedure,
+		svc.ClearCloudflareCredentials,
+		connect.WithSchema(configServiceMethods.ByName("ClearCloudflareCredentials")),
+		connect.WithHandlerOptions(opts...),
+	)
 	configServiceSyncHandler := connect.NewUnaryHandler(
 		ConfigServiceSyncProcedure,
 		svc.Sync,
@@ -146,6 +229,12 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case ConfigServiceGetConfigProcedure:
 			configServiceGetConfigHandler.ServeHTTP(w, r)
+		case ConfigServiceGetCredentialStatusProcedure:
+			configServiceGetCredentialStatusHandler.ServeHTTP(w, r)
+		case ConfigServiceSetCloudflareCredentialsProcedure:
+			configServiceSetCloudflareCredentialsHandler.ServeHTTP(w, r)
+		case ConfigServiceClearCloudflareCredentialsProcedure:
+			configServiceClearCloudflareCredentialsHandler.ServeHTTP(w, r)
 		case ConfigServiceSyncProcedure:
 			configServiceSyncHandler.ServeHTTP(w, r)
 		case ConfigServiceSwitchModeProcedure:
@@ -161,6 +250,18 @@ type UnimplementedConfigServiceHandler struct{}
 
 func (UnimplementedConfigServiceHandler) GetConfig(context.Context, *connect.Request[config.GetConfigRequest]) (*connect.Response[config.GetConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.GetConfig is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetCredentialStatus(context.Context, *connect.Request[config.GetCredentialStatusRequest]) (*connect.Response[config.GetCredentialStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.GetCredentialStatus is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) SetCloudflareCredentials(context.Context, *connect.Request[config.SetCloudflareCredentialsRequest]) (*connect.Response[config.SetCloudflareCredentialsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.SetCloudflareCredentials is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) ClearCloudflareCredentials(context.Context, *connect.Request[config.ClearCloudflareCredentialsRequest]) (*connect.Response[config.ClearCloudflareCredentialsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.ClearCloudflareCredentials is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error) {

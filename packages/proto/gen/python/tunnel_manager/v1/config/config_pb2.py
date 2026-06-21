@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%tunnel-manager/v1/config/config.proto\x12\x1fvrooli.tunnel_manager.v1.config\"\xc5\x01\n\x0cTunnelConfig\x12\x39\n\x04mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12\x1b\n\ttunnel_id\x18\x02 \x01(\tR\x08tunnelId\x12\x1d\n\naccount_id\x18\x03 \x01(\tR\taccountId\x12\x19\n\x08\x63red_ref\x18\x04 \x01(\tR\x07\x63redRef\x12#\n\rprom_endpoint\x18\x05 \x01(\tR\x0cpromEndpoint\"\xed\x02\n\x0f\x43onfigReadiness\x12H\n\x0c\x64\x65sired_mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x0b\x64\x65siredMode\x12)\n\x10remote_available\x18\x02 \x01(\x08R\x0fremoteAvailable\x12%\n\x0emissing_fields\x18\x03 \x03(\tR\rmissingFields\x12+\n\x11\x63redential_source\x18\x04 \x01(\tR\x10\x63redentialSource\x12%\n\x0e\x63redential_ref\x18\x05 \x01(\tR\rcredentialRef\x12*\n\x11local_config_path\x18\x06 \x01(\tR\x0flocalConfigPath\x12\x1d\n\nsync_ready\x18\x07 \x01(\x08R\tsyncReady\x12\x1f\n\x0bmode_reason\x18\x08 \x01(\tR\nmodeReason\"\x12\n\x10GetConfigRequest\"\xaa\x01\n\x11GetConfigResponse\x12\x45\n\x06\x63onfig\x18\x01 \x01(\x0b\x32-.vrooli.tunnel_manager.v1.config.TunnelConfigR\x06\x63onfig\x12N\n\treadiness\x18\x02 \x01(\x0b\x32\x30.vrooli.tunnel_manager.v1.config.ConfigReadinessR\treadiness\"&\n\x0bSyncRequest\x12\x17\n\x07\x64ry_run\x18\x01 \x01(\x08R\x06\x64ryRun\"\x80\x02\n\x0cSyncResponse\x12\x39\n\x04mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12\x14\n\x05\x61\x64\x64\x65\x64\x18\x02 \x03(\tR\x05\x61\x64\x64\x65\x64\x12\x18\n\x07removed\x18\x03 \x03(\tR\x07removed\x12\x1d\n\nno_changes\x18\x04 \x01(\x08R\tnoChanges\x12%\n\x0esetup_required\x18\x05 \x01(\x08R\rsetupRequired\x12%\n\x0emissing_fields\x18\x06 \x03(\tR\rmissingFields\x12\x18\n\x07message\x18\x07 \x01(\tR\x07message\"[\n\x11SwitchModeRequest\x12\x46\n\x0btarget_mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\ntargetMode\"\xaa\x01\n\x12SwitchModeResponse\x12J\n\rprevious_mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x0cpreviousMode\x12H\n\x0c\x63urrent_mode\x18\x02 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x0b\x63urrentMode*=\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0f\n\x0bMODE_REMOTE\x10\x01\x12\x0e\n\nMODE_LOCAL\x10\x02\x32\xdf\x02\n\rConfigService\x12r\n\tGetConfig\x12\x31.vrooli.tunnel_manager.v1.config.GetConfigRequest\x1a\x32.vrooli.tunnel_manager.v1.config.GetConfigResponse\x12\x63\n\x04Sync\x12,.vrooli.tunnel_manager.v1.config.SyncRequest\x1a-.vrooli.tunnel_manager.v1.config.SyncResponse\x12u\n\nSwitchMode\x12\x32.vrooli.tunnel_manager.v1.config.SwitchModeRequest\x1a\x33.vrooli.tunnel_manager.v1.config.SwitchModeResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config;config_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%tunnel-manager/v1/config/config.proto\x12\x1fvrooli.tunnel_manager.v1.config\"\xc5\x01\n\x0cTunnelConfig\x12\x39\n\x04mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12\x1b\n\ttunnel_id\x18\x02 \x01(\tR\x08tunnelId\x12\x1d\n\naccount_id\x18\x03 \x01(\tR\taccountId\x12\x19\n\x08\x63red_ref\x18\x04 \x01(\tR\x07\x63redRef\x12#\n\rprom_endpoint\x18\x05 \x01(\tR\x0cpromEndpoint\"\xd2\x03\n\x0f\x43onfigReadiness\x12H\n\x0c\x64\x65sired_mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x0b\x64\x65siredMode\x12)\n\x10remote_available\x18\x02 \x01(\x08R\x0fremoteAvailable\x12%\n\x0emissing_fields\x18\x03 \x03(\tR\rmissingFields\x12+\n\x11\x63redential_source\x18\x04 \x01(\tR\x10\x63redentialSource\x12%\n\x0e\x63redential_ref\x18\x05 \x01(\tR\rcredentialRef\x12*\n\x11local_config_path\x18\x06 \x01(\tR\x0flocalConfigPath\x12\x1d\n\nsync_ready\x18\x07 \x01(\x08R\tsyncReady\x12\x1f\n\x0bmode_reason\x18\x08 \x01(\tR\nmodeReason\x12\x63\n\x11\x63redential_fields\x18\t \x03(\x0b\x32\x36.vrooli.tunnel_manager.v1.config.CredentialFieldStatusR\x10\x63redentialFields\"\x8b\x01\n\x15\x43redentialFieldStatus\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n\x07present\x18\x02 \x01(\x08R\x07present\x12\x16\n\x06source\x18\x03 \x01(\tR\x06source\x12\x10\n\x03ref\x18\x04 \x01(\tR\x03ref\x12\x1a\n\x08writable\x18\x05 \x01(\x08R\x08writable\"\xc9\x01\n\x10\x43redentialStatus\x12N\n\x06\x66ields\x18\x01 \x03(\x0b\x32\x36.vrooli.tunnel_manager.v1.config.CredentialFieldStatusR\x06\x66ields\x12%\n\x0emissing_fields\x18\x02 \x03(\tR\rmissingFields\x12\x16\n\x06source\x18\x03 \x01(\tR\x06source\x12\x10\n\x03ref\x18\x04 \x01(\tR\x03ref\x12\x14\n\x05ready\x18\x05 \x01(\x08R\x05ready\"\x12\n\x10GetConfigRequest\"\xaa\x01\n\x11GetConfigResponse\x12\x45\n\x06\x63onfig\x18\x01 \x01(\x0b\x32-.vrooli.tunnel_manager.v1.config.TunnelConfigR\x06\x63onfig\x12N\n\treadiness\x18\x02 \x01(\x0b\x32\x30.vrooli.tunnel_manager.v1.config.ConfigReadinessR\treadiness\"\x1c\n\x1aGetCredentialStatusRequest\"h\n\x1bGetCredentialStatusResponse\x12I\n\x06status\x18\x01 \x01(\x0b\x32\x31.vrooli.tunnel_manager.v1.config.CredentialStatusR\x06status\"z\n\x1fSetCloudflareCredentialsRequest\x12\x1d\n\naccount_id\x18\x01 \x01(\tR\taccountId\x12\x1b\n\ttunnel_id\x18\x02 \x01(\tR\x08tunnelId\x12\x1b\n\tapi_token\x18\x03 \x01(\tR\x08\x61piToken\"m\n SetCloudflareCredentialsResponse\x12I\n\x06status\x18\x01 \x01(\x0b\x32\x31.vrooli.tunnel_manager.v1.config.CredentialStatusR\x06status\";\n!ClearCloudflareCredentialsRequest\x12\x16\n\x06\x66ields\x18\x01 \x03(\tR\x06\x66ields\"o\n\"ClearCloudflareCredentialsResponse\x12I\n\x06status\x18\x01 \x01(\x0b\x32\x31.vrooli.tunnel_manager.v1.config.CredentialStatusR\x06status\"&\n\x0bSyncRequest\x12\x17\n\x07\x64ry_run\x18\x01 \x01(\x08R\x06\x64ryRun\"\x80\x02\n\x0cSyncResponse\x12\x39\n\x04mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12\x14\n\x05\x61\x64\x64\x65\x64\x18\x02 \x03(\tR\x05\x61\x64\x64\x65\x64\x12\x18\n\x07removed\x18\x03 \x03(\tR\x07removed\x12\x1d\n\nno_changes\x18\x04 \x01(\x08R\tnoChanges\x12%\n\x0esetup_required\x18\x05 \x01(\x08R\rsetupRequired\x12%\n\x0emissing_fields\x18\x06 \x03(\tR\rmissingFields\x12\x18\n\x07message\x18\x07 \x01(\tR\x07message\"[\n\x11SwitchModeRequest\x12\x46\n\x0btarget_mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\ntargetMode\"\xaa\x01\n\x12SwitchModeResponse\x12J\n\rprevious_mode\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x0cpreviousMode\x12H\n\x0c\x63urrent_mode\x18\x02 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.config.ModeR\x0b\x63urrentMode*=\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0f\n\x0bMODE_REMOTE\x10\x01\x12\x0e\n\nMODE_LOCAL\x10\x02\x32\xbc\x06\n\rConfigService\x12r\n\tGetConfig\x12\x31.vrooli.tunnel_manager.v1.config.GetConfigRequest\x1a\x32.vrooli.tunnel_manager.v1.config.GetConfigResponse\x12\x90\x01\n\x13GetCredentialStatus\x12;.vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest\x1a<.vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse\x12\x9f\x01\n\x18SetCloudflareCredentials\x12@.vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest\x1a\x41.vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse\x12\xa5\x01\n\x1a\x43learCloudflareCredentials\x12\x42.vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest\x1a\x43.vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse\x12\x63\n\x04Sync\x12,.vrooli.tunnel_manager.v1.config.SyncRequest\x1a-.vrooli.tunnel_manager.v1.config.SyncResponse\x12u\n\nSwitchMode\x12\x32.vrooli.tunnel_manager.v1.config.SwitchModeRequest\x1a\x33.vrooli.tunnel_manager.v1.config.SwitchModeResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config;config_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,24 +32,40 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'tunnel_manager.v1.config.co
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config;config_v1'
-  _globals['_MODE']._serialized_start=1400
-  _globals['_MODE']._serialized_end=1461
+  _globals['_MODE']._serialized_start=2392
+  _globals['_MODE']._serialized_end=2453
   _globals['_TUNNELCONFIG']._serialized_start=75
   _globals['_TUNNELCONFIG']._serialized_end=272
   _globals['_CONFIGREADINESS']._serialized_start=275
-  _globals['_CONFIGREADINESS']._serialized_end=640
-  _globals['_GETCONFIGREQUEST']._serialized_start=642
-  _globals['_GETCONFIGREQUEST']._serialized_end=660
-  _globals['_GETCONFIGRESPONSE']._serialized_start=663
-  _globals['_GETCONFIGRESPONSE']._serialized_end=833
-  _globals['_SYNCREQUEST']._serialized_start=835
-  _globals['_SYNCREQUEST']._serialized_end=873
-  _globals['_SYNCRESPONSE']._serialized_start=876
-  _globals['_SYNCRESPONSE']._serialized_end=1132
-  _globals['_SWITCHMODEREQUEST']._serialized_start=1134
-  _globals['_SWITCHMODEREQUEST']._serialized_end=1225
-  _globals['_SWITCHMODERESPONSE']._serialized_start=1228
-  _globals['_SWITCHMODERESPONSE']._serialized_end=1398
-  _globals['_CONFIGSERVICE']._serialized_start=1464
-  _globals['_CONFIGSERVICE']._serialized_end=1815
+  _globals['_CONFIGREADINESS']._serialized_end=741
+  _globals['_CREDENTIALFIELDSTATUS']._serialized_start=744
+  _globals['_CREDENTIALFIELDSTATUS']._serialized_end=883
+  _globals['_CREDENTIALSTATUS']._serialized_start=886
+  _globals['_CREDENTIALSTATUS']._serialized_end=1087
+  _globals['_GETCONFIGREQUEST']._serialized_start=1089
+  _globals['_GETCONFIGREQUEST']._serialized_end=1107
+  _globals['_GETCONFIGRESPONSE']._serialized_start=1110
+  _globals['_GETCONFIGRESPONSE']._serialized_end=1280
+  _globals['_GETCREDENTIALSTATUSREQUEST']._serialized_start=1282
+  _globals['_GETCREDENTIALSTATUSREQUEST']._serialized_end=1310
+  _globals['_GETCREDENTIALSTATUSRESPONSE']._serialized_start=1312
+  _globals['_GETCREDENTIALSTATUSRESPONSE']._serialized_end=1416
+  _globals['_SETCLOUDFLARECREDENTIALSREQUEST']._serialized_start=1418
+  _globals['_SETCLOUDFLARECREDENTIALSREQUEST']._serialized_end=1540
+  _globals['_SETCLOUDFLARECREDENTIALSRESPONSE']._serialized_start=1542
+  _globals['_SETCLOUDFLARECREDENTIALSRESPONSE']._serialized_end=1651
+  _globals['_CLEARCLOUDFLARECREDENTIALSREQUEST']._serialized_start=1653
+  _globals['_CLEARCLOUDFLARECREDENTIALSREQUEST']._serialized_end=1712
+  _globals['_CLEARCLOUDFLARECREDENTIALSRESPONSE']._serialized_start=1714
+  _globals['_CLEARCLOUDFLARECREDENTIALSRESPONSE']._serialized_end=1825
+  _globals['_SYNCREQUEST']._serialized_start=1827
+  _globals['_SYNCREQUEST']._serialized_end=1865
+  _globals['_SYNCRESPONSE']._serialized_start=1868
+  _globals['_SYNCRESPONSE']._serialized_end=2124
+  _globals['_SWITCHMODEREQUEST']._serialized_start=2126
+  _globals['_SWITCHMODEREQUEST']._serialized_end=2217
+  _globals['_SWITCHMODERESPONSE']._serialized_start=2220
+  _globals['_SWITCHMODERESPONSE']._serialized_end=2390
+  _globals['_CONFIGSERVICE']._serialized_start=2456
+  _globals['_CONFIGSERVICE']._serialized_end=3284
 # @@protoc_insertion_point(module_scope)

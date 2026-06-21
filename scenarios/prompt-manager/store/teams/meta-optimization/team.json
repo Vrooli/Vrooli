@@ -71,6 +71,11 @@
       "purpose": "Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities."
     },
     {
+      "prefix": "self-health/test-genie/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`."
+    },
+    {
       "prefix": "run-lesson-report/YYYY-MM-DD",
       "status": "live",
       "purpose": "Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions."
@@ -553,6 +558,11 @@
         "retention": "append-only"
       },
       "toolchain-audit/YYYY-MM-DD": {
+        "ownerMemberId": "toolchain-validator",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
+      "self-health/test-genie/YYYY-MM-DD": {
         "ownerMemberId": "toolchain-validator",
         "supersedesPrevious": true,
         "retention": "snapshot"

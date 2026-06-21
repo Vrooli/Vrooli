@@ -10,7 +10,7 @@ import (
 )
 
 func (h *connectHandler) evaluateReadiness(ctx context.Context, scenario string, useCache bool) ([]*healthv1.DependencyHealthSurface, *healthv1.DependencyHealthSection, *healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, []*healthv1.DependencyHealthCommandResult, []*healthv1.DegradedDependency) {
-	scenarioDir := filepath.Join(h.resolveScenariosDir(), scenario)
+	scenarioDir := h.scenarioDir(ctx, scenario)
 	repoRoot := filepath.Dir(h.resolveScenariosDir())
 	discoverer := h.surfaceDiscoverer
 	if discoverer == nil {

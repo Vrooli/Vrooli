@@ -55,6 +55,39 @@ func (f *fakeIngress) PushIngress(_ context.Context, r []config.IngressRule) err
 	return nil
 }
 
+type fakeCredentialStore struct {
+	cfg        config.CFConfig
+	status     config.CredentialStatus
+	resolveN   int
+	statusN    int
+	saveIn     config.CredentialUpdate
+	saveN      int
+	deleteIn   []string
+	deleteN    int
+}
+
+func (f *fakeCredentialStore) Status(context.Context) (config.CredentialStatus, error) {
+	f.statusN++
+	return f.status, nil
+}
+
+func (f *fakeCredentialStore) Resolve(context.Context) (config.CFConfig, error) {
+	f.resolveN++
+	return f.cfg, nil
+}
+
+func (f *fakeCredentialStore) Save(_ context.Context, values config.CredentialUpdate) (config.CredentialStatus, error) {
+	f.saveN++
+	f.saveIn = values
+	return f.status, nil
+}
+
+func (f *fakeCredentialStore) Delete(_ context.Context, keys []string) (config.CredentialStatus, error) {
+	f.deleteN++
+	f.deleteIn = keys
+	return f.status, nil
+}
+
 func route(sub string, port int, enabled bool) internalroutes.Route {
 	return internalroutes.Route{
 		Subdomain: sub, Scenario: sub, Domain: internalroutes.DefaultDomain,
@@ -232,6 +265,58 @@ func TestSwitchMode_UnknownTargetInvalid(t *testing.T) {
 	var invalid config.ErrInvalidConfig
 	require.ErrorAs(t, err, &invalid)
 	require.Equal(t, "target_mode", invalid.Field)
+}
+
+func TestSync_RemoteReresolvesCredentialsBeforeLiveRead(t *testing.T) {
+	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
+	routes := &fakeRoutes{routes: []internalroutes.Route{route("agent-manager", 21100, true)}}
+	store := &fakeCredentialStore{
+		cfg: config.CFConfig{AccountID: "acct", TunnelID: "tun", APIToken: "tok"},
+		status: config.CredentialStatus{
+			Ready:  true,
+			Source: "file:scenario",
+			Fields: []config.CredentialFieldStatus{
+				{Name: "CLOUDFLARE_ACCOUNT_ID", Present: true, Source: "file:scenario", Writable: true},
+				{Name: "CLOUDFLARE_TUNNEL_ID", Present: true, Source: "file:scenario", Writable: true},
+				{Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "file:scenario", Ref: "file:scenario:cloudflare.api_token", Writable: true},
+			},
+		},
+	}
+	ingress := &fakeIngress{live: []config.IngressRule{{Service: "http_status:404"}}}
+	svc := config.NewService(config.Deps{
+		Repo:            repo,
+		Routes:          routes,
+		Ingress:         ingress,
+		CredentialStore: store,
+		Runner:          (&mocks.FakeCmdRunner{}).Run,
+		Clock:           mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)),
+	})
+
+	_, err := svc.Sync(context.Background(), true)
+	require.NoError(t, err)
+	require.Equal(t, 2, store.resolveN, "dry-run checks remote availability then reads live ingress through the current credential store")
+}
+
+func TestCredentialMutationsDelegateToStore(t *testing.T) {
+	store := &fakeCredentialStore{status: config.CredentialStatus{Ready: true, Source: "file:scenario"}}
+	svc := config.NewService(config.Deps{
+		Repo:            &fakeRepo{},
+		Routes:          &fakeRoutes{},
+		CredentialStore: store,
+	})
+
+	status, err := svc.SetCloudflareCredentials(context.Background(), config.CredentialUpdate{
+		AccountID: "acct", TunnelID: "tun", APIToken: "tok",
+	})
+	require.NoError(t, err)
+	require.True(t, status.Ready)
+	require.Equal(t, config.CredentialUpdate{AccountID: "acct", TunnelID: "tun", APIToken: "tok"}, store.saveIn)
+	require.Equal(t, 1, store.saveN)
+
+	_, err = svc.ClearCloudflareCredentials(context.Background(), []string{"api_token"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"api_token"}, store.deleteIn)
+	require.Equal(t, 1, store.deleteN)
 }
 
 // --- GetConfig -------------------------------------------------------------

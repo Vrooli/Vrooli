@@ -662,8 +662,16 @@ type ScoreRow struct {
 	Priority       float64                `protobuf:"fixed64,7,opt,name=priority,proto3" json:"priority,omitempty"`
 	CalculatedAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=calculated_at,json=calculatedAt,proto3" json:"calculated_at,omitempty"`
 	Digest         string                 `protobuf:"bytes,9,opt,name=digest,proto3" json:"digest,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// last_run_at / last_status are scenario-level test recency: the newest test
+	// run recorded in the scenario's run index (regardless of phase or digest),
+	// and that run's overall status. Empty/unset when no run is recorded or the
+	// persisted row predates recency capture (re-score or `--recompute` fills it).
+	// This is the keystone fleet signal: importance + staleness + last status in
+	// one query, enabling priority-weighted fleet scheduling without a fleet run.
+	LastRunAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_run_at,json=lastRunAt,proto3" json:"last_run_at,omitempty"`
+	LastStatus    string                 `protobuf:"bytes,11,opt,name=last_status,json=lastStatus,proto3" json:"last_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ScoreRow) Reset() {
@@ -755,6 +763,20 @@ func (x *ScoreRow) GetCalculatedAt() *timestamppb.Timestamp {
 func (x *ScoreRow) GetDigest() string {
 	if x != nil {
 		return x.Digest
+	}
+	return ""
+}
+
+func (x *ScoreRow) GetLastRunAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastRunAt
+	}
+	return nil
+}
+
+func (x *ScoreRow) GetLastStatus() string {
+	if x != nil {
+		return x.LastStatus
 	}
 	return ""
 }
@@ -1948,7 +1970,7 @@ const file_scenario_completeness_scoring_v1_scoring_scoring_proto_rawDesc = "" +
 	"_max_score\"\x8f\x01\n" +
 	"\x12ListScoresResponse\x12Q\n" +
 	"\x06scores\x18\x01 \x03(\v29.vrooli.scenario_completeness_scoring.v1.scoring.ScoreRowR\x06scores\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb8\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x95\x03\n" +
 	"\bScoreRow\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x14\n" +
@@ -1960,7 +1982,11 @@ const file_scenario_completeness_scoring_v1_scoring_scoring_proto_rawDesc = "" +
 	"importance\x12\x1a\n" +
 	"\bpriority\x18\a \x01(\x01R\bpriority\x12?\n" +
 	"\rcalculated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\fcalculatedAt\x12\x16\n" +
-	"\x06digest\x18\t \x01(\tR\x06digest\"\x8f\x03\n" +
+	"\x06digest\x18\t \x01(\tR\x06digest\x12:\n" +
+	"\vlast_run_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tlastRunAt\x12\x1f\n" +
+	"\vlast_status\x18\v \x01(\tR\n" +
+	"lastStatus\"\x8f\x03\n" +
 	"\rScoreSnapshot\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x16\n" +
@@ -2134,25 +2160,26 @@ var file_scenario_completeness_scoring_v1_scoring_scoring_proto_depIdxs = []int3
 	1,  // 13: vrooli.scenario_completeness_scoring.v1.scoring.ListScoresRequest.order:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.SortOrder
 	9,  // 14: vrooli.scenario_completeness_scoring.v1.scoring.ListScoresResponse.scores:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.ScoreRow
 	24, // 15: vrooli.scenario_completeness_scoring.v1.scoring.ScoreRow.calculated_at:type_name -> google.protobuf.Timestamp
-	24, // 16: vrooli.scenario_completeness_scoring.v1.scoring.ScoreSnapshot.calculated_at:type_name -> google.protobuf.Timestamp
-	12, // 17: vrooli.scenario_completeness_scoring.v1.scoring.MaturityHeadline.dimensions:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.DimensionCount
-	14, // 18: vrooli.scenario_completeness_scoring.v1.scoring.CompositeScore.groups:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.ScoreGroup
-	15, // 19: vrooli.scenario_completeness_scoring.v1.scoring.ScoreGroup.metrics:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.MetricLine
-	17, // 20: vrooli.scenario_completeness_scoring.v1.scoring.FreshnessBlock.phases:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.PhaseFreshness
-	24, // 21: vrooli.scenario_completeness_scoring.v1.scoring.PhaseFreshness.last_run_at:type_name -> google.protobuf.Timestamp
-	22, // 22: vrooli.scenario_completeness_scoring.v1.scoring.ImportanceSummary.components:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.ImportanceComponents
-	23, // 23: vrooli.scenario_completeness_scoring.v1.scoring.ImportanceSummary.signals:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.ImportanceSignals
-	2,  // 24: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScore:input_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreRequest
-	5,  // 25: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScoreTrend:input_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreTrendRequest
-	7,  // 26: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.ListScores:input_type -> vrooli.scenario_completeness_scoring.v1.scoring.ListScoresRequest
-	3,  // 27: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScore:output_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreResponse
-	6,  // 28: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScoreTrend:output_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreTrendResponse
-	8,  // 29: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.ListScores:output_type -> vrooli.scenario_completeness_scoring.v1.scoring.ListScoresResponse
-	27, // [27:30] is the sub-list for method output_type
-	24, // [24:27] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	24, // 16: vrooli.scenario_completeness_scoring.v1.scoring.ScoreRow.last_run_at:type_name -> google.protobuf.Timestamp
+	24, // 17: vrooli.scenario_completeness_scoring.v1.scoring.ScoreSnapshot.calculated_at:type_name -> google.protobuf.Timestamp
+	12, // 18: vrooli.scenario_completeness_scoring.v1.scoring.MaturityHeadline.dimensions:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.DimensionCount
+	14, // 19: vrooli.scenario_completeness_scoring.v1.scoring.CompositeScore.groups:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.ScoreGroup
+	15, // 20: vrooli.scenario_completeness_scoring.v1.scoring.ScoreGroup.metrics:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.MetricLine
+	17, // 21: vrooli.scenario_completeness_scoring.v1.scoring.FreshnessBlock.phases:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.PhaseFreshness
+	24, // 22: vrooli.scenario_completeness_scoring.v1.scoring.PhaseFreshness.last_run_at:type_name -> google.protobuf.Timestamp
+	22, // 23: vrooli.scenario_completeness_scoring.v1.scoring.ImportanceSummary.components:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.ImportanceComponents
+	23, // 24: vrooli.scenario_completeness_scoring.v1.scoring.ImportanceSummary.signals:type_name -> vrooli.scenario_completeness_scoring.v1.scoring.ImportanceSignals
+	2,  // 25: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScore:input_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreRequest
+	5,  // 26: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScoreTrend:input_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreTrendRequest
+	7,  // 27: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.ListScores:input_type -> vrooli.scenario_completeness_scoring.v1.scoring.ListScoresRequest
+	3,  // 28: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScore:output_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreResponse
+	6,  // 29: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.GetScoreTrend:output_type -> vrooli.scenario_completeness_scoring.v1.scoring.GetScoreTrendResponse
+	8,  // 30: vrooli.scenario_completeness_scoring.v1.scoring.ScoreService.ListScores:output_type -> vrooli.scenario_completeness_scoring.v1.scoring.ListScoresResponse
+	28, // [28:31] is the sub-list for method output_type
+	25, // [25:28] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_scenario_completeness_scoring_v1_scoring_scoring_proto_init() }

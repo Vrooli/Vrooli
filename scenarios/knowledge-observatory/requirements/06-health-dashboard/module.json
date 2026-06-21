@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Interactive UI dashboard for visualizing knowledge system health and exploring semantic relationships",
-    "last_validated_at": "2026-06-16T11:08:17-04:00"
+    "last_validated_at": "2026-06-20T18:52:01-04:00"
   },
   "requirements": [
     {

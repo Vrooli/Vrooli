@@ -29,15 +29,29 @@ type ScanArgs struct {
 // ProviderReport is one provider's adoption scorecard. The snake_case JSON shape
 // is the stable CLI contract; it is mapped from the shared selfhealth core.
 type ProviderReport struct {
-	Provider       string   `json:"provider"`
-	Phase          string   `json:"phase"`
-	Reachable      bool     `json:"reachable"`
-	ContractValid  bool     `json:"contract_valid"`
-	IdentityOK     bool     `json:"identity_ok"`
-	SpecValid      bool     `json:"spec_valid"`
-	MetricsAdopted bool     `json:"metrics_adopted"`
-	AdoptionScore  float64  `json:"adoption_score"`
-	Violations     []string `json:"violations,omitempty"`
+	Provider       string        `json:"provider"`
+	Phase          string        `json:"phase"`
+	Reachable      bool          `json:"reachable"`
+	ContractValid  bool          `json:"contract_valid"`
+	IdentityOK     bool          `json:"identity_ok"`
+	SpecValid      bool          `json:"spec_valid"`
+	MetricsAdopted bool          `json:"metrics_adopted"`
+	AdoptionScore  float64       `json:"adoption_score"`
+	Autofix        AutofixReport `json:"autofix"`
+	Violations     []string      `json:"violations,omitempty"`
+}
+
+// AutofixReport is the per-provider autofix declaration rollup (advisory). The
+// headline is `pending` — the actionable fixer backlog.
+type AutofixReport struct {
+	Total               int     `json:"total"`
+	FixableUniverse     int     `json:"fixable_universe"`
+	Implemented         int     `json:"implemented"`
+	Pending             int     `json:"pending"`
+	Manual              int     `json:"manual"`
+	Declared            int     `json:"declared"`
+	DeclarationComplete bool    `json:"declaration_complete"`
+	ImplementationRate  float64 `json:"implementation_rate"`
 }
 
 // ScanReport is the fleet-wide conformance report.
@@ -120,7 +134,17 @@ func Scan(ctx context.Context, args ScanArgs) ScanReport {
 			SpecValid:      pr.SpecValid,
 			MetricsAdopted: pr.MetricsAdopted,
 			AdoptionScore:  pr.AdoptionScore,
-			Violations:     pr.Violations,
+			Autofix: AutofixReport{
+				Total:               pr.Autofix.Total,
+				FixableUniverse:     pr.Autofix.FixableUniverse,
+				Implemented:         pr.Autofix.Implemented,
+				Pending:             pr.Autofix.Pending,
+				Manual:              pr.Autofix.Manual,
+				Declared:            pr.Autofix.Declared,
+				DeclarationComplete: pr.Autofix.DeclarationComplete,
+				ImplementationRate:  pr.Autofix.ImplementationRate(),
+			},
+			Violations: pr.Violations,
 		})
 	}
 	return out
@@ -132,6 +156,9 @@ func printScanReport(report ScanReport) {
 		fmt.Printf("  %-14s → %-28s adoption=%.0f%% reach=%s contract=%s identity=%s spec=%s metrics=%s\n",
 			pr.Phase, pr.Provider, pr.AdoptionScore*100,
 			yesno(pr.Reachable), yesno(pr.ContractValid), yesno(pr.IdentityOK), yesno(pr.SpecValid), yesno(pr.MetricsAdopted))
+		fmt.Printf("      autofix: implemented=%d pending=%d manual=%d declared=%d/%d complete=%s\n",
+			pr.Autofix.Implemented, pr.Autofix.Pending, pr.Autofix.Manual,
+			pr.Autofix.Declared, pr.Autofix.Total, yesno(pr.Autofix.DeclarationComplete))
 		for _, v := range pr.Violations {
 			fmt.Printf("      - %s\n", v)
 		}

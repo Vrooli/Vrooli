@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui coverage-model-lifecycle headless-ai-e2e gpu-e2e check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui coverage-model-lifecycle model-install-e2e headless-ai-e2e gpu-e2e check setup open orient temporal-models endpoints
 
 .DEFAULT_GOAL := help
 
@@ -31,6 +31,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make test                       Run scenario tests\n"
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
 	@printf "  make coverage-model-lifecycle   Check model lifecycle package coverage floors\n"
+	@printf "  make model-install-e2e          Attended install loop for enabled model weights\n"
 	@printf "  make headless-ai-e2e            Run no-download AI/analyze CLI E2E checks\n"
 	@printf "  make gpu-e2e                    Attended GPU text-to-image E2E when provisioned\n"
 	@printf "  make open                       Open the scenario in a browser\n"
@@ -130,6 +131,31 @@ coverage-model-lifecycle: ## Check model lifecycle package coverage floors
 		awk -v p="$$pct" -v t="$$threshold" 'BEGIN { exit (p+0 >= t+0) ? 0 : 1 }' \
 			|| { printf "coverage gate failed: %s %s%% < %s%%\n" "$$pkg" "$$pct" "$$threshold"; exit 1; }; \
 	done
+
+model-install-e2e: ## Attended install loop for enabled model weights
+	@set -eu; \
+	if ! command -v jq >/dev/null 2>&1; then \
+		printf "SKIP model-install-e2e: jq is required to inspect catalog JSON.\n"; \
+		exit 0; \
+	fi; \
+	if [ "$${IMAGE_TOOLS_ALLOW_MODEL_DOWNLOADS:-}" != "1" ]; then \
+		printf "SKIP model-install-e2e: set IMAGE_TOOLS_ALLOW_MODEL_DOWNLOADS=1 to allow governed model downloads.\n"; \
+		exit 0; \
+	fi; \
+	image-tools models doctor --json | jq -e '.ok == true' >/dev/null; \
+	wait_timeout="$${IMAGE_TOOLS_INSTALL_WAIT_TIMEOUT:-30m}"; \
+	ids=$$(image-tools models list --json | jq -r '.models[] | select(.enabled == true) | select((.size_mb_approx // 0) > 0) | .id'); \
+	count=$$(printf "%s\n" "$$ids" | sed '/^$$/d' | wc -l | tr -d ' '); \
+	if [ "$$count" = "0" ]; then \
+		printf "Model install E2E passed: no enabled weight-backed models require install.\n"; \
+		exit 0; \
+	fi; \
+	printf "Model install E2E starting for %s enabled weight-backed model(s).\n" "$$count"; \
+	for id in $$ids; do \
+		printf "Installing/verifying model %s\n" "$$id"; \
+		IMAGE_TOOLS_HTTP_TIMEOUT="$$wait_timeout" image-tools models install "$$id" --wait; \
+	done; \
+	printf "Model install E2E passed for %s enabled weight-backed model(s).\n" "$$count"
 
 headless-ai-e2e: ## Run no-download AI/analyze CLI E2E checks
 	@set -eu; \

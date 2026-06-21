@@ -65,6 +65,9 @@ const (
 	// RunsServiceGetSelfHealthProcedure is the fully-qualified name of the RunsService's GetSelfHealth
 	// RPC.
 	RunsServiceGetSelfHealthProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetSelfHealth"
+	// RunsServiceGetFleetHealthProcedure is the fully-qualified name of the RunsService's
+	// GetFleetHealth RPC.
+	RunsServiceGetFleetHealthProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetFleetHealth"
 	// RunsServiceStartRunProcedure is the fully-qualified name of the RunsService's StartRun RPC.
 	RunsServiceStartRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/StartRun"
 	// RunsServiceFollowRunProcedure is the fully-qualified name of the RunsService's FollowRun RPC.
@@ -139,6 +142,16 @@ type RunsServiceClient interface {
 	// Read-only; compute-on-read (no persisted rollups). Consumed by the
 	// `test-genie health` CLI verb and the meta-optimization heartbeat.
 	GetSelfHealth(context.Context, *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error)
+	// GetFleetHealth aggregates STORED runs across the whole fleet into a
+	// fleet-wide health snapshot: importance/staleness-aware per-scenario rollups
+	// (runs, availability, failure rate, issue count, last-run age + outcome),
+	// a most-errored ranking, finding-source clustering, and — when a roster is
+	// requested — explicit never-tested-in-window coverage gaps. It is
+	// compute-on-read over runs that ALREADY executed (the default-OFF background
+	// fleet scheduler keeps them fresh); it does NOT launch a fleet run. Every
+	// datum is as-of stamped so stale data can never read as fresh. Read-only;
+	// consumed by the `test-genie fleet status` CLI verb and meta-optimization.
+	GetFleetHealth(context.Context, *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error)
 	// StartRun starts a suite run under a server-lifetime context and returns its
 	// run id synchronously (before the suite executes). The run survives client
 	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
@@ -246,6 +259,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("GetSelfHealth")),
 			connect.WithClientOptions(opts...),
 		),
+		getFleetHealth: connect.NewClient[runs.GetFleetHealthRequest, runs.GetFleetHealthResponse](
+			httpClient,
+			baseURL+RunsServiceGetFleetHealthProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("GetFleetHealth")),
+			connect.WithClientOptions(opts...),
+		),
 		startRun: connect.NewClient[runs.StartRunRequest, runs.StartRunResponse](
 			httpClient,
 			baseURL+RunsServiceStartRunProcedure,
@@ -294,6 +313,7 @@ type runsServiceClient struct {
 	findRun           *connect.Client[runs.FindRunRequest, runs.FindRunResponse]
 	checkFreshness    *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
 	getSelfHealth     *connect.Client[runs.GetSelfHealthRequest, runs.GetSelfHealthResponse]
+	getFleetHealth    *connect.Client[runs.GetFleetHealthRequest, runs.GetFleetHealthResponse]
 	startRun          *connect.Client[runs.StartRunRequest, runs.StartRunResponse]
 	followRun         *connect.Client[runs.FollowRunRequest, runs.RunEvent]
 	waitRun           *connect.Client[runs.WaitRunRequest, runs.WaitRunResponse]
@@ -364,6 +384,11 @@ func (c *runsServiceClient) CheckFreshness(ctx context.Context, req *connect.Req
 // GetSelfHealth calls vrooli.test_genie.v1.runs.RunsService.GetSelfHealth.
 func (c *runsServiceClient) GetSelfHealth(ctx context.Context, req *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error) {
 	return c.getSelfHealth.CallUnary(ctx, req)
+}
+
+// GetFleetHealth calls vrooli.test_genie.v1.runs.RunsService.GetFleetHealth.
+func (c *runsServiceClient) GetFleetHealth(ctx context.Context, req *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error) {
+	return c.getFleetHealth.CallUnary(ctx, req)
 }
 
 // StartRun calls vrooli.test_genie.v1.runs.RunsService.StartRun.
@@ -452,6 +477,16 @@ type RunsServiceHandler interface {
 	// Read-only; compute-on-read (no persisted rollups). Consumed by the
 	// `test-genie health` CLI verb and the meta-optimization heartbeat.
 	GetSelfHealth(context.Context, *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error)
+	// GetFleetHealth aggregates STORED runs across the whole fleet into a
+	// fleet-wide health snapshot: importance/staleness-aware per-scenario rollups
+	// (runs, availability, failure rate, issue count, last-run age + outcome),
+	// a most-errored ranking, finding-source clustering, and — when a roster is
+	// requested — explicit never-tested-in-window coverage gaps. It is
+	// compute-on-read over runs that ALREADY executed (the default-OFF background
+	// fleet scheduler keeps them fresh); it does NOT launch a fleet run. Every
+	// datum is as-of stamped so stale data can never read as fresh. Read-only;
+	// consumed by the `test-genie fleet status` CLI verb and meta-optimization.
+	GetFleetHealth(context.Context, *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error)
 	// StartRun starts a suite run under a server-lifetime context and returns its
 	// run id synchronously (before the suite executes). The run survives client
 	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
@@ -555,6 +590,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("GetSelfHealth")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceGetFleetHealthHandler := connect.NewUnaryHandler(
+		RunsServiceGetFleetHealthProcedure,
+		svc.GetFleetHealth,
+		connect.WithSchema(runsServiceMethods.ByName("GetFleetHealth")),
+		connect.WithHandlerOptions(opts...),
+	)
 	runsServiceStartRunHandler := connect.NewUnaryHandler(
 		RunsServiceStartRunProcedure,
 		svc.StartRun,
@@ -613,6 +654,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceCheckFreshnessHandler.ServeHTTP(w, r)
 		case RunsServiceGetSelfHealthProcedure:
 			runsServiceGetSelfHealthHandler.ServeHTTP(w, r)
+		case RunsServiceGetFleetHealthProcedure:
+			runsServiceGetFleetHealthHandler.ServeHTTP(w, r)
 		case RunsServiceStartRunProcedure:
 			runsServiceStartRunHandler.ServeHTTP(w, r)
 		case RunsServiceFollowRunProcedure:
@@ -682,6 +725,10 @@ func (UnimplementedRunsServiceHandler) CheckFreshness(context.Context, *connect.
 
 func (UnimplementedRunsServiceHandler) GetSelfHealth(context.Context, *connect.Request[runs.GetSelfHealthRequest]) (*connect.Response[runs.GetSelfHealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetSelfHealth is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) GetFleetHealth(context.Context, *connect.Request[runs.GetFleetHealthRequest]) (*connect.Response[runs.GetFleetHealthResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetFleetHealth is not implemented"))
 }
 
 func (UnimplementedRunsServiceHandler) StartRun(context.Context, *connect.Request[runs.StartRunRequest]) (*connect.Response[runs.StartRunResponse], error) {

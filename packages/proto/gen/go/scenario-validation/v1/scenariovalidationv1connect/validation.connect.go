@@ -37,12 +37,27 @@ const (
 	// ScenarioValidationServiceValidateScenarioProcedure is the fully-qualified name of the
 	// ScenarioValidationService's ValidateScenario RPC.
 	ScenarioValidationServiceValidateScenarioProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario"
+	// ScenarioValidationServicePreviewFixProcedure is the fully-qualified name of the
+	// ScenarioValidationService's PreviewFix RPC.
+	ScenarioValidationServicePreviewFixProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix"
+	// ScenarioValidationServiceApplyFixProcedure is the fully-qualified name of the
+	// ScenarioValidationService's ApplyFix RPC.
+	ScenarioValidationServiceApplyFixProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix"
 )
 
 // ScenarioValidationServiceClient is a client for the
 // vrooli.scenario_validation.v1.ScenarioValidationService service.
 type ScenarioValidationServiceClient interface {
 	ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error)
+	// PreviewFix reports the deterministic remediations the provider could apply
+	// for the requested scenario without writing anything (dry-run). Providers
+	// that ship no fixers leave this unimplemented; consumers treat an
+	// Unimplemented response as "no deterministic fixer" and skip the provider.
+	PreviewFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error)
+	// ApplyFix applies the provider's deterministic remediations and reports what
+	// changed. Apply is never implicit: callers reach this RPC only when the user
+	// explicitly opts into writing (e.g. `--apply`).
+	ApplyFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error)
 }
 
 // NewScenarioValidationServiceClient constructs a client for the
@@ -63,12 +78,26 @@ func NewScenarioValidationServiceClient(httpClient connect.HTTPClient, baseURL s
 			connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateScenario")),
 			connect.WithClientOptions(opts...),
 		),
+		previewFix: connect.NewClient[v1.FixRequest, v1.FixResponse](
+			httpClient,
+			baseURL+ScenarioValidationServicePreviewFixProcedure,
+			connect.WithSchema(scenarioValidationServiceMethods.ByName("PreviewFix")),
+			connect.WithClientOptions(opts...),
+		),
+		applyFix: connect.NewClient[v1.FixRequest, v1.FixResponse](
+			httpClient,
+			baseURL+ScenarioValidationServiceApplyFixProcedure,
+			connect.WithSchema(scenarioValidationServiceMethods.ByName("ApplyFix")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // scenarioValidationServiceClient implements ScenarioValidationServiceClient.
 type scenarioValidationServiceClient struct {
 	validateScenario *connect.Client[v1.ValidateScenarioRequest, v1.ValidateScenarioResponse]
+	previewFix       *connect.Client[v1.FixRequest, v1.FixResponse]
+	applyFix         *connect.Client[v1.FixRequest, v1.FixResponse]
 }
 
 // ValidateScenario calls vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario.
@@ -76,10 +105,29 @@ func (c *scenarioValidationServiceClient) ValidateScenario(ctx context.Context, 
 	return c.validateScenario.CallUnary(ctx, req)
 }
 
+// PreviewFix calls vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix.
+func (c *scenarioValidationServiceClient) PreviewFix(ctx context.Context, req *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error) {
+	return c.previewFix.CallUnary(ctx, req)
+}
+
+// ApplyFix calls vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix.
+func (c *scenarioValidationServiceClient) ApplyFix(ctx context.Context, req *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error) {
+	return c.applyFix.CallUnary(ctx, req)
+}
+
 // ScenarioValidationServiceHandler is an implementation of the
 // vrooli.scenario_validation.v1.ScenarioValidationService service.
 type ScenarioValidationServiceHandler interface {
 	ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error)
+	// PreviewFix reports the deterministic remediations the provider could apply
+	// for the requested scenario without writing anything (dry-run). Providers
+	// that ship no fixers leave this unimplemented; consumers treat an
+	// Unimplemented response as "no deterministic fixer" and skip the provider.
+	PreviewFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error)
+	// ApplyFix applies the provider's deterministic remediations and reports what
+	// changed. Apply is never implicit: callers reach this RPC only when the user
+	// explicitly opts into writing (e.g. `--apply`).
+	ApplyFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error)
 }
 
 // NewScenarioValidationServiceHandler builds an HTTP handler from the service implementation. It
@@ -95,10 +143,26 @@ func NewScenarioValidationServiceHandler(svc ScenarioValidationServiceHandler, o
 		connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateScenario")),
 		connect.WithHandlerOptions(opts...),
 	)
+	scenarioValidationServicePreviewFixHandler := connect.NewUnaryHandler(
+		ScenarioValidationServicePreviewFixProcedure,
+		svc.PreviewFix,
+		connect.WithSchema(scenarioValidationServiceMethods.ByName("PreviewFix")),
+		connect.WithHandlerOptions(opts...),
+	)
+	scenarioValidationServiceApplyFixHandler := connect.NewUnaryHandler(
+		ScenarioValidationServiceApplyFixProcedure,
+		svc.ApplyFix,
+		connect.WithSchema(scenarioValidationServiceMethods.ByName("ApplyFix")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_validation.v1.ScenarioValidationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ScenarioValidationServiceValidateScenarioProcedure:
 			scenarioValidationServiceValidateScenarioHandler.ServeHTTP(w, r)
+		case ScenarioValidationServicePreviewFixProcedure:
+			scenarioValidationServicePreviewFixHandler.ServeHTTP(w, r)
+		case ScenarioValidationServiceApplyFixProcedure:
+			scenarioValidationServiceApplyFixHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -110,4 +174,12 @@ type UnimplementedScenarioValidationServiceHandler struct{}
 
 func (UnimplementedScenarioValidationServiceHandler) ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario is not implemented"))
+}
+
+func (UnimplementedScenarioValidationServiceHandler) PreviewFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix is not implemented"))
+}
+
+func (UnimplementedScenarioValidationServiceHandler) ApplyFix(context.Context, *connect.Request[v1.FixRequest]) (*connect.Response[v1.FixResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix is not implemented"))
 }

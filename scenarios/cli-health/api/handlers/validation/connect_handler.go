@@ -64,8 +64,12 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is not a scenario; only scenario CLIs are validated", scenario))
 		}
 	}
+	// When the caller resolved an explicit scenario path (e.g. Test Genie running
+	// deep template validation against a temp scenario outside the repo
+	// scenarios/ tree), thread it so the manifest loader reads from that dir.
+	validateCtx := manifestvalidation.WithScenarioPath(ctx, req.Msg.GetPath())
 	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
-	report, err := h.deps.Validator.ValidateScenario(manifestvalidation.WithMetrics(ctx, collector), scenario)
+	report, err := h.deps.Validator.ValidateScenario(manifestvalidation.WithMetrics(validateCtx, collector), scenario)
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

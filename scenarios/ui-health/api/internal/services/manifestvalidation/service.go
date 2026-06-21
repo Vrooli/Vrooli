@@ -19,8 +19,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Severity classifies a Finding.
@@ -80,7 +78,13 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	if strings.TrimSpace(s.RepoRoot) == "" {
 		return Report{}, errors.New("repo root is required")
 	}
-	scenarioDir := filepath.Join(s.RepoRoot, "scenarios", scenario)
+	// An explicit scenario root (WithScenarioPath) lets callers validate a
+	// scenario outside the repo scenarios/ tree — e.g. deep template validation's
+	// temp-generated scenario. Template manifests still resolve under RepoRoot.
+	scenarioDir := strings.TrimSpace(scenarioPathFrom(ctx))
+	if scenarioDir == "" {
+		scenarioDir = filepath.Join(s.RepoRoot, "scenarios", scenario)
+	}
 	info, err := os.Stat(scenarioDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -114,21 +118,21 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	uiCheck.End()
 
 	loadTemplate := collector.Stage("load-template")
-	tmplManifest, tmplPath, tmplFinds := s.loadTemplateManifest(scenario)
+	tmplManifest, tmplPath, tmplFinds := s.loadTemplateManifest(scenarioDir)
 	rep.Findings = append(rep.Findings, tmplFinds...)
 	loadTemplate.End()
 	if tmplManifest == nil {
 		return finalize(rep), nil
 	}
 
-	overlay, overlayPath, overlayFinds := s.loadOverlayManifest(scenario)
+	overlay, overlayPath, overlayFinds := s.loadOverlayManifest(scenarioDir)
 	rep.Findings = append(rep.Findings, overlayFinds...)
 
 	crossCheck := collector.Stage("cross-check")
 	merged := mergeManifests(tmplManifest, overlay)
 	rep.Findings = append(rep.Findings, validateOverlayKeys(tmplManifest, overlay, overlayPath)...)
-	slotFinds := validateSlotsOnDisk(s.RepoRoot, scenario, merged, tmplPath)
-	slotFinds = collapsePredatesTemplateLayout(slotFinds, len(merged.Slots), filepath.Join(s.RepoRoot, "scenarios", scenario))
+	slotFinds := validateSlotsOnDisk(scenarioDir, merged, tmplPath)
+	slotFinds = collapsePredatesTemplateLayout(slotFinds, len(merged.Slots), scenarioDir)
 	rep.Findings = append(rep.Findings, slotFinds...)
 	rep.Findings = append(rep.Findings, validateSlotPaths(merged, tmplPath)...)
 	rep.Findings = append(rep.Findings, validateSlotOverlap(merged, tmplPath)...)
@@ -203,16 +207,8 @@ type uiManifest struct {
 // loadTemplateManifest resolves the scenario's template id and reads its
 // ui/manifest.json. Returns (nil, "", findings) on errors so the caller can
 // surface them as Findings rather than aborting validation.
-func (s *Service) loadTemplateManifest(scenario string) (*uiManifest, string, []Finding) {
-	svcPath, err := repocontract.ScenarioServiceManifestPath(s.RepoRoot, scenario)
-	if err != nil {
-		return nil, "", []Finding{{
-			Severity: SeverityError,
-			Code:     "service_json_path_invalid",
-			Location: scenario,
-			Message:  fmt.Sprintf("resolve service.json path: %v", err),
-		}}
-	}
+func (s *Service) loadTemplateManifest(scenarioDir string) (*uiManifest, string, []Finding) {
+	svcPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	raw, err := os.ReadFile(svcPath)
 	if err != nil {
 		return nil, "", []Finding{{
@@ -298,8 +294,8 @@ func (s *Service) loadTemplateManifest(scenario string) (*uiManifest, string, []
 }
 
 // loadOverlayManifest reads the optional scenario overlay manifest.
-func (s *Service) loadOverlayManifest(scenario string) (*uiManifest, string, []Finding) {
-	path := filepath.Join(s.RepoRoot, "scenarios", scenario, ".vrooli", "ui-manifest.json")
+func (s *Service) loadOverlayManifest(scenarioDir string) (*uiManifest, string, []Finding) {
+	path := filepath.Join(scenarioDir, ".vrooli", "ui-manifest.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -376,7 +372,7 @@ func validateOverlayKeys(tmpl, overlay *uiManifest, overlayPath string) []Findin
 
 // validateSlotsOnDisk stats each slot's dir and reports missing or empty
 // directories.
-func validateSlotsOnDisk(repoRoot, scenario string, mf uiManifest, mfPath string) []Finding {
+func validateSlotsOnDisk(scenarioDir string, mf uiManifest, mfPath string) []Finding {
 	var finds []Finding
 	keys := make([]string, 0, len(mf.Slots))
 	for k := range mf.Slots {
@@ -398,10 +394,10 @@ func validateSlotsOnDisk(repoRoot, scenario string, mf uiManifest, mfPath string
 		// paths — they're patterns. Resolve the parent and inspect concrete
 		// instances instead of stat-ing the literal placeholder string.
 		if tokenRE.MatchString(slot.Dir) {
-			finds = append(finds, validatePlaceholderSlot(repoRoot, scenario, name, slot.Dir)...)
+			finds = append(finds, validatePlaceholderSlot(scenarioDir, name, slot.Dir)...)
 			continue
 		}
-		full := filepath.Join(repoRoot, "scenarios", scenario, slot.Dir)
+		full := filepath.Join(scenarioDir, slot.Dir)
 		info, err := os.Stat(full)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -439,7 +435,7 @@ func validateSlotsOnDisk(repoRoot, scenario string, mf uiManifest, mfPath string
 // subdirectories (e.g. one per feature). Zero instances is an info finding,
 // not a missing-directory warning, because the placeholder path itself was
 // never supposed to exist on disk.
-func validatePlaceholderSlot(repoRoot, scenario, slotName, dir string) []Finding {
+func validatePlaceholderSlot(scenarioDir, slotName, dir string) []Finding {
 	segments := strings.Split(filepath.ToSlash(dir), "/")
 	var parentParts []string
 	for _, seg := range segments {
@@ -449,7 +445,7 @@ func validatePlaceholderSlot(repoRoot, scenario, slotName, dir string) []Finding
 		parentParts = append(parentParts, seg)
 	}
 	parentRel := strings.Join(parentParts, "/")
-	parentAbs := filepath.Join(repoRoot, "scenarios", scenario, parentRel)
+	parentAbs := filepath.Join(scenarioDir, parentRel)
 	info, err := os.Stat(parentAbs)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {

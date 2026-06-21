@@ -7,43 +7,67 @@
       "id": "L0",
       "name": "No quality target",
       "description": "The target scenario cannot be resolved or surfaced for static-quality analysis.",
-      "entry_criteria": ["Scenario id or path is provided"],
-      "exit_criteria": ["At least one scenario, API, CLI, UI, or package surface is discoverable"]
+      "entry_criteria": [
+        "Scenario id or path is provided"
+      ],
+      "exit_criteria": [
+        "At least one scenario, API, CLI, UI, or package surface is discoverable"
+      ]
     },
     {
       "id": "L1",
       "name": "Surface quality coverage known",
       "description": "Quality Health can classify supported surfaces and explicitly report unsupported or uncovered surfaces.",
-      "entry_criteria": ["Target path is readable"],
-      "exit_criteria": ["Every discovered surface is covered by a quality rule pack or emits an explicit coverage finding"]
+      "entry_criteria": [
+        "Target path is readable"
+      ],
+      "exit_criteria": [
+        "Every discovered surface is covered by a quality rule pack or emits an explicit coverage finding"
+      ]
     },
     {
       "id": "L2",
       "name": "Strict TypeScript baseline",
       "description": "TypeScript and JavaScript surfaces keep strict compiler, typed lint, build typecheck, and dangerous-pattern visibility contracts.",
-      "entry_criteria": ["TypeScript/JavaScript surfaces are known"],
-      "exit_criteria": ["No TypeScript static-quality contract emits an error"]
+      "entry_criteria": [
+        "TypeScript/JavaScript surfaces are known"
+      ],
+      "exit_criteria": [
+        "No TypeScript static-quality contract emits an error"
+      ]
     },
     {
       "id": "L3",
       "name": "Strict Go baseline",
       "description": "Go surfaces keep local module and golangci-lint baseline configuration, with dangerous suppression visibility.",
-      "entry_criteria": ["Go surfaces are known"],
-      "exit_criteria": ["No Go static-quality contract emits an error"]
+      "entry_criteria": [
+        "Go surfaces are known"
+      ],
+      "exit_criteria": [
+        "No Go static-quality contract emits an error"
+      ]
     },
     {
       "id": "L4",
       "name": "Scenario quality gates enforced",
       "description": "Scenario-level Test Genie and Makefile gates run real strict lint, type, and format checks.",
-      "entry_criteria": ["Language surface baselines are clean"],
-      "exit_criteria": ["Scenario-level quality gate contracts are present and strict"]
+      "entry_criteria": [
+        "Language surface baselines are clean"
+      ],
+      "exit_criteria": [
+        "Scenario-level quality gate contracts are present and strict"
+      ]
     },
     {
       "id": "L5",
       "name": "Fleet-ready static quality",
       "description": "The scenario's static-quality posture is clean enough for Test Genie delegation, fleet comparison, and reusable policy indexing.",
-      "entry_criteria": ["Scenario gates are enforced"],
-      "exit_criteria": ["No Quality Health findings block fleet validation"]
+      "entry_criteria": [
+        "Scenario gates are enforced"
+      ],
+      "exit_criteria": [
+        "No Quality Health findings block fleet validation"
+      ]
     }
   ],
   "findings": {
@@ -52,91 +76,149 @@
       "global_impact": "advisory",
       "dimension": "standards",
       "severity_default": "SEVERITY_INFO",
-      "recommended_skill_ids": ["quality-health", "ecosystem-fit"]
+      "recommended_skill_ids": [
+        "quality-health",
+        "ecosystem-fit"
+      ],
+      "fix_class": "manual",
+      "reason": "Adding a quality contract for an uncovered surface is a design decision that needs human judgment."
     },
     "TS_CONFIG_STRICT": {
       "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health"]
+      "recommended_skill_ids": [
+        "quality-health"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "ESLINT_SAFETY_RULES": {
       "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health", "react-coherence"]
+      "recommended_skill_ids": [
+        "quality-health",
+        "react-coherence"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "TS_DANGEROUS_PATTERNS": {
       "local_level_impact": "L2",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["quality-health"]
+      "recommended_skill_ids": [
+        "quality-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Source-semantic suppressions require human intent and are not safe config rewrites."
     },
     "ESLINT_TYPED_CONFIG": {
       "local_level_impact": "L2",
       "global_impact": "evolvability_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health", "react-coherence"]
+      "recommended_skill_ids": [
+        "quality-health",
+        "react-coherence"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "NODE_BUILD_TYPECHECK": {
       "local_level_impact": "L2",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health", "test"]
+      "recommended_skill_ids": [
+        "quality-health",
+        "test"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "GO_MOD_PRESENT_FOR_API_OR_CLI": {
       "local_level_impact": "L3",
       "global_impact": "foundation_blocker",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health"]
+      "recommended_skill_ids": [
+        "quality-health"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "GO_LINT_CONFIG_PRESENT": {
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health"]
+      "recommended_skill_ids": [
+        "quality-health"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "GO_LINT_REQUIRED_LINTERS": {
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health"]
+      "recommended_skill_ids": [
+        "quality-health"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "GO_DANGEROUS_PATTERNS": {
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["quality-health"]
+      "recommended_skill_ids": [
+        "quality-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Source suppressions require a written reason, not automated source edits."
     },
     "TESTING_CONFIG_LINT_STRICT": {
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["quality-health", "test"]
+      "recommended_skill_ids": [
+        "quality-health",
+        "test"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "MAKEFILE_QUALITY_GATES": {
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["quality-health", "test"]
+      "recommended_skill_ids": [
+        "quality-health",
+        "test"
+      ],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
     },
     "SHELL_SYNTAX_LINT": {
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
       "dimension": "standards",
       "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["quality-health"]
+      "recommended_skill_ids": [
+        "quality-health"
+      ],
+      "fix_class": "manual",
+      "reason": "Shell syntax fixes require human intent; quality-health detects, it does not rewrite scripts."
     }
   },
   "fallback": {

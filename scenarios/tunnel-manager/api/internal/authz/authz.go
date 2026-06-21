@@ -18,6 +18,7 @@ import (
 const (
 	OperationConfigSync        = "config.sync"
 	OperationConfigSwitchMode  = "config.switch_mode"
+	OperationConfigCredentials = "config.credentials"
 	OperationRoutesCreate      = "routes.create"
 	OperationRoutesUpdate      = "routes.update"
 	OperationRoutesDelete      = "routes.delete"

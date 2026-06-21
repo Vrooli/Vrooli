@@ -23,6 +23,12 @@ type fakeService struct {
 	getOut    internalconfig.TunnelConfig
 	ready     internalconfig.ConfigReadiness
 	getErr    error
+	credOut   internalconfig.CredentialStatus
+	credErr   error
+	setIn     internalconfig.CredentialUpdate
+	setCalls  int
+	clearIn   []string
+	clearCalls int
 	syncOut   internalconfig.SyncResult
 	syncErr   error
 	syncDry   bool
@@ -40,6 +46,22 @@ func (f *fakeService) GetConfig(context.Context) (internalconfig.TunnelConfig, e
 
 func (f *fakeService) GetConfigState(context.Context) (internalconfig.ConfigState, error) {
 	return internalconfig.ConfigState{Config: f.getOut, Readiness: f.ready}, f.getErr
+}
+
+func (f *fakeService) GetCredentialStatus(context.Context) (internalconfig.CredentialStatus, error) {
+	return f.credOut, f.credErr
+}
+
+func (f *fakeService) SetCloudflareCredentials(_ context.Context, values internalconfig.CredentialUpdate) (internalconfig.CredentialStatus, error) {
+	f.setCalls++
+	f.setIn = values
+	return f.credOut, f.credErr
+}
+
+func (f *fakeService) ClearCloudflareCredentials(_ context.Context, keys []string) (internalconfig.CredentialStatus, error) {
+	f.clearCalls++
+	f.clearIn = keys
+	return f.credOut, f.credErr
 }
 
 func (f *fakeService) Sync(_ context.Context, dryRun bool) (internalconfig.SyncResult, error) {
@@ -79,6 +101,9 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 		RemoteAvailable:  true,
 		CredentialSource: "env:CLOUDFLARE_*",
 		CredentialRef:    "env:CLOUDFLARE_API_TOKEN",
+		CredentialStatus: internalconfig.CredentialStatus{Fields: []internalconfig.CredentialFieldStatus{{
+			Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "env:CLOUDFLARE_*", Ref: "env:CLOUDFLARE_API_TOKEN",
+		}}},
 		LocalConfigPath:  "/tmp/config.yml",
 		SyncReady:        true,
 		ModeReason:       "ready",
@@ -92,6 +117,76 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 	require.Equal(t, configv1.Mode_MODE_REMOTE, resp.Msg.Readiness.DesiredMode)
 	require.True(t, resp.Msg.Readiness.RemoteAvailable)
 	require.Equal(t, "env:CLOUDFLARE_API_TOKEN", resp.Msg.Readiness.CredentialRef)
+	require.Len(t, resp.Msg.Readiness.CredentialFields, 1)
+	require.Equal(t, "CLOUDFLARE_API_TOKEN", resp.Msg.Readiness.CredentialFields[0].Name)
+}
+
+func TestHandlerGetCredentialStatusRedactsTokenValue(t *testing.T) {
+	fake := &fakeService{credOut: internalconfig.CredentialStatus{
+		Ready:  true,
+		Source: "file:scenario",
+		Ref:    "file:scenario:cloudflare.api_token",
+		Fields: []internalconfig.CredentialFieldStatus{{
+			Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "file:scenario", Ref: "file:scenario:cloudflare.api_token", Writable: true,
+		}},
+	}}
+	client := newClient(t, fake)
+
+	resp, err := client.GetCredentialStatus(context.Background(), connect.NewRequest(&configv1.GetCredentialStatusRequest{}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Status.Ready)
+	require.Equal(t, "file:scenario:cloudflare.api_token", resp.Msg.Status.Ref)
+	require.NotContains(t, resp.Msg.String(), "secret-token")
+}
+
+func TestHandlerSetCloudflareCredentialsRequiresOperatorTokenWhenEnforced(t *testing.T) {
+	fake := &fakeService{}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+
+	_, err := client.SetCloudflareCredentials(context.Background(), connect.NewRequest(&configv1.SetCloudflareCredentialsRequest{
+		AccountId: "acct", TunnelId: "tun", ApiToken: "token",
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Zero(t, fake.setCalls, "denied credential write must not reach service")
+}
+
+func TestHandlerSetCloudflareCredentialsPassesWriteOnlyValues(t *testing.T) {
+	fake := &fakeService{credOut: internalconfig.CredentialStatus{Ready: true, Source: "file:scenario"}}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	req := connect.NewRequest(&configv1.SetCloudflareCredentialsRequest{
+		AccountId: "acct", TunnelId: "tun", ApiToken: "secret-token",
+	})
+	req.Header().Set("Authorization", "Bearer secret")
+
+	resp, err := client.SetCloudflareCredentials(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, internalconfig.CredentialUpdate{AccountID: "acct", TunnelID: "tun", APIToken: "secret-token"}, fake.setIn)
+	require.True(t, resp.Msg.Status.Ready)
+	require.NotContains(t, resp.Msg.String(), "secret-token")
+}
+
+func TestHandlerClearCloudflareCredentialsRequiresOperatorTokenWhenEnforced(t *testing.T) {
+	fake := &fakeService{}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+
+	_, err := client.ClearCloudflareCredentials(context.Background(), connect.NewRequest(&configv1.ClearCloudflareCredentialsRequest{
+		Fields: []string{"api_token"},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Zero(t, fake.clearCalls, "denied credential clear must not reach service")
+}
+
+func TestHandlerClearCloudflareCredentialsPassesFields(t *testing.T) {
+	fake := &fakeService{credOut: internalconfig.CredentialStatus{Source: "missing"}}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	req := connect.NewRequest(&configv1.ClearCloudflareCredentialsRequest{Fields: []string{"api_token"}})
+	req.Header().Set("X-Vrooli-Operator-Token", "secret")
+
+	_, err := client.ClearCloudflareCredentials(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, []string{"api_token"}, fake.clearIn)
 }
 
 func TestHandlerSyncMapsResponse(t *testing.T) {

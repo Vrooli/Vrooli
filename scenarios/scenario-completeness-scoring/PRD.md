@@ -33,7 +33,7 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 - [ ] OT-P1-003 | Status Dashboard UI | Thin read-only dashboard rendering the same GetScore payload (score, rung, breakdown, freshness, recommendations) with loading/error/empty states per template standards.
 
 ### 🟢 P2 – Future / expansion
-- [x] OT-P2-001 | Fleet Bulk View | List latest persisted scores across all scenarios through `ScoreService.ListScores` and `score list`, with server-side sort/filter/pagination over score snapshots so catalog consumers such as swarm-manager can use the proto contract without legacy JSON compatibility; expose fleet snapshot aggregates as measures for federation.
+- [ ] OT-P2-001 | Fleet Bulk View | List latest persisted scores across all scenarios through `ScoreService.ListScores` and `score list`, with server-side sort/filter/pagination over score snapshots so catalog consumers such as swarm-manager can use the proto contract without legacy JSON compatibility; expose fleet snapshot aggregates as measures for federation.
 - [ ] OT-P2-002 | What-If Analysis | Simulate metric changes and report projected score delta (port from the old implementation only if it stays cheap on the new signal set).
 
 ## 🧱 Tech Direction Snapshot

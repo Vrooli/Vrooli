@@ -1,86 +1,78 @@
 {
-  "description": "List latest persisted scores across all scenarios through the proto-first ListScores contract so catalog consumers such as swarm-manager can read fleet completeness without legacy JSON compatibility.",
-  "module_id": "MOD-P2-010",
-  "prd_ref": "OT-P2-001",
-  "priority": "P2",
+  "_metadata": {
+    "last_validated_at": "2026-06-20T19:09:39-04:00"
+  },
   "requirements": [
     {
-      "category": "cli",
-      "dependencies": [
-        "REQ-P0-001",
-        "REQ-P0-006"
-      ],
-      "description": "A bulk list operation must read the latest score snapshot per scenario from the scoring-domain SQLite store through ScoreService.ListScores. The request must support server-side sort, order, page_size/page_token pagination, min/max composite filters, rung/category filters, and an explicit recompute flag bounded to the returned page. Each row must include scenario identifier, composite score, classification, working rung, calculated_at, digest, and optional heuristic priority. The normal list path must be O(query) over persisted score_snapshots and must never compute the whole fleet on request. In-repo consumers such as swarm-manager must use the clean proto contract rather than the deleted legacy bulk JSON shape. Measures-health federation must expose fleet aggregates from the same persisted snapshot read model, not from on-demand fleet scoring.",
       "id": "REQ-P2-001",
-      "prd_ref": "OT-P2-001",
-      "status": "implemented",
       "title": "Fleet Bulk Score View from Persisted Snapshots",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-001",
+      "category": "cli",
+      "description": "A bulk list operation must read the latest score snapshot per scenario from the scoring-domain SQLite store through ScoreService.ListScores. The request must support server-side sort, order, page_size/page_token pagination, min/max composite filters, rung/category filters, and an explicit recompute flag bounded to the returned page. Each row must include scenario identifier, composite score, classification, working rung, calculated_at, digest, and optional heuristic priority. The normal list path must be O(query) over persisted score_snapshots and must never compute the whole fleet on request. In-repo consumers such as swarm-manager must use the clean proto contract rather than the deleted legacy bulk JSON shape. Measures-health federation must expose fleet aggregates from the same persisted snapshot read model, not from on-demand fleet scoring.",
       "validation": [
         {
-          "notes": "api/internal/scoring/sqlite_repository_test.go: ListPage over persisted snapshots returns server-side sorted/filtered rows with next_page_token metadata",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/scoring/sqlite_repository_test.go::TestSQLiteSnapshotRepositoryListPageSortFilterPagination",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "api/internal/scoring/sqlite_repository_test.go: priority sort uses stored importance × maturity gap as a heuristic fleet ordering",
           "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/scoring/sqlite_repository_test.go: ListPage over persisted snapshots returns server-side sorted/filtered rows with next_page_token metadata"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/scoring/sqlite_repository_test.go::TestSQLiteSnapshotRepositoryListPagePrioritySort",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "api/internal/scoring/sqlite_repository_test.go: priority sort uses stored importance × maturity gap as a heuristic fleet ordering"
         },
         {
-          "notes": "api/internal/scoring/sqlite_repository_test.go: 10k-row fixture proves persisted page reads stay bounded and independent of fleet compute",
-          "phase": "performance",
+          "type": "test",
           "ref": "api/internal/scoring/sqlite_repository_test.go::TestSQLiteSnapshotRepositoryListPageLargeFixture",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "api/handlers/scoring/connect_handler_test.go: recompute=true is capped to the returned page and persists recomputed snapshots",
-          "phase": "integration",
-          "ref": "api/handlers/scoring/connect_handler_test.go::TestListScoresRecomputeIsBoundedToReturnedPage",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "swarm-manager SCSCompletenessSource pages through ScoreService.ListScores and degrades on resolver/API errors",
-          "phase": "integration",
-          "ref": "../swarm-manager/api/internal/scenarios/completeness_source_test.go::TestSCSCompletenessSourceScoresPagesAndClamps",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Catalog consumers use the proto ListScores contract and no legacy bulk-JSON compatibility shim remains.",
-          "phase": "business",
-          "ref": "",
+          "phase": "performance",
           "status": "implemented",
-          "type": "test"
+          "notes": "api/internal/scoring/sqlite_repository_test.go: 10k-row fixture proves persisted page reads stay bounded and independent of fleet compute"
         },
         {
-          "notes": "SCS declares and probes scoring.fleet-below-rung, scoring.average-composite, and scoring.score-series through measures-health with zero validation findings (`measures-health validate scenario scenario-completeness-scoring --probe --json`).",
+          "type": "test",
+          "ref": "api/handlers/scoring/connect_handler_test.go::TestListScoresRecomputeIsBoundedToReturnedPage",
           "phase": "integration",
-          "ref": "",
-          "status": "passing",
-          "type": "test"
+          "status": "implemented",
+          "notes": "api/handlers/scoring/connect_handler_test.go: recompute=true is capped to the returned page and persists recomputed snapshots"
         },
         {
-          "notes": "Dashboard renders the persisted fleet table, pages through next_page_token, and renders score trend summary/series from GetScoreTrend.",
-          "phase": "ui",
+          "type": "test",
+          "ref": "../swarm-manager/api/internal/scenarios/completeness_source_test.go::TestSCSCompletenessSourceScoresPagesAndClamps",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "swarm-manager SCSCompletenessSource pages through ScoreService.ListScores and degrades on resolver/API errors"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Catalog consumers use the proto ListScores contract and no legacy bulk-JSON compatibility shim remains."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "SCS declares and probes scoring.fleet-below-rung, scoring.average-composite, and scoring.score-series through measures-health with zero validation findings (`measures-health validate scenario scenario-completeness-scoring --probe --json`)."
+        },
+        {
+          "type": "test",
           "ref": "ui/src/features/scoring/ScoreDashboard.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "Dashboard renders the persisted fleet table, pages through next_page_token, and renders score trend summary/series from GetScoreTrend."
         },
         {
-          "notes": "BAS routed-database playbook seeds a score_snapshot into the test pool, opens the real fleet UI, and proves RoutedDB served the request (test_pool_requests=1, primary_during_test_mode_requests=0).",
-          "phase": "playbooks",
+          "type": "test",
           "ref": "bas/cases/routed-database/proves-test-pool-routing.json",
-          "status": "passing",
-          "type": "test"
+          "phase": "playbooks",
+          "status": "implemented",
+          "notes": "BAS routed-database playbook seeds a score_snapshot into the test pool, opens the real fleet UI, and proves RoutedDB served the request (test_pool_requests=1, primary_during_test_mode_requests=0)."
         }
       ]
     }
-  ],
-  "title": "Fleet Bulk View"
+  ]
 }

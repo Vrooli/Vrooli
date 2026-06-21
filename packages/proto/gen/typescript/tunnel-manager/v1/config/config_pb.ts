@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file tunnel-manager/v1/config/config.proto.
  */
 export const file_tunnel_manager_v1_config_config: GenFile = /*@__PURE__*/
-  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIpMBCgxUdW5uZWxDb25maWcSMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIRCgl0dW5uZWxfaWQYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRIQCghjcmVkX3JlZhgEIAEoCRIVCg1wcm9tX2VuZHBvaW50GAUgASgJIvcBCg9Db25maWdSZWFkaW5lc3MSOwoMZGVzaXJlZF9tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEhgKEHJlbW90ZV9hdmFpbGFibGUYAiABKAgSFgoObWlzc2luZ19maWVsZHMYAyADKAkSGQoRY3JlZGVudGlhbF9zb3VyY2UYBCABKAkSFgoOY3JlZGVudGlhbF9yZWYYBSABKAkSGQoRbG9jYWxfY29uZmlnX3BhdGgYBiABKAkSEgoKc3luY19yZWFkeRgHIAEoCBITCgttb2RlX3JlYXNvbhgIIAEoCSISChBHZXRDb25maWdSZXF1ZXN0IpcBChFHZXRDb25maWdSZXNwb25zZRI9CgZjb25maWcYASABKAsyLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlR1bm5lbENvbmZpZxJDCglyZWFkaW5lc3MYAiABKAsyMC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNvbmZpZ1JlYWRpbmVzcyIeCgtTeW5jUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIIrgBCgxTeW5jUmVzcG9uc2USMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRINCgVhZGRlZBgCIAMoCRIPCgdyZW1vdmVkGAMgAygJEhIKCm5vX2NoYW5nZXMYBCABKAgSFgoOc2V0dXBfcmVxdWlyZWQYBSABKAgSFgoObWlzc2luZ19maWVsZHMYBiADKAkSDwoHbWVzc2FnZRgHIAEoCSJPChFTd2l0Y2hNb2RlUmVxdWVzdBI6Cgt0YXJnZXRfbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSKPAQoSU3dpdGNoTW9kZVJlc3BvbnNlEjwKDXByZXZpb3VzX21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUSOwoMY3VycmVudF9tb2RlGAIgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlKj0KBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg8KC01PREVfUkVNT1RFEAESDgoKTU9ERV9MT0NBTBACMt8CCg1Db25maWdTZXJ2aWNlEnIKCUdldENvbmZpZxIxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVxdWVzdBoyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVzcG9uc2USYwoEU3luYxIsLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3luY1JlcXVlc3QaLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXNwb25zZRJ1CgpTd2l0Y2hNb2RlEjIudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Td2l0Y2hNb2RlUmVxdWVzdBozLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHVubmVsLW1hbmFnZXIvdjEvY29uZmlnO2NvbmZpZ192MWIGcHJvdG8z");
+  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIpMBCgxUdW5uZWxDb25maWcSMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIRCgl0dW5uZWxfaWQYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRIQCghjcmVkX3JlZhgEIAEoCRIVCg1wcm9tX2VuZHBvaW50GAUgASgJIsoCCg9Db25maWdSZWFkaW5lc3MSOwoMZGVzaXJlZF9tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEhgKEHJlbW90ZV9hdmFpbGFibGUYAiABKAgSFgoObWlzc2luZ19maWVsZHMYAyADKAkSGQoRY3JlZGVudGlhbF9zb3VyY2UYBCABKAkSFgoOY3JlZGVudGlhbF9yZWYYBSABKAkSGQoRbG9jYWxfY29uZmlnX3BhdGgYBiABKAkSEgoKc3luY19yZWFkeRgHIAEoCBITCgttb2RlX3JlYXNvbhgIIAEoCRJRChFjcmVkZW50aWFsX2ZpZWxkcxgJIAMoCzI2LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ3JlZGVudGlhbEZpZWxkU3RhdHVzImUKFUNyZWRlbnRpYWxGaWVsZFN0YXR1cxIMCgRuYW1lGAEgASgJEg8KB3ByZXNlbnQYAiABKAgSDgoGc291cmNlGAMgASgJEgsKA3JlZhgEIAEoCRIQCgh3cml0YWJsZRgFIAEoCCKeAQoQQ3JlZGVudGlhbFN0YXR1cxJGCgZmaWVsZHMYASADKAsyNi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxGaWVsZFN0YXR1cxIWCg5taXNzaW5nX2ZpZWxkcxgCIAMoCRIOCgZzb3VyY2UYAyABKAkSCwoDcmVmGAQgASgJEg0KBXJlYWR5GAUgASgIIhIKEEdldENvbmZpZ1JlcXVlc3QilwEKEUdldENvbmZpZ1Jlc3BvbnNlEj0KBmNvbmZpZxgBIAEoCzItLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuVHVubmVsQ29uZmlnEkMKCXJlYWRpbmVzcxgCIAEoCzIwLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ29uZmlnUmVhZGluZXNzIhwKGkdldENyZWRlbnRpYWxTdGF0dXNSZXF1ZXN0ImAKG0dldENyZWRlbnRpYWxTdGF0dXNSZXNwb25zZRJBCgZzdGF0dXMYASABKAsyMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxTdGF0dXMiWwofU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBISCgphY2NvdW50X2lkGAEgASgJEhEKCXR1bm5lbF9pZBgCIAEoCRIRCglhcGlfdG9rZW4YAyABKAkiZQogU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USQQoGc3RhdHVzGAEgASgLMjEudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsU3RhdHVzIjMKIUNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBIOCgZmaWVsZHMYASADKAkiZwoiQ2xlYXJDbG91ZGZsYXJlQ3JlZGVudGlhbHNSZXNwb25zZRJBCgZzdGF0dXMYASABKAsyMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxTdGF0dXMiHgoLU3luY1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCCK4AQoMU3luY1Jlc3BvbnNlEjMKBG1vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUSDQoFYWRkZWQYAiADKAkSDwoHcmVtb3ZlZBgDIAMoCRISCgpub19jaGFuZ2VzGAQgASgIEhYKDnNldHVwX3JlcXVpcmVkGAUgASgIEhYKDm1pc3NpbmdfZmllbGRzGAYgAygJEg8KB21lc3NhZ2UYByABKAkiTwoRU3dpdGNoTW9kZVJlcXVlc3QSOgoLdGFyZ2V0X21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUijwEKElN3aXRjaE1vZGVSZXNwb25zZRI8Cg1wcmV2aW91c19tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEjsKDGN1cnJlbnRfbW9kZRgCIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSo9CgRNb2RlEhQKEE1PREVfVU5TUEVDSUZJRUQQABIPCgtNT0RFX1JFTU9URRABEg4KCk1PREVfTE9DQUwQAjK8BgoNQ29uZmlnU2VydmljZRJyCglHZXRDb25maWcSMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1JlcXVlc3QaMi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1Jlc3BvbnNlEpABChNHZXRDcmVkZW50aWFsU3RhdHVzEjsudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5HZXRDcmVkZW50aWFsU3RhdHVzUmVxdWVzdBo8LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q3JlZGVudGlhbFN0YXR1c1Jlc3BvbnNlEp8BChhTZXRDbG91ZGZsYXJlQ3JlZGVudGlhbHMSQC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlNldENsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QaQS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlNldENsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEqUBChpDbGVhckNsb3VkZmxhcmVDcmVkZW50aWFscxJCLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ2xlYXJDbG91ZGZsYXJlQ3JlZGVudGlhbHNSZXF1ZXN0GkMudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DbGVhckNsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEmMKBFN5bmMSLC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXF1ZXN0Gi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5TeW5jUmVzcG9uc2USdQoKU3dpdGNoTW9kZRIyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlcXVlc3QaMy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN3aXRjaE1vZGVSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3R1bm5lbC1tYW5hZ2VyL3YxL2NvbmZpZztjb25maWdfdjFiBnByb3RvMw");
 
 /**
  * TunnelConfig is the persisted configuration for the tunnel.
@@ -120,6 +120,13 @@ export type ConfigReadiness = Message<"vrooli.tunnel_manager.v1.config.ConfigRea
    * @generated from field: string mode_reason = 8;
    */
   modeReason: string;
+
+  /**
+   * Field-level status for the Cloudflare credential inputs.
+   *
+   * @generated from field: repeated vrooli.tunnel_manager.v1.config.CredentialFieldStatus credential_fields = 9;
+   */
+  credentialFields: CredentialFieldStatus[];
 };
 
 /**
@@ -128,6 +135,92 @@ export type ConfigReadiness = Message<"vrooli.tunnel_manager.v1.config.ConfigRea
  */
 export const ConfigReadinessSchema: GenMessage<ConfigReadiness> = /*@__PURE__*/
   messageDesc(file_tunnel_manager_v1_config_config, 1);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.CredentialFieldStatus
+ */
+export type CredentialFieldStatus = Message<"vrooli.tunnel_manager.v1.config.CredentialFieldStatus"> & {
+  /**
+   * Canonical credential field name, e.g. CLOUDFLARE_API_TOKEN.
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * True when a non-empty value is available to the API process.
+   *
+   * @generated from field: bool present = 2;
+   */
+  present: boolean;
+
+  /**
+   * Source label: env:CLOUDFLARE_*, file:scenario, file:user, or missing.
+   *
+   * @generated from field: string source = 3;
+   */
+  source: string;
+
+  /**
+   * Non-secret reference to the value source. Never the secret value.
+   *
+   * @generated from field: string ref = 4;
+   */
+  ref: string;
+
+  /**
+   * True when Tunnel Manager can write this field's effective source.
+   *
+   * @generated from field: bool writable = 5;
+   */
+  writable: boolean;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.CredentialFieldStatus.
+ * Use `create(CredentialFieldStatusSchema)` to create a new message.
+ */
+export const CredentialFieldStatusSchema: GenMessage<CredentialFieldStatus> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 2);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.CredentialStatus
+ */
+export type CredentialStatus = Message<"vrooli.tunnel_manager.v1.config.CredentialStatus"> & {
+  /**
+   * @generated from field: repeated vrooli.tunnel_manager.v1.config.CredentialFieldStatus fields = 1;
+   */
+  fields: CredentialFieldStatus[];
+
+  /**
+   * @generated from field: repeated string missing_fields = 2;
+   */
+  missingFields: string[];
+
+  /**
+   * @generated from field: string source = 3;
+   */
+  source: string;
+
+  /**
+   * Non-secret token reference. Never the token value.
+   *
+   * @generated from field: string ref = 4;
+   */
+  ref: string;
+
+  /**
+   * @generated from field: bool ready = 5;
+   */
+  ready: boolean;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.CredentialStatus.
+ * Use `create(CredentialStatusSchema)` to create a new message.
+ */
+export const CredentialStatusSchema: GenMessage<CredentialStatus> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 3);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.GetConfigRequest
@@ -140,7 +233,7 @@ export type GetConfigRequest = Message<"vrooli.tunnel_manager.v1.config.GetConfi
  * Use `create(GetConfigRequestSchema)` to create a new message.
  */
 export const GetConfigRequestSchema: GenMessage<GetConfigRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 2);
+  messageDesc(file_tunnel_manager_v1_config_config, 4);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.GetConfigResponse
@@ -162,7 +255,122 @@ export type GetConfigResponse = Message<"vrooli.tunnel_manager.v1.config.GetConf
  * Use `create(GetConfigResponseSchema)` to create a new message.
  */
 export const GetConfigResponseSchema: GenMessage<GetConfigResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 3);
+  messageDesc(file_tunnel_manager_v1_config_config, 5);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest
+ */
+export type GetCredentialStatusRequest = Message<"vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest.
+ * Use `create(GetCredentialStatusRequestSchema)` to create a new message.
+ */
+export const GetCredentialStatusRequestSchema: GenMessage<GetCredentialStatusRequest> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 6);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse
+ */
+export type GetCredentialStatusResponse = Message<"vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse"> & {
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.CredentialStatus status = 1;
+   */
+  status?: CredentialStatus | undefined;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse.
+ * Use `create(GetCredentialStatusResponseSchema)` to create a new message.
+ */
+export const GetCredentialStatusResponseSchema: GenMessage<GetCredentialStatusResponse> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 7);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest
+ */
+export type SetCloudflareCredentialsRequest = Message<"vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest"> & {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId: string;
+
+  /**
+   * @generated from field: string tunnel_id = 2;
+   */
+  tunnelId: string;
+
+  /**
+   * Write-only Cloudflare API token. The value is persisted in the operator
+   * secret store and is never returned by any ConfigService response.
+   *
+   * @generated from field: string api_token = 3;
+   */
+  apiToken: string;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest.
+ * Use `create(SetCloudflareCredentialsRequestSchema)` to create a new message.
+ */
+export const SetCloudflareCredentialsRequestSchema: GenMessage<SetCloudflareCredentialsRequest> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 8);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse
+ */
+export type SetCloudflareCredentialsResponse = Message<"vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse"> & {
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.CredentialStatus status = 1;
+   */
+  status?: CredentialStatus | undefined;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse.
+ * Use `create(SetCloudflareCredentialsResponseSchema)` to create a new message.
+ */
+export const SetCloudflareCredentialsResponseSchema: GenMessage<SetCloudflareCredentialsResponse> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 9);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest
+ */
+export type ClearCloudflareCredentialsRequest = Message<"vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest"> & {
+  /**
+   * Field names to clear. Empty or "all" clears every file-backed Cloudflare
+   * credential field. Env-sourced fields are read-only and remain effective
+   * until the process environment changes.
+   *
+   * @generated from field: repeated string fields = 1;
+   */
+  fields: string[];
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest.
+ * Use `create(ClearCloudflareCredentialsRequestSchema)` to create a new message.
+ */
+export const ClearCloudflareCredentialsRequestSchema: GenMessage<ClearCloudflareCredentialsRequest> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 10);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse
+ */
+export type ClearCloudflareCredentialsResponse = Message<"vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse"> & {
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.CredentialStatus status = 1;
+   */
+  status?: CredentialStatus | undefined;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse.
+ * Use `create(ClearCloudflareCredentialsResponseSchema)` to create a new message.
+ */
+export const ClearCloudflareCredentialsResponseSchema: GenMessage<ClearCloudflareCredentialsResponse> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 11);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SyncRequest
@@ -181,7 +389,7 @@ export type SyncRequest = Message<"vrooli.tunnel_manager.v1.config.SyncRequest">
  * Use `create(SyncRequestSchema)` to create a new message.
  */
 export const SyncRequestSchema: GenMessage<SyncRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 4);
+  messageDesc(file_tunnel_manager_v1_config_config, 12);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SyncResponse
@@ -240,7 +448,7 @@ export type SyncResponse = Message<"vrooli.tunnel_manager.v1.config.SyncResponse
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema: GenMessage<SyncResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 5);
+  messageDesc(file_tunnel_manager_v1_config_config, 13);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SwitchModeRequest
@@ -257,7 +465,7 @@ export type SwitchModeRequest = Message<"vrooli.tunnel_manager.v1.config.SwitchM
  * Use `create(SwitchModeRequestSchema)` to create a new message.
  */
 export const SwitchModeRequestSchema: GenMessage<SwitchModeRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 6);
+  messageDesc(file_tunnel_manager_v1_config_config, 14);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SwitchModeResponse
@@ -279,7 +487,7 @@ export type SwitchModeResponse = Message<"vrooli.tunnel_manager.v1.config.Switch
  * Use `create(SwitchModeResponseSchema)` to create a new message.
  */
 export const SwitchModeResponseSchema: GenMessage<SwitchModeResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 7);
+  messageDesc(file_tunnel_manager_v1_config_config, 15);
 
 /**
  * Mode is the tunnel management mode.
@@ -324,6 +532,39 @@ export const ConfigService: GenService<{
     methodKind: "unary";
     input: typeof GetConfigRequestSchema;
     output: typeof GetConfigResponseSchema;
+  },
+  /**
+   * GetCredentialStatus returns Cloudflare credential presence/source metadata.
+   * It never returns credential values.
+   *
+   * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.GetCredentialStatus
+   */
+  getCredentialStatus: {
+    methodKind: "unary";
+    input: typeof GetCredentialStatusRequestSchema;
+    output: typeof GetCredentialStatusResponseSchema;
+  },
+  /**
+   * SetCloudflareCredentials stores write-only Cloudflare credential values in
+   * the configured operator secret store. Secret values are never echoed back.
+   *
+   * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.SetCloudflareCredentials
+   */
+  setCloudflareCredentials: {
+    methodKind: "unary";
+    input: typeof SetCloudflareCredentialsRequestSchema;
+    output: typeof SetCloudflareCredentialsResponseSchema;
+  },
+  /**
+   * ClearCloudflareCredentials removes one or more file-backed Cloudflare
+   * credential values from the configured operator secret store.
+   *
+   * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.ClearCloudflareCredentials
+   */
+  clearCloudflareCredentials: {
+    methodKind: "unary";
+    input: typeof ClearCloudflareCredentialsRequestSchema;
+    output: typeof ClearCloudflareCredentialsResponseSchema;
   },
   /**
    * Sync reconciles ingress (remote API or local config.yml) with the routes

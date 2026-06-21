@@ -115,6 +115,84 @@ WHERE LENGTH(LOWER(TRIM(json_extract(phase.value, '$.name')))) > 0
 	return observations, nil
 }
 
+// ScenarioRunRollup is one scenario's run-level rollup over the window: how many
+// runs it had, how many produced a passed terminal outcome, and the newest run's
+// completion time + outcome (the scenario-level staleness/last-status signal).
+// It is the per-scenario analogue of CountRunOutcomes, used by the FLEET ledger.
+type ScenarioRunRollup struct {
+	ScenarioName    string
+	Runs            int
+	Passed          int
+	LastCompletedAt time.Time
+	LastOutcome     string
+}
+
+// AggregateScenarioRuns returns the per-scenario run-level rollup across the most
+// recent runs (capped at limit) completed at or after since. The newest run per
+// scenario (by completed_at) supplies LastCompletedAt/LastOutcome; the window
+// function is evaluated before LIMIT, so the "last run" reflects the windowed
+// set. This is the fleet ledger's run-count + staleness source; like the other
+// windowed aggregates it holds the SQL here (storage-steer §8) so the ledger
+// stays engine-portable.
+func (r *SuiteExecutionRepository) AggregateScenarioRuns(ctx context.Context, since time.Time, limit int) ([]ScenarioRunRollup, error) {
+	if limit <= 0 || limit > defaultAggregationRowCap {
+		limit = defaultAggregationRowCap
+	}
+
+	const q = `
+SELECT scenario_name,
+	COUNT(*) AS runs,
+	SUM(CASE WHEN outcome = 'passed' THEN 1 ELSE 0 END) AS passed,
+	MAX(completed_at) AS last_completed_at,
+	MAX(CASE WHEN rn = 1 THEN outcome END) AS last_outcome
+FROM (
+	SELECT scenario_name,
+		LOWER(TRIM(COALESCE(terminal_outcome, ''))) AS outcome,
+		completed_at,
+		ROW_NUMBER() OVER (PARTITION BY scenario_name ORDER BY completed_at DESC, id DESC) AS rn
+	FROM (
+		SELECT id, scenario_name, terminal_outcome, completed_at
+		FROM suite_executions
+		WHERE completed_at >= ?
+		ORDER BY completed_at DESC
+		LIMIT ?
+	)
+)
+GROUP BY scenario_name
+ORDER BY runs DESC, scenario_name ASC
+`
+
+	rows, err := r.db.QueryContext(ctx, q, sqliteutil.FormatTimestamp(since), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rollups []ScenarioRunRollup
+	for rows.Next() {
+		var (
+			roll        ScenarioRunRollup
+			lastOutcome any
+			completedAt any
+		)
+		if err := rows.Scan(&roll.ScenarioName, &roll.Runs, &roll.Passed, &completedAt, &lastOutcome); err != nil {
+			return nil, err
+		}
+		if s, ok := lastOutcome.(string); ok {
+			roll.LastOutcome = s
+		}
+		roll.LastCompletedAt, err = sqliteutil.ParseTimestamp(completedAt)
+		if err != nil {
+			return nil, err
+		}
+		rollups = append(rollups, roll)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return rollups, nil
+}
+
 // CountRunOutcomes returns the run-level terminal_outcome histogram across the
 // most recent runs (capped at limit) completed at or after since. It is the
 // denominator source for suite availability — correct only because Phase B4a

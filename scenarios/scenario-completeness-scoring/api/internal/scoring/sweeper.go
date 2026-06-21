@@ -319,6 +319,8 @@ func SnapshotFromResult(result Result, fallbackDigest, source string) (Snapshot,
 		Importance:     imp,
 		Source:         source,
 		CreatedAt:      createdAt,
+		LastRunAt:      result.Freshness.LastRunAt,
+		LastStatus:     result.Freshness.LastStatus,
 	}, nil
 }
 

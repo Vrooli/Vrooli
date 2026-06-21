@@ -17,8 +17,10 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-type GlobalImpact string
-type CleanRequirement string
+type (
+	GlobalImpact     string
+	CleanRequirement string
+)
 
 const (
 	ImpactFoundationBlocker GlobalImpact = "foundation_blocker"
@@ -50,6 +52,62 @@ var validCleanRequirements = map[CleanRequirement]struct{}{
 	CleanRequirementRequired:    {},
 	CleanRequirementAdvisory:    {},
 	CleanRequirementUncheckable: {},
+}
+
+// FixClass declares whether a finding category can EVER be auto-remediated. It is
+// the spec-level intent, orthogonal to whether the fixer is built yet (see
+// FixerStatus). It deliberately separates "needs human judgment" (manual) from
+// "could be automated" (auto/external) so under-building a fixer cannot masquerade
+// as not-fixable.
+type FixClass string
+
+const (
+	// FixClassAuto marks a finding a deterministic in-process fixer can remediate.
+	FixClassAuto FixClass = "auto"
+	// FixClassExternal marks a finding remediated by delegating to another tool or
+	// scenario (e.g. scenario-auditor).
+	FixClassExternal FixClass = "external"
+	// FixClassManual marks a finding that inherently needs judgment — the honest
+	// "never autofixable". It MUST carry a reason.
+	FixClassManual FixClass = "manual"
+)
+
+// FixerStatus declares whether the remediation logic for an auto/external finding
+// exists yet. It defaults to pending so a newly-declared fixable finding is a
+// visible gap until a fixer is wired. It is meaningless for manual findings.
+type FixerStatus string
+
+const (
+	// FixerStatusImplemented marks a fixable finding whose fixer is built.
+	FixerStatusImplemented FixerStatus = "implemented"
+	// FixerStatusPending marks a fixable finding whose fixer is not built yet —
+	// the actionable backlog the optimization lens watches.
+	FixerStatusPending FixerStatus = "pending"
+)
+
+var validFixClasses = map[FixClass]struct{}{
+	FixClassAuto:     {},
+	FixClassExternal: {},
+	FixClassManual:   {},
+}
+
+var validFixerStatuses = map[FixerStatus]struct{}{
+	FixerStatusImplemented: {},
+	FixerStatusPending:     {},
+}
+
+// IsValidFixClass reports whether the value is a declared fix-class vocabulary
+// member.
+func IsValidFixClass(c FixClass) bool {
+	_, ok := validFixClasses[c]
+	return ok
+}
+
+// IsValidFixerStatus reports whether the value is a declared fixer-status
+// vocabulary member.
+func IsValidFixerStatus(s FixerStatus) bool {
+	_, ok := validFixerStatuses[s]
+	return ok
 }
 
 var impactDimensions = map[GlobalImpact][]dimensions.Dimension{
@@ -87,6 +145,41 @@ type FindingMapping struct {
 	SeverityDefault     string       `json:"severity_default"`
 	CleanRequirement    string       `json:"clean_requirement,omitempty"`
 	RecommendedSkillIDs []string     `json:"recommended_skill_ids"`
+	// FixClass declares whether this finding category can ever be auto-remediated
+	// (auto|external|manual). Absent → manual (conservative; never inflates the
+	// fixable universe).
+	FixClass FixClass `json:"fix_class,omitempty"`
+	// FixerStatus declares whether the fixer exists yet (implemented|pending) for
+	// auto/external classes. Absent on auto/external → pending. Meaningless for
+	// manual.
+	FixerStatus FixerStatus `json:"fixer_status,omitempty"`
+	// FixReason justifies a manual classification — required when FixClass is
+	// manual so excluding a finding from the fixable universe is reviewable.
+	FixReason string `json:"reason,omitempty"`
+}
+
+// EffectiveFixClass returns the declared fix class, defaulting an absent
+// declaration to manual (the conservative choice that never inflates the
+// fixable universe).
+func (m FindingMapping) EffectiveFixClass() FixClass {
+	if m.FixClass == "" {
+		return FixClassManual
+	}
+	return m.FixClass
+}
+
+// EffectiveFixerStatus returns the fixer status for auto/external findings,
+// defaulting absent to pending. Manual findings have no fixer status ("").
+func (m FindingMapping) EffectiveFixerStatus() FixerStatus {
+	switch m.EffectiveFixClass() {
+	case FixClassAuto, FixClassExternal:
+		if m.FixerStatus == "" {
+			return FixerStatusPending
+		}
+		return m.FixerStatus
+	default:
+		return ""
+	}
 }
 
 type FallbackPolicy struct {
@@ -231,6 +324,32 @@ func validateMapping(mapping FindingMapping, levels map[string]int, path string)
 	if req := strings.TrimSpace(mapping.CleanRequirement); req != "" && !IsValidCleanRequirement(CleanRequirement(strings.ToLower(req))) {
 		return fmt.Errorf("%s.clean_requirement %q is not valid", path, req)
 	}
+	if err := validateFixability(mapping, path); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateFixability enforces the fixability declaration vocabulary. It only
+// constrains explicitly-declared values, so specs predating fix_class stay valid
+// (absent fix_class derives to manual for coverage counts but is not required to
+// carry a reason — declaration completeness is an advisory conformance dimension,
+// not a hard ValidateSpec gate).
+func validateFixability(mapping FindingMapping, path string) error {
+	if mapping.FixClass != "" && !IsValidFixClass(mapping.FixClass) {
+		return fmt.Errorf("%s.fix_class %q is not valid (want auto|external|manual)", path, mapping.FixClass)
+	}
+	if mapping.FixerStatus != "" {
+		if !IsValidFixerStatus(mapping.FixerStatus) {
+			return fmt.Errorf("%s.fixer_status %q is not valid (want implemented|pending)", path, mapping.FixerStatus)
+		}
+		if mapping.FixClass == FixClassManual || mapping.FixClass == "" {
+			return fmt.Errorf("%s.fixer_status is only valid for fix_class auto|external", path)
+		}
+	}
+	if mapping.FixClass == FixClassManual && strings.TrimSpace(mapping.FixReason) == "" {
+		return fmt.Errorf("%s.reason is required when fix_class is manual", path)
+	}
 	return nil
 }
 
@@ -353,6 +472,92 @@ func ValidateAssessment(a *commonv1.MaturityAssessment) error {
 		}
 	}
 	return nil
+}
+
+// AutofixCoverage is the per-provider autofix declaration rollup derived from a
+// maturity spec. Counts are absolute (the headline is Pending — the actionable
+// backlog); ImplementationRate is secondary/informational and never a gate.
+type AutofixCoverage struct {
+	// Total is the number of declared finding mappings.
+	Total int `json:"total"`
+	// FixableUniverse is auto+external (findings that can ever be auto-remediated).
+	FixableUniverse int `json:"fixableUniverse"`
+	// Implemented is fixable findings whose fixer exists (fixer_status=implemented).
+	Implemented int `json:"implemented"`
+	// Pending is fixable findings whose fixer is not built yet — the headline gap.
+	Pending int `json:"pending"`
+	// Manual is findings declared (or defaulted) to manual.
+	Manual int `json:"manual"`
+	// Declared is findings carrying an explicit fix_class.
+	Declared int `json:"declared"`
+	// DeclarationComplete is true when every finding carries an explicit fix_class
+	// (and, since ValidateSpec enforces it, every manual carries a reason). This is
+	// the advisory conformance dimension — NOT the coverage ratio.
+	DeclarationComplete bool `json:"declarationComplete"`
+}
+
+// ImplementationRate returns implemented / (implemented + pending). Pending stays
+// in the denominator so an unbuilt fixer drags the rate down — the only honest
+// way up is pending→implemented. It returns 0 when the fixable universe is empty.
+func (c AutofixCoverage) ImplementationRate() float64 {
+	denom := c.Implemented + c.Pending
+	if denom == 0 {
+		return 0
+	}
+	return float64(c.Implemented) / float64(denom)
+}
+
+// ComputeAutofixCoverage derives the autofix declaration rollup from a spec. It
+// applies the conservative defaults (absent fix_class → manual; absent
+// fixer_status on auto/external → pending) so under-declaration can never
+// masquerade as fixable.
+func ComputeAutofixCoverage(spec Spec) AutofixCoverage {
+	cov := AutofixCoverage{DeclarationComplete: true}
+	for _, m := range spec.Findings {
+		cov.Total++
+		if m.FixClass != "" {
+			cov.Declared++
+		} else {
+			cov.DeclarationComplete = false
+		}
+		switch m.EffectiveFixClass() {
+		case FixClassAuto, FixClassExternal:
+			cov.FixableUniverse++
+			if m.EffectiveFixerStatus() == FixerStatusImplemented {
+				cov.Implemented++
+			} else {
+				cov.Pending++
+			}
+		default:
+			cov.Manual++
+		}
+	}
+	return cov
+}
+
+// ConsistencyWarnings reports findings whose runtime AutofixAvailable flag
+// disagrees with their declared fixability — a finding that claims a fixer ran
+// while its mapping says manual or fixer_status=pending. These are contract
+// warnings (advisory), not hard failures (Plan Stage 1.2).
+func ConsistencyWarnings(spec Spec, findings []Finding) []string {
+	var warnings []string
+	for _, f := range findings {
+		if !f.AutofixAvailable {
+			continue
+		}
+		mapping := NormalizeFinding(spec, f).Mapping
+		switch mapping.EffectiveFixClass() {
+		case FixClassManual:
+			warnings = append(warnings, fmt.Sprintf(
+				"finding %q reports a runtime autofix but is declared fix_class=manual", f.Code))
+		default:
+			if mapping.EffectiveFixerStatus() == FixerStatusPending {
+				warnings = append(warnings, fmt.Sprintf(
+					"finding %q reports a runtime autofix but its fixer_status is pending", f.Code))
+			}
+		}
+	}
+	return warnings
 }
 
 // BuildValidationResponse wraps the shared maturity assessment in the common

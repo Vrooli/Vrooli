@@ -54,6 +54,17 @@ func (s *Service) resolveTarget(scenarioName string, opts DocHealthOptions) (doc
 				label:        name,
 			}, nil
 		}
+		// An explicit path that is itself a scenario root — but lives outside the
+		// repo scenarios/ tree (e.g. deep template validation's temp scenario) —
+		// still gets full scenario contract checks. The caller-supplied name is
+		// preserved when present so findings echo the intended scenario id.
+		if isScenarioRoot(abs) {
+			name := scenarioName
+			if name == "" {
+				name = filepath.Base(abs)
+			}
+			return docTarget{root: abs, isScenario: true, scenarioName: name, label: name}, nil
+		}
 		return docTarget{root: abs, isScenario: false, label: s.relLabel(abs)}, nil
 	}
 
@@ -63,6 +74,14 @@ func (s *Service) resolveTarget(scenarioName string, opts DocHealthOptions) (doc
 		return docTarget{}, err
 	}
 	return docTarget{root: root, isScenario: true, scenarioName: scenarioName, label: scenarioName}, nil
+}
+
+// isScenarioRoot reports whether dir is the root of a scenario, identified by a
+// .vrooli/service.json manifest. Used to recognize an out-of-tree scenario
+// (one not under the repo scenarios/ tree) supplied via an explicit path.
+func isScenarioRoot(dir string) bool {
+	info, err := os.Stat(filepath.Join(dir, ".vrooli", "service.json"))
+	return err == nil && !info.IsDir()
 }
 
 // scenarioForPath reports the scenario a path belongs to, if it resolves inside

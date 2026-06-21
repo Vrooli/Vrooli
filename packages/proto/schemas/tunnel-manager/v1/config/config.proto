@@ -23,6 +23,15 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manag
 
 service ConfigService {
   rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  // GetCredentialStatus returns Cloudflare credential presence/source metadata.
+  // It never returns credential values.
+  rpc GetCredentialStatus(GetCredentialStatusRequest) returns (GetCredentialStatusResponse);
+  // SetCloudflareCredentials stores write-only Cloudflare credential values in
+  // the configured operator secret store. Secret values are never echoed back.
+  rpc SetCloudflareCredentials(SetCloudflareCredentialsRequest) returns (SetCloudflareCredentialsResponse);
+  // ClearCloudflareCredentials removes one or more file-backed Cloudflare
+  // credential values from the configured operator secret store.
+  rpc ClearCloudflareCredentials(ClearCloudflareCredentialsRequest) returns (ClearCloudflareCredentialsResponse);
   // Sync reconciles ingress (remote API or local config.yml) with the routes
   // manifest. Idempotent: a no-drift sync applies nothing.
   rpc Sync(SyncRequest) returns (SyncResponse);
@@ -72,6 +81,30 @@ message ConfigReadiness {
   bool sync_ready = 7;
   // Short operator explanation for the current mode/readiness.
   string mode_reason = 8;
+  // Field-level status for the Cloudflare credential inputs.
+  repeated CredentialFieldStatus credential_fields = 9;
+}
+
+message CredentialFieldStatus {
+  // Canonical credential field name, e.g. CLOUDFLARE_API_TOKEN.
+  string name = 1;
+  // True when a non-empty value is available to the API process.
+  bool present = 2;
+  // Source label: env:CLOUDFLARE_*, file:scenario, file:user, or missing.
+  string source = 3;
+  // Non-secret reference to the value source. Never the secret value.
+  string ref = 4;
+  // True when Tunnel Manager can write this field's effective source.
+  bool writable = 5;
+}
+
+message CredentialStatus {
+  repeated CredentialFieldStatus fields = 1;
+  repeated string missing_fields = 2;
+  string source = 3;
+  // Non-secret token reference. Never the token value.
+  string ref = 4;
+  bool ready = 5;
 }
 
 message GetConfigRequest {
@@ -80,6 +113,36 @@ message GetConfigRequest {
 message GetConfigResponse {
   TunnelConfig config = 1;
   ConfigReadiness readiness = 2;
+}
+
+message GetCredentialStatusRequest {
+}
+
+message GetCredentialStatusResponse {
+  CredentialStatus status = 1;
+}
+
+message SetCloudflareCredentialsRequest {
+  string account_id = 1;
+  string tunnel_id = 2;
+  // Write-only Cloudflare API token. The value is persisted in the operator
+  // secret store and is never returned by any ConfigService response.
+  string api_token = 3;
+}
+
+message SetCloudflareCredentialsResponse {
+  CredentialStatus status = 1;
+}
+
+message ClearCloudflareCredentialsRequest {
+  // Field names to clear. Empty or "all" clears every file-backed Cloudflare
+  // credential field. Env-sourced fields are read-only and remain effective
+  // until the process environment changes.
+  repeated string fields = 1;
+}
+
+message ClearCloudflareCredentialsResponse {
+  CredentialStatus status = 1;
 }
 
 message SyncRequest {

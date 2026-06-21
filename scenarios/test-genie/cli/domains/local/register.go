@@ -2,6 +2,8 @@ package local
 
 import (
 	"test-genie/cli/eligibility"
+	"test-genie/cli/fix"
+	"test-genie/cli/fleet"
 	"test-genie/cli/health"
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/playbooksseed"
@@ -68,6 +70,18 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Show Test Genie self-health: catalog, provider conformance, reliability ledger",
 				Run:         func(args []string) error { return health.Run(runtime.APIClient, args) },
+			},
+			{
+				Name:        "fix",
+				NeedsAPI:    true,
+				Description: "Remediate a scenario: --deterministic aggregates provider autofixers (dry-run; --apply to write), --fleet walks the priority-ordered fleet, else spawns a fix agent",
+				Run:         func(args []string) error { return fix.Run(runtime.APIClient, args) },
+			},
+			{
+				Name:        "fleet",
+				NeedsAPI:    true,
+				Description: "Fleet-wide health over stored runs: fleet status [--json] [--roster] (as-of stamped, most-errored first)",
+				Run:         func(args []string) error { return fleet.Run(runtime.APIClient, args) },
 			},
 			{
 				Name:        "playbooks-seed",

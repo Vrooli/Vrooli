@@ -126,7 +126,7 @@ class ListScoresResponse(_message.Message):
     def __init__(self, scores: _Optional[_Iterable[_Union[ScoreRow, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
 
 class ScoreRow(_message.Message):
-    __slots__ = ("scenario", "category", "score", "classification", "working_rung", "importance", "priority", "calculated_at", "digest")
+    __slots__ = ("scenario", "category", "score", "classification", "working_rung", "importance", "priority", "calculated_at", "digest", "last_run_at", "last_status")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
@@ -136,6 +136,8 @@ class ScoreRow(_message.Message):
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     CALCULATED_AT_FIELD_NUMBER: _ClassVar[int]
     DIGEST_FIELD_NUMBER: _ClassVar[int]
+    LAST_RUN_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_STATUS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     category: str
     score: int
@@ -145,7 +147,9 @@ class ScoreRow(_message.Message):
     priority: float
     calculated_at: _timestamp_pb2.Timestamp
     digest: str
-    def __init__(self, scenario: _Optional[str] = ..., category: _Optional[str] = ..., score: _Optional[int] = ..., classification: _Optional[str] = ..., working_rung: _Optional[str] = ..., importance: _Optional[float] = ..., priority: _Optional[float] = ..., calculated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., digest: _Optional[str] = ...) -> None: ...
+    last_run_at: _timestamp_pb2.Timestamp
+    last_status: str
+    def __init__(self, scenario: _Optional[str] = ..., category: _Optional[str] = ..., score: _Optional[int] = ..., classification: _Optional[str] = ..., working_rung: _Optional[str] = ..., importance: _Optional[float] = ..., priority: _Optional[float] = ..., calculated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., digest: _Optional[str] = ..., last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_status: _Optional[str] = ...) -> None: ...
 
 class ScoreSnapshot(_message.Message):
     __slots__ = ("scenario", "category", "digest", "score", "classification", "working_rung", "breakdown_json", "importance", "importance_present", "source", "calculated_at")

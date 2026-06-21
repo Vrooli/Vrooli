@@ -117,6 +117,37 @@ func printConformance(w io.Writer, sh *runspb.SelfHealth) {
 				c.GetPhase(), c.GetProvider(), c.GetAdoptionScore()*100, strings.Join(c.GetViolations(), "; "))
 		}
 	}
+	printAutofixCoverage(w, conformance)
+}
+
+// printAutofixCoverage renders the advisory autofix declaration lens: the
+// fleet-wide pending-fixer backlog (the headline optimization signal) and the
+// providers carrying it, plus how many providers still have incomplete fix_class
+// declarations.
+func printAutofixCoverage(w io.Writer, conformance []*runspb.ProviderConformance) {
+	totalPending, totalImplemented, incompleteDecls := 0, 0, 0
+	for _, c := range conformance {
+		af := c.GetAutofix()
+		totalPending += int(af.GetPending())
+		totalImplemented += int(af.GetImplemented())
+		if !af.GetDeclarationComplete() {
+			incompleteDecls++
+		}
+	}
+	fmt.Fprintf(w, "  Autofix coverage: %d implemented, %d pending (gap), %d provider(s) with incomplete declarations\n",
+		totalImplemented, totalPending, incompleteDecls)
+	for _, c := range conformance {
+		af := c.GetAutofix()
+		if af.GetPending() == 0 && af.GetDeclarationComplete() {
+			continue
+		}
+		note := ""
+		if !af.GetDeclarationComplete() {
+			note = fmt.Sprintf(" (declared %d/%d)", af.GetDeclared(), af.GetTotal())
+		}
+		fmt.Fprintf(w, "      %s→%s: implemented=%d pending=%d manual=%d%s\n",
+			c.GetPhase(), c.GetProvider(), af.GetImplemented(), af.GetPending(), af.GetManual(), note)
+	}
 }
 
 // printTrend renders the persisted-snapshot trend delta ("availability 0.97

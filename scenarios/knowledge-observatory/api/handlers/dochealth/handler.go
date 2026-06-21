@@ -15,19 +15,30 @@ import (
 
 	"connectrpc.com/connect"
 
+	"knowledge-observatory/internal/services/dochealing"
 	"knowledge-observatory/internal/services/dochealth"
 
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
+	autofixcore "github.com/vrooli/maturity-go/autofix"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
+// DocFixer is the deterministic doc-placement remediation surface exposed
+// through the shared scenario-validation Fix RPC. It is satisfied by the
+// dochealing service; nil is safe (the Fix RPC then reports Unimplemented and
+// consumers skip the provider).
+type DocFixer interface {
+	AutoFix(ctx context.Context, scenarioName string, dryRun bool) (*dochealing.AutoFixResult, error)
+}
+
 // Handler implements the generated KnowledgeObservatoryServiceHandler.
 type Handler struct {
 	service     *dochealth.Service
+	fixer       DocFixer
 	spec        *assessment.Spec
 	now         func() time.Time
 	environment *commonv1.CaptureEnvironment
@@ -35,6 +46,7 @@ type Handler struct {
 
 type Deps struct {
 	Service      *dochealth.Service
+	Fixer        DocFixer
 	MaturitySpec *assessment.Spec
 	// Environment is the host CaptureEnvironment captured once at server init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
@@ -50,7 +62,7 @@ func New(service *dochealth.Service) *Handler {
 }
 
 func NewWithDeps(deps Deps) *Handler {
-	return &Handler{service: deps.Service, spec: deps.MaturitySpec, now: time.Now, environment: deps.Environment}
+	return &Handler{service: deps.Service, fixer: deps.Fixer, spec: deps.MaturitySpec, now: time.Now, environment: deps.Environment}
 }
 
 // WithClock overrides the timestamp source (tests).
@@ -106,10 +118,18 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
+	// When the caller resolved an explicit scenario path (e.g. Test Genie running
+	// deep template validation against a temp-generated scenario outside the repo
+	// scenarios/ tree), drive path-mode so resolveTarget validates that directory
+	// rather than looking the name up under the repo scenarios/ root.
+	docReq := &kov1.DocHealthRequest{ScenarioName: scenario}
+	if path := strings.TrimSpace(msg.GetPath()); path != "" {
+		scopePath := "path"
+		docReq.Path = &path
+		docReq.Scope = &scopePath
+	}
 	collector := metrics.Start(metrics.WithEnvironment(h.environment))
-	native, err := h.DocHealth(WithMetrics(ctx, collector), connect.NewRequest(&kov1.DocHealthRequest{
-		ScenarioName: scenario,
-	}))
+	native, err := h.DocHealth(WithMetrics(ctx, collector), connect.NewRequest(docReq))
 	if err != nil {
 		collector.Stop()
 		return nil, err
@@ -118,6 +138,51 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenarioName(), native.Msg.GetAssessment(), native.Msg, execMetrics)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// PreviewFix reports the deterministic doc-placement moves knowledge-observatory
+// could apply for the scenario without writing anything (shared Fix RPC).
+//
+// Note (converged-fixer debt): doc-healing remediations are file *moves*, not
+// content edits, so FixCandidate.before/after are left empty and the move is
+// encoded in the description; rule_ids filtering is not honored because the
+// underlying AutoFix is whole-scenario.
+func (h *Handler) PreviewFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	return h.runFix(ctx, req, false)
+}
+
+// ApplyFix applies knowledge-observatory's deterministic doc-placement moves and
+// reports what changed (shared Fix RPC).
+func (h *Handler) ApplyFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	return h.runFix(ctx, req, true)
+}
+
+func (h *Handler) runFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest], apply bool) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	if h.fixer == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("documentation auto-fix service unavailable"))
+	}
+	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	if scenario == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+	}
+	result, err := h.fixer.AutoFix(ctx, scenario, !apply)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	candidates := make([]autofixcore.Candidate, 0, len(result.Moved))
+	for _, m := range result.Moved {
+		candidates = append(candidates, autofixcore.Candidate{
+			RuleID:      "misplaced_doc",
+			FilePath:    m.ToPath,
+			Description: fmt.Sprintf("Move %s -> %s", m.FromPath, m.ToPath),
+			Applied:     apply,
+		})
+	}
+	resp := autofixcore.BuildFixResponse(scenario, apply, candidates)
+	for _, s := range result.Skipped {
+		resp.Messages = append(resp.Messages, fmt.Sprintf("skipped %s -> %s: %s", s.FromPath, s.ToPath, s.Reason))
 	}
 	return connect.NewResponse(resp), nil
 }

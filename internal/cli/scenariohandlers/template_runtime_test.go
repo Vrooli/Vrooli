@@ -302,7 +302,7 @@ func TestRunTemplateValidateDeepInvokesTestGenieWithScenarioPath(t *testing.T) {
 		"--logical-repo-root " + repoRoot,
 		"--logical-scenario-relpath scenarios/template-validation-demo-template-deep",
 		"--preset quick",
-		"--no-stream",
+		"--wait",
 		"--json",
 	} {
 		if !strings.Contains(args, want) {

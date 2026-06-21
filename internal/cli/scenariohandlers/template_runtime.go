@@ -409,7 +409,7 @@ func validateTemplateDeep[C any](deps HandlerDeps[C], ctx C, info TemplateInfo, 
 		"--logical-repo-root", deps.Root(ctx),
 		"--logical-scenario-relpath", filepath.Join("scenarios", scenarioID),
 		"--preset", run.TestPreset,
-		"--no-stream",
+		"--wait",
 		"--json",
 	}
 	if err := deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{

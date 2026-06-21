@@ -1,6 +1,7 @@
 package dependencyhealth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -31,8 +32,8 @@ type releaseAgeExceptionFile struct {
 	ReleaseAgeExceptions []releaseAgeException `json:"release_age_exceptions"`
 }
 
-func (h *connectHandler) evaluateReleaseAge(scenario string, surfaces []*healthv1.DependencyHealthSurface) (*healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, *healthv1.DependencyPolicySummary) {
-	scenarioDir := filepath.Join(h.resolveScenariosDir(), scenario)
+func (h *connectHandler) evaluateReleaseAge(ctx context.Context, scenario string, surfaces []*healthv1.DependencyHealthSurface) (*healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, *healthv1.DependencyPolicySummary) {
+	scenarioDir := h.scenarioDir(ctx, scenario)
 	exceptions := loadReleaseAgeExceptions(filepath.Join(filepath.Dir(h.resolveScenariosDir()), ".vrooli", "dependencies", "approved-dependencies.json"))
 	var findings []*healthv1.DependencyHealthFinding
 	policies := map[string]struct{}{}

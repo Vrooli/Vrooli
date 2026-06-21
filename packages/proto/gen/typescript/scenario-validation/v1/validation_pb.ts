@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-validation/v1/validation.proto.
  */
 export const file_scenario_validation_v1_validation: GenFile = /*@__PURE__*/
-  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgi+wEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EiwKB21ldHJpY3MYBSABKAsyGy5jb21tb24udjEuRXhlY3V0aW9uTWV0cmljcyrNAQoQVmFsaWRhdGlvblN0YXR1cxIhCh1WQUxJREFUSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEhwKGFZBTElEQVRJT05fU1RBVFVTX1BBU1NFRBABEhwKGFZBTElEQVRJT05fU1RBVFVTX0ZBSUxFRBACEh4KGlZBTElEQVRJT05fU1RBVFVTX0RFR1JBREVEEAMSGwoXVkFMSURBVElPTl9TVEFUVVNfRVJST1IQBBIdChlWQUxJREFUSU9OX1NUQVRVU19TS0lQUEVEEAUyoQEKGVNjZW5hcmlvVmFsaWRhdGlvblNlcnZpY2USgwEKEFZhbGlkYXRlU2NlbmFyaW8SNi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo3LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLXZhbGlkYXRpb24vdjE7c2NlbmFyaW92YWxpZGF0aW9udjFiBnByb3RvMw", [file_common_v1_maturity, file_common_v1_metrics, file_google_protobuf_any]);
+  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgi+wEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EiwKB21ldHJpY3MYBSABKAsyGy5jb21tb24udjEuRXhlY3V0aW9uTWV0cmljcyI+CgpGaXhSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSEAoIcnVsZV9pZHMYAyADKAkidwoMRml4Q2FuZGlkYXRlEg8KB3J1bGVfaWQYASABKAkSEQoJZmlsZV9wYXRoGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBmJlZm9yZRgEIAEoCRINCgVhZnRlchgFIAEoCRIPCgdhcHBsaWVkGAYgASgIIoMBCgtGaXhSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIPCgdhcHBsaWVkGAIgASgIEj8KCmNhbmRpZGF0ZXMYAyADKAsyKy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhDYW5kaWRhdGUSEAoIbWVzc2FnZXMYBCADKAkqzQEKEFZhbGlkYXRpb25TdGF0dXMSIQodVkFMSURBVElPTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIcChhWQUxJREFUSU9OX1NUQVRVU19QQVNTRUQQARIcChhWQUxJREFUSU9OX1NUQVRVU19GQUlMRUQQAhIeChpWQUxJREFUSU9OX1NUQVRVU19ERUdSQURFRBADEhsKF1ZBTElEQVRJT05fU1RBVFVTX0VSUk9SEAQSHQoZVkFMSURBVElPTl9TVEFUVVNfU0tJUFBFRBAFMukCChlTY2VuYXJpb1ZhbGlkYXRpb25TZXJ2aWNlEoMBChBWYWxpZGF0ZVNjZW5hcmlvEjYudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QaNy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USYwoKUHJldmlld0ZpeBIpLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkZpeFJlcXVlc3QaKi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXNwb25zZRJhCghBcHBseUZpeBIpLnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLkZpeFJlcXVlc3QaKi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5GaXhSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLXZhbGlkYXRpb24vdjE7c2NlbmFyaW92YWxpZGF0aW9udjFiBnByb3RvMw", [file_common_v1_maturity, file_common_v1_metrics, file_google_protobuf_any]);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.ValidateScenarioRequest
@@ -98,6 +98,144 @@ export const ValidateScenarioResponseSchema: GenMessage<ValidateScenarioResponse
   messageDesc(file_scenario_validation_v1_validation, 1);
 
 /**
+ * FixRequest selects the deterministic remediations to preview or apply for a
+ * scenario. It mirrors ValidateScenarioRequest's target-resolution fields so a
+ * consumer that just validated a scenario can fix it without re-resolving.
+ *
+ * @generated from message vrooli.scenario_validation.v1.FixRequest
+ */
+export type FixRequest = Message<"vrooli.scenario_validation.v1.FixRequest"> & {
+  /**
+   * Scenario slug, normally the directory name under scenarios/.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Optional explicit scenario path for callers that already resolved it.
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * Optional rule/finding codes to restrict the fix; empty means every rule the
+   * provider can deterministically remediate.
+   *
+   * @generated from field: repeated string rule_ids = 3;
+   */
+  ruleIds: string[];
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.FixRequest.
+ * Use `create(FixRequestSchema)` to create a new message.
+ */
+export const FixRequestSchema: GenMessage<FixRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 2);
+
+/**
+ * FixCandidate is a single proposed (dry-run) or applied file edit. It mirrors
+ * the shared maturity-go autofix.Candidate shape so providers built on that
+ * registry map straight through.
+ *
+ * @generated from message vrooli.scenario_validation.v1.FixCandidate
+ */
+export type FixCandidate = Message<"vrooli.scenario_validation.v1.FixCandidate"> & {
+  /**
+   * Rule/finding code that produced this edit.
+   *
+   * @generated from field: string rule_id = 1;
+   */
+  ruleId: string;
+
+  /**
+   * Absolute or scenario-relative path of the file the edit targets.
+   *
+   * @generated from field: string file_path = 2;
+   */
+  filePath: string;
+
+  /**
+   * Human-readable description of the change.
+   *
+   * @generated from field: string description = 3;
+   */
+  description: string;
+
+  /**
+   * File contents before the edit (may be empty when creating a new file).
+   *
+   * @generated from field: string before = 4;
+   */
+  before: string;
+
+  /**
+   * File contents after the edit.
+   *
+   * @generated from field: string after = 5;
+   */
+  after: string;
+
+  /**
+   * True when this edit was written to disk (ApplyFix), false for previews.
+   *
+   * @generated from field: bool applied = 6;
+   */
+  applied: boolean;
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.FixCandidate.
+ * Use `create(FixCandidateSchema)` to create a new message.
+ */
+export const FixCandidateSchema: GenMessage<FixCandidate> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 3);
+
+/**
+ * FixResponse reports the candidates a provider previewed or applied.
+ *
+ * @generated from message vrooli.scenario_validation.v1.FixResponse
+ */
+export type FixResponse = Message<"vrooli.scenario_validation.v1.FixResponse"> & {
+  /**
+   * Scenario the fix targeted.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * True when candidates were written to disk (ApplyFix), false for previews.
+   *
+   * @generated from field: bool applied = 2;
+   */
+  applied: boolean;
+
+  /**
+   * The proposed or applied edits, ordered deterministically by file then rule.
+   *
+   * @generated from field: repeated vrooli.scenario_validation.v1.FixCandidate candidates = 3;
+   */
+  candidates: FixCandidate[];
+
+  /**
+   * Optional human-readable notes (e.g. "no auto-fixable findings available").
+   *
+   * @generated from field: repeated string messages = 4;
+   */
+  messages: string[];
+};
+
+/**
+ * Describes the message vrooli.scenario_validation.v1.FixResponse.
+ * Use `create(FixResponseSchema)` to create a new message.
+ */
+export const FixResponseSchema: GenMessage<FixResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_validation_v1_validation, 4);
+
+/**
  * @generated from enum vrooli.scenario_validation.v1.ValidationStatus
  */
 export enum ValidationStatus {
@@ -149,6 +287,31 @@ export const ScenarioValidationService: GenService<{
     methodKind: "unary";
     input: typeof ValidateScenarioRequestSchema;
     output: typeof ValidateScenarioResponseSchema;
+  },
+  /**
+   * PreviewFix reports the deterministic remediations the provider could apply
+   * for the requested scenario without writing anything (dry-run). Providers
+   * that ship no fixers leave this unimplemented; consumers treat an
+   * Unimplemented response as "no deterministic fixer" and skip the provider.
+   *
+   * @generated from rpc vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix
+   */
+  previewFix: {
+    methodKind: "unary";
+    input: typeof FixRequestSchema;
+    output: typeof FixResponseSchema;
+  },
+  /**
+   * ApplyFix applies the provider's deterministic remediations and reports what
+   * changed. Apply is never implicit: callers reach this RPC only when the user
+   * explicitly opts into writing (e.g. `--apply`).
+   *
+   * @generated from rpc vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix
+   */
+  applyFix: {
+    methodKind: "unary";
+    input: typeof FixRequestSchema;
+    output: typeof FixResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_scenario_validation_v1_validation, 0);

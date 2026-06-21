@@ -444,6 +444,7 @@ func (s *Server) setupRoutes() {
 	if s.docHealthService != nil {
 		handler := dochealthhandler.NewWithDeps(dochealthhandler.Deps{
 			Service:      s.docHealthService,
+			Fixer:        s.docHealingService,
 			MaturitySpec: s.docHealthMaturity,
 			Environment:  s.docHealthEnvironment,
 		})

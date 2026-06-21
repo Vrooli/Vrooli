@@ -12,3 +12,11 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Supply-chain cooldown: refuse dependency versions published less than 7 days
+# (10080 minutes) ago, so a freshly-compromised release can't be pulled in
+# before the ecosystem has had time to flag it. Vrooli's dependency-health gate
+# (Scenario Dependency Analyzer) requires every pnpm surface to declare this.
+# Bypassing a specific package needs a governed exception in
+# .vrooli/dependencies/approved-dependencies.json, not a lower value here.
+minimumReleaseAge: 10080

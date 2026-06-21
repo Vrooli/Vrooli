@@ -27,6 +27,18 @@ type Service interface {
 	// process-level readiness derived from non-secret credential presence.
 	GetConfigState(ctx context.Context) (ConfigState, error)
 
+	// GetCredentialStatus returns browser-safe Cloudflare credential
+	// presence/source metadata. It never returns the API token value.
+	GetCredentialStatus(ctx context.Context) (CredentialStatus, error)
+
+	// SetCloudflareCredentials stores write-only Cloudflare credentials in the
+	// configured credential store and returns redacted status metadata.
+	SetCloudflareCredentials(ctx context.Context, values CredentialUpdate) (CredentialStatus, error)
+
+	// ClearCloudflareCredentials removes one or more file-backed Cloudflare
+	// credential values and returns redacted status metadata.
+	ClearCloudflareCredentials(ctx context.Context, keys []string) (CredentialStatus, error)
+
 	// Sync reconciles live ingress with the routes manifest. It computes
 	// the desired ingress (enabled routes → subdomain.domain hostnames →
 	// http://localhost:<port>, plus a catch-all 404), diffs it against the
@@ -48,6 +60,7 @@ type Deps struct {
 	Repo             ConfigRepository
 	Routes           RoutesReader
 	Ingress          IngressClient
+	CredentialStore  CredentialStore
 	CF               CFConfig
 	CredentialStatus CredentialStatus
 	Runner           cmdrunner.Runner
@@ -87,10 +100,32 @@ func (s *service) GetConfigState(ctx context.Context) (ConfigState, error) {
 	if err != nil {
 		return ConfigState{}, err
 	}
+	readiness, err := s.readiness(ctx, cfg)
+	if err != nil {
+		return ConfigState{}, err
+	}
 	return ConfigState{
 		Config:    cfg,
-		Readiness: s.readiness(cfg),
+		Readiness: readiness,
 	}, nil
+}
+
+func (s *service) GetCredentialStatus(ctx context.Context) (CredentialStatus, error) {
+	return s.credentialStatus(ctx)
+}
+
+func (s *service) SetCloudflareCredentials(ctx context.Context, values CredentialUpdate) (CredentialStatus, error) {
+	if s.deps.CredentialStore == nil {
+		return CredentialStatus{}, ErrInvalidConfig{Field: "credentials", Reason: "credential store is not configured"}
+	}
+	return s.deps.CredentialStore.Save(ctx, values)
+}
+
+func (s *service) ClearCloudflareCredentials(ctx context.Context, keys []string) (CredentialStatus, error) {
+	if s.deps.CredentialStore == nil {
+		return CredentialStatus{}, ErrInvalidConfig{Field: "credentials", Reason: "credential store is not configured"}
+	}
+	return s.deps.CredentialStore.Delete(ctx, keys)
 }
 
 func (s *service) Sync(ctx context.Context, dryRun bool) (SyncResult, error) {
@@ -104,8 +139,29 @@ func (s *service) Sync(ctx context.Context, dryRun bool) (SyncResult, error) {
 		return SyncResult{}, err
 	}
 
-	if cfg.Mode == ModeRemote && s.deps.Ingress == nil && dryRun {
-		readiness := s.readiness(cfg)
+	if cfg.Mode == ModeRemote && dryRun {
+		if _, err := s.remoteIngress(ctx); err != nil {
+			readiness, readyErr := s.readiness(ctx, cfg)
+			if readyErr != nil {
+				return SyncResult{}, readyErr
+			}
+			if _, ok := err.(ErrRemoteUnavailable); !ok {
+				return SyncResult{}, err
+			}
+			return SyncResult{
+				Mode:          cfg.Mode,
+				SetupRequired: true,
+				MissingFields: readiness.MissingFields,
+				Message:       readiness.ModeReason,
+			}, nil
+		}
+	}
+
+	if cfg.Mode == ModeRemote && s.deps.Ingress == nil && s.deps.CredentialStore == nil && dryRun {
+		readiness, err := s.readiness(ctx, cfg)
+		if err != nil {
+			return SyncResult{}, err
+		}
 		return SyncResult{
 			Mode:          cfg.Mode,
 			SetupRequired: true,
@@ -206,11 +262,11 @@ func (s *service) liveIngress(ctx context.Context, mode Mode) ([]IngressRule, er
 	if mode == ModeLocal {
 		return s.readLocalIngress()
 	}
-	// Remote (and unspecified, which defaults to remote).
-	if s.deps.Ingress == nil {
-		return nil, ErrRemoteUnavailable{}
+	ingress, err := s.remoteIngress(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return s.deps.Ingress.ReadIngress(ctx)
+	return ingress.ReadIngress(ctx)
 }
 
 // applyIngress pushes the desired ingress through the active mode's channel.
@@ -224,25 +280,53 @@ func (s *service) applyIngress(ctx context.Context, cfg TunnelConfig, desired []
 		}
 		return nil
 	}
-	if s.deps.Ingress == nil {
-		return ErrRemoteUnavailable{}
+	ingress, err := s.remoteIngress(ctx)
+	if err != nil {
+		return err
 	}
-	if err := s.deps.Ingress.PushIngress(ctx, desired); err != nil {
+	if err := ingress.PushIngress(ctx, desired); err != nil {
 		return fmt.Errorf("push ingress: %w", err)
 	}
 	return nil
 }
 
-func (s *service) readiness(cfg TunnelConfig) ConfigReadiness {
-	status := s.effectiveCredentialStatus()
+func (s *service) remoteIngress(ctx context.Context) (IngressClient, error) {
+	if s.deps.CredentialStore == nil {
+		if s.deps.Ingress == nil {
+			return nil, ErrRemoteUnavailable{}
+		}
+		return s.deps.Ingress, nil
+	}
+	cfg, err := s.deps.CredentialStore.Resolve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+	}
+	if !cfConfigComplete(cfg) {
+		return nil, ErrRemoteUnavailable{}
+	}
+	if s.deps.Ingress != nil {
+		return s.deps.Ingress, nil
+	}
+	return NewCFClient(nil, cfg), nil
+}
+
+func (s *service) readiness(ctx context.Context, cfg TunnelConfig) (ConfigReadiness, error) {
+	status, err := s.credentialStatus(ctx)
+	if err != nil {
+		return ConfigReadiness{}, err
+	}
 	missing := status.MissingFields
-	if len(missing) == 0 && !cfConfigComplete(s.deps.CF) {
+	remoteAvailable := status.Ready
+	if len(missing) == 0 && !status.Ready && !cfConfigComplete(s.deps.CF) {
 		missing = append([]string(nil), cloudflareCredentialFields...)
 		status.MissingFields = append([]string(nil), missing...)
 		status.Ready = false
 	}
-	remoteAvailable := len(missing) == 0 && cfConfigComplete(s.deps.CF)
-	if s.deps.Ingress != nil {
+	if s.deps.CredentialStore == nil && len(missing) == 0 && cfConfigComplete(s.deps.CF) {
+		remoteAvailable = true
+		status.Ready = true
+	}
+	if s.deps.CredentialStore == nil && s.deps.Ingress != nil {
 		remoteAvailable = true
 		status.Ready = true
 	}
@@ -258,18 +342,21 @@ func (s *service) readiness(cfg TunnelConfig) ConfigReadiness {
 		LocalConfigPath:  s.deps.LocalConfigPath,
 		SyncReady:        syncReady,
 		ModeReason:       readinessReason(desiredMode, remoteAvailable),
-	}
+	}, nil
 }
 
-func (s *service) effectiveCredentialStatus() CredentialStatus {
+func (s *service) credentialStatus(ctx context.Context) (CredentialStatus, error) {
+	if s.deps.CredentialStore != nil {
+		return s.deps.CredentialStore.Status(ctx)
+	}
 	status := s.deps.CredentialStatus
 	if hasCredentialStatus(status) {
 		if len(status.Fields) == 0 {
 			status.Ready = len(status.MissingFields) == 0
 		}
-		return status
+		return status, nil
 	}
-	return statusFromCFConfig(s.deps.CF)
+	return statusFromCFConfig(s.deps.CF), nil
 }
 
 func hasCredentialStatus(status CredentialStatus) bool {

@@ -29,7 +29,32 @@ func readinessToProto(r internalconfig.ConfigReadiness) *configv1.ConfigReadines
 		LocalConfigPath:  r.LocalConfigPath,
 		SyncReady:        r.SyncReady,
 		ModeReason:       r.ModeReason,
+		CredentialFields: credentialFieldsToProto(r.CredentialStatus.Fields),
 	}
+}
+
+func credentialStatusToProto(status internalconfig.CredentialStatus) *configv1.CredentialStatus {
+	return &configv1.CredentialStatus{
+		Fields:        credentialFieldsToProto(status.Fields),
+		MissingFields: status.MissingFields,
+		Source:        status.Source,
+		Ref:           status.Ref,
+		Ready:         status.Ready,
+	}
+}
+
+func credentialFieldsToProto(fields []internalconfig.CredentialFieldStatus) []*configv1.CredentialFieldStatus {
+	out := make([]*configv1.CredentialFieldStatus, 0, len(fields))
+	for _, field := range fields {
+		out = append(out, &configv1.CredentialFieldStatus{
+			Name:     field.Name,
+			Present:  field.Present,
+			Source:   field.Source,
+			Ref:      field.Ref,
+			Writable: field.Writable,
+		})
+	}
+	return out
 }
 
 // syncResultToProto converts a SyncResult into the SyncResponse wire shape.

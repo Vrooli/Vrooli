@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-completeness-scoring",
-  "input_digest": "sha256:cd068f112fa94628cc5c5008c56167cbaad5dbfa6fbbf545babae302d7b52be0",
+  "input_digest": "sha256:d2e04d1ca3e879649eeb9f772022e39b1e711ae99355060743d91cc941a22a6a",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/scenario-completeness-scoring/v1/domain/scoring.proto",
@@ -27,7 +27,7 @@
     "gen/go/scenario-completeness-scoring/v1/health/health.pb.go": "sha256:be68e3b61804cb5860cdc5892bda88038738082f6ca711b4b443549a6932be6e",
     "gen/go/scenario-completeness-scoring/v1/measures/measures.pb.go": "sha256:a7e97e3a097652aa11e8754d3ba86b875bb0b6cc39fe69649fcbd66b0716ff13",
     "gen/go/scenario-completeness-scoring/v1/measures/measures_v1connect/measures.connect.go": "sha256:bb82ba18c398e886986116926624650613335fdbf9e8779969e56c56babf6680",
-    "gen/go/scenario-completeness-scoring/v1/scoring/scoring.pb.go": "sha256:0e2eaa21ad6b64455b97297f4af42398391a9859b2db1bf9597649f22d88cb70",
+    "gen/go/scenario-completeness-scoring/v1/scoring/scoring.pb.go": "sha256:8ae299a3177550573e5ae7d63187de4484a2a11ed91a65f647d3758034c72bcc",
     "gen/go/scenario-completeness-scoring/v1/scoring/scoring_v1connect/scoring.connect.go": "sha256:d2d3326ccdf04789de92a8789a77cad6e541d324d739894a2ff9637a3025ebf3",
     "gen/python/scenario_completeness_scoring/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_completeness_scoring/v1/domain/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -44,17 +44,17 @@
     "gen/python/scenario_completeness_scoring/v1/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_completeness_scoring/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_completeness_scoring/v1/scoring/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.py": "sha256:e64b1be6f760676310bd8557041cc1bc49c33a169a33433fadcf232fdf6bfea4",
-    "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.pyi": "sha256:c417acff0e7abecd52e9a04f7889e3130cc1561227d16eb220d3efd4f0169805",
+    "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.py": "sha256:8201a8337860cfc4909387e40bfb211adc6edb7ab5ae993e39c339566cedd4d2",
+    "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.pyi": "sha256:dae04d98c7710146ced243f012e317ab09f7d5b8d902ad21e08ebc1926ed6f55",
     "gen/typescript/js/scenario-completeness-scoring/v1/domain/scoring_pb.js": "sha256:5580aaccefe86aee67b88dcfaf007629d262c21e287a582aa6c208a538b885e7",
     "gen/typescript/js/scenario-completeness-scoring/v1/errors/errors_pb.js": "sha256:bd7b3e73878506b75c9791c9766de12143314bd3362b8bad92bd649d66c36b8d",
     "gen/typescript/js/scenario-completeness-scoring/v1/health/health_pb.js": "sha256:f6284367c1541e7064e82ecc14031eec4bfc3cd83b7870e98001e9c78b17b963",
     "gen/typescript/js/scenario-completeness-scoring/v1/measures/measures_pb.js": "sha256:4c13589094b21914f6189e78a59156e426d6e7aff7fe37f4c6c154f6d1a78f5c",
-    "gen/typescript/js/scenario-completeness-scoring/v1/scoring/scoring_pb.js": "sha256:f1443fdf86be6add8a7a84d4e777efba535dcde81d8f2289e3a6839c52476695",
+    "gen/typescript/js/scenario-completeness-scoring/v1/scoring/scoring_pb.js": "sha256:a7f793b4ccd88d924740f23fd168938d40d7d61f0be6c6a796120d42f8845a6b",
     "gen/typescript/scenario-completeness-scoring/v1/domain/scoring_pb.ts": "sha256:109a4c3088e7702e746bd3104063a341e3bc89abe6de98b8de38e54b4e06a385",
     "gen/typescript/scenario-completeness-scoring/v1/errors/errors_pb.ts": "sha256:144fdba4b8e80eb70b3a42c73fe0602129b92105c777466757b939a2be8cf101",
     "gen/typescript/scenario-completeness-scoring/v1/health/health_pb.ts": "sha256:c42304c39f7782f13c3608be031c1b092f68c2a82b4d444fc157824c3382b559",
     "gen/typescript/scenario-completeness-scoring/v1/measures/measures_pb.ts": "sha256:238a6c8d0169f9d6abde91e6c84f5e32c9aeec9e86356b439839e037fb4cf2d5",
-    "gen/typescript/scenario-completeness-scoring/v1/scoring/scoring_pb.ts": "sha256:a30908525691b56ea41fc1308a772cbe42a34a8398743fd758ba1ef550e79b51"
+    "gen/typescript/scenario-completeness-scoring/v1/scoring/scoring_pb.ts": "sha256:49034d719ccbecc3634f6e68cd6b66895510569ffe8ff5fac7f5bed7910b5d2f"
   }
 }

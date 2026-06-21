@@ -147,6 +147,18 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	runsService.SetSnapshotReader(selfHealthSnapshots)
 	startSelfHealthSweeper(selfHealthSnapshots, newSelfHealthRollupBuilder(executionRepo, repoRootFromScenariosRoot(cfg.ScenariosRoot)))
 
+	// GetFleetHealth aggregates stored runs across the fleet (Stage 3 fleet
+	// backbone, read side). The roster lists on-disk scenario directories so the
+	// ledger can surface never-tested-in-window coverage gaps honestly.
+	runsService.SetFleetSource(executionRepo, fleetRosterFromScenariosRoot(cfg.ScenariosRoot))
+
+	// Priority-weighted background fleet scheduler (Stage 3 fleet backbone).
+	// DEFAULT-OFF: it cycles real full suites across the fleet only when
+	// explicitly enabled via TEST_GENIE_FLEET_SCHEDULER_ENABLED, bounded by
+	// concurrency + per-cycle + wall-clock budgets, and respects the run
+	// manager's one-in-progress-per-scenario invariant.
+	startFleetScheduler(runManager)
+
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
 	profileKey := os.Getenv("AGENT_MANAGER_PROFILE_KEY")

@@ -1072,14 +1072,22 @@ verified in two layers:
    fixture, asserts both durable AI outputs are non-empty, and exits non-zero on
    any refusal/regression.
 
-2. **Automated (CI):** the full vertical (host probe → hardware-fit select →
+2. **Attended model-install gate:** on a host where large downloads are
+   acceptable, run `IMAGE_TOOLS_ALLOW_MODEL_DOWNLOADS=1 make model-install-e2e`.
+   The target first requires `models doctor` to be green, then loops every
+   enabled weight-backed model through the public `models install <id> --wait`
+   command. Re-running is safe: installed models return `already_installed` and
+   do not enqueue duplicate download jobs. Without the environment opt-in, the
+   target prints a single skip line and exits cleanly.
+
+3. **Automated (CI):** the full vertical (host probe → hardware-fit select →
    backend select → materialize → execute → persist → auto-scan) runs with
    **fake providers** — `api/internal/ai/{generation,enhancement,providers}_test.go`,
    `api/internal/analysis/*_test.go`, and the handler/CLI tests. Backend
    arg-builders are unit-tested for assembly. The pure-Go `analyze probe` is the
    one model-free op verified live end-to-end.
 
-3. **Attended acceptance gate (the provisioned headless proof):** on a host where the
+4. **Attended acceptance gate (the provisioned headless proof):** on a host where the
    CPU default models are installed (Phase-4 `image-tools models install <id>`),
    run each AI op from the CLI with no GPU/ComfyUI and confirm completion:
 
@@ -1120,6 +1128,22 @@ runtime, `models install <id> --wait` installs the selected model if needed, and
 busy or the runtime has not been provisioned through SDA yet, the target prints a
 single `SKIP gpu-e2e: ...` line and exits cleanly; when ready, it must produce a
 non-empty PNG and report the output path.
+
+### Model install gate
+
+Catalog truthfulness is checked by `models doctor`; install truthfulness is
+checked by the attended install loop:
+
+```bash
+cd scenarios/image-tools
+IMAGE_TOOLS_ALLOW_MODEL_DOWNLOADS=1 make model-install-e2e
+```
+
+The target intentionally uses the same CLI path an operator uses (`models
+install --wait`) so it exercises durable job submission, disk-space preflight,
+artifact validation, checksum pinning, and idempotent already-installed
+short-circuit behavior. Keep it out of default CI because it may download large
+model artifacts and depends on external model hosts.
 
 ## Cross-references
 

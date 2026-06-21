@@ -347,7 +347,7 @@ func TestReleaseAgeReportsMissingAndLowPNPMPolicy(t *testing.T) {
 	writeFile(t, filepath.Join(lowRoot, "pnpm-workspace.yaml"), "packages:\n  - .\nminimumReleaseAge: 60\n")
 
 	handler := &connectHandler{scenariosDir: func() string { return scenariosDir }}
-	section, findings, summary := handler.evaluateReleaseAge("demo", []*healthv1.DependencyHealthSurface{
+	section, findings, summary := handler.evaluateReleaseAge(context.Background(), "demo", []*healthv1.DependencyHealthSurface{
 		{Id: "ui", Language: "typescript", RootPath: missingRoot, PackageManager: "pnpm"},
 		{Id: "worker", Language: "typescript", RootPath: lowRoot, PackageManager: "pnpm"},
 	})
@@ -390,7 +390,7 @@ func TestReleaseAgeAcceptsGovernedExcludes(t *testing.T) {
 	}`)
 
 	handler := &connectHandler{scenariosDir: func() string { return scenariosDir }}
-	section, findings, summary := handler.evaluateReleaseAge("demo", []*healthv1.DependencyHealthSurface{
+	section, findings, summary := handler.evaluateReleaseAge(context.Background(), "demo", []*healthv1.DependencyHealthSurface{
 		{Id: "ui", Language: "typescript", RootPath: uiRoot, PackageManager: "pnpm"},
 	})
 

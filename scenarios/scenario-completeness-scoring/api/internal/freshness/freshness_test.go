@@ -107,3 +107,33 @@ func TestCheckUsesRequiredPhaseSet(t *testing.T) {
 		}
 	}
 }
+
+// TestCheckScenarioLevelLastRun verifies the scenario-level recency fields:
+// the newest run overall (regardless of phase/digest) drives LastRun*, with the
+// start time used as a fallback when the run has not completed.
+func TestCheckScenarioLevelLastRun(t *testing.T) {
+	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
+	records := []runindex.RunRecord{
+		{RunID: "run-new", StartedAt: now.Add(-time.Minute), CompletedAt: now, Status: "passed", TreeDigest: "td:current"},
+		{RunID: "run-old", StartedAt: now.Add(-2 * time.Hour), CompletedAt: now.Add(-time.Hour), Status: "failed", TreeDigest: "td:old"},
+	}
+	res := fixedService("td:current", nil, records).Check("fixture", "/unused")
+	if res.LastRunID != "run-new" || res.LastStatus != "passed" || !res.LastRunAt.Equal(now) {
+		t.Fatalf("scenario recency = %s/%s/%v, want run-new/passed/%v", res.LastRunID, res.LastStatus, res.LastRunAt, now)
+	}
+
+	// In-progress newest run (no completed_at) falls back to started_at.
+	inprog := []runindex.RunRecord{
+		{RunID: "run-live", StartedAt: now, Status: "in_progress", TreeDigest: "td:current"},
+	}
+	res = fixedService("td:current", nil, inprog).Check("fixture", "/unused")
+	if res.LastRunID != "run-live" || res.LastStatus != "in_progress" || !res.LastRunAt.Equal(now) {
+		t.Fatalf("in-progress recency = %s/%s/%v, want run-live/in_progress/%v", res.LastRunID, res.LastStatus, res.LastRunAt, now)
+	}
+
+	// No runs -> empty recency (not a zero that reads as a real run).
+	res = fixedService("td:current", nil, nil).Check("fixture", "/unused")
+	if res.LastRunID != "" || res.LastStatus != "" || !res.LastRunAt.IsZero() {
+		t.Fatalf("empty recency = %s/%s/%v, want all empty", res.LastRunID, res.LastStatus, res.LastRunAt)
+	}
+}

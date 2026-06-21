@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
+	autofixcore "github.com/vrooli/maturity-go/autofix"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -157,6 +158,39 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// PreviewFix exposes structure-health's deterministic fixes through the shared
+// scenario-validation Fix RPC (dry-run). It reuses the native engine so the
+// shared and native surfaces stay in lockstep.
+func (h *SharedHandler) PreviewFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	if h == nil || h.handler == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("structure validation handler not wired"))
+	}
+	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
+	}
+	scenario, candidates, err := h.handler.svc.PreviewFix(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetRuleIds())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(autofixcore.BuildFixResponse(firstNonEmpty(scenario, req.Msg.GetScenario()), false, candidates)), nil
+}
+
+// ApplyFix applies structure-health's deterministic fixes through the shared
+// scenario-validation Fix RPC and reports what changed.
+func (h *SharedHandler) ApplyFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
+	if h == nil || h.handler == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("structure validation handler not wired"))
+	}
+	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
+	}
+	scenario, candidates, err := h.handler.svc.ApplyFix(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetRuleIds())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(autofixcore.BuildFixResponse(firstNonEmpty(scenario, req.Msg.GetScenario()), true, candidates)), nil
 }
 
 func statusOverride(resp *validationv1.ValidateScenarioResponse) []assessment.ValidationResponseOption {

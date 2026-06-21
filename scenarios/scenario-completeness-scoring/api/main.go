@@ -113,6 +113,14 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	// Guarded, idempotent column-evolution migrations run BEFORE EnsureSchemas'
+	// drift check, which would otherwise fail on a pre-existing score_snapshots
+	// table missing the recency columns (CREATE TABLE IF NOT EXISTS cannot add a
+	// column to a data-bearing table). On a fresh database this is a no-op and
+	// EnsureSchemas creates the table complete.
+	if err := internalscoring.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}

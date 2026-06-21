@@ -86,6 +86,17 @@ service RunsService {
   // `test-genie health` CLI verb and the meta-optimization heartbeat.
   rpc GetSelfHealth(GetSelfHealthRequest) returns (GetSelfHealthResponse);
 
+  // GetFleetHealth aggregates STORED runs across the whole fleet into a
+  // fleet-wide health snapshot: importance/staleness-aware per-scenario rollups
+  // (runs, availability, failure rate, issue count, last-run age + outcome),
+  // a most-errored ranking, finding-source clustering, and — when a roster is
+  // requested — explicit never-tested-in-window coverage gaps. It is
+  // compute-on-read over runs that ALREADY executed (the default-OFF background
+  // fleet scheduler keeps them fresh); it does NOT launch a fleet run. Every
+  // datum is as-of stamped so stale data can never read as fresh. Read-only;
+  // consumed by the `test-genie fleet status` CLI verb and meta-optimization.
+  rpc GetFleetHealth(GetFleetHealthRequest) returns (GetFleetHealthResponse);
+
   // --- Durable run lifecycle (server-owned, request-decoupled) ---------------
   // The run manager owns execution under a server-lifetime context, so a run
   // survives client cancellation. StartRun returns immediately with the run id;
@@ -523,6 +534,58 @@ message GetSelfHealthResponse {
   SelfHealth self_health = 1;
 }
 
+message GetFleetHealthRequest {
+  // window_days bounds the fleet aggregation look-back. 0 = server default
+  // (30 days), shared with the reliability ledger.
+  int32 window_days = 1;
+  // include_roster, when set, has the server enumerate the full fleet roster so
+  // never_tested_in_window is populated (an explicit coverage gap). Default
+  // (false) omits the cross-reference and leaves that list empty (unknown, not
+  // asserted).
+  bool include_roster = 2;
+}
+
+message GetFleetHealthResponse {
+  FleetHealth fleet_health = 1;
+}
+
+// FleetHealth is the fleet-wide health snapshot aggregated over stored runs.
+message FleetHealth {
+  int32 window_days = 1;
+  // captured_at is the as-of stamp for the whole rollup (RFC3339Nano UTC).
+  string captured_at = 2;
+  int32 scenarios_tested = 3; // scenarios with >=1 run in the window
+  int32 scenarios_total = 4; // tested + never-tested (when roster requested)
+  int32 total_runs = 5;
+  int32 total_issues = 6; // failed phase observations across the fleet
+  repeated FleetScenarioHealth scenarios = 7; // most-errored first
+  repeated FleetFindingSource top_finding_sources = 8;
+  // never_tested_in_window names roster scenarios with no run in the window — an
+  // explicit coverage gap, never a silent zero. Empty when no roster requested.
+  repeated string never_tested_in_window = 9;
+}
+
+// FleetScenarioHealth is one scenario's rollup over the window, all from stored
+// runs. last_run_at + age_days make staleness explicit per scenario.
+message FleetScenarioHealth {
+  string scenario = 1;
+  int32 runs = 2;
+  int32 passed_runs = 3;
+  int32 failed_runs = 4;
+  double availability = 5;
+  double failure_rate = 6;
+  int32 issues = 7; // failed phase observations in the window
+  string last_run_at = 8; // RFC3339Nano UTC; empty when no run in window
+  string last_outcome = 9; // newest run's terminal outcome
+  double age_days = 10; // now - last_run_at, in days
+}
+
+// FleetFindingSource is one finding-source's issue count across the fleet.
+message FleetFindingSource {
+  string source = 1;
+  int32 issues = 2;
+}
+
 // SelfHealth stitches catalog, conformance, and reliability into one snapshot.
 message SelfHealth {
   CatalogSummary catalog = 1;
@@ -589,6 +652,24 @@ message ProviderConformance {
   bool metrics_adopted = 7; // required: a reachable provider that drops ExecutionMetrics is a hard violation
   double adoption_score = 8; // fraction of the five dimensions satisfied
   repeated string violations = 9;
+  // autofix is the spec-derived autofix declaration rollup (Stage 1, advisory).
+  // It never enters adoption_score or the hard-violation set.
+  AutofixCoverage autofix = 10;
+}
+
+// AutofixCoverage is the per-provider autofix declaration rollup derived from a
+// provider's shipped maturity.json. Counts are absolute; the headline is
+// `pending` (the actionable backlog). `implementation_rate` keeps pending in the
+// denominator and is informational only — never a gate.
+message AutofixCoverage {
+  int32 total = 1; // declared finding mappings
+  int32 fixable_universe = 2; // auto + external
+  int32 implemented = 3; // fixable findings whose fixer exists
+  int32 pending = 4; // fixable findings whose fixer is not built yet (headline gap)
+  int32 manual = 5; // findings declared (or defaulted) manual
+  int32 declared = 6; // findings carrying an explicit fix_class
+  bool declaration_complete = 7; // every finding classified (the advisory dim)
+  double implementation_rate = 8; // implemented / (implemented + pending); informational
 }
 
 // ReliabilityLedger is the compute-on-read reliability + performance rollup.

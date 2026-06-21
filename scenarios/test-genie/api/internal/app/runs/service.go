@@ -47,6 +47,12 @@ type Service struct {
 	// the latest snapshot and (on include_trend) the windowed series. nil keeps
 	// the compute-on-read path unchanged (no trend fields).
 	snapshotReader snapshotReader
+	// fleetSource feeds GetFleetHealth's fleet ledger (compute-on-read
+	// aggregation over the stored runs of EVERY scenario). nil → GetFleetHealth
+	// is Unimplemented. fleetRoster, when set, supplies the full fleet roster so
+	// the ledger can surface never-tested-in-window coverage gaps.
+	fleetSource fleetLedgerSource
+	fleetRoster func(ctx context.Context) ([]string, error)
 }
 
 // ledgerSource is the read seam GetSelfHealth's reliability ledger composes over.
@@ -61,10 +67,27 @@ type snapshotReader interface {
 	Series(ctx context.Context, q selfhealthsnapshots.SeriesQuery) ([]selfhealthsnapshots.Snapshot, error)
 }
 
+// fleetLedgerSource is the read seam GetFleetHealth's fleet ledger composes over
+// — satisfied by *execution.SuiteExecutionRepository. It is a superset of
+// ledgerSource (adds the per-scenario run rollup); kept separate so widening it
+// never disturbs the existing GetSelfHealth seam or its fakes.
+type fleetLedgerSource interface {
+	AggregatePhaseObservations(ctx context.Context, since time.Time, limit int) ([]execution.PhaseObservation, error)
+	AggregateScenarioRuns(ctx context.Context, since time.Time, limit int) ([]execution.ScenarioRunRollup, error)
+}
+
 // SetSnapshotReader wires the optional persisted-trend read store. Returns the
 // service for chaining at construction sites.
 func (s *Service) SetSnapshotReader(r snapshotReader) *Service {
 	s.snapshotReader = r
+	return s
+}
+
+// SetFleetSource wires the GetFleetHealth fleet-ledger source and an optional
+// roster provider (for never-tested-in-window). Returns the service for chaining.
+func (s *Service) SetFleetSource(src fleetLedgerSource, roster func(ctx context.Context) ([]string, error)) *Service {
+	s.fleetSource = src
+	s.fleetRoster = roster
 	return s
 }
 

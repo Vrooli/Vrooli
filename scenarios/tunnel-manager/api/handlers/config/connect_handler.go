@@ -45,6 +45,55 @@ func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[confi
 	}), nil
 }
 
+func (h *connectHandler) GetCredentialStatus(ctx context.Context, _ *connect.Request[configv1.GetCredentialStatusRequest]) (*connect.Response[configv1.GetCredentialStatusResponse], error) {
+	status, err := h.deps.Service.GetCredentialStatus(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("config.GetCredentialStatus: %v", err)
+		return nil, internalconfig.ToConnectError(err)
+	}
+	return connect.NewResponse(&configv1.GetCredentialStatusResponse{
+		Status: credentialStatusToProto(status),
+	}), nil
+}
+
+func (h *connectHandler) SetCloudflareCredentials(ctx context.Context, req *connect.Request[configv1.SetCloudflareCredentialsRequest]) (*connect.Response[configv1.SetCloudflareCredentialsResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	status, err := h.deps.Service.SetCloudflareCredentials(ctx, internalconfig.CredentialUpdate{
+		AccountID: req.Msg.AccountId,
+		TunnelID:  req.Msg.TunnelId,
+		APIToken:  req.Msg.ApiToken,
+	})
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.SetCloudflareCredentials: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.SetCloudflareCredentialsResponse{
+		Status: credentialStatusToProto(status),
+	}), nil
+}
+
+func (h *connectHandler) ClearCloudflareCredentials(ctx context.Context, req *connect.Request[configv1.ClearCloudflareCredentialsRequest]) (*connect.Response[configv1.ClearCloudflareCredentialsResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	status, err := h.deps.Service.ClearCloudflareCredentials(ctx, req.Msg.Fields)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.ClearCloudflareCredentials: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.ClearCloudflareCredentialsResponse{
+		Status: credentialStatusToProto(status),
+	}), nil
+}
+
 func (h *connectHandler) Sync(ctx context.Context, req *connect.Request[configv1.SyncRequest]) (*connect.Response[configv1.SyncResponse], error) {
 	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
 		return nil, authz.ToConnectError(err)

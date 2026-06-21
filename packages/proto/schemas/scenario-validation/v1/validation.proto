@@ -24,6 +24,17 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-val
 
 service ScenarioValidationService {
   rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+
+  // PreviewFix reports the deterministic remediations the provider could apply
+  // for the requested scenario without writing anything (dry-run). Providers
+  // that ship no fixers leave this unimplemented; consumers treat an
+  // Unimplemented response as "no deterministic fixer" and skip the provider.
+  rpc PreviewFix(FixRequest) returns (FixResponse);
+
+  // ApplyFix applies the provider's deterministic remediations and reports what
+  // changed. Apply is never implicit: callers reach this RPC only when the user
+  // explicitly opts into writing (e.g. `--apply`).
+  rpc ApplyFix(FixRequest) returns (FixResponse);
 }
 
 message ValidateScenarioRequest {
@@ -55,4 +66,47 @@ message ValidateScenarioResponse {
   // Optional execution metrics (timing, stages, resources, host environment)
   // for this validation. Absent for providers that have not adopted metrics.
   common.v1.ExecutionMetrics metrics = 5;
+}
+
+// FixRequest selects the deterministic remediations to preview or apply for a
+// scenario. It mirrors ValidateScenarioRequest's target-resolution fields so a
+// consumer that just validated a scenario can fix it without re-resolving.
+message FixRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Optional rule/finding codes to restrict the fix; empty means every rule the
+  // provider can deterministically remediate.
+  repeated string rule_ids = 3;
+}
+
+// FixCandidate is a single proposed (dry-run) or applied file edit. It mirrors
+// the shared maturity-go autofix.Candidate shape so providers built on that
+// registry map straight through.
+message FixCandidate {
+  // Rule/finding code that produced this edit.
+  string rule_id = 1;
+  // Absolute or scenario-relative path of the file the edit targets.
+  string file_path = 2;
+  // Human-readable description of the change.
+  string description = 3;
+  // File contents before the edit (may be empty when creating a new file).
+  string before = 4;
+  // File contents after the edit.
+  string after = 5;
+  // True when this edit was written to disk (ApplyFix), false for previews.
+  bool applied = 6;
+}
+
+// FixResponse reports the candidates a provider previewed or applied.
+message FixResponse {
+  // Scenario the fix targeted.
+  string scenario = 1;
+  // True when candidates were written to disk (ApplyFix), false for previews.
+  bool applied = 2;
+  // The proposed or applied edits, ordered deterministically by file then rule.
+  repeated FixCandidate candidates = 3;
+  // Optional human-readable notes (e.g. "no auto-fixable findings available").
+  repeated string messages = 4;
 }

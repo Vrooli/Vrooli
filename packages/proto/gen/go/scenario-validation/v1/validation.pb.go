@@ -225,6 +225,239 @@ func (x *ValidateScenarioResponse) GetMetrics() *v1.ExecutionMetrics {
 	return nil
 }
 
+// FixRequest selects the deterministic remediations to preview or apply for a
+// scenario. It mirrors ValidateScenarioRequest's target-resolution fields so a
+// consumer that just validated a scenario can fix it without re-resolving.
+type FixRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario slug, normally the directory name under scenarios/.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Optional explicit scenario path for callers that already resolved it.
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// Optional rule/finding codes to restrict the fix; empty means every rule the
+	// provider can deterministically remediate.
+	RuleIds       []string `protobuf:"bytes,3,rep,name=rule_ids,json=ruleIds,proto3" json:"rule_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FixRequest) Reset() {
+	*x = FixRequest{}
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FixRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FixRequest) ProtoMessage() {}
+
+func (x *FixRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FixRequest.ProtoReflect.Descriptor instead.
+func (*FixRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *FixRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *FixRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *FixRequest) GetRuleIds() []string {
+	if x != nil {
+		return x.RuleIds
+	}
+	return nil
+}
+
+// FixCandidate is a single proposed (dry-run) or applied file edit. It mirrors
+// the shared maturity-go autofix.Candidate shape so providers built on that
+// registry map straight through.
+type FixCandidate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Rule/finding code that produced this edit.
+	RuleId string `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	// Absolute or scenario-relative path of the file the edit targets.
+	FilePath string `protobuf:"bytes,2,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	// Human-readable description of the change.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// File contents before the edit (may be empty when creating a new file).
+	Before string `protobuf:"bytes,4,opt,name=before,proto3" json:"before,omitempty"`
+	// File contents after the edit.
+	After string `protobuf:"bytes,5,opt,name=after,proto3" json:"after,omitempty"`
+	// True when this edit was written to disk (ApplyFix), false for previews.
+	Applied       bool `protobuf:"varint,6,opt,name=applied,proto3" json:"applied,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FixCandidate) Reset() {
+	*x = FixCandidate{}
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FixCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FixCandidate) ProtoMessage() {}
+
+func (x *FixCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FixCandidate.ProtoReflect.Descriptor instead.
+func (*FixCandidate) Descriptor() ([]byte, []int) {
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FixCandidate) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *FixCandidate) GetFilePath() string {
+	if x != nil {
+		return x.FilePath
+	}
+	return ""
+}
+
+func (x *FixCandidate) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *FixCandidate) GetBefore() string {
+	if x != nil {
+		return x.Before
+	}
+	return ""
+}
+
+func (x *FixCandidate) GetAfter() string {
+	if x != nil {
+		return x.After
+	}
+	return ""
+}
+
+func (x *FixCandidate) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
+// FixResponse reports the candidates a provider previewed or applied.
+type FixResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario the fix targeted.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// True when candidates were written to disk (ApplyFix), false for previews.
+	Applied bool `protobuf:"varint,2,opt,name=applied,proto3" json:"applied,omitempty"`
+	// The proposed or applied edits, ordered deterministically by file then rule.
+	Candidates []*FixCandidate `protobuf:"bytes,3,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	// Optional human-readable notes (e.g. "no auto-fixable findings available").
+	Messages      []string `protobuf:"bytes,4,rep,name=messages,proto3" json:"messages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FixResponse) Reset() {
+	*x = FixResponse{}
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FixResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FixResponse) ProtoMessage() {}
+
+func (x *FixResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_validation_v1_validation_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FixResponse.ProtoReflect.Descriptor instead.
+func (*FixResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_validation_v1_validation_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *FixResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *FixResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
+func (x *FixResponse) GetCandidates() []*FixCandidate {
+	if x != nil {
+		return x.Candidates
+	}
+	return nil
+}
+
+func (x *FixResponse) GetMessages() []string {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
 var File_scenario_validation_v1_validation_proto protoreflect.FileDescriptor
 
 const file_scenario_validation_v1_validation_proto_rawDesc = "" +
@@ -241,16 +474,38 @@ const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"assessment\x18\x03 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
 	"assessment\x129\n" +
 	"\rnative_detail\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\fnativeDetail\x125\n" +
-	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics*\xcd\x01\n" +
+	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\"W\n" +
+	"\n" +
+	"FixRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x19\n" +
+	"\brule_ids\x18\x03 \x03(\tR\aruleIds\"\xae\x01\n" +
+	"\fFixCandidate\x12\x17\n" +
+	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x1b\n" +
+	"\tfile_path\x18\x02 \x01(\tR\bfilePath\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06before\x18\x04 \x01(\tR\x06before\x12\x14\n" +
+	"\x05after\x18\x05 \x01(\tR\x05after\x12\x18\n" +
+	"\aapplied\x18\x06 \x01(\bR\aapplied\"\xac\x01\n" +
+	"\vFixResponse\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x18\n" +
+	"\aapplied\x18\x02 \x01(\bR\aapplied\x12K\n" +
+	"\n" +
+	"candidates\x18\x03 \x03(\v2+.vrooli.scenario_validation.v1.FixCandidateR\n" +
+	"candidates\x12\x1a\n" +
+	"\bmessages\x18\x04 \x03(\tR\bmessages*\xcd\x01\n" +
 	"\x10ValidationStatus\x12!\n" +
 	"\x1dVALIDATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18VALIDATION_STATUS_PASSED\x10\x01\x12\x1c\n" +
 	"\x18VALIDATION_STATUS_FAILED\x10\x02\x12\x1e\n" +
 	"\x1aVALIDATION_STATUS_DEGRADED\x10\x03\x12\x1b\n" +
 	"\x17VALIDATION_STATUS_ERROR\x10\x04\x12\x1d\n" +
-	"\x19VALIDATION_STATUS_SKIPPED\x10\x052\xa1\x01\n" +
+	"\x19VALIDATION_STATUS_SKIPPED\x10\x052\xe9\x02\n" +
 	"\x19ScenarioValidationService\x12\x83\x01\n" +
-	"\x10ValidateScenario\x126.vrooli.scenario_validation.v1.ValidateScenarioRequest\x1a7.vrooli.scenario_validation.v1.ValidateScenarioResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1b\x06proto3"
+	"\x10ValidateScenario\x126.vrooli.scenario_validation.v1.ValidateScenarioRequest\x1a7.vrooli.scenario_validation.v1.ValidateScenarioResponse\x12c\n" +
+	"\n" +
+	"PreviewFix\x12).vrooli.scenario_validation.v1.FixRequest\x1a*.vrooli.scenario_validation.v1.FixResponse\x12a\n" +
+	"\bApplyFix\x12).vrooli.scenario_validation.v1.FixRequest\x1a*.vrooli.scenario_validation.v1.FixResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1b\x06proto3"
 
 var (
 	file_scenario_validation_v1_validation_proto_rawDescOnce sync.Once
@@ -265,27 +520,35 @@ func file_scenario_validation_v1_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_scenario_validation_v1_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_scenario_validation_v1_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_scenario_validation_v1_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_scenario_validation_v1_validation_proto_goTypes = []any{
 	(ValidationStatus)(0),            // 0: vrooli.scenario_validation.v1.ValidationStatus
 	(*ValidateScenarioRequest)(nil),  // 1: vrooli.scenario_validation.v1.ValidateScenarioRequest
 	(*ValidateScenarioResponse)(nil), // 2: vrooli.scenario_validation.v1.ValidateScenarioResponse
-	(*v1.MaturityAssessment)(nil),    // 3: common.v1.MaturityAssessment
-	(*anypb.Any)(nil),                // 4: google.protobuf.Any
-	(*v1.ExecutionMetrics)(nil),      // 5: common.v1.ExecutionMetrics
+	(*FixRequest)(nil),               // 3: vrooli.scenario_validation.v1.FixRequest
+	(*FixCandidate)(nil),             // 4: vrooli.scenario_validation.v1.FixCandidate
+	(*FixResponse)(nil),              // 5: vrooli.scenario_validation.v1.FixResponse
+	(*v1.MaturityAssessment)(nil),    // 6: common.v1.MaturityAssessment
+	(*anypb.Any)(nil),                // 7: google.protobuf.Any
+	(*v1.ExecutionMetrics)(nil),      // 8: common.v1.ExecutionMetrics
 }
 var file_scenario_validation_v1_validation_proto_depIdxs = []int32{
 	0, // 0: vrooli.scenario_validation.v1.ValidateScenarioResponse.status:type_name -> vrooli.scenario_validation.v1.ValidationStatus
-	3, // 1: vrooli.scenario_validation.v1.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
-	4, // 2: vrooli.scenario_validation.v1.ValidateScenarioResponse.native_detail:type_name -> google.protobuf.Any
-	5, // 3: vrooli.scenario_validation.v1.ValidateScenarioResponse.metrics:type_name -> common.v1.ExecutionMetrics
-	1, // 4: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:input_type -> vrooli.scenario_validation.v1.ValidateScenarioRequest
-	2, // 5: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:output_type -> vrooli.scenario_validation.v1.ValidateScenarioResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 1: vrooli.scenario_validation.v1.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	7, // 2: vrooli.scenario_validation.v1.ValidateScenarioResponse.native_detail:type_name -> google.protobuf.Any
+	8, // 3: vrooli.scenario_validation.v1.ValidateScenarioResponse.metrics:type_name -> common.v1.ExecutionMetrics
+	4, // 4: vrooli.scenario_validation.v1.FixResponse.candidates:type_name -> vrooli.scenario_validation.v1.FixCandidate
+	1, // 5: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:input_type -> vrooli.scenario_validation.v1.ValidateScenarioRequest
+	3, // 6: vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix:input_type -> vrooli.scenario_validation.v1.FixRequest
+	3, // 7: vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix:input_type -> vrooli.scenario_validation.v1.FixRequest
+	2, // 8: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:output_type -> vrooli.scenario_validation.v1.ValidateScenarioResponse
+	5, // 9: vrooli.scenario_validation.v1.ScenarioValidationService.PreviewFix:output_type -> vrooli.scenario_validation.v1.FixResponse
+	5, // 10: vrooli.scenario_validation.v1.ScenarioValidationService.ApplyFix:output_type -> vrooli.scenario_validation.v1.FixResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_scenario_validation_v1_validation_proto_init() }
@@ -299,7 +562,7 @@ func file_scenario_validation_v1_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_validation_v1_validation_proto_rawDesc), len(file_scenario_validation_v1_validation_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

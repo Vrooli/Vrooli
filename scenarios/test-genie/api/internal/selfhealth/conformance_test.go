@@ -66,6 +66,72 @@ func probeFn(resp *scenariovalidationv1.ValidateScenarioResponse, err error) Con
 	}
 }
 
+// writeSpecWithFindings writes a maturity spec carrying explicit fixability
+// declarations so the autofix-coverage lens has real data to roll up.
+func writeSpecWithFindings(t *testing.T, repoRoot, provider, phase string, findings map[string]assessment.FindingMapping) {
+	t.Helper()
+	dir := filepath.Join(repoRoot, "scenarios", provider, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	spec := assessment.Spec{
+		Provider: provider,
+		Phase:    phase,
+		Version:  "1",
+		Levels:   []assessment.Level{{ID: "L0", Name: "base"}, {ID: "L1", Name: "next"}},
+		Findings: findings,
+		Fallback: assessment.FallbackPolicy{
+			LocalLevelImpact: "L0",
+			GlobalImpact:     assessment.ImpactUnknown,
+			Dimension:        "measures",
+			SeverityDefault:  "WARNING",
+		},
+	}
+	raw, err := json.Marshal(spec)
+	if err != nil {
+		t.Fatalf("marshal spec: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "maturity.json"), raw, 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+}
+
+func TestScanProviderAutofixCoverage(t *testing.T) {
+	repo := t.TempDir()
+	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
+		"DONE":    {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusImplemented},
+		"GAP":     {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusPending},
+		"BY_HAND": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassManual, FixReason: "needs judgment"},
+	})
+	pr := scanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	if pr.Autofix.Implemented != 1 || pr.Autofix.Pending != 1 || pr.Autofix.Manual != 1 {
+		t.Fatalf("coverage = %+v, want implemented=1 pending=1 manual=1", pr.Autofix)
+	}
+	if !pr.Autofix.DeclarationComplete {
+		t.Fatalf("DeclarationComplete=false, want true (all findings declared)")
+	}
+	// The autofix lens is advisory: it must not change the hard-dim adoption score.
+	if pr.AdoptionScore != 1.0 {
+		t.Fatalf("adoption_score = %v, want 1.0 (autofix is advisory)", pr.AdoptionScore)
+	}
+}
+
+func TestScanProviderAutofixCoverageWhenUnreachable(t *testing.T) {
+	// Coverage is a declaration property — available even when the provider is
+	// not running, so the lens never goes dark on an environmental signal.
+	repo := t.TempDir()
+	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
+		"GAP": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusPending},
+	})
+	pr := scanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second)
+	if pr.Reachable {
+		t.Fatal("expected unreachable")
+	}
+	if pr.Autofix.Pending != 1 || pr.Autofix.Total != 1 {
+		t.Fatalf("coverage = %+v, want pending=1 total=1 even when unreachable", pr.Autofix)
+	}
+}
+
 func TestScanProviderFullAdoption(t *testing.T) {
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")

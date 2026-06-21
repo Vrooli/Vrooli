@@ -82,7 +82,10 @@ func providerRunner(provider validationprovider.Provider, client DelegatedClient
 }
 
 func defaultDelegatedClient(ctx context.Context, env workspace.Environment, _ io.Writer, provider validationprovider.Provider) *validationprovider.Result {
-	return validationprovider.Run(ctx, provider, env.ScenarioName)
+	// env.ScenarioDir is the resolved physical scenario directory; sending it as
+	// the request path lets providers validate scenarios that live outside the
+	// repo scenarios/ registry (e.g. deep template validation's temp scenario).
+	return validationprovider.Run(ctx, provider, env.ScenarioName, env.ScenarioDir)
 }
 
 func runValidationProviderPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider, client DelegatedClient) RunReport {

@@ -326,6 +326,10 @@ func snapshotToRowProto(s internalscoring.Snapshot) *scoringv1.ScoreRow {
 		row.Importance = *s.Importance
 		row.Priority = *s.Importance * (float64(100-s.Composite) / 100)
 	}
+	if !s.LastRunAt.IsZero() {
+		row.LastRunAt = timestamppb.New(s.LastRunAt)
+	}
+	row.LastStatus = s.LastStatus
 	return row
 }
 

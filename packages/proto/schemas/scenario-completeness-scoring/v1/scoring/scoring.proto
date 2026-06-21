@@ -159,6 +159,14 @@ message ScoreRow {
   double priority = 7;
   google.protobuf.Timestamp calculated_at = 8;
   string digest = 9;
+  // last_run_at / last_status are scenario-level test recency: the newest test
+  // run recorded in the scenario's run index (regardless of phase or digest),
+  // and that run's overall status. Empty/unset when no run is recorded or the
+  // persisted row predates recency capture (re-score or `--recompute` fills it).
+  // This is the keystone fleet signal: importance + staleness + last status in
+  // one query, enabling priority-weighted fleet scheduling without a fleet run.
+  google.protobuf.Timestamp last_run_at = 10;
+  string last_status = 11;
 }
 
 message ScoreSnapshot {

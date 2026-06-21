@@ -110,7 +110,14 @@ var (
 	}
 )
 
-func Run(ctx context.Context, provider Provider, targetScenario string) *Result {
+// Run invokes a provider's ValidateScenario RPC for targetScenario. scenarioPath
+// is the resolved physical scenario directory (env.ScenarioDir); it is sent as
+// ValidateScenarioRequest.path so providers can validate a scenario that does not
+// live under the repo's scenarios/ registry — notably the temp-generated scenario
+// used by deep template validation. Providers that honor path resolve from it;
+// providers that only key off the name ignore it harmlessly. Empty is allowed
+// (the provider falls back to registry-by-name resolution).
+func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath string) *Result {
 	targetScenario = strings.TrimSpace(targetScenario)
 	if targetScenario == "" {
 		return failure(provider, targetScenario, shared.FailureClassMisconfiguration, errors.New("target scenario is required"), "")
@@ -129,6 +136,7 @@ func Run(ctx context.Context, provider Provider, targetScenario string) *Result 
 
 	resp, err := NewClient(provider.Timeout, baseURL).ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario:         targetScenario,
+		Path:             strings.TrimSpace(scenarioPath),
 		IncludeExecution: provider.IncludeExecution,
 	}))
 	if err != nil {

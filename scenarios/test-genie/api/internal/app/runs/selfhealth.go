@@ -11,6 +11,7 @@ import (
 	"test-genie/internal/selfhealth"
 	"test-genie/internal/selfhealthsnapshots"
 
+	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
@@ -157,9 +158,23 @@ func conformanceToProto(report selfhealth.ConformanceReport) []*runspb.ProviderC
 			MetricsAdopted: pr.MetricsAdopted,
 			AdoptionScore:  pr.AdoptionScore,
 			Violations:     pr.Violations,
+			Autofix:        autofixCoverageToProto(pr.Autofix),
 		})
 	}
 	return out
+}
+
+func autofixCoverageToProto(c assessment.AutofixCoverage) *runspb.AutofixCoverage {
+	return &runspb.AutofixCoverage{
+		Total:               int32(c.Total),
+		FixableUniverse:     int32(c.FixableUniverse),
+		Implemented:         int32(c.Implemented),
+		Pending:             int32(c.Pending),
+		Manual:              int32(c.Manual),
+		Declared:            int32(c.Declared),
+		DeclarationComplete: c.DeclarationComplete,
+		ImplementationRate:  c.ImplementationRate(),
+	}
 }
 
 func ledgerToProto(l *selfhealth.Ledger) *runspb.ReliabilityLedger {
