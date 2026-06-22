@@ -18,6 +18,12 @@
       "default": "development",
       "description": "Operational mode for this scenario. 'development' enables dev-only surfaces (test-mode HTTP middleware, RoutingService for test-DB installation). 'production' disables them. Absent or unrecognized values default to 'development'."
     },
+    "maturity": {
+      "type": "string",
+      "enum": ["greenfield", "pilot", "production", "sunset"],
+      "default": "greenfield",
+      "description": "Lifecycle maturity / deploy stage of this scenario, independent of dev/prod 'mode'. 'greenfield' = not yet deployed, so no schema migrations are expected (migration debt is informational, not a failure); 'pilot' = limited live use; 'production' = serving real data (migration hygiene is enforced); 'sunset' = being retired. Consumed by storage-health to derive storage_stage and gate migration findings. Absent or unrecognized values default to 'greenfield'."
+    },
     "service": {
       "type": "object",
       "properties": {
@@ -571,6 +577,32 @@
         },
         "manual": {
           "type": "boolean"
+        },
+        "requires": {
+          "type": "object",
+          "description": "Hardware-capability gate evaluated against host inventory (GPU/VRAM/arch/RAM). When any condition is unmet the requirement is cleanly skipped (not applicable), never failed.",
+          "additionalProperties": false,
+          "properties": {
+            "gpu": {
+              "type": "boolean",
+              "description": "Require (true) or forbid (false) a detected GPU"
+            },
+            "minVramGb": {
+              "type": "number",
+              "description": "Minimum total VRAM in GiB on at least one detected GPU"
+            },
+            "arch": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Allowed host architectures (Go GOARCH, e.g. amd64, arm64)"
+            },
+            "minRamGb": {
+              "type": "number",
+              "description": "Minimum total system RAM in GiB"
+            }
+          }
         }
       },
       "required": [
@@ -602,6 +634,11 @@
           "type": "string",
           "enum": ["must_start", "try_start", "ignore"],
           "description": "How lifecycle orchestration should treat this dependency during startup. Defaults to `must_start` when `required=true`, otherwise `ignore`."
+        },
+        "freshness_policy": {
+          "type": "string",
+          "enum": ["restart_when_stale", "reuse_running", "rebuild_only"],
+          "description": "How lifecycle orchestration should treat this dependency when it is running and healthy but its sources have changed (stale). Orthogonal to `startup_policy`. Defaults to `restart_when_stale` (rebuild and restart, gated so a byte-identical rebuild does not restart). `reuse_running` keeps the running process untouched; `rebuild_only` rebuilds the artifact without restarting. Per-edge policy may only reduce disruption on a shared dependency, never increase it. Invalid on `ignore` edges."
         },
         "version": {
           "$ref": "common.schema.json#/definitions/semver",

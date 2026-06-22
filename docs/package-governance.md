@@ -81,6 +81,34 @@ Implications:
 3. Use `--no-restart` when you want setup/rebuild propagation without restarting running consumers.
 4. Re-run `vrooli package validate --all` after large migrations or manifest changes.
 
+### Reconciling in-repo go.mod replaces
+
+Go does not propagate a dependency's `replace` directives to downstream main
+modules. So whenever a shared Go package takes on a **new in-repo module edge**
+(for example a leaf package importing `packages/proto`), every surface that
+transitively requires that module must independently declare its own local
+`replace` — otherwise `go build` (and therefore `vrooli scenario restart`) fails
+with a `missing go.sum entry` error that only surfaces at restart time.
+
+After editing a shared Go package, reconcile consumers with the single
+SDA-owned command instead of hand-editing each `go.mod`:
+
+```bash
+# dry run: report surfaces missing a local replace (whole fleet)
+scenario-dependency-analyzer deps reconcile --all
+
+# apply the missing replaces + go mod tidy for one scenario
+scenario-dependency-analyzer deps reconcile --scenario <name> --apply
+```
+
+`deps reconcile` is dry-run by default, idempotent, and safety-scoped: it only
+adds a local `replace` for a module that resolves unambiguously to one in-repo
+module directory; third-party dependencies stay under approved-dependencies
+governance and are never touched. The same detection runs automatically as the
+Test Genie dependencies phase (an ERROR finding,
+`dependency.gomod.replace.missing`), so the gap fails CI before a human hits a
+broken restart.
+
 Refresh behavior is consumer-type-aware:
 - real scenario consumers can run setup and optional restart flows
 - Go consumers such as scenario CLIs/APIs or resources rebuild where appropriate

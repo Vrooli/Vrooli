@@ -249,8 +249,8 @@ func probeSchedulerIntervalFromEnv() time.Duration {
 }
 
 func recoverySchedulerEnabledFromEnv() bool {
-	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED")))
-	return raw == "1" || raw == "true" || raw == "yes"
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_RECOVERY_SCHEDULER_DISABLED")))
+	return raw != "1" && raw != "true" && raw != "yes"
 }
 
 func recoverySchedulerIntervalFromEnv() time.Duration {

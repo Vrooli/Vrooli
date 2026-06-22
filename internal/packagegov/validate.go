@@ -13,13 +13,14 @@ type ValidationReport struct {
 }
 
 func Validate(root string, filter string) (ValidationReport, error) {
-	items, issues, err := LoadAll(root)
+	allItems, issues, err := LoadAll(root)
 	if err != nil {
 		return ValidationReport{}, err
 	}
 
+	items := allItems
 	if filter != "" {
-		if item, ok := FindByName(items, filter); ok {
+		if item, ok := FindByName(allItems, filter); ok {
 			items = []Package{item}
 		} else {
 			return ValidationReport{}, fmt.Errorf("package %q not found", filter)
@@ -64,7 +65,12 @@ func Validate(root string, filter string) (ValidationReport, error) {
 		}
 	}
 
-	issues = append(issues, validateLeafGoPackageDependencies(items)...)
+	// Resolve the governed-module map from the FULL discovered set, not the
+	// filtered output. A single-package filter (e.g. `validate cli-core`) must
+	// still be able to recognize that a required module like proto is a governed
+	// local package; otherwise a leaf's forbidden dependency goes unflagged when
+	// validation is scoped to that leaf alone.
+	issues = append(issues, validateLeafGoPackageDependencies(items, allItems)...)
 
 	return ValidationReport{Packages: items, Issues: normalizeIssues(issues)}, nil
 }
@@ -76,20 +82,26 @@ var leafSharedGoPackageAllowedDeps = map[string]map[string]struct{}{
 	"repo-contract-go": {},
 }
 
-func validateLeafGoPackageDependencies(items []Package) []ValidationIssue {
-	if len(items) == 0 {
+// validateLeafGoPackageDependencies flags governed leaf Go packages (the keys of
+// leafSharedGoPackageAllowedDeps) that require a non-allowlisted governed local
+// module. leaves is the (possibly filtered) set of packages to check; allItems
+// is the full discovered set used to resolve which required modules are governed
+// local packages — it must be the unfiltered set so a single-package filter does
+// not blind the resolver to the dependency being required.
+func validateLeafGoPackageDependencies(leaves []Package, allItems []Package) []ValidationIssue {
+	if len(leaves) == 0 {
 		return nil
 	}
 
 	moduleToPackage := make(map[string]Package)
-	for _, item := range items {
+	for _, item := range allItems {
 		for _, id := range packageModuleIdentifiers(item) {
 			moduleToPackage[id] = item
 		}
 	}
 
 	var issues []ValidationIssue
-	for _, item := range items {
+	for _, item := range leaves {
 		allowedDeps, ok := leafSharedGoPackageAllowedDeps[item.Name]
 		if !ok {
 			continue

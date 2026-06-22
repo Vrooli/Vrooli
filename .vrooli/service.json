@@ -215,6 +215,18 @@
       ]
     },
     {
+      "name": "cloudflared_recovery_privileges",
+      "notes": "Writes /etc/sudoers.d/tunnel-manager (mode 0440, visudo-validated) granting the invoking user NOPASSWD `systemctl restart cloudflared` + `reset-failed cloudflared`. Auto-skips on hosts without cloudflared.service. Optional, but self-promotes to required under `sudo vrooli setup`.",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Let tunnel-manager's non-root auto-recovery loop restart the root cloudflared unit without an interactive sudo prompt (sudo paid once at setup)",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
       "name": "dns_resolution",
       "notes": "Writes /etc/systemd/resolved.conf.d/99-vrooli-dns.conf with Google and Cloudflare DNS; flushes cache",
       "platforms": [

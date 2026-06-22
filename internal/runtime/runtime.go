@@ -30,6 +30,31 @@ func EnsureRequirements(opts EnsureOptions, resolution hostreq.Resolution) (Repo
 	return ensureResolution(opts, resolution)
 }
 
+// EnsureTool inspects and (unless opts.DryRun) installs a single host tool by
+// name through its registered runtime handler, returning the final status. It is
+// the engine behind `vrooli host install <tool>`: it honors the capability gate
+// (a not-applicable tool is returned as such, never installed) and the
+// url/release fetch path (no sudo, into ~/.vrooli/bin). A tool with no
+// registered handler comes back unsupported.
+func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
+	opts.Environment = hostreq.NormalizeEnvironment(opts.Environment)
+	host := Current()
+	requirement := hostreq.ResolvedRequirement{
+		Name:     strings.TrimSpace(name),
+		Kind:     hostreq.KindTool,
+		Required: true,
+	}
+	status := inspectRequirement(host, requirement)
+	if status.ExecutionState == hostreqkit.ExecutionAlreadyPresent {
+		return status, nil
+	}
+	updated, err := applyRequirement(host, status, opts)
+	if err != nil {
+		return status, err
+	}
+	return annotateBlockingReason(updated), nil
+}
+
 func ensureResolution(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {
 	// Earlier versions of vrooli ran `go install` and `npm install`
 	// directly under sudo (not dropping privileges), which left root-
@@ -240,6 +265,12 @@ func requirementSatisfied(status ItemStatus) bool {
 	// both tools and safeguards regardless of Installed/Applied bookkeeping —
 	// otherwise the supersede branch would still surface in MissingRequired.
 	if status.ExecutionState == hostreqkit.ExecutionAlreadyPresent {
+		return true
+	}
+	// A capability-gated tool that is not applicable on this host is not
+	// "missing" — it was intentionally skipped (e.g. a GPU-only backend on a
+	// CPU-only host), so it must not surface in MissingRequired/Optional.
+	if status.ExecutionState == hostreqkit.ExecutionNotApplicable {
 		return true
 	}
 	switch status.Kind {

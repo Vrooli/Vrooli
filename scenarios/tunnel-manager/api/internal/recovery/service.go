@@ -3,6 +3,7 @@ package recovery
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -52,24 +53,28 @@ type Config struct {
 }
 
 type engine struct {
-	repo    Repository
-	health  HealthChecker
-	runner  cmdrunner.Runner
-	clock   clock.Clock
-	sleep   func(time.Duration)
-	cfg     Config
-	circuit time.Time // wall time the circuit opened
+	repo     Repository
+	health   HealthChecker
+	presence UnitPresence
+	runner   cmdrunner.Runner
+	clock    clock.Clock
+	sleep    func(time.Duration)
+	cfg      Config
+	circuit  time.Time // wall time the circuit opened
 
 	mu             sync.Mutex
 	state          RecoveryState
 	recovering     bool
 	attemptCounter int
+	dormant        bool // tracks the unit-absent log transition (guards spam)
 }
 
 // NewService constructs the production engine. sleep is injectable so
 // tests drive the ready-poll loop without real delays; pass nil for
-// time.Sleep.
-func NewService(repo Repository, health HealthChecker, runner cmdrunner.Runner, clk clock.Clock, cfg Config, sleep func(time.Duration)) Service {
+// time.Sleep. presence is the cloudflared-unit self-gate consulted at the
+// top of Evaluate; pass nil to disable the gate (treated as always-present)
+// for tests that exercise the restart/backoff paths directly.
+func NewService(repo Repository, health HealthChecker, presence UnitPresence, runner cmdrunner.Runner, clk clock.Clock, cfg Config, sleep func(time.Duration)) Service {
 	if cfg.ConsecutiveFailures <= 0 {
 		cfg.ConsecutiveFailures = 3
 	}
@@ -86,7 +91,15 @@ func NewService(repo Repository, health HealthChecker, runner cmdrunner.Runner, 
 		}
 	}
 	if cfg.ReadyPollAttempts <= 0 {
-		cfg.ReadyPollAttempts = 30
+		// 60s of patience (60 × 1s). After `systemctl restart cloudflared`
+		// the new process must re-register its HA connections with the
+		// Cloudflare edge before /ready returns 200; that reconnect was
+		// measured live at ~28s and the edge can throttle it toward 40s+.
+		// A tighter budget (e.g. 30) misclassifies a recovery that is
+		// genuinely succeeding as a failure, arming backoff and emitting a
+		// spurious failure event. The next evaluation tick would self-correct,
+		// but the margin must comfortably exceed the real reconnect latency.
+		cfg.ReadyPollAttempts = 60
 	}
 	if cfg.ReadyPollInterval <= 0 {
 		cfg.ReadyPollInterval = time.Second
@@ -94,14 +107,18 @@ func NewService(repo Repository, health HealthChecker, runner cmdrunner.Runner, 
 	if sleep == nil {
 		sleep = time.Sleep
 	}
+	if presence == nil {
+		presence = alwaysPresent{}
+	}
 	return &engine{
-		repo:   repo,
-		health: health,
-		runner: runner,
-		clock:  clk,
-		sleep:  sleep,
-		cfg:    cfg,
-		state:  RecoveryState{Status: StatusIdle},
+		repo:     repo,
+		health:   health,
+		presence: presence,
+		runner:   runner,
+		clock:    clk,
+		sleep:    sleep,
+		cfg:      cfg,
+		state:    RecoveryState{Status: StatusIdle},
 	}
 }
 
@@ -158,7 +175,29 @@ func (e *engine) Recover(ctx context.Context, force bool) (EventOutcome, Recover
 }
 
 func (e *engine) Evaluate(ctx context.Context) (RecoveryEvent, bool, error) {
+	// Self-gate: with no cloudflared unit to manage there is nothing to
+	// recover, so default-on recovery stays dormant rather than counting
+	// /ready failures and flapping a restart that can't help. Checked at the
+	// top of every tick (not just at boot) so a cloudflared installed after
+	// start is picked up on the next evaluation without a scenario restart.
+	if !e.presence.CloudflaredUnitPresent(ctx) {
+		e.mu.Lock()
+		e.state.LastCheck = e.clock.Now().UTC()
+		e.state.Status = StatusIdle
+		e.state.ConsecFailures = 0
+		if !e.dormant {
+			e.dormant = true
+			log.Printf("[tunnel-manager] no cloudflared unit present; recovery dormant")
+		}
+		e.mu.Unlock()
+		return RecoveryEvent{}, false, nil
+	}
+
 	e.mu.Lock()
+	if e.dormant {
+		e.dormant = false
+		log.Printf("[tunnel-manager] cloudflared unit present; recovery active")
+	}
 	e.state.LastCheck = e.clock.Now().UTC()
 
 	if e.recovering || e.blockedLocked() {
@@ -246,25 +285,41 @@ func (e *engine) nextAttemptLocked() int {
 
 // executeRecovery restarts cloudflared and polls /ready. Runs WITHOUT
 // holding e.mu so concurrent state reads stay responsive.
+//
+// A `systemctl reset-failed cloudflared` precedes the restart. This is the
+// exact case tunnel-manager adds value over systemd's own
+// Restart=on-failure: once cloudflared has flapped past StartLimitBurst,
+// systemd marks the unit failed and a bare `systemctl restart` is rejected
+// until the start-limit counter is cleared. reset-failed clears it. Its
+// failure is non-fatal (a healthy unit has nothing to reset) — only the
+// restart's failure is the recovery failure.
 func (e *engine) executeRecovery(ctx context.Context, trigger string, attempt int) RecoveryEvent {
 	base := RecoveryEvent{Trigger: trigger, Action: ActionRestart, Attempt: attempt}
 
+	var resetNote string
+	if _, err := e.runner(ctx, "sudo", "systemctl", "reset-failed", "cloudflared"); err != nil {
+		// Non-fatal: clears systemd's start-limit so the restart below can
+		// succeed after StartLimitBurst exhaustion. Record it for forensics,
+		// then continue to the restart regardless.
+		resetNote = fmt.Sprintf("reset-failed non-fatal: %v; ", err)
+	}
+
 	if _, err := e.runner(ctx, "sudo", "systemctl", "restart", "cloudflared"); err != nil {
 		base.Outcome = OutcomeFailure
-		base.Details = fmt.Sprintf("restart failed: %v", err)
+		base.Details = resetNote + fmt.Sprintf("restart failed: %v", err)
 		return base
 	}
 
 	for i := 0; i < e.cfg.ReadyPollAttempts; i++ {
 		if e.health.Ready(ctx) {
 			base.Outcome = OutcomeSuccess
-			base.Details = "tunnel recovered after restart"
+			base.Details = resetNote + "tunnel recovered after restart"
 			return base
 		}
 		e.sleep(e.cfg.ReadyPollInterval)
 	}
 	base.Outcome = OutcomeFailure
-	base.Details = "tunnel did not become ready after restart"
+	base.Details = resetNote + "tunnel did not become ready after restart"
 	return base
 }
 

@@ -1004,14 +1004,17 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 			DefaultGroup: "Host Commands",
 		}, []commandtree.Spec[string]{
 			hostInventorySpec(),
+			hostInstallSpec(),
 		})
 		return nil
 	}
 	switch args[0] {
 	case "inventory":
 		return app.runHostInventoryCommand(ctx, args[1:])
+	case "install":
+		return app.runHostInstallCommand(ctx, args[1:])
 	default:
-		return rootcli.NewUnknownCommandError(args[0], []string{"inventory"})
+		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install"})
 	}
 }
 

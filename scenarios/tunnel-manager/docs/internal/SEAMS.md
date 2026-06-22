@@ -210,6 +210,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### CloudflaredUnitPresence (recovery self-gate)
+
+| | |
+|---|---|
+| **Seam** | "Is there a cloudflared systemd unit to manage on this host?" |
+| **Interface** | `internal/recovery/presence.go::UnitPresence` (`CloudflaredUnitPresent(ctx) bool`) — declared at the recovery consumer so the engine never imports a host/systemd package directly (same discipline as `HealthChecker`). |
+| **Production wiring** | `recovery.NewSystemctlUnitPresence(cmdrunner.Default)`, wired in `handlers/recovery/module.go::NewProductionService`. Runs `systemctl list-unit-files --no-pager --no-legend cloudflared.service` and matches a non-empty line (catches units under both `/etc/systemd/system` and `/lib/systemd/system`). |
+| **Test fake** | `fakePresence{present: bool}` / `togglePresence` in `internal/recovery/service_test.go`; `NewService` also accepts `nil` (treated as always-present) for tests exercising the restart/backoff paths that don't care about the gate. |
+| **Why it exists** | Default-on recovery must stay dormant on a tunnel-less host — without the gate it would count `/ready` failures forever and flap a restart that can't help, eventually opening the circuit spuriously. Consulted at the **top of every `Evaluate()`** (not boot-time only) so a cloudflared installed after the scenario started is picked up on the next tick. The gate is unit **presence**, not live `/ready`, because readiness is false exactly when recovery is most needed. The `cloudflared_recovery_privileges` safeguard mirrors this same presence check at the host-provisioning layer. |
+
 ## Product Seams
 
 > **Status: REALIZED (all seven domains built and green).** The seams

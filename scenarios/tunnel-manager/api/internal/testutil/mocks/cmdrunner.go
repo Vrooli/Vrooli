@@ -24,6 +24,11 @@ type FakeCmdRunner struct {
 	Out []byte
 	// Err is returned from every call.
 	Err error
+	// ErrFn, when non-nil, is consulted per call to decide the returned
+	// error, overriding Err. It lets a test script different outcomes for
+	// distinct argv in one sequence (e.g. a failing `reset-failed` followed
+	// by a succeeding `restart`).
+	ErrFn func(name string, args []string) error
 	// Calls records every invocation in order.
 	Calls []CmdCall
 }
@@ -36,6 +41,9 @@ func (f *FakeCmdRunner) Run(_ context.Context, name string, args ...string) ([]b
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.Calls = append(f.Calls, CmdCall{Name: name, Args: append([]string(nil), args...)})
+	if f.ErrFn != nil {
+		return f.Out, f.ErrFn(name, args)
+	}
 	return f.Out, f.Err
 }
 

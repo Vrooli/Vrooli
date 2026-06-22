@@ -274,6 +274,65 @@ replace github.com/example/api-core => ../api-core
 	}
 }
 
+// TestValidateFlagsLeafGoLocalDependencyUnderSinglePackageFilter mirrors the
+// cli-core -> proto regression: a governed leaf requiring a non-allowlisted
+// governed module, declared in a SECOND require block, must be flagged even when
+// validation is scoped to just the leaf package. Before the fix the single-
+// package filter reduced the discovered set so the governed-module map no longer
+// contained proto, and the forbidden dependency went unreported.
+func TestValidateFlagsLeafGoLocalDependencyUnderSinglePackageFilter(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writePackageManifestFixture(t, fixture.Root, "cli-core", packageManifestFixture("cli-core", func(manifest *Manifest) {
+		manifest.Package.DisplayName = "github.com/example/cli-core"
+		manifest.Package.Kind = KindGoCLI
+		manifest.Package.ModuleIdentifiers = []string{"github.com/example/cli-core"}
+		manifest.Package.Adoption.AllowedConsumers = []ConsumerClass{ConsumerScenarioCLI}
+		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGoModuleReplace}
+		manifest.Package.Refresh = RefreshPolicy{Strategy: RefreshRebuildCLI}
+	}))
+	writePackageManifestFixture(t, fixture.Root, "proto", packageManifestFixture("proto", func(manifest *Manifest) {
+		manifest.Package.DisplayName = "github.com/example/proto"
+		manifest.Package.Kind = KindSchemaOrContract
+		manifest.Package.ModuleIdentifiers = []string{"github.com/example/proto"}
+		manifest.Package.Adoption.AllowedConsumers = []ConsumerClass{ConsumerScenarioCLI}
+		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGoModuleReplace}
+		manifest.Package.Refresh = RefreshPolicy{Strategy: RefreshRestartConsumers}
+	}))
+	// proto declared in a SECOND require block alongside an indirect dep, exactly
+	// like the real cli-core/go.mod that slipped through.
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "go.mod"), `module github.com/example/cli-core
+
+go 1.25.0
+
+require github.com/example/repo-contract-go v0.0.0
+
+require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/example/proto v0.0.0
+)
+
+replace github.com/example/repo-contract-go => ../repo-contract-go
+
+replace github.com/example/proto => ../proto
+`)
+
+	report, err := Validate(fixture.Root, "cli-core")
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	found := false
+	for _, issue := range report.Issues {
+		if issue.PackageName == "cli-core" && issue.Code == "package-go-leaf-local-dependency" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected package-go-leaf-local-dependency issue under single-package filter, got %#v", report.Issues)
+	}
+}
+
 func TestValidateRequiresGoReplaceForGovernedAdoption(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)

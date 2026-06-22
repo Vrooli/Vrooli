@@ -175,6 +175,36 @@ func TestResolveRejectsUnknownExplicitSelections(t *testing.T) {
 	}
 }
 
+func TestResolveCarriesCapabilityRequires(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	gpu := true
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "vrooli"},
+		HostTools: []hostreqspec.Declaration{
+			{
+				Name:     "sd",
+				Required: false,
+				Reason:   "gpu backend",
+				Requires: &hostreqspec.CapabilityRequirement{GPU: &gpu, MinVRAMGb: 6},
+			},
+		},
+	})
+
+	resolution, err := Resolve(root, home, ResolveOptions{Environment: "development", Platform: "linux"})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	sd := findRequirement(t, resolution.Tools, "sd")
+	if sd.Requires == nil || sd.Requires.GPU == nil || !*sd.Requires.GPU {
+		t.Fatalf("capability requires not carried through: %+v", sd.Requires)
+	}
+	if sd.Requires.MinVRAMGb != 6 {
+		t.Fatalf("min vram = %v, want 6", sd.Requires.MinVRAMGb)
+	}
+}
+
 func TestSchemaFilesDeclareHostRequirementProperties(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
 

@@ -509,10 +509,12 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	toolNames := reg.names(hostreq.KindTool)
 	expectedTools := []string{
 		"Xvfb", "ast-grep", "bats", "buf", "cloudflared", "curl",
-		"docker", "ffmpeg", "git", "go", "helm", "java", "jq", "kdump-tools", "lychee",
+		"docker", "ffmpeg", "git", "go", "helm", "iopaint", "java", "jq", "kdump-tools",
+		"llama-cpp", "lychee",
 		"mcelog", "node", "openbox", "protoc", "protoc-gen-connect-go",
 		"protoc-gen-es", "protoc-gen-go",
-		"python", "quint", "rasdaemon", "stripe", "tmux", "vault", "websockify",
+		"python", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "sd",
+		"stripe", "tmux", "vault", "websockify",
 		"x11vnc", "xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {
@@ -529,7 +531,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
-		"clock", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
+		"clock", "cloudflared_recovery_privileges", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
 		"edac_modules", "host_hardening", "kernel_config", "nat_protection", "netconsole",
 		"ollama_resource_controls",
 		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_session_protection", "tcp_tuning",

@@ -65,6 +65,9 @@ scenarios/**/bin/
 api/*-api
 scenarios/**/api/*-api
 scenarios/**/api/webconsole
+# Build-freshness manifests: regenerable, host-specific cache stamped next to
+# each build artifact (mtime/toolchain-keyed, self-healing). Never committed.
+**/*.freshness.json
 bin/
 .vrooli/*-agents.json
 .vrooli/*.lock
@@ -241,6 +244,9 @@ build/
 
 #Persistent data
 data/
+!scenarios/tech-tree-designer/data/
+!scenarios/tech-tree-designer/data/seed/
+!scenarios/tech-tree-designer/data/seed/macro_topology.json
 
 #Backups
 backups/

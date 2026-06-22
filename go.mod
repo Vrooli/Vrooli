@@ -6,6 +6,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -28,6 +29,8 @@ require (
 )
 
 replace github.com/vrooli/api-core => ./packages/api-core
+
+replace github.com/vrooli/binaryfetch => ./packages/binaryfetch
 
 replace github.com/vrooli/cli-core => ./packages/cli-core
 

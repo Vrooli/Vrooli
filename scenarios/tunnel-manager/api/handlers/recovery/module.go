@@ -42,7 +42,8 @@ func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalrecove
 		readyURL = internalrecovery.DefaultReadyURL
 	}
 	health := internalrecovery.NewHTTPHealthChecker(&http.Client{Timeout: 5 * time.Second}, readyURL)
-	return internalrecovery.NewService(repo, health, cmdrunner.Default, clk, internalrecovery.Config{}, nil)
+	presence := internalrecovery.NewSystemctlUnitPresence(cmdrunner.Default)
+	return internalrecovery.NewService(repo, health, presence, cmdrunner.Default, clk, internalrecovery.Config{}, nil)
 }
 
 func ModuleWithService(svc internalrecovery.Service, logger *log.Logger) module.Module {

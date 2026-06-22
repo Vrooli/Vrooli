@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [main, dev]
+    branches: [master]
   pull_request:
-    branches: [main, dev]
+    branches: [master]
 
 # Limit permissions to only what's needed
 permissions:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -21,32 +21,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e # v4.3.0
-        with:
-          node-version: "18.x"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21.x"
+          go-version-file: go.mod
 
-      - name: Run Package Governance Validation
-        run: make validate-package-governance
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          # Pinned to the version used for local generation: a newer buf in CI
+          # would regenerate differently and fail the drift gate spuriously.
+          version: "1.37.0"
+
+      - name: Verify proto generated artifacts
+        run: make verify-committed-gen
+        working-directory: packages/proto
+
+      - name: Cross-compile OS-evidence packages (darwin/windows)
+        run: make cross-compile
+
+      - name: Run evidence-layer tests
+        run: |
+          go test -count=1 \
+            ./internal/network/... \
+            ./internal/process/... \
+            ./internal/maintenance/... \
+            ./internal/ports/... \
+            ./internal/runtimesupervisor/... \
+            ./internal/scenarioruntime/... \
+            ./internal/cli/projectcli/...
 
       - name: Run scenario-to-desktop runtime tests
-        run: go test ./scenarios/scenario-to-desktop/runtime -count=1
+        run: go test ./... -count=1
+        working-directory: scenarios/scenario-to-desktop/runtime
 
       - name: Run scenario-to-desktop preflight tests
-        run: go test ./scenarios/scenario-to-desktop/api -run TestPreflightBundleHandler -count=1
-
-      - name: Run Tests in Workspaces
-        run: |
-          pnpm workspace @vrooli/shared test && \
-          pnpm workspace @vrooli/server test && \
-          pnpm workspace @vrooli/jobs test && \
-          pnpm workspace @vrooli/ui test
+        run: go test ./... -run TestPreflightBundleHandler -count=1
+        working-directory: scenarios/scenario-to-desktop/api

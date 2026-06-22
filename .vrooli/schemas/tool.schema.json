@@ -68,6 +68,105 @@
       "type": "string",
       "description": "Name of a custom Go handler. When set, the generic package-install logic is bypassed."
     },
+    "manual": {
+      "type": "boolean",
+      "description": "When true, this tool has no automatic install path (e.g. a pip CLI or a from-source build). The runtime surfaces it as manual-action-required with installHint rather than attempting a fetch/package install."
+    },
+    "source": {
+      "type": "object",
+      "description": "How the generic handler installs this tool. Absent or type=package uses the OS package manager (defaultPackage/packages). type=url|release fetches a verified binary into the user-local ~/.vrooli/bin (no sudo).",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "package",
+            "url",
+            "release"
+          ],
+          "description": "package = OS package manager (default); url = a direct binary/archive URL; release = a published release artifact. url and release behave identically at fetch time; release is a documentation hint that the URL points at a tagged release asset."
+        },
+        "targets": {
+          "type": "object",
+          "description": "Per os/arch fetch specs, keyed \"<os>/<arch>\" (Go GOOS/GOARCH, e.g. linux/amd64, darwin/arm64). A host with no matching target is cleanly unsupported.",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z0-9]+/[a-z0-9]+$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "url",
+              "sha256"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "Download URL for the binary or archive"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-fA-F0-9]{64}$",
+                "description": "Mandatory SHA-256 of the downloaded bytes (the archive when archived, else the raw binary)"
+              },
+              "archive": {
+                "enum": [
+                  "tar.gz",
+                  "zip",
+                  "none"
+                ],
+                "description": "Archive format to extract; omit or \"none\" for a raw binary"
+              },
+              "layout": {
+                "enum": [
+                  "file",
+                  "dir"
+                ],
+                "description": "Install layout. \"file\" (default) places a single binary into ~/.vrooli/bin. \"dir\" extracts the whole archive tree into ~/.vrooli/opt/<tool>/ and writes a launcher into ~/.vrooli/bin/<command> that runs binPath with the opt dir on LD_LIBRARY_PATH — for backends that ship sibling shared libraries or asset directories the binary loads at runtime."
+              },
+              "binPath": {
+                "type": "string",
+                "description": "Path of the binary inside the archive (required when archive is set and the binary is not at the archive root; for layout=dir, the entry binary path relative to the extracted opt dir)"
+              },
+              "mode": {
+                "type": "string",
+                "pattern": "^0[0-7]{3}$",
+                "description": "Octal file mode for the placed binary (default 0755)"
+              }
+            }
+          }
+        }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "description": "Hardware-capability gate evaluated against host inventory (GPU/VRAM/arch/RAM). When any condition is unmet the tool is cleanly skipped (not applicable), never failed.",
+      "additionalProperties": false,
+      "properties": {
+        "gpu": {
+          "type": "boolean",
+          "description": "Require (true) or forbid (false) a detected GPU"
+        },
+        "minVramGb": {
+          "type": "number",
+          "description": "Minimum total VRAM in GiB on at least one detected GPU"
+        },
+        "arch": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed host architectures (Go GOARCH, e.g. amd64, arm64)"
+        },
+        "minRamGb": {
+          "type": "number",
+          "description": "Minimum total system RAM in GiB"
+        }
+      }
+    },
     "verificationCheck": {
       "$ref": "common.schema.json#/definitions/verificationCheck",
       "description": "Optional post-install verification. If absent, command presence on PATH is sufficient."

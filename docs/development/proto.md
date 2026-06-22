@@ -24,6 +24,8 @@ vendor/protovalidate/               ← vendored BSR module (workspace member)
 buf.yaml                            ← lists 3 workspace modules
 buf.gen.yaml                        ← invokes 6 plugins on schemas/
 gen/{go,typescript,typescript/js,python}/   ← committed output
+gen/descriptor/image.binpb                  ← committed descriptor image
+gen/manifests/<scenario>.lock.json          ← committed generation manifests
 ```
 
 `buf.yaml` declares three workspace modules. The vendored BSR modules sit alongside `schemas/` so transitive imports (`buf/validate/validate.proto`, `google/api/annotations.proto`, ...) resolve locally — no BSR fetch.
@@ -49,10 +51,10 @@ Why local? Two reasons:
 
 1. Create the file under `packages/proto/schemas/<scenario>/v1/<dir>/<name>.proto` matching the existing layout.
 2. `cd packages/proto && make generate`.
-3. Commit `schemas/<...>` and the new files under `gen/`.
+3. Commit `schemas/<...>`, the new files under `gen/`, and the refreshed `gen/manifests/<scenario>.lock.json`.
 4. `make verify-committed-gen` enforces the committed generated artifacts match.
 
-No buf.gen.yaml change is needed for a new file — the existing 5 plugin invocations cover whatever protos are under `schemas/`.
+No buf.gen.yaml change is needed for a new file — the existing 6 plugin invocations cover whatever protos are under `schemas/`.
 
 ## Adding a new plugin
 
@@ -76,6 +78,40 @@ No buf.gen.yaml change is needed for a new file — the existing 5 plugin invoca
 2. `vrooli setup` (or run the install commands manually) to upgrade the local binary.
 3. `cd packages/proto && make generate`.
 4. Commit the manifest, handler, and the resulting `gen/` diff. CI's `make verify-committed-gen` enforces the diff is consistent.
+
+## Generation manifests
+
+`make generate` is prune-clean: it removes generated language output
+directories before running `buf generate`, rebuilds the descriptor image, and
+writes one lockfile per schema directory under `gen/manifests/`.
+
+`packages/proto/gen/` is buf-output only. Keep scenario helpers, compatibility
+shims, hand-authored enum maps, debug renderings, and copied vendor files out
+of this tree; place those artifacts in the owning scenario or in source
+directories that are not committed as generated output. The only non-language
+artifacts allowed under `gen/` are `typescript/package.json`,
+`descriptor/image.binpb`, and `manifests/*.lock.json`. The JSON descriptor
+rendering is intentionally not produced or committed.
+
+Each lockfile is owned by `packages/proto` and records:
+
+- the scenario slug,
+- the digest of that scenario's `.proto` source closure, including transitive
+  imports resolved from `schemas/` and vendored modules,
+- the committed codegen toolchain pins and `buf.gen.yaml` digest,
+- every generated output path for that scenario with a SHA-256 digest.
+
+The lockfiles let `proto-health validate scenario <name>` verify generated
+artifact sync with file reads and hashes only. proto-health does not run `buf`
+or mirror codegen post-steps on its hot path; it trusts the committed manifest
+and reports stale inputs, edited outputs, or orphan generated files as
+`proto.gen_out_of_sync`. A missing lockfile is
+`proto.gen_manifest_missing`, and changed toolchain pins are advisory
+`proto.gen_toolchain_drift` until `make generate` refreshes the manifests.
+
+`make verify-committed-gen` is the authoritative boundary gate. It runs the same
+prune-clean generation path and fails if any committed file under `gen/`,
+including descriptors or manifests, differs afterward.
 
 ## Refreshing vendored modules
 
@@ -113,7 +149,11 @@ The plugin handlers symlink the installed binary into `~/.local/bin/`. Vrooli's 
 
 ### Codegen produces a diff under `gen/` after a no-op edit
 
-Re-run `make generate`. The committed `gen/` tree is the canonical baseline; any divergence is either (a) a plugin version drift, (b) a vendored-module drift, or (c) an in-flight schema edit. `git status` against `gen/` distinguishes the cases.
+Re-run `make generate`. The committed `gen/` tree plus
+`gen/manifests/*.lock.json` is the canonical baseline; any divergence is either
+(a) a plugin version drift, (b) a vendored-module drift, (c) an in-flight schema
+edit, or (d) an orphan generated file pruned by the clean generation step.
+`git status` against `gen/` distinguishes the cases.
 
 ## See also
 

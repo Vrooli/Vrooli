@@ -254,12 +254,19 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 			Platforms:    uniqueStrings(declaration.Platforms),
 			Notes:        uniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
 			Provenance:   []Provenance{provenance},
+			Requires:     declaration.Requires,
 		}
 		return
 	}
 
 	resolved.Required = resolved.Required || declaration.Required
 	resolved.Manual = resolved.Manual || declaration.Manual
+	if resolved.Requires.IsZero() && !declaration.Requires.IsZero() {
+		// First non-zero capability gate across merged declarations wins; the
+		// platform manifest's own `requires` still takes precedence at the
+		// handler (see runtime.effectiveCapability).
+		resolved.Requires = declaration.Requires
+	}
 	resolved.Reasons = mergeUnique(resolved.Reasons, []string{strings.TrimSpace(declaration.Reason)})
 	resolved.When = mergeUnique(resolved.When, declaration.When)
 	resolved.Environments = mergeUnique(resolved.Environments, declaration.Environments)
