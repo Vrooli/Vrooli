@@ -104,7 +104,7 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
             ...prev,
             scriptResults: {
               ...prev.scriptResults,
-              execution: completedExecution as ScriptExecution
+              execution: completedExecution
             }
           }));
         }
@@ -149,7 +149,7 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
     }
   }, []);
 
-  const saveScript = useCallback(async (_script: InvestigationScript, _content: string) => {
+  const saveScript = useCallback((_script: InvestigationScript, _content: string): Promise<void> => {
     // TODO: Implement actual API call to save script
     setModalState(prev => ({
       ...prev,
@@ -158,6 +158,7 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
         isOpen: false
       }
     }));
+    return Promise.resolve();
   }, []);
 
   return {

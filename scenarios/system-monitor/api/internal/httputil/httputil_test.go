@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
@@ -194,7 +194,7 @@ func TestHandleError_GenericWithRequestID(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestProtoJSON_SnakeCase(t *testing.T) {
-	msg := &domain.SystemSettings{
+	msg := &settingspb.SystemSettings{
 		Active:       true,
 		CpuThreshold: 85.5,
 	}
@@ -229,7 +229,7 @@ func TestDecodeProtoJSON(t *testing.T) {
 	jsonBody := `{"active":true,"cpu_threshold":90.0,"memory_threshold":75.5}`
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte(jsonBody)))
 
-	var msg domain.SystemSettings
+	var msg settingspb.SystemSettings
 	if err := DecodeProtoJSON(r, &msg); err != nil {
 		t.Fatalf("DecodeProtoJSON returned error: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestDecodeProtoJSON(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestProtoJSONWithStatus(t *testing.T) {
-	msg := &domain.SystemSettings{
+	msg := &settingspb.SystemSettings{
 		Active:        false,
 		DiskThreshold: 95.0,
 	}

@@ -44,7 +44,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
       clearTimeout(successTimeoutRef.current);
     }
     setSuccessMessage(msg);
-    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+    successTimeoutRef.current = setTimeout(() => { setSuccessMessage(null); }, 3000);
   }, []);
 
   useEffect(() => {
@@ -211,7 +211,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                 <input
                   type="checkbox"
                   checked={settings.active}
-                  onChange={(e) => setSettings(prev => ({ ...prev, active: e.target.checked }))}
+                  onChange={(e) => { setSettings(prev => ({ ...prev, active: e.target.checked })); }}
                   style={{
                     width: '18px',
                     height: '18px',
@@ -259,10 +259,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="5"
                     max="3600"
                     value={settings.metricCollectionInterval}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       metricCollectionInterval: parseInt(e.target.value) || 10
-                    }))}
+                    })); }}
                   />
                 </div>
 
@@ -274,10 +274,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="10"
                     max="1800"
                     value={settings.thresholdCheckInterval}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       thresholdCheckInterval: parseInt(e.target.value) || 20
-                    }))}
+                    })); }}
                   />
                 </div>
 
@@ -289,10 +289,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     min="30"
                     max="7200"
                     value={settings.anomalyDetectionInterval}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       anomalyDetectionInterval: parseInt(e.target.value) || 30
-                    }))}
+                    })); }}
                   />
                 </div>
               </div>
@@ -321,10 +321,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     max="100"
                     step="0.1"
                     value={settings.cpuThreshold}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       cpuThreshold: parseFloat(e.target.value) || 85
-                    }))}
+                    })); }}
                   />
                 </div>
 
@@ -337,10 +337,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     max="100"
                     step="0.1"
                     value={settings.memoryThreshold}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       memoryThreshold: parseFloat(e.target.value) || 90
-                    }))}
+                    })); }}
                   />
                 </div>
 
@@ -353,10 +353,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                     max="100"
                     step="0.1"
                     value={settings.diskThreshold}
-                    onChange={(e) => setSettings(prev => ({
+                    onChange={(e) => { setSettings(prev => ({
                       ...prev,
                       diskThreshold: parseFloat(e.target.value) || 85
-                    }))}
+                    })); }}
                   />
                 </div>
               </div>
@@ -379,10 +379,10 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
                   min="0"
                   max="86400"
                   value={settings.cooldownPeriodSeconds}
-                  onChange={(e) => setSettings(prev => ({
+                  onChange={(e) => { setSettings(prev => ({
                     ...prev,
                     cooldownPeriodSeconds: parseInt(e.target.value) || 300
-                  }))}
+                  })); }}
                   style={{ width: '200px' }}
                 />
                 <div style={{
@@ -408,7 +408,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
         background: 'var(--overlay-medium)'
       }}>
         <button
-          onClick={resetSettings}
+          onClick={() => { void resetSettings(); }}
           disabled={saving || loading}
           className="btn btn-secondary icon-text icon-text-xs"
           style={{ opacity: saving || loading ? 0.5 : 1 }}
@@ -428,7 +428,7 @@ export const SystemSettingsModal = ({ isOpen, onClose }: SystemSettingsModalProp
           </button>
 
           <button
-            onClick={saveSettings}
+            onClick={() => { void saveSettings(); }}
             disabled={saving || loading || !hasChanges}
             className="btn btn-primary icon-text icon-text-xs"
             style={{ opacity: saving || loading || !hasChanges ? 0.5 : 1 }}

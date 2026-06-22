@@ -28,18 +28,20 @@ class RunBenchmarkRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class RunBenchmarkResponse(_message.Message):
-    __slots__ = ("scenario", "outcome", "timings", "reason", "metrics")
+    __slots__ = ("scenario", "outcome", "timings", "reason", "metrics", "bundle_bytes")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
     TIMINGS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     METRICS_FIELD_NUMBER: _ClassVar[int]
+    BUNDLE_BYTES_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     outcome: BenchmarkOutcome
     timings: _containers.RepeatedCompositeFieldContainer[BuildTiming]
     reason: str
     metrics: _metrics_pb2.ExecutionMetrics
-    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[BenchmarkOutcome, str]] = ..., timings: _Optional[_Iterable[_Union[BuildTiming, _Mapping]]] = ..., reason: _Optional[str] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...
+    bundle_bytes: int
+    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[BenchmarkOutcome, str]] = ..., timings: _Optional[_Iterable[_Union[BuildTiming, _Mapping]]] = ..., reason: _Optional[str] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ..., bundle_bytes: _Optional[int] = ...) -> None: ...
 
 class BuildTiming(_message.Message):
     __slots__ = ("surface", "duration_ms", "budget_ms", "over_budget")

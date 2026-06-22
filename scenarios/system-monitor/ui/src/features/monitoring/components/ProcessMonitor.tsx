@@ -187,7 +187,7 @@ export const ProcessMonitor = ({ data, isExpanded = false, onToggle, collapsible
         title="CONFIRM PROCESS TERMINATION"
         variant="danger"
         confirmLabel="TERMINATE PROCESS"
-        onConfirm={confirmKillProcess}
+        onConfirm={() => { void confirmKillProcess(); }}
         onCancel={cancelKillProcess}
         message={
           <>

@@ -23,14 +23,22 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// AuditOutcome describes whether the capture ran or was cleanly skipped.
+// AuditOutcome describes whether the capture ran, was cleanly skipped, was
+// impossible because no capture mechanism was reachable, or failed.
 type AuditOutcome int32
 
 const (
 	AuditOutcome_AUDIT_OUTCOME_UNSPECIFIED AuditOutcome = 0
 	AuditOutcome_AUDIT_OUTCOME_CAPTURED    AuditOutcome = 1
-	AuditOutcome_AUDIT_OUTCOME_SKIPPED     AuditOutcome = 2
-	AuditOutcome_AUDIT_OUTCOME_FAILED      AuditOutcome = 3
+	// SKIPPED: capture is not applicable (no UI surface / Tier None). A normal,
+	// expected N/A — not a degradation.
+	AuditOutcome_AUDIT_OUTCOME_SKIPPED AuditOutcome = 2
+	AuditOutcome_AUDIT_OUTCOME_FAILED  AuditOutcome = 3
+	// UNAVAILABLE: the capture mechanism itself was unreachable — BAS down or no
+	// browser in the environment (e.g. headless CI). Distinct from SKIPPED so a
+	// degraded headless run is not read as a successful no-op; the CLI prints a
+	// loud banner.
+	AuditOutcome_AUDIT_OUTCOME_UNAVAILABLE AuditOutcome = 4
 )
 
 // Enum value maps for AuditOutcome.
@@ -40,12 +48,14 @@ var (
 		1: "AUDIT_OUTCOME_CAPTURED",
 		2: "AUDIT_OUTCOME_SKIPPED",
 		3: "AUDIT_OUTCOME_FAILED",
+		4: "AUDIT_OUTCOME_UNAVAILABLE",
 	}
 	AuditOutcome_value = map[string]int32{
 		"AUDIT_OUTCOME_UNSPECIFIED": 0,
 		"AUDIT_OUTCOME_CAPTURED":    1,
 		"AUDIT_OUTCOME_SKIPPED":     2,
 		"AUDIT_OUTCOME_FAILED":      3,
+		"AUDIT_OUTCOME_UNAVAILABLE": 4,
 	}
 )
 
@@ -250,12 +260,13 @@ const file_performance_health_v1_audit_audit_proto_rawDesc = "" +
 	"\x0etrace_artifact\x18\x04 \x01(\tR\rtraceArtifact\x12.\n" +
 	"\x13web_vitals_artifact\x18\x05 \x01(\tR\x11webVitalsArtifact\x12\x16\n" +
 	"\x06reason\x18\x06 \x01(\tR\x06reason\x125\n" +
-	"\ametrics\x18\a \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics*~\n" +
+	"\ametrics\x18\a \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics*\x9d\x01\n" +
 	"\fAuditOutcome\x12\x1d\n" +
 	"\x19AUDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16AUDIT_OUTCOME_CAPTURED\x10\x01\x12\x19\n" +
 	"\x15AUDIT_OUTCOME_SKIPPED\x10\x02\x12\x18\n" +
-	"\x14AUDIT_OUTCOME_FAILED\x10\x032\x85\x01\n" +
+	"\x14AUDIT_OUTCOME_FAILED\x10\x03\x12\x1d\n" +
+	"\x19AUDIT_OUTCOME_UNAVAILABLE\x10\x042\x85\x01\n" +
 	"\fAuditService\x12u\n" +
 	"\bRunAudit\x123.vrooli.performance_health.v1.audit.RunAuditRequest\x1a4.vrooli.performance_health.v1.audit.RunAuditResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/audit;audit_v1b\x06proto3"
 

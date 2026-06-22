@@ -92,7 +92,7 @@ lint-go: ## Lint Go code
 		fi; \
 	fi
 
-lint-ui: ## Lint UI code
-	@if [ -f ui/package.json ]; then cd ui && pnpm run lint; fi
+lint-ui: ## Lint UI code (eslint + tsc type-check)
+	@if [ -f ui/package.json ]; then cd ui && pnpm run lint && pnpm run type-check; fi
 
 check: fmt lint test ## Run full quality gates

@@ -48,7 +48,7 @@ export const MetricCard = ({
   detailButtonLabel = 'VIEW DETAIL'
 }: MetricCardProps) => {
   const hasNumericValue = typeof value === 'number' && Number.isFinite(value);
-  const resolvedValue = hasNumericValue ? (value as number) : null;
+  const resolvedValue = hasNumericValue ? (value) : null;
 
   const getProgressValue = (): number => {
     if (!hasNumericValue || resolvedValue === null) {

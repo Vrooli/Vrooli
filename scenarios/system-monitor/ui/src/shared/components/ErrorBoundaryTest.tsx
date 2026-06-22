@@ -52,7 +52,7 @@ export const ErrorBoundaryTest = () => {
       </p>
       
       <button
-        onClick={() => setShouldThrow(true)}
+        onClick={() => { setShouldThrow(true); }}
         style={{
           display: 'flex',
           alignItems: 'center',

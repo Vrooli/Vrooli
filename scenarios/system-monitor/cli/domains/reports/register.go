@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"system-monitor/cli/internal/support"
+
+	reportspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+
+	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
@@ -39,7 +40,7 @@ func runGenerate(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("report type must be daily or weekly")
 	}
 
-	body, err := core.Request("POST", "/reports/generate", nil, &apipb.GenerateReportRequest{Type: reportType})
+	body, err := core.Request("POST", "/reports/generate", nil, &reportspb.GenerateReportRequest{Type: reportType})
 	if err != nil {
 		return err
 	}
@@ -47,7 +48,7 @@ func runGenerate(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var report domainpb.EnhancedSystemReport
+	var report reportspb.EnhancedSystemReport
 	if err := support.DecodeProto(body, &report); err != nil {
 		return err
 	}
@@ -69,7 +70,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response apipb.ListReportsResponse
+	var response reportspb.ListReportsResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -102,14 +103,14 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var report domainpb.EnhancedSystemReport
+	var report reportspb.EnhancedSystemReport
 	if err := support.DecodeProto(body, &report); err != nil {
 		return err
 	}
 	return renderReport(os.Stdout, &report, false)
 }
 
-func renderReport(stdout *os.File, report *domainpb.EnhancedSystemReport, generated bool) error {
+func renderReport(stdout *os.File, report *reportspb.EnhancedSystemReport, generated bool) error {
 	status := []string{
 		fmt.Sprintf("Report ID: %s", report.GetReportId()),
 		fmt.Sprintf("Report type: %s", report.GetReportType()),
@@ -150,7 +151,7 @@ func renderReport(stdout *os.File, report *domainpb.EnhancedSystemReport, genera
 	})
 }
 
-func reportRows(items []*domainpb.EnhancedSystemReport) []string {
+func reportRows(items []*reportspb.EnhancedSystemReport) []string {
 	if len(items) == 0 {
 		return []string{"No reports have been generated yet."}
 	}

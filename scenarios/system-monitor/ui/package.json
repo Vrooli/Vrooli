@@ -46,6 +46,7 @@
     "build": "tsc --noEmit && tsc -b && vite build",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
+    "type-check": "tsc --noEmit",
     "preview": "vite preview",
     "start": "vrooli lifecycle protect -- vite",
     "test": "pnpm run test:unit",

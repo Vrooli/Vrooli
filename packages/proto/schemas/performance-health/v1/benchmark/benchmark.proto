@@ -15,10 +15,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-
 // @stability beta
 //
 // BenchmarkService times build-time performance: `go build ./...` and the UI
-// package-manager build, against thresholds from .vrooli/testing.json
-// (go_build_max_seconds, ui_build_max_seconds). It preserves the early-exit
-// semantics of the migrated test-genie native perf phase. Tier 0 by nature
-// (no browser, no instrumentation needed).
+// package-manager build, against the `performance.budgets` block of
+// .vrooli/testing.json (go_build_max_ms, ui_build_max_ms). It preserves the
+// early-exit semantics of the migrated test-genie native perf phase. Tier 0 by
+// nature (no browser, no instrumentation needed).
 // =============================================================================
 
 service BenchmarkService {
@@ -45,6 +45,10 @@ message RunBenchmarkResponse {
   repeated BuildTiming timings = 3;
   string reason = 4;
   common.v1.ExecutionMetrics metrics = 5;
+  // Total size in bytes of the UI production build output (0 when there is no UI
+  // surface or no output dir). Persisted to the trend and gated by the
+  // bundle_max_bytes budget; surfaced here for observability.
+  int64 bundle_bytes = 6;
 }
 
 // BuildTiming is one build surface's measured duration against its budget.

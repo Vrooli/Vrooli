@@ -6,13 +6,14 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"system-monitor/cli/internal/support"
+
+	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
@@ -52,7 +53,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response apipb.ListInvestigationsResponse
+	var response investigationspb.ListInvestigationsResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -91,7 +92,7 @@ func runGet(core *cliapp.ScenarioApp, args []string, latest bool) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response domainpb.Investigation
+	var response investigationspb.Investigation
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -118,7 +119,7 @@ func runGet(core *cliapp.ScenarioApp, args []string, latest bool) error {
 			Items:   []string{structSummary(details)},
 		})
 	}
-	if response.GetStatus() != domainpb.InvestigationStatus_INVESTIGATION_STATUS_COMPLETED {
+	if response.GetStatus() != investigationspb.InvestigationStatus_INVESTIGATION_STATUS_COMPLETED {
 		report.NextSteps = append(report.NextSteps, "system-monitor investigations latest")
 	}
 	return cliapp.RenderOperationalReport(os.Stdout, report)
@@ -133,7 +134,7 @@ func runTrigger(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	request := &apipb.TriggerInvestigationRequest{
+	request := &investigationspb.TriggerInvestigationRequest{
 		AutoFix: *autoFix,
 		Note:    strings.TrimSpace(*note),
 	}
@@ -145,7 +146,7 @@ func runTrigger(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response apipb.TriggerInvestigationResponse
+	var response investigationspb.TriggerInvestigationResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -181,7 +182,7 @@ func runCooldown(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response apipb.GetCooldownStatusResponse
+	var response investigationspb.GetCooldownStatusResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -261,7 +262,7 @@ func runTriggers(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response apipb.GetTriggersResponse
+	var response investigationspb.GetTriggersResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -276,7 +277,7 @@ func runTriggers(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderListReport(os.Stdout, report)
 }
 
-func investigationRows(items []*domainpb.Investigation) []string {
+func investigationRows(items []*investigationspb.Investigation) []string {
 	if len(items) == 0 {
 		return []string{"No investigations were returned."}
 	}
@@ -287,7 +288,7 @@ func investigationRows(items []*domainpb.Investigation) []string {
 	return rows
 }
 
-func investigationStepRows(steps []*domainpb.InvestigationStep) []string {
+func investigationStepRows(steps []*investigationspb.InvestigationStep) []string {
 	if len(steps) == 0 {
 		return []string{"No investigation steps have been recorded."}
 	}
@@ -298,7 +299,7 @@ func investigationStepRows(steps []*domainpb.InvestigationStep) []string {
 	return rows
 }
 
-func triggerRows(items map[string]*domainpb.TriggerConfig) []string {
+func triggerRows(items map[string]*investigationspb.TriggerConfig) []string {
 	if len(items) == 0 {
 		return []string{"No investigation triggers are configured."}
 	}

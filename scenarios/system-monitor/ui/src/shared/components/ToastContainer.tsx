@@ -62,7 +62,7 @@ export function ToastContainer() {
                 </button>
               )}
               <button
-                onClick={() => dismissToast(toast.id)}
+                onClick={() => { dismissToast(toast.id); }}
                 style={{
                   background: 'transparent',
                   border: 'none',

@@ -27,7 +27,7 @@ export const InvestigationScriptsPanel = ({
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const visibleScripts = scripts.filter(script => script.enabled !== false);
+  const visibleScripts = scripts.filter(script => script.enabled);
 
   // Filter scripts based on search
   const filteredScripts = visibleScripts.filter(script => {
@@ -61,7 +61,7 @@ export const InvestigationScriptsPanel = ({
   };
 
   useEffect(() => {
-    loadScripts();
+    void loadScripts();
   }, []);
 
   const showNewScriptDialog = () => {
@@ -103,7 +103,7 @@ export const InvestigationScriptsPanel = ({
           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{errorMessage}</span>
           <br />
           <button type="button" className="btn btn-action"
-            onClick={loadScripts}
+            onClick={() => { void loadScripts(); }}
             style={{ marginTop: 'var(--spacing-sm)' }}>
             <RefreshCw size={14} /> RETRY
           </button>
@@ -131,7 +131,7 @@ export const InvestigationScriptsPanel = ({
             key={script.id}
             script={script}
             isSelected={false}
-            onSelect={openScript}
+            onSelect={(script) => { void openScript(script); }}
           />
         ))}
         {hasMoreScripts && onShowAll && (
@@ -187,7 +187,7 @@ export const InvestigationScriptsPanel = ({
           </button>
           <button
             className="btn btn-action"
-            onClick={loadScripts}
+            onClick={() => { void loadScripts(); }}
           >
             <RefreshCw size={16} />
             REFRESH

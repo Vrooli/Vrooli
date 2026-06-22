@@ -11,6 +11,8 @@ import (
 
 	_ "modernc.org/sqlite" // registers the pure-Go "sqlite" database/sql driver
 
+	apidb "github.com/vrooli/api-core/database"
+
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
@@ -109,12 +111,17 @@ type Repository struct {
 
 // NewRepository opens a SQLite database at dbPath and initializes the schema.
 func NewRepository(dbPath string) (*Repository, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	// Open via api-core/database so the connection gets retry-with-backoff and
+	// jitter (avoids thundering-herd on contended SQLite) instead of a bare
+	// sql.Open. MaxOpenConns=1 preserves the single-writer SQLite discipline.
+	db, err := apidb.Connect(context.Background(), apidb.Config{
+		Driver:       apidb.DriverSQLite,
+		DSN:          dbPath,
+		MaxOpenConns: 1,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
-
-	db.SetMaxOpenConns(1)
 
 	// SQLite pragmas for performance and correctness.
 	for _, pragma := range []string{

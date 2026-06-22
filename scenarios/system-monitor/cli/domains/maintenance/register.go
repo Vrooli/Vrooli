@@ -5,11 +5,13 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"system-monitor/cli/internal/support"
+
+	maintenancepb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/maintenance"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
+
+	"system-monitor/cli/internal/support"
 )
 
 // Register exposes the metrics-lifecycle maintenance commands. Retention prunes
@@ -70,7 +72,7 @@ func runRetentionPreview(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var resp apipb.MetricsRetentionPreviewResponse
+	var resp maintenancepb.MetricsRetentionPreviewResponse
 	if err := support.DecodeProto(body, &resp); err != nil {
 		return err
 	}
@@ -110,7 +112,7 @@ func runRetentionApply(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("--confirm is required to apply retention (this deletes metrics older than %d days)", *days)
 	}
 
-	body, err := core.Request("POST", "/maintenance/metrics/retention/apply", nil, &apipb.MetricsRetentionApplyRequest{
+	body, err := core.Request("POST", "/maintenance/metrics/retention/apply", nil, &maintenancepb.MetricsRetentionApplyRequest{
 		RetentionDays: int32(*days),
 		Confirm:       true,
 	})
@@ -121,7 +123,7 @@ func runRetentionApply(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var resp apipb.MetricsRetentionApplyResponse
+	var resp maintenancepb.MetricsRetentionApplyResponse
 	if err := support.DecodeProto(body, &resp); err != nil {
 		return err
 	}
@@ -153,7 +155,7 @@ func runCompactPreview(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var resp apipb.MetricsCompactionPreviewResponse
+	var resp maintenancepb.MetricsCompactionPreviewResponse
 	if err := support.DecodeProto(body, &resp); err != nil {
 		return err
 	}
@@ -179,7 +181,7 @@ func runCompactApply(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("--confirm is required to apply compaction")
 	}
 
-	body, err := core.Request("POST", "/maintenance/metrics/compaction/apply", nil, &apipb.MetricsCompactionApplyRequest{Confirm: true})
+	body, err := core.Request("POST", "/maintenance/metrics/compaction/apply", nil, &maintenancepb.MetricsCompactionApplyRequest{Confirm: true})
 	if err != nil {
 		return err
 	}
@@ -187,7 +189,7 @@ func runCompactApply(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var resp apipb.MetricsCompactionApplyResponse
+	var resp maintenancepb.MetricsCompactionApplyResponse
 	if err := support.DecodeProto(body, &resp); err != nil {
 		return err
 	}
@@ -210,7 +212,7 @@ func splitAction(args []string) (string, []string) {
 	return args[0], args[1:]
 }
 
-func databaseStatLines(s *apipb.DatabaseStats) []string {
+func databaseStatLines(s *maintenancepb.DatabaseStats) []string {
 	if s == nil {
 		return []string{"(no database stats available)"}
 	}

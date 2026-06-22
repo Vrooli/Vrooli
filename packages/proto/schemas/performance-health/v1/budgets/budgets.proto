@@ -13,9 +13,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-
 // @stability beta
 //
 // BudgetService owns per-scenario performance budgets (build time, bundle size,
-// LCP, startup, component-commit budgets) plus a ratchet. Budgets
-// are declarative in scenario config; a regression vs. budget fails via
-// baseline-diff exactly like any other health regression.
+// LCP, startup, component-commit budgets) plus a ratchet. Budgets are
+// declarative under the `performance.budgets` block of the scenario's
+// .vrooli/testing.json — the single source of truth for every perf threshold
+// (milliseconds/bytes). A regression vs. budget fails via baseline-diff exactly
+// like any other health regression.
 // =============================================================================
 
 service BudgetService {
@@ -45,10 +47,23 @@ message Budget {
   // loosen it (a relaxation is rejected). Tighten-only protects against
   // silently regressing the budget after a measured improvement.
   bool ratchet = 10;
+  // Per-interaction-flow budgets keyed by flow slug. Each gates a specific
+  // targeted journey (driven by `audit run --workflow <slug>`) on the
+  // continuous cadence, independently of the scenario aggregate. build/bundle/
+  // startup remain scenario-level (no per-flow build).
+  map<string, FlowBudget> flows = 11;
   // Field 8 was p95_max_ms — removed: no honest p95 latency producer exists, so
   // the axis could never trip. Reserved to prevent accidental reuse.
   reserved 8;
   reserved "p95_max_ms";
+}
+
+// FlowBudget is one interaction flow's declared thresholds — only the axes a
+// targeted capture can measure (LCP and the slowest component's avg/max commit).
+message FlowBudget {
+  int64 lcp_max_ms = 1;
+  double component_commit_avg_max_ms = 2;
+  double component_commit_max_ms = 3;
 }
 
 message GetBudgetRequest {
@@ -63,6 +78,10 @@ message GetBudgetResponse {
 
 message SetBudgetRequest {
   Budget budget = 1;
+  // When set, the budget's per-flow axes (lcp_max_ms, component_commit_*) are
+  // written to budget.flows[flow], preserving scenario-level axes and sibling
+  // flows. Empty = a scenario-level write (preserving any existing flows).
+  string flow = 2;
 }
 
 message SetBudgetResponse {
@@ -72,6 +91,9 @@ message SetBudgetResponse {
 
 message CheckBudgetRequest {
   string scenario = 1;
+  // When set, evaluate only this interaction flow's per-flow budget against its
+  // latest flow-tagged sample. Empty = the scenario-level check.
+  string flow = 2;
 }
 
 message CheckBudgetResponse {
@@ -88,4 +110,6 @@ message BudgetViolation {
   int64 measured = 2;
   int64 budget = 3;
   string unit = 4;
+  // Flow slug when the violation is a per-flow breach; empty for scenario-level.
+  string flow = 5;
 }

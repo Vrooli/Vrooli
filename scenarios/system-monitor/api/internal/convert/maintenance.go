@@ -3,7 +3,7 @@ package convert
 import (
 	"time"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
+	maintenancepb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/maintenance"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
@@ -15,8 +15,8 @@ func formatRFC3339(t time.Time) string {
 }
 
 // DatabaseStatsToProto converts repository DB stats to the API message.
-func DatabaseStatsToProto(s repository.DatabaseStats) *apipb.DatabaseStats {
-	return &apipb.DatabaseStats{
+func DatabaseStatsToProto(s repository.DatabaseStats) *maintenancepb.DatabaseStats {
+	return &maintenancepb.DatabaseStats{
 		PageSize:      s.PageSize,
 		PageCount:     s.PageCount,
 		FreelistCount: s.FreelistCount,
@@ -26,8 +26,8 @@ func DatabaseStatsToProto(s repository.DatabaseStats) *apipb.DatabaseStats {
 }
 
 // RetentionEstimateToProto converts a retention estimate to the API message.
-func RetentionEstimateToProto(e repository.RetentionEstimate) *apipb.RetentionEstimate {
-	return &apipb.RetentionEstimate{
+func RetentionEstimateToProto(e repository.RetentionEstimate) *maintenancepb.RetentionEstimate {
+	return &maintenancepb.RetentionEstimate{
 		RowCount:       e.RowCount,
 		PayloadBytes:   e.PayloadBytes,
 		OldestAffected: formatRFC3339(e.OldestAffected),
@@ -37,8 +37,8 @@ func RetentionEstimateToProto(e repository.RetentionEstimate) *apipb.RetentionEs
 }
 
 // RetentionResultToProto converts a retention result to the API message.
-func RetentionResultToProto(r repository.RetentionResult) *apipb.RetentionResult {
-	return &apipb.RetentionResult{
+func RetentionResultToProto(r repository.RetentionResult) *maintenancepb.RetentionResult {
+	return &maintenancepb.RetentionResult{
 		DeletedRows: r.DeletedRows,
 		Cutoff:      formatRFC3339(r.Cutoff),
 	}

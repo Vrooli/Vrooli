@@ -5,11 +5,13 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"system-monitor/cli/internal/support"
+
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+
+	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
@@ -49,7 +51,7 @@ func runCurrent(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response domainpb.MetricsResponse
+	var response metricspb.MetricsResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -90,7 +92,7 @@ func runDetailed(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response domainpb.DetailedMetrics
+	var response metricspb.DetailedMetrics
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -140,7 +142,7 @@ func runProcesses(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response domainpb.ProcessMonitorData
+	var response metricspb.ProcessMonitorData
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -174,7 +176,7 @@ func runInfrastructure(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response domainpb.InfrastructureMonitorData
+	var response metricspb.InfrastructureMonitorData
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -220,7 +222,7 @@ func runTimeline(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response domainpb.MetricsTimelineResponse
+	var response metricspb.MetricsTimelineResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -248,7 +250,7 @@ func floatList(values []float64) string {
 	return strings.Join(parts, ", ")
 }
 
-func processNames(processes []*domainpb.ProcessInfo) string {
+func processNames(processes []*metricspb.ProcessInfo) string {
 	if len(processes) == 0 {
 		return "none"
 	}
@@ -263,7 +265,7 @@ func processNames(processes []*domainpb.ProcessInfo) string {
 	return strings.Join(names, ", ")
 }
 
-func serviceHealthSummary(services []*domainpb.ServiceHealth) string {
+func serviceHealthSummary(services []*metricspb.ServiceHealth) string {
 	if len(services) == 0 {
 		return "none"
 	}
@@ -275,7 +277,7 @@ func serviceHealthSummary(services []*domainpb.ServiceHealth) string {
 	return strings.Join(items, ", ")
 }
 
-func processRows(processes []*domainpb.ProcessInfo) []string {
+func processRows(processes []*metricspb.ProcessInfo) []string {
 	if len(processes) == 0 {
 		return []string{"No process entries were returned."}
 	}
@@ -290,7 +292,7 @@ func processRows(processes []*domainpb.ProcessInfo) []string {
 	return rows
 }
 
-func poolRows(prefix string, pools []*domainpb.ConnectionPool) []string {
+func poolRows(prefix string, pools []*metricspb.ConnectionPool) []string {
 	if len(pools) == 0 {
 		return []string{fmt.Sprintf("%s pools: none", prefix)}
 	}
@@ -301,7 +303,7 @@ func poolRows(prefix string, pools []*domainpb.ConnectionPool) []string {
 	return rows
 }
 
-func timelineRows(samples []*domainpb.MetricTimelineSample) []string {
+func timelineRows(samples []*metricspb.MetricTimelineSample) []string {
 	if len(samples) == 0 {
 		return []string{"No timeline samples were returned."}
 	}

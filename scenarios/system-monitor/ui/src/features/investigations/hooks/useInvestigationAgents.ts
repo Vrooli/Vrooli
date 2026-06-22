@@ -94,9 +94,8 @@ export const useInvestigationAgents = () => {
       if (!(agentId in prev)) {
         return prev;
       }
-      const next = { ...prev };
-      delete next[agentId];
-      return next;
+      const { [agentId]: _omit, ...rest } = prev;
+      return rest;
     });
 
     setStoppingAgents(prev => {

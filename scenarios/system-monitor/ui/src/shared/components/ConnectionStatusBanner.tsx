@@ -22,8 +22,8 @@ export function ConnectionStatusBanner({ isStale, lastSuccessfulFetch, onRefresh
   // Update relative time display every 5 seconds
   useEffect(() => {
     if (!isStale) return;
-    const id = setInterval(() => setTick(t => t + 1), 5000);
-    return () => clearInterval(id);
+    const id = setInterval(() => { setTick(t => t + 1); }, 5000);
+    return () => { clearInterval(id); };
   }, [isStale]);
 
   if (!isStale) return null;

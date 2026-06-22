@@ -290,12 +290,12 @@ Browser Info:
                 Retry
               </button>
 
-              <button className="btn-copy-error" onClick={this.handleCopyError}>
+              <button className="btn-copy-error" onClick={() => { void this.handleCopyError(); }}>
                 {this.state.copied ? <Check size={16} /> : <Copy size={16} />}
                 {this.state.copied ? 'Copied!' : 'Copy Error'}
               </button>
 
-              <button className="btn-reload" onClick={() => window.location.reload()}>
+              <button className="btn-reload" onClick={() => { window.location.reload(); }}>
                 <RefreshCw size={16} />
                 Reload Page
               </button>

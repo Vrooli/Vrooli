@@ -1,14 +1,13 @@
 package convert
 
 import (
+	scriptspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
-
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func ScriptMetaToProto(meta services.ScriptMeta) *domain.InvestigationScript {
-	return &domain.InvestigationScript{
+func ScriptMetaToProto(meta services.ScriptMeta) *scriptspb.InvestigationScript {
+	return &scriptspb.InvestigationScript{
 		Id:          meta.ID,
 		Name:        meta.Name,
 		Description: meta.Description,
@@ -20,16 +19,16 @@ func ScriptMetaToProto(meta services.ScriptMeta) *domain.InvestigationScript {
 	}
 }
 
-func ScriptMetasToProto(metas []services.ScriptMeta) []*domain.InvestigationScript {
-	result := make([]*domain.InvestigationScript, len(metas))
+func ScriptMetasToProto(metas []services.ScriptMeta) []*scriptspb.InvestigationScript {
+	result := make([]*scriptspb.InvestigationScript, len(metas))
 	for i, m := range metas {
 		result[i] = ScriptMetaToProto(m)
 	}
 	return result
 }
 
-func ScriptExecutionToProto(exec services.ScriptExecution) *domain.ScriptExecution {
-	pb := &domain.ScriptExecution{
+func ScriptExecutionToProto(exec services.ScriptExecution) *scriptspb.ScriptExecution {
+	pb := &scriptspb.ScriptExecution{
 		ScriptId:    exec.ScriptID,
 		ExecutionId: exec.ExecutionID,
 		Status:      scriptExecutionStatusToProto(exec.Status),

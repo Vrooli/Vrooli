@@ -178,11 +178,18 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	// Update last trigger time only after successful creation
 	s.lastTrigger = now
 
-	// Start investigation in background with panic recovery
-	go func() {
+	// Start investigation in background with panic recovery. The goroutine is
+	// scoped to the service shutdown context so an in-flight investigation is
+	// cancelled cleanly when the server drains.
+	// The worker is bound to the service shutdown context (passed in) so it is
+	// cancelled cleanly on drain; runInvestigation derives its deadline from the
+	// same s.shutdownCtx.
+	go func(_ context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				s.log.Error("investigation panicked", "investigation_id", investigationID, "panic", r)
+				// Best-effort persistence of the failure even if the context is
+				// already cancelled by shutdown.
 				bgCtx := context.Background()
 				_ = s.UpdateInvestigationStatus(bgCtx, investigationID, models.StatusFailed)
 				_ = s.UpdateInvestigationFindings(bgCtx, investigationID,
@@ -190,7 +197,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 			}
 		}()
 		s.runInvestigation(investigationID, autoFix, note)
-	}()
+	}(s.shutdownCtx)
 
 	return investigation, nil
 }

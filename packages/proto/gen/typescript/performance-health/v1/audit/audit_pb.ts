@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file performance-health/v1/audit/audit.proto.
  */
 export const file_performance_health_v1_audit_audit: GenFile = /*@__PURE__*/
-  fileDesc("CidwZXJmb3JtYW5jZS1oZWFsdGgvdjEvYXVkaXQvYXVkaXQucHJvdG8SInZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYXVkaXQiQwoPUnVuQXVkaXRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSEAoId29ya2Zsb3cYAyABKAkinQIKEFJ1bkF1ZGl0UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSQQoHb3V0Y29tZRgCIAEoDjIwLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYXVkaXQuQXVkaXRPdXRjb21lEkEKBHRpZXIYAyABKA4yMy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLnJlYWRpbmVzcy5DYXB0dXJlVGllchIWCg50cmFjZV9hcnRpZmFjdBgEIAEoCRIbChN3ZWJfdml0YWxzX2FydGlmYWN0GAUgASgJEg4KBnJlYXNvbhgGIAEoCRIsCgdtZXRyaWNzGAcgASgLMhsuY29tbW9uLnYxLkV4ZWN1dGlvbk1ldHJpY3MqfgoMQXVkaXRPdXRjb21lEh0KGUFVRElUX09VVENPTUVfVU5TUEVDSUZJRUQQABIaChZBVURJVF9PVVRDT01FX0NBUFRVUkVEEAESGQoVQVVESVRfT1VUQ09NRV9TS0lQUEVEEAISGAoUQVVESVRfT1VUQ09NRV9GQUlMRUQQAzKFAQoMQXVkaXRTZXJ2aWNlEnUKCFJ1bkF1ZGl0EjMudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5hdWRpdC5SdW5BdWRpdFJlcXVlc3QaNC52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmF1ZGl0LlJ1bkF1ZGl0UmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wZXJmb3JtYW5jZS1oZWFsdGgvdjEvYXVkaXQ7YXVkaXRfdjFiBnByb3RvMw", [file_common_v1_metrics, file_performance_health_v1_readiness_readiness]);
+  fileDesc("CidwZXJmb3JtYW5jZS1oZWFsdGgvdjEvYXVkaXQvYXVkaXQucHJvdG8SInZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYXVkaXQiQwoPUnVuQXVkaXRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSEAoId29ya2Zsb3cYAyABKAkinQIKEFJ1bkF1ZGl0UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSQQoHb3V0Y29tZRgCIAEoDjIwLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYXVkaXQuQXVkaXRPdXRjb21lEkEKBHRpZXIYAyABKA4yMy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLnJlYWRpbmVzcy5DYXB0dXJlVGllchIWCg50cmFjZV9hcnRpZmFjdBgEIAEoCRIbChN3ZWJfdml0YWxzX2FydGlmYWN0GAUgASgJEg4KBnJlYXNvbhgGIAEoCRIsCgdtZXRyaWNzGAcgASgLMhsuY29tbW9uLnYxLkV4ZWN1dGlvbk1ldHJpY3MqnQEKDEF1ZGl0T3V0Y29tZRIdChlBVURJVF9PVVRDT01FX1VOU1BFQ0lGSUVEEAASGgoWQVVESVRfT1VUQ09NRV9DQVBUVVJFRBABEhkKFUFVRElUX09VVENPTUVfU0tJUFBFRBACEhgKFEFVRElUX09VVENPTUVfRkFJTEVEEAMSHQoZQVVESVRfT1VUQ09NRV9VTkFWQUlMQUJMRRAEMoUBCgxBdWRpdFNlcnZpY2USdQoIUnVuQXVkaXQSMy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmF1ZGl0LlJ1bkF1ZGl0UmVxdWVzdBo0LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYXVkaXQuUnVuQXVkaXRSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcmZvcm1hbmNlLWhlYWx0aC92MS9hdWRpdDthdWRpdF92MWIGcHJvdG8z", [file_common_v1_metrics, file_performance_health_v1_readiness_readiness]);
 
 /**
  * @generated from message vrooli.performance_health.v1.audit.RunAuditRequest
@@ -102,7 +102,8 @@ export const RunAuditResponseSchema: GenMessage<RunAuditResponse> = /*@__PURE__*
   messageDesc(file_performance_health_v1_audit_audit, 1);
 
 /**
- * AuditOutcome describes whether the capture ran or was cleanly skipped.
+ * AuditOutcome describes whether the capture ran, was cleanly skipped, was
+ * impossible because no capture mechanism was reachable, or failed.
  *
  * @generated from enum vrooli.performance_health.v1.audit.AuditOutcome
  */
@@ -118,6 +119,9 @@ export enum AuditOutcome {
   CAPTURED = 1,
 
   /**
+   * SKIPPED: capture is not applicable (no UI surface / Tier None). A normal,
+   * expected N/A — not a degradation.
+   *
    * @generated from enum value: AUDIT_OUTCOME_SKIPPED = 2;
    */
   SKIPPED = 2,
@@ -126,6 +130,16 @@ export enum AuditOutcome {
    * @generated from enum value: AUDIT_OUTCOME_FAILED = 3;
    */
   FAILED = 3,
+
+  /**
+   * UNAVAILABLE: the capture mechanism itself was unreachable — BAS down or no
+   * browser in the environment (e.g. headless CI). Distinct from SKIPPED so a
+   * degraded headless run is not read as a successful no-op; the CLI prints a
+   * loud banner.
+   *
+   * @generated from enum value: AUDIT_OUTCOME_UNAVAILABLE = 4;
+   */
+  UNAVAILABLE = 4,
 }
 
 /**

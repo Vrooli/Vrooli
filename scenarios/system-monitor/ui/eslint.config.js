@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   { ignores: ["dist", "node_modules"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
@@ -72,6 +72,24 @@ export default tseslint.config(
 
       // Allow unused vars prefixed with underscore (common pattern for ignored params)
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+
+      // ════════════════════════════════════════════════════════════════════════
+      // strictTypeChecked STYLISTIC RULES — downgraded to "warn" (tracked debt)
+      //
+      // strictTypeChecked is extended above so the genuine runtime-safety rules
+      // (no-misused-promises, no-floating-promises, no-unsafe-*, only-throw-error,
+      // use-unknown-in-catch, …) are enforced as errors. The rules below are
+      // stylistic, not crash-safety, so they are warnings rather than hard gates:
+      //   • no-unnecessary-condition directly conflicts with the SAFETY-CRITICAL
+      //     defensive null-checking this very config mandates (it flags the ?.
+      //     and guard checks added to satisfy the unsafe-* rules as "unnecessary").
+      //   • the remaining three are formatting preferences (number-in-template,
+      //     redundant conversions/unions) with no runtime impact.
+      // ════════════════════════════════════════════════════════════════════════
+      "@typescript-eslint/no-unnecessary-condition": "warn",
+      "@typescript-eslint/restrict-template-expressions": "warn",
+      "@typescript-eslint/no-unnecessary-type-conversion": "warn",
+      "@typescript-eslint/no-redundant-type-constituents": "warn",
     },
   }
 );

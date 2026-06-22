@@ -79,7 +79,14 @@ type BacklogItem struct {
 	// "no declared new paths."
 	Creates []string `protobuf:"bytes,22,rep,name=creates,proto3" json:"creates,omitempty"`
 	// Verified provenance for the actor/session that created this item.
-	CreatedBy     *AgentSessionAttribution `protobuf:"bytes,23,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
+	CreatedBy *AgentSessionAttribution `protobuf:"bytes,23,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
+	// Items-ahead in the pending queue: this item's zero-based index within the
+	// ranked pending set (backlogrank order). Surfaced on CreateItem/GetItem so
+	// feedback-contract consumers can show "N items ahead" without computing the
+	// ranking themselves. Unset when the item is not pending (e.g. completed,
+	// failed, in_progress, archived) — there is no position to report.
+	// @constraint 0+
+	QueuePosition *int32 `protobuf:"varint,24,opt,name=queue_position,json=queuePosition,proto3,oneof" json:"queue_position,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -259,6 +266,13 @@ func (x *BacklogItem) GetCreatedBy() *AgentSessionAttribution {
 		return x.CreatedBy
 	}
 	return nil
+}
+
+func (x *BacklogItem) GetQueuePosition() int32 {
+	if x != nil && x.QueuePosition != nil {
+		return *x.QueuePosition
+	}
+	return 0
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.
@@ -619,7 +633,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\xbd\b\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/domain/agent_session.proto\"\x85\t\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -647,14 +661,16 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x10suggested_skills\x18\x15 \x03(\tR\x0fsuggestedSkills\x12\x18\n" +
 	"\acreates\x18\x16 \x03(\tR\acreates\x12M\n" +
 	"\n" +
-	"created_by\x18\x17 \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x06R\tcreatedBy\x88\x01\x01B\r\n" +
+	"created_by\x18\x17 \x01(\v2).swarm_manager.v1.AgentSessionAttributionH\x06R\tcreatedBy\x88\x01\x01\x123\n" +
+	"\x0equeue_position\x18\x18 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\aR\rqueuePosition\x88\x01\x01B\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteB\x0e\n" +
 	"\f_archived_atB\x17\n" +
 	"\x15_plan_validation_jsonB\r\n" +
-	"\v_created_byJ\x04\b\n" +
+	"\v_created_byB\x11\n" +
+	"\x0f_queue_positionJ\x04\b\n" +
 	"\x10\vJ\x04\b\x0e\x10\x0f\"\xd9\x01\n" +
 	"\vBacklogFile\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n" +

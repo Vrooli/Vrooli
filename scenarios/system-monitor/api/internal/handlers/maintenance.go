@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
+	maintenancepb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/maintenance"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
@@ -61,7 +61,7 @@ func (h *MaintenanceHandler) RetentionPreview(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	httputil.SafeProtoJSON(w, h.log, r, &apipb.MetricsRetentionPreviewResponse{
+	httputil.SafeProtoJSON(w, h.log, r, &maintenancepb.MetricsRetentionPreviewResponse{
 		Success:       true,
 		Estimate:      convert.RetentionEstimateToProto(estimate),
 		DatabaseStats: convert.DatabaseStatsToProto(stats),
@@ -70,7 +70,7 @@ func (h *MaintenanceHandler) RetentionPreview(w http.ResponseWriter, r *http.Req
 
 // RetentionApply handles POST /api/v1/maintenance/metrics/retention/apply
 func (h *MaintenanceHandler) RetentionApply(w http.ResponseWriter, r *http.Request) {
-	var req apipb.MetricsRetentionApplyRequest
+	var req maintenancepb.MetricsRetentionApplyRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid JSON payload"))
 		return
@@ -87,7 +87,7 @@ func (h *MaintenanceHandler) RetentionApply(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	httputil.SafeProtoJSON(w, h.log, r, &apipb.MetricsRetentionApplyResponse{
+	httputil.SafeProtoJSON(w, h.log, r, &maintenancepb.MetricsRetentionApplyResponse{
 		Success:             true,
 		Result:              convert.RetentionResultToProto(result),
 		DatabaseStatsBefore: convert.DatabaseStatsToProto(before),
@@ -103,7 +103,7 @@ func (h *MaintenanceHandler) CompactionPreview(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	httputil.SafeProtoJSON(w, h.log, r, &apipb.MetricsCompactionPreviewResponse{
+	httputil.SafeProtoJSON(w, h.log, r, &maintenancepb.MetricsCompactionPreviewResponse{
 		Success:                   true,
 		DatabaseStats:             convert.DatabaseStatsToProto(stats),
 		EstimatedReclaimableBytes: reclaimable,
@@ -112,7 +112,7 @@ func (h *MaintenanceHandler) CompactionPreview(w http.ResponseWriter, r *http.Re
 
 // CompactionApply handles POST /api/v1/maintenance/metrics/compaction/apply
 func (h *MaintenanceHandler) CompactionApply(w http.ResponseWriter, r *http.Request) {
-	var req apipb.MetricsCompactionApplyRequest
+	var req maintenancepb.MetricsCompactionApplyRequest
 	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid JSON payload"))
 		return
@@ -124,7 +124,7 @@ func (h *MaintenanceHandler) CompactionApply(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	httputil.SafeProtoJSON(w, h.log, r, &apipb.MetricsCompactionApplyResponse{
+	httputil.SafeProtoJSON(w, h.log, r, &maintenancepb.MetricsCompactionApplyResponse{
 		Success:             true,
 		DatabaseStatsBefore: convert.DatabaseStatsToProto(result.StatsBefore),
 		DatabaseStatsAfter:  convert.DatabaseStatsToProto(result.StatsAfter),

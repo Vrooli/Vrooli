@@ -1,16 +1,15 @@
 package convert
 
 import (
+	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
-
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 )
 
-func SettingsToProto(s *services.Settings) *domain.SystemSettings {
+func SettingsToProto(s *services.Settings) *settingspb.SystemSettings {
 	if s == nil {
 		return nil
 	}
-	return &domain.SystemSettings{
+	return &settingspb.SystemSettings{
 		Active:                   s.Active,
 		MetricCollectionInterval: int32(s.MetricCollectionInterval),
 		AnomalyDetectionInterval: int32(s.AnomalyDetectionInterval),
@@ -27,7 +26,7 @@ func SettingsToProto(s *services.Settings) *domain.SystemSettings {
 	}
 }
 
-func ProtoToSettings(pb *domain.SystemSettings) *services.Settings {
+func ProtoToSettings(pb *settingspb.SystemSettings) *services.Settings {
 	if pb == nil {
 		return nil
 	}

@@ -37,7 +37,7 @@ export const CollapsibleSection = ({
       >
         <div
           className="section-header-toggle"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => { setExpanded(!expanded); }}
         >
           {expanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
           <h3 className="section-heading text-md">

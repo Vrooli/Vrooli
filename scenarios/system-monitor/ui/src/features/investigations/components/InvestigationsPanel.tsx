@@ -153,7 +153,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
         </h2>
         <button
           className="btn btn-action"
-          onClick={triggerInvestigation}
+          onClick={() => { void triggerInvestigation(); }}
         >
           RUN ANOMALY CHECK
         </button>

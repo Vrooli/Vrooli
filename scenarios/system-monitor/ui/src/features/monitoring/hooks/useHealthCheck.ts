@@ -59,7 +59,7 @@ export const useHealthCheck = (): UseHealthCheckReturn => {
       });
 
       if (!mountedRef.current) return;
-      if (data.success === false) {
+      if (!data.success) {
         throw new Error(data.error ?? 'Failed to update status');
       }
 
@@ -73,12 +73,12 @@ export const useHealthCheck = (): UseHealthCheckReturn => {
       });
 
       // Refresh from server to confirm
-      setTimeout(checkHealth, 500);
+      setTimeout(() => { void checkHealth(); }, 500);
     } catch (err) {
       if (!mountedRef.current) return;
       console.error('Failed to toggle system status:', err);
       setHealthError(err instanceof Error ? err.message : 'Failed to update status');
-      checkHealth();
+      void checkHealth();
     }
   }, [checkHealth, healthStatus]);
 

@@ -127,12 +127,16 @@ func (x *RunBenchmarkRequest) GetPath() string {
 }
 
 type RunBenchmarkResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Outcome       BenchmarkOutcome       `protobuf:"varint,2,opt,name=outcome,proto3,enum=vrooli.performance_health.v1.benchmark.BenchmarkOutcome" json:"outcome,omitempty"`
-	Timings       []*BuildTiming         `protobuf:"bytes,3,rep,name=timings,proto3" json:"timings,omitempty"`
-	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
-	Metrics       *v1.ExecutionMetrics   `protobuf:"bytes,5,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Outcome  BenchmarkOutcome       `protobuf:"varint,2,opt,name=outcome,proto3,enum=vrooli.performance_health.v1.benchmark.BenchmarkOutcome" json:"outcome,omitempty"`
+	Timings  []*BuildTiming         `protobuf:"bytes,3,rep,name=timings,proto3" json:"timings,omitempty"`
+	Reason   string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	Metrics  *v1.ExecutionMetrics   `protobuf:"bytes,5,opt,name=metrics,proto3" json:"metrics,omitempty"`
+	// Total size in bytes of the UI production build output (0 when there is no UI
+	// surface or no output dir). Persisted to the trend and gated by the
+	// bundle_max_bytes budget; surfaced here for observability.
+	BundleBytes   int64 `protobuf:"varint,6,opt,name=bundle_bytes,json=bundleBytes,proto3" json:"bundle_bytes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -200,6 +204,13 @@ func (x *RunBenchmarkResponse) GetMetrics() *v1.ExecutionMetrics {
 		return x.Metrics
 	}
 	return nil
+}
+
+func (x *RunBenchmarkResponse) GetBundleBytes() int64 {
+	if x != nil {
+		return x.BundleBytes
+	}
+	return 0
 }
 
 // BuildTiming is one build surface's measured duration against its budget.
@@ -281,13 +292,14 @@ const file_performance_health_v1_benchmark_benchmark_proto_rawDesc = "" +
 	"/performance-health/v1/benchmark/benchmark.proto\x12&vrooli.performance_health.v1.benchmark\x1a\x17common/v1/metrics.proto\"E\n" +
 	"\x13RunBenchmarkRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"\xa4\x02\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"\xc7\x02\n" +
 	"\x14RunBenchmarkResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12R\n" +
 	"\aoutcome\x18\x02 \x01(\x0e28.vrooli.performance_health.v1.benchmark.BenchmarkOutcomeR\aoutcome\x12M\n" +
 	"\atimings\x18\x03 \x03(\v23.vrooli.performance_health.v1.benchmark.BuildTimingR\atimings\x12\x16\n" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\x125\n" +
-	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\"\x86\x01\n" +
+	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics\x12!\n" +
+	"\fbundle_bytes\x18\x06 \x01(\x03R\vbundleBytes\"\x86\x01\n" +
 	"\vBuildTiming\x12\x18\n" +
 	"\asurface\x18\x01 \x01(\tR\asurface\x12\x1f\n" +
 	"\vduration_ms\x18\x02 \x01(\x03R\n" +

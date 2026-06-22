@@ -118,6 +118,17 @@ message CaptureRequest {
   // of the `captures` list. The server caps the inline payload (currently
   // 2 MiB) and truncates beyond it.
   bool inline_dom = 7;
+
+  // Optional raw `bas/flows`-shape JSON (a WorkflowDefinitionV2 protojson
+  // body) describing a specific interaction to drive *after* the navigate,
+  // inside the same perf-trace window. Empty = the default navigate+settle
+  // capture. The server compiles this with its standard flow-JSON converter
+  // and splices the interaction's nodes/edges after the navigate node, so a
+  // CAPTURE_TYPE_PERFORMANCE trace spans the interaction (scroll, drag,
+  // click/type sequences). Selector tokens (`@selector/`) resolve server-side
+  // against the executor's manifest root, which is NOT the target scenario on
+  // this path — perf flows must use literal `[data-testid=…]` selectors.
+  string interaction_flow_json = 8;
 }
 
 message CaptureArtifact {

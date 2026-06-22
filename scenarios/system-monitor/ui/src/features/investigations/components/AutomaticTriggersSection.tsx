@@ -166,7 +166,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
   }, [getIconComponent, showApiError]);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
 
   const refreshTriggerData = useCallback(() => {
@@ -301,7 +301,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               clearTimeout(cooldownUpdateTimeoutRef.current);
             }
             cooldownUpdateTimeoutRef.current = setTimeout(() => {
-              handleUpdateCooldownPeriod(newValue);
+              void handleUpdateCooldownPeriod(newValue);
             }, 500);
           }}
         />
@@ -313,7 +313,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               <span className="text-sm text-warning">{formatTime(cooldownStatus.remainingSeconds)}</span>
               <button
                 className="btn btn-secondary text-xs"
-                onClick={handleResetCooldown}
+                onClick={() => { void handleResetCooldown(); }}
                 style={{ padding: 'var(--spacing-xs) var(--spacing-sm)' }}
               >
                 <RefreshCw size={12} />
@@ -349,11 +349,11 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         <input
                           type="number"
                           value={editValues[trigger.id] ?? trigger.threshold}
-                          onChange={(e) => setEditValues({ ...editValues, [trigger.id]: parseFloat(e.target.value) })}
+                          onChange={(e) => { setEditValues({ ...editValues, [trigger.id]: parseFloat(e.target.value) }); }}
                           className="trigger-threshold-input"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold);
+                              void handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold);
                             } else if (e.key === 'Escape') {
                               setEditingTrigger(null);
                               setEditValues({});
@@ -363,7 +363,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                         <span className="text-xs">{trigger.unit}</span>
                         <button
                           className="btn-icon text-success"
-                          onClick={() => handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold)}
+                          onClick={() => { void handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold); }}
                           title="Save"
                         >
                           <Save size={14} />
@@ -402,7 +402,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                 <div className="trigger-card-actions">
                   <button
                     className={`btn-icon${trigger.autoFix && trigger.enabled ? ' text-success' : ''}`}
-                    onClick={() => trigger.enabled && handleToggleAutoFix(trigger.id)}
+                    onClick={() => { if (trigger.enabled) void handleToggleAutoFix(trigger.id); }}
                     disabled={!trigger.enabled}
                     title={trigger.autoFix ? 'Disable auto-fix' : 'Enable auto-fix'}
                     style={{ opacity: trigger.enabled ? 1 : 0.4 }}
@@ -412,7 +412,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
 
                   <ToggleSwitch
                     checked={trigger.enabled}
-                    onChange={() => handleToggleTrigger(trigger.id)}
+                    onChange={() => { void handleToggleTrigger(trigger.id); }}
                     title={trigger.enabled ? 'Disable trigger' : 'Enable trigger'}
                   />
                 </div>

@@ -91,9 +91,8 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     setSubsystemErrors(prev => {
       if (err === null) {
         if (!(subsystem in prev)) return prev;
-        const next = { ...prev };
-        delete next[subsystem];
-        return next;
+        const { [subsystem]: _omit, ...rest } = prev;
+        return rest;
       }
       return { ...prev, [subsystem]: err };
     });
@@ -124,7 +123,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
   }, [subsystemErrors, showApiError]);
 
   const { healthStatus, healthError, checkHealth, refreshHealth, toggleMonitoring } = useHealthCheck();
-  const setMetricsError = useCallback((err: APIError | null) => setSubsystemError('metrics', err), [setSubsystemError]);
+  const setMetricsError = useCallback((err: APIError | null) => { setSubsystemError('metrics', err); }, [setSubsystemError]);
   const { metricHistory, fetchMetricsTimeline, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
 
   const fetchMetrics = useCallback(async () => {
@@ -183,7 +182,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       }
     };
 
-    activateMonitoring().catch(err => console.error('Failed to activate monitoring:', err));
+    activateMonitoring().catch((err: unknown) => { console.error('Failed to activate monitoring:', err); });
 
     const stateRef = maintenanceStateRef.current;
 
@@ -197,7 +196,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ maintenanceState: previous })
-        }).catch(unmountError => {
+        }).catch((unmountError: unknown) => {
           console.warn('Failed to restore monitoring state:', unmountError);
         });
       }
@@ -326,7 +325,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   // Initial load
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
@@ -339,7 +338,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       fetchInfrastructureData(),
       fetchInvestigations(),
       checkHealth()
-    ]).catch(err => console.error('Failed to fetch detailed data:', err));
+    ]).catch((err: unknown) => { console.error('Failed to fetch detailed data:', err); });
   }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth]);
   usePolling(fetchDetailedAll, 60000, true, { enabled: true, maxIntervalMs: 300000 });
 
@@ -359,7 +358,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     healthError,
     toggleMonitoring,
     refreshHealth,
-    refresh,
-    refreshMetrics
+    refresh: () => { void refresh(); },
+    refreshMetrics: () => { void refreshMetrics(); }
   };
 };

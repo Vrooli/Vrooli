@@ -1,0 +1,242 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "system-monitor",
+  "description": "System Monitor CLI surface. Single source of truth for the proto-backed CLI verbs across the metrics, investigations, reports, settings, maintenance and capacity domains. Schema-validated against cli-manifest/v1 and cross-validated against the system-monitor v1 proto descriptors at test time. The runtime CLI serves these over the REST gateway (gorilla); the connect-rpc binding names the authoritative proto contract each verb fulfils.",
+  "groups": [
+    {
+      "name": "metrics",
+      "description": "Read host metrics snapshots, process/infrastructure detail, and recent history",
+      "commands": [
+        {
+          "name": "current",
+          "description": "Get the current metrics snapshot",
+          "flags": [
+            { "name": "fresh", "description": "Collect a fresh metrics snapshot instead of the cached one" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "GetCurrentMetrics" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "detailed",
+          "description": "Get detailed system metrics",
+          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "GetDetailedMetrics" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "processes",
+          "description": "Get process monitoring metrics",
+          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "GetProcessMonitor" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "infrastructure",
+          "description": "Get infrastructure pool and queue metrics",
+          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "GetInfrastructureMonitor" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "timeline",
+          "description": "Get recent metrics history",
+          "flags": [
+            { "name": "window", "description": "Timeline window in seconds" },
+            { "name": "interval", "description": "Sample interval in seconds" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "GetMetricsTimeline" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "investigations",
+      "description": "Trigger and inspect automated host investigations and their cooldown",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List recent investigations",
+          "flags": [
+            { "name": "limit", "description": "Maximum number of investigations to return" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "ListInvestigations" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "latest",
+          "description": "Get the latest investigation",
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "GetLatestInvestigation" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Get an investigation by ID",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Investigation id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "GetInvestigation" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "trigger",
+          "description": "Trigger a new investigation",
+          "flags": [
+            { "name": "auto-fix", "description": "Request automatic remediation" },
+            { "name": "note", "description": "Context for the investigation" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "TriggerInvestigation" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "cooldown",
+          "description": "Show cooldown status",
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "GetCooldownStatus" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "triggers",
+          "description": "List trigger thresholds",
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "GetTriggers" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "reports",
+      "description": "Generate and retrieve daily/weekly host reports",
+      "commands": [
+        {
+          "name": "generate",
+          "description": "Generate a daily or weekly report",
+          "flags": [
+            { "name": "type", "description": "Report cadence (daily|weekly)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReportsService", "method": "GenerateReport" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list",
+          "description": "List generated reports",
+          "binding": { "kind": "connect-rpc", "service": "ReportsService", "method": "ListReports" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Get a report by ID",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Report id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReportsService", "method": "GetReport" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Read and update monitor settings and maintenance state",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Get current settings",
+          "binding": { "kind": "connect-rpc", "service": "SettingsService", "method": "GetSettings" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "update",
+          "description": "Update monitor settings",
+          "binding": { "kind": "connect-rpc", "service": "SettingsService", "method": "UpdateSettings" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "reset",
+          "description": "Reset settings to defaults",
+          "binding": { "kind": "connect-rpc", "service": "SettingsService", "method": "ResetSettings" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "maintenance",
+          "description": "Get or set maintenance state (set with the on|off positional)",
+          "binding": { "kind": "connect-rpc", "service": "SettingsService", "method": "SetMaintenanceState" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "maintenance",
+      "description": "Preview and apply metrics retention and database compaction",
+      "commands": [
+        {
+          "name": "retention",
+          "description": "Preview or apply metrics retention (preview|apply)",
+          "positionals": [
+            { "name": "action", "required": true, "description": "preview or apply" }
+          ],
+          "flags": [
+            { "name": "days", "description": "Retention window in days" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MaintenanceService", "method": "MetricsRetentionApply" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "compact",
+          "description": "Preview or apply database compaction (preview|apply)",
+          "positionals": [
+            { "name": "action", "required": true, "description": "preview or apply" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MaintenanceService", "method": "MetricsCompactionApply" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "capacity",
+      "description": "Inspect the host capacity claim ledger and tune policy levers",
+      "commands": [
+        {
+          "name": "overview",
+          "description": "Show per-GPU contention and the active claim table",
+          "binding": { "kind": "connect-rpc", "service": "CapacityService", "method": "GetCapacityOverview" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "claims",
+          "description": "List capacity claims",
+          "flags": [
+            { "name": "owner", "description": "Filter to a single owner id" },
+            { "name": "active", "description": "Only show active (reserved/granted/degraded) claims" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CapacityService", "method": "ListCapacityClaims" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "reconcile",
+          "description": "Classify observed GPU consumers against the ledger",
+          "binding": { "kind": "connect-rpc", "service": "CapacityService", "method": "ReconcileCapacity" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "policy",
+          "description": "Show or set capacity policy levers (get|set <key> <value>)",
+          "positionals": [
+            { "name": "action", "required": true, "description": "get or set" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CapacityService", "method": "SetCapacityPolicy" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    { "service": "HealthService", "method": "Health", "reason": "Liveness is exposed by the cli-core built-in `status` command, not a scenario-domain verb." },
+    { "service": "MetricsService", "method": "GetDiskDetail", "reason": "Per-mount disk drill-down is surfaced in the UI metrics dashboard; there is no dedicated CLI verb." },
+    { "service": "InvestigationsService", "method": "UpdateInvestigationStatus", "reason": "Server-internal lifecycle mutation written by the investigation runner during a run; not a user-facing CLI verb." },
+    { "service": "InvestigationsService", "method": "UpdateInvestigationFindings", "reason": "Server-internal lifecycle mutation written by the investigation runner during a run; not a user-facing CLI verb." },
+    { "service": "InvestigationsService", "method": "UpdateInvestigationProgress", "reason": "Server-internal lifecycle mutation written by the investigation runner during a run; not a user-facing CLI verb." },
+    { "service": "InvestigationsService", "method": "AddInvestigationStep", "reason": "Server-internal lifecycle mutation written by the investigation runner during a run; not a user-facing CLI verb." },
+    { "service": "InvestigationsService", "method": "UpdateTrigger", "reason": "Trigger thresholds are edited through the Settings UI; there is no CLI verb." },
+    { "service": "SettingsService", "method": "GetMaintenanceState", "reason": "Read via the `settings maintenance` command invoked with no positional argument; only the set path needs a distinct binding." },
+    { "service": "MaintenanceService", "method": "MetricsRetentionPreview", "reason": "Reached via the `preview` positional of the `maintenance retention` command, whose binding names the consequential apply method." },
+    { "service": "MaintenanceService", "method": "MetricsCompactionPreview", "reason": "Reached via the `preview` positional of the `maintenance compact` command, whose binding names the consequential apply method." },
+    { "service": "ScriptsService", "method": "ListScripts", "reason": "The remediation-scripts catalog is surfaced through the API/UI; there is no CLI scripts domain." },
+    { "service": "ScriptsService", "method": "GetScript", "reason": "The remediation-scripts catalog is surfaced through the API/UI; there is no CLI scripts domain." },
+    { "service": "ScriptsService", "method": "ExecuteScript", "reason": "Script execution is driven by the investigation runner and UI; there is no CLI scripts domain." },
+    { "service": "CapacityService", "method": "GetCapacityPolicy", "reason": "Read via the `get` positional of the `capacity policy` command, whose binding names the consequential set method." }
+  ]
+}

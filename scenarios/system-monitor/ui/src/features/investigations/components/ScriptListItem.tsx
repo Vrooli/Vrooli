@@ -10,7 +10,7 @@ interface ScriptListItemProps {
 export const ScriptListItem = ({ script, isSelected, onSelect }: ScriptListItemProps) => (
   <button
     type="button"
-    onClick={() => onSelect(script)}
+    onClick={() => { onSelect(script); }}
     style={{
       width: '100%',
       textAlign: 'left',

@@ -105,10 +105,20 @@ class ListBacklogItemsResponse(_message.Message):
     def __init__(self, items: _Optional[_Iterable[_Union[_backlog_pb2.BacklogItem, _Mapping]]] = ..., blocking: _Optional[_Mapping[str, ItemBlockingInfo]] = ...) -> None: ...
 
 class BacklogItemResponse(_message.Message):
-    __slots__ = ("item",)
+    __slots__ = ("item", "deduped")
     ITEM_FIELD_NUMBER: _ClassVar[int]
+    DEDUPED_FIELD_NUMBER: _ClassVar[int]
     item: _backlog_pb2.BacklogItem
-    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ...) -> None: ...
+    deduped: bool
+    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., deduped: _Optional[bool] = ...) -> None: ...
+
+class GetBacklogItemRequest(_message.Message):
+    __slots__ = ("kind", "name")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    name: str
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
 
 class BacklogFilesResponse(_message.Message):
     __slots__ = ("files",)

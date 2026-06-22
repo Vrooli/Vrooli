@@ -26,7 +26,7 @@ from common.v1 import metrics_pb2 as common_dot_v1_dot_metrics__pb2
 from performance_health.v1.readiness import readiness_pb2 as performance__health_dot_v1_dot_readiness_dot_readiness__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'performance-health/v1/audit/audit.proto\x12\"vrooli.performance_health.v1.audit\x1a\x17\x63ommon/v1/metrics.proto\x1a/performance-health/v1/readiness/readiness.proto\"]\n\x0fRunAuditRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x1a\n\x08workflow\x18\x03 \x01(\tR\x08workflow\"\xe9\x02\n\x10RunAuditResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12J\n\x07outcome\x18\x02 \x01(\x0e\x32\x30.vrooli.performance_health.v1.audit.AuditOutcomeR\x07outcome\x12G\n\x04tier\x18\x03 \x01(\x0e\x32\x33.vrooli.performance_health.v1.readiness.CaptureTierR\x04tier\x12%\n\x0etrace_artifact\x18\x04 \x01(\tR\rtraceArtifact\x12.\n\x13web_vitals_artifact\x18\x05 \x01(\tR\x11webVitalsArtifact\x12\x16\n\x06reason\x18\x06 \x01(\tR\x06reason\x12\x35\n\x07metrics\x18\x07 \x01(\x0b\x32\x1b.common.v1.ExecutionMetricsR\x07metrics*~\n\x0c\x41uditOutcome\x12\x1d\n\x19\x41UDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x41UDIT_OUTCOME_CAPTURED\x10\x01\x12\x19\n\x15\x41UDIT_OUTCOME_SKIPPED\x10\x02\x12\x18\n\x14\x41UDIT_OUTCOME_FAILED\x10\x03\x32\x85\x01\n\x0c\x41uditService\x12u\n\x08RunAudit\x12\x33.vrooli.performance_health.v1.audit.RunAuditRequest\x1a\x34.vrooli.performance_health.v1.audit.RunAuditResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/audit;audit_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'performance-health/v1/audit/audit.proto\x12\"vrooli.performance_health.v1.audit\x1a\x17\x63ommon/v1/metrics.proto\x1a/performance-health/v1/readiness/readiness.proto\"]\n\x0fRunAuditRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12\x1a\n\x08workflow\x18\x03 \x01(\tR\x08workflow\"\xe9\x02\n\x10RunAuditResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12J\n\x07outcome\x18\x02 \x01(\x0e\x32\x30.vrooli.performance_health.v1.audit.AuditOutcomeR\x07outcome\x12G\n\x04tier\x18\x03 \x01(\x0e\x32\x33.vrooli.performance_health.v1.readiness.CaptureTierR\x04tier\x12%\n\x0etrace_artifact\x18\x04 \x01(\tR\rtraceArtifact\x12.\n\x13web_vitals_artifact\x18\x05 \x01(\tR\x11webVitalsArtifact\x12\x16\n\x06reason\x18\x06 \x01(\tR\x06reason\x12\x35\n\x07metrics\x18\x07 \x01(\x0b\x32\x1b.common.v1.ExecutionMetricsR\x07metrics*\x9d\x01\n\x0c\x41uditOutcome\x12\x1d\n\x19\x41UDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x41UDIT_OUTCOME_CAPTURED\x10\x01\x12\x19\n\x15\x41UDIT_OUTCOME_SKIPPED\x10\x02\x12\x18\n\x14\x41UDIT_OUTCOME_FAILED\x10\x03\x12\x1d\n\x19\x41UDIT_OUTCOME_UNAVAILABLE\x10\x04\x32\x85\x01\n\x0c\x41uditService\x12u\n\x08RunAudit\x12\x33.vrooli.performance_health.v1.audit.RunAuditRequest\x1a\x34.vrooli.performance_health.v1.audit.RunAuditResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/audit;audit_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,12 +34,12 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'performance_health.v1.audit
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZSgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/audit;audit_v1'
-  _globals['_AUDITOUTCOME']._serialized_start=612
-  _globals['_AUDITOUTCOME']._serialized_end=738
+  _globals['_AUDITOUTCOME']._serialized_start=613
+  _globals['_AUDITOUTCOME']._serialized_end=770
   _globals['_RUNAUDITREQUEST']._serialized_start=153
   _globals['_RUNAUDITREQUEST']._serialized_end=246
   _globals['_RUNAUDITRESPONSE']._serialized_start=249
   _globals['_RUNAUDITRESPONSE']._serialized_end=610
-  _globals['_AUDITSERVICE']._serialized_start=741
-  _globals['_AUDITSERVICE']._serialized_end=874
+  _globals['_AUDITSERVICE']._serialized_start=773
+  _globals['_AUDITSERVICE']._serialized_end=906
 # @@protoc_insertion_point(module_scope)

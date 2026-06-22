@@ -32,7 +32,7 @@ export const ProcessAlertItem = ({ pid, name, variant, detail, onKill }: Process
       )}
       <button
         className={`btn-kill ${killButtonClass[variant]}`}
-        onClick={() => onKill(pid, name, variant)}
+        onClick={() => { onKill(pid, name, variant); }}
         title={`Kill ${variant.replace('_', ' ')} process`}
       >
         <X size={16} />

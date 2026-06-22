@@ -139,6 +139,14 @@ message BacklogItem {
 
   // Verified provenance for the actor/session that created this item.
   optional AgentSessionAttribution created_by = 23;
+
+  // Items-ahead in the pending queue: this item's zero-based index within the
+  // ranked pending set (backlogrank order). Surfaced on CreateItem/GetItem so
+  // feedback-contract consumers can show "N items ahead" without computing the
+  // ranking themselves. Unset when the item is not pending (e.g. completed,
+  // failed, in_progress, archived) — there is no position to report.
+  // @constraint 0+
+  optional int32 queue_position = 24 [(buf.validate.field).int32.gte = 0];
 }
 
 // BacklogFile represents a file or directory within a backlog item folder.

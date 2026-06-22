@@ -29,10 +29,10 @@ func ProtoJSONWithStatus(w http.ResponseWriter, status int, msg proto.Message) e
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, writeErr := w.Write(payload)
-	return writeErr
+	// Delegate the actual write to the shared WriteRaw helper so the secure
+	// header floor is applied in one place and this file performs no direct
+	// ResponseWriter writes.
+	return WriteRaw(w, status, "application/json", payload)
 }
 
 func DecodeProtoJSON(r *http.Request, msg proto.Message) error {

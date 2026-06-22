@@ -1,25 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
+
+	"github.com/vrooli/api-core/preflight"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/server"
 )
 
 func main() {
-	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
-
-🚀 Instead, use:
-   vrooli scenario start system-monitor
-
-💡 The lifecycle system provides environment variables, port allocation,
-   and dependency management automatically. Direct execution is not supported.
-`)
-		os.Exit(1)
+	// preflight.Run performs the staleness/rebuild check and the lifecycle
+	// guard (direct execution outside `vrooli scenario start` is rejected).
+	if preflight.Run(preflight.Config{ScenarioName: "system-monitor"}) {
+		return
 	}
 
 	cfg := config.Load()

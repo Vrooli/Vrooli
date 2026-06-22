@@ -115,7 +115,7 @@ export const ScriptEditorModal = ({
             {scriptContent && (
               <button
                 className="btn btn-primary"
-                onClick={handleExecute}
+                onClick={() => { void handleExecute(); }}
                 disabled={isExecuting}
                 title="Execute Script"
               >
@@ -127,7 +127,7 @@ export const ScriptEditorModal = ({
             {(currentMode === 'edit' || mode === 'create') && onSave && (
               <button
                 className="btn btn-action"
-                onClick={handleSave}
+                onClick={() => { void handleSave(); }}
                 disabled={isSaving}
                 title="Save Script"
               >
@@ -165,7 +165,7 @@ export const ScriptEditorModal = ({
                   type="text"
                   className="input-field"
                   value={scriptData.id}
-                  onChange={(e) => setScriptData({...scriptData, id: e.target.value})}
+                  onChange={(e) => { setScriptData({...scriptData, id: e.target.value}); }}
                   placeholder="script-name"
                 />
               </div>
@@ -176,7 +176,7 @@ export const ScriptEditorModal = ({
                   type="text"
                   className="input-field"
                   value={scriptData.name}
-                  onChange={(e) => setScriptData({...scriptData, name: e.target.value})}
+                  onChange={(e) => { setScriptData({...scriptData, name: e.target.value}); }}
                   placeholder="Human readable name"
                 />
               </div>
@@ -186,7 +186,7 @@ export const ScriptEditorModal = ({
                 <select
                   className="input-field"
                   value={scriptData.category}
-                  onChange={(e) => setScriptData({...scriptData, category: e.target.value})}
+                  onChange={(e) => { setScriptData({...scriptData, category: e.target.value}); }}
                 >
                   <option value="performance">Performance</option>
                   <option value="process-analysis">Process Analysis</option>
@@ -202,7 +202,7 @@ export const ScriptEditorModal = ({
               <textarea
                 className="input-field"
                 value={scriptData.description}
-                onChange={(e) => setScriptData({...scriptData, description: e.target.value})}
+                onChange={(e) => { setScriptData({...scriptData, description: e.target.value}); }}
                 placeholder="Brief description of what this script investigates"
                 rows={2}
                 style={{ resize: 'vertical' }}
@@ -262,7 +262,7 @@ export const ScriptEditorModal = ({
             ) : (
               <textarea
                 value={scriptContent}
-                onChange={(e) => setScriptContent(e.target.value)}
+                onChange={(e) => { setScriptContent(e.target.value); }}
                 placeholder="#!/bin/bash&#10;# Your investigation script here..."
                 style={{
                   width: '100%',

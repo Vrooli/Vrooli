@@ -14,10 +14,12 @@ class AuditOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AUDIT_OUTCOME_CAPTURED: _ClassVar[AuditOutcome]
     AUDIT_OUTCOME_SKIPPED: _ClassVar[AuditOutcome]
     AUDIT_OUTCOME_FAILED: _ClassVar[AuditOutcome]
+    AUDIT_OUTCOME_UNAVAILABLE: _ClassVar[AuditOutcome]
 AUDIT_OUTCOME_UNSPECIFIED: AuditOutcome
 AUDIT_OUTCOME_CAPTURED: AuditOutcome
 AUDIT_OUTCOME_SKIPPED: AuditOutcome
 AUDIT_OUTCOME_FAILED: AuditOutcome
+AUDIT_OUTCOME_UNAVAILABLE: AuditOutcome
 
 class RunAuditRequest(_message.Message):
     __slots__ = ("scenario", "path", "workflow")

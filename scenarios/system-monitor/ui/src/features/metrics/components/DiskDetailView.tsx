@@ -97,7 +97,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
   );
 
   useEffect(() => {
-    fetchDiskDetails('/', DEFAULT_DEPTH, false);
+    void fetchDiskDetails('/', DEFAULT_DEPTH, false);
     return () => {
       if (activeRequestRef.current) {
         activeRequestRef.current.abort();
@@ -145,22 +145,22 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
 
   const handleMountSelect = (mountPoint: string) => {
     setSelectedMount(mountPoint);
-    fetchDiskDetails(mountPoint, depth, includeFiles);
+    void fetchDiskDetails(mountPoint, depth, includeFiles);
   };
 
   const handleDepthChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextDepth = Number(event.target.value);
     setDepth(nextDepth);
-    fetchDiskDetails(selectedMount, nextDepth, includeFiles);
+    void fetchDiskDetails(selectedMount, nextDepth, includeFiles);
   };
 
   const handleRefresh = () => {
-    fetchDiskDetails(selectedMount, depth, includeFiles);
+    void fetchDiskDetails(selectedMount, depth, includeFiles);
   };
 
   const handleScanLargestFiles = () => {
     setIncludeFiles(true);
-    fetchDiskDetails(selectedMount, depth, true);
+    void fetchDiskDetails(selectedMount, depth, true);
   };
 
   const handleStopScan = () => {
@@ -322,7 +322,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                     key={`${partition.device}-${partition.mountPoint}`}
                     type="button"
                     className={`partition-btn ${isActive ? 'active' : ''}`}
-                    onClick={() => handleMountSelect(partition.mountPoint)}
+                    onClick={() => { handleMountSelect(partition.mountPoint); }}
                     disabled={detailsLoading && isActive}
                   >
                     <div className="flex-row-baseline">

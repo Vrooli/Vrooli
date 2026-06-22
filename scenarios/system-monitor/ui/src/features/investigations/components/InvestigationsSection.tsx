@@ -85,7 +85,7 @@ export const InvestigationsSection = ({
               <label className="agent-checkbox-label">
                 <ToggleSwitch
                   checked={autoFixEnabled}
-                  onChange={() => setAutoFixEnabled(!autoFixEnabled)}
+                  onChange={() => { setAutoFixEnabled(!autoFixEnabled); }}
                   size="sm"
                 />
                 Auto-fix
@@ -93,7 +93,7 @@ export const InvestigationsSection = ({
 
               <button
                 className="btn-icon"
-                onClick={() => setShowNoteField(!showNoteField)}
+                onClick={() => { setShowNoteField(!showNoteField); }}
                 title="Add note for agent context"
               >
                 <MessageCircle size={16} />
@@ -101,7 +101,7 @@ export const InvestigationsSection = ({
 
               <button
                 className="btn btn-primary text-xs"
-                onClick={handleSpawnAgent}
+                onClick={() => { void handleSpawnAgent(); }}
                 disabled={isSpawningAgent}
               >
                 <Play size={14} className={isSpawningAgent ? 'animate-spin' : ''} />
@@ -127,7 +127,7 @@ export const InvestigationsSection = ({
               <textarea
                 id="agent-note"
                 value={agentNote}
-                onChange={(event) => setAgentNote(event.target.value)}
+                onChange={(event) => { setAgentNote(event.target.value); }}
                 rows={3}
                 className="agent-note-textarea"
               />
@@ -167,7 +167,7 @@ export const InvestigationsSection = ({
               embedded={true}
               searchFilter={scriptsSearch}
               maxVisible={4}
-              onShowAll={() => navigate('/scripts')}
+              onShowAll={() => { void navigate('/scripts'); }}
             />
           </div>
         </CollapsibleSection>

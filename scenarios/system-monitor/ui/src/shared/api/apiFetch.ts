@@ -2,6 +2,41 @@
 import { buildUrl as buildApiUrl } from '../../lib/api-client';
 import type { APIError, ErrorDetail } from '../../types';
 
+/**
+ * Error subclass that also carries the normalized APIError fields.
+ *
+ * Thrown by the fetch helpers so that callers can `throw` a real `Error`
+ * (satisfying lint/runtime expectations) while still reading `.error`,
+ * `.detail`, and `.timestamp` exactly as before via `isApiError`/`toApiError`.
+ */
+export class ApiErrorException extends Error implements APIError {
+  error: string;
+  detail?: ErrorDetail;
+  timestamp?: string;
+
+  constructor(payload: APIError) {
+    super(payload.error);
+    this.name = 'ApiErrorException';
+    this.error = payload.error;
+    this.detail = payload.detail;
+    this.timestamp = payload.timestamp;
+  }
+}
+
+/** Merge a base header record with an optional `HeadersInit` into a plain object. */
+function mergeHeaders(base: Record<string, string>, extra?: HeadersInit): Record<string, string> {
+  const merged: Record<string, string> = { ...base };
+  if (!extra) return merged;
+  if (extra instanceof Headers) {
+    extra.forEach((value, key) => { merged[key] = value; });
+  } else if (Array.isArray(extra)) {
+    for (const [key, value] of extra) merged[key] = value;
+  } else {
+    Object.assign(merged, extra);
+  }
+  return merged;
+}
+
 /** Parse an error response into a normalized APIError. */
 async function parseErrorResponse(response: Response): Promise<APIError> {
   const errorText = await response.text();
@@ -57,21 +92,21 @@ export async function apiFetch<T>(
     response = await fetch(buildApiUrl(path), options);
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw networkError();
+    throw new ApiErrorException(networkError());
   }
 
   if (!response.ok) {
-    throw await parseErrorResponse(response);
+    throw new ApiErrorException(await parseErrorResponse(response));
   }
 
   try {
     return (await response.json()) as T;
   } catch {
-    throw {
+    throw new ApiErrorException({
       error: 'Invalid response from server',
       detail: { code: 'internal', message: 'Failed to parse server response', retryable: false },
       timestamp: new Date().toISOString(),
-    } satisfies APIError;
+    });
   }
 }
 
@@ -92,36 +127,33 @@ export async function protoFetch<T>(
   try {
     response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers: mergeHeaders({ 'Content-Type': 'application/json' }, options?.headers),
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;
-    throw networkError();
+    throw new ApiErrorException(networkError());
   }
   if (!response.ok) {
-    throw await parseErrorResponse(response);
+    throw new ApiErrorException(await parseErrorResponse(response));
   }
   let json: unknown;
   try {
     json = await response.json();
   } catch {
-    throw {
+    throw new ApiErrorException({
       error: 'Invalid response from server',
       detail: { code: 'internal', message: 'Failed to parse server response', retryable: false },
       timestamp: new Date().toISOString(),
-    } satisfies APIError;
+    });
   }
   try {
     return parser(json);
   } catch {
-    throw {
+    throw new ApiErrorException({
       error: 'Invalid response format',
       detail: { code: 'internal', message: 'Failed to decode server response', retryable: false },
       timestamp: new Date().toISOString(),
-    } satisfies APIError;
+    });
   }
 }
 

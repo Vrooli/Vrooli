@@ -84,7 +84,7 @@ export const ReportsPanel = () => {
         <div className="flex-row-center gap-sm">
           <button
             className="btn btn-action"
-            onClick={() => generateReport('daily')}
+            onClick={() => { void generateReport('daily'); }}
             disabled={isGenerating !== null || isRefreshing}
           >
             {isGenerating === 'daily' ? (
@@ -101,7 +101,7 @@ export const ReportsPanel = () => {
           </button>
           <button
             className="btn btn-action"
-            onClick={() => generateReport('weekly')}
+            onClick={() => { void generateReport('weekly'); }}
             disabled={isGenerating !== null || isRefreshing}
           >
             {isGenerating === 'weekly' ? (
@@ -118,7 +118,7 @@ export const ReportsPanel = () => {
           </button>
           <button
             className="btn btn-action"
-            onClick={() => loadReports(true)}
+            onClick={() => { void loadReports(true); }}
             disabled={isGenerating !== null || isRefreshing}
           >
             {isRefreshing ? (
@@ -152,7 +152,7 @@ export const ReportsPanel = () => {
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{error}</span>
             <br />
             <button type="button" className="btn btn-action"
-              onClick={() => loadReports()}
+              onClick={() => { void loadReports(); }}
               style={{ marginTop: 'var(--spacing-sm)' }}>
               <RefreshCw size={14} /> RETRY
             </button>

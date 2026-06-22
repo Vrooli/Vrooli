@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file performance-health/v1/budgets/budgets.proto.
  */
 export const file_performance_health_v1_budgets_budgets: GenFile = /*@__PURE__*/
-  fileDesc("CitwZXJmb3JtYW5jZS1oZWFsdGgvdjEvYnVkZ2V0cy9idWRnZXRzLnByb3RvEiR2cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMi+wEKBkJ1ZGdldBIQCghzY2VuYXJpbxgBIAEoCRIXCg9nb19idWlsZF9tYXhfbXMYAiABKAMSFwoPdWlfYnVpbGRfbWF4X21zGAMgASgDEhgKEGJ1bmRsZV9tYXhfYnl0ZXMYBCABKAMSEgoKbGNwX21heF9tcxgFIAEoAxIWCg5zdGFydHVwX21heF9tcxgGIAEoAxIfChdjb21wb25lbnRfY29tbWl0X21heF9tcxgHIAEoARIjChtjb21wb25lbnRfY29tbWl0X2F2Z19tYXhfbXMYCSABKAESDwoHcmF0Y2hldBgKIAEoCEoECAgQCVIKcDk1X21heF9tcyIkChBHZXRCdWRnZXRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImMKEUdldEJ1ZGdldFJlc3BvbnNlEjwKBmJ1ZGdldBgBIAEoCzIsLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5CdWRnZXQSEAoIZGVjbGFyZWQYAiABKAgiUAoQU2V0QnVkZ2V0UmVxdWVzdBI8CgZidWRnZXQYASABKAsyLC52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQnVkZ2V0ImIKEVNldEJ1ZGdldFJlc3BvbnNlEjwKBmJ1ZGdldBgBIAEoCzIsLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5CdWRnZXQSDwoHZHJ5X3J1bhgCIAEoCCImChJDaGVja0J1ZGdldFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiggEKE0NoZWNrQnVkZ2V0UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDgoGcGFzc2VkGAIgASgIEkkKCnZpb2xhdGlvbnMYAyADKAsyNS52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQnVkZ2V0VmlvbGF0aW9uIk8KD0J1ZGdldFZpb2xhdGlvbhIMCgRheGlzGAEgASgJEhAKCG1lYXN1cmVkGAIgASgDEg4KBmJ1ZGdldBgDIAEoAxIMCgR1bml0GAQgASgJMpADCg1CdWRnZXRTZXJ2aWNlEnwKCUdldEJ1ZGdldBI2LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5HZXRCdWRnZXRSZXF1ZXN0GjcudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkdldEJ1ZGdldFJlc3BvbnNlEnwKCVNldEJ1ZGdldBI2LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5TZXRCdWRnZXRSZXF1ZXN0GjcudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLlNldEJ1ZGdldFJlc3BvbnNlEoIBCgtDaGVja0J1ZGdldBI4LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5DaGVja0J1ZGdldFJlcXVlc3QaOS52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQ2hlY2tCdWRnZXRSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BlcmZvcm1hbmNlLWhlYWx0aC92MS9idWRnZXRzO2J1ZGdldHNfdjFiBnByb3RvMw");
+  fileDesc("CitwZXJmb3JtYW5jZS1oZWFsdGgvdjEvYnVkZ2V0cy9idWRnZXRzLnByb3RvEiR2cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMiowMKBkJ1ZGdldBIQCghzY2VuYXJpbxgBIAEoCRIXCg9nb19idWlsZF9tYXhfbXMYAiABKAMSFwoPdWlfYnVpbGRfbWF4X21zGAMgASgDEhgKEGJ1bmRsZV9tYXhfYnl0ZXMYBCABKAMSEgoKbGNwX21heF9tcxgFIAEoAxIWCg5zdGFydHVwX21heF9tcxgGIAEoAxIfChdjb21wb25lbnRfY29tbWl0X21heF9tcxgHIAEoARIjChtjb21wb25lbnRfY29tbWl0X2F2Z19tYXhfbXMYCSABKAESDwoHcmF0Y2hldBgKIAEoCBJGCgVmbG93cxgLIAMoCzI3LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5CdWRnZXQuRmxvd3NFbnRyeRpeCgpGbG93c0VudHJ5EgsKA2tleRgBIAEoCRI/CgV2YWx1ZRgCIAEoCzIwLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5GbG93QnVkZ2V0OgI4AUoECAgQCVIKcDk1X21heF9tcyJmCgpGbG93QnVkZ2V0EhIKCmxjcF9tYXhfbXMYASABKAMSIwobY29tcG9uZW50X2NvbW1pdF9hdmdfbWF4X21zGAIgASgBEh8KF2NvbXBvbmVudF9jb21taXRfbWF4X21zGAMgASgBIiQKEEdldEJ1ZGdldFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiYwoRR2V0QnVkZ2V0UmVzcG9uc2USPAoGYnVkZ2V0GAEgASgLMiwudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkJ1ZGdldBIQCghkZWNsYXJlZBgCIAEoCCJeChBTZXRCdWRnZXRSZXF1ZXN0EjwKBmJ1ZGdldBgBIAEoCzIsLnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5CdWRnZXQSDAoEZmxvdxgCIAEoCSJiChFTZXRCdWRnZXRSZXNwb25zZRI8CgZidWRnZXQYASABKAsyLC52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQnVkZ2V0Eg8KB2RyeV9ydW4YAiABKAgiNAoSQ2hlY2tCdWRnZXRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBGZsb3cYAiABKAkiggEKE0NoZWNrQnVkZ2V0UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDgoGcGFzc2VkGAIgASgIEkkKCnZpb2xhdGlvbnMYAyADKAsyNS52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuQnVkZ2V0VmlvbGF0aW9uIl0KD0J1ZGdldFZpb2xhdGlvbhIMCgRheGlzGAEgASgJEhAKCG1lYXN1cmVkGAIgASgDEg4KBmJ1ZGdldBgDIAEoAxIMCgR1bml0GAQgASgJEgwKBGZsb3cYBSABKAkykAMKDUJ1ZGdldFNlcnZpY2USfAoJR2V0QnVkZ2V0EjYudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkdldEJ1ZGdldFJlcXVlc3QaNy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuR2V0QnVkZ2V0UmVzcG9uc2USfAoJU2V0QnVkZ2V0EjYudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLlNldEJ1ZGdldFJlcXVlc3QaNy52cm9vbGkucGVyZm9ybWFuY2VfaGVhbHRoLnYxLmJ1ZGdldHMuU2V0QnVkZ2V0UmVzcG9uc2USggEKC0NoZWNrQnVkZ2V0EjgudnJvb2xpLnBlcmZvcm1hbmNlX2hlYWx0aC52MS5idWRnZXRzLkNoZWNrQnVkZ2V0UmVxdWVzdBo5LnZyb29saS5wZXJmb3JtYW5jZV9oZWFsdGgudjEuYnVkZ2V0cy5DaGVja0J1ZGdldFJlc3BvbnNlQllaV2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGVyZm9ybWFuY2UtaGVhbHRoL3YxL2J1ZGdldHM7YnVkZ2V0c192MWIGcHJvdG8z");
 
 /**
  * Budget is one scenario's declared performance thresholds.
@@ -70,6 +70,16 @@ export type Budget = Message<"vrooli.performance_health.v1.budgets.Budget"> & {
    * @generated from field: bool ratchet = 10;
    */
   ratchet: boolean;
+
+  /**
+   * Per-interaction-flow budgets keyed by flow slug. Each gates a specific
+   * targeted journey (driven by `audit run --workflow <slug>`) on the
+   * continuous cadence, independently of the scenario aggregate. build/bundle/
+   * startup remain scenario-level (no per-flow build).
+   *
+   * @generated from field: map<string, vrooli.performance_health.v1.budgets.FlowBudget> flows = 11;
+   */
+  flows: { [key: string]: FlowBudget };
 };
 
 /**
@@ -78,6 +88,36 @@ export type Budget = Message<"vrooli.performance_health.v1.budgets.Budget"> & {
  */
 export const BudgetSchema: GenMessage<Budget> = /*@__PURE__*/
   messageDesc(file_performance_health_v1_budgets_budgets, 0);
+
+/**
+ * FlowBudget is one interaction flow's declared thresholds — only the axes a
+ * targeted capture can measure (LCP and the slowest component's avg/max commit).
+ *
+ * @generated from message vrooli.performance_health.v1.budgets.FlowBudget
+ */
+export type FlowBudget = Message<"vrooli.performance_health.v1.budgets.FlowBudget"> & {
+  /**
+   * @generated from field: int64 lcp_max_ms = 1;
+   */
+  lcpMaxMs: bigint;
+
+  /**
+   * @generated from field: double component_commit_avg_max_ms = 2;
+   */
+  componentCommitAvgMaxMs: number;
+
+  /**
+   * @generated from field: double component_commit_max_ms = 3;
+   */
+  componentCommitMaxMs: number;
+};
+
+/**
+ * Describes the message vrooli.performance_health.v1.budgets.FlowBudget.
+ * Use `create(FlowBudgetSchema)` to create a new message.
+ */
+export const FlowBudgetSchema: GenMessage<FlowBudget> = /*@__PURE__*/
+  messageDesc(file_performance_health_v1_budgets_budgets, 1);
 
 /**
  * @generated from message vrooli.performance_health.v1.budgets.GetBudgetRequest
@@ -94,7 +134,7 @@ export type GetBudgetRequest = Message<"vrooli.performance_health.v1.budgets.Get
  * Use `create(GetBudgetRequestSchema)` to create a new message.
  */
 export const GetBudgetRequestSchema: GenMessage<GetBudgetRequest> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_budgets_budgets, 1);
+  messageDesc(file_performance_health_v1_budgets_budgets, 2);
 
 /**
  * @generated from message vrooli.performance_health.v1.budgets.GetBudgetResponse
@@ -118,7 +158,7 @@ export type GetBudgetResponse = Message<"vrooli.performance_health.v1.budgets.Ge
  * Use `create(GetBudgetResponseSchema)` to create a new message.
  */
 export const GetBudgetResponseSchema: GenMessage<GetBudgetResponse> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_budgets_budgets, 2);
+  messageDesc(file_performance_health_v1_budgets_budgets, 3);
 
 /**
  * @generated from message vrooli.performance_health.v1.budgets.SetBudgetRequest
@@ -128,6 +168,15 @@ export type SetBudgetRequest = Message<"vrooli.performance_health.v1.budgets.Set
    * @generated from field: vrooli.performance_health.v1.budgets.Budget budget = 1;
    */
   budget?: Budget | undefined;
+
+  /**
+   * When set, the budget's per-flow axes (lcp_max_ms, component_commit_*) are
+   * written to budget.flows[flow], preserving scenario-level axes and sibling
+   * flows. Empty = a scenario-level write (preserving any existing flows).
+   *
+   * @generated from field: string flow = 2;
+   */
+  flow: string;
 };
 
 /**
@@ -135,7 +184,7 @@ export type SetBudgetRequest = Message<"vrooli.performance_health.v1.budgets.Set
  * Use `create(SetBudgetRequestSchema)` to create a new message.
  */
 export const SetBudgetRequestSchema: GenMessage<SetBudgetRequest> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_budgets_budgets, 3);
+  messageDesc(file_performance_health_v1_budgets_budgets, 4);
 
 /**
  * @generated from message vrooli.performance_health.v1.budgets.SetBudgetResponse
@@ -157,7 +206,7 @@ export type SetBudgetResponse = Message<"vrooli.performance_health.v1.budgets.Se
  * Use `create(SetBudgetResponseSchema)` to create a new message.
  */
 export const SetBudgetResponseSchema: GenMessage<SetBudgetResponse> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_budgets_budgets, 4);
+  messageDesc(file_performance_health_v1_budgets_budgets, 5);
 
 /**
  * @generated from message vrooli.performance_health.v1.budgets.CheckBudgetRequest
@@ -167,6 +216,14 @@ export type CheckBudgetRequest = Message<"vrooli.performance_health.v1.budgets.C
    * @generated from field: string scenario = 1;
    */
   scenario: string;
+
+  /**
+   * When set, evaluate only this interaction flow's per-flow budget against its
+   * latest flow-tagged sample. Empty = the scenario-level check.
+   *
+   * @generated from field: string flow = 2;
+   */
+  flow: string;
 };
 
 /**
@@ -174,7 +231,7 @@ export type CheckBudgetRequest = Message<"vrooli.performance_health.v1.budgets.C
  * Use `create(CheckBudgetRequestSchema)` to create a new message.
  */
 export const CheckBudgetRequestSchema: GenMessage<CheckBudgetRequest> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_budgets_budgets, 5);
+  messageDesc(file_performance_health_v1_budgets_budgets, 6);
 
 /**
  * @generated from message vrooli.performance_health.v1.budgets.CheckBudgetResponse
@@ -203,7 +260,7 @@ export type CheckBudgetResponse = Message<"vrooli.performance_health.v1.budgets.
  * Use `create(CheckBudgetResponseSchema)` to create a new message.
  */
 export const CheckBudgetResponseSchema: GenMessage<CheckBudgetResponse> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_budgets_budgets, 6);
+  messageDesc(file_performance_health_v1_budgets_budgets, 7);
 
 /**
  * BudgetViolation is one axis exceeding its budget.
@@ -232,6 +289,13 @@ export type BudgetViolation = Message<"vrooli.performance_health.v1.budgets.Budg
    * @generated from field: string unit = 4;
    */
   unit: string;
+
+  /**
+   * Flow slug when the violation is a per-flow breach; empty for scenario-level.
+   *
+   * @generated from field: string flow = 5;
+   */
+  flow: string;
 };
 
 /**
@@ -239,7 +303,7 @@ export type BudgetViolation = Message<"vrooli.performance_health.v1.budgets.Budg
  * Use `create(BudgetViolationSchema)` to create a new message.
  */
 export const BudgetViolationSchema: GenMessage<BudgetViolation> = /*@__PURE__*/
-  messageDesc(file_performance_health_v1_budgets_budgets, 7);
+  messageDesc(file_performance_health_v1_budgets_budgets, 8);
 
 /**
  * @generated from service vrooli.performance_health.v1.budgets.BudgetService

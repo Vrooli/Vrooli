@@ -63,7 +63,7 @@ export const AgentDropdown = ({
 }: AgentDropdownProps) => {
   const [agentsOpen, setAgentsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
-  const closeAgents = useCallback(() => setAgentsOpen(false), []);
+  const closeAgents = useCallback(() => { setAgentsOpen(false); }, []);
 
   useClickOutside(dropdownRef, closeAgents, agentsOpen);
   useEscapeKey(closeAgents, agentsOpen);
@@ -121,7 +121,7 @@ export const AgentDropdown = ({
     <div ref={dropdownRef} className="agent-dropdown">
       <button
         type="button"
-        onClick={() => setAgentsOpen(prev => !prev)}
+        onClick={() => { setAgentsOpen(prev => !prev); }}
         aria-expanded={agentsOpen}
         aria-haspopup="true"
         className={`agent-dropdown-btn ${buttonTone !== 'idle' ? 'active' : ''}`}
@@ -222,7 +222,7 @@ export const AgentDropdown = ({
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button
                         type="button"
-                        onClick={(event) => handleStopClick(event, agent.id)}
+                        onClick={(event) => { void handleStopClick(event, agent.id); }}
                         disabled={isStopping || isTerminalStatus}
                         className="icon-text icon-text-xs agent-stop-btn"
                         style={{

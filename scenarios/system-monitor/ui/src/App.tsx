@@ -24,6 +24,7 @@ import { useScriptExecution } from './features/investigations/hooks/useScriptExe
 import { InvestigationScriptsPage } from './features/investigations/pages/InvestigationScriptsPage';
 import { ForensicsPage } from './features/forensics/pages/ForensicsPage';
 import { LogsPage } from './features/logs/pages/LogsPage';
+import { CapacityPage } from './features/capacity/pages/CapacityPage';
 import type { DashboardState, CardType, PanelType } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
@@ -99,11 +100,11 @@ function AppContent() {
   } = useScriptExecution();
 
   const openDetailPage = (cardType: CardType) => {
-    navigate(`/metrics/${cardType}`);
+    void navigate(`/metrics/${cardType}`);
   };
 
   const handleBackToDashboard = () => {
-    navigate('/');
+    void navigate('/');
   };
 
   // Update online status based on successful API calls
@@ -175,9 +176,9 @@ function AppContent() {
           onStopAgent={stopAgent}
           stoppingAgentIds={stoppingAgentIds}
           agentErrors={agentErrors}
-          onRefreshAgents={refreshAgents}
+          onRefreshAgents={() => { void refreshAgents(); }}
           onToggleTerminal={toggleTerminal}
-          onOpenSettings={() => setSystemSettingsModalOpen(true)}
+          onOpenSettings={() => { setSystemSettingsModalOpen(true); }}
           healthStatus={healthStatus}
           healthError={healthError}
           onToggleMonitoring={toggleMonitoring}
@@ -216,7 +217,7 @@ function AppContent() {
                         <InfrastructureMonitor
                           data={infrastructureData}
                           isExpanded={dashboardState.expandedPanels.has('infrastructure')}
-                          onToggle={() => togglePanel('infrastructure')}
+                          onToggle={() => { togglePanel('infrastructure'); }}
                           systemHealth={detailedMetrics?.systemDetails}
                         />
                       </ErrorBoundary>
@@ -333,6 +334,14 @@ function AppContent() {
                 )}
               />
               <Route
+                path="/capacity"
+                element={(
+                  <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Capacity page failed to render.</div>}>
+                    <CapacityPage />
+                  </ErrorBoundary>
+                )}
+              />
+              <Route
                 path="/metrics/disk"
                 element={(
                   <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Disk detail view failed to render.</div>}>
@@ -372,7 +381,7 @@ function AppContent() {
         <ErrorBoundary fallback={null}>
           <SystemSettingsModal
             isOpen={systemSettingsModalOpen}
-            onClose={() => setSystemSettingsModalOpen(false)}
+            onClose={() => { setSystemSettingsModalOpen(false); }}
           />
         </ErrorBoundary>
       </div>

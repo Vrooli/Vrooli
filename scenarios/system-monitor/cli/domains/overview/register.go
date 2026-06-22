@@ -3,13 +3,15 @@ package overview
 import (
 	"fmt"
 	"os"
-	"system-monitor/cli/internal/support"
 	"time"
+
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+
+	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
@@ -287,7 +289,7 @@ func runDashboard(args []string) error {
 	})
 }
 
-func fetchCurrentMetrics(core *cliapp.ScenarioApp, fresh bool) (*domainpb.MetricsResponse, []byte, error) {
+func fetchCurrentMetrics(core *cliapp.ScenarioApp, fresh bool) (*metricspb.MetricsResponse, []byte, error) {
 	var body []byte
 	var err error
 	if fresh {
@@ -298,24 +300,24 @@ func fetchCurrentMetrics(core *cliapp.ScenarioApp, fresh bool) (*domainpb.Metric
 	if err != nil {
 		return nil, nil, err
 	}
-	var response domainpb.MetricsResponse
+	var response metricspb.MetricsResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return nil, nil, err
 	}
 	return &response, body, nil
 }
 
-func fetchSettings(core *cliapp.ScenarioApp) (*domainpb.SystemSettings, error) {
+func fetchSettings(core *cliapp.ScenarioApp) (*settingspb.SystemSettings, error) {
 	body, err := core.Get("/settings", nil)
 	if err != nil {
 		return nil, err
 	}
-	var response apipb.GetSettingsResponse
+	var response settingspb.GetSettingsResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return nil, err
 	}
 	if response.GetSettings() == nil {
-		return &domainpb.SystemSettings{}, nil
+		return &settingspb.SystemSettings{}, nil
 	}
 	return response.GetSettings(), nil
 }

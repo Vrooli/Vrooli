@@ -36,7 +36,7 @@ export type {
   RedisPubSubInfo,
   BackgroundJobsInfo,
   StorageIOInfo,
-} from '@vrooli/proto-types/system-monitor/v1/domain/metrics_pb';
+} from '@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb';
 
 export type {
   Investigation,
@@ -50,7 +50,7 @@ export type {
   TriggerConfig,
   CooldownStatus,
   Anomaly,
-} from '@vrooli/proto-types/system-monitor/v1/domain/investigations_pb';
+} from '@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb';
 
 export {
   InvestigationStatus,
@@ -60,17 +60,17 @@ export {
   Relevance,
   TriggerCondition,
   RiskLevel,
-} from '@vrooli/proto-types/system-monitor/v1/domain/types_pb';
+} from '@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb';
 
 // Script types — now proto-backed
 export type {
   InvestigationScript,
   ScriptExecution,
-} from '@vrooli/proto-types/system-monitor/v1/domain/scripts_pb';
+} from '@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb';
 
 export {
   ScriptExecutionStatus,
-} from '@vrooli/proto-types/system-monitor/v1/domain/scripts_pb';
+} from '@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb';
 
 // Report types — now proto-backed
 export type {
@@ -79,12 +79,12 @@ export type {
   ReportMetrics,
   ReportAlert,
   EnhancedSystemReport,
-} from '@vrooli/proto-types/system-monitor/v1/domain/reports_pb';
+} from '@vrooli/proto-types/system-monitor/v1/reports/reports_pb';
 
 // Settings — now proto-backed
 export type {
   SystemSettings,
-} from '@vrooli/proto-types/system-monitor/v1/domain/settings_pb';
+} from '@vrooli/proto-types/system-monitor/v1/settings/settings_pb';
 
 // Structured error codes returned by the Go backend
 export type ErrorCode = 'validation' | 'unauthorized' | 'forbidden' | 'not_found' | 'conflict' | 'cooldown' | 'unavailable' | 'internal' | 'network';

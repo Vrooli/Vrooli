@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package vrooli.storage_health.v1.advisor;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-health/v1/advisor;advisor_v1";
+
+// =============================================================================
+// STORAGE ADVISOR SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain storage-health
+// @stability beta
+//
+// AdvisorService turns the fleet's storage facts into actionable guidance:
+//
+//   - AnalyzeMigrations grades each scenario's migration hygiene against its
+//     deploy stage (greenfield ⇒ no migrations expected; brownfield ⇒
+//     idempotent, no ALTER-in-schema, no central schema). Migration *choices*
+//     are informational per stage; unambiguous violations are findings.
+//
+//   - AdviseEngines scores each scenario's engine fitness and ranks
+//     Postgres→SQLite migration candidates (a single-node health/tooling
+//     scenario carrying Postgres is a strong candidate to simplify to SQLite).
+//
+// Both are deterministic, structured queries — no AI, no semantic ranking.
+// =============================================================================
+
+service AdvisorService {
+  // AnalyzeMigrations grades migration hygiene per scenario against its stage.
+  rpc AnalyzeMigrations(AnalyzeMigrationsRequest) returns (AnalyzeMigrationsResponse);
+
+  // AdviseEngines ranks Postgres→SQLite migration candidates by fitness.
+  rpc AdviseEngines(AdviseEnginesRequest) returns (AdviseEnginesResponse);
+}
+
+message AnalyzeMigrationsRequest {
+  // Restrict to these scenario slugs; empty means every discovered scenario.
+  repeated string scenarios = 1;
+}
+
+message AnalyzeMigrationsResponse {
+  // One hygiene rollup per scenario, sorted alphabetically.
+  repeated MigrationHygiene entries = 1;
+  // Total scenarios analyzed.
+  int32 scenario_count = 2;
+  // Scenarios with a committed migrations/ directory.
+  int32 with_migrations_count = 3;
+  // Scenarios carrying migration debt (notes > 0).
+  int32 debt_count = 4;
+  // Scenarios enumerated but not analyzable.
+  repeated AdvisorScanError errors = 5;
+}
+
+// MigrationHygiene is one scenario's migration posture.
+message MigrationHygiene {
+  string scenario = 1;
+  // Derived deploy stage (greenfield/pilot/production/sunset).
+  string storage_stage = 2;
+  // True when a committed migrations/ directory exists.
+  bool has_migrations = 3;
+  // True when an embedded schema contains an ALTER (schema should be the
+  // current desired state, migrations carry the deltas).
+  bool has_alter_in_schema = 4;
+  // True when an embedded schema is not idempotent (missing IF NOT EXISTS).
+  bool non_idempotent_schema = 5;
+  // Count of migration-debt notes for this scenario.
+  int32 migration_debt = 6;
+  // Human-readable, stage-aware debt notes.
+  repeated string notes = 7;
+}
+
+message AdviseEnginesRequest {
+  // Restrict to these scenario slugs; empty means every discovered scenario.
+  repeated string scenarios = 1;
+}
+
+message AdviseEnginesResponse {
+  // Migration candidates ranked by fitness_score descending (strongest
+  // candidate first). Only scenarios with an actionable recommendation appear.
+  repeated EngineCandidate candidates = 1;
+  // Total scenarios scored.
+  int32 scenario_count = 2;
+  // Scenarios enumerated but not scorable.
+  repeated AdvisorScanError errors = 3;
+}
+
+// EngineCandidate is one scenario's engine-fitness recommendation.
+message EngineCandidate {
+  string scenario = 1;
+  // The engine the scenario currently uses.
+  string current_engine = 2;
+  // The engine storage-health recommends.
+  string recommended_engine = 3;
+  // Fitness of the recommendation in [0,1]; higher = stronger candidate.
+  double fitness_score = 4;
+  // Why this recommendation was made.
+  string rationale = 5;
+  // True when storage-health can scaffold the migration.
+  bool autofixable = 6;
+  // Reasons the migration is not trivially safe (e.g. multi-writer, cross-host
+  // sharing) — empty means no known blockers.
+  repeated string blockers = 7;
+}
+
+// AdvisorScanError records a scenario enumerated but not analyzable.
+message AdvisorScanError {
+  string scenario = 1;
+  string reason = 2;
+}

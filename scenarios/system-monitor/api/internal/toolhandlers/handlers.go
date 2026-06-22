@@ -2,11 +2,11 @@
 package toolhandlers
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolregistry"
 )
 
@@ -59,11 +59,10 @@ func (h *ToolsHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/tools/{name}", h.GetTool).Methods("GET", "OPTIONS")
 }
 
-// writeJSON writes a JSON response with the given status code.
+// writeJSON writes a JSON response with the given status code through the
+// shared httputil writer so the secure header floor is applied centrally.
 func (h *ToolsHandler) writeJSON(w http.ResponseWriter, data interface{}, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
+	if err := httputil.JSONWithStatus(w, status, data); err != nil {
 		h.log.Error("failed to encode response", "error", err)
 	}
 }

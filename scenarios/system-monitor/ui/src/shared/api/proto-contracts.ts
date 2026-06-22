@@ -10,63 +10,36 @@
 import { fromJson, toJsonString, create, type JsonValue, type MessageShape } from "@bufbuild/protobuf";
 
 // Domain schemas — metrics
-import {
-  MetricsResponseSchema,
-  MetricsTimelineResponseSchema,
-  DetailedMetricsSchema,
-  DiskDetailResponseSchema,
-  ProcessMonitorDataSchema,
-  InfrastructureMonitorDataSchema,
-} from "@vrooli/proto-types/system-monitor/v1/domain/metrics_pb";
+import { MetricsResponseSchema, MetricsTimelineResponseSchema, DetailedMetricsSchema, DiskDetailResponseSchema, ProcessMonitorDataSchema, InfrastructureMonitorDataSchema } from "@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb";
+import { InvestigationSchema, TriggerConfigSchema, CooldownStatusSchema, GetTriggersResponseSchema, TriggerInvestigationResponseSchema, GetCooldownStatusResponseSchema, ListInvestigationsResponseSchema } from "@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb";
+import { SystemSettingsSchema, GetSettingsResponseSchema, UpdateSettingsResponseSchema, ResetSettingsResponseSchema, GetMaintenanceStateResponseSchema, SetMaintenanceStateResponseSchema } from "@vrooli/proto-types/system-monitor/v1/settings/settings_pb";
+import { ListScriptsResponseSchema, GetScriptResponseSchema, ExecuteScriptResponseSchema, InvestigationScriptSchema, ScriptExecutionSchema } from "@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb";
+import { EnhancedSystemReportSchema, ListReportsResponseSchema, GenerateReportResponseSchema } from "@vrooli/proto-types/system-monitor/v1/reports/reports_pb";
+import { GetCapacityOverviewResponseSchema, ListCapacityClaimsResponseSchema, ReconcileCapacityResponseSchema, GetCapacityPolicyResponseSchema, SetCapacityPolicyResponseSchema } from "@vrooli/proto-types/system-monitor/v1/capacity/capacity_pb";
 
 // Domain schemas — investigations
-import {
-  InvestigationSchema,
-  TriggerConfigSchema,
-  CooldownStatusSchema,
-} from "@vrooli/proto-types/system-monitor/v1/domain/investigations_pb";
+
 
 // Domain schemas — settings
-import { SystemSettingsSchema } from "@vrooli/proto-types/system-monitor/v1/domain/settings_pb";
+
 
 // API schemas — settings
-import {
-  GetSettingsResponseSchema,
-  UpdateSettingsResponseSchema,
-  ResetSettingsResponseSchema,
-  GetMaintenanceStateResponseSchema,
-  SetMaintenanceStateResponseSchema,
-} from "@vrooli/proto-types/system-monitor/v1/api/settings_pb";
+
 
 // API schemas — investigations
-import {
-  GetTriggersResponseSchema,
-  TriggerInvestigationResponseSchema,
-  GetCooldownStatusResponseSchema,
-  ListInvestigationsResponseSchema,
-} from "@vrooli/proto-types/system-monitor/v1/api/investigations_pb";
+
 
 // API schemas — scripts
-import {
-  ListScriptsResponseSchema,
-  GetScriptResponseSchema,
-  ExecuteScriptResponseSchema,
-} from "@vrooli/proto-types/system-monitor/v1/api/scripts_pb";
+
 
 // Domain schemas — reports
-import { EnhancedSystemReportSchema } from "@vrooli/proto-types/system-monitor/v1/domain/reports_pb";
+
 
 // API schemas — reports
-import {
-  ListReportsResponseSchema,
-  GenerateReportResponseSchema,
-} from "@vrooli/proto-types/system-monitor/v1/api/reports_pb";
+
 
 // Domain schemas — scripts
-import {
-  InvestigationScriptSchema,
-  ScriptExecutionSchema,
-} from "@vrooli/proto-types/system-monitor/v1/domain/scripts_pb";
+
 
 // ---------------------------------------------------------------------------
 // Shared options
@@ -200,6 +173,30 @@ export function parseSetMaintenanceStateResponse(data: unknown): MessageShape<ty
 }
 
 // ---------------------------------------------------------------------------
+// Parse helpers — capacity
+// ---------------------------------------------------------------------------
+
+export function parseGetCapacityOverviewResponse(data: unknown): MessageShape<typeof GetCapacityOverviewResponseSchema> {
+  return fromJson(GetCapacityOverviewResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+export function parseListCapacityClaimsResponse(data: unknown): MessageShape<typeof ListCapacityClaimsResponseSchema> {
+  return fromJson(ListCapacityClaimsResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+export function parseReconcileCapacityResponse(data: unknown): MessageShape<typeof ReconcileCapacityResponseSchema> {
+  return fromJson(ReconcileCapacityResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+export function parseGetCapacityPolicyResponse(data: unknown): MessageShape<typeof GetCapacityPolicyResponseSchema> {
+  return fromJson(GetCapacityPolicyResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+export function parseSetCapacityPolicyResponse(data: unknown): MessageShape<typeof SetCapacityPolicyResponseSchema> {
+  return fromJson(SetCapacityPolicyResponseSchema, data as JsonValue, PROTO_JSON_OPTIONS);
+}
+
+// ---------------------------------------------------------------------------
 // Parse helpers — API wrapper types (investigations)
 // ---------------------------------------------------------------------------
 
@@ -251,6 +248,11 @@ export {
   ExecuteScriptResponseSchema,
   ListReportsResponseSchema,
   GenerateReportResponseSchema,
+  GetCapacityOverviewResponseSchema,
+  ListCapacityClaimsResponseSchema,
+  ReconcileCapacityResponseSchema,
+  GetCapacityPolicyResponseSchema,
+  SetCapacityPolicyResponseSchema,
 };
 
 // Re-export utilities for consumers that need them

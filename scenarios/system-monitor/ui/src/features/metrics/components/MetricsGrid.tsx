@@ -86,13 +86,13 @@ export const MetricsGrid = ({
         unit="%"
         value={metrics?.cpuUsage ?? 0}
         isExpanded={expandedCards.has('cpu')}
-        onToggle={() => onToggleCard('cpu')}
+        onToggle={() => { onToggleCard('cpu'); }}
         details={detailedMetrics?.cpuDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.cpu}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
-        onOpenDetails={() => onOpenDetail('cpu')}
+        onOpenDetails={() => { onOpenDetail('cpu'); }}
         detailButtonLabel="OPEN DETAIL"
       />
 
@@ -103,13 +103,13 @@ export const MetricsGrid = ({
         unit="%"
         value={metrics?.memoryUsage ?? 0}
         isExpanded={expandedCards.has('memory')}
-        onToggle={() => onToggleCard('memory')}
+        onToggle={() => { onToggleCard('memory'); }}
         details={detailedMetrics?.memoryDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.memory}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
-        onOpenDetails={() => onOpenDetail('memory')}
+        onOpenDetails={() => { onOpenDetail('memory'); }}
         detailButtonLabel="OPEN DETAIL"
       />
 
@@ -120,14 +120,14 @@ export const MetricsGrid = ({
         unit="%"
         value={metrics?.gpuUsage ?? null}
         isExpanded={expandedCards.has('gpu')}
-        onToggle={() => onToggleCard('gpu')}
+        onToggle={() => { onToggleCard('gpu'); }}
         details={gpuDetails}
         alertCount={0}
         history={metricHistory?.gpu}
         historyWindowSeconds={metricHistory?.windowSeconds}
         valueDomain={[0, 100]}
         historyUnit=" %"
-        onOpenDetails={() => onOpenDetail('gpu')}
+        onOpenDetails={() => { onOpenDetail('gpu'); }}
         detailButtonLabel="OPEN DETAIL"
       />
 
@@ -138,13 +138,13 @@ export const MetricsGrid = ({
         unit="%"
         value={diskDetails?.diskUsage.percent ?? 0}
         isExpanded={expandedCards.has('disk')}
-        onToggle={() => onToggleCard('disk')}
+        onToggle={() => { onToggleCard('disk'); }}
         details={diskDetails}
         alertCount={0}
         history={diskIOHistory}
         historyWindowSeconds={metricHistory?.windowSeconds}
         historyUnit=" MB/s"
-        onOpenDetails={() => onOpenDetail('disk')}
+        onOpenDetails={() => { onOpenDetail('disk'); }}
         detailButtonLabel="OPEN DETAIL"
       />
 
@@ -155,12 +155,12 @@ export const MetricsGrid = ({
         unit="#"
         value={metrics?.tcpConnections ?? 0}
         isExpanded={expandedCards.has('network')}
-        onToggle={() => onToggleCard('network')}
+        onToggle={() => { onToggleCard('network'); }}
         details={detailedMetrics?.networkDetails}
         alertCount={0} // TODO: Calculate based on thresholds
         history={metricHistory?.network}
         historyWindowSeconds={metricHistory?.windowSeconds}
-        onOpenDetails={() => onOpenDetail('network')}
+        onOpenDetails={() => { onOpenDetail('network'); }}
         detailButtonLabel="OPEN DETAIL"
       />
 

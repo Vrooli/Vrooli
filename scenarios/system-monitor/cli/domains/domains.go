@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"system-monitor/cli/domains/capacity"
 	"system-monitor/cli/domains/investigations"
 	"system-monitor/cli/domains/maintenance"
 	"system-monitor/cli/domains/metrics"
@@ -24,5 +25,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		reports.Register(core),
 		settings.Register(core),
 		maintenance.Register(core),
+		capacity.Register(core),
 	}
 }

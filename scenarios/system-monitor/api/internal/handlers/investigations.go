@@ -12,15 +12,15 @@ import (
 	"strconv"
 	"strings"
 
+	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
+	scriptspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 )
 
 // InvestigationHandler handles investigation-related requests
@@ -57,7 +57,7 @@ func (h *InvestigationHandler) ListInvestigations(w http.ResponseWriter, r *http
 		return
 	}
 
-	resp := &apipb.ListInvestigationsResponse{
+	resp := &investigationspb.ListInvestigationsResponse{
 		Investigations: convert.InvestigationsToProto(investigations),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
@@ -80,7 +80,7 @@ func (h *InvestigationHandler) GetLatestInvestigation(w http.ResponseWriter, r *
 func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var pbReq apipb.TriggerInvestigationRequest
+	var pbReq investigationspb.TriggerInvestigationRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		if r.ContentLength <= 0 || errors.Is(err, io.EOF) {
 			// Allow empty body for backwards compatibility
@@ -99,7 +99,7 @@ func (h *InvestigationHandler) TriggerInvestigation(w http.ResponseWriter, r *ht
 	}
 
 	// Return immediate response with API info
-	resp := &apipb.TriggerInvestigationResponse{
+	resp := &investigationspb.TriggerInvestigationResponse{
 		Status:          models.StatusQueued,
 		InvestigationId: investigation.ID,
 		ApiBaseUrl:      h.resolveAPIBaseURL(r),
@@ -131,7 +131,7 @@ func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, 
 	id := vars["id"]
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateInvestigationStatusRequest
+	var pbReq investigationspb.UpdateInvestigationStatusRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -145,7 +145,7 @@ func (h *InvestigationHandler) UpdateInvestigationStatus(w http.ResponseWriter, 
 		return
 	}
 
-	resp := &apipb.UpdateInvestigationStatusResponse{Status: "updated"}
+	resp := &investigationspb.UpdateInvestigationStatusResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
@@ -155,7 +155,7 @@ func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter
 	id := vars["id"]
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateInvestigationFindingsRequest
+	var pbReq investigationspb.UpdateInvestigationFindingsRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -172,7 +172,7 @@ func (h *InvestigationHandler) UpdateInvestigationFindings(w http.ResponseWriter
 		return
 	}
 
-	resp := &apipb.UpdateInvestigationFindingsResponse{Status: "updated"}
+	resp := &investigationspb.UpdateInvestigationFindingsResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
@@ -182,7 +182,7 @@ func (h *InvestigationHandler) UpdateInvestigationProgress(w http.ResponseWriter
 	id := vars["id"]
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateInvestigationProgressRequest
+	var pbReq investigationspb.UpdateInvestigationProgressRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -193,7 +193,7 @@ func (h *InvestigationHandler) UpdateInvestigationProgress(w http.ResponseWriter
 		return
 	}
 
-	resp := &apipb.UpdateInvestigationProgressResponse{Status: "updated"}
+	resp := &investigationspb.UpdateInvestigationProgressResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
@@ -203,7 +203,7 @@ func (h *InvestigationHandler) AddInvestigationStep(w http.ResponseWriter, r *ht
 	id := vars["id"]
 	ctx := r.Context()
 
-	var pbReq apipb.AddInvestigationStepRequest
+	var pbReq investigationspb.AddInvestigationStepRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -215,7 +215,7 @@ func (h *InvestigationHandler) AddInvestigationStep(w http.ResponseWriter, r *ht
 		return
 	}
 
-	resp := &apipb.AddInvestigationStepResponse{Status: "step_added"}
+	resp := &investigationspb.AddInvestigationStepResponse{Status: "step_added"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
@@ -229,7 +229,7 @@ func (h *InvestigationHandler) GetCooldownStatus(w http.ResponseWriter, r *http.
 		return
 	}
 
-	resp := &apipb.GetCooldownStatusResponse{
+	resp := &investigationspb.GetCooldownStatusResponse{
 		Cooldown: convert.CooldownStatusToProto(status),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
@@ -282,7 +282,7 @@ func (h *InvestigationHandler) GetTriggers(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp := &apipb.GetTriggersResponse{
+	resp := &investigationspb.GetTriggersResponse{
 		Triggers: convert.TriggerConfigsMapToProto(triggers),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
@@ -294,7 +294,7 @@ func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Requ
 	id := vars["id"]
 	ctx := r.Context()
 
-	var pbReq apipb.UpdateTriggerRequest
+	var pbReq investigationspb.UpdateTriggerRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", err.Error()))
 		return
@@ -320,7 +320,7 @@ func (h *InvestigationHandler) UpdateTrigger(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	resp := &apipb.UpdateTriggerResponse{Status: "updated"}
+	resp := &investigationspb.UpdateTriggerResponse{Status: "updated"}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
@@ -520,7 +520,7 @@ func (h *InvestigationHandler) ListScripts(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp := &apipb.ListScriptsResponse{
+	resp := &scriptspb.ListScriptsResponse{
 		Scripts: convert.ScriptMetasToProto(scripts),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
@@ -537,7 +537,7 @@ func (h *InvestigationHandler) GetScript(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp := &apipb.GetScriptResponse{
+	resp := &scriptspb.GetScriptResponse{
 		Script:  convert.ScriptMetaToProto(meta),
 		Content: content,
 	}
@@ -550,7 +550,7 @@ func (h *InvestigationHandler) ExecuteScript(w http.ResponseWriter, r *http.Requ
 	id := vars["id"]
 	ctx := r.Context()
 
-	var pbReq apipb.ExecuteScriptRequest
+	var pbReq scriptspb.ExecuteScriptRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		// Allow empty body — execute script as-is
 		pbReq.Content = nil
@@ -567,14 +567,14 @@ func (h *InvestigationHandler) ExecuteScript(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	resp := &apipb.ExecuteScriptResponse{
+	resp := &scriptspb.ExecuteScriptResponse{
 		Execution: convert.ScriptExecutionToProto(execution),
 	}
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
 // protoStepToModel converts a proto InvestigationStep to the internal model.
-func protoStepToModel(step *domainpb.InvestigationStep) models.InvestigationStep {
+func protoStepToModel(step *investigationspb.InvestigationStep) models.InvestigationStep {
 	if step == nil {
 		return models.InvestigationStep{}
 	}

@@ -47,7 +47,7 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
       setLines(prev => [...prev.slice(-49), newLine]);
     }, 10000);
 
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, []);
 
   return (

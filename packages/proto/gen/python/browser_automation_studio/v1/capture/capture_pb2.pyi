@@ -59,7 +59,7 @@ class WaitFor(_message.Message):
     def __init__(self, selector: _Optional[str] = ..., networkidle: _Optional[bool] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
 
 class CaptureRequest(_message.Message):
-    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom")
+    __slots__ = ("url", "captures", "dimensions", "wait_for", "out_dir", "label", "inline_dom", "interaction_flow_json")
     URL_FIELD_NUMBER: _ClassVar[int]
     CAPTURES_FIELD_NUMBER: _ClassVar[int]
     DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
@@ -67,6 +67,7 @@ class CaptureRequest(_message.Message):
     OUT_DIR_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     INLINE_DOM_FIELD_NUMBER: _ClassVar[int]
+    INTERACTION_FLOW_JSON_FIELD_NUMBER: _ClassVar[int]
     url: str
     captures: _containers.RepeatedScalarFieldContainer[CaptureType]
     dimensions: Dimensions
@@ -74,7 +75,8 @@ class CaptureRequest(_message.Message):
     out_dir: str
     label: str
     inline_dom: bool
-    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ...) -> None: ...
+    interaction_flow_json: str
+    def __init__(self, url: _Optional[str] = ..., captures: _Optional[_Iterable[_Union[CaptureType, str]]] = ..., dimensions: _Optional[_Union[Dimensions, _Mapping]] = ..., wait_for: _Optional[_Union[WaitFor, _Mapping]] = ..., out_dir: _Optional[str] = ..., label: _Optional[str] = ..., inline_dom: _Optional[bool] = ..., interaction_flow_json: _Optional[str] = ...) -> None: ...
 
 class CaptureArtifact(_message.Message):
     __slots__ = ("type", "path", "size_bytes", "metadata")

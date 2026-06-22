@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"system-monitor/cli/internal/support"
+
+	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
+
+	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
@@ -46,7 +47,7 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response apipb.GetSettingsResponse
+	var response settingspb.GetSettingsResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 	}
 	settings := response.GetSettings()
 	if settings == nil {
-		settings = &domainpb.SystemSettings{}
+		settings = &settingspb.SystemSettings{}
 	}
 	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
 		Status: []string{
@@ -109,13 +110,13 @@ func runUpdate(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return err
 	}
-	var current apipb.GetSettingsResponse
+	var current settingspb.GetSettingsResponse
 	if err := support.DecodeProto(body, &current); err != nil {
 		return err
 	}
 	settings := current.GetSettings()
 	if settings == nil {
-		settings = &domainpb.SystemSettings{}
+		settings = &settingspb.SystemSettings{}
 	}
 
 	changed := false
@@ -157,14 +158,14 @@ func runUpdate(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("no setting changes were provided")
 	}
 
-	updateBody, err := core.Request("PUT", "/settings", nil, &apipb.UpdateSettingsRequest{Settings: settings})
+	updateBody, err := core.Request("PUT", "/settings", nil, &settingspb.UpdateSettingsRequest{Settings: settings})
 	if err != nil {
 		return err
 	}
 	if *jsonOutput {
 		return support.PrettyPrintJSON(updateBody)
 	}
-	var updated apipb.UpdateSettingsResponse
+	var updated settingspb.UpdateSettingsResponse
 	if err := support.DecodeProto(updateBody, &updated); err != nil {
 		return err
 	}
@@ -195,7 +196,7 @@ func runReset(core *cliapp.ScenarioApp, args []string) error {
 		return support.PrettyPrintJSON(body)
 	}
 
-	var response apipb.ResetSettingsResponse
+	var response settingspb.ResetSettingsResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}
@@ -241,14 +242,14 @@ func runMaintenance(core *cliapp.ScenarioApp, args []string) error {
 	if next != "active" && next != "inactive" {
 		return fmt.Errorf("--state must be active or inactive")
 	}
-	body, err := core.Request("POST", "/maintenance/state", nil, &apipb.SetMaintenanceStateRequest{MaintenanceState: next})
+	body, err := core.Request("POST", "/maintenance/state", nil, &settingspb.SetMaintenanceStateRequest{MaintenanceState: next})
 	if err != nil {
 		return err
 	}
 	if *jsonOutput {
 		return support.PrettyPrintJSON(body)
 	}
-	var response apipb.SetMaintenanceStateResponse
+	var response settingspb.SetMaintenanceStateResponse
 	if err := support.DecodeProto(body, &response); err != nil {
 		return err
 	}

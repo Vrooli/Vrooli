@@ -203,6 +203,45 @@ message ListBacklogItemsResponse {
 // BacklogItemResponse returns a single backlog item.
 message BacklogItemResponse {
   BacklogItem item = 1;
+
+  // True when CreateItem returned a pre-existing open item for the same
+  // target + signature instead of creating a duplicate (creation-time dedup).
+  // Always false on read paths (GetItem). Lets feedback-contract consumers tell
+  // the user "this was already filed" rather than implying a fresh report.
+  bool deduped = 2;
+}
+
+// GetBacklogItemRequest identifies a single backlog item by kind + name for the
+// BacklogService.GetItem RPC.
+message GetBacklogItemRequest {
+  // Backlog kind: idea, research, fix, execute, chore.
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+
+  // Item name (folder name).
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// =============================================================================
+// BACKLOG SERVICE (Connect RPC)
+// =============================================================================
+//
+// Typed contract for the cross-scenario feedback flow: scenarios that detect a
+// problem (triage-class) file a backlog item via CreateItem and poll its status
+// + queue_position via GetItem. The shared generated client is what prevents the
+// per-consumer wire drift that plagued the old hand-rolled issue-tracker
+// clients. Other backlog operations stay on the existing REST surface (consumed
+// by swarm-manager's own UI); only create/get are migrated to Connect here.
+//
+// @stability beta
+service BacklogService {
+  // CreateItem files a backlog item, applying creation-time dedup: if an open
+  // item already exists for the same target + signature, the existing item is
+  // returned with deduped=true instead of creating a duplicate.
+  rpc CreateItem(CreateBacklogItemRequest) returns (BacklogItemResponse);
+
+  // GetItem returns a single backlog item with its current status and computed
+  // queue_position (items-ahead in the ranked pending set).
+  rpc GetItem(GetBacklogItemRequest) returns (BacklogItemResponse);
 }
 
 // BacklogFilesResponse returns the file tree for a backlog item.

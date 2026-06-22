@@ -10,8 +10,10 @@ import (
 	"os/exec"
 	"strings"
 
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
+
 	"github.com/vrooli/cli-core/cliutil"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -125,7 +127,7 @@ func OpenBrowser(target string) (bool, error) {
 	return false, nil
 }
 
-func MetricThresholds(settings *domainpb.SystemSettings) (cpu float64, memory float64, disk float64) {
+func MetricThresholds(settings *settingspb.SystemSettings) (cpu float64, memory float64, disk float64) {
 	cpu = DefaultCPUThreshold
 	memory = DefaultMemoryThreshold
 	disk = DefaultDiskThreshold
@@ -144,7 +146,7 @@ func MetricThresholds(settings *domainpb.SystemSettings) (cpu float64, memory fl
 	return cpu, memory, disk
 }
 
-func DeriveAlerts(metrics *domainpb.MetricsResponse, settings *domainpb.SystemSettings) []Alert {
+func DeriveAlerts(metrics *metricspb.MetricsResponse, settings *settingspb.SystemSettings) []Alert {
 	if metrics == nil {
 		return []Alert{{Severity: "critical", Message: "No metrics snapshot is available."}}
 	}
@@ -170,7 +172,7 @@ func DeriveAlerts(metrics *domainpb.MetricsResponse, settings *domainpb.SystemSe
 	return alerts
 }
 
-func OverallStatus(metrics *domainpb.MetricsResponse, settings *domainpb.SystemSettings, maintenance string) string {
+func OverallStatus(metrics *metricspb.MetricsResponse, settings *settingspb.SystemSettings, maintenance string) string {
 	maintenance = strings.ToLower(strings.TrimSpace(maintenance))
 	if maintenance == "active" {
 		return "MAINTENANCE"

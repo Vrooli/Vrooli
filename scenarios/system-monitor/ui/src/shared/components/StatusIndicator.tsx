@@ -25,7 +25,7 @@ export const StatusIndicator = ({
   const dotButtonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const closePopover = useCallback(() => setIsPopoverOpen(false), []);
+  const closePopover = useCallback(() => { setIsPopoverOpen(false); }, []);
   useClickOutside([dotButtonRef, popoverRef], closePopover, isPopoverOpen);
 
   const isActive = healthStatus?.processor_active ?? (healthStatus?.maintenance_state === 'active');
@@ -146,7 +146,7 @@ export const StatusIndicator = ({
           )}
           <button
             className="status-popover-refresh"
-            onClick={handleRefresh}
+            onClick={() => { void handleRefresh(); }}
             type="button"
             disabled={isRefreshing}
           >
@@ -157,7 +157,7 @@ export const StatusIndicator = ({
 
       <button
         className={`header-button status-toggle ${isActive ? 'active' : 'inactive'}`}
-        onClick={handleToggle}
+        onClick={() => { void handleToggle(); }}
         type="button"
         title={isActive ? 'Pause monitoring' : 'Activate monitoring'}
         disabled={isLoading || isToggling}

@@ -63,7 +63,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       toast: { id, severity, message, dedupKey: options?.dedupKey, retryFn: options?.retryFn, autoDismissMs },
     });
     if (autoDismissMs > 0) {
-      setTimeout(() => dispatch({ type: 'DISMISS', id }), autoDismissMs);
+      setTimeout(() => { dispatch({ type: 'DISMISS', id }); }, autoDismissMs);
     }
   }, []);
 

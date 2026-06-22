@@ -45,5 +45,5 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     addEventListener: () => {},
     removeEventListener: () => {},
     dispatchEvent: () => false,
-  }) as unknown as MediaQueryList;
+  });
 }

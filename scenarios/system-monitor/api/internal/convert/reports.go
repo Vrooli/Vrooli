@@ -1,17 +1,16 @@
 package convert
 
 import (
+	reportspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
-
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func EnhancedSystemReportToProto(r *models.EnhancedSystemReport) *domain.EnhancedSystemReport {
+func EnhancedSystemReportToProto(r *models.EnhancedSystemReport) *reportspb.EnhancedSystemReport {
 	if r == nil {
 		return nil
 	}
-	pb := &domain.EnhancedSystemReport{
+	pb := &reportspb.EnhancedSystemReport{
 		ReportId:            r.ReportID,
 		ReportType:          r.ReportType,
 		GeneratedAt:         timestamppb.New(r.GeneratedAt),
@@ -23,25 +22,25 @@ func EnhancedSystemReportToProto(r *models.EnhancedSystemReport) *domain.Enhance
 		AlertsCount:         int32(r.AlertsCount),
 		InvestigationsCount: int32(r.InvestigationsCount),
 	}
-	pb.TimeRange = &domain.ReportTimeRange{
+	pb.TimeRange = &reportspb.ReportTimeRange{
 		StartTime: timestamppb.New(r.TimeRange.StartTime),
 		EndTime:   timestamppb.New(r.TimeRange.EndTime),
 	}
-	pb.ExecutiveSummary = &domain.EnhancedExecutiveSummary{
+	pb.ExecutiveSummary = &reportspb.EnhancedExecutiveSummary{
 		OverallHealth:   r.ExecutiveSummary.OverallHealth,
 		KeyFindings:     r.ExecutiveSummary.KeyFindings,
 		TimeDescription: r.ExecutiveSummary.TimeDescription,
 		MetricsAnalyzed: int32(r.ExecutiveSummary.MetricsAnalyzed),
 	}
-	pb.Performance = &domain.PerformanceAnalysis{
+	pb.Performance = &reportspb.PerformanceAnalysis{
 		Cpu:       metricStatsToProto(r.Performance.CPU),
 		Memory:    metricStatsToProto(r.Performance.Memory),
 		TimeRange: r.Performance.TimeRange,
 	}
 	if len(r.Trends) > 0 {
-		pb.Trends = make([]*domain.Trend, len(r.Trends))
+		pb.Trends = make([]*reportspb.Trend, len(r.Trends))
 		for i, t := range r.Trends {
-			pb.Trends[i] = &domain.Trend{
+			pb.Trends[i] = &reportspb.Trend{
 				Name:          t.Name,
 				Direction:     t.Direction,
 				Change:        t.Change,
@@ -52,16 +51,16 @@ func EnhancedSystemReportToProto(r *models.EnhancedSystemReport) *domain.Enhance
 	return pb
 }
 
-func EnhancedSystemReportsToProto(rs []*models.EnhancedSystemReport) []*domain.EnhancedSystemReport {
-	result := make([]*domain.EnhancedSystemReport, len(rs))
+func EnhancedSystemReportsToProto(rs []*models.EnhancedSystemReport) []*reportspb.EnhancedSystemReport {
+	result := make([]*reportspb.EnhancedSystemReport, len(rs))
 	for i, r := range rs {
 		result[i] = EnhancedSystemReportToProto(r)
 	}
 	return result
 }
 
-func metricStatsToProto(ms models.MetricStats) *domain.MetricStats {
-	return &domain.MetricStats{
+func metricStatsToProto(ms models.MetricStats) *reportspb.MetricStats {
+	return &reportspb.MetricStats{
 		Average:   ms.Average,
 		Min:       ms.Min,
 		Max:       ms.Max,

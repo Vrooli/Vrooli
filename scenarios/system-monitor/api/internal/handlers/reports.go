@@ -6,13 +6,13 @@ import (
 	"log/slog"
 	"net/http"
 
+	reportspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 )
 
 // ReportHandler handles report-related HTTP requests
@@ -33,7 +33,7 @@ func NewReportHandler(cfg *config.Config, reportService ReportGenerator, log *sl
 
 // GenerateReport handles POST /api/reports/generate
 func (h *ReportHandler) GenerateReport(w http.ResponseWriter, r *http.Request) {
-	var pbReq apipb.GenerateReportRequest
+	var pbReq reportspb.GenerateReportRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid request body"))
 		return
@@ -63,7 +63,7 @@ func (h *ReportHandler) ListReports(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := &apipb.ListReportsResponse{
+	resp := &reportspb.ListReportsResponse{
 		Reports: convert.EnhancedSystemReportsToProto(reports),
 		Count:   int32(len(reports)),
 	}

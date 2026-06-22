@@ -103,7 +103,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
 
   useEffect(() => {
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => { window.removeEventListener('resize', handleResize); };
   }, [handleResize]);
 
   const loadScripts = useCallback(async () => {
@@ -323,7 +323,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
             className="input-field"
             placeholder="Search scripts by name, id, or category"
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => { setSearchTerm(event.target.value); }}
           />
         </div>
 
@@ -387,7 +387,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                   key={script.id}
                   script={script}
                   isSelected={script.id === selectedScriptId}
-                  onSelect={handleSelectScript}
+                  onSelect={(script) => { void handleSelectScript(script); }}
                 />
               ))}
             </div>
@@ -455,7 +455,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       <button
                         type="button"
                         className="btn btn-primary"
-                        onClick={handleRunScript}
+                        onClick={() => { void handleRunScript(); }}
                         disabled={isRunDisabled}
                       >
                         {isRunningScript ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
@@ -465,7 +465,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         <button
                           type="button"
                           className="btn btn-action"
-                          onClick={handleSaveScript}
+                          onClick={() => { void handleSaveScript(); }}
                           disabled={isSaveDisabled}
                         >
                           {isSavingScript ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
@@ -500,7 +500,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                           type="text"
                           className="input-field"
                           value={scriptDraft?.name ?? ''}
-                          onChange={(event) => handleScriptFieldChange('name', event.target.value)}
+                          onChange={(event) => { handleScriptFieldChange('name', event.target.value); }}
                           placeholder="Human readable name"
                         />
                       </div>
@@ -509,7 +509,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         <select
                           className="input-field"
                           value={scriptDraft?.category ?? 'performance'}
-                          onChange={(event) => handleScriptFieldChange('category', event.target.value)}
+                          onChange={(event) => { handleScriptFieldChange('category', event.target.value); }}
                         >
                           <option value="performance">Performance</option>
                           <option value="process-analysis">Process Analysis</option>
@@ -524,7 +524,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                           type="text"
                           className="input-field"
                           value={scriptDraft?.author ?? ''}
-                          onChange={(event) => handleScriptFieldChange('author', event.target.value)}
+                          onChange={(event) => { handleScriptFieldChange('author', event.target.value); }}
                           placeholder="Script owner"
                         />
                       </div>
@@ -550,7 +550,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                         <textarea
                           className="input-field"
                           value={scriptDraft?.description ?? ''}
-                          onChange={(event) => handleScriptFieldChange('description', event.target.value)}
+                          onChange={(event) => { handleScriptFieldChange('description', event.target.value); }}
                           placeholder="Brief description of what this script investigates"
                           rows={3}
                           style={{ resize: 'vertical' }}
@@ -676,7 +676,7 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                   ) : (
                     <textarea
                       value={selectedContent}
-                      onChange={(event) => dispatch({ type: 'SET_CONTENT', content: event.target.value })}
+                      onChange={(event) => { dispatch({ type: 'SET_CONTENT', content: event.target.value }); }}
                       placeholder="#!/bin/bash\n# Your investigation script here..."
                       style={{
                         width: '100%',

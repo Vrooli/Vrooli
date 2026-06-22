@@ -89,6 +89,7 @@ func Run(cfg *config.Config) error {
 	reportHandler := handlers.NewReportHandler(cfg, reportSvc, apiLog.With("handler", "reports"))
 	settingsHandler := handlers.NewSettingsHandler(settingsMgr, apiLog.With("handler", "settings"))
 	maintenanceHandler := handlers.NewMaintenanceHandler(maintenanceSvc, apiLog.With("handler", "maintenance"))
+	capacityHandler := handlers.NewCapacityHandler(services.NewCapacityService(), apiLog.With("handler", "capacity"))
 
 	// Forensics + logs wiring.
 	executor := shellExec{}
@@ -120,7 +121,7 @@ func Run(cfg *config.Config) error {
 	toolExecHandler := toolexecution.NewHandler(toolExecutor, slog.Default())
 	toolsHandler := toolhandlers.NewToolsHandler(toolRegistry, slog.Default())
 
-	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
+	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
 	handler := buildMiddleware(cfg, router)
 
 	srv := &http.Server{

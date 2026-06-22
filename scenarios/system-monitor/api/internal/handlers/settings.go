@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
+	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
@@ -31,7 +31,7 @@ func NewSettingsHandler(settingsManager SettingsProvider, log *slog.Logger) *Set
 func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	settings := h.settingsManager.GetSettings()
 
-	resp := &apipb.GetSettingsResponse{
+	resp := &settingspb.GetSettingsResponse{
 		Success:  true,
 		Settings: convert.SettingsToProto(&settings),
 	}
@@ -40,7 +40,7 @@ func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSettings handles PUT /api/settings
 func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
-	var reqPb apipb.UpdateSettingsRequest
+	var reqPb settingspb.UpdateSettingsRequest
 	if err := httputil.DecodeProtoJSON(r, &reqPb); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid JSON payload"))
 		return
@@ -66,7 +66,7 @@ func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request)
 
 	// Return updated settings
 	updatedSettings := h.settingsManager.GetSettings()
-	resp := &apipb.UpdateSettingsResponse{
+	resp := &settingspb.UpdateSettingsResponse{
 		Success:  true,
 		Settings: convert.SettingsToProto(&updatedSettings),
 	}
@@ -82,7 +82,7 @@ func (h *SettingsHandler) ResetSettings(w http.ResponseWriter, r *http.Request) 
 
 	// Return reset settings
 	settings := h.settingsManager.GetSettings()
-	resp := &apipb.ResetSettingsResponse{
+	resp := &settingspb.ResetSettingsResponse{
 		Success:  true,
 		Settings: convert.SettingsToProto(&settings),
 	}
@@ -93,7 +93,7 @@ func (h *SettingsHandler) ResetSettings(w http.ResponseWriter, r *http.Request) 
 func (h *SettingsHandler) GetMaintenanceState(w http.ResponseWriter, r *http.Request) {
 	state := h.settingsManager.GetMaintenanceState()
 
-	resp := &apipb.GetMaintenanceStateResponse{
+	resp := &settingspb.GetMaintenanceStateResponse{
 		Success:          true,
 		MaintenanceState: state,
 	}
@@ -102,7 +102,7 @@ func (h *SettingsHandler) GetMaintenanceState(w http.ResponseWriter, r *http.Req
 
 // SetMaintenanceState handles POST /api/maintenance/state
 func (h *SettingsHandler) SetMaintenanceState(w http.ResponseWriter, r *http.Request) {
-	var reqPb apipb.SetMaintenanceStateRequest
+	var reqPb settingspb.SetMaintenanceStateRequest
 	if err := httputil.DecodeProtoJSON(r, &reqPb); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid JSON payload"))
 		return
@@ -122,7 +122,7 @@ func (h *SettingsHandler) SetMaintenanceState(w http.ResponseWriter, r *http.Req
 
 	// Return updated state
 	newState := h.settingsManager.GetMaintenanceState()
-	resp := &apipb.SetMaintenanceStateResponse{
+	resp := &settingspb.SetMaintenanceStateResponse{
 		Success:          true,
 		MaintenanceState: newState,
 	}

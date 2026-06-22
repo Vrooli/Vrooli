@@ -37,7 +37,12 @@ type Budget struct {
 	// Ratchet: when true SetBudget may only tighten an existing budget, never
 	// loosen it (a relaxation is rejected). Tighten-only protects against
 	// silently regressing the budget after a measured improvement.
-	Ratchet       bool `protobuf:"varint,10,opt,name=ratchet,proto3" json:"ratchet,omitempty"`
+	Ratchet bool `protobuf:"varint,10,opt,name=ratchet,proto3" json:"ratchet,omitempty"`
+	// Per-interaction-flow budgets keyed by flow slug. Each gates a specific
+	// targeted journey (driven by `audit run --workflow <slug>`) on the
+	// continuous cadence, independently of the scenario aggregate. build/bundle/
+	// startup remain scenario-level (no per-flow build).
+	Flows         map[string]*FlowBudget `protobuf:"bytes,11,rep,name=flows,proto3" json:"flows,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -135,6 +140,75 @@ func (x *Budget) GetRatchet() bool {
 	return false
 }
 
+func (x *Budget) GetFlows() map[string]*FlowBudget {
+	if x != nil {
+		return x.Flows
+	}
+	return nil
+}
+
+// FlowBudget is one interaction flow's declared thresholds — only the axes a
+// targeted capture can measure (LCP and the slowest component's avg/max commit).
+type FlowBudget struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	LcpMaxMs                int64                  `protobuf:"varint,1,opt,name=lcp_max_ms,json=lcpMaxMs,proto3" json:"lcp_max_ms,omitempty"`
+	ComponentCommitAvgMaxMs float64                `protobuf:"fixed64,2,opt,name=component_commit_avg_max_ms,json=componentCommitAvgMaxMs,proto3" json:"component_commit_avg_max_ms,omitempty"`
+	ComponentCommitMaxMs    float64                `protobuf:"fixed64,3,opt,name=component_commit_max_ms,json=componentCommitMaxMs,proto3" json:"component_commit_max_ms,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *FlowBudget) Reset() {
+	*x = FlowBudget{}
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlowBudget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlowBudget) ProtoMessage() {}
+
+func (x *FlowBudget) ProtoReflect() protoreflect.Message {
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlowBudget.ProtoReflect.Descriptor instead.
+func (*FlowBudget) Descriptor() ([]byte, []int) {
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *FlowBudget) GetLcpMaxMs() int64 {
+	if x != nil {
+		return x.LcpMaxMs
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetComponentCommitAvgMaxMs() float64 {
+	if x != nil {
+		return x.ComponentCommitAvgMaxMs
+	}
+	return 0
+}
+
+func (x *FlowBudget) GetComponentCommitMaxMs() float64 {
+	if x != nil {
+		return x.ComponentCommitMaxMs
+	}
+	return 0
+}
+
 type GetBudgetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -144,7 +218,7 @@ type GetBudgetRequest struct {
 
 func (x *GetBudgetRequest) Reset() {
 	*x = GetBudgetRequest{}
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[1]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -156,7 +230,7 @@ func (x *GetBudgetRequest) String() string {
 func (*GetBudgetRequest) ProtoMessage() {}
 
 func (x *GetBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[1]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -169,7 +243,7 @@ func (x *GetBudgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBudgetRequest.ProtoReflect.Descriptor instead.
 func (*GetBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{1}
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetBudgetRequest) GetScenario() string {
@@ -190,7 +264,7 @@ type GetBudgetResponse struct {
 
 func (x *GetBudgetResponse) Reset() {
 	*x = GetBudgetResponse{}
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[2]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -202,7 +276,7 @@ func (x *GetBudgetResponse) String() string {
 func (*GetBudgetResponse) ProtoMessage() {}
 
 func (x *GetBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[2]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -215,7 +289,7 @@ func (x *GetBudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBudgetResponse.ProtoReflect.Descriptor instead.
 func (*GetBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{2}
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetBudgetResponse) GetBudget() *Budget {
@@ -233,15 +307,19 @@ func (x *GetBudgetResponse) GetDeclared() bool {
 }
 
 type SetBudgetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Budget        *Budget                `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Budget *Budget                `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	// When set, the budget's per-flow axes (lcp_max_ms, component_commit_*) are
+	// written to budget.flows[flow], preserving scenario-level axes and sibling
+	// flows. Empty = a scenario-level write (preserving any existing flows).
+	Flow          string `protobuf:"bytes,2,opt,name=flow,proto3" json:"flow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SetBudgetRequest) Reset() {
 	*x = SetBudgetRequest{}
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[3]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -253,7 +331,7 @@ func (x *SetBudgetRequest) String() string {
 func (*SetBudgetRequest) ProtoMessage() {}
 
 func (x *SetBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[3]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -266,7 +344,7 @@ func (x *SetBudgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBudgetRequest.ProtoReflect.Descriptor instead.
 func (*SetBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{3}
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SetBudgetRequest) GetBudget() *Budget {
@@ -274,6 +352,13 @@ func (x *SetBudgetRequest) GetBudget() *Budget {
 		return x.Budget
 	}
 	return nil
+}
+
+func (x *SetBudgetRequest) GetFlow() string {
+	if x != nil {
+		return x.Flow
+	}
+	return ""
 }
 
 type SetBudgetResponse struct {
@@ -286,7 +371,7 @@ type SetBudgetResponse struct {
 
 func (x *SetBudgetResponse) Reset() {
 	*x = SetBudgetResponse{}
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[4]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -298,7 +383,7 @@ func (x *SetBudgetResponse) String() string {
 func (*SetBudgetResponse) ProtoMessage() {}
 
 func (x *SetBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[4]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -311,7 +396,7 @@ func (x *SetBudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetBudgetResponse.ProtoReflect.Descriptor instead.
 func (*SetBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{4}
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SetBudgetResponse) GetBudget() *Budget {
@@ -329,15 +414,18 @@ func (x *SetBudgetResponse) GetDryRun() bool {
 }
 
 type CheckBudgetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// When set, evaluate only this interaction flow's per-flow budget against its
+	// latest flow-tagged sample. Empty = the scenario-level check.
+	Flow          string `protobuf:"bytes,2,opt,name=flow,proto3" json:"flow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CheckBudgetRequest) Reset() {
 	*x = CheckBudgetRequest{}
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[5]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -349,7 +437,7 @@ func (x *CheckBudgetRequest) String() string {
 func (*CheckBudgetRequest) ProtoMessage() {}
 
 func (x *CheckBudgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[5]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -362,12 +450,19 @@ func (x *CheckBudgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckBudgetRequest.ProtoReflect.Descriptor instead.
 func (*CheckBudgetRequest) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{5}
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CheckBudgetRequest) GetScenario() string {
 	if x != nil {
 		return x.Scenario
+	}
+	return ""
+}
+
+func (x *CheckBudgetRequest) GetFlow() string {
+	if x != nil {
+		return x.Flow
 	}
 	return ""
 }
@@ -384,7 +479,7 @@ type CheckBudgetResponse struct {
 
 func (x *CheckBudgetResponse) Reset() {
 	*x = CheckBudgetResponse{}
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[6]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -396,7 +491,7 @@ func (x *CheckBudgetResponse) String() string {
 func (*CheckBudgetResponse) ProtoMessage() {}
 
 func (x *CheckBudgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[6]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +504,7 @@ func (x *CheckBudgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckBudgetResponse.ProtoReflect.Descriptor instead.
 func (*CheckBudgetResponse) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{6}
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CheckBudgetResponse) GetScenario() string {
@@ -437,17 +532,19 @@ func (x *CheckBudgetResponse) GetViolations() []*BudgetViolation {
 type BudgetViolation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Axis id, e.g. "go_build", "bundle", "lcp", "startup".
-	Axis          string `protobuf:"bytes,1,opt,name=axis,proto3" json:"axis,omitempty"`
-	Measured      int64  `protobuf:"varint,2,opt,name=measured,proto3" json:"measured,omitempty"`
-	Budget        int64  `protobuf:"varint,3,opt,name=budget,proto3" json:"budget,omitempty"`
-	Unit          string `protobuf:"bytes,4,opt,name=unit,proto3" json:"unit,omitempty"`
+	Axis     string `protobuf:"bytes,1,opt,name=axis,proto3" json:"axis,omitempty"`
+	Measured int64  `protobuf:"varint,2,opt,name=measured,proto3" json:"measured,omitempty"`
+	Budget   int64  `protobuf:"varint,3,opt,name=budget,proto3" json:"budget,omitempty"`
+	Unit     string `protobuf:"bytes,4,opt,name=unit,proto3" json:"unit,omitempty"`
+	// Flow slug when the violation is a per-flow breach; empty for scenario-level.
+	Flow          string `protobuf:"bytes,5,opt,name=flow,proto3" json:"flow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BudgetViolation) Reset() {
 	*x = BudgetViolation{}
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[7]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -459,7 +556,7 @@ func (x *BudgetViolation) String() string {
 func (*BudgetViolation) ProtoMessage() {}
 
 func (x *BudgetViolation) ProtoReflect() protoreflect.Message {
-	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[7]
+	mi := &file_performance_health_v1_budgets_budgets_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -472,7 +569,7 @@ func (x *BudgetViolation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BudgetViolation.ProtoReflect.Descriptor instead.
 func (*BudgetViolation) Descriptor() ([]byte, []int) {
-	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{7}
+	return file_performance_health_v1_budgets_budgets_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BudgetViolation) GetAxis() string {
@@ -503,11 +600,18 @@ func (x *BudgetViolation) GetUnit() string {
 	return ""
 }
 
+func (x *BudgetViolation) GetFlow() string {
+	if x != nil {
+		return x.Flow
+	}
+	return ""
+}
+
 var File_performance_health_v1_budgets_budgets_proto protoreflect.FileDescriptor
 
 const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\n" +
-	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\x81\x03\n" +
+	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\xbc\x04\n" +
 	"\x06Budget\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
 	"\x0fgo_build_max_ms\x18\x02 \x01(\x03R\fgoBuildMaxMs\x12%\n" +
@@ -519,31 +623,45 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\x17component_commit_max_ms\x18\a \x01(\x01R\x14componentCommitMaxMs\x12<\n" +
 	"\x1bcomponent_commit_avg_max_ms\x18\t \x01(\x01R\x17componentCommitAvgMaxMs\x12\x18\n" +
 	"\aratchet\x18\n" +
-	" \x01(\bR\aratchetJ\x04\b\b\x10\tR\n" +
-	"p95_max_ms\".\n" +
+	" \x01(\bR\aratchet\x12M\n" +
+	"\x05flows\x18\v \x03(\v27.vrooli.performance_health.v1.budgets.Budget.FlowsEntryR\x05flows\x1aj\n" +
+	"\n" +
+	"FlowsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
+	"\x05value\x18\x02 \x01(\v20.vrooli.performance_health.v1.budgets.FlowBudgetR\x05value:\x028\x01J\x04\b\b\x10\tR\n" +
+	"p95_max_ms\"\x9f\x01\n" +
+	"\n" +
+	"FlowBudget\x12\x1c\n" +
+	"\n" +
+	"lcp_max_ms\x18\x01 \x01(\x03R\blcpMaxMs\x12<\n" +
+	"\x1bcomponent_commit_avg_max_ms\x18\x02 \x01(\x01R\x17componentCommitAvgMaxMs\x125\n" +
+	"\x17component_commit_max_ms\x18\x03 \x01(\x01R\x14componentCommitMaxMs\".\n" +
 	"\x10GetBudgetRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"u\n" +
 	"\x11GetBudgetResponse\x12D\n" +
 	"\x06budget\x18\x01 \x01(\v2,.vrooli.performance_health.v1.budgets.BudgetR\x06budget\x12\x1a\n" +
-	"\bdeclared\x18\x02 \x01(\bR\bdeclared\"X\n" +
+	"\bdeclared\x18\x02 \x01(\bR\bdeclared\"l\n" +
 	"\x10SetBudgetRequest\x12D\n" +
-	"\x06budget\x18\x01 \x01(\v2,.vrooli.performance_health.v1.budgets.BudgetR\x06budget\"r\n" +
+	"\x06budget\x18\x01 \x01(\v2,.vrooli.performance_health.v1.budgets.BudgetR\x06budget\x12\x12\n" +
+	"\x04flow\x18\x02 \x01(\tR\x04flow\"r\n" +
 	"\x11SetBudgetResponse\x12D\n" +
 	"\x06budget\x18\x01 \x01(\v2,.vrooli.performance_health.v1.budgets.BudgetR\x06budget\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"0\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"D\n" +
 	"\x12CheckBudgetRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xa0\x01\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04flow\x18\x02 \x01(\tR\x04flow\"\xa0\x01\n" +
 	"\x13CheckBudgetResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12U\n" +
 	"\n" +
 	"violations\x18\x03 \x03(\v25.vrooli.performance_health.v1.budgets.BudgetViolationR\n" +
-	"violations\"m\n" +
+	"violations\"\x81\x01\n" +
 	"\x0fBudgetViolation\x12\x12\n" +
 	"\x04axis\x18\x01 \x01(\tR\x04axis\x12\x1a\n" +
 	"\bmeasured\x18\x02 \x01(\x03R\bmeasured\x12\x16\n" +
 	"\x06budget\x18\x03 \x01(\x03R\x06budget\x12\x12\n" +
-	"\x04unit\x18\x04 \x01(\tR\x04unit2\x90\x03\n" +
+	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x12\n" +
+	"\x04flow\x18\x05 \x01(\tR\x04flow2\x90\x03\n" +
 	"\rBudgetService\x12|\n" +
 	"\tGetBudget\x126.vrooli.performance_health.v1.budgets.GetBudgetRequest\x1a7.vrooli.performance_health.v1.budgets.GetBudgetResponse\x12|\n" +
 	"\tSetBudget\x126.vrooli.performance_health.v1.budgets.SetBudgetRequest\x1a7.vrooli.performance_health.v1.budgets.SetBudgetResponse\x12\x82\x01\n" +
@@ -561,33 +679,37 @@ func file_performance_health_v1_budgets_budgets_proto_rawDescGZIP() []byte {
 	return file_performance_health_v1_budgets_budgets_proto_rawDescData
 }
 
-var file_performance_health_v1_budgets_budgets_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_performance_health_v1_budgets_budgets_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_performance_health_v1_budgets_budgets_proto_goTypes = []any{
 	(*Budget)(nil),              // 0: vrooli.performance_health.v1.budgets.Budget
-	(*GetBudgetRequest)(nil),    // 1: vrooli.performance_health.v1.budgets.GetBudgetRequest
-	(*GetBudgetResponse)(nil),   // 2: vrooli.performance_health.v1.budgets.GetBudgetResponse
-	(*SetBudgetRequest)(nil),    // 3: vrooli.performance_health.v1.budgets.SetBudgetRequest
-	(*SetBudgetResponse)(nil),   // 4: vrooli.performance_health.v1.budgets.SetBudgetResponse
-	(*CheckBudgetRequest)(nil),  // 5: vrooli.performance_health.v1.budgets.CheckBudgetRequest
-	(*CheckBudgetResponse)(nil), // 6: vrooli.performance_health.v1.budgets.CheckBudgetResponse
-	(*BudgetViolation)(nil),     // 7: vrooli.performance_health.v1.budgets.BudgetViolation
+	(*FlowBudget)(nil),          // 1: vrooli.performance_health.v1.budgets.FlowBudget
+	(*GetBudgetRequest)(nil),    // 2: vrooli.performance_health.v1.budgets.GetBudgetRequest
+	(*GetBudgetResponse)(nil),   // 3: vrooli.performance_health.v1.budgets.GetBudgetResponse
+	(*SetBudgetRequest)(nil),    // 4: vrooli.performance_health.v1.budgets.SetBudgetRequest
+	(*SetBudgetResponse)(nil),   // 5: vrooli.performance_health.v1.budgets.SetBudgetResponse
+	(*CheckBudgetRequest)(nil),  // 6: vrooli.performance_health.v1.budgets.CheckBudgetRequest
+	(*CheckBudgetResponse)(nil), // 7: vrooli.performance_health.v1.budgets.CheckBudgetResponse
+	(*BudgetViolation)(nil),     // 8: vrooli.performance_health.v1.budgets.BudgetViolation
+	nil,                         // 9: vrooli.performance_health.v1.budgets.Budget.FlowsEntry
 }
 var file_performance_health_v1_budgets_budgets_proto_depIdxs = []int32{
-	0, // 0: vrooli.performance_health.v1.budgets.GetBudgetResponse.budget:type_name -> vrooli.performance_health.v1.budgets.Budget
-	0, // 1: vrooli.performance_health.v1.budgets.SetBudgetRequest.budget:type_name -> vrooli.performance_health.v1.budgets.Budget
-	0, // 2: vrooli.performance_health.v1.budgets.SetBudgetResponse.budget:type_name -> vrooli.performance_health.v1.budgets.Budget
-	7, // 3: vrooli.performance_health.v1.budgets.CheckBudgetResponse.violations:type_name -> vrooli.performance_health.v1.budgets.BudgetViolation
-	1, // 4: vrooli.performance_health.v1.budgets.BudgetService.GetBudget:input_type -> vrooli.performance_health.v1.budgets.GetBudgetRequest
-	3, // 5: vrooli.performance_health.v1.budgets.BudgetService.SetBudget:input_type -> vrooli.performance_health.v1.budgets.SetBudgetRequest
-	5, // 6: vrooli.performance_health.v1.budgets.BudgetService.CheckBudget:input_type -> vrooli.performance_health.v1.budgets.CheckBudgetRequest
-	2, // 7: vrooli.performance_health.v1.budgets.BudgetService.GetBudget:output_type -> vrooli.performance_health.v1.budgets.GetBudgetResponse
-	4, // 8: vrooli.performance_health.v1.budgets.BudgetService.SetBudget:output_type -> vrooli.performance_health.v1.budgets.SetBudgetResponse
-	6, // 9: vrooli.performance_health.v1.budgets.BudgetService.CheckBudget:output_type -> vrooli.performance_health.v1.budgets.CheckBudgetResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	9, // 0: vrooli.performance_health.v1.budgets.Budget.flows:type_name -> vrooli.performance_health.v1.budgets.Budget.FlowsEntry
+	0, // 1: vrooli.performance_health.v1.budgets.GetBudgetResponse.budget:type_name -> vrooli.performance_health.v1.budgets.Budget
+	0, // 2: vrooli.performance_health.v1.budgets.SetBudgetRequest.budget:type_name -> vrooli.performance_health.v1.budgets.Budget
+	0, // 3: vrooli.performance_health.v1.budgets.SetBudgetResponse.budget:type_name -> vrooli.performance_health.v1.budgets.Budget
+	8, // 4: vrooli.performance_health.v1.budgets.CheckBudgetResponse.violations:type_name -> vrooli.performance_health.v1.budgets.BudgetViolation
+	1, // 5: vrooli.performance_health.v1.budgets.Budget.FlowsEntry.value:type_name -> vrooli.performance_health.v1.budgets.FlowBudget
+	2, // 6: vrooli.performance_health.v1.budgets.BudgetService.GetBudget:input_type -> vrooli.performance_health.v1.budgets.GetBudgetRequest
+	4, // 7: vrooli.performance_health.v1.budgets.BudgetService.SetBudget:input_type -> vrooli.performance_health.v1.budgets.SetBudgetRequest
+	6, // 8: vrooli.performance_health.v1.budgets.BudgetService.CheckBudget:input_type -> vrooli.performance_health.v1.budgets.CheckBudgetRequest
+	3, // 9: vrooli.performance_health.v1.budgets.BudgetService.GetBudget:output_type -> vrooli.performance_health.v1.budgets.GetBudgetResponse
+	5, // 10: vrooli.performance_health.v1.budgets.BudgetService.SetBudget:output_type -> vrooli.performance_health.v1.budgets.SetBudgetResponse
+	7, // 11: vrooli.performance_health.v1.budgets.BudgetService.CheckBudget:output_type -> vrooli.performance_health.v1.budgets.CheckBudgetResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_performance_health_v1_budgets_budgets_proto_init() }
@@ -601,7 +723,7 @@ func file_performance_health_v1_budgets_budgets_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_performance_health_v1_budgets_budgets_proto_rawDesc), len(file_performance_health_v1_budgets_budgets_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -340,9 +340,19 @@ type CaptureRequest struct {
 	// server-filesystem paths, useless to callers on another host. Independent
 	// of the `captures` list. The server caps the inline payload (currently
 	// 2 MiB) and truncates beyond it.
-	InlineDom     bool `protobuf:"varint,7,opt,name=inline_dom,json=inlineDom,proto3" json:"inline_dom,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	InlineDom bool `protobuf:"varint,7,opt,name=inline_dom,json=inlineDom,proto3" json:"inline_dom,omitempty"`
+	// Optional raw `bas/flows`-shape JSON (a WorkflowDefinitionV2 protojson
+	// body) describing a specific interaction to drive *after* the navigate,
+	// inside the same perf-trace window. Empty = the default navigate+settle
+	// capture. The server compiles this with its standard flow-JSON converter
+	// and splices the interaction's nodes/edges after the navigate node, so a
+	// CAPTURE_TYPE_PERFORMANCE trace spans the interaction (scroll, drag,
+	// click/type sequences). Selector tokens (`@selector/`) resolve server-side
+	// against the executor's manifest root, which is NOT the target scenario on
+	// this path — perf flows must use literal `[data-testid=…]` selectors.
+	InteractionFlowJson string `protobuf:"bytes,8,opt,name=interaction_flow_json,json=interactionFlowJson,proto3" json:"interaction_flow_json,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CaptureRequest) Reset() {
@@ -422,6 +432,13 @@ func (x *CaptureRequest) GetInlineDom() bool {
 		return x.InlineDom
 	}
 	return false
+}
+
+func (x *CaptureRequest) GetInteractionFlowJson() string {
+	if x != nil {
+		return x.InteractionFlowJson
+	}
+	return ""
 }
 
 type CaptureArtifact struct {
@@ -612,7 +629,7 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\vnetworkidle\x18\x02 \x01(\bH\x00R\vnetworkidle\x12\x1f\n" +
 	"\n" +
 	"timeout_ms\x18\x03 \x01(\x05H\x00R\ttimeoutMsB\x06\n" +
-	"\x04spec\"\xe4\x02\n" +
+	"\x04spec\"\x98\x03\n" +
 	"\x0eCaptureRequest\x12\x19\n" +
 	"\x03url\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\x12M\n" +
 	"\bcaptures\x18\x02 \x03(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\bcaptures\x12P\n" +
@@ -623,7 +640,8 @@ const file_browser_automation_studio_v1_capture_capture_proto_rawDesc = "" +
 	"\aout_dir\x18\x05 \x01(\tR\x06outDir\x12\x14\n" +
 	"\x05label\x18\x06 \x01(\tR\x05label\x12\x1d\n" +
 	"\n" +
-	"inline_dom\x18\a \x01(\bR\tinlineDom\"\xa9\x02\n" +
+	"inline_dom\x18\a \x01(\bR\tinlineDom\x122\n" +
+	"\x15interaction_flow_json\x18\b \x01(\tR\x13interactionFlowJson\"\xa9\x02\n" +
 	"\x0fCaptureArtifact\x12E\n" +
 	"\x04type\x18\x01 \x01(\x0e21.browser_automation_studio.v1.capture.CaptureTypeR\x04type\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +

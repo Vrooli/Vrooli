@@ -1,0 +1,662 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.metrics;
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics;metrics";
+
+// =============================================================================
+// METRICS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Metrics models for system monitoring data.
+// These types represent hardware, software, and infrastructure metrics.
+//
+// USAGE CONTEXTS:
+//   - API responses for metrics endpoints
+//   - UI dashboard data models
+//   - Time series storage
+//
+// =============================================================================
+
+// MetricsResponse represents the current system metrics snapshot.
+message MetricsResponse {
+  // Current CPU usage percentage.
+  double cpu_usage = 1;
+
+  // Current memory usage percentage.
+  double memory_usage = 2;
+
+  // Current number of TCP connections.
+  int32 tcp_connections = 3;
+
+  // Current GPU usage percentage (if available).
+  optional double gpu_usage = 4;
+
+  // When these metrics were collected.
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// MetricTimelineSample represents a single sample in a metrics timeline.
+message MetricTimelineSample {
+  // When this sample was collected.
+  google.protobuf.Timestamp timestamp = 1;
+
+  // CPU usage percentage.
+  double cpu_usage = 2;
+
+  // Memory usage percentage.
+  double memory_usage = 3;
+
+  // Number of TCP connections.
+  int32 tcp_connections = 4;
+
+  // GPU usage percentage (if available).
+  optional double gpu_usage = 5;
+}
+
+// MetricsTimelineResponse contains a windowed series of metric samples.
+message MetricsTimelineResponse {
+  // Duration of the window in seconds.
+  int32 window_seconds = 1;
+
+  // Interval between samples in seconds.
+  int32 sample_interval_seconds = 2;
+
+  // Ordered metric samples.
+  repeated MetricTimelineSample samples = 3;
+}
+
+// DetailedMetrics contains comprehensive system metrics.
+message DetailedMetrics {
+  // CPU-related metrics.
+  CPUMetrics cpu_details = 1;
+
+  // Memory-related metrics.
+  MemoryMetrics memory_details = 2;
+
+  // Network-related metrics.
+  NetworkMetrics network_details = 3;
+
+  // GPU-related metrics (if available).
+  optional GPUMetrics gpu_details = 4;
+
+  // System health information.
+  SystemHealth system_details = 5;
+
+  // When these metrics were collected.
+  google.protobuf.Timestamp timestamp = 6;
+}
+
+// CPUMetrics contains CPU-related metrics.
+message CPUMetrics {
+  // Overall CPU usage percentage.
+  double usage = 1;
+
+  // Top CPU-consuming processes.
+  repeated ProcessInfo top_processes = 2;
+
+  // System load averages (1, 5, 15 minute).
+  repeated double load_average = 3;
+
+  // Context switches per second.
+  int64 context_switches = 4;
+
+  // Total goroutines.
+  int32 total_goroutines = 5;
+}
+
+// MemoryMetrics contains memory-related metrics.
+message MemoryMetrics {
+  // Overall memory usage percentage.
+  double usage = 1;
+
+  // Top memory-consuming processes.
+  repeated ProcessInfo top_processes = 2;
+
+  // Memory growth patterns.
+  repeated MemoryGrowth growth_patterns = 3;
+
+  // Swap memory information.
+  SwapInfo swap_usage = 4;
+
+  // Disk usage information.
+  DiskInfo disk_usage = 5;
+}
+
+// NetworkMetrics contains network-related metrics.
+message NetworkMetrics {
+  // TCP connection state distribution.
+  TCPConnectionStates tcp_states = 1;
+
+  // Port usage information.
+  PortUsageInfo port_usage = 2;
+
+  // Network performance statistics.
+  NetworkStatistics network_stats = 3;
+
+  // Connection pool statuses.
+  repeated ConnectionPool connection_pools = 4;
+}
+
+// SystemHealth contains overall system health information.
+message SystemHealth {
+  // File descriptor usage.
+  FileDescriptorInfo file_descriptors = 1;
+
+  // Service dependency health.
+  repeated ServiceHealth service_dependencies = 2;
+
+  // SSL certificate information.
+  repeated CertificateInfo certificates = 3;
+
+  // Inotify watcher information (Linux-specific).
+  optional InotifyWatcherInfo inotify_watchers = 4;
+}
+
+// GPUMetrics contains GPU-related metrics.
+message GPUMetrics {
+  // Aggregated GPU summary.
+  GPUSummary summary = 1;
+
+  // Per-device GPU metrics.
+  repeated GPUDeviceMetrics devices = 2;
+
+  // Any errors from GPU monitoring.
+  repeated string errors = 3;
+
+  // GPU driver version.
+  string driver_version = 4;
+
+  // Primary GPU model name.
+  string primary_model = 5;
+}
+
+// GPUSummary aggregates metrics across all GPU devices.
+message GPUSummary {
+  // Total utilization across all devices.
+  double total_utilization_percent = 1;
+
+  // Average utilization across all devices.
+  double average_utilization_percent = 2;
+
+  // Total GPU memory in MB.
+  double total_memory_mb = 3;
+
+  // Used GPU memory in MB.
+  double used_memory_mb = 4;
+
+  // Average temperature in Celsius.
+  double average_temperature_c = 5;
+
+  // Number of GPU devices.
+  int32 device_count = 6;
+}
+
+// GPUDeviceMetrics contains metrics for an individual GPU device.
+message GPUDeviceMetrics {
+  // Device index.
+  int32 index = 1;
+
+  // Device UUID.
+  string uuid = 2;
+
+  // Device name.
+  string name = 3;
+
+  // GPU utilization percentage.
+  double utilization_percent = 4;
+
+  // Memory utilization percentage.
+  double memory_utilization_percent = 5;
+
+  // Used memory in MB.
+  double memory_used_mb = 6;
+
+  // Total memory in MB.
+  double memory_total_mb = 7;
+
+  // Temperature in Celsius.
+  optional double temperature_c = 8;
+
+  // Fan speed percentage.
+  optional double fan_speed_percent = 9;
+
+  // Power draw in watts.
+  optional double power_draw_w = 10;
+
+  // Power limit in watts.
+  optional double power_limit_w = 11;
+
+  // SM clock in MHz.
+  optional double sm_clock_mhz = 12;
+
+  // Memory clock in MHz.
+  optional double memory_clock_mhz = 13;
+
+  // Processes using this GPU.
+  repeated GPUProcessInfo processes = 14;
+}
+
+// GPUProcessInfo describes a process consuming GPU resources.
+message GPUProcessInfo {
+  // Process ID.
+  int32 pid = 1;
+
+  // Process name.
+  string process_name = 2;
+
+  // GPU memory used in MB.
+  double memory_used_mb = 3;
+
+  // SM utilization percentage.
+  optional double sm_utilization_percent = 4;
+
+  // GPU instance ID.
+  string gpu_instance_id = 5;
+}
+
+// ProcessInfo represents information about a system process.
+message ProcessInfo {
+  // Process ID.
+  int32 pid = 1;
+
+  // Process name.
+  string name = 2;
+
+  // CPU usage percentage.
+  double cpu_percent = 3;
+
+  // Memory usage in MB.
+  double memory_mb = 4;
+
+  // Number of network connections.
+  int32 connections = 5;
+
+  // Number of threads.
+  int32 threads = 6;
+
+  // Number of open file descriptors.
+  int32 file_descriptors = 7;
+
+  // Process status.
+  string status = 8;
+
+  // Number of goroutines (Go processes only).
+  int32 goroutines = 9;
+}
+
+// TCPConnectionStates tracks TCP connection state distribution.
+message TCPConnectionStates {
+  int32 established = 1;
+  int32 time_wait = 2;
+  int32 close_wait = 3;
+  int32 fin_wait1 = 4;
+  int32 fin_wait2 = 5;
+  int32 syn_sent = 6;
+  int32 syn_recv = 7;
+  int32 closing = 8;
+  int32 last_ack = 9;
+  int32 listen = 10;
+  int32 total = 11;
+}
+
+// ConnectionPool represents a connection pool's status.
+message ConnectionPool {
+  // Pool name.
+  string name = 1;
+
+  // Active connections.
+  int32 active = 2;
+
+  // Idle connections.
+  int32 idle = 3;
+
+  // Maximum pool size.
+  int32 max_size = 4;
+
+  // Waiting requests.
+  int32 waiting = 5;
+
+  // Whether the pool is healthy.
+  bool healthy = 6;
+
+  // Leak risk assessment.
+  string leak_risk = 7;
+}
+
+// NetworkStatistics contains network performance metrics.
+message NetworkStatistics {
+  // Inbound bandwidth in Mbps.
+  double bandwidth_in_mbps = 1;
+
+  // Outbound bandwidth in Mbps.
+  double bandwidth_out_mbps = 2;
+
+  // Packet loss percentage.
+  double packet_loss = 3;
+
+  // DNS resolution success rate.
+  double dns_success_rate = 4;
+
+  // DNS resolution latency in ms.
+  double dns_latency_ms = 5;
+}
+
+// ServiceHealth represents the health status of a service dependency.
+message ServiceHealth {
+  // Service name.
+  string name = 1;
+
+  // Health status.
+  string status = 2;
+
+  // Response latency in ms.
+  double latency_ms = 3;
+
+  // When the last check was performed.
+  google.protobuf.Timestamp last_check = 4;
+
+  // Service endpoint URL.
+  string endpoint = 5;
+}
+
+// CertificateInfo contains SSL certificate information.
+message CertificateInfo {
+  // Domain name.
+  string domain = 1;
+
+  // Days until certificate expires.
+  int32 days_to_expiry = 2;
+
+  // Certificate status.
+  string status = 3;
+}
+
+// MemoryGrowth tracks memory growth patterns.
+message MemoryGrowth {
+  // Process name.
+  string process = 1;
+
+  // Growth rate in MB per hour.
+  double growth_mb_per_hour = 2;
+
+  // Risk level of the growth pattern.
+  string risk_level = 3;
+}
+
+// SwapInfo contains swap memory information.
+message SwapInfo {
+  // Used swap in bytes.
+  int64 used = 1;
+
+  // Total swap in bytes.
+  int64 total = 2;
+
+  // Swap usage percentage.
+  double percent = 3;
+}
+
+// DiskInfo contains disk usage information.
+message DiskInfo {
+  // Used disk space in bytes.
+  int64 used = 1;
+
+  // Total disk space in bytes.
+  int64 total = 2;
+
+  // Disk usage percentage.
+  double percent = 3;
+}
+
+// DiskPartitionInfo provides usage data for a mounted volume.
+message DiskPartitionInfo {
+  string device = 1;
+  string mount_point = 2;
+  int64 size_bytes = 3;
+  string size_human = 4;
+  int64 used_bytes = 5;
+  string used_human = 6;
+  int64 available_bytes = 7;
+  string available_human = 8;
+  double use_percent = 9;
+}
+
+// DiskUsageEntry represents a directory or file contributing to disk usage.
+message DiskUsageEntry {
+  string path = 1;
+  int64 size_bytes = 2;
+  string size_human = 3;
+  string category = 4;
+}
+
+// DiskDetailResponse aggregates disk usage insights.
+message DiskDetailResponse {
+  repeated DiskPartitionInfo partitions = 1;
+  string active_mount = 2;
+  int32 depth = 3;
+  repeated DiskUsageEntry top_directories = 4;
+  repeated DiskUsageEntry largest_files = 5;
+  repeated string notes = 6;
+  google.protobuf.Timestamp timestamp = 7;
+}
+
+// PortUsageInfo tracks port usage.
+message PortUsageInfo {
+  // Used ports.
+  int32 used = 1;
+
+  // Total available ports.
+  int32 total = 2;
+}
+
+// FileDescriptorInfo tracks file descriptor usage.
+message FileDescriptorInfo {
+  // Used file descriptors.
+  int32 used = 1;
+
+  // Maximum file descriptors.
+  int32 max = 2;
+
+  // Usage percentage.
+  double percent = 3;
+}
+
+// InotifyWatcherInfo captures inotify watcher and instance utilisation.
+message InotifyWatcherInfo {
+  bool supported = 1;
+  int32 watches_used = 2;
+  int32 watches_max = 3;
+  double watches_percent = 4;
+  int32 instances_used = 5;
+  int32 instances_max = 6;
+  double instances_percent = 7;
+}
+
+// ProcessMonitorData contains process monitoring information.
+message ProcessMonitorData {
+  // Process health summary.
+  ProcessHealthInfo process_health = 1;
+
+  // Resource utilization matrix.
+  repeated ProcessInfo resource_matrix = 2;
+
+  // When this data was collected.
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// ProcessHealthInfo summarizes process health.
+message ProcessHealthInfo {
+  // Total number of processes.
+  int32 total_processes = 1;
+
+  // Zombie processes.
+  repeated ProcessInfo zombie_processes = 2;
+
+  // Processes with high thread counts.
+  repeated ProcessInfo high_thread_count = 3;
+
+  // Processes suspected of leaking resources.
+  repeated ProcessInfo leak_candidates = 4;
+}
+
+// InfrastructureMonitorData contains infrastructure metrics.
+message InfrastructureMonitorData {
+  // Database connection pools.
+  repeated ConnectionPool database_pools = 1;
+
+  // HTTP client connection pools.
+  repeated ConnectionPool http_client_pools = 2;
+
+  // Message queue metrics.
+  MessageQueueInfo message_queues = 3;
+
+  // Storage I/O metrics.
+  StorageIOInfo storage_io = 4;
+
+  // When this data was collected.
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// MessageQueueInfo contains message queue metrics.
+message MessageQueueInfo {
+  // Redis pub/sub metrics.
+  RedisPubSubInfo redis_pubsub = 1;
+
+  // Background job metrics.
+  BackgroundJobsInfo background_jobs = 2;
+}
+
+// RedisPubSubInfo contains Redis pub/sub metrics.
+message RedisPubSubInfo {
+  int32 subscribers = 1;
+  int32 channels = 2;
+}
+
+// BackgroundJobsInfo contains background job metrics.
+message BackgroundJobsInfo {
+  int32 pending = 1;
+  int32 active = 2;
+  int32 failed = 3;
+}
+
+// StorageIOInfo contains storage I/O metrics.
+message StorageIOInfo {
+  double disk_queue_depth = 1;
+  double io_wait_percent = 2;
+  double read_mb_per_sec = 3;
+  double write_mb_per_sec = 4;
+}
+
+// =============================================================================
+// METRICS API MESSAGES
+// =============================================================================
+//
+// @stability beta
+//
+// Request/response wrappers for metrics API endpoints.
+//
+// =============================================================================
+
+// GetCurrentMetricsRequest is empty - no parameters needed.
+message GetCurrentMetricsRequest {}
+
+// GetCurrentMetricsResponse returns current system metrics.
+message GetCurrentMetricsResponse {
+  // Current metrics snapshot.
+  MetricsResponse metrics = 1;
+}
+
+// GetDetailedMetricsRequest is empty - no parameters needed.
+message GetDetailedMetricsRequest {}
+
+// GetDetailedMetricsResponse returns comprehensive system metrics.
+message GetDetailedMetricsResponse {
+  // Detailed metrics.
+  DetailedMetrics metrics = 1;
+}
+
+// GetProcessMonitorRequest is empty - no parameters needed.
+message GetProcessMonitorRequest {}
+
+// GetProcessMonitorResponse returns process monitoring data.
+message GetProcessMonitorResponse {
+  // Process monitor data.
+  ProcessMonitorData data = 1;
+}
+
+// GetInfrastructureMonitorRequest is empty - no parameters needed.
+message GetInfrastructureMonitorRequest {}
+
+// GetInfrastructureMonitorResponse returns infrastructure monitoring data.
+message GetInfrastructureMonitorResponse {
+  // Infrastructure monitor data.
+  InfrastructureMonitorData data = 1;
+}
+
+// GetMetricsTimelineRequest specifies timeline parameters.
+message GetMetricsTimelineRequest {
+  // Window duration in seconds.
+  optional int32 window_seconds = 1;
+
+  // Sample interval in seconds.
+  optional int32 sample_interval_seconds = 2;
+}
+
+// GetMetricsTimelineResponse returns a metrics timeline.
+message GetMetricsTimelineResponse {
+  // Timeline data.
+  MetricsTimelineResponse timeline = 1;
+}
+
+// GetDiskDetailRequest is empty - no parameters needed.
+message GetDiskDetailRequest {}
+
+// GetDiskDetailResponse returns disk usage details.
+message GetDiskDetailResponse {
+  // Disk detail data.
+  DiskDetailResponse data = 1;
+}
+
+// MetricsService provides the metrics RPC surface.
+service MetricsService {
+  // GetCurrentMetrics returns the current system metrics snapshot.
+  rpc GetCurrentMetrics(GetCurrentMetricsRequest) returns (GetCurrentMetricsResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics"};
+
+  }
+
+  // GetDetailedMetrics returns comprehensive system metrics.
+  rpc GetDetailedMetrics(GetDetailedMetricsRequest) returns (GetDetailedMetricsResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/detailed"};
+
+  }
+
+  // GetProcessMonitor returns process monitoring data.
+  rpc GetProcessMonitor(GetProcessMonitorRequest) returns (GetProcessMonitorResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/processes"};
+
+  }
+
+  // GetInfrastructureMonitor returns infrastructure monitoring data.
+  rpc GetInfrastructureMonitor(GetInfrastructureMonitorRequest) returns (GetInfrastructureMonitorResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/infrastructure"};
+
+  }
+
+  // GetMetricsTimeline returns a windowed metrics timeline.
+  rpc GetMetricsTimeline(GetMetricsTimelineRequest) returns (GetMetricsTimelineResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/timeline"};
+
+  }
+
+  // GetDiskDetail returns disk usage details.
+  rpc GetDiskDetail(GetDiskDetailRequest) returns (GetDiskDetailResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/disk"};
+
+  }
+}

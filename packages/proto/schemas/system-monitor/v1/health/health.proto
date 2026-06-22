@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.health;
+
+import "common/v1/types.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health;health";
+
+// HealthRequest is empty - no parameters needed.
+message HealthRequest {}
+
+// HealthResponse is the system-monitor health endpoint contract.
+//
+// Kept service-local to satisfy RPC message linting while preserving the
+// shared JSON shape exposed by /health.
+message HealthResponse {
+  // Overall service health status.
+  common.v1.HealthStatus status = 1;
+  // Identifier for the service reporting health.
+  string service = 2;
+  // RFC3339 timestamp when the check was produced.
+  string timestamp = 3;
+  // Readiness indicator for load balancers.
+  bool readiness = 4;
+  // Optional service version string.
+  string version = 5;
+  reserved 6, 7;
+  reserved "dependencies_untyped", "metrics_untyped";
+  // Status of downstream dependencies.
+  map<string, common.v1.JsonValue> dependencies = 8;
+  // Additional health metrics for monitoring.
+  map<string, common.v1.JsonValue> metrics = 9;
+}
+
+// HealthService provides the health RPC surface.
+service HealthService {
+  // Health returns the service health status.
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {get: "/health"};
+
+  }
+}

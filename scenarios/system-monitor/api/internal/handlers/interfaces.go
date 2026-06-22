@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 
+	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
+	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services"
@@ -62,6 +64,17 @@ type MaintenanceProvider interface {
 	RetentionApply(ctx context.Context, retentionDays int, confirm bool) (repository.RetentionResult, repository.DatabaseStats, repository.DatabaseStats, error)
 	CompactionPreview(ctx context.Context) (repository.DatabaseStats, int64, error)
 	CompactionApply(ctx context.Context, confirm bool) (repository.CompactionResult, error)
+}
+
+// CapacityProvider provides read access to the platform capacity ledger plus
+// policy mutation. It reads claims/findings/policy and the live per-GPU
+// contention picture; it never mutates claims (those flow through the broker).
+type CapacityProvider interface {
+	Overview(ctx context.Context) (services.CapacityOverview, error)
+	ListClaims(ctx context.Context, ownerID string, activeOnly bool) ([]capacityapp.ClaimView, error)
+	Reconcile(ctx context.Context) ([]engine.Finding, error)
+	Policy(ctx context.Context) ([]capacityapp.PolicyEntry, error)
+	SetPolicy(ctx context.Context, key, value string) ([]capacityapp.PolicyEntry, error)
 }
 
 // SettingsProvider provides settings management.

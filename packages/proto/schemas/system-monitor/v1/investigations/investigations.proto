@@ -1,0 +1,708 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.investigations;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations;investigations";
+
+// =============================================================================
+// SYSTEM-MONITOR CORE TYPES
+// =============================================================================
+//
+// @stability beta
+//
+// Core enums for the system-monitor scenario.
+// These form the foundation for investigation and metrics domain types.
+//
+// USAGE CONTEXTS:
+//   - Investigation Lifecycle: InvestigationStatus, InvestigationStepStatus
+//   - Finding Classification: FindingType, Severity, Relevance
+//   - Trigger Configuration: TriggerCondition
+//   - Resolution Planning: RiskLevel
+//
+// =============================================================================
+
+// =============================================================================
+// INVESTIGATION STATUS
+// =============================================================================
+
+// InvestigationStatus represents the lifecycle state of an investigation.
+//
+// State machine:
+//   queued -> in_progress -> completed
+//                        \-> failed
+//                        \-> stopped
+//                        \-> cancelled
+//
+enum InvestigationStatus {
+  // Default/unspecified.
+  INVESTIGATION_STATUS_UNSPECIFIED = 0;
+
+  // Investigation is waiting to be processed.
+  INVESTIGATION_STATUS_QUEUED = 1;
+
+  // Investigation is actively running.
+  INVESTIGATION_STATUS_IN_PROGRESS = 2;
+
+  // Investigation completed successfully.
+  INVESTIGATION_STATUS_COMPLETED = 3;
+
+  // Investigation failed with error.
+  INVESTIGATION_STATUS_FAILED = 4;
+
+  // Investigation was stopped by user.
+  INVESTIGATION_STATUS_STOPPED = 5;
+
+  // Investigation was cancelled.
+  INVESTIGATION_STATUS_CANCELLED = 6;
+}
+
+// =============================================================================
+// INVESTIGATION STEP STATUS
+// =============================================================================
+
+// InvestigationStepStatus represents the state of an individual step.
+//
+enum InvestigationStepStatus {
+  // Default/unspecified.
+  INVESTIGATION_STEP_STATUS_UNSPECIFIED = 0;
+
+  // Step is waiting to execute.
+  INVESTIGATION_STEP_STATUS_PENDING = 1;
+
+  // Step is currently executing.
+  INVESTIGATION_STEP_STATUS_IN_PROGRESS = 2;
+
+  // Step completed successfully.
+  INVESTIGATION_STEP_STATUS_COMPLETED = 3;
+
+  // Step failed with error.
+  INVESTIGATION_STEP_STATUS_FAILED = 4;
+
+  // Step was skipped.
+  INVESTIGATION_STEP_STATUS_SKIPPED = 5;
+}
+
+// =============================================================================
+// FINDING TYPE
+// =============================================================================
+
+// FindingType categorizes investigation findings by data source.
+//
+enum FindingType {
+  // Default/unspecified.
+  FINDING_TYPE_UNSPECIFIED = 0;
+
+  // Finding based on metric data.
+  FINDING_TYPE_METRIC = 1;
+
+  // Finding based on log analysis.
+  FINDING_TYPE_LOG = 2;
+
+  // Finding based on process analysis.
+  FINDING_TYPE_PROCESS = 3;
+
+  // Finding based on network analysis.
+  FINDING_TYPE_NETWORK = 4;
+}
+
+// =============================================================================
+// SEVERITY
+// =============================================================================
+
+// Severity indicates the impact level of a finding or anomaly.
+//
+enum Severity {
+  // Default/unspecified.
+  SEVERITY_UNSPECIFIED = 0;
+
+  // Low impact, informational.
+  SEVERITY_LOW = 1;
+
+  // Medium impact, may require attention.
+  SEVERITY_MEDIUM = 2;
+
+  // High impact, requires attention.
+  SEVERITY_HIGH = 3;
+
+  // Critical impact, requires immediate action.
+  SEVERITY_CRITICAL = 4;
+}
+
+// =============================================================================
+// RELEVANCE
+// =============================================================================
+
+// Relevance indicates how relevant a timeline event is to the investigation.
+//
+enum Relevance {
+  // Default/unspecified.
+  RELEVANCE_UNSPECIFIED = 0;
+
+  // Low relevance.
+  RELEVANCE_LOW = 1;
+
+  // Medium relevance.
+  RELEVANCE_MEDIUM = 2;
+
+  // High relevance.
+  RELEVANCE_HIGH = 3;
+}
+
+// =============================================================================
+// TRIGGER CONDITION
+// =============================================================================
+
+// TriggerCondition defines when a trigger fires relative to its threshold.
+//
+enum TriggerCondition {
+  // Default/unspecified.
+  TRIGGER_CONDITION_UNSPECIFIED = 0;
+
+  // Trigger when metric exceeds threshold.
+  TRIGGER_CONDITION_ABOVE = 1;
+
+  // Trigger when metric falls below threshold.
+  TRIGGER_CONDITION_BELOW = 2;
+}
+
+// =============================================================================
+// RISK LEVEL
+// =============================================================================
+
+// RiskLevel indicates the risk associated with a resolution plan or action.
+//
+enum RiskLevel {
+  // Default/unspecified.
+  RISK_LEVEL_UNSPECIFIED = 0;
+
+  // Low risk, safe to execute.
+  RISK_LEVEL_LOW = 1;
+
+  // Medium risk, review recommended.
+  RISK_LEVEL_MEDIUM = 2;
+
+  // High risk, manual approval required.
+  RISK_LEVEL_HIGH = 3;
+
+  // Critical risk, expert supervision required.
+  RISK_LEVEL_CRITICAL = 4;
+}
+
+// =============================================================================
+// INVESTIGATION DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Investigation models for anomaly detection and resolution.
+// These types represent the core investigation workflow.
+//
+// USAGE CONTEXTS:
+//   - API responses for investigation CRUD endpoints
+//   - UI data models (investigation list and details)
+//   - Agent-manager integration payloads
+//
+// =============================================================================
+
+// Investigation represents an anomaly investigation.
+message Investigation {
+  // Unique investigation identifier.
+  string id = 1;
+
+  // Current lifecycle status.
+  InvestigationStatus status = 2;
+
+  // ID of the anomaly that triggered this investigation.
+  string anomaly_id = 3;
+
+  // When the investigation started.
+  google.protobuf.Timestamp start_time = 4;
+
+  // When the investigation ended (set on completion/failure).
+  optional google.protobuf.Timestamp end_time = 5;
+
+  // Human-readable summary of findings.
+  string findings = 6;
+
+  // Progress percentage (0-100).
+  int32 progress = 7;
+
+  // Arbitrary investigation details and metadata.
+  google.protobuf.Struct details = 8;
+
+  // Ordered steps in this investigation.
+  repeated InvestigationStep steps = 9;
+
+  // Reason for triggering this investigation.
+  optional string trigger_reason = 10;
+
+  // Confidence score of findings (0.0 to 1.0).
+  optional double confidence_score = 11;
+
+  // ID of the agent performing this investigation.
+  optional string agent_id = 12;
+}
+
+// InvestigationStep represents a step in an investigation.
+message InvestigationStep {
+  // Step name/label.
+  string name = 1;
+
+  // Current status of this step.
+  InvestigationStepStatus status = 2;
+
+  // When this step started.
+  google.protobuf.Timestamp start_time = 3;
+
+  // When this step ended.
+  optional google.protobuf.Timestamp end_time = 4;
+
+  // Findings from this step.
+  string findings = 5;
+}
+
+// InvestigationFinding represents a finding during investigation.
+message InvestigationFinding {
+  // Type of data source for this finding.
+  FindingType type = 1;
+
+  // Human-readable description.
+  string description = 2;
+
+  // Confidence level (0.0 to 1.0).
+  double confidence = 3;
+
+  // Supporting evidence.
+  repeated string evidence = 4;
+
+  // When this finding was recorded.
+  google.protobuf.Timestamp timestamp = 5;
+
+  // Impact severity of this finding.
+  Severity impact = 6;
+}
+
+// RootCause represents the identified root cause of an issue.
+message RootCause {
+  // Category of the root cause.
+  string category = 1;
+
+  // Human-readable description.
+  string description = 2;
+
+  // Confidence level (0.0 to 1.0).
+  double confidence = 3;
+
+  // Supporting evidence.
+  repeated string evidence = 4;
+
+  // Timeline of events leading to the root cause.
+  repeated TimelineEvent timeline = 5;
+}
+
+// TimelineEvent represents an event in the investigation timeline.
+message TimelineEvent {
+  // When this event occurred.
+  google.protobuf.Timestamp timestamp = 1;
+
+  // Description of the event.
+  string event = 2;
+
+  // Source system/component.
+  string source = 3;
+
+  // How relevant this event is to the investigation.
+  Relevance relevance = 4;
+}
+
+// ImpactAssessment assesses the impact of an anomaly.
+message ImpactAssessment {
+  // Overall severity.
+  Severity severity = 1;
+
+  // Estimated number of affected users.
+  int32 affected_users = 2;
+
+  // Performance degradation percentage.
+  double performance_loss = 3;
+
+  // Estimated financial cost.
+  double estimated_cost = 4;
+
+  // Business impact descriptions.
+  repeated string business_impact = 5;
+}
+
+// ResolutionPlan provides steps to resolve an issue.
+message ResolutionPlan {
+  // Ordered resolution steps.
+  repeated ResolutionStep steps = 1;
+
+  // Estimated time to complete.
+  string estimated_time = 2;
+
+  // Skills needed for resolution.
+  repeated string required_skills = 3;
+
+  // Risk level of executing this plan.
+  RiskLevel risk_level = 4;
+
+  // Whether this plan can be automatically executed.
+  bool auto_executable = 5;
+}
+
+// ResolutionStep represents a single step in resolution.
+message ResolutionStep {
+  // Execution order.
+  int32 order = 1;
+
+  // Human-readable description.
+  string description = 2;
+
+  // Command to execute (if applicable).
+  string command = 3;
+
+  // Expected outcome.
+  string expected = 4;
+
+  // Risk description for this step.
+  string risk = 5;
+}
+
+// TriggerConfig represents configuration for automatic investigation triggers.
+message TriggerConfig {
+  // Unique trigger identifier.
+  string id = 1;
+
+  // Display name.
+  string name = 2;
+
+  // Human-readable description.
+  string description = 3;
+
+  // Icon identifier for UI display.
+  string icon = 4;
+
+  // Whether this trigger is active.
+  bool enabled = 5;
+
+  // Whether to automatically apply fixes.
+  bool auto_fix = 6;
+
+  // Threshold value for triggering.
+  double threshold = 7;
+
+  // Unit of measurement for the threshold.
+  string unit = 8;
+
+  // Condition for triggering relative to threshold.
+  TriggerCondition condition = 9;
+}
+
+// CooldownStatus represents the current investigation cooldown status.
+message CooldownStatus {
+  // Total cooldown period in seconds.
+  int32 cooldown_period_seconds = 1;
+
+  // Remaining seconds until cooldown expires.
+  int32 remaining_seconds = 2;
+
+  // When the last investigation was triggered.
+  google.protobuf.Timestamp last_trigger_time = 3;
+
+  // Whether a new investigation can be triggered.
+  bool is_ready = 4;
+}
+
+// Anomaly represents a detected system anomaly.
+message Anomaly {
+  // Unique anomaly identifier.
+  string id = 1;
+
+  // Type of anomaly.
+  string type = 2;
+
+  // Severity of the anomaly.
+  Severity severity = 3;
+
+  // Human-readable description.
+  string description = 4;
+
+  // Metric data associated with this anomaly.
+  google.protobuf.Struct metric_data = 5;
+
+  // When the anomaly was detected.
+  google.protobuf.Timestamp detected_at = 6;
+
+  // When the anomaly was resolved (if applicable).
+  optional google.protobuf.Timestamp resolved_at = 7;
+
+  // Current status.
+  InvestigationStatus status = 8;
+}
+
+// =============================================================================
+// INVESTIGATION API MESSAGES
+// =============================================================================
+//
+// @stability beta
+//
+// Request/response wrappers for investigation API endpoints.
+//
+// =============================================================================
+
+// TriggerInvestigationRequest starts a new investigation.
+message TriggerInvestigationRequest {
+  // Whether to automatically apply fixes.
+  bool auto_fix = 1;
+
+  // Optional user note providing context.
+  string note = 2;
+}
+
+// TriggerInvestigationResponse returns the queued investigation.
+message TriggerInvestigationResponse {
+  // Status of the request.
+  string status = 1;
+
+  // ID of the created investigation.
+  string investigation_id = 2;
+
+  // API base URL for polling.
+  string api_base_url = 3;
+
+  // Confirmation message.
+  string message = 4;
+
+  // Whether auto-fix was requested.
+  bool auto_fix = 5;
+
+  // User note that was provided.
+  string note = 6;
+}
+
+// GetInvestigationRequest retrieves a specific investigation.
+message GetInvestigationRequest {
+  // Investigation ID.
+  string id = 1;
+}
+
+// GetInvestigationResponse returns a single investigation.
+message GetInvestigationResponse {
+  // The investigation.
+  Investigation investigation = 1;
+}
+
+// GetLatestInvestigationRequest is empty - no parameters needed.
+message GetLatestInvestigationRequest {}
+
+// GetLatestInvestigationResponse returns the most recent investigation.
+message GetLatestInvestigationResponse {
+  // The latest investigation.
+  Investigation investigation = 1;
+}
+
+// ListInvestigationsRequest lists investigations with pagination.
+message ListInvestigationsRequest {
+  // Maximum number of results.
+  optional int32 limit = 1;
+}
+
+// ListInvestigationsResponse returns a list of investigations.
+message ListInvestigationsResponse {
+  // List of investigations.
+  repeated Investigation investigations = 1;
+}
+
+// UpdateInvestigationStatusRequest updates an investigation's status.
+message UpdateInvestigationStatusRequest {
+  // Investigation ID.
+  string id = 1;
+
+  // New status.
+  InvestigationStatus status = 2;
+}
+
+// UpdateInvestigationStatusResponse confirms the status update.
+message UpdateInvestigationStatusResponse {
+  // Confirmation.
+  string status = 1;
+}
+
+// UpdateInvestigationFindingsRequest updates an investigation's findings.
+message UpdateInvestigationFindingsRequest {
+  // Investigation ID.
+  string id = 1;
+
+  // Updated findings text.
+  string findings = 2;
+
+  // Additional details.
+  google.protobuf.Struct details = 3;
+}
+
+// UpdateInvestigationFindingsResponse confirms the findings update.
+message UpdateInvestigationFindingsResponse {
+  // Confirmation.
+  string status = 1;
+}
+
+// UpdateInvestigationProgressRequest updates investigation progress.
+message UpdateInvestigationProgressRequest {
+  // Investigation ID.
+  string id = 1;
+
+  // Progress percentage (0-100).
+  int32 progress = 2;
+}
+
+// UpdateInvestigationProgressResponse confirms the progress update.
+message UpdateInvestigationProgressResponse {
+  // Confirmation.
+  string status = 1;
+}
+
+// AddInvestigationStepRequest adds a step to an investigation.
+message AddInvestigationStepRequest {
+  // Investigation ID.
+  string id = 1;
+
+  // Step to add.
+  InvestigationStep step = 2;
+}
+
+// AddInvestigationStepResponse confirms the step was added.
+message AddInvestigationStepResponse {
+  // Confirmation.
+  string status = 1;
+}
+
+// GetCooldownStatusRequest is empty - no parameters needed.
+message GetCooldownStatusRequest {}
+
+// GetCooldownStatusResponse returns cooldown status.
+message GetCooldownStatusResponse {
+  // The cooldown status.
+  CooldownStatus cooldown = 1;
+}
+
+// GetTriggersRequest is empty - no parameters needed.
+message GetTriggersRequest {}
+
+// GetTriggersResponse returns trigger configurations.
+message GetTriggersResponse {
+  // Map of trigger ID to configuration.
+  map<string, TriggerConfig> triggers = 1;
+}
+
+// UpdateTriggerRequest updates a trigger configuration.
+message UpdateTriggerRequest {
+  // Trigger ID.
+  string id = 1;
+
+  // Whether the trigger is enabled.
+  optional bool enabled = 2;
+
+  // Whether auto-fix is enabled.
+  optional bool auto_fix = 3;
+
+  // Threshold value.
+  optional double threshold = 4;
+}
+
+// UpdateTriggerResponse confirms the trigger update.
+message UpdateTriggerResponse {
+  // Confirmation.
+  string status = 1;
+}
+
+// InvestigationsService provides the investigations RPC surface.
+service InvestigationsService {
+  // TriggerInvestigation starts a new anomaly investigation.
+  rpc TriggerInvestigation(TriggerInvestigationRequest) returns (TriggerInvestigationResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/trigger"
+      body: "*"
+    };
+
+  }
+
+  // GetInvestigation retrieves an investigation by ID.
+  rpc GetInvestigation(GetInvestigationRequest) returns (GetInvestigationResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/{id}"};
+
+  }
+
+  // GetLatestInvestigation retrieves the most recent investigation.
+  rpc GetLatestInvestigation(GetLatestInvestigationRequest) returns (GetLatestInvestigationResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/latest"};
+
+  }
+
+  // ListInvestigations returns recent investigations.
+  rpc ListInvestigations(ListInvestigationsRequest) returns (ListInvestigationsResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations"};
+
+  }
+
+  // UpdateInvestigationStatus updates an investigation's status.
+  rpc UpdateInvestigationStatus(UpdateInvestigationStatusRequest) returns (UpdateInvestigationStatusResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/{id}/status"
+      body: "*"
+    };
+
+  }
+
+  // UpdateInvestigationFindings updates an investigation's findings.
+  rpc UpdateInvestigationFindings(UpdateInvestigationFindingsRequest) returns (UpdateInvestigationFindingsResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/{id}/findings"
+      body: "*"
+    };
+
+  }
+
+  // UpdateInvestigationProgress updates investigation progress.
+  rpc UpdateInvestigationProgress(UpdateInvestigationProgressRequest) returns (UpdateInvestigationProgressResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/{id}/progress"
+      body: "*"
+    };
+
+  }
+
+  // AddInvestigationStep adds a step to an investigation.
+  rpc AddInvestigationStep(AddInvestigationStepRequest) returns (AddInvestigationStepResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/{id}/step"
+      body: "*"
+    };
+
+  }
+
+  // GetCooldownStatus returns the current investigation cooldown.
+  rpc GetCooldownStatus(GetCooldownStatusRequest) returns (GetCooldownStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/cooldown"};
+
+  }
+
+  // GetTriggers returns all trigger configurations.
+  rpc GetTriggers(GetTriggersRequest) returns (GetTriggersResponse) {
+    option (google.api.http) = {get: "/api/v1/investigations/triggers"};
+
+  }
+
+  // UpdateTrigger updates a trigger configuration.
+  rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/triggers/{id}"
+      body: "*"
+    };
+
+  }
+}

@@ -59,6 +59,9 @@ export const Header = ({
           <NavLink to="/logs" className="app-nav-link">
             Logs
           </NavLink>
+          <NavLink to="/capacity" className="app-nav-link">
+            Capacity
+          </NavLink>
           <NavLink to="/scripts" className="app-nav-link">
             Scripts
           </NavLink>
