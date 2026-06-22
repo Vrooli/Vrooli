@@ -284,12 +284,30 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			return "", ctx.Err()
 		default:
 		}
-		key, err := e.runOnce(ctx, op, model, bsel, tmpDir, inputs, pl, i)
+		// Map this variation's in-flight progress into its slice of the 5–90%
+		// band so a long backend run (e.g. sd-cli CPU sampling) advances the bar
+		// instead of sitting at a static percent. The first variation starts at 5
+		// (the "selected" mark); each subsequent one resumes where the prior ended.
+		lo := 5
+		if i > 0 {
+			lo = 10 + int(float64(i)/float64(variations)*80)
+		}
+		hi := 10 + int(float64(i+1)/float64(variations)*80)
+		progress := func(frac float64, message string) {
+			if frac < 0 {
+				frac = 0
+			}
+			if frac > 1 {
+				frac = 1
+			}
+			emit(lo+int(frac*float64(hi-lo)), message)
+		}
+		key, err := e.runOnce(ctx, op, model, bsel, tmpDir, inputs, pl, i, progress)
 		if err != nil {
 			return "", err
 		}
 		outKeys = append(outKeys, key)
-		emit(10+int(float64(i+1)/float64(variations)*80), fmt.Sprintf("produced %d/%d", i+1, variations))
+		emit(hi, fmt.Sprintf("produced %d/%d", i+1, variations))
 	}
 
 	primary := outKeys[0]
@@ -354,7 +372,7 @@ func (e *Engine) fetchToFile(ctx context.Context, dir, name, key string) (string
 	return path, nil
 }
 
-func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bsel backends.Selection, tmpDir string, in inputFiles, pl Payload, variation int) (string, error) {
+func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bsel backends.Selection, tmpDir string, in inputFiles, pl Payload, variation int, progress func(frac float64, message string)) (string, error) {
 	outPath := filepath.Join(tmpDir, fmt.Sprintf("out-%d.png", variation))
 	params := map[string]string{}
 	for k, v := range pl.Params {
@@ -374,6 +392,7 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 		InputKeys: collectInputs(in),
 		Output:    storage.OutputTarget{LocalPath: outPath},
 		Params:    params,
+		Progress:  progress,
 	}
 	if _, err := bsel.Provider.Execute(ctx, req); err != nil {
 		return "", err

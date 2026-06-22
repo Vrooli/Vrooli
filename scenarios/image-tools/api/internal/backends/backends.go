@@ -66,6 +66,12 @@ type Request struct {
 	Params map[string]string
 	// Output selects where the result is written.
 	Output storage.OutputTarget
+	// Progress is an optional sink for in-flight execution progress. A provider
+	// that runs a long external process (e.g. a stable-diffusion.cpp sampling
+	// loop) calls it with frac in [0,1] and a short human message so the job
+	// layer can surface live progress instead of sitting at a static percent.
+	// Nil when the caller wants no streaming (the common case in tests).
+	Progress func(frac float64, message string)
 }
 
 // Result is the outcome of a Provider execution.

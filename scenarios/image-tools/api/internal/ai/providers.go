@@ -1,14 +1,19 @@
 package ai
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
@@ -48,7 +53,7 @@ type execProvider struct {
 	program    string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
 	ops        []string
 	build      argBuilder
-	gpuCapable bool // can this backend actually use the GPU? (CPU-only sidecars: false)
+	gpuCapable bool // can this backend (the TYPE) use the GPU? (CPU-only sidecars: false)
 	provision  string
 	imports    []string
 	lookPath   lookPathFunc
@@ -56,6 +61,21 @@ type execProvider struct {
 	checkONNX  onnxProviderChecker
 	run        commandRunner
 	warm       warmRunner
+	// gpuProbe, when set, reports whether the INSTALLED binary actually has a GPU
+	// compute backend compiled in (a prebuilt release may be CPU-only even though
+	// the backend type can use a GPU). gpuCapable gates the type; gpuProbe gates
+	// the install. Result is cached via gpuProbeOnce so selection stays cheap.
+	gpuProbe      func(ctx context.Context, program string) bool
+	gpuProbeOnce  sync.Once
+	gpuProbeValue bool
+	// progressScan, when set, parses a single line/fragment of the backend's
+	// stdout/stderr into execution progress. Returning ok=true streams a
+	// Request.Progress update; the long-running run no longer sits at a static
+	// percent. Only backends that emit parseable progress (sd-cli) set it.
+	progressScan func(line string) (frac float64, message string, ok bool)
+	// stream, when set, runs the command while feeding each output fragment to a
+	// callback (for progressScan). Defaults to defaultStreamRun. Injected in tests.
+	stream streamRunner
 }
 
 func (p *execProvider) Name() string         { return p.name }
@@ -66,7 +86,32 @@ func (p *execProvider) IsCloud() bool        { return false }
 // GPUCapable reports whether this backend can run on the GPU. The onnxruntime
 // sidecar is bound to CPUExecutionProvider, so it returns false and the selector
 // labels its runs local-cpu even on a GPU host (honest tier reporting).
-func (p *execProvider) GPUCapable() bool { return p.gpuCapable }
+//
+// gpuCapable is the static capability of the backend TYPE. When a gpuProbe is
+// set, the INSTALLED binary is also consulted (cached): a prebuilt
+// stable-diffusion.cpp release with no CUDA/Vulkan backend compiled in runs on
+// the CPU regardless of a GPU on the host, so claiming local-gpu would be a lie
+// (the user sees "Running on your GPU" while the binary reports VRAM 0.00MB).
+func (p *execProvider) GPUCapable() bool {
+	if !p.gpuCapable {
+		return false
+	}
+	if p.gpuProbe == nil {
+		return true
+	}
+	p.gpuProbeOnce.Do(func() {
+		program := p.program
+		if p.lookPath != nil {
+			if resolved, err := p.lookPath(p.program); err == nil {
+				program = resolved
+			} else {
+				return // not installed → leave gpuProbeValue false
+			}
+		}
+		p.gpuProbeValue = p.gpuProbe(context.Background(), program)
+	})
+	return p.gpuProbeValue
+}
 
 // Available reports whether the backend program is resolvable on PATH.
 func (p *execProvider) Available(ctx context.Context) bool {
@@ -201,6 +246,24 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 			return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name, "runner": "warm"}}, nil
 		}
 	}
+	// Stream when the caller wants progress and this backend can parse its own
+	// output. Otherwise fall back to the simple run-to-completion path so the
+	// long sampling loop no longer leaves the job frozen at a static percent.
+	if req.Progress != nil && p.progressScan != nil {
+		stream := p.stream
+		if stream == nil {
+			stream = defaultStreamRun
+		}
+		onLine := func(line string) {
+			if frac, msg, ok := p.progressScan(line); ok {
+				req.Progress(frac, msg)
+			}
+		}
+		if err := stream(ctx, p.program, args, onLine); err != nil {
+			return backends.Result{}, fmt.Errorf("ai: backend %q execution failed: %w", p.name, err)
+		}
+		return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name, "runner": "stream"}}, nil
+	}
 	run := p.run
 	if run == nil {
 		run = defaultRun
@@ -227,6 +290,126 @@ func defaultRunOutput(ctx context.Context, name string, args []string) ([]byte, 
 		return nil, fmt.Errorf("%s %v: %w (%s)", name, args, err, string(out))
 	}
 	return out, nil
+}
+
+// streamRunner runs a command, invoking onLine for each output fragment as it is
+// produced (split on \r and \n, since progress bars redraw with \r). It still
+// returns a non-nil error carrying captured output on a non-zero exit, matching
+// defaultRun's error shape.
+type streamRunner func(ctx context.Context, name string, args []string, onLine func(line string)) error
+
+// defaultStreamRun is the real streamRunner. It merges stdout+stderr, scans
+// fragments live (so per-step progress surfaces immediately rather than buffering
+// until a newline), and accumulates everything for the failure message.
+func defaultStreamRun(ctx context.Context, name string, args []string, onLine func(line string)) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("%s: stdout pipe: %w", name, err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("%s: stderr pipe: %w", name, err)
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("%s: start: %w", name, err)
+	}
+
+	var (
+		mu  sync.Mutex
+		buf strings.Builder
+		wg  sync.WaitGroup
+	)
+	scan := func(r io.Reader) {
+		defer wg.Done()
+		sc := bufio.NewScanner(r)
+		sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		sc.Split(scanLinesOrCR)
+		for sc.Scan() {
+			frag := sc.Text()
+			mu.Lock()
+			buf.WriteString(frag)
+			buf.WriteByte('\n')
+			mu.Unlock()
+			if onLine != nil {
+				onLine(frag)
+			}
+		}
+	}
+	wg.Add(2)
+	go scan(stdout)
+	go scan(stderr)
+	wg.Wait()
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("%s %v: %w (%s)", name, args, err, buf.String())
+	}
+	return nil
+}
+
+// scanLinesOrCR is a bufio.SplitFunc that breaks on either \n or \r, so a
+// carriage-return-redrawn progress bar (e.g. "|====| 3/20\r") yields a fragment
+// per redraw instead of buffering the whole line until the next \n.
+func scanLinesOrCR(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	for i, b := range data {
+		if b == '\n' || b == '\r' {
+			return i + 1, data[:i], nil
+		}
+	}
+	if atEOF {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
+}
+
+// sdSamplerLine matches the stable-diffusion.cpp SAMPLING progress bar, which is
+// the long phase users wait on. It is distinguished from the model-load /
+// vae-decode byte bars (e.g. "|####| 196/196 - 2.28GB/s") by the per-iteration
+// "s/it" or "it/s" rate suffix; only the sampler reports iterations.
+var sdSamplerLine = regexp.MustCompile(`\|[#=> ]*\|\s*(\d+)/(\d+)\s*-\s*[0-9.]+\s*(?:s/it|it/s)`)
+
+// scanStableDiffusionProgress parses one sd-cli output fragment into sampling
+// progress. Returns ok=false for any non-sampler line so the caller streams a
+// Progress update only on real forward motion.
+func scanStableDiffusionProgress(line string) (frac float64, message string, ok bool) {
+	m := sdSamplerLine.FindStringSubmatch(line)
+	if m == nil {
+		return 0, "", false
+	}
+	cur, err1 := strconv.Atoi(m[1])
+	total, err2 := strconv.Atoi(m[2])
+	if err1 != nil || err2 != nil || total <= 0 {
+		return 0, "", false
+	}
+	if cur > total {
+		cur = total
+	}
+	return float64(cur) / float64(total), fmt.Sprintf("sampling step %d/%d", cur, total), true
+}
+
+// probeStableDiffusionGPU reports whether the installed sd-cli has a GPU compute
+// backend compiled in. stable-diffusion.cpp validates the --backend device
+// assignment BEFORE loading the model, so pointing it at a non-existent model is
+// a ~millisecond probe: a CPU-only build prints "backend 'cuda0' was not found"
+// and exits; a GPU build gets past backend config to the model-load failure
+// (which never mentions the device). A short timeout bounds the worst case.
+func probeStableDiffusionGPU(ctx context.Context, program string) bool {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	missing := filepath.Join(os.TempDir(), "imgtools-gpu-probe-nonexistent.safetensors")
+	out := filepath.Join(os.TempDir(), "imgtools-gpu-probe.png")
+	for _, dev := range []string{"cuda0", "vulkan0"} {
+		cmd := exec.CommandContext(ctx, program, "--backend", dev, "-M", "img_gen",
+			"-m", missing, "-o", out, "-p", "probe", "--steps", "1")
+		combined, _ := cmd.CombinedOutput()
+		if !strings.Contains(string(combined), fmt.Sprintf("backend '%s' was not found", dev)) {
+			return true // device backend is compiled in
+		}
+	}
+	return false
 }
 
 // modelDirFor is the on-disk directory a model's weights live under, relative to
@@ -804,6 +987,13 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 		p := &execProvider{name: s.name, program: s.program, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
 		if s.name == "onnxruntime" && run == nil {
 			p.warm = newWarmSidecarRunner()
+		}
+		if s.name == "stable-diffusion.cpp" {
+			// The installed sd-cli may be a CPU-only prebuilt; probe the real binary
+			// so the tier is honest, and parse its sampler bar so the long run shows
+			// live progress instead of a frozen percent.
+			p.gpuProbe = probeStableDiffusionGPU
+			p.progressScan = scanStableDiffusionProgress
 		}
 		if err := reg.Register(p); err != nil {
 			return fmt.Errorf("ai: register provider %q: %w", s.name, err)
