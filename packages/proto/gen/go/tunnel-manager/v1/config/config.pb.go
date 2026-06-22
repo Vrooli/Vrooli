@@ -21,6 +21,125 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// OwnershipState classifies one ingress hostname after reconciling the desired
+// manifest, the live tunnel, and the ownership ledger (see drift.go).
+type OwnershipState int32
+
+const (
+	OwnershipState_OWNERSHIP_STATE_UNSPECIFIED OwnershipState = 0
+	// Scenario-backed desired route that is live (healthy).
+	OwnershipState_OWNERSHIP_STATE_MANAGED OwnershipState = 1
+	// Desired route (scenario or external) not yet live — an add candidate.
+	OwnershipState_OWNERSHIP_STATE_MISSING OwnershipState = 2
+	// External desired/ledger route that is live — tracked, TM owns its ingress.
+	OwnershipState_OWNERSHIP_STATE_EXTERNAL_OK OwnershipState = 3
+	// Ledger-managed hostname whose route is gone — a prune candidate.
+	OwnershipState_OWNERSHIP_STATE_ORPHANED OwnershipState = 4
+	// Ledger-ignored hostname that is live — acknowledged, never touched.
+	OwnershipState_OWNERSHIP_STATE_IGNORED OwnershipState = 5
+	// Live hostname with no desired route and no ledger record — genuine drift.
+	OwnershipState_OWNERSHIP_STATE_UNMANAGED OwnershipState = 6
+)
+
+// Enum value maps for OwnershipState.
+var (
+	OwnershipState_name = map[int32]string{
+		0: "OWNERSHIP_STATE_UNSPECIFIED",
+		1: "OWNERSHIP_STATE_MANAGED",
+		2: "OWNERSHIP_STATE_MISSING",
+		3: "OWNERSHIP_STATE_EXTERNAL_OK",
+		4: "OWNERSHIP_STATE_ORPHANED",
+		5: "OWNERSHIP_STATE_IGNORED",
+		6: "OWNERSHIP_STATE_UNMANAGED",
+	}
+	OwnershipState_value = map[string]int32{
+		"OWNERSHIP_STATE_UNSPECIFIED": 0,
+		"OWNERSHIP_STATE_MANAGED":     1,
+		"OWNERSHIP_STATE_MISSING":     2,
+		"OWNERSHIP_STATE_EXTERNAL_OK": 3,
+		"OWNERSHIP_STATE_ORPHANED":    4,
+		"OWNERSHIP_STATE_IGNORED":     5,
+		"OWNERSHIP_STATE_UNMANAGED":   6,
+	}
+)
+
+func (x OwnershipState) Enum() *OwnershipState {
+	p := new(OwnershipState)
+	*p = x
+	return p
+}
+
+func (x OwnershipState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (OwnershipState) Descriptor() protoreflect.EnumDescriptor {
+	return file_tunnel_manager_v1_config_config_proto_enumTypes[0].Descriptor()
+}
+
+func (OwnershipState) Type() protoreflect.EnumType {
+	return &file_tunnel_manager_v1_config_config_proto_enumTypes[0]
+}
+
+func (x OwnershipState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use OwnershipState.Descriptor instead.
+func (OwnershipState) EnumDescriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{0}
+}
+
+// IngressSource is the provenance of a classified ingress entry.
+type IngressSource int32
+
+const (
+	IngressSource_INGRESS_SOURCE_UNSPECIFIED IngressSource = 0
+	IngressSource_INGRESS_SOURCE_SCENARIO    IngressSource = 1
+	IngressSource_INGRESS_SOURCE_EXTERNAL    IngressSource = 2
+)
+
+// Enum value maps for IngressSource.
+var (
+	IngressSource_name = map[int32]string{
+		0: "INGRESS_SOURCE_UNSPECIFIED",
+		1: "INGRESS_SOURCE_SCENARIO",
+		2: "INGRESS_SOURCE_EXTERNAL",
+	}
+	IngressSource_value = map[string]int32{
+		"INGRESS_SOURCE_UNSPECIFIED": 0,
+		"INGRESS_SOURCE_SCENARIO":    1,
+		"INGRESS_SOURCE_EXTERNAL":    2,
+	}
+)
+
+func (x IngressSource) Enum() *IngressSource {
+	p := new(IngressSource)
+	*p = x
+	return p
+}
+
+func (x IngressSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (IngressSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_tunnel_manager_v1_config_config_proto_enumTypes[1].Descriptor()
+}
+
+func (IngressSource) Type() protoreflect.EnumType {
+	return &file_tunnel_manager_v1_config_config_proto_enumTypes[1]
+}
+
+func (x IngressSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use IngressSource.Descriptor instead.
+func (IngressSource) EnumDescriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{1}
+}
+
 // Mode is the tunnel management mode.
 type Mode int32
 
@@ -57,11 +176,11 @@ func (x Mode) String() string {
 }
 
 func (Mode) Descriptor() protoreflect.EnumDescriptor {
-	return file_tunnel_manager_v1_config_config_proto_enumTypes[0].Descriptor()
+	return file_tunnel_manager_v1_config_config_proto_enumTypes[2].Descriptor()
 }
 
 func (Mode) Type() protoreflect.EnumType {
-	return &file_tunnel_manager_v1_config_config_proto_enumTypes[0]
+	return &file_tunnel_manager_v1_config_config_proto_enumTypes[2]
 }
 
 func (x Mode) Number() protoreflect.EnumNumber {
@@ -70,7 +189,189 @@ func (x Mode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Mode.Descriptor instead.
 func (Mode) EnumDescriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{2}
+}
+
+// IngressEntry is one fully-classified ingress hostname for the drift view.
+type IngressEntry struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Hostname string                 `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	// Local service the tunnel forwards to (e.g. http://localhost:21100).
+	ServiceTarget string         `protobuf:"bytes,2,opt,name=service_target,json=serviceTarget,proto3" json:"service_target,omitempty"`
+	State         OwnershipState `protobuf:"varint,3,opt,name=state,proto3,enum=vrooli.tunnel_manager.v1.config.OwnershipState" json:"state,omitempty"`
+	Source        IngressSource  `protobuf:"varint,4,opt,name=source,proto3,enum=vrooli.tunnel_manager.v1.config.IngressSource" json:"source,omitempty"`
+	// Scenario name when source == SCENARIO.
+	Scenario string `protobuf:"bytes,5,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Lease identifier when the backing route is a lease.
+	LeaseId string `protobuf:"bytes,6,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	// Operator note recorded with an ignore/adopt decision.
+	Note          string `protobuf:"bytes,7,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IngressEntry) Reset() {
+	*x = IngressEntry{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IngressEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IngressEntry) ProtoMessage() {}
+
+func (x *IngressEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IngressEntry.ProtoReflect.Descriptor instead.
+func (*IngressEntry) Descriptor() ([]byte, []int) {
 	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *IngressEntry) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *IngressEntry) GetServiceTarget() string {
+	if x != nil {
+		return x.ServiceTarget
+	}
+	return ""
+}
+
+func (x *IngressEntry) GetState() OwnershipState {
+	if x != nil {
+		return x.State
+	}
+	return OwnershipState_OWNERSHIP_STATE_UNSPECIFIED
+}
+
+func (x *IngressEntry) GetSource() IngressSource {
+	if x != nil {
+		return x.Source
+	}
+	return IngressSource_INGRESS_SOURCE_UNSPECIFIED
+}
+
+func (x *IngressEntry) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *IngressEntry) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
+func (x *IngressEntry) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// DriftCounts is the per-state tally for the drift report.
+type DriftCounts struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Managed       int32                  `protobuf:"varint,1,opt,name=managed,proto3" json:"managed,omitempty"`
+	Missing       int32                  `protobuf:"varint,2,opt,name=missing,proto3" json:"missing,omitempty"`
+	ExternalOk    int32                  `protobuf:"varint,3,opt,name=external_ok,json=externalOk,proto3" json:"external_ok,omitempty"`
+	Orphaned      int32                  `protobuf:"varint,4,opt,name=orphaned,proto3" json:"orphaned,omitempty"`
+	Ignored       int32                  `protobuf:"varint,5,opt,name=ignored,proto3" json:"ignored,omitempty"`
+	Unmanaged     int32                  `protobuf:"varint,6,opt,name=unmanaged,proto3" json:"unmanaged,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DriftCounts) Reset() {
+	*x = DriftCounts{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DriftCounts) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DriftCounts) ProtoMessage() {}
+
+func (x *DriftCounts) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DriftCounts.ProtoReflect.Descriptor instead.
+func (*DriftCounts) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *DriftCounts) GetManaged() int32 {
+	if x != nil {
+		return x.Managed
+	}
+	return 0
+}
+
+func (x *DriftCounts) GetMissing() int32 {
+	if x != nil {
+		return x.Missing
+	}
+	return 0
+}
+
+func (x *DriftCounts) GetExternalOk() int32 {
+	if x != nil {
+		return x.ExternalOk
+	}
+	return 0
+}
+
+func (x *DriftCounts) GetOrphaned() int32 {
+	if x != nil {
+		return x.Orphaned
+	}
+	return 0
+}
+
+func (x *DriftCounts) GetIgnored() int32 {
+	if x != nil {
+		return x.Ignored
+	}
+	return 0
+}
+
+func (x *DriftCounts) GetUnmanaged() int32 {
+	if x != nil {
+		return x.Unmanaged
+	}
+	return 0
 }
 
 // TunnelConfig is the persisted configuration for the tunnel.
@@ -90,7 +391,7 @@ type TunnelConfig struct {
 
 func (x *TunnelConfig) Reset() {
 	*x = TunnelConfig{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[0]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -102,7 +403,7 @@ func (x *TunnelConfig) String() string {
 func (*TunnelConfig) ProtoMessage() {}
 
 func (x *TunnelConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[0]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -115,7 +416,7 @@ func (x *TunnelConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelConfig.ProtoReflect.Descriptor instead.
 func (*TunnelConfig) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{0}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *TunnelConfig) GetMode() Mode {
@@ -183,7 +484,7 @@ type ConfigReadiness struct {
 
 func (x *ConfigReadiness) Reset() {
 	*x = ConfigReadiness{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -195,7 +496,7 @@ func (x *ConfigReadiness) String() string {
 func (*ConfigReadiness) ProtoMessage() {}
 
 func (x *ConfigReadiness) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -208,7 +509,7 @@ func (x *ConfigReadiness) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigReadiness.ProtoReflect.Descriptor instead.
 func (*ConfigReadiness) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{1}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ConfigReadiness) GetDesiredMode() Mode {
@@ -292,7 +593,7 @@ type CredentialFieldStatus struct {
 
 func (x *CredentialFieldStatus) Reset() {
 	*x = CredentialFieldStatus{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -304,7 +605,7 @@ func (x *CredentialFieldStatus) String() string {
 func (*CredentialFieldStatus) ProtoMessage() {}
 
 func (x *CredentialFieldStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -317,7 +618,7 @@ func (x *CredentialFieldStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialFieldStatus.ProtoReflect.Descriptor instead.
 func (*CredentialFieldStatus) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{2}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CredentialFieldStatus) GetName() string {
@@ -369,7 +670,7 @@ type CredentialStatus struct {
 
 func (x *CredentialStatus) Reset() {
 	*x = CredentialStatus{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -381,7 +682,7 @@ func (x *CredentialStatus) String() string {
 func (*CredentialStatus) ProtoMessage() {}
 
 func (x *CredentialStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -394,7 +695,7 @@ func (x *CredentialStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CredentialStatus.ProtoReflect.Descriptor instead.
 func (*CredentialStatus) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{3}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CredentialStatus) GetFields() []*CredentialFieldStatus {
@@ -440,7 +741,7 @@ type GetConfigRequest struct {
 
 func (x *GetConfigRequest) Reset() {
 	*x = GetConfigRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -452,7 +753,7 @@ func (x *GetConfigRequest) String() string {
 func (*GetConfigRequest) ProtoMessage() {}
 
 func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -465,7 +766,7 @@ func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{4}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{6}
 }
 
 type GetConfigResponse struct {
@@ -478,7 +779,7 @@ type GetConfigResponse struct {
 
 func (x *GetConfigResponse) Reset() {
 	*x = GetConfigResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +791,7 @@ func (x *GetConfigResponse) String() string {
 func (*GetConfigResponse) ProtoMessage() {}
 
 func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +804,7 @@ func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetConfigResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{5}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetConfigResponse) GetConfig() *TunnelConfig {
@@ -528,7 +829,7 @@ type GetCredentialStatusRequest struct {
 
 func (x *GetCredentialStatusRequest) Reset() {
 	*x = GetCredentialStatusRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -540,7 +841,7 @@ func (x *GetCredentialStatusRequest) String() string {
 func (*GetCredentialStatusRequest) ProtoMessage() {}
 
 func (x *GetCredentialStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -553,7 +854,7 @@ func (x *GetCredentialStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCredentialStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetCredentialStatusRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{6}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{8}
 }
 
 type GetCredentialStatusResponse struct {
@@ -565,7 +866,7 @@ type GetCredentialStatusResponse struct {
 
 func (x *GetCredentialStatusResponse) Reset() {
 	*x = GetCredentialStatusResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[7]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -577,7 +878,7 @@ func (x *GetCredentialStatusResponse) String() string {
 func (*GetCredentialStatusResponse) ProtoMessage() {}
 
 func (x *GetCredentialStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[7]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +891,7 @@ func (x *GetCredentialStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCredentialStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetCredentialStatusResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{7}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetCredentialStatusResponse) GetStatus() *CredentialStatus {
@@ -613,7 +914,7 @@ type SetCloudflareCredentialsRequest struct {
 
 func (x *SetCloudflareCredentialsRequest) Reset() {
 	*x = SetCloudflareCredentialsRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[8]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -625,7 +926,7 @@ func (x *SetCloudflareCredentialsRequest) String() string {
 func (*SetCloudflareCredentialsRequest) ProtoMessage() {}
 
 func (x *SetCloudflareCredentialsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[8]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -638,7 +939,7 @@ func (x *SetCloudflareCredentialsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCloudflareCredentialsRequest.ProtoReflect.Descriptor instead.
 func (*SetCloudflareCredentialsRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{8}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SetCloudflareCredentialsRequest) GetAccountId() string {
@@ -671,7 +972,7 @@ type SetCloudflareCredentialsResponse struct {
 
 func (x *SetCloudflareCredentialsResponse) Reset() {
 	*x = SetCloudflareCredentialsResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[9]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +984,7 @@ func (x *SetCloudflareCredentialsResponse) String() string {
 func (*SetCloudflareCredentialsResponse) ProtoMessage() {}
 
 func (x *SetCloudflareCredentialsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[9]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +997,7 @@ func (x *SetCloudflareCredentialsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCloudflareCredentialsResponse.ProtoReflect.Descriptor instead.
 func (*SetCloudflareCredentialsResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{9}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SetCloudflareCredentialsResponse) GetStatus() *CredentialStatus {
@@ -718,7 +1019,7 @@ type ClearCloudflareCredentialsRequest struct {
 
 func (x *ClearCloudflareCredentialsRequest) Reset() {
 	*x = ClearCloudflareCredentialsRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[10]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -730,7 +1031,7 @@ func (x *ClearCloudflareCredentialsRequest) String() string {
 func (*ClearCloudflareCredentialsRequest) ProtoMessage() {}
 
 func (x *ClearCloudflareCredentialsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[10]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -743,7 +1044,7 @@ func (x *ClearCloudflareCredentialsRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ClearCloudflareCredentialsRequest.ProtoReflect.Descriptor instead.
 func (*ClearCloudflareCredentialsRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{10}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ClearCloudflareCredentialsRequest) GetFields() []string {
@@ -762,7 +1063,7 @@ type ClearCloudflareCredentialsResponse struct {
 
 func (x *ClearCloudflareCredentialsResponse) Reset() {
 	*x = ClearCloudflareCredentialsResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[11]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +1075,7 @@ func (x *ClearCloudflareCredentialsResponse) String() string {
 func (*ClearCloudflareCredentialsResponse) ProtoMessage() {}
 
 func (x *ClearCloudflareCredentialsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[11]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +1088,7 @@ func (x *ClearCloudflareCredentialsResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ClearCloudflareCredentialsResponse.ProtoReflect.Descriptor instead.
 func (*ClearCloudflareCredentialsResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{11}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ClearCloudflareCredentialsResponse) GetStatus() *CredentialStatus {
@@ -799,15 +1100,18 @@ func (x *ClearCloudflareCredentialsResponse) GetStatus() *CredentialStatus {
 
 type SyncRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// When true, compute the diff but do not apply it.
-	DryRun        bool `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// When true, compute the report but do not apply it.
+	DryRun bool `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// When true, also remove orphaned entries (ledger-managed hostnames whose
+	// routes are gone). Unmanaged drift is NEVER removed by a batch prune.
+	Prune         bool `protobuf:"varint,2,opt,name=prune,proto3" json:"prune,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SyncRequest) Reset() {
 	*x = SyncRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[12]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -819,7 +1123,7 @@ func (x *SyncRequest) String() string {
 func (*SyncRequest) ProtoMessage() {}
 
 func (x *SyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[12]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -832,7 +1136,7 @@ func (x *SyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
 func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{12}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SyncRequest) GetDryRun() bool {
@@ -842,28 +1146,41 @@ func (x *SyncRequest) GetDryRun() bool {
 	return false
 }
 
+func (x *SyncRequest) GetPrune() bool {
+	if x != nil {
+		return x.Prune
+	}
+	return false
+}
+
 type SyncResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Mode  Mode                   `protobuf:"varint,1,opt,name=mode,proto3,enum=vrooli.tunnel_manager.v1.config.Mode" json:"mode,omitempty"`
-	// Hostnames added to ingress this sync.
+	// Hostnames added to ingress this sync (or that would be on a dry-run).
 	Added []string `protobuf:"bytes,2,rep,name=added,proto3" json:"added,omitempty"`
-	// Hostnames removed from ingress this sync.
+	// Hostnames removed this sync (mirrors pruned; empty unless prune was set).
 	Removed []string `protobuf:"bytes,3,rep,name=removed,proto3" json:"removed,omitempty"`
-	// True when the manifest and live ingress already matched.
+	// True when nothing would change.
 	NoChanges bool `protobuf:"varint,4,opt,name=no_changes,json=noChanges,proto3" json:"no_changes,omitempty"`
-	// True when dry-run detected missing setup and did not attempt live diff.
+	// True when dry-run detected missing setup and did not attempt a live read.
 	SetupRequired bool `protobuf:"varint,5,opt,name=setup_required,json=setupRequired,proto3" json:"setup_required,omitempty"`
 	// Canonical missing inputs when setup_required is true.
 	MissingFields []string `protobuf:"bytes,6,rep,name=missing_fields,json=missingFields,proto3" json:"missing_fields,omitempty"`
 	// Operator-facing explanation of the sync result.
-	Message       string `protobuf:"bytes,7,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,7,opt,name=message,proto3" json:"message,omitempty"`
+	// Live hostnames TM does not manage and did not touch.
+	DriftUnmanaged []string `protobuf:"bytes,8,rep,name=drift_unmanaged,json=driftUnmanaged,proto3" json:"drift_unmanaged,omitempty"`
+	// Ledger-managed hostnames whose routes are gone (prune candidates).
+	Orphaned []string `protobuf:"bytes,9,rep,name=orphaned,proto3" json:"orphaned,omitempty"`
+	// Hostnames actually removed this sync (empty unless prune was set).
+	Pruned        []string `protobuf:"bytes,10,rep,name=pruned,proto3" json:"pruned,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SyncResponse) Reset() {
 	*x = SyncResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[13]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -875,7 +1192,7 @@ func (x *SyncResponse) String() string {
 func (*SyncResponse) ProtoMessage() {}
 
 func (x *SyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[13]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -888,7 +1205,7 @@ func (x *SyncResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
 func (*SyncResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{13}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SyncResponse) GetMode() Mode {
@@ -940,6 +1257,27 @@ func (x *SyncResponse) GetMessage() string {
 	return ""
 }
 
+func (x *SyncResponse) GetDriftUnmanaged() []string {
+	if x != nil {
+		return x.DriftUnmanaged
+	}
+	return nil
+}
+
+func (x *SyncResponse) GetOrphaned() []string {
+	if x != nil {
+		return x.Orphaned
+	}
+	return nil
+}
+
+func (x *SyncResponse) GetPruned() []string {
+	if x != nil {
+		return x.Pruned
+	}
+	return nil
+}
+
 type SwitchModeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TargetMode    Mode                   `protobuf:"varint,1,opt,name=target_mode,json=targetMode,proto3,enum=vrooli.tunnel_manager.v1.config.Mode" json:"target_mode,omitempty"`
@@ -949,7 +1287,7 @@ type SwitchModeRequest struct {
 
 func (x *SwitchModeRequest) Reset() {
 	*x = SwitchModeRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[14]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -961,7 +1299,7 @@ func (x *SwitchModeRequest) String() string {
 func (*SwitchModeRequest) ProtoMessage() {}
 
 func (x *SwitchModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[14]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,7 +1312,7 @@ func (x *SwitchModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwitchModeRequest.ProtoReflect.Descriptor instead.
 func (*SwitchModeRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{14}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SwitchModeRequest) GetTargetMode() Mode {
@@ -994,7 +1332,7 @@ type SwitchModeResponse struct {
 
 func (x *SwitchModeResponse) Reset() {
 	*x = SwitchModeResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[15]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1006,7 +1344,7 @@ func (x *SwitchModeResponse) String() string {
 func (*SwitchModeResponse) ProtoMessage() {}
 
 func (x *SwitchModeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[15]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1019,7 +1357,7 @@ func (x *SwitchModeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwitchModeResponse.ProtoReflect.Descriptor instead.
 func (*SwitchModeResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{15}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SwitchModeResponse) GetPreviousMode() Mode {
@@ -1036,11 +1374,420 @@ func (x *SwitchModeResponse) GetCurrentMode() Mode {
 	return Mode_MODE_UNSPECIFIED
 }
 
+type GetDriftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriftRequest) Reset() {
+	*x = GetDriftRequest{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriftRequest) ProtoMessage() {}
+
+func (x *GetDriftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriftRequest.ProtoReflect.Descriptor instead.
+func (*GetDriftRequest) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{18}
+}
+
+type GetDriftResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Mode  Mode                   `protobuf:"varint,1,opt,name=mode,proto3,enum=vrooli.tunnel_manager.v1.config.Mode" json:"mode,omitempty"`
+	// Every distinct live/desired/tracked hostname, classified, ordered by
+	// hostname.
+	Entries       []*IngressEntry `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
+	Counts        *DriftCounts    `protobuf:"bytes,3,opt,name=counts,proto3" json:"counts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDriftResponse) Reset() {
+	*x = GetDriftResponse{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDriftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDriftResponse) ProtoMessage() {}
+
+func (x *GetDriftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDriftResponse.ProtoReflect.Descriptor instead.
+func (*GetDriftResponse) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetDriftResponse) GetMode() Mode {
+	if x != nil {
+		return x.Mode
+	}
+	return Mode_MODE_UNSPECIFIED
+}
+
+func (x *GetDriftResponse) GetEntries() []*IngressEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *GetDriftResponse) GetCounts() *DriftCounts {
+	if x != nil {
+		return x.Counts
+	}
+	return nil
+}
+
+type AdoptIngressRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Full hostname to adopt (e.g. api.itsagitime.com).
+	Hostname string `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	// Adopt as this scenario route. When empty and target is empty, the service
+	// resolves scenario vs external automatically.
+	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Adopt as an external route pointing at this service target (e.g.
+	// http://127.0.0.1:9000). Takes precedence over scenario resolution.
+	Target        string `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptIngressRequest) Reset() {
+	*x = AdoptIngressRequest{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptIngressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptIngressRequest) ProtoMessage() {}
+
+func (x *AdoptIngressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptIngressRequest.ProtoReflect.Descriptor instead.
+func (*AdoptIngressRequest) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *AdoptIngressRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *AdoptIngressRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *AdoptIngressRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+type AdoptIngressResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *IngressEntry          `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptIngressResponse) Reset() {
+	*x = AdoptIngressResponse{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptIngressResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptIngressResponse) ProtoMessage() {}
+
+func (x *AdoptIngressResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptIngressResponse.ProtoReflect.Descriptor instead.
+func (*AdoptIngressResponse) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AdoptIngressResponse) GetEntry() *IngressEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type IgnoreIngressRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Hostname string                 `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	// Optional operator note for why this external ingress is acknowledged.
+	Note          string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IgnoreIngressRequest) Reset() {
+	*x = IgnoreIngressRequest{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IgnoreIngressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IgnoreIngressRequest) ProtoMessage() {}
+
+func (x *IgnoreIngressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IgnoreIngressRequest.ProtoReflect.Descriptor instead.
+func (*IgnoreIngressRequest) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *IgnoreIngressRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *IgnoreIngressRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type IgnoreIngressResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entry         *IngressEntry          `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IgnoreIngressResponse) Reset() {
+	*x = IgnoreIngressResponse{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IgnoreIngressResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IgnoreIngressResponse) ProtoMessage() {}
+
+func (x *IgnoreIngressResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IgnoreIngressResponse.ProtoReflect.Descriptor instead.
+func (*IgnoreIngressResponse) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *IgnoreIngressResponse) GetEntry() *IngressEntry {
+	if x != nil {
+		return x.Entry
+	}
+	return nil
+}
+
+type PruneIngressRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hostname      string                 `protobuf:"bytes,1,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PruneIngressRequest) Reset() {
+	*x = PruneIngressRequest{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PruneIngressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PruneIngressRequest) ProtoMessage() {}
+
+func (x *PruneIngressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PruneIngressRequest.ProtoReflect.Descriptor instead.
+func (*PruneIngressRequest) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *PruneIngressRequest) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+type PruneIngressResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when the hostname was removed from live ingress and/or the ledger.
+	Pruned        bool `protobuf:"varint,1,opt,name=pruned,proto3" json:"pruned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PruneIngressResponse) Reset() {
+	*x = PruneIngressResponse{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PruneIngressResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PruneIngressResponse) ProtoMessage() {}
+
+func (x *PruneIngressResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PruneIngressResponse.ProtoReflect.Descriptor instead.
+func (*PruneIngressResponse) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *PruneIngressResponse) GetPruned() bool {
+	if x != nil {
+		return x.Pruned
+	}
+	return false
+}
+
 var File_tunnel_manager_v1_config_config_proto protoreflect.FileDescriptor
 
 const file_tunnel_manager_v1_config_config_proto_rawDesc = "" +
 	"\n" +
-	"%tunnel-manager/v1/config/config.proto\x12\x1fvrooli.tunnel_manager.v1.config\"\xc5\x01\n" +
+	"%tunnel-manager/v1/config/config.proto\x12\x1fvrooli.tunnel_manager.v1.config\"\xab\x02\n" +
+	"\fIngressEntry\x12\x1a\n" +
+	"\bhostname\x18\x01 \x01(\tR\bhostname\x12%\n" +
+	"\x0eservice_target\x18\x02 \x01(\tR\rserviceTarget\x12E\n" +
+	"\x05state\x18\x03 \x01(\x0e2/.vrooli.tunnel_manager.v1.config.OwnershipStateR\x05state\x12F\n" +
+	"\x06source\x18\x04 \x01(\x0e2..vrooli.tunnel_manager.v1.config.IngressSourceR\x06source\x12\x1a\n" +
+	"\bscenario\x18\x05 \x01(\tR\bscenario\x12\x19\n" +
+	"\blease_id\x18\x06 \x01(\tR\aleaseId\x12\x12\n" +
+	"\x04note\x18\a \x01(\tR\x04note\"\xb6\x01\n" +
+	"\vDriftCounts\x12\x18\n" +
+	"\amanaged\x18\x01 \x01(\x05R\amanaged\x12\x18\n" +
+	"\amissing\x18\x02 \x01(\x05R\amissing\x12\x1f\n" +
+	"\vexternal_ok\x18\x03 \x01(\x05R\n" +
+	"externalOk\x12\x1a\n" +
+	"\borphaned\x18\x04 \x01(\x05R\borphaned\x12\x18\n" +
+	"\aignored\x18\x05 \x01(\x05R\aignored\x12\x1c\n" +
+	"\tunmanaged\x18\x06 \x01(\x05R\tunmanaged\"\xc5\x01\n" +
 	"\fTunnelConfig\x129\n" +
 	"\x04mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12\x1b\n" +
 	"\ttunnel_id\x18\x02 \x01(\tR\btunnelId\x12\x1d\n" +
@@ -1089,9 +1836,10 @@ const file_tunnel_manager_v1_config_config_proto_rawDesc = "" +
 	"!ClearCloudflareCredentialsRequest\x12\x16\n" +
 	"\x06fields\x18\x01 \x03(\tR\x06fields\"o\n" +
 	"\"ClearCloudflareCredentialsResponse\x12I\n" +
-	"\x06status\x18\x01 \x01(\v21.vrooli.tunnel_manager.v1.config.CredentialStatusR\x06status\"&\n" +
+	"\x06status\x18\x01 \x01(\v21.vrooli.tunnel_manager.v1.config.CredentialStatusR\x06status\"<\n" +
 	"\vSyncRequest\x12\x17\n" +
-	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"\x80\x02\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\x12\x14\n" +
+	"\x05prune\x18\x02 \x01(\bR\x05prune\"\xdd\x02\n" +
 	"\fSyncResponse\x129\n" +
 	"\x04mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12\x14\n" +
 	"\x05added\x18\x02 \x03(\tR\x05added\x12\x18\n" +
@@ -1100,18 +1848,55 @@ const file_tunnel_manager_v1_config_config_proto_rawDesc = "" +
 	"no_changes\x18\x04 \x01(\bR\tnoChanges\x12%\n" +
 	"\x0esetup_required\x18\x05 \x01(\bR\rsetupRequired\x12%\n" +
 	"\x0emissing_fields\x18\x06 \x03(\tR\rmissingFields\x12\x18\n" +
-	"\amessage\x18\a \x01(\tR\amessage\"[\n" +
+	"\amessage\x18\a \x01(\tR\amessage\x12'\n" +
+	"\x0fdrift_unmanaged\x18\b \x03(\tR\x0edriftUnmanaged\x12\x1a\n" +
+	"\borphaned\x18\t \x03(\tR\borphaned\x12\x16\n" +
+	"\x06pruned\x18\n" +
+	" \x03(\tR\x06pruned\"[\n" +
 	"\x11SwitchModeRequest\x12F\n" +
 	"\vtarget_mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\n" +
 	"targetMode\"\xaa\x01\n" +
 	"\x12SwitchModeResponse\x12J\n" +
 	"\rprevious_mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\fpreviousMode\x12H\n" +
-	"\fcurrent_mode\x18\x02 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\vcurrentMode*=\n" +
+	"\fcurrent_mode\x18\x02 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\vcurrentMode\"\x11\n" +
+	"\x0fGetDriftRequest\"\xdc\x01\n" +
+	"\x10GetDriftResponse\x129\n" +
+	"\x04mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12G\n" +
+	"\aentries\x18\x02 \x03(\v2-.vrooli.tunnel_manager.v1.config.IngressEntryR\aentries\x12D\n" +
+	"\x06counts\x18\x03 \x01(\v2,.vrooli.tunnel_manager.v1.config.DriftCountsR\x06counts\"e\n" +
+	"\x13AdoptIngressRequest\x12\x1a\n" +
+	"\bhostname\x18\x01 \x01(\tR\bhostname\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x16\n" +
+	"\x06target\x18\x03 \x01(\tR\x06target\"[\n" +
+	"\x14AdoptIngressResponse\x12C\n" +
+	"\x05entry\x18\x01 \x01(\v2-.vrooli.tunnel_manager.v1.config.IngressEntryR\x05entry\"F\n" +
+	"\x14IgnoreIngressRequest\x12\x1a\n" +
+	"\bhostname\x18\x01 \x01(\tR\bhostname\x12\x12\n" +
+	"\x04note\x18\x02 \x01(\tR\x04note\"\\\n" +
+	"\x15IgnoreIngressResponse\x12C\n" +
+	"\x05entry\x18\x01 \x01(\v2-.vrooli.tunnel_manager.v1.config.IngressEntryR\x05entry\"1\n" +
+	"\x13PruneIngressRequest\x12\x1a\n" +
+	"\bhostname\x18\x01 \x01(\tR\bhostname\".\n" +
+	"\x14PruneIngressResponse\x12\x16\n" +
+	"\x06pruned\x18\x01 \x01(\bR\x06pruned*\xe6\x01\n" +
+	"\x0eOwnershipState\x12\x1f\n" +
+	"\x1bOWNERSHIP_STATE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17OWNERSHIP_STATE_MANAGED\x10\x01\x12\x1b\n" +
+	"\x17OWNERSHIP_STATE_MISSING\x10\x02\x12\x1f\n" +
+	"\x1bOWNERSHIP_STATE_EXTERNAL_OK\x10\x03\x12\x1c\n" +
+	"\x18OWNERSHIP_STATE_ORPHANED\x10\x04\x12\x1b\n" +
+	"\x17OWNERSHIP_STATE_IGNORED\x10\x05\x12\x1d\n" +
+	"\x19OWNERSHIP_STATE_UNMANAGED\x10\x06*i\n" +
+	"\rIngressSource\x12\x1e\n" +
+	"\x1aINGRESS_SOURCE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17INGRESS_SOURCE_SCENARIO\x10\x01\x12\x1b\n" +
+	"\x17INGRESS_SOURCE_EXTERNAL\x10\x02*=\n" +
 	"\x04Mode\x12\x14\n" +
 	"\x10MODE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vMODE_REMOTE\x10\x01\x12\x0e\n" +
 	"\n" +
-	"MODE_LOCAL\x10\x022\xbc\x06\n" +
+	"MODE_LOCAL\x10\x022\xa7\n" +
+	"\n" +
 	"\rConfigService\x12r\n" +
 	"\tGetConfig\x121.vrooli.tunnel_manager.v1.config.GetConfigRequest\x1a2.vrooli.tunnel_manager.v1.config.GetConfigResponse\x12\x90\x01\n" +
 	"\x13GetCredentialStatus\x12;.vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest\x1a<.vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse\x12\x9f\x01\n" +
@@ -1119,7 +1904,11 @@ const file_tunnel_manager_v1_config_config_proto_rawDesc = "" +
 	"\x1aClearCloudflareCredentials\x12B.vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest\x1aC.vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse\x12c\n" +
 	"\x04Sync\x12,.vrooli.tunnel_manager.v1.config.SyncRequest\x1a-.vrooli.tunnel_manager.v1.config.SyncResponse\x12u\n" +
 	"\n" +
-	"SwitchMode\x122.vrooli.tunnel_manager.v1.config.SwitchModeRequest\x1a3.vrooli.tunnel_manager.v1.config.SwitchModeResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config;config_v1b\x06proto3"
+	"SwitchMode\x122.vrooli.tunnel_manager.v1.config.SwitchModeRequest\x1a3.vrooli.tunnel_manager.v1.config.SwitchModeResponse\x12o\n" +
+	"\bGetDrift\x120.vrooli.tunnel_manager.v1.config.GetDriftRequest\x1a1.vrooli.tunnel_manager.v1.config.GetDriftResponse\x12{\n" +
+	"\fAdoptIngress\x124.vrooli.tunnel_manager.v1.config.AdoptIngressRequest\x1a5.vrooli.tunnel_manager.v1.config.AdoptIngressResponse\x12~\n" +
+	"\rIgnoreIngress\x125.vrooli.tunnel_manager.v1.config.IgnoreIngressRequest\x1a6.vrooli.tunnel_manager.v1.config.IgnoreIngressResponse\x12{\n" +
+	"\fPruneIngress\x124.vrooli.tunnel_manager.v1.config.PruneIngressRequest\x1a5.vrooli.tunnel_manager.v1.config.PruneIngressResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config;config_v1b\x06proto3"
 
 var (
 	file_tunnel_manager_v1_config_config_proto_rawDescOnce sync.Once
@@ -1133,58 +1922,85 @@ func file_tunnel_manager_v1_config_config_proto_rawDescGZIP() []byte {
 	return file_tunnel_manager_v1_config_config_proto_rawDescData
 }
 
-var file_tunnel_manager_v1_config_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tunnel_manager_v1_config_config_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_tunnel_manager_v1_config_config_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_tunnel_manager_v1_config_config_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_tunnel_manager_v1_config_config_proto_goTypes = []any{
-	(Mode)(0),                                  // 0: vrooli.tunnel_manager.v1.config.Mode
-	(*TunnelConfig)(nil),                       // 1: vrooli.tunnel_manager.v1.config.TunnelConfig
-	(*ConfigReadiness)(nil),                    // 2: vrooli.tunnel_manager.v1.config.ConfigReadiness
-	(*CredentialFieldStatus)(nil),              // 3: vrooli.tunnel_manager.v1.config.CredentialFieldStatus
-	(*CredentialStatus)(nil),                   // 4: vrooli.tunnel_manager.v1.config.CredentialStatus
-	(*GetConfigRequest)(nil),                   // 5: vrooli.tunnel_manager.v1.config.GetConfigRequest
-	(*GetConfigResponse)(nil),                  // 6: vrooli.tunnel_manager.v1.config.GetConfigResponse
-	(*GetCredentialStatusRequest)(nil),         // 7: vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest
-	(*GetCredentialStatusResponse)(nil),        // 8: vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse
-	(*SetCloudflareCredentialsRequest)(nil),    // 9: vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest
-	(*SetCloudflareCredentialsResponse)(nil),   // 10: vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse
-	(*ClearCloudflareCredentialsRequest)(nil),  // 11: vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest
-	(*ClearCloudflareCredentialsResponse)(nil), // 12: vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse
-	(*SyncRequest)(nil),                        // 13: vrooli.tunnel_manager.v1.config.SyncRequest
-	(*SyncResponse)(nil),                       // 14: vrooli.tunnel_manager.v1.config.SyncResponse
-	(*SwitchModeRequest)(nil),                  // 15: vrooli.tunnel_manager.v1.config.SwitchModeRequest
-	(*SwitchModeResponse)(nil),                 // 16: vrooli.tunnel_manager.v1.config.SwitchModeResponse
+	(OwnershipState)(0),                        // 0: vrooli.tunnel_manager.v1.config.OwnershipState
+	(IngressSource)(0),                         // 1: vrooli.tunnel_manager.v1.config.IngressSource
+	(Mode)(0),                                  // 2: vrooli.tunnel_manager.v1.config.Mode
+	(*IngressEntry)(nil),                       // 3: vrooli.tunnel_manager.v1.config.IngressEntry
+	(*DriftCounts)(nil),                        // 4: vrooli.tunnel_manager.v1.config.DriftCounts
+	(*TunnelConfig)(nil),                       // 5: vrooli.tunnel_manager.v1.config.TunnelConfig
+	(*ConfigReadiness)(nil),                    // 6: vrooli.tunnel_manager.v1.config.ConfigReadiness
+	(*CredentialFieldStatus)(nil),              // 7: vrooli.tunnel_manager.v1.config.CredentialFieldStatus
+	(*CredentialStatus)(nil),                   // 8: vrooli.tunnel_manager.v1.config.CredentialStatus
+	(*GetConfigRequest)(nil),                   // 9: vrooli.tunnel_manager.v1.config.GetConfigRequest
+	(*GetConfigResponse)(nil),                  // 10: vrooli.tunnel_manager.v1.config.GetConfigResponse
+	(*GetCredentialStatusRequest)(nil),         // 11: vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest
+	(*GetCredentialStatusResponse)(nil),        // 12: vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse
+	(*SetCloudflareCredentialsRequest)(nil),    // 13: vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest
+	(*SetCloudflareCredentialsResponse)(nil),   // 14: vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse
+	(*ClearCloudflareCredentialsRequest)(nil),  // 15: vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest
+	(*ClearCloudflareCredentialsResponse)(nil), // 16: vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse
+	(*SyncRequest)(nil),                        // 17: vrooli.tunnel_manager.v1.config.SyncRequest
+	(*SyncResponse)(nil),                       // 18: vrooli.tunnel_manager.v1.config.SyncResponse
+	(*SwitchModeRequest)(nil),                  // 19: vrooli.tunnel_manager.v1.config.SwitchModeRequest
+	(*SwitchModeResponse)(nil),                 // 20: vrooli.tunnel_manager.v1.config.SwitchModeResponse
+	(*GetDriftRequest)(nil),                    // 21: vrooli.tunnel_manager.v1.config.GetDriftRequest
+	(*GetDriftResponse)(nil),                   // 22: vrooli.tunnel_manager.v1.config.GetDriftResponse
+	(*AdoptIngressRequest)(nil),                // 23: vrooli.tunnel_manager.v1.config.AdoptIngressRequest
+	(*AdoptIngressResponse)(nil),               // 24: vrooli.tunnel_manager.v1.config.AdoptIngressResponse
+	(*IgnoreIngressRequest)(nil),               // 25: vrooli.tunnel_manager.v1.config.IgnoreIngressRequest
+	(*IgnoreIngressResponse)(nil),              // 26: vrooli.tunnel_manager.v1.config.IgnoreIngressResponse
+	(*PruneIngressRequest)(nil),                // 27: vrooli.tunnel_manager.v1.config.PruneIngressRequest
+	(*PruneIngressResponse)(nil),               // 28: vrooli.tunnel_manager.v1.config.PruneIngressResponse
 }
 var file_tunnel_manager_v1_config_config_proto_depIdxs = []int32{
-	0,  // 0: vrooli.tunnel_manager.v1.config.TunnelConfig.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	0,  // 1: vrooli.tunnel_manager.v1.config.ConfigReadiness.desired_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	3,  // 2: vrooli.tunnel_manager.v1.config.ConfigReadiness.credential_fields:type_name -> vrooli.tunnel_manager.v1.config.CredentialFieldStatus
-	3,  // 3: vrooli.tunnel_manager.v1.config.CredentialStatus.fields:type_name -> vrooli.tunnel_manager.v1.config.CredentialFieldStatus
-	1,  // 4: vrooli.tunnel_manager.v1.config.GetConfigResponse.config:type_name -> vrooli.tunnel_manager.v1.config.TunnelConfig
-	2,  // 5: vrooli.tunnel_manager.v1.config.GetConfigResponse.readiness:type_name -> vrooli.tunnel_manager.v1.config.ConfigReadiness
-	4,  // 6: vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse.status:type_name -> vrooli.tunnel_manager.v1.config.CredentialStatus
-	4,  // 7: vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse.status:type_name -> vrooli.tunnel_manager.v1.config.CredentialStatus
-	4,  // 8: vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse.status:type_name -> vrooli.tunnel_manager.v1.config.CredentialStatus
-	0,  // 9: vrooli.tunnel_manager.v1.config.SyncResponse.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	0,  // 10: vrooli.tunnel_manager.v1.config.SwitchModeRequest.target_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	0,  // 11: vrooli.tunnel_manager.v1.config.SwitchModeResponse.previous_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	0,  // 12: vrooli.tunnel_manager.v1.config.SwitchModeResponse.current_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	5,  // 13: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:input_type -> vrooli.tunnel_manager.v1.config.GetConfigRequest
-	7,  // 14: vrooli.tunnel_manager.v1.config.ConfigService.GetCredentialStatus:input_type -> vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest
-	9,  // 15: vrooli.tunnel_manager.v1.config.ConfigService.SetCloudflareCredentials:input_type -> vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest
-	11, // 16: vrooli.tunnel_manager.v1.config.ConfigService.ClearCloudflareCredentials:input_type -> vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest
-	13, // 17: vrooli.tunnel_manager.v1.config.ConfigService.Sync:input_type -> vrooli.tunnel_manager.v1.config.SyncRequest
-	15, // 18: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:input_type -> vrooli.tunnel_manager.v1.config.SwitchModeRequest
-	6,  // 19: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:output_type -> vrooli.tunnel_manager.v1.config.GetConfigResponse
-	8,  // 20: vrooli.tunnel_manager.v1.config.ConfigService.GetCredentialStatus:output_type -> vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse
-	10, // 21: vrooli.tunnel_manager.v1.config.ConfigService.SetCloudflareCredentials:output_type -> vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse
-	12, // 22: vrooli.tunnel_manager.v1.config.ConfigService.ClearCloudflareCredentials:output_type -> vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse
-	14, // 23: vrooli.tunnel_manager.v1.config.ConfigService.Sync:output_type -> vrooli.tunnel_manager.v1.config.SyncResponse
-	16, // 24: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:output_type -> vrooli.tunnel_manager.v1.config.SwitchModeResponse
-	19, // [19:25] is the sub-list for method output_type
-	13, // [13:19] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	0,  // 0: vrooli.tunnel_manager.v1.config.IngressEntry.state:type_name -> vrooli.tunnel_manager.v1.config.OwnershipState
+	1,  // 1: vrooli.tunnel_manager.v1.config.IngressEntry.source:type_name -> vrooli.tunnel_manager.v1.config.IngressSource
+	2,  // 2: vrooli.tunnel_manager.v1.config.TunnelConfig.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	2,  // 3: vrooli.tunnel_manager.v1.config.ConfigReadiness.desired_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	7,  // 4: vrooli.tunnel_manager.v1.config.ConfigReadiness.credential_fields:type_name -> vrooli.tunnel_manager.v1.config.CredentialFieldStatus
+	7,  // 5: vrooli.tunnel_manager.v1.config.CredentialStatus.fields:type_name -> vrooli.tunnel_manager.v1.config.CredentialFieldStatus
+	5,  // 6: vrooli.tunnel_manager.v1.config.GetConfigResponse.config:type_name -> vrooli.tunnel_manager.v1.config.TunnelConfig
+	6,  // 7: vrooli.tunnel_manager.v1.config.GetConfigResponse.readiness:type_name -> vrooli.tunnel_manager.v1.config.ConfigReadiness
+	8,  // 8: vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse.status:type_name -> vrooli.tunnel_manager.v1.config.CredentialStatus
+	8,  // 9: vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse.status:type_name -> vrooli.tunnel_manager.v1.config.CredentialStatus
+	8,  // 10: vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse.status:type_name -> vrooli.tunnel_manager.v1.config.CredentialStatus
+	2,  // 11: vrooli.tunnel_manager.v1.config.SyncResponse.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	2,  // 12: vrooli.tunnel_manager.v1.config.SwitchModeRequest.target_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	2,  // 13: vrooli.tunnel_manager.v1.config.SwitchModeResponse.previous_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	2,  // 14: vrooli.tunnel_manager.v1.config.SwitchModeResponse.current_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	2,  // 15: vrooli.tunnel_manager.v1.config.GetDriftResponse.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	3,  // 16: vrooli.tunnel_manager.v1.config.GetDriftResponse.entries:type_name -> vrooli.tunnel_manager.v1.config.IngressEntry
+	4,  // 17: vrooli.tunnel_manager.v1.config.GetDriftResponse.counts:type_name -> vrooli.tunnel_manager.v1.config.DriftCounts
+	3,  // 18: vrooli.tunnel_manager.v1.config.AdoptIngressResponse.entry:type_name -> vrooli.tunnel_manager.v1.config.IngressEntry
+	3,  // 19: vrooli.tunnel_manager.v1.config.IgnoreIngressResponse.entry:type_name -> vrooli.tunnel_manager.v1.config.IngressEntry
+	9,  // 20: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:input_type -> vrooli.tunnel_manager.v1.config.GetConfigRequest
+	11, // 21: vrooli.tunnel_manager.v1.config.ConfigService.GetCredentialStatus:input_type -> vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest
+	13, // 22: vrooli.tunnel_manager.v1.config.ConfigService.SetCloudflareCredentials:input_type -> vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest
+	15, // 23: vrooli.tunnel_manager.v1.config.ConfigService.ClearCloudflareCredentials:input_type -> vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest
+	17, // 24: vrooli.tunnel_manager.v1.config.ConfigService.Sync:input_type -> vrooli.tunnel_manager.v1.config.SyncRequest
+	19, // 25: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:input_type -> vrooli.tunnel_manager.v1.config.SwitchModeRequest
+	21, // 26: vrooli.tunnel_manager.v1.config.ConfigService.GetDrift:input_type -> vrooli.tunnel_manager.v1.config.GetDriftRequest
+	23, // 27: vrooli.tunnel_manager.v1.config.ConfigService.AdoptIngress:input_type -> vrooli.tunnel_manager.v1.config.AdoptIngressRequest
+	25, // 28: vrooli.tunnel_manager.v1.config.ConfigService.IgnoreIngress:input_type -> vrooli.tunnel_manager.v1.config.IgnoreIngressRequest
+	27, // 29: vrooli.tunnel_manager.v1.config.ConfigService.PruneIngress:input_type -> vrooli.tunnel_manager.v1.config.PruneIngressRequest
+	10, // 30: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:output_type -> vrooli.tunnel_manager.v1.config.GetConfigResponse
+	12, // 31: vrooli.tunnel_manager.v1.config.ConfigService.GetCredentialStatus:output_type -> vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse
+	14, // 32: vrooli.tunnel_manager.v1.config.ConfigService.SetCloudflareCredentials:output_type -> vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse
+	16, // 33: vrooli.tunnel_manager.v1.config.ConfigService.ClearCloudflareCredentials:output_type -> vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse
+	18, // 34: vrooli.tunnel_manager.v1.config.ConfigService.Sync:output_type -> vrooli.tunnel_manager.v1.config.SyncResponse
+	20, // 35: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:output_type -> vrooli.tunnel_manager.v1.config.SwitchModeResponse
+	22, // 36: vrooli.tunnel_manager.v1.config.ConfigService.GetDrift:output_type -> vrooli.tunnel_manager.v1.config.GetDriftResponse
+	24, // 37: vrooli.tunnel_manager.v1.config.ConfigService.AdoptIngress:output_type -> vrooli.tunnel_manager.v1.config.AdoptIngressResponse
+	26, // 38: vrooli.tunnel_manager.v1.config.ConfigService.IgnoreIngress:output_type -> vrooli.tunnel_manager.v1.config.IgnoreIngressResponse
+	28, // 39: vrooli.tunnel_manager.v1.config.ConfigService.PruneIngress:output_type -> vrooli.tunnel_manager.v1.config.PruneIngressResponse
+	30, // [30:40] is the sub-list for method output_type
+	20, // [20:30] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_tunnel_manager_v1_config_config_proto_init() }
@@ -1197,8 +2013,8 @@ func file_tunnel_manager_v1_config_config_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tunnel_manager_v1_config_config_proto_rawDesc), len(file_tunnel_manager_v1_config_config_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   16,
+			NumEnums:      3,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

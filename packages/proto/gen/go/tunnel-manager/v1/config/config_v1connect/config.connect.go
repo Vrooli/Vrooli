@@ -49,6 +49,17 @@ const (
 	// ConfigServiceSwitchModeProcedure is the fully-qualified name of the ConfigService's SwitchMode
 	// RPC.
 	ConfigServiceSwitchModeProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/SwitchMode"
+	// ConfigServiceGetDriftProcedure is the fully-qualified name of the ConfigService's GetDrift RPC.
+	ConfigServiceGetDriftProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/GetDrift"
+	// ConfigServiceAdoptIngressProcedure is the fully-qualified name of the ConfigService's
+	// AdoptIngress RPC.
+	ConfigServiceAdoptIngressProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/AdoptIngress"
+	// ConfigServiceIgnoreIngressProcedure is the fully-qualified name of the ConfigService's
+	// IgnoreIngress RPC.
+	ConfigServiceIgnoreIngressProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/IgnoreIngress"
+	// ConfigServicePruneIngressProcedure is the fully-qualified name of the ConfigService's
+	// PruneIngress RPC.
+	ConfigServicePruneIngressProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress"
 )
 
 // ConfigServiceClient is a client for the vrooli.tunnel_manager.v1.config.ConfigService service.
@@ -63,11 +74,27 @@ type ConfigServiceClient interface {
 	// ClearCloudflareCredentials removes one or more file-backed Cloudflare
 	// credential values from the configured operator secret store.
 	ClearCloudflareCredentials(context.Context, *connect.Request[config.ClearCloudflareCredentialsRequest]) (*connect.Response[config.ClearCloudflareCredentialsResponse], error)
-	// Sync reconciles ingress (remote API or local config.yml) with the routes
-	// manifest. Idempotent: a no-drift sync applies nothing.
+	// Sync reconciles ingress ADDITIVELY: it publishes desired hostnames merged
+	// onto current live, never dropping unmanaged/ignored entries. Removal
+	// happens only when prune is set (a batch prune removes orphaned entries).
 	Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error)
-	// SwitchMode migrates between "remote" and "local" management modes.
+	// SwitchMode migrates between "remote" and "local" management modes. It is
+	// PURE: it persists the mode and performs zero ingress writes.
 	SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error)
+	// GetDrift reconciles the desired manifest, the live tunnel, and the
+	// ownership ledger into a classified read model (no writes). It answers
+	// "what is live vs. what TM wants vs. what is unmanaged" in either mode.
+	GetDrift(context.Context, *connect.Request[config.GetDriftRequest]) (*connect.Response[config.GetDriftResponse], error)
+	// AdoptIngress brings an unmanaged live hostname under management: as a
+	// scenario route when it resolves to a known scenario, otherwise as an
+	// external route. Records MANAGED/EXTERNAL ownership in the ledger.
+	AdoptIngress(context.Context, *connect.Request[config.AdoptIngressRequest]) (*connect.Response[config.AdoptIngressResponse], error)
+	// IgnoreIngress acknowledges a live hostname as external and records it
+	// IGNORED so reconcile never pushes or prunes it.
+	IgnoreIngress(context.Context, *connect.Request[config.IgnoreIngressRequest]) (*connect.Response[config.IgnoreIngressResponse], error)
+	// PruneIngress removes a single named hostname from live ingress and the
+	// ledger. This is the only path that removes a specific entry.
+	PruneIngress(context.Context, *connect.Request[config.PruneIngressRequest]) (*connect.Response[config.PruneIngressResponse], error)
 }
 
 // NewConfigServiceClient constructs a client for the vrooli.tunnel_manager.v1.config.ConfigService
@@ -117,6 +144,30 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("SwitchMode")),
 			connect.WithClientOptions(opts...),
 		),
+		getDrift: connect.NewClient[config.GetDriftRequest, config.GetDriftResponse](
+			httpClient,
+			baseURL+ConfigServiceGetDriftProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetDrift")),
+			connect.WithClientOptions(opts...),
+		),
+		adoptIngress: connect.NewClient[config.AdoptIngressRequest, config.AdoptIngressResponse](
+			httpClient,
+			baseURL+ConfigServiceAdoptIngressProcedure,
+			connect.WithSchema(configServiceMethods.ByName("AdoptIngress")),
+			connect.WithClientOptions(opts...),
+		),
+		ignoreIngress: connect.NewClient[config.IgnoreIngressRequest, config.IgnoreIngressResponse](
+			httpClient,
+			baseURL+ConfigServiceIgnoreIngressProcedure,
+			connect.WithSchema(configServiceMethods.ByName("IgnoreIngress")),
+			connect.WithClientOptions(opts...),
+		),
+		pruneIngress: connect.NewClient[config.PruneIngressRequest, config.PruneIngressResponse](
+			httpClient,
+			baseURL+ConfigServicePruneIngressProcedure,
+			connect.WithSchema(configServiceMethods.ByName("PruneIngress")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -128,6 +179,10 @@ type configServiceClient struct {
 	clearCloudflareCredentials *connect.Client[config.ClearCloudflareCredentialsRequest, config.ClearCloudflareCredentialsResponse]
 	sync                       *connect.Client[config.SyncRequest, config.SyncResponse]
 	switchMode                 *connect.Client[config.SwitchModeRequest, config.SwitchModeResponse]
+	getDrift                   *connect.Client[config.GetDriftRequest, config.GetDriftResponse]
+	adoptIngress               *connect.Client[config.AdoptIngressRequest, config.AdoptIngressResponse]
+	ignoreIngress              *connect.Client[config.IgnoreIngressRequest, config.IgnoreIngressResponse]
+	pruneIngress               *connect.Client[config.PruneIngressRequest, config.PruneIngressResponse]
 }
 
 // GetConfig calls vrooli.tunnel_manager.v1.config.ConfigService.GetConfig.
@@ -162,6 +217,26 @@ func (c *configServiceClient) SwitchMode(ctx context.Context, req *connect.Reque
 	return c.switchMode.CallUnary(ctx, req)
 }
 
+// GetDrift calls vrooli.tunnel_manager.v1.config.ConfigService.GetDrift.
+func (c *configServiceClient) GetDrift(ctx context.Context, req *connect.Request[config.GetDriftRequest]) (*connect.Response[config.GetDriftResponse], error) {
+	return c.getDrift.CallUnary(ctx, req)
+}
+
+// AdoptIngress calls vrooli.tunnel_manager.v1.config.ConfigService.AdoptIngress.
+func (c *configServiceClient) AdoptIngress(ctx context.Context, req *connect.Request[config.AdoptIngressRequest]) (*connect.Response[config.AdoptIngressResponse], error) {
+	return c.adoptIngress.CallUnary(ctx, req)
+}
+
+// IgnoreIngress calls vrooli.tunnel_manager.v1.config.ConfigService.IgnoreIngress.
+func (c *configServiceClient) IgnoreIngress(ctx context.Context, req *connect.Request[config.IgnoreIngressRequest]) (*connect.Response[config.IgnoreIngressResponse], error) {
+	return c.ignoreIngress.CallUnary(ctx, req)
+}
+
+// PruneIngress calls vrooli.tunnel_manager.v1.config.ConfigService.PruneIngress.
+func (c *configServiceClient) PruneIngress(ctx context.Context, req *connect.Request[config.PruneIngressRequest]) (*connect.Response[config.PruneIngressResponse], error) {
+	return c.pruneIngress.CallUnary(ctx, req)
+}
+
 // ConfigServiceHandler is an implementation of the vrooli.tunnel_manager.v1.config.ConfigService
 // service.
 type ConfigServiceHandler interface {
@@ -175,11 +250,27 @@ type ConfigServiceHandler interface {
 	// ClearCloudflareCredentials removes one or more file-backed Cloudflare
 	// credential values from the configured operator secret store.
 	ClearCloudflareCredentials(context.Context, *connect.Request[config.ClearCloudflareCredentialsRequest]) (*connect.Response[config.ClearCloudflareCredentialsResponse], error)
-	// Sync reconciles ingress (remote API or local config.yml) with the routes
-	// manifest. Idempotent: a no-drift sync applies nothing.
+	// Sync reconciles ingress ADDITIVELY: it publishes desired hostnames merged
+	// onto current live, never dropping unmanaged/ignored entries. Removal
+	// happens only when prune is set (a batch prune removes orphaned entries).
 	Sync(context.Context, *connect.Request[config.SyncRequest]) (*connect.Response[config.SyncResponse], error)
-	// SwitchMode migrates between "remote" and "local" management modes.
+	// SwitchMode migrates between "remote" and "local" management modes. It is
+	// PURE: it persists the mode and performs zero ingress writes.
 	SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error)
+	// GetDrift reconciles the desired manifest, the live tunnel, and the
+	// ownership ledger into a classified read model (no writes). It answers
+	// "what is live vs. what TM wants vs. what is unmanaged" in either mode.
+	GetDrift(context.Context, *connect.Request[config.GetDriftRequest]) (*connect.Response[config.GetDriftResponse], error)
+	// AdoptIngress brings an unmanaged live hostname under management: as a
+	// scenario route when it resolves to a known scenario, otherwise as an
+	// external route. Records MANAGED/EXTERNAL ownership in the ledger.
+	AdoptIngress(context.Context, *connect.Request[config.AdoptIngressRequest]) (*connect.Response[config.AdoptIngressResponse], error)
+	// IgnoreIngress acknowledges a live hostname as external and records it
+	// IGNORED so reconcile never pushes or prunes it.
+	IgnoreIngress(context.Context, *connect.Request[config.IgnoreIngressRequest]) (*connect.Response[config.IgnoreIngressResponse], error)
+	// PruneIngress removes a single named hostname from live ingress and the
+	// ledger. This is the only path that removes a specific entry.
+	PruneIngress(context.Context, *connect.Request[config.PruneIngressRequest]) (*connect.Response[config.PruneIngressResponse], error)
 }
 
 // NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -225,6 +316,30 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("SwitchMode")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceGetDriftHandler := connect.NewUnaryHandler(
+		ConfigServiceGetDriftProcedure,
+		svc.GetDrift,
+		connect.WithSchema(configServiceMethods.ByName("GetDrift")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceAdoptIngressHandler := connect.NewUnaryHandler(
+		ConfigServiceAdoptIngressProcedure,
+		svc.AdoptIngress,
+		connect.WithSchema(configServiceMethods.ByName("AdoptIngress")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceIgnoreIngressHandler := connect.NewUnaryHandler(
+		ConfigServiceIgnoreIngressProcedure,
+		svc.IgnoreIngress,
+		connect.WithSchema(configServiceMethods.ByName("IgnoreIngress")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServicePruneIngressHandler := connect.NewUnaryHandler(
+		ConfigServicePruneIngressProcedure,
+		svc.PruneIngress,
+		connect.WithSchema(configServiceMethods.ByName("PruneIngress")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.tunnel_manager.v1.config.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConfigServiceGetConfigProcedure:
@@ -239,6 +354,14 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceSyncHandler.ServeHTTP(w, r)
 		case ConfigServiceSwitchModeProcedure:
 			configServiceSwitchModeHandler.ServeHTTP(w, r)
+		case ConfigServiceGetDriftProcedure:
+			configServiceGetDriftHandler.ServeHTTP(w, r)
+		case ConfigServiceAdoptIngressProcedure:
+			configServiceAdoptIngressHandler.ServeHTTP(w, r)
+		case ConfigServiceIgnoreIngressProcedure:
+			configServiceIgnoreIngressHandler.ServeHTTP(w, r)
+		case ConfigServicePruneIngressProcedure:
+			configServicePruneIngressHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -270,4 +393,20 @@ func (UnimplementedConfigServiceHandler) Sync(context.Context, *connect.Request[
 
 func (UnimplementedConfigServiceHandler) SwitchMode(context.Context, *connect.Request[config.SwitchModeRequest]) (*connect.Response[config.SwitchModeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetDrift(context.Context, *connect.Request[config.GetDriftRequest]) (*connect.Response[config.GetDriftResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.GetDrift is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) AdoptIngress(context.Context, *connect.Request[config.AdoptIngressRequest]) (*connect.Response[config.AdoptIngressResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.AdoptIngress is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) IgnoreIngress(context.Context, *connect.Request[config.IgnoreIngressRequest]) (*connect.Response[config.IgnoreIngressResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.IgnoreIngress is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) PruneIngress(context.Context, *connect.Request[config.PruneIngressRequest]) (*connect.Response[config.PruneIngressResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.PruneIngress is not implemented"))
 }

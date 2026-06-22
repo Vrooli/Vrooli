@@ -37,7 +37,12 @@ export type ValidateScenarioRequest = Message<"vrooli.scenario_validation.v1.Val
   path: string;
 
   /**
-   * Providers that perform execution, such as unit-health, honor this flag.
+   * Execution-mode switch for providers that can both inspect and measure.
+   * false => readiness/inspection only (no process spawned, no build run);
+   * true => the provider runs its deterministic measurements (e.g. unit-health
+   * executes the suite; performance-health benchmarks the build + bundle and
+   * runs Lighthouse-if-UI, persisting a sample), then gates on the result.
+   * Providers that only inspect ignore this flag.
    *
    * @generated from field: bool include_execution = 3;
    */

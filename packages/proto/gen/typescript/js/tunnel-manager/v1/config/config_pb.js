@@ -8,125 +8,224 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc, tsEnum } from "@bufbuild/
  * Describes the file tunnel-manager/v1/config/config.proto.
  */
 export const file_tunnel_manager_v1_config_config = /*@__PURE__*/
-  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIpMBCgxUdW5uZWxDb25maWcSMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIRCgl0dW5uZWxfaWQYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRIQCghjcmVkX3JlZhgEIAEoCRIVCg1wcm9tX2VuZHBvaW50GAUgASgJIsoCCg9Db25maWdSZWFkaW5lc3MSOwoMZGVzaXJlZF9tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEhgKEHJlbW90ZV9hdmFpbGFibGUYAiABKAgSFgoObWlzc2luZ19maWVsZHMYAyADKAkSGQoRY3JlZGVudGlhbF9zb3VyY2UYBCABKAkSFgoOY3JlZGVudGlhbF9yZWYYBSABKAkSGQoRbG9jYWxfY29uZmlnX3BhdGgYBiABKAkSEgoKc3luY19yZWFkeRgHIAEoCBITCgttb2RlX3JlYXNvbhgIIAEoCRJRChFjcmVkZW50aWFsX2ZpZWxkcxgJIAMoCzI2LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ3JlZGVudGlhbEZpZWxkU3RhdHVzImUKFUNyZWRlbnRpYWxGaWVsZFN0YXR1cxIMCgRuYW1lGAEgASgJEg8KB3ByZXNlbnQYAiABKAgSDgoGc291cmNlGAMgASgJEgsKA3JlZhgEIAEoCRIQCgh3cml0YWJsZRgFIAEoCCKeAQoQQ3JlZGVudGlhbFN0YXR1cxJGCgZmaWVsZHMYASADKAsyNi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxGaWVsZFN0YXR1cxIWCg5taXNzaW5nX2ZpZWxkcxgCIAMoCRIOCgZzb3VyY2UYAyABKAkSCwoDcmVmGAQgASgJEg0KBXJlYWR5GAUgASgIIhIKEEdldENvbmZpZ1JlcXVlc3QilwEKEUdldENvbmZpZ1Jlc3BvbnNlEj0KBmNvbmZpZxgBIAEoCzItLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuVHVubmVsQ29uZmlnEkMKCXJlYWRpbmVzcxgCIAEoCzIwLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ29uZmlnUmVhZGluZXNzIhwKGkdldENyZWRlbnRpYWxTdGF0dXNSZXF1ZXN0ImAKG0dldENyZWRlbnRpYWxTdGF0dXNSZXNwb25zZRJBCgZzdGF0dXMYASABKAsyMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxTdGF0dXMiWwofU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBISCgphY2NvdW50X2lkGAEgASgJEhEKCXR1bm5lbF9pZBgCIAEoCRIRCglhcGlfdG9rZW4YAyABKAkiZQogU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USQQoGc3RhdHVzGAEgASgLMjEudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsU3RhdHVzIjMKIUNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBIOCgZmaWVsZHMYASADKAkiZwoiQ2xlYXJDbG91ZGZsYXJlQ3JlZGVudGlhbHNSZXNwb25zZRJBCgZzdGF0dXMYASABKAsyMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxTdGF0dXMiHgoLU3luY1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCCK4AQoMU3luY1Jlc3BvbnNlEjMKBG1vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUSDQoFYWRkZWQYAiADKAkSDwoHcmVtb3ZlZBgDIAMoCRISCgpub19jaGFuZ2VzGAQgASgIEhYKDnNldHVwX3JlcXVpcmVkGAUgASgIEhYKDm1pc3NpbmdfZmllbGRzGAYgAygJEg8KB21lc3NhZ2UYByABKAkiTwoRU3dpdGNoTW9kZVJlcXVlc3QSOgoLdGFyZ2V0X21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUijwEKElN3aXRjaE1vZGVSZXNwb25zZRI8Cg1wcmV2aW91c19tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEjsKDGN1cnJlbnRfbW9kZRgCIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSo9CgRNb2RlEhQKEE1PREVfVU5TUEVDSUZJRUQQABIPCgtNT0RFX1JFTU9URRABEg4KCk1PREVfTE9DQUwQAjK8BgoNQ29uZmlnU2VydmljZRJyCglHZXRDb25maWcSMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1JlcXVlc3QaMi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1Jlc3BvbnNlEpABChNHZXRDcmVkZW50aWFsU3RhdHVzEjsudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5HZXRDcmVkZW50aWFsU3RhdHVzUmVxdWVzdBo8LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q3JlZGVudGlhbFN0YXR1c1Jlc3BvbnNlEp8BChhTZXRDbG91ZGZsYXJlQ3JlZGVudGlhbHMSQC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlNldENsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QaQS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlNldENsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEqUBChpDbGVhckNsb3VkZmxhcmVDcmVkZW50aWFscxJCLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ2xlYXJDbG91ZGZsYXJlQ3JlZGVudGlhbHNSZXF1ZXN0GkMudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DbGVhckNsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEmMKBFN5bmMSLC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXF1ZXN0Gi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5TeW5jUmVzcG9uc2USdQoKU3dpdGNoTW9kZRIyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlcXVlc3QaMy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN3aXRjaE1vZGVSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3R1bm5lbC1tYW5hZ2VyL3YxL2NvbmZpZztjb25maWdfdjFiBnByb3RvMw");
+  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIuoBCgxJbmdyZXNzRW50cnkSEAoIaG9zdG5hbWUYASABKAkSFgoOc2VydmljZV90YXJnZXQYAiABKAkSPgoFc3RhdGUYAyABKA4yLy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk93bmVyc2hpcFN0YXRlEj4KBnNvdXJjZRgEIAEoDjIuLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuSW5ncmVzc1NvdXJjZRIQCghzY2VuYXJpbxgFIAEoCRIQCghsZWFzZV9pZBgGIAEoCRIMCgRub3RlGAcgASgJInoKC0RyaWZ0Q291bnRzEg8KB21hbmFnZWQYASABKAUSDwoHbWlzc2luZxgCIAEoBRITCgtleHRlcm5hbF9vaxgDIAEoBRIQCghvcnBoYW5lZBgEIAEoBRIPCgdpZ25vcmVkGAUgASgFEhEKCXVubWFuYWdlZBgGIAEoBSKTAQoMVHVubmVsQ29uZmlnEjMKBG1vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUSEQoJdHVubmVsX2lkGAIgASgJEhIKCmFjY291bnRfaWQYAyABKAkSEAoIY3JlZF9yZWYYBCABKAkSFQoNcHJvbV9lbmRwb2ludBgFIAEoCSLKAgoPQ29uZmlnUmVhZGluZXNzEjsKDGRlc2lyZWRfbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIYChByZW1vdGVfYXZhaWxhYmxlGAIgASgIEhYKDm1pc3NpbmdfZmllbGRzGAMgAygJEhkKEWNyZWRlbnRpYWxfc291cmNlGAQgASgJEhYKDmNyZWRlbnRpYWxfcmVmGAUgASgJEhkKEWxvY2FsX2NvbmZpZ19wYXRoGAYgASgJEhIKCnN5bmNfcmVhZHkYByABKAgSEwoLbW9kZV9yZWFzb24YCCABKAkSUQoRY3JlZGVudGlhbF9maWVsZHMYCSADKAsyNi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxGaWVsZFN0YXR1cyJlChVDcmVkZW50aWFsRmllbGRTdGF0dXMSDAoEbmFtZRgBIAEoCRIPCgdwcmVzZW50GAIgASgIEg4KBnNvdXJjZRgDIAEoCRILCgNyZWYYBCABKAkSEAoId3JpdGFibGUYBSABKAgingEKEENyZWRlbnRpYWxTdGF0dXMSRgoGZmllbGRzGAEgAygLMjYudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsRmllbGRTdGF0dXMSFgoObWlzc2luZ19maWVsZHMYAiADKAkSDgoGc291cmNlGAMgASgJEgsKA3JlZhgEIAEoCRINCgVyZWFkeRgFIAEoCCISChBHZXRDb25maWdSZXF1ZXN0IpcBChFHZXRDb25maWdSZXNwb25zZRI9CgZjb25maWcYASABKAsyLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlR1bm5lbENvbmZpZxJDCglyZWFkaW5lc3MYAiABKAsyMC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNvbmZpZ1JlYWRpbmVzcyIcChpHZXRDcmVkZW50aWFsU3RhdHVzUmVxdWVzdCJgChtHZXRDcmVkZW50aWFsU3RhdHVzUmVzcG9uc2USQQoGc3RhdHVzGAEgASgLMjEudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsU3RhdHVzIlsKH1NldENsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QSEgoKYWNjb3VudF9pZBgBIAEoCRIRCgl0dW5uZWxfaWQYAiABKAkSEQoJYXBpX3Rva2VuGAMgASgJImUKIFNldENsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEkEKBnN0YXR1cxgBIAEoCzIxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ3JlZGVudGlhbFN0YXR1cyIzCiFDbGVhckNsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QSDgoGZmllbGRzGAEgAygJImcKIkNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USQQoGc3RhdHVzGAEgASgLMjEudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsU3RhdHVzIi0KC1N5bmNSZXF1ZXN0Eg8KB2RyeV9ydW4YASABKAgSDQoFcHJ1bmUYAiABKAgi8wEKDFN5bmNSZXNwb25zZRIzCgRtb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEg0KBWFkZGVkGAIgAygJEg8KB3JlbW92ZWQYAyADKAkSEgoKbm9fY2hhbmdlcxgEIAEoCBIWCg5zZXR1cF9yZXF1aXJlZBgFIAEoCBIWCg5taXNzaW5nX2ZpZWxkcxgGIAMoCRIPCgdtZXNzYWdlGAcgASgJEhcKD2RyaWZ0X3VubWFuYWdlZBgIIAMoCRIQCghvcnBoYW5lZBgJIAMoCRIOCgZwcnVuZWQYCiADKAkiTwoRU3dpdGNoTW9kZVJlcXVlc3QSOgoLdGFyZ2V0X21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUijwEKElN3aXRjaE1vZGVSZXNwb25zZRI8Cg1wcmV2aW91c19tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEjsKDGN1cnJlbnRfbW9kZRgCIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSIRCg9HZXREcmlmdFJlcXVlc3QixQEKEEdldERyaWZ0UmVzcG9uc2USMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRI+CgdlbnRyaWVzGAIgAygLMi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5JbmdyZXNzRW50cnkSPAoGY291bnRzGAMgASgLMiwudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5EcmlmdENvdW50cyJJChNBZG9wdEluZ3Jlc3NSZXF1ZXN0EhAKCGhvc3RuYW1lGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBnRhcmdldBgDIAEoCSJUChRBZG9wdEluZ3Jlc3NSZXNwb25zZRI8CgVlbnRyeRgBIAEoCzItLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuSW5ncmVzc0VudHJ5IjYKFElnbm9yZUluZ3Jlc3NSZXF1ZXN0EhAKCGhvc3RuYW1lGAEgASgJEgwKBG5vdGUYAiABKAkiVQoVSWdub3JlSW5ncmVzc1Jlc3BvbnNlEjwKBWVudHJ5GAEgASgLMi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5JbmdyZXNzRW50cnkiJwoTUHJ1bmVJbmdyZXNzUmVxdWVzdBIQCghob3N0bmFtZRgBIAEoCSImChRQcnVuZUluZ3Jlc3NSZXNwb25zZRIOCgZwcnVuZWQYASABKAgq5gEKDk93bmVyc2hpcFN0YXRlEh8KG09XTkVSU0hJUF9TVEFURV9VTlNQRUNJRklFRBAAEhsKF09XTkVSU0hJUF9TVEFURV9NQU5BR0VEEAESGwoXT1dORVJTSElQX1NUQVRFX01JU1NJTkcQAhIfChtPV05FUlNISVBfU1RBVEVfRVhURVJOQUxfT0sQAxIcChhPV05FUlNISVBfU1RBVEVfT1JQSEFORUQQBBIbChdPV05FUlNISVBfU1RBVEVfSUdOT1JFRBAFEh0KGU9XTkVSU0hJUF9TVEFURV9VTk1BTkFHRUQQBippCg1JbmdyZXNzU291cmNlEh4KGklOR1JFU1NfU09VUkNFX1VOU1BFQ0lGSUVEEAASGwoXSU5HUkVTU19TT1VSQ0VfU0NFTkFSSU8QARIbChdJTkdSRVNTX1NPVVJDRV9FWFRFUk5BTBACKj0KBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg8KC01PREVfUkVNT1RFEAESDgoKTU9ERV9MT0NBTBACMqcKCg1Db25maWdTZXJ2aWNlEnIKCUdldENvbmZpZxIxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVxdWVzdBoyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVzcG9uc2USkAEKE0dldENyZWRlbnRpYWxTdGF0dXMSOy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENyZWRlbnRpYWxTdGF0dXNSZXF1ZXN0GjwudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5HZXRDcmVkZW50aWFsU3RhdHVzUmVzcG9uc2USnwEKGFNldENsb3VkZmxhcmVDcmVkZW50aWFscxJALnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBpBLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USpQEKGkNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzEkIudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DbGVhckNsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QaQy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USYwoEU3luYxIsLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3luY1JlcXVlc3QaLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXNwb25zZRJ1CgpTd2l0Y2hNb2RlEjIudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Td2l0Y2hNb2RlUmVxdWVzdBozLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlc3BvbnNlEm8KCEdldERyaWZ0EjAudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5HZXREcmlmdFJlcXVlc3QaMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldERyaWZ0UmVzcG9uc2USewoMQWRvcHRJbmdyZXNzEjQudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5BZG9wdEluZ3Jlc3NSZXF1ZXN0GjUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5BZG9wdEluZ3Jlc3NSZXNwb25zZRJ+Cg1JZ25vcmVJbmdyZXNzEjUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5JZ25vcmVJbmdyZXNzUmVxdWVzdBo2LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuSWdub3JlSW5ncmVzc1Jlc3BvbnNlEnsKDFBydW5lSW5ncmVzcxI0LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuUHJ1bmVJbmdyZXNzUmVxdWVzdBo1LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuUHJ1bmVJbmdyZXNzUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90dW5uZWwtbWFuYWdlci92MS9jb25maWc7Y29uZmlnX3YxYgZwcm90bzM");
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.IngressEntry.
+ * Use `create(IngressEntrySchema)` to create a new message.
+ */
+export const IngressEntrySchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 0);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.DriftCounts.
+ * Use `create(DriftCountsSchema)` to create a new message.
+ */
+export const DriftCountsSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 1);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.TunnelConfig.
  * Use `create(TunnelConfigSchema)` to create a new message.
  */
 export const TunnelConfigSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 0);
+  messageDesc(file_tunnel_manager_v1_config_config, 2);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.ConfigReadiness.
  * Use `create(ConfigReadinessSchema)` to create a new message.
  */
 export const ConfigReadinessSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 1);
+  messageDesc(file_tunnel_manager_v1_config_config, 3);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.CredentialFieldStatus.
  * Use `create(CredentialFieldStatusSchema)` to create a new message.
  */
 export const CredentialFieldStatusSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 2);
+  messageDesc(file_tunnel_manager_v1_config_config, 4);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.CredentialStatus.
  * Use `create(CredentialStatusSchema)` to create a new message.
  */
 export const CredentialStatusSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 3);
+  messageDesc(file_tunnel_manager_v1_config_config, 5);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.GetConfigRequest.
  * Use `create(GetConfigRequestSchema)` to create a new message.
  */
 export const GetConfigRequestSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 4);
+  messageDesc(file_tunnel_manager_v1_config_config, 6);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.GetConfigResponse.
  * Use `create(GetConfigResponseSchema)` to create a new message.
  */
 export const GetConfigResponseSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 5);
+  messageDesc(file_tunnel_manager_v1_config_config, 7);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest.
  * Use `create(GetCredentialStatusRequestSchema)` to create a new message.
  */
 export const GetCredentialStatusRequestSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 6);
+  messageDesc(file_tunnel_manager_v1_config_config, 8);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse.
  * Use `create(GetCredentialStatusResponseSchema)` to create a new message.
  */
 export const GetCredentialStatusResponseSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 7);
+  messageDesc(file_tunnel_manager_v1_config_config, 9);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest.
  * Use `create(SetCloudflareCredentialsRequestSchema)` to create a new message.
  */
 export const SetCloudflareCredentialsRequestSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 8);
+  messageDesc(file_tunnel_manager_v1_config_config, 10);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse.
  * Use `create(SetCloudflareCredentialsResponseSchema)` to create a new message.
  */
 export const SetCloudflareCredentialsResponseSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 9);
+  messageDesc(file_tunnel_manager_v1_config_config, 11);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest.
  * Use `create(ClearCloudflareCredentialsRequestSchema)` to create a new message.
  */
 export const ClearCloudflareCredentialsRequestSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 10);
+  messageDesc(file_tunnel_manager_v1_config_config, 12);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse.
  * Use `create(ClearCloudflareCredentialsResponseSchema)` to create a new message.
  */
 export const ClearCloudflareCredentialsResponseSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 11);
+  messageDesc(file_tunnel_manager_v1_config_config, 13);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.SyncRequest.
  * Use `create(SyncRequestSchema)` to create a new message.
  */
 export const SyncRequestSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 12);
+  messageDesc(file_tunnel_manager_v1_config_config, 14);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.SyncResponse.
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 13);
+  messageDesc(file_tunnel_manager_v1_config_config, 15);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.SwitchModeRequest.
  * Use `create(SwitchModeRequestSchema)` to create a new message.
  */
 export const SwitchModeRequestSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 14);
+  messageDesc(file_tunnel_manager_v1_config_config, 16);
 
 /**
  * Describes the message vrooli.tunnel_manager.v1.config.SwitchModeResponse.
  * Use `create(SwitchModeResponseSchema)` to create a new message.
  */
 export const SwitchModeResponseSchema = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 15);
+  messageDesc(file_tunnel_manager_v1_config_config, 17);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.GetDriftRequest.
+ * Use `create(GetDriftRequestSchema)` to create a new message.
+ */
+export const GetDriftRequestSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 18);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.GetDriftResponse.
+ * Use `create(GetDriftResponseSchema)` to create a new message.
+ */
+export const GetDriftResponseSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 19);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.AdoptIngressRequest.
+ * Use `create(AdoptIngressRequestSchema)` to create a new message.
+ */
+export const AdoptIngressRequestSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 20);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.AdoptIngressResponse.
+ * Use `create(AdoptIngressResponseSchema)` to create a new message.
+ */
+export const AdoptIngressResponseSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 21);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.IgnoreIngressRequest.
+ * Use `create(IgnoreIngressRequestSchema)` to create a new message.
+ */
+export const IgnoreIngressRequestSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 22);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.IgnoreIngressResponse.
+ * Use `create(IgnoreIngressResponseSchema)` to create a new message.
+ */
+export const IgnoreIngressResponseSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 23);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.PruneIngressRequest.
+ * Use `create(PruneIngressRequestSchema)` to create a new message.
+ */
+export const PruneIngressRequestSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 24);
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.PruneIngressResponse.
+ * Use `create(PruneIngressResponseSchema)` to create a new message.
+ */
+export const PruneIngressResponseSchema = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 25);
+
+/**
+ * Describes the enum vrooli.tunnel_manager.v1.config.OwnershipState.
+ */
+export const OwnershipStateSchema = /*@__PURE__*/
+  enumDesc(file_tunnel_manager_v1_config_config, 0);
+
+/**
+ * OwnershipState classifies one ingress hostname after reconciling the desired
+ * manifest, the live tunnel, and the ownership ledger (see drift.go).
+ *
+ * @generated from enum vrooli.tunnel_manager.v1.config.OwnershipState
+ */
+export const OwnershipState = /*@__PURE__*/
+  tsEnum(OwnershipStateSchema);
+
+/**
+ * Describes the enum vrooli.tunnel_manager.v1.config.IngressSource.
+ */
+export const IngressSourceSchema = /*@__PURE__*/
+  enumDesc(file_tunnel_manager_v1_config_config, 1);
+
+/**
+ * IngressSource is the provenance of a classified ingress entry.
+ *
+ * @generated from enum vrooli.tunnel_manager.v1.config.IngressSource
+ */
+export const IngressSource = /*@__PURE__*/
+  tsEnum(IngressSourceSchema);
 
 /**
  * Describes the enum vrooli.tunnel_manager.v1.config.Mode.
  */
 export const ModeSchema = /*@__PURE__*/
-  enumDesc(file_tunnel_manager_v1_config_config, 0);
+  enumDesc(file_tunnel_manager_v1_config_config, 2);
 
 /**
  * Mode is the tunnel management mode.

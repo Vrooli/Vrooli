@@ -13,7 +13,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-
 // @stability beta
 //
 // BudgetService owns per-scenario performance budgets (build time, bundle size,
-// LCP, p95-where-available, component-commit budgets) plus a ratchet. Budgets
+// LCP, startup, component-commit budgets) plus a ratchet. Budgets
 // are declarative in scenario config; a regression vs. budget fails via
 // baseline-diff exactly like any other health regression.
 // =============================================================================
@@ -39,14 +39,16 @@ message Budget {
   int64 startup_max_ms = 6;
   // Per-component commit budget in milliseconds (max for the slowest component).
   double component_commit_max_ms = 7;
-  // p95 interaction/latency budget in milliseconds (where measured; 0 = unset).
-  int64 p95_max_ms = 8;
   // Per-component average-commit budget in milliseconds (0 = unset).
   double component_commit_avg_max_ms = 9;
   // Ratchet: when true SetBudget may only tighten an existing budget, never
   // loosen it (a relaxation is rejected). Tighten-only protects against
   // silently regressing the budget after a measured improvement.
   bool ratchet = 10;
+  // Field 8 was p95_max_ms — removed: no honest p95 latency producer exists, so
+  // the axis could never trip. Reserved to prevent accidental reuse.
+  reserved 8;
+  reserved "p95_max_ms";
 }
 
 message GetBudgetRequest {

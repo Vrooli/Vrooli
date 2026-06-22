@@ -139,12 +139,12 @@ type TrendSample struct {
 	StartupMs   int64  `protobuf:"varint,7,opt,name=startup_ms,json=startupMs,proto3" json:"startup_ms,omitempty"`
 	// Optional human note (e.g. degraded reason, axes captured).
 	Note string `protobuf:"bytes,8,opt,name=note,proto3" json:"note,omitempty"`
-	// p95 interaction/latency in milliseconds (0 = not measured this run).
-	P95Ms int64 `protobuf:"varint,9,opt,name=p95_ms,json=p95Ms,proto3" json:"p95_ms,omitempty"`
 	// The slowest component (by average commit time) observed this run, if any.
 	SlowestComponent string `protobuf:"bytes,10,opt,name=slowest_component,json=slowestComponent,proto3" json:"slowest_component,omitempty"`
 	// The slowest component's average commit time in milliseconds (0 = none).
 	SlowestComponentAvgMs float64 `protobuf:"fixed64,11,opt,name=slowest_component_avg_ms,json=slowestComponentAvgMs,proto3" json:"slowest_component_avg_ms,omitempty"`
+	// The slowest component's max commit time in milliseconds (0 = none).
+	SlowestComponentMaxMs float64 `protobuf:"fixed64,12,opt,name=slowest_component_max_ms,json=slowestComponentMaxMs,proto3" json:"slowest_component_max_ms,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -235,13 +235,6 @@ func (x *TrendSample) GetNote() string {
 	return ""
 }
 
-func (x *TrendSample) GetP95Ms() int64 {
-	if x != nil {
-		return x.P95Ms
-	}
-	return 0
-}
-
 func (x *TrendSample) GetSlowestComponent() string {
 	if x != nil {
 		return x.SlowestComponent
@@ -256,6 +249,13 @@ func (x *TrendSample) GetSlowestComponentAvgMs() float64 {
 	return 0
 }
 
+func (x *TrendSample) GetSlowestComponentMaxMs() float64 {
+	if x != nil {
+		return x.SlowestComponentMaxMs
+	}
+	return 0
+}
+
 var File_performance_health_v1_trend_trend_proto protoreflect.FileDescriptor
 
 const file_performance_health_v1_trend_trend_proto_rawDesc = "" +
@@ -266,7 +266,7 @@ const file_performance_health_v1_trend_trend_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"y\n" +
 	"\x10GetTrendResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12I\n" +
-	"\asamples\x18\x02 \x03(\v2/.vrooli.performance_health.v1.trend.TrendSampleR\asamples\"\xf4\x02\n" +
+	"\asamples\x18\x02 \x03(\v2/.vrooli.performance_health.v1.trend.TrendSampleR\asamples\"\xa4\x03\n" +
 	"\vTrendSample\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
 	"\vcaptured_at\x18\x02 \x01(\tR\n" +
@@ -277,11 +277,12 @@ const file_performance_health_v1_trend_trend_proto_rawDesc = "" +
 	"\x06lcp_ms\x18\x06 \x01(\x03R\x05lcpMs\x12\x1d\n" +
 	"\n" +
 	"startup_ms\x18\a \x01(\x03R\tstartupMs\x12\x12\n" +
-	"\x04note\x18\b \x01(\tR\x04note\x12\x15\n" +
-	"\x06p95_ms\x18\t \x01(\x03R\x05p95Ms\x12+\n" +
+	"\x04note\x18\b \x01(\tR\x04note\x12+\n" +
 	"\x11slowest_component\x18\n" +
 	" \x01(\tR\x10slowestComponent\x127\n" +
-	"\x18slowest_component_avg_ms\x18\v \x01(\x01R\x15slowestComponentAvgMs2\x85\x01\n" +
+	"\x18slowest_component_avg_ms\x18\v \x01(\x01R\x15slowestComponentAvgMs\x127\n" +
+	"\x18slowest_component_max_ms\x18\f \x01(\x01R\x15slowestComponentMaxMsJ\x04\b\t\x10\n" +
+	"R\x06p95_ms2\x85\x01\n" +
 	"\fTrendService\x12u\n" +
 	"\bGetTrend\x123.vrooli.performance_health.v1.trend.GetTrendRequest\x1a4.vrooli.performance_health.v1.trend.GetTrendResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/trend;trend_v1b\x06proto3"
 

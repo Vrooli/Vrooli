@@ -94,6 +94,13 @@ enum FindingSource {
   // declared-vs-actual scenario dependency findings. Feeds the
   // ecosystem-manager soft `dependency-accuracy` R2 ladder dimension.
   FINDING_SOURCE_DEPENDENCY = 13;
+  // STORAGE: test-genie `storage` phase — delegates to the storage-health
+  // scenario (schema layout, migration hygiene, persistence-seam adoption,
+  // and test-isolation safety) and emits normalized findings. Its L2
+  // isolation verdict is a fail-closed precondition for the destructive
+  // `playbooks` phase; feeds the ecosystem-manager `storage` ladder
+  // dimension.
+  FINDING_SOURCE_STORAGE = 14;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

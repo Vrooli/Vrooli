@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%tunnel-manager/v1/routes/routes.proto\x12\x1fvrooli.tunnel_manager.v1.routes\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\x03\n\x05Route\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1a\n\x08scenario\x18\x03 \x01(\tR\x08scenario\x12\x16\n\x06\x64omain\x18\x04 \x01(\tR\x06\x64omain\x12\x1d\n\nlocal_port\x18\x05 \x01(\x05R\tlocalPort\x12\x39\n\x04tier\x18\x06 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\x12\x19\n\x08lease_id\x18\x07 \x01(\tR\x07leaseId\x12\x18\n\x07\x65nabled\x18\x08 \x01(\x08R\x07\x65nabled\x12\x1f\n\x0bhealth_path\x18\t \x01(\tR\nhealthPath\x12\x1d\n\npublic_url\x18\n \x01(\tR\tpublicUrl\x12\x39\n\ncreated_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x0c \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"N\n\x11ListRoutesRequest\x12\x39\n\x04tier\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\"T\n\x12ListRoutesResponse\x12>\n\x06routes\x18\x01 \x03(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x06routes\"!\n\x0fGetRouteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"P\n\x10GetRouteResponse\x12<\n\x05route\x18\x01 \x01(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\xa7\x02\n\x12\x43reateRouteRequest\x12\x1c\n\tsubdomain\x18\x01 \x01(\tR\tsubdomain\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x16\n\x06\x64omain\x18\x03 \x01(\tR\x06\x64omain\x12\x1d\n\nlocal_port\x18\x04 \x01(\x05R\tlocalPort\x12\x39\n\x04tier\x18\x05 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\x12\x19\n\x08lease_id\x18\x06 \x01(\tR\x07leaseId\x12\x1f\n\x0bhealth_path\x18\x07 \x01(\tR\nhealthPath\x12\x1d\n\x07\x65nabled\x18\x08 \x01(\x08H\x00R\x07\x65nabled\x88\x01\x01\x42\n\n\x08_enabled\"S\n\x13\x43reateRouteResponse\x12<\n\x05route\x18\x01 \x01(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\x9c\x02\n\x12UpdateRouteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1a\n\x08scenario\x18\x03 \x01(\tR\x08scenario\x12\x16\n\x06\x64omain\x18\x04 \x01(\tR\x06\x64omain\x12\x1d\n\nlocal_port\x18\x05 \x01(\x05R\tlocalPort\x12\x39\n\x04tier\x18\x06 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\x12\x1f\n\x0bhealth_path\x18\x07 \x01(\tR\nhealthPath\x12\x1d\n\x07\x65nabled\x18\x08 \x01(\x08H\x00R\x07\x65nabled\x88\x01\x01\x42\n\n\x08_enabled\"S\n\x13UpdateRouteResponse\x12<\n\x05route\x18\x01 \x01(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"$\n\x12\x44\x65leteRouteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"/\n\x13\x44\x65leteRouteResponse\x12\x18\n\x07\x64\x65leted\x18\x01 \x01(\x08R\x07\x64\x65leted*<\n\x04Tier\x12\x14\n\x10TIER_UNSPECIFIED\x10\x00\x12\r\n\tTIER_CORE\x10\x01\x12\x0f\n\x0bTIER_LEASED\x10\x02\x32\xe5\x04\n\rRoutesService\x12u\n\nListRoutes\x12\x32.vrooli.tunnel_manager.v1.routes.ListRoutesRequest\x1a\x33.vrooli.tunnel_manager.v1.routes.ListRoutesResponse\x12o\n\x08GetRoute\x12\x30.vrooli.tunnel_manager.v1.routes.GetRouteRequest\x1a\x31.vrooli.tunnel_manager.v1.routes.GetRouteResponse\x12x\n\x0b\x43reateRoute\x12\x33.vrooli.tunnel_manager.v1.routes.CreateRouteRequest\x1a\x34.vrooli.tunnel_manager.v1.routes.CreateRouteResponse\x12x\n\x0bUpdateRoute\x12\x33.vrooli.tunnel_manager.v1.routes.UpdateRouteRequest\x1a\x34.vrooli.tunnel_manager.v1.routes.UpdateRouteResponse\x12x\n\x0b\x44\x65leteRoute\x12\x33.vrooli.tunnel_manager.v1.routes.DeleteRouteRequest\x1a\x34.vrooli.tunnel_manager.v1.routes.DeleteRouteResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/routes;routes_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%tunnel-manager/v1/routes/routes.proto\x12\x1fvrooli.tunnel_manager.v1.routes\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x04\n\x05Route\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1a\n\x08scenario\x18\x03 \x01(\tR\x08scenario\x12\x16\n\x06\x64omain\x18\x04 \x01(\tR\x06\x64omain\x12\x1d\n\nlocal_port\x18\x05 \x01(\x05R\tlocalPort\x12\x39\n\x04tier\x18\x06 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\x12\x19\n\x08lease_id\x18\x07 \x01(\tR\x07leaseId\x12\x18\n\x07\x65nabled\x18\x08 \x01(\x08R\x07\x65nabled\x12\x1f\n\x0bhealth_path\x18\t \x01(\tR\nhealthPath\x12\x1d\n\npublic_url\x18\n \x01(\tR\tpublicUrl\x12\x39\n\ncreated_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x0c \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x44\n\x06source\x18\r \x01(\x0e\x32,.vrooli.tunnel_manager.v1.routes.RouteSourceR\x06source\x12%\n\x0eservice_target\x18\x0e \x01(\tR\rserviceTarget\"N\n\x11ListRoutesRequest\x12\x39\n\x04tier\x18\x01 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\"T\n\x12ListRoutesResponse\x12>\n\x06routes\x18\x01 \x03(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x06routes\"!\n\x0fGetRouteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"P\n\x10GetRouteResponse\x12<\n\x05route\x18\x01 \x01(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\x94\x03\n\x12\x43reateRouteRequest\x12\x1c\n\tsubdomain\x18\x01 \x01(\tR\tsubdomain\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x16\n\x06\x64omain\x18\x03 \x01(\tR\x06\x64omain\x12\x1d\n\nlocal_port\x18\x04 \x01(\x05R\tlocalPort\x12\x39\n\x04tier\x18\x05 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\x12\x19\n\x08lease_id\x18\x06 \x01(\tR\x07leaseId\x12\x1f\n\x0bhealth_path\x18\x07 \x01(\tR\nhealthPath\x12\x1d\n\x07\x65nabled\x18\x08 \x01(\x08H\x00R\x07\x65nabled\x88\x01\x01\x12\x44\n\x06source\x18\t \x01(\x0e\x32,.vrooli.tunnel_manager.v1.routes.RouteSourceR\x06source\x12%\n\x0eservice_target\x18\n \x01(\tR\rserviceTargetB\n\n\x08_enabled\"S\n\x13\x43reateRouteResponse\x12<\n\x05route\x18\x01 \x01(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\x89\x03\n\x12UpdateRouteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1a\n\x08scenario\x18\x03 \x01(\tR\x08scenario\x12\x16\n\x06\x64omain\x18\x04 \x01(\tR\x06\x64omain\x12\x1d\n\nlocal_port\x18\x05 \x01(\x05R\tlocalPort\x12\x39\n\x04tier\x18\x06 \x01(\x0e\x32%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\x12\x1f\n\x0bhealth_path\x18\x07 \x01(\tR\nhealthPath\x12\x1d\n\x07\x65nabled\x18\x08 \x01(\x08H\x00R\x07\x65nabled\x88\x01\x01\x12\x44\n\x06source\x18\t \x01(\x0e\x32,.vrooli.tunnel_manager.v1.routes.RouteSourceR\x06source\x12%\n\x0eservice_target\x18\n \x01(\tR\rserviceTargetB\n\n\x08_enabled\"S\n\x13UpdateRouteResponse\x12<\n\x05route\x18\x01 \x01(\x0b\x32&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"$\n\x12\x44\x65leteRouteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"/\n\x13\x44\x65leteRouteResponse\x12\x18\n\x07\x64\x65leted\x18\x01 \x01(\x08R\x07\x64\x65leted*<\n\x04Tier\x12\x14\n\x10TIER_UNSPECIFIED\x10\x00\x12\r\n\tTIER_CORE\x10\x01\x12\x0f\n\x0bTIER_LEASED\x10\x02*a\n\x0bRouteSource\x12\x1c\n\x18ROUTE_SOURCE_UNSPECIFIED\x10\x00\x12\x19\n\x15ROUTE_SOURCE_SCENARIO\x10\x01\x12\x19\n\x15ROUTE_SOURCE_EXTERNAL\x10\x02\x32\xe5\x04\n\rRoutesService\x12u\n\nListRoutes\x12\x32.vrooli.tunnel_manager.v1.routes.ListRoutesRequest\x1a\x33.vrooli.tunnel_manager.v1.routes.ListRoutesResponse\x12o\n\x08GetRoute\x12\x30.vrooli.tunnel_manager.v1.routes.GetRouteRequest\x1a\x31.vrooli.tunnel_manager.v1.routes.GetRouteResponse\x12x\n\x0b\x43reateRoute\x12\x33.vrooli.tunnel_manager.v1.routes.CreateRouteRequest\x1a\x34.vrooli.tunnel_manager.v1.routes.CreateRouteResponse\x12x\n\x0bUpdateRoute\x12\x33.vrooli.tunnel_manager.v1.routes.UpdateRouteRequest\x1a\x34.vrooli.tunnel_manager.v1.routes.UpdateRouteResponse\x12x\n\x0b\x44\x65leteRoute\x12\x33.vrooli.tunnel_manager.v1.routes.DeleteRouteRequest\x1a\x34.vrooli.tunnel_manager.v1.routes.DeleteRouteResponseBSZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/routes;routes_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,30 +33,32 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'tunnel_manager.v1.routes.ro
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZQgithub.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/routes;routes_v1'
-  _globals['_TIER']._serialized_start=1665
-  _globals['_TIER']._serialized_end=1725
+  _globals['_TIER']._serialized_start=1992
+  _globals['_TIER']._serialized_end=2052
+  _globals['_ROUTESOURCE']._serialized_start=2054
+  _globals['_ROUTESOURCE']._serialized_end=2151
   _globals['_ROUTE']._serialized_start=108
-  _globals['_ROUTE']._serialized_end=538
-  _globals['_LISTROUTESREQUEST']._serialized_start=540
-  _globals['_LISTROUTESREQUEST']._serialized_end=618
-  _globals['_LISTROUTESRESPONSE']._serialized_start=620
-  _globals['_LISTROUTESRESPONSE']._serialized_end=704
-  _globals['_GETROUTEREQUEST']._serialized_start=706
-  _globals['_GETROUTEREQUEST']._serialized_end=739
-  _globals['_GETROUTERESPONSE']._serialized_start=741
-  _globals['_GETROUTERESPONSE']._serialized_end=821
-  _globals['_CREATEROUTEREQUEST']._serialized_start=824
-  _globals['_CREATEROUTEREQUEST']._serialized_end=1119
-  _globals['_CREATEROUTERESPONSE']._serialized_start=1121
-  _globals['_CREATEROUTERESPONSE']._serialized_end=1204
-  _globals['_UPDATEROUTEREQUEST']._serialized_start=1207
-  _globals['_UPDATEROUTEREQUEST']._serialized_end=1491
-  _globals['_UPDATEROUTERESPONSE']._serialized_start=1493
-  _globals['_UPDATEROUTERESPONSE']._serialized_end=1576
-  _globals['_DELETEROUTEREQUEST']._serialized_start=1578
-  _globals['_DELETEROUTEREQUEST']._serialized_end=1614
-  _globals['_DELETEROUTERESPONSE']._serialized_start=1616
-  _globals['_DELETEROUTERESPONSE']._serialized_end=1663
-  _globals['_ROUTESSERVICE']._serialized_start=1728
-  _globals['_ROUTESSERVICE']._serialized_end=2341
+  _globals['_ROUTE']._serialized_end=647
+  _globals['_LISTROUTESREQUEST']._serialized_start=649
+  _globals['_LISTROUTESREQUEST']._serialized_end=727
+  _globals['_LISTROUTESRESPONSE']._serialized_start=729
+  _globals['_LISTROUTESRESPONSE']._serialized_end=813
+  _globals['_GETROUTEREQUEST']._serialized_start=815
+  _globals['_GETROUTEREQUEST']._serialized_end=848
+  _globals['_GETROUTERESPONSE']._serialized_start=850
+  _globals['_GETROUTERESPONSE']._serialized_end=930
+  _globals['_CREATEROUTEREQUEST']._serialized_start=933
+  _globals['_CREATEROUTEREQUEST']._serialized_end=1337
+  _globals['_CREATEROUTERESPONSE']._serialized_start=1339
+  _globals['_CREATEROUTERESPONSE']._serialized_end=1422
+  _globals['_UPDATEROUTEREQUEST']._serialized_start=1425
+  _globals['_UPDATEROUTEREQUEST']._serialized_end=1818
+  _globals['_UPDATEROUTERESPONSE']._serialized_start=1820
+  _globals['_UPDATEROUTERESPONSE']._serialized_end=1903
+  _globals['_DELETEROUTEREQUEST']._serialized_start=1905
+  _globals['_DELETEROUTEREQUEST']._serialized_end=1941
+  _globals['_DELETEROUTERESPONSE']._serialized_start=1943
+  _globals['_DELETEROUTERESPONSE']._serialized_end=1990
+  _globals['_ROUTESSERVICE']._serialized_start=2154
+  _globals['_ROUTESSERVICE']._serialized_end=2767
 # @@protoc_insertion_point(module_scope)

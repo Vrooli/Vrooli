@@ -372,3 +372,103 @@ class EnsureBackendResponse(_message.Message):
     state: str
     detail: str
     def __init__(self, tool: _Optional[str] = ..., job_id: _Optional[str] = ..., eta_seconds: _Optional[int] = ..., already_installed: _Optional[bool] = ..., manual: _Optional[bool] = ..., state: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class GetHostSummaryRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetHostSummaryResponse(_message.Message):
+    __slots__ = ("host",)
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    host: HostSummary
+    def __init__(self, host: _Optional[_Union[HostSummary, _Mapping]] = ...) -> None: ...
+
+class ListOperationModelsRequest(_message.Message):
+    __slots__ = ("operation",)
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    def __init__(self, operation: _Optional[str] = ...) -> None: ...
+
+class HostSummary(_message.Message):
+    __slots__ = ("has_gpu", "gpu_name", "gpu_count", "vram_total_gb", "vram_free_gb", "vram_known", "ram_gb", "cpu_cores", "os", "arch")
+    HAS_GPU_FIELD_NUMBER: _ClassVar[int]
+    GPU_NAME_FIELD_NUMBER: _ClassVar[int]
+    GPU_COUNT_FIELD_NUMBER: _ClassVar[int]
+    VRAM_TOTAL_GB_FIELD_NUMBER: _ClassVar[int]
+    VRAM_FREE_GB_FIELD_NUMBER: _ClassVar[int]
+    VRAM_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    RAM_GB_FIELD_NUMBER: _ClassVar[int]
+    CPU_CORES_FIELD_NUMBER: _ClassVar[int]
+    OS_FIELD_NUMBER: _ClassVar[int]
+    ARCH_FIELD_NUMBER: _ClassVar[int]
+    has_gpu: bool
+    gpu_name: str
+    gpu_count: int
+    vram_total_gb: int
+    vram_free_gb: int
+    vram_known: bool
+    ram_gb: int
+    cpu_cores: int
+    os: str
+    arch: str
+    def __init__(self, has_gpu: _Optional[bool] = ..., gpu_name: _Optional[str] = ..., gpu_count: _Optional[int] = ..., vram_total_gb: _Optional[int] = ..., vram_free_gb: _Optional[int] = ..., vram_known: _Optional[bool] = ..., ram_gb: _Optional[int] = ..., cpu_cores: _Optional[int] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ...) -> None: ...
+
+class ModelFit(_message.Message):
+    __slots__ = ("runnable", "gpu_viable", "fit_class", "vram_shortfall_gb", "warnings")
+    RUNNABLE_FIELD_NUMBER: _ClassVar[int]
+    GPU_VIABLE_FIELD_NUMBER: _ClassVar[int]
+    FIT_CLASS_FIELD_NUMBER: _ClassVar[int]
+    VRAM_SHORTFALL_GB_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    runnable: bool
+    gpu_viable: bool
+    fit_class: str
+    vram_shortfall_gb: int
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, runnable: _Optional[bool] = ..., gpu_viable: _Optional[bool] = ..., fit_class: _Optional[str] = ..., vram_shortfall_gb: _Optional[int] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class BackendReadiness(_message.Message):
+    __slots__ = ("backend", "host_tool", "ready", "install_tier", "remediation", "manual_hint", "detail")
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    HOST_TOOL_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    INSTALL_TIER_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    MANUAL_HINT_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    backend: str
+    host_tool: str
+    ready: bool
+    install_tier: str
+    remediation: str
+    manual_hint: str
+    detail: str
+    def __init__(self, backend: _Optional[str] = ..., host_tool: _Optional[str] = ..., ready: _Optional[bool] = ..., install_tier: _Optional[str] = ..., remediation: _Optional[str] = ..., manual_hint: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
+class CandidateModel(_message.Message):
+    __slots__ = ("model", "fit", "backend", "ready_state", "selected")
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    FIT_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    READY_STATE_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_FIELD_NUMBER: _ClassVar[int]
+    model: Model
+    fit: ModelFit
+    backend: BackendReadiness
+    ready_state: str
+    selected: bool
+    def __init__(self, model: _Optional[_Union[Model, _Mapping]] = ..., fit: _Optional[_Union[ModelFit, _Mapping]] = ..., backend: _Optional[_Union[BackendReadiness, _Mapping]] = ..., ready_state: _Optional[str] = ..., selected: _Optional[bool] = ...) -> None: ...
+
+class ListOperationModelsResponse(_message.Message):
+    __slots__ = ("operation", "host", "candidates", "selected_id", "selected_reason")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    HOST_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_ID_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_REASON_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    host: HostSummary
+    candidates: _containers.RepeatedCompositeFieldContainer[CandidateModel]
+    selected_id: str
+    selected_reason: str
+    def __init__(self, operation: _Optional[str] = ..., host: _Optional[_Union[HostSummary, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[CandidateModel, _Mapping]]] = ..., selected_id: _Optional[str] = ..., selected_reason: _Optional[str] = ...) -> None: ...

@@ -87,7 +87,12 @@ type ValidateScenarioRequest struct {
 	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	// Optional explicit scenario path for callers that already resolved it.
 	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	// Providers that perform execution, such as unit-health, honor this flag.
+	// Execution-mode switch for providers that can both inspect and measure.
+	// false => readiness/inspection only (no process spawned, no build run);
+	// true => the provider runs its deterministic measurements (e.g. unit-health
+	// executes the suite; performance-health benchmarks the build + bundle and
+	// runs Lighthouse-if-UI, persisting a sample), then gates on the result.
+	// Providers that only inspect ignore this flag.
 	IncludeExecution bool `protobuf:"varint,3,opt,name=include_execution,json=includeExecution,proto3" json:"include_execution,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache

@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Budget(_message.Message):
-    __slots__ = ("scenario", "go_build_max_ms", "ui_build_max_ms", "bundle_max_bytes", "lcp_max_ms", "startup_max_ms", "component_commit_max_ms", "p95_max_ms", "component_commit_avg_max_ms", "ratchet")
+    __slots__ = ("scenario", "go_build_max_ms", "ui_build_max_ms", "bundle_max_bytes", "lcp_max_ms", "startup_max_ms", "component_commit_max_ms", "component_commit_avg_max_ms", "ratchet")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     GO_BUILD_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     UI_BUILD_MAX_MS_FIELD_NUMBER: _ClassVar[int]
@@ -15,7 +15,6 @@ class Budget(_message.Message):
     LCP_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     STARTUP_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_COMMIT_MAX_MS_FIELD_NUMBER: _ClassVar[int]
-    P95_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_COMMIT_AVG_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     RATCHET_FIELD_NUMBER: _ClassVar[int]
     scenario: str
@@ -25,10 +24,9 @@ class Budget(_message.Message):
     lcp_max_ms: int
     startup_max_ms: int
     component_commit_max_ms: float
-    p95_max_ms: int
     component_commit_avg_max_ms: float
     ratchet: bool
-    def __init__(self, scenario: _Optional[str] = ..., go_build_max_ms: _Optional[int] = ..., ui_build_max_ms: _Optional[int] = ..., bundle_max_bytes: _Optional[int] = ..., lcp_max_ms: _Optional[int] = ..., startup_max_ms: _Optional[int] = ..., component_commit_max_ms: _Optional[float] = ..., p95_max_ms: _Optional[int] = ..., component_commit_avg_max_ms: _Optional[float] = ..., ratchet: _Optional[bool] = ...) -> None: ...
+    def __init__(self, scenario: _Optional[str] = ..., go_build_max_ms: _Optional[int] = ..., ui_build_max_ms: _Optional[int] = ..., bundle_max_bytes: _Optional[int] = ..., lcp_max_ms: _Optional[int] = ..., startup_max_ms: _Optional[int] = ..., component_commit_max_ms: _Optional[float] = ..., component_commit_avg_max_ms: _Optional[float] = ..., ratchet: _Optional[bool] = ...) -> None: ...
 
 class GetBudgetRequest(_message.Message):
     __slots__ = ("scenario",)

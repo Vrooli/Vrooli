@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\x8d\x03\n\x06\x42udget\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12%\n\x0fgo_build_max_ms\x18\x02 \x01(\x03R\x0cgoBuildMaxMs\x12%\n\x0fui_build_max_ms\x18\x03 \x01(\x03R\x0cuiBuildMaxMs\x12(\n\x10\x62undle_max_bytes\x18\x04 \x01(\x03R\x0e\x62undleMaxBytes\x12\x1c\n\nlcp_max_ms\x18\x05 \x01(\x03R\x08lcpMaxMs\x12$\n\x0estartup_max_ms\x18\x06 \x01(\x03R\x0cstartupMaxMs\x12\x35\n\x17\x63omponent_commit_max_ms\x18\x07 \x01(\x01R\x14\x63omponentCommitMaxMs\x12\x1c\n\np95_max_ms\x18\x08 \x01(\x03R\x08p95MaxMs\x12<\n\x1b\x63omponent_commit_avg_max_ms\x18\t \x01(\x01R\x17\x63omponentCommitAvgMaxMs\x12\x18\n\x07ratchet\x18\n \x01(\x08R\x07ratchet\".\n\x10GetBudgetRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"u\n\x11GetBudgetResponse\x12\x44\n\x06\x62udget\x18\x01 \x01(\x0b\x32,.vrooli.performance_health.v1.budgets.BudgetR\x06\x62udget\x12\x1a\n\x08\x64\x65\x63lared\x18\x02 \x01(\x08R\x08\x64\x65\x63lared\"X\n\x10SetBudgetRequest\x12\x44\n\x06\x62udget\x18\x01 \x01(\x0b\x32,.vrooli.performance_health.v1.budgets.BudgetR\x06\x62udget\"r\n\x11SetBudgetResponse\x12\x44\n\x06\x62udget\x18\x01 \x01(\x0b\x32,.vrooli.performance_health.v1.budgets.BudgetR\x06\x62udget\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"0\n\x12\x43heckBudgetRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xa0\x01\n\x13\x43heckBudgetResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06passed\x18\x02 \x01(\x08R\x06passed\x12U\n\nviolations\x18\x03 \x03(\x0b\x32\x35.vrooli.performance_health.v1.budgets.BudgetViolationR\nviolations\"m\n\x0f\x42udgetViolation\x12\x12\n\x04\x61xis\x18\x01 \x01(\tR\x04\x61xis\x12\x1a\n\x08measured\x18\x02 \x01(\x03R\x08measured\x12\x16\n\x06\x62udget\x18\x03 \x01(\x03R\x06\x62udget\x12\x12\n\x04unit\x18\x04 \x01(\tR\x04unit2\x90\x03\n\rBudgetService\x12|\n\tGetBudget\x12\x36.vrooli.performance_health.v1.budgets.GetBudgetRequest\x1a\x37.vrooli.performance_health.v1.budgets.GetBudgetResponse\x12|\n\tSetBudget\x12\x36.vrooli.performance_health.v1.budgets.SetBudgetRequest\x1a\x37.vrooli.performance_health.v1.budgets.SetBudgetResponse\x12\x82\x01\n\x0b\x43heckBudget\x12\x38.vrooli.performance_health.v1.budgets.CheckBudgetRequest\x1a\x39.vrooli.performance_health.v1.budgets.CheckBudgetResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/budgets;budgets_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\x81\x03\n\x06\x42udget\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12%\n\x0fgo_build_max_ms\x18\x02 \x01(\x03R\x0cgoBuildMaxMs\x12%\n\x0fui_build_max_ms\x18\x03 \x01(\x03R\x0cuiBuildMaxMs\x12(\n\x10\x62undle_max_bytes\x18\x04 \x01(\x03R\x0e\x62undleMaxBytes\x12\x1c\n\nlcp_max_ms\x18\x05 \x01(\x03R\x08lcpMaxMs\x12$\n\x0estartup_max_ms\x18\x06 \x01(\x03R\x0cstartupMaxMs\x12\x35\n\x17\x63omponent_commit_max_ms\x18\x07 \x01(\x01R\x14\x63omponentCommitMaxMs\x12<\n\x1b\x63omponent_commit_avg_max_ms\x18\t \x01(\x01R\x17\x63omponentCommitAvgMaxMs\x12\x18\n\x07ratchet\x18\n \x01(\x08R\x07ratchetJ\x04\x08\x08\x10\tR\np95_max_ms\".\n\x10GetBudgetRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"u\n\x11GetBudgetResponse\x12\x44\n\x06\x62udget\x18\x01 \x01(\x0b\x32,.vrooli.performance_health.v1.budgets.BudgetR\x06\x62udget\x12\x1a\n\x08\x64\x65\x63lared\x18\x02 \x01(\x08R\x08\x64\x65\x63lared\"X\n\x10SetBudgetRequest\x12\x44\n\x06\x62udget\x18\x01 \x01(\x0b\x32,.vrooli.performance_health.v1.budgets.BudgetR\x06\x62udget\"r\n\x11SetBudgetResponse\x12\x44\n\x06\x62udget\x18\x01 \x01(\x0b\x32,.vrooli.performance_health.v1.budgets.BudgetR\x06\x62udget\x12\x17\n\x07\x64ry_run\x18\x02 \x01(\x08R\x06\x64ryRun\"0\n\x12\x43heckBudgetRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xa0\x01\n\x13\x43heckBudgetResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06passed\x18\x02 \x01(\x08R\x06passed\x12U\n\nviolations\x18\x03 \x03(\x0b\x32\x35.vrooli.performance_health.v1.budgets.BudgetViolationR\nviolations\"m\n\x0f\x42udgetViolation\x12\x12\n\x04\x61xis\x18\x01 \x01(\tR\x04\x61xis\x12\x1a\n\x08measured\x18\x02 \x01(\x03R\x08measured\x12\x16\n\x06\x62udget\x18\x03 \x01(\x03R\x06\x62udget\x12\x12\n\x04unit\x18\x04 \x01(\tR\x04unit2\x90\x03\n\rBudgetService\x12|\n\tGetBudget\x12\x36.vrooli.performance_health.v1.budgets.GetBudgetRequest\x1a\x37.vrooli.performance_health.v1.budgets.GetBudgetResponse\x12|\n\tSetBudget\x12\x36.vrooli.performance_health.v1.budgets.SetBudgetRequest\x1a\x37.vrooli.performance_health.v1.budgets.SetBudgetResponse\x12\x82\x01\n\x0b\x43heckBudget\x12\x38.vrooli.performance_health.v1.budgets.CheckBudgetRequest\x1a\x39.vrooli.performance_health.v1.budgets.CheckBudgetResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/budgets;budgets_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,21 +33,21 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZWgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/budgets;budgets_v1'
   _globals['_BUDGET']._serialized_start=86
-  _globals['_BUDGET']._serialized_end=483
-  _globals['_GETBUDGETREQUEST']._serialized_start=485
-  _globals['_GETBUDGETREQUEST']._serialized_end=531
-  _globals['_GETBUDGETRESPONSE']._serialized_start=533
-  _globals['_GETBUDGETRESPONSE']._serialized_end=650
-  _globals['_SETBUDGETREQUEST']._serialized_start=652
-  _globals['_SETBUDGETREQUEST']._serialized_end=740
-  _globals['_SETBUDGETRESPONSE']._serialized_start=742
-  _globals['_SETBUDGETRESPONSE']._serialized_end=856
-  _globals['_CHECKBUDGETREQUEST']._serialized_start=858
-  _globals['_CHECKBUDGETREQUEST']._serialized_end=906
-  _globals['_CHECKBUDGETRESPONSE']._serialized_start=909
-  _globals['_CHECKBUDGETRESPONSE']._serialized_end=1069
-  _globals['_BUDGETVIOLATION']._serialized_start=1071
-  _globals['_BUDGETVIOLATION']._serialized_end=1180
-  _globals['_BUDGETSERVICE']._serialized_start=1183
-  _globals['_BUDGETSERVICE']._serialized_end=1583
+  _globals['_BUDGET']._serialized_end=471
+  _globals['_GETBUDGETREQUEST']._serialized_start=473
+  _globals['_GETBUDGETREQUEST']._serialized_end=519
+  _globals['_GETBUDGETRESPONSE']._serialized_start=521
+  _globals['_GETBUDGETRESPONSE']._serialized_end=638
+  _globals['_SETBUDGETREQUEST']._serialized_start=640
+  _globals['_SETBUDGETREQUEST']._serialized_end=728
+  _globals['_SETBUDGETRESPONSE']._serialized_start=730
+  _globals['_SETBUDGETRESPONSE']._serialized_end=844
+  _globals['_CHECKBUDGETREQUEST']._serialized_start=846
+  _globals['_CHECKBUDGETREQUEST']._serialized_end=894
+  _globals['_CHECKBUDGETRESPONSE']._serialized_start=897
+  _globals['_CHECKBUDGETRESPONSE']._serialized_end=1057
+  _globals['_BUDGETVIOLATION']._serialized_start=1059
+  _globals['_BUDGETVIOLATION']._serialized_end=1168
+  _globals['_BUDGETSERVICE']._serialized_start=1171
+  _globals['_BUDGETSERVICE']._serialized_end=1571
 # @@protoc_insertion_point(module_scope)

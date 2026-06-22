@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "iopaint",
+  "description": "IOPaint object-removal / inpainting CLI for image-tools (Python/pip)",
+  "commands": ["iopaint"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "installHint": "Python tool — install with `pipx install iopaint` (or `pip install iopaint`). Not a single-binary release, so it is not auto-fetched."
+}

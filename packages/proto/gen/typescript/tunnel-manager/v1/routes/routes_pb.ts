@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file tunnel-manager/v1/routes/routes.proto.
  */
 export const file_tunnel_manager_v1_routes_routes: GenFile = /*@__PURE__*/
-  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9yb3V0ZXMvcm91dGVzLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzIr0CCgVSb3V0ZRIKCgJpZBgBIAEoCRIRCglzdWJkb21haW4YAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSDgoGZG9tYWluGAQgASgJEhIKCmxvY2FsX3BvcnQYBSABKAUSMwoEdGllchgGIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuVGllchIQCghsZWFzZV9pZBgHIAEoCRIPCgdlbmFibGVkGAggASgIEhMKC2hlYWx0aF9wYXRoGAkgASgJEhIKCnB1YmxpY191cmwYCiABKAkSLgoKY3JlYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiSAoRTGlzdFJvdXRlc1JlcXVlc3QSMwoEdGllchgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuVGllciJMChJMaXN0Um91dGVzUmVzcG9uc2USNgoGcm91dGVzGAEgAygLMiYudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5Sb3V0ZSIdCg9HZXRSb3V0ZVJlcXVlc3QSCgoCaWQYASABKAkiSQoQR2V0Um91dGVSZXNwb25zZRI1CgVyb3V0ZRgBIAEoCzImLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuUm91dGUi2wEKEkNyZWF0ZVJvdXRlUmVxdWVzdBIRCglzdWJkb21haW4YASABKAkSEAoIc2NlbmFyaW8YAiABKAkSDgoGZG9tYWluGAMgASgJEhIKCmxvY2FsX3BvcnQYBCABKAUSMwoEdGllchgFIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuVGllchIQCghsZWFzZV9pZBgGIAEoCRITCgtoZWFsdGhfcGF0aBgHIAEoCRIUCgdlbmFibGVkGAggASgISACIAQFCCgoIX2VuYWJsZWQiTAoTQ3JlYXRlUm91dGVSZXNwb25zZRI1CgVyb3V0ZRgBIAEoCzImLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuUm91dGUi1QEKElVwZGF0ZVJvdXRlUmVxdWVzdBIKCgJpZBgBIAEoCRIRCglzdWJkb21haW4YAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSDgoGZG9tYWluGAQgASgJEhIKCmxvY2FsX3BvcnQYBSABKAUSMwoEdGllchgGIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuVGllchITCgtoZWFsdGhfcGF0aBgHIAEoCRIUCgdlbmFibGVkGAggASgISACIAQFCCgoIX2VuYWJsZWQiTAoTVXBkYXRlUm91dGVSZXNwb25zZRI1CgVyb3V0ZRgBIAEoCzImLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuUm91dGUiIAoSRGVsZXRlUm91dGVSZXF1ZXN0EgoKAmlkGAEgASgJIiYKE0RlbGV0ZVJvdXRlUmVzcG9uc2USDwoHZGVsZXRlZBgBIAEoCCo8CgRUaWVyEhQKEFRJRVJfVU5TUEVDSUZJRUQQABINCglUSUVSX0NPUkUQARIPCgtUSUVSX0xFQVNFRBACMuUECg1Sb3V0ZXNTZXJ2aWNlEnUKCkxpc3RSb3V0ZXMSMi52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLkxpc3RSb3V0ZXNSZXF1ZXN0GjMudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5MaXN0Um91dGVzUmVzcG9uc2USbwoIR2V0Um91dGUSMC52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLkdldFJvdXRlUmVxdWVzdBoxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuR2V0Um91dGVSZXNwb25zZRJ4CgtDcmVhdGVSb3V0ZRIzLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuQ3JlYXRlUm91dGVSZXF1ZXN0GjQudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5DcmVhdGVSb3V0ZVJlc3BvbnNlEngKC1VwZGF0ZVJvdXRlEjMudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5VcGRhdGVSb3V0ZVJlcXVlc3QaNC52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLlVwZGF0ZVJvdXRlUmVzcG9uc2USeAoLRGVsZXRlUm91dGUSMy52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLkRlbGV0ZVJvdXRlUmVxdWVzdBo0LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuRGVsZXRlUm91dGVSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3R1bm5lbC1tYW5hZ2VyL3YxL3JvdXRlcztyb3V0ZXNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9yb3V0ZXMvcm91dGVzLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzIpMDCgVSb3V0ZRIKCgJpZBgBIAEoCRIRCglzdWJkb21haW4YAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSDgoGZG9tYWluGAQgASgJEhIKCmxvY2FsX3BvcnQYBSABKAUSMwoEdGllchgGIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuVGllchIQCghsZWFzZV9pZBgHIAEoCRIPCgdlbmFibGVkGAggASgIEhMKC2hlYWx0aF9wYXRoGAkgASgJEhIKCnB1YmxpY191cmwYCiABKAkSLgoKY3JlYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPAoGc291cmNlGA0gASgOMiwudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5Sb3V0ZVNvdXJjZRIWCg5zZXJ2aWNlX3RhcmdldBgOIAEoCSJIChFMaXN0Um91dGVzUmVxdWVzdBIzCgR0aWVyGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5UaWVyIkwKEkxpc3RSb3V0ZXNSZXNwb25zZRI2CgZyb3V0ZXMYASADKAsyJi52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLlJvdXRlIh0KD0dldFJvdXRlUmVxdWVzdBIKCgJpZBgBIAEoCSJJChBHZXRSb3V0ZVJlc3BvbnNlEjUKBXJvdXRlGAEgASgLMiYudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5Sb3V0ZSKxAgoSQ3JlYXRlUm91dGVSZXF1ZXN0EhEKCXN1YmRvbWFpbhgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIOCgZkb21haW4YAyABKAkSEgoKbG9jYWxfcG9ydBgEIAEoBRIzCgR0aWVyGAUgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5UaWVyEhAKCGxlYXNlX2lkGAYgASgJEhMKC2hlYWx0aF9wYXRoGAcgASgJEhQKB2VuYWJsZWQYCCABKAhIAIgBARI8CgZzb3VyY2UYCSABKA4yLC52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLlJvdXRlU291cmNlEhYKDnNlcnZpY2VfdGFyZ2V0GAogASgJQgoKCF9lbmFibGVkIkwKE0NyZWF0ZVJvdXRlUmVzcG9uc2USNQoFcm91dGUYASABKAsyJi52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLlJvdXRlIqsCChJVcGRhdGVSb3V0ZVJlcXVlc3QSCgoCaWQYASABKAkSEQoJc3ViZG9tYWluGAIgASgJEhAKCHNjZW5hcmlvGAMgASgJEg4KBmRvbWFpbhgEIAEoCRISCgpsb2NhbF9wb3J0GAUgASgFEjMKBHRpZXIYBiABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLlRpZXISEwoLaGVhbHRoX3BhdGgYByABKAkSFAoHZW5hYmxlZBgIIAEoCEgAiAEBEjwKBnNvdXJjZRgJIAEoDjIsLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuUm91dGVTb3VyY2USFgoOc2VydmljZV90YXJnZXQYCiABKAlCCgoIX2VuYWJsZWQiTAoTVXBkYXRlUm91dGVSZXNwb25zZRI1CgVyb3V0ZRgBIAEoCzImLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuUm91dGUiIAoSRGVsZXRlUm91dGVSZXF1ZXN0EgoKAmlkGAEgASgJIiYKE0RlbGV0ZVJvdXRlUmVzcG9uc2USDwoHZGVsZXRlZBgBIAEoCCo8CgRUaWVyEhQKEFRJRVJfVU5TUEVDSUZJRUQQABINCglUSUVSX0NPUkUQARIPCgtUSUVSX0xFQVNFRBACKmEKC1JvdXRlU291cmNlEhwKGFJPVVRFX1NPVVJDRV9VTlNQRUNJRklFRBAAEhkKFVJPVVRFX1NPVVJDRV9TQ0VOQVJJTxABEhkKFVJPVVRFX1NPVVJDRV9FWFRFUk5BTBACMuUECg1Sb3V0ZXNTZXJ2aWNlEnUKCkxpc3RSb3V0ZXMSMi52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLkxpc3RSb3V0ZXNSZXF1ZXN0GjMudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5MaXN0Um91dGVzUmVzcG9uc2USbwoIR2V0Um91dGUSMC52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLkdldFJvdXRlUmVxdWVzdBoxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuR2V0Um91dGVSZXNwb25zZRJ4CgtDcmVhdGVSb3V0ZRIzLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuQ3JlYXRlUm91dGVSZXF1ZXN0GjQudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5DcmVhdGVSb3V0ZVJlc3BvbnNlEngKC1VwZGF0ZVJvdXRlEjMudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLnJvdXRlcy5VcGRhdGVSb3V0ZVJlcXVlc3QaNC52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLlVwZGF0ZVJvdXRlUmVzcG9uc2USeAoLRGVsZXRlUm91dGUSMy52cm9vbGkudHVubmVsX21hbmFnZXIudjEucm91dGVzLkRlbGV0ZVJvdXRlUmVxdWVzdBo0LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5yb3V0ZXMuRGVsZXRlUm91dGVSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3R1bm5lbC1tYW5hZ2VyL3YxL3JvdXRlcztyb3V0ZXNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Route is the canonical wire shape for one manifest entry.
@@ -101,6 +101,22 @@ export type Route = Message<"vrooli.tunnel_manager.v1.routes.Route"> & {
    * @generated from field: google.protobuf.Timestamp updated_at = 12;
    */
   updatedAt?: Timestamp | undefined;
+
+  /**
+   * Provenance: scenario-backed or external. Empty/UNSPECIFIED == SCENARIO.
+   *
+   * @generated from field: vrooli.tunnel_manager.v1.routes.RouteSource source = 13;
+   */
+  source: RouteSource;
+
+  /**
+   * Explicit local service target for external routes (e.g.
+   * http://127.0.0.1:9000). Empty for scenario routes, which derive
+   * http://localhost:<local_port>.
+   *
+   * @generated from field: string service_target = 14;
+   */
+  serviceTarget: string;
 };
 
 /**
@@ -231,6 +247,21 @@ export type CreateRouteRequest = Message<"vrooli.tunnel_manager.v1.routes.Create
    * @generated from field: optional bool enabled = 8;
    */
   enabled?: boolean | undefined;
+
+  /**
+   * Provenance. EXTERNAL routes require service_target and skip the
+   * scenario/local_port validation scenario routes enforce.
+   *
+   * @generated from field: vrooli.tunnel_manager.v1.routes.RouteSource source = 9;
+   */
+  source: RouteSource;
+
+  /**
+   * Explicit local target for an external route.
+   *
+   * @generated from field: string service_target = 10;
+   */
+  serviceTarget: string;
 };
 
 /**
@@ -302,6 +333,20 @@ export type UpdateRouteRequest = Message<"vrooli.tunnel_manager.v1.routes.Update
    * @generated from field: optional bool enabled = 8;
    */
   enabled?: boolean | undefined;
+
+  /**
+   * Provenance (UNSPECIFIED leaves it unchanged).
+   *
+   * @generated from field: vrooli.tunnel_manager.v1.routes.RouteSource source = 9;
+   */
+  source: RouteSource;
+
+  /**
+   * Explicit local target for an external route (empty leaves it unchanged).
+   *
+   * @generated from field: string service_target = 10;
+   */
+  serviceTarget: string;
 };
 
 /**
@@ -393,6 +438,38 @@ export enum Tier {
  */
 export const TierSchema: GenEnum<Tier> = /*@__PURE__*/
   enumDesc(file_tunnel_manager_v1_routes_routes, 0);
+
+/**
+ * RouteSource distinguishes scenario-backed routes (the local UI port of a
+ * known scenario) from external routes that point at an arbitrary
+ * service_target. It is ORTHOGONAL to Tier: tiering is an exposure-policy
+ * axis, source is a provenance axis. ROUTE_SOURCE_UNSPECIFIED defaults to
+ * SCENARIO for rows written before the field existed.
+ *
+ * @generated from enum vrooli.tunnel_manager.v1.routes.RouteSource
+ */
+export enum RouteSource {
+  /**
+   * @generated from enum value: ROUTE_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ROUTE_SOURCE_SCENARIO = 1;
+   */
+  SCENARIO = 1,
+
+  /**
+   * @generated from enum value: ROUTE_SOURCE_EXTERNAL = 2;
+   */
+  EXTERNAL = 2,
+}
+
+/**
+ * Describes the enum vrooli.tunnel_manager.v1.routes.RouteSource.
+ */
+export const RouteSourceSchema: GenEnum<RouteSource> = /*@__PURE__*/
+  enumDesc(file_tunnel_manager_v1_routes_routes, 1);
 
 /**
  * @generated from service vrooli.tunnel_manager.v1.routes.RoutesService

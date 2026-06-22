@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/models/models.proto.
  */
 export const file_image_tools_v1_models_models: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiPQoWU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiPgoXU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJIkAKCU9wRGVmYXVsdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDgoGc291cmNlGAMgASgJIhUKE0xpc3REZWZhdWx0c1JlcXVlc3QiUQoUTGlzdERlZmF1bHRzUmVzcG9uc2USOQoIZGVmYXVsdHMYASADKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk9wRGVmYXVsdCKcAQoOQ2F0YWxvZ0ZpbmRpbmcSRgoIc2V2ZXJpdHkYASABKA4yNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghtb2RlbF9pZBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSDwoHbWVzc2FnZRgFIAEoCSIWChREb2N0b3JDYXRhbG9nUmVxdWVzdCJjChVEb2N0b3JDYXRhbG9nUmVzcG9uc2USCgoCb2sYASABKAgSPgoIZmluZGluZ3MYAiADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nIuABCg1CYWNrZW5kU3RhdHVzEgwKBG5hbWUYASABKAkSEgoKb3BlcmF0aW9ucxgCIAMoCRIRCglhdmFpbGFibGUYAyABKAgSEgoKc3RhbmRhbG9uZRgEIAEoCBINCgVjbG91ZBgFIAEoCBITCgtncHVfY2FwYWJsZRgGIAEoCBIOCgZkZXRhaWwYByABKAkSEQoJcHJvdmlzaW9uGAggASgJEhEKCWhvc3RfdG9vbBgJIAEoCRIXCg9ob3N0X3Rvb2xfcmVhZHkYCiABKAgSEwoLcmVtZWRpYXRpb24YCyABKAkiFwoVRG9jdG9yQmFja2VuZHNSZXF1ZXN0ImMKFkRvY3RvckJhY2tlbmRzUmVzcG9uc2USCgoCb2sYASABKAgSPQoIYmFja2VuZHMYAiADKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkJhY2tlbmRTdGF0dXMiSAoURW5zdXJlQmFja2VuZFJlcXVlc3QSDAoEdG9vbBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDwoHZHJ5X3J1bhgDIAEoCCKUAQoVRW5zdXJlQmFja2VuZFJlc3BvbnNlEgwKBHRvb2wYASABKAkSDgoGam9iX2lkGAIgASgJEhMKC2V0YV9zZWNvbmRzGAMgASgFEhkKEWFscmVhZHlfaW5zdGFsbGVkGAQgASgIEg4KBm1hbnVhbBgFIAEoCBINCgVzdGF0ZRgGIAEoCRIOCgZkZXRhaWwYByABKAkqfgoNQ29tbWVyY2lhbFVzZRIeChpDT01NRVJDSUFMX1VTRV9VTlNQRUNJRklFRBAAEhYKEkNPTU1FUkNJQUxfVVNFX1lFUxABEhUKEUNPTU1FUkNJQUxfVVNFX05PEAISHgoaQ09NTUVSQ0lBTF9VU0VfQ09ORElUSU9OQUwQAyqMAQoWQ2F0YWxvZ0ZpbmRpbmdTZXZlcml0eRIoCiRDQVRBTE9HX0ZJTkRJTkdfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIiCh5DQVRBTE9HX0ZJTkRJTkdfU0VWRVJJVFlfRVJST1IQARIkCiBDQVRBTE9HX0ZJTkRJTkdfU0VWRVJJVFlfV0FSTklORxACMqYNCg1Nb2RlbHNTZXJ2aWNlEm8KCkxpc3RNb2RlbHMSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXF1ZXN0GjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0TW9kZWxzUmVzcG9uc2USaQoIR2V0TW9kZWwSLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldE1vZGVsUmVxdWVzdBouLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXNwb25zZRJ7Cg5MaXN0T3BlcmF0aW9ucxIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEnIKC1NlbGVjdE1vZGVsEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZWxlY3RNb2RlbFJlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVzcG9uc2USfgoPU2V0TW9kZWxFbmFibGVkEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXNwb25zZRJ4Cg1MaXN0QmxvY2tsaXN0EjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdEJsb2NrbGlzdFJlc3BvbnNlEnUKDEluc3RhbGxNb2RlbBIxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSW5zdGFsbE1vZGVsUmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSW5zdGFsbE1vZGVsUmVzcG9uc2UScgoLUmVtb3ZlTW9kZWwSMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlJlbW92ZU1vZGVsUmVxdWVzdBoxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVtb3ZlTW9kZWxSZXNwb25zZRJ7Cg5BZGRDdXN0b21Nb2RlbBIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQWRkQ3VzdG9tTW9kZWxSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5BZGRDdXN0b21Nb2RlbFJlc3BvbnNlEn4KD1NldERlZmF1bHRNb2RlbBI0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBo1LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USdQoMTGlzdERlZmF1bHRzEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXNwb25zZRJ4Cg1Eb2N0b3JDYXRhbG9nEjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JDYXRhbG9nUmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRG9jdG9yQ2F0YWxvZ1Jlc3BvbnNlEnsKDkRvY3RvckJhY2tlbmRzEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JCYWNrZW5kc1JlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckJhY2tlbmRzUmVzcG9uc2USeAoNRW5zdXJlQmFja2VuZBIyLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRW5zdXJlQmFja2VuZFJlcXVlc3QaMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkVuc3VyZUJhY2tlbmRSZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL21vZGVsczttb2RlbHNfdjFiBnByb3RvMw");
+  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiPQoWU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiPgoXU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJIkAKCU9wRGVmYXVsdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDgoGc291cmNlGAMgASgJIhUKE0xpc3REZWZhdWx0c1JlcXVlc3QiUQoUTGlzdERlZmF1bHRzUmVzcG9uc2USOQoIZGVmYXVsdHMYASADKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk9wRGVmYXVsdCKcAQoOQ2F0YWxvZ0ZpbmRpbmcSRgoIc2V2ZXJpdHkYASABKA4yNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghtb2RlbF9pZBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSDwoHbWVzc2FnZRgFIAEoCSIWChREb2N0b3JDYXRhbG9nUmVxdWVzdCJjChVEb2N0b3JDYXRhbG9nUmVzcG9uc2USCgoCb2sYASABKAgSPgoIZmluZGluZ3MYAiADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nIuABCg1CYWNrZW5kU3RhdHVzEgwKBG5hbWUYASABKAkSEgoKb3BlcmF0aW9ucxgCIAMoCRIRCglhdmFpbGFibGUYAyABKAgSEgoKc3RhbmRhbG9uZRgEIAEoCBINCgVjbG91ZBgFIAEoCBITCgtncHVfY2FwYWJsZRgGIAEoCBIOCgZkZXRhaWwYByABKAkSEQoJcHJvdmlzaW9uGAggASgJEhEKCWhvc3RfdG9vbBgJIAEoCRIXCg9ob3N0X3Rvb2xfcmVhZHkYCiABKAgSEwoLcmVtZWRpYXRpb24YCyABKAkiFwoVRG9jdG9yQmFja2VuZHNSZXF1ZXN0ImMKFkRvY3RvckJhY2tlbmRzUmVzcG9uc2USCgoCb2sYASABKAgSPQoIYmFja2VuZHMYAiADKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkJhY2tlbmRTdGF0dXMiSAoURW5zdXJlQmFja2VuZFJlcXVlc3QSDAoEdG9vbBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDwoHZHJ5X3J1bhgDIAEoCCKUAQoVRW5zdXJlQmFja2VuZFJlc3BvbnNlEgwKBHRvb2wYASABKAkSDgoGam9iX2lkGAIgASgJEhMKC2V0YV9zZWNvbmRzGAMgASgFEhkKEWFscmVhZHlfaW5zdGFsbGVkGAQgASgIEg4KBm1hbnVhbBgFIAEoCBINCgVzdGF0ZRgGIAEoCRIOCgZkZXRhaWwYByABKAkiFwoVR2V0SG9zdFN1bW1hcnlSZXF1ZXN0IlEKFkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USNwoEaG9zdBgBIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSG9zdFN1bW1hcnkiLwoaTGlzdE9wZXJhdGlvbk1vZGVsc1JlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJIsEBCgtIb3N0U3VtbWFyeRIPCgdoYXNfZ3B1GAEgASgIEhAKCGdwdV9uYW1lGAIgASgJEhEKCWdwdV9jb3VudBgDIAEoBRIVCg12cmFtX3RvdGFsX2diGAQgASgFEhQKDHZyYW1fZnJlZV9nYhgFIAEoBRISCgp2cmFtX2tub3duGAYgASgIEg4KBnJhbV9nYhgHIAEoBRIRCgljcHVfY29yZXMYCCABKAUSCgoCb3MYCSABKAkSDAoEYXJjaBgKIAEoCSJwCghNb2RlbEZpdBIQCghydW5uYWJsZRgBIAEoCBISCgpncHVfdmlhYmxlGAIgASgIEhEKCWZpdF9jbGFzcxgDIAEoCRIZChF2cmFtX3Nob3J0ZmFsbF9nYhgEIAEoBRIQCgh3YXJuaW5ncxgFIAMoCSKVAQoQQmFja2VuZFJlYWRpbmVzcxIPCgdiYWNrZW5kGAEgASgJEhEKCWhvc3RfdG9vbBgCIAEoCRINCgVyZWFkeRgDIAEoCBIUCgxpbnN0YWxsX3RpZXIYBCABKAkSEwoLcmVtZWRpYXRpb24YBSABKAkSEwoLbWFudWFsX2hpbnQYBiABKAkSDgoGZGV0YWlsGAcgASgJIuEBCg5DYW5kaWRhdGVNb2RlbBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSMwoDZml0GAIgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbEZpdBI/CgdiYWNrZW5kGAMgASgLMi4udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CYWNrZW5kUmVhZGluZXNzEhMKC3JlYWR5X3N0YXRlGAQgASgJEhAKCHNlbGVjdGVkGAUgASgIItkBChtMaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEjcKBGhvc3QYAiABKAsyKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkhvc3RTdW1tYXJ5EkAKCmNhbmRpZGF0ZXMYAyADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhbmRpZGF0ZU1vZGVsEhMKC3NlbGVjdGVkX2lkGAQgASgJEhcKD3NlbGVjdGVkX3JlYXNvbhgFIAEoCSp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADKowBChZDYXRhbG9nRmluZGluZ1NldmVyaXR5EigKJENBVEFMT0dfRklORElOR19TRVZFUklUWV9VTlNQRUNJRklFRBAAEiIKHkNBVEFMT0dfRklORElOR19TRVZFUklUWV9FUlJPUhABEiQKIENBVEFMT0dfRklORElOR19TRVZFUklUWV9XQVJOSU5HEAIysA8KDU1vZGVsc1NlcnZpY2USbwoKTGlzdE1vZGVscxIvLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE1vZGVsc1JlcXVlc3QaMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXNwb25zZRJpCghHZXRNb2RlbBItLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXF1ZXN0Gi4udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRNb2RlbFJlc3BvbnNlEnsKDkxpc3RPcGVyYXRpb25zEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2UScgoLU2VsZWN0TW9kZWwSMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVxdWVzdBoxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2VsZWN0TW9kZWxSZXNwb25zZRJ+Cg9TZXRNb2RlbEVuYWJsZWQSNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlcXVlc3QaNS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlc3BvbnNlEngKDUxpc3RCbG9ja2xpc3QSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RCbG9ja2xpc3RSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVzcG9uc2USdQoMSW5zdGFsbE1vZGVsEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXNwb25zZRJyCgtSZW1vdmVNb2RlbBIwLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVtb3ZlTW9kZWxSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5SZW1vdmVNb2RlbFJlc3BvbnNlEnsKDkFkZEN1c3RvbU1vZGVsEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5BZGRDdXN0b21Nb2RlbFJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkFkZEN1c3RvbU1vZGVsUmVzcG9uc2USfgoPU2V0RGVmYXVsdE1vZGVsEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXNwb25zZRJ1CgxMaXN0RGVmYXVsdHMSMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1JlcXVlc3QaMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1Jlc3BvbnNlEngKDURvY3RvckNhdGFsb2cSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckNhdGFsb2dSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JDYXRhbG9nUmVzcG9uc2USewoORG9jdG9yQmFja2VuZHMSMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckJhY2tlbmRzUmVxdWVzdBo0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRG9jdG9yQmFja2VuZHNSZXNwb25zZRJ4Cg1FbnN1cmVCYWNrZW5kEjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5FbnN1cmVCYWNrZW5kUmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRW5zdXJlQmFja2VuZFJlc3BvbnNlEnsKDkdldEhvc3RTdW1tYXJ5EjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRIb3N0U3VtbWFyeVJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USigEKE0xpc3RPcGVyYXRpb25Nb2RlbHMSOC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25Nb2RlbHNSZXF1ZXN0GjkudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2VCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9tb2RlbHM7bW9kZWxzX3YxYgZwcm90bzM");
 
 /**
  * Hardware captures a model's host requirements.
@@ -1066,6 +1066,352 @@ export const EnsureBackendResponseSchema: GenMessage<EnsureBackendResponse> = /*
   messageDesc(file_image_tools_v1_models_models, 35);
 
 /**
+ * @generated from message vrooli.image_tools.v1.models.GetHostSummaryRequest
+ */
+export type GetHostSummaryRequest = Message<"vrooli.image_tools.v1.models.GetHostSummaryRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.GetHostSummaryRequest.
+ * Use `create(GetHostSummaryRequestSchema)` to create a new message.
+ */
+export const GetHostSummaryRequestSchema: GenMessage<GetHostSummaryRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 36);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.GetHostSummaryResponse
+ */
+export type GetHostSummaryResponse = Message<"vrooli.image_tools.v1.models.GetHostSummaryResponse"> & {
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.HostSummary host = 1;
+   */
+  host?: HostSummary | undefined;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.GetHostSummaryResponse.
+ * Use `create(GetHostSummaryResponseSchema)` to create a new message.
+ */
+export const GetHostSummaryResponseSchema: GenMessage<GetHostSummaryResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 37);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ListOperationModelsRequest
+ */
+export type ListOperationModelsRequest = Message<"vrooli.image_tools.v1.models.ListOperationModelsRequest"> & {
+  /**
+   * Operation to list candidate models for (must be in the vocabulary).
+   *
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ListOperationModelsRequest.
+ * Use `create(ListOperationModelsRequestSchema)` to create a new message.
+ */
+export const ListOperationModelsRequestSchema: GenMessage<ListOperationModelsRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 38);
+
+/**
+ * HostSummary is a compact, user-facing snapshot of the host's AI-relevant
+ * hardware — the transparency layer for the picker ("you have an RTX 4070 Ti
+ * SUPER, 16 GB / 3 GB free", so the operator understands fit verdicts).
+ *
+ * @generated from message vrooli.image_tools.v1.models.HostSummary
+ */
+export type HostSummary = Message<"vrooli.image_tools.v1.models.HostSummary"> & {
+  /**
+   * has_gpu is true when at least one GPU was detected (independent of VRAM).
+   *
+   * @generated from field: bool has_gpu = 1;
+   */
+  hasGpu: boolean;
+
+  /**
+   * gpu_name is the first detected GPU's name ("" when none).
+   *
+   * @generated from field: string gpu_name = 2;
+   */
+  gpuName: string;
+
+  /**
+   * @generated from field: int32 gpu_count = 3;
+   */
+  gpuCount: number;
+
+  /**
+   * vram_total_gb / vram_free_gb are the best detected GPU's total / free VRAM in
+   * GB, rounded down; 0 when no GPU or VRAM could not be read.
+   *
+   * @generated from field: int32 vram_total_gb = 4;
+   */
+  vramTotalGb: number;
+
+  /**
+   * @generated from field: int32 vram_free_gb = 5;
+   */
+  vramFreeGb: number;
+
+  /**
+   * vram_known is false when a GPU exists but its VRAM could not be measured
+   * (the selector then treats it conservatively as not GPU-viable).
+   *
+   * @generated from field: bool vram_known = 6;
+   */
+  vramKnown: boolean;
+
+  /**
+   * @generated from field: int32 ram_gb = 7;
+   */
+  ramGb: number;
+
+  /**
+   * @generated from field: int32 cpu_cores = 8;
+   */
+  cpuCores: number;
+
+  /**
+   * @generated from field: string os = 9;
+   */
+  os: string;
+
+  /**
+   * @generated from field: string arch = 10;
+   */
+  arch: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.HostSummary.
+ * Use `create(HostSummarySchema)` to create a new message.
+ */
+export const HostSummarySchema: GenMessage<HostSummary> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 39);
+
+/**
+ * ModelFit is the host-aware runnability verdict for one model (mirrors
+ * internal/models.HardwareFit + the selector's reason/warnings).
+ *
+ * @generated from message vrooli.image_tools.v1.models.ModelFit
+ */
+export type ModelFit = Message<"vrooli.image_tools.v1.models.ModelFit"> & {
+  /**
+   * runnable: the model can run at all on this host (GPU-viable or CPU-capable).
+   *
+   * @generated from field: bool runnable = 1;
+   */
+  runnable: boolean;
+
+  /**
+   * gpu_viable: a detected GPU has known, sufficient FREE VRAM for this model.
+   *
+   * @generated from field: bool gpu_viable = 2;
+   */
+  gpuViable: boolean;
+
+  /**
+   * fit_class drives the host-aware badge:
+   *   "gpu"               will run on your GPU (fast)
+   *   "cpu"               will run on your CPU (no GPU acceleration / fallback)
+   *   "insufficient_vram" a GPU is present but free VRAM is short and there is no CPU path
+   *   "no_gpu"            the model requires a GPU and none was detected
+   *   "unsupported_os"    no build for this os/arch
+   *
+   * @generated from field: string fit_class = 3;
+   */
+  fitClass: string;
+
+  /**
+   * vram_shortfall_gb > 0 when a GPU is present but short on free VRAM.
+   *
+   * @generated from field: int32 vram_shortfall_gb = 4;
+   */
+  vramShortfallGb: number;
+
+  /**
+   * warnings carries non-fatal cautions (CPU-slow, conservative unknown-VRAM
+   * fallback, free-VRAM shortfall, …).
+   *
+   * @generated from field: repeated string warnings = 5;
+   */
+  warnings: string[];
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ModelFit.
+ * Use `create(ModelFitSchema)` to create a new message.
+ */
+export const ModelFitSchema: GenMessage<ModelFit> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 40);
+
+/**
+ * BackendReadiness is the provisioning posture of the host program a model needs
+ * to actually execute (separate from whether the model's weights are downloaded).
+ *
+ * @generated from message vrooli.image_tools.v1.models.BackendReadiness
+ */
+export type BackendReadiness = Message<"vrooli.image_tools.v1.models.BackendReadiness"> & {
+  /**
+   * backend is the provider family name (e.g. "stable-diffusion.cpp").
+   *
+   * @generated from field: string backend = 1;
+   */
+  backend: string;
+
+  /**
+   * host_tool is the platform host-tool name ("" for in-process providers).
+   *
+   * @generated from field: string host_tool = 2;
+   */
+  hostTool: string;
+
+  /**
+   * ready: the backend program is provisioned and importable on this host.
+   *
+   * @generated from field: bool ready = 3;
+   */
+  ready: boolean;
+
+  /**
+   * install_tier classifies how the backend can be provisioned:
+   *   "builtin"        in-process; nothing to install
+   *   "auto"           one-click checksummed fetch (`vrooli host install <tool>`)
+   *   "manual"         needs manual / pip steps (no safe auto-fetch)
+   *   "unsupported"    no install path for this os/arch
+   *   "not_applicable" capability-gated out on this host
+   *
+   * @generated from field: string install_tier = 4;
+   */
+  installTier: string;
+
+  /**
+   * remediation is the exact `vrooli host install <tool>` command (auto tier).
+   *
+   * @generated from field: string remediation = 5;
+   */
+  remediation: string;
+
+  /**
+   * manual_hint is copy-paste guidance for the manual tier.
+   *
+   * @generated from field: string manual_hint = 6;
+   */
+  manualHint: string;
+
+  /**
+   * detail is the raw probe detail (e.g. a ModuleNotFoundError), for diagnostics.
+   *
+   * @generated from field: string detail = 7;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.BackendReadiness.
+ * Use `create(BackendReadinessSchema)` to create a new message.
+ */
+export const BackendReadinessSchema: GenMessage<BackendReadiness> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 41);
+
+/**
+ * CandidateModel is one model in the picker menu, fully annotated for this host.
+ *
+ * @generated from message vrooli.image_tools.v1.models.CandidateModel
+ */
+export type CandidateModel = Message<"vrooli.image_tools.v1.models.CandidateModel"> & {
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.Model model = 1;
+   */
+  model?: Model | undefined;
+
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.ModelFit fit = 2;
+   */
+  fit?: ModelFit | undefined;
+
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.BackendReadiness backend = 3;
+   */
+  backend?: BackendReadiness | undefined;
+
+  /**
+   * ready_state is the single verdict the picker styles + acts on:
+   *   "ready"                selectable and runnable right now
+   *   "needs_model_install"  runnable, but the weights are not downloaded
+   *   "needs_backend"        weights present (or n/a), host program missing — auto-installable
+   *   "needs_backend_manual" host program missing, manual install only
+   *   "needs_both"           both the model weights and the backend are missing
+   *   "insufficient"         hardware cannot run it (no CPU path; GPU absent/short)
+   *   "unsupported"          no build for this os/arch
+   *   "disabled"             disabled in settings (operator can re-enable)
+   *
+   * @generated from field: string ready_state = 4;
+   */
+  readyState: string;
+
+  /**
+   * selected: this is the model SelectModel would currently choose.
+   *
+   * @generated from field: bool selected = 5;
+   */
+  selected: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.CandidateModel.
+ * Use `create(CandidateModelSchema)` to create a new message.
+ */
+export const CandidateModelSchema: GenMessage<CandidateModel> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 42);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ListOperationModelsResponse
+ */
+export type ListOperationModelsResponse = Message<"vrooli.image_tools.v1.models.ListOperationModelsResponse"> & {
+  /**
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * host is the hardware snapshot the fit verdicts were computed against.
+   *
+   * @generated from field: vrooli.image_tools.v1.models.HostSummary host = 2;
+   */
+  host?: HostSummary | undefined;
+
+  /**
+   * candidates are all models serving the operation, in picker display order
+   * (selected first, then runnable, then by tier — the handler sorts them).
+   *
+   * @generated from field: repeated vrooli.image_tools.v1.models.CandidateModel candidates = 3;
+   */
+  candidates: CandidateModel[];
+
+  /**
+   * selected_id / selected_reason mirror SelectModel for the chosen model
+   * ("" when nothing can run on this host yet).
+   *
+   * @generated from field: string selected_id = 4;
+   */
+  selectedId: string;
+
+  /**
+   * @generated from field: string selected_reason = 5;
+   */
+  selectedReason: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ListOperationModelsResponse.
+ * Use `create(ListOperationModelsResponseSchema)` to create a new message.
+ */
+export const ListOperationModelsResponseSchema: GenMessage<ListOperationModelsResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 43);
+
+/**
  * CommercialUse classifies a model's commercial-use license posture.
  *
  * @generated from enum vrooli.image_tools.v1.models.CommercialUse
@@ -1291,6 +1637,36 @@ export const ModelsService: GenService<{
     methodKind: "unary";
     input: typeof EnsureBackendRequestSchema;
     output: typeof EnsureBackendResponseSchema;
+  },
+  /**
+   * GetHostSummary returns this machine's AI-relevant hardware snapshot (GPU
+   * name + total/free VRAM, cores, RAM, os/arch). The model-catalog UI uses it
+   * to render hardware-fit affirmatively ("Runs on your GPU") instead of a
+   * static requirement chip that reads as a warning even on a capable host.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.GetHostSummary
+   */
+  getHostSummary: {
+    methodKind: "unary";
+    input: typeof GetHostSummaryRequestSchema;
+    output: typeof GetHostSummaryResponseSchema;
+  },
+  /**
+   * ListOperationModels returns EVERY model that serves an operation, each
+   * annotated for THIS host: hardware fit (will it run, on GPU or CPU, or not at
+   * all), backend readiness (is the host program/weights provisioned, and is the
+   * install one-click or manual), and a single `ready_state` verdict the picker
+   * styles on. Unlike SelectModel — which returns only the one model that would
+   * run — this returns the full menu (including models that cannot run on this
+   * host) so the in-product model picker is transparent about why a model was
+   * chosen and what each alternative needs to become usable.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.ListOperationModels
+   */
+  listOperationModels: {
+    methodKind: "unary";
+    input: typeof ListOperationModelsRequestSchema;
+    output: typeof ListOperationModelsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_image_tools_v1_models_models, 0);

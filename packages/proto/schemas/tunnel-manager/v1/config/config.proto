@@ -32,11 +32,77 @@ service ConfigService {
   // ClearCloudflareCredentials removes one or more file-backed Cloudflare
   // credential values from the configured operator secret store.
   rpc ClearCloudflareCredentials(ClearCloudflareCredentialsRequest) returns (ClearCloudflareCredentialsResponse);
-  // Sync reconciles ingress (remote API or local config.yml) with the routes
-  // manifest. Idempotent: a no-drift sync applies nothing.
+  // Sync reconciles ingress ADDITIVELY: it publishes desired hostnames merged
+  // onto current live, never dropping unmanaged/ignored entries. Removal
+  // happens only when prune is set (a batch prune removes orphaned entries).
   rpc Sync(SyncRequest) returns (SyncResponse);
-  // SwitchMode migrates between "remote" and "local" management modes.
+  // SwitchMode migrates between "remote" and "local" management modes. It is
+  // PURE: it persists the mode and performs zero ingress writes.
   rpc SwitchMode(SwitchModeRequest) returns (SwitchModeResponse);
+  // GetDrift reconciles the desired manifest, the live tunnel, and the
+  // ownership ledger into a classified read model (no writes). It answers
+  // "what is live vs. what TM wants vs. what is unmanaged" in either mode.
+  rpc GetDrift(GetDriftRequest) returns (GetDriftResponse);
+  // AdoptIngress brings an unmanaged live hostname under management: as a
+  // scenario route when it resolves to a known scenario, otherwise as an
+  // external route. Records MANAGED/EXTERNAL ownership in the ledger.
+  rpc AdoptIngress(AdoptIngressRequest) returns (AdoptIngressResponse);
+  // IgnoreIngress acknowledges a live hostname as external and records it
+  // IGNORED so reconcile never pushes or prunes it.
+  rpc IgnoreIngress(IgnoreIngressRequest) returns (IgnoreIngressResponse);
+  // PruneIngress removes a single named hostname from live ingress and the
+  // ledger. This is the only path that removes a specific entry.
+  rpc PruneIngress(PruneIngressRequest) returns (PruneIngressResponse);
+}
+
+// OwnershipState classifies one ingress hostname after reconciling the desired
+// manifest, the live tunnel, and the ownership ledger (see drift.go).
+enum OwnershipState {
+  OWNERSHIP_STATE_UNSPECIFIED = 0;
+  // Scenario-backed desired route that is live (healthy).
+  OWNERSHIP_STATE_MANAGED = 1;
+  // Desired route (scenario or external) not yet live — an add candidate.
+  OWNERSHIP_STATE_MISSING = 2;
+  // External desired/ledger route that is live — tracked, TM owns its ingress.
+  OWNERSHIP_STATE_EXTERNAL_OK = 3;
+  // Ledger-managed hostname whose route is gone — a prune candidate.
+  OWNERSHIP_STATE_ORPHANED = 4;
+  // Ledger-ignored hostname that is live — acknowledged, never touched.
+  OWNERSHIP_STATE_IGNORED = 5;
+  // Live hostname with no desired route and no ledger record — genuine drift.
+  OWNERSHIP_STATE_UNMANAGED = 6;
+}
+
+// IngressSource is the provenance of a classified ingress entry.
+enum IngressSource {
+  INGRESS_SOURCE_UNSPECIFIED = 0;
+  INGRESS_SOURCE_SCENARIO = 1;
+  INGRESS_SOURCE_EXTERNAL = 2;
+}
+
+// IngressEntry is one fully-classified ingress hostname for the drift view.
+message IngressEntry {
+  string hostname = 1;
+  // Local service the tunnel forwards to (e.g. http://localhost:21100).
+  string service_target = 2;
+  OwnershipState state = 3;
+  IngressSource source = 4;
+  // Scenario name when source == SCENARIO.
+  string scenario = 5;
+  // Lease identifier when the backing route is a lease.
+  string lease_id = 6;
+  // Operator note recorded with an ignore/adopt decision.
+  string note = 7;
+}
+
+// DriftCounts is the per-state tally for the drift report.
+message DriftCounts {
+  int32 managed = 1;
+  int32 missing = 2;
+  int32 external_ok = 3;
+  int32 orphaned = 4;
+  int32 ignored = 5;
+  int32 unmanaged = 6;
 }
 
 // Mode is the tunnel management mode.
@@ -146,24 +212,33 @@ message ClearCloudflareCredentialsResponse {
 }
 
 message SyncRequest {
-  // When true, compute the diff but do not apply it.
+  // When true, compute the report but do not apply it.
   bool dry_run = 1;
+  // When true, also remove orphaned entries (ledger-managed hostnames whose
+  // routes are gone). Unmanaged drift is NEVER removed by a batch prune.
+  bool prune = 2;
 }
 
 message SyncResponse {
   Mode mode = 1;
-  // Hostnames added to ingress this sync.
+  // Hostnames added to ingress this sync (or that would be on a dry-run).
   repeated string added = 2;
-  // Hostnames removed from ingress this sync.
+  // Hostnames removed this sync (mirrors pruned; empty unless prune was set).
   repeated string removed = 3;
-  // True when the manifest and live ingress already matched.
+  // True when nothing would change.
   bool no_changes = 4;
-  // True when dry-run detected missing setup and did not attempt live diff.
+  // True when dry-run detected missing setup and did not attempt a live read.
   bool setup_required = 5;
   // Canonical missing inputs when setup_required is true.
   repeated string missing_fields = 6;
   // Operator-facing explanation of the sync result.
   string message = 7;
+  // Live hostnames TM does not manage and did not touch.
+  repeated string drift_unmanaged = 8;
+  // Ledger-managed hostnames whose routes are gone (prune candidates).
+  repeated string orphaned = 9;
+  // Hostnames actually removed this sync (empty unless prune was set).
+  repeated string pruned = 10;
 }
 
 message SwitchModeRequest {
@@ -173,4 +248,49 @@ message SwitchModeRequest {
 message SwitchModeResponse {
   Mode previous_mode = 1;
   Mode current_mode = 2;
+}
+
+message GetDriftRequest {
+}
+
+message GetDriftResponse {
+  Mode mode = 1;
+  // Every distinct live/desired/tracked hostname, classified, ordered by
+  // hostname.
+  repeated IngressEntry entries = 2;
+  DriftCounts counts = 3;
+}
+
+message AdoptIngressRequest {
+  // Full hostname to adopt (e.g. api.itsagitime.com).
+  string hostname = 1;
+  // Adopt as this scenario route. When empty and target is empty, the service
+  // resolves scenario vs external automatically.
+  string scenario = 2;
+  // Adopt as an external route pointing at this service target (e.g.
+  // http://127.0.0.1:9000). Takes precedence over scenario resolution.
+  string target = 3;
+}
+
+message AdoptIngressResponse {
+  IngressEntry entry = 1;
+}
+
+message IgnoreIngressRequest {
+  string hostname = 1;
+  // Optional operator note for why this external ingress is acknowledged.
+  string note = 2;
+}
+
+message IgnoreIngressResponse {
+  IngressEntry entry = 1;
+}
+
+message PruneIngressRequest {
+  string hostname = 1;
+}
+
+message PruneIngressResponse {
+  // True when the hostname was removed from live ingress and/or the ledger.
+  bool pruned = 1;
 }

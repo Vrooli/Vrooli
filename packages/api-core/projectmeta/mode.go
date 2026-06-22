@@ -123,6 +123,7 @@ func SetStartDirForTesting(dir string) {
 	startDir = dir
 	startDirMu.Unlock()
 	resetForTesting()
+	resetMaturityForTesting()
 }
 
 // resetForTesting clears the sync.Once-protected cache. Tests use this between

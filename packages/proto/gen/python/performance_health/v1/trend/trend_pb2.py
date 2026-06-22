@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'performance-health/v1/trend/trend.proto\x12\"vrooli.performance_health.v1.trend\"C\n\x0fGetTrendRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"y\n\x10GetTrendResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12I\n\x07samples\x18\x02 \x03(\x0b\x32/.vrooli.performance_health.v1.trend.TrendSampleR\x07samples\"\xf4\x02\n\x0bTrendSample\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1f\n\x0b\x63\x61ptured_at\x18\x02 \x01(\tR\ncapturedAt\x12\x1e\n\x0bgo_build_ms\x18\x03 \x01(\x03R\tgoBuildMs\x12\x1e\n\x0bui_build_ms\x18\x04 \x01(\x03R\tuiBuildMs\x12!\n\x0c\x62undle_bytes\x18\x05 \x01(\x03R\x0b\x62undleBytes\x12\x15\n\x06lcp_ms\x18\x06 \x01(\x03R\x05lcpMs\x12\x1d\n\nstartup_ms\x18\x07 \x01(\x03R\tstartupMs\x12\x12\n\x04note\x18\x08 \x01(\tR\x04note\x12\x15\n\x06p95_ms\x18\t \x01(\x03R\x05p95Ms\x12+\n\x11slowest_component\x18\n \x01(\tR\x10slowestComponent\x12\x37\n\x18slowest_component_avg_ms\x18\x0b \x01(\x01R\x15slowestComponentAvgMs2\x85\x01\n\x0cTrendService\x12u\n\x08GetTrend\x12\x33.vrooli.performance_health.v1.trend.GetTrendRequest\x1a\x34.vrooli.performance_health.v1.trend.GetTrendResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/trend;trend_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'performance-health/v1/trend/trend.proto\x12\"vrooli.performance_health.v1.trend\"C\n\x0fGetTrendRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"y\n\x10GetTrendResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12I\n\x07samples\x18\x02 \x03(\x0b\x32/.vrooli.performance_health.v1.trend.TrendSampleR\x07samples\"\xa4\x03\n\x0bTrendSample\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x1f\n\x0b\x63\x61ptured_at\x18\x02 \x01(\tR\ncapturedAt\x12\x1e\n\x0bgo_build_ms\x18\x03 \x01(\x03R\tgoBuildMs\x12\x1e\n\x0bui_build_ms\x18\x04 \x01(\x03R\tuiBuildMs\x12!\n\x0c\x62undle_bytes\x18\x05 \x01(\x03R\x0b\x62undleBytes\x12\x15\n\x06lcp_ms\x18\x06 \x01(\x03R\x05lcpMs\x12\x1d\n\nstartup_ms\x18\x07 \x01(\x03R\tstartupMs\x12\x12\n\x04note\x18\x08 \x01(\tR\x04note\x12+\n\x11slowest_component\x18\n \x01(\tR\x10slowestComponent\x12\x37\n\x18slowest_component_avg_ms\x18\x0b \x01(\x01R\x15slowestComponentAvgMs\x12\x37\n\x18slowest_component_max_ms\x18\x0c \x01(\x01R\x15slowestComponentMaxMsJ\x04\x08\t\x10\nR\x06p95_ms2\x85\x01\n\x0cTrendService\x12u\n\x08GetTrend\x12\x33.vrooli.performance_health.v1.trend.GetTrendRequest\x1a\x34.vrooli.performance_health.v1.trend.GetTrendResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/trend;trend_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,7 +37,7 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETTRENDRESPONSE']._serialized_start=148
   _globals['_GETTRENDRESPONSE']._serialized_end=269
   _globals['_TRENDSAMPLE']._serialized_start=272
-  _globals['_TRENDSAMPLE']._serialized_end=644
-  _globals['_TRENDSERVICE']._serialized_start=647
-  _globals['_TRENDSERVICE']._serialized_end=780
+  _globals['_TRENDSAMPLE']._serialized_end=692
+  _globals['_TRENDSERVICE']._serialized_start=695
+  _globals['_TRENDSERVICE']._serialized_end=828
 # @@protoc_insertion_point(module_scope)

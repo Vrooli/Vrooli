@@ -1,0 +1,66 @@
+{
+  "_metadata": {
+    "module": "persistence-hygiene",
+    "description": "Tier-2 static persistence-hygiene analyzers migrated and re-homed from scenario-auditor (raw sql.Open, routed-driver imports, captured *sql.DB handles, unclosed rows, direct SQL in handlers) plus the new SQLite single-connection deadlock check. Exempt-path semantics (test files, migrations/, scripts/, packages/api-core/) preserved; parity-proven before any auditor rule is deleted.",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "HYGIENE-001",
+      "title": "Raw sql.Open and routed-driver-import analyzers",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Detect raw sql.Open calls (RAW_SQL_OPEN, L3, ERROR — migrated from auditor `database_backoff`) and direct SQL-driver imports / sql.OpenDB outside api-core (ROUTED_DRIVER_IMPORT, L3, ERROR — migrated from `routed_database_drivers`). Persistence must route through database.Open.",
+      "tags": ["hygiene", "raw-sql-open", "routed-driver", "L3", "migrated"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "A raw sql.Open in api/internal produces RAW_SQL_OPEN; the same in an exempt path (test file, migrations/) does not." },
+        { "type": "automated", "status": "planned", "notes": "A non-blank pgx/lib-pq/go-sqlite3 import outside api-core produces ROUTED_DRIVER_IMPORT." }
+      ]
+    },
+    {
+      "id": "HYGIENE-002",
+      "title": "Handle-capture and unclosed-rows analyzers",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Detect *sql.DB captured as a struct field / package var / parameter (SQL_DB_HANDLE_CAPTURE, L3, WARNING — migrated from `routed_database_handle_capture`) and rows that are never closed (DB_ROWS_NOT_CLOSED, L3, ERROR, autofixable — migrated from `db_rows_close`).",
+      "tags": ["hygiene", "handle-capture", "rows-close", "L3", "migrated"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "A *sql.DB struct field produces SQL_DB_HANDLE_CAPTURE; a *database.RoutedDB field does not." },
+        { "type": "automated", "status": "planned", "notes": "A Query result used without defer rows.Close() produces DB_ROWS_NOT_CLOSED." }
+      ]
+    },
+    {
+      "id": "HYGIENE-003",
+      "title": "Direct-SQL-in-handlers and SQLite-pool-deadlock analyzers",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "core",
+      "criticality": "P0",
+      "description": "New checks: SQL executed directly inside a transport handler (DIRECT_SQL_IN_HANDLERS, L3, WARNING) and the SQLite MaxOpenConns:1 + nested-query-inside-open-rows deadlock pattern (SQLITE_POOL_DEADLOCK, L3, ERROR).",
+      "tags": ["hygiene", "direct-sql-handlers", "sqlite-deadlock", "L3"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "SQL in an api/handlers/ function produces DIRECT_SQL_IN_HANDLERS." },
+        { "type": "automated", "status": "planned", "notes": "A MaxOpenConns:1 pool with a nested query inside an open rows loop produces SQLITE_POOL_DEADLOCK." }
+      ]
+    },
+    {
+      "id": "HYGIENE-004",
+      "title": "Auditor parity",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "The migrated analyzers must produce verdicts equivalent to the original five scenario-auditor rules on the same inputs (parity tests) before any auditor rule is deleted, guarding against regressing routed E2E eligibility during the cutover.",
+      "tags": ["parity", "auditor-migration", "cutover-guard"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "For each migrated rule, identical inputs yield identical verdicts vs the original auditor rule fixtures." }
+      ]
+    }
+  ]
+}

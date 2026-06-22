@@ -42,7 +42,12 @@ message ValidateScenarioRequest {
   string scenario = 1;
   // Optional explicit scenario path for callers that already resolved it.
   string path = 2;
-  // Providers that perform execution, such as unit-health, honor this flag.
+  // Execution-mode switch for providers that can both inspect and measure.
+  // false => readiness/inspection only (no process spawned, no build run);
+  // true => the provider runs its deterministic measurements (e.g. unit-health
+  // executes the suite; performance-health benchmarks the build + bundle and
+  // runs Lighthouse-if-UI, persisting a sample), then gates on the result.
+  // Providers that only inspect ignore this flag.
   bool include_execution = 3;
 }
 

@@ -41,6 +41,17 @@ enum Tier {
   TIER_LEASED = 2;
 }
 
+// RouteSource distinguishes scenario-backed routes (the local UI port of a
+// known scenario) from external routes that point at an arbitrary
+// service_target. It is ORTHOGONAL to Tier: tiering is an exposure-policy
+// axis, source is a provenance axis. ROUTE_SOURCE_UNSPECIFIED defaults to
+// SCENARIO for rows written before the field existed.
+enum RouteSource {
+  ROUTE_SOURCE_UNSPECIFIED = 0;
+  ROUTE_SOURCE_SCENARIO = 1;
+  ROUTE_SOURCE_EXTERNAL = 2;
+}
+
 // Route is the canonical wire shape for one manifest entry.
 message Route {
   // Stable identifier assigned by the store on create.
@@ -77,6 +88,14 @@ message Route {
 
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
+
+  // Provenance: scenario-backed or external. Empty/UNSPECIFIED == SCENARIO.
+  RouteSource source = 13;
+
+  // Explicit local service target for external routes (e.g.
+  // http://127.0.0.1:9000). Empty for scenario routes, which derive
+  // http://localhost:<local_port>.
+  string service_target = 14;
 }
 
 message ListRoutesRequest {
@@ -110,6 +129,11 @@ message CreateRouteRequest {
   string health_path = 7;
   // Tri-state enable flag: unset defaults to true on create.
   optional bool enabled = 8;
+  // Provenance. EXTERNAL routes require service_target and skip the
+  // scenario/local_port validation scenario routes enforce.
+  RouteSource source = 9;
+  // Explicit local target for an external route.
+  string service_target = 10;
 }
 
 message CreateRouteResponse {
@@ -126,6 +150,10 @@ message UpdateRouteRequest {
   Tier tier = 6;
   string health_path = 7;
   optional bool enabled = 8;
+  // Provenance (UNSPECIFIED leaves it unchanged).
+  RouteSource source = 9;
+  // Explicit local target for an external route (empty leaves it unchanged).
+  string service_target = 10;
 }
 
 message UpdateRouteResponse {

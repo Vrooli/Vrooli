@@ -23,7 +23,7 @@ class GetTrendResponse(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., samples: _Optional[_Iterable[_Union[TrendSample, _Mapping]]] = ...) -> None: ...
 
 class TrendSample(_message.Message):
-    __slots__ = ("scenario", "captured_at", "go_build_ms", "ui_build_ms", "bundle_bytes", "lcp_ms", "startup_ms", "note", "p95_ms", "slowest_component", "slowest_component_avg_ms")
+    __slots__ = ("scenario", "captured_at", "go_build_ms", "ui_build_ms", "bundle_bytes", "lcp_ms", "startup_ms", "note", "slowest_component", "slowest_component_avg_ms", "slowest_component_max_ms")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     CAPTURED_AT_FIELD_NUMBER: _ClassVar[int]
     GO_BUILD_MS_FIELD_NUMBER: _ClassVar[int]
@@ -32,9 +32,9 @@ class TrendSample(_message.Message):
     LCP_MS_FIELD_NUMBER: _ClassVar[int]
     STARTUP_MS_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
-    P95_MS_FIELD_NUMBER: _ClassVar[int]
     SLOWEST_COMPONENT_FIELD_NUMBER: _ClassVar[int]
     SLOWEST_COMPONENT_AVG_MS_FIELD_NUMBER: _ClassVar[int]
+    SLOWEST_COMPONENT_MAX_MS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     captured_at: str
     go_build_ms: int
@@ -43,7 +43,7 @@ class TrendSample(_message.Message):
     lcp_ms: int
     startup_ms: int
     note: str
-    p95_ms: int
     slowest_component: str
     slowest_component_avg_ms: float
-    def __init__(self, scenario: _Optional[str] = ..., captured_at: _Optional[str] = ..., go_build_ms: _Optional[int] = ..., ui_build_ms: _Optional[int] = ..., bundle_bytes: _Optional[int] = ..., lcp_ms: _Optional[int] = ..., startup_ms: _Optional[int] = ..., note: _Optional[str] = ..., p95_ms: _Optional[int] = ..., slowest_component: _Optional[str] = ..., slowest_component_avg_ms: _Optional[float] = ...) -> None: ...
+    slowest_component_max_ms: float
+    def __init__(self, scenario: _Optional[str] = ..., captured_at: _Optional[str] = ..., go_build_ms: _Optional[int] = ..., ui_build_ms: _Optional[int] = ..., bundle_bytes: _Optional[int] = ..., lcp_ms: _Optional[int] = ..., startup_ms: _Optional[int] = ..., note: _Optional[str] = ..., slowest_component: _Optional[str] = ..., slowest_component_avg_ms: _Optional[float] = ..., slowest_component_max_ms: _Optional[float] = ...) -> None: ...

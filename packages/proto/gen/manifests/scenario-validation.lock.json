@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-validation",
-  "input_digest": "sha256:32ab2a6287a65b7c79bc967bbc8ce1f29cd8c2451f6a010d64a9fe5e26bb353f",
+  "input_digest": "sha256:07e8d2f1dcfefe24a66690c6e519e1f38db42c209ced098e574fb941a7d60884",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/metrics.proto",
@@ -19,12 +19,12 @@
   },
   "outputs": {
     "gen/go/scenario-validation/v1/scenariovalidationv1connect/validation.connect.go": "sha256:2e25cf43eb6a93114dd0c9cee239885ae17da45f649018d9e5aa990932eb6a03",
-    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:337d8cc4348be0ba50e1a6aeff4f0d88703b29615b8b5f085d8680c672c5cee7",
+    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:d09dcd82aafe229027a01ec95a244a64a6ed37588471d3bbbdff6fe109ea9a6c",
     "gen/python/scenario_validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_validation/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:943f715f521552b8d910fce87b8d57f51c2e242535028ed5ce16329a5d0f8591",
     "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:b57f6dd677a670250a2392b08602871d26b737915c115ebe9478243313db6322",
     "gen/typescript/js/scenario-validation/v1/validation_pb.js": "sha256:45ea8553e40fec11e906370321fdd8fbdafe515e2a13acbe065bc9869e95d9ac",
-    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:4137139a2215bfb54ccba79f04eff13add110fbcd1de233572059e87c026f368"
+    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:6905d0628ba683d6ba1dcc9fd618a9b7c5c3e3dc7e5aec1074350e3ddbe81847"
   }
 }

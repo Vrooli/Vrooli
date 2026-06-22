@@ -10,7 +10,108 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file tunnel-manager/v1/config/config.proto.
  */
 export const file_tunnel_manager_v1_config_config: GenFile = /*@__PURE__*/
-  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIpMBCgxUdW5uZWxDb25maWcSMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIRCgl0dW5uZWxfaWQYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRIQCghjcmVkX3JlZhgEIAEoCRIVCg1wcm9tX2VuZHBvaW50GAUgASgJIsoCCg9Db25maWdSZWFkaW5lc3MSOwoMZGVzaXJlZF9tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEhgKEHJlbW90ZV9hdmFpbGFibGUYAiABKAgSFgoObWlzc2luZ19maWVsZHMYAyADKAkSGQoRY3JlZGVudGlhbF9zb3VyY2UYBCABKAkSFgoOY3JlZGVudGlhbF9yZWYYBSABKAkSGQoRbG9jYWxfY29uZmlnX3BhdGgYBiABKAkSEgoKc3luY19yZWFkeRgHIAEoCBITCgttb2RlX3JlYXNvbhgIIAEoCRJRChFjcmVkZW50aWFsX2ZpZWxkcxgJIAMoCzI2LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ3JlZGVudGlhbEZpZWxkU3RhdHVzImUKFUNyZWRlbnRpYWxGaWVsZFN0YXR1cxIMCgRuYW1lGAEgASgJEg8KB3ByZXNlbnQYAiABKAgSDgoGc291cmNlGAMgASgJEgsKA3JlZhgEIAEoCRIQCgh3cml0YWJsZRgFIAEoCCKeAQoQQ3JlZGVudGlhbFN0YXR1cxJGCgZmaWVsZHMYASADKAsyNi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxGaWVsZFN0YXR1cxIWCg5taXNzaW5nX2ZpZWxkcxgCIAMoCRIOCgZzb3VyY2UYAyABKAkSCwoDcmVmGAQgASgJEg0KBXJlYWR5GAUgASgIIhIKEEdldENvbmZpZ1JlcXVlc3QilwEKEUdldENvbmZpZ1Jlc3BvbnNlEj0KBmNvbmZpZxgBIAEoCzItLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuVHVubmVsQ29uZmlnEkMKCXJlYWRpbmVzcxgCIAEoCzIwLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ29uZmlnUmVhZGluZXNzIhwKGkdldENyZWRlbnRpYWxTdGF0dXNSZXF1ZXN0ImAKG0dldENyZWRlbnRpYWxTdGF0dXNSZXNwb25zZRJBCgZzdGF0dXMYASABKAsyMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxTdGF0dXMiWwofU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBISCgphY2NvdW50X2lkGAEgASgJEhEKCXR1bm5lbF9pZBgCIAEoCRIRCglhcGlfdG9rZW4YAyABKAkiZQogU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USQQoGc3RhdHVzGAEgASgLMjEudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsU3RhdHVzIjMKIUNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBIOCgZmaWVsZHMYASADKAkiZwoiQ2xlYXJDbG91ZGZsYXJlQ3JlZGVudGlhbHNSZXNwb25zZRJBCgZzdGF0dXMYASABKAsyMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxTdGF0dXMiHgoLU3luY1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCCK4AQoMU3luY1Jlc3BvbnNlEjMKBG1vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUSDQoFYWRkZWQYAiADKAkSDwoHcmVtb3ZlZBgDIAMoCRISCgpub19jaGFuZ2VzGAQgASgIEhYKDnNldHVwX3JlcXVpcmVkGAUgASgIEhYKDm1pc3NpbmdfZmllbGRzGAYgAygJEg8KB21lc3NhZ2UYByABKAkiTwoRU3dpdGNoTW9kZVJlcXVlc3QSOgoLdGFyZ2V0X21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUijwEKElN3aXRjaE1vZGVSZXNwb25zZRI8Cg1wcmV2aW91c19tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEjsKDGN1cnJlbnRfbW9kZRgCIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSo9CgRNb2RlEhQKEE1PREVfVU5TUEVDSUZJRUQQABIPCgtNT0RFX1JFTU9URRABEg4KCk1PREVfTE9DQUwQAjK8BgoNQ29uZmlnU2VydmljZRJyCglHZXRDb25maWcSMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1JlcXVlc3QaMi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1Jlc3BvbnNlEpABChNHZXRDcmVkZW50aWFsU3RhdHVzEjsudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5HZXRDcmVkZW50aWFsU3RhdHVzUmVxdWVzdBo8LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q3JlZGVudGlhbFN0YXR1c1Jlc3BvbnNlEp8BChhTZXRDbG91ZGZsYXJlQ3JlZGVudGlhbHMSQC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlNldENsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QaQS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlNldENsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEqUBChpDbGVhckNsb3VkZmxhcmVDcmVkZW50aWFscxJCLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ2xlYXJDbG91ZGZsYXJlQ3JlZGVudGlhbHNSZXF1ZXN0GkMudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DbGVhckNsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEmMKBFN5bmMSLC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXF1ZXN0Gi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5TeW5jUmVzcG9uc2USdQoKU3dpdGNoTW9kZRIyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlcXVlc3QaMy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN3aXRjaE1vZGVSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3R1bm5lbC1tYW5hZ2VyL3YxL2NvbmZpZztjb25maWdfdjFiBnByb3RvMw");
+  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIuoBCgxJbmdyZXNzRW50cnkSEAoIaG9zdG5hbWUYASABKAkSFgoOc2VydmljZV90YXJnZXQYAiABKAkSPgoFc3RhdGUYAyABKA4yLy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk93bmVyc2hpcFN0YXRlEj4KBnNvdXJjZRgEIAEoDjIuLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuSW5ncmVzc1NvdXJjZRIQCghzY2VuYXJpbxgFIAEoCRIQCghsZWFzZV9pZBgGIAEoCRIMCgRub3RlGAcgASgJInoKC0RyaWZ0Q291bnRzEg8KB21hbmFnZWQYASABKAUSDwoHbWlzc2luZxgCIAEoBRITCgtleHRlcm5hbF9vaxgDIAEoBRIQCghvcnBoYW5lZBgEIAEoBRIPCgdpZ25vcmVkGAUgASgFEhEKCXVubWFuYWdlZBgGIAEoBSKTAQoMVHVubmVsQ29uZmlnEjMKBG1vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUSEQoJdHVubmVsX2lkGAIgASgJEhIKCmFjY291bnRfaWQYAyABKAkSEAoIY3JlZF9yZWYYBCABKAkSFQoNcHJvbV9lbmRwb2ludBgFIAEoCSLKAgoPQ29uZmlnUmVhZGluZXNzEjsKDGRlc2lyZWRfbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIYChByZW1vdGVfYXZhaWxhYmxlGAIgASgIEhYKDm1pc3NpbmdfZmllbGRzGAMgAygJEhkKEWNyZWRlbnRpYWxfc291cmNlGAQgASgJEhYKDmNyZWRlbnRpYWxfcmVmGAUgASgJEhkKEWxvY2FsX2NvbmZpZ19wYXRoGAYgASgJEhIKCnN5bmNfcmVhZHkYByABKAgSEwoLbW9kZV9yZWFzb24YCCABKAkSUQoRY3JlZGVudGlhbF9maWVsZHMYCSADKAsyNi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNyZWRlbnRpYWxGaWVsZFN0YXR1cyJlChVDcmVkZW50aWFsRmllbGRTdGF0dXMSDAoEbmFtZRgBIAEoCRIPCgdwcmVzZW50GAIgASgIEg4KBnNvdXJjZRgDIAEoCRILCgNyZWYYBCABKAkSEAoId3JpdGFibGUYBSABKAgingEKEENyZWRlbnRpYWxTdGF0dXMSRgoGZmllbGRzGAEgAygLMjYudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsRmllbGRTdGF0dXMSFgoObWlzc2luZ19maWVsZHMYAiADKAkSDgoGc291cmNlGAMgASgJEgsKA3JlZhgEIAEoCRINCgVyZWFkeRgFIAEoCCISChBHZXRDb25maWdSZXF1ZXN0IpcBChFHZXRDb25maWdSZXNwb25zZRI9CgZjb25maWcYASABKAsyLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlR1bm5lbENvbmZpZxJDCglyZWFkaW5lc3MYAiABKAsyMC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNvbmZpZ1JlYWRpbmVzcyIcChpHZXRDcmVkZW50aWFsU3RhdHVzUmVxdWVzdCJgChtHZXRDcmVkZW50aWFsU3RhdHVzUmVzcG9uc2USQQoGc3RhdHVzGAEgASgLMjEudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsU3RhdHVzIlsKH1NldENsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QSEgoKYWNjb3VudF9pZBgBIAEoCRIRCgl0dW5uZWxfaWQYAiABKAkSEQoJYXBpX3Rva2VuGAMgASgJImUKIFNldENsb3VkZmxhcmVDcmVkZW50aWFsc1Jlc3BvbnNlEkEKBnN0YXR1cxgBIAEoCzIxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuQ3JlZGVudGlhbFN0YXR1cyIzCiFDbGVhckNsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QSDgoGZmllbGRzGAEgAygJImcKIkNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USQQoGc3RhdHVzGAEgASgLMjEudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DcmVkZW50aWFsU3RhdHVzIi0KC1N5bmNSZXF1ZXN0Eg8KB2RyeV9ydW4YASABKAgSDQoFcHJ1bmUYAiABKAgi8wEKDFN5bmNSZXNwb25zZRIzCgRtb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEg0KBWFkZGVkGAIgAygJEg8KB3JlbW92ZWQYAyADKAkSEgoKbm9fY2hhbmdlcxgEIAEoCBIWCg5zZXR1cF9yZXF1aXJlZBgFIAEoCBIWCg5taXNzaW5nX2ZpZWxkcxgGIAMoCRIPCgdtZXNzYWdlGAcgASgJEhcKD2RyaWZ0X3VubWFuYWdlZBgIIAMoCRIQCghvcnBoYW5lZBgJIAMoCRIOCgZwcnVuZWQYCiADKAkiTwoRU3dpdGNoTW9kZVJlcXVlc3QSOgoLdGFyZ2V0X21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUijwEKElN3aXRjaE1vZGVSZXNwb25zZRI8Cg1wcmV2aW91c19tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEjsKDGN1cnJlbnRfbW9kZRgCIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSIRCg9HZXREcmlmdFJlcXVlc3QixQEKEEdldERyaWZ0UmVzcG9uc2USMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRI+CgdlbnRyaWVzGAIgAygLMi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5JbmdyZXNzRW50cnkSPAoGY291bnRzGAMgASgLMiwudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5EcmlmdENvdW50cyJJChNBZG9wdEluZ3Jlc3NSZXF1ZXN0EhAKCGhvc3RuYW1lGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBnRhcmdldBgDIAEoCSJUChRBZG9wdEluZ3Jlc3NSZXNwb25zZRI8CgVlbnRyeRgBIAEoCzItLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuSW5ncmVzc0VudHJ5IjYKFElnbm9yZUluZ3Jlc3NSZXF1ZXN0EhAKCGhvc3RuYW1lGAEgASgJEgwKBG5vdGUYAiABKAkiVQoVSWdub3JlSW5ncmVzc1Jlc3BvbnNlEjwKBWVudHJ5GAEgASgLMi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5JbmdyZXNzRW50cnkiJwoTUHJ1bmVJbmdyZXNzUmVxdWVzdBIQCghob3N0bmFtZRgBIAEoCSImChRQcnVuZUluZ3Jlc3NSZXNwb25zZRIOCgZwcnVuZWQYASABKAgq5gEKDk93bmVyc2hpcFN0YXRlEh8KG09XTkVSU0hJUF9TVEFURV9VTlNQRUNJRklFRBAAEhsKF09XTkVSU0hJUF9TVEFURV9NQU5BR0VEEAESGwoXT1dORVJTSElQX1NUQVRFX01JU1NJTkcQAhIfChtPV05FUlNISVBfU1RBVEVfRVhURVJOQUxfT0sQAxIcChhPV05FUlNISVBfU1RBVEVfT1JQSEFORUQQBBIbChdPV05FUlNISVBfU1RBVEVfSUdOT1JFRBAFEh0KGU9XTkVSU0hJUF9TVEFURV9VTk1BTkFHRUQQBippCg1JbmdyZXNzU291cmNlEh4KGklOR1JFU1NfU09VUkNFX1VOU1BFQ0lGSUVEEAASGwoXSU5HUkVTU19TT1VSQ0VfU0NFTkFSSU8QARIbChdJTkdSRVNTX1NPVVJDRV9FWFRFUk5BTBACKj0KBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg8KC01PREVfUkVNT1RFEAESDgoKTU9ERV9MT0NBTBACMqcKCg1Db25maWdTZXJ2aWNlEnIKCUdldENvbmZpZxIxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVxdWVzdBoyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVzcG9uc2USkAEKE0dldENyZWRlbnRpYWxTdGF0dXMSOy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENyZWRlbnRpYWxTdGF0dXNSZXF1ZXN0GjwudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5HZXRDcmVkZW50aWFsU3RhdHVzUmVzcG9uc2USnwEKGFNldENsb3VkZmxhcmVDcmVkZW50aWFscxJALnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVxdWVzdBpBLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU2V0Q2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USpQEKGkNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzEkIudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5DbGVhckNsb3VkZmxhcmVDcmVkZW50aWFsc1JlcXVlc3QaQy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNsZWFyQ2xvdWRmbGFyZUNyZWRlbnRpYWxzUmVzcG9uc2USYwoEU3luYxIsLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3luY1JlcXVlc3QaLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXNwb25zZRJ1CgpTd2l0Y2hNb2RlEjIudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Td2l0Y2hNb2RlUmVxdWVzdBozLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlc3BvbnNlEm8KCEdldERyaWZ0EjAudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5HZXREcmlmdFJlcXVlc3QaMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldERyaWZ0UmVzcG9uc2USewoMQWRvcHRJbmdyZXNzEjQudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5BZG9wdEluZ3Jlc3NSZXF1ZXN0GjUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5BZG9wdEluZ3Jlc3NSZXNwb25zZRJ+Cg1JZ25vcmVJbmdyZXNzEjUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5JZ25vcmVJbmdyZXNzUmVxdWVzdBo2LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuSWdub3JlSW5ncmVzc1Jlc3BvbnNlEnsKDFBydW5lSW5ncmVzcxI0LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuUHJ1bmVJbmdyZXNzUmVxdWVzdBo1LnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuUHJ1bmVJbmdyZXNzUmVzcG9uc2VCU1pRZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90dW5uZWwtbWFuYWdlci92MS9jb25maWc7Y29uZmlnX3YxYgZwcm90bzM");
+
+/**
+ * IngressEntry is one fully-classified ingress hostname for the drift view.
+ *
+ * @generated from message vrooli.tunnel_manager.v1.config.IngressEntry
+ */
+export type IngressEntry = Message<"vrooli.tunnel_manager.v1.config.IngressEntry"> & {
+  /**
+   * @generated from field: string hostname = 1;
+   */
+  hostname: string;
+
+  /**
+   * Local service the tunnel forwards to (e.g. http://localhost:21100).
+   *
+   * @generated from field: string service_target = 2;
+   */
+  serviceTarget: string;
+
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.OwnershipState state = 3;
+   */
+  state: OwnershipState;
+
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.IngressSource source = 4;
+   */
+  source: IngressSource;
+
+  /**
+   * Scenario name when source == SCENARIO.
+   *
+   * @generated from field: string scenario = 5;
+   */
+  scenario: string;
+
+  /**
+   * Lease identifier when the backing route is a lease.
+   *
+   * @generated from field: string lease_id = 6;
+   */
+  leaseId: string;
+
+  /**
+   * Operator note recorded with an ignore/adopt decision.
+   *
+   * @generated from field: string note = 7;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.IngressEntry.
+ * Use `create(IngressEntrySchema)` to create a new message.
+ */
+export const IngressEntrySchema: GenMessage<IngressEntry> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 0);
+
+/**
+ * DriftCounts is the per-state tally for the drift report.
+ *
+ * @generated from message vrooli.tunnel_manager.v1.config.DriftCounts
+ */
+export type DriftCounts = Message<"vrooli.tunnel_manager.v1.config.DriftCounts"> & {
+  /**
+   * @generated from field: int32 managed = 1;
+   */
+  managed: number;
+
+  /**
+   * @generated from field: int32 missing = 2;
+   */
+  missing: number;
+
+  /**
+   * @generated from field: int32 external_ok = 3;
+   */
+  externalOk: number;
+
+  /**
+   * @generated from field: int32 orphaned = 4;
+   */
+  orphaned: number;
+
+  /**
+   * @generated from field: int32 ignored = 5;
+   */
+  ignored: number;
+
+  /**
+   * @generated from field: int32 unmanaged = 6;
+   */
+  unmanaged: number;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.DriftCounts.
+ * Use `create(DriftCountsSchema)` to create a new message.
+ */
+export const DriftCountsSchema: GenMessage<DriftCounts> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 1);
 
 /**
  * TunnelConfig is the persisted configuration for the tunnel.
@@ -54,7 +155,7 @@ export type TunnelConfig = Message<"vrooli.tunnel_manager.v1.config.TunnelConfig
  * Use `create(TunnelConfigSchema)` to create a new message.
  */
 export const TunnelConfigSchema: GenMessage<TunnelConfig> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 0);
+  messageDesc(file_tunnel_manager_v1_config_config, 2);
 
 /**
  * ConfigReadiness reports whether the current process has enough
@@ -134,7 +235,7 @@ export type ConfigReadiness = Message<"vrooli.tunnel_manager.v1.config.ConfigRea
  * Use `create(ConfigReadinessSchema)` to create a new message.
  */
 export const ConfigReadinessSchema: GenMessage<ConfigReadiness> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 1);
+  messageDesc(file_tunnel_manager_v1_config_config, 3);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.CredentialFieldStatus
@@ -181,7 +282,7 @@ export type CredentialFieldStatus = Message<"vrooli.tunnel_manager.v1.config.Cre
  * Use `create(CredentialFieldStatusSchema)` to create a new message.
  */
 export const CredentialFieldStatusSchema: GenMessage<CredentialFieldStatus> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 2);
+  messageDesc(file_tunnel_manager_v1_config_config, 4);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.CredentialStatus
@@ -220,7 +321,7 @@ export type CredentialStatus = Message<"vrooli.tunnel_manager.v1.config.Credenti
  * Use `create(CredentialStatusSchema)` to create a new message.
  */
 export const CredentialStatusSchema: GenMessage<CredentialStatus> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 3);
+  messageDesc(file_tunnel_manager_v1_config_config, 5);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.GetConfigRequest
@@ -233,7 +334,7 @@ export type GetConfigRequest = Message<"vrooli.tunnel_manager.v1.config.GetConfi
  * Use `create(GetConfigRequestSchema)` to create a new message.
  */
 export const GetConfigRequestSchema: GenMessage<GetConfigRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 4);
+  messageDesc(file_tunnel_manager_v1_config_config, 6);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.GetConfigResponse
@@ -255,7 +356,7 @@ export type GetConfigResponse = Message<"vrooli.tunnel_manager.v1.config.GetConf
  * Use `create(GetConfigResponseSchema)` to create a new message.
  */
 export const GetConfigResponseSchema: GenMessage<GetConfigResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 5);
+  messageDesc(file_tunnel_manager_v1_config_config, 7);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.GetCredentialStatusRequest
@@ -268,7 +369,7 @@ export type GetCredentialStatusRequest = Message<"vrooli.tunnel_manager.v1.confi
  * Use `create(GetCredentialStatusRequestSchema)` to create a new message.
  */
 export const GetCredentialStatusRequestSchema: GenMessage<GetCredentialStatusRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 6);
+  messageDesc(file_tunnel_manager_v1_config_config, 8);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.GetCredentialStatusResponse
@@ -285,7 +386,7 @@ export type GetCredentialStatusResponse = Message<"vrooli.tunnel_manager.v1.conf
  * Use `create(GetCredentialStatusResponseSchema)` to create a new message.
  */
 export const GetCredentialStatusResponseSchema: GenMessage<GetCredentialStatusResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 7);
+  messageDesc(file_tunnel_manager_v1_config_config, 9);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsRequest
@@ -315,7 +416,7 @@ export type SetCloudflareCredentialsRequest = Message<"vrooli.tunnel_manager.v1.
  * Use `create(SetCloudflareCredentialsRequestSchema)` to create a new message.
  */
 export const SetCloudflareCredentialsRequestSchema: GenMessage<SetCloudflareCredentialsRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 8);
+  messageDesc(file_tunnel_manager_v1_config_config, 10);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SetCloudflareCredentialsResponse
@@ -332,7 +433,7 @@ export type SetCloudflareCredentialsResponse = Message<"vrooli.tunnel_manager.v1
  * Use `create(SetCloudflareCredentialsResponseSchema)` to create a new message.
  */
 export const SetCloudflareCredentialsResponseSchema: GenMessage<SetCloudflareCredentialsResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 9);
+  messageDesc(file_tunnel_manager_v1_config_config, 11);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsRequest
@@ -353,7 +454,7 @@ export type ClearCloudflareCredentialsRequest = Message<"vrooli.tunnel_manager.v
  * Use `create(ClearCloudflareCredentialsRequestSchema)` to create a new message.
  */
 export const ClearCloudflareCredentialsRequestSchema: GenMessage<ClearCloudflareCredentialsRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 10);
+  messageDesc(file_tunnel_manager_v1_config_config, 12);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.ClearCloudflareCredentialsResponse
@@ -370,18 +471,26 @@ export type ClearCloudflareCredentialsResponse = Message<"vrooli.tunnel_manager.
  * Use `create(ClearCloudflareCredentialsResponseSchema)` to create a new message.
  */
 export const ClearCloudflareCredentialsResponseSchema: GenMessage<ClearCloudflareCredentialsResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 11);
+  messageDesc(file_tunnel_manager_v1_config_config, 13);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SyncRequest
  */
 export type SyncRequest = Message<"vrooli.tunnel_manager.v1.config.SyncRequest"> & {
   /**
-   * When true, compute the diff but do not apply it.
+   * When true, compute the report but do not apply it.
    *
    * @generated from field: bool dry_run = 1;
    */
   dryRun: boolean;
+
+  /**
+   * When true, also remove orphaned entries (ledger-managed hostnames whose
+   * routes are gone). Unmanaged drift is NEVER removed by a batch prune.
+   *
+   * @generated from field: bool prune = 2;
+   */
+  prune: boolean;
 };
 
 /**
@@ -389,7 +498,7 @@ export type SyncRequest = Message<"vrooli.tunnel_manager.v1.config.SyncRequest">
  * Use `create(SyncRequestSchema)` to create a new message.
  */
 export const SyncRequestSchema: GenMessage<SyncRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 12);
+  messageDesc(file_tunnel_manager_v1_config_config, 14);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SyncResponse
@@ -401,28 +510,28 @@ export type SyncResponse = Message<"vrooli.tunnel_manager.v1.config.SyncResponse
   mode: Mode;
 
   /**
-   * Hostnames added to ingress this sync.
+   * Hostnames added to ingress this sync (or that would be on a dry-run).
    *
    * @generated from field: repeated string added = 2;
    */
   added: string[];
 
   /**
-   * Hostnames removed from ingress this sync.
+   * Hostnames removed this sync (mirrors pruned; empty unless prune was set).
    *
    * @generated from field: repeated string removed = 3;
    */
   removed: string[];
 
   /**
-   * True when the manifest and live ingress already matched.
+   * True when nothing would change.
    *
    * @generated from field: bool no_changes = 4;
    */
   noChanges: boolean;
 
   /**
-   * True when dry-run detected missing setup and did not attempt live diff.
+   * True when dry-run detected missing setup and did not attempt a live read.
    *
    * @generated from field: bool setup_required = 5;
    */
@@ -441,6 +550,27 @@ export type SyncResponse = Message<"vrooli.tunnel_manager.v1.config.SyncResponse
    * @generated from field: string message = 7;
    */
   message: string;
+
+  /**
+   * Live hostnames TM does not manage and did not touch.
+   *
+   * @generated from field: repeated string drift_unmanaged = 8;
+   */
+  driftUnmanaged: string[];
+
+  /**
+   * Ledger-managed hostnames whose routes are gone (prune candidates).
+   *
+   * @generated from field: repeated string orphaned = 9;
+   */
+  orphaned: string[];
+
+  /**
+   * Hostnames actually removed this sync (empty unless prune was set).
+   *
+   * @generated from field: repeated string pruned = 10;
+   */
+  pruned: string[];
 };
 
 /**
@@ -448,7 +578,7 @@ export type SyncResponse = Message<"vrooli.tunnel_manager.v1.config.SyncResponse
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema: GenMessage<SyncResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 13);
+  messageDesc(file_tunnel_manager_v1_config_config, 15);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SwitchModeRequest
@@ -465,7 +595,7 @@ export type SwitchModeRequest = Message<"vrooli.tunnel_manager.v1.config.SwitchM
  * Use `create(SwitchModeRequestSchema)` to create a new message.
  */
 export const SwitchModeRequestSchema: GenMessage<SwitchModeRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 14);
+  messageDesc(file_tunnel_manager_v1_config_config, 16);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SwitchModeResponse
@@ -487,7 +617,268 @@ export type SwitchModeResponse = Message<"vrooli.tunnel_manager.v1.config.Switch
  * Use `create(SwitchModeResponseSchema)` to create a new message.
  */
 export const SwitchModeResponseSchema: GenMessage<SwitchModeResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 15);
+  messageDesc(file_tunnel_manager_v1_config_config, 17);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.GetDriftRequest
+ */
+export type GetDriftRequest = Message<"vrooli.tunnel_manager.v1.config.GetDriftRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.GetDriftRequest.
+ * Use `create(GetDriftRequestSchema)` to create a new message.
+ */
+export const GetDriftRequestSchema: GenMessage<GetDriftRequest> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 18);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.GetDriftResponse
+ */
+export type GetDriftResponse = Message<"vrooli.tunnel_manager.v1.config.GetDriftResponse"> & {
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.Mode mode = 1;
+   */
+  mode: Mode;
+
+  /**
+   * Every distinct live/desired/tracked hostname, classified, ordered by
+   * hostname.
+   *
+   * @generated from field: repeated vrooli.tunnel_manager.v1.config.IngressEntry entries = 2;
+   */
+  entries: IngressEntry[];
+
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.DriftCounts counts = 3;
+   */
+  counts?: DriftCounts | undefined;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.GetDriftResponse.
+ * Use `create(GetDriftResponseSchema)` to create a new message.
+ */
+export const GetDriftResponseSchema: GenMessage<GetDriftResponse> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 19);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.AdoptIngressRequest
+ */
+export type AdoptIngressRequest = Message<"vrooli.tunnel_manager.v1.config.AdoptIngressRequest"> & {
+  /**
+   * Full hostname to adopt (e.g. api.itsagitime.com).
+   *
+   * @generated from field: string hostname = 1;
+   */
+  hostname: string;
+
+  /**
+   * Adopt as this scenario route. When empty and target is empty, the service
+   * resolves scenario vs external automatically.
+   *
+   * @generated from field: string scenario = 2;
+   */
+  scenario: string;
+
+  /**
+   * Adopt as an external route pointing at this service target (e.g.
+   * http://127.0.0.1:9000). Takes precedence over scenario resolution.
+   *
+   * @generated from field: string target = 3;
+   */
+  target: string;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.AdoptIngressRequest.
+ * Use `create(AdoptIngressRequestSchema)` to create a new message.
+ */
+export const AdoptIngressRequestSchema: GenMessage<AdoptIngressRequest> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 20);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.AdoptIngressResponse
+ */
+export type AdoptIngressResponse = Message<"vrooli.tunnel_manager.v1.config.AdoptIngressResponse"> & {
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.IngressEntry entry = 1;
+   */
+  entry?: IngressEntry | undefined;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.AdoptIngressResponse.
+ * Use `create(AdoptIngressResponseSchema)` to create a new message.
+ */
+export const AdoptIngressResponseSchema: GenMessage<AdoptIngressResponse> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 21);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.IgnoreIngressRequest
+ */
+export type IgnoreIngressRequest = Message<"vrooli.tunnel_manager.v1.config.IgnoreIngressRequest"> & {
+  /**
+   * @generated from field: string hostname = 1;
+   */
+  hostname: string;
+
+  /**
+   * Optional operator note for why this external ingress is acknowledged.
+   *
+   * @generated from field: string note = 2;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.IgnoreIngressRequest.
+ * Use `create(IgnoreIngressRequestSchema)` to create a new message.
+ */
+export const IgnoreIngressRequestSchema: GenMessage<IgnoreIngressRequest> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 22);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.IgnoreIngressResponse
+ */
+export type IgnoreIngressResponse = Message<"vrooli.tunnel_manager.v1.config.IgnoreIngressResponse"> & {
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.IngressEntry entry = 1;
+   */
+  entry?: IngressEntry | undefined;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.IgnoreIngressResponse.
+ * Use `create(IgnoreIngressResponseSchema)` to create a new message.
+ */
+export const IgnoreIngressResponseSchema: GenMessage<IgnoreIngressResponse> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 23);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.PruneIngressRequest
+ */
+export type PruneIngressRequest = Message<"vrooli.tunnel_manager.v1.config.PruneIngressRequest"> & {
+  /**
+   * @generated from field: string hostname = 1;
+   */
+  hostname: string;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.PruneIngressRequest.
+ * Use `create(PruneIngressRequestSchema)` to create a new message.
+ */
+export const PruneIngressRequestSchema: GenMessage<PruneIngressRequest> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 24);
+
+/**
+ * @generated from message vrooli.tunnel_manager.v1.config.PruneIngressResponse
+ */
+export type PruneIngressResponse = Message<"vrooli.tunnel_manager.v1.config.PruneIngressResponse"> & {
+  /**
+   * True when the hostname was removed from live ingress and/or the ledger.
+   *
+   * @generated from field: bool pruned = 1;
+   */
+  pruned: boolean;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.PruneIngressResponse.
+ * Use `create(PruneIngressResponseSchema)` to create a new message.
+ */
+export const PruneIngressResponseSchema: GenMessage<PruneIngressResponse> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 25);
+
+/**
+ * OwnershipState classifies one ingress hostname after reconciling the desired
+ * manifest, the live tunnel, and the ownership ledger (see drift.go).
+ *
+ * @generated from enum vrooli.tunnel_manager.v1.config.OwnershipState
+ */
+export enum OwnershipState {
+  /**
+   * @generated from enum value: OWNERSHIP_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Scenario-backed desired route that is live (healthy).
+   *
+   * @generated from enum value: OWNERSHIP_STATE_MANAGED = 1;
+   */
+  MANAGED = 1,
+
+  /**
+   * Desired route (scenario or external) not yet live — an add candidate.
+   *
+   * @generated from enum value: OWNERSHIP_STATE_MISSING = 2;
+   */
+  MISSING = 2,
+
+  /**
+   * External desired/ledger route that is live — tracked, TM owns its ingress.
+   *
+   * @generated from enum value: OWNERSHIP_STATE_EXTERNAL_OK = 3;
+   */
+  EXTERNAL_OK = 3,
+
+  /**
+   * Ledger-managed hostname whose route is gone — a prune candidate.
+   *
+   * @generated from enum value: OWNERSHIP_STATE_ORPHANED = 4;
+   */
+  ORPHANED = 4,
+
+  /**
+   * Ledger-ignored hostname that is live — acknowledged, never touched.
+   *
+   * @generated from enum value: OWNERSHIP_STATE_IGNORED = 5;
+   */
+  IGNORED = 5,
+
+  /**
+   * Live hostname with no desired route and no ledger record — genuine drift.
+   *
+   * @generated from enum value: OWNERSHIP_STATE_UNMANAGED = 6;
+   */
+  UNMANAGED = 6,
+}
+
+/**
+ * Describes the enum vrooli.tunnel_manager.v1.config.OwnershipState.
+ */
+export const OwnershipStateSchema: GenEnum<OwnershipState> = /*@__PURE__*/
+  enumDesc(file_tunnel_manager_v1_config_config, 0);
+
+/**
+ * IngressSource is the provenance of a classified ingress entry.
+ *
+ * @generated from enum vrooli.tunnel_manager.v1.config.IngressSource
+ */
+export enum IngressSource {
+  /**
+   * @generated from enum value: INGRESS_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: INGRESS_SOURCE_SCENARIO = 1;
+   */
+  SCENARIO = 1,
+
+  /**
+   * @generated from enum value: INGRESS_SOURCE_EXTERNAL = 2;
+   */
+  EXTERNAL = 2,
+}
+
+/**
+ * Describes the enum vrooli.tunnel_manager.v1.config.IngressSource.
+ */
+export const IngressSourceSchema: GenEnum<IngressSource> = /*@__PURE__*/
+  enumDesc(file_tunnel_manager_v1_config_config, 1);
 
 /**
  * Mode is the tunnel management mode.
@@ -519,7 +910,7 @@ export enum Mode {
  * Describes the enum vrooli.tunnel_manager.v1.config.Mode.
  */
 export const ModeSchema: GenEnum<Mode> = /*@__PURE__*/
-  enumDesc(file_tunnel_manager_v1_config_config, 0);
+  enumDesc(file_tunnel_manager_v1_config_config, 2);
 
 /**
  * @generated from service vrooli.tunnel_manager.v1.config.ConfigService
@@ -567,8 +958,9 @@ export const ConfigService: GenService<{
     output: typeof ClearCloudflareCredentialsResponseSchema;
   },
   /**
-   * Sync reconciles ingress (remote API or local config.yml) with the routes
-   * manifest. Idempotent: a no-drift sync applies nothing.
+   * Sync reconciles ingress ADDITIVELY: it publishes desired hostnames merged
+   * onto current live, never dropping unmanaged/ignored entries. Removal
+   * happens only when prune is set (a batch prune removes orphaned entries).
    *
    * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.Sync
    */
@@ -578,7 +970,8 @@ export const ConfigService: GenService<{
     output: typeof SyncResponseSchema;
   },
   /**
-   * SwitchMode migrates between "remote" and "local" management modes.
+   * SwitchMode migrates between "remote" and "local" management modes. It is
+   * PURE: it persists the mode and performs zero ingress writes.
    *
    * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode
    */
@@ -586,6 +979,52 @@ export const ConfigService: GenService<{
     methodKind: "unary";
     input: typeof SwitchModeRequestSchema;
     output: typeof SwitchModeResponseSchema;
+  },
+  /**
+   * GetDrift reconciles the desired manifest, the live tunnel, and the
+   * ownership ledger into a classified read model (no writes). It answers
+   * "what is live vs. what TM wants vs. what is unmanaged" in either mode.
+   *
+   * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.GetDrift
+   */
+  getDrift: {
+    methodKind: "unary";
+    input: typeof GetDriftRequestSchema;
+    output: typeof GetDriftResponseSchema;
+  },
+  /**
+   * AdoptIngress brings an unmanaged live hostname under management: as a
+   * scenario route when it resolves to a known scenario, otherwise as an
+   * external route. Records MANAGED/EXTERNAL ownership in the ledger.
+   *
+   * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.AdoptIngress
+   */
+  adoptIngress: {
+    methodKind: "unary";
+    input: typeof AdoptIngressRequestSchema;
+    output: typeof AdoptIngressResponseSchema;
+  },
+  /**
+   * IgnoreIngress acknowledges a live hostname as external and records it
+   * IGNORED so reconcile never pushes or prunes it.
+   *
+   * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.IgnoreIngress
+   */
+  ignoreIngress: {
+    methodKind: "unary";
+    input: typeof IgnoreIngressRequestSchema;
+    output: typeof IgnoreIngressResponseSchema;
+  },
+  /**
+   * PruneIngress removes a single named hostname from live ingress and the
+   * ledger. This is the only path that removes a specific entry.
+   *
+   * @generated from rpc vrooli.tunnel_manager.v1.config.ConfigService.PruneIngress
+   */
+  pruneIngress: {
+    methodKind: "unary";
+    input: typeof PruneIngressRequestSchema;
+    output: typeof PruneIngressResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_tunnel_manager_v1_config_config, 0);

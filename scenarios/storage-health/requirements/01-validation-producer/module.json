@@ -1,0 +1,53 @@
+{
+  "_metadata": {
+    "module": "validation-producer",
+    "description": "Be the delegated `storage` validation producer: respond to ScenarioValidationService.ValidateScenario, classify the target's storage surface via code-facts, and emit FINDING_SOURCE_STORAGE findings normalized to the L0-L4 maturity ladder.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "VALPROD-001",
+      "title": "Delegated ValidateScenario contract",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "Implement ScenarioValidationService.ValidateScenario via the SharedHandler adapter (mirroring structure-health) so a native storage engine returns a common.v1.MaturityAssessment with native_detail. For a clean target the assessment is well-formed and empty; for a target with violations every finding is emitted on FINDING_SOURCE_STORAGE with dimension `storage`.",
+      "tags": ["producer", "delegated-phase", "maturity-assessment"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "ValidateScenario on a clean Go scenario returns a well-formed MaturityAssessment with no findings." },
+        { "type": "automated", "status": "planned", "notes": "Every emitted finding carries source FINDING_SOURCE_STORAGE and dimension `storage`, matching the codes in .vrooli/maturity.json." }
+      ]
+    },
+    {
+      "id": "VALPROD-002",
+      "title": "Code-facts storage-surface classification",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Integrate the code-facts client to detect the API-surface language (Go vs non-Go) and resolve domains via FACT_FAMILY_FILE_DOMAIN (with a filesystem fallback). Surface classification gates which analyzer tier runs; an unresolvable surface maps to L0 STORAGE_TARGET_UNRESOLVABLE.",
+      "tags": ["code-facts", "language-detection", "domain-detection"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "A Go API target is classified Go and runs the Go analyzer tiers; a non-Go fixture is classified non-Go and only emits the isolation fail-safe." },
+        { "type": "automated", "status": "planned", "notes": "A scenario whose service.json is missing/invalid resolves to L0 with STORAGE_TARGET_UNRESOLVABLE (advisory)." }
+      ]
+    },
+    {
+      "id": "VALPROD-003",
+      "title": "Storage-stage derivation from the maturity field",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Derive a heuristic `storage_stage` from the service.json `maturity` field plus presence of a committed migrations/ directory, clearly flagged as advisory and operator-overridable. The stage informs migration-debt findings (informational) but never hard-fails unambiguous violations.",
+      "tags": ["maturity", "storage-stage", "greenfield"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "A scenario with no `maturity` field resolves to greenfield and produces no migration-debt error." },
+        { "type": "automated", "status": "planned", "notes": "Stage is reported in the assessment detail and is marked advisory/override-able." }
+      ]
+    }
+  ]
+}

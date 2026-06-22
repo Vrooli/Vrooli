@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "scenario": "storage-health",
+  "input_digest": "sha256:9743014fa5ac8c7d51a10844525dd20606ef87b60061274e0eab62c419de94f7",
+  "input_files": [
+    "schemas/storage-health/v1/shared/errors.proto",
+    "schemas/storage-health/v1/shared/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/storage-health/v1/shared/errors.pb.go": "sha256:03569b951f36808ff2106207be488c9134fa1bc6de398ec017de58425dc67686",
+    "gen/go/storage-health/v1/shared/health.pb.go": "sha256:40cbb256aca451c1cac71ba555d530f9f1ed85d92ea79c207ae3daf725550c2c",
+    "gen/python/storage_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/storage_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/storage_health/v1/shared/errors_pb2.py": "sha256:0ae4dd1ab2c2c00a2a7543f56d17ef3c711267a8ad26c45dbae2bb74a9ce1fcc",
+    "gen/python/storage_health/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/storage_health/v1/shared/health_pb2.py": "sha256:18a1ce9b23032a0b5ef750607869f9b7c5b564a641a3a98e3dd8394c147ab9cd",
+    "gen/python/storage_health/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/storage_health/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/storage-health/v1/shared/errors_pb.js": "sha256:4361948d50ea7d03475955df5402c38560d4682a49119c7f94c86ef7c490abe3",
+    "gen/typescript/js/storage-health/v1/shared/health_pb.js": "sha256:a7a69e69b956e2ee5624380ce3142386e3b3eda869d665a027bcb6bacc304ee2",
+    "gen/typescript/storage-health/v1/shared/errors_pb.ts": "sha256:0fb926e658f27d47725f68da35476cecb0b5667bf19734b266df2268735b0448",
+    "gen/typescript/storage-health/v1/shared/health_pb.ts": "sha256:a99e3e86087a4b823600f30dffddd530a112590edbdec4b0b617e930bbdd3cd4"
+  }
+}

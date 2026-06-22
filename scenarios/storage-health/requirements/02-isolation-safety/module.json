@@ -1,0 +1,79 @@
+{
+  "_metadata": {
+    "module": "isolation-safety",
+    "description": "The safety core: statically prove test-isolation via the four routed-DB seams, enforce variant-aware (shadow-safe) namespaces, fail-safe on non-Go surfaces, and map an unproven result to the L2 rung that test-genie consumes as a fail-closed precondition for destructive playbooks. Also ships the prove-isolation CLI.",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ISO-001",
+      "title": "Four-seam routed-isolation static proof",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Statically prove a Go scenario routes test traffic to an isolated pool by checking all four seams are wired: database.Open returning *RoutedDB, database.EnsureSchemas, apihttp.TestModeMiddleware, and devrouting.Register. Any missing seam emits ROUTED_SEAMS_UNWIRED at L2 (safety_blocker). A scenario with no relational store passes L2 vacuously.",
+      "tags": ["isolation", "routed-seams", "L2", "fail-closed"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "A routed-eligible scenario (all four seams wired) passes L2 with no ROUTED_SEAMS_UNWIRED finding." },
+        { "type": "automated", "status": "planned", "notes": "A raw *sql.DB-capture fixture missing the seams produces ROUTED_SEAMS_UNWIRED at L2 with loud, instructive remediation naming the exact seam." },
+        { "type": "automated", "status": "planned", "notes": "A scenario with no relational store passes L2 without emitting an isolation finding." }
+      ]
+    },
+    {
+      "id": "ISO-002",
+      "title": "Variant-aware namespace adoption (shadow-safety)",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Detect hard-coded Qdrant collection names / Redis prefixes that bypass the variant-aware storage helpers (storage.Collection / RedisKey / RedisPrefix / ScenarioNamespace) and emit STORAGE_NAMESPACE_HARDCODED at L2. Variant-aware namespaces keep shadow/live instances isolated.",
+      "tags": ["namespace", "shadow-safety", "qdrant", "redis", "L2"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "A hard-coded Qdrant collection literal produces STORAGE_NAMESPACE_HARDCODED; a storage.Collection(domain) call does not." }
+      ]
+    },
+    {
+      "id": "ISO-003",
+      "title": "Non-Go isolation fail-safe",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "When code-facts reports a non-Go API surface, isolation cannot be statically proven; emit STORAGE_ISOLATION_UNVERIFIED at L2 (advisory-visible, never a silent pass). This finding drives the same fail-closed gate as ROUTED_SEAMS_UNWIRED so destructive playbooks are refused.",
+      "tags": ["fail-safe", "non-go", "L2"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "A non-Go API fixture produces STORAGE_ISOLATION_UNVERIFIED and never a silent clean L2 pass." }
+      ]
+    },
+    {
+      "id": "ISO-004",
+      "title": "Fail-closed destructive-playbook gate verdict",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "Expose an isolation verdict (the L2 result) that test-genie consumes as a precondition for destructive playbooks. When L2 is not proven, test-genie must refuse destructive playbooks with a loud skip stating why it skipped, the real-data risk, and the exact remediation; read-only playbooks remain allowed where declared.",
+      "tags": ["test-genie", "fail-closed", "gate", "L2"],
+      "validation": [
+        { "type": "manual", "status": "planned", "notes": "Against a non-cooperating fixture, test-genie emits a loud fail-closed skip of destructive playbooks (why / real-data risk / remediation), not a silent restart fallback." },
+        { "type": "manual", "status": "planned", "notes": "Against a routed-eligible scenario, destructive playbooks run and the routed leak-counter primary_during_test_mode_requests stays 0." }
+      ]
+    },
+    {
+      "id": "ISO-005",
+      "title": "prove-isolation CLI verb",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Provide `storage-health prove-isolation <scenario> [--json]` that runs the isolation analyzers standalone and exits nonzero with remediation when isolation cannot be statically proven, exit 0 when it can. This is the standalone operator entry point to the L2 verdict.",
+      "tags": ["cli", "prove-isolation", "L2"],
+      "validation": [
+        { "type": "automated", "status": "planned", "notes": "prove-isolation on a routed-eligible scenario exits 0; on a non-cooperating fixture exits nonzero with remediation text." }
+      ]
+    }
+  ]
+}

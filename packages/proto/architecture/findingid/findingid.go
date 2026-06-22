@@ -75,6 +75,8 @@ func SourceToken(s architecturev1.FindingSource) string {
 		return "proto"
 	case architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY:
 		return "dependency"
+	case architecturev1.FindingSource_FINDING_SOURCE_STORAGE:
+		return "storage"
 	default:
 		return "unspecified"
 	}

@@ -74,6 +74,12 @@ const (
 	// ModelsServiceEnsureBackendProcedure is the fully-qualified name of the ModelsService's
 	// EnsureBackend RPC.
 	ModelsServiceEnsureBackendProcedure = "/vrooli.image_tools.v1.models.ModelsService/EnsureBackend"
+	// ModelsServiceGetHostSummaryProcedure is the fully-qualified name of the ModelsService's
+	// GetHostSummary RPC.
+	ModelsServiceGetHostSummaryProcedure = "/vrooli.image_tools.v1.models.ModelsService/GetHostSummary"
+	// ModelsServiceListOperationModelsProcedure is the fully-qualified name of the ModelsService's
+	// ListOperationModels RPC.
+	ModelsServiceListOperationModelsProcedure = "/vrooli.image_tools.v1.models.ModelsService/ListOperationModels"
 )
 
 // ModelsServiceClient is a client for the vrooli.image_tools.v1.models.ModelsService service.
@@ -128,6 +134,20 @@ type ModelsServiceClient interface {
 	// cancellation). The job shells `vrooli host install <tool> --json`. Manual /
 	// capability-gated tools return immediately with guidance and no job.
 	EnsureBackend(context.Context, *connect.Request[models.EnsureBackendRequest]) (*connect.Response[models.EnsureBackendResponse], error)
+	// GetHostSummary returns this machine's AI-relevant hardware snapshot (GPU
+	// name + total/free VRAM, cores, RAM, os/arch). The model-catalog UI uses it
+	// to render hardware-fit affirmatively ("Runs on your GPU") instead of a
+	// static requirement chip that reads as a warning even on a capable host.
+	GetHostSummary(context.Context, *connect.Request[models.GetHostSummaryRequest]) (*connect.Response[models.GetHostSummaryResponse], error)
+	// ListOperationModels returns EVERY model that serves an operation, each
+	// annotated for THIS host: hardware fit (will it run, on GPU or CPU, or not at
+	// all), backend readiness (is the host program/weights provisioned, and is the
+	// install one-click or manual), and a single `ready_state` verdict the picker
+	// styles on. Unlike SelectModel — which returns only the one model that would
+	// run — this returns the full menu (including models that cannot run on this
+	// host) so the in-product model picker is transparent about why a model was
+	// chosen and what each alternative needs to become usable.
+	ListOperationModels(context.Context, *connect.Request[models.ListOperationModelsRequest]) (*connect.Response[models.ListOperationModelsResponse], error)
 }
 
 // NewModelsServiceClient constructs a client for the vrooli.image_tools.v1.models.ModelsService
@@ -225,25 +245,39 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("EnsureBackend")),
 			connect.WithClientOptions(opts...),
 		),
+		getHostSummary: connect.NewClient[models.GetHostSummaryRequest, models.GetHostSummaryResponse](
+			httpClient,
+			baseURL+ModelsServiceGetHostSummaryProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("GetHostSummary")),
+			connect.WithClientOptions(opts...),
+		),
+		listOperationModels: connect.NewClient[models.ListOperationModelsRequest, models.ListOperationModelsResponse](
+			httpClient,
+			baseURL+ModelsServiceListOperationModelsProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("ListOperationModels")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // modelsServiceClient implements ModelsServiceClient.
 type modelsServiceClient struct {
-	listModels      *connect.Client[models.ListModelsRequest, models.ListModelsResponse]
-	getModel        *connect.Client[models.GetModelRequest, models.GetModelResponse]
-	listOperations  *connect.Client[models.ListOperationsRequest, models.ListOperationsResponse]
-	selectModel     *connect.Client[models.SelectModelRequest, models.SelectModelResponse]
-	setModelEnabled *connect.Client[models.SetModelEnabledRequest, models.SetModelEnabledResponse]
-	listBlocklist   *connect.Client[models.ListBlocklistRequest, models.ListBlocklistResponse]
-	installModel    *connect.Client[models.InstallModelRequest, models.InstallModelResponse]
-	removeModel     *connect.Client[models.RemoveModelRequest, models.RemoveModelResponse]
-	addCustomModel  *connect.Client[models.AddCustomModelRequest, models.AddCustomModelResponse]
-	setDefaultModel *connect.Client[models.SetDefaultModelRequest, models.SetDefaultModelResponse]
-	listDefaults    *connect.Client[models.ListDefaultsRequest, models.ListDefaultsResponse]
-	doctorCatalog   *connect.Client[models.DoctorCatalogRequest, models.DoctorCatalogResponse]
-	doctorBackends  *connect.Client[models.DoctorBackendsRequest, models.DoctorBackendsResponse]
-	ensureBackend   *connect.Client[models.EnsureBackendRequest, models.EnsureBackendResponse]
+	listModels          *connect.Client[models.ListModelsRequest, models.ListModelsResponse]
+	getModel            *connect.Client[models.GetModelRequest, models.GetModelResponse]
+	listOperations      *connect.Client[models.ListOperationsRequest, models.ListOperationsResponse]
+	selectModel         *connect.Client[models.SelectModelRequest, models.SelectModelResponse]
+	setModelEnabled     *connect.Client[models.SetModelEnabledRequest, models.SetModelEnabledResponse]
+	listBlocklist       *connect.Client[models.ListBlocklistRequest, models.ListBlocklistResponse]
+	installModel        *connect.Client[models.InstallModelRequest, models.InstallModelResponse]
+	removeModel         *connect.Client[models.RemoveModelRequest, models.RemoveModelResponse]
+	addCustomModel      *connect.Client[models.AddCustomModelRequest, models.AddCustomModelResponse]
+	setDefaultModel     *connect.Client[models.SetDefaultModelRequest, models.SetDefaultModelResponse]
+	listDefaults        *connect.Client[models.ListDefaultsRequest, models.ListDefaultsResponse]
+	doctorCatalog       *connect.Client[models.DoctorCatalogRequest, models.DoctorCatalogResponse]
+	doctorBackends      *connect.Client[models.DoctorBackendsRequest, models.DoctorBackendsResponse]
+	ensureBackend       *connect.Client[models.EnsureBackendRequest, models.EnsureBackendResponse]
+	getHostSummary      *connect.Client[models.GetHostSummaryRequest, models.GetHostSummaryResponse]
+	listOperationModels *connect.Client[models.ListOperationModelsRequest, models.ListOperationModelsResponse]
 }
 
 // ListModels calls vrooli.image_tools.v1.models.ModelsService.ListModels.
@@ -316,6 +350,16 @@ func (c *modelsServiceClient) EnsureBackend(ctx context.Context, req *connect.Re
 	return c.ensureBackend.CallUnary(ctx, req)
 }
 
+// GetHostSummary calls vrooli.image_tools.v1.models.ModelsService.GetHostSummary.
+func (c *modelsServiceClient) GetHostSummary(ctx context.Context, req *connect.Request[models.GetHostSummaryRequest]) (*connect.Response[models.GetHostSummaryResponse], error) {
+	return c.getHostSummary.CallUnary(ctx, req)
+}
+
+// ListOperationModels calls vrooli.image_tools.v1.models.ModelsService.ListOperationModels.
+func (c *modelsServiceClient) ListOperationModels(ctx context.Context, req *connect.Request[models.ListOperationModelsRequest]) (*connect.Response[models.ListOperationModelsResponse], error) {
+	return c.listOperationModels.CallUnary(ctx, req)
+}
+
 // ModelsServiceHandler is an implementation of the vrooli.image_tools.v1.models.ModelsService
 // service.
 type ModelsServiceHandler interface {
@@ -369,6 +413,20 @@ type ModelsServiceHandler interface {
 	// cancellation). The job shells `vrooli host install <tool> --json`. Manual /
 	// capability-gated tools return immediately with guidance and no job.
 	EnsureBackend(context.Context, *connect.Request[models.EnsureBackendRequest]) (*connect.Response[models.EnsureBackendResponse], error)
+	// GetHostSummary returns this machine's AI-relevant hardware snapshot (GPU
+	// name + total/free VRAM, cores, RAM, os/arch). The model-catalog UI uses it
+	// to render hardware-fit affirmatively ("Runs on your GPU") instead of a
+	// static requirement chip that reads as a warning even on a capable host.
+	GetHostSummary(context.Context, *connect.Request[models.GetHostSummaryRequest]) (*connect.Response[models.GetHostSummaryResponse], error)
+	// ListOperationModels returns EVERY model that serves an operation, each
+	// annotated for THIS host: hardware fit (will it run, on GPU or CPU, or not at
+	// all), backend readiness (is the host program/weights provisioned, and is the
+	// install one-click or manual), and a single `ready_state` verdict the picker
+	// styles on. Unlike SelectModel — which returns only the one model that would
+	// run — this returns the full menu (including models that cannot run on this
+	// host) so the in-product model picker is transparent about why a model was
+	// chosen and what each alternative needs to become usable.
+	ListOperationModels(context.Context, *connect.Request[models.ListOperationModelsRequest]) (*connect.Response[models.ListOperationModelsResponse], error)
 }
 
 // NewModelsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -462,6 +520,18 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("EnsureBackend")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceGetHostSummaryHandler := connect.NewUnaryHandler(
+		ModelsServiceGetHostSummaryProcedure,
+		svc.GetHostSummary,
+		connect.WithSchema(modelsServiceMethods.ByName("GetHostSummary")),
+		connect.WithHandlerOptions(opts...),
+	)
+	modelsServiceListOperationModelsHandler := connect.NewUnaryHandler(
+		ModelsServiceListOperationModelsProcedure,
+		svc.ListOperationModels,
+		connect.WithSchema(modelsServiceMethods.ByName("ListOperationModels")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.image_tools.v1.models.ModelsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ModelsServiceListModelsProcedure:
@@ -492,6 +562,10 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceDoctorBackendsHandler.ServeHTTP(w, r)
 		case ModelsServiceEnsureBackendProcedure:
 			modelsServiceEnsureBackendHandler.ServeHTTP(w, r)
+		case ModelsServiceGetHostSummaryProcedure:
+			modelsServiceGetHostSummaryHandler.ServeHTTP(w, r)
+		case ModelsServiceListOperationModelsProcedure:
+			modelsServiceListOperationModelsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -555,4 +629,12 @@ func (UnimplementedModelsServiceHandler) DoctorBackends(context.Context, *connec
 
 func (UnimplementedModelsServiceHandler) EnsureBackend(context.Context, *connect.Request[models.EnsureBackendRequest]) (*connect.Response[models.EnsureBackendResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.EnsureBackend is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) GetHostSummary(context.Context, *connect.Request[models.GetHostSummaryRequest]) (*connect.Response[models.GetHostSummaryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.GetHostSummary is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) ListOperationModels(context.Context, *connect.Request[models.ListOperationModelsRequest]) (*connect.Response[models.ListOperationModelsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ListOperationModels is not implemented"))
 }

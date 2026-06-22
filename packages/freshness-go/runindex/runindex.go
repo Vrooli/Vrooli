@@ -21,6 +21,12 @@ import (
 
 // Run status values recorded in the index.
 const (
+	// StatusQueued is a run that has been admitted but is waiting for a global
+	// concurrency slot before it starts executing. It is non-terminal: a waiter
+	// blocks through it until the run is promoted to in_progress and then to a
+	// terminal state. Queued records carry only the shape stamped at admission
+	// (run id, scenario, preset); the executor fills the rest on promotion.
+	StatusQueued     = "queued"
 	StatusInProgress = "in_progress"
 	StatusPassed     = "passed"
 	StatusFailed     = "failed"

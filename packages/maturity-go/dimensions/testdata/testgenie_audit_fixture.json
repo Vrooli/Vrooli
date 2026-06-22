@@ -214,7 +214,19 @@
     {
       "name": "playbooks",
       "status": "pass",
-      "findings": []
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 14,
+          "code": "STORAGE_ISOLATION_UNVERIFIED",
+          "severity": 3,
+          "locations": [
+            "api/main.go"
+          ],
+          "message": "test-isolation seams unwired; destructive playbooks would hit the real database",
+          "stable_id": "afid:000000000000000e"
+        }
+      ]
     },
     {
       "name": "business",

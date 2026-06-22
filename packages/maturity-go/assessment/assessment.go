@@ -998,6 +998,8 @@ func sourceForAssessmentFinding(finding *commonv1.AssessmentFinding, fallback ar
 		return architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY
 	case "structure":
 		return architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE
+	case "storage":
+		return architecturev1.FindingSource_FINDING_SOURCE_STORAGE
 	default:
 		return fallback
 	}

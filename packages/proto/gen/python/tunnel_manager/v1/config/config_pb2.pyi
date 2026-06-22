@@ -7,14 +7,74 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class OwnershipState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    OWNERSHIP_STATE_UNSPECIFIED: _ClassVar[OwnershipState]
+    OWNERSHIP_STATE_MANAGED: _ClassVar[OwnershipState]
+    OWNERSHIP_STATE_MISSING: _ClassVar[OwnershipState]
+    OWNERSHIP_STATE_EXTERNAL_OK: _ClassVar[OwnershipState]
+    OWNERSHIP_STATE_ORPHANED: _ClassVar[OwnershipState]
+    OWNERSHIP_STATE_IGNORED: _ClassVar[OwnershipState]
+    OWNERSHIP_STATE_UNMANAGED: _ClassVar[OwnershipState]
+
+class IngressSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    INGRESS_SOURCE_UNSPECIFIED: _ClassVar[IngressSource]
+    INGRESS_SOURCE_SCENARIO: _ClassVar[IngressSource]
+    INGRESS_SOURCE_EXTERNAL: _ClassVar[IngressSource]
+
 class Mode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MODE_UNSPECIFIED: _ClassVar[Mode]
     MODE_REMOTE: _ClassVar[Mode]
     MODE_LOCAL: _ClassVar[Mode]
+OWNERSHIP_STATE_UNSPECIFIED: OwnershipState
+OWNERSHIP_STATE_MANAGED: OwnershipState
+OWNERSHIP_STATE_MISSING: OwnershipState
+OWNERSHIP_STATE_EXTERNAL_OK: OwnershipState
+OWNERSHIP_STATE_ORPHANED: OwnershipState
+OWNERSHIP_STATE_IGNORED: OwnershipState
+OWNERSHIP_STATE_UNMANAGED: OwnershipState
+INGRESS_SOURCE_UNSPECIFIED: IngressSource
+INGRESS_SOURCE_SCENARIO: IngressSource
+INGRESS_SOURCE_EXTERNAL: IngressSource
 MODE_UNSPECIFIED: Mode
 MODE_REMOTE: Mode
 MODE_LOCAL: Mode
+
+class IngressEntry(_message.Message):
+    __slots__ = ("hostname", "service_target", "state", "source", "scenario", "lease_id", "note")
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    SERVICE_TARGET_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    hostname: str
+    service_target: str
+    state: OwnershipState
+    source: IngressSource
+    scenario: str
+    lease_id: str
+    note: str
+    def __init__(self, hostname: _Optional[str] = ..., service_target: _Optional[str] = ..., state: _Optional[_Union[OwnershipState, str]] = ..., source: _Optional[_Union[IngressSource, str]] = ..., scenario: _Optional[str] = ..., lease_id: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+
+class DriftCounts(_message.Message):
+    __slots__ = ("managed", "missing", "external_ok", "orphaned", "ignored", "unmanaged")
+    MANAGED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_OK_FIELD_NUMBER: _ClassVar[int]
+    ORPHANED_FIELD_NUMBER: _ClassVar[int]
+    IGNORED_FIELD_NUMBER: _ClassVar[int]
+    UNMANAGED_FIELD_NUMBER: _ClassVar[int]
+    managed: int
+    missing: int
+    external_ok: int
+    orphaned: int
+    ignored: int
+    unmanaged: int
+    def __init__(self, managed: _Optional[int] = ..., missing: _Optional[int] = ..., external_ok: _Optional[int] = ..., orphaned: _Optional[int] = ..., ignored: _Optional[int] = ..., unmanaged: _Optional[int] = ...) -> None: ...
 
 class TunnelConfig(_message.Message):
     __slots__ = ("mode", "tunnel_id", "account_id", "cred_ref", "prom_endpoint")
@@ -131,13 +191,15 @@ class ClearCloudflareCredentialsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[CredentialStatus, _Mapping]] = ...) -> None: ...
 
 class SyncRequest(_message.Message):
-    __slots__ = ("dry_run",)
+    __slots__ = ("dry_run", "prune")
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    PRUNE_FIELD_NUMBER: _ClassVar[int]
     dry_run: bool
-    def __init__(self, dry_run: _Optional[bool] = ...) -> None: ...
+    prune: bool
+    def __init__(self, dry_run: _Optional[bool] = ..., prune: _Optional[bool] = ...) -> None: ...
 
 class SyncResponse(_message.Message):
-    __slots__ = ("mode", "added", "removed", "no_changes", "setup_required", "missing_fields", "message")
+    __slots__ = ("mode", "added", "removed", "no_changes", "setup_required", "missing_fields", "message", "drift_unmanaged", "orphaned", "pruned")
     MODE_FIELD_NUMBER: _ClassVar[int]
     ADDED_FIELD_NUMBER: _ClassVar[int]
     REMOVED_FIELD_NUMBER: _ClassVar[int]
@@ -145,6 +207,9 @@ class SyncResponse(_message.Message):
     SETUP_REQUIRED_FIELD_NUMBER: _ClassVar[int]
     MISSING_FIELDS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    DRIFT_UNMANAGED_FIELD_NUMBER: _ClassVar[int]
+    ORPHANED_FIELD_NUMBER: _ClassVar[int]
+    PRUNED_FIELD_NUMBER: _ClassVar[int]
     mode: Mode
     added: _containers.RepeatedScalarFieldContainer[str]
     removed: _containers.RepeatedScalarFieldContainer[str]
@@ -152,7 +217,10 @@ class SyncResponse(_message.Message):
     setup_required: bool
     missing_fields: _containers.RepeatedScalarFieldContainer[str]
     message: str
-    def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., added: _Optional[_Iterable[str]] = ..., removed: _Optional[_Iterable[str]] = ..., no_changes: _Optional[bool] = ..., setup_required: _Optional[bool] = ..., missing_fields: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ...) -> None: ...
+    drift_unmanaged: _containers.RepeatedScalarFieldContainer[str]
+    orphaned: _containers.RepeatedScalarFieldContainer[str]
+    pruned: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., added: _Optional[_Iterable[str]] = ..., removed: _Optional[_Iterable[str]] = ..., no_changes: _Optional[bool] = ..., setup_required: _Optional[bool] = ..., missing_fields: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ..., drift_unmanaged: _Optional[_Iterable[str]] = ..., orphaned: _Optional[_Iterable[str]] = ..., pruned: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SwitchModeRequest(_message.Message):
     __slots__ = ("target_mode",)
@@ -167,3 +235,59 @@ class SwitchModeResponse(_message.Message):
     previous_mode: Mode
     current_mode: Mode
     def __init__(self, previous_mode: _Optional[_Union[Mode, str]] = ..., current_mode: _Optional[_Union[Mode, str]] = ...) -> None: ...
+
+class GetDriftRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetDriftResponse(_message.Message):
+    __slots__ = ("mode", "entries", "counts")
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    COUNTS_FIELD_NUMBER: _ClassVar[int]
+    mode: Mode
+    entries: _containers.RepeatedCompositeFieldContainer[IngressEntry]
+    counts: DriftCounts
+    def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., entries: _Optional[_Iterable[_Union[IngressEntry, _Mapping]]] = ..., counts: _Optional[_Union[DriftCounts, _Mapping]] = ...) -> None: ...
+
+class AdoptIngressRequest(_message.Message):
+    __slots__ = ("hostname", "scenario", "target")
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    hostname: str
+    scenario: str
+    target: str
+    def __init__(self, hostname: _Optional[str] = ..., scenario: _Optional[str] = ..., target: _Optional[str] = ...) -> None: ...
+
+class AdoptIngressResponse(_message.Message):
+    __slots__ = ("entry",)
+    ENTRY_FIELD_NUMBER: _ClassVar[int]
+    entry: IngressEntry
+    def __init__(self, entry: _Optional[_Union[IngressEntry, _Mapping]] = ...) -> None: ...
+
+class IgnoreIngressRequest(_message.Message):
+    __slots__ = ("hostname", "note")
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    hostname: str
+    note: str
+    def __init__(self, hostname: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+
+class IgnoreIngressResponse(_message.Message):
+    __slots__ = ("entry",)
+    ENTRY_FIELD_NUMBER: _ClassVar[int]
+    entry: IngressEntry
+    def __init__(self, entry: _Optional[_Union[IngressEntry, _Mapping]] = ...) -> None: ...
+
+class PruneIngressRequest(_message.Message):
+    __slots__ = ("hostname",)
+    HOSTNAME_FIELD_NUMBER: _ClassVar[int]
+    hostname: str
+    def __init__(self, hostname: _Optional[str] = ...) -> None: ...
+
+class PruneIngressResponse(_message.Message):
+    __slots__ = ("pruned",)
+    PRUNED_FIELD_NUMBER: _ClassVar[int]
+    pruned: bool
+    def __init__(self, pruned: _Optional[bool] = ...) -> None: ...

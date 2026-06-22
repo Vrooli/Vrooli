@@ -32,8 +32,6 @@ type Budget struct {
 	StartupMaxMs   int64                  `protobuf:"varint,6,opt,name=startup_max_ms,json=startupMaxMs,proto3" json:"startup_max_ms,omitempty"`
 	// Per-component commit budget in milliseconds (max for the slowest component).
 	ComponentCommitMaxMs float64 `protobuf:"fixed64,7,opt,name=component_commit_max_ms,json=componentCommitMaxMs,proto3" json:"component_commit_max_ms,omitempty"`
-	// p95 interaction/latency budget in milliseconds (where measured; 0 = unset).
-	P95MaxMs int64 `protobuf:"varint,8,opt,name=p95_max_ms,json=p95MaxMs,proto3" json:"p95_max_ms,omitempty"`
 	// Per-component average-commit budget in milliseconds (0 = unset).
 	ComponentCommitAvgMaxMs float64 `protobuf:"fixed64,9,opt,name=component_commit_avg_max_ms,json=componentCommitAvgMaxMs,proto3" json:"component_commit_avg_max_ms,omitempty"`
 	// Ratchet: when true SetBudget may only tighten an existing budget, never
@@ -119,13 +117,6 @@ func (x *Budget) GetStartupMaxMs() int64 {
 func (x *Budget) GetComponentCommitMaxMs() float64 {
 	if x != nil {
 		return x.ComponentCommitMaxMs
-	}
-	return 0
-}
-
-func (x *Budget) GetP95MaxMs() int64 {
-	if x != nil {
-		return x.P95MaxMs
 	}
 	return 0
 }
@@ -516,7 +507,7 @@ var File_performance_health_v1_budgets_budgets_proto protoreflect.FileDescriptor
 
 const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\n" +
-	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\x8d\x03\n" +
+	"+performance-health/v1/budgets/budgets.proto\x12$vrooli.performance_health.v1.budgets\"\x81\x03\n" +
 	"\x06Budget\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
 	"\x0fgo_build_max_ms\x18\x02 \x01(\x03R\fgoBuildMaxMs\x12%\n" +
@@ -525,12 +516,11 @@ const file_performance_health_v1_budgets_budgets_proto_rawDesc = "" +
 	"\n" +
 	"lcp_max_ms\x18\x05 \x01(\x03R\blcpMaxMs\x12$\n" +
 	"\x0estartup_max_ms\x18\x06 \x01(\x03R\fstartupMaxMs\x125\n" +
-	"\x17component_commit_max_ms\x18\a \x01(\x01R\x14componentCommitMaxMs\x12\x1c\n" +
-	"\n" +
-	"p95_max_ms\x18\b \x01(\x03R\bp95MaxMs\x12<\n" +
+	"\x17component_commit_max_ms\x18\a \x01(\x01R\x14componentCommitMaxMs\x12<\n" +
 	"\x1bcomponent_commit_avg_max_ms\x18\t \x01(\x01R\x17componentCommitAvgMaxMs\x12\x18\n" +
 	"\aratchet\x18\n" +
-	" \x01(\bR\aratchet\".\n" +
+	" \x01(\bR\aratchetJ\x04\b\b\x10\tR\n" +
+	"p95_max_ms\".\n" +
 	"\x10GetBudgetRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"u\n" +
 	"\x11GetBudgetResponse\x12D\n" +

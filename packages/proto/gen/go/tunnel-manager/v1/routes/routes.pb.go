@@ -74,6 +74,60 @@ func (Tier) EnumDescriptor() ([]byte, []int) {
 	return file_tunnel_manager_v1_routes_routes_proto_rawDescGZIP(), []int{0}
 }
 
+// RouteSource distinguishes scenario-backed routes (the local UI port of a
+// known scenario) from external routes that point at an arbitrary
+// service_target. It is ORTHOGONAL to Tier: tiering is an exposure-policy
+// axis, source is a provenance axis. ROUTE_SOURCE_UNSPECIFIED defaults to
+// SCENARIO for rows written before the field existed.
+type RouteSource int32
+
+const (
+	RouteSource_ROUTE_SOURCE_UNSPECIFIED RouteSource = 0
+	RouteSource_ROUTE_SOURCE_SCENARIO    RouteSource = 1
+	RouteSource_ROUTE_SOURCE_EXTERNAL    RouteSource = 2
+)
+
+// Enum value maps for RouteSource.
+var (
+	RouteSource_name = map[int32]string{
+		0: "ROUTE_SOURCE_UNSPECIFIED",
+		1: "ROUTE_SOURCE_SCENARIO",
+		2: "ROUTE_SOURCE_EXTERNAL",
+	}
+	RouteSource_value = map[string]int32{
+		"ROUTE_SOURCE_UNSPECIFIED": 0,
+		"ROUTE_SOURCE_SCENARIO":    1,
+		"ROUTE_SOURCE_EXTERNAL":    2,
+	}
+)
+
+func (x RouteSource) Enum() *RouteSource {
+	p := new(RouteSource)
+	*p = x
+	return p
+}
+
+func (x RouteSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RouteSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_tunnel_manager_v1_routes_routes_proto_enumTypes[1].Descriptor()
+}
+
+func (RouteSource) Type() protoreflect.EnumType {
+	return &file_tunnel_manager_v1_routes_routes_proto_enumTypes[1]
+}
+
+func (x RouteSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RouteSource.Descriptor instead.
+func (RouteSource) EnumDescriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_routes_routes_proto_rawDescGZIP(), []int{1}
+}
+
 // Route is the canonical wire shape for one manifest entry.
 type Route struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -98,9 +152,15 @@ type Route struct {
 	// Health endpoint path probed for liveness (default "/health").
 	HealthPath string `protobuf:"bytes,9,opt,name=health_path,json=healthPath,proto3" json:"health_path,omitempty"`
 	// Derived public URL: https://<subdomain>.<domain>.
-	PublicUrl     string                 `protobuf:"bytes,10,opt,name=public_url,json=publicUrl,proto3" json:"public_url,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	PublicUrl string                 `protobuf:"bytes,10,opt,name=public_url,json=publicUrl,proto3" json:"public_url,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Provenance: scenario-backed or external. Empty/UNSPECIFIED == SCENARIO.
+	Source RouteSource `protobuf:"varint,13,opt,name=source,proto3,enum=vrooli.tunnel_manager.v1.routes.RouteSource" json:"source,omitempty"`
+	// Explicit local service target for external routes (e.g.
+	// http://127.0.0.1:9000). Empty for scenario routes, which derive
+	// http://localhost:<local_port>.
+	ServiceTarget string `protobuf:"bytes,14,opt,name=service_target,json=serviceTarget,proto3" json:"service_target,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -217,6 +277,20 @@ func (x *Route) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Route) GetSource() RouteSource {
+	if x != nil {
+		return x.Source
+	}
+	return RouteSource_ROUTE_SOURCE_UNSPECIFIED
+}
+
+func (x *Route) GetServiceTarget() string {
+	if x != nil {
+		return x.ServiceTarget
+	}
+	return ""
 }
 
 type ListRoutesRequest struct {
@@ -410,7 +484,12 @@ type CreateRouteRequest struct {
 	LeaseId    string                 `protobuf:"bytes,6,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
 	HealthPath string                 `protobuf:"bytes,7,opt,name=health_path,json=healthPath,proto3" json:"health_path,omitempty"`
 	// Tri-state enable flag: unset defaults to true on create.
-	Enabled       *bool `protobuf:"varint,8,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	Enabled *bool `protobuf:"varint,8,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Provenance. EXTERNAL routes require service_target and skip the
+	// scenario/local_port validation scenario routes enforce.
+	Source RouteSource `protobuf:"varint,9,opt,name=source,proto3,enum=vrooli.tunnel_manager.v1.routes.RouteSource" json:"source,omitempty"`
+	// Explicit local target for an external route.
+	ServiceTarget string `protobuf:"bytes,10,opt,name=service_target,json=serviceTarget,proto3" json:"service_target,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -501,6 +580,20 @@ func (x *CreateRouteRequest) GetEnabled() bool {
 	return false
 }
 
+func (x *CreateRouteRequest) GetSource() RouteSource {
+	if x != nil {
+		return x.Source
+	}
+	return RouteSource_ROUTE_SOURCE_UNSPECIFIED
+}
+
+func (x *CreateRouteRequest) GetServiceTarget() string {
+	if x != nil {
+		return x.ServiceTarget
+	}
+	return ""
+}
+
 type CreateRouteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Route         *Route                 `protobuf:"bytes,1,opt,name=route,proto3" json:"route,omitempty"`
@@ -547,15 +640,19 @@ func (x *CreateRouteResponse) GetRoute() *Route {
 
 // UpdateRouteRequest applies a partial update; only set fields change.
 type UpdateRouteRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Subdomain     string                 `protobuf:"bytes,2,opt,name=subdomain,proto3" json:"subdomain,omitempty"`
-	Scenario      string                 `protobuf:"bytes,3,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Domain        string                 `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
-	LocalPort     int32                  `protobuf:"varint,5,opt,name=local_port,json=localPort,proto3" json:"local_port,omitempty"`
-	Tier          Tier                   `protobuf:"varint,6,opt,name=tier,proto3,enum=vrooli.tunnel_manager.v1.routes.Tier" json:"tier,omitempty"`
-	HealthPath    string                 `protobuf:"bytes,7,opt,name=health_path,json=healthPath,proto3" json:"health_path,omitempty"`
-	Enabled       *bool                  `protobuf:"varint,8,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Subdomain  string                 `protobuf:"bytes,2,opt,name=subdomain,proto3" json:"subdomain,omitempty"`
+	Scenario   string                 `protobuf:"bytes,3,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Domain     string                 `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	LocalPort  int32                  `protobuf:"varint,5,opt,name=local_port,json=localPort,proto3" json:"local_port,omitempty"`
+	Tier       Tier                   `protobuf:"varint,6,opt,name=tier,proto3,enum=vrooli.tunnel_manager.v1.routes.Tier" json:"tier,omitempty"`
+	HealthPath string                 `protobuf:"bytes,7,opt,name=health_path,json=healthPath,proto3" json:"health_path,omitempty"`
+	Enabled    *bool                  `protobuf:"varint,8,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// Provenance (UNSPECIFIED leaves it unchanged).
+	Source RouteSource `protobuf:"varint,9,opt,name=source,proto3,enum=vrooli.tunnel_manager.v1.routes.RouteSource" json:"source,omitempty"`
+	// Explicit local target for an external route (empty leaves it unchanged).
+	ServiceTarget string `protobuf:"bytes,10,opt,name=service_target,json=serviceTarget,proto3" json:"service_target,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -644,6 +741,20 @@ func (x *UpdateRouteRequest) GetEnabled() bool {
 		return *x.Enabled
 	}
 	return false
+}
+
+func (x *UpdateRouteRequest) GetSource() RouteSource {
+	if x != nil {
+		return x.Source
+	}
+	return RouteSource_ROUTE_SOURCE_UNSPECIFIED
+}
+
+func (x *UpdateRouteRequest) GetServiceTarget() string {
+	if x != nil {
+		return x.ServiceTarget
+	}
+	return ""
 }
 
 type UpdateRouteResponse struct {
@@ -783,7 +894,7 @@ var File_tunnel_manager_v1_routes_routes_proto protoreflect.FileDescriptor
 
 const file_tunnel_manager_v1_routes_routes_proto_rawDesc = "" +
 	"\n" +
-	"%tunnel-manager/v1/routes/routes.proto\x12\x1fvrooli.tunnel_manager.v1.routes\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\x03\n" +
+	"%tunnel-manager/v1/routes/routes.proto\x12\x1fvrooli.tunnel_manager.v1.routes\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9b\x04\n" +
 	"\x05Route\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1a\n" +
@@ -802,7 +913,9 @@ const file_tunnel_manager_v1_routes_routes_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"N\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12D\n" +
+	"\x06source\x18\r \x01(\x0e2,.vrooli.tunnel_manager.v1.routes.RouteSourceR\x06source\x12%\n" +
+	"\x0eservice_target\x18\x0e \x01(\tR\rserviceTarget\"N\n" +
 	"\x11ListRoutesRequest\x129\n" +
 	"\x04tier\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\"T\n" +
 	"\x12ListRoutesResponse\x12>\n" +
@@ -810,7 +923,7 @@ const file_tunnel_manager_v1_routes_routes_proto_rawDesc = "" +
 	"\x0fGetRouteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
 	"\x10GetRouteResponse\x12<\n" +
-	"\x05route\x18\x01 \x01(\v2&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\xa7\x02\n" +
+	"\x05route\x18\x01 \x01(\v2&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\x94\x03\n" +
 	"\x12CreateRouteRequest\x12\x1c\n" +
 	"\tsubdomain\x18\x01 \x01(\tR\tsubdomain\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x16\n" +
@@ -821,11 +934,14 @@ const file_tunnel_manager_v1_routes_routes_proto_rawDesc = "" +
 	"\blease_id\x18\x06 \x01(\tR\aleaseId\x12\x1f\n" +
 	"\vhealth_path\x18\a \x01(\tR\n" +
 	"healthPath\x12\x1d\n" +
-	"\aenabled\x18\b \x01(\bH\x00R\aenabled\x88\x01\x01B\n" +
+	"\aenabled\x18\b \x01(\bH\x00R\aenabled\x88\x01\x01\x12D\n" +
+	"\x06source\x18\t \x01(\x0e2,.vrooli.tunnel_manager.v1.routes.RouteSourceR\x06source\x12%\n" +
+	"\x0eservice_target\x18\n" +
+	" \x01(\tR\rserviceTargetB\n" +
 	"\n" +
 	"\b_enabled\"S\n" +
 	"\x13CreateRouteResponse\x12<\n" +
-	"\x05route\x18\x01 \x01(\v2&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\x9c\x02\n" +
+	"\x05route\x18\x01 \x01(\v2&.vrooli.tunnel_manager.v1.routes.RouteR\x05route\"\x89\x03\n" +
 	"\x12UpdateRouteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tsubdomain\x18\x02 \x01(\tR\tsubdomain\x12\x1a\n" +
@@ -836,7 +952,10 @@ const file_tunnel_manager_v1_routes_routes_proto_rawDesc = "" +
 	"\x04tier\x18\x06 \x01(\x0e2%.vrooli.tunnel_manager.v1.routes.TierR\x04tier\x12\x1f\n" +
 	"\vhealth_path\x18\a \x01(\tR\n" +
 	"healthPath\x12\x1d\n" +
-	"\aenabled\x18\b \x01(\bH\x00R\aenabled\x88\x01\x01B\n" +
+	"\aenabled\x18\b \x01(\bH\x00R\aenabled\x88\x01\x01\x12D\n" +
+	"\x06source\x18\t \x01(\x0e2,.vrooli.tunnel_manager.v1.routes.RouteSourceR\x06source\x12%\n" +
+	"\x0eservice_target\x18\n" +
+	" \x01(\tR\rserviceTargetB\n" +
 	"\n" +
 	"\b_enabled\"S\n" +
 	"\x13UpdateRouteResponse\x12<\n" +
@@ -848,7 +967,11 @@ const file_tunnel_manager_v1_routes_routes_proto_rawDesc = "" +
 	"\x04Tier\x12\x14\n" +
 	"\x10TIER_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tTIER_CORE\x10\x01\x12\x0f\n" +
-	"\vTIER_LEASED\x10\x022\xe5\x04\n" +
+	"\vTIER_LEASED\x10\x02*a\n" +
+	"\vRouteSource\x12\x1c\n" +
+	"\x18ROUTE_SOURCE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ROUTE_SOURCE_SCENARIO\x10\x01\x12\x19\n" +
+	"\x15ROUTE_SOURCE_EXTERNAL\x10\x022\xe5\x04\n" +
 	"\rRoutesService\x12u\n" +
 	"\n" +
 	"ListRoutes\x122.vrooli.tunnel_manager.v1.routes.ListRoutesRequest\x1a3.vrooli.tunnel_manager.v1.routes.ListRoutesResponse\x12o\n" +
@@ -869,49 +992,53 @@ func file_tunnel_manager_v1_routes_routes_proto_rawDescGZIP() []byte {
 	return file_tunnel_manager_v1_routes_routes_proto_rawDescData
 }
 
-var file_tunnel_manager_v1_routes_routes_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_tunnel_manager_v1_routes_routes_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_tunnel_manager_v1_routes_routes_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_tunnel_manager_v1_routes_routes_proto_goTypes = []any{
 	(Tier)(0),                     // 0: vrooli.tunnel_manager.v1.routes.Tier
-	(*Route)(nil),                 // 1: vrooli.tunnel_manager.v1.routes.Route
-	(*ListRoutesRequest)(nil),     // 2: vrooli.tunnel_manager.v1.routes.ListRoutesRequest
-	(*ListRoutesResponse)(nil),    // 3: vrooli.tunnel_manager.v1.routes.ListRoutesResponse
-	(*GetRouteRequest)(nil),       // 4: vrooli.tunnel_manager.v1.routes.GetRouteRequest
-	(*GetRouteResponse)(nil),      // 5: vrooli.tunnel_manager.v1.routes.GetRouteResponse
-	(*CreateRouteRequest)(nil),    // 6: vrooli.tunnel_manager.v1.routes.CreateRouteRequest
-	(*CreateRouteResponse)(nil),   // 7: vrooli.tunnel_manager.v1.routes.CreateRouteResponse
-	(*UpdateRouteRequest)(nil),    // 8: vrooli.tunnel_manager.v1.routes.UpdateRouteRequest
-	(*UpdateRouteResponse)(nil),   // 9: vrooli.tunnel_manager.v1.routes.UpdateRouteResponse
-	(*DeleteRouteRequest)(nil),    // 10: vrooli.tunnel_manager.v1.routes.DeleteRouteRequest
-	(*DeleteRouteResponse)(nil),   // 11: vrooli.tunnel_manager.v1.routes.DeleteRouteResponse
-	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(RouteSource)(0),              // 1: vrooli.tunnel_manager.v1.routes.RouteSource
+	(*Route)(nil),                 // 2: vrooli.tunnel_manager.v1.routes.Route
+	(*ListRoutesRequest)(nil),     // 3: vrooli.tunnel_manager.v1.routes.ListRoutesRequest
+	(*ListRoutesResponse)(nil),    // 4: vrooli.tunnel_manager.v1.routes.ListRoutesResponse
+	(*GetRouteRequest)(nil),       // 5: vrooli.tunnel_manager.v1.routes.GetRouteRequest
+	(*GetRouteResponse)(nil),      // 6: vrooli.tunnel_manager.v1.routes.GetRouteResponse
+	(*CreateRouteRequest)(nil),    // 7: vrooli.tunnel_manager.v1.routes.CreateRouteRequest
+	(*CreateRouteResponse)(nil),   // 8: vrooli.tunnel_manager.v1.routes.CreateRouteResponse
+	(*UpdateRouteRequest)(nil),    // 9: vrooli.tunnel_manager.v1.routes.UpdateRouteRequest
+	(*UpdateRouteResponse)(nil),   // 10: vrooli.tunnel_manager.v1.routes.UpdateRouteResponse
+	(*DeleteRouteRequest)(nil),    // 11: vrooli.tunnel_manager.v1.routes.DeleteRouteRequest
+	(*DeleteRouteResponse)(nil),   // 12: vrooli.tunnel_manager.v1.routes.DeleteRouteResponse
+	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
 }
 var file_tunnel_manager_v1_routes_routes_proto_depIdxs = []int32{
 	0,  // 0: vrooli.tunnel_manager.v1.routes.Route.tier:type_name -> vrooli.tunnel_manager.v1.routes.Tier
-	12, // 1: vrooli.tunnel_manager.v1.routes.Route.created_at:type_name -> google.protobuf.Timestamp
-	12, // 2: vrooli.tunnel_manager.v1.routes.Route.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: vrooli.tunnel_manager.v1.routes.ListRoutesRequest.tier:type_name -> vrooli.tunnel_manager.v1.routes.Tier
-	1,  // 4: vrooli.tunnel_manager.v1.routes.ListRoutesResponse.routes:type_name -> vrooli.tunnel_manager.v1.routes.Route
-	1,  // 5: vrooli.tunnel_manager.v1.routes.GetRouteResponse.route:type_name -> vrooli.tunnel_manager.v1.routes.Route
-	0,  // 6: vrooli.tunnel_manager.v1.routes.CreateRouteRequest.tier:type_name -> vrooli.tunnel_manager.v1.routes.Tier
-	1,  // 7: vrooli.tunnel_manager.v1.routes.CreateRouteResponse.route:type_name -> vrooli.tunnel_manager.v1.routes.Route
-	0,  // 8: vrooli.tunnel_manager.v1.routes.UpdateRouteRequest.tier:type_name -> vrooli.tunnel_manager.v1.routes.Tier
-	1,  // 9: vrooli.tunnel_manager.v1.routes.UpdateRouteResponse.route:type_name -> vrooli.tunnel_manager.v1.routes.Route
-	2,  // 10: vrooli.tunnel_manager.v1.routes.RoutesService.ListRoutes:input_type -> vrooli.tunnel_manager.v1.routes.ListRoutesRequest
-	4,  // 11: vrooli.tunnel_manager.v1.routes.RoutesService.GetRoute:input_type -> vrooli.tunnel_manager.v1.routes.GetRouteRequest
-	6,  // 12: vrooli.tunnel_manager.v1.routes.RoutesService.CreateRoute:input_type -> vrooli.tunnel_manager.v1.routes.CreateRouteRequest
-	8,  // 13: vrooli.tunnel_manager.v1.routes.RoutesService.UpdateRoute:input_type -> vrooli.tunnel_manager.v1.routes.UpdateRouteRequest
-	10, // 14: vrooli.tunnel_manager.v1.routes.RoutesService.DeleteRoute:input_type -> vrooli.tunnel_manager.v1.routes.DeleteRouteRequest
-	3,  // 15: vrooli.tunnel_manager.v1.routes.RoutesService.ListRoutes:output_type -> vrooli.tunnel_manager.v1.routes.ListRoutesResponse
-	5,  // 16: vrooli.tunnel_manager.v1.routes.RoutesService.GetRoute:output_type -> vrooli.tunnel_manager.v1.routes.GetRouteResponse
-	7,  // 17: vrooli.tunnel_manager.v1.routes.RoutesService.CreateRoute:output_type -> vrooli.tunnel_manager.v1.routes.CreateRouteResponse
-	9,  // 18: vrooli.tunnel_manager.v1.routes.RoutesService.UpdateRoute:output_type -> vrooli.tunnel_manager.v1.routes.UpdateRouteResponse
-	11, // 19: vrooli.tunnel_manager.v1.routes.RoutesService.DeleteRoute:output_type -> vrooli.tunnel_manager.v1.routes.DeleteRouteResponse
-	15, // [15:20] is the sub-list for method output_type
-	10, // [10:15] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	13, // 1: vrooli.tunnel_manager.v1.routes.Route.created_at:type_name -> google.protobuf.Timestamp
+	13, // 2: vrooli.tunnel_manager.v1.routes.Route.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 3: vrooli.tunnel_manager.v1.routes.Route.source:type_name -> vrooli.tunnel_manager.v1.routes.RouteSource
+	0,  // 4: vrooli.tunnel_manager.v1.routes.ListRoutesRequest.tier:type_name -> vrooli.tunnel_manager.v1.routes.Tier
+	2,  // 5: vrooli.tunnel_manager.v1.routes.ListRoutesResponse.routes:type_name -> vrooli.tunnel_manager.v1.routes.Route
+	2,  // 6: vrooli.tunnel_manager.v1.routes.GetRouteResponse.route:type_name -> vrooli.tunnel_manager.v1.routes.Route
+	0,  // 7: vrooli.tunnel_manager.v1.routes.CreateRouteRequest.tier:type_name -> vrooli.tunnel_manager.v1.routes.Tier
+	1,  // 8: vrooli.tunnel_manager.v1.routes.CreateRouteRequest.source:type_name -> vrooli.tunnel_manager.v1.routes.RouteSource
+	2,  // 9: vrooli.tunnel_manager.v1.routes.CreateRouteResponse.route:type_name -> vrooli.tunnel_manager.v1.routes.Route
+	0,  // 10: vrooli.tunnel_manager.v1.routes.UpdateRouteRequest.tier:type_name -> vrooli.tunnel_manager.v1.routes.Tier
+	1,  // 11: vrooli.tunnel_manager.v1.routes.UpdateRouteRequest.source:type_name -> vrooli.tunnel_manager.v1.routes.RouteSource
+	2,  // 12: vrooli.tunnel_manager.v1.routes.UpdateRouteResponse.route:type_name -> vrooli.tunnel_manager.v1.routes.Route
+	3,  // 13: vrooli.tunnel_manager.v1.routes.RoutesService.ListRoutes:input_type -> vrooli.tunnel_manager.v1.routes.ListRoutesRequest
+	5,  // 14: vrooli.tunnel_manager.v1.routes.RoutesService.GetRoute:input_type -> vrooli.tunnel_manager.v1.routes.GetRouteRequest
+	7,  // 15: vrooli.tunnel_manager.v1.routes.RoutesService.CreateRoute:input_type -> vrooli.tunnel_manager.v1.routes.CreateRouteRequest
+	9,  // 16: vrooli.tunnel_manager.v1.routes.RoutesService.UpdateRoute:input_type -> vrooli.tunnel_manager.v1.routes.UpdateRouteRequest
+	11, // 17: vrooli.tunnel_manager.v1.routes.RoutesService.DeleteRoute:input_type -> vrooli.tunnel_manager.v1.routes.DeleteRouteRequest
+	4,  // 18: vrooli.tunnel_manager.v1.routes.RoutesService.ListRoutes:output_type -> vrooli.tunnel_manager.v1.routes.ListRoutesResponse
+	6,  // 19: vrooli.tunnel_manager.v1.routes.RoutesService.GetRoute:output_type -> vrooli.tunnel_manager.v1.routes.GetRouteResponse
+	8,  // 20: vrooli.tunnel_manager.v1.routes.RoutesService.CreateRoute:output_type -> vrooli.tunnel_manager.v1.routes.CreateRouteResponse
+	10, // 21: vrooli.tunnel_manager.v1.routes.RoutesService.UpdateRoute:output_type -> vrooli.tunnel_manager.v1.routes.UpdateRouteResponse
+	12, // 22: vrooli.tunnel_manager.v1.routes.RoutesService.DeleteRoute:output_type -> vrooli.tunnel_manager.v1.routes.DeleteRouteResponse
+	18, // [18:23] is the sub-list for method output_type
+	13, // [13:18] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_tunnel_manager_v1_routes_routes_proto_init() }
@@ -926,7 +1053,7 @@ func file_tunnel_manager_v1_routes_routes_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tunnel_manager_v1_routes_routes_proto_rawDesc), len(file_tunnel_manager_v1_routes_routes_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,

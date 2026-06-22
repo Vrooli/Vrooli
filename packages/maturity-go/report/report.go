@@ -1,10 +1,16 @@
-package cliapp
+// Package report renders shared health maturity assessments into the canonical
+// human-first ListReport shape used by scenario CLIs. It lives in maturity-go
+// (which already depends on packages/proto) so that cli-core can stay a
+// proto-free governed leaf; consumers import this package for the renderer and
+// cli-core only for the ListReport presentation type.
+package report
 
 import (
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliapp"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
@@ -17,9 +23,9 @@ type maturityDebtCounts struct {
 // BuildMaturityListReport renders the shared health maturity assessment into
 // the same human-first ListReport shape used by scenario CLIs. JSON callers
 // should still receive the underlying proto message through RenderProtoList.
-func BuildMaturityListReport(a *commonv1.MaturityAssessment) ListReport {
+func BuildMaturityListReport(a *commonv1.MaturityAssessment) cliapp.ListReport {
 	if a == nil {
-		return ListReport{
+		return cliapp.ListReport{
 			Summary:        []string{"No maturity assessment was returned."},
 			ResultsHeading: "Findings",
 		}
@@ -50,7 +56,7 @@ func BuildMaturityListReport(a *commonv1.MaturityAssessment) ListReport {
 		hints = append(hints, fmt.Sprintf("skill: %s", skill))
 	}
 
-	return ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Findings",
 		Results:        results,

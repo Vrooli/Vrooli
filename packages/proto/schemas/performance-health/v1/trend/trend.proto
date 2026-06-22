@@ -46,10 +46,14 @@ message TrendSample {
   int64 startup_ms = 7;
   // Optional human note (e.g. degraded reason, axes captured).
   string note = 8;
-  // p95 interaction/latency in milliseconds (0 = not measured this run).
-  int64 p95_ms = 9;
   // The slowest component (by average commit time) observed this run, if any.
   string slowest_component = 10;
   // The slowest component's average commit time in milliseconds (0 = none).
   double slowest_component_avg_ms = 11;
+  // The slowest component's max commit time in milliseconds (0 = none).
+  double slowest_component_max_ms = 12;
+  // Field 9 was p95_ms — removed: no honest p95 latency producer exists, so the
+  // axis could never trip. Reserved to prevent accidental reuse.
+  reserved 9;
+  reserved "p95_ms";
 }

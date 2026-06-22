@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "llama-cpp",
+  "description": "llama.cpp multimodal runner (llama-mtmd-cli / llama-cli) for the image-tools caption backend",
+  "commands": ["llama-mtmd-cli", "llama-cli"],
+  "versionArgs": ["--version"],
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "installHint": "Build or install llama.cpp and place llama-mtmd-cli (or llama-cli) on PATH or in ~/.vrooli/bin; see https://github.com/ggml-org/llama.cpp. No stable single-binary release is pinned, so it is not auto-fetched."
+}
