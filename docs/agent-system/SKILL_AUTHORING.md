@@ -324,10 +324,10 @@ cover the heaviest open cluster.
 }
 ```
 
-The dimension vocabulary is owned by Ecosystem Manager (its single source of
-truth is `scenarios/ecosystem-manager/api/pkg/dimensions/dimensions.json`,
-described in `scenarios/ecosystem-manager/docs/concepts/DIMENSIONS.md`). Every
-value must be a member of that vocabulary; EM excludes and warns on
+The dimension vocabulary's single source of truth is
+`packages/maturity-go/dimensions/dimensions.json` (consumed by Ecosystem
+Manager and described in `scenarios/ecosystem-manager/docs/concepts/DIMENSIONS.md`).
+Every value must be a member of that vocabulary; EM excludes and warns on
 undeclared/out-of-vocabulary dimensions. Non-steer skills omit the field.
 
 ---

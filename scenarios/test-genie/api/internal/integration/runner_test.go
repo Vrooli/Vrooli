@@ -6,21 +6,12 @@ import (
 	"io"
 	"testing"
 
-	"test-genie/internal/integration/api"
 	"test-genie/internal/integration/cli"
 	"test-genie/internal/integration/websocket"
 	"test-genie/internal/shared"
 )
 
 // Mock validators for testing the runner orchestration logic in isolation
-
-type mockAPIValidator struct {
-	result api.ValidationResult
-}
-
-func (m *mockAPIValidator) Validate(ctx context.Context) api.ValidationResult {
-	return m.result
-}
 
 type mockCLIValidator struct {
 	result cli.ValidationResult
@@ -50,8 +41,8 @@ func newMockedRunner(cliVal *mockCLIValidator) *Runner {
 	)
 }
 
-// Helper to create a runner with all validators including API and WebSocket
-func newFullyMockedRunner(apiVal *mockAPIValidator, cliVal *mockCLIValidator, wsVal *mockWebSocketValidator) *Runner {
+// Helper to create a runner with CLI and WebSocket validators
+func newFullyMockedRunner(cliVal *mockCLIValidator, wsVal *mockWebSocketValidator) *Runner {
 	r := New(
 		Config{
 			ScenarioDir:  "/mock/scenario",
@@ -60,9 +51,6 @@ func newFullyMockedRunner(apiVal *mockAPIValidator, cliVal *mockCLIValidator, ws
 		WithLogger(io.Discard),
 		WithCLIValidator(cliVal),
 	)
-	if apiVal != nil {
-		r.apiValidator = apiVal
-	}
 	if wsVal != nil {
 		r.websocketValidator = wsVal
 	}
@@ -238,7 +226,6 @@ func TestValidationSummary_StringEmpty(t *testing.T) {
 
 // Ensure mock types satisfy interfaces at compile time
 var (
-	_ api.Validator       = (*mockAPIValidator)(nil)
 	_ cli.Validator       = (*mockCLIValidator)(nil)
 	_ websocket.Validator = (*mockWebSocketValidator)(nil)
 )
@@ -252,108 +239,10 @@ func containsStr(s, substr string) bool {
 	return false
 }
 
-// ========== API Validator Tests ==========
-
-func TestRunner_APIValidationPasses(t *testing.T) {
-	runner := newFullyMockedRunner(
-		&mockAPIValidator{
-			result: api.ValidationResult{
-				Result: shared.Result{
-					Success: true,
-					Observations: []shared.Observation{
-						shared.NewSuccessObservation("health endpoint returned 200"),
-						shared.NewSuccessObservation("response time 50ms within threshold"),
-					},
-				},
-				HealthEndpoint: "/health",
-				ResponseTimeMs: 50,
-				StatusCode:     200,
-			},
-		},
-		&mockCLIValidator{
-			result: cli.ValidationResult{Result: shared.OK()},
-		},
-		nil,
-	)
-
-	result := runner.Run(context.Background())
-
-	if !result.Success {
-		t.Fatalf("expected success, got error: %v", result.Error)
-	}
-	if !result.Summary.APIHealthChecked {
-		t.Error("expected API health to be checked")
-	}
-}
-
-func TestRunner_APIValidationFails(t *testing.T) {
-	runner := newFullyMockedRunner(
-		&mockAPIValidator{
-			result: api.ValidationResult{
-				Result: shared.FailSystem(
-					errors.New("health endpoint returned 503"),
-					"Check API logs for errors",
-				),
-				StatusCode: 503,
-			},
-		},
-		&mockCLIValidator{
-			result: cli.ValidationResult{Result: shared.OK()},
-		},
-		nil,
-	)
-
-	result := runner.Run(context.Background())
-
-	if result.Success {
-		t.Fatal("expected failure when API validation fails")
-	}
-	if result.FailureClass != FailureClassSystem {
-		t.Errorf("expected system failure, got %s", result.FailureClass)
-	}
-	// CLI SHOULD still run (continue after failure behavior)
-	if !result.Summary.CLIValidated {
-		t.Error("CLI should have been validated even after API failure (continue after failure)")
-	}
-	// Error message should mention API health
-	if result.Error == nil || !containsStr(result.Error.Error(), "API health") {
-		t.Errorf("expected error to mention API health, got: %v", result.Error)
-	}
-}
-
-func TestRunner_APIValidationSkippedWhenNotConfigured(t *testing.T) {
-	runner := newMockedRunner(
-		&mockCLIValidator{
-			result: cli.ValidationResult{Result: shared.OK()},
-		},
-	)
-
-	result := runner.Run(context.Background())
-
-	if !result.Success {
-		t.Fatalf("expected success, got error: %v", result.Error)
-	}
-	if result.Summary.APIHealthChecked {
-		t.Error("API health should NOT have been checked when not configured")
-	}
-	// Should have skip observation
-	foundSkip := false
-	for _, obs := range result.Observations {
-		if obs.Type == ObservationSkip && containsStr(obs.Message, "API") {
-			foundSkip = true
-			break
-		}
-	}
-	if !foundSkip {
-		t.Error("expected skip observation for API health check")
-	}
-}
-
 // ========== WebSocket Validator Tests ==========
 
 func TestRunner_WebSocketValidationPasses(t *testing.T) {
 	runner := newFullyMockedRunner(
-		nil, // No API validator
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
 		},
@@ -383,7 +272,6 @@ func TestRunner_WebSocketValidationPasses(t *testing.T) {
 
 func TestRunner_WebSocketValidationFails(t *testing.T) {
 	runner := newFullyMockedRunner(
-		nil,
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
 		},
@@ -440,16 +328,6 @@ func TestRunner_WebSocketValidationSkippedWhenNotConfigured(t *testing.T) {
 
 func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 	runner := newFullyMockedRunner(
-		&mockAPIValidator{
-			result: api.ValidationResult{
-				Result: shared.Result{
-					Success:      true,
-					Observations: []shared.Observation{shared.NewSuccessObservation("API healthy")},
-				},
-				StatusCode:     200,
-				ResponseTimeMs: 50,
-			},
-		},
 		&mockCLIValidator{
 			result: cli.ValidationResult{
 				Result: shared.Result{
@@ -476,9 +354,6 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 	}
 
 	// Verify all validators ran
-	if !result.Summary.APIHealthChecked {
-		t.Error("expected API health checked")
-	}
 	if !result.Summary.CLIValidated {
 		t.Error("expected CLI validated")
 	}
@@ -487,30 +362,11 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 	}
 
 	// Verify total checks count is correct
-	// API: 2 (status + response time)
 	// CLI: 3 (binary, help, version)
 	// WebSocket: 2 (connection + ping-pong)
-	expectedChecks := 2 + 3 + 2
+	expectedChecks := 3 + 2
 	if result.Summary.TotalChecks() != expectedChecks {
 		t.Errorf("expected %d total checks, got %d", expectedChecks, result.Summary.TotalChecks())
-	}
-}
-
-func TestRunner_CreatesAPIValidatorFromConfig(t *testing.T) {
-	runner := New(
-		Config{
-			ScenarioDir:       "/tmp/test",
-			ScenarioName:      "test",
-			APIBaseURL:        "http://localhost:8080",
-			APIHealthEndpoint: "/health",
-			APIMaxResponseMs:  500,
-		},
-		WithLogger(io.Discard),
-		WithCLIValidator(&mockCLIValidator{result: cli.ValidationResult{Result: shared.OK()}}),
-	)
-
-	if runner.apiValidator == nil {
-		t.Error("expected API validator to be created from config")
 	}
 }
 
@@ -533,7 +389,7 @@ func TestRunner_CreatesWebSocketValidatorFromConfig(t *testing.T) {
 
 // ========== Summary Tests with New Fields ==========
 
-func TestValidationSummary_TotalChecksWithAPIAndWebSocket(t *testing.T) {
+func TestValidationSummary_TotalChecksWithWebSocket(t *testing.T) {
 	tests := []struct {
 		name     string
 		summary  ValidationSummary
@@ -542,19 +398,17 @@ func TestValidationSummary_TotalChecksWithAPIAndWebSocket(t *testing.T) {
 		{
 			name: "all categories",
 			summary: ValidationSummary{
-				APIHealthChecked:   true,
 				CLIValidated:       true,
 				WebSocketValidated: true,
 			},
-			expected: 2 + 3 + 2, // API(2) + CLI(3) + WS(2)
+			expected: 3 + 2, // CLI(3) + WS(2)
 		},
 		{
-			name: "API and WebSocket only",
+			name: "WebSocket only",
 			summary: ValidationSummary{
-				APIHealthChecked:   true,
 				WebSocketValidated: true,
 			},
-			expected: 4, // API(2) + WS(2)
+			expected: 2, // WS(2)
 		},
 		{
 			name: "CLI only",
@@ -574,17 +428,13 @@ func TestValidationSummary_TotalChecksWithAPIAndWebSocket(t *testing.T) {
 	}
 }
 
-func TestValidationSummary_StringWithAPIAndWebSocket(t *testing.T) {
+func TestValidationSummary_StringWithWebSocket(t *testing.T) {
 	summary := ValidationSummary{
-		APIHealthChecked:   true,
 		CLIValidated:       true,
 		WebSocketValidated: true,
 	}
 
 	str := summary.String()
-	if !containsStr(str, "API") {
-		t.Error("expected API mention in string")
-	}
 	if !containsStr(str, "CLI") {
 		t.Error("expected CLI mention in string")
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"test-genie/internal/integration/api"
 	"test-genie/internal/integration/cli"
 	"test-genie/internal/integration/websocket"
 	"test-genie/internal/shared"
@@ -18,16 +17,6 @@ type Config struct {
 
 	// ScenarioName is the name of the scenario (typically the directory name).
 	ScenarioName string
-
-	// APIBaseURL is the base URL for API health checks (e.g., "http://localhost:8080").
-	// If empty, API health checks are skipped.
-	APIBaseURL string
-
-	// APIHealthEndpoint is the health check endpoint path (default: "/health").
-	APIHealthEndpoint string
-
-	// APIMaxResponseMs is the maximum acceptable response time in milliseconds (default: 1000).
-	APIMaxResponseMs int64
 
 	// WebSocketURL is the WebSocket URL for connection validation (e.g., "ws://localhost:8080/ws").
 	// If empty, WebSocket validation is skipped.
@@ -67,12 +56,11 @@ type CLIConfig struct {
 	NoArgsTimeoutMs int64
 }
 
-// Runner orchestrates integration validation across API, CLI, and WebSocket checks.
+// Runner orchestrates integration validation across CLI and WebSocket checks.
 type Runner struct {
 	config Config
 
 	// Validators (injectable for testing)
-	apiValidator       api.Validator
 	cliValidator       cli.Validator
 	websocketValidator websocket.Validator
 
@@ -95,18 +83,6 @@ func New(config Config, opts ...Option) *Runner {
 
 	for _, opt := range opts {
 		opt(r)
-	}
-
-	// Set defaults for API validator if URL is provided
-	if r.apiValidator == nil && config.APIBaseURL != "" {
-		r.apiValidator = api.New(
-			api.Config{
-				BaseURL:        config.APIBaseURL,
-				HealthEndpoint: config.APIHealthEndpoint,
-				MaxResponseMs:  config.APIMaxResponseMs,
-			},
-			api.WithLogger(r.logWriter),
-		)
 	}
 
 	// Set defaults for CLI validator if not provided via options
@@ -146,13 +122,6 @@ func New(config Config, opts ...Option) *Runner {
 func WithLogger(w io.Writer) Option {
 	return func(r *Runner) {
 		r.logWriter = w
-	}
-}
-
-// WithAPIValidator sets a custom API validator (for testing).
-func WithAPIValidator(v api.Validator) Option {
-	return func(r *Runner) {
-		r.apiValidator = v
 	}
 }
 
@@ -200,30 +169,6 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	var failures []validationFailure
 
 	shared.LogInfo(r.logWriter, "Starting integration validation for %s", r.config.ScenarioName)
-
-	// Section: API Health Checks (if configured)
-	if r.apiValidator != nil {
-		observations = append(observations, NewSectionObservation("🌐", "Validating API health..."))
-		shared.LogInfo(r.logWriter, "Validating API health...")
-
-		apiResult := r.apiValidator.Validate(ctx)
-		observations = append(observations, apiResult.Observations...)
-		if !apiResult.Success {
-			failures = append(failures, validationFailure{
-				component:    "API health",
-				err:          apiResult.Error,
-				failureClass: FailureClass(apiResult.FailureClass),
-				remediation:  apiResult.Remediation,
-			})
-			shared.LogError(r.logWriter, "API health check failed: %v", apiResult.Error)
-		} else {
-			summary.APIHealthChecked = true
-			shared.LogSuccess(r.logWriter, "API health check passed (status %d, %dms)", apiResult.StatusCode, apiResult.ResponseTimeMs)
-		}
-	} else {
-		observations = append(observations, NewSkipObservation("API health check skipped (no API URL configured)"))
-		shared.LogInfo(r.logWriter, "Skipping API health check (no URL configured)")
-	}
 
 	// Section: CLI Validation
 	observations = append(observations, NewSectionObservation("🖥️", "Validating CLI..."))

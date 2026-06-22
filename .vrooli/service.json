@@ -73,9 +73,6 @@
       "kyutai-stt": {
         "enabled": true
       },
-      "litellm": {
-        "enabled": true
-      },
       "mail-in-a-box": {
         "enabled": true
       },

@@ -12,11 +12,10 @@ import (
 
 // runIntegrationPhase validates runtime liveness using the integration package.
 // This includes CLI binary discovery, help/version command validation,
-// API health checks, and WebSocket connection validation.
+// and WebSocket connection validation.
 //
 // Runtime URL Configuration:
-// - API URL: Passed from env.APIURL after execute-level target runtime preparation
-// - WebSocket URL: Derived from API URL + configured path, following @vrooli/api-base conventions
+// - WebSocket URL: Derived from env.APIURL + configured path, following @vrooli/api-base conventions
 //
 // The WebSocket URL derivation follows the pattern established by @vrooli/api-base where
 // WebSocket connections are proxied through the same server as HTTP API requests:
@@ -57,16 +56,9 @@ func buildIntegrationConfig(env workspace.Environment, testConfig *workspace.Con
 	cfg := integration.Config{
 		ScenarioDir:  env.ScenarioDir,
 		ScenarioName: env.ScenarioName,
-		APIBaseURL:   env.APIURL,
 	}
 
 	// Apply defaults
-	if cfg.APIHealthEndpoint == "" {
-		cfg.APIHealthEndpoint = "/health"
-	}
-	if cfg.APIMaxResponseMs == 0 {
-		cfg.APIMaxResponseMs = 1000
-	}
 	if cfg.WebSocketMaxConnectionMs == 0 {
 		cfg.WebSocketMaxConnectionMs = 2000
 	}
@@ -78,14 +70,6 @@ func buildIntegrationConfig(env workspace.Environment, testConfig *workspace.Con
 	// Override with testing.json settings if available
 	if testConfig != nil {
 		intSettings := testConfig.Integration
-
-		// API settings
-		if intSettings.API.HealthEndpoint != "" {
-			cfg.APIHealthEndpoint = intSettings.API.HealthEndpoint
-		}
-		if intSettings.API.MaxResponseMs > 0 {
-			cfg.APIMaxResponseMs = intSettings.API.MaxResponseMs
-		}
 
 		// WebSocket settings - derive URL from API URL + path
 		// This follows the @vrooli/api-base pattern where WebSocket uses the same host:port

@@ -44,9 +44,6 @@ type RequirementSettings struct {
 // where WebSocket connections are proxied through the same server as HTTP API requests.
 // See: packages/api-base/docs/concepts/websocket-support.md
 type IntegrationSettings struct {
-	// API configures HTTP health check validation.
-	API APISettings
-
 	// WebSocket configures WebSocket connection validation.
 	// The URL is derived from the API URL + WebSocketPath following api-base conventions.
 	WebSocket WebSocketSettings
@@ -88,15 +85,6 @@ type CLISettings struct {
 	NoArgsTimeoutMs int64
 }
 
-// APISettings configures API health check behavior.
-type APISettings struct {
-	// HealthEndpoint is the path to check for API health (default: "/health").
-	HealthEndpoint string
-
-	// MaxResponseMs is the maximum acceptable response time in milliseconds (default: 1000).
-	MaxResponseMs int64
-}
-
 // WebSocketSettings configures WebSocket validation behavior.
 // WebSocket URLs are derived from the API URL following the pattern from @vrooli/api-base:
 // - Protocol is converted: http:// → ws://, https:// → wss://
@@ -134,7 +122,6 @@ type rawRequirementSettings struct {
 }
 
 type rawIntegrationSettings struct {
-	API       rawAPISettings       `json:"api"`
 	WebSocket rawWebSocketSettings `json:"websocket"`
 	CLI       rawCLISettings       `json:"cli"`
 }
@@ -146,11 +133,6 @@ type rawCLISettings struct {
 	CheckUnknownCommand   *bool    `json:"check_unknown_command"`
 	CheckNoArgs           *bool    `json:"check_no_args"`
 	NoArgsTimeoutMs       int64    `json:"no_args_timeout_ms"`
-}
-
-type rawAPISettings struct {
-	HealthEndpoint string `json:"health_endpoint"`
-	MaxResponseMs  int64  `json:"max_response_ms"`
 }
 
 type rawWebSocketSettings struct {
@@ -217,10 +199,6 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 	// WebSocket URL is derived from API URL + path, following @vrooli/api-base conventions.
 	// See: packages/api-base/docs/concepts/websocket-support.md
 	cfg.Integration = IntegrationSettings{
-		API: APISettings{
-			HealthEndpoint: raw.Integration.API.HealthEndpoint,
-			MaxResponseMs:  raw.Integration.API.MaxResponseMs,
-		},
 		WebSocket: WebSocketSettings{
 			Enabled:         raw.Integration.WebSocket.Enabled,
 			Path:            raw.Integration.WebSocket.Path,
@@ -244,9 +222,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 		cfg.Integration.CLI.CheckNoArgs != nil ||
 		cfg.Integration.CLI.NoArgsTimeoutMs != 0
 
-	hasIntegration := cfg.Integration.API.HealthEndpoint != "" ||
-		cfg.Integration.API.MaxResponseMs != 0 ||
-		cfg.Integration.WebSocket.Path != "" ||
+	hasIntegration := cfg.Integration.WebSocket.Path != "" ||
 		cfg.Integration.WebSocket.Enabled != nil ||
 		hasCLIConfig
 

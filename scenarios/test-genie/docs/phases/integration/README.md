@@ -5,31 +5,27 @@
 **Optional**: Yes (when runtime not available)
 **Requires Runtime**: Yes
 
-The integration phase tests runtime liveness of a running scenario. It validates API endpoints, CLI functionality, and WebSocket connections.
+The integration phase tests runtime liveness of a running scenario. It validates CLI functionality and WebSocket connections.
 
 ## What Gets Tested
 
 ```mermaid
 graph TB
     subgraph "Integration Checks"
-        API[API Health<br/>HTTP endpoint checks]
         CLI[CLI Validation<br/>Commands work correctly]
         WS[WebSocket<br/>Real-time connections]
     end
 
     START[Start] --> RUNTIME{Scenario<br/>Running?}
-    RUNTIME -->|Yes| API
+    RUNTIME -->|Yes| CLI
     RUNTIME -->|No| SKIP[Skip Phase]
 
-    API --> CLI
     CLI --> WS
     WS --> DONE[Complete]
 
-    API -.->|unhealthy| FAIL[Fail]
-    CLI -.->|broken| FAIL
+    CLI -.->|broken| FAIL[Fail]
     WS -.->|no connection| FAIL
 
-    style API fill:#e8f5e9
     style CLI fill:#fff3e0
     style WS fill:#f3e5f5
 ```
@@ -48,17 +44,13 @@ test-genie execute my-scenario --phases integration
 
 If the scenario isn't running, the phase is skipped (exit code 2).
 
-## API Health Checks
-
-Validates that API endpoints respond correctly:
-
-- Health endpoint returns 200
-- Response time within threshold (default: 1000ms)
-- Expected response format
-
-The API URL is automatically detected from:
+The running API URL is automatically detected from:
 1. Lifecycle metadata (`~/.vrooli/processes/scenarios/<name>/start-api.json`)
 2. Environment variables configured in `service.json`
+
+It is used to derive the WebSocket URL (see below); the integration phase no
+longer performs an HTTP health check of its own — scenario health is already
+guaranteed by the lifecycle health gate before this phase runs.
 
 ## CLI Validation
 
@@ -130,10 +122,6 @@ For a chat scenario using `@vrooli/api-base`:
 ```json
 {
   "integration": {
-    "api": {
-      "health_endpoint": "/health",
-      "max_response_ms": 1000
-    },
     "websocket": {
       "enabled": true,
       "path": "/api/v1/ws",
@@ -144,8 +132,7 @@ For a chat scenario using `@vrooli/api-base`:
 ```
 
 **What happens**:
-1. API health check: `GET http://localhost:8080/health`
-2. WebSocket validation: `ws://localhost:8080/api/v1/ws` (derived from API URL)
+1. WebSocket validation: `ws://localhost:8080/api/v1/ws` (derived from the running API URL)
 
 ## Exit Codes
 
@@ -160,10 +147,6 @@ For a chat scenario using `@vrooli/api-base`:
 ```json
 {
   "integration": {
-    "api": {
-      "health_endpoint": "/health",
-      "max_response_ms": 1000
-    },
     "websocket": {
       "enabled": true,
       "path": "/api/v1/ws",
@@ -175,8 +158,6 @@ For a chat scenario using `@vrooli/api-base`:
 
 | Section | Field | Description | Default |
 |---------|-------|-------------|---------|
-| `api` | `health_endpoint` | Health check path | `/health` |
-| `api` | `max_response_ms` | Max response time (ms) | 1000 |
 | `websocket` | `enabled` | Enable WebSocket checks | `true` if path set |
 | `websocket` | `path` | WebSocket endpoint path | (none) |
 | `websocket` | `max_connection_ms` | Max connection time (ms) | 2000 |

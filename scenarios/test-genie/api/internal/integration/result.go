@@ -49,7 +49,6 @@ type RunResult = shared.RunResult[ValidationSummary]
 
 // ValidationSummary tracks validation counts by category.
 type ValidationSummary struct {
-	APIHealthChecked   bool
 	CLIValidated       bool
 	WebSocketValidated bool
 }
@@ -57,9 +56,6 @@ type ValidationSummary struct {
 // TotalChecks returns the total number of items checked.
 func (s ValidationSummary) TotalChecks() int {
 	total := 0
-	if s.APIHealthChecked {
-		total += 2 // health endpoint status + response time
-	}
 	if s.CLIValidated {
 		total += 3 // binary exists, help works, version works
 	}
@@ -72,9 +68,6 @@ func (s ValidationSummary) TotalChecks() int {
 // String returns a human-readable summary.
 func (s ValidationSummary) String() string {
 	var parts []string
-	if s.APIHealthChecked {
-		parts = append(parts, "API health")
-	}
 	if s.CLIValidated {
 		parts = append(parts, "CLI validated")
 	}
