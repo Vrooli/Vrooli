@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -52,6 +53,22 @@ func NewServer() (*Server, error) {
 	}
 
 	srv.setupRoutes()
+
+	// Register agent profiles with agent-manager (idempotent, best-effort).
+	// Done in the background so a slow/unavailable agent-manager never blocks
+	// startup; the customize handler also surfaces availability errors per-request.
+	if reconciler, ok := h.AgentManager.(interface {
+		ReconcileProfiles(ctx context.Context) error
+	}); ok {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := reconciler.ReconcileProfiles(ctx); err != nil {
+				log.Printf("[agent-manager] profile reconcile failed (non-fatal): %v", err)
+			}
+		}()
+	}
+
 	return srv, nil
 }
 
@@ -69,6 +86,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/templates/{id}", s.handler.HandleTemplateShow).Methods("GET")
 	s.router.HandleFunc("/api/v1/generate", s.handler.HandleGenerate).Methods("POST")
 	s.router.HandleFunc("/api/v1/customize", s.handler.HandleCustomize).Methods("POST")
+	s.router.HandleFunc("/api/v1/customize/status/{run_id}", s.handler.HandleCustomizeStatus).Methods("GET")
 	s.router.HandleFunc("/api/v1/generated", s.handler.HandleGeneratedList).Methods("GET")
 	s.router.HandleFunc("/api/v1/preview/{scenario_id}", s.handler.HandlePreviewLinks).Methods("GET")
 

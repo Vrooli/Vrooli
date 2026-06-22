@@ -1,0 +1,22 @@
+{
+  "name": "landing-manager-customizations",
+  "profileKey": "landing-manager/default",
+  "description": "Agent profile for landing-manager landing-page customizations",
+  "runnerType": "RUNNER_TYPE_CLAUDE_CODE",
+  "maxTurns": 80,
+  "timeout": "600s",
+  "allowedTools": [
+    "Read",
+    "Write",
+    "Edit",
+    "Bash",
+    "LS",
+    "Grep",
+    "Glob"
+  ],
+  "skipPermissionPrompt": true,
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF"
+  },
+  "createdBy": "landing-manager"
+}

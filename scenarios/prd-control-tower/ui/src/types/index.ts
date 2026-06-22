@@ -127,33 +127,21 @@ export interface ScenarioTemplateListResponse {
 
 export type IssueSeverity = 'info' | 'low' | 'medium' | 'high' | 'critical' | 'p0' | 'p1' | 'p2'
 
-export interface TrackerIssueSummary {
-  id: string
-  title: string
-  status: string
-  priority?: string
-  created_at?: string
-  updated_at?: string
-  reporter?: string
-  issue_url?: string
-  local_issue_url?: string
-}
+// The wire contract for reporting/tracking lives in services/issues.ts (the new
+// per-item swarm-manager backlog feedback shape). Re-export the canonical types
+// here so consumers can keep importing from `../types` without drift.
+export type {
+  BacklogFeedback,
+  ScenarioIssueReportRequest,
+  IssueReportSelectionInput,
+  BulkIssueReportResult,
+} from '../services/issues'
 
-export interface ScenarioIssuesSummary {
-  entity_type: EntityType
-  entity_name: string
-  issues: TrackerIssueSummary[]
-  open_count: number
-  active_count: number
-  total_count: number
-  tracker_url?: string
-  local_tracker_url?: string
-  last_fetched: string
-  from_cache: boolean
-  stale: boolean
-}
-
-export interface IssueReportSelectionInput {
+// IssueReportSeed/IssueReportCategorySeed are PRD-control-tower's own UI seeds
+// used to compose a report from a quality scan. Selection items here carry the
+// richer severity enum the UI renders; they are flattened to the wire selection
+// shape when the report is submitted.
+export interface IssueReportSelectionSeed {
   id: string
   title: string
   detail: string
@@ -163,49 +151,13 @@ export interface IssueReportSelectionInput {
   notes?: string
 }
 
-export interface IssueReportAttachmentInput {
-  name: string
-  content: string
-  content_type?: string
-  encoding?: string
-  category?: string
-  description?: string
-}
-
-export interface ScenarioIssueReportRequest {
-  entity_type: EntityType
-  entity_name: string
-  source: string
-  title: string
-  description: string
-  priority?: string
-  summary?: string
-  tags?: string[]
-  labels?: Record<string, string>
-  metadata?: Record<string, string>
-  selections: IssueReportSelectionInput[]
-  attachments?: IssueReportAttachmentInput[]
-}
-
-export interface ScenarioIssueReportResponse {
-  issue_id: string
-  issue_url?: string
-  message: string
-}
-
-export interface BulkIssueReportResult {
-  request: ScenarioIssueReportRequest
-  response?: ScenarioIssueReportResponse
-  error?: string
-}
-
 export interface IssueReportCategorySeed {
   id: string
   title: string
   description?: string
   severity?: IssueSeverity
   defaultSelected?: boolean
-  items: IssueReportSelectionInput[]
+  items: IssueReportSelectionSeed[]
 }
 
 export interface IssueReportSeed {
@@ -217,9 +169,7 @@ export interface IssueReportSeed {
   summary?: string
   display_name?: string
   tags?: string[]
-  labels?: Record<string, string>
   metadata?: Record<string, string>
-  attachments?: IssueReportAttachmentInput[]
   categories: IssueReportCategorySeed[]
 }
 

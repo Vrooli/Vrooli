@@ -9,13 +9,13 @@ Value proposition: Standardize PRD creation while reducing authoring overhead an
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Ecosystem PRD catalog | List scenarios/resources with PRD/draft/violation status
-- [ ] OT-P0-002 | Draft lifecycle + publish | Create/edit/save/validate/publish PRD drafts safely with atomic writes
-- [ ] OT-P0-003 | Requirements + targets coverage | Parse requirements registries and show operational-target linkage gaps
+- [x] OT-P0-001 | Ecosystem PRD catalog | List scenarios/resources with PRD/draft/violation status
+- [x] OT-P0-002 | Draft lifecycle + publish | Create/edit/save/validate/publish PRD drafts safely with atomic writes
+- [x] OT-P0-003 | Requirements + targets coverage | Parse requirements registries and show operational-target linkage gaps
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Backlog intake + convert | Capture freeform ideas and convert them into PRD drafts
-- [ ] OT-P1-002 | AI assistance | Generate/rewrite PRD content with model choice and safe apply via diff
+- [x] OT-P1-001 | Backlog intake + convert | Capture freeform ideas and convert them into PRD drafts
+- [x] OT-P1-002 | AI assistance | Generate/rewrite PRD content with model choice and safe apply via diff
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Cached validation results | Reuse scenario-auditor validation results until content changes

@@ -476,7 +476,7 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
               <Card>
                 <CardHeader>
                   <CardTitle>Resolve issues & ingest telemetry</CardTitle>
-                  <CardDescription>Close the loop with deployment-telemetry.jsonl + app-issue-tracker</CardDescription>
+                  <CardDescription>Close the loop with deployment-telemetry.jsonl + the swarm-manager backlog</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
@@ -486,9 +486,10 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                     </p>
                   </div>
                   <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-slate-200">
-                    <p className="font-semibold mb-1">2) File or auto-resolve issues</p>
+                    <p className="font-semibold mb-1">2) File migration tasks in the backlog</p>
                     <p className="text-slate-400">
-                      Generate an issue for app-issue-tracker with telemetry attached so the built-in AI can propose fixes. Track issue status per deployment.
+                      When a swap is approved, file the source-code migration as a swarm-manager backlog task from the
+                      deployment view so an agent can pick it up. Track its live status and queue position per deployment.
                     </p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -500,7 +501,7 @@ export function GuidedFlow({ open, onClose }: GuidedFlowProps) {
                     </Button>
                   </div>
                   <div className="text-xs text-slate-500">
-                    Next iteration: add telemetry upload + issue creation forms directly here so users can stay in-flow.
+                    Telemetry upload and the migration-task form both live on the deployment view — open it to stay in-flow.
                   </div>
                 </CardContent>
               </Card>

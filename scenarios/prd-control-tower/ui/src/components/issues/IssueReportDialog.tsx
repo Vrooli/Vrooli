@@ -2,30 +2,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCopy, Eraser, Loader2 } from 'lucide-react'
-import type {
-  IssueReportSeed,
-  IssueReportSelectionInput,
-  ScenarioIssueReportRequest,
-  ScenarioIssueReportResponse,
-} from '../../types'
+import type { IssueReportSeed, IssueReportSelectionSeed } from '../../types'
+import type { BacklogFeedback, ScenarioIssueReportRequest } from '../../services/issues'
 import { submitIssueReport } from '../../services/issues'
-import { scenarioIssuesStore } from '../../state/scenarioIssuesStore'
-import { useScenarioIssues } from '../../hooks/useScenarioIssues'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Badge } from '../ui/badge'
 import { Separator } from '../ui/separator'
+import { BacklogItemStatusCard } from './BacklogItemStatusCard'
 import { ISSUE_DOCUMENTATION_LIBRARY, type DocumentationLink } from './issueDocumentation'
 
 interface IssueReportDialogProps {
   seed: IssueReportSeed | null
   open: boolean
   onOpenChange?: (open: boolean) => void
-  onSubmitted?: (response: ScenarioIssueReportResponse) => void
+  onSubmitted?: (feedback: BacklogFeedback) => void
 }
 
-interface SelectionEntry extends IssueReportSelectionInput {
+interface SelectionEntry extends IssueReportSelectionSeed {
   categoryId: string
   categoryTitle: string
 }
@@ -52,8 +47,8 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
-  const [acknowledged, setAcknowledged] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState<BacklogFeedback | null>(null)
   const [isCustomizingDescription, setIsCustomizingDescription] = useState(false)
   const [manualDescription, setManualDescription] = useState('')
   const [customizationBaseline, setCustomizationBaseline] = useState<{ selected: string[]; notes: Record<string, string> } | null>(null)
@@ -81,7 +76,7 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
     setNotes(nextNotes)
     setCollapsedCategories(new Set())
     setExpandedNotes(new Set(Object.keys(nextNotes)))
-    setAcknowledged(false)
+    setFeedback(null)
     setIsCustomizingDescription(false)
     setManualDescription('')
     setCustomizationBaseline(null)
@@ -177,15 +172,8 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
 
   const descriptionToSubmit = isCustomizingDescription ? manualDescription : generatedDescription
 
-  const { summary, status, error: statusError, refresh } = useScenarioIssues({
-    entityType: seed?.entity_type,
-    entityName: seed?.entity_name,
-    autoFetch: open,
-  })
-
-  const hasOpenIssues = Boolean(summary && (summary.open_count > 0 || summary.active_count > 0))
   const hasDescription = descriptionToSubmit.trim().length > 0
-  const canSubmit = Boolean(seed && selectedEntries.length > 0 && (!hasOpenIssues || acknowledged) && !busy && hasDescription)
+  const canSubmit = Boolean(seed && selectedEntries.length > 0 && !busy && hasDescription && !feedback)
 
   useEffect(() => {
     if (overallCheckboxRef.current) {
@@ -325,11 +313,6 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
 
     const finalDescription = descriptionToSubmit.trim() || generatedDescription
 
-    const metadata = {
-      ...(seed.metadata ?? {}),
-      selection_count: String(selectedEntries.length),
-    }
-
     const payload: ScenarioIssueReportRequest = {
       entity_type: seed.entity_type,
       entity_name: seed.entity_name,
@@ -338,9 +321,6 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
       description: finalDescription.trim(),
       summary: seed.summary,
       tags: seed.tags,
-      labels: seed.labels,
-      metadata,
-      attachments: seed.attachments,
       selections: selectedEntries.map((entry) => ({
         id: entry.id,
         title: entry.title,
@@ -354,11 +334,10 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
 
     setBusy(true)
     try {
-      const response = await submitIssueReport(payload)
-      scenarioIssuesStore.flagIssueReported(seed.entity_type, seed.entity_name)
-      toast.success('Issue reported to control tower')
-      onSubmitted?.(response)
-      close()
+      const fb = await submitIssueReport(payload)
+      setFeedback(fb)
+      toast.success(fb.deduped ? 'Merged into an existing backlog item' : 'Filed to swarm-manager backlog')
+      onSubmitted?.(fb)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to submit report'
       toast.error(message)
@@ -389,31 +368,6 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
 
         <div className="grid gap-6 px-6 py-4 lg:grid-cols-[360px,1fr]">
           <div className="space-y-4 border-r pr-4">
-            {summary && (
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                <div className="flex items-center justify-between">
-                  <p>
-                    {summary.open_count} open · {summary.active_count} active
-                  </p>
-                  <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={() => refresh().catch(() => undefined)}>
-                    {status === 'loading' ? 'Refreshing…' : 'Refresh'}
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <AlertTriangle size={14} className="text-amber-600" />
-                  <span>
-                    {hasOpenIssues ? 'Open issues detected. Acknowledge before submitting.' : 'No blocking issues in tracker.'}
-                  </span>
-                </div>
-                {summary.tracker_url && (
-                  <a href={summary.tracker_url} className="mt-2 inline-block text-primary underline-offset-2 hover:underline" target="_blank" rel="noreferrer">
-                    View tracker →
-                  </a>
-                )}
-              </div>
-            )}
-            {!summary && statusError && <p className="text-xs text-rose-600">{statusError}</p>}
-
             <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
               <label className="flex flex-1 items-center gap-3">
                 <input
@@ -591,22 +545,7 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
                 </div>
               </div>
             )}
-            {seed.attachments && seed.attachments.length > 0 && (
-              <div className="rounded-lg border border-slate-200 p-3 text-xs">
-                <p className="font-semibold text-slate-700">Attachments</p>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-slate-600">
-                  {seed.attachments.map((attachment) => (
-                    <li key={attachment.name}>{attachment.name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {hasOpenIssues && (
-              <label className="flex items-center gap-2 text-xs text-slate-600">
-                <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
-                I understand there are open or active tickets for this scenario.
-              </label>
-            )}
+            {feedback && <BacklogItemStatusCard feedback={feedback} />}
           </div>
         </div>
 
@@ -620,11 +559,13 @@ export function IssueReportDialog({ seed, open, onOpenChange, onSubmitted }: Iss
               <ClipboardCopy size={16} /> Copy summary
             </Button>
             <Button variant="ghost" onClick={close}>
-              Cancel
+              {feedback ? 'Close' : 'Cancel'}
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit} className="gap-2">
-              {busy ? <Loader2 size={16} className="animate-spin" /> : 'Submit report'}
-            </Button>
+            {!feedback && (
+              <Button onClick={handleSubmit} disabled={!canSubmit} className="gap-2">
+                {busy ? <Loader2 size={16} className="animate-spin" /> : 'Submit report'}
+              </Button>
+            )}
           </div>
         </div>
       </div>

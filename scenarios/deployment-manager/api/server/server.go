@@ -20,6 +20,7 @@ import (
 	"deployment-manager/deployments"
 	"deployment-manager/fitness"
 	"deployment-manager/health"
+	"deployment-manager/migrationtasks"
 	"deployment-manager/profiles"
 	"deployment-manager/releases"
 	"deployment-manager/secrets"
@@ -56,6 +57,7 @@ type Server struct {
 	PublishedVersionsHandler *deployments.PublishedVersionsHandler
 	LPBSConfigHandler        *profiles.LPBSConfigHandler
 	ReleasesHandler          *releases.Handler
+	MigrationTasksHandler    *migrationtasks.Handler
 	Orchestrator             *deployments.Orchestrator
 
 	// Repositories
@@ -171,6 +173,7 @@ func New() (*Server, error) {
 		ApprovalsHandler:         deployments.NewApprovalsHandler(approvalsRepo, logFn),
 		PublishedVersionsHandler: deployments.NewPublishedVersionsHandler(publishedVersionsRepo, logFn),
 		LPBSConfigHandler:        profiles.NewLPBSConfigHandler(profilesRepo, lpbsConfigRepo, logFn),
+		MigrationTasksHandler:    migrationtasks.NewHandler(logFn),
 		LPBSConfigRepo:           lpbsConfigRepo,
 		ReleasesRepo:             releasesRepo,
 		Orchestrator: deployments.NewOrchestratorFull(

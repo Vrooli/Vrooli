@@ -9,8 +9,23 @@ import {
   Wand2,
   X,
 } from 'lucide-react';
-import { type CustomizeResult, type GeneratedScenario } from '../lib/api';
+import { getCustomizeRunStatus, type CustomizeResult, type GeneratedScenario } from '../lib/api';
 import { Tooltip } from './Tooltip';
+
+// Human-readable label for an agent-manager RunStatus enum value.
+function formatRunStatus(status: string): string {
+  const cleaned = status.replace(/^RUN_STATUS_/, '').toLowerCase();
+  if (!cleaned || cleaned === 'unspecified') return 'queued';
+  return cleaned.replace(/_/g, ' ');
+}
+
+function isTerminalRunStatus(status: string): boolean {
+  return (
+    status === 'RUN_STATUS_COMPLETE' ||
+    status === 'RUN_STATUS_FAILED' ||
+    status === 'RUN_STATUS_CANCELLED'
+  );
+}
 
 interface AgentCustomizationDialogProps {
   isOpen: boolean;
@@ -30,6 +45,7 @@ export const AgentCustomizationDialog = memo(function AgentCustomizationDialog({
   const [customizing, setCustomizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CustomizeResult | null>(null);
+  const [runStatus, setRunStatus] = useState<string | null>(null);
 
   // Reset state when dialog opens with a new scenario
   useEffect(() => {
@@ -39,8 +55,32 @@ export const AgentCustomizationDialog = memo(function AgentCustomizationDialog({
       setCustomizing(false);
       setError(null);
       setResult(null);
+      setRunStatus(null);
     }
   }, [isOpen, scenario?.scenario_id]);
+
+  // Poll agent-manager for live run status until the run reaches a terminal state.
+  useEffect(() => {
+    const runId = result?.run_id;
+    if (!runId) return;
+    if (runStatus && isTerminalRunStatus(runStatus)) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const status = await getCustomizeRunStatus(runId);
+        if (!cancelled) setRunStatus(status.status);
+      } catch {
+        // Transient errors are non-fatal; the next tick retries.
+      }
+    };
+    void poll();
+    const timer = setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [result?.run_id, runStatus]);
 
   const handleCustomize = async () => {
     if (!scenario || !brief.trim()) return;
@@ -167,7 +207,7 @@ export const AgentCustomizationDialog = memo(function AgentCustomizationDialog({
                 <div className="flex items-start gap-2 text-xs text-blue-200">
                   <Rocket className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-blue-400" />
                   <span>
-                    This will file an issue and trigger an AI agent to customize your landing page. The agent will modify content, styling, and structure based on your brief.
+                    This starts an AI agent run to customize your landing page. The agent will modify content, styling, and structure based on your brief, and the run status updates live below.
                   </span>
                 </div>
               </div>
@@ -208,31 +248,21 @@ export const AgentCustomizationDialog = memo(function AgentCustomizationDialog({
                 </p>
               </div>
 
-              <div className="rounded-lg border border-white/10 bg-slate-800/50 p-4 text-left space-y-3">
+              <div className="rounded-lg border border-white/10 bg-slate-800/50 p-4 text-left space-y-3" data-testid="customization-result">
                 <div className="grid sm:grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-slate-400 text-xs uppercase">Issue ID</span>
-                    <p className="font-mono text-purple-300">{result.issue_id || 'unknown'}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-xs uppercase">Status</span>
-                    <p className="text-emerald-300">{result.status}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-xs uppercase">Agent</span>
-                    <p className="text-slate-200">{result.agent || 'auto'}</p>
+                    <span className="text-slate-400 text-xs uppercase">Run Status</span>
+                    <p className="text-emerald-300" data-testid="customization-run-status">
+                      {formatRunStatus(runStatus ?? result.status)}
+                    </p>
                   </div>
                   <div>
                     <span className="text-slate-400 text-xs uppercase">Run ID</span>
-                    <p className="font-mono text-slate-300 text-xs">{result.run_id || 'pending'}</p>
+                    <p className="font-mono text-slate-300 text-xs" data-testid="customization-run-id">
+                      {result.run_id || 'pending'}
+                    </p>
                   </div>
                 </div>
-                {result.tracker_url && (
-                  <div className="pt-2 border-t border-white/10">
-                    <span className="text-slate-400 text-xs uppercase">Tracker API</span>
-                    <p className="font-mono text-xs text-slate-300 break-all">{result.tracker_url}</p>
-                  </div>
-                )}
                 {result.message && (
                   <p className="text-xs text-slate-400 pt-2 border-t border-white/10">{result.message}</p>
                 )}

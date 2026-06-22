@@ -269,31 +269,9 @@ func TestNewServer_DatabaseError(t *testing.T) {
 	})
 }
 
-// Test resolveDatabaseURL edge cases
-func TestResolveDatabaseURL_EdgeCases(t *testing.T) {
-	t.Run("uses DATABASE_URL when set", func(t *testing.T) {
-		origURL := os.Getenv("DATABASE_URL")
-		defer func() {
-			if origURL != "" {
-				os.Setenv("DATABASE_URL", origURL)
-			} else {
-				os.Unsetenv("DATABASE_URL")
-			}
-		}()
-
-		testURL := "postgres://test:test@localhost:5432/testdb"
-		os.Setenv("DATABASE_URL", testURL)
-
-		url, err := resolveDatabaseURL()
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-
-		if url != testURL {
-			t.Errorf("Expected %s, got %s", testURL, url)
-		}
-	})
-}
+// NOTE: resolveDatabaseURL was removed during the api-core upgrade (database URL
+// resolution now lives in the shared database package); its edge-case test was
+// removed with it.
 
 // Test logStructuredError to improve coverage
 func TestLogStructuredError_Coverage(t *testing.T) {

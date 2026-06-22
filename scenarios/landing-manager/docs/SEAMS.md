@@ -156,40 +156,42 @@ func TestPreviewLinks_Success(t *testing.T) {
 
 ---
 
-## 2. HTTP Client Seam
+## 2. Agent Runner Seam
 
 **Location**: `api/handlers/handlers.go`
 
-**Purpose**: Isolate external HTTP requests (to issue tracker, etc.) behind an injectable http.Client, enabling tests to substitute mock HTTP servers.
+**Purpose**: Isolate landing-page customization spawning behind the `AgentRunner`
+interface so tests can substitute a fake instead of calling the real
+agent-manager service. Production wiring uses `*agentmanager.Service`, which
+resolves agent-manager via `discovery.ResolveScenarioURLDefault` and creates a
+task + run over proto-JSON REST.
 
 ### Interface
 
-Uses standard `*http.Client` with injectable timeout.
+```go
+type AgentRunner interface {
+    CreateRun(ctx context.Context, req agentmanager.RunRequest) (string, error)
+    GetRun(ctx context.Context, runID string) (*domainpb.Run, error)
+}
+```
 
 ### Consumers
 
-1. **Handler.postJSON** (`api/handlers/customize.go`)
-   - Uses HTTPClient for issue tracker API calls
-   - Constructor seam: `NewHandlerWithHTTPClient(..., httpClient)`
+1. **Handler.HandleCustomize** (`api/handlers/customize.go`)
+   - Builds the customization prompt and calls `AgentManager.CreateRun`,
+     returning the run id to the caller.
+2. **Handler.HandleCustomizeStatus** (`api/handlers/customize.go`)
+   - Polls `AgentManager.GetRun` so the UI can show live run status.
 
 ### Testing Pattern
 
 ```go
-func TestCustomize_IssueTrackerIntegration(t *testing.T) {
-    // Create mock HTTP server
-    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
-    }))
-    defer server.Close()
-
-    // Create handler with custom client
-    client := &http.Client{Timeout: 1 * time.Second}
+func TestCustomize_AgentManagerIntegration(t *testing.T) {
     h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaSvc, previewSvc, analyticsSvc, client)
+    h.AgentManager = &fakeAgentRunner{runID: "run-1"} // implements handlers.AgentRunner
 
-    // Set environment to point to mock server
-    os.Setenv("APP_ISSUE_TRACKER_API_BASE", server.URL)
-
-    // Test customize endpoint...
+    // Test customize endpoint; assert the returned run_id and that CreateRun
+    // carried the expected scenario + prompt.
 }
 ```
 
@@ -274,8 +276,9 @@ Compiled regex patterns available for direct use:
 | `TEMPLATES_DIR` | Override templates directory | `TemplateRegistry` |
 | `TEMPLATE_PAYLOAD_DIR` | Override template payload source | `ScenarioGenerator` |
 | `ANALYTICS_DATA_DIR` | Override analytics data storage | `AnalyticsService` |
-| `APP_ISSUE_TRACKER_API_BASE` | Issue tracker API endpoint | `handlers.resolveIssueTrackerBase()` |
-| `APP_ISSUE_TRACKER_API_PORT` | Issue tracker API port | `handlers.resolveIssueTrackerBase()` |
+
+The customize flow no longer reads issue-tracker env vars; agent-manager is
+located via service discovery (`discovery.ResolveScenarioURLDefault`).
 
 ---
 

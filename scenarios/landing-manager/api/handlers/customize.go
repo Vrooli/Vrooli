@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
+
 	"landing-manager/errors"
+	"landing-manager/internal/agentmanager"
 	"landing-manager/util"
 	"landing-manager/validation"
 )
@@ -57,21 +59,16 @@ func (h *Handler) HandleCustomize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issueTrackerBase, err := h.resolveIssueTrackerBase()
-	if err != nil {
-		appErr := errors.NewIssueTrackerError("connect", err)
-		appErr.Message = "Issue tracker is not available"
-		appErr.Suggestion = "Ensure app-issue-tracker is running. Start it with: vrooli scenario start app-issue-tracker"
+	if h.AgentManager == nil {
+		appErr := errors.NewAgentManagerError("connect", fmt.Errorf("agent-manager client not configured"))
+		appErr.Message = "Agent runner is not available"
+		appErr.Suggestion = "Ensure agent-manager is running. Start it with: vrooli scenario start agent-manager"
 		h.RespondAppError(w, appErr)
 		return
 	}
 
-	issueTitle := fmt.Sprintf("Customize landing page scenario: %s", strings.TrimSpace(req.ScenarioID))
-	if strings.TrimSpace(req.ScenarioID) == "" {
-		issueTitle = "Customize landing page scenario (unnamed)"
-	}
-
-	// Build description with persona prompt if provided
+	// Build the full customization prompt: brief + persona guidance + styling
+	// guardrail + asset hints. This is the agent's complete instruction set.
 	personaPrompt := ""
 	if req.PersonaID != "" {
 		persona, err := h.PersonaService.GetPersona(req.PersonaID)
@@ -80,157 +77,66 @@ func (h *Handler) HandleCustomize(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	description := fmt.Sprintf(
+	prompt := fmt.Sprintf(
 		"Requested customization for landing page scenario.\n\nScenario: %s\nBrief:\n%s\nAssets: %v\nPreview: %t%s\nSource: landing-manager factory\nTimestamp: %s\n\nExpected deliverables:\n- Apply brief to template-safe areas (content, design tokens, imagery)\n- Run A/B variant setup if applicable\n- Regenerate preview links and summarize changes\n- Return next steps and validation status.%s",
 		req.ScenarioID, req.Brief, req.Assets, req.Preview, personaPrompt, time.Now().UTC().Format(time.RFC3339), buildStylingAppendix(req.ScenarioID),
 	)
 
-	issuePayload := map[string]interface{}{
-		"title":       issueTitle,
-		"description": description,
-		"type":        "feature",
-		"priority":    "high",
-		"app_id":      "landing-manager",
-		"tags":        []string{"landing-manager", "landing-page", "customization", "automation"},
-		"environment": map[string]interface{}{
-			"scenario_id":  req.ScenarioID,
-			"template_id":  "saas-landing-page",
-			"requested_by": "landing-manager",
-			"preview_mode": req.Preview,
-			"asset_hints":  req.Assets,
-		},
-	}
+	title := fmt.Sprintf("Customize landing page scenario: %s", strings.TrimSpace(req.ScenarioID))
 
-	issueResp := struct {
-		Success bool                   `json:"success"`
-		Message string                 `json:"message"`
-		Data    map[string]interface{} `json:"data"`
-	}{}
-
-	if err := h.postJSON(issueTrackerBase+"/issues", issuePayload, &issueResp); err != nil {
-		appErr := errors.NewIssueTrackerError("create issue", err)
-		appErr.Suggestion = "The issue tracker may be temporarily unavailable. Try again in a few moments."
+	runID, err := h.AgentManager.CreateRun(r.Context(), agentmanager.RunRequest{
+		ScenarioID: req.ScenarioID,
+		Title:      title,
+		Prompt:     prompt,
+	})
+	if err != nil {
+		appErr := errors.NewAgentManagerError("create run", err)
+		appErr.Suggestion = "agent-manager may be temporarily unavailable. Try again in a few moments."
 		h.RespondAppError(w, appErr)
 		return
 	}
 
-	issueID := ""
-	if issueResp.Data != nil {
-		if v, ok := issueResp.Data["issue_id"].(string); ok {
-			issueID = v
-		}
-		if issueID == "" {
-			if nested, ok := issueResp.Data["issue"].(map[string]interface{}); ok {
-				if v, ok := nested["id"].(string); ok {
-					issueID = v
-				}
-			}
-		}
-	}
-
-	// Trigger investigation
-	investigation := struct {
-		RunID   string `json:"run_id,omitempty"`
-		Status  string `json:"status,omitempty"`
-		AgentID string `json:"agent_id,omitempty"`
-		Error   string `json:"error,omitempty"`
-	}{}
-
-	var investigationWarning string
-	if issueID != "" {
-		investigatePayload := map[string]interface{}{
-			"issue_id": issueID,
-			"priority": "high",
-		}
-		investigateResp := struct {
-			Success bool                   `json:"success"`
-			Data    map[string]interface{} `json:"data"`
-		}{}
-		if err := h.postJSON(issueTrackerBase+"/investigate", investigatePayload, &investigateResp); err == nil && investigateResp.Data != nil {
-			if v, ok := investigateResp.Data["run_id"].(string); ok {
-				investigation.RunID = v
-			}
-			if v, ok := investigateResp.Data["status"].(string); ok {
-				investigation.Status = v
-			}
-			if v, ok := investigateResp.Data["agent_id"].(string); ok {
-				investigation.AgentID = v
-			}
-		} else if err != nil {
-			// Log the error but don't fail the request - the issue was created successfully
-			h.Log("issue_tracker_investigate_failed", map[string]interface{}{"error": err.Error(), "issue_id": issueID})
-			investigation.Status = "pending"
-			investigation.Error = "Agent scheduling failed - issue created but investigation not started"
-			investigationWarning = "The customization request was logged, but automatic agent investigation could not be triggered. You can manually trigger investigation from the issue tracker."
-		}
-	} else {
-		investigationWarning = "Issue was created but no issue ID was returned. Agent investigation could not be triggered."
-	}
-
-	response := map[string]interface{}{
-		"status":      "queued",
-		"issue_id":    issueID,
-		"tracker_url": issueTrackerBase,
-		"agent":       investigation.AgentID,
-		"run_id":      investigation.RunID,
-		"message":     issueResp.Message,
-	}
-
-	// Surface warnings to user for graceful degradation
-	if investigationWarning != "" {
-		response["warning"] = investigationWarning
-		response["status"] = "partially_queued"
-	}
-
-	h.RespondJSON(w, http.StatusAccepted, response)
+	h.RespondJSON(w, http.StatusAccepted, map[string]interface{}{
+		"status":  "queued",
+		"run_id":  runID,
+		"message": "Customization run started",
+	})
 }
 
-func (h *Handler) resolveIssueTrackerBase() (string, error) {
-	if raw := strings.TrimSpace(os.Getenv("APP_ISSUE_TRACKER_API_BASE")); raw != "" {
-		return strings.TrimSuffix(raw, "/"), nil
+// HandleCustomizeStatus returns the current status of a customization run so the
+// UI can poll progress after triggering a customize request.
+func (h *Handler) HandleCustomizeStatus(w http.ResponseWriter, r *http.Request) {
+	runID := strings.TrimSpace(mux.Vars(r)["run_id"])
+	if runID == "" {
+		appErr := errors.NewMissingFieldError("run_id")
+		h.RespondAppError(w, appErr)
+		return
 	}
 
-	if port := strings.TrimSpace(os.Getenv("APP_ISSUE_TRACKER_API_PORT")); port != "" {
-		return fmt.Sprintf("http://localhost:%s/api/v1", port), nil
+	if h.AgentManager == nil {
+		appErr := errors.NewAgentManagerError("connect", fmt.Errorf("agent-manager client not configured"))
+		appErr.Message = "Agent runner is not available"
+		h.RespondAppError(w, appErr)
+		return
 	}
 
-	// Fallback: discover via CLI (not implemented here for simplicity)
-	return "", fmt.Errorf("issue tracker not configured")
-}
-
-func (h *Handler) postJSON(url string, payload interface{}, out interface{}) error {
-	data, err := json.Marshal(payload)
+	run, err := h.AgentManager.GetRun(r.Context(), runID)
 	if err != nil {
-		return fmt.Errorf("marshal payload: %w", err)
+		appErr := errors.NewAgentManagerError("get run", err)
+		h.RespondAppError(w, appErr)
+		return
+	}
+	if run == nil {
+		appErr := errors.NewValidationError("run_id", "run not found")
+		appErr.Code = errors.ErrCodeScenarioNotFound
+		h.RespondAppError(w, appErr)
+		return
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("build request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := h.HTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("issue tracker request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("issue tracker responded %d: %s", resp.StatusCode, string(body))
-	}
-
-	if out != nil {
-		if err := json.Unmarshal(body, out); err != nil {
-			return fmt.Errorf("decode response: %w", err)
-		}
-	}
-	return nil
+	h.RespondJSON(w, http.StatusOK, map[string]interface{}{
+		"run_id": run.Id,
+		"status": run.Status.String(),
+	})
 }
 
 const stylingSnippetLimit = 6000

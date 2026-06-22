@@ -65,7 +65,7 @@ describe('[REQ:TMPL-AGENT-PROFILES] Agent Profiles - UI Layer', () => {
     });
   });
 
-  it('should show agent customization heading with app-issue-tracker reference', async () => {
+  it('should show agent customization heading', async () => {
     render(
       <BrowserRouter>
         <FactoryHome />
@@ -89,7 +89,7 @@ describe('[REQ:TMPL-AGENT-PROFILES] Agent Profiles - UI Layer', () => {
     );
 
     await waitFor(() => {
-      const description = screen.getByText(/Files an issue in app-issue-tracker/i);
+      const description = screen.getByText(/Starts an AI agent run/i);
       expect(description).toBeInTheDocument();
       expect(description.textContent).toContain('AI agent');
       expect(description.textContent).toContain('brief and assets');
@@ -120,7 +120,7 @@ describe('[REQ:TMPL-AGENT-PROFILES] Agent Profiles - UI Layer', () => {
     await waitFor(() => {
       const triggerButton = screen.getByTestId('customize-button');
       expect(triggerButton).toBeInTheDocument();
-      expect(triggerButton.textContent).toContain('File issue & trigger agent');
+      expect(triggerButton.textContent).toContain('Start AI agent run');
     });
   });
 
@@ -158,8 +158,6 @@ describe('[REQ:TMPL-AGENT-PROFILES] Agent Profiles - UI Layer', () => {
     vi.mocked(api.customizeScenario).mockImplementation(() =>
       new Promise(resolve => setTimeout(() => resolve({
         status: 'queued',
-        issue_id: 'ISS-001',
-        agent: 'landing-customizer',
         run_id: 'RUN-001',
       }), 100))
     );

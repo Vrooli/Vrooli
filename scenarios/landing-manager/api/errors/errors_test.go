@@ -176,14 +176,14 @@ func TestErrorConstructors(t *testing.T) {
 		}
 	})
 
-	t.Run("NewIssueTrackerError", func(t *testing.T) {
+	t.Run("NewAgentManagerError", func(t *testing.T) {
 		cause := errors.New("network error")
-		err := NewIssueTrackerError("create issue", cause)
-		if err.Code != ErrCodeIssueTrackerError {
-			t.Errorf("Expected code %s, got %s", ErrCodeIssueTrackerError, err.Code)
+		err := NewAgentManagerError("create run", cause)
+		if err.Code != ErrCodeAgentManagerError {
+			t.Errorf("Expected code %s, got %s", ErrCodeAgentManagerError, err.Code)
 		}
 		if !err.Recoverable {
-			t.Error("Issue tracker errors should be recoverable")
+			t.Error("Agent-manager errors should be recoverable")
 		}
 	})
 
@@ -249,7 +249,7 @@ func TestErrorTypeChecks(t *testing.T) {
 
 	t.Run("IsExternalDependency", func(t *testing.T) {
 		dbErr := NewDatabaseError("query", nil)
-		issueErr := NewIssueTrackerError("create", nil)
+		issueErr := NewAgentManagerError("create", nil)
 		svcErr := NewExternalServiceError("api", nil)
 		cmdErr := NewCommandError("vrooli", "output", nil)
 		validationErr := NewValidationError("field", "invalid")

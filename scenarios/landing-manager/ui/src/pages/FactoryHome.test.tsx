@@ -267,7 +267,7 @@ describe('FactoryHome', () => {
     await waitFor(() => {
       const agentCustomizationElements = screen.getAllByText(/Agent customization/i);
       expect(agentCustomizationElements.length).toBeGreaterThan(0);
-      expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
+      expect(screen.getByText(/Start AI agent run/i)).toBeInTheDocument();
     });
 
     await waitFor(() => {

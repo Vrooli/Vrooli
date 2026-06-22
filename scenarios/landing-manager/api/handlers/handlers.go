@@ -2,15 +2,26 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"time"
 
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+
 	"landing-manager/errors"
+	"landing-manager/internal/agentmanager"
 	"landing-manager/services"
 	"landing-manager/util"
 )
+
+// AgentRunner is the seam landing-manager uses to spawn and track customization
+// runs. Production wiring uses *agentmanager.Service; tests inject a fake.
+type AgentRunner interface {
+	CreateRun(ctx context.Context, req agentmanager.RunRequest) (string, error)
+	GetRun(ctx context.Context, runID string) (*domainpb.Run, error)
+}
 
 // Handler wraps shared dependencies for all handlers.
 // Dependencies are injected via constructors to enable testing with substitutes.
@@ -22,6 +33,9 @@ type Handler struct {
 	PreviewService   *services.PreviewService
 	AnalyticsService *services.AnalyticsService
 	HTTPClient       *http.Client
+	// AgentManager spawns and tracks customization runs via agent-manager.
+	// May be nil in tests that don't exercise the customize flow.
+	AgentManager AgentRunner
 	// CmdExecutor is the seam for executing CLI commands.
 	// If nil, uses util.DefaultCommandExecutor (production behavior).
 	// Tests can inject a MockCommandExecutor to avoid shelling out.
@@ -40,6 +54,7 @@ func NewHandler(db *sql.DB, registry *services.TemplateRegistry, generator *serv
 		PreviewService:   previewService,
 		AnalyticsService: analyticsService,
 		HTTPClient:       &http.Client{Timeout: 15 * time.Second},
+		AgentManager:     agentmanager.NewService(30*time.Second, util.GetVrooliRoot()),
 		CmdExecutor:      nil, // uses util.DefaultCommandExecutor
 	}
 }

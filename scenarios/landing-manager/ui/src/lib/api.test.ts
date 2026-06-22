@@ -212,11 +212,8 @@ describe('API Client', () => {
     it('should trigger agent customization successfully', async () => {
       const mockResult: CustomizeResult = {
         status: 'queued',
-        issue_id: 'ISSUE-123',
-        tracker_url: 'http://localhost:18509',
-        agent: 'claude-code',
         run_id: 'RUN-456',
-        message: 'Customization request filed and agent queued',
+        message: 'Customization run started',
       };
 
       global.fetch = vi.fn(() =>
@@ -234,8 +231,7 @@ describe('API Client', () => {
       );
       expect(result).toEqual(mockResult);
       expect(result.status).toBe('queued');
-      expect(result.issue_id).toBeDefined();
-      expect(result.agent).toBeDefined();
+      expect(result.run_id).toBeDefined();
     });
 
     it('should handle customization errors', async () => {

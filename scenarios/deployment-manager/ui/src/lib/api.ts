@@ -326,6 +326,44 @@ export function listTelemetry(): Promise<TelemetrySummary[]> {
 }
 
 // ============================================================================
+// Migration Task API Client
+// ============================================================================
+//
+// When a dependency swap is approved the source-code migration must be done by a
+// developer. deployment-manager files it as a swarm-manager backlog `fix` item
+// and surfaces the item's live status + queue position back here.
+
+export interface MigrationTaskRequest {
+  scenario: string;
+  from_dependency: string;
+  to_dependency: string;
+  profile_id?: string;
+  title?: string;
+  notes?: string;
+}
+
+// MigrationTaskFeedback mirrors the swarm-manager backlog feedback contract.
+export interface MigrationTaskFeedback {
+  item_id: string;
+  kind: string;
+  name: string;
+  deep_link: string;
+  status: string;
+  queue_position?: number;
+  priority: number;
+  deduped: boolean;
+}
+
+export function reportMigrationTask(req: MigrationTaskRequest): Promise<MigrationTaskFeedback> {
+  return apiFetch("/migration-tasks", { method: "POST", body: req, errorPrefix: "Failed to file migration task" });
+}
+
+export function getMigrationTaskStatus(name: string, kind = "fix"): Promise<MigrationTaskFeedback> {
+  const query = `?name=${encodeURIComponent(name)}&kind=${encodeURIComponent(kind)}`;
+  return apiFetch(`/migration-tasks/status${query}`, { errorPrefix: "Failed to get migration task status" });
+}
+
+// ============================================================================
 // Approval API Client
 // ============================================================================
 

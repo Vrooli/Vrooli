@@ -227,12 +227,6 @@
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
         "purpose": "Secret classification, template generation, and tier-specific secret strategies"
-      },
-      "app-issue-tracker": {
-        "required": true,
-        "version": "2.0.0-file-based",
-        "versionRange": ">=2.0.0-file-based",
-        "purpose": "Migration task creation when dependency swaps are approved"
       }
     }
   },

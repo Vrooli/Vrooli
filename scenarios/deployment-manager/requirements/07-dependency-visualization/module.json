@@ -1,16 +1,15 @@
 {
-  "module_id": "dependency-visualization",
-  "title": "Dependency Graph Visualization",
-  "priority": "P0",
-  "description": "Interactive visual representation of dependency trees with fitness scores",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T00:11:31-04:00"
+  },
   "requirements": [
     {
       "id": "DM-P0-035",
-      "category": "dependency-visualization",
-      "prd_ref": "OT-P0-035",
       "title": "Interactive Dependency Graph",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-035",
+      "category": "dependency-visualization",
       "description": "Render dependency tree as interactive graph (React Flow or d3-force) with color-coded fitness scores",
-      "status": "complete",
       "tags": [
         "visualization",
         "ui"
@@ -18,20 +17,20 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "cli/overview/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
     },
     {
       "id": "DM-P0-036",
-      "category": "dependency-visualization",
-      "prd_ref": "OT-P0-036",
       "title": "Table View Alternative",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-036",
+      "category": "dependency-visualization",
       "description": "Provide sortable table view with columns: name, type, fitness score, issues, suggested swaps",
-      "status": "complete",
       "tags": [
         "visualization",
         "accessibility"
@@ -39,20 +38,20 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "cli/overview/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
     },
     {
       "id": "DM-P0-037",
-      "category": "dependency-visualization",
-      "prd_ref": "OT-P0-037",
       "title": "Graph Rendering Performance",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-037",
+      "category": "dependency-visualization",
       "description": "Render dependency graph within 3 seconds for scenarios with ≤100 dependencies",
-      "status": "complete",
       "tags": [
         "visualization",
         "performance"
@@ -60,13 +59,12 @@
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "implemented",
           "ref": "cli/overview/commands_test.go",
+          "phase": "unit",
+          "status": "failing",
           "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
     }
-  ],
-  "_metadata": {}
+  ]
 }

@@ -63,6 +63,14 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/telemetry", s.TelemetryHandler.List).Methods("GET")
 	s.Router.HandleFunc("/api/v1/telemetry/upload", s.TelemetryHandler.Upload).Methods("POST")
 
+	// Migration-task endpoints. When a dependency swap is approved the source
+	// migration must be done by a developer; deployment-manager files it as a
+	// swarm-manager backlog `fix` item and surfaces its live status here.
+	if s.MigrationTasksHandler != nil {
+		s.Router.HandleFunc("/api/v1/migration-tasks", s.MigrationTasksHandler.Report).Methods("POST")
+		s.Router.HandleFunc("/api/v1/migration-tasks/status", s.MigrationTasksHandler.Status).Methods("GET")
+	}
+
 	// Code signing configuration endpoints
 	s.Router.HandleFunc("/api/v1/profiles/{id}/signing", s.SigningHandler.GetSigning).Methods("GET")
 	s.Router.HandleFunc("/api/v1/profiles/{id}/signing", s.SigningHandler.SetSigning).Methods("PUT")

@@ -27,14 +27,17 @@ export interface GenerationResult {
 }
 
 export interface CustomizeResult {
+  /** Initial status when the run is queued (e.g. "queued"). */
   status: string;
-  issue_id?: string;
-  tracker_url?: string;
-  agent?: string;
+  /** agent-manager run id; poll getCustomizeRunStatus for progress. */
   run_id?: string;
   message?: string;
-  /** Warning if investigation could not be triggered */
-  warning?: string;
+}
+
+export interface CustomizeRunStatus {
+  run_id: string;
+  /** agent-manager RunStatus, e.g. RUN_STATUS_RUNNING / _COMPLETE / _FAILED. */
+  status: string;
 }
 
 export interface GeneratedScenario {
@@ -128,6 +131,10 @@ export async function customizeScenario(scenarioId: string, brief: string, asset
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export async function getCustomizeRunStatus(runId: string) {
+  return apiCall<CustomizeRunStatus>(`/customize/status/${encodeURIComponent(runId)}`);
 }
 
 // Personas (agent profiles)

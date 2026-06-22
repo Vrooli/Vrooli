@@ -26,7 +26,7 @@ const (
 	ErrCodeConflict         ErrorCode = "CONFLICT"           // 409 Conflict
 
 	// External dependency errors (502 Bad Gateway) - upstream service failures
-	ErrCodeIssueTrackerError ErrorCode = "ISSUE_TRACKER"     // 502 Bad Gateway
+	ErrCodeAgentManagerError ErrorCode = "AGENT_MANAGER"     // 502 Bad Gateway
 	ErrCodeExternalService   ErrorCode = "EXTERNAL_SERVICE"  // 502 Bad Gateway
 
 	// Server errors (5xx) - problems on our side
@@ -61,7 +61,7 @@ var errorCodeToHTTPStatus = map[ErrorCode]int{
 	ErrCodeConflict: http.StatusConflict,
 
 	// 502 Bad Gateway - external service failed
-	ErrCodeIssueTrackerError: http.StatusBadGateway,
+	ErrCodeAgentManagerError: http.StatusBadGateway,
 	ErrCodeExternalService:   http.StatusBadGateway,
 
 	// 500 Internal Server Error - server-side problems
@@ -266,14 +266,14 @@ func NewGenerationError(templateID, slug string, cause error) *AppError {
 	}
 }
 
-// NewIssueTrackerError creates an error for issue tracker communication
-func NewIssueTrackerError(operation string, cause error) *AppError {
+// NewAgentManagerError creates an error for agent-manager communication
+func NewAgentManagerError(operation string, cause error) *AppError {
 	return &AppError{
-		Code:        ErrCodeIssueTrackerError,
-		Message:     "Issue tracker communication failed",
+		Code:        ErrCodeAgentManagerError,
+		Message:     "Agent runner communication failed",
 		Details:     fmt.Sprintf("Operation: %s", operation),
 		Recoverable: true,
-		Suggestion:  "Check if app-issue-tracker is running and configured",
+		Suggestion:  "Check if agent-manager is running and configured",
 		Cause:       cause,
 	}
 }
@@ -319,7 +319,7 @@ func IsExternalDependency(err error) bool {
 	if appErr, ok := err.(*AppError); ok {
 		return appErr.Code == ErrCodeDatabaseError ||
 			appErr.Code == ErrCodeExternalService ||
-			appErr.Code == ErrCodeIssueTrackerError ||
+			appErr.Code == ErrCodeAgentManagerError ||
 			appErr.Code == ErrCodeCommandExecError
 	}
 	return false

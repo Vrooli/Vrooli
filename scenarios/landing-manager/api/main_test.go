@@ -1,8 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"io"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,11 +13,39 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 
 	"landing-manager/handlers"
+	"landing-manager/internal/agentmanager"
 	"landing-manager/services"
 	"landing-manager/util"
 )
+
+// fakeAgentRunner is a test double for handlers.AgentRunner.
+type fakeAgentRunner struct {
+	runID       string
+	createErr   error
+	getErr      error
+	getRun      *domainpb.Run
+	createCalls int
+	lastReq     agentmanager.RunRequest
+}
+
+func (f *fakeAgentRunner) CreateRun(_ context.Context, req agentmanager.RunRequest) (string, error) {
+	f.createCalls++
+	f.lastReq = req
+	if f.createErr != nil {
+		return "", f.createErr
+	}
+	return f.runID, nil
+}
+
+func (f *fakeAgentRunner) GetRun(_ context.Context, _ string) (*domainpb.Run, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	return f.getRun, nil
+}
 
 func TestHealthEndpoint(t *testing.T) {
 	// Set required environment variables for test
@@ -49,29 +78,10 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
-func TestRequireEnv(t *testing.T) {
-	// Test valid environment variable
-	t.Run("valid environment variable", func(t *testing.T) {
-		os.Setenv("TEST_VAR", "test_value")
-		defer os.Unsetenv("TEST_VAR")
-
-		result := requireEnv("TEST_VAR")
-		if result != "test_value" {
-			t.Errorf("Expected test_value, got %s", result)
-		}
-	})
-
-	// Test whitespace trimming
-	t.Run("whitespace trimming", func(t *testing.T) {
-		os.Setenv("TEST_VAR_WS", "  trimmed  ")
-		defer os.Unsetenv("TEST_VAR_WS")
-
-		result := requireEnv("TEST_VAR_WS")
-		if result != "trimmed" {
-			t.Errorf("Expected trimmed, got '%s'", result)
-		}
-	})
-}
+// NOTE: env-var resolution and database-URL construction moved into the shared
+// api-core database package during the api-core upgrade; the former local
+// helpers (requireEnv, resolveDatabaseURL) no longer exist here, so their unit
+// tests were removed along with them.
 
 func TestHandleTemplateList(t *testing.T) {
 	t.Run("success path", func(t *testing.T) {
@@ -167,47 +177,6 @@ func TestHandleTemplateShow(t *testing.T) {
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected status 404, got %d", w.Code)
-		}
-	})
-}
-
-func TestResolveDatabaseURL(t *testing.T) {
-	t.Run("explicit DATABASE_URL", func(t *testing.T) {
-		os.Setenv("DATABASE_URL", "postgres://explicit:5432/db")
-		defer os.Unsetenv("DATABASE_URL")
-
-		url, err := resolveDatabaseURL()
-		if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-		if url != "postgres://explicit:5432/db" {
-			t.Errorf("Expected explicit URL, got %s", url)
-		}
-	})
-
-	t.Run("constructed from components", func(t *testing.T) {
-		os.Unsetenv("DATABASE_URL")
-		os.Setenv("POSTGRES_HOST", "testhost")
-		os.Setenv("POSTGRES_PORT", "5432")
-		os.Setenv("POSTGRES_USER", "testuser")
-		os.Setenv("POSTGRES_PASSWORD", "testpass")
-		os.Setenv("POSTGRES_DB", "testdb")
-		defer func() {
-			os.Unsetenv("POSTGRES_HOST")
-			os.Unsetenv("POSTGRES_PORT")
-			os.Unsetenv("POSTGRES_USER")
-			os.Unsetenv("POSTGRES_PASSWORD")
-			os.Unsetenv("POSTGRES_DB")
-		}()
-
-		url, err := resolveDatabaseURL()
-		if err != nil {
-			t.Errorf("Unexpected error: %v", err)
-		}
-
-		expected := "postgres://testuser:testpass@testhost:5432/testdb?sslmode=disable"
-		if url != expected {
-			t.Errorf("Expected %s, got %s", expected, url)
 		}
 	})
 }
@@ -397,33 +366,6 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 	}
 
 	t.Run("REQ:AGENT-TRIGGER", func(t *testing.T) {
-		issueCalled := false
-		investigateCalled := false
-
-		mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			body, _ := io.ReadAll(r.Body)
-			if strings.HasSuffix(r.URL.Path, "/issues") {
-				issueCalled = true
-				_ = json.Unmarshal(body, &map[string]interface{}{})
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"success": true, "data": {"issue_id": "ISS-123"}}`))
-				return
-			}
-			if strings.HasSuffix(r.URL.Path, "/investigate") {
-				investigateCalled = true
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"success": true, "data": {"run_id": "run-1", "status": "active", "agent_id": "unified-resolver"}}`))
-				return
-			}
-			http.NotFound(w, r)
-		}))
-		defer mockTracker.Close()
-
-		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
-		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
-
 		db := setupTestDB(t)
 		defer db.Close()
 
@@ -435,6 +377,8 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 
 		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
 			&http.Client{Timeout: 5 * time.Second})
+		fake := &fakeAgentRunner{runID: "run-1"}
+		h.AgentManager = fake
 
 		srv := &Server{
 			router:  mux.NewRouter(),
@@ -450,18 +394,21 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		if w.Code != http.StatusAccepted {
 			t.Fatalf("expected 202, got %d", w.Code)
 		}
-		if !issueCalled {
-			t.Fatal("expected issue tracker create to be called")
+		if fake.createCalls != 1 {
+			t.Fatalf("expected exactly one CreateRun call, got %d", fake.createCalls)
 		}
-		if !investigateCalled {
-			t.Fatal("expected investigation to be triggered")
+		if fake.lastReq.ScenarioID != "demo" {
+			t.Fatalf("expected run scenario demo, got %q", fake.lastReq.ScenarioID)
+		}
+		if !strings.Contains(fake.lastReq.Prompt, "make it bold") {
+			t.Fatalf("expected prompt to carry brief, got %q", fake.lastReq.Prompt)
 		}
 		var resp map[string]interface{}
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("failed to parse response: %v", err)
 		}
-		if resp["issue_id"] != "ISS-123" {
-			t.Fatalf("expected issue_id ISS-123, got %v", resp["issue_id"])
+		if resp["run_id"] != "run-1" {
+			t.Fatalf("expected run_id run-1, got %v", resp["run_id"])
 		}
 	})
 
@@ -494,10 +441,7 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		}
 	})
 
-	t.Run("issue tracker unavailable", func(t *testing.T) {
-		// Unset issue tracker base URL to trigger error
-		os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
-
+	t.Run("agent-manager unavailable", func(t *testing.T) {
 		db := setupTestDB(t)
 		defer db.Close()
 
@@ -509,6 +453,7 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 
 		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
 			&http.Client{Timeout: 5 * time.Second})
+		h.AgentManager = nil // no runner configured -> 502
 
 		srv := &Server{
 			router:  mux.NewRouter(),
@@ -526,19 +471,7 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 		}
 	})
 
-	t.Run("issue tracker create fails", func(t *testing.T) {
-		mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/issues") {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			http.NotFound(w, r)
-		}))
-		defer mockTracker.Close()
-
-		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
-		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
-
+	t.Run("agent-manager run creation fails", func(t *testing.T) {
 		db := setupTestDB(t)
 		defer db.Close()
 
@@ -550,6 +483,7 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 
 		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
 			&http.Client{Timeout: 5 * time.Second})
+		h.AgentManager = &fakeAgentRunner{createErr: fmt.Errorf("boom")}
 
 		srv := &Server{
 			router:  mux.NewRouter(),
@@ -568,26 +502,6 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 	})
 
 	t.Run("with persona_id included", func(t *testing.T) {
-		mockTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/issues") {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"success": true, "data": {"issue_id": "ISS-456"}}`))
-				return
-			}
-			if strings.HasSuffix(r.URL.Path, "/investigate") {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"success": true, "data": {"run_id": "run-2"}}`))
-				return
-			}
-			http.NotFound(w, r)
-		}))
-		defer mockTracker.Close()
-
-		os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockTracker.URL)
-		defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
-
 		db := setupTestDB(t)
 		defer db.Close()
 
@@ -599,6 +513,7 @@ func TestHandleCustomizeCreatesIssue(t *testing.T) {
 
 		h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService,
 			&http.Client{Timeout: 5 * time.Second})
+		h.AgentManager = &fakeAgentRunner{runID: "run-2"}
 
 		srv := &Server{
 			router:  mux.NewRouter(),

@@ -250,26 +250,6 @@ func TestHandleTemplateOnly(t *testing.T) {
 	}
 }
 
-// Test resolveIssueTrackerBase with various configurations
-// NOTE: resolveIssueTrackerBase is unexported in handlers package, so these tests are skipped
-func TestResolveIssueTrackerBase(t *testing.T) {
-	t.Run("explicit API base URL", func(t *testing.T) {
-		t.Skip("resolveIssueTrackerBase is unexported - tested via integration tests")
-	})
-
-	t.Run("explicit API port", func(t *testing.T) {
-		t.Skip("resolveIssueTrackerBase is unexported - tested via integration tests")
-	})
-
-	t.Run("CLI discovery fallback", func(t *testing.T) {
-		t.Skip("resolveIssueTrackerBase is unexported - tested via integration tests")
-	})
-
-	t.Run("CLI discovery fails", func(t *testing.T) {
-		t.Skip("resolveIssueTrackerBase is unexported - tested via integration tests")
-	})
-
-	t.Run("trailing slash trimming", func(t *testing.T) {
-		t.Skip("resolveIssueTrackerBase is unexported - tested via integration tests")
-	})
-}
+// NOTE: the customize flow no longer resolves an issue-tracker base URL; it
+// spawns an agent-manager run directly (see handlers.HandleCustomize). The
+// former resolveIssueTrackerBase placeholder tests were removed with it.

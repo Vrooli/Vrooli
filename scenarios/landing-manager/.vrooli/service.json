@@ -242,6 +242,12 @@
         "description": "Template recommendations based on user intent",
         "notes": "Optional for P2 features (semantic template search)"
       }
+    },
+    "scenarios": {
+      "agent-manager": {
+        "description": "AI agent orchestration and run management for landing-page customization",
+        "required": false
+      }
     }
   },
   "cli": {

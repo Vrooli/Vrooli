@@ -26,11 +26,8 @@ const mockGeneratedScenario = {
 
 const mockCustomizeResult = {
   status: 'queued',
-  issue_id: 'ISSUE-123',
-  tracker_url: 'http://localhost:18509',
-  agent: 'claude-code',
   run_id: 'RUN-456',
-  message: 'Customization request filed and agent queued',
+  message: 'Customization run started',
 };
 
 describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
@@ -61,7 +58,7 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
     });
   });
 
-  it('should show File issue & trigger agent button', async () => {
+  it('should show Start AI agent run button', async () => {
     render(
       <BrowserRouter>
         <FactoryHome />
@@ -69,7 +66,7 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
+      expect(screen.getByText(/Start AI agent run/i)).toBeInTheDocument();
     });
   });
 
@@ -94,7 +91,7 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
+      expect(screen.getByText(/Start AI agent run/i)).toBeInTheDocument();
     });
 
     // Verify API function exists
@@ -145,11 +142,11 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
+      expect(screen.getByText(/Start AI agent run/i)).toBeInTheDocument();
     });
 
     // Button text indicates both filing issue and triggering agent
-    expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
+    expect(screen.getByText(/Start AI agent run/i)).toBeInTheDocument();
   });
 
   it('should handle agent customization form with all required fields', async () => {
@@ -168,7 +165,7 @@ describe('[REQ:AGENT-TRIGGER] Agent Trigger - UI Layer', () => {
       expect(briefInputs.length).toBeGreaterThan(0);
 
       // Trigger button
-      expect(screen.getByText(/File issue & trigger agent/i)).toBeInTheDocument();
+      expect(screen.getByText(/Start AI agent run/i)).toBeInTheDocument();
     });
   });
 

@@ -57,7 +57,7 @@ export const AgentCustomizationForm = memo(function AgentCustomizationForm({
             </Tooltip>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 max-w-2xl leading-relaxed">
-            Files an issue in app-issue-tracker and triggers an AI agent to customize your landing page based on your brief and assets.
+            Starts an AI agent run to customize your landing page based on your brief and assets.
           </p>
         </div>
         {customizing && (
@@ -111,10 +111,10 @@ export const AgentCustomizationForm = memo(function AgentCustomizationForm({
           onClick={onCustomize}
           className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold hover:border-emerald-300 hover:bg-emerald-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={customizing || !isFormValid}
-          title={!customizeSlug.trim() ? 'Select a scenario first' : !customizeBrief.trim() ? 'Add a customization brief' : 'File issue and trigger AI agent'}
+          title={!customizeSlug.trim() ? 'Select a scenario first' : !customizeBrief.trim() ? 'Add a customization brief' : 'Start AI agent run'}
         >
           {customizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-          File issue & trigger agent
+          Start AI agent run
         </button>
         <button
           onClick={onResetForm}

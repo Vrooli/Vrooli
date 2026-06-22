@@ -1,86 +1,82 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/api-core/discovery"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 )
+
+// Triage-class issue reporting now flows into swarm-manager's backlog over the
+// typed BacklogService Connect contract. prd-control-tower files a `fix` item
+// tagged with its origin and the target scenario, then surfaces the item's live
+// status + queue position back to the user (the feedback contract). The old
+// hand-rolled app-issue-tracker HTTP client is gone; the shared generated proto
+// types are what keep this consumer from drifting on the wire.
 
 const (
-	issueTrackerScenarioID = "app-issue-tracker"
-	issueTrackerFetchLimit = 50
+	backlogOriginTag = "origin:prd-control-tower"
+	swarmManagerID   = "swarm-manager"
 )
 
-var (
-	scenarioIssuesCacheMu  sync.RWMutex
-	scenarioIssuesCache    = make(map[string]*scenarioIssuesCacheEntry)
-	scenarioIssuesCacheTTL = 2 * time.Minute
+var backlogHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
-	issueTrackerHTTPClient = &http.Client{Timeout: 15 * time.Second}
-
-	issueTrackerAPIPortResolver = locateIssueTrackerAPIPort
-	issueTrackerUIPortResolver  = locateIssueTrackerUIPort
-)
-
-type scenarioIssuesCacheEntry struct {
-	summary   ScenarioIssuesSummary
-	fetchedAt time.Time
+// resolveSwarmManagerURL resolves the swarm-manager API base URL. Package-level
+// so tests can point it at a fake Connect server.
+var resolveSwarmManagerURL = func(ctx context.Context) (string, error) {
+	return discovery.ResolveScenarioURL(ctx, swarmManagerID, "API_PORT")
 }
 
-// IssueTrackerIssueSummary represents a trimmed issue entry suitable for the UI.
-type IssueTrackerIssueSummary struct {
-	ID            string `json:"id"`
-	Title         string `json:"title"`
+// resolveBacklogClient builds an inline BacklogService Connect client pointed at
+// the locally-resolved swarm-manager API. Constructed per request — matches the
+// repo norm (no shared wrapper package); the shared contract is the proto.
+func resolveBacklogClient(ctx context.Context) (apiconnect.BacklogServiceClient, error) {
+	baseURL, err := resolveSwarmManagerURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve swarm-manager: %w", err)
+	}
+	return apiconnect.NewBacklogServiceClient(backlogHTTPClient, baseURL), nil
+}
+
+// BacklogFeedback is the per-item feedback contract returned to the UI: the
+// created/queried backlog item's id, deep link into swarm-manager, live status,
+// queue position (items-ahead; null when not pending), priority, and whether the
+// create was deduped onto an existing item. No time-based ETA — queue position
+// is the honest signal in a deep variable-runtime queue.
+type BacklogFeedback struct {
+	ItemID        string `json:"item_id"`
+	Kind          string `json:"kind"`
+	Name          string `json:"name"`
+	DeepLink      string `json:"deep_link"`
 	Status        string `json:"status"`
-	Priority      string `json:"priority,omitempty"`
-	CreatedAt     string `json:"created_at,omitempty"`
-	UpdatedAt     string `json:"updated_at,omitempty"`
-	Reporter      string `json:"reporter,omitempty"`
-	IssueURL      string `json:"issue_url,omitempty"`
-	LocalIssueURL string `json:"local_issue_url,omitempty"`
-}
-
-// ScenarioIssuesSummary is returned by GET /issues/status.
-type ScenarioIssuesSummary struct {
-	EntityType      string                     `json:"entity_type"`
-	EntityName      string                     `json:"entity_name"`
-	Issues          []IssueTrackerIssueSummary `json:"issues"`
-	OpenCount       int                        `json:"open_count"`
-	ActiveCount     int                        `json:"active_count"`
-	TotalCount      int                        `json:"total_count"`
-	TrackerURL      string                     `json:"tracker_url,omitempty"`
-	LocalTrackerURL string                     `json:"local_tracker_url,omitempty"`
-	LastFetched     string                     `json:"last_fetched"`
-	FromCache       bool                       `json:"from_cache"`
-	Stale           bool                       `json:"stale"`
+	QueuePosition *int32 `json:"queue_position,omitempty"`
+	Priority      int    `json:"priority"`
+	Deduped       bool   `json:"deduped"`
 }
 
 // ScenarioIssueReportRequest defines the payload accepted by POST /issues/report.
+// The UI continues to send entity_type/entity_name + selections; we map them
+// onto a backlog `fix` item.
 type ScenarioIssueReportRequest struct {
-	EntityType  string                  `json:"entity_type"`
-	EntityName  string                  `json:"entity_name"`
-	Source      string                  `json:"source"`
-	Title       string                  `json:"title"`
-	Description string                  `json:"description"`
-	Priority    string                  `json:"priority,omitempty"`
-	Summary     string                  `json:"summary,omitempty"`
-	Tags        []string                `json:"tags,omitempty"`
-	Labels      map[string]string       `json:"labels,omitempty"`
-	Metadata    map[string]string       `json:"metadata,omitempty"`
-	Selections  []IssueReportSelection  `json:"selections"`
-	Attachments []IssueReportAttachment `json:"attachments,omitempty"`
+	EntityType  string                 `json:"entity_type"`
+	EntityName  string                 `json:"entity_name"`
+	Source      string                 `json:"source"`
+	Title       string                 `json:"title"`
+	Description string                 `json:"description"`
+	Priority    string                 `json:"priority,omitempty"`
+	Summary     string                 `json:"summary,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Selections  []IssueReportSelection `json:"selections"`
 }
 
 // IssueReportSelection captures a single checkbox entry from the UI.
@@ -94,82 +90,41 @@ type IssueReportSelection struct {
 	Notes     string `json:"notes"`
 }
 
-// IssueReportAttachment allows callers to attach rich context without hitting the filesystem.
-type IssueReportAttachment struct {
-	Name        string `json:"name"`
-	Content     string `json:"content"`
-	ContentType string `json:"content_type,omitempty"`
-	Encoding    string `json:"encoding,omitempty"`
-	Category    string `json:"category,omitempty"`
-	Description string `json:"description,omitempty"`
-}
-
-// IssueReportResponse mirrors the key data returned by app-issue-tracker.
-type IssueReportResponse struct {
-	IssueID  string `json:"issue_id"`
-	IssueURL string `json:"issue_url,omitempty"`
-	Message  string `json:"message"`
-}
-
-type issueTrackerListResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Error   string `json:"error"`
-	Data    struct {
-		Issues []issueTrackerIssue `json:"issues"`
-		Count  int                 `json:"count"`
-	} `json:"data"`
-}
-
-type issueTrackerCreateResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Error   string `json:"error"`
-	Data    struct {
-		IssueID string            `json:"issue_id"`
-		Issue   issueTrackerIssue `json:"issue"`
-	} `json:"data"`
-}
-
-type issueTrackerIssue struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Status   string `json:"status"`
-	Priority string `json:"priority"`
-	Reporter struct {
-		Name  string `json:"name"`
-		Email string `json:"email"`
-	} `json:"reporter"`
-	Metadata struct {
-		CreatedAt string `json:"created_at"`
-		UpdatedAt string `json:"updated_at"`
-	} `json:"metadata"`
-}
-
+// handleGetScenarioIssuesStatus reads a single backlog item's live status +
+// queue position. Query params: kind (default "fix") + name.
 func handleGetScenarioIssuesStatus(w http.ResponseWriter, r *http.Request) {
-	entityType := strings.TrimSpace(r.URL.Query().Get("entity_type"))
-	entityName := strings.TrimSpace(r.URL.Query().Get("entity_name"))
-
-	if entityType == "" || entityName == "" {
-		respondBadRequest(w, "entity_type and entity_name are required")
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	if name == "" {
+		respondBadRequest(w, "name is required")
 		return
 	}
-	if !isValidEntityType(entityType) {
-		respondInvalidEntityType(w)
-		return
+	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
+	if kind == "" {
+		kind = "fix"
 	}
 
-	useCache := parseBoolQuery(r, "use_cache", true)
-	summary, err := fetchScenarioIssuesSummary(r.Context(), entityType, entityName, useCache)
+	client, err := resolveBacklogClient(r.Context())
 	if err != nil {
-		slog.Warn("issue tracker query failed", "entity", entityName, "error", err)
-		respondError(w, fmt.Sprintf("app-issue-tracker unavailable: %v", err), http.StatusBadGateway)
+		respondError(w, fmt.Sprintf("swarm-manager unavailable: %v", err), http.StatusBadGateway)
 		return
 	}
 
-	respondJSON(w, http.StatusOK, summary)
+	resp, err := client.GetItem(r.Context(), connect.NewRequest(&apipb.GetBacklogItemRequest{Kind: kind, Name: name}))
+	if err != nil {
+		if connect.CodeOf(err) == connect.CodeNotFound {
+			respondError(w, "backlog item not found", http.StatusNotFound)
+			return
+		}
+		slog.Warn("backlog get failed", "name", name, "error", err)
+		respondError(w, fmt.Sprintf("swarm-manager unavailable: %v", err), http.StatusBadGateway)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, feedbackFromResponse(resp.Msg))
 }
 
+// handleSubmitIssueReport files a backlog `fix` item and returns the feedback
+// contract (id + deep link + status + queue position + deduped).
 func handleSubmitIssueReport(w http.ResponseWriter, r *http.Request) {
 	var req ScenarioIssueReportRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -204,472 +159,154 @@ func handleSubmitIssueReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := submitIssueReport(r.Context(), &req)
+	client, err := resolveBacklogClient(r.Context())
 	if err != nil {
-		slog.Error("issue report submission failed", "entity", req.EntityName, "error", err)
+		respondError(w, fmt.Sprintf("swarm-manager unavailable: %v", err), http.StatusBadGateway)
+		return
+	}
+
+	createReq := buildBacklogCreateRequest(&req)
+	resp, err := client.CreateItem(r.Context(), connect.NewRequest(createReq))
+	if err != nil {
+		slog.Error("backlog create failed", "entity", req.EntityName, "error", err)
 		respondError(w, fmt.Sprintf("failed to submit issue report: %v", err), http.StatusBadGateway)
 		return
 	}
 
-	invalidateScenarioIssueCache(cacheKeyForScenario(req.EntityType, req.EntityName))
-
-	respondJSON(w, http.StatusOK, response)
+	respondJSON(w, http.StatusOK, feedbackFromResponse(resp.Msg))
 }
 
-func fetchScenarioIssuesSummary(ctx context.Context, entityType, entityName string, useCache bool) (ScenarioIssuesSummary, error) {
-	key := cacheKeyForScenario(entityType, entityName)
-	if key == "" {
-		return ScenarioIssuesSummary{}, errors.New("invalid cache key")
-	}
+// buildBacklogCreateRequest maps the UI report onto a backlog `fix` item.
+func buildBacklogCreateRequest(req *ScenarioIssueReportRequest) *apipb.CreateBacklogItemRequest {
+	description := buildIssueDescription(req)
 
-	if useCache {
-		scenarioIssuesCacheMu.RLock()
-		entry, ok := scenarioIssuesCache[key]
-		scenarioIssuesCacheMu.RUnlock()
-		if ok && time.Since(entry.fetchedAt) < scenarioIssuesCacheTTL {
-			cached := entry.summary
-			cached.FromCache = true
-			return cached, nil
+	tags := []string{backlogOriginTag, slaClassTag(req.Source)}
+	for _, t := range req.Tags {
+		if trimmed := strings.TrimSpace(t); trimmed != "" {
+			tags = append(tags, strings.ToLower(trimmed))
 		}
-	} else {
-		scenarioIssuesCacheMu.Lock()
-		delete(scenarioIssuesCache, key)
-		scenarioIssuesCacheMu.Unlock()
 	}
+	tags = dedupeStrings(tags)
 
-	summary, err := queryIssueTrackerIssues(ctx, entityType, entityName)
-	if err != nil {
-		// Attempt to fall back to stale cache
-		scenarioIssuesCacheMu.RLock()
-		entry, ok := scenarioIssuesCache[key]
-		scenarioIssuesCacheMu.RUnlock()
-		if ok {
-			cached := entry.summary
-			cached.FromCache = true
-			cached.Stale = true
-			return cached, nil
-		}
-		return ScenarioIssuesSummary{}, err
+	priority := determineBacklogPriority(req)
+	return &apipb.CreateBacklogItemRequest{
+		Name:            req.Title,
+		Title:           req.Title,
+		Kind:            "fix",
+		Description:     &description,
+		Priority:        &priority,
+		Tags:            tags,
+		AcceptanceAllow: []string{fmt.Sprintf("scenarios/%s/**", req.EntityName)},
 	}
-
-	scenarioIssuesCacheMu.Lock()
-	scenarioIssuesCache[key] = &scenarioIssuesCacheEntry{summary: summary, fetchedAt: time.Now()}
-	scenarioIssuesCacheMu.Unlock()
-
-	return summary, nil
 }
 
-func cacheKeyForScenario(entityType, entityName string) string {
-	if entityType == "" || entityName == "" {
-		return ""
+// slaClassTag derives the SLA-class tag from the report source. A user-driven
+// report is user-initiated; everything else is treated as auto-detected.
+func slaClassTag(source string) string {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "", "auto", "auto-detected", "scanner", "quality-scanner":
+		return "sla:auto-detected"
+	default:
+		return "sla:user-initiated"
 	}
-	return strings.ToLower(fmt.Sprintf("%s:%s", entityType, entityName))
 }
 
-func invalidateScenarioIssueCache(key string) {
-	if key == "" {
-		return
+// determineBacklogPriority maps the report's severity/priority to the backlog
+// 1-10 scale (1 = highest).
+func determineBacklogPriority(req *ScenarioIssueReportRequest) int32 {
+	switch strings.ToLower(strings.TrimSpace(req.Priority)) {
+	case "critical", "blocker", "p0":
+		return 1
+	case "high", "major", "p1":
+		return 3
+	case "low", "p3":
+		return 8
+	case "medium", "p2":
+		return 5
 	}
-	scenarioIssuesCacheMu.Lock()
-	delete(scenarioIssuesCache, key)
-	scenarioIssuesCacheMu.Unlock()
+	// Derive from the most severe selection.
+	best := int32(5)
+	for _, sel := range req.Selections {
+		switch strings.ToLower(sel.Severity) {
+		case "critical", "blocker", "p0":
+			return 1
+		case "high", "major", "p1":
+			if best > 3 {
+				best = 3
+			}
+		case "low", "p3":
+			if best == 5 {
+				best = 8
+			}
+		}
+	}
+	return best
 }
 
-func queryIssueTrackerIssues(ctx context.Context, entityType, entityName string) (ScenarioIssuesSummary, error) {
-	port, err := issueTrackerAPIPortResolver(ctx)
-	if err != nil {
-		return ScenarioIssuesSummary{}, err
-	}
-	if port <= 0 {
-		return ScenarioIssuesSummary{}, errors.New("invalid app-issue-tracker port")
-	}
-
-	values := url.Values{}
-	values.Set("target_type", entityType)
-	values.Set("target_id", entityName)
-	values.Set("limit", strconv.Itoa(issueTrackerFetchLimit))
-
-	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/issues?%s", port, values.Encode())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return ScenarioIssuesSummary{}, err
-	}
-
-	resp, err := issueTrackerHTTPClient.Do(req)
-	if err != nil {
-		return ScenarioIssuesSummary{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return ScenarioIssuesSummary{}, fmt.Errorf("issue tracker returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	var trackerResp issueTrackerListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&trackerResp); err != nil {
-		return ScenarioIssuesSummary{}, err
-	}
-	if !trackerResp.Success {
-		message := strings.TrimSpace(trackerResp.Error)
-		if message == "" {
-			message = strings.TrimSpace(trackerResp.Message)
-		}
-		if message == "" {
-			message = "issue tracker rejected the request"
-		}
-		return ScenarioIssuesSummary{}, errors.New(message)
-	}
-
-	uiPort, err := issueTrackerUIPortResolver(ctx)
-	if err != nil {
-		slog.Debug("issue tracker UI port unavailable", "error", err)
-	}
-
-	trackerURL, localURL := buildIssueTrackerURLs(entityType, entityName, uiPort)
-
-	summary := ScenarioIssuesSummary{
-		EntityType:      entityType,
-		EntityName:      entityName,
-		TrackerURL:      trackerURL,
-		LocalTrackerURL: localURL,
-		Issues:          make([]IssueTrackerIssueSummary, 0, len(trackerResp.Data.Issues)),
-		LastFetched:     time.Now().UTC().Format(time.RFC3339),
-	}
-
-	for _, issue := range trackerResp.Data.Issues {
-		summary.TotalCount++
-		status := strings.ToLower(strings.TrimSpace(issue.Status))
-		switch status {
-		case "open":
-			summary.OpenCount++
-		case "active":
-			summary.ActiveCount++
-		}
-
-		reporter := strings.TrimSpace(issue.Reporter.Name)
-		if reporter == "" {
-			reporter = strings.TrimSpace(issue.Reporter.Email)
-		}
-
-		item := IssueTrackerIssueSummary{
-			ID:        issue.ID,
-			Title:     issue.Title,
-			Status:    issue.Status,
-			Priority:  issue.Priority,
-			Reporter:  reporter,
-			CreatedAt: issue.Metadata.CreatedAt,
-			UpdatedAt: issue.Metadata.UpdatedAt,
-		}
-		item.IssueURL = appendIssueParam(trackerURL, issue.ID)
-		item.LocalIssueURL = appendIssueParam(localURL, issue.ID)
-
-		summary.Issues = append(summary.Issues, item)
-	}
-
-	return summary, nil
-}
-
-func buildIssueTrackerURLs(entityType, entityName string, uiPort int) (string, string) {
-	query := url.Values{}
-	query.Set("target_type", entityType)
-	query.Set("target_id", entityName)
-	query.Set("app_id", entityName)
-
-	proxy := &url.URL{Path: fmt.Sprintf("/apps/%s/proxy/", url.PathEscape(issueTrackerScenarioID))}
-	proxy.RawQuery = query.Encode()
-
-	var local string
-	if uiPort > 0 {
-		direct := &url.URL{Scheme: "http", Host: fmt.Sprintf("localhost:%d", uiPort)}
-		direct.RawQuery = query.Encode()
-		local = direct.String()
-	}
-
-	return proxy.String(), local
-}
-
-func appendIssueParam(base, issueID string) string {
-	if base == "" || issueID == "" {
-		return ""
-	}
-	u, err := url.Parse(base)
-	if err != nil {
-		return base
-	}
-	query := u.Query()
-	query.Set("issue", issueID)
-	u.RawQuery = query.Encode()
-	return u.String()
-}
-
-func submitIssueReport(ctx context.Context, req *ScenarioIssueReportRequest) (IssueReportResponse, error) {
-	port, err := issueTrackerAPIPortResolver(ctx)
-	if err != nil {
-		return IssueReportResponse{}, err
-	}
-	if port <= 0 {
-		return IssueReportResponse{}, errors.New("invalid app-issue-tracker port")
-	}
-
-	payload := buildIssueTrackerPayload(req)
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return IssueReportResponse{}, err
-	}
-
-	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/issues", port)
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return IssueReportResponse{}, err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := issueTrackerHTTPClient.Do(httpReq)
-	if err != nil {
-		return IssueReportResponse{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return IssueReportResponse{}, fmt.Errorf("issue tracker returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
-	}
-
-	var trackerResp issueTrackerCreateResponse
-	if err := json.NewDecoder(resp.Body).Decode(&trackerResp); err != nil {
-		return IssueReportResponse{}, err
-	}
-	if !trackerResp.Success {
-		message := strings.TrimSpace(trackerResp.Error)
-		if message == "" {
-			message = strings.TrimSpace(trackerResp.Message)
-		}
-		if message == "" {
-			message = "issue tracker rejected the request"
-		}
-		return IssueReportResponse{}, errors.New(message)
-	}
-
-	trackerURL, _ := buildIssueTrackerURLs(req.EntityType, req.EntityName, 0)
-	response := IssueReportResponse{
-		IssueID:  trackerResp.Data.IssueID,
-		Message:  trackerResp.Message,
-		IssueURL: appendIssueParam(trackerURL, trackerResp.Data.IssueID),
-	}
-	if response.Message == "" {
-		response.Message = "Issue reported successfully"
-	}
-
-	return response, nil
-}
-
-func buildIssueTrackerPayload(req *ScenarioIssueReportRequest) map[string]any {
-	description := strings.TrimSpace(req.Description)
+// buildIssueDescription renders the report body + selected issues as markdown.
+func buildIssueDescription(req *ScenarioIssueReportRequest) string {
+	var b strings.Builder
+	b.WriteString(strings.TrimSpace(req.Description))
 	if len(req.Selections) > 0 {
-		var b strings.Builder
-		b.WriteString(description)
 		b.WriteString("\n\n## Selected issues\n")
 		for _, sel := range req.Selections {
-			label := strings.TrimSpace(sel.Title)
-			detail := strings.TrimSpace(sel.Detail)
-			category := strings.TrimSpace(sel.Category)
-			severity := strings.TrimSpace(sel.Severity)
 			var parts []string
-			if category != "" {
-				parts = append(parts, category)
+			if c := strings.TrimSpace(sel.Category); c != "" {
+				parts = append(parts, c)
 			}
-			if severity != "" {
-				parts = append(parts, strings.ToUpper(severity))
+			if s := strings.TrimSpace(sel.Severity); s != "" {
+				parts = append(parts, strings.ToUpper(s))
 			}
-			if label != "" {
-				parts = append(parts, label)
+			if t := strings.TrimSpace(sel.Title); t != "" {
+				parts = append(parts, t)
 			}
 			line := strings.Join(parts, " · ")
-			if detail != "" {
+			if detail := strings.TrimSpace(sel.Detail); detail != "" {
 				line = fmt.Sprintf("%s — %s", line, detail)
 			}
 			b.WriteString("- ")
 			b.WriteString(strings.TrimSpace(line))
 			if ref := strings.TrimSpace(sel.Reference); ref != "" {
-				b.WriteString(" (ref: ")
-				b.WriteString(ref)
-				b.WriteString(")")
+				b.WriteString(" (ref: " + ref + ")")
 			}
 			if notes := strings.TrimSpace(sel.Notes); notes != "" {
-				b.WriteString("\n  Notes: ")
-				b.WriteString(notes)
+				b.WriteString("\n  Notes: " + notes)
 			}
 			b.WriteString("\n")
 		}
-		description = b.String()
 	}
-
-	tags := normalizeTags(req.Tags)
-	tags = append(tags, fmt.Sprintf("entity:%s/%s", req.EntityType, req.EntityName))
-	if req.Source != "" {
-		tags = append(tags, fmt.Sprintf("source:%s", req.Source))
+	if summary := strings.TrimSpace(req.Summary); summary != "" {
+		b.WriteString("\n> " + summary + "\n")
 	}
-
-	labels := normalizeStringMap(req.Labels)
-	if req.Source != "" {
-		if labels == nil {
-			labels = make(map[string]string)
-		}
-		if _, exists := labels["report_source"]; !exists {
-			labels["report_source"] = req.Source
-		}
-	}
-
-	metadataExtra := normalizeStringMap(req.Metadata)
-	if metadataExtra == nil {
-		metadataExtra = make(map[string]string)
-	}
-	if len(req.Selections) > 0 {
-		metadataExtra["selection_count"] = strconv.Itoa(len(req.Selections))
-	}
-
-	environment := map[string]string{
-		"entity_type": req.EntityType,
-		"entity_name": req.EntityName,
-	}
-	if req.Source != "" {
-		environment["source"] = req.Source
-	}
-
-	target := map[string]string{
-		"type": req.EntityType,
-		"id":   req.EntityName,
-	}
-	if displayName, ok := metadataExtra["display_name"]; ok && displayName != "" {
-		target["name"] = displayName
-	}
-	targets := []map[string]string{target}
-
-	artifacts := buildArtifacts(req.Attachments)
-
-	payload := map[string]any{
-		"title":          req.Title,
-		"description":    description,
-		"type":           "quality_issue",
-		"priority":       determineIssuePriority(req),
-		"status":         "open",
-		"targets":        targets,
-		"tags":           dedupeStrings(tags),
-		"reporter_name":  "PRD Control Tower",
-		"reporter_email": "prd-control-tower@vrooli.local",
-	}
-	if len(environment) > 0 {
-		payload["environment"] = environment
-	}
-	if len(labels) > 0 {
-		payload["labels"] = labels
-	}
-	if len(metadataExtra) > 0 {
-		payload["metadata_extra"] = metadataExtra
-	}
-
-	if strings.TrimSpace(req.Summary) != "" {
-		payload["notes"] = strings.TrimSpace(req.Summary)
-	}
-	if len(artifacts) > 0 {
-		payload["artifacts"] = artifacts
-	}
-
-	return payload
+	b.WriteString("\n_Reported via PRD Control Tower._\n")
+	return b.String()
 }
 
-func buildArtifacts(attachments []IssueReportAttachment) []map[string]string {
-	if len(attachments) == 0 {
-		return nil
+// feedbackFromResponse maps a BacklogItemResponse into the UI feedback contract.
+func feedbackFromResponse(resp *apipb.BacklogItemResponse) BacklogFeedback {
+	item := resp.GetItem()
+	fb := BacklogFeedback{
+		Kind:     item.GetKind(),
+		Name:     item.GetName(),
+		ItemID:   item.GetKind() + "/" + item.GetName(),
+		Status:   item.GetStatus(),
+		Priority: int(item.GetPriority()),
+		Deduped:  resp.GetDeduped(),
+		DeepLink: backlogDeepLink(item.GetKind(), item.GetName()),
 	}
-	artifacts := make([]map[string]string, 0, len(attachments))
-	for _, attachment := range attachments {
-		name := strings.TrimSpace(attachment.Name)
-		content := strings.TrimSpace(attachment.Content)
-		if name == "" || content == "" {
-			continue
-		}
-		encoding := strings.TrimSpace(attachment.Encoding)
-		if encoding == "" {
-			encoding = "plain"
-		}
-		contentType := strings.TrimSpace(attachment.ContentType)
-		if contentType == "" {
-			contentType = "text/markdown"
-		}
-		artifacts = append(artifacts, map[string]string{
-			"name":         name,
-			"category":     strings.TrimSpace(attachment.Category),
-			"content":      content,
-			"encoding":     encoding,
-			"content_type": contentType,
-			"description":  strings.TrimSpace(attachment.Description),
-		})
+	if item.QueuePosition != nil {
+		pos := item.GetQueuePosition()
+		fb.QueuePosition = &pos
 	}
-	if len(artifacts) == 0 {
-		return nil
-	}
-	return artifacts
+	return fb
 }
 
-func determineIssuePriority(req *ScenarioIssueReportRequest) string {
-	priority := strings.TrimSpace(strings.ToLower(req.Priority))
-	if priority != "" {
-		return priority
-	}
-
-	highest := "medium"
-	for _, selection := range req.Selections {
-		switch strings.ToLower(selection.Severity) {
-		case "critical", "blocker", "p0":
-			return "critical"
-		case "high", "major", "p1":
-			highest = "high"
-		case "low", "p3":
-			if highest != "high" {
-				highest = "low"
-			}
-		}
-	}
-	return highest
-}
-
-func normalizeTags(tags []string) []string {
-	cleaned := make([]string, 0, len(tags))
-	for _, tag := range tags {
-		trimmed := strings.TrimSpace(tag)
-		if trimmed == "" {
-			continue
-		}
-		cleaned = append(cleaned, strings.ToLower(trimmed))
-	}
-	return cleaned
-}
-
-func normalizeStringMap(values map[string]string) map[string]string {
-	if len(values) == 0 {
-		return nil
-	}
-	normalized := make(map[string]string, len(values))
-	for key, value := range values {
-		trimmedKey := strings.TrimSpace(key)
-		trimmedValue := strings.TrimSpace(value)
-		if trimmedKey == "" || trimmedValue == "" {
-			continue
-		}
-		normalized[trimmedKey] = trimmedValue
-	}
-	if len(normalized) == 0 {
-		return nil
-	}
-	return normalized
+// backlogDeepLink builds the swarm-manager UI deep link for a backlog item.
+func backlogDeepLink(kind, name string) string {
+	return fmt.Sprintf("/apps/%s/proxy/backlog/%s/%s", swarmManagerID, kind, name)
 }
 
 func dedupeStrings(values []string) []string {
-	if len(values) == 0 {
-		return values
-	}
 	seen := make(map[string]struct{}, len(values))
 	result := make([]string, 0, len(values))
 	for _, value := range values {
@@ -683,12 +320,4 @@ func dedupeStrings(values []string) []string {
 		result = append(result, value)
 	}
 	return result
-}
-
-func locateIssueTrackerAPIPort(ctx context.Context) (int, error) {
-	return discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "API_PORT")
-}
-
-func locateIssueTrackerUIPort(ctx context.Context) (int, error) {
-	return discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "UI_PORT")
 }

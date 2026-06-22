@@ -243,14 +243,5 @@ func TestHandleHealth_WithDatabase(t *testing.T) {
 	})
 }
 
-// Test seedDefaultData (it's a no-op, but let's ensure it doesn't panic)
-func TestSeedDefaultData(t *testing.T) {
-	t.Run("succeeds as no-op", func(t *testing.T) {
-		db := setupTestDB(t)
-		defer db.Close()
-
-		if err := seedDefaultData(db); err != nil {
-			t.Errorf("seedDefaultData should succeed as no-op, got error: %v", err)
-		}
-	})
-}
+// NOTE: seedDefaultData was removed during the api-core upgrade (schema seeding
+// now lives in the shared database package); its no-op test was removed with it.

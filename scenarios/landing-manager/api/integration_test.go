@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -336,49 +335,6 @@ func TestIntegration_PersonaManagement(t *testing.T) {
 // TestIntegration_AgentCustomization tests agent trigger workflow
 // [REQ:AGENT-TRIGGER]
 func TestIntegration_AgentCustomization(t *testing.T) {
-	mockIssueTracker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/issues") {
-			// Validate request body
-			body, _ := io.ReadAll(r.Body)
-			var req map[string]interface{}
-			if err := json.Unmarshal(body, &req); err != nil {
-				t.Errorf("Invalid JSON in issue request: %v", err)
-			}
-
-			if req["title"] == "" {
-				t.Error("Issue title should not be empty")
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"data":    map[string]interface{}{"issue_id": "ISS-123"},
-			})
-			return
-		}
-
-		if strings.HasSuffix(r.URL.Path, "/investigate") {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": true,
-				"data": map[string]interface{}{
-					"run_id":   "run-123",
-					"status":   "active",
-					"agent_id": "unified-resolver",
-				},
-			})
-			return
-		}
-
-		http.NotFound(w, r)
-	}))
-	defer mockIssueTracker.Close()
-
-	os.Setenv("APP_ISSUE_TRACKER_API_BASE", mockIssueTracker.URL)
-	defer os.Unsetenv("APP_ISSUE_TRACKER_API_BASE")
-
 	db := setupTestDB(t)
 	defer db.Close()
 
@@ -389,6 +345,8 @@ func TestIntegration_AgentCustomization(t *testing.T) {
 	analyticsService := services.NewAnalyticsService()
 
 	h := handlers.NewHandlerWithHTTPClient(db, registry, generator, personaService, previewService, analyticsService, &http.Client{Timeout: 5 * time.Second})
+	fake := &fakeAgentRunner{runID: "run-123"}
+	h.AgentManager = fake
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/customize", h.HandleCustomize).Methods("POST")
@@ -415,18 +373,16 @@ func TestIntegration_AgentCustomization(t *testing.T) {
 		var resp map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &resp)
 
-		if resp["issue_id"] != "ISS-123" {
-			t.Errorf("Expected issue_id ISS-123, got %v", resp["issue_id"])
-		}
-
 		if resp["run_id"] != "run-123" {
 			t.Errorf("Expected run_id run-123, got %v", resp["run_id"])
 		}
 
-		// Status can be "active" or "queued" depending on investigation response
-		status, ok := resp["status"].(string)
-		if !ok || (status != "active" && status != "queued") {
-			t.Errorf("Expected status to be 'active' or 'queued', got %v", resp["status"])
+		if resp["status"] != "queued" {
+			t.Errorf("Expected status 'queued', got %v", resp["status"])
+		}
+
+		if fake.lastReq.ScenarioID != "test-landing" {
+			t.Errorf("Expected run scenario test-landing, got %q", fake.lastReq.ScenarioID)
 		}
 	})
 

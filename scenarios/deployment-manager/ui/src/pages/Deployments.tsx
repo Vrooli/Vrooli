@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Package, HelpCircle, Rocket, Plus, Upload, Workflow, RefreshCw, FileText, AlertCircle } from "lucide-react";
+import { Package, HelpCircle, Rocket, Plus, Upload, RefreshCw, FileText, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { GuidedFlow } from "../components/GuidedFlow";
@@ -10,6 +10,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { InfoCard } from "../components/ui/info-card";
 import { TelemetryEntry } from "../components/TelemetryEntry";
+import { MigrationTaskCard } from "../components/MigrationTaskCard";
 import { getDeploymentStatus, listTelemetry, uploadTelemetry } from "../lib/api";
 import { getErrorMessage } from "../lib/utils";
 
@@ -289,15 +290,7 @@ export function Deployments() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Workflow className="h-4 w-4" />
-                  Open an issue in app-issue-tracker
-                </div>
-                <p className="text-sm text-slate-400 mt-1">
-                  Create a deployment issue with context + telemetry so the built-in AI can propose fixes. Track status here once the API integration lands.
-                </p>
-              </div>
+              <MigrationTaskCard defaultScenario={deployment?.profile_id} />
               <div className="flex flex-wrap gap-2">
                 <Link to="/profiles">
                   <Button variant="outline" size="sm">Back to profiles</Button>

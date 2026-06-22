@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import { ClipboardCopy, Loader2 } from 'lucide-react'
-import type { EntityType, IssueReportCategorySeed, IssueReportSeed, ScenarioIssueReportRequest } from '../../types'
+import type { EntityType, IssueReportCategorySeed, IssueReportSeed } from '../../types'
+import type { BacklogFeedback, ScenarioIssueReportRequest } from '../../services/issues'
 import { bulkSubmitIssueReports } from '../../services/issues'
-import { scenarioIssuesStore } from '../../state/scenarioIssuesStore'
+import { BacklogItemStatusCard } from './BacklogItemStatusCard'
 import { Button } from '../ui/button'
 import { Separator } from '../ui/separator'
 import { Badge } from '../ui/badge'
@@ -21,7 +22,7 @@ interface BatchResult {
   id: string
   scenarioNames: string[]
   status: 'pending' | 'running' | 'completed'
-  result?: { status: 'success' | 'error'; message: string; issueId?: string }
+  result?: { status: 'success' | 'error'; message: string; feedback?: BacklogFeedback }
 }
 
 interface BatchPreview {
@@ -242,15 +243,6 @@ function buildBatchRequest(
     notes: category.description || '',
   }))
 
-  const metadata: Record<string, string> = {
-    batch_index: String(batchIndex + 1),
-    scenario_count: String(scenarioMap.size),
-    category_count: String(included.length),
-    scenarios: Array.from(scenarioMap.values())
-      .map((scenario) => scenario.displayName)
-      .join(', '),
-  }
-
   const request: ScenarioIssueReportRequest = {
     entity_type: entityType,
     entity_name: entityName,
@@ -259,10 +251,7 @@ function buildBatchRequest(
     description: preview.description,
     summary: `Bulk batch ${batchIndex + 1}: ${scenarioMap.size} scenario${scenarioMap.size === 1 ? '' : 's'}`,
     tags: Array.from(tags),
-    labels: baseSeed?.labels,
-    metadata: { ...(baseSeed?.metadata ?? {}), ...metadata },
     selections,
-    attachments: baseSeed?.attachments,
   }
 
   return {
@@ -509,12 +498,6 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
       const results = await bulkSubmitIssueReports([payload.request])
       const [result] = results
 
-      if (result?.response) {
-        payload.scenarios.forEach((scenario) => {
-          scenarioIssuesStore.flagIssueReported(scenario.entityType, scenario.entityName)
-        })
-      }
-
       setBatches((prev) =>
         prev.map((entry, idx) => {
           if (idx !== index) {
@@ -525,8 +508,12 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
             status: 'completed',
             result: {
               status: result?.response ? 'success' : 'error',
-              message: result?.response ? 'Reported successfully' : result?.error || 'Failed',
-              issueId: result?.response?.issue_id,
+              message: result?.response
+                ? result.response.deduped
+                  ? 'Merged into an existing backlog item'
+                  : 'Filed to swarm-manager backlog'
+                : result?.error || 'Failed',
+              feedback: result?.response,
             },
           }
         }),
@@ -738,12 +725,12 @@ export function BulkIssueReportDialog({ open, seeds, onOpenChange }: BulkIssueRe
                     <p className="font-medium text-slate-900">Scenarios</p>
                     <p className="text-xs text-muted-foreground">{batch.scenarioNames.join(', ')}</p>
                     {batch.result && (
-                      <div className="flex items-center justify-between text-xs">
+                      <div className="space-y-2 text-xs">
                         <span className={batch.result.status === 'success' ? 'text-emerald-600' : 'text-rose-600'}>
                           {batch.result.message}
                         </span>
-                        {batch.result.issueId && (
-                          <span className="text-emerald-600">{batch.result.issueId}</span>
+                        {batch.result.feedback && (
+                          <BacklogItemStatusCard feedback={batch.result.feedback} poll={false} />
                         )}
                       </div>
                     )}
