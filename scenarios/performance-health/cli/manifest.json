@@ -56,13 +56,13 @@
       "commands": [
         {
           "name": "run",
-          "description": "Restart a scenario in profile build mode, drive a BAS perf capture, and restore the default build",
+          "description": "Restart a scenario in profile build mode, drive a BAS perf capture (optionally a specific interaction), and restore the default build. Returns a trace artifact; hand it to `analysis analyze --trace <key>` to read the ⚛ component/web-vitals signals. Outcome 'unavailable' (no browser/BAS) is loud and distinct from 'skipped' (no UI).",
           "positionals": [
             {"name": "scenario", "required": true, "description": "Scenario slug to audit"}
           ],
           "flags": [
             {"name": "path", "description": "Filesystem path of the scenario"},
-            {"name": "workflow", "description": "BAS recorded-workflow slug for the interaction (default navigate+mount-settle)"},
+            {"name": "workflow", "description": "Perf-flow slug to drive a SPECIFIC interaction inside the trace window — resolves to <scenario>/bas/flows/<slug>.json (an assertion-free flow marked intent:performance; use literal [data-testid=...] selectors). Empty = default navigate+mount-settle. Example: --workflow scroll-dashboard. See the `performance` skill and bas/README.md for the authoring loop."},
             {"name": "json", "description": "Emit JSON output"}
           ],
           "binding": {"kind": "connect-rpc", "service": "AuditService", "method": "RunAudit"},
@@ -164,6 +164,7 @@
             {"name": "scenario", "required": true, "description": "Scenario slug"}
           ],
           "flags": [
+            {"name": "flow", "description": "Write the per-flow axes (lcp/component-commit) to budget.flows[<slug>] for this interaction flow instead of the scenario aggregate; scenario-level axes and sibling flows are preserved"},
             {"name": "go-build-max-ms", "description": "Maximum go build time in milliseconds"},
             {"name": "ui-build-max-ms", "description": "Maximum UI build time in milliseconds"},
             {"name": "bundle-max-bytes", "description": "Maximum bundle size in bytes"},
@@ -179,11 +180,12 @@
         },
         {
           "name": "check",
-          "description": "Check a scenario's latest measurements against its budget (the baseline-diff regression gate)",
+          "description": "Check a scenario's latest measurements against its budget (the suite-run regression gate — a breach fails the test-genie Performance phase)",
           "positionals": [
             {"name": "scenario", "required": true, "description": "Scenario slug"}
           ],
           "flags": [
+            {"name": "flow", "description": "Check only this interaction flow's per-flow budget against its latest flow-tagged sample"},
             {"name": "json", "description": "Emit JSON output"}
           ],
           "binding": {"kind": "connect-rpc", "service": "BudgetService", "method": "CheckBudget"},
@@ -258,6 +260,24 @@
           ],
           "binding": {"kind": "connect-rpc", "service": "StartupService", "method": "GetStartupTrend"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
+      "name": "sweep",
+      "description": "Run the out-of-band per-flow capture cadence: audit each budgeted interaction flow, persist a flow-tagged sample, and report the per-flow budget verdict (the capture is off-cadence; the per-flow budget check then runs in the test-genie Performance phase, so a breach fails the suite run)",
+      "commands": [
+        {
+          "name": "run",
+          "description": "For each interaction flow with a per-flow budget declared (performance.budgets.flows), drive a targeted audit, analyze the trace, persist a flow-tagged trend sample, and check the per-flow budget. Restarts the target scenario per budgeted flow.",
+          "positionals": [
+            {"name": "scenario", "required": true, "description": "Scenario slug to sweep"}
+          ],
+          "flags": [
+            {"name": "json", "description": "Emit JSON output"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "SweepService", "method": "RunSweep"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         }
       ]
     }

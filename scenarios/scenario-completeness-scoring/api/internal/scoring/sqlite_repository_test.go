@@ -65,6 +65,44 @@ func TestSQLiteSnapshotRepositoryUpsertAndLatest(t *testing.T) {
 	}
 }
 
+// TestSQLiteSnapshotRepositoryImportanceUpsertOntoExistingRow locks in the
+// INSERT-OR-IGNORE importance fix: the fast score sweep writes importance=NULL,
+// and a later importance-refresh for the same (scenario, digest) must land its
+// computed importance onto that existing row rather than being silently ignored.
+func TestSQLiteSnapshotRepositoryImportanceUpsertOntoExistingRow(t *testing.T) {
+	repo := newTestSnapshotRepo(t)
+	ctx := context.Background()
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+
+	// Fast sweep: no importance.
+	if _, err := repo.UpsertSnapshot(ctx, Snapshot{
+		Scenario: "cli-health", Category: "utility", Digest: "td:x",
+		Composite: 60, Classification: "developing", CreatedAt: now,
+	}); err != nil {
+		t.Fatalf("seed UpsertSnapshot: %v", err)
+	}
+	if latest, _, _ := repo.LatestFor(ctx, "cli-health"); latest.Importance != nil {
+		t.Fatalf("expected nil importance after fast sweep, got %v", *latest.Importance)
+	}
+
+	// Importance-refresh: same (scenario, digest), now carrying importance.
+	importance := 0.83
+	if _, err := repo.UpsertSnapshot(ctx, Snapshot{
+		Scenario: "cli-health", Category: "utility", Digest: "td:x",
+		Composite: 60, Classification: "developing", Importance: &importance,
+		Source: "importance-refresh", CreatedAt: now.Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("refresh UpsertSnapshot: %v", err)
+	}
+	latest, ok, err := repo.LatestFor(ctx, "cli-health")
+	if err != nil || !ok {
+		t.Fatalf("LatestFor: ok=%v err=%v", ok, err)
+	}
+	if latest.Importance == nil || *latest.Importance != importance {
+		t.Fatalf("importance not upserted onto existing row: %+v", latest.Importance)
+	}
+}
+
 func TestSQLiteSnapshotRepositorySeriesFor(t *testing.T) {
 	repo := newTestSnapshotRepo(t)
 	ctx := context.Background()

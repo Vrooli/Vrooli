@@ -17,10 +17,13 @@ import (
 // ExecutionRunner runs the deterministic performance producers for a scenario
 // during execution-mode validation (include_execution=true), persists ONE fresh
 // perf_samples row, and returns the threshold-breach findings to fold into the
-// assessment. This is the seam the shared validate handler calls; the production
+// assessment plus whether any surface was actually measured. measured=false
+// means every producer cleanly skipped (no buildable surface, no toolchain, no
+// resolvable UI) — the caller reports SKIPPED rather than masquerading as a
+// PASS. This is the seam the shared validate handler calls; the production
 // implementation is *ExecutionOrchestrator, tests drive a fake.
 type ExecutionRunner interface {
-	Run(ctx context.Context, scenario, path string) []phassessment.Finding
+	Run(ctx context.Context, scenario, path string) (findings []phassessment.Finding, measured bool)
 }
 
 // benchmarkRunner times a scenario's build surfaces (build time + bundle size).
@@ -97,10 +100,11 @@ func NewExecutionOrchestrator(deps ExecutionDeps) *ExecutionOrchestrator {
 }
 
 // Run orchestrates the producers, persists a combined sample, and returns the
-// findings. It never returns an error: producer failures degrade to skip-not-fail.
-func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) []phassessment.Finding {
+// findings plus whether any surface was measured. It never returns an error:
+// producer failures degrade to skip-not-fail.
+func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) ([]phassessment.Finding, bool) {
 	if o == nil {
-		return nil
+		return nil, false
 	}
 	var findings []phassessment.Finding
 	sample := trend.Sample{Scenario: scenario, Note: "validate-execution"}
@@ -139,26 +143,23 @@ func (o *ExecutionOrchestrator) Run(ctx context.Context, scenario, path string) 
 			o.logf("execution: persist trend sample for %s: %v", scenario, err)
 		}
 	}
-	return findings
+	return findings, measured
 }
 
-// foldBenchmark copies the build/bundle measurements into sample and appends an
-// ERROR finding for a broken build or any over-threshold surface. It reports
-// whether anything was measured (so the caller knows to persist).
+// foldBenchmark copies the build/bundle measurements into sample so the budgets
+// domain — the SOLE emitter of PERF_BUDGET_BREACH_* — can gate the freshly
+// persisted values against the single `performance.budgets` source of truth.
+// The only finding benchmark itself contributes is a broken build (which is a
+// hard failure, not a budget threshold). It reports whether anything was
+// measured (so the caller knows to persist).
 func (o *ExecutionOrchestrator) foldBenchmark(res benchmark.Result, sample *trend.Sample, findings *[]phassessment.Finding) bool {
 	for _, t := range res.Timings {
 		surface := strings.ToLower(t.Surface)
 		switch {
 		case strings.Contains(surface, "go") || strings.Contains(surface, "api"):
 			sample.GoBuildMs = t.DurationMs
-			if t.OverBudget {
-				*findings = append(*findings, buildThresholdFinding("PERF_BUDGET_BREACH_GO_BUILD", "Go", t))
-			}
 		case strings.Contains(surface, "ui"):
 			sample.UIBuildMs = t.DurationMs
-			if t.OverBudget {
-				*findings = append(*findings, buildThresholdFinding("PERF_BUDGET_BREACH_UI_BUILD", "UI", t))
-			}
 		}
 	}
 	if res.BundleBytes > 0 {
@@ -173,16 +174,6 @@ func (o *ExecutionOrchestrator) foldBenchmark(res benchmark.Result, sample *tren
 		})
 	}
 	return len(res.Timings) > 0
-}
-
-func buildThresholdFinding(code, label string, t benchmark.BuildTiming) phassessment.Finding {
-	return phassessment.Finding{
-		Code:     code,
-		Severity: "error",
-		Title:    fmt.Sprintf("%s build over performance threshold", label),
-		Message: fmt.Sprintf("%s build took %dms, exceeding the %dms threshold (.vrooli/testing.json build floor; "+
-			"a declared .vrooli/perf-budgets.json budget tightens it further)", label, t.DurationMs, t.BudgetMs),
-	}
 }
 
 // lighthouseFindings projects each page's error-threshold breaches into ERROR

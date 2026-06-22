@@ -1,12 +1,10 @@
 package budgets
 
 import (
-	"database/sql"
 	"log"
 
 	internalbudgets "performance-health/internal/budgets"
 	"performance-health/internal/module"
-	"performance-health/internal/trend"
 
 	"github.com/gorilla/mux"
 	budgetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/budgets"
@@ -17,13 +15,18 @@ import (
 var ProtoFile = budgetsv1.File_performance_health_v1_budgets_budgets_proto
 
 // Module mounts the BudgetService backed by the declarative config store
-// (.vrooli/perf-budgets.json under each scenario) and the trend store as the
-// measurement source CheckBudget evaluates against — the baseline-diff gate.
-func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
+// (.vrooli/testing.json performance.budgets under each scenario) and the trend
+// store as the measurement source CheckBudget evaluates against — the suite-run
+// budget gate (a breach fails the test-genie Performance phase, not baseline-diff).
+// The measurement source (latest persisted sample → measured axes) is injected
+// from the composition root so this domain never imports the trend domain
+// directly. A nil source means the budget gate has no sample to evaluate and
+// passes vacuously.
+func Module(logger *log.Logger, repoRoot string, source internalbudgets.MeasurementSource) module.Module {
 	store := internalbudgets.NewConfigStore(repoRoot, nil)
 	opts := []internalbudgets.Option{}
-	if db != nil {
-		opts = append(opts, internalbudgets.WithMeasurementSource(internalbudgets.NewTrendMeasurementSource(trend.NewStore(db))))
+	if source != nil {
+		opts = append(opts, internalbudgets.WithMeasurementSource(source))
 	}
 	svc := internalbudgets.NewService(store, opts...)
 	handler := NewHandler(svc, logger)
@@ -69,7 +72,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        budgetsconnect.BudgetServiceCheckBudgetProcedure,
 		Method:      "POST",
 		Summary:     "Check a scenario's measurements against its budget",
-		Description: "Evaluates a scenario's latest measurements against its budget and reports violations — the baseline-diff regression gate.",
+		Description: "Evaluates a scenario's latest measurements against its budget and reports violations — the suite-run regression gate (a breach fails the test-genie Performance phase).",
 		Category:    "budgets",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "passed": "bool", "violations": "array<BudgetViolation>"}},

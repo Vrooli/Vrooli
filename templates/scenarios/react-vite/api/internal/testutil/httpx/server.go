@@ -19,7 +19,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
 	"{{SCENARIO_ID}}/internal/server"
 )
 

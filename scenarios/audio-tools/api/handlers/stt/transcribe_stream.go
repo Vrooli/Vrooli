@@ -12,9 +12,29 @@ import (
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/stt/segmenter"
+	"audio-tools/internal/sttengine"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
+
+// reportStreamActive resolves the engine that will serve this stream to its
+// backing local resource and marks that resource's capacity claim active for
+// the session, returning the claim id to release on teardown. Returns "" (and
+// reports nothing) when capacity reporting is not wired, the engine is not a
+// local resource, or the registry is unavailable. Best-effort and advisory.
+func (h *connectHandler) reportStreamActive(ctx context.Context, engineID string) string {
+	if h.deps.Capacity == nil || h.deps.Registry == nil {
+		return ""
+	}
+	if engineID == "" {
+		engineID = h.deps.Registry.DefaultEngineID()
+	}
+	engine, ok := h.deps.Registry.Engine(engineID)
+	if !ok || engine.Kind != sttengine.KindLocalResource || engine.Resource == "" {
+		return ""
+	}
+	return h.deps.Capacity.Active(ctx, engine.Resource)
+}
 
 // TranscribeStream is the Connect bidi-stream implementation of the
 // streaming STT surface. Both the proto-RPC client path and the
@@ -111,6 +131,16 @@ func (h *connectHandler) TranscribeStream(
 	events := make(chan sttchain.StreamEvent, 16)
 	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine, Registry: h.deps.Registry, SpeakerIsolation: currentSpeakerIsolation(h.deps), SpeakerExtraction: currentSpeakerExtraction(h.deps)})
 	cfg := h.resolveStreamPipelineConfig(ctx)
+
+	// Report transcription activity to the capacity broker for the whole session
+	// (advisory, best-effort): mark the backing local resource active now and
+	// idle when the session ends. Bracketing the session — not each segment —
+	// avoids active/idle thrash from the per-segment Transcribe calls. Idle uses
+	// a detached context because streamCtx is cancelled on session teardown.
+	if claimID := h.reportStreamActive(ctx, cfg.EngineID); claimID != "" {
+		defer h.deps.Capacity.Idle(context.WithoutCancel(ctx), claimID)
+	}
+
 	runErrCh := make(chan error, 1)
 	go func() {
 		runErrCh <- seg.Run(streamCtx, start, cfg, chunkCh, events)

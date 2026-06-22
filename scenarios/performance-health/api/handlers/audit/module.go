@@ -20,7 +20,8 @@ var ProtoFile = auditv1.File_performance_health_v1_audit_audit_proto
 // client to Browser Automation Studio's perf capture. Captures skip cleanly when
 // impossible (no browser / no UI / headless / BAS unreachable).
 func Module(logger *log.Logger, repoRoot string) module.Module {
-	svc := capture.NewService(&capture.BASConnectClient{}, &capture.CLIBuildController{})
+	svc := capture.NewService(&capture.BASConnectClient{}, &capture.CLIBuildController{}).
+		WithFlowResolver(&capture.FileFlowResolver{RepoRoot: repoRoot})
 	tierer := readiness.NewService(readiness.NewCodeFactsClient(repoRoot))
 	handler := NewHandler(svc, tierer, logger)
 	path, connectHandler := auditconnect.NewAuditServiceHandler(handler)

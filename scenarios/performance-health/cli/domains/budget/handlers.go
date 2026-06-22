@@ -3,6 +3,7 @@ package budget
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -45,6 +46,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 // set writes/updates a scenario's budget.
 func (h *handlers) set(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
+	flow := strings.TrimSpace(firstFlag(ctx.FlagValues("flow")))
 	b := &budgetsv1.Budget{
 		Scenario:                scenario,
 		GoBuildMaxMs:            parseInt64(firstFlag(ctx.FlagValues("go-build-max-ms"))),
@@ -56,7 +58,7 @@ func (h *handlers) set(ctx cliapp.RunContext) error {
 		ComponentCommitMaxMs:    parseFloat(firstFlag(ctx.FlagValues("component-commit-max-ms"))),
 		Ratchet:                 ctx.BoolFlag("ratchet"),
 	}
-	resp, err := h.client.SetBudget(context.Background(), connect.NewRequest(&budgetsv1.SetBudgetRequest{Budget: b}))
+	resp, err := h.client.SetBudget(context.Background(), connect.NewRequest(&budgetsv1.SetBudgetRequest{Budget: b, Flow: flow}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("set budget for %q", scenario), err, nil)
 	}
@@ -67,16 +69,22 @@ func (h *handlers) set(ctx cliapp.RunContext) error {
 	if resp.Msg.GetDryRun() {
 		verb = "Validated (dry-run)"
 	}
+	target := scenario
+	if flow != "" {
+		target = fmt.Sprintf("%s flow %q", scenario, flow)
+	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("%s budget for %s.", verb, scenario)},
+		Result:  []string{fmt.Sprintf("%s budget for %s.", verb, target)},
 		Changes: budgetLines(resp.Msg.GetBudget()),
 	})
 }
 
-// check evaluates a scenario's measurements against its budget.
+// check evaluates a scenario's measurements against its budget (or one flow's
+// per-flow budget when --flow is set).
 func (h *handlers) check(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
-	resp, err := h.client.CheckBudget(context.Background(), connect.NewRequest(&budgetsv1.CheckBudgetRequest{Scenario: scenario}))
+	flow := strings.TrimSpace(firstFlag(ctx.FlagValues("flow")))
+	resp, err := h.client.CheckBudget(context.Background(), connect.NewRequest(&budgetsv1.CheckBudgetRequest{Scenario: scenario, Flow: flow}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("check budget for %q", scenario), err, nil)
 	}
@@ -105,7 +113,7 @@ func budgetLines(b *budgetsv1.Budget) []string {
 	if b == nil {
 		return []string{"(no budget)"}
 	}
-	return []string{
+	lines := []string{
 		fmt.Sprintf("go_build_max=%dms", b.GetGoBuildMaxMs()),
 		fmt.Sprintf("ui_build_max=%dms", b.GetUiBuildMaxMs()),
 		fmt.Sprintf("bundle_max=%dB", b.GetBundleMaxBytes()),
@@ -115,6 +123,20 @@ func budgetLines(b *budgetsv1.Budget) []string {
 		fmt.Sprintf("component_commit_max=%.1fms", b.GetComponentCommitMaxMs()),
 		fmt.Sprintf("ratchet=%t", b.GetRatchet()),
 	}
+	flows := b.GetFlows()
+	if len(flows) > 0 {
+		slugs := make([]string, 0, len(flows))
+		for slug := range flows {
+			slugs = append(slugs, slug)
+		}
+		sort.Strings(slugs)
+		for _, slug := range slugs {
+			fb := flows[slug]
+			lines = append(lines, fmt.Sprintf("flow[%s]: lcp_max=%dms component_commit_avg_max=%.1fms component_commit_max=%.1fms",
+				slug, fb.GetLcpMaxMs(), fb.GetComponentCommitAvgMaxMs(), fb.GetComponentCommitMaxMs()))
+		}
+	}
+	return lines
 }
 
 func parseInt64(s string) int64 {

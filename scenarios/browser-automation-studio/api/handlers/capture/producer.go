@@ -154,11 +154,15 @@ func (p performanceProducer) Produce(outDir string) ([]*capturev1.CaptureArtifac
 	tracePath := filepath.Join(perfDir, "performance.json")
 	traceInfo, err := os.Stat(tracePath)
 	if err != nil {
-		// No trace on disk: the run did not produce one (no browser / not
-		// requested). Surface a single unavailable artifact at the canonical
-		// path rather than failing the whole capture.
+		// No performance.json on disk. Perf capture IS supported (the tracer
+		// streams it during session teardown), so this is NOT the generic
+		// "export can't produce this type" case — the browser session simply
+		// did not finalize a trace this run (capture failed, often transient
+		// under concurrent capture load, or genuinely no browser). Surface an
+		// accurate, retryable reason so callers don't misread it as a permanent
+		// "no browser" environment.
 		return []*capturev1.CaptureArtifact{
-			unavailableArtifact(c, filepath.Join(outDir, canonicalFileName(c))),
+			unavailableArtifactWithReason(c, filepath.Join(outDir, canonicalFileName(c)), perfTraceMissingReason),
 		}, nil
 	}
 

@@ -30,13 +30,36 @@ type pair[S comparable, E comparable] struct {
 }
 
 // ValidateTransitionMatrix checks that rows cover every state/event pair
-// exactly once and match the supplied production transition function.
+// exactly once and match the supplied production transition function. It returns
+// every problem found; the work is split into focused stages so each is
+// independently readable and testable.
 func ValidateTransitionMatrix[S comparable, E comparable](
 	statuses []S,
 	events []E,
 	rows []MatrixRow[S, E],
 	transition Transition[S, E],
 ) []error {
+	errs := validateMatrixInputs(statuses, events, transition)
+
+	knownStatuses, statusErrs := uniqueSet(statuses, "status")
+	knownEvents, eventErrs := uniqueSet(events, "event")
+	errs = append(errs, statusErrs...)
+	errs = append(errs, eventErrs...)
+
+	seen, rowErrs := validateMatrixRows(rows, knownStatuses, knownEvents)
+	errs = append(errs, rowErrs...)
+	errs = append(errs, validateMatrixCompleteness(statuses, events, seen)...)
+
+	// Only replay against the production transition when the matrix is
+	// structurally sound — a malformed matrix would produce noisy replay errors.
+	if len(errs) > 0 || transition == nil {
+		return errs
+	}
+	return append(errs, validateMatrixReplay(rows, transition)...)
+}
+
+// validateMatrixInputs checks the three preconditions.
+func validateMatrixInputs[S comparable, E comparable](statuses []S, events []E, transition Transition[S, E]) []error {
 	var errs []error
 	if len(statuses) == 0 {
 		errs = append(errs, fmt.Errorf("statuses must not be empty"))
@@ -47,31 +70,34 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 	if transition == nil {
 		errs = append(errs, fmt.Errorf("transition must not be nil"))
 	}
+	return errs
+}
 
-	knownStatuses := make(map[S]struct{}, len(statuses))
-	for _, status := range statuses {
-		if _, ok := knownStatuses[status]; ok {
-			errs = append(errs, fmt.Errorf("duplicate status %v", status))
+// uniqueSet builds a membership set from values, reporting any duplicates.
+func uniqueSet[T comparable](values []T, label string) (map[T]struct{}, []error) {
+	set := make(map[T]struct{}, len(values))
+	var errs []error
+	for _, v := range values {
+		if _, ok := set[v]; ok {
+			errs = append(errs, fmt.Errorf("duplicate %s %v", label, v))
 			continue
 		}
-		knownStatuses[status] = struct{}{}
+		set[v] = struct{}{}
 	}
+	return set, errs
+}
 
-	knownEvents := make(map[E]struct{}, len(events))
-	for _, event := range events {
-		if _, ok := knownEvents[event]; ok {
-			errs = append(errs, fmt.Errorf("duplicate event %v", event))
-			continue
-		}
-		knownEvents[event] = struct{}{}
-	}
-
+// validateMatrixRows checks each row references known states/events and that no
+// state/event pair is covered twice. It returns the set of covered pairs.
+func validateMatrixRows[S comparable, E comparable](
+	rows []MatrixRow[S, E],
+	knownStatuses map[S]struct{},
+	knownEvents map[E]struct{},
+) (map[pair[S, E]]string, []error) {
 	seen := make(map[pair[S, E]]string, len(rows))
+	var errs []error
 	for i, row := range rows {
-		label := row.Name
-		if label == "" {
-			label = fmt.Sprintf("row %d", i)
-		}
+		label := rowLabel(row.Name, i)
 		if _, ok := knownStatuses[row.From]; !ok {
 			errs = append(errs, fmt.Errorf("%s: unknown from status %v", label, row.From))
 		}
@@ -81,7 +107,6 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 		if _, ok := knownEvents[row.Event]; !ok {
 			errs = append(errs, fmt.Errorf("%s: unknown event %v", label, row.Event))
 		}
-
 		key := pair[S, E]{state: row.From, event: row.Event}
 		if first, ok := seen[key]; ok {
 			errs = append(errs, fmt.Errorf("%s: duplicate pair %v/%v already covered by %s", label, row.From, row.Event, first))
@@ -89,7 +114,12 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 		}
 		seen[key] = label
 	}
+	return seen, errs
+}
 
+// validateMatrixCompleteness reports every state/event pair not covered by a row.
+func validateMatrixCompleteness[S comparable, E comparable](statuses []S, events []E, seen map[pair[S, E]]string) []error {
+	var errs []error
 	for _, status := range statuses {
 		for _, event := range events {
 			if _, ok := seen[pair[S, E]{state: status, event: event}]; !ok {
@@ -97,15 +127,15 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 			}
 		}
 	}
-	if len(errs) > 0 || transition == nil {
-		return errs
-	}
+	return errs
+}
 
+// validateMatrixReplay runs each row through the production transition and
+// asserts the observed result matches the declared expectation.
+func validateMatrixReplay[S comparable, E comparable](rows []MatrixRow[S, E], transition Transition[S, E]) []error {
+	var errs []error
 	for i, row := range rows {
-		label := row.Name
-		if label == "" {
-			label = fmt.Sprintf("row %d", i)
-		}
+		label := rowLabel(row.Name, i)
 		got, err := transition(row.From, row.Event)
 		if row.WantErr {
 			if err == nil {
@@ -119,6 +149,13 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 		}
 	}
 	return errs
+}
+
+func rowLabel(name string, index int) string {
+	if name != "" {
+		return name
+	}
+	return fmt.Sprintf("row %d", index)
 }
 
 // AssertTransitionMatrix fails t when ValidateTransitionMatrix finds drift.

@@ -3,7 +3,7 @@
   "prd_ref": "INFRA-ROUTED-DB",
   "priority": "P1",
   "title": "Routed Test-Database Proof",
-  "description": "End-to-end proof that test-genie's routed test-database path works for this scenario: the seed populates the per-run test pool, the running API routes UI requests to that pool via X-Vrooli-Test-Mode + RoutedDB, and the BAS playbook asserts the seeded row is visible in the UI. This module is the canonical reference exercise for the routed-e2e infrastructure (see docs/agent-system/routed-test-db.md).",
+  "description": "End-to-end proof that test-genie's routed test-database path works for this scenario: the seed populates the per-run test pool, the running API routes UI requests to that pool via X-Vrooli-Test-Mode + RoutedDB, and the BAS playbook asserts the seeded row is visible in the UI. This module is the canonical reference exercise for the routed-e2e infrastructure (see scenarios/storage-health/docs/concepts/test-isolation-contract.md).",
   "requirements": [
     {
       "id": "REQ-ROUTED-DB-E2E",

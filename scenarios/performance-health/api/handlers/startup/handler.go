@@ -55,7 +55,7 @@ func (h *Handler) GetStartupTrend(ctx context.Context, req *connect.Request[star
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalid("scenario is required"))
 	}
-	measurements, err := h.svc.Trend(ctx, scenario, int(req.Msg.GetLimit()))
+	measurements, err := h.svc.History(ctx, scenario, int(req.Msg.GetLimit()))
 	if err != nil {
 		h.logger.Printf("startup.GetStartupTrend(%s): %v", scenario, err)
 		return nil, connect.NewError(connect.CodeInternal, err)

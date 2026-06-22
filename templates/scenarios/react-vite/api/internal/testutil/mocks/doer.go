@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
-
 	"{{SCENARIO_ID}}/internal/httpc"
 )
 

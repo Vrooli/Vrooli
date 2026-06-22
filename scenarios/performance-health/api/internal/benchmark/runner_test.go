@@ -32,7 +32,7 @@ func TestCLIRunnerMeasuresGoAndUI(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"api/go.mod":           "module demo\n",
 		"ui/package.json":      `{"scripts":{"build":"vite build"},"packageManager":"pnpm@9"}`,
-		".vrooli/testing.json": `{"performance":{"go_build_max_seconds":90,"ui_build_max_seconds":180}}`,
+		".vrooli/testing.json": `{"performance":{"budgets":{"go_build_max_ms":90000,"ui_build_max_ms":180000}}}`,
 	})
 	var ran []string
 	r := &CLIRunner{
@@ -98,9 +98,9 @@ func TestCLIRunnerOverBudgetDoesNotEarlyExit(t *testing.T) {
 	root := writeFixture(t, map[string]string{
 		"api/go.mod":           "module demo\n",
 		"ui/package.json":      `{"scripts":{"build":"vite build"}}`,
-		".vrooli/testing.json": `{"performance":{"go_build_max_seconds":0}}`,
+		".vrooli/testing.json": `{"performance":{"budgets":{"go_build_max_ms":0}}}`,
 	})
-	// go_build_max_seconds:0 → no budget, so nothing is over budget; assert both
+	// go_build_max_ms:0 → no budget, so nothing is over budget; assert both
 	// surfaces still ran and result is MEASURED.
 	var ran []string
 	r := &CLIRunner{

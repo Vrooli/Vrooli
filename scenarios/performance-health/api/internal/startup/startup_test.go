@@ -56,7 +56,7 @@ func TestTrendReadsNewestFirst(t *testing.T) {
 		}
 	}
 	svc := NewService(fakeRunner{}, store, "performance-health")
-	series, err := svc.Trend(context.Background(), "demo", 10)
+	series, err := svc.History(context.Background(), "demo", 10)
 	if err != nil {
 		t.Fatalf("Trend: %v", err)
 	}

@@ -31,10 +31,18 @@ import (
 // BudgetChecker evaluates a scenario's latest measurements against its declared
 // performance budget. The budgets service satisfies it; it is optional (nil =>
 // no budget gating folded into validation). This is the seam that turns a perf
-// budget breach into a validation failure (and therefore a baseline-diff exit-1)
-// exactly like any other health regression.
+// budget breach into a validation failure (and therefore a FAILED Performance
+// phase → suite-run exit 1) exactly like any other health regression.
 type BudgetChecker interface {
 	Check(ctx context.Context, scenario string) (passed bool, violations []budgets.Violation, err error)
+	// Advisories returns INFO findings for declared-but-ungated budget axes
+	// (lcp/startup/component-commit) so a continuous-only budget can't masquerade
+	// as synchronous protection. It never fails the gate.
+	Advisories(ctx context.Context, scenario string) ([]assessment.Finding, error)
+	// FlowFindings returns ERROR findings for any per-flow budget breach (tagged
+	// by flow slug), evaluated against the flow-tagged samples the continuous
+	// capture-sweep persists. Empty when no per-flow budget is declared/breached.
+	FlowFindings(ctx context.Context, scenario string) ([]assessment.Finding, error)
 }
 
 // Deps are the handler's collaborators.
@@ -110,11 +118,16 @@ func (h *Handler) validate(ctx context.Context, scenario, path string, includeEx
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("readiness engine not wired"))
 	}
 	// Execution mode runs the producers first so the budget gate below reads the
-	// freshly persisted sample. Its findings (build-over-threshold, broken build,
-	// Lighthouse error-threshold) are folded into the assessment.
+	// freshly persisted sample. Its findings (broken build, Lighthouse
+	// error-threshold) are folded into the assessment. `executed` records that we
+	// were asked to measure; `measured` records that at least one surface actually
+	// produced a sample — the two together let us report SKIPPED (asked to
+	// measure, nothing to measure) instead of a false PASS.
 	var executionFindings []phassessment.Finding
-	if includeExecution && h.execution != nil {
-		executionFindings = h.execution.Run(ctx, scenario, path)
+	executed := includeExecution && h.execution != nil
+	measured := false
+	if executed {
+		executionFindings, measured = h.execution.Run(ctx, scenario, path)
 	}
 	res, err := h.readiness.Validate(ctx, scenario, path)
 	if err != nil {
@@ -138,6 +151,17 @@ func (h *Handler) validate(ctx context.Context, scenario, path string, includeEx
 	}
 	if out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
 		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	}
+	// Skip honesty: when we were asked to measure (include_execution) but every
+	// producer cleanly skipped — no buildable surface, no toolchain, no resolvable
+	// UI — and nothing failed, the gated axes measured NOTHING. Reporting PASSED
+	// would make a skipped run indistinguishable from a real pass, so emit
+	// SKIPPED instead. A genuine failure (FAILED) is never downgraded.
+	if executed && !measured &&
+		out.Status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		out.Status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED
+		out.DegradedReason = strings.TrimSpace(firstNonEmpty(out.DegradedReason,
+			"performance gate measured no surface (no buildable api/ or ui/, or no toolchain/UI available); axes are gated continuously out-of-band"))
 	}
 	return connect.NewResponse(out), nil
 }
@@ -204,31 +228,60 @@ func (h *Handler) resolveRoot(scenario, path string) string {
 // into performance-health findings (ERROR severity). A nil checker, or any
 // transient error, yields no findings — the budget gate never breaks readiness;
 // it only ADDS a failure when a budget is breached. The budget breach finding is
-// what drives the shared validation status to FAILED (baseline-diff exit 1).
+// what drives the shared validation status to FAILED — failing the test-genie
+// Performance phase, and therefore the suite run (`vrooli scenario test` exit 1).
 func (h *Handler) budgetFindings(ctx context.Context, scenario string) []phassessment.Finding {
 	if h.budgets == nil || scenario == "" {
 		return nil
 	}
+	var out []phassessment.Finding
+	// Advisory (INFO) findings for declared-but-ungated axes are surfaced even
+	// when the budget is within bounds — they describe what this gate does NOT
+	// measure, so a continuous-only budget can't read as synchronous protection.
+	if advisories, err := h.budgets.Advisories(ctx, scenario); err != nil {
+		h.logger.Printf("validation: budget advisories for %s degraded: %v", scenario, err)
+	} else {
+		for _, f := range advisories {
+			out = append(out, convertFinding(f))
+		}
+	}
+	// Per-flow budget breaches (continuous-cadence gate): a regression on a
+	// budgeted journey, measured by the capture-sweep into flow-tagged samples,
+	// is an ERROR here so the Performance phase (and suite run) fails exactly like
+	// a scenario-level breach. Tagged by flow slug; empty when none declared/
+	// breached.
+	if flowFindings, err := h.budgets.FlowFindings(ctx, scenario); err != nil {
+		h.logger.Printf("validation: per-flow budget check for %s degraded: %v", scenario, err)
+	} else {
+		for _, f := range flowFindings {
+			out = append(out, convertFinding(f))
+		}
+	}
 	passed, violations, err := h.budgets.Check(ctx, scenario)
 	if err != nil {
 		h.logger.Printf("validation: budget check for %s degraded: %v", scenario, err)
-		return nil
+		return out
 	}
 	if passed || len(violations) == 0 {
-		return nil
+		return out
 	}
-	out := make([]phassessment.Finding, 0, len(violations))
 	for _, f := range budgets.Findings(scenario, violations) {
-		out = append(out, phassessment.Finding{
-			Code:             f.Code,
-			Severity:         f.Severity,
-			Title:            f.Title,
-			Message:          f.Message,
-			Location:         f.Location,
-			AutofixAvailable: f.AutofixAvailable,
-		})
+		out = append(out, convertFinding(f))
 	}
 	return out
+}
+
+// convertFinding maps a maturity-go finding into the performance-health-facing
+// finding shape the assessment builder consumes.
+func convertFinding(f assessment.Finding) phassessment.Finding {
+	return phassessment.Finding{
+		Code:             f.Code,
+		Severity:         f.Severity,
+		Title:            f.Title,
+		Message:          f.Message,
+		Location:         f.Location,
+		AutofixAvailable: f.AutofixAvailable,
+	}
 }
 
 func buildAssessment(res readiness.Result, extraFindings []phassessment.Finding, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
@@ -242,9 +295,9 @@ func buildAssessment(res readiness.Result, extraFindings []phassessment.Finding,
 			AutofixAvailable: f.Autofixable,
 		})
 	}
-	// Dedupe extra findings by code: the native build-time floor and a declared
-	// budget can both emit e.g. PERF_BUDGET_BREACH_GO_BUILD; the gate only needs
-	// one. First occurrence (execution floor) wins.
+	// Dedupe extra findings by code: execution (broken build) and the budgets
+	// gate are distinct emitters, but de-duping by code keeps the assessment
+	// idempotent if a code ever overlaps. First occurrence wins.
 	seen := make(map[string]struct{}, len(findings))
 	for _, f := range findings {
 		seen[f.Code] = struct{}{}

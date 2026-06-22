@@ -1,8 +1,9 @@
 // Package benchmark times build-time performance (axis ①, migrated from
 // test-genie's native perf phase): `go build ./...` and the UI package-manager
-// build, against thresholds from .vrooli/testing.json (go_build_max_seconds,
-// ui_build_max_seconds). It preserves the early-exit semantics of the migrated
-// phase.
+// build, against the `performance.budgets` block of .vrooli/testing.json
+// (go_build_max_ms, ui_build_max_ms). It preserves the early-exit semantics of
+// the migrated phase. Benchmark only MEASURES (and marks an informational
+// OverBudget flag); the budgets domain is the sole emitter of gating findings.
 //
 // The production Runner is CLIRunner (runner.go): it resolves the scenario root,
 // loads the build budgets from .vrooli/testing.json, times `go build ./...` and

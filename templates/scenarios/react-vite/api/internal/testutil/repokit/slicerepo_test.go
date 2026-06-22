@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-
 	"{{SCENARIO_ID}}/internal/testutil/repokit"
 
 	"github.com/stretchr/testify/require"

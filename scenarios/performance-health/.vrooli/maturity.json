@@ -27,7 +27,7 @@
     {
       "id": "L3",
       "name": "Performance budgets honored",
-      "description": "The scenario's declared performance budgets (build time, bundle size, LCP, startup time-to-healthy, component-commit avg/max) are not breached by the newest persisted measurement, the native build-time floors (go/ui build thresholds from .vrooli/testing.json) hold, and no Lighthouse category scores below its configured error threshold. A breach is an ERROR that fails baseline-diff like any other health regression.",
+      "description": "The scenario's declared performance budgets (build time, bundle size, LCP, startup time-to-healthy, component-commit avg/max) are not breached by the newest persisted measurement, the native build-time floors (go/ui build thresholds from .vrooli/testing.json) hold, and no Lighthouse category scores below its configured error threshold. A breach is an ERROR that fails the test-genie Performance phase — and therefore the suite run (`vrooli scenario test`) — like any other health regression.",
       "entry_criteria": ["Tier-1 perf-build infra is in place (or vacuous)"],
       "exit_criteria": ["No performance-budget breach is reported against the latest measurement/trend sample"]
     },

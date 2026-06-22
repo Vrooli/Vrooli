@@ -64,8 +64,11 @@ func (f *fakeSampleWriter) Insert(_ context.Context, sample trend.Sample) error 
 	return f.err
 }
 
-// TestExecutionOrchestratorPersistsThenGates is the core contract: producers run,
-// ONE combined sample is persisted, and threshold breaches become ERROR findings.
+// TestExecutionOrchestratorPersistsThenGates is the core contract: producers run
+// and ONE combined sample is persisted so the budgets domain — the sole emitter
+// of PERF_BUDGET_BREACH_* — can gate the freshly persisted values. The
+// orchestrator itself contributes only the Lighthouse and broken-build findings;
+// build-budget breaches are NOT emitted here (Contract Decision 8.1).
 func TestExecutionOrchestratorPersistsThenGates(t *testing.T) {
 	bench := &fakeBenchmark{res: benchmark.Result{
 		Outcome: benchmark.OutcomeMeasured,
@@ -86,7 +89,7 @@ func TestExecutionOrchestratorPersistsThenGates(t *testing.T) {
 	writer := &fakeSampleWriter{}
 	o := NewExecutionOrchestrator(ExecutionDeps{Benchmark: bench, Lighthouse: lh, Trend: writer})
 
-	findings := o.Run(context.Background(), "demo", "")
+	findings, _ := o.Run(context.Background(), "demo", "")
 
 	if !bench.called || !lh.called {
 		t.Fatalf("expected benchmark and lighthouse to run; bench=%v lh=%v", bench.called, lh.called)
@@ -98,11 +101,10 @@ func TestExecutionOrchestratorPersistsThenGates(t *testing.T) {
 	if got.GoBuildMs != 120000 || got.UIBuildMs != 4000 || got.BundleBytes != 4242 {
 		t.Fatalf("combined sample wrong: %+v", got)
 	}
-	if !hasCode(findings, "PERF_BUDGET_BREACH_GO_BUILD") {
-		t.Errorf("expected go-build threshold finding, got %v", findingCodeList(findings))
-	}
-	if hasCode(findings, "PERF_BUDGET_BREACH_UI_BUILD") {
-		t.Errorf("ui build was within budget; should not produce a finding: %v", findingCodeList(findings))
+	// The orchestrator no longer emits build-budget breaches — the budgets domain
+	// is the sole emitter, gating the persisted sample above.
+	if hasCode(findings, "PERF_BUDGET_BREACH_GO_BUILD") || hasCode(findings, "PERF_BUDGET_BREACH_UI_BUILD") {
+		t.Errorf("execution must not emit budget-breach findings (budgets domain owns those): %v", findingCodeList(findings))
 	}
 	if !hasCode(findings, "PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD") {
 		t.Errorf("expected lighthouse error finding, got %v", findingCodeList(findings))
@@ -117,7 +119,7 @@ func TestExecutionOrchestratorSkipNotFailOnProducerError(t *testing.T) {
 	writer := &fakeSampleWriter{}
 	o := NewExecutionOrchestrator(ExecutionDeps{Benchmark: bench, Lighthouse: lh, Trend: writer})
 
-	findings := o.Run(context.Background(), "demo", "")
+	findings, _ := o.Run(context.Background(), "demo", "")
 	if len(findings) != 0 {
 		t.Errorf("producer errors must not produce findings, got %v", findingCodeList(findings))
 	}
@@ -134,7 +136,7 @@ func TestExecutionOrchestratorBrokenBuild(t *testing.T) {
 		Reason:  "go build failed: syntax error",
 	}}
 	o := NewExecutionOrchestrator(ExecutionDeps{Benchmark: bench, Trend: &fakeSampleWriter{}})
-	findings := o.Run(context.Background(), "demo", "")
+	findings, _ := o.Run(context.Background(), "demo", "")
 	if !hasCode(findings, "PERF_BUILD_FAILED") {
 		t.Errorf("expected PERF_BUILD_FAILED, got %v", findingCodeList(findings))
 	}
@@ -145,7 +147,7 @@ func TestExecutionOrchestratorBrokenBuild(t *testing.T) {
 func TestExecutionOrchestratorLighthouseSkippedNoFinding(t *testing.T) {
 	lh := &fakeLighthouse{res: lighthouse.Result{Outcome: lighthouse.OutcomeSkipped, Reason: "no UI"}}
 	o := NewExecutionOrchestrator(ExecutionDeps{Lighthouse: lh, Trend: &fakeSampleWriter{}})
-	findings := o.Run(context.Background(), "demo", "")
+	findings, _ := o.Run(context.Background(), "demo", "")
 	if len(findings) != 0 {
 		t.Errorf("skipped lighthouse must not fail, got %v", findingCodeList(findings))
 	}
@@ -169,11 +171,12 @@ func TestExecutionOrchestratorStartupFolded(t *testing.T) {
 type recordingExecution struct {
 	calls    int
 	findings []phassessment.Finding
+	measured bool
 }
 
-func (r *recordingExecution) Run(_ context.Context, _, _ string) []phassessment.Finding {
+func (r *recordingExecution) Run(_ context.Context, _, _ string) ([]phassessment.Finding, bool) {
 	r.calls++
-	return r.findings
+	return r.findings, r.measured
 }
 
 // TestIncludeExecutionDivergence proves the flag is honored end-to-end:
@@ -216,6 +219,30 @@ func TestIncludeExecutionDivergence(t *testing.T) {
 	}
 	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
 		t.Fatalf("an execution ERROR finding must fail validation, got %s", resp.Msg.GetStatus())
+	}
+}
+
+// TestSkippedWhenNothingMeasured proves the skip-honesty contract: when
+// include_execution=true but every producer cleanly skipped (measured=false)
+// and nothing failed, the gate reports SKIPPED — never a false PASS.
+func TestSkippedWhenNothingMeasured(t *testing.T) {
+	spec, err := assessment.ParseSpec([]byte(budgetGateSpec))
+	if err != nil {
+		t.Fatalf("parse spec: %v", err)
+	}
+	handler := NewSharedHandler(NewHandlerWithDeps(Deps{
+		Readiness:    readiness.NewService(fakeFacts{facts: readiness.Facts{Scenario: "demo", Surfaces: []string{"ui"}, UIFramework: "react"}}),
+		Autofix:      autofix.NewService(),
+		MaturitySpec: spec,
+		Budgets:      fakeBudgetChecker{passed: true},
+		Execution:    &recordingExecution{measured: false},
+	}))
+	resp, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo", IncludeExecution: true}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED {
+		t.Fatalf("measuring nothing must report SKIPPED, got %s", resp.Msg.GetStatus())
 	}
 }
 

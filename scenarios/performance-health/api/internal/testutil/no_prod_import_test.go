@@ -44,10 +44,12 @@ func TestNoProductionImports(t *testing.T) {
 		if strings.Contains(rel, "/vendor/") {
 			return
 		}
-		if isInMocksDir(rel) {
-			return
-		}
-		if isInGeneratedDir(rel) {
+		// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
+		// _test.go files in other packages can import them); generated/ holds
+		// temporal-model output (replay.go, runtime.go) that legitimately bridges
+		// production transition functions into the modeltest harness. Both are test
+		// scaffolding by directory-shape, exempt from the testutil-import rule.
+		if pathHasDir(rel, "mocks") || pathHasDir(rel, "generated") {
 			return
 		}
 
@@ -118,37 +120,15 @@ func walk(t *testing.T, root string, fn func(path string)) {
 	}
 }
 
-// isInMocksDir reports whether path lives inside a `mocks/` directory.
-// Per-domain mocks/ folders hold test-only fakes that must lack the
-// _test.go suffix (so sibling _test.go files in other packages can
-// import them), but they're never linked into production binaries:
-// production code never imports `<dom>/mocks`, and the
-// TestNoProductionImports walker catches any production file that
-// reaches for testutil directly. mocks files themselves are exempt
-// from the testutil-import rule because they ARE test scaffolding,
-// just sharing-shape rather than _test.go-shape.
-func isInMocksDir(rel string) bool {
+// pathHasDir reports whether any directory segment of rel (excluding the file
+// name itself) equals name. It expresses the directory-shape exemptions for
+// test-scaffolding trees that lack a `_test.go` suffix (mocks/, generated/):
+// production code never imports them, and the TestNoProductionImports walker
+// catches any production file that reaches for testutil directly.
+func pathHasDir(rel, name string) bool {
 	parts := strings.Split(filepath.ToSlash(rel), "/")
 	for _, p := range parts[:len(parts)-1] {
-		if p == "mocks" {
-			return true
-		}
-	}
-	return false
-}
-
-// isInGeneratedDir reports whether path lives inside a `generated/`
-// directory. Code emitted by the temporal-model generator (replay.go,
-// runtime.go, etc.) lives under `<flow>/generated/` and legitimately
-// imports the modeltest test-only helpers — it IS the bridge between
-// production transition functions and the formal-model test harness,
-// so it must reach into testutil. Generated files lack `_test.go`
-// suffixes by convention, so this directory-shape check is the cleanest
-// way to express the exemption.
-func isInGeneratedDir(rel string) bool {
-	parts := strings.Split(filepath.ToSlash(rel), "/")
-	for _, p := range parts[:len(parts)-1] {
-		if p == "generated" {
+		if p == name {
 			return true
 		}
 	}

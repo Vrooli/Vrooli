@@ -160,16 +160,17 @@ honors the request's `include_execution` flag:
   delegate sends this): the `ExecutionOrchestrator` runs the deterministic
   producers first — the build benchmark (Go + UI, with a cheap bundle-size
   stat) and Lighthouse-if-UI — persists ONE combined `perf_samples` row,
-  then evaluates budgets + the native build-time thresholds against it.
-  Startup is intentionally **not** run here (see *Intentional Deviations*).
+  then the budgets domain gates that fresh sample against the single
+  `performance.budgets` source of truth. Startup is intentionally **not**
+  run here (see *Intentional Deviations*).
 
-**What FAILS the phase** (`VALIDATION_STATUS_FAILED` → baseline-diff exit 1),
+**What FAILS the phase** (`VALIDATION_STATUS_FAILED` → suite-run exit 1; the
+Performance phase is not surfaced by `git-control-tower baseline diff`),
 all mapped to ERROR-severity findings folded into the assessment:
 
 | Cause | Finding code |
 |---|---|
-| Go/UI build over the `.vrooli/testing.json` native floor (default 90s/180s) | `PERF_BUDGET_BREACH_GO_BUILD` / `_UI_BUILD` |
-| Declared `.vrooli/perf-budgets.json` budget breach (any axis) | `PERF_BUDGET_BREACH_<AXIS>` |
+| Declared `.vrooli/testing.json` `performance.budgets` breach (any axis) | `PERF_BUDGET_BREACH_<AXIS>` |
 | Build fails to compile during the benchmark | `PERF_BUILD_FAILED` |
 | Lighthouse category below its configured **error** threshold | `PERF_LIGHTHOUSE_BELOW_ERROR_THRESHOLD` |
 
@@ -179,9 +180,13 @@ toolchain / package manager, no resolvable UI URL or absent Lighthouse
 CLI, and any producer error — all degrade to skip-not-fail. A budget axis
 with no measured value this run (zero) is "not measured" and never trips.
 
-The native build-time floor (testing.json thresholds) is the default
-budget every scenario inherits; a declared `perf-budgets.json` budget
-tightens it further and the ratchet keeps it tighten-only.
+Budgets are declared once, in the `performance.budgets` block of
+`.vrooli/testing.json` (milliseconds/bytes) — the single source of truth
+the benchmark runner reads for its build thresholds and the budgets domain
+gates on. The benchmark only MEASURES; the budgets domain is the sole
+emitter of `PERF_BUDGET_BREACH_*`. The ratchet keeps a declared budget
+tighten-only. Default build thresholds (90s/180s) apply when no
+`performance.budgets` block is declared.
 
 ## Shared Infrastructure
 

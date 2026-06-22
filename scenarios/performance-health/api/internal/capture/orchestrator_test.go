@@ -111,3 +111,95 @@ var errBundleNotInstrumented = errStub("served bundle not instrumented")
 type errStub string
 
 func (e errStub) Error() string { return string(e) }
+
+// --- Phase 2: --workflow slug resolution + close the CapturePerf no-op -------
+
+// recordingBAS records the interactionFlowJSON it was handed so a test can
+// assert the orchestrator resolved the slug to the flow file's bytes.
+type recordingBAS struct {
+	artifacts    Artifacts
+	lastFlowJSON string
+}
+
+func (r *recordingBAS) CapturePerf(_ context.Context, _ string, interactionFlowJSON string) (Artifacts, error) {
+	r.lastFlowJSON = interactionFlowJSON
+	return r.artifacts, nil
+}
+
+// fakeFlows is an in-memory FlowResolver keyed by "scenario/slug".
+type fakeFlows struct {
+	bySlug map[string][]byte
+	err    error
+}
+
+func (f fakeFlows) Resolve(scenario, slug string) ([]byte, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	b, ok := f.bySlug[scenario+"/"+slug]
+	if !ok {
+		return nil, errStub("no such flow " + scenario + "/" + slug)
+	}
+	return b, nil
+}
+
+// [REQ:PH-CAPTURE-005] A --workflow slug is resolved to its bas/flows bytes and
+// handed to BAS on the capture request (the silent no-op is gone).
+func TestOrchestrateResolvesWorkflowSlugToFlowBytes(t *testing.T) {
+	bas := &recordingBAS{artifacts: Artifacts{TraceArtifact: "perf.json"}}
+	flowJSON := []byte(`{"metadata":{"name":"scroll-list"},"nodes":[{"id":"s","action":{"type":"ACTION_TYPE_SCROLL","scroll":{"selector":"[data-testid='list']","delta_y":2000}}}]}`)
+	svc := NewService(bas, &fakeBuild{uiURL: "http://localhost:3000"}).
+		WithFlowResolver(fakeFlows{bySlug: map[string][]byte{"demo/scroll-list": flowJSON}})
+
+	res, err := svc.Orchestrate(context.Background(), "demo", "scroll-list", readiness.Tier1)
+	if err != nil {
+		t.Fatalf("Orchestrate: %v", err)
+	}
+	if res.Outcome != OutcomeCaptured {
+		t.Fatalf("expected CAPTURED, got %#v", res)
+	}
+	if bas.lastFlowJSON != string(flowJSON) {
+		t.Fatalf("BAS did not receive the resolved flow bytes:\n got: %s", bas.lastFlowJSON)
+	}
+}
+
+// [REQ:PH-CAPTURE-005] An empty --workflow keeps the default navigate+settle
+// capture: BAS receives no interaction JSON.
+func TestOrchestrateEmptyWorkflowSendsNoInteraction(t *testing.T) {
+	bas := &recordingBAS{artifacts: Artifacts{TraceArtifact: "perf.json"}}
+	svc := NewService(bas, &fakeBuild{uiURL: "http://localhost:3000"}).
+		WithFlowResolver(fakeFlows{})
+	if _, err := svc.Orchestrate(context.Background(), "demo", "", readiness.Tier0); err != nil {
+		t.Fatalf("Orchestrate: %v", err)
+	}
+	if bas.lastFlowJSON != "" {
+		t.Fatalf("empty slug must send no interaction, got %q", bas.lastFlowJSON)
+	}
+}
+
+// [REQ:PH-CAPTURE-005] An unresolvable --workflow slug is a FAILED audit with a
+// reason — never a silent skip and never a capture.
+func TestOrchestrateBadWorkflowSlugFails(t *testing.T) {
+	bas := &recordingBAS{artifacts: Artifacts{TraceArtifact: "perf.json"}}
+	svc := NewService(bas, &fakeBuild{uiURL: "http://localhost:3000"}).
+		WithFlowResolver(fakeFlows{err: errStub("read perf flow: no such file")})
+	res, _ := svc.Orchestrate(context.Background(), "demo", "missing", readiness.Tier1)
+	if res.Outcome != OutcomeFailed {
+		t.Fatalf("expected FAILED, got %#v", res)
+	}
+	if res.Reason == "" {
+		t.Fatalf("FAILED must carry a reason")
+	}
+	if bas.lastFlowJSON != "" {
+		t.Fatalf("BAS must not be called when slug resolution fails")
+	}
+}
+
+// A --workflow with no resolver wired is a FAILED audit, not a panic.
+func TestOrchestrateWorkflowWithoutResolverFails(t *testing.T) {
+	svc := NewService(&recordingBAS{}, &fakeBuild{uiURL: "http://localhost:3000"})
+	res, _ := svc.Orchestrate(context.Background(), "demo", "scroll-list", readiness.Tier1)
+	if res.Outcome != OutcomeFailed {
+		t.Fatalf("expected FAILED without a resolver, got %#v", res)
+	}
+}

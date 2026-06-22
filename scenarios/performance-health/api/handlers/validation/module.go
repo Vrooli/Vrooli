@@ -42,12 +42,12 @@ func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
 	autofixSvc := autofix.NewService()
 
 	// The budget gate folds a perf-budget breach into the validation assessment
-	// as an ERROR finding, so a regression fails baseline-diff like any other
-	// health regression. It reads the declarative budget config and evaluates the
-	// newest persisted trend sample.
+	// as an ERROR finding, so a regression fails the test-genie Performance phase
+	// (and therefore the suite run) like any other health regression. It reads the
+	// declarative budget config and evaluates the newest persisted trend sample.
 	budgetOpts := []budgets.Option{}
 	if db != nil {
-		budgetOpts = append(budgetOpts, budgets.WithMeasurementSource(budgets.NewTrendMeasurementSource(trend.NewStore(db))))
+		budgetOpts = append(budgetOpts, budgets.WithMeasurementSource(budgets.NewSampleMeasurementSource(trend.NewStore(db))))
 	}
 	budgetSvc := budgets.NewService(budgets.NewConfigStore(repoRoot, nil), budgetOpts...)
 

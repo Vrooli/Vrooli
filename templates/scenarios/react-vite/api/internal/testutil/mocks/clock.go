@@ -6,7 +6,6 @@ package mocks
 import (
 	"sync"
 	"time"
-
 	"{{SCENARIO_ID}}/internal/clock"
 )
 

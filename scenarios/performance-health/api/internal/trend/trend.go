@@ -12,6 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"performance-health/internal/perfsample"
 )
 
 //go:embed schema.sql
@@ -28,21 +30,12 @@ type Executor interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
-// Sample is one persisted performance sample. Every axis is optional; a zero
-// value means "not measured this run".
-type Sample struct {
-	Scenario              string
-	CapturedAt            time.Time
-	GoBuildMs             int64
-	UIBuildMs             int64
-	BundleBytes           int64
-	LCPMs                 int64
-	StartupMs             int64
-	SlowestComponent      string
-	SlowestComponentAvgMs float64
-	SlowestComponentMaxMs float64
-	Note                  string
-}
+// Sample is one persisted performance sample. It is an alias of the shared
+// perfsample DTO so producer domains can emit samples through their own narrow
+// writer seam without importing the trend domain (the concrete store is wired
+// from the composition root). Every axis is optional; a zero value means "not
+// measured this run".
+type Sample = perfsample.Sample
 
 // Store persists and reads performance samples.
 type Store struct {
@@ -66,10 +59,10 @@ func (s *Store) Insert(ctx context.Context, sample Sample) error {
 	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO perf_samples
-			(scenario, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
+			(scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
 			 slowest_component, slowest_component_avg_ms, slowest_component_max_ms, note)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		sample.Scenario, capturedAt.UTC().Format(timeLayout), sample.GoBuildMs, sample.UIBuildMs,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		sample.Scenario, sample.Flow, capturedAt.UTC().Format(timeLayout), sample.GoBuildMs, sample.UIBuildMs,
 		sample.BundleBytes, sample.LCPMs, sample.StartupMs,
 		sample.SlowestComponent, sample.SlowestComponentAvgMs, sample.SlowestComponentMaxMs, sample.Note,
 	)
@@ -79,9 +72,11 @@ func (s *Store) Insert(ctx context.Context, sample Sample) error {
 	return nil
 }
 
-// Series returns a scenario's samples newest-first, bounded by limit
-// (limit <= 0 returns the default page).
-func (s *Store) Series(ctx context.Context, scenario string, limit int) ([]Sample, error) {
+// Series returns the samples for one (scenario, flow) newest-first, bounded by
+// limit (limit <= 0 returns the default page). flow="" selects scenario-level
+// samples (build/bundle/startup/scenario-LCP); a non-empty flow selects only
+// that interaction-capture journey's samples.
+func (s *Store) Series(ctx context.Context, scenario, flow string, limit int) ([]Sample, error) {
 	if s == nil || s.db == nil {
 		return nil, errors.New("trend: nil store")
 	}
@@ -92,12 +87,12 @@ func (s *Store) Series(ctx context.Context, scenario string, limit int) ([]Sampl
 		limit = 50
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT scenario, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
+		SELECT scenario, flow, captured_at, go_build_ms, ui_build_ms, bundle_bytes, lcp_ms, startup_ms,
 			slowest_component, slowest_component_avg_ms, slowest_component_max_ms, note
 		FROM perf_samples
-		WHERE scenario = ?
+		WHERE scenario = ? AND flow = ?
 		ORDER BY captured_at DESC, id DESC
-		LIMIT ?`, scenario, limit)
+		LIMIT ?`, scenario, flow, limit)
 	if err != nil {
 		return nil, fmt.Errorf("trend: query series: %w", err)
 	}
@@ -109,7 +104,7 @@ func (s *Store) Series(ctx context.Context, scenario string, limit int) ([]Sampl
 			sample     Sample
 			capturedAt string
 		)
-		if scanErr := rows.Scan(&sample.Scenario, &capturedAt, &sample.GoBuildMs, &sample.UIBuildMs,
+		if scanErr := rows.Scan(&sample.Scenario, &sample.Flow, &capturedAt, &sample.GoBuildMs, &sample.UIBuildMs,
 			&sample.BundleBytes, &sample.LCPMs, &sample.StartupMs,
 			&sample.SlowestComponent, &sample.SlowestComponentAvgMs, &sample.SlowestComponentMaxMs, &sample.Note); scanErr != nil {
 			return nil, fmt.Errorf("trend: scan sample: %w", scanErr)
@@ -125,17 +120,26 @@ func (s *Store) Series(ctx context.Context, scenario string, limit int) ([]Sampl
 	return out, nil
 }
 
-// Latest returns the newest sample for a scenario and whether one exists. It
-// reads at most one row, so it never holds an open rows cursor across another
-// query (avoiding the SQLite pool=1 nested-query deadlock).
+// Latest returns the newest scenario-level (flow="") sample and whether one
+// exists. It reads at most one row, so it never holds an open rows cursor across
+// another query (avoiding the SQLite pool=1 nested-query deadlock).
 func (s *Store) Latest(ctx context.Context, scenario string) (Sample, bool, error) {
+	return s.latest(ctx, scenario, "")
+}
+
+// LatestFlow returns the newest sample tagged to a specific flow slug.
+func (s *Store) LatestFlow(ctx context.Context, scenario, flow string) (Sample, bool, error) {
+	return s.latest(ctx, scenario, flow)
+}
+
+func (s *Store) latest(ctx context.Context, scenario, flow string) (Sample, bool, error) {
 	if s == nil || s.db == nil {
 		return Sample{}, false, errors.New("trend: nil store")
 	}
 	if scenario == "" {
 		return Sample{}, false, errors.New("trend: scenario is required")
 	}
-	series, err := s.Series(ctx, scenario, 1)
+	series, err := s.Series(ctx, scenario, flow, 1)
 	if err != nil {
 		return Sample{}, false, err
 	}
@@ -171,6 +175,7 @@ func EnsureColumns(ctx context.Context, db Executor) error {
 		{"slowest_component", "ALTER TABLE perf_samples ADD COLUMN slowest_component TEXT NOT NULL DEFAULT ''"},
 		{"slowest_component_avg_ms", "ALTER TABLE perf_samples ADD COLUMN slowest_component_avg_ms REAL NOT NULL DEFAULT 0"},
 		{"slowest_component_max_ms", "ALTER TABLE perf_samples ADD COLUMN slowest_component_max_ms REAL NOT NULL DEFAULT 0"},
+		{"flow", "ALTER TABLE perf_samples ADD COLUMN flow TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, col := range additive {
 		if _, ok := existing[col.name]; ok {
@@ -218,10 +223,11 @@ type Service struct {
 // NewService wires a trend Service.
 func NewService(store *Store) *Service { return &Service{store: store} }
 
-// Trend returns a scenario's persisted samples, newest first.
+// Trend returns a scenario's persisted scenario-level (flow="") samples, newest
+// first.
 func (s *Service) Trend(ctx context.Context, scenario string, limit int) ([]Sample, error) {
 	if s == nil || s.store == nil {
 		return nil, errors.New("trend: service not wired")
 	}
-	return s.store.Series(ctx, scenario, limit)
+	return s.store.Series(ctx, scenario, "", limit)
 }

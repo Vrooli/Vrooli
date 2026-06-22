@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"performance-health/internal/trend"
+	"performance-health/internal/perfsample"
 )
 
 // DefaultTimeout bounds how long a benchmark waits for the target to report
@@ -26,7 +26,7 @@ type Runner interface {
 // the build axes. The trend store satisfies it; nil disables the cross-write
 // (the rich startup_measurements store is still written).
 type PerfSampleWriter interface {
-	Insert(ctx context.Context, sample trend.Sample) error
+	Insert(ctx context.Context, sample perfsample.Sample) error
 }
 
 // Service composes the runner seam (measures startup) with the trend store
@@ -45,10 +45,10 @@ type Service struct {
 // Option customizes a startup Service.
 type Option func(*Service)
 
-// WithPerfTrend wires the shared perf_samples writer so each startup benchmark
+// WithPerfSampleWriter wires the shared perf_samples writer so each startup benchmark
 // also feeds the startup budget axis (in addition to the rich
 // startup_measurements store).
-func WithPerfTrend(w PerfSampleWriter) Option {
+func WithPerfSampleWriter(w PerfSampleWriter) Option {
 	return func(s *Service) { s.perfTrend = w }
 }
 
@@ -88,7 +88,7 @@ func (s *Service) Benchmark(ctx context.Context, scenario string, timeout time.D
 	// startup budget axis has a producer. Best-effort: a trend write failure must
 	// not fail the measurement (the rich startup store already has it).
 	if s.perfTrend != nil && m.TimeToHealthyMs > 0 {
-		_ = s.perfTrend.Insert(ctx, trend.Sample{
+		_ = s.perfTrend.Insert(ctx, perfsample.Sample{
 			Scenario:   m.Scenario,
 			CapturedAt: m.CapturedAt,
 			StartupMs:  m.TimeToHealthyMs,
@@ -99,7 +99,7 @@ func (s *Service) Benchmark(ctx context.Context, scenario string, timeout time.D
 }
 
 // Trend returns a scenario's persisted measurements, newest first.
-func (s *Service) Trend(ctx context.Context, scenario string, limit int) ([]Measurement, error) {
+func (s *Service) History(ctx context.Context, scenario string, limit int) ([]Measurement, error) {
 	if s == nil || s.store == nil {
 		return nil, errors.New("startup: trend store not wired")
 	}

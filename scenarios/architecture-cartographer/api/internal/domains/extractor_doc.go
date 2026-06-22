@@ -30,6 +30,12 @@ var archetypeVocabulary = map[string]string{
 	"orchestration":    "orchestration",
 	"infrastructure":   "infrastructure",
 	"composition-root": "composition-root",
+	// Coordinating roles: a provider serves a composed read/validation surface
+	// over several domains; an aggregation rolls many domains' data into one
+	// view. Both legitimately import sibling domains (see the layering detector's
+	// coordinatingArchetypes set).
+	"provider":    "provider",
+	"aggregation": "aggregation",
 }
 
 // DomainsDocExtractor parses the structured Domain Inventory table in

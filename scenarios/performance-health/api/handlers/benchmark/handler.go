@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	internalbench "performance-health/internal/benchmark"
-	"performance-health/internal/trend"
+	"performance-health/internal/perfsample"
 
 	benchmarkv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/benchmark"
 	benchmarkconnect "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/benchmark/benchmark_v1connect"
@@ -20,7 +20,7 @@ import (
 // is answerable. The trend store satisfies it; a nil writer disables persistence
 // (the benchmark still runs and reports).
 type SampleWriter interface {
-	Insert(ctx context.Context, sample trend.Sample) error
+	Insert(ctx context.Context, sample perfsample.Sample) error
 }
 
 // Handler implements the generated BenchmarkServiceHandler.
@@ -54,9 +54,10 @@ func (h *Handler) RunBenchmark(ctx context.Context, req *connect.Request[benchma
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := &benchmarkv1.RunBenchmarkResponse{
-		Scenario: res.Scenario,
-		Outcome:  outcomeToProto(res.Outcome),
-		Reason:   res.Reason,
+		Scenario:    res.Scenario,
+		Outcome:     outcomeToProto(res.Outcome),
+		Reason:      res.Reason,
+		BundleBytes: res.BundleBytes,
 	}
 	for _, t := range res.Timings {
 		out.Timings = append(out.Timings, &benchmarkv1.BuildTiming{
@@ -70,7 +71,7 @@ func (h *Handler) RunBenchmark(ctx context.Context, req *connect.Request[benchma
 	// destructive). A persistence failure must not fail the benchmark itself —
 	// the measurement is still valid and returned.
 	if h.trend != nil && res.Outcome == internalbench.OutcomeMeasured {
-		sample := trend.Sample{
+		sample := perfsample.Sample{
 			Scenario:    res.Scenario,
 			GoBuildMs:   timingFor(res.Timings, "go", "api"),
 			UIBuildMs:   timingFor(res.Timings, "ui"),

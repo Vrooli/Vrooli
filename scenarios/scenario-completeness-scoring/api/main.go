@@ -158,6 +158,35 @@ func main() {
 		close(sweepDone)
 	}
 
+	// Importance enrichment runs on a separate, slower cadence than the fast
+	// score sweep so it never adds the ~1s/scenario centrality fetch to the
+	// digest-gated hot path. It always re-scores (AlwaysScore) so importance is
+	// refreshed even for stable scenarios whose tree never changes, and upserts
+	// importance onto the existing (scenario, digest) snapshot rows.
+	importanceInterval := importanceRefreshIntervalFromEnv()
+	importanceSweeper, err := internalscoring.NewSweeper(internalscoring.SweeperConfig{
+		ScenariosRoot: scorer.ScenariosRoot(),
+		Repository:    snapshots,
+		Scorer:        scorer,
+		Logger:        log.Default(),
+		Concurrency:   importanceRefreshConcurrencyFromEnv(),
+		Interval:      importanceInterval,
+		InitialJitter: scoreSweepStartJitterFromEnv(importanceInterval),
+		AlwaysScore:   true,
+	})
+	if err != nil {
+		log.Fatalf("importance refresh sweeper init failed: %v", err)
+	}
+	importanceDone := make(chan struct{})
+	if !importanceRefreshDisabledFromEnv() {
+		go func() {
+			defer close(importanceDone)
+			importanceSweeper.RunLoop(sweepCtx)
+		}()
+	} else {
+		close(importanceDone)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "scenario-completeness-scoring-api", "1.0.0"),
@@ -184,6 +213,10 @@ func main() {
 			cancelSweep()
 			select {
 			case <-sweepDone:
+			case <-ctx.Done():
+			}
+			select {
+			case <-importanceDone:
 			case <-ctx.Done():
 			}
 			return db.Close()
@@ -247,6 +280,42 @@ func scoreSweepStartJitterFromEnv(interval time.Duration) time.Duration {
 
 func scoreSweepDisabledFromEnv() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("SCS_SCORE_SWEEP_DISABLED"))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func importanceRefreshIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("SCS_IMPORTANCE_REFRESH_INTERVAL"))
+	if raw == "" {
+		return 6 * time.Hour
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 6 * time.Hour
+	}
+	return d
+}
+
+func importanceRefreshConcurrencyFromEnv() int {
+	raw := strings.TrimSpace(os.Getenv("SCS_IMPORTANCE_REFRESH_CONCURRENCY"))
+	if raw == "" {
+		return 2
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		return 2
+	}
+	if n > 16 {
+		return 16
+	}
+	return n
+}
+
+func importanceRefreshDisabledFromEnv() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("SCS_IMPORTANCE_REFRESH_DISABLED"))) {
 	case "1", "true", "yes", "on":
 		return true
 	default:

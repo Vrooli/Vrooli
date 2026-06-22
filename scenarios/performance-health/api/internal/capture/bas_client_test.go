@@ -64,6 +64,12 @@ func TestArtifactsFromResponseUnavailable(t *testing.T) {
 	if art.TraceArtifact != "" {
 		t.Fatalf("unavailable artifact should not be treated as a trace: %#v", art)
 	}
+	if !art.Unavailable {
+		t.Fatalf("expected Unavailable=true to be propagated, got %#v", art)
+	}
+	if art.UnavailableReason != "no browser" {
+		t.Fatalf("expected the BAS reason to be propagated verbatim, got %q", art.UnavailableReason)
+	}
 }
 
 // [REQ:PH-CAPTURE-003] CapturePerf requires a URL.

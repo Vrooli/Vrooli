@@ -85,6 +85,7 @@
       "captured": "Captured",
       "skipped": "Skipped",
       "failed": "Failed",
+      "unavailable": "Unavailable",
       "unknown": "Unknown"
     }
   },

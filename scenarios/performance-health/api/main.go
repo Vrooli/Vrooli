@@ -8,7 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	internalbudgets "performance-health/internal/budgets"
 	"performance-health/internal/clock"
 	"performance-health/internal/modules"
 	"performance-health/internal/server"
@@ -31,6 +33,7 @@ import (
 	healthH "performance-health/handlers/health"
 	lighthouseH "performance-health/handlers/lighthouse"
 	startupH "performance-health/handlers/startup"
+	sweepH "performance-health/handlers/sweep"
 	trendH "performance-health/handlers/trend"
 	validationH "performance-health/handlers/validation"
 )
@@ -138,16 +141,32 @@ func main() {
 		log.Fatalf("resolve repo root: %v", err)
 	}
 
+	// The trend store is the single concrete sample sink/source, constructed
+	// once here at the composition root and injected into the producer domains
+	// (analysis, benchmark, startup) and the budgets measurement source — so
+	// those domains depend on narrow seams, never on the trend domain itself.
+	trendStore := trend.NewStore(db.Primary())
+
+	// The capture-sweep gate is a budgets service over the same config store +
+	// flow-tagged sample source: it enumerates declared per-flow budgets and
+	// checks each flow's latest flow-tagged sample. Shared shape with the budgets
+	// handler, constructed here so the sweep can drive CheckFlow off the trend.
+	sweepGate := internalbudgets.NewService(
+		internalbudgets.NewConfigStore(repoRoot, nil),
+		internalbudgets.WithMeasurementSource(internalbudgets.NewSampleMeasurementSource(trendStore)),
+	)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "performance-health-api", "1.0.0"),
-		analysisH.Module(logger, repoRoot, db.Primary()),
+		analysisH.Module(logger, repoRoot, trendStore),
 		auditH.Module(logger, repoRoot),
-		benchmarkH.Module(logger, repoRoot, db.Primary()),
-		budgetsH.Module(logger, repoRoot, db.Primary()),
+		benchmarkH.Module(logger, repoRoot, trendStore),
+		budgetsH.Module(logger, repoRoot, internalbudgets.NewSampleMeasurementSource(trendStore)),
 		fleetH.Module(logger, repoRoot, db.Primary()),
 		lighthouseH.Module(logger, repoRoot),
-		startupH.Module(logger, db.Primary()),
+		startupH.Module(logger, db.Primary(), trendStore),
+		sweepH.Module(logger, repoRoot, trendStore, sweepGate),
 		trendH.Module(logger, db.Primary()),
 		validationH.Module(logger, repoRoot, db.Primary()),
 	)
@@ -167,7 +186,14 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// audit/sweep RPCs synchronously restart the target scenario in profile
+		// build mode (a full UI rebuild — minutes per CLAUDE.md) and drive a BAS
+		// browser capture before responding. The api-core default 30s WriteTimeout
+		// severs the connection mid-handler, so the CLI sees `unexpected EOF`. Mirror
+		// git-control-tower (same BAS-capture pattern) and give long synchronous
+		// captures room. Health/CRUD routes are unaffected (they respond in ms).
+		WriteTimeout: 15 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

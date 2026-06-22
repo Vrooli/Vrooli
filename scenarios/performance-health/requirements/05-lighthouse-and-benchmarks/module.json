@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "lighthouse-and-benchmarks",
     "description": "The performance-health-owned Lighthouse runner and the migrated build-time (axis ①) benchmarks.",
+    "last_validated_at": "2026-06-22T11:24:44-04:00",
+    "module": "lighthouse-and-benchmarks",
     "prd_ref": "PRD.md",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -15,9 +16,19 @@
       "category": "api",
       "criticality": "P1",
       "description": "lighthouse wraps the Lighthouse CLI (its own Chrome, not via BAS) with per-page error/warn thresholds from .vrooli/lighthouse.json (Tier 0, any URL), migrating the config shape from test-genie.",
-      "tags": ["lighthouse", "tier-0", "thresholds"],
+      "tags": [
+        "lighthouse",
+        "tier-0",
+        "thresholds"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/lighthouse/lighthouse_test.go", "phase": "unit", "status": "implemented", "notes": "Faked Lighthouse CLI output drives threshold evaluation; per-page error/warn findings are emitted from the config."}
+        {
+          "type": "test",
+          "ref": "api/internal/lighthouse/lighthouse_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Faked Lighthouse CLI output drives threshold evaluation; per-page error/warn findings are emitted from the config."
+        }
       ]
     },
     {
@@ -28,9 +39,19 @@
       "category": "api",
       "criticality": "P1",
       "description": "When the Lighthouse CLI is absent or no UI URL is available, the runner silently skips with a reason rather than failing.",
-      "tags": ["lighthouse", "skip", "graceful"],
+      "tags": [
+        "lighthouse",
+        "skip",
+        "graceful"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/lighthouse/skip_test.go", "phase": "unit", "status": "implemented", "notes": "Missing CLI and missing UI URL both return a skipped result with a reason."}
+        {
+          "type": "test",
+          "ref": "api/internal/lighthouse/skip_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Missing CLI and missing UI URL both return a skipped result with a reason."
+        }
       ]
     },
     {
@@ -40,10 +61,20 @@
       "prd_ref": "OT-P1-001",
       "category": "api",
       "criticality": "P1",
-      "description": "benchmark times go build ./... and the UI build with thresholds from .vrooli/testing.json (go_build_max_seconds, ui_build_max_seconds), preserving the test-genie early-exit semantics.",
-      "tags": ["benchmark", "build-time", "thresholds"],
+      "description": "benchmark times go build ./... and the UI build with thresholds from .vrooli/testing.json performance.budgets (go_build_max_ms, ui_build_max_ms), preserving the test-genie early-exit semantics.",
+      "tags": [
+        "benchmark",
+        "build-time",
+        "thresholds"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/benchmark/benchmark_test.go", "phase": "unit", "status": "implemented", "notes": "Faked exec/timer asserts threshold breach findings and that early-exit semantics match the migrated config."}
+        {
+          "type": "test",
+          "ref": "api/internal/benchmark/benchmark_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Faked exec/timer asserts threshold breach findings and that early-exit semantics match the migrated config."
+        }
       ]
     }
   ]

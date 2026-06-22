@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -58,7 +59,7 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 			msg.GetScenario(), statusLabel(msg.GetStatus()), errors, warnings, infos,
 		),
 	}
-	if assessmentReport := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
+	if assessmentReport := maturityreport.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
 		summaryLines = append(summaryLines, assessmentReport.Summary...)
 		if len(assessmentReport.Results) > 0 {
 			results = append(results, "")

@@ -245,7 +245,7 @@
       "path": "/vrooli.performance_health.v1.budgets.BudgetService/CheckBudget",
       "method": "POST",
       "summary": "Check a scenario's measurements against its budget",
-      "description": "Evaluates a scenario's latest measurements against its budget and reports violations — the baseline-diff regression gate.",
+      "description": "Evaluates a scenario's latest measurements against its budget and reports violations — the suite-run regression gate (a breach fails the test-genie Performance phase).",
       "category": "budgets",
       "request": {
         "type": "object",
@@ -401,6 +401,39 @@
           "status": 500,
           "code": "internal",
           "description": "Trend read failure"
+        }
+      ]
+    },
+    {
+      "id": "sweep_run_sweep",
+      "path": "/vrooli.performance_health.v1.sweep.SweepService/RunSweep",
+      "method": "POST",
+      "summary": "Run the per-flow capture-sweep for a scenario",
+      "description": "For each interaction flow with a per-flow budget declared, drives a targeted audit, analyzes the trace, persists a flow-tagged trend sample, and reports the per-flow budget verdict. The browser CAPTURE runs out-of-band on this cadence (never inside a gated run); the per-flow budget CHECK then runs in the test-genie Performance phase, reading the latest persisted sample, so a breach fails the suite run.",
+      "category": "sweep",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "FlowSweepResult[]",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario is missing"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Sweep orchestration failure"
         }
       ]
     },

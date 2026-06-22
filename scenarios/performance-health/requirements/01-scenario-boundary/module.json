@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "scenario-boundary",
     "description": "Dual-mount validation service, the agent-readable maturity assessment, and the Test Genie performance-phase provider contract.",
+    "last_validated_at": "2026-06-22T11:24:44-04:00",
+    "module": "scenario-boundary",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -15,9 +16,19 @@
       "category": "api",
       "criticality": "P0",
       "description": "The API mounts the native performance-health/v1 services PLUS the shared scenario-validation/v1 ScenarioValidationService so Test Genie can delegate the build-time (axis ①) and UI-browser Lighthouse (axis ③) signals through one contract.",
-      "tags": ["provider", "scenario-validation", "api"],
+      "tags": [
+        "provider",
+        "scenario-validation",
+        "api"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/handlers/validation/service_test.go", "phase": "unit", "status": "implemented", "notes": "Asserts both the native services and the shared ScenarioValidationService are served and route to the same engine."}
+        {
+          "type": "test",
+          "ref": "api/handlers/validation/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts both the native services and the shared ScenarioValidationService are served and route to the same engine."
+        }
       ]
     },
     {
@@ -28,9 +39,19 @@
       "category": "api",
       "criticality": "P0",
       "description": "Responses carry stable finding codes, severity, evidence, location, remediation, current and next Performance Health local maturity, the blocking findings for the next level, and global semantic impact; every emitted finding code maps in .vrooli/maturity.json. Severity owns pass/fail.",
-      "tags": ["findings", "maturity", "assessment"],
+      "tags": [
+        "findings",
+        "maturity",
+        "assessment"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/assessment/assessment_test.go", "phase": "unit", "status": "implemented", "notes": "Golden assessment asserts deterministic codes, current/next level transitions, and that every code has a maturity mapping."}
+        {
+          "type": "test",
+          "ref": "api/internal/assessment/assessment_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Golden assessment asserts deterministic codes, current/next level transitions, and that every code has a maturity mapping."
+        }
       ]
     },
     {
@@ -41,9 +62,19 @@
       "category": "api",
       "criticality": "P0",
       "description": "Test Genie's Performance phase is served by performance-health over scenario-validation/v1; the native test-genie perf runner is deleted (not shimmed); the default phase profile is byte-identical and the provider-contract scan recognizes the provider.",
-      "tags": ["test-genie", "provider-contract", "parity"],
+      "tags": [
+        "test-genie",
+        "provider-contract",
+        "parity"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/handlers/validation/provider_test.go", "phase": "unit", "status": "implemented", "notes": "Asserts the provider responds to the shared contract for the build-time and Lighthouse signals expected by Test Genie's Performance phase."}
+        {
+          "type": "test",
+          "ref": "api/handlers/validation/provider_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts the provider responds to the shared contract for the build-time and Lighthouse signals expected by Test Genie's Performance phase."
+        }
       ]
     }
   ]

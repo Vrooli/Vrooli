@@ -93,6 +93,10 @@ type SweeperConfig struct {
 	Concurrency   int
 	Interval      time.Duration
 	InitialJitter time.Duration
+	// AlwaysScore disables the digest-freshness skip. The fast score sweep leaves
+	// it false (skip unchanged trees); the importance-refresh path sets it true
+	// so importance is recomputed for stable scenarios whose tree never changes.
+	AlwaysScore bool
 }
 
 // SweepReport summarizes one fleet sweep.
@@ -253,7 +257,7 @@ func (s *Sweeper) sweepScenario(ctx context.Context, ref ScenarioRef, counters *
 		s.cfg.Logger.Printf("score sweep latest lookup failed for %s: %v", ref.Name, err)
 		return
 	}
-	if ok && latest.Digest == digest {
+	if !s.cfg.AlwaysScore && ok && latest.Digest == digest {
 		counters.addSkipped()
 		return
 	}

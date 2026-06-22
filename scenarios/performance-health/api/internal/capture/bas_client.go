@@ -45,32 +45,37 @@ type BASConnectClient struct {
 
 var _ BASClient = (*BASConnectClient)(nil)
 
-// CapturePerf drives a BAS perf capture for url. workflow is reserved for a BAS
-// recorded-workflow slug; empty uses BAS's default navigate+settle interaction.
-func (c *BASConnectClient) CapturePerf(ctx context.Context, url, workflow string) (Artifacts, error) {
+// CapturePerf drives a BAS perf capture for url. interactionFlowJSON is a raw
+// bas/flows-shape JSON body (a WorkflowDefinitionV2 protojson) that BAS splices
+// after the navigate, inside the perf-trace window; empty uses BAS's default
+// navigate+settle interaction.
+func (c *BASConnectClient) CapturePerf(ctx context.Context, url, interactionFlowJSON string) (Artifacts, error) {
 	if strings.TrimSpace(url) == "" {
 		return Artifacts{}, errors.New("capture: url is required")
 	}
 
 	baseURL, err := c.resolve(ctx)
 	if err != nil {
-		// BAS unreachable → clean skip (no browser/mechanism available).
-		return Artifacts{}, nil
+		// BAS unreachable → UNAVAILABLE (the capture mechanism is absent), not a
+		// silent success. The orchestrator surfaces it loudly, distinct from N/A.
+		return Artifacts{}, ErrCaptureUnavailable
 	}
 
 	client := captureconnect.NewCaptureServiceClient(c.httpClient(), baseURL)
 	resp, err := client.Capture(ctx, connect.NewRequest(&capturev1.CaptureRequest{
-		Url:      url,
-		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
-		Label:    "performance-health audit",
+		Url:                 url,
+		Captures:            []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
+		Label:               "performance-health audit",
+		InteractionFlowJson: interactionFlowJSON,
 	}))
 	if err != nil {
-		// A transport/exec failure (e.g. no browser in the env) is a clean skip,
-		// not a hard error — performance-health degrades gracefully headless.
-		return Artifacts{}, nil
+		// A transport/exec failure (e.g. no browser in the env) is an UNAVAILABLE
+		// mechanism, not a clean skip — performance-health degrades visibly
+		// headless instead of reading the degradation as success.
+		return Artifacts{}, ErrCaptureUnavailable
 	}
 	if resp == nil || resp.Msg == nil {
-		return Artifacts{}, nil
+		return Artifacts{}, ErrCaptureUnavailable
 	}
 
 	return c.artifactsFromResponse(resp.Msg), nil
@@ -85,7 +90,13 @@ func (c *BASConnectClient) artifactsFromResponse(msg *capturev1.CaptureResponse)
 			continue
 		}
 		if a.GetMetadata()["unavailable"] == "true" {
-			// Driver could not produce a trace (no browser): skip.
+			// BAS was reached but could not produce a trace this run. Capture
+			// the reason verbatim (no browser vs a transient capture failure)
+			// so the orchestrator reports honestly instead of guessing.
+			art.Unavailable = true
+			if r := a.GetMetadata()["reason"]; r != "" {
+				art.UnavailableReason = r
+			}
 			continue
 		}
 		switch a.GetMetadata()["artifact"] {

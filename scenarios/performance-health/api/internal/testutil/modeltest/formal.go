@@ -129,7 +129,25 @@ type FormalArtifactExpectation struct {
 	GeneratedChecks []string
 }
 
+// ValidateFormalArtifactFresh checks that a formal artifact is complete, fresh
+// (its recorded source hashes still match the files on disk), and matches the
+// caller's expectations. It returns every problem found rather than failing
+// fast, so callers see the full picture in one shot. The checks are grouped into
+// focused validators to keep each one independently readable and testable.
 func ValidateFormalArtifactFresh(artifact FormalArtifact, expected FormalArtifactExpectation) []error {
+	var errs []error
+	errs = append(errs, validateArtifactIdentity(artifact, expected)...)
+	errs = append(errs, validateArtifactSourceFreshness(artifact, expected)...)
+	errs = append(errs, validateArtifactChecks(artifact.Checks)...)
+	errs = append(errs, validateArtifactExpectations(artifact, expected)...)
+	errs = append(errs, validateArtifactCoverage(artifact.Coverage)...)
+	errs = append(errs, validateArtifactCollections(artifact)...)
+	return errs
+}
+
+// validateArtifactIdentity checks the non-hash identity fields: schema, ids,
+// declared source paths, and the required source metadata.
+func validateArtifactIdentity(artifact FormalArtifact, expected FormalArtifactExpectation) []error {
 	var errs []error
 	if artifact.SchemaVersion != formalArtifactSchemaVersion {
 		errs = append(errs, fmt.Errorf("formal artifact schemaVersion=%d, want %d", artifact.SchemaVersion, formalArtifactSchemaVersion))
@@ -140,12 +158,6 @@ func ValidateFormalArtifactFresh(artifact FormalArtifact, expected FormalArtifac
 	if artifact.Source.ContractPath != expected.ContractPath {
 		errs = append(errs, fmt.Errorf("formal artifact contractPath=%s, want %s", artifact.Source.ContractPath, expected.ContractPath))
 	}
-	if err := validateFreshHash(artifact.Source.ContractPath, artifact.Source.ContractSHA256, "contractSha256"); err != nil {
-		errs = append(errs, err)
-	}
-	if expected.ContractSHA256 != "" && artifact.Source.ContractSHA256 != expected.ContractSHA256 {
-		errs = append(errs, fmt.Errorf("formal artifact contractSha256=%s, want %s", artifact.Source.ContractSHA256, expected.ContractSHA256))
-	}
 	if artifact.Source.ModelPath != expected.ModelPath {
 		errs = append(errs, fmt.Errorf("formal artifact modelPath=%s, want %s", artifact.Source.ModelPath, expected.ModelPath))
 	}
@@ -154,13 +166,6 @@ func ValidateFormalArtifactFresh(artifact FormalArtifact, expected FormalArtifac
 	}
 	if artifact.Source.GeneratorPath == "" {
 		errs = append(errs, fmt.Errorf("formal artifact generatorPath is required"))
-	}
-	// generatorSha256 is recorded for traceability but not re-hashed here:
-	// the flow-verifier scenario owns the generator and is external to the
-	// consumer scenario. `flow-verifier verify check` is authoritative for
-	// generator freshness.
-	if expected.GeneratorSHA256 != "" && artifact.Source.GeneratorSHA256 != expected.GeneratorSHA256 {
-		errs = append(errs, fmt.Errorf("formal artifact generatorSha256=%s, want %s", artifact.Source.GeneratorSHA256, expected.GeneratorSHA256))
 	}
 	if artifact.Source.GeneratorVersion < 1 {
 		errs = append(errs, fmt.Errorf("formal artifact generatorVersion is required"))
@@ -171,27 +176,60 @@ func ValidateFormalArtifactFresh(artifact FormalArtifact, expected FormalArtifac
 	if artifact.Source.QuintVersion == "" {
 		errs = append(errs, fmt.Errorf("formal artifact quintVersion is required"))
 	}
+	return errs
+}
+
+// validateArtifactSourceFreshness re-hashes the contract and model sources and
+// compares the recorded hashes (both against disk and against any caller-pinned
+// expectation). The generatorSha256 is recorded for traceability but not
+// re-hashed: the flow-verifier scenario owns the generator and is external to
+// the consumer scenario; `flow-verifier verify check` is authoritative for
+// generator freshness.
+func validateArtifactSourceFreshness(artifact FormalArtifact, expected FormalArtifactExpectation) []error {
+	var errs []error
+	if err := validateFreshHash(artifact.Source.ContractPath, artifact.Source.ContractSHA256, "contractSha256"); err != nil {
+		errs = append(errs, err)
+	}
+	if expected.ContractSHA256 != "" && artifact.Source.ContractSHA256 != expected.ContractSHA256 {
+		errs = append(errs, fmt.Errorf("formal artifact contractSha256=%s, want %s", artifact.Source.ContractSHA256, expected.ContractSHA256))
+	}
+	if expected.GeneratorSHA256 != "" && artifact.Source.GeneratorSHA256 != expected.GeneratorSHA256 {
+		errs = append(errs, fmt.Errorf("formal artifact generatorSha256=%s, want %s", artifact.Source.GeneratorSHA256, expected.GeneratorSHA256))
+	}
 	if err := validateFreshHash(expected.ModelPath, artifact.Source.ModelSHA256, "modelSha256"); err != nil {
 		errs = append(errs, err)
 	}
 	if expected.ModelSHA256 != "" && artifact.Source.ModelSHA256 != expected.ModelSHA256 {
 		errs = append(errs, fmt.Errorf("formal artifact modelSha256=%s, want %s", artifact.Source.ModelSHA256, expected.ModelSHA256))
 	}
-	if !artifact.Checks.Typechecked {
-		errs = append(errs, fmt.Errorf("formal artifact was not typechecked"))
+	return errs
+}
+
+// validateArtifactChecks asserts every required pipeline stage ran.
+func validateArtifactChecks(checks FormalArtifactChecks) []error {
+	required := []struct {
+		ok     bool
+		reason string
+	}{
+		{checks.Typechecked, "was not typechecked"},
+		{checks.Tested, "was not tested"},
+		{checks.Verified, "was not verified"},
+		{checks.GeneratedFromContract, "was not generated from contract"},
+		{checks.GeneratedFromModel, "was not generated from model"},
 	}
-	if !artifact.Checks.Tested {
-		errs = append(errs, fmt.Errorf("formal artifact was not tested"))
+	var errs []error
+	for _, c := range required {
+		if !c.ok {
+			errs = append(errs, fmt.Errorf("formal artifact %s", c.reason))
+		}
 	}
-	if !artifact.Checks.Verified {
-		errs = append(errs, fmt.Errorf("formal artifact was not verified"))
-	}
-	if !artifact.Checks.GeneratedFromContract {
-		errs = append(errs, fmt.Errorf("formal artifact was not generated from contract"))
-	}
-	if !artifact.Checks.GeneratedFromModel {
-		errs = append(errs, fmt.Errorf("formal artifact was not generated from model"))
-	}
+	return errs
+}
+
+// validateArtifactExpectations checks the caller-pinned invariants and generated
+// checks are all present.
+func validateArtifactExpectations(artifact FormalArtifact, expected FormalArtifactExpectation) []error {
+	var errs []error
 	for _, invariant := range expected.Invariants {
 		if !containsString(artifact.Invariants, invariant) {
 			errs = append(errs, fmt.Errorf("formal artifact missing invariant %s", invariant))
@@ -202,27 +240,40 @@ func ValidateFormalArtifactFresh(artifact FormalArtifact, expected FormalArtifac
 			errs = append(errs, fmt.Errorf("formal artifact missing generated check %s", check))
 		}
 	}
-	if !artifact.Coverage.TransitionMatrixComplete {
+	return errs
+}
+
+// validateArtifactCoverage asserts the matrix/terminal/trace coverage flags.
+func validateArtifactCoverage(coverage FormalArtifactCoverage) []error {
+	var errs []error
+	if !coverage.TransitionMatrixComplete {
 		errs = append(errs, fmt.Errorf("formal artifact transition matrix is incomplete"))
 	}
-	if !artifact.Coverage.TerminalTransitionsChecked {
+	if !coverage.TerminalTransitionsChecked {
 		errs = append(errs, fmt.Errorf("formal artifact does not check terminal transitions"))
 	}
-	if !artifact.Coverage.NamedTraces.AllStatesCovered {
+	if !coverage.NamedTraces.AllStatesCovered {
 		errs = append(errs, fmt.Errorf("formal artifact named traces do not cover all states"))
 	}
-	if !artifact.Coverage.NamedTraces.AllEventsCovered {
+	if !coverage.NamedTraces.AllEventsCovered {
 		errs = append(errs, fmt.Errorf("formal artifact named traces do not cover all events"))
 	}
-	if len(artifact.Coverage.GeneratedTraces.CoveredStates) == 0 {
+	if len(coverage.GeneratedTraces.CoveredStates) == 0 {
 		errs = append(errs, fmt.Errorf("formal artifact generated traces do not report covered states"))
 	}
-	if len(artifact.Coverage.GeneratedTraces.CoveredEvents) == 0 {
+	if len(coverage.GeneratedTraces.CoveredEvents) == 0 {
 		errs = append(errs, fmt.Errorf("formal artifact generated traces do not report covered events"))
 	}
-	if artifact.Coverage.GeneratedTraces.CoveredPairs == nil {
+	if coverage.GeneratedTraces.CoveredPairs == nil {
 		errs = append(errs, fmt.Errorf("formal artifact generated traces do not report covered pairs"))
 	}
+	return errs
+}
+
+// validateArtifactCollections asserts the artifact actually carries transitions
+// and traces.
+func validateArtifactCollections(artifact FormalArtifact) []error {
+	var errs []error
 	if len(artifact.Transitions) == 0 {
 		errs = append(errs, fmt.Errorf("formal artifact transitions must not be empty"))
 	}

@@ -33,6 +33,7 @@ import (
 	intsession "audio-tools/internal/session"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
@@ -197,6 +198,7 @@ func Build(ctx context.Context) (*server.Server, func() error, error) {
 			SpeakerConfig:   stores.STTSpeaker,
 			Wakeword:        stores.Wakeword,
 			Speaker:         stores.Speaker,
+			Capacity:        sttcapacity.NewCLIReporter(),
 		}),
 		summarizeH.Module(
 			chs.Summarize,

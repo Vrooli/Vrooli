@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "perf-scroll-ancestor",
-    "description": "Perf parity helper: walk up from a target element to its nearest scrollable ancestor and scroll it. Mirrors capture.template.js findScrollableAncestor — use it when the scroll-parent of a virtualized list isn't the element you started from.",
+    "description": "Perf interaction helper: walk up from a target element to its nearest scrollable ancestor and scroll it. Use it when the scroll-parent of a virtualized list isn't the element you started from.",
     "labels": {
       "intent": "performance",
       "reset": "none",

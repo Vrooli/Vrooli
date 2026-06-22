@@ -16,6 +16,8 @@ package capture
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
 
 	"performance-health/internal/readiness"
 )
@@ -28,7 +30,16 @@ const (
 	OutcomeCaptured
 	OutcomeSkipped
 	OutcomeFailed
+	// OutcomeUnavailable means the capture mechanism itself was unreachable —
+	// BAS down or no browser in the environment. Distinct from a clean SKIP (no
+	// UI / Tier None) so a degraded headless run is not read as success.
+	OutcomeUnavailable
 )
+
+// ErrCaptureUnavailable signals that the capture mechanism was unreachable (BAS
+// down / no browser), as opposed to a clean skip or a hard failure. The
+// orchestrator maps it to OutcomeUnavailable.
+var ErrCaptureUnavailable = errors.New("capture mechanism unavailable (no browser / BAS unreachable)")
 
 // Result is the outcome of one capture orchestration.
 type Result struct {
@@ -46,15 +57,33 @@ type Artifacts struct {
 	WebVitalsArtifact string
 	// HasComponentMarks is true when ⚛ marks were present (Tier 1 reached).
 	HasComponentMarks bool
+	// Unavailable is true when BAS was reached but explicitly reported that it
+	// could not produce a trace (the perf artifact carried unavailable=true).
+	// Distinct from a transport failure (ErrCaptureUnavailable).
+	Unavailable bool
+	// UnavailableReason is the verbatim reason BAS gave for an unavailable
+	// perf artifact, used to decide between a true no-browser environment and
+	// a retryable transient capture failure.
+	UnavailableReason string
 }
 
 // BASClient is the seam to Browser Automation Studio's perf-capture RPC. The
 // real implementation is a Connect client; tests drive a fake.
 type BASClient interface {
-	// CapturePerf captures a perf trace for the given URL with the given
-	// interaction workflow (empty = default navigate+mount-settle). A nil error
+	// CapturePerf captures a perf trace for the given URL. interactionFlowJSON
+	// is a raw bas/flows-shape JSON body driving a specific interaction inside
+	// the trace window (empty = default navigate+mount-settle); the orchestrator
+	// resolves the --workflow slug to these bytes before calling. A nil error
 	// with empty artifacts means BAS could not capture (e.g. no browser).
-	CapturePerf(ctx context.Context, url, workflow string) (Artifacts, error)
+	CapturePerf(ctx context.Context, url, interactionFlowJSON string) (Artifacts, error)
+}
+
+// FlowResolver resolves a perf-flow slug to its raw bas/flows JSON for a
+// scenario (<scenarioRoot>/bas/flows/<slug>.json). It returns a typed error
+// when the slug names no readable flow, which the orchestrator surfaces as a
+// FAILED audit (never a silent skip).
+type FlowResolver interface {
+	Resolve(scenario, slug string) ([]byte, error)
 }
 
 // BuildController is the seam that restarts a scenario in profile build mode and
@@ -78,11 +107,51 @@ type BuildController interface {
 type Service struct {
 	bas   BASClient
 	build BuildController
+	flows FlowResolver
+
+	// captureAttempts bounds how many times a single capture is attempted when
+	// a reachable BAS returns no usable trace. A perf capture is occasionally a
+	// transient casualty of concurrent capture load on the shared BAS, so one
+	// retry usually recovers it. Default 3.
+	captureAttempts int
+	// captureBackoff is the pause between capture attempts. Default 2s.
+	captureBackoff time.Duration
+	// sleep is the backoff sleeper; overridable in tests to keep them fast.
+	sleep func(time.Duration)
 }
+
+const defaultCaptureAttempts = 3
 
 // NewService wires a capture Service over the BAS + build seams.
 func NewService(bas BASClient, build BuildController) *Service {
-	return &Service{bas: bas, build: build}
+	return &Service{
+		bas:             bas,
+		build:           build,
+		captureAttempts: defaultCaptureAttempts,
+		captureBackoff:  2 * time.Second,
+		sleep:           time.Sleep,
+	}
+}
+
+// WithCaptureRetry tunes the bounded retry for transient empty-trace captures:
+// attempts is the total number of capture attempts (clamped to ≥1) and backoff
+// is the pause between them (a zero backoff makes retries immediate, which tests
+// use to stay fast). Returns the receiver for chaining.
+func (s *Service) WithCaptureRetry(attempts int, backoff time.Duration) *Service {
+	if attempts < 1 {
+		attempts = 1
+	}
+	s.captureAttempts = attempts
+	s.captureBackoff = backoff
+	return s
+}
+
+// WithFlowResolver attaches the seam that resolves a --workflow slug to its
+// bas/flows JSON. Without it, a non-empty --workflow is a FAILED audit (the
+// orchestrator cannot resolve the interaction).
+func (s *Service) WithFlowResolver(fr FlowResolver) *Service {
+	s.flows = fr
+	return s
 }
 
 // Orchestrate runs the perf capture for one scenario at the given tier.
@@ -109,6 +178,21 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: reason}, nil
 	}
 
+	// Resolve a --workflow slug to its interaction JSON up front: a missing or
+	// invalid flow is a hard FAILED audit (never a silent skip). An empty slug
+	// keeps the default navigate+settle capture.
+	interactionFlowJSON := ""
+	if strings.TrimSpace(workflow) != "" {
+		if s.flows == nil {
+			return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: "no flow resolver wired; --workflow cannot be resolved"}, nil
+		}
+		raw, ferr := s.flows.Resolve(scenario, workflow)
+		if ferr != nil {
+			return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: ferr.Error()}, nil
+		}
+		interactionFlowJSON = string(raw)
+	}
+
 	uiURL, restore, result, done := s.resolveCaptureURL(ctx, scenario, tier)
 	if done {
 		return result, nil
@@ -120,12 +204,32 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: "scenario served no UI URL"}, nil
 	}
 
-	artifacts, err := s.bas.CapturePerf(ctx, uiURL, workflow)
+	artifacts, err := s.captureWithRetry(ctx, uiURL, interactionFlowJSON)
+	if errors.Is(err, ErrCaptureUnavailable) {
+		// The capture mechanism itself was unreachable (BAS down / discovery
+		// failed) across every attempt — genuinely UNAVAILABLE.
+		return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, Reason: "browser-automation-studio unreachable: " + err.Error()}, nil
+	}
 	if err != nil {
 		return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: err.Error()}, nil
 	}
 	if artifacts.TraceArtifact == "" {
-		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: "BAS returned no trace (no browser available)"}, nil
+		// BAS was reachable but produced no trace. Only call this UNAVAILABLE
+		// (a true degraded environment) when BAS's own reason says the browser
+		// was absent. Otherwise the browser ran but the trace was not finalized
+		// — a retryable FAILED, NOT a "no browser" claim. Conflating the two is
+		// exactly the trap that makes a busy-BAS hiccup read as "headless".
+		if artifacts.Unavailable && isNoBrowserReason(artifacts.UnavailableReason) {
+			return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, Reason: "no browser available: " + artifacts.UnavailableReason}, nil
+		}
+		reason := strings.TrimSpace(artifacts.UnavailableReason)
+		if reason == "" {
+			reason = "no reason reported"
+		}
+		return Result{
+			Scenario: scenario, Outcome: OutcomeFailed, Tier: tier,
+			Reason: "BAS was reachable but produced no perf trace after retries (the browser ran; the trace was not finalized — often transient under concurrent capture load); reason: " + reason,
+		}, nil
 	}
 
 	return Result{
@@ -135,6 +239,53 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 		TraceArtifact:     artifacts.TraceArtifact,
 		WebVitalsArtifact: artifacts.WebVitalsArtifact,
 	}, nil
+}
+
+// captureWithRetry drives s.bas.CapturePerf with bounded retries. A perf
+// capture on the shared BAS is occasionally a transient casualty of concurrent
+// capture load (session evicted / trace not finalized), so a reachable-but-
+// empty result is retried. It does NOT retry a definitive no-browser result
+// (retrying won't grow a browser) and stops early if the context is done.
+func (s *Service) captureWithRetry(ctx context.Context, url, interactionFlowJSON string) (Artifacts, error) {
+	attempts := s.captureAttempts
+	if attempts < 1 {
+		attempts = 1
+	}
+	var (
+		lastArt Artifacts
+		lastErr error
+	)
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			if s.sleep != nil {
+				s.sleep(s.captureBackoff)
+			}
+			if ctx.Err() != nil {
+				break
+			}
+		}
+		art, err := s.bas.CapturePerf(ctx, url, interactionFlowJSON)
+		lastArt, lastErr = art, err
+
+		switch {
+		case err == nil && art.TraceArtifact != "":
+			return art, nil // captured — done
+		case err == nil && art.Unavailable && isNoBrowserReason(art.UnavailableReason):
+			return art, nil // definitive no-browser — retrying won't help
+		}
+		// Otherwise (unreachable BAS, or reachable-but-empty/transient) retry.
+		if ctx.Err() != nil {
+			break
+		}
+	}
+	return lastArt, lastErr
+}
+
+// isNoBrowserReason reports whether a BAS unavailable-reason indicates a
+// genuinely absent browser (a permanent degraded environment) rather than a
+// retryable capture failure.
+func isNoBrowserReason(reason string) bool {
+	return strings.Contains(strings.ToLower(reason), "no browser")
 }
 
 // resolveCaptureURL resolves the URL to capture for the given tier. For Tier 1

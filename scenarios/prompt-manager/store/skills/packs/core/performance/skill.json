@@ -3,13 +3,37 @@
   "schemaVersion": 1,
   "id": "performance",
   "name": "Performance",
-  "description": "Profiling and optimization - bundle size, load times, caching",
+  "description": "Measure and gate UI/UX performance with performance-health: audit a specific slow interaction (scroll, drag, click/type) via a targeted BAS capture, analyze the trace for React render/re-render jank and web-vitals (LCP), set per-flow and per-scenario budgets, and triage hotspots. Also build/bundle size, load/startup times, and caching.",
   "modes": [
     "steer",
     "performance"
   ],
   "tags": [
-    "skill"
+    "skill",
+    "performance",
+    "ui",
+    "ux",
+    "react",
+    "render",
+    "re-render",
+    "jank",
+    "scroll",
+    "drag",
+    "slow",
+    "responsiveness",
+    "latency",
+    "interaction",
+    "component",
+    "commit",
+    "frame",
+    "hotspot",
+    "audit",
+    "trace",
+    "measure",
+    "lcp",
+    "web-vitals",
+    "budget",
+    "performance-health"
   ],
   "icon": "zap",
   "status": "active",
@@ -18,7 +42,7 @@
     "performance"
   ],
   "programmaticHome": "performance-health:performance",
-  "revision": 48,
+  "revision": 49,
   "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-06-21T00:00:00Z"
+  "updatedAt": "2026-06-22T00:00:00Z"
 }

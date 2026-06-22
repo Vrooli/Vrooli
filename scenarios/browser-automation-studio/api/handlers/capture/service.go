@@ -11,7 +11,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/vrooli/browser-automation-studio/internal/compat"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	actionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
@@ -70,7 +72,10 @@ func (s *service) Capture(
 		}), nil
 	}
 
-	adhocReq, domNodeID := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
+	adhocReq, domNodeID, err := buildAdhocRequest(resolvedURL, msg, width, height, s.deps.InlineDom.Expression)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	opts := &workflow.ExecuteOptions{}
 	for _, ct := range captures {
 		switch ct {
@@ -231,6 +236,12 @@ func isDryRun(header string) bool {
 // URL, with dimensions surfaced via ExecutionParameters.ViewportWidth/
 // Height (engine-native fields, not synthetic env).
 //
+// When msg.InteractionFlowJson is non-empty it carries a raw
+// `bas/flows`-shape JSON (a WorkflowDefinitionV2 protojson body); its
+// nodes/edges are spliced after the navigate node so a perf trace spans the
+// interaction. Malformed JSON yields a typed error (the handler maps it to
+// InvalidArgument). Empty = the default navigate+settle capture.
+//
 // Greenfield: this is the only translation. No fallback path, no compat
 // shim with the REST ExecuteAdhocWorkflow body shape. Capture-type
 // fan-out into per-artifact steps is the executor's responsibility in a
@@ -240,7 +251,7 @@ func buildAdhocRequest(
 	msg *capturev1.CaptureRequest,
 	width, height int32,
 	inlineDomExpression string,
-) (*basexecution.ExecuteAdhocRequest, string) {
+) (*basexecution.ExecuteAdhocRequest, string, error) {
 	navigateNode := &workflowsv1.WorkflowNodeV2{
 		Id: uuid.NewString(),
 		Action: &actionsv1.ActionDefinition{
@@ -253,6 +264,21 @@ func buildAdhocRequest(
 
 	nodes := []*workflowsv1.WorkflowNodeV2{navigateNode}
 	var edges []*workflowsv1.WorkflowEdgeV2
+
+	// Splice an interaction flow after the navigate node, inside the same
+	// perf-trace window. The compiler orders nodes topologically (roots =
+	// no incoming edge, tie-broken by array index), so the explicit
+	// navigate→entry edge guarantees the navigate runs first and the
+	// interaction's own internal edges sequence the rest.
+	if raw := strings.TrimSpace(msg.GetInteractionFlowJson()); raw != "" {
+		spliced, err := spliceInteractionFlow(navigateNode.Id, raw)
+		if err != nil {
+			return nil, "", err
+		}
+		nodes = append(nodes, spliced.nodes...)
+		edges = append(edges, spliced.edges...)
+	}
+
 	domNodeID := ""
 	if msg.GetInlineDom() {
 		domNode := &workflowsv1.WorkflowNodeV2{
@@ -299,7 +325,46 @@ func buildAdhocRequest(
 			ViewportHeight: &h,
 		},
 		WaitForCompletion: true,
-	}, domNodeID
+	}, domNodeID, nil
+}
+
+// splicedFlow holds the nodes/edges contributed by an interaction flow,
+// already wired to follow the navigate node.
+type splicedFlow struct {
+	nodes []*workflowsv1.WorkflowNodeV2
+	edges []*workflowsv1.WorkflowEdgeV2
+}
+
+// spliceInteractionFlow parses a raw bas/flows-shape JSON body (a
+// WorkflowDefinitionV2 protojson) and returns its nodes/edges plus a single
+// edge linking the supplied navigate node to the flow's first node. The
+// flow's own internal edges sequence the rest. Malformed JSON or an empty
+// node set is a typed error.
+func spliceInteractionFlow(navigateNodeID, raw string) (splicedFlow, error) {
+	// Apply the same compat normalization the `execute-adhoc --flow-file` path
+	// uses so a raw bas/flows body (short-form execution_mode, viewport
+	// settings, V1 node shape) parses identically here.
+	normalized, err := compat.NormalizeWorkflowDefinitionV2Bytes([]byte(raw))
+	if err != nil {
+		return splicedFlow{}, fmt.Errorf("interaction_flow_json is not valid JSON: %w", err)
+	}
+	var def workflowsv1.WorkflowDefinitionV2
+	if err := protojson.Unmarshal(normalized, &def); err != nil {
+		return splicedFlow{}, fmt.Errorf("interaction_flow_json is not a valid WorkflowDefinitionV2: %w", err)
+	}
+	if len(def.GetNodes()) == 0 {
+		return splicedFlow{}, errors.New("interaction_flow_json has no nodes")
+	}
+	out := splicedFlow{
+		nodes: def.GetNodes(),
+		edges: append([]*workflowsv1.WorkflowEdgeV2{}, def.GetEdges()...),
+	}
+	out.edges = append(out.edges, &workflowsv1.WorkflowEdgeV2{
+		Id:     uuid.NewString(),
+		Source: navigateNodeID,
+		Target: def.GetNodes()[0].GetId(),
+	})
+	return out, nil
 }
 
 func navigateParamsFor(url string, waitFor *capturev1.WaitFor) *actionsv1.NavigateParams {
@@ -363,6 +428,22 @@ func unavailableArtifact(c capturev1.CaptureType, path string) *capturev1.Captur
 	if reason == "" {
 		reason = unavailableExportReason
 	}
+	return unavailableArtifactWithReason(c, path, reason)
+}
+
+// perfTraceMissingReason is the accurate reason a performance capture that
+// otherwise executed has no trace file: the browser session ran but did not
+// finalize performance.json — a capture failure that is often a transient
+// casualty of concurrent capture load and clears on retry. It is deliberately
+// NOT the generic export reason, and deliberately does NOT assert "no browser":
+// a genuinely browser-less environment fails session start (surfaced as an RPC
+// error upstream), not as a completed-but-traceless run.
+const perfTraceMissingReason = "the browser session did not finalize a performance trace this run (capture failed — often transient under concurrent capture load; retry)"
+
+// unavailableArtifactWithReason builds an unavailable artifact carrying an
+// explicit reason in metadata, so the omission is surfaced honestly rather
+// than silently or with a misleading default.
+func unavailableArtifactWithReason(c capturev1.CaptureType, path, reason string) *capturev1.CaptureArtifact {
 	return &capturev1.CaptureArtifact{
 		Type: c,
 		Path: path,

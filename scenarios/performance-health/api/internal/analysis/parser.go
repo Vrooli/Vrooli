@@ -55,7 +55,7 @@ type traceFile struct {
 }
 
 // webVitals is the shape written by the injected PerformanceObserver in the
-// perf-capture template (ui/perf/capture.template.js, WEB_VITALS_INIT).
+// browser-automation-studio perf capture (the `web-vitals` capture artifact).
 type webVitals struct {
 	LongTasks []struct {
 		Start    float64 `json:"start"`

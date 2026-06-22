@@ -140,6 +140,28 @@ var executionModeMapping = map[string]string{
 	"destructive": "EXECUTION_MODE_DESTRUCTIVE",
 }
 
+// NormalizeWorkflowDefinitionV2Bytes applies the same compatibility transforms
+// the flow-file loader uses (short-form execution_mode → enum, viewport
+// settings, V1→V2 node shape, lowerCamelCase keys) to a STANDALONE
+// WorkflowDefinitionV2 JSON body, returning protojson-ready bytes. Used by the
+// capture path, which splices a raw bas/flows body that must parse identically
+// to one fed through `execute-adhoc --flow-file`.
+func NormalizeWorkflowDefinitionV2Bytes(body []byte) ([]byte, error) {
+	if len(strings.TrimSpace(string(body))) == 0 {
+		return body, nil
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return nil, err
+	}
+	NormalizeWorkflowDefinitionV2(doc)
+	normalized, ok := normalizeProtoJSONKeys(doc).(map[string]any)
+	if !ok {
+		return json.Marshal(doc)
+	}
+	return json.Marshal(normalized)
+}
+
 // NormalizeWorkflowDefinitionV2 applies V2 compatibility transformations to a workflow definition.
 // This handles both settings normalization and node-level transformations.
 //

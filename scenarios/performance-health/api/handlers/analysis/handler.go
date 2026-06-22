@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	internalanalysis "performance-health/internal/analysis"
-	"performance-health/internal/trend"
+	"performance-health/internal/perfsample"
 
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/analysis"
 	analysisconnect "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/analysis/analysis_v1connect"
@@ -20,7 +20,7 @@ import (
 // so the LCP and component-commit budgets have a producer. The trend store
 // satisfies it; nil disables persistence (analysis still returns its findings).
 type SampleWriter interface {
-	Insert(ctx context.Context, sample trend.Sample) error
+	Insert(ctx context.Context, sample perfsample.Sample) error
 }
 
 // Handler implements the generated AnalysisServiceHandler.
@@ -83,7 +83,7 @@ func (h *Handler) AnalyzeTrace(ctx context.Context, req *connect.Request[analysi
 	// a producer (capture-fed: only when an audit/analysis has run). Best-effort:
 	// a persistence failure must not fail the analysis itself.
 	if h.trend != nil {
-		sample := trend.Sample{
+		sample := perfsample.Sample{
 			Scenario: res.Scenario,
 			LCPMs:    res.LCPMs,
 			Note:     "analysis",

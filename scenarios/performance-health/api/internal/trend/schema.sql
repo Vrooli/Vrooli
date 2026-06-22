@@ -4,6 +4,7 @@
 CREATE TABLE IF NOT EXISTS perf_samples (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   scenario TEXT NOT NULL,
+  flow TEXT NOT NULL DEFAULT '',
   captured_at TEXT NOT NULL,
   go_build_ms INTEGER NOT NULL DEFAULT 0,
   ui_build_ms INTEGER NOT NULL DEFAULT 0,
@@ -18,3 +19,6 @@ CREATE TABLE IF NOT EXISTS perf_samples (
 
 CREATE INDEX IF NOT EXISTS idx_perf_samples_scenario_captured
   ON perf_samples (scenario, captured_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_perf_samples_scenario_flow_captured
+  ON perf_samples (scenario, flow, captured_at DESC);

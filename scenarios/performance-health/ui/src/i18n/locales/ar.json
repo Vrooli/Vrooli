@@ -85,6 +85,7 @@
       "captured": "تم الالتقاط",
       "skipped": "تم التخطّي",
       "failed": "فشل",
+      "unavailable": "غير متاح",
       "unknown": "غير معروف"
     }
   },

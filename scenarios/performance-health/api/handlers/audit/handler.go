@@ -85,6 +85,8 @@ func outcomeToProto(o capture.Outcome) auditv1.AuditOutcome {
 		return auditv1.AuditOutcome_AUDIT_OUTCOME_SKIPPED
 	case capture.OutcomeFailed:
 		return auditv1.AuditOutcome_AUDIT_OUTCOME_FAILED
+	case capture.OutcomeUnavailable:
+		return auditv1.AuditOutcome_AUDIT_OUTCOME_UNAVAILABLE
 	default:
 		return auditv1.AuditOutcome_AUDIT_OUTCOME_UNSPECIFIED
 	}

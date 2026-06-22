@@ -32,13 +32,13 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/performance-health/v1/shared/health.proto` |
 | readiness | Code-facts-gated capture tier detection + perf-build infra detection + format-preserving autofix. | Validation / autofix | No persisted data. | API, CLI, UI | `02-tier-and-readiness` (PH-TIER-001..003) | `api/internal/readiness/`, `api/internal/autofix/`, `cli/domains/readiness/`, `ui/src/features/readiness/` |
-| capture | Conduct the profile-mode capture pipeline over BAS perf-capture; tier-0-never-fails; graceful headless skip. | Orchestration | No persisted data. | API, CLI | `03-capture-orchestration` (PH-CAP-001..003) | `api/internal/capture/`, `cli/domains/audit/` |
+| capture | Conduct the profile-mode capture pipeline over BAS perf-capture; tier-0-never-fails; graceful headless skip. | Orchestration | No persisted data. | API, CLI | `03-capture-orchestration` (PH-CAP-001..003) | `api/internal/capture/`, `api/handlers/audit/`, `cli/domains/audit/` |
 | analysis | Deterministic trace analysis → located findings + before/after comparison. | Analysis / query | No persisted data. | API, CLI, UI | `04-analysis` (PH-ANALYSIS-001..003) | `api/internal/analysis/`, `cli/domains/audit/`, `ui/src/features/audit/` |
 | lighthouse | performance-health-owned Lighthouse runner (own Chrome) with config thresholds + silent-skip. | Capture / query | No persisted data. | API, CLI | `05-lighthouse-and-benchmarks` (PH-LH-001..002) | `api/internal/lighthouse/`, `cli/domains/lighthouse/` |
 | benchmark | Build-time (axis ①) benchmarks: time go build + UI build with thresholds. | Measurement | No persisted data. | API, CLI | `05-lighthouse-and-benchmarks` (PH-BENCH-001) | `api/internal/benchmark/`, `cli/domains/benchmark/` |
-| budgets | Declarative per-scenario budgets with ratchet + baseline-diff gating. | Policy / gate | Budget config. | API, CLI, UI | `06-budgets-trends-fleet` (PH-BUDGET-001..002) | `api/internal/budgets/`, `cli/domains/budget/`, `ui/src/features/budgets/` |
+| budgets | Declarative per-scenario budgets with ratchet + suite-run gating (a breach fails the test-genie Performance phase). | Policy / gate | Budget config. | API, CLI, UI | `06-budgets-trends-fleet` (PH-BUDGET-001..002) | `api/internal/budgets/`, `cli/domains/budget/`, `ui/src/features/budgets/` |
 | trend | Additive SQLite trend store; newest-first reads scoped per scenario. | Persistence / query | Per-run measurements + ExecutionMetrics. | API, CLI, UI | `06-budgets-trends-fleet` (PH-TREND-001) | `api/internal/trend/`, `cli/domains/trend/`, `ui/src/features/trend/` |
-| fleet | Deterministic structured offender queries (no budget, slow build, regressed, tier distribution). | Aggregation / query | No persisted data. | API, CLI, UI | `06-budgets-trends-fleet` (PH-FLEET-001) | `api/internal/fleet/`, `cli/domains/fleet/`, `ui/src/features/fleet/` |
+| fleet | Deterministic structured offender queries (no budget, slow build, regressed, tier distribution). | Aggregation / query | No persisted data. | API, CLI, UI | `06-budgets-trends-fleet` (PH-FLEET-001) | `api/handlers/fleet/`, `api/internal/fleet/`, `cli/domains/fleet/`, `ui/src/features/fleet/` |
 | startup | Resource-aware startup benchmark (axis ②, migrated from structure-health) with self-restart guard. | Measurement / persistence | Per-run startup measurements. | API, CLI | `07-startup` (PH-STARTUP-001..002) | `api/internal/startup/`, `cli/domains/startup/` |
 | validation | Dual-mount: native services + shared `scenario-validation/v1` provider for Test Genie. | Provider | No persisted data. | API | `01-scenario-boundary` (PH-BOUND-001..003) | `api/handlers/validation/`, `api/internal/assessment/` |
 
@@ -87,7 +87,17 @@ These are important but should not become product domains:
 - `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
+- `api/internal/perfsample/` — the cross-domain performance-sample DTO. A
+  business-vocabulary-free measurement record that producer domains (benchmark,
+  analysis, startup) emit and the `trend` read-model persists; lives in shared
+  substrate so producers depend on the measurement contract without importing
+  the trend domain (the concrete store is wired from the composition root).
 - `api/internal/testutil/` — cross-domain test harnesses.
+- `cli/app.go` — the CLI composition root; cross-cutting, owned by no single
+  product domain.
+- `cli/app_test.go` — the CLI wiring test (asserts every domain group is
+  registered and the manifest covers every Connect endpoint); cross-cutting,
+  owned by no single product domain.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
 

@@ -14,10 +14,24 @@ This skill says *what* to optimize and what counts as a real improvement. **`per
 
 - `performance-health audit {{TARGET}}` — capture → analyse → per-component commit table (count / avg / max) with `file:line`-anchored hotspots.
 - `performance-health analysis ...` / `performance-health benchmark {{TARGET}}` — re-analyse a captured trace; time the Go + UI build.
-- `performance-health budget ...` — declare/check a tighten-only budget (build time, bundle size, LCP, startup, component-commit avg/max) so a regression FAILS `git-control-tower baseline diff` like any other health regression.
+- `performance-health budget ...` — declare/check a tighten-only budget (build time, bundle size, LCP, startup, component-commit avg/max) so a regression FAILS the test-genie **Performance phase** — and therefore the suite run (`vrooli scenario test`) — like any other health regression. (It is NOT surfaced by `git-control-tower baseline diff`: the `performance` phase maps to no baseline-diff surface, so the suite run is the gate.)
 - `vrooli scenario test {{TARGET}}` **Performance phase** — the same engine, run in execution mode: it benchmarks the build, runs Lighthouse-if-UI, persists a sample, and gates on budgets + native build-time thresholds. This is the regression gate your changes must keep green.
 
 > This skill's detection has **graduated into a programmatic engine** (`programmaticHome: performance-health:performance`). Treat performance-health as the source of truth for the numbers; this steer is the judgment layer over them.
+
+#### Targeted-interaction capture (drive a SPECIFIC slow journey)
+
+The default `audit run` captures a navigate+settle trace. To trace a **specific interaction** — the drag, scroll, or click/type sequence a user is actually complaining about — author a **perf flow** and pass it with `--workflow`. This is the productized replacement for the retired hand-edited `ui/perf/capture.template.js`; it is a true superset (custom interaction + ⚛ component marks + web-vitals, gated continuously).
+
+The full loop:
+
+1. **Author** an assertion-free `scenarios/<scenario>/bas/flows/<slug>.json` marked `metadata.labels.intent: "performance"`. It only drives the interaction — no assertions (those belong in `bas/cases/**`). Use **literal `[data-testid=…]` selectors** — `@selector/` tokens do NOT resolve on the capture path. Compose the reusable parity helpers from `bas/actions/`: `perf-scroll-ancestor` (scroll a virtualized list's nearest scrollable parent) and `perf-drag-horizontal` (stepped resize-handle drag). Start from `bas/flows/perf-example-scroll.json`. See the scenario's `bas/README.md`.
+2. **Register**: `test-genie registry build` (from the scenario dir).
+3. **Capture**: `performance-health audit run <scenario> --workflow <slug>` — restarts in profile mode, drives the interaction inside the perf-trace window, returns a trace. Outcome `unavailable` (no browser / BAS down) is **loud and distinct** from `skipped` (no UI) — never read a headless degradation as a pass.
+4. **Analyze**: `performance-health analysis analyze --trace <key>` — per-component commit attribution + web-vitals over the interaction.
+5. **Budget (optional, continuous)**: `performance-health budget set <scenario> --flow <slug> --lcp-max-ms … --component-commit-avg-max-ms … --ratchet`, then `budget check <scenario> --flow <slug>`. The browser CAPTURE runs out-of-band on the **continuous capture-sweep** (`performance-health sweep run <scenario>`, never inside a gated run); the per-flow budget CHECK then runs **inside the Performance phase**, reading the latest persisted sample — so a regression on a budgeted journey fails the suite run (`vrooli scenario test`). It is NOT surfaced by `git-control-tower baseline diff` (the `performance` phase maps to no baseline-diff surface).
+
+Discover this via `prompt-manager discover "measure slow UI interaction"` → the `perf.audit` / `perf.analyze` / `perf.budget.check` actions.
 
 **Measurement discipline (don't ship on vibes):**
 - Capture a baseline → make the change → re-measure → compare. Beyond a trivial fix — anything where you'd otherwise be guessing whether it helped — get before/after numbers from `performance-health`.

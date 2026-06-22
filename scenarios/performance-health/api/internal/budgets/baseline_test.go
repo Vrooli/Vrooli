@@ -2,6 +2,8 @@ package budgets
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -11,8 +13,9 @@ import (
 
 // [REQ:PH-BUDGET-002] Budget violations project to ERROR-severity maturity
 // findings; an ERROR finding is what drives the shared scenario-validation
-// status to FAILED, which is how a perf regression fails baseline-diff (exit 1)
-// like any other health regression.
+// status to FAILED, which is how a perf regression fails the test-genie
+// Performance phase — and therefore the suite run (`vrooli scenario test`
+// exit 1) — like any other health regression.
 func TestFindingsAreErrorSeverity(t *testing.T) {
 	violations := []Violation{
 		{Axis: "go_build", Measured: 130000, Budget: 90000, Unit: "ms"},
@@ -62,7 +65,8 @@ const budgetMaturitySpec = `{
 
 // [REQ:PH-BUDGET-002] An ERROR finding makes the assessment status FAILED; a
 // clean (within-budget) run yields no findings and a non-failing status. This is
-// the exact pipeline the validation provider feeds into baseline-diff.
+// the exact pipeline the validation provider feeds into the test-genie
+// Performance phase (and therefore the suite run).
 func TestFindingsDriveFailedStatus(t *testing.T) {
 	spec, err := mga.ParseSpec([]byte(budgetMaturitySpec))
 	if err != nil {
@@ -86,10 +90,10 @@ func TestFindingsDriveFailedStatus(t *testing.T) {
 		t.Fatalf("breached assessment: %v", err)
 	}
 	if got := mga.DeriveValidationStatus(breached); got.String() != "VALIDATION_STATUS_FAILED" {
-		t.Fatalf("a budget breach must fail validation (exit 1), got %s", got)
+		t.Fatalf("a budget breach must fail validation (suite run exit 1), got %s", got)
 	}
 	// And the breach surfaces as an ERROR architecture finding for the
-	// finding/baseline-diff pipeline test-genie already consumes.
+	// finding pipeline test-genie's Performance phase already consumes.
 	arch := mga.AssessmentToArchitectureFindings("demo", breached, architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED)
 	var sawError bool
 	for _, f := range arch {
@@ -103,7 +107,7 @@ func TestFindingsDriveFailedStatus(t *testing.T) {
 }
 
 // [REQ:PH-BUDGET-001] The config-backed store round-trips a budget through
-// .vrooli/perf-budgets.json and enforces the ratchet on disk.
+// .vrooli/testing.json performance.budgets and enforces the ratchet on disk.
 func TestConfigStoreRoundTripAndRatchet(t *testing.T) {
 	root := t.TempDir()
 	store := NewConfigStore(root, func(scenario string) (string, error) {
@@ -126,17 +130,71 @@ func TestConfigStoreRoundTripAndRatchet(t *testing.T) {
 		t.Fatalf("round-trip mismatch: %#v", got)
 	}
 
-	// Persisted at the documented path with the scenario's record present.
-	cfg, err := loadConfigFile(filepath.Join(root, "scenarios", "demo", BudgetsConfigRelPath))
-	if err != nil {
-		t.Fatalf("load persisted config: %v", err)
+	// Persisted under performance.budgets of the scenario's testing.json.
+	rec, ok, err := loadBudgetRecord(filepath.Join(root, "scenarios", "demo", TestingConfigRelPath))
+	if err != nil || !ok {
+		t.Fatalf("load persisted config: ok=%v err=%v", ok, err)
 	}
-	if _, ok := cfg.Budgets["demo"]; !ok {
-		t.Fatalf("expected demo budget persisted at %s", BudgetsConfigRelPath)
+	if rec.GoBuildMaxMs != 90000 {
+		t.Fatalf("expected demo budget persisted at %s, got %#v", TestingConfigRelPath, rec)
 	}
 
 	// Ratchet enforced against the persisted budget.
 	if _, err := store.Set(context.Background(), Budget{Scenario: "demo", GoBuildMaxMs: 150000, Ratchet: true}, false); err == nil {
 		t.Fatal("expected ratchet to reject a loosening write on disk")
+	}
+}
+
+// [REQ:PH-BUDGET-001] A budget write is a structured read-modify-write that
+// preserves every other testing.json key (and their order) — only
+// performance.budgets is touched.
+func TestConfigStoreSetPreservesSiblingKeys(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := filepath.Join(root, "scenarios", "demo")
+	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	const original = `{
+  "version": "1.0.0",
+  "lint": {"policy": {"unmatched_code_components": "warning"}},
+  "performance": {
+    "checks": {"lighthouse": {"enabled": true}}
+  },
+  "requirements": {"enforce": false}
+}`
+	testingPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
+	if err := os.WriteFile(testingPath, []byte(original), 0o644); err != nil {
+		t.Fatalf("seed testing.json: %v", err)
+	}
+
+	store := NewConfigStore(root, func(scenario string) (string, error) {
+		return filepath.Join(root, "scenarios", scenario), nil
+	})
+	if _, err := store.Set(context.Background(), Budget{Scenario: "demo", UIBuildMaxMs: 12000}, false); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+
+	raw, err := os.ReadFile(testingPath)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("parse written testing.json: %v", err)
+	}
+	for _, key := range []string{"version", "lint", "performance", "requirements"} {
+		if _, ok := doc[key]; !ok {
+			t.Fatalf("sibling key %q was dropped by budget write; got %s", key, raw)
+		}
+	}
+	var perf map[string]json.RawMessage
+	if err := json.Unmarshal(doc["performance"], &perf); err != nil {
+		t.Fatalf("parse performance block: %v", err)
+	}
+	if _, ok := perf["checks"]; !ok {
+		t.Fatalf("performance.checks was dropped; got %s", doc["performance"])
+	}
+	if _, ok := perf["budgets"]; !ok {
+		t.Fatalf("performance.budgets was not written; got %s", doc["performance"])
 	}
 }

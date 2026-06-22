@@ -30,6 +30,7 @@ import (
 	healthH "performance-health/handlers/health"
 	lighthouseH "performance-health/handlers/lighthouse"
 	startupH "performance-health/handlers/startup"
+	sweepH "performance-health/handlers/sweep"
 	trendH "performance-health/handlers/trend"
 	validationH "performance-health/handlers/validation"
 	localdb "performance-health/internal/database"
@@ -42,6 +43,7 @@ import (
 	lighthousev1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/lighthouse"
 	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/readiness"
 	startupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/startup"
+	sweepv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep"
 	trendv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/trend"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
@@ -60,6 +62,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, fleetH.Endpoints...)
 	out = append(out, lighthouseH.Endpoints...)
 	out = append(out, startupH.Endpoints...)
+	out = append(out, sweepH.Endpoints...)
 	out = append(out, trendH.Endpoints...)
 	out = append(out, validationH.Endpoints...)
 	return out
@@ -95,6 +98,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "fleet", File: fleetv1.File_performance_health_v1_fleet_fleet_proto},
 		{Module: "lighthouse", File: lighthousev1.File_performance_health_v1_lighthouse_lighthouse_proto},
 		{Module: "startup", File: startupv1.File_performance_health_v1_startup_startup_proto},
+		{Module: "sweep", File: sweepv1.File_performance_health_v1_sweep_sweep_proto},
 		{Module: "trend", File: trendv1.File_performance_health_v1_trend_trend_proto},
 		{Module: "validation", File: readinessv1.File_performance_health_v1_readiness_readiness_proto},
 		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
@@ -119,6 +123,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(fleetH.Schema),
 		apidb.SchemaProviderFunc(lighthouseH.Schema),
 		apidb.SchemaProviderFunc(startupH.Schema),
+		apidb.SchemaProviderFunc(sweepH.Schema),
 		apidb.SchemaProviderFunc(trendH.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),
 	}

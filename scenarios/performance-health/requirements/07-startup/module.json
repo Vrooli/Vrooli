@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "startup",
     "description": "The resource-aware startup benchmark (axis ②) migrated greenfield from structure-health's perf domain.",
+    "last_validated_at": "2026-06-22T11:24:44-04:00",
+    "module": "startup",
     "prd_ref": "PRD.md",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -15,9 +16,19 @@
       "category": "api",
       "criticality": "P2",
       "description": "startup restarts a scenario behind a runner seam and persists per-surface time-to-healthy plus a common.v1.ExecutionMetrics resource envelope to the trend store; reads are newest-first and scoped per scenario. Never invoked by a Test Genie phase.",
-      "tags": ["startup", "execution-metrics", "trend"],
+      "tags": [
+        "startup",
+        "execution-metrics",
+        "trend"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/startup/startup_test.go", "phase": "unit", "status": "implemented", "notes": "Store round-trip, newest-first scoping, and a faked-runner benchmark persist with injected metrics."}
+        {
+          "type": "test",
+          "ref": "api/internal/startup/startup_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Store round-trip, newest-first scoping, and a faked-runner benchmark persist with injected metrics."
+        }
       ]
     },
     {
@@ -28,9 +39,19 @@
       "category": "api",
       "criticality": "P2",
       "description": "The startup benchmark refuses to restart performance-health itself (self-restart deadlock guard) and surfaces runner errors rather than hanging.",
-      "tags": ["startup", "self-deadlock-guard", "api"],
+      "tags": [
+        "startup",
+        "self-deadlock-guard",
+        "api"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/startup/guard_test.go", "phase": "unit", "status": "implemented", "notes": "Asserts the self-benchmark rejection and the runner-error propagation path."}
+        {
+          "type": "test",
+          "ref": "api/internal/startup/guard_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Asserts the self-benchmark rejection and the runner-error propagation path."
+        }
       ]
     }
   ]

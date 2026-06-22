@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
 	"{{SCENARIO_ID}}/handlers/health"
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/server"

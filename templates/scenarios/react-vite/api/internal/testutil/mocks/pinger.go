@@ -3,7 +3,6 @@ package mocks
 import (
 	"context"
 	"sync/atomic"
-
 	"{{SCENARIO_ID}}/internal/database"
 )
 

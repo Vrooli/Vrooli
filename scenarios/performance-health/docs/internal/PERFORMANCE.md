@@ -37,8 +37,11 @@ Use this document to answer:
 
 1. Run `make test`.
 2. Capture relevant API/UI command timing.
-3. For UI interaction regressions, use `ui/perf/README.md` and the
-   provided capture template.
+3. For UI interaction regressions, author a perf flow
+   (`scenarios/<scenario>/bas/flows/<slug>.json`, `intent: performance`) and
+   capture it with `performance-health audit run <scenario> --workflow <slug>`
+   (see the `performance` steer skill). The old hand-edited
+   `ui/perf/capture.template.js` is retired — this is its productized superset.
 4. Record persistent findings in this document or
    [`PROBLEMS.md`](PROBLEMS.md) depending on whether they are accepted
    constraints or unresolved debt.

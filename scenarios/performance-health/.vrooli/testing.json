@@ -54,6 +54,11 @@
       "bundle_size": {
         "enabled": true
       }
+    },
+    "budgets": {
+      "go_build_max_ms": 10000,
+      "ui_build_max_ms": 12000,
+      "ratchet": false
     }
   }
 }

@@ -54,4 +54,26 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Validate architecture", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
 		},
 	},
+	{
+		ID:          "validation.preview-fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		Method:      "POST",
+		Summary:     "Preview architecture autofixes",
+		Description: "Part of the shared ScenarioValidationService contract. Architecture findings are advisory and have no format-preserving autofix, so this returns an empty candidate set (unimplemented).",
+		Category:    "validation",
+		Errors: []module.ErrorDesc{
+			{Status: 501, Code: "unimplemented", Description: "Architecture findings have no autofix"},
+		},
+	},
+	{
+		ID:          "validation.apply-fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		Method:      "POST",
+		Summary:     "Apply architecture autofixes",
+		Description: "Part of the shared ScenarioValidationService contract. Architecture findings are advisory and have no format-preserving autofix, so this applies nothing (unimplemented).",
+		Category:    "validation",
+		Errors: []module.ErrorDesc{
+			{Status: 501, Code: "unimplemented", Description: "Architecture findings have no autofix"},
+		},
+	},
 }

@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "perf-drag-horizontal",
-    "description": "Perf parity helper: drag a target horizontally by dx over stepped pointer moves (mousedown → stepped mousemove → mouseup). Mirrors capture.template.js dragHorizontalOnce — use it to exercise resize handles / draggable dividers whose lag you are auditing. Stepped moves settle transition queues so resize-lag traces reproduce.",
+    "description": "Perf interaction helper: drag a target horizontally by dx over stepped pointer moves (mousedown → stepped mousemove → mouseup). Use it to exercise resize handles / draggable dividers whose lag you are auditing. Stepped moves settle transition queues so resize-lag traces reproduce.",
     "labels": {
       "intent": "performance",
       "reset": "none",

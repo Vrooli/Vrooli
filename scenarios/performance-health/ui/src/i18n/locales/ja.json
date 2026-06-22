@@ -85,6 +85,7 @@
       "captured": "キャプチャ済み",
       "skipped": "スキップ",
       "failed": "失敗",
+      "unavailable": "利用不可",
       "unknown": "不明"
     }
   },

@@ -114,6 +114,21 @@ func (r *SQLiteSnapshotRepository) UpsertSnapshot(ctx context.Context, snap Snap
 			return false, err
 		}
 	}
+	// Importance enrichment is also orthogonal to the digest: it is computed on a
+	// separate, slower cadence than the fast score sweep (which writes
+	// importance=NULL). Without this update the INSERT OR IGNORE above would
+	// silently drop a freshly-computed importance onto an existing (scenario,
+	// digest) row — leaving importance dark fleet-wide. Upsert it whenever the
+	// incoming snapshot carries one, so the importance-refresh path lands.
+	if snap.Importance != nil {
+		if _, err := r.db.ExecContext(ctx, `UPDATE score_snapshots
+			SET importance = ?
+			WHERE scenario = ? AND digest = ?`,
+			*snap.Importance, snap.Scenario, snap.Digest,
+		); err != nil {
+			return false, err
+		}
+	}
 	return n > 0, nil
 }
 

@@ -133,6 +133,72 @@ func TestDetect_OrchestrationArchetypeMayCoordinateSiblingDomain(t *testing.T) {
 	}
 }
 
+// coordMap declares a provider domain and an aggregation domain so the
+// coordinating-archetype recognition can be exercised.
+func coordMap() domains.DerivedDomainMap {
+	return domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
+			{Name: "validation", Paths: []string{"api/handlers/validation/**"}, Archetype: "provider"},
+			{Name: "fleet", Paths: []string{"api/handlers/fleet/**"}, Archetype: "aggregation"},
+			{Name: "trend", Paths: []string{"api/internal/trend/**"}, Archetype: "reporting"},
+		},
+	}
+}
+
+func detectWith(t *testing.T, m domains.DerivedDomainMap, snap graph.GraphSnapshot) []conflicts.Conflict {
+	t.Helper()
+	got, err := layering.New().Detect(context.Background(), conflicts.DetectInput{Scenario: "demo", Snapshot: snap, DomainMap: m})
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	return got
+}
+
+func TestDetect_ProviderArchetypeMayCoordinateSiblingDomain(t *testing.T) {
+	got := detectWith(t, coordMap(), graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:validation", RepoPath: "api/handlers/validation"},
+			{ID: "pkg:trend", RepoPath: "api/internal/trend"},
+		},
+		Imports: []graph.ImportEdge{{From: "pkg:validation", ToPackageID: "pkg:trend"}},
+	})
+	if len(got) != 0 {
+		t.Fatalf("a provider handler should be allowed to coordinate sibling domains, got %+v", got)
+	}
+}
+
+func TestDetect_AggregationArchetypeMayCoordinateSiblingDomain(t *testing.T) {
+	got := detectWith(t, coordMap(), graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:fleet", RepoPath: "api/handlers/fleet"},
+			{ID: "pkg:trend", RepoPath: "api/internal/trend"},
+		},
+		Imports: []graph.ImportEdge{{From: "pkg:fleet", ToPackageID: "pkg:trend"}},
+	})
+	if len(got) != 0 {
+		t.Fatalf("an aggregation handler should be allowed to coordinate sibling domains, got %+v", got)
+	}
+}
+
+// A handler path owned by no declared domain that imports a real domain yields
+// the discoverable unowned-source-path finding, not a misleading sibling-domain
+// finding against a phantom domain.
+func TestDetect_UnownedHandlerPathFlagsUnownedSourcePath(t *testing.T) {
+	got := detectWith(t, coordMap(), graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:audit", RepoPath: "api/handlers/audit"},
+			{ID: "pkg:trend", RepoPath: "api/internal/trend"},
+		},
+		Imports: []graph.ImportEdge{{From: "pkg:audit", ToPackageID: "pkg:trend"}},
+	})
+	if len(got) != 1 {
+		t.Fatalf("expected one conflict, got %+v", got)
+	}
+	if got[0].Subtype != "unowned-source-path" {
+		t.Fatalf("expected unowned-source-path, got %+v", got[0])
+	}
+}
+
 func TestDetect_IgnoresTestOnlyEdges(t *testing.T) {
 	got := detect(t, graph.GraphSnapshot{
 		Packages: []graph.PackageNode{

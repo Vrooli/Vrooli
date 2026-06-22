@@ -9,6 +9,7 @@ import (
 	"performance-health/cli/domains/lighthouse"
 	"performance-health/cli/domains/readiness"
 	"performance-health/cli/domains/startup"
+	"performance-health/cli/domains/sweep"
 	"performance-health/cli/domains/trend"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -25,6 +26,7 @@ var registrars = []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, er
 	lighthouse.Register,
 	readiness.Register,
 	startup.Register,
+	sweep.Register,
 	trend.Register,
 }
 

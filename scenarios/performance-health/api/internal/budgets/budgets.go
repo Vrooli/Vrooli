@@ -1,9 +1,16 @@
 // Package budgets owns per-scenario performance budgets (build time, bundle
 // size, LCP, startup, and component-commit budgets — avg and max) plus a
-// ratchet (tighten-only). Budgets are declarative in scenario
-// config (.vrooli/perf-budgets.json); CheckBudget evaluates the latest measured
-// sample against the budget and reports violations — the signal a baseline-diff
-// turns into an exit-1 regression through the maturity finding pipeline.
+// ratchet (tighten-only). Budgets are declarative in scenario config under the
+// `performance.budgets` block of .vrooli/testing.json — the single source of
+// truth for every perf threshold; CheckBudget evaluates the latest measured
+// sample against the budget and reports violations — the signal that, as an
+// ERROR finding, fails the test-genie Performance phase (and therefore the
+// suite run, `vrooli scenario test`) through the maturity finding pipeline.
+//
+// NB: a breach fails the SUITE RUN, not `git-control-tower baseline diff` — the
+// baseline-diff verdict buckets phase results into surfaces (structure/rules/
+// tests/workflows/visuals) and the `performance` phase maps to none of them, so
+// a perf regression is invisible there. The suite run is the enforcement gate.
 package budgets
 
 import (
@@ -12,6 +19,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"sync"
 
 	mga "github.com/vrooli/maturity-go/assessment"
@@ -32,13 +40,42 @@ type Budget struct {
 	// Ratchet, when true, makes SetBudget tighten-only: a write that loosens any
 	// declared axis is rejected.
 	Ratchet bool
+	// Flows holds per-interaction-flow budgets keyed by flow slug. These gate a
+	// specific targeted journey (driven by `audit run --workflow <slug>`) on the
+	// continuous cadence, independently of the scenario aggregate. Only the
+	// Tier-1/web-vitals axes apply per-flow (build/bundle/startup stay scenario-
+	// level — there is no per-flow build).
+	Flows map[string]FlowBudget
 }
 
-// IsSet reports whether the budget declares at least one positive threshold.
+// FlowBudget is one interaction-flow's declared thresholds (0 = unset). It
+// carries only the axes a targeted capture can measure: LCP and the slowest
+// component's avg/max commit time.
+type FlowBudget struct {
+	LCPMaxMs                int64
+	ComponentCommitAvgMaxMs float64
+	ComponentCommitMaxMs    float64
+}
+
+// IsSet reports whether the flow budget declares at least one positive threshold.
+func (f FlowBudget) IsSet() bool {
+	return f.LCPMaxMs > 0 || f.ComponentCommitAvgMaxMs > 0 || f.ComponentCommitMaxMs > 0
+}
+
+// IsSet reports whether the budget declares at least one positive threshold
+// (scenario-level or any per-flow).
 func (b Budget) IsSet() bool {
-	return b.GoBuildMaxMs > 0 || b.UIBuildMaxMs > 0 || b.BundleMaxBytes > 0 ||
+	if b.GoBuildMaxMs > 0 || b.UIBuildMaxMs > 0 || b.BundleMaxBytes > 0 ||
 		b.LCPMaxMs > 0 || b.StartupMaxMs > 0 ||
-		b.ComponentCommitAvgMaxMs > 0 || b.ComponentCommitMaxMs > 0
+		b.ComponentCommitAvgMaxMs > 0 || b.ComponentCommitMaxMs > 0 {
+		return true
+	}
+	for _, fb := range b.Flows {
+		if fb.IsSet() {
+			return true
+		}
+	}
+	return false
 }
 
 // Measurement is the latest measured value per axis for one scenario. Integer
@@ -75,7 +112,7 @@ type MeasurementSource interface {
 }
 
 // BudgetStore reads and writes declared budgets. The in-memory Store (tests) and
-// the ConfigStore (.vrooli/perf-budgets.json) both satisfy it.
+// the ConfigStore (.vrooli/testing.json performance.budgets) both satisfy it.
 type BudgetStore interface {
 	Get(ctx context.Context, scenario string) (Budget, bool, error)
 	Set(ctx context.Context, b Budget, dryRun bool) (Budget, error)
@@ -166,6 +203,23 @@ func enforceRatchet(existing, incoming Budget) error {
 			return err
 		}
 	}
+	// Per-flow axes ratchet independently: a flow present in both must only
+	// tighten. A newly-added flow has no prior value to loosen against.
+	for slug, was := range existing.Flows {
+		now, ok := incoming.Flows[slug]
+		if !ok {
+			continue
+		}
+		for _, err := range []error{
+			loosened("flow:"+slug+".lcp", was.LCPMaxMs, now.LCPMaxMs),
+			loosenedF("flow:"+slug+".component_commit_avg", was.ComponentCommitAvgMaxMs, now.ComponentCommitAvgMaxMs),
+			loosenedF("flow:"+slug+".component_commit_max", was.ComponentCommitMaxMs, now.ComponentCommitMaxMs),
+		} {
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -209,6 +263,23 @@ func (s *Service) Set(ctx context.Context, b Budget, dryRun bool) (Budget, error
 	return s.store.Set(ctx, b, dryRun)
 }
 
+// Advisories returns the INFO findings describing a scenario's declared-but-
+// ungated budget axes (none when no budget is declared or all declared axes are
+// synchronously gated). It never fails — advisories only inform.
+func (s *Service) Advisories(ctx context.Context, scenario string) ([]mga.Finding, error) {
+	if s == nil || s.store == nil {
+		return nil, errors.New("budgets: service not wired")
+	}
+	budget, declared, err := s.store.Get(ctx, scenario)
+	if err != nil {
+		return nil, err
+	}
+	if !declared {
+		return nil, nil
+	}
+	return AdvisoryFindings(budget), nil
+}
+
 // Check evaluates a scenario's latest measured sample against its declared
 // budget. With no budget declared, or no measured sample, it passes (there is
 // nothing to be over-budget against). Otherwise it returns the sorted
@@ -236,6 +307,99 @@ func (s *Service) Check(ctx context.Context, scenario string) (bool, []Violation
 	}
 	violations := Evaluate(budget, m)
 	return len(violations) == 0, violations, nil
+}
+
+// FlowMeasurementSource supplies the latest flow-tagged measured sample. The
+// production sampleMeasurementSource satisfies it; tests drive a fake. found=
+// false means the flow has no measured sample yet (CheckFlow passes vacuously).
+type FlowMeasurementSource interface {
+	LatestFlow(ctx context.Context, scenario, flow string) (Measurement, bool, error)
+}
+
+// CheckFlow evaluates one interaction flow's latest flow-tagged sample against
+// its per-flow budget. With no per-flow budget declared, no flow-aware source,
+// or no flow-tagged sample yet, it passes (nothing to be over-budget against).
+func (s *Service) CheckFlow(ctx context.Context, scenario, flow string) (bool, []Violation, error) {
+	if s == nil || s.store == nil {
+		return false, nil, errors.New("budgets: service not wired")
+	}
+	if strings.TrimSpace(flow) == "" {
+		return false, nil, errors.New("budgets: flow is required")
+	}
+	budget, declared, err := s.store.Get(ctx, scenario)
+	if err != nil {
+		return false, nil, err
+	}
+	if !declared {
+		return true, nil, nil
+	}
+	fb, ok := budget.Flows[flow]
+	if !ok || !fb.IsSet() {
+		return true, nil, nil
+	}
+	fs, ok := s.source.(FlowMeasurementSource)
+	if s.source == nil || !ok {
+		return true, nil, nil
+	}
+	m, found, err := fs.LatestFlow(ctx, scenario, flow)
+	if err != nil {
+		return false, nil, err
+	}
+	if !found {
+		return true, nil, nil
+	}
+	return len(EvaluateFlow(fb, m)) == 0, EvaluateFlow(fb, m), nil
+}
+
+// FlowFindings checks every declared per-flow budget against its latest
+// flow-tagged sample and returns ERROR findings for breaches (empty when all
+// pass or none declared). It is the per-flow analogue of the scenario-level
+// budget gate: the validation handler folds these in so a regression on a
+// budgeted journey fails the test-genie Performance phase (and therefore the
+// suite run, `vrooli scenario test`), evaluated against the flow samples the
+// continuous capture-sweep persists. The CHECK is synchronous — it only reads
+// the latest persisted flow sample; the browser CAPTURE that produced it runs
+// out-of-band in the sweep, never inside the gated run.
+func (s *Service) FlowFindings(ctx context.Context, scenario string) ([]mga.Finding, error) {
+	if s == nil || s.store == nil {
+		return nil, errors.New("budgets: service not wired")
+	}
+	budget, declared, err := s.store.Get(ctx, scenario)
+	if err != nil {
+		return nil, err
+	}
+	if !declared || len(budget.Flows) == 0 {
+		return nil, nil
+	}
+	slugs := make([]string, 0, len(budget.Flows))
+	for slug := range budget.Flows {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+	var out []mga.Finding
+	for _, slug := range slugs {
+		passed, violations, err := s.CheckFlow(ctx, scenario, slug)
+		if err != nil {
+			return nil, err
+		}
+		if passed || len(violations) == 0 {
+			continue
+		}
+		out = append(out, FindingsForFlow(slug, violations)...)
+	}
+	return out, nil
+}
+
+// EvaluateFlow compares a flow-tagged measured sample against a per-flow budget.
+// It reuses Evaluate by projecting the flow budget onto the scenario axes it
+// shares (lcp + component-commit); build/bundle/startup stay zero (unset) so
+// they never trip per-flow.
+func EvaluateFlow(fb FlowBudget, m Measurement) []Violation {
+	return Evaluate(Budget{
+		LCPMaxMs:                fb.LCPMaxMs,
+		ComponentCommitAvgMaxMs: fb.ComponentCommitAvgMaxMs,
+		ComponentCommitMaxMs:    fb.ComponentCommitMaxMs,
+	}, m)
 }
 
 // Evaluate compares a measured sample against a budget and returns sorted
@@ -274,9 +438,10 @@ func Evaluate(b Budget, m Measurement) []Violation {
 
 // Findings projects budget violations into shared maturity findings at ERROR
 // severity. An ERROR finding drives the scenario-validation status to FAILED via
-// assessment.DeriveValidationStatus, which is how a perf regression fails
-// `git-control-tower baseline diff` (exit 1) exactly like any other health
-// regression. The code is stable so the finding is dedupable across runs.
+// assessment.DeriveValidationStatus, which is how a perf regression fails the
+// test-genie Performance phase — and therefore the suite run (`vrooli scenario
+// test` exit 1) — exactly like any other health regression. The code is stable
+// so the finding is dedupable across runs.
 func Findings(scenario string, violations []Violation) []mga.Finding {
 	out := make([]mga.Finding, 0, len(violations))
 	for _, v := range violations {
@@ -295,6 +460,75 @@ func Findings(scenario string, violations []Violation) []mga.Finding {
 		})
 	}
 	return out
+}
+
+// FindingsForFlow projects per-flow budget violations into ERROR findings,
+// tagged by flow slug so each budgeted journey fails the Performance phase
+// independently. The code keeps the PERF_BUDGET_BREACH_ prefix (so the existing
+// budget-finding handling applies) but namespaces the flow + axis for dedup.
+func FindingsForFlow(flow string, violations []Violation) []mga.Finding {
+	out := make([]mga.Finding, 0, len(violations))
+	for _, v := range violations {
+		msg := fmt.Sprintf("performance budget breach on flow %q: %s measured %d%s exceeds budget %d%s",
+			flow, v.Axis, v.Measured, unitSuffix(v.Unit), v.Budget, unitSuffix(v.Unit))
+		if v.Detail != "" {
+			msg += " (" + v.Detail + ")"
+		}
+		out = append(out, mga.Finding{
+			Code:             "PERF_BUDGET_BREACH_" + upper(flow) + "_" + upper(v.Axis),
+			Severity:         "error",
+			Title:            fmt.Sprintf("Performance budget breach: flow %s / %s", flow, v.Axis),
+			Message:          msg,
+			AutofixAvailable: false,
+		})
+	}
+	return out
+}
+
+// UngatedDeclaredAxes returns the declared budget axes the SYNCHRONOUS
+// performance gate cannot MEASURE hermetically. The gate freshly measures build +
+// bundle (go_build, ui_build, bundle); lcp, startup, and the component-commit
+// axes are measured continuously out-of-band (capture/sweep → trend). A budget
+// declared on an ungated axis is still real protection: the breach CHECK runs
+// synchronously (it reads the latest persisted sample and fails the Performance
+// phase / suite run), only the MEASUREMENT is out-of-band — so the value gated is
+// the last out-of-band capture, not this run's code.
+func UngatedDeclaredAxes(b Budget) []string {
+	var out []string
+	if b.LCPMaxMs > 0 {
+		out = append(out, "lcp")
+	}
+	if b.StartupMaxMs > 0 {
+		out = append(out, "startup")
+	}
+	if b.ComponentCommitAvgMaxMs > 0 {
+		out = append(out, "component_commit_avg")
+	}
+	if b.ComponentCommitMaxMs > 0 {
+		out = append(out, "component_commit_max")
+	}
+	return out
+}
+
+// AdvisoryFindings projects a budget's declared-but-ungated axes into INFO
+// findings so a declared budget can't silently masquerade as freshly-measured
+// synchronous protection. INFO severity never fails the gate; it makes the
+// freshly-measured-vs-continuous split visible in the assessment.
+func AdvisoryFindings(b Budget) []mga.Finding {
+	axes := UngatedDeclaredAxes(b)
+	if len(axes) == 0 {
+		return nil
+	}
+	return []mga.Finding{{
+		Code:     "PERF_BUDGET_AXIS_UNGATED",
+		Severity: "info",
+		Title:    "Performance budget axis measured continuously, not freshly this run",
+		Message: fmt.Sprintf("declared budget axes [%s] are measured continuously out-of-band (capture/sweep → trend), "+
+			"not freshly by this synchronous performance gate; a breach is checked against the latest persisted "+
+			"sample and fails the Performance phase (suite run), but reflects the last out-of-band capture, not this run",
+			strings.Join(axes, ", ")),
+		AutofixAvailable: false,
+	}}
 }
 
 func unitSuffix(unit string) string {

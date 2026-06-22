@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
 	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit/audit_v1connect"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -48,7 +49,7 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		return err
 	}
 	human := auditListReport(native)
-	if maturity := cliapp.BuildMaturityListReport(msg.GetAssessment()); maturity.Summary != nil {
+	if maturity := maturityreport.BuildMaturityListReport(msg.GetAssessment()); maturity.Summary != nil {
 		human.Summary = append(human.Summary, maturity.Summary...)
 		human.RetrievalHints = append(human.RetrievalHints, maturity.RetrievalHints...)
 	}
@@ -81,7 +82,7 @@ func (h *handlers) runDomainAudit(ctx cliapp.RunContext, scenario string) error 
 	}
 	msg := resp.Msg
 	human := auditListReport(msg)
-	if maturity := cliapp.BuildMaturityListReport(msg.GetAssessment()); maturity.Summary != nil {
+	if maturity := maturityreport.BuildMaturityListReport(msg.GetAssessment()); maturity.Summary != nil {
 		human.Summary = append(human.Summary, maturity.Summary...)
 		human.RetrievalHints = append(human.RetrievalHints, maturity.RetrievalHints...)
 	}

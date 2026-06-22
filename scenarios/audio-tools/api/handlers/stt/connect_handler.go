@@ -18,6 +18,7 @@ import (
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
+	"audio-tools/internal/sttcapacity"
 	"audio-tools/internal/sttengine"
 	"audio-tools/internal/usagereport"
 
@@ -42,6 +43,10 @@ type Deps struct {
 	SpeakerConfig   SpeakerConfigRepository
 	Wakeword        WakewordRepository
 	Speaker         SpeakerRepository
+	// Capacity reports streaming transcription activity to the platform capacity
+	// broker so the backing local resource (whisper/kyutai-stt) is marked active
+	// (protected from idle reclaim) while a session is live. nil = no reporting.
+	Capacity sttcapacity.Reporter
 }
 
 type connectHandler struct {

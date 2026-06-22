@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "capture-orchestration",
     "description": "The audit conductor: profile-mode build, BAS perf-capture invocation, restore, and graceful headless skip.",
+    "last_validated_at": "2026-06-22T11:24:44-04:00",
+    "module": "capture-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -15,9 +16,19 @@
       "category": "api",
       "criticality": "P0",
       "description": "audit conducts profile-mode restart → verify the served bundle is the profile bundle → call BAS perf-capture (CDP trace + web-vitals) → restore the default build, behind restart/exec/BAS-client seams.",
-      "tags": ["orchestration", "bas-client", "capture"],
+      "tags": [
+        "orchestration",
+        "bas-client",
+        "capture"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/capture/orchestrator_test.go", "phase": "unit", "status": "implemented", "notes": "Fakes for restart/exec/BAS client assert the ordered pipeline and that the default build is always restored, even on capture failure."}
+        {
+          "type": "test",
+          "ref": "api/internal/capture/orchestrator_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fakes for restart/exec/BAS client assert the ordered pipeline and that the default build is always restored, even on capture failure."
+        }
       ]
     },
     {
@@ -28,9 +39,19 @@
       "category": "api",
       "criticality": "P0",
       "description": "Absent ⚛ component marks are a Tier 0 result, not an error; the audit records the achieved tier and proceeds. performance-health owns tier meaning; BAS stays agnostic.",
-      "tags": ["tier-0", "capture", "graceful"],
+      "tags": [
+        "tier-0",
+        "capture",
+        "graceful"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/capture/tier_result_test.go", "phase": "unit", "status": "implemented", "notes": "A trace with zero ⚛ marks yields a Tier 0 result with no error; a trace with ⚛ marks yields Tier 1."}
+        {
+          "type": "test",
+          "ref": "api/internal/capture/tier_result_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A trace with zero ⚛ marks yields a Tier 0 result with no error; a trace with ⚛ marks yields Tier 1."
+        }
       ]
     },
     {
@@ -41,9 +62,19 @@
       "category": "api",
       "criticality": "P0",
       "description": "The audit pipeline skips cleanly (mirroring the Lighthouse silent-skip) when there is no UI, no browser, or a headless environment, returning a skipped result rather than a failure.",
-      "tags": ["skip", "headless", "graceful"],
+      "tags": [
+        "skip",
+        "headless",
+        "graceful"
+      ],
       "validation": [
-        {"type": "test", "ref": "api/internal/capture/skip_test.go", "phase": "unit", "status": "implemented", "notes": "No-UI and no-browser conditions return a skipped result with a reason, not a finding-level failure."}
+        {
+          "type": "test",
+          "ref": "api/internal/capture/skip_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "No-UI and no-browser conditions return a skipped result with a reason, not a finding-level failure."
+        }
       ]
     }
   ]

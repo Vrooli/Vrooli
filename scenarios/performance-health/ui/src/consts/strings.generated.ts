@@ -97,6 +97,7 @@ export const strings = {
       captured: "audit.outcome.captured",
       skipped: "audit.outcome.skipped",
       failed: "audit.outcome.failed",
+      unavailable: "audit.outcome.unavailable",
       unknown: "audit.outcome.unknown",
     },
   },

@@ -13,11 +13,12 @@ import (
 	"performance-health/internal/scenarioroot"
 )
 
-// Default build budgets, mirroring test-genie's native perf phase defaults so
-// the migrated axis ① behaves identically when .vrooli/testing.json omits them.
+// Default build budgets (milliseconds), mirroring test-genie's native perf phase
+// defaults so the migrated axis ① behaves identically when
+// .vrooli/testing.json declares no `performance.budgets` block.
 const (
-	defaultGoBuildMaxSeconds = 90
-	defaultUIBuildMaxSeconds = 180
+	defaultGoBuildMaxMs = 90_000
+	defaultUIBuildMaxMs = 180_000
 )
 
 // CommandExecutor runs a build command in a directory. Injectable for tests so
@@ -62,17 +63,22 @@ type thresholds struct {
 
 type testingConfig struct {
 	Performance struct {
-		GoBuildMaxSeconds *int `json:"go_build_max_seconds"`
-		UIBuildMaxSeconds *int `json:"ui_build_max_seconds"`
+		Budgets struct {
+			GoBuildMaxMs *int64 `json:"go_build_max_ms"`
+			UIBuildMaxMs *int64 `json:"ui_build_max_ms"`
+		} `json:"budgets"`
 	} `json:"performance"`
 }
 
-// loadThresholds reads build budgets from <root>/.vrooli/testing.json, falling
-// back to the test-genie-parity defaults when the file or fields are absent.
+// loadThresholds reads the build budgets from the `performance.budgets` block of
+// <root>/.vrooli/testing.json — the single source of truth the budgets domain
+// gates on — falling back to the test-genie-parity defaults when the file or
+// block is absent. These thresholds only mark the informational OverBudget flag
+// on each timing; the budgets domain is the sole emitter of gating findings.
 func loadThresholds(root string) thresholds {
 	t := thresholds{
-		goBuildMax: time.Duration(defaultGoBuildMaxSeconds) * time.Second,
-		uiBuildMax: time.Duration(defaultUIBuildMaxSeconds) * time.Second,
+		goBuildMax: time.Duration(defaultGoBuildMaxMs) * time.Millisecond,
+		uiBuildMax: time.Duration(defaultUIBuildMaxMs) * time.Millisecond,
 	}
 	raw, err := os.ReadFile(filepath.Join(root, ".vrooli", "testing.json"))
 	if err != nil {
@@ -82,11 +88,11 @@ func loadThresholds(root string) thresholds {
 	if json.Unmarshal(raw, &cfg) != nil {
 		return t
 	}
-	if cfg.Performance.GoBuildMaxSeconds != nil {
-		t.goBuildMax = time.Duration(*cfg.Performance.GoBuildMaxSeconds) * time.Second
+	if cfg.Performance.Budgets.GoBuildMaxMs != nil {
+		t.goBuildMax = time.Duration(*cfg.Performance.Budgets.GoBuildMaxMs) * time.Millisecond
 	}
-	if cfg.Performance.UIBuildMaxSeconds != nil {
-		t.uiBuildMax = time.Duration(*cfg.Performance.UIBuildMaxSeconds) * time.Second
+	if cfg.Performance.Budgets.UIBuildMaxMs != nil {
+		t.uiBuildMax = time.Duration(*cfg.Performance.Budgets.UIBuildMaxMs) * time.Millisecond
 	}
 	return t
 }

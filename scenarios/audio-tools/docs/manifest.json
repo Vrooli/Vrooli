@@ -1126,7 +1126,7 @@
           "completion": "required",
           "ownerSkills": [
             "deployment-coordinator",
-            "scenario-performance-audit"
+            "performance"
           ],
           "validation": {
             "requiredHeadings": [
@@ -1585,7 +1585,7 @@
           "completion": "conditional",
           "condition": "Required once the scenario has performance-sensitive UX, data, AI, or deployment targets.",
           "ownerSkills": [
-            "scenario-performance-audit"
+            "performance"
           ],
           "validation": {
             "requiredHeadings": [

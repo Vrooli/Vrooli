@@ -5,6 +5,29 @@ import (
 	"testing"
 )
 
+// [REQ:PH-BUDGET-002] Declared lcp/startup/component axes are flagged as
+// continuously-gated (out-of-band), never synchronously; build+bundle axes are
+// not — so a declared budget can't masquerade as synchronous protection.
+func TestUngatedDeclaredAxesAndAdvisory(t *testing.T) {
+	// Only synchronously-gateable axes => no advisory.
+	if axes := UngatedDeclaredAxes(Budget{GoBuildMaxMs: 1, UIBuildMaxMs: 1, BundleMaxBytes: 1}); len(axes) != 0 {
+		t.Fatalf("build+bundle axes are gated synchronously; expected none, got %v", axes)
+	}
+	b := Budget{LCPMaxMs: 2500, StartupMaxMs: 3000, ComponentCommitAvgMaxMs: 8, ComponentCommitMaxMs: 16}
+	axes := UngatedDeclaredAxes(b)
+	want := []string{"lcp", "startup", "component_commit_avg", "component_commit_max"}
+	if len(axes) != len(want) {
+		t.Fatalf("expected %v ungated axes, got %v", want, axes)
+	}
+	findings := AdvisoryFindings(b)
+	if len(findings) != 1 || findings[0].Code != "PERF_BUDGET_AXIS_UNGATED" || findings[0].Severity != "info" {
+		t.Fatalf("expected one INFO PERF_BUDGET_AXIS_UNGATED advisory, got %+v", findings)
+	}
+	if AdvisoryFindings(Budget{GoBuildMaxMs: 1}) != nil {
+		t.Fatalf("no advisory expected when only synchronously-gated axes are declared")
+	}
+}
+
 // [REQ:PH-BUDGET-001] Budgets set then get round-trip; an undeclared scenario
 // reports declared=false with defaults.
 func TestSetGetRoundTrip(t *testing.T) {

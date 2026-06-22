@@ -273,3 +273,107 @@ func TestCapture_ValidationErrors_InvalidArgument(t *testing.T) {
 		})
 	}
 }
+
+// --- Phase 1: interaction-aware perf capture --------------------------------
+
+// scrollFlowJSON is a 2-node bas/flows-shape interaction: navigate (the flow's
+// own entry) + a scroll-by-selector. The capture path prepends its own
+// navigate-to-URL node and splices this flow after it.
+const scrollFlowJSON = `{
+  "metadata": {"name": "scroll-list", "version": "1"},
+  "nodes": [
+    {"id": "flow-scroll", "action": {"type": "ACTION_TYPE_SCROLL",
+      "scroll": {"selector": "[data-testid='virtualized-list']", "delta_y": 2000}}}
+  ]
+}`
+
+func TestCapture_InteractionFlow_SplicedAfterNavigate(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com/list",
+		Captures:            []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
+		InteractionFlowJson: scrollFlowJSON,
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.DryRun)
+
+	require.NotNil(t, exec.LastReq)
+	def := exec.LastReq.FlowDefinition
+	require.NotNil(t, def)
+	// navigate node + spliced scroll node.
+	require.Len(t, def.Nodes, 2)
+	nav := def.Nodes[0].GetAction().GetNavigate()
+	require.NotNil(t, nav)
+	require.Equal(t, "https://example.com/list", nav.Url)
+	scroll := def.Nodes[1].GetAction().GetScroll()
+	require.NotNil(t, scroll, "spliced node must be the scroll interaction")
+	require.Equal(t, "[data-testid='virtualized-list']", scroll.GetSelector())
+	// An edge wires navigate → the interaction's first node so the scroll runs
+	// inside the same perf-trace window, after the navigate.
+	require.Len(t, def.Edges, 1)
+	require.Equal(t, def.Nodes[0].GetId(), def.Edges[0].GetSource())
+	require.Equal(t, def.Nodes[1].GetId(), def.Edges[0].GetTarget())
+
+	// Perf trace was requested.
+	require.Equal(t, 1, exec.Calls)
+}
+
+// A bas/flows body with short-form metadata (execution_mode:"observer",
+// viewport settings) must splice identically to one fed through
+// `execute-adhoc --flow-file` — i.e. the capture path applies the same compat
+// normalization, not raw protojson.
+func TestCapture_InteractionFlow_ShortFormMetadataNormalized(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	flow := `{
+	  "metadata": {"name": "scroll-list", "execution_mode": "observer", "reset": "none"},
+	  "settings": {"viewport_width": 1440, "viewport_height": 900},
+	  "nodes": [
+	    {"id": "s", "action": {"type": "ACTION_TYPE_SCROLL", "scroll": {"selector": "[data-testid='list']", "delta_y": 1000}}}
+	  ]
+	}`
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com/list",
+		Captures:            []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
+		InteractionFlowJson: flow,
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.DryRun)
+	require.NotNil(t, exec.LastReq)
+	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 2)
+	require.NotNil(t, exec.LastReq.FlowDefinition.Nodes[1].GetAction().GetScroll())
+}
+
+func TestCapture_EmptyInteractionFlow_PreservesNavigateOnly(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	resp, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com",
+		Captures:            []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE},
+		InteractionFlowJson: "",
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.DryRun)
+	require.NotNil(t, exec.LastReq)
+	require.Len(t, exec.LastReq.FlowDefinition.Nodes, 1)
+	require.Empty(t, exec.LastReq.FlowDefinition.Edges)
+}
+
+func TestCapture_MalformedInteractionFlow_InvalidArgument(t *testing.T) {
+	exec := &fakeExecutor{}
+	client, _ := newTestServer(t, Deps{Executor: exec})
+
+	_, err := client.Capture(context.Background(), connect.NewRequest(&capturev1.CaptureRequest{
+		Url:                 "https://example.com",
+		InteractionFlowJson: "{ not valid json",
+	}))
+	require.Error(t, err)
+	var ce *connect.Error
+	require.True(t, errors.As(err, &ce))
+	require.Equal(t, connect.CodeInvalidArgument, ce.Code())
+	require.Equal(t, 0, exec.Calls, "executor must not run on a malformed flow")
+}

@@ -6,7 +6,6 @@ import (
 
 	"performance-health/internal/module"
 	internalstartup "performance-health/internal/startup"
-	"performance-health/internal/trend"
 
 	"github.com/gorilla/mux"
 	vroolicli "github.com/vrooli/vrooli-cli-go"
@@ -25,7 +24,9 @@ const SelfScenario = "performance-health"
 // real CLIRunner, which restarts the target scenario behind the vrooli-cli-go
 // status seam and persists per-surface time-to-healthy plus a resource envelope.
 // This is the migrated home of structure-health's former perf domain (axis ②).
-func Module(logger *log.Logger, db internalstartup.Executor) module.Module {
+// The shared perf-sample writer is injected from the composition root so this
+// domain never imports the trend domain directly.
+func Module(logger *log.Logger, db internalstartup.Executor, perfTrend internalstartup.PerfSampleWriter) module.Module {
 	store := internalstartup.NewStore(db)
 	cli := vroolicli.New()
 	environment, envErr := cli.HostCaptureEnvironment(context.Background())
@@ -39,7 +40,7 @@ func Module(logger *log.Logger, db internalstartup.Executor) module.Module {
 	// Cross-write time-to-healthy into the shared perf_samples trend so the
 	// startup budget axis has a producer (in addition to the rich
 	// startup_measurements store).
-	svc := internalstartup.NewService(runner, store, SelfScenario, internalstartup.WithPerfTrend(trend.NewStore(db)))
+	svc := internalstartup.NewService(runner, store, SelfScenario, internalstartup.WithPerfSampleWriter(perfTrend))
 	handler := NewHandler(svc, logger)
 	path, connectHandler := startupconnect.NewStartupServiceHandler(handler)
 	return module.Module{

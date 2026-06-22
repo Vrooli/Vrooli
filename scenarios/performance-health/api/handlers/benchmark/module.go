@@ -1,12 +1,10 @@
 package benchmark
 
 import (
-	"database/sql"
 	"log"
 
 	internalbench "performance-health/internal/benchmark"
 	"performance-health/internal/module"
-	"performance-health/internal/trend"
 
 	"github.com/gorilla/mux"
 	benchmarkv1 "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/benchmark"
@@ -20,13 +18,11 @@ var ProtoFile = benchmarkv1.File_performance_health_v1_benchmark_benchmark_proto
 // it times `go build ./...` (api/) and the UI package-manager build (ui/)
 // against thresholds from .vrooli/testing.json, preserving the early-exit
 // semantics of the migrated test-genie native perf phase. Measured runs persist
-// a build-time sample into the trend store (additive).
-func Module(logger *log.Logger, repoRoot string, db *sql.DB) module.Module {
+// a build-time sample through the injected trend writer (additive); the concrete
+// store is wired from the composition root so this domain never imports the
+// trend domain directly. A nil writer disables persistence.
+func Module(logger *log.Logger, repoRoot string, trendWriter SampleWriter) module.Module {
 	svc := internalbench.NewService(&internalbench.CLIRunner{RepoRoot: repoRoot})
-	var trendWriter SampleWriter
-	if db != nil {
-		trendWriter = trend.NewStore(db)
-	}
 	handler := NewHandler(svc, trendWriter, logger)
 	path, connectHandler := benchmarkconnect.NewBenchmarkServiceHandler(handler)
 	return module.Module{

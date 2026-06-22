@@ -24,12 +24,22 @@ func (f fakeFacts) Describe(context.Context, string, string) (readiness.Facts, e
 }
 
 type fakeBudgetChecker struct {
-	passed     bool
-	violations []budgets.Violation
+	passed       bool
+	violations   []budgets.Violation
+	advisories   []assessment.Finding
+	flowFindings []assessment.Finding
 }
 
 func (f fakeBudgetChecker) Check(context.Context, string) (bool, []budgets.Violation, error) {
 	return f.passed, f.violations, nil
+}
+
+func (f fakeBudgetChecker) Advisories(context.Context, string) ([]assessment.Finding, error) {
+	return f.advisories, nil
+}
+
+func (f fakeBudgetChecker) FlowFindings(context.Context, string) ([]assessment.Finding, error) {
+	return f.flowFindings, nil
 }
 
 const budgetGateSpec = `{

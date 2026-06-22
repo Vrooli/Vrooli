@@ -189,6 +189,7 @@ const OUTCOME_LABEL_KEY = {
   captured: strings.audit.outcome.captured,
   skipped: strings.audit.outcome.skipped,
   failed: strings.audit.outcome.failed,
+  unavailable: strings.audit.outcome.unavailable,
   unknown: strings.audit.outcome.unknown,
 } as const;
 
@@ -199,13 +200,17 @@ function AuditResult({ result }: { result: RunAuditResponse }) {
       ? "captured"
       : result.outcome === AuditOutcome.SKIPPED
         ? "skipped"
-        : result.outcome === AuditOutcome.FAILED
-          ? "failed"
-          : "unknown";
+        : result.outcome === AuditOutcome.UNAVAILABLE
+          ? "unavailable"
+          : result.outcome === AuditOutcome.FAILED
+            ? "failed"
+            : "unknown";
+  // UNAVAILABLE (no browser / BAS down) is a degraded environment, not a pass —
+  // warning styling, distinct from a clean N/A skip and from a hard failure.
   const outcomeClass =
     outcomeKey === "captured"
       ? "border border-app-success/40 bg-app-success/10 text-app-success"
-      : outcomeKey === "skipped"
+      : outcomeKey === "skipped" || outcomeKey === "unavailable"
         ? "border border-app-warning/40 bg-app-warning/10 text-app-warning"
         : "border border-app-danger/40 bg-app-danger/10 text-app-danger";
 
