@@ -226,7 +226,7 @@ func TestDeriveStatus(t *testing.T) {
 		obs := []Observation{
 			NewSectionObservation("🔍", "Checks"),
 			NewSkipObservation("python not detected"),
-			NewSkipObservation("bats suite not found"),
+			NewSkipObservation("websocket not configured"),
 		}
 		if got := deriveStatus(obs, nil, ""); got != "skipped" {
 			t.Fatalf("deriveStatus() = %q, want skipped", got)

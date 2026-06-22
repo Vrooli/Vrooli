@@ -4,7 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>System Monitor | Vrooli</title>
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- Fonts are loaded non-render-blocking so they never sit on the critical
+         path (a render-blocking font stylesheet — or a CSS @import chained
+         behind tokens.css — delays first paint/LCP and inflates TBT). We
+         preconnect to the font hosts, then swap the stylesheet from
+         media="print" to media="all" once it loads. System-font fallbacks in
+         tokens.css render immediately; web fonts swap in (font-display: swap)
+         without blocking. <noscript> keeps fonts working without JS. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Share+Tech+Mono&display=swap"
+      />
+    </noscript>
     <style>
       /* Prevent flash of unstyled content */
       body {

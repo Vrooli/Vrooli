@@ -13,6 +13,7 @@
     "smoke",
     "unit",
     "integration",
+    "storage",
     "playbooks",
     "business",
     "tidiness",

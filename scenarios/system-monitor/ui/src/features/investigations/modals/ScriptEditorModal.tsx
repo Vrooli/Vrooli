@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Play, Save, Eye, Edit, Loader } from 'lucide-react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { ScriptHighlighter } from '../../../shared/components/LazyScriptHighlighter';
 import { Modal, ModalHeader } from '../../../shared/components/Modal';
 import type { InvestigationScript } from '../../../types';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
@@ -236,29 +235,7 @@ export const ScriptEditorModal = ({
 
           <div style={{ flex: 1, overflow: 'auto' }}>
             {currentMode === 'view' ? (
-              <SyntaxHighlighter
-                language="bash"
-                style={{
-                  ...tomorrow,
-                  'pre[class*="language-"]': {
-                    ...tomorrow['pre[class*="language-"]'],
-                    background: 'var(--overlay-backdrop)',
-                    margin: 0,
-                    padding: 'var(--spacing-md)',
-                    fontSize: 'var(--text-sm)',
-                    fontFamily: 'var(--font-mono)',
-                    lineHeight: '1.5'
-                  }
-                }}
-                customStyle={{
-                  background: 'var(--overlay-backdrop)',
-                  margin: 0,
-                  fontSize: 'var(--text-sm)',
-                  fontFamily: 'var(--font-mono)'
-                }}
-              >
-                {scriptContent || '# No script content available'}
-              </SyntaxHighlighter>
+              <ScriptHighlighter content={scriptContent || '# No script content available'} />
             ) : (
               <textarea
                 value={scriptContent}

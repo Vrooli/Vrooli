@@ -10,15 +10,15 @@ import (
 )
 
 type fakeDependencyStore struct {
-	deps []types.ScenarioDependency
-	err  error
+	edges []types.UnifiedGraphEdge
+	err   error
 }
 
-func (s fakeDependencyStore) LoadAllDependencies() ([]types.ScenarioDependency, error) {
+func (s fakeDependencyStore) LoadGraphEdges() ([]types.UnifiedGraphEdge, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
-	return s.deps, nil
+	return s.edges, nil
 }
 
 type fakeScenarioCatalog map[string]bool
@@ -29,10 +29,10 @@ func (c fakeScenarioCatalog) KnownScenario(name string) bool {
 
 func TestBuilderGenerateFiltersByGraphTypeAndKnownScenarios(t *testing.T) {
 	builder := NewBuilder(
-		fakeDependencyStore{deps: []types.ScenarioDependency{
-			{ScenarioName: "consumer", DependencyName: "postgres", DependencyType: "resource", Required: true},
-			{ScenarioName: "consumer", DependencyName: "core-a", DependencyType: "scenario", Required: true},
-			{ScenarioName: "consumer", DependencyName: "stale-scenario", DependencyType: "scenario", Required: true},
+		fakeDependencyStore{edges: []types.UnifiedGraphEdge{
+			{From: "consumer", To: "postgres", Kind: "resource", Source: "resource", Required: true},
+			{From: "consumer", To: "core-a", Kind: "scenario", Source: "proto_import", Required: true},
+			{From: "consumer", To: "stale-scenario", Kind: "scenario", Source: "declared", Required: true},
 		}},
 		fakeScenarioCatalog{"core-a": true},
 		&seams.Dependencies{
@@ -68,9 +68,9 @@ func TestBuilderGenerateFiltersByGraphTypeAndKnownScenarios(t *testing.T) {
 
 func TestBuilderGenerateResourceGraphOnlyIncludesResources(t *testing.T) {
 	builder := NewBuilder(
-		fakeDependencyStore{deps: []types.ScenarioDependency{
-			{ScenarioName: "consumer", DependencyName: "postgres", DependencyType: "resource"},
-			{ScenarioName: "consumer", DependencyName: "core-a", DependencyType: "scenario"},
+		fakeDependencyStore{edges: []types.UnifiedGraphEdge{
+			{From: "consumer", To: "postgres", Kind: "resource", Source: "resource"},
+			{From: "consumer", To: "core-a", Kind: "scenario", Source: "proto_import"},
 		}},
 		nil,
 		&seams.Dependencies{

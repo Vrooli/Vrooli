@@ -7,7 +7,6 @@ import (
 	"mime"
 	"net/http"
 	"strings"
-	"time"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
@@ -89,111 +88,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) backlogItemFromCreateRequest(w http.ResponseWriter, r *http.Request, req *apipb.CreateBacklogItemRequest) (BacklogItem, bool) {
-	normalizeCreateBacklogItemRequest(req)
-	if !httputil.ValidateProtoRequest(w, "[backlog] create", "invalid request body", req) {
-		return BacklogItem{}, false
-	}
-	if validationErr := validateCreateBacklogItemRequest(req); validationErr != "" {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", validationErr))
-		return BacklogItem{}, false
-	}
-
-	kind, err := ParseBacklogKind(req.Kind)
-	if err != nil {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-		return BacklogItem{}, false
-	}
-
-	// Sanitize name (folder-safe). Allow title fallback.
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		name = req.Title
-	}
-	name = sanitizeName(name)
-	if name == "" {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("name is required"))
-		return BacklogItem{}, false
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	priority := 5
-	if req.Priority != nil {
-		priority = int(*req.Priority)
-	}
-	description := ""
-	if req.Description != nil {
-		description = *req.Description
-	}
-	tags := req.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-
-	dependsOn := req.DependsOn
-	if dependsOn == nil {
-		dependsOn = []string{}
-	}
-	initiative := ""
-	if req.Initiative != nil {
-		initiative = strings.TrimSpace(*req.Initiative)
-	}
-	if err := h.validateInitiativeReference(initiative); err != nil {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-		return BacklogItem{}, false
-	}
-
-	effort := ""
-	if req.Effort != nil {
-		normalized, err := validateEffort(*req.Effort)
-		if err != nil {
-			apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-			return BacklogItem{}, false
-		}
-		effort = normalized
-	}
-
-	if err := validateGlobs(req.AcceptanceAllow); err != nil {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "acceptance_allow: "+err.Error()))
-		return BacklogItem{}, false
-	}
-	if err := validateGlobs(req.AcceptanceDeny); err != nil {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "acceptance_deny: "+err.Error()))
-		return BacklogItem{}, false
-	}
-	if err := validateGlobs(req.Creates); err != nil {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "creates: "+err.Error()))
-		return BacklogItem{}, false
-	}
-
-	spawnedFrom := ""
-	if req.SpawnedFrom != nil {
-		spawnedFrom = strings.TrimSpace(*req.SpawnedFrom)
-	}
-	note := ""
-	if req.Note != nil {
-		note = strings.TrimSpace(*req.Note)
-	}
-
 	prov := identity.FromContext(r.Context())
-	item := BacklogItem{
-		Name:            name,
-		Title:           req.Title,
-		Description:     description,
-		Status:          StatusBacklog,
-		Priority:        priority,
-		Tags:            tags,
-		Created:         now,
-		Updated:         now,
-		Kind:            kind,
-		DependsOn:       dependsOn,
-		Initiative:      initiative,
-		Effort:          effort,
-		AcceptanceAllow: req.AcceptanceAllow,
-		AcceptanceDeny:  req.AcceptanceDeny,
-		Creates:         req.Creates,
-		SpawnedFrom:     spawnedFrom,
-		Note:            note,
-		CreatedBy:       &prov,
+	item, err := buildItemFromCreateRequest(req, prov, h.validateInitiativeReference)
+	if err != nil {
+		var ve *CreateValidationError
+		if errors.As(err, &ve) {
+			apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", ve.Msg))
+		} else {
+			apierr.MapError(w, "[backlog] create", apierr.Internal("%s", err.Error()))
+		}
+		return BacklogItem{}, false
 	}
 	return item, true
 }

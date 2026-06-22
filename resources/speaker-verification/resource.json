@@ -48,6 +48,13 @@
       "SPEAKER_VERIFICATION_DEVICE": "cuda"
     }
   },
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 751619277,
+    "floor_bytes": 751619277,
+    "priority": "service"
+  },
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {

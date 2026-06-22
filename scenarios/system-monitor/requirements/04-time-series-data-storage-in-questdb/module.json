@@ -1,7 +1,7 @@
 {
   "description": "QuestDB and PostgreSQL configured (initialization/postgres/schema.sql, initialization/questdb/). API defaults to in-memory repository (api/internal/repository/memory/). PostgreSQL repository interface defined but API uses in-memory storage at runtime.",
   "module_id": "MOD-P0-004",
-  "prd_ref": "system-monitor-must-have-time-series-data-storage-in-questdb-configured-api-defaults-to-in-memory-with-postgresql-fallback",
+  "prd_ref": "Operational Targets > P0 > OT-P0-004",
   "priority": "P0",
   "requirements": [
     {
@@ -11,7 +11,7 @@
       ],
       "description": "System must store metrics in QuestDB with PostgreSQL fallback, ensuring no data loss",
       "id": "REQ-P0-004",
-      "prd_ref": "system-monitor-must-have-time-series-data-storage-in-questdb-configured-api-defaults-to-in-memory-with-postgresql-fallback",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "status": "in-progress",
       "title": "Time-Series Data Storage",
       "validation": [

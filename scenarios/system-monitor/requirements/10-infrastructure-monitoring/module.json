@@ -7,7 +7,7 @@
       "id": "REQ-P0-010",
       "title": "Infrastructure Monitoring",
       "status": "in_progress",
-      "prd_ref": "system-monitor-must-have-infrastructure-monitoring-database-pools-http-pools-message-queues-storage-io",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
       "category": "core",
       "description": "System must monitor infrastructure components including database pools, HTTP pools, message queues, and storage I/O",
       "validation": [
@@ -27,7 +27,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Collection interval \u003c 30s"
+          "notes": "Collection interval < 30s"
         },
         {
           "type": "test",
@@ -37,5 +37,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P0 > OT-P0-010"
 }

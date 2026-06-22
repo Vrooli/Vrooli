@@ -40,6 +40,19 @@ func (a Attributor) Scenarios() []string {
 	return out
 }
 
+// IsKnown reports whether name is a known scenario (not a shared/owned proto
+// package). Used to filter proto-import edges whose target is a package name
+// rather than a scenario (e.g. architecture-cartographer's own "architecture"
+// proto package), mirroring the filtering the go-import path gets via Attribute.
+func (a Attributor) IsKnown(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return false
+	}
+	_, ok := a.scenarios[name]
+	return ok
+}
+
 func (a Attributor) Attribute(importPath string) (string, bool) {
 	cleaned := cleanImportPath(importPath)
 	if cleaned == "" {

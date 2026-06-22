@@ -271,7 +271,6 @@ test-genie coverage my-scenario --depth deep
 
 ### Implementation
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python tests
-- [CLI Testing](phases/integration/cli-testing.md) - BATS testing patterns
 - [UI Testability](guides/ui-testability.md) - BAS workflow testing
 
 ---

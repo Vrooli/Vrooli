@@ -7,7 +7,7 @@
       "id": "REQ-P0-007",
       "title": "Matrix-Themed Dashboard",
       "status": "in_progress",
-      "prd_ref": "system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
       "category": "ui",
       "description": "System must provide a dark cyberpunk monitoring dashboard with Matrix theme using React",
       "validation": [
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "UI renders \u003c 2s"
+          "notes": "UI renders < 2s"
         },
         {
           "type": "test",
@@ -49,5 +49,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P0 > OT-P0-007"
 }

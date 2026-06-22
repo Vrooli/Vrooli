@@ -365,7 +365,7 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 5. `docs` - Validates markdown, mermaid, and links
 6. `smoke` - Performs fast UI / runtime handshake validation
 7. `unit` - Runs Go, Node, Python, and shell unit suites as applicable
-8. `integration` - Exercises CLI/Bats suites and scenario-local integrations
+8. `integration` - Exercises CLI runtime, API health, and WebSocket connectivity
 9. `playbooks` - Executes BAS browser automation workflows
 10. `business` - Audits requirement coverage and operational targets
 11. `performance` - Builds binaries and checks duration/performance budgets

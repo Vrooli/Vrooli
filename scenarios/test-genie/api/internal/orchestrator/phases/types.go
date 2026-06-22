@@ -29,6 +29,7 @@ const (
 	Smoke        Name = "smoke"
 	Unit         Name = "unit"
 	Integration  Name = "integration"
+	Storage      Name = "storage"
 	Playbooks    Name = "playbooks"
 	Business     Name = "business"
 	Performance  Name = "performance"

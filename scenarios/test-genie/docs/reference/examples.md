@@ -13,7 +13,6 @@ This document showcases exemplary testing implementations that demonstrate best 
 
 ### Why It's Gold Standard
 - **79.4% Go coverage** with comprehensive test cases
-- **Safe BATS implementation** following all safety guidelines
 - **Complete phased testing** with all 7 phases implemented
 - **Reusable test helpers** for HTTP testing
 - **Well-documented** with inline comments and guides
@@ -69,7 +68,7 @@ Demonstrates:
 - **Standard scaffold validation** - Confirms the Go CLI is wired through the shared scenario app
 - **Fast feedback** - No shell harness required for core CLI behavior
 - **Go-native assertions** - Command behavior stays in the same test ecosystem as the CLI code
-- **Greenfield alignment** - No duplicate BATS layer for migrated Go CLIs
+- **Greenfield alignment** - No duplicate shell-test layer for Go CLIs
 
 ```go
 func TestNewAppBuildsStandardScenarioCLI(t *testing.T) {
@@ -315,7 +314,7 @@ To achieve gold standard testing:
 ### 2. Coverage
 - Unit tests > 80%
 - Integration tests for all endpoints
-- CLI tests with BATS
+- CLI tests in Go
 - Business logic validation
 
 ### 3. Safety

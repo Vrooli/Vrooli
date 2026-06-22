@@ -7,7 +7,7 @@
       "id": "REQ-P0-003",
       "title": "AI-Powered Anomaly Investigation",
       "status": "in_progress",
-      "prd_ref": "system-monitor-must-have-automated-investigation-of-system-anomalies-via-agent-manager",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
       "category": "integration",
       "description": "System must automatically investigate anomalies using the agent-manager to analyze root causes and suggest remediation",
       "validation": [
@@ -43,5 +43,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P0 > OT-P0-003"
 }

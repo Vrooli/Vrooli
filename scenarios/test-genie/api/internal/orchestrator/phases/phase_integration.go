@@ -10,8 +10,8 @@ import (
 	"test-genie/internal/shared"
 )
 
-// runIntegrationPhase validates CLI flows and acceptance tests using the integration package.
-// This includes CLI binary discovery, help/version command validation, BATS suite execution,
+// runIntegrationPhase validates runtime liveness using the integration package.
+// This includes CLI binary discovery, help/version command validation,
 // API health checks, and WebSocket connection validation.
 //
 // Runtime URL Configuration:
@@ -45,7 +45,6 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 				integration.WithLogger(cleanLog),
 				integration.WithCommandExecutor(phaseCommandExecutor),
 				integration.WithCommandCapture(phaseCommandCapture),
-				integration.WithCommandLookup(commandLookup),
 			)
 			return runner.Run(ctx), nil
 		},

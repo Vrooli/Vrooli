@@ -31,20 +31,21 @@ const (
 	// DBIsolationNone — the phase does not need an isolated database. It reads
 	// the live target (or no database at all). The vast majority of phases.
 	DBIsolationNone DBIsolation = iota
-	// DBIsolationRoutedOrRestart — the phase needs an isolated test database.
-	// It is obtained one of two ways: the in-place routed path (install a test
-	// pool on the live process via RoutingService — no restart) when the
-	// target is routed-eligible, or, when it is not, a destructive restart of
-	// the target with the test DB injected via environment. The playbooks
-	// phase is the canonical (currently only) holder of this capability.
-	DBIsolationRoutedOrRestart
+	// DBIsolationRouted — the phase needs an isolated test database, obtained
+	// only by the in-place routed path: a test pool is installed on the live
+	// process via RoutingService (no scenario restart) when the target is
+	// statically proven routed-eligible. When isolation cannot be proven the
+	// phase is refused (there is no restart-based fallback — it was deleted in
+	// favour of the storage-health fail-closed gate). The playbooks phase is
+	// the canonical (currently only) holder of this capability.
+	DBIsolationRouted
 )
 
 // String renders the isolation mode for log/decision messaging.
 func (d DBIsolation) String() string {
 	switch d {
-	case DBIsolationRoutedOrRestart:
-		return "routed-or-restart"
+	case DBIsolationRouted:
+		return "routed"
 	default:
 		return "none"
 	}
@@ -64,11 +65,10 @@ type PhaseCapabilities struct {
 	// can be brought up without violating the self-host guard.
 	NeedsUI  bool
 	NeedsAPI bool
-	// MutatesLifecycle reports that running the phase restarts/replaces the
-	// target process as part of its own execution (beyond merely needing the
-	// surface up) — e.g. the playbooks fallback path swaps the DB via a
-	// scenario restart. Combined with DBIsolation and RoutedEligible to decide
-	// whether a restart actually happens this run.
+	// MutatesLifecycle reports that running the phase starts/replaces the target
+	// process as part of its own execution (beyond merely needing the surface
+	// up) — e.g. the playbooks phase may start the target on demand. Combined
+	// with the self-host guard to forbid mutating our own live process.
 	MutatesLifecycle bool
 	// LifecycleDecisionDeferred declares that whether the phase ACTUALLY mutates
 	// the lifecycle this run depends on runtime data the static manifest cannot
@@ -107,11 +107,11 @@ type RunContext struct {
 	// forbids it.
 	TargetIsSelf bool
 	// RoutedEligible reports that the target qualifies for the in-place routed
-	// test-DB path (no restart). Drives whether a DBIsolationRoutedOrRestart
-	// phase needs a destructive restart.
+	// test-DB path. Drives whether a DBIsolationRouted phase can isolate at all:
+	// when false there is no restart-based fallback, so the phase is refused.
 	RoutedEligible bool
 	// RoutedReason carries the human-readable explanation of the routed-vs-
-	// fallback decision (the absorbed playbooks PathDecision reason). Optional;
+	// refuse decision (the absorbed playbooks PathDecision reason). Optional;
 	// surfaced in Verdict reasons when present.
 	RoutedReason string
 	// LiveSurfaces records which target surfaces are already running and can be
@@ -135,9 +135,8 @@ type VerdictKind int
 const (
 	// VerdictRun — the phase runs normally.
 	VerdictRun VerdictKind = iota
-	// VerdictRunDegraded — the phase runs, but on a less-preferred path (e.g.
-	// DB isolation via restart instead of the routed path). The run still
-	// produces a real result; the reason explains the degradation.
+	// VerdictRunDegraded — the phase runs, but on a less-preferred path. The run
+	// still produces a real result; the reason explains the degradation.
 	VerdictRunDegraded
 	// VerdictSkip — the phase cannot run in this environment and is skipped
 	// with a reason and (where actionable) a remediation.

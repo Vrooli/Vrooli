@@ -60,7 +60,6 @@ func BuildPrompt(cfg PromptConfig) string {
 	sb.WriteString("2. **Collects evidence** from:\n")
 	sb.WriteString("   - Go test results (`*_test.go`)\n")
 	sb.WriteString("   - Vitest results (`ui/coverage/vitest-requirements.json`)\n")
-	sb.WriteString("   - BATS test results\n")
 	sb.WriteString("3. **Updates** requirement files with live status:\n")
 	sb.WriteString("   - `passed` → validation status becomes `implemented`\n")
 	sb.WriteString("   - `failed` → validation status becomes `failing`\n")
@@ -134,8 +133,6 @@ func BuildPrompt(cfg PromptConfig) string {
 		sb.WriteString("```go\n// [REQ:TESTGENIE-ORCH-P0] Tests scenario-local orchestrator\nfunc TestOrchestratorExecution(t *testing.T) { ... }\n```\n\n")
 		sb.WriteString("**TypeScript/JavaScript tests:**\n")
 		sb.WriteString("```typescript\n// [REQ:TESTGENIE-UI-001] Tests requirements panel rendering\ntest('renders requirements tree', () => { ... });\n```\n\n")
-		sb.WriteString("**Bash/Bats tests:**\n")
-		sb.WriteString("```bash\n# [REQ:TESTGENIE-CLI-001] Tests CLI execution\n@test \"CLI executes tests\" { ... }\n```\n\n")
 	}
 
 	// Validation phases
@@ -171,34 +168,6 @@ func BuildPrompt(cfg PromptConfig) string {
 		sb.WriteString("});\n")
 		sb.WriteString("```\n\n")
 		sb.WriteString("If this config doesn't exist, add it. The reporter extracts `[REQ:ID]` tags from test names.\n\n")
-
-		// Safety Warnings for Shell Tests
-		sb.WriteString("## Critical Safety Warnings\n\n")
-		sb.WriteString("**When writing BATS or shell tests, follow these MANDATORY rules:**\n\n")
-		sb.WriteString("### BATS Teardown Safety\n")
-		sb.WriteString("BATS `teardown()` runs even when tests are skipped. Guard all cleanup:\n\n")
-		sb.WriteString("```bash\n")
-		sb.WriteString("# DANGEROUS\n")
-		sb.WriteString("teardown() {\n")
-		sb.WriteString("    rm -f \"${TEST_FILE_PREFIX}\"*  # Can delete everything if empty!\n")
-		sb.WriteString("}\n\n")
-		sb.WriteString("# SAFE\n")
-		sb.WriteString("teardown() {\n")
-		sb.WriteString("    if [ -n \"${TEST_FILE_PREFIX:-}\" ] && [[ \"${TEST_FILE_PREFIX}\" == /tmp/* ]]; then\n")
-		sb.WriteString("        rm -f \"${TEST_FILE_PREFIX}\"* 2>/dev/null || true\n")
-		sb.WriteString("    fi\n")
-		sb.WriteString("}\n")
-		sb.WriteString("```\n\n")
-		sb.WriteString("### Setup Order\n")
-		sb.WriteString("**ALWAYS** set variables before skip conditions:\n\n")
-		sb.WriteString("```bash\n")
-		sb.WriteString("setup() {\n")
-		sb.WriteString("    export TEST_FILE_PREFIX=\"/tmp/my-test\"  # Set first!\n")
-		sb.WriteString("    if ! command -v my-cli >/dev/null 2>&1; then\n")
-		sb.WriteString("        skip \"CLI not installed\"\n")
-		sb.WriteString("    fi\n")
-		sb.WriteString("}\n")
-		sb.WriteString("```\n\n")
 	}
 
 	// Requirements file format

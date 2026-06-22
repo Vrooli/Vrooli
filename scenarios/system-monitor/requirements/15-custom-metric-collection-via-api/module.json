@@ -1,7 +1,7 @@
 {
   "description": "Not implemented. No custom metric ingestion endpoint exists. Only 6 built-in collectors (CPU, memory, disk, network, process, GPU).",
   "module_id": "MOD-P1-015",
-  "prd_ref": "system-monitor-should-have-custom-metric-collection-via-api-no-custom-metric-ingestion-endpoint-only-built-in-collectors",
+  "prd_ref": "Operational Targets > P1 > OT-P1-015",
   "priority": "P1",
   "requirements": [
     {
@@ -12,7 +12,7 @@
       ],
       "description": "Implement API endpoint for custom metric ingestion with validation, rate limiting, and storage integration.",
       "id": "REQ-P1-005",
-      "prd_ref": "system-monitor-should-have-custom-metric-collection-via-api-no-custom-metric-ingestion-endpoint-only-built-in-collectors",
+      "prd_ref": "Operational Targets > P1 > OT-P1-015",
       "status": "pending",
       "title": "Custom Metric Collection API",
       "validation": [
@@ -38,7 +38,7 @@
           "type": "test"
         },
         {
-          "notes": "Ingestion latency \u003c 100ms",
+          "notes": "Ingestion latency < 100ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",

@@ -33,6 +33,7 @@ type HostCollector interface {
 type OllamaClient interface {
 	ListTags(ctx context.Context) (map[string]bool, error)
 	ListRunning(ctx context.Context) ([]ensure.RunningModel, error)
+	Unload(ctx context.Context, model string) error
 }
 
 type systemHostCollector struct{}
@@ -77,8 +78,81 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 				Usage:       "resource-ollama capacity plan --scenario <name> [--all-scenarios] [--json]",
 				Run:         h.Plan,
 			},
+			{
+				Name:        "degrade",
+				Description: "Unload the Nth-largest loaded model to free VRAM at the capacity broker's request",
+				Usage:       "resource-ollama capacity degrade [--nth N] [--json]",
+				Run:         h.Degrade,
+			},
 		},
 	}
+}
+
+// degradeResult is the JSON envelope of a degrade actuation.
+type degradeResult struct {
+	Unloaded   string `json:"unloaded,omitempty"`
+	FreedBytes int64  `json:"freed_bytes"`
+	Remaining  int    `json:"remaining_loaded"`
+	Message    string `json:"message"`
+}
+
+// Degrade unloads the Nth-largest loaded model (default the single largest) to
+// free VRAM for a higher-priority workload — the ollama side of the broker's
+// degrade rung (§8.9). It is idempotent: with no models loaded it reports a
+// no-op rather than erroring, so a repeated degrade never fails.
+func (h *Handlers) Degrade(args []string) error {
+	fs := flag.NewFlagSet("degrade", flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	nth := fs.Int("nth", 1, "unload the Nth-largest loaded model (1 = largest)")
+	jsonOut := fs.Bool("json", false, "emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *nth < 1 {
+		return fmt.Errorf("--nth must be >= 1, got %d", *nth)
+	}
+
+	ctx := context.Background()
+	newClient := h.NewClient
+	if newClient == nil {
+		newClient = func() OllamaClient { return ensure.NewClient() }
+	}
+	client := newClient()
+	running, err := client.ListRunning(ctx)
+	if err != nil {
+		return fmt.Errorf("list running models: %w", err)
+	}
+
+	result := degradeResult{Remaining: len(running)}
+	if len(running) == 0 {
+		result.Message = "no models loaded; degrade is a no-op"
+		return h.writeDegrade(*jsonOut, result)
+	}
+	// Largest VRAM footprint first, so the default unloads what frees the most.
+	sort.SliceStable(running, func(i, j int) bool { return running[i].SizeVRAM > running[j].SizeVRAM })
+	if *nth > len(running) {
+		result.Message = fmt.Sprintf("only %d model(s) loaded; nothing at position %d to unload", len(running), *nth)
+		return h.writeDegrade(*jsonOut, result)
+	}
+	target := running[*nth-1]
+	if err := client.Unload(ctx, target.Name); err != nil {
+		return fmt.Errorf("unload %s: %w", target.Name, err)
+	}
+	result.Unloaded = target.Name
+	result.FreedBytes = target.SizeVRAM
+	result.Remaining = len(running) - 1
+	result.Message = fmt.Sprintf("unloaded %s (freed %d bytes VRAM)", target.Name, target.SizeVRAM)
+	return h.writeDegrade(*jsonOut, result)
+}
+
+func (h *Handlers) writeDegrade(jsonOut bool, result degradeResult) error {
+	if jsonOut {
+		enc := json.NewEncoder(h.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	}
+	_, err := fmt.Fprintln(h.Stdout, result.Message)
+	return err
 }
 
 func (h *Handlers) Plan(args []string) error {

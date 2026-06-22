@@ -76,3 +76,36 @@ CREATE TABLE IF NOT EXISTS interface_graph_cache (
 );
 
 CREATE INDEX IF NOT EXISTS idx_interface_graph_cache_computed_at ON interface_graph_cache (computed_at);
+
+-- graph_edges is the unified, evidence-tagged cross-scenario dependency graph.
+-- It merges proto_import ∪ go_import ∪ declared ∪ vrooli_cli ∪ resource, deduped
+-- by (from_scenario, to_node) keeping the highest-confidence source and the union
+-- of evidence. It is the single source of truth read by graph generation and
+-- centrality (populated by the ingest sweeper, NOT by per-scenario analyze).
+CREATE TABLE IF NOT EXISTS graph_edges (
+    from_scenario   TEXT NOT NULL,
+    to_node         TEXT NOT NULL,
+    kind            TEXT NOT NULL CHECK (kind IN ('scenario', 'resource')),
+    evidence_source TEXT NOT NULL CHECK (evidence_source IN ('proto_import', 'go_import', 'declared', 'vrooli_cli', 'resource')),
+    confidence      REAL NOT NULL DEFAULT 0,
+    required        INTEGER NOT NULL DEFAULT 0,
+    evidence_json   TEXT NOT NULL DEFAULT '[]',
+    stale           INTEGER NOT NULL DEFAULT 0,
+    last_verified   TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (from_scenario, to_node)
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_edges_to_node ON graph_edges (to_node);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_kind ON graph_edges (kind);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_source ON graph_edges (evidence_source);
+CREATE INDEX IF NOT EXISTS idx_graph_edges_from ON graph_edges (from_scenario);
+
+-- graph_ingest_state records the scenario tree digest of the last successful
+-- ingest, so the freshness-gated sweeper can skip scenarios whose source tree
+-- has not changed since they were last ingested.
+CREATE TABLE IF NOT EXISTS graph_ingest_state (
+    scenario          TEXT PRIMARY KEY,
+    digest            TEXT NOT NULL,
+    last_ingested_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);

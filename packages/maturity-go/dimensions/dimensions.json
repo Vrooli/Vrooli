@@ -51,6 +51,7 @@
     "smoke": "visual",
     "unit": "tests",
     "integration": "tests",
+    "storage": "storage",
     "playbooks": "visual",
     "business": "business",
     "performance": "performance",

@@ -44,6 +44,7 @@
   "private": true,
   "scripts": {
     "build": "tsc --noEmit && tsc -b && vite build",
+    "build:profile": "tsc --noEmit && tsc -b && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",

@@ -17,7 +17,11 @@ services:
     networks:
       - whisper-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      # The image ships no curl/wget (only python3), so the prior curl probe
+      # always exited 127 and the container reported "unhealthy" even while
+      # serving. Use python3's stdlib urllib, which is always present and mirrors
+      # `curl -f` (urlopen raises on HTTP >=400 or when the server is down).
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9000/', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3

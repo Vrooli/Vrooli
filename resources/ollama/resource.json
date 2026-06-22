@@ -40,6 +40,21 @@
   },
   "template": "docker-service",
   "driver": "docker-service",
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 5368709120,
+    "floor_bytes": 0,
+    "priority": "service",
+    "profile": {
+      "steps": [
+        { "label": "loaded", "amount_bytes": 5368709120 },
+        { "label": "unloaded", "amount_bytes": 0 }
+      ],
+      "apply": { "verb": "capacity", "argv": ["degrade"] },
+      "upshift": false
+    }
+  },
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {
@@ -63,7 +78,7 @@
     }
   ],
   "runtime": {
-    "image": "ollama/ollama:0.11.7",
+    "image": "ollama/ollama:0.30.10",
     "container_name": "ollama",
     "memory_limit": "12g",
     "env": {

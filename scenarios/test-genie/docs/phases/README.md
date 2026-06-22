@@ -14,16 +14,17 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 | 6 | [Dependencies](dependencies/README.md) | 15m | No | No | validation-provider | Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService. |
 | 7 | [Quality](quality/README.md) | 2m | No | No | validation-provider | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. |
 | 8 | [DOCS](docs/README.md) | 1m | No | No | validation-provider | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. |
-| 9 | [Performance](performance/README.md) | 5m | Yes | Yes | validation-provider | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService. |
+| 9 | [Performance](performance/README.md) | 5m | Yes | Yes | validation-provider | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result. |
 | 10 | [Smoke](smoke/README.md) | 15m | Yes | Yes | native | Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors. |
 | 11 | [Unit](unit/README.md) | 15m | No | No | validation-provider | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. |
-| 12 | [Integration](integration/README.md) | 15m | No | Yes | native | Exercises the CLI/Bats suite plus scenario-local orchestrator listings. |
-| 13 | [Playbooks](playbooks/README.md) | 15m | No | Yes | native | Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows. |
-| 14 | [Business](business/README.md) | 15m | No | No | native | Audits requirements modules to guarantee operational targets stay mapped. |
-| 15 | [Tidiness](tidiness/README.md) | 2m | Yes | No | validation-provider | Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel. |
-| 16 | [Security](security/README.md) | 3m | Yes | No | validation-provider | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. |
-| 17 | [Measures](measures/README.md) | 3m | Yes | No | validation-provider | Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension. |
-| 18 | [Proto](proto/README.md) | 2m | Yes | No | validation-provider | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. |
+| 12 | [Integration](integration/README.md) | 15m | No | Yes | native | Exercises CLI runtime behavior, API health, and WebSocket connectivity. |
+| 13 | [Storage](storage/README.md) | 2m | No | No | validation-provider | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database. |
+| 14 | [Playbooks](playbooks/README.md) | 15m | No | Yes | native | Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows. |
+| 15 | [Business](business/README.md) | 15m | No | No | native | Audits requirements modules to guarantee operational targets stay mapped. |
+| 16 | [Tidiness](tidiness/README.md) | 2m | Yes | No | validation-provider | Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel. |
+| 17 | [Security](security/README.md) | 3m | Yes | No | validation-provider | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. |
+| 18 | [Measures](measures/README.md) | 3m | Yes | No | validation-provider | Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension. |
+| 19 | [Proto](proto/README.md) | 2m | Yes | No | validation-provider | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. |
 
 ## Static Phases
 
@@ -36,6 +37,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 - [Quality](quality/README.md) - Delegates static quality contracts, lint/type policy, and strict config validation to quality-health.
 - [DOCS](docs/README.md) - Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService.
 - [Unit](unit/README.md) - Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension.
+- [Storage](storage/README.md) - Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database.
 - [Business](business/README.md) - Audits requirements modules to guarantee operational targets stay mapped.
 - [Tidiness](tidiness/README.md) - Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel.
 - [Security](security/README.md) - Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung.
@@ -44,9 +46,9 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 
 ## Runtime Phases
 
-- [Performance](performance/README.md) - Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService.
+- [Performance](performance/README.md) - Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result.
 - [Smoke](smoke/README.md) - Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.
-- [Integration](integration/README.md) - Exercises the CLI/Bats suite plus scenario-local orchestrator listings.
+- [Integration](integration/README.md) - Exercises CLI runtime behavior, API health, and WebSocket connectivity.
 - [Playbooks](playbooks/README.md) - Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.
 
 ## Running Phases

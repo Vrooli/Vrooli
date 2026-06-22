@@ -20,12 +20,17 @@
     },
     "install": [
       {
-        "os": ["linux", "darwin"],
+        "os": [
+          "linux",
+          "darwin"
+        ],
         "kind": "command",
         "run": "bash ./cli/install.sh"
       },
       {
-        "os": ["windows"],
+        "os": [
+          "windows"
+        ],
         "kind": "command",
         "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
       }
@@ -35,7 +40,13 @@
       "command": "resource-claude-code"
     },
     "freshness": {
-      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "external-cli",
@@ -61,38 +72,6 @@
       "timeout_seconds": 15
     }
   ],
-  "dependency_schema": {
-    "type": "object",
-    "description": "Scenario-specific Claude Code dependency settings.",
-    "properties": {
-      "cli_integration": {
-        "type": "boolean"
-      },
-      "fallback": {
-        "type": "string"
-      },
-      "health_check": {
-        "type": "string"
-      },
-      "notes": {
-        "type": "string"
-      },
-      "config": {
-        "type": "object",
-        "properties": {
-          "model": {
-            "type": "string"
-          },
-          "max_tokens": {
-            "type": "integer",
-            "minimum": 1
-          }
-        },
-        "additionalProperties": true
-      }
-    },
-    "additionalProperties": false
-  },
   "environment_exports": {
     "static": {
       "CLAUDE_CODE_PATH": "claude",
@@ -103,29 +82,21 @@
     "startup_order": 500,
     "startup_timeout_seconds": 15,
     "startup_time_estimate": "3-8s",
-    "dependencies": ["litellm"],
+    "dependencies": [],
     "recovery_attempts": 2,
     "priority": "medium"
   },
   "install": {
     "platforms": {
       "linux": [
-        "npm",
-        "install",
-        "-g",
-        "@anthropic-ai/claude-code"
+        "bash",
+        "-lc",
+        "source resources/claude-code/lib/install.sh && claude_code::install::execute"
       ],
       "macos": [
-        "npm",
-        "install",
-        "-g",
-        "@anthropic-ai/claude-code"
-      ],
-      "windows": [
-        "npm",
-        "install",
-        "-g",
-        "@anthropic-ai/claude-code"
+        "bash",
+        "-lc",
+        "source resources/claude-code/lib/install.sh && claude_code::install::execute"
       ]
     }
   },
@@ -169,8 +140,12 @@
     "supports_logs": false
   },
   "upstream_cli": {
-    "version_command": ["claude", "--version"],
-    "version_pinned": "2.1.153",
+    "version_command": [
+      "claude",
+      "--version"
+    ],
+    "version_pinned": "2.1.185",
+    "upstream_release_source": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
     "docs_source": "https://code.claude.com/docs/en/permissions",
     "docs_pinned_at": "2026-05-28",
     "schema_version": 1

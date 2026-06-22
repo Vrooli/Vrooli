@@ -60,6 +60,11 @@ type Deps struct {
 	// AutoScan classifies generated output when a job requests it. Optional; nil
 	// disables the hook.
 	AutoScan NSFWScanner
+	// Capacity arbitrates op-scoped GPU VRAM against the host capacity broker
+	// before a GPU generation (plan §7 Phase 7). Optional; nil disables
+	// arbitration and the engine runs exactly as before (advisory by default —
+	// the broker can degrade a job from GPU to CPU but never blocks it).
+	Capacity CapacityBroker
 	// Logger for diagnostics. Defaults to log.Default().
 	Logger *log.Logger
 }
@@ -259,6 +264,36 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	})
 	if err != nil {
 		return "", err
+	}
+
+	// Capacity arbitration (plan §7 Phase 7): when the selected tier is GPU, make
+	// an op-scoped VRAM claim against the host capacity broker. The broker may
+	// degrade this batch job to CPU when the GPU is contended by higher-priority
+	// work (e.g. an active transcription) — in which case we honor the verdict by
+	// re-selecting on CPU. Advisory by default: any broker error leaves the GPU
+	// selection untouched (the engine never blocks on the broker).
+	if e.deps.Capacity != nil && bsel.Tier == backends.TierLocalGPU {
+		lease, cerr := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, sdGPUVRAMEstimateBytes)
+		if cerr != nil {
+			e.deps.Logger.Printf("ai: capacity claim failed (advisory, proceeding on GPU): %v", cerr)
+		} else {
+			defer e.deps.Capacity.Release(ctx, lease.ClaimID)
+			for _, w := range lease.Warnings {
+				e.deps.Logger.Printf("ai: capacity: %s", w)
+			}
+			if lease.DegradeToCPU {
+				emit(5, "GPU contended — capacity broker degraded this job to CPU")
+				bsel, err = e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
+					Operation:    op,
+					ModelBackend: model.Backend,
+					GPUViable:    false,
+					AllowBYOK:    pl.AllowBYOK,
+				})
+				if err != nil {
+					return "", err
+				}
+			}
+		}
 	}
 	emit(5, fmt.Sprintf("selected %s on %s", model.ID, bsel.Tier))
 

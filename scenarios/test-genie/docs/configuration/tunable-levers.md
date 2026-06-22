@@ -20,6 +20,8 @@ These are normally provided by the Vrooli lifecycle system:
 | Variable | Scope | Default | Purpose |
 |----------|-------|---------|---------|
 | `TEST_GENIE_EXECUTION_TIMEOUT` | CLI `execute` | `900` seconds | Blocking timeout for synchronous suite execution |
+| `TEST_GENIE_MAX_CONCURRENT_RUNS` | Run manager | `2` | GLOBAL cap on suites executing at once across ALL scenarios, shared by manually-started runs and the background fleet sweep. Requests beyond the cap are admitted as `queued` and promoted FIFO as slots free (not rejected). Floor 1. |
+| `TEST_GENIE_MAX_RUNS_PER_SCENARIO` | Run manager | `1` | Per-scenario in-progress cap. `1` is a correctness invariant (one live instance per scenario); raising it is documented-unsafe until per-run isolation lands. |
 | `TEST_GENIE_PLAYBOOKS_RETAIN` | Playbooks phase | `0` | Keep temporary isolated Postgres/Redis/SQLite resources alive after the phase for debugging |
 | `TEST_GENIE_QUEUE_STALE_AFTER` | Queue telemetry | `24h` | How long queued/delegated requests remain part of active queue counts before they are reported as stale |
 | `TEST_GENIE_SKIP_PLAYBOOKS` | Playbooks phase | unset | Hard-disable playbooks execution for debugging or constrained environments |

@@ -114,7 +114,7 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 		Smoke:       {ui: true},
 		Performance: {ui: true},
 		Integration: {api: true},
-		Playbooks:   {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRoutedOrRestart},
+		Playbooks:   {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRouted},
 	}
 
 	catalog := DefaultCatalog()
@@ -156,6 +156,7 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 		Smoke:        "TEST_GENIE_SKIP_SMOKE",
 		Unit:         "TEST_GENIE_SKIP_UNIT",
 		Integration:  "TEST_GENIE_SKIP_INTEGRATION",
+		Storage:      "TEST_GENIE_SKIP_STORAGE",
 		Playbooks:    "TEST_GENIE_SKIP_PLAYBOOKS",
 		Business:     "TEST_GENIE_SKIP_BUSINESS",
 		Performance:  "TEST_GENIE_SKIP_PERFORMANCE",
@@ -206,6 +207,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Security: architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
 		Measures: architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
 		Proto:    architecturev1.FindingSource_FINDING_SOURCE_PROTO,
+		Storage:  architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {

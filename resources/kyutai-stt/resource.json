@@ -48,6 +48,14 @@
       "KYUTAI_STT_DEVICE": "cuda"
     }
   },
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 3221225472,
+    "floor_bytes": 3221225472,
+    "priority": "service",
+    "protected": true
+  },
   "portability_tier": "platform-specific",
   "category": "ai",
   "platforms": {

@@ -1,33 +1,60 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { ErrorInfo } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { getProxyInfo } from '@vrooli/api-base';
 import { Header } from './shared/components/Header';
 import { MetricsGrid } from './features/metrics/components/MetricsGrid';
-import { CpuDetailView, MemoryDetailView, NetworkDetailView, DiskDetailView, GpuDetailView } from './features/metrics/components/MetricDetailViews';
-import { InfrastructureMonitor } from './features/monitoring/components/InfrastructureMonitor';
 import { AlertPanel } from './shared/components/AlertPanel';
-import { InvestigationsSection } from './features/investigations/components/InvestigationsSection';
-import { ReportsPanel } from './features/reports/components/ReportsPanel';
-import { Terminal } from './shared/components/Terminal';
-import { ModalsContainer } from './features/investigations/modals/ModalsContainer';
-import { SystemSettingsModal } from './features/settings/components/SystemSettingsModal';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import { ToastProvider } from './shared/components/ToastProvider';
 import { ToastContainer } from './shared/components/ToastContainer';
 import { ConnectionStatusBanner } from './shared/components/ConnectionStatusBanner';
+import { LoadingSkeleton } from './shared/components/LoadingSkeleton';
 import { ThemeProvider } from './shared/theme/ThemeProvider';
 import { useSystemMonitor } from './features/monitoring/hooks/useSystemMonitor';
 import { useInvestigationAgents } from './features/investigations/hooks/useInvestigationAgents';
 import { useScriptExecution } from './features/investigations/hooks/useScriptExecution';
-import { InvestigationScriptsPage } from './features/investigations/pages/InvestigationScriptsPage';
-import { ForensicsPage } from './features/forensics/pages/ForensicsPage';
-import { LogsPage } from './features/logs/pages/LogsPage';
-import { CapacityPage } from './features/capacity/pages/CapacityPage';
 import type { DashboardState, CardType, PanelType } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
+
+// ── Lazy-loaded, off-initial-paint subtrees ─────────────────────────────────
+//
+// Two groups:
+//
+//  1. Route/modal subtrees that pull in the heavy charting (recharts, ~400 KB)
+//     and syntax-highlighting (react-syntax-highlighter, ~500 KB+) libraries.
+//     None render on the initial dashboard ("/") paint, so React.lazy keeps
+//     that code out of the entry chunk and off the main thread until the route
+//     opens or a modal/settings dialog is shown.
+//
+//  2. Below-the-fold dashboard sections (InfrastructureMonitor,
+//     InvestigationsSection, ReportsPanel) and the hidden Terminal overlay.
+//     The above-the-fold content is Header + MetricsGrid + AlertPanel; the rest
+//     sits below the initial viewport. Lazy-loading them shrinks React's first
+//     commit (smaller hydration tree → lower Total Blocking Time) — they mount
+//     as their chunks arrive, with a lightweight skeleton in the meantime, and
+//     render identically once present.
+const InfrastructureMonitor = lazy(() => import('./features/monitoring/components/InfrastructureMonitor').then(m => ({ default: m.InfrastructureMonitor })));
+const InvestigationsSection = lazy(() => import('./features/investigations/components/InvestigationsSection').then(m => ({ default: m.InvestigationsSection })));
+const ReportsPanel = lazy(() => import('./features/reports/components/ReportsPanel').then(m => ({ default: m.ReportsPanel })));
+const Terminal = lazy(() => import('./shared/components/Terminal').then(m => ({ default: m.Terminal })));
+const CpuDetailView = lazy(() => import('./features/metrics/components/CpuDetailView').then(m => ({ default: m.CpuDetailView })));
+const MemoryDetailView = lazy(() => import('./features/metrics/components/MemoryDetailView').then(m => ({ default: m.MemoryDetailView })));
+const NetworkDetailView = lazy(() => import('./features/metrics/components/NetworkDetailView').then(m => ({ default: m.NetworkDetailView })));
+const DiskDetailView = lazy(() => import('./features/metrics/components/DiskDetailView').then(m => ({ default: m.DiskDetailView })));
+const GpuDetailView = lazy(() => import('./features/metrics/components/GpuDetailView').then(m => ({ default: m.GpuDetailView })));
+const InvestigationScriptsPage = lazy(() => import('./features/investigations/pages/InvestigationScriptsPage').then(m => ({ default: m.InvestigationScriptsPage })));
+const ForensicsPage = lazy(() => import('./features/forensics/pages/ForensicsPage').then(m => ({ default: m.ForensicsPage })));
+const LogsPage = lazy(() => import('./features/logs/pages/LogsPage').then(m => ({ default: m.LogsPage })));
+const CapacityPage = lazy(() => import('./features/capacity/pages/CapacityPage').then(m => ({ default: m.CapacityPage })));
+const ModalsContainer = lazy(() => import('./features/investigations/modals/ModalsContainer').then(m => ({ default: m.ModalsContainer })));
+const SystemSettingsModal = lazy(() => import('./features/settings/components/SystemSettingsModal').then(m => ({ default: m.SystemSettingsModal })));
+
+// Suspense fallback shared by all lazy route/modal boundaries. The matrix-theme
+// LoadingSkeleton spinner doubles as the chunk-load indicator.
+const RouteFallback = () => <LoadingSkeleton variant="simple" />;
 
 /**
  * Compute BrowserRouter basename from proxy context.
@@ -190,6 +217,7 @@ function AppContent() {
 
         <main className="main-content">
           <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+            <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route
                 path="/"
@@ -214,12 +242,14 @@ function AppContent() {
                     {/* Infrastructure Monitor Panel */}
                     <section className="mb-lg">
                       <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Infrastructure monitor failed to render.</div>}>
-                        <InfrastructureMonitor
-                          data={infrastructureData}
-                          isExpanded={dashboardState.expandedPanels.has('infrastructure')}
-                          onToggle={() => { togglePanel('infrastructure'); }}
-                          systemHealth={detailedMetrics?.systemDetails}
-                        />
+                        <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
+                          <InfrastructureMonitor
+                            data={infrastructureData}
+                            isExpanded={dashboardState.expandedPanels.has('infrastructure')}
+                            onToggle={() => { togglePanel('infrastructure'); }}
+                            systemHealth={detailedMetrics?.systemDetails}
+                          />
+                        </Suspense>
                       </ErrorBoundary>
                     </section>
 
@@ -231,21 +261,25 @@ function AppContent() {
                     {/* Investigations Section */}
                     <section className="mb-lg">
                       <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Investigations section failed to render.</div>}>
-                        <InvestigationsSection
-                          investigations={investigations}
-                          onOpenScriptEditor={openScriptEditor}
-                          onSpawnAgent={spawnAgent}
-                          agents={agents}
-                          isSpawningAgent={isSpawningAgent}
-                          spawnAgentError={spawnAgentError}
-                        />
+                        <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
+                          <InvestigationsSection
+                            investigations={investigations}
+                            onOpenScriptEditor={openScriptEditor}
+                            onSpawnAgent={spawnAgent}
+                            agents={agents}
+                            isSpawningAgent={isSpawningAgent}
+                            spawnAgentError={spawnAgentError}
+                          />
+                        </Suspense>
                       </ErrorBoundary>
                     </section>
 
                     {/* Playback Reports */}
                     <section className="mb-lg">
                       <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Reports failed to render.</div>}>
-                        <ReportsPanel />
+                        <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
+                          <ReportsPanel />
+                        </Suspense>
                       </ErrorBoundary>
                     </section>
                   </>
@@ -356,33 +390,40 @@ function AppContent() {
                 )}
               />
             </Routes>
+            </Suspense>
 
           </div>
         </main>
 
         <ErrorBoundary fallback={null}>
-          <Terminal
-            isVisible={dashboardState.terminalVisible}
-            onClose={toggleTerminal}
-          />
+          <Suspense fallback={null}>
+            <Terminal
+              isVisible={dashboardState.terminalVisible}
+              onClose={toggleTerminal}
+            />
+          </Suspense>
         </ErrorBoundary>
 
         <ErrorBoundary fallback={null}>
-          <ModalsContainer
-            modalState={modalState}
-            onCloseScriptEditor={closeScriptEditor}
-            onCloseScriptResults={closeScriptResults}
-            onExecuteScript={executeScript}
-            onSaveScript={saveScript}
-          />
+          <Suspense fallback={null}>
+            <ModalsContainer
+              modalState={modalState}
+              onCloseScriptEditor={closeScriptEditor}
+              onCloseScriptResults={closeScriptResults}
+              onExecuteScript={executeScript}
+              onSaveScript={saveScript}
+            />
+          </Suspense>
         </ErrorBoundary>
 
         {/* System Settings Modal */}
         <ErrorBoundary fallback={null}>
-          <SystemSettingsModal
-            isOpen={systemSettingsModalOpen}
-            onClose={() => { setSystemSettingsModalOpen(false); }}
-          />
+          <Suspense fallback={null}>
+            <SystemSettingsModal
+              isOpen={systemSettingsModalOpen}
+              onClose={() => { setSystemSettingsModalOpen(false); }}
+            />
+          </Suspense>
         </ErrorBoundary>
       </div>
       <ToastContainer />

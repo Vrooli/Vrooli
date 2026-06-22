@@ -13,8 +13,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cli-tick.bats",
-          "phase": "cli",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
           "status": "implemented"
         }
       ]
@@ -29,8 +29,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cli-tick.bats",
-          "phase": "cli",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
           "status": "implemented"
         }
       ]
@@ -45,8 +45,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cli-loop.bats",
-          "phase": "cli",
+          "ref": "cli/loop/main_test.go",
+          "phase": "unit",
           "status": "planned",
           "notes": "Continuous run test pending"
         }
@@ -62,8 +62,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cli-loop.bats",
-          "phase": "cli",
+          "ref": "cli/loop/main_test.go",
+          "phase": "unit",
           "status": "implemented"
         }
       ]
@@ -78,8 +78,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cli-loop.bats",
-          "phase": "cli",
+          "ref": "cli/loop/main_test.go",
+          "phase": "unit",
           "status": "implemented"
         }
       ]
@@ -94,8 +94,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cli-status.bats",
-          "phase": "cli",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
           "status": "implemented"
         }
       ]
@@ -110,8 +110,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cli-status.bats",
-          "phase": "cli",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
           "status": "implemented"
         }
       ]

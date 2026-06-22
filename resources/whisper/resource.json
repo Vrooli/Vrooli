@@ -43,7 +43,7 @@
   "compose_file": "docker/docker-compose.yml",
   "runtime_env_command": {
     "command": "resource-whisper",
-    "args": ["recommend-model", "--env", "--budget-pct", "70"],
+    "args": ["recommend-model", "--env", "--budget-pct", "50"],
     "timeout_seconds": 5
   },
   "gpu": {
@@ -51,6 +51,23 @@
     "compose_overlay": "docker/docker-compose.gpu.yml",
     "env_overrides": {
       "WHISPER_IMAGE": "onerahmet/openai-whisper-asr-webservice:latest-gpu"
+    }
+  },
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 8589934592,
+    "floor_bytes": 2147483648,
+    "priority": "interactive",
+    "protected": true,
+    "profile": {
+      "steps": [
+        { "label": "large-v3", "amount_bytes": 8589934592 },
+        { "label": "medium", "amount_bytes": 4294967296 },
+        { "label": "small", "amount_bytes": 2147483648 }
+      ],
+      "apply": { "verb": "capacity-degrade", "argv": ["--to", "{label}"] },
+      "upshift": true
     }
   },
   "portability_tier": "partial",

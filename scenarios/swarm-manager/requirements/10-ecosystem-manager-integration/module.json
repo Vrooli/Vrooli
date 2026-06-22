@@ -1,116 +1,111 @@
 {
-  "description": "Initialize and improve scenarios from backlog ideas via ecosystem-manager",
-  "module_id": "MOD-P0-010",
-  "prd_ref": "OT-P0-010",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T00:10:28-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-011-API",
+      "title": "Ecosystem Manager API Client",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-010",
       "category": "api",
       "description": "Implement ecosystem client and API integration for creating tasks in ecosystem-manager",
-      "id": "REQ-P0-011-API",
-      "prd_ref": "OT-P0-010",
-      "status": "implemented",
-      "title": "Ecosystem Manager API Client",
       "validation": [
         {
-          "notes": "Test ecosystem client creates tasks successfully",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test ecosystem client creates tasks successfully"
         },
         {
-          "notes": "Test ecosystem client handles port resolution failure",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test ecosystem client handles port resolution failure"
         },
         {
-          "notes": "Test priority mapping from numeric to string format",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test priority mapping from numeric to string format"
         },
         {
-          "notes": "Test priority mapping boundary values",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString_Boundaries",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test priority mapping boundary values"
         },
         {
-          "notes": "Test response decode error handling",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_ResponseDecodeError",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test response decode error handling"
         },
         {
-          "notes": "Test request construction verification",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_RequestConstruction",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test request construction verification"
         },
         {
-          "notes": "Test default HTTP client creation",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestNewHTTPClient",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test default HTTP client creation"
         },
         {
-          "notes": "Ecosystem Client interface defined for seam pattern",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client.go::Client",
-          "status": "passing",
-          "type": "code"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Ecosystem Client interface defined for seam pattern"
         },
         {
-          "notes": "Ecosystem client seam implementation",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client.go::Client",
-          "status": "passing",
-          "type": "code"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Ecosystem client seam implementation"
         }
       ]
     },
     {
-      "category": "integration",
-      "dependencies": [
-        "REQ-P0-011-API"
-      ],
-      "description": "Ecosystem task integration available for backlog-driven scenario initialization",
       "id": "REQ-P0-011-QUEUE",
-      "prd_ref": "OT-P0-010",
-      "status": "implemented",
       "title": "Ecosystem Task Integration",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-010",
+      "category": "integration",
+      "description": "Ecosystem task integration available for backlog-driven scenario initialization",
       "validation": [
         {
-          "notes": "Ecosystem client creates tasks for scenario initialization",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Ecosystem client creates tasks for scenario initialization"
         },
         {
-          "notes": "Priority mapping supports initializer/improver semantics",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Priority mapping supports initializer/improver semantics"
         },
         {
-          "notes": "Ecosystem client handles errors gracefully",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_ResponseDecodeError",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Ecosystem client handles errors gracefully"
         }
       ]
     }
-  ],
-  "title": "ecosystem-manager integration"
+  ]
 }

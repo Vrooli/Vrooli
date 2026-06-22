@@ -1,100 +1,97 @@
 {
-  "description": "Greenfield/brownfield toggle",
-  "module_id": "MOD-P0-006",
-  "prd_ref": "OT-P0-006",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T00:10:28-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-007-API",
+      "title": "Scenario Metadata API",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "category": "api",
       "description": "Implement API endpoint for updating scenario metadata including greenfield toggle",
-      "id": "REQ-P0-007-API",
-      "prd_ref": "OT-P0-006",
-      "status": "implemented",
-      "title": "Scenario Metadata API",
       "validation": [
         {
-          "notes": "Test metadata update success",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/scenarios/handler_test.go::TestUpdateMetadata_Success",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test metadata update success"
         },
         {
-          "notes": "Test metadata toggle greenfield",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/scenarios/handler_test.go::TestUpdateMetadata_ToggleGreenfield",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test metadata toggle greenfield"
         },
         {
-          "notes": "Test metadata update not found",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/scenarios/handler_test.go::TestUpdateMetadata_NotFound",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test metadata update not found"
         },
         {
-          "notes": "Test metadata update invalid JSON",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/scenarios/handler_test.go::TestUpdateMetadata_InvalidJSON",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test metadata update invalid JSON"
         },
         {
-          "notes": "Test metadata partial update",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/scenarios/handler_test.go::TestUpdateMetadata_PartialUpdate",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test metadata partial update"
         },
         {
-          "notes": "Test metadata persists to disk",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/scenarios/handler_test.go::TestUpdateMetadata_PersistsToDisk",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test metadata persists to disk"
         }
       ]
     },
     {
-      "category": "ui",
-      "dependencies": ["REQ-P0-007-API"],
-      "description": "Implement UI controls for toggling greenfield/brownfield mode per scenario",
       "id": "REQ-P0-007-UI",
-      "prd_ref": "OT-P0-006",
-      "status": "implemented",
       "title": "Scenario Metadata UI Controls",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
+      "category": "ui",
+      "description": "Implement UI controls for toggling greenfield/brownfield mode per scenario",
       "validation": [
         {
-          "notes": "ScenarioDetailsPage renders metadata toggles",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/pages/ScenarioDetailsPage.tsx::ToggleSection",
-          "status": "passing",
-          "type": "code"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ScenarioDetailsPage renders metadata toggles"
         },
         {
-          "notes": "Scenario service update metadata method",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/services/scenarios-service.ts::IScenariosService.updateMetadata",
-          "status": "passing",
-          "type": "code"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Scenario service update metadata method"
         },
         {
-          "notes": "Metadata toggle selectors defined",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/consts/selectors.ts::scenarioDetails.toggleGreenfield",
-          "status": "passing",
-          "type": "code"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Metadata toggle selectors defined"
         },
         {
-          "notes": "Scenario details page tests toggle interactions",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/pages/ScenarioDetailsPage.test.tsx::handles greenfield toggle",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Scenario details page tests toggle interactions"
         }
       ]
     }
-  ],
-  "title": "Scenario metadata management"
+  ]
 }

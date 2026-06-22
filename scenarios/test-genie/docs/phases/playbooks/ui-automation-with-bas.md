@@ -160,6 +160,24 @@ BAS workflows are **hierarchical** and should be authored/tested in this order:
 
 This ordering is the fastest way to debug failures: stabilize actions first, then flows, then cases.
 
+### Performance-capture flows (`intent: "performance"`)
+
+A `bas/flows/` entry can double as a **performance-capture target** for the
+`performance-health` scenario. Mark it `metadata.labels.intent: "performance"`
+and keep it **assertion-free** — it only drives an interaction so a perf trace
+can span the slow journey you are auditing (a scroll, a resize-handle drag, a
+click/type sequence). It is NEVER bound as a requirement `automation`
+validation (that would run it in the functional pass/fail suite); it is a
+continuous, out-of-band capture target.
+
+Drive it with: `performance-health audit run <scenario> --workflow <slug>`,
+then `performance-health analysis analyze --trace <key>`. Use **literal
+`[data-testid=…]` selectors** in perf flows — `@selector/` tokens do not
+resolve on the capture path. Reusable parity helpers live in `bas/actions/`
+(`perf-scroll-ancestor`, `perf-drag-horizontal`). See the `performance` skill
+(`prompt-manager skill read performance`) for the full author→capture→analyze→
+budget loop, and the template `bas/README.md`.
+
 ## Node Types Reference
 
 ### Navigate Node

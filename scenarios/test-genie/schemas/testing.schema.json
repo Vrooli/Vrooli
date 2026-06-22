@@ -637,6 +637,60 @@
       "type": "object",
       "description": "Performance validation phase configuration. Presence of this section enables performance testing. Individual checks can be enabled/disabled.",
       "properties": {
+        "budgets": {
+          "type": "object",
+          "description": "Per-scenario performance budgets — the single source of truth the performance-health budgets domain gates on (and that the benchmark runner reads for its build thresholds). All durations are milliseconds; sizes are bytes. Zero or absent means the axis is unset (never a violation). A breach of any declared axis fails baseline-diff exactly like any other health regression.",
+          "additionalProperties": false,
+          "properties": {
+            "go_build_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max wall-clock for `go build ./...` (api/), in milliseconds."
+            },
+            "ui_build_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max wall-clock for the UI production build, in milliseconds."
+            },
+            "bundle_max_bytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max total size of the UI production build output, in bytes."
+            },
+            "lcp_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max Largest Contentful Paint, in milliseconds (continuous/out-of-band axis)."
+            },
+            "startup_max_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Max time-to-healthy after restart, in milliseconds (continuous/out-of-band axis)."
+            },
+            "component_commit_avg_max_ms": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max AVERAGE commit time for the slowest component, in milliseconds (continuous/out-of-band axis)."
+            },
+            "component_commit_max_ms": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max commit time for the slowest component, in milliseconds (continuous/out-of-band axis)."
+            },
+            "ratchet": {
+              "type": "boolean",
+              "default": false,
+              "description": "When true, a budget write may only TIGHTEN an existing axis, never loosen it."
+            },
+            "flows": {
+              "type": "object",
+              "description": "Per-interaction-flow budgets keyed by flow slug (a bas/flows/<slug>.json marked intent:performance). Each gates a specific targeted journey — driven by `performance-health audit run <scenario> --workflow <slug>` and measured by the continuous capture-sweep — independently of the scenario aggregate. Only the Tier-1/web-vitals axes apply per-flow; build/bundle/startup stay scenario-level.",
+              "additionalProperties": {
+                "$ref": "#/definitions/flow_budget"
+              }
+            }
+          }
+        },
         "checks": {
           "type": "object",
           "description": "Performance validation checks. Each check can be independently enabled/disabled.",
@@ -723,6 +777,7 @@
         "smoke": { "$ref": "#/definitions/phase_options" },
         "unit": { "$ref": "#/definitions/phase_options" },
         "integration": { "$ref": "#/definitions/phase_options" },
+        "storage": { "$ref": "#/definitions/phase_options" },
         "playbooks": { "$ref": "#/definitions/phase_options" },
         "business": { "$ref": "#/definitions/phase_options" },
         "performance": { "$ref": "#/definitions/phase_options" },
@@ -735,6 +790,28 @@
     }
   },
   "definitions": {
+    "flow_budget": {
+      "type": "object",
+      "description": "One interaction-flow's performance thresholds. Only the axes a targeted capture can measure (LCP and the slowest component's avg/max commit time); build/bundle/startup are scenario-level only. Ratchet is inherited from the parent performance.budgets.ratchet. Zero or absent means the axis is unset.",
+      "additionalProperties": false,
+      "properties": {
+        "lcp_max_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Max Largest Contentful Paint for this flow, in milliseconds."
+        },
+        "component_commit_avg_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max AVERAGE commit time for the slowest component during this flow, in milliseconds."
+        },
+        "component_commit_max_ms": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Max commit time for the slowest component during this flow, in milliseconds."
+        }
+      }
+    },
     "phase_options": {
       "type": "object",
       "description": "Phase-level preferences",

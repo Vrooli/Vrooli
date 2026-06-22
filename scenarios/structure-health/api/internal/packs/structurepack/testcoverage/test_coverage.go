@@ -121,11 +121,11 @@ Other exempt files: doc.go, generated code (.pb.go, _gen.go), vendor/, testdata/
   </input>
 </test-case>
 
-<test-case id="constants-only-skip" should-fail="false" path="scenarios/app-issue-tracker" scenario="app-issue-tracker">
+<test-case id="constants-only-skip" should-fail="false" path="scenarios/demo" scenario="demo">
   <description>Pure constants files remain exempt from coverage requirements</description>
   <input language="json">
 {
-  "scenario": "app-issue-tracker",
+  "scenario": "demo",
   "files": [
     "api/internal/server/metadata/constants.go"
   ]

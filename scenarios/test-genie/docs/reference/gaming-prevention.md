@@ -99,7 +99,7 @@ A perfect 1:1 ratio suggests single-layer validation.
 
 **Gaming**:
 ```json
-{"type": "test", "ref": "test/cli/example-cli-wrapper.bats"}
+{"type": "test", "ref": "test/cli/example-cli-wrapper.sh"}
 ```
 
 **Proper**:
@@ -138,7 +138,7 @@ if (reqIds.length >= 4) {
 One test file shouldn't validate many requirements because:
 1. Lack of test specificity
 2. Low traceability
-3. Encourages "one big BATS file" anti-pattern
+3. Encourages the "one big test file" anti-pattern
 
 ### Threshold
 
@@ -299,7 +299,7 @@ Manual validations are acceptable as temporary measures, but problematic when:
 ### Warning: "Requirements reference unsupported directories"
 
 **Action**:
-1. Replace `test/cli/*.bats` with API tests + e2e
+1. Replace `test/cli/*.sh` wrapper tests with API tests + e2e
 2. Replace `coverage/phases/*.sh` with actual test files
 
 ### Warning: "Test files validate >= 4 requirements each"

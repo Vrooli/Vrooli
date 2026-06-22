@@ -13,10 +13,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/storage/postgres_test.go",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Database storage tests pending"
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covered by tagged Go integration test [REQ:PERSIST-STORE-001] (api/internal/bootstrap)"
         }
       ]
     },
@@ -30,10 +30,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/storage/postgres_test.go",
+          "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Database query tests pending"
+          "status": "planned",
+          "notes": "Behavior covered by SQLite persistence tests (result read-back); [REQ:PERSIST-QUERY-001] tagging pending"
         }
       ]
     },
@@ -47,10 +47,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/storage/postgres_test.go",
+          "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Summary query tests pending"
+          "status": "planned",
+          "notes": "Behavior covered by SQLite persistence tests (GetCheckTrends summary); [REQ:PERSIST-QUERY-002] tagging pending"
         }
       ]
     },
@@ -80,10 +80,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/storage/postgres_test.go",
+          "ref": "api/internal/persistence/store_sqlite_planner_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Cleanup tests pending"
+          "status": "planned",
+          "notes": "Cleanup path covered by planner test (CleanupOldResults); behavioral retention test + [REQ:PERSIST-HISTORY-002] tagging pending"
         }
       ]
     },
@@ -97,10 +97,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/storage/postgres_test.go",
+          "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Action logging tests pending"
+          "status": "planned",
+          "notes": "Behavior covered by SQLite persistence tests (ActionLogRoundTrip); [REQ:PERSIST-ACTIONS-001] tagging pending"
         }
       ]
     }

@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"fmt"
-
 	"test-genie/internal/shared"
 )
 
@@ -51,24 +49,19 @@ type RunResult = shared.RunResult[ValidationSummary]
 
 // ValidationSummary tracks validation counts by category.
 type ValidationSummary struct {
-	APIHealthChecked     bool
-	CLIValidated         bool
-	PrimaryBatsRan       bool
-	AdditionalBatsSuites int
-	WebSocketValidated   bool
+	APIHealthChecked   bool
+	CLIValidated       bool
+	WebSocketValidated bool
 }
 
 // TotalChecks returns the total number of items checked.
 func (s ValidationSummary) TotalChecks() int {
-	total := s.AdditionalBatsSuites
+	total := 0
 	if s.APIHealthChecked {
 		total += 2 // health endpoint status + response time
 	}
 	if s.CLIValidated {
 		total += 3 // binary exists, help works, version works
-	}
-	if s.PrimaryBatsRan {
-		total++
 	}
 	if s.WebSocketValidated {
 		total += 2 // connection + optional ping-pong
@@ -84,12 +77,6 @@ func (s ValidationSummary) String() string {
 	}
 	if s.CLIValidated {
 		parts = append(parts, "CLI validated")
-	}
-	if s.PrimaryBatsRan {
-		parts = append(parts, "primary bats suite")
-	}
-	if s.AdditionalBatsSuites > 0 {
-		parts = append(parts, fmt.Sprintf("%d additional bats suites", s.AdditionalBatsSuites))
 	}
 	if s.WebSocketValidated {
 		parts = append(parts, "WebSocket")

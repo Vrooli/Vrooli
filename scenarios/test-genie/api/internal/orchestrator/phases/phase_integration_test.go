@@ -19,17 +19,10 @@ func stubCommandLookup(t *testing.T, fn func(string) (string, error)) {
 	t.Cleanup(restore)
 }
 
-func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-ORCH-P0] integration phase exercises CLI + bats", func(t *testing.T) {
+func TestRunIntegrationPhaseExecutesCli(t *testing.T) {
+	t.Run("[REQ:TESTGENIE-ORCH-P0] integration phase exercises CLI", func(t *testing.T) {
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
-		cliTestDir := filepath.Join(scenarioDir, "cli", "test")
-		if err := os.MkdirAll(cliTestDir, 0o755); err != nil {
-			t.Fatalf("failed to create cli/test dir: %v", err)
-		}
-		if err := os.WriteFile(filepath.Join(cliTestDir, "test-genie-generate.bats"), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
-			t.Fatalf("failed to seed bats file: %v", err)
-		}
 
 		stubCommandLookup(t, func(name string) (string, error) {
 			return "/tmp/" + name, nil
@@ -65,24 +58,14 @@ func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
 			t.Fatalf("integration phase failed: %v", report.Err)
 		}
 
-		if len(executed) < 3 {
-			t.Fatalf("expected cli help and bats suites to run, got %v", executed)
-		}
 		foundHelp := false
-		foundPrimary := false
-		foundAdditional := false
 		for _, cmd := range executed {
-			switch {
-			case strings.Contains(cmd, "demo help") || strings.Contains(cmd, "test-genie help"):
+			if strings.Contains(cmd, "demo help") || strings.Contains(cmd, "test-genie help") {
 				foundHelp = true
-			case strings.Contains(cmd, "bats --tap demo.bats") || strings.Contains(cmd, "bats --tap test-genie.bats"):
-				foundPrimary = true
-			case strings.Contains(cmd, "bats --tap test/test-genie-generate.bats"):
-				foundAdditional = true
 			}
 		}
-		if !foundHelp || !foundPrimary || !foundAdditional {
-			t.Fatalf("expected cli help + bats invocations, got %v", executed)
+		if !foundHelp {
+			t.Fatalf("expected cli help invocation, got %v", executed)
 		}
 	})
 }
@@ -178,73 +161,6 @@ func TestRunIntegrationPhaseCLIVersionFails(t *testing.T) {
 
 		if report.Err == nil {
 			t.Fatal("expected error when CLI version fails")
-		}
-	})
-}
-
-func TestRunIntegrationPhaseBatsFails(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-INT-P4] BATS suite failure is reported", func(t *testing.T) {
-		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-
-		stubCommandLookup(t, func(name string) (string, error) {
-			return "/tmp/" + name, nil
-		})
-
-		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
-			// Fail on bats execution
-			if strings.Contains(name, "bats") || (len(args) > 0 && strings.Contains(args[0], ".bats")) {
-				return errors.New("bats test suite failed")
-			}
-			return nil
-		})
-		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-			return "demo version 1.0.0", nil
-		})
-
-		env := workspace.Environment{
-			ScenarioName: "demo",
-			ScenarioDir:  scenarioDir,
-			TestDir:      filepath.Join(scenarioDir, "test"),
-		}
-
-		report := runIntegrationPhase(context.Background(), env, io.Discard)
-
-		if report.Err == nil {
-			t.Fatal("expected error when BATS suite fails")
-		}
-	})
-}
-
-func TestRunIntegrationPhaseBatsMissing(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-INT-P5] missing bats command is reported", func(t *testing.T) {
-		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-
-		stubCommandLookup(t, func(name string) (string, error) {
-			if name == "bats" {
-				return "", errors.New("bats not found")
-			}
-			return "/tmp/" + name, nil
-		})
-
-		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
-			return nil
-		})
-		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-			return "demo version 1.0.0", nil
-		})
-
-		env := workspace.Environment{
-			ScenarioName: "demo",
-			ScenarioDir:  scenarioDir,
-			TestDir:      filepath.Join(scenarioDir, "test"),
-		}
-
-		report := runIntegrationPhase(context.Background(), env, io.Discard)
-
-		if report.Err == nil {
-			t.Fatal("expected error when bats is not installed")
 		}
 	})
 }
@@ -363,60 +279,6 @@ func TestRunIntegrationPhaseCLIVersionMalformed(t *testing.T) {
 		}
 		if report.FailureClassification != FailureClassMisconfiguration {
 			t.Errorf("expected misconfiguration failure class, got %s", report.FailureClassification)
-		}
-	})
-}
-
-func TestRunIntegrationPhaseWithAdditionalBatsSuites(t *testing.T) {
-	t.Run("[REQ:TESTGENIE-INT-P9] additional bats suites are executed", func(t *testing.T) {
-		root := t.TempDir()
-		scenarioDir := createScenarioLayout(t, root, "demo")
-
-		// Create additional bats files in cli/test
-		cliTestDir := filepath.Join(scenarioDir, "cli", "test")
-		if err := os.MkdirAll(cliTestDir, 0o755); err != nil {
-			t.Fatalf("failed to create cli/test dir: %v", err)
-		}
-		for _, name := range []string{"extra1.bats", "extra2.bats", "extra3.bats"} {
-			if err := os.WriteFile(filepath.Join(cliTestDir, name), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
-				t.Fatalf("failed to create %s: %v", name, err)
-			}
-		}
-
-		stubCommandLookup(t, func(name string) (string, error) {
-			return "/tmp/" + name, nil
-		})
-
-		var batsRuns []string
-		stubPhaseCommandExecutor(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error {
-			if strings.HasSuffix(name, "bats") || (len(args) > 1 && strings.HasSuffix(args[1], ".bats")) {
-				batsRuns = append(batsRuns, strings.Join(args, " "))
-			}
-			// Reject unknown commands (for the unknown command check)
-			if len(args) > 0 && strings.HasPrefix(args[0], "__test_genie") {
-				return errors.New("unknown command")
-			}
-			return nil
-		})
-		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-			return "demo version 1.0.0", nil
-		})
-
-		env := workspace.Environment{
-			ScenarioName: "demo",
-			ScenarioDir:  scenarioDir,
-			TestDir:      filepath.Join(scenarioDir, "test"),
-		}
-
-		report := runIntegrationPhase(context.Background(), env, io.Discard)
-
-		if report.Err != nil {
-			t.Fatalf("expected success, got error: %v", report.Err)
-		}
-
-		// Should have primary suite + 3 additional
-		if len(batsRuns) < 4 {
-			t.Errorf("expected at least 4 bats runs (1 primary + 3 additional), got %d: %v", len(batsRuns), batsRuns)
 		}
 	})
 }

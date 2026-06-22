@@ -107,9 +107,20 @@ func (h *Handlers) Run(args []string) error {
 		return fmt.Errorf("host inventory failed: %w", err)
 	}
 
-	model, reason, err := Pick(caps, budgetPct)
-	if err != nil {
-		return err
+	// Honor a capacity-broker/operator model pin first (the degrade actuation
+	// persists it): the pinned model overrides the host-derived recommendation so
+	// the next compose start comes up at the smaller size. The pin is honored
+	// before Pick so it works even on a host where Pick would otherwise error.
+	var model Model
+	var reason string
+	if pinned, ok := ReadPin(h.GetEnv); ok {
+		model = pinned
+		reason = "model pinned by capacity broker/operator (overrides host recommendation)"
+	} else {
+		model, reason, err = Pick(caps, budgetPct)
+		if err != nil {
+			return err
+		}
 	}
 
 	if *jsonOut {

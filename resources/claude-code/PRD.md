@@ -97,12 +97,9 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
 
 ### Architecture
 - **Runtime**: Node.js v18+ (Claude CLI), Bash (resource management)
-- **Primary Provider**: Anthropic Claude (claude-3-5-sonnet-latest)
-- **Fallback Provider**: Ollama-Code with optimized models
+- **Provider**: Anthropic Claude (Anthropic-native — talks to the Anthropic API directly, no local model proxy or fallback)
 - **Dependencies**: 
   - Claude CLI (@anthropic-ai/claude-code)
-  - Ollama resource (for fallback)
-  - LiteLLM adapter (optional proxy)
   - Vault (for secure key storage)
 
 ### Provider Configuration
@@ -190,7 +187,6 @@ environment_variables:
 
 config_files:
   - ~/.claude/config.json           # Global configuration
-  - ~/.claude/litellm_config.json   # Fallback adapter config
   - ~/.claude/usage_tracking.json   # Usage and rate limit tracking
   - .claude/project.json            # Project-specific settings
 ```
@@ -431,13 +427,14 @@ fallback_behavior:
 - docs/FALLBACK.md - Detailed fallback configuration
 - docs/RATE_LIMITS.md - Rate limit management strategies
 - lib/common.sh - Core utility functions including rate detection
-- adapters/litellm/ - Fallback adapter implementation
 
 ### Related Resources
-- **ollama** - Provides local LLM inference for fallback
 - **vault** - Secure API key storage
-- **litellm** - Optional proxy for model routing
 - **n8n** - Workflow automation using Claude Code
+
+> Claude Code is Anthropic-native: it talks to the Anthropic API directly and
+> does not route through a local model proxy. (codex and opencode reach local
+> Ollama models first-class; claude-code is the one acknowledged difference.)
 
 ### External Resources
 - [Claude Documentation](https://docs.anthropic.com/claude/docs)

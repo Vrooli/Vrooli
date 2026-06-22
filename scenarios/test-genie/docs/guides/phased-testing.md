@@ -25,7 +25,7 @@ graph TB
         P9[Phase 9: Performance<br/>60s<br/>Benchmarks & load]
         P10[Phase 10: Smoke<br/>90s<br/>UI load, iframe-bridge]
         P11[Phase 11: Unit<br/>60s<br/>Go, Node, Python]
-        P12[Phase 12: Integration<br/>120s<br/>API, CLI, BATS]
+        P12[Phase 12: Integration<br/>120s<br/>API, CLI, WebSocket]
         P13[Phase 13: Playbooks<br/>120s<br/>BAS browser automation]
         P14[Phase 14: Business<br/>180s<br/>Requirements & coverage]
     end
@@ -425,7 +425,6 @@ Before considering a scenario test-ready:
 - [Performance Testing](../phases/performance/performance-testing.md) - Build benchmarks and Lighthouse audits
 - [Custom Presets](custom-presets.md) - Create tailored presets for CI/CD
 - [Dashboard Guide](dashboard-guide.md) - Using the web UI
-- [CLI Testing](../phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](ui-testability.md) - Design testable UIs
 - [Sync Execution](sync-execution.md) - API usage for CI/CD
 - [Troubleshooting](troubleshooting.md) - Debug common issues

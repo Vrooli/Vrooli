@@ -325,7 +325,7 @@ validation.
 | `docs` | Validates markdown, mermaid, and links |
 | `smoke` | Performs fast runtime / UI handshake checks |
 | `unit` | Executes language-specific unit tests |
-| `integration` | Runs CLI/BATS and scenario integration suites |
+| `integration` | Runs CLI runtime, API health, and WebSocket connectivity checks |
 | `playbooks` | Executes BAS browser automation workflows |
 | `business` | Audits requirement coverage and business validation |
 | `performance` | Builds binaries and checks performance budgets (optional) |
@@ -919,7 +919,7 @@ quality       No        120s     Delegates static quality contracts to quality-h
 docs          No        1m       Validates markdown, mermaid, and links
 smoke         No        90s      Performs fast runtime/UI handshake checks
 unit          No        15m      Executes language-specific unit suites
-integration   No        15m      Runs CLI/BATS and integration suites
+integration   No        15m      Runs CLI, API health, and WebSocket checks
 playbooks     Yes       15m      Executes BAS browser automation workflows
 business      No        3m       Audits requirements and business validation
 performance   Yes       1m       Checks performance and duration budgets

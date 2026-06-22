@@ -116,6 +116,55 @@ func TestOpenCode_BuildContinueArgs(t *testing.T) {
 	}
 }
 
+// findDirArg returns the value following "--dir", or "" if the flag is absent.
+func findDirArg(args []string) (string, bool) {
+	for i, a := range args {
+		if a == "--dir" && i+1 < len(args) {
+			return args[i+1], true
+		}
+	}
+	return "", false
+}
+
+func TestOpenCode_BuildArgs_PinsWorkingDir(t *testing.T) {
+	c := NewOpenCodeForTest()
+	args := c.BuildArgs(c.NewState(), runner.ExecuteRequest{
+		RunID:      uuid.New(),
+		Prompt:     "do the thing",
+		WorkingDir: "/work/project",
+	})
+	got, ok := findDirArg(args)
+	if !ok {
+		t.Fatalf("expected --dir to pin the working directory, got %v", args)
+	}
+	if got != "/work/project" {
+		t.Errorf("--dir = %q, want /work/project", got)
+	}
+}
+
+func TestOpenCode_BuildArgs_OmitsDirWhenWorkingDirEmpty(t *testing.T) {
+	c := NewOpenCodeForTest()
+	args := c.BuildArgs(c.NewState(), runner.ExecuteRequest{
+		RunID:  uuid.New(),
+		Prompt: "do the thing",
+	})
+	if v, ok := findDirArg(args); ok {
+		t.Errorf("expected no --dir when WorkingDir is empty, got %q", v)
+	}
+}
+
+func TestOpenCode_BuildContinueArgs_PinsWorkingDir(t *testing.T) {
+	c := NewOpenCodeForTest()
+	args := c.BuildContinueArgs(c.NewState(), runner.ContinueRequest{
+		RunID: uuid.New(), SessionID: "sess-abc", Prompt: "follow up",
+		WorkingDir: "/work/project",
+	})
+	got, ok := findDirArg(args)
+	if !ok || got != "/work/project" {
+		t.Errorf("expected --dir /work/project on resume, got %v", args)
+	}
+}
+
 func TestOpenCode_BuildEnv_NonInteractive(t *testing.T) {
 	c := NewOpenCodeForTest()
 	env := c.BuildEnv("opencode-tag-1", nil)
@@ -345,12 +394,74 @@ func TestOpenCode_DecodeStreamLine_CapturesSessionID(t *testing.T) {
 // PostClassify (log-file fallback)
 // =============================================================================
 
-func TestOpenCode_PostClassify_NoOpForSuccess(t *testing.T) {
+func TestOpenCode_PostClassify_NoOpForSuccessWithToolCalls(t *testing.T) {
 	c := NewOpenCodeForTest()
-	result := &runner.ExecuteResult{Success: true, ErrorMessage: ""}
+	// A genuine success (it executed at least one tool call) is left untouched.
+	result := &runner.ExecuteResult{
+		Success: true,
+		Metrics: runner.ExecutionMetrics{ToolCallCount: 1},
+	}
 	c.PostClassify(c.NewState(), result)
+	if !result.Success {
+		t.Errorf("expected Success to remain true for a run with tool calls")
+	}
 	if result.ErrorMessage != "" {
 		t.Errorf("expected unchanged ErrorMessage, got %q", result.ErrorMessage)
+	}
+}
+
+func TestOpenCode_PostClassify_FlipsZeroToolCallNoOp(t *testing.T) {
+	c := NewOpenCodeForTest()
+	// Clean exit but zero tool calls — a no-op, not a success.
+	result := &runner.ExecuteResult{
+		Success:  true,
+		ExitCode: 0,
+		Metrics:  runner.ExecutionMetrics{ToolCallCount: 0},
+	}
+	c.PostClassify(c.NewState(), result)
+	if result.Success {
+		t.Fatal("expected zero-tool-call run to be reclassified as failure")
+	}
+	if result.ErrorMessage == "" {
+		t.Error("expected a descriptive no-op error message")
+	}
+}
+
+func TestOpenCode_PostClassify_NoOpMessageHintsModelOnTextToolCall(t *testing.T) {
+	c := NewOpenCodeForTest()
+	result := &runner.ExecuteResult{
+		Success: true,
+		Metrics: runner.ExecutionMetrics{ToolCallCount: 0},
+		Summary: &domain.RunSummary{
+			Description: `{"name":"write","arguments":{"filePath":"hello.txt","content":"hi"}}`,
+		},
+	}
+	c.PostClassify(c.NewState(), result)
+	if result.Success {
+		t.Fatal("expected no-op reclassification")
+	}
+	if !strings.Contains(result.ErrorMessage, "tool call as text") {
+		t.Errorf("expected model/template hint, got %q", result.ErrorMessage)
+	}
+}
+
+func TestLooksLikeUnexecutedToolCall(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		want bool
+	}{
+		{"bare tool call", `{"name":"write","arguments":{"filePath":"a"}}`, true},
+		{"parameters variant", `{"name":"write","parameters":{"filePath":"a"}}`, true},
+		{"fenced tool call", "```json\n{\"name\":\"write\",\"arguments\":{}}\n```", true},
+		{"plain prose", "Done! I created the file.", false},
+		{"json without name", `{"arguments":{"filePath":"a"}}`, false},
+		{"not json", "name: write", false},
+	}
+	for _, tc := range cases {
+		if got := looksLikeUnexecutedToolCall(tc.text); got != tc.want {
+			t.Errorf("%s: looksLikeUnexecutedToolCall(%q) = %v, want %v", tc.name, tc.text, got, tc.want)
+		}
 	}
 }
 

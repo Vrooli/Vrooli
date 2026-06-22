@@ -155,12 +155,6 @@ func TestRelativePaths(t *testing.T) {
 			filename: "workflow.timeline.json",
 			want:     "coverage/runs/" + testRunID + "/automation/workflow.timeline.json",
 		},
-		{
-			name:     "lighthouse",
-			fn:       RelativeLighthouseArtifactPath,
-			filename: "home.json",
-			want:     "coverage/runs/" + testRunID + "/lighthouse/home.json",
-		},
 	}
 
 	for _, tt := range tests {
@@ -210,9 +204,6 @@ func TestConstantConsistency(t *testing.T) {
 	}
 	if AutomationSubdir != "automation" {
 		t.Errorf("AutomationSubdir = %q, want %q", AutomationSubdir, "automation")
-	}
-	if LighthouseSubdir != "lighthouse" {
-		t.Errorf("LighthouseSubdir = %q, want %q", LighthouseSubdir, "lighthouse")
 	}
 }
 

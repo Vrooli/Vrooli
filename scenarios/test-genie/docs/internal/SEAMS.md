@@ -94,8 +94,8 @@ not documented below.
 
 ## Related docs
 
-- [`docs/agent-system/routed-test-db.md`](../../../../docs/agent-system/routed-test-db.md)
-  — End-to-end routed-vs-fallback path documentation.
+- [`scenarios/storage-health/docs/concepts/test-isolation-contract.md`](../../../../scenarios/storage-health/docs/concepts/test-isolation-contract.md)
+  — The canonical test-isolation contract: the routed path, the four-seam cookbook, and the fail-closed gate.
 - [`packages/api-core/docs/internal/SEAMS.md`](../../../../packages/api-core/docs/internal/SEAMS.md)
   — Substrate-level seams (`RoutedDB`, `Clock`, `TestModeMiddleware`,
   `devrouting.Register`).

@@ -8,8 +8,8 @@
 //   - tests keep passing a plain *sql.DB fixture from internal/testsqlite.
 //
 // Capturing this interface (rather than *sql.DB) is what keeps test-genie
-// clear of the scenario-auditor routed_database_handle_capture rule and thus
-// eligible for the in-place routed e2e path.
+// clear of storage-health's SQL_DB_HANDLE_CAPTURE finding and thus eligible
+// for the in-place routed e2e path.
 package dbexec
 
 import (

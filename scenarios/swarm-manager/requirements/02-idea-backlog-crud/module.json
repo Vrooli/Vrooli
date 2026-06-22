@@ -1,168 +1,160 @@
 {
-  "description": "Create, read, update, delete backlog items via API and CLI",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T00:10:28-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "Implement REST API endpoints for creating, reading, updating and deleting backlog items with proper validation and error handling",
       "id": "REQ-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "implemented",
       "title": "Backlog CRUD API Endpoints",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting backlog items with proper validation and error handling",
       "validation": [
         {
-          "notes": "Test List returns empty array when no backlog items exist",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestList_Empty",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test List returns empty array when no backlog items exist"
         },
         {
-          "notes": "Test List returns all backlog items sorted by priority",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestList_WithItems",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test List returns all backlog items sorted by priority"
         },
         {
-          "notes": "Test Get returns single backlog item by name",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestGet_Found",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test Get returns single backlog item by name"
         },
         {
-          "notes": "Test Get returns 404 for non-existent backlog item",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestGet_NotFound",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test Get returns 404 for non-existent backlog item"
         },
         {
-          "notes": "Test Create successfully creates backlog item with sanitized name",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestCreate_Success",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test Create successfully creates backlog item with sanitized name"
         },
         {
-          "notes": "Create validates required fields",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler.go::validateCreateBacklogItemRequest",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Create validates required fields"
         },
         {
-          "notes": "Create returns 409 for duplicate names",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler.go::Create",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Create returns 409 for duplicate names"
         },
         {
-          "notes": "Test Update modifies backlog item fields",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestUpdate_Success",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test Update modifies backlog item fields"
         },
         {
-          "notes": "Update returns 404 for non-existent backlog item",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler.go::Update",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Update returns 404 for non-existent backlog item"
         },
         {
-          "notes": "Test Delete removes backlog directory",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestDelete_Idempotent",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test Delete removes backlog directory"
         },
         {
-          "notes": "Delete returns 404 for non-existent backlog item",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler.go::Delete",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Delete returns 404 for non-existent backlog item"
         }
       ]
     },
     {
-      "category": "cli",
-      "dependencies": [
-        "REQ-P0-002"
-      ],
-      "description": "Implement CLI commands for backlog management supporting all CRUD operations",
       "id": "REQ-P0-003",
-      "prd_ref": "OT-P0-002",
-      "status": "implemented",
       "title": "Backlog CLI Commands",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "cli",
+      "description": "Implement CLI commands for backlog management supporting all CRUD operations",
       "validation": [
         {
-          "notes": "Test backlog commands are registered in CLI",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestBacklogCommandsRegistered",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test backlog commands are registered in CLI"
         },
         {
-          "notes": "Test BacklogItem struct JSON marshaling for CLI display",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestBacklogItemStruct",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test BacklogItem struct JSON marshaling for CLI display"
         },
         {
-          "notes": "Test CreateBacklogRequest struct JSON marshaling",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestCreateBacklogRequestStruct",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test CreateBacklogRequest struct JSON marshaling"
         },
         {
-          "notes": "Test backlog get command validates arguments",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestCmdBacklogGetValidation",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test backlog get command validates arguments"
         },
         {
-          "notes": "Test backlog create command validates arguments and JSON",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestCmdBacklogCreateValidation",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test backlog create command validates arguments and JSON"
         },
         {
-          "notes": "Test backlog update command validates arguments and JSON",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestCmdBacklogUpdateValidation",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test backlog update command validates arguments and JSON"
         },
         {
-          "notes": "Test backlog delete command validates arguments",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestCmdBacklogDeleteValidation",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test backlog delete command validates arguments"
         },
         {
-          "notes": "Test backlog endpoint path resolution",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestBacklogEndpointResolution",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test backlog endpoint path resolution"
         }
       ]
     }
-  ],
-  "title": "Backlog CRUD"
+  ]
 }

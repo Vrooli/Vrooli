@@ -2,6 +2,12 @@
 
 Anthropic Claude Code CLI for interactive and scripted development workflows.
 
+> **Anthropic-native.** Claude Code talks to the Anthropic API directly; it does
+> not route through a local model proxy. This is the one acknowledged difference
+> from the other coding-agent resources — codex and opencode reach local Ollama
+> models first-class, whereas claude-code is cloud/Anthropic-only. (The retired
+> LiteLLM local-proxy path has been removed.)
+
 ## Intent
 
 - Resource ID: `claude-code`

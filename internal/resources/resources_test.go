@@ -925,7 +925,6 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"qdrant":                "docker-service",
 		"browserless":           "docker-service",
 		"vault":                 "docker-service",
-		"litellm":               "docker-service",
 		"minio":                 "docker-service",
 		"neo4j":                 "docker-service",
 		"questdb":               "docker-service",
@@ -976,7 +975,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "litellm", "minio", "neo4j", "questdb", "searxng", "comfyui", "home-assistant", "kokoro", "mail-in-a-box", "sagemath", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "judge0", "postgis", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "browserless", "vault", "minio", "neo4j", "questdb", "searxng", "comfyui", "home-assistant", "kokoro", "mail-in-a-box", "sagemath", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "judge0", "postgis", "unstructured-io", "gemini", "openrouter", "twilio", "cloudflare-ai-gateway"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)

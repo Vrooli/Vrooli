@@ -7,7 +7,7 @@
       "id": "REQ-P0-006",
       "title": "System Report Generation",
       "status": "in_progress",
-      "prd_ref": "system-monitor-must-have-report-generation-dailyweekly-via-api-endpoint",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
       "category": "api",
       "description": "System must generate comprehensive daily and weekly reports via API endpoint",
       "validation": [
@@ -27,7 +27,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Report generation \u003c 30s"
+          "notes": "Report generation < 30s"
         },
         {
           "type": "test",
@@ -37,5 +37,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P0 > OT-P0-006"
 }

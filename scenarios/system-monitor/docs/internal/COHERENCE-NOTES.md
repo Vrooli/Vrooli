@@ -1,9 +1,9 @@
 # System Monitor UI — React Coherence Audit
 
-**Last updated:** 2026-02-16 (Audit #2)
+**Last updated:** 2026-06-22 (Round 5 — Phase-5 health)
 **Scope:** `scenarios/system-monitor/ui/src/`
 **Total files:** 51 (31 components, 8 hooks, 3 type files, 1 CSS, 1 API helper, 7 others)
-**Overall coherence score:** 6/10 (good foundation, inconsistent execution)
+**Overall coherence score:** 7/10 (the four lifecycle bugs are fixed, the god hook is split, and the dashboard bundle is code-split/lazy-loaded)
 
 ---
 
@@ -38,19 +38,20 @@
 - **InvestigationScriptsPage still has 8 state vars** — candidate for `useScriptsLibrary` hook.
 - **InvestigationsSection has 7 useState** — form states should combine into a single reducer.
 
-### Bugs Found
+### Bugs Found — ALL FIXED (Round 5)
 [CODE: ui/src/features/investigations/hooks/useInvestigationAgents.ts]
-- **Race condition** in `useInvestigationAgents` (lines 306-337): `pollAgentStatuses()` runs multiple concurrent fetches without dedup. State updates can race.
-- **Missing setTimeout cleanup** in `SystemSettingsModal` (line 97): `setTimeout(..., 3000)` has no useEffect cleanup — can fire after unmount.
-- **Unmounted state updates** in `useSystemMonitor`: Multiple `setState()` calls inside async callbacks without consistent `mountedRef` checks.
+- ~~**Race condition** in `useInvestigationAgents`: `pollAgentStatuses()` runs multiple concurrent fetches without dedup.~~ — **FIXED**: `pollAgentStatuses` now collects per-agent removals/updates into a single atomic functional `setAgents` (no interleaved writes), reads fresh state via `agentsRef`, and `usePolling` is a self-scheduling `setTimeout` chain that only schedules the next tick after the current `await` resolves — so poll invocations can never overlap.
+- ~~**Missing setTimeout cleanup** in `SystemSettingsModal`: `setTimeout(..., 3000)` has no useEffect cleanup.~~ — **FIXED**: success toast uses `successTimeoutRef`, `clearTimeout` on re-fire, and a useEffect unmount cleanup (`SystemSettingsModal.tsx:40-56`).
+- ~~**Unmounted state updates** in `useSystemMonitor`: `setState()` inside async callbacks without consistent `mountedRef` checks.~~ — **FIXED**: every async fetch in `useSystemMonitor` guards with `if (!mountedRef.current) return;` before each setState; the unmount effect aborts in-flight work.
+- ~~**Spawn dedup** in `useInvestigationAgents.spawnInvestigationAgent()`.~~ — **FIXED**: `isSpawningRef` short-circuits re-entrant spawns (`useInvestigationAgents.ts:47`).
 
 ### Recommendations (Updated)
 1. ~~Extract script execution logic from App.tsx~~ — **DONE** (Round 2)
 2. ~~Consolidate StatusIndicator's health check~~ — **DONE** (Round 2)
-3. **Split `useSystemMonitor`** into `useMetricsFetch`, `useProcessMonitor`, `useInfrastructureMonitor`, `useSystemHealth`
-4. **Introduce AppContext** or zustand store to eliminate top-level prop drilling
-5. **Fix bugs**: setTimeout cleanup, race condition, unmounted state updates
-6. Extract InvestigationScriptsPage state into `useScriptsLibrary` hook
+3. ~~**Split `useSystemMonitor`** god hook~~ — **DONE** (Round 5): `useHealthCheck` and `useMetricHistory` extracted; `useSystemMonitor` is now a focused composition root over those hooks plus the 5 cohesive metric fetchers.
+4. **Introduce AppContext** or zustand store to eliminate top-level prop drilling (optional; not gating).
+5. ~~**Fix bugs**: setTimeout cleanup, race condition, unmounted state updates, spawn dedup~~ — **DONE** (Round 5, see above).
+6. Extract InvestigationScriptsPage state into `useScriptsLibrary` hook (optional; not gating).
 
 ---
 
@@ -289,6 +290,13 @@ No consistent rule for when to use which approach.
     - `AutomaticTriggersSection.tsx` (5s trigger refresh, 1s cooldown tick)
 
 23. **Created shared `useApiCall` hook** (`shared/hooks/useApiCall.ts`) — consolidates fetch + error-parse + loading-state + AbortController pattern. Available for single-resource consumers to migrate incrementally.
+
+### Round 5 — Phase-5 health (bugs closed, god hook split, bundle code-split)
+
+24. **Closed the four lifecycle bugs** (see "Bugs Found" above): poll-race / setTimeout-cleanup / unmounted-state-updates / spawn-dedup are all fixed. The poll-race fix relies on the self-scheduling `setTimeout` chain in `usePolling` (next tick schedules only after the current `await` resolves) plus a single atomic functional `setAgents`.
+25. **Split the `useSystemMonitor` god hook** — extracted `useHealthCheck` (health/maintenance toggle) and `useMetricHistory` (timeline series), leaving `useSystemMonitor` as a focused composition root over those hooks and the five cohesive metric fetchers (482 → 364 lines).
+26. **Code-split + lazy-loaded the dashboard bundle** to fix the Lighthouse performance gate (was 0.41 < 0.70). `vite.config.ts` now `manualChunks`-splits `react-vendor` and `icons`; the five recharts detail views, the secondary pages (Forensics/Logs/Capacity/InvestigationScripts), the modals container, and `react-syntax-highlighter` (via `LazyScriptHighlighter`) are `React.lazy` + `<Suspense>` so the heaviest libs are deferred off the initial dashboard paint. Main entry chunk dropped ~1.63 MB → ~453 kB (initial gzip ~520 kB → ~154 kB).
+27. **Added the react-vite profiler scaffolding** — `src/lib/profiler.ts` (`onProfilerRender`), a top-level `<React.Profiler>` boundary in `main.tsx`, a `build:profile` script, and the `--mode profile` react-dom/profiling alias in `vite.config.ts` (inert in normal builds).
 
 ---
 

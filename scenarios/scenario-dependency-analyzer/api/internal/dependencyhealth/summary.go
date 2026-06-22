@@ -10,10 +10,6 @@ import (
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 )
 
-func lowerTrim(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
 func emptyAs(value, fallback string) string {
 	if strings.TrimSpace(value) == "" {
 		return fallback

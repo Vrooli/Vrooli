@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"test-genie/internal/integration/api"
-	"test-genie/internal/integration/bats"
 	"test-genie/internal/integration/cli"
 	"test-genie/internal/integration/websocket"
 	"test-genie/internal/shared"
@@ -68,20 +67,18 @@ type CLIConfig struct {
 	NoArgsTimeoutMs int64
 }
 
-// Runner orchestrates integration validation across API, CLI, BATS, and WebSocket checks.
+// Runner orchestrates integration validation across API, CLI, and WebSocket checks.
 type Runner struct {
 	config Config
 
 	// Validators (injectable for testing)
 	apiValidator       api.Validator
 	cliValidator       cli.Validator
-	batsRunner         bats.Runner
 	websocketValidator websocket.Validator
 
 	// Command functions (needed to create validators if not injected)
 	commandExecutor cli.CommandExecutor
 	commandCapture  cli.CommandCapture
-	commandLookup   bats.CommandLookup
 
 	logWriter io.Writer
 }
@@ -131,23 +128,6 @@ func New(config Config, opts ...Option) *Runner {
 		)
 	}
 
-	if r.batsRunner == nil && r.commandExecutor != nil {
-		batsOpts := []bats.Option{
-			bats.WithLogger(r.logWriter),
-			bats.WithExecutor(bats.AdaptExecutor(r.commandExecutor)),
-		}
-		if r.commandLookup != nil {
-			batsOpts = append(batsOpts, bats.WithLookup(bats.AdaptLookup(r.commandLookup)))
-		}
-		r.batsRunner = bats.New(
-			bats.Config{
-				ScenarioDir:  config.ScenarioDir,
-				ScenarioName: config.ScenarioName,
-			},
-			batsOpts...,
-		)
-	}
-
 	// Set defaults for WebSocket validator if URL is provided
 	if r.websocketValidator == nil && config.WebSocketURL != "" {
 		r.websocketValidator = websocket.New(
@@ -183,13 +163,6 @@ func WithCLIValidator(v cli.Validator) Option {
 	}
 }
 
-// WithBatsRunner sets a custom BATS runner (for testing).
-func WithBatsRunner(br bats.Runner) Option {
-	return func(r *Runner) {
-		r.batsRunner = br
-	}
-}
-
 // WithWebSocketValidator sets a custom WebSocket validator (for testing).
 func WithWebSocketValidator(v websocket.Validator) Option {
 	return func(r *Runner) {
@@ -208,13 +181,6 @@ func WithCommandExecutor(exec cli.CommandExecutor) Option {
 func WithCommandCapture(cap cli.CommandCapture) Option {
 	return func(r *Runner) {
 		r.commandCapture = cap
-	}
-}
-
-// WithCommandLookup sets the command lookup function.
-func WithCommandLookup(lookup bats.CommandLookup) Option {
-	return func(r *Runner) {
-		r.commandLookup = lookup
 	}
 }
 
@@ -286,43 +252,6 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		} else {
 			summary.CLIValidated = true
 			shared.LogSuccess(r.logWriter, "CLI validation complete")
-		}
-	}
-
-	// Note about Go-native phases
-	observations = append(observations, NewInfoObservation("go-native phase execution"))
-	shared.LogInfo(r.logWriter, "skipping bash orchestrator validation (Go-native phases)")
-
-	// Section: BATS Validation
-	observations = append(observations, NewSectionObservation("🧪", "Running BATS acceptance tests..."))
-	shared.LogInfo(r.logWriter, "Running BATS acceptance tests...")
-
-	if r.batsRunner == nil {
-		failures = append(failures, validationFailure{
-			component:    "BATS",
-			err:          fmt.Errorf("BATS runner not configured (missing command executor)"),
-			failureClass: FailureClassSystem,
-			remediation:  "Ensure command executor function is provided.",
-		})
-		observations = append(observations, NewErrorObservation("BATS runner not configured"))
-		shared.LogError(r.logWriter, "BATS runner not configured")
-	} else {
-		batsResult := r.batsRunner.Run(ctx)
-		observations = append(observations, batsResult.Observations...)
-		if !batsResult.Success {
-			failures = append(failures, validationFailure{
-				component:    "BATS",
-				err:          batsResult.Error,
-				failureClass: FailureClass(batsResult.FailureClass),
-				remediation:  batsResult.Remediation,
-			})
-			shared.LogError(r.logWriter, "BATS validation failed: %v", batsResult.Error)
-		} else if !batsResult.Skipped {
-			summary.PrimaryBatsRan = true
-			summary.AdditionalBatsSuites = batsResult.AdditionalSuitesRun
-			shared.LogSuccess(r.logWriter, "BATS validation complete")
-		} else {
-			shared.LogInfo(r.logWriter, "BATS validation skipped (no .bats files)")
 		}
 	}
 

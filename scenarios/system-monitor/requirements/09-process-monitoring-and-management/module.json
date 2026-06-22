@@ -1,7 +1,7 @@
 {
   "description": "Process collector in api/internal/collectors/process.go. Endpoint: GET /api/v1/metrics/processes. UI ProcessMonitor component with zombie detection, high-thread monitoring, memory leak candidates, and process kill dialog. Note: UI calls POST /processes/{pid}/kill but this endpoint is not implemented in the API router — kill action silently fails.",
   "module_id": "MOD-P0-009",
-  "prd_ref": "system-monitor-must-have-process-monitoring-and-management-zombie-detection-process-kill",
+  "prd_ref": "Operational Targets > P0 > OT-P0-009",
   "priority": "P0",
   "requirements": [
     {
@@ -11,7 +11,7 @@
       ],
       "description": "System must monitor and manage processes including zombie detection and process termination. Process monitoring (zombie, high-thread, leak candidates) is fully implemented. Process kill is not: UI has kill confirmation dialog but POST /processes/{pid}/kill endpoint is missing from the API router.",
       "id": "REQ-P0-009",
-      "prd_ref": "system-monitor-must-have-process-monitoring-and-management-zombie-detection-process-kill",
+      "prd_ref": "Operational Targets > P0 > OT-P0-009",
       "status": "in-progress",
       "title": "Process Monitoring",
       "validation": [
@@ -37,7 +37,7 @@
           "type": "test"
         },
         {
-          "notes": "Process list update \u003c 5s",
+          "notes": "Process list update < 5s",
           "phase": "performance",
           "ref": "",
           "status": "pending",

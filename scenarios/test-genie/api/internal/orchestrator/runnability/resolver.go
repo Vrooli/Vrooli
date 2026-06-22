@@ -17,8 +17,9 @@ func NewResolver() StandardResolver { return StandardResolver{} }
 var _ Resolver = StandardResolver{}
 
 // Resolve applies the runnability policy. The order of checks matters: missing
-// resources and the self-host guard produce Skip; a non-routed DB-isolation
-// phase that still runs produces RunDegraded; everything else Runs.
+// resources and the self-host guard produce Skip; a routed DB-isolation phase
+// that cannot prove routed eligibility is refused fail-closed (the restart
+// fallback was deleted); everything else Runs.
 func (StandardResolver) Resolve(caps PhaseCapabilities, rc RunContext) Verdict {
 	// 1. Required resources must be present regardless of surfaces/identity.
 	if missing := missingResources(caps, rc); len(missing) > 0 {
@@ -30,61 +31,53 @@ func (StandardResolver) Resolve(caps PhaseCapabilities, rc RunContext) Verdict {
 		}
 	}
 
-	// 2. Does running this phase require a lifecycle mutation against the target?
-	//    (a) a needed surface is not live → a start is required (a clobbering
-	//        `scenario start --clean-stale`); (b) the phase isolates its DB via
-	//        restart because the target is not routed-eligible.
+	// 2. Self-host guard: a needed-but-absent surface requires a clobbering
+	//    `scenario start`, which against our own scenario would SIGTERM the
+	//    process running the suite. Never do it — reuse a live surface or skip.
 	//
 	//    When the phase defers its lifecycle decision (LifecycleDecisionDeferred),
-	//    only the surface start counts here — the phase decides for itself, with
-	//    runtime data the manifest lacks, whether a restart actually happens, and
-	//    enforces the self-host guard internally.
+	//    only the surface start is gated here — the phase decides routed-vs-refuse
+	//    for itself with runtime data the manifest lacks, and enforces the
+	//    self-host guard internally.
 	missingSurf := missingSurfaces(caps, rc)
 	startNeeded := len(missingSurf) > 0
-	restartForDB := !caps.LifecycleDecisionDeferred &&
-		caps.MutatesLifecycle &&
-		caps.DBIsolation == DBIsolationRoutedOrRestart &&
-		!rc.RoutedEligible
-	mutates := startNeeded || restartForDB
-
-	// 3. Self-host guard: a mutation against our own scenario would SIGTERM the
-	//    process running the suite. Never do it — reuse a live surface or skip.
-	if mutates && rc.TargetIsSelf {
+	if startNeeded && rc.TargetIsSelf {
 		return Verdict{
 			Kind:        VerdictSkip,
-			Reason:      joinReason(selfHostReason(caps, missingSurf, restartForDB), rc.RoutedReason),
-			Remediation: selfHostRemediation(caps, restartForDB),
+			Reason:      joinReason(selfHostReason(caps, missingSurf), rc.RoutedReason),
+			Remediation: selfHostRemediation(caps),
 		}
 	}
 
 	// A phase that owns its own lifecycle decision has cleared the surface and
-	// resource gates — let it run and decide routed-vs-restart-vs-skip itself.
+	// resource gates — let it run and decide routed-vs-refuse-vs-skip itself.
 	if caps.LifecycleDecisionDeferred {
 		return Verdict{Kind: VerdictRun}
 	}
 
-	// 4. DB-isolation phase running on the restart fallback (non-self): it runs,
-	//    but on the less-preferred path. Surface that as a degraded run so the
-	//    operator sees the routed path was not taken and why.
-	if caps.DBIsolation == DBIsolationRoutedOrRestart && !rc.RoutedEligible {
+	// 3. Routed DB-isolation phase whose routed eligibility is not proven: the
+	//    restart-based fallback was deleted, so it cannot obtain an isolated test
+	//    database and is refused fail-closed rather than run mutations against
+	//    real data.
+	if caps.DBIsolation == DBIsolationRouted && !rc.RoutedEligible {
 		return Verdict{
-			Kind: VerdictRunDegraded,
+			Kind: VerdictSkip,
 			Reason: joinReason(
-				fmt.Sprintf("%s obtains DB isolation via target restart (not routed-eligible)", phaseLabel(caps)),
+				fmt.Sprintf("%s cannot prove routed test-DB isolation and the restart fallback was removed", phaseLabel(caps)),
 				rc.RoutedReason),
-			Remediation: "Migrate the target to the routed test-DB path (see docs/agent-system/routed-test-db.md) to avoid the restart.",
+			Remediation: "Wire the routed test-DB seams (run storage-health to see which are missing) so the phase can isolate in place.",
 		}
 	}
 
-	// 5. Routed-eligible DB-isolation phase: runs in place via the routed path.
-	if caps.DBIsolation == DBIsolationRoutedOrRestart && rc.RoutedEligible {
+	// 4. Routed-eligible DB-isolation phase: runs in place via the routed path.
+	if caps.DBIsolation == DBIsolationRouted && rc.RoutedEligible {
 		return Verdict{
 			Kind:   VerdictRun,
 			Reason: joinReason(fmt.Sprintf("%s runs on the routed test-DB path — no restart", phaseLabel(caps)), rc.RoutedReason),
 		}
 	}
 
-	// 6. Plain phase (static, or a surface phase whose surface is already live).
+	// 5. Plain phase (static, or a surface phase whose surface is already live).
 	return Verdict{Kind: VerdictRun}
 }
 
@@ -113,24 +106,15 @@ func missingResources(caps PhaseCapabilities, rc RunContext) []string {
 	return missing
 }
 
-func selfHostReason(caps PhaseCapabilities, missingSurf []string, restartForDB bool) string {
-	switch {
-	case len(missingSurf) > 0:
+func selfHostReason(caps PhaseCapabilities, missingSurf []string) string {
+	if len(missingSurf) > 0 {
 		return fmt.Sprintf(
 			"%s needs the target's %s surface(s), which are not live; starting the target would terminate this self-test process",
 			phaseLabel(caps), strings.Join(missingSurf, "+"))
-	case restartForDB:
-		return fmt.Sprintf(
-			"%s isolates its database by restarting the target, which would terminate this self-test process",
-			phaseLabel(caps))
-	default:
-		return fmt.Sprintf("%s would mutate the target lifecycle during a self-test", phaseLabel(caps))
 	}
+	return fmt.Sprintf("%s would mutate the target lifecycle during a self-test", phaseLabel(caps))
 }
 
-func selfHostRemediation(caps PhaseCapabilities, restartForDB bool) string {
-	if restartForDB {
-		return "Migrate test-genie to the routed test-DB path so the DB-isolation phase runs in place, or run this phase against a different target scenario."
-	}
+func selfHostRemediation(caps PhaseCapabilities) string {
 	return "Keep the target's required surfaces live before the self-test so they can be reused, or run this phase against a different target scenario."
 }

@@ -29,7 +29,7 @@ scenario/
 │   │   ├── test-unit.sh
 │   │   └── test-integration.sh
 │   ├── cli/             ❌ NEVER reference (CLI wrapper tests)
-│   │   └── *.bats
+│   │   └── *.sh
 │   └── playbooks/       ✅ ALWAYS reference (e2e automation)
 │       └── **/*.json
 │
@@ -65,11 +65,9 @@ npm run test           # Runs Vitest tests
 **test/cli/** tests validate the CLI wrapper, not business logic:
 
 ```bash
-# test/cli/example-cli-wrapper.bats - Tests CLI interface
-@test "vrooli profile create accepts --name flag" {
-  run vrooli profile create --name test
-  [ "$status" -eq 0 ]
-}
+# test/cli/example-cli-wrapper.sh - Tests CLI interface
+vrooli profile create --name test
+[ "$?" -eq 0 ] || exit 1
 ```
 
 The CLI should be a thin wrapper over the API. If CLI tests pass but API logic is broken, the requirement isn't truly validated.

@@ -227,12 +227,6 @@
         "startup_policy": "try_start",
         "description": "Completeness metrics (P1)"
       },
-      "app-issue-tracker": {
-        "enabled": false,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Issue management (P1)"
-      },
       "test-genie": {
         "enabled": false,
         "required": false,

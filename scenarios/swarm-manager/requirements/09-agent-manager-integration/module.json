@@ -1,95 +1,88 @@
 {
-  "description": "Spawn agents for all automated work through agent-manager",
-  "module_id": "MOD-P0-009",
-  "prd_ref": "OT-P0-009",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T00:10:28-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-010-API",
+      "title": "Agent Manager API Client",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
       "category": "api",
       "description": "Implement API client for agent-manager to spawn and manage agents",
-      "id": "REQ-P0-010-API",
-      "prd_ref": "OT-P0-009",
-      "status": "implemented",
-      "title": "Agent Manager API Client",
       "validation": [
         {
-          "notes": "Test agent spawn requests via discovery-resolved base URL",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_Success",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test agent spawn requests via discovery-resolved base URL"
         },
         {
-          "notes": "Test resolver failure handling",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_ResolverError",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test resolver failure handling"
         },
         {
-          "notes": "Test HTTP request failure handling",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/agentmanager/client_test.go::TestHTTPClient_CreateResearchRun_RequestError",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test HTTP request failure handling"
         }
       ]
     },
     {
-      "category": "integration",
-      "dependencies": [
-        "REQ-P0-010-API"
-      ],
-      "description": "End-to-end integration with agent-manager for automated task workflows",
       "id": "REQ-P0-010-WORKFLOW",
-      "prd_ref": "OT-P0-009",
-      "status": "implemented",
       "title": "Agent Workflow Integration",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "category": "integration",
+      "description": "End-to-end integration with agent-manager for automated task workflows",
       "validation": [
         {
-          "notes": "Agent service default profile configuration is validated",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/agentmanager/service_test.go::TestDefaultProfileConfig",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Agent service default profile configuration is validated"
         },
         {
-          "notes": "Agent service profile build wiring is validated",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/agentmanager/service_test.go::TestBuildProfile",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Agent service profile build wiring is validated"
         },
         {
-          "notes": "Backlog research uses agent-manager service seam",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backlog/handler_test.go::TestResearch_SpawnsAgent",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Execution queue workflow spawns agent runs",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Backlog research uses agent-manager service seam"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/execution/service_test.go::TestQueueAndStartManualExecution",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Execution queue workflow spawns agent runs"
         },
         {
-          "notes": "End-to-end agent workflow test",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "End-to-end agent workflow test"
         },
         {
-          "notes": "Automated tasks execute reliably",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Automated tasks execute reliably"
         }
       ]
     }
-  ],
-  "title": "agent-manager integration"
+  ]
 }

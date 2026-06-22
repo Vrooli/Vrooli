@@ -722,19 +722,6 @@ claude-code::validate() {
         fi
     fi
     
-    # Check LiteLLM adapter functionality
-    if [[ "$verbose" == "yes" ]]; then
-        echo -n "Checking LiteLLM adapter... "
-    fi
-    if source "${CLAUDE_CODE_SCRIPT_DIR}/adapters/litellm/state.sh" 2>/dev/null; then
-        if [[ "$verbose" == "yes" ]]; then
-            echo "✅ OK"
-        fi
-    else
-        echo "❌ LiteLLM adapter has issues"
-        ((errors++))
-    fi
-    
     # Check critical library files
     if [[ "$verbose" == "yes" ]]; then
         echo -n "Checking core libraries... "

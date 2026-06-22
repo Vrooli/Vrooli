@@ -52,11 +52,11 @@ func TestCheck_Routed(t *testing.T) {
 	}
 }
 
-func TestCheck_DisqualifiedByDriver(t *testing.T) {
+func TestCheck_DisqualifiedBySeamsUnwired(t *testing.T) {
 	checker := &fakeChecker{elig: internalelig.Eligibility{
 		Routed: false,
-		Violations: []internalelig.ViolationExcerpt{
-			{RuleID: internalelig.RuleRoutedDrivers, Severity: "high", FilePath: "db.go", LineNumber: 42, Title: "raw driver"},
+		BlockingFindings: []internalelig.IsolationFinding{
+			{Code: internalelig.CodeRoutedSeamsUnwired, Severity: "SEVERITY_ERROR", Location: "api/main.go", Message: "missing TestModeMiddleware"},
 		},
 	}}
 	svc := NewService(checker, "/tmp/scenarios")
@@ -72,20 +72,21 @@ func TestCheck_DisqualifiedByDriver(t *testing.T) {
 		t.Fatalf("expected 1 violation; got %d", len(resp.Msg.GetViolations()))
 	}
 	v := resp.Msg.GetViolations()[0]
-	if v.GetRuleId() != internalelig.RuleRoutedDrivers || v.GetLine() != 42 || v.GetFile() != "db.go" {
+	if v.GetRuleId() != internalelig.CodeRoutedSeamsUnwired || v.GetFile() != "api/main.go" {
 		t.Errorf("violation mapping wrong: %+v", v)
 	}
 	reasons := resp.Msg.GetDisqualifyingReasons()
-	if len(reasons) != 1 || !strings.Contains(reasons[0], "routed_database_drivers") {
-		t.Errorf("expected reason mentioning routed_database_drivers; got %v", reasons)
+	if len(reasons) != 1 || !strings.Contains(reasons[0], "ROUTED_SEAMS_UNWIRED") {
+		t.Errorf("expected reason mentioning ROUTED_SEAMS_UNWIRED; got %v", reasons)
 	}
 }
 
-func TestCheck_DisqualifiedByHandleCapture(t *testing.T) {
+func TestCheck_DisqualifiedByUnverified(t *testing.T) {
 	checker := &fakeChecker{elig: internalelig.Eligibility{
-		Routed: false,
-		Violations: []internalelig.ViolationExcerpt{
-			{RuleID: internalelig.RuleRoutedHandleCapture, Severity: "medium"},
+		Routed:     false,
+		Unverified: true,
+		BlockingFindings: []internalelig.IsolationFinding{
+			{Code: internalelig.CodeStorageIsolationUnverified, Severity: "SEVERITY_WARNING"},
 		},
 	}}
 	svc := NewService(checker, "/tmp/scenarios")
@@ -95,39 +96,12 @@ func TestCheck_DisqualifiedByHandleCapture(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	reasons := resp.Msg.GetDisqualifyingReasons()
-	if len(reasons) != 1 || !strings.Contains(reasons[0], "routed_database_handle_capture") {
-		t.Errorf("expected reason mentioning routed_database_handle_capture; got %v", reasons)
+	if len(reasons) != 1 || !strings.Contains(reasons[0], "STORAGE_ISOLATION_UNVERIFIED") {
+		t.Errorf("expected reason mentioning STORAGE_ISOLATION_UNVERIFIED; got %v", reasons)
 	}
 }
 
-func TestCheck_MissingRule(t *testing.T) {
-	checker := &fakeChecker{elig: internalelig.Eligibility{
-		Routed: false,
-		RuleAssertion: &internalelig.RuleAssertion{
-			MissingRules: []string{internalelig.RuleDatabaseBackoff, internalelig.RuleRoutedDrivers},
-		},
-	}}
-	svc := NewService(checker, "/tmp/scenarios")
-
-	resp, err := svc.Check(context.Background(), connect.NewRequest(&eligpb.CheckRequest{Scenario: "demo"}))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	ra := resp.Msg.GetRuleAssertion()
-	if ra == nil || len(ra.GetMissingRules()) != 2 {
-		t.Fatalf("expected RuleAssertion with 2 missing rules; got %+v", ra)
-	}
-	if ra.GetMissingRules()[0] != internalelig.RuleDatabaseBackoff {
-		t.Errorf("expected sorted missing_rules with %s first; got %v", internalelig.RuleDatabaseBackoff, ra.GetMissingRules())
-	}
-	reasons := resp.Msg.GetDisqualifyingReasons()
-	joined := strings.Join(reasons, " | ")
-	if !strings.Contains(joined, "did not register required") {
-		t.Errorf("expected 'did not register required' reason; got %v", reasons)
-	}
-}
-
-func TestCheck_AuditorUnreachable(t *testing.T) {
+func TestCheck_ProviderUnreachable(t *testing.T) {
 	checker := &fakeChecker{err: errors.New("scan timeout")}
 	svc := NewService(checker, "/tmp/scenarios")
 

@@ -1,67 +1,62 @@
 {
-  "description": "Execution default policy (manual/scheduled/yolo) with configurable delay",
-  "module_id": "MOD-P1-011",
-  "prd_ref": "OT-P1-001",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T00:10:28-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-001-ENGINE",
+      "title": "Execution Policy Core",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
       "category": "api",
       "description": "Implement execution policy backend with default mode and default delay persistence",
-      "id": "REQ-P1-001-ENGINE",
-      "prd_ref": "OT-P1-001",
-      "status": "implemented",
-      "title": "Execution Policy Core",
       "validation": [
         {
-          "notes": "GET /api/v1/execution/policy returns policy defaults",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/execution/handler.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "GET /api/v1/execution/policy returns policy defaults"
         },
         {
-          "notes": "PUT /api/v1/execution/policy persists mode and delay",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/execution/policy_store.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "PUT /api/v1/execution/policy persists mode and delay"
         },
         {
-          "notes": "Policy defaults applied to new execution runs",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/execution/handler.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Policy defaults applied to new execution runs"
         }
       ]
     },
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P1-001-ENGINE"
-      ],
-      "description": "Implement configurable policy controls for mode and scheduled delay via CLI",
       "id": "REQ-P1-001-CONFIG",
-      "prd_ref": "OT-P1-001",
-      "status": "implemented",
       "title": "Execution Policy Configuration",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "description": "Implement configurable policy controls for mode and scheduled delay via CLI",
       "validation": [
         {
-          "notes": "CLI execution policy get/update commands",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go::TestCmdExecutionPolicyUpdateValidation",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "CLI execution policy get/update commands"
         },
         {
-          "notes": "Users can control execution default behavior via CLI",
-          "phase": "business",
+          "type": "test",
           "ref": "cli/cmd_execution.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "business",
+          "status": "failing",
+          "notes": "Users can control execution default behavior via CLI"
         }
       ]
     }
-  ],
-  "title": "Execution control policy"
+  ]
 }

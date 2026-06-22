@@ -353,6 +353,219 @@ func (s *Store) LoadAllDependencies() ([]types.ScenarioDependency, error) {
 	return deps, nil
 }
 
+// ReplaceGraphEdges atomically replaces the entire unified graph_edges store
+// with the supplied merged edge set. Used by a full fleet rebuild; the
+// incremental sweeper uses the per-scenario upsert path instead.
+func (s *Store) ReplaceGraphEdges(edges []types.UnifiedGraphEdge) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec("DELETE FROM graph_edges"); err != nil {
+		return err
+	}
+	if err := insertGraphEdgesTx(tx, edges); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// UpsertGraphEdgesForScenario replaces the edges originating from a single
+// source scenario with the supplied merged set. This is the incremental,
+// freshness-gated path: it never touches other scenarios' rows, so a partial
+// (per-scenario) re-ingest is safe and idempotent.
+func (s *Store) UpsertGraphEdgesForScenario(scenario string, edges []types.UnifiedGraphEdge) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
+	}
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return errors.New("scenario is required")
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec("DELETE FROM graph_edges WHERE from_scenario = ?", scenario); err != nil {
+		return err
+	}
+	if err := insertGraphEdgesTx(tx, edges); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// MarkScenarioEdgesStale flags every edge from the named scenario as stale
+// without dropping it. Used by the sweeper's graceful-degradation path so an
+// upstream-source outage never zeroes out a scenario's contribution mid-cycle.
+func (s *Store) MarkScenarioEdgesStale(scenario string) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
+	}
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil
+	}
+	_, err := s.db.Exec("UPDATE graph_edges SET stale = 1 WHERE from_scenario = ?", scenario)
+	return err
+}
+
+func insertGraphEdgesTx(tx *sql.Tx, edges []types.UnifiedGraphEdge) error {
+	stmt := `
+        INSERT INTO graph_edges
+        (from_scenario, to_node, kind, evidence_source, confidence, required, evidence_json, stale, last_verified, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`
+	now := time.Now().UTC()
+	for _, edge := range edges {
+		evidenceJSON, _ := json.Marshal(edge.Evidence)
+		if len(edge.Evidence) == 0 {
+			evidenceJSON = []byte("[]")
+		}
+		lastVerified := edge.LastVerified
+		if lastVerified.IsZero() {
+			lastVerified = now
+		}
+		if _, err := tx.Exec(stmt,
+			edge.From, edge.To, edge.Kind, edge.Source, edge.Confidence, edge.Required,
+			string(evidenceJSON), boolToInt(edge.Stale), lastVerified.UTC().Format(time.RFC3339Nano), now.Format(time.RFC3339Nano),
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// LoadGraphEdges returns every persisted unified edge, ordered for deterministic
+// graph construction.
+func (s *Store) LoadGraphEdges() ([]types.UnifiedGraphEdge, error) {
+	if s.db == nil {
+		return nil, errors.New("store not initialized")
+	}
+	rows, err := s.db.Query(`
+        SELECT from_scenario, to_node, kind, evidence_source, confidence, required, evidence_json, stale, last_verified
+        FROM graph_edges
+        ORDER BY from_scenario, to_node`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var edges []types.UnifiedGraphEdge
+	for rows.Next() {
+		var (
+			edge         types.UnifiedGraphEdge
+			required     int
+			stale        int
+			evidenceJSON sql.NullString
+			lastVerified any
+		)
+		if err := rows.Scan(&edge.From, &edge.To, &edge.Kind, &edge.Source, &edge.Confidence, &required, &evidenceJSON, &stale, &lastVerified); err != nil {
+			continue
+		}
+		edge.Required = required != 0
+		edge.Stale = stale != 0
+		if evidenceJSON.Valid && evidenceJSON.String != "" {
+			_ = json.Unmarshal([]byte(evidenceJSON.String), &edge.Evidence)
+		}
+		edge.LastVerified = parseDBTime(lastVerified)
+		edges = append(edges, edge)
+	}
+	return edges, nil
+}
+
+// GraphEdgeStats summarizes the persisted unified graph store for status surfaces.
+type GraphEdgeStats struct {
+	TotalEdges    int
+	ScenarioEdges int
+	ResourceEdges int
+	StaleEdges    int
+	BySource      map[string]int
+	LastUpdated   time.Time
+}
+
+// GraphEdgeStats aggregates summary counts over the unified graph store.
+func (s *Store) GraphEdgeStats() (GraphEdgeStats, error) {
+	stats := GraphEdgeStats{BySource: map[string]int{}}
+	if s.db == nil {
+		return stats, errors.New("store not initialized")
+	}
+	rows, err := s.db.Query(`SELECT kind, evidence_source, stale, COUNT(*) FROM graph_edges GROUP BY kind, evidence_source, stale`)
+	if err != nil {
+		return stats, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			kind, source string
+			stale, count int
+		)
+		if err := rows.Scan(&kind, &source, &stale, &count); err != nil {
+			continue
+		}
+		stats.TotalEdges += count
+		switch kind {
+		case "resource":
+			stats.ResourceEdges += count
+		default:
+			stats.ScenarioEdges += count
+		}
+		if stale != 0 {
+			stats.StaleEdges += count
+		}
+		stats.BySource[source] += count
+	}
+	var lastUpdated sql.NullString
+	if err := s.db.QueryRow(`SELECT MAX(updated_at) FROM graph_edges`).Scan(&lastUpdated); err == nil && lastUpdated.Valid {
+		stats.LastUpdated = parseTimeString(lastUpdated.String)
+	}
+	return stats, nil
+}
+
+// GetIngestDigest returns the scenario tree digest of the last successful ingest.
+func (s *Store) GetIngestDigest(scenario string) (string, bool, error) {
+	if s.db == nil {
+		return "", false, errors.New("store not initialized")
+	}
+	var digest string
+	err := s.db.QueryRow("SELECT digest FROM graph_ingest_state WHERE scenario = ?", scenario).Scan(&digest)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return digest, true, nil
+}
+
+// SetIngestDigest records the scenario tree digest after a successful ingest.
+func (s *Store) SetIngestDigest(scenario, digest string) error {
+	if s.db == nil {
+		return errors.New("store not initialized")
+	}
+	_, err := s.db.Exec(`
+        INSERT INTO graph_ingest_state (scenario, digest, last_ingested_at)
+        VALUES (?,?,?)
+        ON CONFLICT (scenario) DO UPDATE SET
+            digest = EXCLUDED.digest,
+            last_ingested_at = EXCLUDED.last_ingested_at`,
+		scenario, digest, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+
 func normalizeName(name string) string {
 	return strings.TrimSpace(strings.ToLower(name))
 }

@@ -57,7 +57,7 @@ type eligibilityChecker interface {
 	Invalidate(scenario string)
 }
 
-var routingChecker eligibilityChecker = eligibility.NewChecker(0)
+var routingChecker eligibilityChecker = eligibility.NewChecker()
 
 // SetRoutingChecker overrides the package-level routing-eligibility checker.
 // Called from app bootstrap so the HTTP Connect handler and the playbooks
@@ -123,7 +123,7 @@ func (s staticRegistryLoader) Load() (playbooks.Registry, error) {
 // (RunNativePhase) does. Playbooks carries lifecycle/isolation/lease
 // orchestration that doesn't fit the RunNativePhase shape, so it keeps its own
 // flow and the collector measures the whole phase (wall-clock + CPU/RSS +
-// baseline env) across every routed/fallback return path.
+// baseline env) across every routed/refused return path.
 func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	m := metrics.Start()
 	report := runPlaybooksPhaseInner(ctx, env, logWriter)
@@ -134,8 +134,9 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 // runPlaybooksPhaseInner executes BAS playbook workflows using the playbooks
 // package. It branches at the top on routing eligibility: scenarios that
 // qualify take the in-place "routed" path (no scenario restart; runtime
-// test-pool install via RoutingService); scenarios that don't qualify take
-// the original "fallback" path with a leading violations block in the log.
+// test-pool install via RoutingService); scenarios that don't qualify have
+// their destructive playbooks refused fail-closed (a loud skip with the
+// remediation in the log). There is no restart-based fallback.
 func runPlaybooksPhaseInner(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if err := ctx.Err(); err != nil {
 		return RunReport{
@@ -235,9 +236,9 @@ func runPlaybooksPhaseInner(ctx context.Context, env workspace.Environment, logW
 	if selfidentity.Is(env.ScenarioName) {
 		return RunReport{
 			Observations: []Observation{
-				NewSkipObservation(fmt.Sprintf("playbooks skipped: restart-based isolation for %s would terminate the active self-test API process; the routed test-DB path is required for a playbooks self-test", env.ScenarioName)),
+				NewSkipObservation(fmt.Sprintf("playbooks skipped: running destructive end-to-end flows against %s's own live process during its own self-test suite is unsupported", env.ScenarioName)),
 			},
-			Remediation: "Migrate test-genie to the routed test-DB path (see docs/agent-system/routed-test-db.md), or execute playbooks against a different target scenario.",
+			Remediation: "Execute playbooks against a different target scenario.",
 		}
 	}
 
@@ -249,17 +250,16 @@ func runPlaybooksPhaseInner(ctx context.Context, env workspace.Environment, logW
 		}
 	}
 
-	// Routing eligibility — the routed path requires the scenario to have
-	// been migrated to *database.RoutedDB and to expose RoutingService in
-	// dev mode. The decision is consolidated into a single PathDecision so
-	// the structured log block is the only operator-facing surface.
+	// Routing eligibility — the routed path requires storage-health to have
+	// statically proven test-DB isolation (its L2 rung). There is NO
+	// restart-based fallback: when isolation cannot be proven the destructive
+	// playbooks are refused fail-closed. The decision is consolidated into a
+	// single PathDecision so the structured log block is the only
+	// operator-facing surface.
 	elig, eligErr := routingChecker.Check(ctx, env.ScenarioName, mapping)
 	defer routingChecker.Invalidate(env.ScenarioName)
 
-	forcedFallback := os.Getenv("TEST_GENIE_FORCE_FALLBACK") == "1"
-	decision := decidePlaybooksPath(elig, eligErr, forcedFallback)
-
-	needs := resolveDBNeeds(ctx, env, logWriter)
+	decision := decidePlaybooksPath(elig, eligErr)
 
 	// Early routed preflight — client resolution + RoutingService probe. Both
 	// only need the scenario name (not the isolation env), so running them
@@ -277,17 +277,15 @@ func runPlaybooksPhaseInner(ctx context.Context, env workspace.Environment, logW
 		}
 	}
 
-	// If we're committed to the fallback path and the runtime manager isn't
-	// wired, fail before spending time on isolation. The routed path doesn't
-	// touch TargetRuntime, so this gate only applies to the fallback branch.
-	if !decision.IsRouted() && env.TargetRuntime == nil {
+	// Routed-or-refuse: when the routed path is unavailable we refuse the
+	// destructive playbooks fail-closed. No isolation is prepared, no scenario
+	// is restarted, and no mutating request can reach a non-isolated database.
+	if decision.IsRefused() {
 		writePathDecisionBlock(logWriter, decision)
-		return RunReport{
-			Err:                   fmt.Errorf("target runtime manager is not configured"),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Run playbooks through test-genie execute so the target scenario lifecycle can be managed.",
-		}
+		return refusedPlaybooksReport(env.ScenarioName, decision)
 	}
+
+	needs := resolveDBNeeds(ctx, env, logWriter)
 
 	isoManager := isolationManagerFactory(isolation.Config{
 		ScenarioName:    env.ScenarioName,
@@ -309,83 +307,68 @@ func runPlaybooksPhaseInner(ctx context.Context, env workspace.Environment, logW
 		}
 	}
 
-	if decision.IsRouted() {
-		dsn, dsnErr := extractTestDSN(isoResult.Env, needs.PrimaryDriver)
-		if dsnErr != nil {
-			decision = preflightFailureDecision(fmt.Errorf("%w: %v", errNoTestDSN, dsnErr))
-			writePathDecisionBlock(logWriter, decision)
-			return runPlaybooksFallback(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation)
-		}
-		decision.LeaseID = leaseID
-		decision.DSNDriver = needs.PrimaryDriver
+	dsn, dsnErr := extractTestDSN(isoResult.Env, needs.PrimaryDriver)
+	if dsnErr != nil {
+		decision = preflightFailureDecision(fmt.Errorf("%w: %v", errNoTestDSN, dsnErr))
 		writePathDecisionBlock(logWriter, decision)
-		return runPlaybooksRouted(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation, routingClient, dsn, leaseID)
+		_ = isoResult.Cleanup(context.Background())
+		return refusedPlaybooksReport(env.ScenarioName, decision)
 	}
-
+	decision.LeaseID = leaseID
+	decision.DSNDriver = needs.PrimaryDriver
 	writePathDecisionBlock(logWriter, decision)
-	return runPlaybooksFallback(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation)
+	return runPlaybooksRouted(ctx, env, logWriter, playbooksCfg, registry, needs, isoResult, retainIsolation, routingClient, dsn, leaseID)
 }
 
-// decidePlaybooksPath consolidates the routed-vs-fallback choice into a
-// single PathDecision so all branches emit the same structured log block.
-func decidePlaybooksPath(elig eligibility.Eligibility, eligErr error, forcedFallback bool) eligibility.PathDecision {
-	if forcedFallback {
-		return eligibility.PathDecision{
-			Path:   eligibility.PathFallbackForcedEnv,
-			Reason: "TEST_GENIE_FORCE_FALLBACK=1 forces the fallback path",
-		}
-	}
+// decidePlaybooksPath consolidates the routed-or-refuse choice into a single
+// PathDecision so all branches emit the same structured log block. There is no
+// fallback path: anything short of statically-proven isolation is a refusal.
+func decidePlaybooksPath(elig eligibility.Eligibility, eligErr error) eligibility.PathDecision {
 	if eligErr != nil {
 		return eligibility.PathDecision{
-			Path:   eligibility.PathFallbackAuditorUnreachable,
-			Reason: fmt.Sprintf("scenario-auditor scan did not complete: %v", eligErr),
-		}
-	}
-	if elig.RuleAssertion != nil {
-		return eligibility.PathDecision{
-			Path:          eligibility.PathFallbackRules,
-			RuleAssertion: elig.RuleAssertion,
-			Reason:        "scenario-auditor scan did not include one or more required routing rules",
+			Path:   eligibility.PathRefusedProviderUnreachable,
+			Reason: fmt.Sprintf("storage-health isolation validation did not complete: %v", eligErr),
 		}
 	}
 	if !elig.Routed {
 		return eligibility.PathDecision{
-			Path:       eligibility.PathFallbackRules,
-			Violations: elig.Violations,
-			Reason:     "scenario-auditor flagged routing-rule violations",
+			Path:             eligibility.PathRefusedIsolation,
+			BlockingFindings: elig.BlockingFindings,
+			Unverified:       elig.Unverified,
+			Reason:           "storage-health could not statically prove test-DB isolation",
 		}
 	}
 	return eligibility.PathDecision{
 		Path:   eligibility.PathRouted,
-		Reason: "routed e2e path — no scenario restart",
+		Reason: "routed e2e path — isolation statically proven, no scenario restart",
 	}
 }
 
-// preflightFailureDecision wraps a pre-flight error into a PathDecision with
-// the correct PreflightFailure tag (or PathFallbackProductionMode when the
+// preflightFailureDecision wraps a pre-flight error into a refusal PathDecision
+// with the correct PreflightFailure tag (or PathRefusedProductionMode when the
 // scenario's RoutingService route is not mounted).
 func preflightFailureDecision(err error) eligibility.PathDecision {
 	switch {
 	case errors.Is(err, errRoutingServiceDisabled):
 		return eligibility.PathDecision{
-			Path:   eligibility.PathFallbackProductionMode,
+			Path:   eligibility.PathRefusedProductionMode,
 			Reason: err.Error(),
 		}
 	case errors.Is(err, errNoTestDSN):
 		return eligibility.PathDecision{
-			Path:             eligibility.PathFallbackPreflight,
+			Path:             eligibility.PathRefusedPreflight,
 			PreflightFailure: eligibility.PreflightFailureNoDSN,
 			Reason:           err.Error(),
 		}
 	case errors.Is(err, errRoutingClientUnreachable):
 		return eligibility.PathDecision{
-			Path:             eligibility.PathFallbackPreflight,
+			Path:             eligibility.PathRefusedPreflight,
 			PreflightFailure: eligibility.PreflightFailureRoutingUnreachable,
 			Reason:           err.Error(),
 		}
 	}
 	return eligibility.PathDecision{
-		Path:             eligibility.PathFallbackPreflight,
+		Path:             eligibility.PathRefusedPreflight,
 		PreflightFailure: eligibility.PreflightFailureNone,
 		Reason:           err.Error(),
 	}
@@ -433,54 +416,50 @@ func resolveClaimActor() string {
 	return "test-genie"
 }
 
-// writePathDecisionBlock emits the structured routed-vs-fallback decision
-// summary at the top of the phase log. Every routed-or-fallback choice goes
-// through this — no silent fall-throughs.
-//
-// See docs/agent-system/routed-test-db.md ("Decision log block") for the
-// canonical format.
+// writePathDecisionBlock emits the structured routed-or-refuse decision summary
+// at the top of the phase log. Every routed-or-refuse choice goes through this —
+// no silent fall-throughs. The refusal block is deliberately loud: it names why
+// the destructive E2E was skipped, why that matters (real-data risk), and the
+// exact remediation.
 func writePathDecisionBlock(logWriter io.Writer, decision eligibility.PathDecision) {
-	switch decision.Path {
-	case eligibility.PathRouted:
+	if decision.Path == eligibility.PathRouted {
 		shared.LogStep(logWriter, "✓ Routed e2e path — lease=%s driver=%s reason=%s", decision.LeaseID, decision.DSNDriver, decision.Reason)
 		return
-	default:
-		shared.LogWarn(logWriter, "⚠ Playbooks path=%s — fallback used. Reason: %s", decision.Path, decision.Reason)
 	}
 
+	shared.LogWarn(logWriter, "⚠ Playbooks REFUSED (path=%s) — destructive end-to-end flows will NOT run. Reason: %s", decision.Path, decision.Reason)
+	shared.LogWarn(logWriter, "  Why it matters: without statically-proven test-DB isolation, mutating E2E would run against the scenario's REAL database.")
+
 	switch decision.Path {
-	case eligibility.PathFallbackRules:
-		if decision.RuleAssertion != nil && len(decision.RuleAssertion.MissingRules) > 0 {
-			shared.LogWarn(logWriter, "  Missing routing rules in scan (rule unregistered or disabled): %s", strings.Join(decision.RuleAssertion.MissingRules, ", "))
-			shared.LogWarn(logWriter, "  Remediation: enable the rules in scenario-auditor; see docs/agent-system/routed-test-db.md")
-			return
+	case eligibility.PathRefusedIsolation:
+		if len(decision.BlockingFindings) == 0 {
+			shared.LogWarn(logWriter, "  (no specific findings; run `storage-health validate scenario <scenario>` for details)")
 		}
-		if len(decision.Violations) == 0 {
-			shared.LogWarn(logWriter, "  (no specific excerpts; run scenario-auditor standards scan for details)")
-			return
-		}
-		for _, v := range decision.Violations {
-			loc := v.FilePath
-			if v.LineNumber > 0 {
-				loc = fmt.Sprintf("%s:%d", v.FilePath, v.LineNumber)
-			}
+		for _, f := range decision.BlockingFindings {
+			loc := f.Location
 			if loc == "" {
-				loc = "(see scenario-auditor)"
+				loc = "(see storage-health)"
 			}
-			title := v.Title
-			if title == "" {
-				title = v.RuleID
+			msg := f.Message
+			if msg == "" {
+				msg = f.Code
 			}
-			shared.LogWarn(logWriter, "  [%s] %s %s — %s", strings.ToUpper(v.Severity), v.RuleID, loc, title)
+			shared.LogWarn(logWriter, "  [%s] %s %s — %s", strings.ToUpper(f.Severity), f.Code, loc, msg)
+			if f.Remediation != "" {
+				shared.LogWarn(logWriter, "    remediation: %s", f.Remediation)
+			}
 		}
-	case eligibility.PathFallbackPreflight:
-		shared.LogWarn(logWriter, "  Pre-flight check: %s", decision.PreflightFailure)
-	case eligibility.PathFallbackAuditorUnreachable:
-		shared.LogWarn(logWriter, "  Remediation: run `scenario-auditor system status` to confirm the auditor is reachable.")
-	case eligibility.PathFallbackForcedEnv:
-		shared.LogWarn(logWriter, "  Unset TEST_GENIE_FORCE_FALLBACK to allow the routed path.")
-	case eligibility.PathFallbackProductionMode:
-		shared.LogWarn(logWriter, "  The target scenario is in production mode; set VROOLI_TEST_MODE_FORCE_ENABLE=1 or switch .vrooli/service.json mode to \"development\".")
+		if decision.Unverified {
+			shared.LogWarn(logWriter, "  Remediation: this is a non-Go API whose isolation cannot be statically verified; until a non-Go isolation mechanism exists, declare read-only playbooks only.")
+		} else {
+			shared.LogWarn(logWriter, "  Remediation: wire the routed test-DB seams (some are auto-fixable via `storage-health fix`); see the storage-health test-isolation contract.")
+		}
+	case eligibility.PathRefusedPreflight:
+		shared.LogWarn(logWriter, "  Routed pre-flight check failed: %s", decision.PreflightFailure)
+	case eligibility.PathRefusedProviderUnreachable:
+		shared.LogWarn(logWriter, "  Remediation: ensure storage-health is running (`vrooli scenario start storage-health`) so isolation can be verified.")
+	case eligibility.PathRefusedProductionMode:
+		shared.LogWarn(logWriter, "  The target scenario is in production mode (RoutingService not mounted); set VROOLI_TEST_MODE_FORCE_ENABLE=1 or switch .vrooli/service.json mode to \"development\".")
 	}
 }
 
@@ -590,98 +569,30 @@ func runPlaybooksRouted(
 	return report
 }
 
-// runPlaybooksFallback runs the historical restart-based path. Preserved as
-// a first-class path — not deprecated.
-func runPlaybooksFallback(
-	ctx context.Context,
-	env workspace.Environment,
-	logWriter io.Writer,
-	playbooksCfg *config.Config,
-	registry playbooks.Registry,
-	needs resourceNeeds,
-	isoResult *isolation.Result,
-	retainIsolation bool,
-) RunReport {
-	restoreEnv := isolation.ApplyEnv(isoResult.Env)
-	envApplied := true
-	shared.LogStep(logWriter, "playbooks isolation ready (run=%s)", isoResult.RunID)
-	for _, res := range isoResult.Resources {
-		shared.LogInfo(logWriter, "  %s -> %s", res.Name, res.Endpoint)
-		if retainIsolation && len(res.InspectCommands) > 0 {
-			for _, cmd := range res.InspectCommands {
-				shared.LogInfo(logWriter, "    inspect: %s", cmd)
-			}
-		}
+// refusedPlaybooksReport builds the fail-closed skip returned when the routed
+// path is unavailable. It is a SKIP (not a hard failure): the destructive
+// playbooks simply do not run, so no mutating request can reach a non-isolated
+// database. The hard gate is the storage phase itself (ROUTED_SEAMS_UNWIRED is
+// an ERROR there); this refusal is the in-phase safety backstop. Read-only and
+// observer-mode playbooks are handled earlier and never reach here.
+func refusedPlaybooksReport(scenario string, decision eligibility.PathDecision) RunReport {
+	msg := fmt.Sprintf("playbooks refused for %s: destructive end-to-end flows skipped — test-DB isolation is not statically proven (%s: %s)",
+		scenario, decision.Path, decision.Reason)
+
+	remediation := "Wire the routed test-DB seams so playbooks can isolate in place; run `storage-health validate scenario " + scenario + "` to see exactly which are missing."
+	switch decision.Path {
+	case eligibility.PathRefusedProviderUnreachable:
+		remediation = "Ensure storage-health is running (`vrooli scenario start storage-health`) so test-DB isolation can be verified before destructive E2E."
+	case eligibility.PathRefusedProductionMode:
+		remediation = "The target scenario's RoutingService is not mounted (production mode); switch .vrooli/service.json mode to \"development\" or set VROOLI_TEST_MODE_FORCE_ENABLE=1."
+	case eligibility.PathRefusedPreflight:
+		remediation = "Resolve the routed pre-flight failure (test DSN / RoutingService reachability), then re-run; there is no restart-based fallback."
 	}
 
-	if err := applyPlaybooksMigrations(ctx, env, needs, logWriter); err != nil {
-		if envApplied {
-			restoreEnv()
-			envApplied = false
-		}
-		_ = isoResult.Cleanup(context.Background())
-		return RunReport{
-			Err:                   fmt.Errorf("failed to apply playbooks migrations: %w", err),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Ensure psql is available and migrations under bas/seeds/migrations/ are valid.",
-		}
+	return RunReport{
+		Observations: []Observation{NewSkipObservation(msg)},
+		Remediation:  remediation,
 	}
-
-	if env.TargetRuntime == nil {
-		if envApplied {
-			restoreEnv()
-			envApplied = false
-		}
-		_ = isoResult.Cleanup(context.Background())
-		return RunReport{
-			Err:                   fmt.Errorf("target runtime manager is not configured"),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Run playbooks through test-genie execute so the target scenario lifecycle can be managed.",
-		}
-	}
-
-	if err := env.TargetRuntime.RestartWithEnv(ctx, isoResult.Env, logWriter); err != nil {
-		if envApplied {
-			restoreEnv()
-			envApplied = false
-		}
-		_ = isoResult.Cleanup(context.Background())
-		return RunReport{
-			Err:                   fmt.Errorf("failed to restart scenario with playbooks isolation: %w", err),
-			FailureClassification: FailureClassSystem,
-			Remediation:           "Check lifecycle logs for restart failures and ensure the scenario can connect to the temporary resources provisioned for the playbooks run.",
-		}
-	}
-
-	if envApplied {
-		restoreEnv()
-		envApplied = false
-	}
-
-	defer func() {
-		if envApplied {
-			restoreEnv()
-			envApplied = false
-		}
-		if err := env.TargetRuntime.Restore(context.Background(), logWriter); err != nil {
-			shared.LogWarn(logWriter, "failed to restart scenario back to normal resources: %v", err)
-		}
-		if err := isoResult.Cleanup(context.Background()); err != nil {
-			shared.LogWarn(logWriter, "failed to clean up playbooks isolation resources: %v", err)
-		}
-	}()
-
-	report := runLoadedPlaybooksPhase(ctx, env, logWriter, playbooksCfg, registry, isoResult.Env, nil)
-
-	if retainIsolation && len(isoResult.Resources) > 0 {
-		for _, res := range isoResult.Resources {
-			for _, cmd := range res.InspectCommands {
-				report.Observations = append(report.Observations, NewInfoObservation(fmt.Sprintf("retain %s: %s", res.Name, cmd)))
-			}
-		}
-	}
-
-	return report
 }
 
 // applyLeaseStatsResult promotes the routed-lease post-run stats into hard

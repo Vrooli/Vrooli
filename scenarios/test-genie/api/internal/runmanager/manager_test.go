@@ -24,6 +24,11 @@ type fakeExecutor struct {
 
 	blockOnCtx bool
 	release    chan struct{}
+	// returnErr simulates the orchestrator erroring AFTER it appended the
+	// in_progress record but BEFORE it finalized (e.g. the target scenario never
+	// came up). The terminal durable Update is skipped, exactly like the real
+	// early-return path, so a test can prove drive() reconciles the record itself.
+	returnErr error
 
 	startedOnce sync.Once
 	started     chan struct{}
@@ -60,6 +65,12 @@ func (f *fakeExecutor) ExecuteWithEvents(ctx context.Context, input execution.Su
 		if emit != nil {
 			emit(ev)
 		}
+	}
+
+	if f.returnErr != nil {
+		// Early return without finalizing the durable record (skipped-finalize
+		// path). drive() is responsible for reconciling it to a terminal state.
+		return nil, f.returnErr
 	}
 
 	if f.blockOnCtx {
@@ -478,5 +489,185 @@ func TestAdmissionKeyCoalescingIdentity(t *testing.T) {
 	diffScenario := orchestrator.SuiteExecutionRequest{ScenarioName: "other", Preset: "comprehensive", Phases: []string{"unit", "smoke"}}
 	if admissionKey(base) == admissionKey(diffScenario) {
 		t.Fatal("a different scenario must produce a different admission key")
+	}
+}
+
+// waitForStatus polls a run's in-memory status until it equals want or the
+// deadline elapses. Used where promotion happens on a background goroutine.
+func waitForStatus(t *testing.T, m *Manager, scenario, runID, want string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if st, err := m.Status(scenario, runID); err == nil && st.Status == want {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	st, _ := m.Status(scenario, runID)
+	t.Fatalf("run %s/%s status = %q, want %q", scenario, runID, st.Status, want)
+}
+
+func waitForDriveCount(t *testing.T, exec *fakeExecutor, want int32) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if exec.driveCount() == want {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("drive count = %d, want %d", exec.driveCount(), want)
+}
+
+// TestGlobalCapQueuesBeyondLimit verifies that once the global concurrency cap is
+// reached, a run for a DIFFERENT scenario is admitted as queued (not rejected,
+// not driven) and persisted so it is visible in the durable index.
+func TestGlobalCapQueuesBeyondLimit(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, root)
+	m.maxConcurrentRuns = 1
+	defer m.Shutdown()
+
+	aID := startRun(t, m, StartOptions{Input: startInput("a")})
+	if st, _ := m.Status("a", aID); st.Status != sharedruns.StatusInProgress {
+		t.Fatalf("run a status = %q, want in_progress", st.Status)
+	}
+
+	bID := startRun(t, m, StartOptions{Input: startInput("b")})
+	if st, _ := m.Status("b", bID); st.Status != sharedruns.StatusQueued {
+		t.Fatalf("run b status = %q, want queued", st.Status)
+	}
+	// Only one suite has actually been driven.
+	if c := exec.driveCount(); c != 1 {
+		t.Fatalf("drive count = %d, want 1 (queued run must not drive)", c)
+	}
+	// The queued run is persisted for visibility in `runs list`.
+	rec, err := sharedruns.NewIndex(root + "/b").Find(bID)
+	if err != nil {
+		t.Fatalf("queued run not in durable index: %v", err)
+	}
+	if rec.Status != sharedruns.StatusQueued {
+		t.Fatalf("durable status = %q, want queued", rec.Status)
+	}
+}
+
+// TestQueuedRunPromotedOnSlotFree verifies the dispatcher promotes a queued run
+// to in_progress (and drives it) when a running run completes.
+func TestQueuedRunPromotedOnSlotFree(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, root)
+	m.maxConcurrentRuns = 1
+	defer m.Shutdown()
+
+	aID := startRun(t, m, StartOptions{Input: startInput("a")})
+	bID := startRun(t, m, StartOptions{Input: startInput("b")})
+	if st, _ := m.Status("b", bID); st.Status != sharedruns.StatusQueued {
+		t.Fatalf("run b status = %q, want queued", st.Status)
+	}
+
+	// Free the only slot; dispatch must promote b.
+	if _, err := m.Abort("a", aID); err != nil {
+		t.Fatalf("abort a: %v", err)
+	}
+	waitForStatus(t, m, "b", bID, sharedruns.StatusInProgress)
+	waitForDriveCount(t, exec, 2)
+}
+
+// TestAbortQueuedRun verifies a queued run can be aborted directly (it has no
+// executor goroutine) without consuming a slot or blocking.
+func TestAbortQueuedRun(t *testing.T) {
+	root := t.TempDir()
+	exec := newFakeExecutor("")
+	exec.blockOnCtx = true
+	m := New(exec, root)
+	m.maxConcurrentRuns = 1
+	defer m.Shutdown()
+
+	_ = startRun(t, m, StartOptions{Input: startInput("a")})
+	bID := startRun(t, m, StartOptions{Input: startInput("b")})
+
+	st, err := m.Abort("b", bID)
+	if err != nil {
+		t.Fatalf("abort queued: %v", err)
+	}
+	if st.Status != sharedruns.StatusAborted {
+		t.Fatalf("aborted-queued status = %q, want aborted", st.Status)
+	}
+	rec, err := sharedruns.NewIndex(root + "/b").Find(bID)
+	if err != nil {
+		t.Fatalf("find b: %v", err)
+	}
+	if rec.Status != sharedruns.StatusAborted {
+		t.Fatalf("durable status = %q, want aborted", rec.Status)
+	}
+	// The queued run never drove, and a was untouched (still the lone running run).
+	if c := exec.driveCount(); c != 1 {
+		t.Fatalf("drive count = %d, want 1", c)
+	}
+}
+
+// TestAbortOrphanDowngradesIndex is the regression guard for the 2026-06-21
+// incident: an in_progress durable record with NO live registry counterpart must
+// be downgraded to aborted by Abort, not read back as a permanently-stuck
+// in_progress (the startup Sweep otherwise only fires at boot).
+func TestAbortOrphanDowngradesIndex(t *testing.T) {
+	root := t.TempDir()
+	scenario := "demo"
+	runID := "20260621-163500-6f7a5722"
+	if err := sharedruns.NewIndex(root + "/" + scenario).Append(sharedruns.RunRecord{
+		RunID:     runID,
+		Scenario:  scenario,
+		StartedAt: time.Now().UTC(),
+		Status:    sharedruns.StatusInProgress,
+	}); err != nil {
+		t.Fatalf("seed orphan: %v", err)
+	}
+
+	m := New(nil, root)
+	st, err := m.Abort(scenario, runID)
+	if err != nil {
+		t.Fatalf("abort orphan: %v", err)
+	}
+	if st.Status != sharedruns.StatusAborted {
+		t.Fatalf("orphan abort status = %q, want aborted", st.Status)
+	}
+	rec, err := sharedruns.NewIndex(root + "/" + scenario).Find(runID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if rec.Status != sharedruns.StatusAborted {
+		t.Fatalf("durable status = %q, want aborted (orphan must be recoverable without restart)", rec.Status)
+	}
+}
+
+// TestFailedRunReconcilesDurableRecord is the regression guard for the orphan
+// factory: when the executor returns an error before the orchestrator finalizes
+// (leaving the durable record at in_progress), drive() must reconcile it to a
+// terminal status — not leave it to linger as an orphan after retire.
+func TestFailedRunReconcilesDurableRecord(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := root + "/demo"
+	exec := newFakeExecutor(scenarioDir)
+	exec.returnErr = errors.New("timeout waiting for target scenario runtime URLs")
+	m := New(exec, root)
+	defer m.Shutdown()
+
+	runID := startRun(t, m, StartOptions{Input: startInput("demo")})
+	// Wait for the run to leave in_progress (drive sets failed, reconciles record).
+	waitForStatus(t, m, "demo", runID, sharedruns.StatusFailed)
+
+	rec, err := sharedruns.NewIndex(scenarioDir).Find(runID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if rec.Status != sharedruns.StatusFailed {
+		t.Fatalf("durable status = %q, want failed (must not orphan at in_progress)", rec.Status)
+	}
+	if rec.CompletedAt.IsZero() {
+		t.Fatal("reconciled record must carry a CompletedAt")
 	}
 }

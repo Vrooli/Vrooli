@@ -1,7 +1,8 @@
-import { StrictMode } from 'react'
+import { Profiler, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge'
 import App from './App.tsx'
+import { onProfilerRender } from './lib/profiler'
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║  INTEROP-CRITICAL: Iframe bridge initialization              ║
@@ -43,6 +44,13 @@ const rootEl = document.getElementById('root');
 if (!rootEl) throw new Error('Root element not found');
 createRoot(rootEl).render(
   <StrictMode>
-    <App />
+    {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+        the profiling hook); emits user_timing entries via onProfilerRender
+        when the perf-build channel is active. See lib/profiler.ts. Add inner
+        <Profiler> boundaries around heavy subtrees as needed; do not remove
+        this one. */}
+    <Profiler id="App" onRender={onProfilerRender}>
+      <App />
+    </Profiler>
   </StrictMode>,
 )

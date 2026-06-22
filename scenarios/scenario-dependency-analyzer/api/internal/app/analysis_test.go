@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"scenario-dependency-analyzer/internal/seams"
+	"scenario-dependency-analyzer/internal/store"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
 
@@ -740,16 +741,16 @@ func TestGenerateDependencyGraph(t *testing.T) {
 	db = testDB
 	defer func() { db = nil }()
 
-	// Insert test data
-	deps := []types.ScenarioDependency{
-		createTestDependency("scenario-a", "resource", "postgres", true),
-		createTestDependency("scenario-a", "resource", "redis", false),
-		createTestDependency("scenario-b", "resource", "postgres", true),
-		createTestDependency("scenario-b", "scenario", "scenario-a", true),
-	}
-
-	for _, dep := range deps {
-		insertTestDependency(t, testDB, dep)
+	// Seed the unified graph store — the single source of truth that graph
+	// generation and centrality now read (the analyze rows feed it via the
+	// ingest sweeper, not directly).
+	if err := store.New(testDB).ReplaceGraphEdges([]types.UnifiedGraphEdge{
+		{From: "scenario-a", To: "postgres", Kind: "resource", Source: "resource", Confidence: 0.8, Required: true},
+		{From: "scenario-a", To: "redis", Kind: "resource", Source: "resource", Confidence: 0.8},
+		{From: "scenario-b", To: "postgres", Kind: "resource", Source: "resource", Confidence: 0.8, Required: true},
+		{From: "scenario-b", To: "scenario-a", Kind: "scenario", Source: "declared", Confidence: 0.7, Required: true},
+	}); err != nil {
+		t.Fatalf("seed graph edges: %v", err)
 	}
 
 	tests := []struct {

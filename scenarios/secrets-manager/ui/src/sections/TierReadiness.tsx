@@ -73,7 +73,6 @@ const suggestedScenarios = [
   "scenario-authenticator",
   "scenario-dependency-analyzer",
   "system-monitor",
-  "app-issue-tracker",
   "brand-manager"
 ];
 

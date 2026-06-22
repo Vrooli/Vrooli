@@ -5,7 +5,7 @@
 **Optional**: Yes (when runtime not available)
 **Requires Runtime**: Yes
 
-The integration phase tests component interactions with a running scenario. It validates API endpoints, CLI functionality, WebSocket connections, and cross-component communication.
+The integration phase tests runtime liveness of a running scenario. It validates API endpoints, CLI functionality, and WebSocket connections.
 
 ## What Gets Tested
 
@@ -14,7 +14,6 @@ graph TB
     subgraph "Integration Checks"
         API[API Health<br/>HTTP endpoint checks]
         CLI[CLI Validation<br/>Commands work correctly]
-        BATS[BATS Tests<br/>CLI test suite]
         WS[WebSocket<br/>Real-time connections]
     end
 
@@ -23,18 +22,15 @@ graph TB
     RUNTIME -->|No| SKIP[Skip Phase]
 
     API --> CLI
-    CLI --> BATS
-    BATS --> WS
+    CLI --> WS
     WS --> DONE[Complete]
 
     API -.->|unhealthy| FAIL[Fail]
     CLI -.->|broken| FAIL
-    BATS -.->|failures| FAIL
     WS -.->|no connection| FAIL
 
     style API fill:#e8f5e9
     style CLI fill:#fff3e0
-    style BATS fill:#e3f2fd
     style WS fill:#f3e5f5
 ```
 
@@ -73,16 +69,6 @@ Checks CLI functionality:
 | Binary exists | `which <cli>` | Found in PATH |
 | Help works | `<cli> help` | Shows usage |
 | Version works | `<cli> version` | Shows version with "version" in output |
-
-## BATS Test Execution
-
-Runs BATS test files from `cli/*.bats`:
-
-```bash
-bats cli/*.bats --tap
-```
-
-See [CLI Testing with BATS](cli-testing.md) for writing effective CLI tests.
 
 ## WebSocket Validation
 
@@ -197,7 +183,6 @@ For a chat scenario using `@vrooli/api-base`:
 
 ## Related Documentation
 
-- [CLI Testing with BATS](cli-testing.md) - Writing CLI tests
 - [@vrooli/api-base WebSocket Support](/packages/api-base/docs/concepts/websocket-support.md) - WebSocket architecture
 
 ## See Also

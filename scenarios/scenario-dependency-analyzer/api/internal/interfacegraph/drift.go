@@ -38,7 +38,10 @@ func (d *DriftDetector) Detect(ctx context.Context, req BuildRequest) (DriftRepo
 	for _, scenario := range scenarios {
 		cfg, err := appconfig.LoadServiceConfig(filepath.Join(d.scenariosDir, scenario))
 		if err != nil {
-			return DriftReport{}, fmt.Errorf("load declared dependencies for %s: %w", scenario, err)
+			// A graph node without a loadable service.json is not a real scenario
+			// (e.g. a proto-package name that slipped through); skip it rather
+			// than failing the whole drift report.
+			continue
 		}
 		declared := map[string]struct{}{}
 		for dep := range cfg.Dependencies.Scenarios {

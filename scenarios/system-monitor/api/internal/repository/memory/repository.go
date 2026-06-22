@@ -434,26 +434,7 @@ func (r *MemoryRepository) GetActiveThresholds(ctx context.Context) ([]*models.T
 
 	// Return default thresholds if none configured
 	if len(results) == 0 {
-		results = []*models.Threshold{
-			{
-				MetricName:        "cpu_usage",
-				Min:               0,
-				Max:               100,
-				WarningThreshold:  80,
-				CriticalThreshold: 95,
-				CheckInterval:     60,
-				Enabled:           true,
-			},
-			{
-				MetricName:        "memory_usage",
-				Min:               0,
-				Max:               100,
-				WarningThreshold:  85,
-				CriticalThreshold: 95,
-				CheckInterval:     60,
-				Enabled:           true,
-			},
-		}
+		results = repository.DefaultThresholds()
 	}
 
 	return results, nil

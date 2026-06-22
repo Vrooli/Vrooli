@@ -4,7 +4,11 @@
  * Surfaces and primitives consume only these variables.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Web fonts (Inter, JetBrains Mono, Share Tech Mono) are loaded
+ * non-render-blocking from index.html via preconnect + async <link>.
+ * A CSS @import here would chain a network request behind this stylesheet,
+ * blocking first paint; the tokens below fall back to system fonts until
+ * the web fonts swap in (font-display: swap). Do NOT re-add an @import. */
 
 /* ═══════════════════════════════════════════════════════════
    DARK THEME (default)

@@ -7,7 +7,7 @@
       "id": "REQ-P1-003",
       "title": "Investigation Cooldown Management",
       "status": "in_progress",
-      "prd_ref": "system-monitor-should-have-investigation-cooldown-management-configurable-period-reset-capability",
+      "prd_ref": "Operational Targets > P1 > OT-P1-013",
       "category": "core",
       "description": "Develop investigation cooldown system with configurable periods and manual reset capability to prevent investigation flooding and resource exhaustion.",
       "validation": [
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Cooldown state check \u003c 50ms"
+          "notes": "Cooldown state check < 50ms"
         },
         {
           "type": "test",
@@ -43,5 +43,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P1 > OT-P1-013"
 }

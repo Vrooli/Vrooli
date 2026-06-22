@@ -7,7 +7,7 @@
       "id": "REQ-P1-002",
       "title": "Alert Webhook Support",
       "status": "in_progress",
-      "prd_ref": "system-monitor-should-have-alert-webhook-support-configured-cooldown-based",
+      "prd_ref": "Operational Targets > P1 > OT-P1-012",
       "category": "integration",
       "description": "Implement alert webhook system with configurable endpoints and cooldown periods. System must support multiple webhook destinations, retry logic, and customizable alert formats.",
       "validation": [
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Alert delivery \u003c 500ms"
+          "notes": "Alert delivery < 500ms"
         },
         {
           "type": "test",
@@ -43,5 +43,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P1 > OT-P1-012"
 }

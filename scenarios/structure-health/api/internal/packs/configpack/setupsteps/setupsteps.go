@@ -98,12 +98,12 @@ Targets: service_json
   <description>UI scenarios must build production bundles before develop starts the UI server</description>
   <input language="json"><![CDATA[
 {
-  "service": {"name": "app-issue-tracker"},
+  "service": {"name": "demo-service"},
   "ports": {"ui": {"env_var": "UI_PORT"}},
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "build-api", "run": "cd api && go build -o app-issue-tracker-api .", "description": "Build API"}
+        {"name": "build-api", "run": "cd api && go build -o demo-service-api .", "description": "Build API"}
       ]
     }
   }

@@ -207,7 +207,7 @@ Each requirement can have multiple validation entries.
 ```json
 {"ref": "api/handlers/projects_test.go"}
 {"ref": "ui/src/**/*.test.{ts,tsx}"}
-{"ref": "test/cli/*.bats"}
+{"ref": "cli/**/*_test.go"}
 ```
 
 **FORBIDDEN:**

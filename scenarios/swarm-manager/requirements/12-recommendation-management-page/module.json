@@ -1,67 +1,62 @@
 {
-  "description": "View and govern execution runs (pending/running/completed/failed)",
-  "module_id": "MOD-P1-012",
-  "prd_ref": "OT-P1-002",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T00:10:28-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-002-API",
+      "title": "Execution Operations API",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
       "category": "api",
       "description": "Implement API endpoints for listing, creating, starting, canceling, and retrying execution runs with filtering",
-      "id": "REQ-P1-002-API",
-      "prd_ref": "OT-P1-002",
-      "status": "implemented",
-      "title": "Execution Operations API",
       "validation": [
         {
-          "notes": "GET /api/v1/execution lists runs with status/mode/kind/date filters",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/execution/handler.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "GET /api/v1/execution lists runs with status/mode/kind/date filters"
         },
         {
-          "notes": "POST /api/v1/execution creates new run, POST start/cancel/retry control lifecycle",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/execution/handler.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "POST /api/v1/execution creates new run, POST start/cancel/retry control lifecycle"
         },
         {
-          "notes": "Scheduler polls and transitions scheduled runs to running",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/execution/service.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Scheduler polls and transitions scheduled runs to running"
         }
       ]
     },
     {
-      "category": "ui",
-      "dependencies": [
-        "REQ-P1-002-API"
-      ],
-      "description": "Create execution page UI showing pending/running/completed/failed runs with start/cancel/retry controls",
       "id": "REQ-P1-002-UI",
-      "prd_ref": "OT-P1-002",
-      "status": "implemented",
       "title": "Execution Operations Interface",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "description": "Create execution page UI showing pending/running/completed/failed runs with start/cancel/retry controls",
       "validation": [
         {
-          "notes": "ExecutionPage renders run list with status badges and action buttons",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/pages/ExecutionPage.tsx",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ExecutionPage renders run list with status badges and action buttons"
         },
         {
-          "notes": "Users can view and govern execution runs from the Execution tab",
-          "phase": "business",
+          "type": "test",
           "ref": "ui/src/pages/ExecutionPage.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "phase": "business",
+          "status": "failing",
+          "notes": "Users can view and govern execution runs from the Execution tab"
         }
       ]
     }
-  ],
-  "title": "Execution operations page"
+  ]
 }

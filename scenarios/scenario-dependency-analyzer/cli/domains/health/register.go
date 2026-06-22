@@ -13,6 +13,7 @@ import (
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -92,7 +93,7 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 			fmt.Sprintf("%s drift %s --json", support.AppName, strings.TrimSpace(scenario)),
 		},
 	}
-	if maturity := cliapp.BuildMaturityListReport(native.GetAssessment()); maturity.Summary != nil {
+	if maturity := maturityreport.BuildMaturityListReport(native.GetAssessment()); maturity.Summary != nil {
 		report.Summary = append(report.Summary, maturity.Summary...)
 		report.RetrievalHints = append(report.RetrievalHints, maturity.RetrievalHints...)
 	}

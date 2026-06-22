@@ -313,7 +313,7 @@ Choose preset based on feedback speed needed:
 |-----------|---------|---------|---------|
 | API | Config validation | Go unit tests | Integration tests |
 | UI | Package.json valid | Vitest tests | BAS workflows |
-| CLI | service.json valid | BATS tests | Integration tests |
+| CLI | service.json valid | Go CLI tests | Integration tests |
 
 ---
 

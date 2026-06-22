@@ -78,6 +78,37 @@ func TestPick_Table(t *testing.T) {
 			},
 			budget: 50, wantModel: ModelSmall,
 		},
+		{
+			// Contention-aware (plan §3): a 16GB card with 13GB already held by
+			// co-tenant model servers has only 3GB free → budget 50% = 1.5GB →
+			// base. Sizing off TOTAL would have wrongly picked medium/large.
+			name: "RTX 16GB, 13GB held by co-tenants → base (contention-aware)",
+			caps: hostinventory.Snapshot{
+				CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 * gb},
+				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 4070 Ti SUPER", VRAMBytes: 16 * gb, VRAMUsedBytes: 13 * gb}},
+			},
+			budget: 50, wantModel: ModelBase,
+		},
+		{
+			// Same card, idle (nothing resident) → 16GB free → budget 50% = 8GB
+			// → medium. Proves the pick rises with available headroom.
+			name: "RTX 16GB, idle → medium",
+			caps: hostinventory.Snapshot{
+				CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 * gb},
+				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 4070 Ti SUPER", VRAMBytes: 16 * gb, VRAMUsedBytes: 0}},
+			},
+			budget: 50, wantModel: ModelMedium,
+		},
+		{
+			// Card fully consumed (used >= total) → 0 free → falls through to the
+			// CPU/RAM path. 64GB RAM / 32c → medium (CPU tier cap).
+			name: "GPU fully consumed → CPU path",
+			caps: hostinventory.Snapshot{
+				CPU: hostinventory.CPU{Cores: 32}, Memory: hostinventory.Memory{TotalBytes: 64 * gb},
+				GPUs: []hostinventory.GPU{{Name: "NVIDIA RTX 4070 Ti SUPER", VRAMBytes: 16 * gb, VRAMUsedBytes: 16 * gb}},
+			},
+			budget: 50, wantModel: ModelMedium,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

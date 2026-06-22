@@ -14,28 +14,28 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Backlog file structure | Git-tracked folder-per-item in scenarios/swarm-manager/{ideas,research,fix,execute}/
-- [x] OT-P0-002 | Backlog CRUD | Create, read, update, delete backlog items via API and CLI
-- [x] OT-P0-003 | Backlog details page | File tree view, drag-and-drop upload, preview for markdown/code/images
-- [x] OT-P0-004 | Backlog queue for processing | Queue idea backlog items for initialization/implementation via ecosystem-manager
-- [x] OT-P0-005 | Scenario catalog with priority | List all scenarios with priority ranking, search, and filter
-- [x] OT-P0-006 | Scenario metadata management | Greenfield/brownfield toggle
-- [x] OT-P0-007 | Scenario deletion with safeguards | Strong confirmation dialog + archive-to-backlog option
-- [x] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with five tabs: Backlog, Scenarios, Execution, Prompts, Settings
-- [x] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
-- [x] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from backlog ideas via ecosystem-manager
+- [ ] OT-P0-001 | Backlog file structure | Git-tracked folder-per-item in scenarios/swarm-manager/{ideas,research,fix,execute}/
+- [ ] OT-P0-002 | Backlog CRUD | Create, read, update, delete backlog items via API and CLI
+- [ ] OT-P0-003 | Backlog details page | File tree view, drag-and-drop upload, preview for markdown/code/images
+- [ ] OT-P0-004 | Backlog queue for processing | Queue idea backlog items for initialization/implementation via ecosystem-manager
+- [ ] OT-P0-005 | Scenario catalog with priority | List all scenarios with priority ranking, search, and filter
+- [ ] OT-P0-006 | Scenario metadata management | Greenfield/brownfield toggle
+- [ ] OT-P0-007 | Scenario deletion with safeguards | Strong confirmation dialog + archive-to-backlog option
+- [ ] OT-P0-008 | Tabbed navigation UI | Header tabs (desktop) / bottom-nav (mobile) with five tabs: Backlog, Scenarios, Execution, Prompts, Settings
+- [ ] OT-P0-009 | agent-manager integration | Spawn agents for all automated work through agent-manager
+- [ ] OT-P0-010 | ecosystem-manager integration | Initialize and improve scenarios from backlog ideas via ecosystem-manager
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Execution control policy | Manual/scheduled/yolo defaults with configurable delay
-- [x] OT-P1-002 | Execution operations page | View pending/running/completed/failed and govern runs
+- [ ] OT-P1-001 | Execution control policy | Manual/scheduled/yolo defaults with configurable delay
+- [ ] OT-P1-002 | Execution operations page | View pending/running/completed/failed and govern runs
 - [ ] OT-P1-003 | Insights engine | Self-improvement suggestions based on system patterns
-- [x] OT-P1-004 | Research agent modal | Spawn research agents from backlog details page (Idea Agent: clarify/suggest/enhance workflow)
+- [ ] OT-P1-004 | Research agent modal | Spawn research agents from backlog details page (Idea Agent: clarify/suggest/enhance workflow)
 - [ ] OT-P1-005 | visited-tracker integration | Campaign management for context cleanup
 - [ ] OT-P1-006 | knowledge-observatory integration | View and prune PROBLEMS.md files
 - [ ] OT-P1-007 | scenario-completeness-scoring integration | Display completeness scores
 - [ ] OT-P1-008 | app-issue-tracker integration | Open and track issues against scenarios
 - [ ] OT-P1-009 | test-genie integration | Run tests and display results
-- [x] OT-P1-010 | Settings modal | Theme, execution policy config, insights config
+- [ ] OT-P1-010 | Settings modal | Theme, execution policy config, insights config
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Advanced cost formulas | Sophisticated priority calculations based on value/effort

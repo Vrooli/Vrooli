@@ -408,6 +408,7 @@ func main() {
 		ModelInstalled:  modelInstalled,
 		ModelsRoot:      modelsRoot,
 		AutoScan:        analysisService.ScanNSFW,
+		Capacity:        &internalai.CLICapacityBroker{},
 		Logger:          log.Default(),
 	})
 	if err != nil {

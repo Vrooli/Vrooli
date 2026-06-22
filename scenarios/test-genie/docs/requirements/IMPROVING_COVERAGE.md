@@ -62,13 +62,6 @@ it("[REQ:REQ-AUTH-002] session cookie is HttpOnly and Secure", () => {
 });
 ```
 
-```bash
-# BATS / shell
-@test "[REQ:REQ-AUTH-002] session cookie is HttpOnly" {
-  # ...
-}
-```
-
 When that test passes, the matching validation becomes `implemented`; when
 **all** of a requirement's validations are `implemented`, the requirement
 becomes `complete`; when all requirements behind an operational target are

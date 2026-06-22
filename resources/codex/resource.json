@@ -20,12 +20,17 @@
     },
     "install": [
       {
-        "os": ["linux", "darwin"],
+        "os": [
+          "linux",
+          "darwin"
+        ],
         "kind": "command",
         "run": "bash ./cli/install.sh"
       },
       {
-        "os": ["windows"],
+        "os": [
+          "windows"
+        ],
         "kind": "command",
         "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
       }
@@ -35,7 +40,13 @@
       "command": "resource-codex"
     },
     "freshness": {
-      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "external-cli",
@@ -56,7 +67,10 @@
       "name": "yq",
       "required": false,
       "reason": "Inspect Codex YAML-backed test fixtures from retained resource unit-test workflows",
-      "when": ["setup", "test"],
+      "when": [
+        "setup",
+        "test"
+      ],
       "notes": "Codex resource unit checks degrade gracefully when yq is unavailable"
     }
   ],
@@ -113,22 +127,14 @@
   "install": {
     "platforms": {
       "linux": [
-        "npm",
-        "install",
-        "-g",
-        "@openai/codex"
+        "bash",
+        "-lc",
+        "source resources/codex/lib/install.sh && codex::install::execute"
       ],
       "macos": [
-        "npm",
-        "install",
-        "-g",
-        "@openai/codex"
-      ],
-      "windows": [
-        "npm",
-        "install",
-        "-g",
-        "@openai/codex"
+        "bash",
+        "-lc",
+        "source resources/codex/lib/install.sh && codex::install::execute"
       ]
     }
   },
@@ -179,8 +185,12 @@
     "supports_logs": false
   },
   "upstream_cli": {
-    "version_command": ["codex", "--version"],
-    "version_pinned": "0.131.0",
+    "version_command": [
+      "codex",
+      "--version"
+    ],
+    "version_pinned": "0.141.0",
+    "upstream_release_source": "https://registry.npmjs.org/@openai/codex/latest",
     "docs_source": "https://developers.openai.com/codex/permissions",
     "docs_pinned_at": "2026-05-28",
     "schema_version": 1

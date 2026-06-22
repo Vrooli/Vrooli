@@ -11,7 +11,6 @@
 //	│   │   ├── smoke.json
 //	│   │   ├── unit.json
 //	│   │   ├── playbooks.json
-//	│   │   ├── lighthouse.json
 //	│   │   └── ...
 //	│   ├── ui-smoke/                  # UI smoke test artifacts
 //	│   │   ├── latest.json
@@ -22,10 +21,6 @@
 //	│   │   └── README.md
 //	│   ├── automation/                # Playbook execution timelines
 //	│   │   └── *.timeline.json
-//	│   ├── lighthouse/                # Lighthouse performance reports
-//	│   │   ├── <page-id>.json
-//	│   │   ├── <page-id>.html
-//	│   │   └── summary.json
 //	│   ├── unit/                      # Unit test failure artifacts
 //	│   │   └── <test-name>/README.md
 //	│   ├── sync/                      # Requirement sync metadata
@@ -72,9 +67,6 @@ const (
 	// AutomationSubdir is the per-run subdirectory for playbook timelines.
 	AutomationSubdir = "automation"
 
-	// LighthouseSubdir is the per-run subdirectory for Lighthouse reports.
-	LighthouseSubdir = "lighthouse"
-
 	// UnitSubdir is the per-run subdirectory for unit test failure artifacts.
 	UnitSubdir = "unit"
 
@@ -111,9 +103,6 @@ const (
 	// PhaseResultsPlaybooks is the filename for playbooks phase results.
 	PhaseResultsPlaybooks = "playbooks.json"
 
-	// PhaseResultsLighthouse is the filename for lighthouse phase results.
-	PhaseResultsLighthouse = "lighthouse.json"
-
 	// PhaseResultsPerformance is the filename for performance phase results.
 	PhaseResultsPerformance = "performance.json"
 
@@ -149,9 +138,6 @@ const (
 
 	// UISmokeReadme is the filename for UI smoke README.
 	UISmokeReadme = "README.md"
-
-	// LighthouseSummary is the filename for Lighthouse summary.
-	LighthouseSummary = "summary.json"
 )
 
 // ============================================================================
@@ -186,11 +172,6 @@ func RunUISmokePagesDir(scenarioDir, runID string) string {
 // RunAutomationDir returns the absolute per-run automation directory.
 func RunAutomationDir(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), AutomationSubdir)
-}
-
-// RunLighthouseDir returns the absolute per-run Lighthouse directory.
-func RunLighthouseDir(scenarioDir, runID string) string {
-	return filepath.Join(RunDir(scenarioDir, runID), LighthouseSubdir)
 }
 
 // RunUnitDir returns the absolute per-run unit directory.
@@ -235,11 +216,6 @@ func UISmokeArtifactPath(scenarioDir, runID, filename string) string {
 // AutomationArtifactPath returns the absolute path for an automation/playbook artifact in a run.
 func AutomationArtifactPath(scenarioDir, runID, filename string) string {
 	return filepath.Join(RunAutomationDir(scenarioDir, runID), filename)
-}
-
-// LighthouseArtifactPath returns the absolute path for a Lighthouse artifact in a run.
-func LighthouseArtifactPath(scenarioDir, runID, filename string) string {
-	return filepath.Join(RunLighthouseDir(scenarioDir, runID), filename)
 }
 
 // UnitArtifactPath returns the absolute path for a unit test artifact in a run.
@@ -315,11 +291,6 @@ func RelativeUISmokeArtifactPath(runID, filename string) string {
 // RelativeAutomationArtifactPath returns the run-relative path for an automation artifact.
 func RelativeAutomationArtifactPath(runID, filename string) string {
 	return filepath.Join(RunsDir, runID, AutomationSubdir, filename)
-}
-
-// RelativeLighthouseArtifactPath returns the run-relative path for a Lighthouse artifact.
-func RelativeLighthouseArtifactPath(runID, filename string) string {
-	return filepath.Join(RunsDir, runID, LighthouseSubdir, filename)
 }
 
 // RunLogsDir builds the absolute path for a specific run's logs.

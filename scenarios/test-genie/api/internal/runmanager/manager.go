@@ -59,6 +59,32 @@ func maxRunsPerScenarioFromEnv() int {
 	return defaultMaxRunsPerScenario
 }
 
+// defaultMaxConcurrentRuns is the GLOBAL cap on simultaneously-executing runs
+// across ALL scenarios. Unlike the per-scenario cap (which is a correctness
+// invariant), this is a load governor: every run brings a scenario's full stack
+// up and drives a suite, so N comprehensive suites at once saturate a shared
+// host (the 2026-06-21 incident: three concurrent baseline suites on a box also
+// running another agent stalled one executor). Requests beyond the cap are not
+// rejected — they are admitted as StatusQueued and promoted FIFO as slots free.
+//
+// The default is intentionally conservative (2): this host routinely also runs
+// background agent sessions, the autoheal loop, and a supervisor. It is the one
+// shared budget for BOTH manually-started runs and the background fleet sweep,
+// because the fleet scheduler launches through this same Manager.Start path.
+const defaultMaxConcurrentRuns = 2
+
+// maxConcurrentRunsFromEnv resolves the configured global concurrency cap from
+// TEST_GENIE_MAX_CONCURRENT_RUNS (the env lever; a settings-domain UI control is
+// a planned follow-on), never returning less than 1.
+func maxConcurrentRunsFromEnv() int {
+	if raw := strings.TrimSpace(os.Getenv("TEST_GENIE_MAX_CONCURRENT_RUNS")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 1 {
+			return n
+		}
+	}
+	return defaultMaxConcurrentRuns
+}
+
 // HeartbeatInterval resolves the configured quiet-phase heartbeat cadence.
 func HeartbeatInterval() time.Duration {
 	if raw := strings.TrimSpace(os.Getenv("TEST_GENIE_HEARTBEAT_SECONDS")); raw != "" {
@@ -77,6 +103,11 @@ type Manager struct {
 	scenariosRoot      string
 	heartbeat          time.Duration
 	maxRunsPerScenario int
+	maxConcurrentRuns  int
+
+	// wg tracks live drive goroutines so Shutdown can wait for in-flight runs to
+	// finalize their durable records before returning.
+	wg sync.WaitGroup
 
 	mu   sync.Mutex
 	runs map[string]*activeRun
@@ -95,6 +126,11 @@ type activeRun struct {
 	cancel       context.CancelFunc
 	bc           *broadcaster
 	done         chan struct{}
+	// runCtx and input are retained so a run admitted in StatusQueued can be
+	// driven later by the dispatcher when a global concurrency slot frees. They
+	// are unused for runs that start immediately.
+	runCtx context.Context
+	input  execution.SuiteExecutionInput
 
 	mu          sync.Mutex
 	status      string
@@ -152,6 +188,7 @@ func New(exec Executor, scenariosRoot string) *Manager {
 		scenariosRoot:      strings.TrimSpace(scenariosRoot),
 		heartbeat:          HeartbeatInterval(),
 		maxRunsPerScenario: maxRunsPerScenarioFromEnv(),
+		maxConcurrentRuns:  maxConcurrentRunsFromEnv(),
 		runs:               make(map[string]*activeRun),
 	}
 }
@@ -266,9 +303,13 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	}
 	runCtx, cancel := context.WithCancel(m.base)
 	ar.cancel = cancel
+	ar.runCtx = runCtx
+	ar.input = opts.Input
 
 	m.mu.Lock()
 	// Enumerate in-progress runs of this scenario (ignoring terminal lingerers).
+	// Queued runs count as in-flight: a scenario may hold at most one pending OR
+	// running run, so the per-scenario serialization invariant holds end to end.
 	var inFlight []*activeRun
 	for _, other := range m.runs {
 		if other.scenario != scenario {
@@ -300,14 +341,118 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		cancel()
 		return StartResult{}, fmt.Errorf("run %s is already active", runID)
 	}
+	// Global concurrency gate: if the host is already running the maximum number
+	// of suites (across ALL scenarios, including the background fleet sweep),
+	// admit this one as queued rather than rejecting it. The dispatcher promotes
+	// it FIFO when a slot frees. Otherwise it starts immediately.
+	queued := m.runningCountLocked() >= m.maxConcurrentRuns
+	if queued {
+		ar.setStatus(sharedruns.StatusQueued)
+	}
 	m.runs[runKey(scenario, runID)] = ar
 	m.mu.Unlock()
+
+	if queued {
+		// Persist a placeholder so the run is visible in `runs list` while it
+		// waits; the executor's own Append replaces it with the full in_progress
+		// record on promotion (Append is upsert-by-run-id).
+		if err := sharedruns.NewIndex(m.scenarioDir(scenario)).Append(sharedruns.RunRecord{
+			RunID:     runID,
+			Scenario:  scenario,
+			StartedAt: now,
+			Status:    sharedruns.StatusQueued,
+			Preset:    preset,
+		}); err != nil {
+			log.Printf("[runmanager] persist queued record %s/%s: %v", scenario, runID, err)
+		}
+		ar.bc.publish(Event{Kind: EventRunQueued, RunID: runID, Scenario: scenario, Preset: preset})
+		return StartResult{RunID: runID}, nil
+	}
 
 	// run_started boundary so a follower subscribing immediately learns the id.
 	ar.bc.publish(Event{Kind: EventRunStarted, RunID: runID, Scenario: scenario, Preset: preset})
 
+	m.wg.Add(1)
 	go m.drive(runCtx, ar, opts.Input)
 	return StartResult{RunID: runID}, nil
+}
+
+// runningCountLocked returns the number of runs currently executing (status
+// in_progress). Queued and terminal-lingering runs are excluded. Caller holds
+// m.mu.
+func (m *Manager) runningCountLocked() int {
+	n := 0
+	for _, ar := range m.runs {
+		if ar.currentStatus() == sharedruns.StatusInProgress {
+			n++
+		}
+	}
+	return n
+}
+
+// setStatus updates the run status under the run lock.
+func (ar *activeRun) setStatus(status string) {
+	ar.mu.Lock()
+	ar.status = status
+	ar.mu.Unlock()
+}
+
+// dispatch promotes queued runs to in_progress while global slots are free,
+// oldest-first (FIFO). A queued run's scenario never has a concurrent running
+// run (the per-scenario cap is enforced at admission), so promotion cannot
+// violate the per-scenario invariant. Drives are started outside the lock to
+// preserve the m.mu -> ar.mu lock order. Called whenever a slot may have freed
+// (a run reached a terminal state).
+func (m *Manager) dispatch() {
+	m.mu.Lock()
+	var toStart []*activeRun
+	for m.runningCountLocked()+len(toStart) < m.maxConcurrentRuns {
+		next := m.oldestQueuedLocked(toStart)
+		if next == nil {
+			break
+		}
+		next.mu.Lock()
+		next.status = sharedruns.StatusInProgress
+		// Re-stamp so elapsed/ETA measure execution, not the time spent queued.
+		next.startedAt = time.Now().UTC()
+		next.lastEventAt = next.startedAt
+		next.mu.Unlock()
+		toStart = append(toStart, next)
+	}
+	m.mu.Unlock()
+
+	for _, ar := range toStart {
+		ar.bc.publish(Event{Kind: EventRunStarted, RunID: ar.runID, Scenario: ar.scenario, Preset: ar.preset})
+		m.wg.Add(1)
+		go m.drive(ar.runCtx, ar, ar.input)
+	}
+}
+
+// oldestQueuedLocked returns the earliest-started run still in StatusQueued that
+// is not already selected for promotion this pass, or nil. Caller holds m.mu.
+func (m *Manager) oldestQueuedLocked(exclude []*activeRun) *activeRun {
+	var oldest *activeRun
+	for _, ar := range m.runs {
+		if ar.currentStatus() != sharedruns.StatusQueued {
+			continue
+		}
+		if containsRun(exclude, ar) {
+			continue
+		}
+		if oldest == nil || ar.startedAt.Before(oldest.startedAt) {
+			oldest = ar
+		}
+	}
+	return oldest
+}
+
+func containsRun(runs []*activeRun, target *activeRun) bool {
+	for _, ar := range runs {
+		if ar == target {
+			return true
+		}
+	}
+	return false
 }
 
 // oldestRun returns the earliest-started run in a non-empty slice (the one a
@@ -325,6 +470,7 @@ func oldestRun(runs []*activeRun) *activeRun {
 // drive runs the suite to completion, fanning events to followers, then writes
 // the terminal boundary and retires the run from the registry.
 func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.SuiteExecutionInput) {
+	defer m.wg.Done()
 	defer close(ar.done)
 
 	stopHB := make(chan struct{})
@@ -358,6 +504,15 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 		// The orchestrator's finalize wrote passed/failed from partial results;
 		// override the durable record to aborted (the explicit terminal state).
 		m.markIndexAborted(ar.scenario, ar.runID)
+	} else {
+		// Reconcile the durable record to the terminal outcome. Normally the
+		// orchestrator's finalize already wrote passed/failed; but when
+		// ExecuteWithEvents returns early (e.g. the target scenario never came up,
+		// "timeout waiting for runtime URLs"), finalize is skipped and the record
+		// is left at in_progress. Without this it would linger as an orphan after
+		// the in-memory run retires — the orphan factory behind the 2026-06-21
+		// stalled-baseline incident.
+		m.reconcileDurableTerminal(ar.scenario, ar.runID, status)
 	}
 
 	term := Event{
@@ -389,6 +544,8 @@ func (m *Manager) drive(ctx context.Context, ar *activeRun, input execution.Suit
 	ar.bc.close()
 
 	m.retire(ar)
+	// This run released its concurrency slot; promote any waiters.
+	m.dispatch()
 }
 
 // onOrchestratorEvent translates a low-level orchestrator event into the
@@ -553,10 +710,37 @@ func (m *Manager) Status(scenario, runID string) (LiveStatus, error) {
 // terminal aborted state, returning the final snapshot. Aborting a run that is
 // already terminal is a no-op that returns its snapshot.
 func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
-	ar := m.lookup(scenario, runID)
+	// Decide under m.mu so the queued->aborted transition cannot interleave with
+	// dispatch promoting the same run (which would race to start a drive and
+	// double-close ar.done).
+	m.mu.Lock()
+	ar := m.runs[runKey(scenario, runID)]
 	if ar == nil {
+		m.mu.Unlock()
+		// No live executor. If the durable record is still non-terminal it is an
+		// orphan left by a prior crash/restart whose registry goroutine is gone —
+		// downgrade it to aborted here rather than reading back a stale
+		// in_progress forever (the startup Sweep only runs at boot). Without this,
+		// an orphaned run is unabortable until the next server restart.
+		m.downgradeOrphanIndex(scenario, runID)
 		return m.statusFromIndex(scenario, runID)
 	}
+	if ar.currentStatus() == sharedruns.StatusQueued {
+		// A queued run has no drive goroutine to honor context cancellation, so
+		// retire it directly. The status flip happens under m.mu (so dispatch
+		// won't also promote it); the durable write, broadcast, and done-close
+		// happen after the unlock. No concurrency slot was held.
+		ar.setStatus(sharedruns.StatusAborted)
+		m.mu.Unlock()
+		ar.cancel()
+		m.markIndexAborted(ar.scenario, ar.runID)
+		ar.bc.publish(Event{Kind: EventRunCompleted, RunID: ar.runID, Scenario: ar.scenario, Status: sharedruns.StatusAborted, Verdict: "ABORTED"})
+		ar.bc.close()
+		close(ar.done)
+		m.retire(ar)
+		return m.snapshot(ar), nil
+	}
+	m.mu.Unlock()
 	ar.cancel()
 	select {
 	case <-ar.done:
@@ -565,9 +749,32 @@ func (m *Manager) Abort(scenario, runID string) (LiveStatus, error) {
 	return m.snapshot(ar), nil
 }
 
-// Sweep marks every in_progress index entry that has no live registry counterpart
-// as aborted. Run at startup it downgrades runs orphaned by a prior crash/restart;
-// it is idempotent and safe to call repeatedly. Returns the number swept.
+// downgradeOrphanIndex marks a non-terminal durable record (in_progress or
+// queued) with no live registry counterpart as aborted. It is the same
+// transition the startup Sweep applies, exposed so Abort can recover an orphan
+// without waiting for a restart. No-op if the record is missing or already
+// terminal.
+func (m *Manager) downgradeOrphanIndex(scenario, runID string) {
+	err := sharedruns.NewIndex(m.scenarioDir(scenario)).Update(runID, func(r *sharedruns.RunRecord) error {
+		if isTerminal(r.Status) {
+			return nil
+		}
+		r.Status = sharedruns.StatusAborted
+		if r.CompletedAt.IsZero() {
+			r.CompletedAt = time.Now().UTC()
+		}
+		return nil
+	})
+	if err != nil && err != sharedruns.ErrRunNotFound {
+		log.Printf("[runmanager] downgrade orphan %s/%s: %v", scenario, runID, err)
+	}
+}
+
+// Sweep marks every non-terminal index entry (in_progress or queued) that has no
+// live registry counterpart as aborted. Run at startup it downgrades runs
+// orphaned by a prior crash/restart — including runs that were still queued
+// behind the concurrency cap when the process died. It is idempotent and safe to
+// call repeatedly. Returns the number swept.
 func (m *Manager) Sweep() (int, error) {
 	if m.scenariosRoot == "" {
 		return 0, nil
@@ -593,7 +800,7 @@ func (m *Manager) Sweep() (int, error) {
 			continue
 		}
 		for _, rec := range records {
-			if rec.Status != sharedruns.StatusInProgress {
+			if isTerminal(rec.Status) {
 				continue
 			}
 			if m.lookup(scenario, rec.RunID) != nil {
@@ -601,7 +808,7 @@ func (m *Manager) Sweep() (int, error) {
 			}
 			runID := rec.RunID
 			if err := idx.Update(runID, func(r *sharedruns.RunRecord) error {
-				if r.Status != sharedruns.StatusInProgress {
+				if isTerminal(r.Status) {
 					return nil
 				}
 				r.Status = sharedruns.StatusAborted
@@ -619,7 +826,9 @@ func (m *Manager) Sweep() (int, error) {
 	return swept, nil
 }
 
-// Shutdown cancels every active run (best-effort) and the manager base context.
+// Shutdown cancels every active run and the manager base context, then waits for
+// all drive goroutines to finalize their durable records before returning, so a
+// caller (or test) can rely on no further index writes after Shutdown returns.
 func (m *Manager) Shutdown() {
 	m.mu.Lock()
 	runs := make([]*activeRun, 0, len(m.runs))
@@ -631,6 +840,7 @@ func (m *Manager) Shutdown() {
 		ar.cancel()
 	}
 	m.cancelBase()
+	m.wg.Wait()
 }
 
 func (m *Manager) markIndexAborted(scenario, runID string) {
@@ -643,6 +853,31 @@ func (m *Manager) markIndexAborted(scenario, runID string) {
 	})
 	if err != nil {
 		log.Printf("[runmanager] mark aborted %s/%s: %v", scenario, runID, err)
+	}
+}
+
+// reconcileDurableTerminal sets the durable record to a terminal status when it
+// is still non-terminal — the safety net for runs whose executor returned before
+// the orchestrator finalized the record (e.g. the target scenario failed to
+// start). It never overrides an already-terminal record (the orchestrator's
+// finalize wins), and is a no-op if the record is missing or status is not
+// terminal.
+func (m *Manager) reconcileDurableTerminal(scenario, runID, status string) {
+	if !isTerminal(status) {
+		return
+	}
+	err := sharedruns.NewIndex(m.scenarioDir(scenario)).Update(runID, func(r *sharedruns.RunRecord) error {
+		if isTerminal(r.Status) {
+			return nil
+		}
+		r.Status = status
+		if r.CompletedAt.IsZero() {
+			r.CompletedAt = time.Now().UTC()
+		}
+		return nil
+	})
+	if err != nil && err != sharedruns.ErrRunNotFound {
+		log.Printf("[runmanager] reconcile terminal %s/%s: %v", scenario, runID, err)
 	}
 }
 

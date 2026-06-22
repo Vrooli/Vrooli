@@ -1,7 +1,7 @@
 {
   "description": "Webhook channel implemented in api/internal/services/alert.go. Email channel configured in alert service but email sending not implemented (only webhook POST). No configurable routing rules or templates.",
   "module_id": "MOD-P1-016",
-  "prd_ref": "system-monitor-should-have-alert-routing-to-multiple-channels-webhook-and-email-configured-but-email-not-implemented",
+  "prd_ref": "Operational Targets > P1 > OT-P1-016",
   "priority": "P1",
   "requirements": [
     {
@@ -11,7 +11,7 @@
       ],
       "description": "Implement alert routing system supporting multiple channels including webhook and email with configurable rules and templates.",
       "id": "REQ-P1-006",
-      "prd_ref": "system-monitor-should-have-alert-routing-to-multiple-channels-webhook-and-email-configured-but-email-not-implemented",
+      "prd_ref": "Operational Targets > P1 > OT-P1-016",
       "status": "in-progress",
       "title": "Multi-Channel Alert Routing",
       "validation": [
@@ -37,7 +37,7 @@
           "type": "test"
         },
         {
-          "notes": "Route determination \u003c 50ms",
+          "notes": "Route determination < 50ms",
           "phase": "performance",
           "ref": "",
           "status": "pending",

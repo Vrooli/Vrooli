@@ -23,8 +23,9 @@ func (f fakeHost) Collect(context.Context) (hostinventory.Snapshot, error) {
 }
 
 type fakeOllama struct {
-	tags    map[string]bool
-	running []ensure.RunningModel
+	tags     map[string]bool
+	running  []ensure.RunningModel
+	unloaded []string
 }
 
 func (f fakeOllama) ListTags(context.Context) (map[string]bool, error) {
@@ -33,6 +34,11 @@ func (f fakeOllama) ListTags(context.Context) (map[string]bool, error) {
 
 func (f fakeOllama) ListRunning(context.Context) ([]ensure.RunningModel, error) {
 	return f.running, nil
+}
+
+func (f *fakeOllama) Unload(_ context.Context, model string) error {
+	f.unloaded = append(f.unloaded, model)
+	return nil
 }
 
 func TestBuildReportResolvesScenarioRolesAndBudgets(t *testing.T) {
@@ -149,7 +155,7 @@ func testHandlers(root string) *Handlers {
 			DockerGPU: hostinventory.DockerGPU{NvidiaRuntime: true},
 		}},
 		NewClient: func() OllamaClient {
-			return fakeOllama{
+			return &fakeOllama{
 				tags: map[string]bool{
 					"nomic-embed-text:latest": true,
 					"qwen3:4b":                true,
@@ -212,4 +218,34 @@ func containsSubstring(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestDegradeUnloadsLargestModel(t *testing.T) {
+	fake := &fakeOllama{running: []ensure.RunningModel{
+		{Name: "small:1b", SizeVRAM: int64(1 * bytesPerGB)},
+		{Name: "big:8b", SizeVRAM: int64(6 * bytesPerGB)},
+	}}
+	out := &bytes.Buffer{}
+	h := &Handlers{Stdout: out, Stderr: &bytes.Buffer{}, NewClient: func() OllamaClient { return fake }}
+
+	if err := h.Degrade([]string{"--json"}); err != nil {
+		t.Fatalf("Degrade() error = %v", err)
+	}
+	if len(fake.unloaded) != 1 || fake.unloaded[0] != "big:8b" {
+		t.Fatalf("unloaded = %v, want [big:8b] (largest first)", fake.unloaded)
+	}
+	if !strings.Contains(out.String(), "big:8b") {
+		t.Errorf("output = %q, want it to name the unloaded model", out.String())
+	}
+}
+
+func TestDegradeNoModelsLoadedIsNoop(t *testing.T) {
+	fake := &fakeOllama{}
+	h := &Handlers{Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, NewClient: func() OllamaClient { return fake }}
+	if err := h.Degrade(nil); err != nil {
+		t.Fatalf("Degrade() error = %v (no-op must not error)", err)
+	}
+	if len(fake.unloaded) != 0 {
+		t.Errorf("unloaded = %v, want none", fake.unloaded)
+	}
 }

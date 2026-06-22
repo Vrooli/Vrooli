@@ -122,3 +122,20 @@
 **Follow-up plan**: `scenario-dependency-analyzer-code-evidence-via-ast-facts`
 
 **Scope**: Add AST analyzers in `go-code-graph` and `typescript-code-graph` for modern discovery calls and scenario shell-outs, surface those through `code-facts`, then delete SDA's retained regex detectors and delegate resource-usage detection to fact providers.
+
+## Unified Graph Re-Sourcing + Ingest Sweeper (2026-06-22)
+
+### Centrality is now sourced from a unified, evidence-tagged store
+**Resolved**: `graph_edges` (SQLite) merges `proto_import ∪ go_import ∪ declared ∪ vrooli_cli ∪ resource`, deduped by `(from,to)` keeping the highest-confidence source and the union of evidence. `graph/builder.go` + centrality read this store; the legacy "analyze regex detector is the only writer" gap is closed. A default-ON, freshness-gated ingest sweeper (`internal/graphsweeper`) keeps it current with concurrency cap, wall-clock budget, single-flight, circuit breaker, and last-good degradation. `graph rebuild` / `graph sweeper status` CLI + REST verbs expose it. See `docs/perf/2026-06-22-sda-graph-ingest.md`.
+
+### Proto-package-name vs scenario-name attribution (known limitation)
+**Problem**: Both `proto-health` (`ProtoImport.ToScenario`) and `code-facts` (import paths under `packages/proto/gen/go/<pkg>`) attribute cross-package usage by **proto-package name**, which is often NOT the owning scenario's slug (e.g. `architecture` is `architecture-cartographer`'s package; `measures` is `measures-health`'s). The fleet drift therefore lists targets like `architecture`, `cli`, `measures`, `scenario-validation` that are not scenarios.
+
+**Containment**: Graph generation and centrality filter scenario→scenario edges to **known scenarios** (the detector catalog), so these package-name targets never pollute centrality/importance (verified: 105 real scenario nodes, zero package-name nodes). The interface-graph-driven `scan --apply` proposal path (`applyInterfaceGraphScenarios`) applies the same known-scenario filter, so it never proposes a package name as a declared scenario dependency. The live `/drift` display still shows the raw findings (it reports what proto-health/code-facts attribute).
+
+**Follow-up**: A package→scenario ownership map (owned by `proto-health` / the AST-facts follow-up `scenario-dependency-analyzer-code-evidence-via-ast-facts`) is required to attribute these edges to the real owning scenario. Until then, `declared` edges in the union carry the true scenario→scenario dependency, and the honest INFO-severity `declared-without-import-evidence` finding remains.
+
+### Declaration-drift remediation status
+**Delivered**: The remediation engine now drives proposals from the unified interface-graph evidence (not the weak `vrooli_cli` regex), filtered to real scenarios. Running `scenario-dependency-analyzer scan <name> --apply-scenarios` proposes/declares a scenario's import-level dependencies correctly.
+
+**Deferred (operator sweep)**: Applying these declarations across the fleet's under-declared scenarios is a per-scenario operator action — each `service.json` edit is reviewed individually (no mass script, per repo policy) and validated against the owning scenario's own suite. The baselined scenarios in this change (scenario-dependency-analyzer, scenario-completeness-scoring, test-genie) carry **no** real-scenario under-declarations (their drift findings are all package-name attribution noise), so no in-scope `service.json` edits were required.

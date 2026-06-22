@@ -263,18 +263,17 @@ All errors are logged with structured format:
 ### Test Suite Summary
 - **Go Unit Tests**: 111 tests (69.6% coverage)
 - **UI Tests**: 38 tests (vitest with jest-dom)
-- **CLI Tests**: 17 BATS tests across 4 files
-- **Total**: 166 tests
+- **CLI Tests**: Go tests under `cli/` (app + loop), `[REQ:xxx]` tagged
+- **Total**: 149 tests
 
 ### Test Files by Type
 - `api/**/*_test.go` - Go unit tests for platform, registry, checks
+- `cli/**/*_test.go` - Go tests for CLI commands and loop
 - `ui/src/**/*.test.{ts,tsx}` - React component tests
-- `cli/*.bats` - CLI integration tests with REQ tags
 
 ### Coverage Tracking
 - UI tests use `[REQ:xxx]` tags in test descriptions for auto-sync
-- CLI tests use `[REQ:xxx]` in test names for tracking
-- Go tests have REQ comments (manual sync needed)
+- Go tests use `[REQ:xxx]` tags in test names/comments for tracking
 
 ### Completeness Score: 17/100
 - 12/74 requirements passing (16%)

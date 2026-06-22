@@ -124,10 +124,6 @@ esac
 	if err := os.WriteFile(installScript, []byte("#!/usr/bin/env bash\necho install\n"), 0o755); err != nil {
 		t.Fatalf("failed to seed cli/install.sh: %v", err)
 	}
-	batsFile := filepath.Join(scenarioDir, "cli", name+".bats")
-	if err := os.WriteFile(batsFile, []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed cli bats file: %v", err)
-	}
 	playbookRegistry := fmt.Sprintf(`{"scenario":"%s","playbooks":[]}`, name)
 	registryPath := filepath.Join(scenarioDir, "bas", "registry.json")
 	if err := os.WriteFile(registryPath, []byte(playbookRegistry), 0o644); err != nil {
@@ -169,6 +165,7 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Storage, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Business, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Tidiness, Runner: noOp, Optional: true})

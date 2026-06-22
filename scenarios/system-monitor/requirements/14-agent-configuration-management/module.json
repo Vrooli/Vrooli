@@ -7,7 +7,7 @@
       "id": "REQ-P1-004",
       "title": "Agent Configuration Management",
       "status": "in_progress",
-      "prd_ref": "system-monitor-should-have-agent-configuration-management-runner-type-model-max-turns-timeout",
+      "prd_ref": "Operational Targets > P1 > OT-P1-014",
       "category": "api",
       "description": "Create comprehensive agent configuration system supporting runner type selection, model specification, maximum turns limit, and timeout settings.",
       "validation": [
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Config retrieval \u003c 100ms"
+          "notes": "Config retrieval < 100ms"
         },
         {
           "type": "test",
@@ -43,5 +43,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P1 > OT-P1-014"
 }

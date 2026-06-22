@@ -1,6 +1,7 @@
 package main
 
-// DOC: docs/QUICKSTART.md, docs/concepts/ARCHITECTURE.md
+// DOC: docs/QUICKSTART.md
+// DOC: docs/concepts/ARCHITECTURE.md
 
 import (
 	"log"

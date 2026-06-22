@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -66,20 +65,13 @@ func toCheckResponse(elig internalelig.Eligibility) *eligpb.CheckResponse {
 		Routed: elig.Routed,
 	}
 
-	for _, v := range elig.Violations {
+	for _, f := range elig.BlockingFindings {
 		resp.Violations = append(resp.Violations, &eligpb.Violation{
-			RuleId:   v.RuleID,
-			Severity: v.Severity,
-			File:     v.FilePath,
-			Line:     uint32(v.LineNumber),
-			Excerpt:  v.Title,
+			RuleId:   f.Code,
+			Severity: f.Severity,
+			File:     f.Location,
+			Excerpt:  f.Message,
 		})
-	}
-
-	if elig.RuleAssertion != nil && len(elig.RuleAssertion.MissingRules) > 0 {
-		missing := append([]string(nil), elig.RuleAssertion.MissingRules...)
-		sort.Strings(missing)
-		resp.RuleAssertion = &eligpb.RuleAssertion{MissingRules: missing}
 	}
 
 	if !elig.Routed {
@@ -90,23 +82,17 @@ func toCheckResponse(elig internalelig.Eligibility) *eligpb.CheckResponse {
 }
 
 // buildReasons composes the human-readable explanations consumers display in
-// CLI output and UI tooltips. One reason per distinct rule_id (deduped) plus
-// one reason for missing rules.
+// CLI output and UI tooltips. One reason per distinct storage-health isolation
+// finding code (deduped).
 func buildReasons(elig internalelig.Eligibility) []string {
 	seen := map[string]struct{}{}
 	var reasons []string
-	for _, v := range elig.Violations {
-		key := v.CanonicalRuleID()
-		if _, ok := seen[key]; ok {
+	for _, f := range elig.BlockingFindings {
+		if _, ok := seen[f.Code]; ok {
 			continue
 		}
-		seen[key] = struct{}{}
-		reasons = append(reasons, ruleIDReason(key))
-	}
-	if elig.RuleAssertion != nil && len(elig.RuleAssertion.MissingRules) > 0 {
-		missing := append([]string(nil), elig.RuleAssertion.MissingRules...)
-		sort.Strings(missing)
-		reasons = append(reasons, fmt.Sprintf("Auditor did not register required routing rules: %s", strings.Join(missing, ", ")))
+		seen[f.Code] = struct{}{}
+		reasons = append(reasons, findingReason(f))
 	}
 	if len(reasons) == 0 {
 		reasons = []string{"Scenario is not eligible for the routed test-db path."}
@@ -114,15 +100,16 @@ func buildReasons(elig internalelig.Eligibility) []string {
 	return reasons
 }
 
-func ruleIDReason(ruleID string) string {
-	switch ruleID {
-	case internalelig.RuleRoutedDrivers:
-		return "Scenario opens database connections outside the routed driver (rule: routed_database_drivers)."
-	case internalelig.RuleRoutedHandleCapture:
-		return "Scenario captures a database handle without going through RoutedDB (rule: routed_database_handle_capture)."
-	case internalelig.RuleDatabaseBackoff:
-		return "Scenario uses sql.Open or other raw connect paths that bypass RoutedDB (rule: database_backoff)."
+func findingReason(f internalelig.IsolationFinding) string {
+	switch f.Code {
+	case internalelig.CodeRoutedSeamsUnwired:
+		return "Scenario has not wired the routed test-DB seams (storage-health: ROUTED_SEAMS_UNWIRED); destructive E2E cannot be isolated."
+	case internalelig.CodeStorageIsolationUnverified:
+		return "Scenario's API isolation cannot be statically verified (storage-health: STORAGE_ISOLATION_UNVERIFIED, non-Go API); destructive E2E is refused fail-closed."
 	default:
-		return fmt.Sprintf("Scenario violates routing rule %s.", ruleID)
+		if msg := strings.TrimSpace(f.Message); msg != "" {
+			return fmt.Sprintf("Scenario failed storage isolation (%s): %s", f.Code, msg)
+		}
+		return fmt.Sprintf("Scenario failed storage isolation check %s.", f.Code)
 	}
 }

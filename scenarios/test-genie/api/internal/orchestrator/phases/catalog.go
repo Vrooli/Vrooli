@@ -124,7 +124,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		DetailCommand: "performance-health audit {{scenario}}",
 		Optional:      true,
 		Timeout:       5 * time.Minute,
-		Description:   "Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService.",
+		// Execution mode: performance-health actually benchmarks the Go + UI build
+		// and runs Lighthouse-if-UI, persists a perf sample, then gates on budgets
+		// + native build-time thresholds (restoring the native phase's enforcement,
+		// which readiness-only delegation had dropped). Without this the delegated
+		// phase could only PASS/SKIP.
+		IncludeExecution: true,
+		Description:      "Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result.",
 	})
 	// Preserve the native phase's runnability contract: Performance needs a UI
 	// surface (Lighthouse + UI build), so the runnability gate skips it when no
@@ -157,9 +163,25 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	register(Spec{
 		Name:         Integration,
 		Runner:       runIntegrationPhase,
-		Description:  "Exercises the CLI/Bats suite plus scenario-local orchestrator listings.",
+		Description:  "Exercises CLI runtime behavior, API health, and WebSocket connectivity.",
 		Capabilities: runnability.PhaseCapabilities{NeedsAPI: true},
 	})
+	// Storage runs immediately before playbooks: it delegates test-isolation +
+	// storage-conventions validation to storage-health and maps findings into the
+	// FINDING_SOURCE_STORAGE channel. Its L2 isolation rung is the fail-closed
+	// precondition the playbooks phase keys its routed-or-refuse decision off of —
+	// a scenario whose routed-DB seams are unwired (or whose API isolation cannot
+	// be statically verified) fails storage and has its destructive playbooks
+	// refused before any real mutation can reach a non-isolated database.
+	register(delegatedSpec(Delegated{
+		Name:             Storage,
+		ProviderScenario: "storage-health",
+		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
+		Emoji:            "🗄️",
+		DetailCommand:    "storage-health validate scenario {{scenario}}",
+		Timeout:          120 * time.Second,
+		Description:      "Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database.",
+	}))
 	register(Spec{
 		Name:        Playbooks,
 		Runner:      runPlaybooksPhase,
@@ -167,7 +189,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Capabilities: runnability.PhaseCapabilities{
 			NeedsUI:                   true,
 			MutatesLifecycle:          true,
-			DBIsolation:               runnability.DBIsolationRoutedOrRestart,
+			DBIsolation:               runnability.DBIsolationRouted,
 			LifecycleDecisionDeferred: true,
 		},
 	})

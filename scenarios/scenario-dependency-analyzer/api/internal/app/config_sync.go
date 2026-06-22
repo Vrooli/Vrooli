@@ -38,6 +38,7 @@ func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisR
 	scenariosAdded := []string{}
 	if applyScenarios {
 		scenariosAdded = ctx.applyMissingScenarios(analysis)
+		scenariosAdded = append(scenariosAdded, ctx.applyInterfaceGraphScenarios(scenarioName, depSvc)...)
 	}
 
 	changed := len(resourcesAdded) > 0 || len(scenariosAdded) > 0
@@ -153,6 +154,76 @@ func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.Dependenc
 	}
 
 	return added
+}
+
+// applyInterfaceGraphScenarios proposes scenario dependencies from the unified,
+// evidence-tagged graph store — the authoritative proto_import/go_import edges,
+// not the weak vrooli_cli regex detector. Targets are filtered to real, known
+// scenarios (the persisted store can carry proto-package-name targets that are
+// not scenarios; those are dropped here, exactly as centrality filters them).
+// Discovery-call / CLI shell-out edges remain the AST-facts follow-up's job.
+func (c *dependencyApplyContext) applyInterfaceGraphScenarios(scenarioName string, depSvc *dependencyService) []string {
+	if depSvc == nil || depSvc.store == nil {
+		return nil
+	}
+	edges, err := depSvc.store.LoadGraphEdges()
+	if err != nil {
+		log.Printf("Warning: interface-graph scan proposal failed for %s: %v", scenarioName, err)
+		return nil
+	}
+	known := func(name string) bool {
+		if depSvc.detector == nil {
+			return true
+		}
+		return depSvc.detector.KnownScenario(name)
+	}
+
+	added := []string{}
+	for _, edge := range edges {
+		if edge.From != scenarioName || edge.Kind != "scenario" {
+			continue
+		}
+		// Only import-level evidence proposes a declaration; declared/vrooli_cli
+		// are already covered by the analyze path above.
+		if edge.Source != "proto_import" && edge.Source != "go_import" {
+			continue
+		}
+		if !known(edge.To) {
+			continue
+		}
+		if _, exists := c.cfg.Dependencies.Scenarios[edge.To]; exists {
+			continue
+		}
+		if name, ok := c.addInterfaceGraphScenario(edge.To, edge.Source); ok {
+			added = append(added, name)
+		}
+	}
+	return added
+}
+
+func (c *dependencyApplyContext) addInterfaceGraphScenario(dependencyName, evidenceSource string) (string, bool) {
+	if dependencyName == "" {
+		return "", false
+	}
+	if c.cfg.Dependencies.Scenarios == nil {
+		c.cfg.Dependencies.Scenarios = map[string]types.ScenarioDependencySpec{}
+	}
+	if _, exists := c.cfg.Dependencies.Scenarios[dependencyName]; exists {
+		return "", false
+	}
+	description := fmt.Sprintf("Import-level dependency detected via %s", evidenceSource)
+	version, versionRange := resolveScenarioVersionSpec(dependencyName)
+	c.cfg.Dependencies.Scenarios[dependencyName] = types.ScenarioDependencySpec{
+		Required:     true,
+		Version:      version,
+		VersionRange: versionRange,
+		Description:  description,
+	}
+	if c.rawScenarios == nil {
+		c.rawScenarios = orderedmap.New()
+	}
+	c.rawScenarios.Set(dependencyName, orderedScenarioEntry(version, versionRange, description))
+	return dependencyName, true
 }
 
 func (c *dependencyApplyContext) addDetectedResource(dep types.ScenarioDependency) (string, bool) {

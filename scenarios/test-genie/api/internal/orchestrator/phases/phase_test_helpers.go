@@ -82,9 +82,6 @@ esac
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name), cliScript(name), 0o755); err != nil {
 		t.Fatalf("failed to seed scenario cli binary: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name+".bats"), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed scenario bats file: %v", err)
-	}
 	serviceJSON := `{
   "service": {"name":"` + name + `"},
   "cli": {

@@ -44,7 +44,7 @@ func TestCheck_HumanOutput_NotRouted_Exit1(t *testing.T) {
 		Routed:               false,
 		DisqualifyingReasons: []string{"raw sql.Open"},
 		Violations: []*eligpb.Violation{
-			{RuleId: "routed_database_drivers", Severity: "high", File: "db.go", Line: 7},
+			{RuleId: "ROUTED_SEAMS_UNWIRED", Severity: "high", File: "db.go", Line: 7},
 		},
 	}, nil)
 

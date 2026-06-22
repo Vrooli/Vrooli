@@ -13,10 +13,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go bootstrap integration tests (api/internal/bootstrap)"
         }
       ]
     },
@@ -30,10 +30,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go bootstrap integration tests (api/internal/bootstrap)"
         }
       ]
     },
@@ -47,10 +47,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go bootstrap integration tests (api/internal/bootstrap)"
         }
       ]
     },
@@ -64,10 +64,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go bootstrap integration tests (api/internal/bootstrap)"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go bootstrap integration tests (api/internal/bootstrap)"
         }
       ]
     },
@@ -98,10 +98,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go bootstrap integration tests (api/internal/bootstrap)"
         }
       ]
     }

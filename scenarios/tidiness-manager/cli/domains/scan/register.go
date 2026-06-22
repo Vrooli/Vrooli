@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	maturityreport "github.com/vrooli/maturity-go/report"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tidiness-manager/v1/validation"
@@ -121,7 +122,7 @@ func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutpu
 		},
 	}
 	if assessment != nil {
-		maturity := cliapp.BuildMaturityListReport(assessment)
+		maturity := maturityreport.BuildMaturityListReport(assessment)
 		report.Summary = append(report.Summary, maturity.Summary...)
 		report.RetrievalHints = append(report.RetrievalHints, maturity.RetrievalHints...)
 	}

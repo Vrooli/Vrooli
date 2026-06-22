@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { RefreshCw, Plus, Loader2, Eye, Edit, Play, Save } from 'lucide-react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { InvestigationScript } from '../../../types';
 import { LoadingSkeleton } from '../../../shared/components/LoadingSkeleton';
+import { ScriptHighlighter } from '../../../shared/components/LazyScriptHighlighter';
 import { protoFetch } from '../../../shared/api/apiFetch';
 import { formatTimestampDisplay } from '../../../shared/utils/formatters';
 import { parseListScriptsResponse, parseGetScriptResponse } from '../../../shared/api/proto-contracts';
@@ -650,29 +649,10 @@ export const InvestigationScriptsPage = ({ onOpenScriptEditor, onExecuteScript, 
                       Loading script&hellip;
                     </div>
                   ) : editorMode === 'view' ? (
-                    <SyntaxHighlighter
-                      language="bash"
-                      style={{
-                        ...tomorrow,
-                        'pre[class*="language-"]': {
-                          ...tomorrow['pre[class*="language-"]'],
-                          background: 'var(--overlay-backdrop)',
-                          margin: 0,
-                          padding: 'var(--spacing-lg)',
-                          fontSize: 'var(--text-sm)',
-                          fontFamily: 'var(--font-mono)',
-                          lineHeight: '1.5'
-                        }
-                      }}
-                      customStyle={{
-                        background: 'var(--overlay-backdrop)',
-                        margin: 0,
-                        fontSize: 'var(--text-sm)',
-                        fontFamily: 'var(--font-mono)'
-                      }}
-                    >
-                      {selectedContent || '# No script content available'}
-                    </SyntaxHighlighter>
+                    <ScriptHighlighter
+                      content={selectedContent || '# No script content available'}
+                      padding="var(--spacing-lg)"
+                    />
                   ) : (
                     <textarea
                       value={selectedContent}

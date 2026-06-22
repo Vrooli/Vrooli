@@ -20,6 +20,7 @@ import (
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 
+	"test-genie/internal/eligibility"
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
 	"test-genie/internal/playbooks/isolation"
@@ -379,7 +380,7 @@ func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *test
 	fakeIso := &fakeIsolation{
 		result: &isolation.Result{
 			RunID:   "sqlite-run",
-			Env:     map[string]string{"PLAYBOOKS_SQLITE_PATH": filepath.Join(t.TempDir(), "isolated.db")},
+			Env:     map[string]string{"SQLITE_PATH": filepath.Join(t.TempDir(), "isolated.db")},
 			Cleanup: func(context.Context) error { return nil },
 		},
 	}
@@ -391,6 +392,15 @@ func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *test
 		return fakeIso
 	}
 	defer func() { isolationManagerFactory = prevFactory }()
+
+	// Routed-or-refuse: drive the routed path (the only path). Stub the
+	// eligibility verdict as isolation-proven and wire a succeeding
+	// RoutingService client so the test pool installs on the live process with
+	// NO scenario restart.
+	restoreChecker := overrideRoutingChecker(stubEligibilityChecker{elig: eligibility.Eligibility{Routed: true}})
+	defer restoreChecker()
+	restoreProbes := overrideRoutingProbes(succeedingRoutingClient{}, nil)
+	defer restoreProbes()
 
 	h := newPlaybooksTestHarness(t)
 	if err := os.MkdirAll(filepath.Join(h.scenarioDir, "initialization", "storage", "sqlite"), 0o755); err != nil {
@@ -436,7 +446,7 @@ func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *test
 	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
 
 	if report.Err != nil {
-		t.Fatalf("expected success for sqlite isolation path, got error: %v", report.Err)
+		t.Fatalf("expected success for sqlite routed isolation path, got error: %v", report.Err)
 	}
 	if !fakeIso.called {
 		t.Fatal("expected non-observer playbooks to prepare isolation")
@@ -447,12 +457,10 @@ func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *test
 	if capturedCfg.RequirePostgres || capturedCfg.RequireRedis {
 		t.Fatalf("did not expect postgres/redis isolation for sqlite fixture, got %#v", capturedCfg)
 	}
+	// The routed path installs the test pool on the live process — NO restart.
 	runtime := h.env.TargetRuntime.(*fakeTargetRuntime)
-	if runtime.restartCalls != 1 || runtime.restoreCalls != 1 {
-		t.Fatalf("expected scenario restart and restore around isolated run, got restart=%d restore=%d", runtime.restartCalls, runtime.restoreCalls)
-	}
-	if runtime.restartEnv["PLAYBOOKS_SQLITE_PATH"] == "" {
-		t.Fatalf("expected isolation env to be passed to runtime restart, got %#v", runtime.restartEnv)
+	if runtime.restartCalls != 0 || runtime.restoreCalls != 0 {
+		t.Fatalf("routed path must not restart the target; got restart=%d restore=%d", runtime.restartCalls, runtime.restoreCalls)
 	}
 }
 
@@ -496,10 +504,10 @@ func TestRunPlaybooksPhaseRegistryNotFound(t *testing.T) {
 }
 
 // TestRunPlaybooksPhaseSelfTargetSkipsRestart asserts the self-host guard:
-// restart-based playbooks isolation against test-genie's own scenario would
-// SIGTERM the live self-test process, so the phase skips (no error, no
-// isolation) rather than failing. A routed self-test is the supported path
-// (see docs/agent-system/routed-test-db.md).
+// driving destructive playbooks against test-genie's own scenario would disrupt
+// the live self-test process, so the phase skips (no error, no isolation) rather
+// than failing. A routed self-test is the supported path (see the test-isolation
+// contract: scenarios/storage-health/docs/concepts/test-isolation-contract.md).
 func TestRunPlaybooksPhaseSelfTargetSkipsRestart(t *testing.T) {
 	fakeIso := &fakeIsolation{
 		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},

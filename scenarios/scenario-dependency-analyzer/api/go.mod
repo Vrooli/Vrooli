@@ -12,6 +12,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/freshness-go v0.0.0-00010101000000-000000000000
 	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
@@ -59,6 +60,8 @@ require (
 replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

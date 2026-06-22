@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"test-genie/internal/integration/api"
-	"test-genie/internal/integration/bats"
 	"test-genie/internal/integration/cli"
 	"test-genie/internal/integration/websocket"
 	"test-genie/internal/shared"
@@ -31,14 +30,6 @@ func (m *mockCLIValidator) Validate(ctx context.Context) cli.ValidationResult {
 	return m.result
 }
 
-type mockBatsRunner struct {
-	result bats.RunResult
-}
-
-func (m *mockBatsRunner) Run(ctx context.Context) bats.RunResult {
-	return m.result
-}
-
 type mockWebSocketValidator struct {
 	result websocket.ValidationResult
 }
@@ -47,8 +38,8 @@ func (m *mockWebSocketValidator) Validate(ctx context.Context) websocket.Validat
 	return m.result
 }
 
-// Helper to create a runner with all mocks
-func newMockedRunner(cliVal *mockCLIValidator, batsRun *mockBatsRunner) *Runner {
+// Helper to create a runner with a mocked CLI validator
+func newMockedRunner(cliVal *mockCLIValidator) *Runner {
 	return New(
 		Config{
 			ScenarioDir:  "/mock/scenario",
@@ -56,12 +47,11 @@ func newMockedRunner(cliVal *mockCLIValidator, batsRun *mockBatsRunner) *Runner 
 		},
 		WithLogger(io.Discard),
 		WithCLIValidator(cliVal),
-		WithBatsRunner(batsRun),
 	)
 }
 
 // Helper to create a runner with all validators including API and WebSocket
-func newFullyMockedRunner(apiVal *mockAPIValidator, cliVal *mockCLIValidator, batsRun *mockBatsRunner, wsVal *mockWebSocketValidator) *Runner {
+func newFullyMockedRunner(apiVal *mockAPIValidator, cliVal *mockCLIValidator, wsVal *mockWebSocketValidator) *Runner {
 	r := New(
 		Config{
 			ScenarioDir:  "/mock/scenario",
@@ -69,7 +59,6 @@ func newFullyMockedRunner(apiVal *mockAPIValidator, cliVal *mockCLIValidator, ba
 		},
 		WithLogger(io.Discard),
 		WithCLIValidator(cliVal),
-		WithBatsRunner(batsRun),
 	)
 	if apiVal != nil {
 		r.apiValidator = apiVal
@@ -96,19 +85,6 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 				VersionOutput: "mock-scenario version 1.0.0",
 			},
 		},
-		&mockBatsRunner{
-			result: bats.RunResult{
-				Result: shared.Result{
-					Success: true,
-					Observations: []shared.Observation{
-						shared.NewSuccessObservation("bats available"),
-						shared.NewSuccessObservation("primary suite passed"),
-					},
-				},
-				PrimarySuite:        "/mock/scenario/cli/mock-scenario.bats",
-				AdditionalSuitesRun: 2,
-			},
-		},
 	)
 
 	result := runner.Run(context.Background())
@@ -122,12 +98,6 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 	if !result.Summary.CLIValidated {
 		t.Error("expected CLI to be validated")
 	}
-	if !result.Summary.PrimaryBatsRan {
-		t.Error("expected primary bats to run")
-	}
-	if result.Summary.AdditionalBatsSuites != 2 {
-		t.Errorf("expected 2 additional suites, got %d", result.Summary.AdditionalBatsSuites)
-	}
 }
 
 func TestRunner_CLIValidationFails(t *testing.T) {
@@ -139,9 +109,6 @@ func TestRunner_CLIValidationFails(t *testing.T) {
 					"Add CLI binary",
 				),
 			},
-		},
-		&mockBatsRunner{
-			result: bats.RunResult{Result: shared.OK()},
 		},
 	)
 
@@ -158,72 +125,12 @@ func TestRunner_CLIValidationFails(t *testing.T) {
 	}
 }
 
-func TestRunner_BatsValidationFails(t *testing.T) {
-	runner := newMockedRunner(
-		&mockCLIValidator{
-			result: cli.ValidationResult{
-				Result: shared.OK().WithObservations(shared.NewSuccessObservation("CLI ok")),
-			},
-		},
-		&mockBatsRunner{
-			result: bats.RunResult{
-				Result: shared.FailSystem(
-					errors.New("primary suite failed"),
-					"Fix test failures",
-				),
-			},
-		},
-	)
-
-	result := runner.Run(context.Background())
-
-	if result.Success {
-		t.Fatal("expected failure when BATS validation fails")
-	}
-	if result.FailureClass != FailureClassSystem {
-		t.Errorf("expected system, got %s", result.FailureClass)
-	}
-	// CLI should have been validated before BATS failed
-	if !result.Summary.CLIValidated {
-		t.Error("expected CLI to be validated before BATS failure")
-	}
-}
-
-func TestRunner_BatsMissingDependency(t *testing.T) {
-	runner := newMockedRunner(
-		&mockCLIValidator{
-			result: cli.ValidationResult{
-				Result: shared.OK().WithObservations(shared.NewSuccessObservation("CLI ok")),
-			},
-		},
-		&mockBatsRunner{
-			result: bats.RunResult{
-				Result: shared.Fail(
-					errors.New("bats not installed"),
-					bats.FailureClassMissingDependency,
-					"Install bats",
-				),
-			},
-		},
-	)
-
-	result := runner.Run(context.Background())
-
-	if result.Success {
-		t.Fatal("expected failure when bats not installed")
-	}
-	if result.FailureClass != FailureClassMissingDependency {
-		t.Errorf("expected missing_dependency, got %s", result.FailureClass)
-	}
-}
-
 func TestRunner_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
 	runner := newMockedRunner(
 		&mockCLIValidator{result: cli.ValidationResult{Result: shared.OK()}},
-		&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}},
 	)
 
 	result := runner.Run(ctx)
@@ -244,36 +151,12 @@ func TestRunner_NoCLIValidator(t *testing.T) {
 		},
 		WithLogger(io.Discard),
 		// No CLI validator, no command executor
-		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}}),
 	)
 
 	result := runner.Run(context.Background())
 
 	if result.Success {
 		t.Fatal("expected failure when CLI validator not configured")
-	}
-	if result.FailureClass != FailureClassSystem {
-		t.Errorf("expected system failure, got %s", result.FailureClass)
-	}
-}
-
-func TestRunner_NoBatsRunner(t *testing.T) {
-	runner := New(
-		Config{
-			ScenarioDir:  "/mock/scenario",
-			ScenarioName: "mock-scenario",
-		},
-		WithLogger(io.Discard),
-		WithCLIValidator(&mockCLIValidator{
-			result: cli.ValidationResult{Result: shared.OK()},
-		}),
-		// No BATS runner, no command executor
-	)
-
-	result := runner.Run(context.Background())
-
-	if result.Success {
-		t.Fatal("expected failure when BATS runner not configured")
 	}
 	if result.FailureClass != FailureClassSystem {
 		t.Errorf("expected system failure, got %s", result.FailureClass)
@@ -294,17 +177,11 @@ func TestRunner_CreatesValidatorsFromCommandFunctions(t *testing.T) {
 		WithCommandCapture(func(ctx context.Context, dir string, w io.Writer, name string, args ...string) (string, error) {
 			return "", nil
 		}),
-		WithCommandLookup(func(name string) (string, error) {
-			return "/usr/bin/" + name, nil
-		}),
 	)
 
-	// Runner should have created validators (even though they'll fail on nonexistent dir)
+	// Runner should have created the CLI validator (even though it'll fail on nonexistent dir)
 	if runner.cliValidator == nil {
 		t.Error("expected CLI validator to be created from command functions")
-	}
-	if runner.batsRunner == nil {
-		t.Error("expected BATS runner to be created from command functions")
 	}
 }
 
@@ -315,31 +192,11 @@ func TestValidationSummary_TotalChecks(t *testing.T) {
 		expected int
 	}{
 		{
-			name: "all categories",
-			summary: ValidationSummary{
-				CLIValidated:         true,
-				PrimaryBatsRan:       true,
-				AdditionalBatsSuites: 3,
-			},
-			expected: 7, // 3 (CLI) + 1 (primary) + 3 (additional)
-		},
-		{
 			name: "CLI only",
 			summary: ValidationSummary{
-				CLIValidated:         true,
-				PrimaryBatsRan:       false,
-				AdditionalBatsSuites: 0,
+				CLIValidated: true,
 			},
 			expected: 3, // 3 CLI checks
-		},
-		{
-			name: "no additional suites",
-			summary: ValidationSummary{
-				CLIValidated:         true,
-				PrimaryBatsRan:       true,
-				AdditionalBatsSuites: 0,
-			},
-			expected: 4, // 3 (CLI) + 1 (primary)
 		},
 		{
 			name:     "empty",
@@ -359,9 +216,7 @@ func TestValidationSummary_TotalChecks(t *testing.T) {
 
 func TestValidationSummary_String(t *testing.T) {
 	summary := ValidationSummary{
-		CLIValidated:         true,
-		PrimaryBatsRan:       true,
-		AdditionalBatsSuites: 2,
+		CLIValidated: true,
 	}
 
 	str := summary.String()
@@ -370,12 +225,6 @@ func TestValidationSummary_String(t *testing.T) {
 	}
 	if !containsStr(str, "CLI") {
 		t.Error("expected CLI mention in string")
-	}
-	if !containsStr(str, "bats") {
-		t.Error("expected bats mention in string")
-	}
-	if !containsStr(str, "2") {
-		t.Error("expected additional suite count in string")
 	}
 }
 
@@ -391,7 +240,6 @@ func TestValidationSummary_StringEmpty(t *testing.T) {
 var (
 	_ api.Validator       = (*mockAPIValidator)(nil)
 	_ cli.Validator       = (*mockCLIValidator)(nil)
-	_ bats.Runner         = (*mockBatsRunner)(nil)
 	_ websocket.Validator = (*mockWebSocketValidator)(nil)
 )
 
@@ -425,9 +273,6 @@ func TestRunner_APIValidationPasses(t *testing.T) {
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
 		},
-		&mockBatsRunner{
-			result: bats.RunResult{Result: shared.OK()},
-		},
 		nil,
 	)
 
@@ -455,9 +300,6 @@ func TestRunner_APIValidationFails(t *testing.T) {
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
 		},
-		&mockBatsRunner{
-			result: bats.RunResult{Result: shared.OK()},
-		},
 		nil,
 	)
 
@@ -469,7 +311,7 @@ func TestRunner_APIValidationFails(t *testing.T) {
 	if result.FailureClass != FailureClassSystem {
 		t.Errorf("expected system failure, got %s", result.FailureClass)
 	}
-	// CLI and BATS SHOULD still run (continue after failure behavior)
+	// CLI SHOULD still run (continue after failure behavior)
 	if !result.Summary.CLIValidated {
 		t.Error("CLI should have been validated even after API failure (continue after failure)")
 	}
@@ -483,9 +325,6 @@ func TestRunner_APIValidationSkippedWhenNotConfigured(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
-		},
-		&mockBatsRunner{
-			result: bats.RunResult{Result: shared.OK()},
 		},
 	)
 
@@ -518,9 +357,6 @@ func TestRunner_WebSocketValidationPasses(t *testing.T) {
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
 		},
-		&mockBatsRunner{
-			result: bats.RunResult{Result: shared.OK()},
-		},
 		&mockWebSocketValidator{
 			result: websocket.ValidationResult{
 				Result: shared.Result{
@@ -551,9 +387,6 @@ func TestRunner_WebSocketValidationFails(t *testing.T) {
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
 		},
-		&mockBatsRunner{
-			result: bats.RunResult{Result: shared.OK()},
-		},
 		&mockWebSocketValidator{
 			result: websocket.ValidationResult{
 				Result: shared.FailSystem(
@@ -569,12 +402,9 @@ func TestRunner_WebSocketValidationFails(t *testing.T) {
 	if result.Success {
 		t.Fatal("expected failure when WebSocket validation fails")
 	}
-	// CLI and BATS should have passed before WebSocket failed
+	// CLI should have passed before WebSocket failed
 	if !result.Summary.CLIValidated {
 		t.Error("CLI should have been validated before WebSocket failure")
-	}
-	if !result.Summary.PrimaryBatsRan {
-		t.Error("BATS should have run before WebSocket failure")
 	}
 }
 
@@ -582,9 +412,6 @@ func TestRunner_WebSocketValidationSkippedWhenNotConfigured(t *testing.T) {
 	runner := newMockedRunner(
 		&mockCLIValidator{
 			result: cli.ValidationResult{Result: shared.OK()},
-		},
-		&mockBatsRunner{
-			result: bats.RunResult{Result: shared.OK()},
 		},
 	)
 
@@ -631,15 +458,6 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 				},
 			},
 		},
-		&mockBatsRunner{
-			result: bats.RunResult{
-				Result: shared.Result{
-					Success:      true,
-					Observations: []shared.Observation{shared.NewSuccessObservation("BATS ok")},
-				},
-				AdditionalSuitesRun: 1,
-			},
-		},
 		&mockWebSocketValidator{
 			result: websocket.ValidationResult{
 				Result: shared.Result{
@@ -664,9 +482,6 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 	if !result.Summary.CLIValidated {
 		t.Error("expected CLI validated")
 	}
-	if !result.Summary.PrimaryBatsRan {
-		t.Error("expected BATS ran")
-	}
 	if !result.Summary.WebSocketValidated {
 		t.Error("expected WebSocket validated")
 	}
@@ -674,9 +489,8 @@ func TestRunner_FullPipelineWithAllValidators(t *testing.T) {
 	// Verify total checks count is correct
 	// API: 2 (status + response time)
 	// CLI: 3 (binary, help, version)
-	// BATS: 1 (primary) + 1 (additional)
 	// WebSocket: 2 (connection + ping-pong)
-	expectedChecks := 2 + 3 + 1 + 1 + 2
+	expectedChecks := 2 + 3 + 2
 	if result.Summary.TotalChecks() != expectedChecks {
 		t.Errorf("expected %d total checks, got %d", expectedChecks, result.Summary.TotalChecks())
 	}
@@ -693,7 +507,6 @@ func TestRunner_CreatesAPIValidatorFromConfig(t *testing.T) {
 		},
 		WithLogger(io.Discard),
 		WithCLIValidator(&mockCLIValidator{result: cli.ValidationResult{Result: shared.OK()}}),
-		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}}),
 	)
 
 	if runner.apiValidator == nil {
@@ -711,7 +524,6 @@ func TestRunner_CreatesWebSocketValidatorFromConfig(t *testing.T) {
 		},
 		WithLogger(io.Discard),
 		WithCLIValidator(&mockCLIValidator{result: cli.ValidationResult{Result: shared.OK()}}),
-		WithBatsRunner(&mockBatsRunner{result: bats.RunResult{Result: shared.OK()}}),
 	)
 
 	if runner.websocketValidator == nil {
@@ -730,13 +542,11 @@ func TestValidationSummary_TotalChecksWithAPIAndWebSocket(t *testing.T) {
 		{
 			name: "all categories",
 			summary: ValidationSummary{
-				APIHealthChecked:     true,
-				CLIValidated:         true,
-				PrimaryBatsRan:       true,
-				AdditionalBatsSuites: 2,
-				WebSocketValidated:   true,
+				APIHealthChecked:   true,
+				CLIValidated:       true,
+				WebSocketValidated: true,
 			},
-			expected: 2 + 3 + 1 + 2 + 2, // API(2) + CLI(3) + Primary(1) + Additional(2) + WS(2)
+			expected: 2 + 3 + 2, // API(2) + CLI(3) + WS(2)
 		},
 		{
 			name: "API and WebSocket only",
@@ -747,13 +557,11 @@ func TestValidationSummary_TotalChecksWithAPIAndWebSocket(t *testing.T) {
 			expected: 4, // API(2) + WS(2)
 		},
 		{
-			name: "legacy without API/WebSocket",
+			name: "CLI only",
 			summary: ValidationSummary{
-				CLIValidated:         true,
-				PrimaryBatsRan:       true,
-				AdditionalBatsSuites: 1,
+				CLIValidated: true,
 			},
-			expected: 5, // CLI(3) + Primary(1) + Additional(1)
+			expected: 3, // CLI(3)
 		},
 	}
 
@@ -770,7 +578,6 @@ func TestValidationSummary_StringWithAPIAndWebSocket(t *testing.T) {
 	summary := ValidationSummary{
 		APIHealthChecked:   true,
 		CLIValidated:       true,
-		PrimaryBatsRan:     true,
 		WebSocketValidated: true,
 	}
 

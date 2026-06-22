@@ -50,6 +50,23 @@ func (stubRoutingClient) HeartbeatTestPool(context.Context, *connect.Request[rou
 	return nil, errors.New("stub: HeartbeatTestPool not expected")
 }
 
+// succeedingRoutingClient satisfies routing_v1connect.RoutingServiceClient and
+// returns empty-but-valid responses so the routed path can run end-to-end in
+// tests. ClearTestPool returns no stats so the lease-stats gate is skipped.
+type succeedingRoutingClient struct{}
+
+func (succeedingRoutingClient) InstallTestPool(context.Context, *connect.Request[routingv1.InstallTestPoolRequest]) (*connect.Response[routingv1.InstallTestPoolResponse], error) {
+	return connect.NewResponse(&routingv1.InstallTestPoolResponse{}), nil
+}
+
+func (succeedingRoutingClient) ClearTestPool(context.Context, *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
+	return connect.NewResponse(&routingv1.ClearTestPoolResponse{}), nil
+}
+
+func (succeedingRoutingClient) HeartbeatTestPool(context.Context, *connect.Request[routingv1.HeartbeatTestPoolRequest]) (*connect.Response[routingv1.HeartbeatTestPoolResponse], error) {
+	return connect.NewResponse(&routingv1.HeartbeatTestPoolResponse{}), nil
+}
+
 func overrideRoutingChecker(stub eligibilityChecker) func() {
 	prev := routingChecker
 	routingChecker = stub
@@ -104,17 +121,32 @@ func minimalRoutedScenario(t *testing.T) (workspace.Environment, *fakeIsolation)
 	return env, &fakeIsolation{err: fmt.Errorf("prepare-not-expected")}
 }
 
-// TestRunPlaybooksPhase_ProductionMode_ShortCircuitsBeforeIsolation verifies
-// gap #1 from the routed-test-db investigation: when the scenario reports
-// production-mode (RoutingService probe returns errRoutingServiceDisabled)
-// AND the fallback path can't run because TargetRuntime is nil, the phase
-// must bail BEFORE calling isoManager.Prepare().
+// assertRefusedSkip asserts the report is a fail-closed refusal: no hard error,
+// and a SKIP observation announcing the refusal. The restart-based fallback was
+// deleted, so any non-routed outcome is a refusal — never a restart.
+func assertRefusedSkip(t *testing.T, report RunReport) {
+	t.Helper()
+	if report.Err != nil {
+		t.Fatalf("refusal must be a skip, not a hard error; got: %v", report.Err)
+	}
+	for _, obs := range report.Observations {
+		if obs.Prefix == "SKIP" && strings.Contains(strings.ToLower(obs.Text), "refused") {
+			return
+		}
+	}
+	t.Fatalf("expected a SKIP observation announcing the refusal; got observations=%+v", report.Observations)
+}
+
+// TestRunPlaybooksPhase_ProductionMode_RefusesBeforeIsolation verifies that when
+// the scenario reports production-mode (RoutingService probe returns
+// errRoutingServiceDisabled) the phase refuses fail-closed BEFORE calling
+// isoManager.Prepare() — there is no restart-based fallback to spend a
+// testcontainer on.
 //
-// The fakeIsolation is wired to fail if Prepare is called, so the assertion
-// is implicit: a passing test means Prepare was never reached.
-func TestRunPlaybooksPhase_ProductionMode_ShortCircuitsBeforeIsolation(t *testing.T) {
+// The fakeIsolation is wired to fail if Prepare is called, so a passing test
+// means Prepare was never reached.
+func TestRunPlaybooksPhase_ProductionMode_RefusesBeforeIsolation(t *testing.T) {
 	env, iso := minimalRoutedScenario(t)
-	env.TargetRuntime = nil // force the fallback fail-fast path
 
 	restoreIso := overrideIsolationManager(iso)
 	defer restoreIso()
@@ -130,26 +162,17 @@ func TestRunPlaybooksPhase_ProductionMode_ShortCircuitsBeforeIsolation(t *testin
 	report := runPlaybooksPhase(context.Background(), env, io.Discard)
 
 	if iso.called {
-		t.Fatal("isoManager.Prepare was called — preflight should have short-circuited before isolation")
+		t.Fatal("isoManager.Prepare was called — production-mode refusal should short-circuit before isolation")
 	}
-	if report.Err == nil {
-		t.Fatal("expected a hard failure when fallback is impossible")
-	}
-	if !strings.Contains(report.Err.Error(), "target runtime") {
-		t.Errorf("error should mention target runtime, got: %v", report.Err)
-	}
+	assertRefusedSkip(t, report)
 }
 
-// TestRunPlaybooksPhase_RoutingUnreachable_StillTriesFallback verifies that
-// when the routing client is unreachable but TargetRuntime is wired, we
-// still proceed to isolation+fallback (since fallback doesn't need routing).
-func TestRunPlaybooksPhase_RoutingUnreachable_StillTriesFallback(t *testing.T) {
+// TestRunPlaybooksPhase_RoutingUnreachable_RefusesBeforeIsolation verifies that
+// when the routing client/probe is unreachable, the phase refuses fail-closed
+// before isolation — the routed path is the only path, so an unreachable
+// RoutingService cannot be worked around with a restart.
+func TestRunPlaybooksPhase_RoutingUnreachable_RefusesBeforeIsolation(t *testing.T) {
 	env, iso := minimalRoutedScenario(t)
-	// Prepare should be called this time — but make it fail with a
-	// well-known sentinel so the phase terminates without progressing to
-	// the actual scenario lifecycle (which we don't have wired in this
-	// test). The fact that Prepare WAS reached is the assertion.
-	iso.err = errors.New("sentinel-prepare-failure")
 
 	restoreIso := overrideIsolationManager(iso)
 	defer restoreIso()
@@ -159,17 +182,14 @@ func TestRunPlaybooksPhase_RoutingUnreachable_StillTriesFallback(t *testing.T) {
 	})
 	defer restoreChecker()
 
-	// Probe fails generically — should be classified as routing_unreachable,
-	// downgrade to fallback, but Prepare must still be reached.
+	// Probe fails generically — classified as routing_unreachable → refuse.
 	restoreProbes := overrideRoutingProbes(stubRoutingClient{}, errors.New("probe boom"))
 	defer restoreProbes()
 
 	report := runPlaybooksPhase(context.Background(), env, io.Discard)
 
-	if !iso.called {
-		t.Fatal("isoManager.Prepare should have been called (fallback path was viable)")
+	if iso.called {
+		t.Fatal("isoManager.Prepare was called — routing-unreachable refusal should short-circuit before isolation")
 	}
-	if report.Err == nil || !strings.Contains(report.Err.Error(), "sentinel-prepare-failure") {
-		t.Errorf("expected the sentinel Prepare error to surface, got: %v", report.Err)
-	}
+	assertRefusedSkip(t, report)
 }

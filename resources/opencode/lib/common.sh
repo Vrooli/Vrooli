@@ -266,13 +266,40 @@ opencode::ollama::reachable() {
     curl -fsS --max-time 2 "$(opencode::ollama::base_url)/api/tags" >/dev/null 2>&1
 }
 
+# opencode::ollama::supports_tools reports whether a pulled Ollama model
+# actually returns STRUCTURED tool calls rather than narrating a tool call as
+# plain text. Ollama advertises a "tools" capability for models whose chat
+# template cannot be parsed back into tool_calls on a given runtime (e.g.
+# qwen2.5-coder on older Ollama), so the capability flag alone is unreliable —
+# the only sound signal is a live probe. Best-effort and fail-OPEN: if the
+# probe cannot run (no curl/jq, daemon error, empty reply) it returns success
+# so discovery is never blocked on the probe itself. It returns failure only
+# when the daemon answered AND no structured tool_calls came back.
+opencode::ollama::supports_tools() {
+    local model="$1" base body resp
+    command -v jq >/dev/null 2>&1 || return 0
+    base="$(opencode::ollama::base_url)"
+    body="$(jq -cn --arg m "${model}" '{
+        model: $m,
+        stream: false,
+        messages: [{role: "user", content: "Create a file named probe.txt containing the text ok. Use the write tool."}],
+        tools: [{type: "function", function: {name: "write", description: "write content to a file", parameters: {type: "object", properties: {filePath: {type: "string"}, content: {type: "string"}}, required: ["filePath", "content"]}}}]
+    }')" || return 0
+    resp="$(curl -fsS --max-time 30 "${base}/v1/chat/completions" -H 'Content-Type: application/json' -d "${body}" 2>/dev/null || true)"
+    [[ -z "${resp}" ]] && return 0
+    printf '%s' "${resp}" | jq -e '(.choices[0].message.tool_calls // []) | length > 0' >/dev/null 2>&1
+}
+
 # opencode::ollama::pick_model echoes a usable local chat model id from the
 # reachable Ollama daemon. It honours OPENCODE_OLLAMA_DEFAULT_MODEL when that
-# model is actually pulled, otherwise prefers a coder model, then a general
-# chat model, excluding embedding-only models that cannot serve a chat. Falls
-# back to the configured default when discovery is unavailable.
+# model is pulled and tool-capable, otherwise prefers a tool-calling coder
+# model (newest families first), then a general chat model, excluding
+# embedding-only models that cannot serve a chat. Each candidate is probed for
+# STRUCTURED tool calls before selection so a model that only narrates tool
+# calls (e.g. qwen2.5-coder on an old runtime) is skipped rather than silently
+# chosen. Falls back to the configured default when discovery is unavailable.
 opencode::ollama::pick_model() {
-    local preferred="${OPENCODE_OLLAMA_DEFAULT_MODEL:-llama3.1}"
+    local preferred="${OPENCODE_OLLAMA_DEFAULT_MODEL:-qwen3-coder}"
     local tags names
     if ! command -v jq >/dev/null 2>&1; then
         printf '%s' "${preferred}"
@@ -290,19 +317,31 @@ opencode::ollama::pick_model() {
         printf '%s' "${preferred}"
         return 0
     fi
-    # Honour the configured default when it is actually present.
-    if grep -qxF "${preferred}" <<<"${names}"; then
+    # Honour the configured default when it is present AND tool-capable.
+    if grep -qxF "${preferred}" <<<"${names}" && opencode::ollama::supports_tools "${preferred}"; then
         printf '%s' "${preferred}"
         return 0
     fi
+    # Prefer tool-calling-capable models, newest coder families first. Demote
+    # qwen2.5-coder/coder beneath proven tool-callers; the probe is the real
+    # gate, the order is just the search priority.
     local pref match
-    for pref in 'qwen2.5-coder' 'coder' 'qwen3' 'qwen' 'llama3' 'mistral' 'phi'; do
+    for pref in 'qwen3-coder' 'qwen3' 'llama3.1' 'llama3' 'mistral' 'qwen2.5-coder' 'coder' 'qwen' 'phi'; do
         match="$(grep -m1 -iF "${pref}" <<<"${names}" || true)"
-        if [[ -n "${match}" ]]; then
+        if [[ -n "${match}" ]] && opencode::ollama::supports_tools "${match}"; then
             printf '%s' "${match}"
             return 0
         fi
     done
+    # Last resort: first tool-capable model, else the first chat model.
+    local name
+    while IFS= read -r name; do
+        [[ -z "${name}" ]] && continue
+        if opencode::ollama::supports_tools "${name}"; then
+            printf '%s' "${name}"
+            return 0
+        fi
+    done <<<"${names}"
     printf '%s' "$(head -n1 <<<"${names}")"
 }
 

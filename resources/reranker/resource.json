@@ -45,6 +45,13 @@
     "probe": "nvidia",
     "compose_overlay": "docker/docker-compose.gpu.yml"
   },
+  "capacity": {
+    "resource_kind": "vram",
+    "gpu_index": 0,
+    "preferred_bytes": 1503238553,
+    "floor_bytes": 1503238553,
+    "priority": "service"
+  },
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {

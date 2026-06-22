@@ -19,7 +19,13 @@ func Pick(caps hostinventory.Snapshot, budgetPct int) (Model, string, error) {
 		return "", "", fmt.Errorf("recommend: budget_pct must be in (0,100], got %d", budgetPct)
 	}
 
-	// GPU path: pick by the strongest GPU's budgeted VRAM.
+	// GPU path: pick by the strongest GPU's budgeted *available* VRAM.
+	// Available = total − currently-used (contention-aware): sizing off total
+	// is blind to co-tenant model servers already resident on a shared GPU and
+	// over-picks (plan §3). Used-aware sizing means a freshly-(re)started
+	// whisper claims only what the host can actually spare right now. The
+	// capacity broker handles priority-aware reclaim of *lower*-priority idle
+	// claims; this initial pick is the cooperative, never-OOM floor.
 	bestGPU, bestBudget := bestGPUBudget(caps.GPUs, budgetPct)
 	if bestGPU != "" {
 		switch {
@@ -48,14 +54,25 @@ func Pick(caps hostinventory.Snapshot, budgetPct int) (Model, string, error) {
 		fmtGB(ramBudget), caps.CPU.Cores), nil
 }
 
+// bestGPUBudget returns the strongest GPU's budgeted *available* VRAM. The
+// budget is a percentage of what is currently free (total − used), not of the
+// card's total capacity, so the pick respects whatever co-tenant workloads are
+// already resident (contention-aware, plan §3). VRAMUsedBytes==0 (no sensing /
+// idle card) degrades cleanly to the historical total-based behavior.
 func bestGPUBudget(gpus []hostinventory.GPU, budgetPct int) (string, uint64) {
 	var name string
 	var best uint64
 	for _, g := range gpus {
-		budget := g.VRAMBytes * uint64(budgetPct) / 100
+		var available uint64
+		if g.VRAMUsedBytes < g.VRAMBytes {
+			available = g.VRAMBytes - g.VRAMUsedBytes
+		}
+		// used >= total (fully consumed or sensor over-report) leaves available
+		// at its zero value: nothing to spare.
+		budget := available * uint64(budgetPct) / 100
 		if budget > best {
 			best = budget
-			name = fmt.Sprintf("%s (%s)", g.Name, fmtGB(g.VRAMBytes))
+			name = fmt.Sprintf("%s (%s total, %s free)", g.Name, fmtGB(g.VRAMBytes), fmtGB(available))
 		}
 	}
 	return name, best

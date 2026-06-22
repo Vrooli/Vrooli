@@ -8,7 +8,19 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
+
+// BuildStats captures per-source timing for one interface-graph build so the
+// ingest path can emit ExecutionMetrics and the sweeper can size its budgets
+// from measured cost rather than guesses.
+type BuildStats struct {
+	ProtoFetchMs  int64
+	ImportFetchMs int64
+	AssembleMs    int64
+	Nodes         int
+	Edges         int
+}
 
 type Builder struct {
 	protos  ProtoSurfaceClient
@@ -29,14 +41,21 @@ func NewBuilder(protos ProtoSurfaceClient, imports ImportFactsClient) *Builder {
 }
 
 func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
+	graph, _, err := b.BuildWithStats(ctx, req)
+	return graph, err
+}
+
+// BuildWithStats is Build plus per-source timing. Build delegates to it.
+func (b *Builder) BuildWithStats(ctx context.Context, req BuildRequest) (Graph, BuildStats, error) {
+	var stats BuildStats
 	if b == nil {
-		return Graph{}, fmt.Errorf("interface graph builder is nil")
+		return Graph{}, stats, fmt.Errorf("interface graph builder is nil")
 	}
 	if b.protos == nil {
-		return Graph{}, fmt.Errorf("proto surface client is not configured")
+		return Graph{}, stats, fmt.Errorf("proto surface client is not configured")
 	}
 	if b.imports == nil {
-		return Graph{}, fmt.Errorf("import facts client is not configured")
+		return Graph{}, stats, fmt.Errorf("import facts client is not configured")
 	}
 
 	var (
@@ -49,14 +68,17 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
+		start := time.Now()
 		protoResp, protoErr = b.protos.DescribeScenariosProtos(ctx, ProtoSurfaceRequest{
 			Scenarios:       req.Scenarios,
 			Limit:           req.Limit,
 			StabilityFilter: req.StabilityFilter,
 		})
+		stats.ProtoFetchMs = time.Since(start).Milliseconds()
 	}()
 	go func() {
 		defer wg.Done()
+		start := time.Now()
 		importResp, importErr = b.imports.DescribeFleetImports(ctx, ImportFactsRequest{
 			Scenarios:      req.Scenarios,
 			Limit:          req.Limit,
@@ -64,14 +86,16 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 			LanguageFilter: req.LanguageFilter,
 			UseCache:       true,
 		})
+		stats.ImportFetchMs = time.Since(start).Milliseconds()
 	}()
 	wg.Wait()
 	if protoErr != nil {
-		return Graph{}, fmt.Errorf("describe proto surfaces: %w", protoErr)
+		return Graph{}, stats, fmt.Errorf("describe proto surfaces: %w", protoErr)
 	}
 	if importErr != nil {
-		return Graph{}, fmt.Errorf("describe fleet imports: %w", importErr)
+		return Graph{}, stats, fmt.Errorf("describe fleet imports: %w", importErr)
 	}
+	assembleStart := time.Now()
 	if protoResp == nil {
 		protoResp = &ProtoSurfaceResponse{}
 	}
@@ -120,6 +144,13 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 			if to == "" || from == "" || from == to || isSharedProtoPackage(to) {
 				continue
 			}
+			// Drop edges whose target is a proto-package name rather than a real
+			// scenario (e.g. a scenario importing its own proto package under a
+			// different name). The go-import path already filters via Attribute;
+			// this keeps the two evidence sources consistent and scenario-scoped.
+			if !attributor.IsKnown(to) {
+				continue
+			}
 			state.addEvidence(from, to, Evidence{
 				Source:   EvidenceProtoImport,
 				FromFile: imp.FromFile,
@@ -150,7 +181,10 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 	if req.MaxScenarioHops > 0 && len(req.Scenarios) > 0 {
 		graph = graph.Neighborhood(req.Scenarios, int(req.MaxScenarioHops))
 	}
-	return graph, nil
+	stats.AssembleMs = time.Since(assembleStart).Milliseconds()
+	stats.Nodes = len(graph.Nodes)
+	stats.Edges = len(graph.Edges)
+	return graph, stats, nil
 }
 
 func scenariosFromRepoRoot(repoRoot string) []string {

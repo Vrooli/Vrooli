@@ -23,6 +23,7 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
 			{Name: "install", Description: "Install a governed dependency into a scenario surface (dry-run by default)", Run: func(args []string) error { return runInstall(core, args) }},
+			{Name: "reconcile", Description: "Add missing local replaces for in-repo go.mod modules (dry-run by default)", Run: func(args []string) error { return runReconcile(core, args) }},
 		},
 	}
 }

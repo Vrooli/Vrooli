@@ -236,68 +236,98 @@ func countInotifyUsage(watchLimit, instanceLimit int) (int, int) {
 	instancesUsed := 0
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		pid := entry.Name()
-		if _, err := strconv.Atoi(pid); err != nil {
+		pid, ok := procPID(entry)
+		if !ok {
 			continue
 		}
 
-		fdinfoPath := filepath.Join("/proc", pid, "fdinfo")
-		fdEntries, err := os.ReadDir(fdinfoPath)
-		if err != nil {
+		if countPIDInotifyUsage(pid, watchLimit, instanceLimit, &watchesUsed, &instancesUsed) {
+			return watchLimit, instanceLimit
+		}
+	}
+
+	return clampToLimit(watchesUsed, watchLimit), clampToLimit(instancesUsed, instanceLimit)
+}
+
+// procPID returns the numeric PID name for a /proc directory entry, reporting
+// ok=false for non-directory or non-numeric entries.
+func procPID(entry os.DirEntry) (string, bool) {
+	if !entry.IsDir() {
+		return "", false
+	}
+	pid := entry.Name()
+	if _, err := strconv.Atoi(pid); err != nil {
+		return "", false
+	}
+	return pid, true
+}
+
+// countPIDInotifyUsage accumulates inotify instance/watch usage for a single
+// PID into the supplied totals. It returns true when both limits have been
+// reached, signalling the caller to short-circuit.
+func countPIDInotifyUsage(pid string, watchLimit, instanceLimit int, watchesUsed, instancesUsed *int) bool {
+	fdinfoPath := filepath.Join("/proc", pid, "fdinfo")
+	fdEntries, err := os.ReadDir(fdinfoPath)
+	if err != nil {
+		return false
+	}
+
+	for _, fdEntry := range fdEntries {
+		watchers, ok := scanInotifyFD(filepath.Join(fdinfoPath, fdEntry.Name()))
+		if !ok {
 			continue
 		}
 
-		for _, fdEntry := range fdEntries {
-			filePath := filepath.Join(fdinfoPath, fdEntry.Name())
-			file, err := os.Open(filePath)
-			if err != nil {
-				continue
-			}
+		*instancesUsed++
+		*watchesUsed += watchers
 
-			scanner := bufio.NewScanner(file)
-			hasInotify := false
-			watchersInFile := 0
+		if watchLimit > 0 && *watchesUsed >= watchLimit && instanceLimit > 0 && *instancesUsed >= instanceLimit {
+			return true
+		}
+	}
 
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.HasPrefix(line, "inotify") {
-					hasInotify = true
-					if strings.HasPrefix(line, "inotify wd:") {
-						watchersInFile++
-					}
-				}
-			}
+	return false
+}
 
-			file.Close()
+// scanInotifyFD inspects a single fdinfo file, returning the number of watchers
+// it represents and ok=true when the descriptor is an inotify instance. A
+// descriptor with no explicit watches counts as a single watcher.
+func scanInotifyFD(filePath string) (int, bool) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, false
+	}
+	defer file.Close()
 
-			if !hasInotify {
-				continue
-			}
+	scanner := bufio.NewScanner(file)
+	hasInotify := false
+	watchersInFile := 0
 
-			instancesUsed++
-			if watchersInFile == 0 {
-				// Treat a descriptor with no explicit watches as at least one watcher
-				watchersInFile = 1
-			}
-			watchesUsed += watchersInFile
-
-			if watchLimit > 0 && watchesUsed >= watchLimit && instanceLimit > 0 && instancesUsed >= instanceLimit {
-				return watchLimit, instanceLimit
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "inotify") {
+			hasInotify = true
+			if strings.HasPrefix(line, "inotify wd:") {
+				watchersInFile++
 			}
 		}
 	}
 
-	if watchLimit > 0 && watchesUsed > watchLimit {
-		watchesUsed = watchLimit
+	if !hasInotify {
+		return 0, false
 	}
-	if instanceLimit > 0 && instancesUsed > instanceLimit {
-		instancesUsed = instanceLimit
+	if watchersInFile == 0 {
+		watchersInFile = 1
 	}
+	return watchersInFile, true
+}
 
-	return watchesUsed, instancesUsed
+// clampToLimit caps value at limit when limit is positive.
+func clampToLimit(value, limit int) int {
+	if limit > 0 && value > limit {
+		return limit
+	}
+	return value
 }
 
 func cloneMap(source map[string]interface{}) map[string]interface{} {

@@ -383,6 +383,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive/review", h.BatchReviewHandler).Methods("PUT")
 	r.HandleFunc("/api/v1/backlog/export", h.Export).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/import", h.Import).Methods("POST")
+
+	// Connect BacklogService — the typed cross-scenario feedback contract
+	// (CreateItem/GetItem). See connect_service.go. Mounted alongside the REST
+	// surface; the REST routes above remain for swarm-manager's own UI.
+	registerBacklogConnectRoutes(r, h)
 }
 
 // Update updates an existing backlog item.

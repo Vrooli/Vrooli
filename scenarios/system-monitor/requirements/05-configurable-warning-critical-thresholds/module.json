@@ -7,7 +7,7 @@
       "id": "REQ-P0-005",
       "title": "Configurable Alert Thresholds",
       "status": "in_progress",
-      "prd_ref": "system-monitor-must-have-configurable-warningcritical-thresholds-via-api-settings-endpoints",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
       "category": "api",
       "description": "System must provide API endpoints to configure warning and critical thresholds for all monitored metrics",
       "validation": [
@@ -27,7 +27,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "API response \u003c 500ms"
+          "notes": "API response < 500ms"
         },
         {
           "type": "test",
@@ -37,5 +37,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P0 > OT-P0-005"
 }

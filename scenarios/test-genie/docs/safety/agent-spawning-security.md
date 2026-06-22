@@ -97,7 +97,7 @@ Agent-manager profiles define the security constraints for execution:
 ### 3. Bash Command Allowlist
 
 The safety preamble specifies which bash commands are allowed:
-- **Test runners**: `pnpm test`, `go test`, `vitest`, `jest`, `bats`, `pytest`
+- **Test runners**: `pnpm test`, `go test`, `vitest`, `jest`, `pytest`
 - **Build commands**: `pnpm build`, `go build`, `make`
 - **Linters**: `eslint`, `prettier`, `gofmt`, `golangci-lint`
 - **Safe inspection**: `ls`, `pwd`, `which`, `wc`, `diff`

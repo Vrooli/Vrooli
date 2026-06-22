@@ -13,10 +13,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
     },
@@ -30,10 +30,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
     },
@@ -47,10 +47,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
     },
@@ -64,10 +64,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
     },
@@ -98,10 +98,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/vrooli/vrooli_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go vrooli scenario-check tests (api/internal/checks/vrooli)"
         }
       ]
     }

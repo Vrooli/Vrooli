@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"resource-claude-code/cli/internal/permissionscli"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/upstreamcheck"
+	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
 )
 
 const (
@@ -14,7 +17,7 @@ const (
 	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
 	// `permissions doctor` warns when the installed claude CLI version
 	// diverges from this string.
-	upstreamPinnedVersion = "2.1.153"
+	upstreamPinnedVersion = "2.1.185"
 )
 
 var (
@@ -54,6 +57,13 @@ func newApp() (*cliapp.ResourceApp, error) {
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
+			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
+				DisplayName:   appName,
+				InstalledCmd:  []string{"claude", "--version"},
+				PinnedVersion: upstreamPinnedVersion,
+				SourceKind:    upstreamcheck.SourceNPM,
+				SourceID:      "@anthropic-ai/claude-code",
+			})),
 		},
 	)
 	return app, nil

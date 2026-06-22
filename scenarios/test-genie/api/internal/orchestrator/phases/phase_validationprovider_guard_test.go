@@ -25,6 +25,7 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		Docs:         "knowledge-observatory",
 		Tidiness:     "tidiness-manager",
 		Performance:  "performance-health",
+		Storage:      "storage-health",
 	}
 	catalog := NewDefaultCatalog(DefaultTimeout)
 	delegatedCount := 0
@@ -62,6 +63,15 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		}
 		if provider.FindingSource != spec.FindingSource {
 			t.Fatalf("%s finding source = %v, want %v", phase, spec.FindingSource, provider.FindingSource)
+		}
+		// IncludeExecution pins which delegates request execution-mode validation:
+		// the provider actually runs its measurements (not just inspects) and gates
+		// on the result. Unit executes the suite, Measures runs its checks, and
+		// Performance benchmarks the Go + UI build and runs Lighthouse-if-UI. Every
+		// other delegate is inspection-only.
+		executionPhases := map[Name]bool{Unit: true, Measures: true, Performance: true}
+		if provider.IncludeExecution != executionPhases[phase] {
+			t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, executionPhases[phase])
 		}
 	}
 }

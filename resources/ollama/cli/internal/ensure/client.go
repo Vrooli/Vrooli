@@ -258,6 +258,37 @@ func (c *Client) Embed(ctx context.Context, model, input string) ([]float64, err
 	return nil, fmt.Errorf("embed: response contained no embedding vector")
 }
 
+// Unload asks Ollama to evict a loaded model from VRAM immediately by issuing a
+// generate with keep_alive=0 (the Ollama-sanctioned way to release a model's
+// GPU memory now). This is the actuation behind the capacity broker's ollama
+// degrade rung — freeing VRAM for a higher-priority interactive workload.
+func (c *Client) Unload(ctx context.Context, model string) error {
+	requestBody := struct {
+		Model     string `json:"model"`
+		KeepAlive int    `json:"keep_alive"`
+		Stream    bool   `json:"stream"`
+	}{Model: model, KeepAlive: 0, Stream: false}
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/generate", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return fmt.Errorf("unload %s: %w", model, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("unload %s: HTTP %d: %s", model, resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	return nil
+}
+
 // GenerateRequest mirrors the relevant subset of POST /api/generate. Stream is
 // always false at this layer — callers wanting NDJSON should add a separate
 // streaming entrypoint when needed.

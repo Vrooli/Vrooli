@@ -7,9 +7,10 @@ import (
 	types "scenario-dependency-analyzer/internal/types"
 )
 
-// DependencyStore loads persisted dependency evidence for graph construction.
+// DependencyStore loads the persisted unified, evidence-tagged graph store used
+// for graph construction and centrality.
 type DependencyStore interface {
-	LoadAllDependencies() ([]types.ScenarioDependency, error)
+	LoadGraphEdges() ([]types.UnifiedGraphEdge, error)
 }
 
 // ScenarioCatalog identifies known scenarios so stale scenario references can be filtered.
@@ -44,7 +45,7 @@ func (b Builder) Generate(graphType string) (*types.DependencyGraph, error) {
 		deps = seams.Default
 	}
 
-	allDeps, err := b.store.LoadAllDependencies()
+	allEdges, err := b.store.LoadGraphEdges()
 	if err != nil {
 		return nil, err
 	}
@@ -60,71 +61,69 @@ func (b Builder) Generate(graphType string) (*types.DependencyGraph, error) {
 	edges := []types.GraphEdge{}
 	nodeSet := make(map[string]bool)
 
-	for _, dep := range allDeps {
-		if graphType == "resource" && dep.DependencyType != "resource" {
+	for _, edge := range allEdges {
+		isResource := edge.Kind == "resource"
+		if graphType == "resource" && !isResource {
 			continue
 		}
-		if graphType == "scenario" && dep.DependencyType == "resource" {
+		if graphType == "scenario" && isResource {
 			continue
 		}
-		if dep.DependencyType == "scenario" && !knownScenario(dep.DependencyName) {
+		if !isResource && !knownScenario(edge.To) {
 			continue
 		}
 
-		if !nodeSet[dep.ScenarioName] {
+		if !nodeSet[edge.From] {
 			nodes = append(nodes, types.GraphNode{
-				ID:    dep.ScenarioName,
-				Label: dep.ScenarioName,
+				ID:    edge.From,
+				Label: edge.From,
 				Type:  "scenario",
 				Group: "scenarios",
 				Metadata: map[string]interface{}{
 					"node_type": "scenario",
 				},
 			})
-			nodeSet[dep.ScenarioName] = true
+			nodeSet[edge.From] = true
 		}
 
-		if !nodeSet[dep.DependencyName] {
-			nodeGroup := "resources"
-			nodeType := "resource"
-			if dep.DependencyType == "scenario" {
-				nodeGroup = "scenarios"
-				nodeType = "scenario"
-			} else if dep.DependencyType == "shared_workflow" {
-				nodeGroup = "workflows"
-				nodeType = "workflow"
+		if !nodeSet[edge.To] {
+			nodeGroup := "scenarios"
+			nodeType := "scenario"
+			if isResource {
+				nodeGroup = "resources"
+				nodeType = "resource"
 			}
 
 			nodes = append(nodes, types.GraphNode{
-				ID:    dep.DependencyName,
-				Label: dep.DependencyName,
+				ID:    edge.To,
+				Label: edge.To,
 				Type:  nodeType,
 				Group: nodeGroup,
 				Metadata: map[string]interface{}{
-					"node_type": dep.DependencyType,
+					"node_type": edge.Kind,
 				},
 			})
-			nodeSet[dep.DependencyName] = true
+			nodeSet[edge.To] = true
 		}
 
 		weight := 1.0
-		if dep.Required {
+		if edge.Required {
 			weight = 2.0
 		}
 
 		edges = append(edges, types.GraphEdge{
-			Source:   dep.ScenarioName,
-			Target:   dep.DependencyName,
-			Label:    dep.DependencyType,
-			Type:     dep.DependencyType,
-			Required: dep.Required,
+			Source:   edge.From,
+			Target:   edge.To,
+			Label:    edge.Source,
+			Type:     edgeType(isResource),
+			Required: edge.Required,
 			Weight:   weight,
 			Metadata: map[string]interface{}{
-				"purpose":       dep.Purpose,
-				"access_method": dep.AccessMethod,
-				"configuration": dep.Configuration,
-				"discovered_at": dep.DiscoveredAt,
-				"last_verified": dep.LastVerified,
+				"evidence_source": edge.Source,
+				"confidence":      edge.Confidence,
+				"evidence":        edge.Evidence,
+				"stale":           edge.Stale,
+				"last_verified":   edge.LastVerified,
 			},
 		})
 	}
@@ -143,6 +142,13 @@ func (b Builder) Generate(graphType string) (*types.DependencyGraph, error) {
 	}
 
 	return graph, nil
+}
+
+func edgeType(isResource bool) string {
+	if isResource {
+		return "resource"
+	}
+	return "scenario"
 }
 
 // CalculateComplexityScore returns a normalized graph density score.

@@ -135,6 +135,14 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	resp.Sections = append(resp.Sections, driftSection)
 	resp.Findings = append(resp.Findings, driftFindings...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, degraded...)
+
+	gomod := collector.Stage("gomod-replace")
+	gomodSection, gomodFindings, gomodDegraded := h.evaluateGoModReplace(ctx, scenario, surfaces)
+	gomod.End()
+
+	resp.Sections = append(resp.Sections, gomodSection)
+	resp.Findings = append(resp.Findings, gomodFindings...)
+	resp.DegradedDependencies = append(resp.DegradedDependencies, gomodDegraded...)
 	finalize(resp)
 	collector.Gauge("findings", float64(len(resp.GetFindings())))
 

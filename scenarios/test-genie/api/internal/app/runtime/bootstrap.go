@@ -131,7 +131,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	// EligibilityService handler. Sharing the instance lets a CLI/GCT
 	// eligibility lookup reuse the scan cache primed by the playbooks
 	// phase (and vice versa).
-	routingEligibility := eligibility.NewChecker(0)
+	routingEligibility := eligibility.NewChecker()
 	phases.SetRoutingChecker(routingEligibility)
 	eligibilityService := appelig.NewService(routingEligibility, cfg.ScenariosRoot)
 

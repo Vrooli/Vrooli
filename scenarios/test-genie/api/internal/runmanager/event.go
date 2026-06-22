@@ -15,6 +15,9 @@ import "test-genie/internal/orchestrator"
 // types plus two synthesized boundaries (run_started / run_completed) and the
 // quiet-phase heartbeat the manager emits on a timer.
 const (
+	// EventRunQueued is emitted when a run is admitted but parked behind the
+	// global concurrency cap; EventRunStarted follows when it is promoted.
+	EventRunQueued      = "run_queued"
 	EventRunStarted     = "run_started"
 	EventPhaseStarted   = "phase_started"
 	EventPhaseProgress  = "phase_progress"

@@ -159,11 +159,11 @@ diagnostics to Unit Health:
 
 **File:** `phase_integration.go`
 
-Exercises higher-level test suites:
+Exercises runtime liveness checks against a started scenario:
 
-- BATS test files under `test/`
-- CLI integration tests
-- Orchestrator listing commands
+- CLI runtime behavior (binary discovery, help/version, unknown-command, no-args)
+- API health endpoint (status + response time)
+- WebSocket connectivity (when a `websocket.path` is configured)
 
 ### playbooks
 

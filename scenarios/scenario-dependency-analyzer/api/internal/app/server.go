@@ -52,11 +52,15 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 	handler := corsMiddleware.Handler(router)
 
 	h := newHandler(rt)
-	registerRoutes(router, h)
+	graphIngest := newGraphIngestService(rt)
+	registerRoutes(router, h, graphIngest)
 	graphapi.RegisterConnectRoutes(router, h.scenariosDir, rt.Store(), graphapi.ConnectOptions{
 		CacheTTL:     cfg.InterfaceGraphCacheTTL,
 		BuildTimeout: cfg.InterfaceGraphBuildTimeout,
 	})
+	if graphIngest != nil {
+		graphIngest.StartSweeper(context.Background())
+	}
 	repoRoot, repoRootErr := repocontract.ResolveRepoRoot()
 	if repoRootErr != nil {
 		log.Printf("dependency-health: could not resolve repo root for maturity spec: %v", repoRootErr)
@@ -108,7 +112,7 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 	return server.ListenAndServe()
 }
 
-func registerRoutes(router *gin.Engine, handler *handler) {
+func registerRoutes(router *gin.Engine, handler *handler, graphIngest *graphIngestService) {
 	router.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
 	router.GET("/api/v1/health/analysis", handler.analysisHealth)
 
@@ -120,6 +124,7 @@ func registerRoutes(router *gin.Engine, handler *handler) {
 		dependenciesapi.RegisterHTTPRoutes(api, handler.dependencyService())
 		coresetapi.RegisterHTTPRoutes(api, handler.scenariosDir)
 		graphapi.RegisterHTTPRoutes(api, handler.graphService(), handler.scenariosDir)
+		graphIngest.RegisterRoutes(api)
 		proposalapi.RegisterHTTPRoutes(api, handler.proposalService())
 		optimizationapi.RegisterHTTPRoutes(api, handler.optimizationService())
 	}

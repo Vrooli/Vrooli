@@ -12,3 +12,9 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Supply-chain safety: refuse dependency versions published less than two weeks
+# ago, so a freshly-compromised release can't be pulled in before the ecosystem
+# (and SDA's CVE scan) has had time to flag it. Enforced by the dependencies
+# governance phase (minimumReleaseAge is in minutes).
+minimumReleaseAge: 20160

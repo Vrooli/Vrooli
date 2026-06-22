@@ -367,133 +367,155 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 		Timestamp: s.clock.Now(),
 	}
 
-	// CPU Details
-	if cpuData != nil {
-		detailed.CPUDetails = models.CPUMetrics{
-			Usage:           getFloat64Value(cpuData.Values, "usage_percent"),
-			LoadAverage:     getFloat64Slice(cpuData.Values, "load_average"),
-			ContextSwitches: getInt64Value(cpuData.Values, "context_switches"),
-			Goroutines:      getIntValue(cpuData.Values, "goroutines"),
-		}
-
-		// Convert top processes
-		for _, proc := range topCPUProcs {
-			detailed.CPUDetails.TopProcesses = append(detailed.CPUDetails.TopProcesses, convertToProcessInfo(proc))
-		}
-	}
-
-	// Memory Details
-	if memData != nil {
-		detailed.MemoryDetails = models.MemoryMetrics{
-			Usage: getFloat64Value(memData.Values, "usage_percent"),
-		}
-
-		// Add swap info
-		if swapInfo, ok := memData.Values["swap"].(map[string]interface{}); ok {
-			detailed.MemoryDetails.SwapUsage = models.SwapInfo{
-				Used:    getInt64Value(swapInfo, "used"),
-				Total:   getInt64Value(swapInfo, "total"),
-				Percent: getFloat64Value(swapInfo, "percent"),
-			}
-		}
-
-		// Add top memory processes
-		for _, proc := range topMemProcs {
-			detailed.MemoryDetails.TopProcesses = append(detailed.MemoryDetails.TopProcesses, convertToProcessInfo(proc))
-		}
-
-		detailed.MemoryDetails.GrowthPatterns = nil
-
-		// Add disk usage from disk collector (stored under MemoryMetrics in proto)
-		if diskData != nil {
-			if diskUsage, ok := diskData.Values["usage"].(map[string]interface{}); ok {
-				detailed.MemoryDetails.DiskUsage = models.DiskInfo{
-					Used:    getInt64Value(diskUsage, "used"),
-					Total:   getInt64Value(diskUsage, "total"),
-					Percent: getFloat64Value(diskUsage, "percent"),
-				}
-			}
-		}
-	}
-
-	// Network Details
-	if netData != nil {
-		// TCP States
-		if states, ok := netData.Values["tcp_states"].(map[string]int); ok {
-			detailed.NetworkDetails.TCPStates = models.TCPConnectionStates{
-				Established: states["established"],
-				TimeWait:    states["time_wait"],
-				CloseWait:   states["close_wait"],
-				Listen:      states["listen"],
-				Total:       states["total"],
-			}
-		}
-
-		// Port Usage
-		if portUsage, ok := netData.Values["port_usage"].(map[string]int); ok {
-			detailed.NetworkDetails.PortUsage = models.PortUsageInfo{
-				Used:  portUsage["used"],
-				Total: portUsage["total"],
-			}
-		}
-
-		// Network Stats - populated from collector data when available
-		if bw, ok := netData.Values["bandwidth"].(map[string]interface{}); ok {
-			detailed.NetworkDetails.NetworkStats = models.NetworkStatistics{
-				BandwidthInMbps:  getFloat64Value(bw, "in_mbps"),
-				BandwidthOutMbps: getFloat64Value(bw, "out_mbps"),
-			}
-		}
-	}
-
-	// System Details
-	if diskData != nil {
-		if fdInfo, ok := diskData.Values["file_descriptors"].(map[string]interface{}); ok {
-			detailed.SystemDetails.FileDescriptors = models.FileDescriptorInfo{
-				Used:    getIntValue(fdInfo, "used"),
-				Max:     getIntValue(fdInfo, "max"),
-				Percent: getFloat64Value(fdInfo, "percent"),
-			}
-		}
-
-		if inotifyInfo, ok := diskData.Values["inotify_watchers"].(map[string]interface{}); ok {
-			info := models.InotifyWatcherInfo{
-				Supported:        getBoolValue(inotifyInfo, "supported"),
-				WatchesUsed:      getIntValue(inotifyInfo, "watches_used"),
-				WatchesMax:       getIntValue(inotifyInfo, "watches_max"),
-				WatchesPercent:   getFloat64Value(inotifyInfo, "watches_percent"),
-				InstancesUsed:    getIntValue(inotifyInfo, "instances_used"),
-				InstancesMax:     getIntValue(inotifyInfo, "instances_max"),
-				InstancesPercent: getFloat64Value(inotifyInfo, "instances_percent"),
-			}
-			detailed.SystemDetails.InotifyWatchers = &info
-		}
-	}
-
-	// GPU Details
-	if gpuData != nil {
-		metrics := models.GPUMetrics{}
-		if summary, ok := gpuData.Values["summary"].(models.GPUSummary); ok {
-			metrics.Summary = summary
-		}
-		if devices, ok := gpuData.Values["devices"].([]models.GPUDeviceMetrics); ok {
-			metrics.Devices = devices
-		}
-		if driver, ok := gpuData.Values["driver_version"].(string); ok {
-			metrics.Driver = driver
-		}
-		if model, ok := gpuData.Values["primary_model"].(string); ok {
-			metrics.Model = model
-		}
-		if warnings, ok := gpuData.Values["warnings"].([]string); ok {
-			metrics.Errors = warnings
-		}
-		detailed.GPUDetails = &metrics
-	}
+	populateCPUDetails(detailed, cpuData, topCPUProcs)
+	populateMemoryDetails(detailed, memData, diskData, topMemProcs)
+	populateNetworkDetails(detailed, netData)
+	populateSystemDetails(detailed, diskData)
+	populateGPUDetails(detailed, gpuData)
 
 	detailed.SystemDetails.ServiceDependencies = s.infra.CheckServiceDependencies()
 
 	return detailed, nil
+}
+
+// populateCPUDetails fills the CPU section of detailed from the cpu collector data.
+func populateCPUDetails(detailed *models.DetailedMetrics, cpuData *collectors.MetricData, topCPUProcs []map[string]interface{}) {
+	if cpuData == nil {
+		return
+	}
+
+	detailed.CPUDetails = models.CPUMetrics{
+		Usage:           getFloat64Value(cpuData.Values, "usage_percent"),
+		LoadAverage:     getFloat64Slice(cpuData.Values, "load_average"),
+		ContextSwitches: getInt64Value(cpuData.Values, "context_switches"),
+		Goroutines:      getIntValue(cpuData.Values, "goroutines"),
+	}
+
+	for _, proc := range topCPUProcs {
+		detailed.CPUDetails.TopProcesses = append(detailed.CPUDetails.TopProcesses, convertToProcessInfo(proc))
+	}
+}
+
+// populateMemoryDetails fills the memory section of detailed (including disk
+// usage, which is stored under MemoryMetrics in proto).
+func populateMemoryDetails(detailed *models.DetailedMetrics, memData, diskData *collectors.MetricData, topMemProcs []map[string]interface{}) {
+	if memData == nil {
+		return
+	}
+
+	detailed.MemoryDetails = models.MemoryMetrics{
+		Usage: getFloat64Value(memData.Values, "usage_percent"),
+	}
+
+	if swapInfo, ok := memData.Values["swap"].(map[string]interface{}); ok {
+		detailed.MemoryDetails.SwapUsage = models.SwapInfo{
+			Used:    getInt64Value(swapInfo, "used"),
+			Total:   getInt64Value(swapInfo, "total"),
+			Percent: getFloat64Value(swapInfo, "percent"),
+		}
+	}
+
+	for _, proc := range topMemProcs {
+		detailed.MemoryDetails.TopProcesses = append(detailed.MemoryDetails.TopProcesses, convertToProcessInfo(proc))
+	}
+
+	detailed.MemoryDetails.GrowthPatterns = nil
+
+	if diskData == nil {
+		return
+	}
+	if diskUsage, ok := diskData.Values["usage"].(map[string]interface{}); ok {
+		detailed.MemoryDetails.DiskUsage = models.DiskInfo{
+			Used:    getInt64Value(diskUsage, "used"),
+			Total:   getInt64Value(diskUsage, "total"),
+			Percent: getFloat64Value(diskUsage, "percent"),
+		}
+	}
+}
+
+// populateNetworkDetails fills the network section of detailed from the network collector data.
+func populateNetworkDetails(detailed *models.DetailedMetrics, netData *collectors.MetricData) {
+	if netData == nil {
+		return
+	}
+
+	if states, ok := netData.Values["tcp_states"].(map[string]int); ok {
+		detailed.NetworkDetails.TCPStates = models.TCPConnectionStates{
+			Established: states["established"],
+			TimeWait:    states["time_wait"],
+			CloseWait:   states["close_wait"],
+			Listen:      states["listen"],
+			Total:       states["total"],
+		}
+	}
+
+	if portUsage, ok := netData.Values["port_usage"].(map[string]int); ok {
+		detailed.NetworkDetails.PortUsage = models.PortUsageInfo{
+			Used:  portUsage["used"],
+			Total: portUsage["total"],
+		}
+	}
+
+	if bw, ok := netData.Values["bandwidth"].(map[string]interface{}); ok {
+		detailed.NetworkDetails.NetworkStats = models.NetworkStatistics{
+			BandwidthInMbps:  getFloat64Value(bw, "in_mbps"),
+			BandwidthOutMbps: getFloat64Value(bw, "out_mbps"),
+		}
+	}
+}
+
+// populateSystemDetails fills the system section of detailed (file descriptors
+// and inotify watchers) from the disk collector data.
+func populateSystemDetails(detailed *models.DetailedMetrics, diskData *collectors.MetricData) {
+	if diskData == nil {
+		return
+	}
+
+	if fdInfo, ok := diskData.Values["file_descriptors"].(map[string]interface{}); ok {
+		detailed.SystemDetails.FileDescriptors = models.FileDescriptorInfo{
+			Used:    getIntValue(fdInfo, "used"),
+			Max:     getIntValue(fdInfo, "max"),
+			Percent: getFloat64Value(fdInfo, "percent"),
+		}
+	}
+
+	if inotifyInfo, ok := diskData.Values["inotify_watchers"].(map[string]interface{}); ok {
+		info := models.InotifyWatcherInfo{
+			Supported:        getBoolValue(inotifyInfo, "supported"),
+			WatchesUsed:      getIntValue(inotifyInfo, "watches_used"),
+			WatchesMax:       getIntValue(inotifyInfo, "watches_max"),
+			WatchesPercent:   getFloat64Value(inotifyInfo, "watches_percent"),
+			InstancesUsed:    getIntValue(inotifyInfo, "instances_used"),
+			InstancesMax:     getIntValue(inotifyInfo, "instances_max"),
+			InstancesPercent: getFloat64Value(inotifyInfo, "instances_percent"),
+		}
+		detailed.SystemDetails.InotifyWatchers = &info
+	}
+}
+
+// populateGPUDetails fills the GPU section of detailed from the gpu collector data.
+func populateGPUDetails(detailed *models.DetailedMetrics, gpuData *collectors.MetricData) {
+	if gpuData == nil {
+		return
+	}
+
+	metrics := models.GPUMetrics{}
+	if summary, ok := gpuData.Values["summary"].(models.GPUSummary); ok {
+		metrics.Summary = summary
+	}
+	if devices, ok := gpuData.Values["devices"].([]models.GPUDeviceMetrics); ok {
+		metrics.Devices = devices
+	}
+	if driver, ok := gpuData.Values["driver_version"].(string); ok {
+		metrics.Driver = driver
+	}
+	if model, ok := gpuData.Values["primary_model"].(string); ok {
+		metrics.Model = model
+	}
+	if warnings, ok := gpuData.Values["warnings"].([]string); ok {
+		metrics.Errors = warnings
+	}
+	detailed.GPUDetails = &metrics
 }
 
 // GetProcessMonitorData retrieves process monitoring information

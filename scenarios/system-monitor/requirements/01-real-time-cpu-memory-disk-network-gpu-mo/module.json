@@ -7,9 +7,9 @@
       "id": "REQ-P0-001",
       "title": "Real-time System Metrics Collection",
       "status": "in_progress",
-      "prd_ref": "system-monitor-must-have-real-time-cpu-memory-disk-network-gpu-monitoring",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
       "category": "core",
-      "description": "System must collect and expose real-time metrics for CPU, memory, disk, network, and GPU utilization with \u003c 100ms latency",
+      "description": "System must collect and expose real-time metrics for CPU, memory, disk, network, and GPU utilization with < 100ms latency",
       "validation": [
         {
           "type": "test",
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Collection latency \u003c 100ms"
+          "notes": "Collection latency < 100ms"
         },
         {
           "type": "test",
@@ -49,5 +49,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P0 > OT-P0-001"
 }

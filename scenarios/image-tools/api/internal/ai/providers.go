@@ -51,7 +51,12 @@ type argBuilder func(req backends.Request, modelDir string) ([]string, error)
 type execProvider struct {
 	name       string
 	program    string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
-	ops        []string
+	// programAliases are preferred program names tried (in order) on PATH before
+	// program. They let an optional GPU build install under a distinct command
+	// (e.g. "sd-gpu") and be picked up automatically without colliding with the
+	// base CPU launcher's command name. Empty for backends with no GPU variant.
+	programAliases []string
+	ops            []string
 	build      argBuilder
 	gpuCapable bool // can this backend (the TYPE) use the GPU? (CPU-only sidecars: false)
 	provision  string
@@ -92,6 +97,23 @@ func (p *execProvider) IsCloud() bool        { return false }
 // stable-diffusion.cpp release with no CUDA/Vulkan backend compiled in runs on
 // the CPU regardless of a GPU on the host, so claiming local-gpu would be a lie
 // (the user sees "Running on your GPU" while the binary reports VRAM 0.00MB).
+// programName returns the program this provider should invoke: the first of its
+// programAliases that resolves on PATH (a GPU build like "sd-gpu"), else the
+// base program ("sd"). Resolution is cheap (a PATH lookup) and done per call so
+// installing a GPU build at runtime is picked up without a restart.
+func (p *execProvider) programName() string {
+	lookPath := p.lookPath
+	if lookPath == nil {
+		lookPath = exec.LookPath
+	}
+	for _, alias := range p.programAliases {
+		if _, err := lookPath(alias); err == nil {
+			return alias
+		}
+	}
+	return p.program
+}
+
 func (p *execProvider) GPUCapable() bool {
 	if !p.gpuCapable {
 		return false
@@ -100,9 +122,9 @@ func (p *execProvider) GPUCapable() bool {
 		return true
 	}
 	p.gpuProbeOnce.Do(func() {
-		program := p.program
+		program := p.programName()
 		if p.lookPath != nil {
-			if resolved, err := p.lookPath(p.program); err == nil {
+			if resolved, err := p.lookPath(program); err == nil {
 				program = resolved
 			} else {
 				return // not installed → leave gpuProbeValue false
@@ -126,7 +148,8 @@ func (p *execProvider) Availability(ctx context.Context) backends.Availability {
 	if lookPath == nil {
 		lookPath = exec.LookPath
 	}
-	resolved, err := lookPath(p.program)
+	program := p.programName()
+	resolved, err := lookPath(program)
 	if err == nil {
 		if len(p.imports) > 0 {
 			check := p.checkPy
@@ -163,13 +186,13 @@ func (p *execProvider) Availability(ctx context.Context) backends.Availability {
 		}
 		return backends.Availability{
 			Available: true,
-			Detail:    fmt.Sprintf("%s resolved at %s", p.program, resolved),
+			Detail:    fmt.Sprintf("%s resolved at %s", program, resolved),
 			Provision: p.provision,
 		}
 	}
 	return backends.Availability{
 		Available: false,
-		Detail:    fmt.Sprintf("%s not found on PATH", p.program),
+		Detail:    fmt.Sprintf("%s not found on PATH", program),
 		Provision: p.provision,
 	}
 }
@@ -241,8 +264,9 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	if err != nil {
 		return backends.Result{}, fmt.Errorf("ai: backend %q build args: %w", p.name, err)
 	}
+	program := p.programName()
 	if p.warm != nil {
-		if err := p.warm.Run(ctx, p.program, args); err == nil {
+		if err := p.warm.Run(ctx, program, args); err == nil {
 			return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name, "runner": "warm"}}, nil
 		}
 	}
@@ -259,7 +283,7 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 				req.Progress(frac, msg)
 			}
 		}
-		if err := stream(ctx, p.program, args, onLine); err != nil {
+		if err := stream(ctx, program, args, onLine); err != nil {
 			return backends.Result{}, fmt.Errorf("ai: backend %q execution failed: %w", p.name, err)
 		}
 		return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name, "runner": "stream"}}, nil
@@ -268,7 +292,7 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	if run == nil {
 		run = defaultRun
 	}
-	if err := run(ctx, p.program, args); err != nil {
+	if err := run(ctx, program, args); err != nil {
 		return backends.Result{}, fmt.Errorf("ai: backend %q execution failed: %w", p.name, err)
 	}
 	return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name}}, nil
@@ -795,11 +819,12 @@ func onnxModelPath(req backends.Request, modelDir string) string {
 // providerSpec declares one standalone backend provider, keyed by the registry
 // `backend` name so the selector's match-by-backend path lines up.
 type providerSpec struct {
-	name       string
-	program    string // binary/interpreter resolved on PATH
-	ops        []string
-	build      argBuilder
-	gpuCapable bool // backend can use the GPU (false for the CPU-only onnx sidecar)
+	name           string
+	program        string   // binary/interpreter resolved on PATH
+	programAliases []string // preferred GPU-build commands tried before program (e.g. "sd-gpu")
+	ops            []string
+	build          argBuilder
+	gpuCapable     bool // backend can use the GPU (false for the CPU-only onnx sidecar)
 	// hostTool is the platform host-tool NAME this backend depends on (the
 	// cross-module contract: the scenario declares it in service.json hostTools
 	// and the platform defines it in internal/tools/<hostTool>/tool.json). The
@@ -969,7 +994,7 @@ func (p *llamaCppProvider) resolveProgram() (string, error) {
 
 func providerSpecs() []providerSpec {
 	return []providerSpec{
-		{name: "stable-diffusion.cpp", program: "sd", ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true, hostTool: "sd"},
+		{name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true, hostTool: "sd"},
 		{name: "diffusers", program: "python3", ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, hostTool: "python", pipDeps: []string{"diffusers", "torch", "Pillow"}, imports: []string{"diffusers", "torch", "PIL"}},
 		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true, hostTool: "iopaint"},
 		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale", "denoise"}, build: buildRealesrgan, gpuCapable: true, hostTool: "realesrgan-ncnn-vulkan"},
@@ -984,7 +1009,7 @@ func providerSpecs() []providerSpec {
 // lookPath/run to use the real os/exec implementations.
 func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner) error {
 	for _, s := range providerSpecs() {
-		p := &execProvider{name: s.name, program: s.program, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
+		p := &execProvider{name: s.name, program: s.program, programAliases: s.programAliases, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
 		if s.name == "onnxruntime" && run == nil {
 			p.warm = newWarmSidecarRunner()
 		}

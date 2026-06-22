@@ -13,10 +13,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
     },
@@ -30,10 +30,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
     },
@@ -47,10 +47,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
     },
@@ -64,10 +64,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
     },
@@ -98,10 +98,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/vrooli-autoheal.bats",
-          "phase": "cli",
+          "ref": "api/internal/checks/registry_test.go",
+          "phase": "unit",
           "status": "planned",
-          "notes": "CLI tests pending implementation"
+          "notes": "Covered by Go health-registry tests (api/internal/checks)"
         }
       ]
     }

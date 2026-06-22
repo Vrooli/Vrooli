@@ -4,18 +4,18 @@ This document outlines critical safety measures to prevent dangerous behaviors i
 
 ## 🚨 Critical Safety Rules
 
-### 1. BATS Teardown Safety
+### 1. Cleanup Function Safety
 
-**NEVER** use unguarded wildcard patterns in teardown functions:
+**NEVER** use unguarded wildcard patterns in shell cleanup functions:
 
 ```bash
 # DANGEROUS - Can delete everything if TEST_FILE_PREFIX is empty
-teardown() {
+cleanup() {
     rm -f "${TEST_FILE_PREFIX}"*
 }
 
 # SAFE - Always guard with proper checks
-teardown() {
+cleanup() {
     if [ -n "${TEST_FILE_PREFIX:-}" ] && [ "${TEST_FILE_PREFIX}" != "/" ]; then
         case "${TEST_FILE_PREFIX}" in
             /tmp/*)
@@ -29,19 +29,17 @@ teardown() {
 }
 ```
 
-**Why this happens:** BATS teardown functions run even when tests are skipped. If setup() calls `skip` before setting variables, teardown() runs with empty variables.
+**Why this matters:** Cleanup functions can run with unset variables (for example when setup exits early). If a variable is empty, an unguarded `rm -f "$VAR"*` expands to `rm -f *` in the current directory.
 
-**See**: [BATS Teardown Bug Case Study](bats-teardown-bug.md) for a real-world incident analysis.
+### 2. Setup Order
 
-### 2. Setup Function Order
-
-**ALWAYS** set critical variables before any skip conditions:
+**ALWAYS** set critical variables before any early-exit conditions:
 
 ```bash
 # DANGEROUS - Variables not set if CLI missing
 setup() {
     if ! command -v my-cli >/dev/null 2>&1; then
-        skip "CLI not installed"
+        return 0   # early exit before variables are set
     fi
     export TEST_FILE_PREFIX="/tmp/my-test"  # Never reached if CLI missing
 }
@@ -50,7 +48,7 @@ setup() {
 setup() {
     export TEST_FILE_PREFIX="/tmp/my-test"  # Always set
     if ! command -v my-cli >/dev/null 2>&1; then
-        skip "CLI not installed"
+        return 0
     fi
 }
 ```
@@ -90,20 +88,6 @@ TEST_DIR="/tmp/my-scenario-test-$$"  # Include PID for uniqueness
 ```
 
 ## 🔧 Implementation Patterns
-
-### BATS Template Pattern
-
-Use our safe BATS template:
-
-```bash
-# Copy the safe template
-cp scripts/scenarios/testing/templates/bats/cli-test.bats.template \
-   scenarios/my-scenario/cli/my-cli.bats
-
-# Customize for your CLI
-sed -i 's/REPLACE_WITH_YOUR_CLI_NAME/my-cli/g' \
-   scenarios/my-scenario/cli/my-cli.bats
-```
 
 ### Variable Safety Checks
 
@@ -154,8 +138,7 @@ cleanup_test_files() {
 Before committing test scripts, verify:
 
 - [ ] All `rm` commands are guarded with path validation
-- [ ] BATS setup() sets variables before skip conditions
-- [ ] BATS teardown() validates variables before cleanup
+- [ ] Cleanup functions validate variables before deleting
 - [ ] Test files are created under `/tmp` or other safe location
 - [ ] Wildcard patterns (`*`) are never used with empty variables
 - [ ] Error handling prevents cascading failures
@@ -455,6 +438,4 @@ Remember: **Data safety is more important than test convenience.**
 
 ## See Also
 
-- [BATS Teardown Bug Case Study](bats-teardown-bug.md) - Real incident analysis
-- [CLI Testing Guide](../phases/integration/cli-testing.md) - BATS testing patterns
 - [Troubleshooting](../guides/troubleshooting.md) - Debug common issues

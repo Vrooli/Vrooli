@@ -35,6 +35,7 @@ type (
 
 // Run status values recorded in the index.
 const (
+	StatusQueued     = runindex.StatusQueued
 	StatusInProgress = runindex.StatusInProgress
 	StatusPassed     = runindex.StatusPassed
 	StatusFailed     = runindex.StatusFailed

@@ -39,6 +39,12 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "actual") {
 		return runActual(core, args[1:])
 	}
+	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "rebuild") {
+		return runRebuild(core, args[1:])
+	}
+	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "sweeper") {
+		return runSweeper(core, args[1:])
+	}
 
 	fs := support.NewFlagSet("graph")
 	var graphType string

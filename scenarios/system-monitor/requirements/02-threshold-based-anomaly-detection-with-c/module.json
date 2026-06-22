@@ -7,7 +7,7 @@
       "id": "REQ-P0-002",
       "title": "Configurable Anomaly Detection",
       "status": "in_progress",
-      "prd_ref": "system-monitor-must-have-threshold-based-anomaly-detection-with-configurable-triggers",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
       "category": "core",
       "description": "System must implement threshold-based anomaly detection with user-configurable warning and critical thresholds for all metric types",
       "validation": [
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Detection latency \u003c 30s"
+          "notes": "Detection latency < 30s"
         },
         {
           "type": "test",
@@ -43,5 +43,6 @@
         }
       ]
     }
-  ]
+  ],
+  "prd_ref": "Operational Targets > P0 > OT-P0-002"
 }

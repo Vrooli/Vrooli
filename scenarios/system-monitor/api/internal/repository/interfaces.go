@@ -225,3 +225,29 @@ type AggregationQuery struct {
 	Function   string // avg, sum, max, min, count
 	GroupBy    []string
 }
+
+// DefaultThresholds returns the built-in threshold set used by repository
+// implementations when no thresholds have been configured. Centralising the
+// defaults keeps the in-memory and SQLite repositories in sync.
+func DefaultThresholds() []*models.Threshold {
+	return []*models.Threshold{
+		{
+			MetricName:        "cpu_usage",
+			Min:               0,
+			Max:               100,
+			WarningThreshold:  80,
+			CriticalThreshold: 95,
+			CheckInterval:     60,
+			Enabled:           true,
+		},
+		{
+			MetricName:        "memory_usage",
+			Min:               0,
+			Max:               100,
+			WarningThreshold:  85,
+			CriticalThreshold: 95,
+			CheckInterval:     60,
+			Enabled:           true,
+		},
+	}
+}

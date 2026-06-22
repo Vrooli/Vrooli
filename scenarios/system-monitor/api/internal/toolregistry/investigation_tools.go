@@ -125,31 +125,44 @@ func (p *InvestigationToolProvider) triggerInvestigationTool() *toolspb.ToolDefi
 	}
 }
 
-func (p *InvestigationToolProvider) checkInvestigationStatusTool() *toolspb.ToolDefinition {
+// investigationIDToolSpec captures the fields that vary between the simple
+// "act on an investigation by ID" tools (status check, stop).
+type investigationIDToolSpec struct {
+	name            string
+	description     string
+	idParamDesc     string
+	timeoutSeconds  int32
+	rateLimitPerMin int32
+	tags            []string
+	exampleTitle    string
+}
+
+// investigationIDTool builds a ToolDefinition for a tool whose only parameter is
+// a required investigation_id. It single-sources the shared shape of the
+// status-check and stop tools.
+func (p *InvestigationToolProvider) investigationIDTool(spec investigationIDToolSpec) *toolspb.ToolDefinition {
 	return &toolspb.ToolDefinition{
-		Name:        "check_investigation_status",
-		Description: "Check the current status and progress of a running or completed investigation. Returns status, progress percentage, findings, and details.",
+		Name:        spec.name,
+		Description: spec.description,
 		Category:    "investigation",
 		Parameters: NewObjectParams(
 			map[string]*toolspb.ParameterSchema{
-				"investigation_id": NewStringParam(
-					"The ID of the investigation to check. This is returned when triggering an investigation.",
-				),
+				"investigation_id": NewStringParam(spec.idParamDesc),
 			},
 			[]string{"investigation_id"},
 		),
 		Metadata: &toolspb.ToolMetadata{
 			EnabledByDefault:   true,
 			RequiresApproval:   false,
-			TimeoutSeconds:     10,
-			RateLimitPerMinute: 60,
+			TimeoutSeconds:     spec.timeoutSeconds,
+			RateLimitPerMinute: spec.rateLimitPerMin,
 			CostEstimate:       "low",
 			LongRunning:        false,
 			Idempotent:         true,
-			Tags:               []string{"investigation", "status", "monitoring"},
+			Tags:               spec.tags,
 			Examples: []*toolspb.ToolExample{
 				NewToolExample(
-					"Check investigation progress",
+					spec.exampleTitle,
 					map[string]interface{}{
 						"investigation_id": "inv_1234567890",
 					},
@@ -157,6 +170,18 @@ func (p *InvestigationToolProvider) checkInvestigationStatusTool() *toolspb.Tool
 			},
 		},
 	}
+}
+
+func (p *InvestigationToolProvider) checkInvestigationStatusTool() *toolspb.ToolDefinition {
+	return p.investigationIDTool(investigationIDToolSpec{
+		name:            "check_investigation_status",
+		description:     "Check the current status and progress of a running or completed investigation. Returns status, progress percentage, findings, and details.",
+		idParamDesc:     "The ID of the investigation to check. This is returned when triggering an investigation.",
+		timeoutSeconds:  10,
+		rateLimitPerMin: 60,
+		tags:            []string{"investigation", "status", "monitoring"},
+		exampleTitle:    "Check investigation progress",
+	})
 }
 
 func (p *InvestigationToolProvider) getLatestInvestigationTool() *toolspb.ToolDefinition {
@@ -185,37 +210,15 @@ func (p *InvestigationToolProvider) getLatestInvestigationTool() *toolspb.ToolDe
 }
 
 func (p *InvestigationToolProvider) stopInvestigationTool() *toolspb.ToolDefinition {
-	return &toolspb.ToolDefinition{
-		Name:        "stop_investigation",
-		Description: "Stop a running investigation. Use this to cancel an investigation that is taking too long or is no longer needed.",
-		Category:    "investigation",
-		Parameters: NewObjectParams(
-			map[string]*toolspb.ParameterSchema{
-				"investigation_id": NewStringParam(
-					"The ID of the investigation to stop.",
-				),
-			},
-			[]string{"investigation_id"},
-		),
-		Metadata: &toolspb.ToolMetadata{
-			EnabledByDefault:   true,
-			RequiresApproval:   false,
-			TimeoutSeconds:     15,
-			RateLimitPerMinute: 30,
-			CostEstimate:       "low",
-			LongRunning:        false,
-			Idempotent:         true,
-			Tags:               []string{"investigation", "cancellation", "lifecycle"},
-			Examples: []*toolspb.ToolExample{
-				NewToolExample(
-					"Stop a running investigation",
-					map[string]interface{}{
-						"investigation_id": "inv_1234567890",
-					},
-				),
-			},
-		},
-	}
+	return p.investigationIDTool(investigationIDToolSpec{
+		name:            "stop_investigation",
+		description:     "Stop a running investigation. Use this to cancel an investigation that is taking too long or is no longer needed.",
+		idParamDesc:     "The ID of the investigation to stop.",
+		timeoutSeconds:  15,
+		rateLimitPerMin: 30,
+		tags:            []string{"investigation", "cancellation", "lifecycle"},
+		exampleTitle:    "Stop a running investigation",
+	})
 }
 
 func (p *InvestigationToolProvider) generateReportTool() *toolspb.ToolDefinition {

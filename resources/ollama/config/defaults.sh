@@ -4,7 +4,7 @@
 # This file contains all configuration constants and defaults for the Ollama resource
 
 # Ollama version configuration
-readonly OLLAMA_VERSION="${OLLAMA_CUSTOM_VERSION:-v0.11.7}"  # Specific version for consistency
+readonly OLLAMA_VERSION="${OLLAMA_CUSTOM_VERSION:-v0.30.10}"  # Specific version for consistency; 0.30.x reworked tool-call parsing (older 0.11.x mis-parsed qwen2.5-coder tool calls as text)
 
 # Ollama service configuration
 readonly OLLAMA_PORT="${OLLAMA_CUSTOM_PORT:-$(resources::get_default_port "ollama" 2>/dev/null || echo "11434")}"

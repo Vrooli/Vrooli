@@ -281,6 +281,33 @@ type GraphCentralityMetric struct {
 	TransitiveDependents             []string `json:"transitive_dependents,omitempty"`
 }
 
+// UnifiedGraphEdge is one merged, evidence-tagged edge in the persisted
+// cross-scenario dependency graph. It is the single source of truth that powers
+// `/graph/*` and centrality. A single (From,To) pair carries the union of every
+// source that attests it, the highest-confidence source, and OR-ed required-ness.
+type UnifiedGraphEdge struct {
+	From         string                `json:"from"`
+	To           string                `json:"to"`
+	Kind         string                `json:"kind"`            // "scenario" | "resource"
+	Source       string                `json:"evidence_source"` // highest-confidence attesting source
+	Confidence   float64               `json:"confidence"`      // max confidence across sources, [0,1]
+	Required     bool                  `json:"required"`
+	Evidence     []UnifiedEdgeEvidence `json:"evidence"`
+	Stale        bool                  `json:"stale"`         // last-good retained edge (source was unavailable)
+	LastVerified time.Time             `json:"last_verified"` // last time a live source re-attested this edge
+}
+
+// UnifiedEdgeEvidence is one piece of provenance behind a UnifiedGraphEdge.
+type UnifiedEdgeEvidence struct {
+	Source     string `json:"source"`
+	ImportPath string `json:"import_path,omitempty"`
+	FromFile   string `json:"from_file,omitempty"`
+	ToFile     string `json:"to_file,omitempty"`
+	Path       string `json:"path,omitempty"`
+	Analyzer   string `json:"analyzer,omitempty"`
+	Detail     string `json:"detail,omitempty"`
+}
+
 // AnalysisRequest wraps a request for dependency analysis.
 type AnalysisRequest struct {
 	ScenarioName      string `json:"scenario_name"`

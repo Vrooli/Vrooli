@@ -211,6 +211,14 @@ func (c *OpenCode) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 		"--format", "json",
 		"--print-logs", // surface logs to stderr for the PostClassify fallback
 	}
+	// `opencode run` attaches to a shared OpenCode server that resolves its
+	// own project directory and ignores the launched process's cwd. Without
+	// --dir the session executes in the server's directory (often the repo
+	// root), so an in-place run scoped to one path can write files into a
+	// different tree entirely. Pin the session to the run's WorkingDir.
+	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
+		args = append(args, "--dir", dir)
+	}
 	cfg := req.GetConfig()
 	if cfg.Model != "" {
 		args = append(args, "-m", cfg.Model)
@@ -232,6 +240,10 @@ func (c *OpenCode) BuildContinueArgs(_ State, req runner.ContinueRequest) []stri
 		"--session", req.SessionID,
 		"--format", "json",
 		"--print-logs",
+	}
+	// Pin the resumed session to the run's WorkingDir — see BuildArgs.
+	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
+		args = append(args, "--dir", dir)
 	}
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	return args
@@ -393,6 +405,54 @@ func (c *OpenCode) OnEarlyTerminate(state State, _ string) bool {
 	return s.stepTermina
 }
 
+// openCodeNoOpExitCode is the synthetic exit code stamped on a run that
+// exited cleanly but executed zero tool calls (a no-op). The process really
+// exited 0; this marks the reclassified failure so it is not mistaken for a
+// genuine non-zero process exit.
+const openCodeNoOpExitCode = 1
+
+// openCodeNoOpErrorMessage explains a zero-tool-call no-op run, adding a
+// model/template hint when the agent emitted a tool call as plain text.
+func openCodeNoOpErrorMessage(summary *domain.RunSummary) string {
+	base := "opencode run made no tool calls — the agent took no action (no files read or changed), so the run did no work"
+	if summary != nil && looksLikeUnexecutedToolCall(summary.Description) {
+		return base + "; the model emitted a tool call as text instead of executing it. " +
+			"This happens with Ollama models whose template does not return structured tool_calls (e.g. qwen2.5-coder); " +
+			"use a tool-calling-capable model such as llama3.1, llama3.2, or mistral, or an OpenRouter model"
+	}
+	return base
+}
+
+// looksLikeUnexecutedToolCall reports whether text is (just) a tool call
+// rendered as JSON — an object carrying a function name and arguments,
+// optionally wrapped in a ``` fence. A well-behaved run never leaves a raw
+// tool-call blob as its final assistant message, so this is a strong signal
+// the model narrated a tool call instead of invoking it.
+func looksLikeUnexecutedToolCall(text string) bool {
+	t := strings.TrimSpace(text)
+	if strings.HasPrefix(t, "```") {
+		if i := strings.IndexByte(t, '\n'); i >= 0 {
+			t = t[i+1:]
+		}
+		t = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(t), "```"))
+	}
+	if !strings.HasPrefix(t, "{") {
+		return false
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(t), &obj); err != nil {
+		return false
+	}
+	if _, hasName := obj["name"]; !hasName {
+		return false
+	}
+	_, hasArgs := obj["arguments"]
+	if !hasArgs {
+		_, hasArgs = obj["parameters"]
+	}
+	return hasArgs
+}
+
 // PostClassify satisfies [Codec]. When the wrapper exits with only an
 // exit-status string (typical for opencode subprocess crashes), tail
 // the latest log file and substitute the most recent error message.
@@ -401,6 +461,18 @@ func (c *OpenCode) PostClassify(_ State, result *runner.ExecuteResult) {
 		return
 	}
 	if result.Success {
+		// A clean exit that executed zero tool calls did no observable work.
+		// For an agentic coding runner this is a no-op, not a success — even
+		// reading a file is a tool call. The most common cause: some Ollama
+		// model templates (e.g. qwen2.5-coder) return tool calls as message
+		// text instead of structured tool_calls, so opencode never executes
+		// them. Reclassify so the run reports as failed rather than as a
+		// silent false success.
+		if result.Metrics.ToolCallCount == 0 {
+			result.Success = false
+			result.ExitCode = openCodeNoOpExitCode
+			result.ErrorMessage = openCodeNoOpErrorMessage(result.Summary)
+		}
 		return
 	}
 	msg := strings.TrimSpace(result.ErrorMessage)

@@ -38,7 +38,7 @@ test-genie execute my-scenario --preset smoke
 | Quality | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. | 2m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
 | Business | Audits requirements modules to guarantee operational targets stay mapped. | 15m |
-| Integration | Exercises the CLI/Bats suite plus scenario-local orchestrator listings. | 15m |
+| Integration | Exercises CLI runtime behavior, API health, and WebSocket connectivity. | 15m |
 | Proto | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. | 2m |
 
 ### Architecture Audit
@@ -77,10 +77,11 @@ test-genie execute my-scenario --preset comprehensive
 | Dependencies | Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService. | 15m |
 | Quality | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. | 2m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
-| Performance | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService. | 5m |
+| Performance | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result. | 5m |
 | Smoke | Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors. | 15m |
 | Unit | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. | 15m |
-| Integration | Exercises the CLI/Bats suite plus scenario-local orchestrator listings. | 15m |
+| Integration | Exercises CLI runtime behavior, API health, and WebSocket connectivity. | 15m |
+| Storage | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database. | 2m |
 | Playbooks | Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows. | 15m |
 | Business | Audits requirements modules to guarantee operational targets stay mapped. | 15m |
 | Tidiness | Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel. | 2m |
@@ -104,6 +105,7 @@ test-genie execute my-scenario --preset comprehensive
 | Smoke | No | No | No | Yes |
 | Unit | Yes | No | No | Yes |
 | Integration | No | Yes | No | Yes |
+| Storage | No | No | No | Yes |
 | Playbooks | No | No | No | Yes |
 | Business | Yes | Yes | No | Yes |
 | Tidiness | No | No | No | Yes |

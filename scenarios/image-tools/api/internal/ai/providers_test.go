@@ -637,3 +637,38 @@ func argErr(b argBuilder, req backends.Request) bool {
 	_, err := b(req, req.ModelDir)
 	return err != nil
 }
+
+// TestExecProvider_PrefersGPUAlias verifies the stable-diffusion.cpp provider
+// resolves its GPU-build alias ("sd-gpu") ahead of the base "sd" command when
+// the alias is on PATH, and falls back to "sd" otherwise. This is what lets
+// `vrooli host install sd-gpu` flip the backend to the GPU build (and the tier
+// to local-gpu) without a restart or a launcher collision.
+func TestExecProvider_PrefersGPUAlias(t *testing.T) {
+	tests := []struct {
+		name    string
+		present map[string]bool
+		want    string
+	}{
+		{name: "alias present wins", present: map[string]bool{"sd-gpu": true, "sd": true}, want: "sd-gpu"},
+		{name: "only base present", present: map[string]bool{"sd": true}, want: "sd"},
+		{name: "alias only", present: map[string]bool{"sd-gpu": true}, want: "sd-gpu"},
+		{name: "neither present falls back to base", present: map[string]bool{}, want: "sd"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &execProvider{
+				program:        "sd",
+				programAliases: []string{"sd-gpu"},
+				lookPath: func(name string) (string, error) {
+					if tc.present[name] {
+						return "/fake/bin/" + name, nil
+					}
+					return "", errors.New("not found")
+				},
+			}
+			if got := p.programName(); got != tc.want {
+				t.Errorf("programName() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

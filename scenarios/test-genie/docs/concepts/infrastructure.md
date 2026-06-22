@@ -67,7 +67,7 @@ scenario/
 ├── ui/src/
 │   └── **/*.test.tsx        # Vitest unit tests
 └── cli/
-    └── *.bats               # CLI BATS tests (if applicable)
+    └── **/*_test.go         # CLI Go tests
 ```
 
 ### Coverage Output

@@ -102,7 +102,6 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 
 ### Safety (Read First!)
 - [Safety Guidelines](safety/GUIDELINES.md) - **CRITICAL** - Prevent data loss in test scripts
-- [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
 
 ### Phase Documentation
 - [Phases Overview](phases/README.md) - phase architecture with mermaid diagrams
@@ -122,7 +121,6 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests
-- [CLI Testing](phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
 - [UI Automation with BAS](phases/playbooks/ui-automation-with-bas.md) - Vrooli Ascension workflows
 - [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation on Browser Automation Studio
@@ -266,7 +264,6 @@ START: What are you testing?
 |
 +-- Safety Concerns?
 |   +-- Tests deleting files --> Safety Guidelines (URGENT)
-|   +-- BATS teardown issues --> BATS Teardown Bug
 |   +-- Script safety --> Safety Guidelines + Linter
 |
 +-- Debugging/Issues?
@@ -285,7 +282,7 @@ START: What are you testing?
 
 1. **NEVER** use unguarded `rm` commands in test scripts
 2. **ALWAYS** validate variables before file operations
-3. **SET** critical variables before skip conditions in BATS
+3. **SET** critical variables before any early-exit conditions in shell scripts
 4. **PREFER** Go tests over bash scripts for new development
 5. **RUN** the safety linter before committing any shell test scripts
 

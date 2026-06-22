@@ -22,81 +22,65 @@ func newTestAlertService(t *testing.T, clk Clock, cooldownMinutes int) *AlertSer
 	return NewAlertService(cfg, repo, WithAlertClock(clk))
 }
 
-func TestAlertCooldownPreventsSpam(t *testing.T) {
-	clk := NewStubClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
-	svc := newTestAlertService(t, clk, 5) // 5-minute cooldown
+// twoAlertScenario describes a "create alert, advance the clock, create a second
+// alert, then assert the active-alert count" test flow. It single-sources the
+// boilerplate shared by the cooldown tests.
+type twoAlertScenario struct {
+	cooldownMinutes int
+	firstAlert      *models.Alert
+	advance         time.Duration
+	secondAlert     *models.Alert
+	wantActive      int
+}
 
+// runTwoAlertScenario executes the scenario and asserts the resulting active
+// alert count, failing the test on any unexpected error.
+func runTwoAlertScenario(t *testing.T, sc twoAlertScenario) {
+	t.Helper()
+
+	clk := NewStubClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	svc := newTestAlertService(t, clk, sc.cooldownMinutes)
 	ctx := context.Background()
 
-	// First alert should succeed
-	err := svc.CreateAlert(ctx, &models.Alert{
-		MetricName: "cpu",
-		Severity:   "high",
-		Message:    "high cpu",
-	})
-	if err != nil {
+	if err := svc.CreateAlert(ctx, sc.firstAlert); err != nil {
 		t.Fatalf("first alert failed: %v", err)
 	}
 
-	// Advance 2 minutes - still in cooldown
-	clk.Advance(2 * time.Minute)
+	clk.Advance(sc.advance)
 
-	// Second alert for same metric - should be silently dropped (cooldown)
-	err = svc.CreateAlert(ctx, &models.Alert{
-		MetricName: "cpu",
-		Severity:   "high",
-		Message:    "high cpu again",
-	})
-	if err != nil {
-		t.Fatalf("second alert should succeed (silently dropped): %v", err)
+	if err := svc.CreateAlert(ctx, sc.secondAlert); err != nil {
+		t.Fatalf("second alert failed: %v", err)
 	}
 
-	// Only 1 alert should be stored (second was dropped by cooldown)
 	alerts, err := svc.GetActiveAlerts(ctx)
 	if err != nil {
 		t.Fatalf("get alerts failed: %v", err)
 	}
-	if len(alerts) != 1 {
-		t.Errorf("expected 1 alert (cooldown dropped second), got %d", len(alerts))
+	if len(alerts) != sc.wantActive {
+		t.Errorf("expected %d active alerts, got %d", sc.wantActive, len(alerts))
 	}
 }
 
+func TestAlertCooldownPreventsSpam(t *testing.T) {
+	// Second alert lands inside the 5-minute cooldown and is silently dropped.
+	runTwoAlertScenario(t, twoAlertScenario{
+		cooldownMinutes: 5,
+		firstAlert:      &models.Alert{MetricName: "cpu", Severity: "high", Message: "high cpu"},
+		advance:         2 * time.Minute,
+		secondAlert:     &models.Alert{MetricName: "cpu", Severity: "high", Message: "high cpu again"},
+		wantActive:      1,
+	})
+}
+
 func TestAlertCooldownExpires(t *testing.T) {
-	clk := NewStubClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
-	svc := newTestAlertService(t, clk, 5)
-
-	ctx := context.Background()
-
-	// First alert
-	err := svc.CreateAlert(ctx, &models.Alert{
-		MetricName: "memory",
-		Severity:   "critical",
-		Message:    "high memory",
+	// Second alert lands after the cooldown expires and is stored.
+	runTwoAlertScenario(t, twoAlertScenario{
+		cooldownMinutes: 5,
+		firstAlert:      &models.Alert{MetricName: "memory", Severity: "critical", Message: "high memory"},
+		advance:         6 * time.Minute,
+		secondAlert:     &models.Alert{MetricName: "memory", Severity: "critical", Message: "high memory again"},
+		wantActive:      2,
 	})
-	if err != nil {
-		t.Fatalf("first alert failed: %v", err)
-	}
-
-	// Advance past cooldown
-	clk.Advance(6 * time.Minute)
-
-	// Second alert should go through
-	err = svc.CreateAlert(ctx, &models.Alert{
-		MetricName: "memory",
-		Severity:   "critical",
-		Message:    "high memory again",
-	})
-	if err != nil {
-		t.Fatalf("second alert (post-cooldown) failed: %v", err)
-	}
-
-	alerts, err := svc.GetActiveAlerts(ctx)
-	if err != nil {
-		t.Fatalf("get alerts failed: %v", err)
-	}
-	if len(alerts) != 2 {
-		t.Errorf("expected 2 alerts, got %d", len(alerts))
-	}
 }
 
 func TestCleanupCooldowns(t *testing.T) {
@@ -137,35 +121,13 @@ func TestCleanupCooldowns(t *testing.T) {
 }
 
 func TestAlertDifferentMetricsNoCooldown(t *testing.T) {
-	clk := NewStubClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
-	svc := newTestAlertService(t, clk, 5)
-
-	ctx := context.Background()
-
-	// Alerts for different metrics should not block each other
-	err := svc.CreateAlert(ctx, &models.Alert{
-		MetricName: "cpu",
-		Severity:   "high",
-		Message:    "high cpu",
+	// Alerts for different metrics never share a cooldown, so both are stored.
+	// The 1s advance gives the second alert a distinct auto-generated ID.
+	runTwoAlertScenario(t, twoAlertScenario{
+		cooldownMinutes: 5,
+		firstAlert:      &models.Alert{MetricName: "cpu", Severity: "high", Message: "high cpu"},
+		advance:         1 * time.Second,
+		secondAlert:     &models.Alert{MetricName: "memory", Severity: "high", Message: "high memory"},
+		wantActive:      2,
 	})
-	if err != nil {
-		t.Fatalf("cpu alert failed: %v", err)
-	}
-
-	// Advance clock so second alert gets a different auto-generated ID
-	clk.Advance(1 * time.Second)
-
-	err = svc.CreateAlert(ctx, &models.Alert{
-		MetricName: "memory",
-		Severity:   "high",
-		Message:    "high memory",
-	})
-	if err != nil {
-		t.Fatalf("memory alert failed: %v", err)
-	}
-
-	alerts, _ := svc.GetActiveAlerts(ctx)
-	if len(alerts) != 2 {
-		t.Errorf("expected 2 alerts (different metrics), got %d", len(alerts))
-	}
 }
