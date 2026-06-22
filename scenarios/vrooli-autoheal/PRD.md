@@ -146,6 +146,5 @@ interface HealthResult {
 
 ### Related Documentation
 
-- Maintenance orchestrator: `scenarios/maintenance-orchestrator/PRD.md`
 - System monitor: `scenarios/system-monitor/PRD.md`
 - Production guide: `docs/operations/production-guide.md`

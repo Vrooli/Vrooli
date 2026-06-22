@@ -44,8 +44,8 @@ func TestResolveSharedStoreSignalAutoDetectsHit(t *testing.T) {
 	if !v.writesSharedStore {
 		t.Fatalf("a detected violation must trip the gate, got %+v", v)
 	}
-	if !strings.Contains(v.note, storageNamespaceStandard) || !strings.Contains(v.note, "qdrant.go") {
-		t.Errorf("note should cite the standard + evidence, got %q", v.note)
+	if !strings.Contains(v.note, storageNamespaceFindingCode) || !strings.Contains(v.note, "qdrant.go") {
+		t.Errorf("note should cite the finding code + evidence, got %q", v.note)
 	}
 }
 
@@ -77,42 +77,53 @@ func TestResolveSharedStoreSignalDetectionUnavailable(t *testing.T) {
 	}
 }
 
-// ---- detectSharedStore (parses real auditor scan JSON) -------------------
+// ---- detectSharedStore (parses real storage-health validation JSON) ------
 
-func TestDetectSharedStoreParsesAuditorViolation(t *testing.T) {
-	f := newFakeRunner(t)
-	f.stdout["scenario-auditor standards scan demo"] = []byte(`{
-	  "status": "completed",
-	  "result": {
-	    "violations": [
-	      {"standard": "storage-namespace-v1", "file_path": "api/internal/backlog/qdrant.go"}
-	    ]
-	  }
-	}`)
-	defer f.install()()
+func TestDetectSharedStoreParsesStorageHealthFinding(t *testing.T) {
+	// storage-health validate exits non-zero on ERROR findings but still emits the
+	// assessment JSON to stdout; the namespace signal is a WARNING that rides
+	// alongside. The shared fakeRunner can't return (stdout, err) together, so stub
+	// runCommand directly to reproduce that real contract.
+	prev := runCommand
+	defer func() { runCommand = prev }()
+	var gotName string
+	var gotArgs []string
+	runCommand = func(_ context.Context, name string, args ...string) ([]byte, error) {
+		gotName, gotArgs = name, args
+		return []byte(`{
+		  "scenario": "demo",
+		  "status": "VALIDATION_STATUS_FAILED",
+		  "assessment": {
+		    "findings": [
+		      {"code": "ROUTED_SEAMS_UNWIRED", "severity": "ERROR", "location": "api/main.go"},
+		      {"code": "STORAGE_NAMESPACE_HARDCODED", "severity": "WARNING", "location": "api/internal/backlog/qdrant.go:42"}
+		    ]
+		  }
+		}`), fmt.Errorf("exit status 1")
+	}
 
 	found, detail, err := detectSharedStore(context.Background(), "demo")
 	if err != nil {
 		t.Fatalf("detect: %v", err)
 	}
 	if !found {
-		t.Fatalf("expected a hit")
+		t.Fatalf("expected a hit even though validate exited non-zero")
 	}
 	if !strings.Contains(detail, "qdrant.go") {
 		t.Errorf("detail should carry the violating file, got %q", detail)
 	}
-	// Must filter to the namespace rule by ID, not the (filename-derived) standard.
-	if !f.sawCommand("--rules " + storageNamespaceRuleID) {
-		t.Errorf("scan must filter to the namespace rule id; calls=%v", f.calls)
+	// Must consult storage-health (not the retired auditor) for the one finding.
+	if gotName != "storage-health" {
+		t.Errorf("detection must call storage-health, got %q", gotName)
 	}
-	if !f.sawCommand("--type targeted") || !f.sawCommand("--wait") {
-		t.Errorf("scan should be a targeted wait; calls=%v", f.calls)
+	if got := strings.Join(gotArgs, " "); !strings.Contains(got, "validate scenario demo") || !strings.Contains(got, "--json") {
+		t.Errorf("detection must run `validate scenario demo --json`, got args %v", gotArgs)
 	}
 }
 
-func TestDetectSharedStoreCleanScan(t *testing.T) {
+func TestDetectSharedStoreCleanValidation(t *testing.T) {
 	f := newFakeRunner(t)
-	f.stdout["scenario-auditor standards scan demo"] = []byte(`{"status":"completed","result":{"violations":[]}}`)
+	f.stdout["storage-health validate scenario demo"] = []byte(`{"scenario":"demo","status":"VALIDATION_STATUS_PASSED","assessment":{"findings":[]}}`)
 	defer f.install()()
 
 	found, _, err := detectSharedStore(context.Background(), "demo")
@@ -120,32 +131,34 @@ func TestDetectSharedStoreCleanScan(t *testing.T) {
 		t.Fatalf("detect: %v", err)
 	}
 	if found {
-		t.Fatalf("clean scan must report no hit")
+		t.Fatalf("a clean validation must report no hit")
 	}
 }
 
-func TestDetectSharedStoreScanErrorIsUnknown(t *testing.T) {
+func TestDetectSharedStoreProviderDownIsUnknown(t *testing.T) {
 	f := newFakeRunner(t)
-	f.failOn["scenario-auditor"] = fmt.Errorf("api down")
+	// storage-health unreachable: the seam returns no stdout AND an error → the
+	// non-parseable response must surface as "unknown", never silently "clean".
+	f.failOn["storage-health"] = fmt.Errorf("connection refused")
 	defer f.install()()
 
 	found, _, err := detectSharedStore(context.Background(), "demo")
 	if err == nil {
-		t.Fatalf("a scan failure must surface as an error (unknown, not clean)")
+		t.Fatalf("a provider-down validation must surface as an error (unknown, not clean)")
 	}
 	if found {
 		t.Fatalf("found must be false on error")
 	}
 }
 
-func TestDetectSharedStoreIncompleteScanIsUnknown(t *testing.T) {
+func TestDetectSharedStoreUnparseableIsUnknown(t *testing.T) {
 	f := newFakeRunner(t)
-	// A failed/cancelled scan is "unknown", never silently "clean".
-	f.stdout["scenario-auditor standards scan demo"] = []byte(`{"status":"failed","result":null}`)
+	// Garbage stdout with no assessment is "unknown", never silently "clean".
+	f.stdout["storage-health validate scenario demo"] = []byte(`not json`)
 	defer f.install()()
 
 	if _, _, err := detectSharedStore(context.Background(), "demo"); err == nil {
-		t.Fatalf("a non-completed scan must surface as an error")
+		t.Fatalf("an unparseable response must surface as an error")
 	}
 }
 
@@ -176,7 +189,7 @@ func TestStartAutoDetectsSharedStoreRoutesLive(t *testing.T) {
 	}
 	var sawNote bool
 	for _, r := range res.Decision.Reasons {
-		if strings.Contains(r, "namespaceability signal") && strings.Contains(r, storageNamespaceStandard) {
+		if strings.Contains(r, "namespaceability signal") && strings.Contains(r, storageNamespaceFindingCode) {
 			sawNote = true
 		}
 	}

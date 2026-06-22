@@ -308,6 +308,64 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
+  state: {
+    loading: "state-loading",
+    error: "state-error",
+    errorRetry: "state-error-retry",
+    empty: "state-empty",
+    emptyAction: "state-empty-action",
+  },
+  dashboard: {
+    band: "dashboard-band",
+    statScenarios: "dashboard-stat-scenarios",
+    statIsolationUnready: "dashboard-stat-isolation-unready",
+    statNoBackup: "dashboard-stat-no-backup",
+    statFindings: "dashboard-stat-findings",
+    scorecard: "dashboard-scorecard",
+    engines: "dashboard-engines",
+    freshness: "dashboard-freshness",
+    scanButton: "dashboard-scan-button",
+    empty: "dashboard-empty",
+    emptyScan: "dashboard-empty-scan",
+    loading: "dashboard-loading",
+    error: "dashboard-error",
+  },
+  fleet: {
+    viewSwitcher: "fleet-view-switcher",
+    sourceSwitcher: "fleet-source-switcher",
+    scanButton: "fleet-scan-button",
+    table: "fleet-table",
+    list: "fleet-list",
+    loading: "fleet-loading",
+    error: "fleet-error",
+    empty: "fleet-empty",
+    errors: "fleet-errors",
+  },
+  validate: {
+    input: "validate-input",
+    runButton: "validate-run-button",
+    prompt: "validate-prompt",
+    resultHeader: "validate-result-header",
+    statusPill: "validate-status-pill",
+    findingsList: "validate-findings-list",
+    clean: "validate-clean",
+    loading: "validate-loading",
+    error: "validate-error",
+    previewButton: "validate-preview-button",
+    applyButton: "validate-apply-button",
+    candidates: "validate-candidates",
+    fixMessage: "validate-fix-message",
+  },
+  advisor: {
+    tabs: "advisor-tabs",
+    enginesPanel: "advisor-engines-panel",
+    migrationsPanel: "advisor-migrations-panel",
+    enginesEmpty: "advisor-engines-empty",
+    migrationsEmpty: "advisor-migrations-empty",
+    migrationsSummary: "advisor-migrations-summary",
+    loading: "advisor-loading",
+    error: "advisor-error",
+  },
   locale: {
     switcher: "locale-switcher",
   },
@@ -324,6 +382,9 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
+    fleet: "page-fleet",
+    validate: "page-validate",
+    advisor: "page-advisor",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -357,6 +418,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "fleet",
+            "validate",
+            "advisor",
             "settings",
           ] as const,
         },
@@ -370,10 +434,66 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "fleet",
+            "validate",
+            "advisor",
             "settings",
           ] as const,
         },
       },
+    }),
+  },
+  fleet: {
+    viewTab: defineDynamicSelector({
+      description: "Fleet inventory view-switcher tab by view key",
+      testIdPattern: "fleet-view-tab-${view}",
+      params: {
+        view: {
+          type: "enum",
+          values: ["all", "isolation", "no-backup", "engines", "stages"] as const,
+        },
+      },
+    }),
+    sourceTab: defineDynamicSelector({
+      description: "Fleet data-source toggle (live scan vs last snapshot)",
+      testIdPattern: "fleet-source-tab-${source}",
+      params: {
+        source: { type: "enum", values: ["scan", "snapshot"] as const },
+      },
+    }),
+    row: defineDynamicSelector({
+      description: "Fleet inventory row by scenario slug",
+      testIdPattern: "fleet-row-${scenario}",
+      params: { scenario: { type: "string" } },
+    }),
+  },
+  validate: {
+    finding: defineDynamicSelector({
+      description: "Validate finding card by index",
+      testIdPattern: "validate-finding-${index}",
+      params: { index: { type: "number" } },
+    }),
+    autofix: defineDynamicSelector({
+      description: "Autofix button on a finding card by index",
+      testIdPattern: "validate-autofix-${index}",
+      params: { index: { type: "number" } },
+    }),
+  },
+  advisor: {
+    tab: defineDynamicSelector({
+      description: "Advisor tab by key",
+      testIdPattern: "advisor-tab-${tab}",
+      params: { tab: { type: "enum", values: ["engines", "migrations"] as const } },
+    }),
+    candidate: defineDynamicSelector({
+      description: "Engine candidate card by scenario slug",
+      testIdPattern: "advisor-candidate-${scenario}",
+      params: { scenario: { type: "string" } },
+    }),
+    migration: defineDynamicSelector({
+      description: "Migration hygiene row by scenario slug",
+      testIdPattern: "advisor-migration-${scenario}",
+      params: { scenario: { type: "string" } },
     }),
   },
   settingsPage: {

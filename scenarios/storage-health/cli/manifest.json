@@ -59,6 +59,55 @@
           }
         }
       ]
+    },
+    {
+      "name": "fleet",
+      "description": "Fleet-wide storage inventory: engines, isolation-readiness, namespace adoption, deploy stage, and backup readiness",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Classify the storage posture of every discovered scenario (or a subset), persist the snapshot, and roll up fleet-wide distributions and offender lists",
+          "flags": [
+            { "name": "scenario", "description": "Restrict the scan to one or more scenario ids (repeatable / comma-separated); default is the whole fleet" },
+            { "name": "view", "description": "Which view to render: all (default), isolation, no-backup, engines, stages" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FleetService", "method": "ScanFleet" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "inventory",
+          "description": "Read the latest persisted fleet snapshot without re-scanning",
+          "flags": [
+            { "name": "view", "description": "Which view to render: all (default), isolation, no-backup, engines, stages" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FleetService", "method": "GetInventory" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "advisor",
+      "description": "Migration intelligence: grade migration hygiene against deploy stage and rank Postgres→SQLite migration candidates",
+      "commands": [
+        {
+          "name": "migrations",
+          "description": "Grade each scenario's migration hygiene (idempotency, ALTER-in-schema, forward-migration path) against its deploy stage",
+          "flags": [
+            { "name": "scenario", "description": "Restrict to one or more scenario ids (repeatable / comma-separated); default is the whole fleet" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdvisorService", "method": "AnalyzeMigrations" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "engines",
+          "description": "Rank Postgres→SQLite migration candidates by engine fitness, with rationale and blockers",
+          "flags": [
+            { "name": "scenario", "description": "Restrict to one or more scenario ids (repeatable / comma-separated); default is the whole fleet" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AdvisorService", "method": "AdviseEngines" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
     }
   ],
   "measures": {

@@ -35,8 +35,7 @@ const (
 	agentActionCreateRule       = "create_rule"
 	agentActionEditRule         = "edit_rule"
 
-	// DEPRECATED: Rule test actions moved to app-issue-tracker integration
-	// These constants are kept for backward compatibility with logging/history
+	// Rule test action labels, kept for backward compatibility with logging/history
 	agentActionAddRuleTests = "add_rule_tests"
 	agentActionFixRuleTests = "fix_rule_tests"
 )

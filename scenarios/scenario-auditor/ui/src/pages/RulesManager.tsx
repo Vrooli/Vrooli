@@ -1,12 +1,10 @@
 import { AgentInfo, RuleImplementationStatus, RuleScenarioTestResult, RuleTestStatus, Scenario } from '@/types/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, FileText, Info, Play, Plus, RefreshCw, Search, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
+import { AlertTriangle, Brain, CheckCircle, ChevronDown, CircleStop, Clock, Code, Eye, EyeOff, Info, Play, RefreshCw, Search, Shield, Target, Terminal, TestTube, X, XCircle } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CodeEditor } from '../components/CodeEditor'
 import ManageProtectedScenariosDialog from '../components/ManageProtectedScenariosDialog'
-import type { ReportPayload } from '../components/ReportIssueDialog'
-import ReportIssueDialog from '../components/ReportIssueDialog'
 import ScenarioTestResults from '../components/ScenarioTestResults'
 import { TARGET_BADGE_CLASSES, TARGET_CATEGORY_CONFIG } from '../constants/ruleCategories'
 import { apiService } from '../services/api'
@@ -241,17 +239,6 @@ export default function RulesManager() {
   const [isRunningPlayground, setIsRunningPlayground] = useState(false)
   const [isLaunchingAgent, setIsLaunchingAgent] = useState(false)
   const [agentError, setAgentError] = useState<string | null>(null)
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [isCreatingRule, setIsCreatingRule] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
-  const [createSuccess, setCreateSuccess] = useState<string | null>(null)
-  const [createForm, setCreateForm] = useState({
-    name: '',
-    description: '',
-    category: 'api',
-    severity: 'medium',
-    motivation: '',
-  })
   const [isScenarioTestModalOpen, setIsScenarioTestModalOpen] = useState(false)
   const [isRunningScenarioTest, setIsRunningScenarioTest] = useState(false)
   const [scenarioTestResults, setScenarioTestResults] = useState<RuleScenarioTestResult[]>([])
@@ -259,7 +246,6 @@ export default function RulesManager() {
   const [scenarioTestCompletedAt, setScenarioTestCompletedAt] = useState<Date | null>(null)
   const [scenarioSearchTerm, setScenarioSearchTerm] = useState('')
   const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set())
-  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
   const [isProtectedScenariosDialogOpen, setIsProtectedScenariosDialogOpen] = useState(false)
   const queryClient = useQueryClient()
 
@@ -327,7 +313,6 @@ export default function RulesManager() {
 
   const protectedScenarios = protectedScenariosData?.protected_scenarios || []
 
-  const apiCategories = (rulesData?.categories || {}) as Record<string, { name?: string }>
   const executionInfo = ruleDetail?.execution_info
 
 
@@ -353,14 +338,6 @@ export default function RulesManager() {
     }
     return list.filter(option => option.name.toLowerCase().includes(term))
   }, [scenarioOptions, scenarioSearchTerm])
-  const createCategoryEntries: Array<[string, { name?: string }]> = Object.keys(apiCategories).length > 0
-    ? Object.entries(apiCategories)
-    : [
-      ['api', { name: 'API Standards' }],
-      ['config', { name: 'Configuration' }],
-      ['test', { name: 'Testing' }],
-      ['ui', { name: 'User Interface' }],
-    ]
 
   // Run tests when rule is selected and tests tab is active
   const runRuleTests = async () => {
@@ -424,10 +401,6 @@ export default function RulesManager() {
     }
   }
 
-  const handleSubmitReport = async (payload: ReportPayload) => {
-    return await apiService.reportRuleIssue(payload)
-  }
-
   const handleStopAgent = async (agentId: string) => {
     setAgentError(null)
     setIsLaunchingAgent(true)
@@ -439,66 +412,6 @@ export default function RulesManager() {
       setAgentError((error as Error).message)
     } finally {
       setIsLaunchingAgent(false)
-    }
-  }
-
-  const severityOptions = ['critical', 'high', 'medium', 'low']
-
-  const openCreateRuleModal = () => {
-    const availableCategories = createCategoryEntries.map(([key]) => key as string)
-    const defaultCategory = availableCategories.includes('api')
-      ? 'api'
-      : (availableCategories[0] || 'api')
-
-    setCreateForm({
-      name: '',
-      description: '',
-      category: defaultCategory,
-      severity: 'medium',
-      motivation: '',
-    })
-    setCreateError(null)
-    setCreateSuccess(null)
-    setIsCreateModalOpen(true)
-  }
-
-  const handleCreateRule = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
-    if (!createForm.name.trim() || !createForm.description.trim()) {
-      setCreateError('Rule name and description are required')
-      return
-    }
-
-    setCreateError(null)
-    setIsCreatingRule(true)
-
-    try {
-      const payload = {
-        name: createForm.name.trim(),
-        description: createForm.description.trim(),
-        category: createForm.category,
-        severity: createForm.severity,
-        motivation: createForm.motivation.trim(),
-      }
-
-      const response = await apiService.createRuleWithAI(payload)
-
-      setIsCreateModalOpen(false)
-
-      // Show success with clickable link to issue
-      const successMessage = response.issueUrl
-        ? `Rule creation issue created for "${payload.name}". View at: ${response.issueUrl}`
-        : response.message || `Rule creation issue created for ${payload.name}`
-
-      setCreateSuccess(successMessage)
-
-      // No need to refresh agents - issue is in app-issue-tracker now
-      await refetch()
-    } catch (error) {
-      setCreateError(error instanceof Error ? error.message : 'Failed to create rule creation issue')
-    } finally {
-      setIsCreatingRule(false)
     }
   }
 
@@ -683,26 +596,8 @@ export default function RulesManager() {
             <Shield className="mr-2 h-4 w-4" />
             Protected Scenarios
           </button>
-          <button
-            type="button"
-            className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            data-testid="create-rule-btn"
-            onClick={openCreateRuleModal}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Rule
-          </button>
         </div>
       </div>
-
-      {createSuccess && (
-        <div className="mb-6 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <div className="flex items-start">
-            <CheckCircle className="mr-2 h-4 w-4 flex-shrink-0" />
-            <span>{createSuccess}</span>
-          </div>
-        </div>
-      )}
 
       {/* Filters */}
       <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
@@ -951,139 +846,6 @@ export default function RulesManager() {
         </div>
       )}
 
-      {/* Create Rule Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsCreateModalOpen(false)} />
-
-            <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-xl sm:p-6">
-              <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
-                <button
-                  type="button"
-                  className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  onClick={() => setIsCreateModalOpen(false)}
-                >
-                  <span className="sr-only">Close</span>
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="sm:flex sm:items-start">
-                <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                  <Plus className="h-6 w-6 text-blue-600" />
-                </div>
-                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                  <h3 className="text-base font-semibold leading-6 text-gray-900">Create New Rule</h3>
-                  <p className="mt-1 text-sm text-gray-500">Provide the details for the rule you want an agent to implement.</p>
-                </div>
-              </div>
-
-              <form className="mt-5 space-y-4" onSubmit={handleCreateRule}>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="rule-name">Rule name</label>
-                  <input
-                    id="rule-name"
-                    type="text"
-                    className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    value={createForm.name}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="rule-description">What should this rule enforce?</label>
-                  <textarea
-                    id="rule-description"
-                    className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    rows={4}
-                    value={createForm.description}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="rule-category">Category</label>
-                    <select
-                      id="rule-category"
-                      className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      value={createForm.category}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, category: e.target.value }))}
-                    >
-                      {createCategoryEntries.map(([key, value]: [string, any]) => (
-                        <option key={key} value={key}>{value.name || key}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700" htmlFor="rule-severity">Severity</label>
-                    <select
-                      id="rule-severity"
-                      className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      value={createForm.severity}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, severity: e.target.value }))}
-                    >
-                      {severityOptions.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700" htmlFor="rule-motivation">Additional context (optional)</label>
-                  <textarea
-                    id="rule-motivation"
-                    className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    rows={3}
-                    value={createForm.motivation}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, motivation: e.target.value }))}
-                    placeholder="Share scenarios, edge cases, or references that will help the agent design the rule."
-                  />
-                </div>
-
-                {createError && (
-                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                    {createError}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    onClick={() => setIsCreateModalOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-400"
-                    disabled={isCreatingRule}
-                  >
-                    {isCreatingRule ? 'Starting agent…' : 'Start Agent'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Report Issue Dialog */}
-      <ReportIssueDialog
-        isOpen={isReportDialogOpen}
-        onClose={() => setIsReportDialogOpen(false)}
-        ruleId={selectedRule}
-        ruleName={ruleDetail?.rule?.name || null}
-        scenarioTestResults={scenarioTestResults}
-        protectedScenarios={protectedScenarios}
-        onSubmitReport={handleSubmitReport}
-      />
 
       {/* Rule Detail Modal */}
       {selectedRule && (() => {
@@ -1361,14 +1123,6 @@ export default function RulesManager() {
                               <Target className="h-4 w-4 mr-2" />
                             )}
                             {isRunningScenarioTest ? 'Testing...' : 'Test on Scenario'}
-                          </button>
-                          <button
-                            onClick={() => setIsReportDialogOpen(true)}
-                            disabled={!selectedRule}
-                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                          >
-                            <FileText className="h-4 w-4 mr-2" />
-                            Report
                           </button>
                         </div>
                       </div>

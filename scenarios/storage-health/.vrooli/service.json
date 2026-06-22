@@ -209,10 +209,16 @@
     }
   },
   "dependencies": {
-    "resources": [],
-    "scenarios": [
-      "code-facts"
-    ]
+    "resources": {},
+    "scenarios": {
+      "code-facts": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Code-facts client resolves a target scenario's API-surface language and file-domain partitioning; storage-health falls back to filesystem detection when unavailable.",
+        "degraded_behavior": "Storage validation uses on-disk filesystem detection (language from api/ build manifest, domains from api/internal/<domain> layout) instead of code-facts."
+      }
+    }
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/storage-health.db"

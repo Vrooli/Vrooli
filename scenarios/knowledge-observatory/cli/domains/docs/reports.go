@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -245,7 +246,7 @@ func BuildHealthReport(result HealthResponse, fallbackScenario string) cliapp.Op
 			},
 		},
 	}
-	if maturity := cliapp.BuildMaturityListReport(result.Assessment); maturity.Summary != nil {
+	if maturity := maturityreport.BuildMaturityListReport(result.Assessment); maturity.Summary != nil {
 		report.Status = append(report.Status, maturity.Summary...)
 	}
 	if result.CanAutoFix {

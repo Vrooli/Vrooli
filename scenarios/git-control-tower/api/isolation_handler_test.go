@@ -40,7 +40,7 @@ func TestResolveIsolation_NotRouted_WithViolations(t *testing.T) {
 			Routed:               false,
 			DisqualifyingReasons: []string{"raw sql.Open"},
 			Violations: []*eligpb.Violation{
-				{RuleId: "routed_database_drivers", Severity: "high", File: "db.go", Line: 42},
+				{RuleId: "ROUTED_SEAMS_UNWIRED", Severity: "high", File: "db.go", Line: 42},
 			},
 		},
 	}, "demo")

@@ -22,6 +22,8 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
+	advisorH "storage-health/handlers/advisor"
+	fleetH "storage-health/handlers/fleet"
 	healthH "storage-health/handlers/health"
 	validationH "storage-health/handlers/validation"
 )
@@ -126,6 +128,8 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "storage-health-api", "1.0.0"),
+		fleetH.Module(log.Default(), repoRoot, db, clock.System{}),
+		advisorH.Module(log.Default(), repoRoot),
 		validationH.Module(log.Default(), repoRoot),
 	)
 

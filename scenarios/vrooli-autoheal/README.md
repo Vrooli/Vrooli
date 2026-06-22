@@ -117,5 +117,4 @@ test-genie execute vrooli-autoheal --preset quick
 
 ## Related Scenarios
 
-- **maintenance-orchestrator** - Controls activation of maintenance scenarios
 - **system-monitor** - Metrics and anomaly detection (complements autoheal)

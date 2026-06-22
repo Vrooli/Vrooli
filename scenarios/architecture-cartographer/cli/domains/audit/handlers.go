@@ -15,6 +15,7 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
+	maturityreport "github.com/vrooli/maturity-go/report"
 )
 
 // Exit codes (per L5-readiness plan §7 phase 3 step 4).
@@ -324,7 +325,7 @@ func renderHuman(msg *auditv1.AuditRunResponse) {
 		}
 		fmt.Println()
 	}
-	if maturity := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(maturity.Summary) > 0 {
+	if maturity := maturityreport.BuildMaturityListReport(msg.GetAssessment()); len(maturity.Summary) > 0 {
 		for _, line := range maturity.Summary {
 			fmt.Printf("  %s\n", line)
 		}

@@ -3,7 +3,7 @@
  * + main + bottom nav) and the locale switcher seam. Page content is exercised
  * in the per-page tests; this file only verifies the shell composes correctly.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -13,6 +13,22 @@ import { setLocale } from "../i18n";
 import en from "../i18n/locales/en.json";
 import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
+import { makeScanFleetResponse } from "../features/storage/mocks/factories";
+
+// The "/" index route is the data-backed dashboard; stub the client so the
+// shell smoke never reaches a live transport.
+vi.mock("../api/storage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/storage")>();
+  return {
+    ...actual,
+    storageClient: {
+      ...actual.storageClient,
+      getInventory: vi.fn().mockResolvedValue(makeScanFleetResponse({ scenarioCount: 0 })),
+      scanFleet: vi.fn().mockResolvedValue(makeScanFleetResponse({ scenarioCount: 0 })),
+    },
+  };
+});
+
 import { TestAppRouter } from "../app/routes";
 
 const renderShell = () =>
@@ -43,7 +59,7 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderShell();
-    for (const key of ["dashboard", "notes", "settings"] as const) {
+    for (const key of ["dashboard", "fleet", "validate", "advisor", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
     }

@@ -25,6 +25,10 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
+  // Defensive SSR/older-runtime guard: the DOM lib types `window.matchMedia` as
+  // always present, but it can be absent outside a browser. Keep the runtime
+  // check even though the type system can't see the falsy branch.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (typeof window === "undefined" || !window.matchMedia) return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
@@ -55,6 +59,7 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
     if (choice !== "system") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");

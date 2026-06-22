@@ -266,7 +266,7 @@
           "maturity": "missing",
           "requiredBy": ["deployable", "monetizable"],
           "completion": "required",
-          "ownerSkills": ["scenario-performance-audit"]
+          "ownerSkills": ["performance"]
         }
       ]
     },
@@ -483,7 +483,7 @@
           "requiredBy": ["validated", "deployable"],
           "completion": "conditional",
           "condition": "Required for performance-sensitive UX, data, or AI pipelines. Web-console has voice latency budgets in VOICE-LATENCY.md that should be promoted into PERFORMANCE.md.",
-          "ownerSkills": ["scenario-performance-audit"]
+          "ownerSkills": ["performance"]
         },
         {
           "path": "internal/VOICE-LATENCY.md",

@@ -2,6 +2,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { THEME_CHOICE_LABEL } from "../theme/themeChoiceLabel";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -44,7 +45,7 @@ export function SettingsPage() {
                   : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
               }
             >
-              {t(strings.theme.choice[c])}
+              {t(THEME_CHOICE_LABEL[c])}
             </button>
           ))}
         </div>

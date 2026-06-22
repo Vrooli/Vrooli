@@ -111,7 +111,7 @@ export default function ManageProtectedScenariosDialog({
                 Manage Protected Scenarios
               </h3>
               <p className="mt-2 text-sm text-gray-500">
-                Protected scenarios are automatically excluded from rule testing and issue reporting operations. This prevents accidental modifications to critical scenarios like ecosystem-manager and app-issue-tracker.
+                Protected scenarios are automatically excluded from rule testing operations. This prevents accidental modifications to critical scenarios like ecosystem-manager.
               </p>
             </div>
           </div>

@@ -8,12 +8,17 @@
 // Plan §1a's load-bearing promise is that the mode is "automatically chosen —
 // the planning/dispatching agent should not have to reason about self-conflict
 // manually." This file delivers that for the namespaceability gate: instead of
-// trusting the human/agent to pass --writes-shared-store, we *query the
-// scenario-auditor `storage-namespace-v1` standard for the target* (the P5
-// detection producer, parts 23) and derive the signal. The declared flag stays
-// as an OR override (force live even when detection is unavailable or clean).
+// trusting the human/agent to pass --writes-shared-store, we *query storage-health's
+// ScenarioValidationService for the target* (its isolation_namespace analyzer,
+// which emits STORAGE_NAMESPACE_HARDCODED) and derive the signal. The declared
+// flag stays as an OR override (force live even when detection is unavailable or
+// clean).
 //
-// Detection is best-effort and degrades safely: if the auditor is unreachable
+// storage-health owns all storage judgment now; this supersedes the retired
+// scenario-auditor `storage_namespace_helpers` rule (storage-health plan,
+// Phase 12 — the rule was deleted once this consumer was re-pointed).
+//
+// Detection is best-effort and degrades safely: if storage-health is unreachable
 // the gate falls back to the declared flag and surfaces a note, never silently
 // routing a non-namespaceable writer to shadow on a missing signal — the operator
 // can always pass --writes-shared-store to force live.
@@ -27,24 +32,20 @@ import (
 	"time"
 )
 
-// namespaceScanTimeout bounds the auditor scan so a slow or hung auditor degrades
-// to "unavailable" (safe fallback) instead of wedging `baseline start`. A
-// targeted single-rule scan of one scenario is a seconds-scale operation.
+// namespaceScanTimeout bounds the storage-health validation so a slow or hung
+// provider degrades to "unavailable" (safe fallback) instead of wedging
+// `baseline start`. storage-health's per-scenario validate runs a full static
+// storage analysis (AST + code-facts language/domain resolution), so it is a
+// few-tens-of-seconds operation, not instant; the operator can skip it entirely
+// by passing --writes-shared-store.
 const namespaceScanTimeout = 120 * time.Second
 
-const (
-	// storageNamespaceStandard is the auditor standard the P5 detection rule
-	// emits (rules/api/storage_namespace_helpers.go `Standard:` field). A
-	// violation means the scenario hardcodes a Redis/Qdrant namespace instead of
-	// routing it through the variant-aware api-core helpers — i.e. it cannot be
-	// safely shadowed.
-	storageNamespaceStandard = "storage-namespace-v1"
-	// storageNamespaceRuleID is the auditor rule ID used to filter the targeted
-	// scan. The auditor derives a rule's ID from its filename when no explicit ID
-	// is declared (internal/ruleengine/loader.go), so this tracks the rule file
-	// scenarios/scenario-auditor/api/rules/api/storage_namespace_helpers.go.
-	storageNamespaceRuleID = "storage_namespace_helpers"
-)
+// storageNamespaceFindingCode is the storage-health finding emitted when a
+// scenario hardcodes a Redis/Qdrant namespace instead of routing it through the
+// variant-aware api-core helpers — i.e. it cannot be safely shadowed. storage-health's
+// isolation_namespace analyzer owns this judgment; it supersedes the retired
+// scenario-auditor storage_namespace_helpers rule.
+const storageNamespaceFindingCode = "STORAGE_NAMESPACE_HARDCODED"
 
 // sharedStoreVerdict is the resolved namespaceability signal plus a human note
 // explaining how it was derived (auto-detected, declared, or detection-failed),
@@ -54,62 +55,58 @@ type sharedStoreVerdict struct {
 	note              string
 }
 
-// detectSharedStore queries the scenario-auditor `storage-namespace-v1` standard
-// for the scenario and reports whether it has any violation (i.e. it writes a
-// hardcoded, un-adopted Redis/Qdrant namespace). It is a seam (package var) so
-// the decision-tree tests inject a deterministic verdict without a live auditor.
+// detectSharedStore queries storage-health's ScenarioValidationService for the
+// scenario and reports whether its assessment carries a STORAGE_NAMESPACE_HARDCODED
+// finding (i.e. it writes a hardcoded, un-adopted Redis/Qdrant namespace). It is
+// a seam (package var) so the decision-tree tests inject a deterministic verdict
+// without a live storage-health.
 //
 // detail carries either a short evidence string (the violating file) on a hit or
-// the reason detection could not run; err is non-nil only when the auditor could
-// not be consulted at all (so the caller can distinguish "clean" from "unknown").
+// the reason detection could not run; err is non-nil only when storage-health
+// could not be consulted at all (so the caller can distinguish "clean" from
+// "unknown").
+//
+// `storage-health validate scenario --json` exits non-zero when the scenario has
+// ERROR-severity findings (e.g. unwired routed seams), but it still emits the
+// full assessment JSON to stdout first. We therefore decode the captured stdout
+// regardless of the exit code and only treat a non-parseable response — meaning
+// storage-health produced no assessment at all — as "unknown".
 var detectSharedStore = func(ctx context.Context, scenario string) (found bool, detail string, err error) {
-	// Targeted scan over just the namespace rule keeps the query cheap (one rule,
-	// one scenario) and the result unambiguous: any violation that comes back is a
-	// storage-namespace-v1 hit. --wait blocks until the scan finishes; --json
-	// emits the final job status (StandardsScanStatus) verbatim.
 	scanCtx, cancel := context.WithTimeout(ctx, namespaceScanTimeout)
 	defer cancel()
-	out, scanErr := runCommand(scanCtx, "scenario-auditor", "standards", "scan", scenario,
-		"--type", "targeted", "--rules", storageNamespaceRuleID,
-		"--wait", "--timeout", namespaceScanTimeout.String(), "--json")
-	if scanErr != nil {
-		return false, "scenario-auditor unavailable", scanErr
+	out, scanErr := runCommand(scanCtx, "storage-health", "validate", "scenario", scenario, "--json")
+
+	var resp struct {
+		Assessment *struct {
+			Findings []struct {
+				Code     string `json:"code"`
+				Location string `json:"location"`
+			} `json:"findings"`
+		} `json:"assessment"`
+	}
+	if jsonErr := json.Unmarshal(out, &resp); jsonErr != nil {
+		// No parseable assessment — storage-health is genuinely unavailable or
+		// errored before producing output. Surface "unknown" so the caller falls
+		// back to the declared flag rather than treating it as clean.
+		if scanErr != nil {
+			return false, "storage-health unavailable", scanErr
+		}
+		return false, "unparseable storage-health response", fmt.Errorf("parse storage validation for %s: %w", scenario, jsonErr)
 	}
 
-	var status struct {
-		Status string `json:"status"`
-		Result *struct {
-			Violations []struct {
-				Standard string `json:"standard"`
-				FilePath string `json:"file_path"`
-			} `json:"violations"`
-		} `json:"result"`
+	if resp.Assessment == nil {
+		return false, "no storage-namespace findings", nil
 	}
-	if jsonErr := json.Unmarshal(out, &status); jsonErr != nil {
-		return false, "unparseable auditor response", fmt.Errorf("parse storage-namespace scan for %s: %w", scenario, jsonErr)
-	}
-
-	// A scan that errored or never completed is "unknown", not "clean" — surface
-	// it as an error so the caller falls back to the declared flag.
-	if st := strings.ToLower(strings.TrimSpace(status.Status)); st != "" && st != "completed" && st != "complete" && st != "success" && st != "succeeded" {
-		return false, "scan did not complete (status: " + status.Status + ")", fmt.Errorf("storage-namespace scan for %s did not complete: status=%s", scenario, status.Status)
-	}
-
-	if status.Result == nil {
-		return false, "no storage-namespace violations", nil
-	}
-	for _, v := range status.Result.Violations {
-		// The scan was filtered to the one rule, but match the standard defensively
-		// so a future multi-rule reuse of this parser stays correct.
-		if strings.TrimSpace(v.Standard) == "" || v.Standard == storageNamespaceStandard {
-			detail := strings.TrimSpace(v.FilePath)
+	for _, fnd := range resp.Assessment.Findings {
+		if strings.TrimSpace(fnd.Code) == storageNamespaceFindingCode {
+			detail := strings.TrimSpace(fnd.Location)
 			if detail == "" {
 				detail = "hardcoded Redis/Qdrant namespace"
 			}
 			return true, detail, nil
 		}
 	}
-	return false, "no storage-namespace violations", nil
+	return false, "no storage-namespace findings", nil
 }
 
 // resolveSharedStoreSignal derives the namespaceability gate input for a
@@ -133,12 +130,12 @@ func resolveSharedStoreSignal(ctx context.Context, scenario string, declared boo
 	case found:
 		return sharedStoreVerdict{
 			writesSharedStore: true,
-			note:              "auto-detected via scenario-auditor " + storageNamespaceStandard + " (" + detail + ")",
+			note:              "auto-detected via storage-health " + storageNamespaceFindingCode + " (" + detail + ")",
 		}
 	default:
 		return sharedStoreVerdict{
 			writesSharedStore: false,
-			note:              "auto-detected namespaceable via scenario-auditor " + storageNamespaceStandard,
+			note:              "auto-detected namespaceable via storage-health " + storageNamespaceFindingCode,
 		}
 	}
 }

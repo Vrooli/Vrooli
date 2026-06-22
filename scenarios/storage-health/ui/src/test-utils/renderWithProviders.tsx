@@ -31,6 +31,9 @@ import { I18nextProvider } from "react-i18next";
 import { MemoryRouter } from "react-router-dom";
 
 import { i18n } from "../i18n";
+import { dataRouterFutureFlags, routerProviderFutureFlags } from "../app/routerFuture";
+
+const memoryRouterFutureFlags = { ...routerProviderFutureFlags, ...dataRouterFutureFlags };
 import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
 
 export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
@@ -86,7 +89,9 @@ export function renderWithProviders(
       <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
     );
     const routed = withoutRouter ? themed : (
-      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+      <MemoryRouter initialEntries={routerEntries} future={memoryRouterFutureFlags}>
+        {themed}
+      </MemoryRouter>
     );
     return (
       <QueryClientProvider client={queryClient}>

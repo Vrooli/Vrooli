@@ -396,22 +396,13 @@ func main() {
 	api.HandleFunc("/claude/fix/preview", previewClaudeFixHandler).Methods("POST")
 	api.HandleFunc("/claude/fix/{fixId}/status", getClaudeFixStatusHandler).Methods("GET")
 
-	// DEPRECATED: Agent management endpoints (replaced by app-issue-tracker integration)
-	// api.HandleFunc("/agents", getAgentsHandler).Methods("GET")
-	// api.HandleFunc("/agents", startAgentHandler).Methods("POST")
-	// api.HandleFunc("/rules/{ruleId}/agents", startAgentHandler).Methods("POST")
-	// api.HandleFunc("/agents/{agentId}/stop", stopAgentHandler).Methods("POST")
-	// api.HandleFunc("/agents/{agentId}/logs", getAgentLogsHandler).Methods("GET")
-
-	// NEW: Rules management endpoints for scenario-auditor
+	// Rules management endpoints for scenario-auditor
 	// IMPORTANT: Specific routes must come before parameterized routes to avoid conflicts
 	api.HandleFunc("/rules", getRulesHandler).Methods("GET")
 	api.HandleFunc("/rules/test-cache", clearTestCacheHandler).Methods("DELETE")
 	api.HandleFunc("/rules/test-coverage", getTestCoverageHandler).Methods("GET")
 	api.HandleFunc("/rules/categories", getRuleCategoriesHandler).Methods("GET")
-	api.HandleFunc("/rules/create", createRuleHandler).Methods("POST")
 	api.HandleFunc("/rules/ai/edit/{ruleId}", editRuleWithAIHandler).Methods("POST")
-	api.HandleFunc("/rules/report-issue", reportIssueHandler).Methods("POST")
 	// Parameterized routes come last
 	api.HandleFunc("/rules/{ruleId}", getRuleHandler).Methods("GET")
 	api.HandleFunc("/rules/{ruleId}", updateRuleHandler).Methods("PUT")

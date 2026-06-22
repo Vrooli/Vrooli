@@ -100,12 +100,76 @@ func filesystemDomains(scenarioDir string) []string {
 }
 
 // serviceJSON is the minimal projection of .vrooli/service.json the detector
-// reads: declared resources (engines) and the maturity stage.
+// reads: declared resources (engines), scenario dependencies (backup-target
+// detection), the maturity stage, and an optional backup block.
+//
+// resources and scenarios are captured as RawMessage because the fleet carries
+// TWO shapes: newer scenarios declare them as JSON arrays of ids
+// (["postgres","redis"]) while older scenarios use keyed object maps
+// ({"postgres":{...}}). dependencyKeys normalizes both so the whole fleet
+// classifies correctly — parsing only one shape silently misclassifies the
+// majority of deployed scenarios.
 type serviceJSON struct {
 	Maturity     string `json:"maturity"`
 	Dependencies struct {
-		Resources []string `json:"resources"`
+		Resources json.RawMessage `json:"resources"`
+		Scenarios json.RawMessage `json:"scenarios"`
 	} `json:"dependencies"`
+	Backup json.RawMessage `json:"backup"`
+}
+
+// dependencyKeys normalizes a service.json dependency block — a JSON array of
+// string ids, an array of {type|id} objects, or an object map keyed by id —
+// into a sorted, de-duplicated, lower-cased id slice. Returns nil for an
+// absent or unrecognized block.
+func dependencyKeys(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	var arrStr []string
+	if json.Unmarshal(raw, &arrStr) == nil {
+		return normalizeKeys(arrStr)
+	}
+	var arrObj []map[string]any
+	if json.Unmarshal(raw, &arrObj) == nil {
+		var ids []string
+		for _, m := range arrObj {
+			if v, ok := m["type"].(string); ok && v != "" {
+				ids = append(ids, v)
+			} else if v, ok := m["id"].(string); ok && v != "" {
+				ids = append(ids, v)
+			}
+		}
+		return normalizeKeys(ids)
+	}
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(raw, &obj) == nil {
+		ids := make([]string, 0, len(obj))
+		for k := range obj {
+			ids = append(ids, k)
+		}
+		return normalizeKeys(ids)
+	}
+	return nil
+}
+
+// normalizeKeys lower-cases, trims, drops empties, de-duplicates, and sorts.
+func normalizeKeys(in []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		s = strings.ToLower(strings.TrimSpace(s))
+		if s == "" {
+			continue
+		}
+		if _, dup := seen[s]; dup {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // detectEngines classifies the storage engines a scenario uses from its
@@ -114,8 +178,8 @@ type serviceJSON struct {
 func detectEngines(scenarioDir string) []Engine {
 	set := map[Engine]struct{}{}
 	if sj, ok := readServiceJSON(scenarioDir); ok {
-		for _, r := range sj.Dependencies.Resources {
-			switch strings.ToLower(strings.TrimSpace(r)) {
+		for _, r := range dependencyKeys(sj.Dependencies.Resources) {
+			switch r {
 			case "postgres", "postgresql":
 				set[EnginePostgres] = struct{}{}
 			case "qdrant":
@@ -134,6 +198,50 @@ func detectEngines(scenarioDir string) []Engine {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
+}
+
+// dataPersistingEngines is the set of engines that hold durable state worth a
+// backup target. Redis is treated as an ephemeral cache (not durable here), so
+// it is excluded; SQLite/Postgres/Qdrant/file all persist.
+func isDataPersisting(engines []Engine) bool {
+	for _, e := range engines {
+		switch e {
+		case EngineSQLite, EnginePostgres, EngineQdrant, EngineFile:
+			return true
+		}
+	}
+	return false
+}
+
+// HasBackupTarget reports whether the scenario at scenarioDir statically
+// declares a backup target. Exported so the fleet inventory can classify
+// backup readiness from the same signal the BACKUP_TARGET_MISSING analyzer uses.
+func HasBackupTarget(scenarioDir string) bool { return hasBackupTarget(scenarioDir) }
+
+// IsDataPersisting reports whether the engine set includes a durable store
+// (SQLite/Postgres/Qdrant/file; Redis is treated as ephemeral cache). Exported
+// for the fleet inventory's backup-readiness rollup.
+func IsDataPersisting(engines []Engine) bool { return isDataPersisting(engines) }
+
+// hasBackupTarget reports whether a scenario statically declares a backup
+// target: either a `backup` block in service.json or a dependency on
+// data-backup-manager. Runtime registrations are invisible to a static
+// analyzer, so this is the honest, declaration-based signal — the backup
+// finding it drives is advisory (L4), never a hard gate.
+func hasBackupTarget(scenarioDir string) bool {
+	sj, ok := readServiceJSON(scenarioDir)
+	if !ok {
+		return false
+	}
+	if len(sj.Backup) > 0 && string(sj.Backup) != "null" {
+		return true
+	}
+	for _, s := range dependencyKeys(sj.Dependencies.Scenarios) {
+		if s == "data-backup-manager" {
+			return true
+		}
+	}
+	return false
 }
 
 // usesSQLite reports whether the API surface imports a SQLite driver or embeds
