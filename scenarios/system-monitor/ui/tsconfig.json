@@ -1,7 +1,20 @@
 {
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    // SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN
+    // These rules prevent runtime crashes like "X is not a function".
+    // DO: Use optional chaining (?.), null checks, nullish coalescing (??), and type guards.
+    // DON'T: Use type assertions (as X), non-null assertions (!), @ts-ignore, or weaken these rules.
+    // These rules exist because UI crashes are the #1 production issue.
+    "strict": true
+  },
   "files": [],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    }
   ]
 }

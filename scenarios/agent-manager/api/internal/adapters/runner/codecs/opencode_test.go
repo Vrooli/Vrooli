@@ -2,9 +2,7 @@ package codecs
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -58,27 +56,33 @@ func TestOpenCode_BuildArgs_BasicShape(t *testing.T) {
 			Model:      "anthropic/claude-sonnet-4-5",
 		},
 	})
-	// First three args are: "run", "run", <prompt>
-	if args[0] != "run" || args[1] != "run" {
-		t.Errorf("expected `run run` prefix, got %v", args[:2])
+	// First two args are: "run", <prompt> (raw binary, no wrapper prefix).
+	if args[0] != "run" {
+		t.Errorf("expected `run` subcommand, got %q", args[0])
 	}
-	if args[2] != "do the thing" {
-		t.Errorf("expected prompt at index 2, got %q", args[2])
+	if args[1] != "do the thing" {
+		t.Errorf("expected prompt at index 1, got %q", args[1])
 	}
-	hasFormat, hasModel := false, false
+	hasFormat, hasModel, hasPrintLogs := false, false, false
 	for i, a := range args {
 		if a == "--format" && i+1 < len(args) && args[i+1] == "json" {
 			hasFormat = true
 		}
-		if a == "--model" && i+1 < len(args) && args[i+1] == "anthropic/claude-sonnet-4-5" {
+		if a == "-m" && i+1 < len(args) && args[i+1] == "anthropic/claude-sonnet-4-5" {
 			hasModel = true
+		}
+		if a == "--print-logs" {
+			hasPrintLogs = true
 		}
 	}
 	if !hasFormat {
 		t.Error("missing --format json")
 	}
 	if !hasModel {
-		t.Error("missing --model")
+		t.Error("missing -m <model>")
+	}
+	if !hasPrintLogs {
+		t.Error("missing --print-logs")
 	}
 }
 
@@ -90,7 +94,7 @@ func TestOpenCode_BuildArgs_WrapsSystemPrompt(t *testing.T) {
 		SystemPrompt: "you are a code reviewer",
 	})
 	// Effective prompt should include both pieces wrapped in tags.
-	prompt := args[2]
+	prompt := args[1]
 	if !strings.Contains(prompt, "<system-instructions>") || !strings.Contains(prompt, "user data") {
 		t.Errorf("expected wrapped prompt, got %q", prompt)
 	}
@@ -101,7 +105,7 @@ func TestOpenCode_BuildContinueArgs(t *testing.T) {
 	args := c.BuildContinueArgs(c.NewState(), runner.ContinueRequest{
 		RunID: uuid.New(), SessionID: "sess-abc", Prompt: "follow up",
 	})
-	want := []string{"run", "run", "follow up", "--session", "sess-abc", "--format", "json"}
+	want := []string{"run", "follow up", "--session", "sess-abc", "--format", "json", "--print-logs"}
 	if len(args) != len(want) {
 		t.Fatalf("len=%d want=%d", len(args), len(want))
 	}
@@ -484,60 +488,24 @@ func TestOpenCodeStreamEvent_Unmarshal(t *testing.T) {
 // openCodeLogDir resolution
 // =============================================================================
 
-func TestOpenCodeLogDirCanonicalizesContractDescendant(t *testing.T) {
-	root := newOpenCodeContractFixtureRepo(t)
-	nested := filepath.Join(root, "scenarios", "agent-manager", "api")
-	if err := os.MkdirAll(nested, 0o755); err != nil {
-		t.Fatalf("mkdir nested: %v", err)
-	}
-
-	t.Setenv("OPENCODE_XDG_DATA_HOME", "")
-	t.Setenv("OPENCODE_DATA_DIR", "")
-	t.Setenv("VROOLI_SOURCE_ROOT", nested)
-	t.Setenv("VROOLI_ROOT", "")
-
+func TestOpenCodeLogDirUsesXDGDataHome(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", filepath.Join("custom", "data"))
 	got := openCodeLogDir()
-	want := filepath.Join(root, "data", "opencode", "xdg-data", "opencode", "log")
+	want := filepath.Join("custom", "data", "opencode", "log")
 	if got != want {
 		t.Fatalf("openCodeLogDir() = %q, want %q", got, want)
 	}
 }
 
-func newOpenCodeContractFixtureRepo(t *testing.T) string {
-	t.Helper()
-
-	root := t.TempDir()
-	repoRoot := opencodeTestRepoRoot(t)
-	contractData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
-	if err != nil {
-		t.Fatalf("read repo contract: %v", err)
+func TestOpenCodeLogDirDefaultsToHomeLocalShare(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", "")
+	t.Setenv("HOME", home)
+	got := openCodeLogDir()
+	want := filepath.Join(home, ".local", "share", "opencode", "log")
+	if got != want {
+		t.Fatalf("openCodeLogDir() = %q, want %q", got, want)
 	}
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
-		t.Fatalf("write repo contract: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/agent-manager-codec-test\n\ngo 1.24.0\n"), 0o644); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-	}
-	return root
-}
-
-func opencodeTestRepoRoot(t *testing.T) string {
-	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	// codecs_test.go lives at scenarios/agent-manager/api/internal/adapters/runner/codecs/
-	// repo root is six parents up.
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", "..", "..", ".."))
 }
 
 // =============================================================================
@@ -550,8 +518,8 @@ func TestOpenCode_Capabilities_HasContinuation(t *testing.T) {
 	if !caps.SupportsContinuation {
 		t.Error("expected SupportsContinuation")
 	}
-	if caps.SupportsImageAttachments {
-		t.Error("did not expect SupportsImageAttachments")
+	if !caps.SupportsImageAttachments {
+		t.Error("expected SupportsImageAttachments (opencode run -f/--file)")
 	}
 }
 

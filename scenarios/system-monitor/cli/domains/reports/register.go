@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"system-monitor/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
-
-	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {

@@ -307,7 +307,7 @@ func (sm *SettingsManager) GetMaintenanceState() string {
 	return "inactive"
 }
 
-// SetMaintenanceState sets the maintenance state (for external systems like maintenance-orchestrator)
+// SetMaintenanceState sets the maintenance state (for external maintenance-window control)
 func (sm *SettingsManager) SetMaintenanceState(state string) error {
 	active := state == "active"
 	return sm.SetActive(active)

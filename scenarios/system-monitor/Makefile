@@ -1,46 +1,59 @@
 # System Monitor Scenario Makefile
 #
-# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
-# NEVER run scenarios directly (./api/system-monitor-api). ALWAYS use these commands.
-#
-# Usage:
-#   make       - Show help
-#   make start - Start this scenario
-#   make stop  - Stop this scenario
-#   make test  - Run scenario tests
-#   make logs  - Show scenario logs
-#   make clean - Clean build artifacts
-#
-# This Makefile is a thin wrapper. All user-facing output (status, banners,
-# colors) is owned by the `vrooli scenario` CLI itself.
+# This Makefile is a thin wrapper around the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/system-monitor-api). ALWAYS use these targets
+# or the `vrooli scenario ...` CLI, which owns all user-facing output.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open
+.PHONY: help setup start stop restart status logs test open run dev clean build fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-help: ## Show this help message
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
+help: ## Show the supported scenario entrypoints
+	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
+	@printf "  make setup                      Run scenario setup lifecycle\n"
+	@printf "  make start                      Start the scenario\n"
+	@printf "  make stop                       Stop the scenario\n"
+	@printf "  make restart                    Restart the scenario\n"
+	@printf "  make status                     Show scenario runtime status\n"
+	@printf "  make logs                       Show scenario logs\n"
+	@printf "  make test                       Run scenario tests\n"
+	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make run                        Alias for make start\n"
+	@printf "  make dev                        Alias for make start\n"
+	@printf "\n"
+	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
 
-start: ## Start this scenario
-	@vrooli scenario start $(SCENARIO_NAME)
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
 
-stop: ## Stop this scenario
-	@vrooli scenario stop $(SCENARIO_NAME)
+start: ## Start the scenario
+	@vrooli scenario start "$(SCENARIO_NAME)"
 
-restart: ## Restart this scenario
-	@vrooli scenario restart $(SCENARIO_NAME)
+stop: ## Stop the scenario
+	@vrooli scenario stop "$(SCENARIO_NAME)"
 
-test: ## Run scenario tests
-	@vrooli scenario test $(SCENARIO_NAME)
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
+
+status: ## Show scenario runtime status
+	@vrooli scenario status "$(SCENARIO_NAME)"
 
 logs: ## Show scenario logs
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+	@vrooli scenario logs "$(SCENARIO_NAME)" --tail 50
 
-status: ## Show scenario status
-	@vrooli scenario status $(SCENARIO_NAME)
+test: ## Run scenario tests
+	@vrooli scenario test "$(SCENARIO_NAME)"
+
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
+
+run: start
+
+dev: start
+
+# --- Scenario-specific quality targets (not part of the lifecycle wrapper) ---
 
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true
@@ -66,7 +79,7 @@ fmt-go: ## Format Go code
 	fi
 
 fmt-ui: ## Format UI code
-	@true
+	@if [ -f ui/package.json ]; then cd ui && pnpm run format 2>/dev/null || true; fi
 
 lint: lint-go lint-ui ## Lint all code
 
@@ -75,21 +88,11 @@ lint-go: ## Lint Go code
 		if command -v golangci-lint >/dev/null 2>&1; then \
 			cd api && golangci-lint run ./...; \
 		elif command -v go >/dev/null 2>&1; then \
-			cd api && go vet ./... && go fmt ./...; \
+			cd api && go vet ./...; \
 		fi; \
 	fi
 
 lint-ui: ## Lint UI code
-	@true
+	@if [ -f ui/package.json ]; then cd ui && pnpm run lint; fi
 
 check: fmt lint test ## Run full quality gates
-
-setup: ## Run scenario setup lifecycle
-	@vrooli scenario setup "$(SCENARIO_NAME)"
-
-open: ## Open the scenario in a browser
-	@vrooli scenario open "$(SCENARIO_NAME)"
-
-# Development shortcuts
-run: start
-dev: start

@@ -4,7 +4,41 @@
     "description": "Testing configuration for system-monitor",
     "last_updated": "2025-11-08T00:00:00Z"
   },
-  "version": "1.0.0",
+  "business": {
+    "checks": {
+      "cli_commands": {
+        "enabled": true
+      },
+      "endpoints": {
+        "enabled": true
+      },
+      "websockets": {
+        "enabled": false
+      }
+    }
+  },
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    }
+  },
+  "performance": {
+    "checks": {
+      "bundle_size": {
+        "enabled": true
+      },
+      "lighthouse": {
+        "enabled": true
+      }
+    }
+  },
   "structure": {
     "additional_dirs": [
       "ui"
@@ -16,27 +50,5 @@
       "node": {}
     }
   },
-  "business": {
-    "checks": {
-      "endpoints": {
-        "enabled": true
-      },
-      "cli_commands": {
-        "enabled": true
-      },
-      "websockets": {
-        "enabled": false
-      }
-    }
-  },
-  "performance": {
-    "checks": {
-      "lighthouse": {
-        "enabled": true
-      },
-      "bundle_size": {
-        "enabled": true
-      }
-    }
-  }
+  "version": "1.0.0"
 }

@@ -183,6 +183,18 @@ type Codec interface {
 	Labels() Labels
 }
 
+// appendAttachmentFlags appends one `flag <path>` pair per attachment with a
+// non-empty file path. Codex passes images via `-i`, OpenCode via `-f`; the
+// loop is otherwise identical, so the codecs share it here.
+func appendAttachmentFlags(args []string, flag string, attachments []runner.Attachment) []string {
+	for _, att := range attachments {
+		if att.FilePath != "" {
+			args = append(args, flag, att.FilePath)
+		}
+	}
+	return args
+}
+
 // State is the opaque per-run state object owned by a Codec.
 // Implementations are created via [Codec.NewState] and live for the
 // duration of a single Execute or Continue call.

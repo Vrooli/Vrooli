@@ -71,6 +71,7 @@
       "OLLAMA_NUM_PARALLEL": "4",
       "OLLAMA_MAX_LOADED_MODELS": "3",
       "OLLAMA_FLASH_ATTENTION": "1",
+      "OLLAMA_KEEP_ALIVE": "5m",
       "OLLAMA_ORIGINS": "*"
     },
     "volumes": [

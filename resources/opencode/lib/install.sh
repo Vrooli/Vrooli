@@ -1,5 +1,10 @@
 #!/bin/bash
-# OpenCode installation and teardown helpers (official binary)
+# OpenCode installation and teardown helpers (official upstream binary).
+#
+# Lands the real `opencode` binary on PATH (~/.local/bin/opencode) so
+# agent-manager and operators invoke it directly — no wrapper shim. Mirrors
+# the codex/claude-code resources, which install their upstream binary
+# globally and let the resource-* Go CLI handle only lifecycle + governance.
 
 source "${BASH_SOURCE[0]%/*}/common.sh"
 
@@ -45,13 +50,23 @@ opencode::install::detect_platform() {
     return 0
 }
 
+# opencode::install::pinned_version reads upstream_cli.version_pinned from
+# resource.json so a plain install is reproducible (honours the pin) rather
+# than silently tracking whatever upstream tags latest.
+opencode::install::pinned_version() {
+    local manifest="${OPENCODE_DIR}/resource.json"
+    if command -v jq >/dev/null 2>&1 && [[ -f "${manifest}" ]]; then
+        jq -r '.upstream_cli.version_pinned // empty' "${manifest}" 2>/dev/null
+    fi
+}
+
 opencode::install::determine_version() {
     local requested_version="${OPENCODE_VERSION:-}" api_json
+    if [[ -z "${requested_version}" ]]; then
+        requested_version="$(opencode::install::pinned_version)"
+    fi
     if [[ -n "${requested_version}" ]]; then
-        OPENCODE_INSTALL_VERSION="${requested_version}"
-        local default_ext="zip"
-        [[ "${OPENCODE_INSTALL_OS}" == "linux" ]] && default_ext="tar.gz"
-        OPENCODE_INSTALL_URL="https://github.com/sst/opencode/releases/download/v${requested_version}/opencode-${OPENCODE_INSTALL_OS}-${OPENCODE_INSTALL_ARCH}.${default_ext}"
+        OPENCODE_INSTALL_VERSION="${requested_version#v}"
         return 0
     fi
 
@@ -75,10 +90,6 @@ opencode::install::determine_version() {
         log::error "Unable to determine the latest OpenCode version"
         return 1
     fi
-
-    local default_ext="zip"
-    [[ "${OPENCODE_INSTALL_OS}" == "linux" ]] && default_ext="tar.gz"
-    OPENCODE_INSTALL_URL="https://github.com/sst/opencode/releases/download/v${OPENCODE_INSTALL_VERSION}/opencode-${OPENCODE_INSTALL_OS}-${OPENCODE_INSTALL_ARCH}.${default_ext}"
     return 0
 }
 
@@ -160,50 +171,12 @@ opencode::install::download() {
     chmod +x "${OPENCODE_BIN}"
     rm -rf "${tmp_dir}"
 
+    mkdir -p "${OPENCODE_DATA_DIR}"
     printf '%s' "${OPENCODE_INSTALL_VERSION}" >"${OPENCODE_VERSION_FILE}"
     log::success "Installed OpenCode ${OPENCODE_INSTALL_VERSION} to ${OPENCODE_BIN}"
-}
 
-opencode::install::write_shim() {
-    # Install a wrapper so `opencode` works outside resource-opencode while
-    # still using the resource-scoped config and secrets.
-    local shim_dir="${OPENCODE_SHIM_DIR:-${HOME}/.local/bin}"
-    local shim_path="${shim_dir}/opencode"
-
-    mkdir -p "${shim_dir}"
-
-    if [[ -e "${shim_path}" && ! -L "${shim_path}" ]]; then
-        log::warning "Skipping shim creation because ${shim_path} already exists"
-        return 0
-    fi
-
-cat >"${shim_path}" <<EOF
-#!/usr/bin/env bash
-VROOLI_ROOT="${VROOLI_ROOT}"
-export RESOURCE_CONFIG_DIR="\${RESOURCE_CONFIG_DIR:-\${XDG_CONFIG_HOME:-\${HOME}/.config}/vrooli/resources/opencode}"
-export RESOURCE_DATA_DIR="\${RESOURCE_DATA_DIR:-\${XDG_DATA_HOME:-\${HOME}/.local/share}/vrooli/resources/opencode}"
-export RESOURCE_CACHE_DIR="\${RESOURCE_CACHE_DIR:-\${XDG_CACHE_HOME:-\${HOME}/.cache}/vrooli/resources/opencode}"
-export RESOURCE_LOGS_DIR="\${RESOURCE_LOGS_DIR:-\${XDG_STATE_HOME:-\${HOME}/.local/state}/logs/vrooli/resources/opencode}"
-export RESOURCE_STATE_DIR="\${RESOURCE_STATE_DIR:-\${XDG_STATE_HOME:-\${HOME}/.local/state}/vrooli/resources/opencode}"
-# shellcheck disable=SC1090
-source "${OPENCODE_DIR}/lib/common.sh"
-opencode::run_cli "\$@"
-EOF
-    chmod +x "${shim_path}" 2>/dev/null || true
-
-    log::success "Installed global OpenCode shim at ${shim_path}"
-    if ! printf '%s' "${PATH}" | tr ':' '\n' | grep -Fx "${shim_dir}" >/dev/null 2>&1; then
-        log::info "Add ${shim_dir} to your PATH to call 'opencode' directly."
-    fi
-}
-
-opencode::install::remove_shim() {
-    local shim_dir="${OPENCODE_SHIM_DIR:-${HOME}/.local/bin}"
-    local shim_path="${shim_dir}/opencode"
-
-    if [[ -f "${shim_path}" ]] && grep -q "${OPENCODE_DIR}/lib/common.sh" "${shim_path}" 2>/dev/null; then
-        rm -f "${shim_path}" 2>/dev/null || true
-        log::info "Removed OpenCode shim at ${shim_path}"
+    if ! printf '%s' "${PATH}" | tr ':' '\n' | grep -Fx "${OPENCODE_BIN_DIR}" >/dev/null 2>&1; then
+        log::info "Add ${OPENCODE_BIN_DIR} to your PATH to call 'opencode' directly."
     fi
 }
 
@@ -222,14 +195,32 @@ opencode::install::execute() {
         return 1
     fi
 
+    # Resolve secrets first so ensure_config can decide OpenRouter vs Ollama
+    # and auth::sync_openrouter can populate the shared auth store.
+    opencode::load_secrets || true
     opencode::ensure_config
-    opencode::install::write_shim
+    # Heal any pre-1.0 opencode.json that still carries the retired inline
+    # `x-vrooli-managed-permissions` key (opencode rejects unknown top-level
+    # keys → startup fails). Best-effort: resource-opencode is installed by
+    # the cli.install step and the verb is idempotent + ungated.
+    if command -v resource-opencode >/dev/null 2>&1; then
+        resource-opencode permissions migrate >/dev/null 2>&1 || true
+    fi
     log::success "OpenCode CLI installation complete"
 }
 
+# opencode::install::update reinstalls opencode to the pinned version. The
+# opt-in self-update surface (mirrors codex/claude's `update`); never runs
+# automatically. `determine_version` reads the pin, so this catches up a
+# `behind` binary.
+opencode::install::update() { opencode::install::execute "$@"; }
+
 opencode::install::uninstall() {
     log::info "Uninstalling OpenCode AI CLI"
-    opencode::install::remove_shim
+    if [[ -f "${OPENCODE_BIN}" ]]; then
+        rm -f "${OPENCODE_BIN}"
+        log::info "Removed ${OPENCODE_BIN}"
+    fi
     if [[ -d "${OPENCODE_DATA_DIR}" ]]; then
         rm -rf "${OPENCODE_DATA_DIR}"
         log::success "Removed ${OPENCODE_DATA_DIR}"
@@ -237,3 +228,12 @@ opencode::install::uninstall() {
         log::info "No data directory to remove"
     fi
 }
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-install}" in
+        install) shift || true; opencode::install::execute "$@" ;;
+        update) shift || true; opencode::install::update "$@" ;;
+        uninstall) shift || true; opencode::install::uninstall "$@" ;;
+        *) opencode::install::execute ;;
+    esac
+fi

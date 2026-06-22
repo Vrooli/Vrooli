@@ -1,8 +1,57 @@
 package recommendation
 
 import (
+	"context"
 	"testing"
+
+	"agent-manager/internal/adapters/capacity"
+	"agent-manager/internal/domain"
 )
+
+// fakeBroker records claim/release calls for the extractor wiring test.
+type fakeBroker struct {
+	claimed    string
+	released   bool
+	claimedID  string
+	releasedID string
+}
+
+func (f *fakeBroker) Claim(_ context.Context, ownerID string, _ int64) (capacity.Lease, error) {
+	f.claimed = ownerID
+	f.claimedID = "clm-test"
+	return capacity.Lease{ClaimID: "clm-test"}, nil
+}
+
+func (f *fakeBroker) Release(_ context.Context, claimID string) {
+	f.released = true
+	f.releasedID = claimID
+}
+
+// The extractor claims an op-scoped ollama capacity claim around the generate
+// and releases it (even though resource-ollama is absent in the test env and
+// extraction fails gracefully).
+func TestExtractClaimsCapacityAroundGenerate(t *testing.T) {
+	fb := &fakeBroker{}
+	e := NewOllamaExtractor().WithCapacity(fb)
+
+	// Pre-cancel so the resource-ollama exec fails fast (the capacity claim is
+	// taken before the generate, so the assertions hold without a live model).
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	res, err := e.Extract(ctx, domain.ExtractionRequest{InvestigationText: "do a thing"})
+	if err != nil {
+		t.Fatalf("Extract() error = %v", err)
+	}
+	if res == nil {
+		t.Fatal("Extract() returned nil result")
+	}
+	if fb.claimed != "ollama:agent-manager-extract" {
+		t.Errorf("claimed owner = %q, want ollama:agent-manager-extract", fb.claimed)
+	}
+	if !fb.released || fb.releasedID != "clm-test" {
+		t.Errorf("release not called with claim id (released=%v id=%q)", fb.released, fb.releasedID)
+	}
+}
 
 func TestExtractJSON(t *testing.T) {
 	tests := []struct {

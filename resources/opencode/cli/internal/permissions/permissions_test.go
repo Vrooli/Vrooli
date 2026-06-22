@@ -14,6 +14,19 @@ func newTestAdapter(t *testing.T) *Adapter {
 	return &Adapter{SettingsPath: filepath.Join(dir, "opencode.json")}
 }
 
+func readDoc(t *testing.T, a *Adapter) map[string]any {
+	t.Helper()
+	raw, err := os.ReadFile(a.SettingsPath)
+	if err != nil {
+		t.Fatalf("read opencode.json: %v", err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("parse opencode.json: %v\n%s", err, raw)
+	}
+	return doc
+}
+
 func TestLoadMissingReturnsEmpty(t *testing.T) {
 	a := newTestAdapter(t)
 	p, err := a.Load()
@@ -32,19 +45,11 @@ func TestSaveAddsBashEntriesAndSidecar(t *testing.T) {
 		BashAsk:   []string{"sudo *"},
 		BashAllow: []string{"ls *"},
 	}
-	if err := a.Save(p); err != nil {
+	if err := a.Save(p, "test"); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
-	raw, err := os.ReadFile(a.SettingsPath)
-	if err != nil {
-		t.Fatalf("read opencode.json: %v", err)
-	}
-	var doc map[string]any
-	if err := json.Unmarshal(raw, &doc); err != nil {
-		t.Fatalf("parse: %v\n%s", err, raw)
-	}
-
+	doc := readDoc(t, a)
 	perm, ok := doc["permission"].(map[string]any)
 	if !ok {
 		t.Fatalf("missing permission object: %v", doc)
@@ -63,9 +68,83 @@ func TestSaveAddsBashEntriesAndSidecar(t *testing.T) {
 		t.Errorf("allow entry wrong: %v", bash)
 	}
 
-	sidecar, ok := doc[managedSidecarKey].([]any)
-	if !ok || len(sidecar) != 4 {
-		t.Fatalf("sidecar should list 4 managed patterns: %v", doc[managedSidecarKey])
+	// The managed list lives in the sidecar, NOT inline in opencode.json.
+	st, err := a.LoadState()
+	if err != nil || st == nil {
+		t.Fatalf("load state: %v, %v", st, err)
+	}
+	if len(st.ManagedBash) != 4 {
+		t.Fatalf("sidecar should list 4 managed patterns, got %v", st.ManagedBash)
+	}
+}
+
+// TestOpencodeJSONHasOnlySchemaKeys is the regression guard for the host
+// block: opencode rejects unknown top-level keys, so a permissions write must
+// never inject a Vrooli-private key (e.g. x-vrooli-managed-permissions) into
+// opencode.json.
+func TestOpencodeJSONHasOnlySchemaKeys(t *testing.T) {
+	a := newTestAdapter(t)
+	if err := a.Save(Policy{BashDeny: []string{"git stash *"}, BashAsk: []string{"sudo *"}}, "test"); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	doc := readDoc(t, a)
+	for k := range doc {
+		if strings.HasPrefix(k, "x-vrooli") {
+			t.Errorf("opencode.json must not carry Vrooli-private top-level key %q (opencode rejects unknown keys)", k)
+		}
+	}
+	// Sanity: the permission object is still present.
+	if _, ok := doc["permission"]; !ok {
+		t.Errorf("expected permission object in %v", doc)
+	}
+}
+
+// TestLegacyManagedKeyMigratedAndStripped covers the migration path: an old
+// opencode.json that still carries the retired inline managed-list key must
+// (a) have those patterns treated as managed on Load, and (b) drop the key
+// from opencode.json on the next Save while recording the list in the sidecar.
+func TestLegacyManagedKeyMigratedAndStripped(t *testing.T) {
+	a := newTestAdapter(t)
+	initial := `{
+  "model": "anthropic/claude-opus-4-7",
+  "permission": {"bash": {"git stash *": "deny", "echo *": "allow"}},
+  "x-vrooli-managed-permissions": ["git stash *"]
+}`
+	if err := os.WriteFile(a.SettingsPath, []byte(initial), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Load migrates: the legacy-keyed pattern is reported as managed; the
+	// hand-written "echo *" is not.
+	p, err := a.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(p.BashDeny) != 1 || p.BashDeny[0] != "git stash *" {
+		t.Fatalf("legacy managed pattern not surfaced: %+v", p)
+	}
+	if len(p.BashAllow) != 0 {
+		t.Errorf("hand-written 'echo *' must not be reported as managed: %+v", p)
+	}
+
+	// Save strips the legacy key and records the list in the sidecar.
+	if err := a.Save(p, "test"); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	doc := readDoc(t, a)
+	if _, ok := doc["x-vrooli-managed-permissions"]; ok {
+		t.Errorf("legacy key must be stripped from opencode.json: %v", doc)
+	}
+	bash := doc["permission"].(map[string]any)["bash"].(map[string]any)
+	if bash["echo *"] != "allow" {
+		t.Errorf("hand-written entry lost during migration: %v", bash)
+	}
+	if bash["git stash *"] != "deny" {
+		t.Errorf("managed entry lost during migration: %v", bash)
+	}
+	st, err := a.LoadState()
+	if err != nil || st == nil || len(st.ManagedBash) != 1 || st.ManagedBash[0] != "git stash *" {
+		t.Errorf("sidecar should record the migrated managed list: %+v (%v)", st, err)
 	}
 }
 
@@ -78,14 +157,10 @@ func TestSavePreservesUnknownTopLevelKeys(t *testing.T) {
 	if err := os.WriteFile(a.SettingsPath, []byte(initial), 0o644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	p := Policy{BashDeny: []string{"git stash *"}}
-	if err := a.Save(p); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}, "test"); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	raw, _ := os.ReadFile(a.SettingsPath)
-	var doc map[string]any
-	_ = json.Unmarshal(raw, &doc)
-
+	doc := readDoc(t, a)
 	if doc["model"] != "claude-opus-4-7" {
 		t.Errorf("model not preserved: %v", doc["model"])
 	}
@@ -110,12 +185,10 @@ func TestSavePreservesHandWrittenBashEntries(t *testing.T) {
 	if err := os.WriteFile(a.SettingsPath, []byte(initial), 0o644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}, "test"); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	raw, _ := os.ReadFile(a.SettingsPath)
-	var doc map[string]any
-	_ = json.Unmarshal(raw, &doc)
+	doc := readDoc(t, a)
 	bash := doc["permission"].(map[string]any)["bash"].(map[string]any)
 	if bash["sudo apt *"] != "deny" {
 		t.Errorf("hand-written deny lost: %v", bash)
@@ -127,10 +200,10 @@ func TestSavePreservesHandWrittenBashEntries(t *testing.T) {
 
 func TestSaveOverwritesPriorManagedEntries(t *testing.T) {
 	a := newTestAdapter(t)
-	if err := a.Save(Policy{BashDeny: []string{"old"}}); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"old"}}, "test"); err != nil {
 		t.Fatalf("save1: %v", err)
 	}
-	if err := a.Save(Policy{BashDeny: []string{"new"}}); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"new"}}, "test"); err != nil {
 		t.Fatalf("save2: %v", err)
 	}
 	raw, _ := os.ReadFile(a.SettingsPath)
@@ -144,16 +217,23 @@ func TestSaveOverwritesPriorManagedEntries(t *testing.T) {
 
 func TestSaveClearsBashWhenEmpty(t *testing.T) {
 	a := newTestAdapter(t)
-	if err := a.Save(Policy{BashDeny: []string{"x"}}); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"x"}}, "test"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := a.Save(Policy{}); err != nil {
+	if err := a.Save(Policy{}, "test"); err != nil {
 		t.Fatalf("clear: %v", err)
 	}
+	// No managed entry should remain in either file.
 	raw, _ := os.ReadFile(a.SettingsPath)
-	// No managed sidecar should remain.
-	if strings.Contains(string(raw), managedSidecarKey) {
-		t.Errorf("sidecar should be gone: %s", raw)
+	if strings.Contains(string(raw), `"x"`) {
+		t.Errorf("managed entry should be gone from opencode.json: %s", raw)
+	}
+	st, err := a.LoadState()
+	if err != nil || st == nil {
+		t.Fatalf("load state: %v, %v", st, err)
+	}
+	if len(st.ManagedBash) != 0 {
+		t.Errorf("sidecar managed list should be empty after clear: %v", st.ManagedBash)
 	}
 }
 
@@ -163,10 +243,10 @@ func TestSaveClearsBashKeepsHandWritten(t *testing.T) {
 	if err := os.WriteFile(a.SettingsPath, []byte(`{"permission": {"bash": {"echo *": "allow"}}}`), 0o644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}, "test"); err != nil {
 		t.Fatalf("save managed: %v", err)
 	}
-	if err := a.Save(Policy{}); err != nil {
+	if err := a.Save(Policy{}, "test"); err != nil {
 		t.Fatalf("clear: %v", err)
 	}
 	raw, _ := os.ReadFile(a.SettingsPath)
@@ -189,7 +269,7 @@ func TestFingerprintStableAcrossOrder(t *testing.T) {
 func TestRoundTripIdempotent(t *testing.T) {
 	a := newTestAdapter(t)
 	p := Policy{BashDeny: []string{"git stash *"}, BashAsk: []string{"rm *"}}
-	if err := a.Save(p); err != nil {
+	if err := a.Save(p, "test"); err != nil {
 		t.Fatalf("save1: %v", err)
 	}
 	first, _ := os.ReadFile(a.SettingsPath)
@@ -197,7 +277,7 @@ func TestRoundTripIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	if err := a.Save(loaded); err != nil {
+	if err := a.Save(loaded, "test"); err != nil {
 		t.Fatalf("save2: %v", err)
 	}
 	second, _ := os.ReadFile(a.SettingsPath)
@@ -226,11 +306,8 @@ func TestLoadIgnoresHandWrittenForPolicy(t *testing.T) {
 func TestStateRoundTrip(t *testing.T) {
 	a := newTestAdapter(t)
 	p := Policy{BashDeny: []string{"git stash *"}}
-	if err := a.Save(p); err != nil {
+	if err := a.Save(p, "test-0.1"); err != nil {
 		t.Fatalf("save: %v", err)
-	}
-	if err := a.WriteState(p, "test-0.1"); err != nil {
-		t.Fatalf("write state: %v", err)
 	}
 	st, err := a.LoadState()
 	if err != nil || st == nil {
@@ -241,5 +318,11 @@ func TestStateRoundTrip(t *testing.T) {
 	}
 	if st.SchemaVersion != StateSchemaVersion {
 		t.Errorf("schema version: %d", st.SchemaVersion)
+	}
+	if st.WrittenByVer != "test-0.1" {
+		t.Errorf("writtenByVersion not recorded: %q", st.WrittenByVer)
+	}
+	if len(st.ManagedBash) != 1 || st.ManagedBash[0] != "git stash *" {
+		t.Errorf("managed list not recorded in sidecar: %v", st.ManagedBash)
 	}
 }

@@ -7,6 +7,16 @@
 // `permission.*` key (e.g. `edit`), and every `permission.bash` entry
 // not previously tagged Vrooli-managed round-trips untouched.
 //
+// CRITICAL — opencode.json carries ONLY opencode-schema-valid keys.
+// opencode rejects any unknown top-level key ("Configuration is invalid …
+// Unrecognized key"), so the list of which bash patterns this adapter
+// manages is NOT stored inline. It lives in the sidecar state file
+// (.vrooli-permissions-state.json, see state.go), which is the source of
+// truth for "which entries are managed"; hand-written entries are detected
+// by their absence from it. A retired pre-1.0 build wrote an inline
+// `x-vrooli-managed-permissions` key — that is the bug this design fixes;
+// it is now migrated into the sidecar on read and stripped on write.
+//
 // Unlike Claude Code there is no hook backstop — OpenCode honours the
 // config directly per upstream docs (last-match-wins). The adapter
 // writes alphabetically-sorted keys so output is deterministic; under
@@ -14,11 +24,6 @@
 // patterns end up later and win the last-match-wins evaluation. Users
 // needing different ordering can hand-edit; drift-check will surface
 // it.
-//
-// Duplicated structurally from resources/claude-code/cli/internal/permissions
-// per the duplicate-before-extract memory. A Phase 4 follow-up will
-// extract the shared canonical Policy + state shape into
-// packages/cli-core/agentpolicy.
 package permissions
 
 import (
@@ -34,15 +39,12 @@ import (
 	"strings"
 )
 
-// ManagedByMarker labels bash-map entries owned by this adapter. Stored
-// in a sidecar field on the parsed doc, not on each map value (OpenCode
-// values are plain "allow"/"ask"/"deny" strings).
-const ManagedByMarker = "vrooli"
-
-// managedSidecarKey is a Vrooli-only top-level key that records which
-// bash patterns this adapter currently owns. Hand-written entries are
-// detected by absence from this list and never touched.
-const managedSidecarKey = "x-vrooli-managed-permissions"
+// legacyManagedKey is the retired pre-1.0 inline top-level key that once
+// recorded the managed bash patterns directly in opencode.json. opencode
+// rejects it as an unrecognized key, so the adapter no longer writes it: on
+// read it is migrated into the sidecar state file, and on write it is
+// stripped from opencode.json.
+const legacyManagedKey = "x-vrooli-managed-permissions"
 
 // Policy is the canonical in-memory shape of the bash-pattern subset of
 // the OpenCode permission file the adapter manages.
@@ -73,10 +75,14 @@ func DefaultAdapter() (*Adapter, error) {
 // parsedDoc holds the full top-level structure so Save can rebuild it
 // preserving unknown keys and unmanaged bash entries.
 type parsedDoc struct {
-	TopLevel       map[string]json.RawMessage
-	BashMap        map[string]string
-	OtherPermKeys  map[string]json.RawMessage
-	ManagedSidecar []string
+	TopLevel      map[string]json.RawMessage
+	BashMap       map[string]string
+	OtherPermKeys map[string]json.RawMessage
+	// LegacyManaged holds the value of the retired inline managed-list key
+	// when an old opencode.json still carries it, so Load/Save can migrate
+	// it into the sidecar. The key itself is stripped from TopLevel during
+	// parsing so it never round-trips back into the (schema-validated) file.
+	LegacyManaged []string
 }
 
 func parseDoc(data []byte) (*parsedDoc, error) {
@@ -110,13 +116,41 @@ func parseDoc(data []byte) (*parsedDoc, error) {
 			doc.OtherPermKeys[k] = v
 		}
 	}
-	if raw, ok := doc.TopLevel[managedSidecarKey]; ok {
+	// Migrate + strip the retired inline managed-list key. Capturing its
+	// value lets managedSet fall back to it once (until the sidecar is
+	// written); deleting it from TopLevel guarantees Save never re-emits the
+	// schema-invalid key.
+	if raw, ok := doc.TopLevel[legacyManagedKey]; ok {
 		var lst []string
 		if err := json.Unmarshal(raw, &lst); err == nil {
-			doc.ManagedSidecar = lst
+			doc.LegacyManaged = lst
 		}
+		delete(doc.TopLevel, legacyManagedKey)
 	}
 	return doc, nil
+}
+
+// managedSet returns the set of bash patterns this adapter owns. The sidecar
+// state file is the source of truth; the retired inline key is consulted only
+// as a one-time migration fallback for configs written before the sidecar
+// carried the managed list.
+func (a *Adapter) managedSet(doc *parsedDoc) (map[string]struct{}, error) {
+	st, err := a.LoadState()
+	if err != nil {
+		return nil, err
+	}
+	var managed []string
+	switch {
+	case st != nil && len(st.ManagedBash) > 0:
+		managed = st.ManagedBash
+	case doc != nil:
+		managed = doc.LegacyManaged
+	}
+	out := make(map[string]struct{}, len(managed))
+	for _, k := range managed {
+		out[k] = struct{}{}
+	}
+	return out, nil
 }
 
 // Load reads and parses the opencode.json file. A missing file resolves
@@ -136,11 +170,11 @@ func (a *Adapter) Load() (Policy, error) {
 	if err != nil {
 		return Policy{}, err
 	}
-	p := Policy{}
-	managed := map[string]struct{}{}
-	for _, k := range doc.ManagedSidecar {
-		managed[k] = struct{}{}
+	managed, err := a.managedSet(doc)
+	if err != nil {
+		return Policy{}, err
 	}
+	p := Policy{}
 	for pat, action := range doc.BashMap {
 		// Only surface entries we previously wrote — hand-written
 		// entries stay in the file but aren't reported as policy.
@@ -162,10 +196,14 @@ func (a *Adapter) Load() (Policy, error) {
 	return p, nil
 }
 
-// Save writes the policy to disk. The adapter rebuilds `permission.bash`
-// preserving hand-written entries (those not listed in the managed
-// sidecar) and replacing only the entries it previously owned.
-func (a *Adapter) Save(p Policy) error {
+// Save writes the policy to disk. It rebuilds `permission.bash` preserving
+// hand-written entries (those not in the managed list) and replacing only
+// the entries it previously owned, writes opencode.json with ONLY
+// schema-valid keys (the retired managed-list key is stripped), then records
+// the new managed list + fingerprint in the sidecar state file. The sidecar
+// write is what makes the managed set authoritative across calls, so Save is
+// self-consistent: two consecutive Saves correctly drop the first's entries.
+func (a *Adapter) Save(p Policy, writtenByVersion string) error {
 	if err := os.MkdirAll(filepath.Dir(a.SettingsPath), 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", filepath.Dir(a.SettingsPath), err)
 	}
@@ -186,10 +224,10 @@ func (a *Adapter) Save(p Policy) error {
 	}
 
 	// Drop any previously-managed bash entries; hand-written entries
-	// (not in the sidecar list) stay.
-	managed := map[string]struct{}{}
-	for _, k := range doc.ManagedSidecar {
-		managed[k] = struct{}{}
+	// (not in the managed list) stay.
+	managed, err := a.managedSet(doc)
+	if err != nil {
+		return err
 	}
 	newBash := map[string]string{}
 	for pat, action := range doc.BashMap {
@@ -200,20 +238,15 @@ func (a *Adapter) Save(p Policy) error {
 	}
 
 	// Add the policy's entries.
-	newManaged := make([]string, 0, len(p.BashDeny)+len(p.BashAsk)+len(p.BashAllow))
 	for _, pat := range p.BashDeny {
 		newBash[pat] = "deny"
-		newManaged = append(newManaged, pat)
 	}
 	for _, pat := range p.BashAsk {
 		newBash[pat] = "ask"
-		newManaged = append(newManaged, pat)
 	}
 	for _, pat := range p.BashAllow {
 		newBash[pat] = "allow"
-		newManaged = append(newManaged, pat)
 	}
-	sort.Strings(newManaged)
 
 	// Rebuild permission.* preserving other keys.
 	permAll := map[string]json.RawMessage{}
@@ -240,16 +273,6 @@ func (a *Adapter) Save(p Policy) error {
 		doc.TopLevel["permission"] = encoded
 	}
 
-	if len(newManaged) == 0 {
-		delete(doc.TopLevel, managedSidecarKey)
-	} else {
-		encoded, err := json.Marshal(newManaged)
-		if err != nil {
-			return fmt.Errorf("encode managed sidecar: %w", err)
-		}
-		doc.TopLevel[managedSidecarKey] = encoded
-	}
-
 	out, err := marshalOrderedRawMap(doc.TopLevel)
 	if err != nil {
 		return fmt.Errorf("encode opencode.json: %w", err)
@@ -265,14 +288,11 @@ func (a *Adapter) Save(p Policy) error {
 	if err := os.Rename(tmp, a.SettingsPath); err != nil {
 		return fmt.Errorf("rename %s -> %s: %w", tmp, a.SettingsPath, err)
 	}
-	return nil
-}
 
-// RenderHook is intentionally a no-op for OpenCode: the upstream agent
-// honours `permission.bash` directly. Returned for API symmetry with
-// the Claude adapter; callers should not depend on a non-nil value.
-func (a *Adapter) RenderHook(_ Policy) map[string]any {
-	return nil
+	// The sidecar is the source of truth for the managed list; persist it
+	// (plus fingerprint/version) so the next Load/Save sees these entries as
+	// managed without an inline marker in opencode.json.
+	return a.WriteState(p, writtenByVersion)
 }
 
 // Fingerprint returns the sha256 hex of the canonical Policy projection.

@@ -3,14 +3,13 @@ package overview
 import (
 	"fmt"
 	"os"
+	"system-monitor/cli/internal/support"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/domain"
-
-	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
@@ -334,5 +333,5 @@ func fetchMaintenanceState(core *cliapp.ScenarioApp) (*maintenanceStateResponse,
 }
 
 func mapValues(key string, value string) map[string][]string {
-	return map[string][]string{key: []string{value}}
+	return map[string][]string{key: {value}}
 }

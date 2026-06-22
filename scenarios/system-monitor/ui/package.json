@@ -1,19 +1,4 @@
 {
-  "name": "system-monitor-ui-react",
-  "version": "1.0.0",
-  "description": "System Monitor Dashboard UI with React/TypeScript/Vite",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "start": "vrooli lifecycle protect -- vite --host 0.0.0.0",
-    "dev": "vrooli lifecycle protect -- vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "test": "pnpm run test:unit",
-    "test:unit": "vitest run --config vitest.config.ts",
-    "test:unit:watch": "vitest --config vitest.config.ts",
-    "preview": "vite preview --host 0.0.0.0"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
     "@types/node": "^24.3.1",
@@ -32,6 +17,7 @@
     "recharts": "^3.2.0",
     "websocket": "^1.0.35"
   },
+  "description": "System Monitor Dashboard UI with React/TypeScript/Vite",
   "devDependencies": {
     "@eslint/js": "^9.33.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -53,5 +39,19 @@
     "vite": "^7.1.2",
     "vitest": "^4.0.18"
   },
-  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748"
+  "name": "system-monitor-ui-react",
+  "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit && tsc -b && vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "start": "vrooli lifecycle protect -- vite",
+    "test": "pnpm run test:unit",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:unit:watch": "vitest --config vitest.config.ts"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

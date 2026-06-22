@@ -2,7 +2,6 @@ package main
 
 import (
 	"strings"
-
 	"system-monitor/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"

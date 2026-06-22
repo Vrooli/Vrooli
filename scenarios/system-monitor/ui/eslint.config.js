@@ -44,13 +44,10 @@ export default tseslint.config(
       // Detects early returns before hooks, conditional hook calls, etc.
       "react-hooks/rules-of-hooks": "error",
 
-      // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript's null checks
-      // Using ! hides bugs that will crash at runtime with "X is not a function"
-      // Instead of arr[0]!, use: arr[0] ?? defaultValue or if (arr[0]) { ... }
+      // CRITICAL: non-null assertion (!) bypasses null checks; use ?? or guards instead.
       "@typescript-eslint/no-non-null-assertion": "error",
 
-      // CRITICAL: Catches operations on 'any' typed values that will crash at runtime
-      // These catch bugs like "v.trim is not a function" when v is not actually a string
+      // CRITICAL: operations on unchecked 'any' values crash at runtime ("v.trim is not a function").
       "@typescript-eslint/no-unsafe-member-access": "warn",
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-argument": "warn",
@@ -60,9 +57,7 @@ export default tseslint.config(
       // Prevents explicit 'any' which disables all type checking for that value
       "@typescript-eslint/no-explicit-any": "error",
 
-      // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
-      // These runtime errors are extremely hard to debug in production (minified variable names).
-      // Requires eslint-plugin-import and eslint-import-resolver-typescript
+      // CRITICAL: Detects circular dependencies ("Cannot access X before initialization").
       "import/no-cycle": "error",
 
       // ════════════════════════════════════════════════════════════════════════

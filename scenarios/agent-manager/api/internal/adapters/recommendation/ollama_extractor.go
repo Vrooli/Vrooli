@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"agent-manager/internal/adapters/capacity"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -19,6 +20,11 @@ type OllamaExtractor struct {
 	role        string
 	temperature string
 	maxTokens   string
+	// capacity is the optional capacity-broker adopter (plan §7 Phase 7). nil =>
+	// no arbitration; extraction behaves exactly as before. When set, the
+	// extractor holds an op-scoped claim around the ollama generate so the GPU
+	// usage shows as CLAIMED in reconcile and is not reclaimed mid-generation.
+	capacity capacity.Broker
 }
 
 // NewOllamaExtractor creates a new extractor using resource-ollama CLI.
@@ -32,6 +38,13 @@ func NewOllamaExtractor() *OllamaExtractor {
 		temperature: "0.1",
 		maxTokens:   "2000",
 	}
+}
+
+// WithCapacity wires the optional capacity broker (advisory). Returns the
+// extractor for fluent construction.
+func (e *OllamaExtractor) WithCapacity(b capacity.Broker) *OllamaExtractor {
+	e.capacity = b
+	return e
 }
 
 // extractedData represents the structured JSON we expect from the LLM.
@@ -48,6 +61,16 @@ type extractedData struct {
 func (e *OllamaExtractor) Extract(ctx context.Context, req domain.ExtractionRequest) (*domain.ExtractionResult, error) {
 	// Build extraction prompt
 	prompt := e.buildPrompt(req.InvestigationText)
+
+	// Hold an op-scoped capacity claim around the ollama generate (advisory).
+	// "ollama:" prefix makes reconcile attribute the GPU usage to the ollama
+	// container. Claim failures never block extraction.
+	if e.capacity != nil {
+		lease, claimErr := e.capacity.Claim(ctx, "ollama:agent-manager-extract", capacity.OllamaExtractVRAMEstimateBytes)
+		if claimErr == nil {
+			defer e.capacity.Release(ctx, lease.ClaimID)
+		}
+	}
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
 		"--role", e.role,

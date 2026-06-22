@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	capacitybroker "agent-manager/internal/adapters/capacity"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
@@ -404,8 +405,10 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	// Create prompt-manager client for investigation prompt skills
 	promptClient := promptmanager.NewHTTPClient()
 
-	// Create recommendation extractor for investigation outputs
-	recommendationExtractor := recommendation.NewOllamaExtractor()
+	// Create recommendation extractor for investigation outputs. It holds an
+	// advisory op-scoped capacity claim around each ollama generate (plan §7
+	// Phase 7 ollama adopter) so the broker sees ollama as actively in use.
+	recommendationExtractor := recommendation.NewOllamaExtractor().WithCapacity(&capacitybroker.CLIBroker{})
 
 	// Load identity signing secret for agent identity tokens.
 	identitySecret, err := identity.LoadOrCreateSecret(database.DataDir())

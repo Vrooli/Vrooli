@@ -10,7 +10,12 @@ Keep responsibilities split cleanly:
 - `cli/` owns the binary entrypoint, wiring, and delegated command registration.
 - `cli/internal/` owns OpenCode-specific Go logic that cannot be expressed through the manifest or shared control-plane packages.
 
-Do not turn `cli/main.go` into the implementation surface. If the resource needs specialized binary discovery, install translation, version parsing, auth validation, or config shaping, grow `cli/internal/discovery`, `cli/internal/install`, `cli/internal/version`, `cli/internal/env`, or `cli/internal/auth` first.
+Do not turn `cli/main.go` into the implementation surface. The only
+specialised Go packages today are `cli/internal/permissions` (+
+`permissionscli`) for the governed `permission.bash` map and
+`cli/internal/upstreamcheck` for the upstream release comparison. Install,
+binary download, and config/auth shaping live in `lib/install.sh` /
+`lib/common.sh`; agent-manager invokes the raw `opencode` binary directly.
 
 ## Operator Checklist
 

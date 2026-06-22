@@ -1,6 +1,6 @@
 // Package codecs — opencode.go is the [Codec] implementation for the
-// OpenCode CLI (the `resource-opencode` wrapper invoked with
-// `--format json`).
+// OpenCode CLI (the raw `opencode` binary invoked with
+// `run … --format json --print-logs`).
 //
 // What this codec owns:
 //   - CLI args + env shape (BuildArgs, BuildContinueArgs, BuildEnv)
@@ -8,8 +8,14 @@
 //   - Per-run state: captured session id, terminal step_finish marker
 //   - step_finish handling — emits cost + message events, signals early
 //     termination via OnEarlyTerminate when reason is terminal
-//   - Log-file fallback for error messages when the wrapper exits with
+//   - Log-file fallback for error messages when opencode exits with
 //     just an exit-status string (PostClassify hook)
+//
+// The previous resource-opencode wrapper path (`resource-opencode run run …`)
+// was deleted: the wrapper was refactored into a thin Go CLI wiring only
+// lifecycle + permissions, so its `run`/`status` subcommands no longer
+// exist. This codec now invokes the upstream binary directly, mirroring
+// the codex and claude-code codecs.
 package codecs
 
 import (
@@ -30,16 +36,17 @@ import (
 	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // =============================================================================
 // Constants
 // =============================================================================
 
-// OpenCodeResourceCommand is the Vrooli wrapper binary name resolved on
-// the host PATH.
+// OpenCodeCLICommand is the binary name resolved on the host PATH.
+const OpenCodeCLICommand = "opencode"
+
+// OpenCodeResourceCommand is the legacy Vrooli wrapper name kept around
+// for transition-period process detection in the reconciler/terminator.
 const OpenCodeResourceCommand = "resource-opencode"
 
 const opencodeTagEnvKey = "OPENCODE_AGENT_TAG"
@@ -48,60 +55,38 @@ const opencodeTagEnvKey = "OPENCODE_AGENT_TAG"
 // Codec
 // =============================================================================
 
-// OpenCode is the [Codec] implementation for the resource-opencode wrapper.
+// OpenCode is the [Codec] implementation for the opencode CLI.
 type OpenCode struct {
 	binaryPath  string
 	available   bool
 	message     string
 	installHint string
+	ollama      *ollamaLister
 }
 
-// NewOpenCode resolves the `resource-opencode` binary on PATH and runs a
-// quick health-check via `status --format json`. Returns a codec with
-// Available=false (rather than an error) when the binary is missing or
-// unhealthy so the runner registry can register a stub instead.
+// NewOpenCode resolves the `opencode` binary on PATH and returns a codec
+// ready to be wrapped in [core.NewRunner]. Returns a codec with
+// Available=false (rather than an error) when the binary is missing so the
+// runner registry can register a stub instead. A deep health-check is
+// intentionally avoided — mirrors NewCodex (LookPath only); the
+// authoritative "binary is broken" signal comes from runtime
+// classification on the first real invocation.
 func NewOpenCode() (*OpenCode, error) {
-	binaryPath, err := exec.LookPath(OpenCodeResourceCommand)
+	binaryPath, err := exec.LookPath(OpenCodeCLICommand)
 	if err != nil {
 		return &OpenCode{
 			available:   false,
-			message:     "resource-opencode not found in PATH",
+			message:     "opencode CLI not found in PATH",
 			installHint: "Run: vrooli resource install opencode",
+			ollama:      newOllamaLister(),
 		}, nil
 	}
-
-	c := &OpenCode{
+	return &OpenCode{
 		binaryPath: binaryPath,
 		available:  true,
-		message:    "resource-opencode available",
-	}
-
-	// Quick health check via `status --format json`. Mirrors the
-	// behaviour of the previous OpenCodeRunner constructor.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, binaryPath, "status", "--format", "json")
-	output, statusErr := cmd.Output()
-	if statusErr != nil {
-		c.available = false
-		c.message = fmt.Sprintf("resource-opencode status check failed: %v", statusErr)
-		c.installHint = "Run: resource-opencode manage install"
-		return c, nil
-	}
-
-	var statusData map[string]interface{}
-	if err := json.Unmarshal(output, &statusData); err == nil {
-		if healthy, ok := statusData["healthy"].(bool); ok && !healthy {
-			c.available = false
-			if msg, ok := statusData["message"].(string); ok {
-				c.message = msg
-			} else {
-				c.message = "resource-opencode is not healthy"
-			}
-			c.installHint = "Run: resource-opencode manage install"
-		}
-	}
-	return c, nil
+		message:    "opencode CLI available",
+		ollama:     newOllamaLister(),
+	}, nil
 }
 
 // NewOpenCodeForTest returns an OpenCode codec with a fake binary path
@@ -118,28 +103,33 @@ func NewOpenCodeForTest() *OpenCode {
 // Type satisfies [Codec].
 func (c *OpenCode) Type() domain.RunnerType { return domain.RunnerTypeOpenCode }
 
-// Capabilities satisfies [Codec].
+// Capabilities satisfies [Codec]. SupportedModels is the curated cloud list
+// plus any locally-pulled Ollama models discovered via the cached lister
+// (opencode reaches them through its first-class `ollama` provider block).
 func (c *OpenCode) Capabilities() runner.Capabilities {
+	models := []string{
+		"anthropic/claude-sonnet-4-6",
+		"anthropic/claude-opus-4-7",
+		"anthropic/claude-haiku-4-5",
+		"openai/gpt-4o",
+		"openai/o4-mini",
+		"google/gemini-2.0-flash",
+		"deepseek/deepseek-chat",
+	}
+	models = append(models, c.ollama.list()...)
+
 	return runner.Capabilities{
 		SupportsMessages:         true,
 		SupportsToolEvents:       true,
-		SupportsCostTracking:     false,
-		SupportsStreaming:        false,
+		SupportsCostTracking:     true, // step_finish tokens + cost parsed in handleStepFinish
+		SupportsStreaming:        true, // JSON event stream via `run --format json`
 		SupportsCancellation:     true,
 		SupportsContinuation:     true, // `--session <id>`
-		SupportsImageAttachments: false,
+		SupportsImageAttachments: true, // `opencode run -f/--file <FILE>`
 		MaxTurns:                 0,
-		SupportedModels: []string{
-			"anthropic/claude-sonnet-4-6",
-			"anthropic/claude-opus-4-7",
-			"anthropic/claude-haiku-4-5",
-			"openai/gpt-4o",
-			"openai/o4-mini",
-			"google/gemini-2.0-flash",
-			"deepseek/deepseek-chat",
-		},
-		SupportedFeatures: []string{},
-		AllowedExtraFlags: []string{"--verbose"},
+		SupportedModels:          models,
+		SupportedFeatures:        []string{},
+		AllowedExtraFlags:        []string{"--verbose"},
 	}
 }
 
@@ -147,7 +137,7 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 func (c *OpenCode) BinaryPath() string { return c.binaryPath }
 
 // BinaryDescription satisfies [Codec].
-func (c *OpenCode) BinaryDescription() string { return "resource-opencode wrapper" }
+func (c *OpenCode) BinaryDescription() string { return "opencode CLI" }
 
 // TagEnvKey satisfies [Codec].
 func (c *OpenCode) TagEnvKey() string { return opencodeTagEnvKey }
@@ -162,9 +152,9 @@ func (c *OpenCode) Available(ctx context.Context) (bool, string) {
 		return false, msg
 	}
 	if _, err := os.Stat(c.binaryPath); os.IsNotExist(err) {
-		return false, "resource-opencode binary not found. Run: vrooli resource install opencode"
+		return false, "opencode CLI not found. Run: vrooli resource install opencode"
 	}
-	return true, "resource-opencode is available"
+	return true, "opencode CLI is available"
 }
 
 // ProbeModel satisfies [Codec]. Lightweight by design — a deep probe
@@ -192,7 +182,12 @@ func (c *OpenCode) ContinueTag(req runner.ContinueRequest) string {
 	return fmt.Sprintf("opencode-continue-%s", req.RunID.String()[:8])
 }
 
-// BuildEnv satisfies [Codec]. Mirrors the resource-opencode env shape.
+// BuildEnv satisfies [Codec]. The raw opencode binary reads its config
+// from the default XDG location (~/.config/opencode/opencode.json) and its
+// auth from ~/.local/share/opencode/auth.json — the same locations the
+// resource-opencode `permissions` adapter and the resource install path
+// write to. We deliberately do NOT override XDG_CONFIG_HOME/OPENCODE_CONFIG
+// here so the managed config/auth is the single source of truth.
 func (c *OpenCode) BuildEnv(tag string, extras map[string]string) []string {
 	env := runner.SanitizedBaseEnv()
 	env = append(env, fmt.Sprintf("%s=%s", opencodeTagEnvKey, tag))
@@ -201,37 +196,45 @@ func (c *OpenCode) BuildEnv(tag string, extras map[string]string) []string {
 }
 
 // BuildPrompt satisfies [Codec]. OpenCode passes the prompt as a CLI
-// argument (in BuildArgs); stdin is unused.
+// argument (in BuildArgs) and image attachments via `-f` flags; stdin is
+// unused.
 func (c *OpenCode) BuildPrompt(_ string, _ []runner.Attachment) string { return "" }
 
 // BuildArgs satisfies [Codec]. The prompt is on the command line so the
 // caller MUST close stdin — core.Runner does that automatically when the
-// codec returns "" from BuildPrompt.
+// codec returns "" from BuildPrompt. Image attachments are passed via
+// `-f/--file` (one per attachment).
 func (c *OpenCode) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	args := []string{
-		"run", // resource-opencode subcommand
-		"run", // opencode subcommand
+		"run",
 		req.EffectivePrompt(),
 		"--format", "json",
+		"--print-logs", // surface logs to stderr for the PostClassify fallback
 	}
 	cfg := req.GetConfig()
 	if cfg.Model != "" {
-		args = append(args, "--model", cfg.Model)
+		args = append(args, "-m", cfg.Model)
 	}
+	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeOpenCode]; ok {
 		args = append(args, extras...)
 	}
 	return args
 }
 
-// BuildContinueArgs satisfies [Codec].
+// BuildContinueArgs satisfies [Codec]. `opencode run --session <id>`
+// resumes an existing session with a follow-up prompt and any image
+// attachments via `-f/--file`.
 func (c *OpenCode) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
-	return []string{
-		"run", "run",
+	args := []string{
+		"run",
 		req.Prompt,
 		"--session", req.SessionID,
 		"--format", "json",
+		"--print-logs",
 	}
+	args = appendAttachmentFlags(args, "-f", req.Attachments)
+	return args
 }
 
 // =============================================================================
@@ -817,18 +820,19 @@ func resolveOpenCodeLogError() string {
 	return extractErrorMessage(tail)
 }
 
+// openCodeLogDir resolves the directory raw opencode writes its log files
+// to. opencode honours XDG_DATA_HOME and otherwise defaults to
+// ~/.local/share/opencode/log — the same default-XDG location BuildEnv
+// relies on (no vrooli-scoped override).
 func openCodeLogDir() string {
-	if base := strings.TrimSpace(os.Getenv("OPENCODE_XDG_DATA_HOME")); base != "" {
+	if base := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); base != "" {
 		return filepath.Join(base, "opencode", "log")
 	}
-	if base := strings.TrimSpace(os.Getenv("OPENCODE_DATA_DIR")); base != "" {
-		return filepath.Join(base, "xdg-data", "opencode", "log")
-	}
-	root, err := repocontract.ResolveRepoRoot()
-	if err != nil {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
 		return ""
 	}
-	return filepath.Join(root, "data", "opencode", "xdg-data", "opencode", "log")
+	return filepath.Join(home, ".local", "share", "opencode", "log")
 }
 
 func newestFile(dir, pattern string) (string, error) {

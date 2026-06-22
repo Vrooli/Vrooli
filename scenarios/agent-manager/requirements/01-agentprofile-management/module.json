@@ -1,95 +1,90 @@
 {
-  "description": "Create and manage agent profiles with runner configurations and permissions",
-  "module_id": "MOD-P0-001",
-  "prd_ref": "OT-P0-001",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T09:09:13-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-001",
+      "title": "Create Agent Profile",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "System must allow creation of agent profiles with name, description, runner configuration settings, and permission scopes",
-      "id": "REQ-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "implemented",
-      "title": "Create Agent Profile",
       "validation": [
         {
-          "notes": "Verify profile creation with valid data",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateProfile_Success",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify profile creation with valid data"
         },
         {
-          "notes": "Verify validation of required fields",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateProfile_ValidationError",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Verify validation of required fields"
         },
         {
-          "notes": "Test profile retrieval by ID",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestGetProfile_Success",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Test error handling for missing profile",
           "phase": "unit",
+          "status": "failing",
+          "notes": "Test profile retrieval by ID"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestGetProfile_NotFound",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test error handling for missing profile"
         },
         {
-          "notes": "Test listing profiles",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestListProfiles",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Test listing profiles"
         },
         {
-          "notes": "Test profile deletion",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestDeleteProfile_Success",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Test profile deletion"
         }
       ]
     },
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "System must allow updating existing agent profile fields while maintaining referential integrity",
       "id": "REQ-P0-002",
-      "prd_ref": "OT-P0-001",
-      "status": "implemented",
       "title": "Update Agent Profile",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "System must allow updating existing agent profile fields while maintaining referential integrity",
       "validation": [
         {
-          "notes": "Verify profile updates persist correctly",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestUpdateProfile_Success",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Test orchestrator-level profile update",
           "phase": "unit",
-          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_ProfileCRUD",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Verify profile updates persist correctly"
         },
         {
-          "notes": "Verify repository-level CRUD operations",
-          "phase": "integration",
+          "type": "test",
+          "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_ProfileCRUD",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test orchestrator-level profile update"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/repository/memory_test.go::TestMemoryProfileRepository_CRUD",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify repository-level CRUD operations"
         }
       ]
     }
-  ],
-  "title": "AgentProfile Management"
+  ]
 }

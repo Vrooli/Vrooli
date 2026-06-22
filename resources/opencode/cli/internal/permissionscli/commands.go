@@ -12,9 +12,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"resource-opencode/cli/internal/permissions"
 	"sort"
 	"strings"
+
+	"resource-opencode/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliapp"
@@ -84,6 +85,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{Name: "remove", Description: "Remove a pattern from any list (mutating)", Run: h.Remove},
 			{Name: "reset", Description: "Clear all Vrooli-managed permission entries (mutating)", Run: h.Reset},
 			{Name: "drift-check", Description: "Compare current opencode.json fingerprint to last Vrooli write", Run: h.DriftCheck},
+			{Name: "migrate", Description: "Heal a pre-1.0 opencode.json: move the retired inline managed-key into the sidecar and strip it (idempotent)", Run: h.Migrate},
 			{Name: "doctor", Description: "Check installed opencode version against the pinned upstream version", Run: h.Doctor},
 		},
 	}
@@ -185,6 +187,28 @@ func (h *Handlers) DriftCheck(args []string) error {
 	return errors.New("drift detected")
 }
 
+// Migrate heals a pre-1.0 opencode.json that still carries the retired inline
+// `x-vrooli-managed-permissions` key (which opencode rejects as an unknown
+// top-level key, blocking startup). It reloads the current managed policy —
+// Load migrates the legacy key — and re-saves, which strips the key from
+// opencode.json and records the managed list in the sidecar. The effective
+// policy is unchanged, so it is safe, idempotent, and ungated: it runs during
+// install and in autonomous (no-human) contexts.
+func (h *Handlers) Migrate(args []string) error {
+	if err := h.flagSet("permissions migrate").Parse(args); err != nil {
+		return err
+	}
+	p, err := h.Adapter.Load()
+	if err != nil {
+		return err
+	}
+	if err := h.Adapter.Save(p, h.CLIVersion); err != nil {
+		return err
+	}
+	fmt.Fprintf(h.Stdout, "migrated managed-permissions list into the sidecar; %s now carries only schema-valid keys\n", h.Adapter.SettingsPath)
+	return nil
+}
+
 func (h *Handlers) Doctor(args []string) error {
 	fs := h.flagSet("permissions doctor")
 	pinned := fs.String("pinned-version", h.PinnedVersion, "Override the pinned upstream-CLI version for this check")
@@ -245,10 +269,7 @@ func (h *Handlers) mutate(verb string, args []string) error {
 	case "ask":
 		p.BashAsk = addUnique(p.BashAsk, pattern)
 	}
-	if err := h.Adapter.Save(p); err != nil {
-		return err
-	}
-	if err := h.Adapter.WriteState(p, h.CLIVersion); err != nil {
+	if err := h.Adapter.Save(p, h.CLIVersion); err != nil {
 		return err
 	}
 	fmt.Fprintf(h.Stdout, "%s %s -> %s\n", verb, pattern, h.Adapter.SettingsPath)
@@ -275,10 +296,7 @@ func (h *Handlers) Remove(args []string) error {
 	p.BashDeny = removeOne(p.BashDeny, pattern)
 	p.BashAsk = removeOne(p.BashAsk, pattern)
 	p.BashAllow = removeOne(p.BashAllow, pattern)
-	if err := h.Adapter.Save(p); err != nil {
-		return err
-	}
-	if err := h.Adapter.WriteState(p, h.CLIVersion); err != nil {
+	if err := h.Adapter.Save(p, h.CLIVersion); err != nil {
 		return err
 	}
 	fmt.Fprintf(h.Stdout, "removed %s from any list\n", pattern)
@@ -295,10 +313,7 @@ func (h *Handlers) Reset(args []string) error {
 		return err
 	}
 	p := permissions.Policy{}
-	if err := h.Adapter.Save(p); err != nil {
-		return err
-	}
-	if err := h.Adapter.WriteState(p, h.CLIVersion); err != nil {
+	if err := h.Adapter.Save(p, h.CLIVersion); err != nil {
 		return err
 	}
 	fmt.Fprintln(h.Stdout, "cleared all Vrooli-managed permission entries")

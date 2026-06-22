@@ -3,10 +3,12 @@ package permissionscli
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
-	"resource-opencode/cli/internal/permissions"
 	"strings"
 	"testing"
+
+	"resource-opencode/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/agentpolicy"
 	"github.com/vrooli/cli-core/cliutil"
@@ -75,7 +77,7 @@ func TestDenyAsAgentAllowedWithOverride(t *testing.T) {
 
 func TestListIsAlwaysAllowedForAgents(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"rm -rf /*"}}); err != nil {
+	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"rm -rf /*"}}, "test"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	if err := h.List(nil); err != nil {
@@ -104,13 +106,54 @@ func TestDriftCheckDetectsHandEdit(t *testing.T) {
 	if err := h.Deny([]string{"x"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
-	p, _ := h.Adapter.Load()
-	p.BashDeny = append(p.BashDeny, "extra")
-	if err := h.Adapter.Save(p); err != nil {
-		t.Fatalf("hand edit save: %v", err)
+	// Simulate a genuine out-of-band hand-edit: flip the managed entry's
+	// action directly in opencode.json, bypassing the adapter, so the sidecar
+	// fingerprint goes stale. (Editing via Save would keep the sidecar in
+	// sync and not be drift.)
+	raw, err := os.ReadFile(h.Adapter.SettingsPath)
+	if err != nil {
+		t.Fatalf("read settings: %v", err)
+	}
+	edited := strings.Replace(string(raw), `"x": "deny"`, `"x": "allow"`, 1)
+	if edited == string(raw) {
+		t.Fatalf("expected to rewrite the managed entry; file was:\n%s", raw)
+	}
+	if err := os.WriteFile(h.Adapter.SettingsPath, []byte(edited), 0o644); err != nil {
+		t.Fatalf("hand edit: %v", err)
 	}
 	if err := h.DriftCheck(nil); err == nil {
 		t.Fatal("expected drift error")
+	}
+}
+
+func TestMigrateStripsLegacyKey(t *testing.T) {
+	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
+	// Seed a pre-1.0 config that opencode would reject.
+	initial := `{
+  "model": "anthropic/claude-opus-4-7",
+  "permission": {"bash": {"git stash *": "deny"}},
+  "x-vrooli-managed-permissions": ["git stash *"]
+}`
+	if err := os.WriteFile(h.Adapter.SettingsPath, []byte(initial), 0o644); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if err := h.Migrate(nil); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	raw, _ := os.ReadFile(h.Adapter.SettingsPath)
+	if strings.Contains(string(raw), "x-vrooli-managed-permissions") {
+		t.Errorf("legacy key not stripped: %s", raw)
+	}
+	if !strings.Contains(string(raw), `"git stash *": "deny"`) {
+		t.Errorf("managed entry should survive migration: %s", raw)
+	}
+	// Idempotent: a second run is a no-op and still valid.
+	if err := h.Migrate(nil); err != nil {
+		t.Fatalf("Migrate (2nd): %v", err)
+	}
+	st, err := h.Adapter.LoadState()
+	if err != nil || st == nil || len(st.ManagedBash) != 1 {
+		t.Errorf("sidecar should record migrated list: %+v (%v)", st, err)
 	}
 }
 
@@ -130,7 +173,7 @@ func TestResetClearsAll(t *testing.T) {
 
 func TestRemoveOnePattern(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"a", "b"}}); err != nil {
+	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"a", "b"}}, "test"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	if err := h.Remove([]string{"a"}); err != nil {

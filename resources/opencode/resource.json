@@ -2,7 +2,7 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "opencode",
   "display_name": "OpenCode",
-  "description": "OpenCode CLI resource with a thin Go entrypoint and external-cli-specific logic organized under internal packages.",
+  "description": "OpenCode CLI resource: a thin Go entrypoint wiring lifecycle, governed permissions, and an upstream update-check; agent-manager invokes the raw opencode binary directly.",
   "cli": {
     "enabled": true,
     "command": "resource-opencode",
@@ -75,29 +75,6 @@
   "environment_exports": {
     "static": {
       "OPENCODE_PATH": "opencode"
-    },
-    "derived": {
-      "OPENCODE_CONFIG_DIR": {
-        "template": "${RESOURCE_CONFIG_DIR}"
-      },
-      "OPENCODE_DATA_DIR": {
-        "template": "${RESOURCE_DATA_DIR}"
-      },
-      "OPENCODE_CACHE_DIR": {
-        "template": "${RESOURCE_CACHE_DIR}"
-      },
-      "OPENCODE_LOG_DIR": {
-        "template": "${RESOURCE_LOGS_DIR}"
-      },
-      "OPENCODE_STATE_DIR": {
-        "template": "${RESOURCE_STATE_DIR}"
-      },
-      "OPENCODE_XDG_CONFIG_HOME": {
-        "template": "${OPENCODE_CONFIG_DIR}/xdg-config"
-      },
-      "OPENCODE_XDG_DATA_HOME": {
-        "template": "${OPENCODE_DATA_DIR}/xdg-data"
-      }
     }
   },
   "orchestration": {
@@ -145,9 +122,10 @@
   },
   "upstream_cli": {
     "version_command": ["opencode", "--version"],
-    "version_pinned": "1.15.7",
+    "version_pinned": "1.17.9",
+    "upstream_release_source": "https://api.github.com/repos/sst/opencode/releases/latest",
     "docs_source": "https://opencode.ai/docs/permissions/",
-    "docs_pinned_at": "2026-05-28",
+    "docs_pinned_at": "2026-06-22",
     "schema_version": 1
   },
   "template_version": "2"

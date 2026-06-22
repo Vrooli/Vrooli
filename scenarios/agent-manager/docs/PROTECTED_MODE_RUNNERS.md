@@ -112,6 +112,53 @@ returns the host or sandbox launcher.
 | `opencode.continueWithTranscript` | `r.selector.PickFor` + builder, `runTranscriptCommand` | Slice 1 |
 | `opencode.Continue` (streaming) | `r.selector.PickFor` + builder | Slice 1 |
 
+> **OpenCode invocation contract (2026-06-22).** The OpenCode codec
+> (`codecs/opencode.go`) invokes the **raw `opencode` binary** directly
+> — `opencode run <prompt> --format json --print-logs [-m <model>]
+> [--session <id>]` — not the `resource-opencode` wrapper (whose `run`/
+> `status` subcommands no longer exist). Availability is a plain
+> `exec.LookPath("opencode")`. Capabilities reported: `SupportsStreaming`
+> and `SupportsCostTracking` are **true** (the JSON event stream carries
+> `step_finish` token/cost data), alongside continuation and cancellation.
+> This matches the codex/claude-code raw-binary contract; sandbox launch
+> routing through `launcherSelector` is unchanged.
+
+## Codec capability contract (SSOT, 2026-06-22)
+
+This is the single source of truth for each codec's
+`Capabilities()` struct (`internal/adapters/runner/codecs/{claude,codex,opencode}.go`).
+The drift guard `codecs.TestCapabilitiesConformance` pins code to this
+table — update both together. Parity means "same capability wherever the
+upstream CLI allows," not faked support.
+
+| Capability | claude_code | codex | opencode | Notes |
+|---|:---:|:---:|:---:|---|
+| Messages | ✅ | ✅ | ✅ | structured assistant/user messages |
+| Tool events | ✅ | ✅ | ✅ | tool_call / tool_result |
+| Cost tracking | ✅ | ✅ | ✅ | token + cost from the JSON stream |
+| Streaming | ✅ | ✅ | ✅ | line-delimited JSON event stream |
+| Cancellation | ✅ | ✅ | ✅ | mid-run kill via the launcher |
+| Continuation | ✅ | ✅ | ✅ | claude `--resume`; codex `exec resume`; opencode `--session` |
+| Image attachments | ✅ | ✅ | ✅ | claude embeds paths in the prompt; codex `-i/--image`; opencode `-f/--file` |
+| Local models (Ollama) | ❌ | ✅ | ✅ | **Acknowledged difference:** claude-code is Anthropic-native (litellm proxy retired). codex routes `ollama/*` models via `--oss --local-provider ollama`; opencode via its first-class `ollama` provider block. |
+
+**Model advertisement (`SupportedModels`).** Each codec advertises a
+curated cloud list and, for codex + opencode, **appends the
+locally-pulled `ollama/*` models** discovered via a cached (60s TTL)
+`/api/tags` probe (`codecs/ollama.go`). The probe is agent-safe: a
+unreachable daemon degrades to the curated list, never an error. claude-code
+advertises Anthropic aliases only. `SupportedFeatures` /
+`AllowedExtraFlags` differ per upstream CLI (claude exposes
+`EnableBrowser` / `--disallowedTools`; codex + opencode expose `--verbose`)
+— these are genuine upstream differences, documented not reconciled.
+
+**Update surface.** All three resource CLIs share one
+`upstream-check` verb (`github.com/vrooli/cli-core/upstreamcheck`, wired via
+`upstreamverb.Commands`). `vrooli resource upstream-check [--all] [--json]`
+aggregates the three (degrades any unresolved resource to `unknown`, always
+exit 0). Each resource exposes an opt-in `update` verb off its
+`lib/install.sh` that reinstalls to the pin (never silent auto-update).
+
 ## Trade-offs the seam used to lean on (all resolved 2026-04-28)
 
 | Concern | Resolution | Item |

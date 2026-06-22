@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // registers the pure-Go "sqlite" database/sql driver
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"

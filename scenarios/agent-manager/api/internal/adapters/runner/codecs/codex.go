@@ -93,6 +93,7 @@ type Codex struct {
 	message        string
 	installHint    string
 	pricingService PricingService
+	ollama         *ollamaLister
 }
 
 // CodexOption configures a Codex codec.
@@ -115,6 +116,7 @@ func NewCodex(opts ...CodexOption) (*Codex, error) {
 			available:   false,
 			message:     "codex CLI not found in PATH",
 			installHint: "Run: vrooli resource install codex",
+			ollama:      newOllamaLister(),
 		}
 		for _, opt := range opts {
 			opt(c)
@@ -125,6 +127,7 @@ func NewCodex(opts ...CodexOption) (*Codex, error) {
 		binaryPath: binaryPath,
 		available:  true,
 		message:    "codex CLI available",
+		ollama:     newOllamaLister(),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -146,8 +149,20 @@ func NewCodexForTest() *Codex {
 // Type satisfies [Codec].
 func (c *Codex) Type() domain.RunnerType { return domain.RunnerTypeCodex }
 
-// Capabilities satisfies [Codec].
+// Capabilities satisfies [Codec]. SupportedModels is the curated cloud list
+// plus any locally-pulled Ollama models discovered via the cached lister
+// (codex reaches them natively through `--oss --local-provider ollama`).
 func (c *Codex) Capabilities() runner.Capabilities {
+	models := []string{
+		"gpt-5.5",
+		"gpt-5.4",
+		"gpt-5.4-mini",
+		"gpt-5.3-codex",
+		"gpt-5.3-codex-spark",
+		"gpt-5.2",
+	}
+	models = append(models, c.ollama.list()...)
+
 	return runner.Capabilities{
 		SupportsMessages:         true,
 		SupportsToolEvents:       true,
@@ -155,18 +170,11 @@ func (c *Codex) Capabilities() runner.Capabilities {
 		SupportsStreaming:        true, // codec only supports JSON-stream path
 		SupportsCancellation:     true,
 		SupportsContinuation:     true, // `codex exec resume <thread_id>`
-		SupportsImageAttachments: false,
+		SupportsImageAttachments: true, // `codex exec -i/--image <FILE>`
 		MaxTurns:                 0,
-		SupportedModels: []string{
-			"gpt-5.5",
-			"gpt-5.4",
-			"gpt-5.4-mini",
-			"gpt-5.3-codex",
-			"gpt-5.3-codex-spark",
-			"gpt-5.2",
-		},
-		SupportedFeatures: []string{},
-		AllowedExtraFlags: []string{"--verbose"},
+		SupportedModels:          models,
+		SupportedFeatures:        []string{},
+		AllowedExtraFlags:        []string{"--verbose"},
 	}
 }
 
@@ -229,18 +237,22 @@ func (c *Codex) BuildEnv(tag string, extras map[string]string) []string {
 	return runner.AppendEnvMap(env, extras)
 }
 
-// BuildPrompt satisfies [Codec]. Codex does not support image attachments
-// today; if any are passed, we pass the prompt unchanged.
+// BuildPrompt satisfies [Codec]. Codex receives image attachments via the
+// `-i/--image` flag (added in BuildArgs), not embedded in the prompt text, so
+// the prompt is passed through unchanged.
 func (c *Codex) BuildPrompt(prompt string, _ []runner.Attachment) string {
 	return prompt
 }
 
 // BuildArgs satisfies [Codec]. Captures req.GetConfig().Model on state so
-// cost events emitted from DecodeStreamLine can label themselves.
+// cost events emitted from DecodeStreamLine can label themselves. An
+// `ollama/`-prefixed model routes codex to its local OSS provider via
+// `--oss --local-provider ollama`; image attachments are passed with `-i`.
 func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	cfg := req.GetConfig()
+	model := strings.TrimSpace(cfg.Model)
 	if s, ok := state.(*codexState); ok {
-		s.runModel = strings.TrimSpace(cfg.Model)
+		s.runModel = model
 	}
 
 	args := []string{
@@ -260,12 +272,17 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 	}
 
-	if cfg.Model != "" {
-		args = append(args, "-m", cfg.Model)
+	bareModel, isOllama := splitOllamaModel(model)
+	if isOllama {
+		args = append(args, "--oss", "--local-provider", "ollama")
+	}
+	if model != "" {
+		args = append(args, "-m", bareModel)
 	}
 	if req.WorkingDir != "" {
 		args = append(args, "-C", req.WorkingDir)
 	}
+	args = appendAttachmentFlags(args, "-i", req.Attachments)
 	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeCodex]; ok {
 		args = append(args, extras...)
 	}
@@ -278,16 +295,21 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 // session-id positional argument and accepts an optional follow-up prompt
 // inline (rather than via stdin).
 func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []string {
+	model := strings.TrimSpace(req.GetConfig().Model)
 	if s, ok := state.(*codexState); ok {
-		s.runModel = strings.TrimSpace(req.GetConfig().Model)
+		s.runModel = model
 	}
 	args := []string{
 		"exec", "resume",
 		"--json",
 		"--skip-git-repo-check",
 		"--full-auto",
-		req.SessionID,
 	}
+	if _, isOllama := splitOllamaModel(model); isOllama {
+		args = append(args, "--oss", "--local-provider", "ollama")
+	}
+	args = appendAttachmentFlags(args, "-i", req.Attachments)
+	args = append(args, req.SessionID)
 	if strings.TrimSpace(req.Prompt) != "" {
 		args = append(args, req.Prompt)
 	}

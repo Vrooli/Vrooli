@@ -1,54 +1,52 @@
 {
-  "description": "Define and implement runner adapter interface",
-  "module_id": "MOD-P0-006",
-  "prd_ref": "OT-P0-006",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-22T09:09:13-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P0-008",
+      "title": "Runner Adapter Interface Definition",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-006",
       "category": "core",
       "description": "Define standard interface that all runner implementations must implement",
-      "id": "REQ-P0-008",
-      "prd_ref": "OT-P0-006",
-      "status": "implemented",
-      "title": "Runner Adapter Interface Definition",
       "validation": [
         {
-          "notes": "Test runner registry registration",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestDefaultRegistry_Register",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test runner registry registration"
         },
         {
-          "notes": "Test duplicate runner registration handling",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestDefaultRegistry_Register_Duplicate",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test duplicate runner registration handling"
         },
         {
-          "notes": "Test mock runner interface compliance",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Defaults",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Test stub runner for unavailable runners",
           "phase": "unit",
-          "ref": "api/internal/adapters/runner/registry_test.go::TestStubRunner",
-          "status": "passing",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test mock runner interface compliance"
         },
         {
-          "notes": "Verify runner status API endpoint",
-          "phase": "integration",
+          "type": "test",
+          "ref": "api/internal/adapters/runner/registry_test.go::TestStubRunner",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test stub runner for unavailable runners"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestGetRunnerStatus",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify runner status API endpoint"
         }
       ]
     }
-  ],
-  "title": "Runner Adapter Interface"
+  ]
 }

@@ -5,12 +5,11 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"system-monitor/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/api"
-
-	"system-monitor/cli/internal/support"
 )
 
 // Register exposes the metrics-lifecycle maintenance commands. Retention prunes

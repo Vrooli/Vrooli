@@ -41,9 +41,10 @@
   - Uses `resource-codex run` for execution
   - Status checks via `resource-codex status --format json`
   - Install hints when unavailable
-- **OpenCodeRunner** - Via resource-opencode wrapper ✅
-  - Uses `resource-opencode run` for execution
-  - Status checks via `resource-opencode status --format json`
+- **OpenCode** (`codecs/opencode.go`) - Raw `opencode` binary ✅
+  - Uses `opencode run … --format json --print-logs` for execution (no wrapper)
+  - Availability via `exec.LookPath("opencode")` (no status shell-out)
+  - Streaming + cost-tracking supported; `--session <id>` continuation
   - Install hints when unavailable
 - **WorkspaceSandboxProvider** - HTTP client for workspace-sandbox ✅
   - Sandbox CRUD operations
