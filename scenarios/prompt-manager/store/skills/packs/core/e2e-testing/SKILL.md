@@ -509,7 +509,7 @@ What this means for test authors:
 - **Don't try to set the test-mode header yourself** in workflow JSON. It's already attached at the browser context for every request; doing it again per-step is redundant and confusing.
 - **If your test only passes against prod data**, it's not really an E2E test — it's an observation. Fix it: seed what you need.
 
-Full details (mode flag, opt-in for new scenarios, lease/concurrency model) live in `path:docs/agent-system/routed-test-db.md`. Test authors usually don't need to read it.
+Full details (mode flag, opt-in for new scenarios, lease/concurrency model) live in `path:scenarios/storage-health/docs/concepts/test-isolation-contract.md`. Test authors usually don't need to read it.
 
 ---
 

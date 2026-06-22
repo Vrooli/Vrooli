@@ -13,6 +13,19 @@ Required reading:
 
 ---
 
+### The programmatic counterpart: the `storage-health` scenario
+
+This skill says *what* good storage architecture is and *why*. **`storage-health` is the *how* — the engine that measures whether a scenario actually conforms, and the gate that enforces the one non-negotiable: test-isolation safety.** What used to be the hand-rolled grep cookbook in §10 is now a real, productized validator; drive it instead of eyeballing `rg` output:
+
+- `storage-health validate scenario {{TARGET}}` — runs every static storage analyzer (schema layout, per-domain ownership, migration hygiene, persistence-seam adoption, and **the 4-seam isolation proof**) and returns a maturity assessment with `file:line`-anchored findings + remediation. This *is* the audit; §10's greps are what it automates.
+- `storage-health fix preview {{TARGET}}` / `storage-health fix apply {{TARGET}}` — preview/apply the deterministic autofixes it reports (e.g. `ENSURE_SCHEMAS_NOT_WIRED`, `DB_ROWS_NOT_CLOSED`). Idempotent: a second apply over an already-fixed tree is a no-op.
+- `storage-health fleet scan` · `storage-health advisor engines` · `storage-health advisor migrations` — fleet inventory (which scenarios use which engines, isolation-readiness, backup gaps), the Postgres→SQLite fitness advisor, and migration-hygiene intelligence.
+- `vrooli scenario test {{TARGET}}` **storage phase** — the same engine run as a delegated test-genie phase, positioned **before playbooks**. Its L2 verdict is the fail-closed gate: when isolation can't be statically proven (`ROUTED_SEAMS_UNWIRED` / `STORAGE_ISOLATION_UNVERIFIED`), test-genie **refuses** destructive E2E playbooks rather than risk mutating real data. This is the regression gate your changes must keep green.
+
+> This skill's detection has **graduated into a programmatic engine** (`programmaticHome: storage-health:storage`, dimension `storage`). Treat storage-health as the source of truth for the findings; this steer is the judgment layer over them. storage-health **superseded the five retired `scenario-auditor` DB/storage rules** (`routed_database_drivers`, `routed_database_handle_capture`, `database_backoff`, `db_rows_close`, `storage_namespace_helpers`) — don't reach for those; run the validator.
+
+---
+
 ### 0. Why This Skill Exists
 
 Storage problems are invisible until they cause outages, data corruption, or cross-scenario pollution. The deeper problems are *architectural*:
@@ -415,37 +428,25 @@ If a scenario is the only consumer of its DB / Redis / Qdrant, the isolation is 
 
 Before making changes, assess `{{TARGET}}`'s current storage posture against the canonical pattern.
 
-#### 10.1 Audit Commands
+#### 10.1 Run the validator (don't hand-roll greps)
+
+`storage-health` automates the entire audit — schema layout, per-domain ownership, the 4-seam isolation proof, persistence hygiene, namespace adoption, migration hygiene. Run it first, read its `file:line` findings, apply the autofixes it offers, and only fall back to manual inspection for things outside its analyzer set.
 
 ```bash
-# Per-domain schema files (should find one per domain that owns SQL).
-find scenarios/{{TARGET}}/api/internal -name 'schema.sql' -not -path '*/database/system.sql'
+# The full static storage audit, with file:line findings + remediation.
+storage-health validate scenario {{TARGET}}
 
-# Substrate usage (should find usage at boot).
-rg "EnsureSchemas|SchemaProvider" scenarios/{{TARGET}}/api --type go
+# Preview / apply the deterministic autofixes it reports (idempotent).
+storage-health fix preview {{TARGET}}
+storage-health fix apply {{TARGET}}
 
-# Resource-applied schema (presence is a flag).
-rg "initialization/storage" scenarios/{{TARGET}}/.vrooli/
-
-# Per-domain repository interfaces (should find one per domain).
-rg "type \w+Repository interface" scenarios/{{TARGET}}/api --type go
-
-# Direct SQL in handlers (anti-pattern — handlers should call services).
-rg "db\.(Query|Exec|QueryRow)" scenarios/{{TARGET}}/api/handlers --type go
-
-# Hardcoded credentials anywhere.
-rg "postgres://[^$]" scenarios/{{TARGET}}/ --type go
-rg "password.*=.*['\"]" scenarios/{{TARGET}}/ --type go
-
-# Filesystem storage contract (cross-platform-readiness's domain).
-rg "storage\.NewResolver|storage\.EnsureAllDirs" scenarios/{{TARGET}}/api --type go
-
-# Redis namespacing (should always have scenario prefix).
-rg "client\.(Set|Get|Del)\(" scenarios/{{TARGET}}/ --type go -A 1
-
-# Qdrant collection naming (should always have scenario prefix).
-rg "CollectionName|EnsureCollection" scenarios/{{TARGET}}/ --type go
+# Cross-scenario triage, engine-fitness advisor, migration-hygiene intelligence.
+storage-health fleet scan
+storage-health advisor engines
+storage-health advisor migrations
 ```
+
+The validator's findings map directly onto the red-flags below — it is the *mechanism* that detects them; §10.2 is the human-readable account of *what* it (and you) are looking for and *why* each matters. Reach for a manual `rg` only when you suspect something the analyzers don't yet cover, and consider filing a capability gap (`swarm-manager captures create`) so storage-health learns to catch it.
 
 #### 10.2 Red-Flags Checklist
 
@@ -511,6 +512,7 @@ Record audit results in `scenarios/{{TARGET}}/docs/internal/STORAGE_AUDIT.md`:
 2. ...
 
 ## Cross-References
+- `storage-health validate scenario {{TARGET}}` → the programmatic audit that produced these findings
 - `cross-platform-readiness` → engine selection, filesystem contract
 - `packages/api-core/database/schemas.go` → substrate
 - `path:templates/scenarios/react-vite/api/internal/notes/` → canonical worked example

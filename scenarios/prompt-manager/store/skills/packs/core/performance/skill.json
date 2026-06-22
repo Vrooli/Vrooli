@@ -17,7 +17,8 @@
   "targetDimensions": [
     "performance"
   ],
-  "revision": 47,
+  "programmaticHome": "performance-health:performance",
+  "revision": 48,
   "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-05-03T19:30:00Z"
+  "updatedAt": "2026-06-21T00:00:00Z"
 }

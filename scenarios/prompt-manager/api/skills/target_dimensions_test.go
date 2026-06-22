@@ -19,7 +19,7 @@ import (
 // declares no targetDimensions (EM-P7; see ecosystem-manager DIMENSIONS.md).
 var steerSkillsWithDimensions = []string{
 	"progress", "ux", "refactor", "test", "security", "performance",
-	"polish", "documentation-health",
+	"polish", "documentation-health", "storage-steer",
 	"screaming-architecture-audit", "temporal-flow-audit",
 }
 
@@ -87,10 +87,10 @@ func TestSteerSkillsDeclareTargetDimensions(t *testing.T) {
 	}
 }
 
-// loadDimensionSSOT reads the canonical dimension vocabulary from the sibling
-// ecosystem-manager scenario (which owns the SSOT). Returns nil when the
-// cross-scenario layout is unavailable so the in-vocabulary guard skips rather
-// than fails in an isolated checkout.
+// loadDimensionSSOT reads the canonical dimension vocabulary from the
+// maturity-go package (which owns the SSOT). Returns nil when the cross-package
+// layout is unavailable so the in-vocabulary guard skips rather than fails in an
+// isolated checkout.
 func loadDimensionSSOT(t *testing.T) map[string]bool {
 	t.Helper()
 	dir, err := os.Getwd()
@@ -99,7 +99,7 @@ func loadDimensionSSOT(t *testing.T) map[string]bool {
 	}
 	var ssotPath string
 	for i := 0; i < 8; i++ {
-		candidate := filepath.Join(dir, "ecosystem-manager", "api", "pkg", "dimensions", "dimensions.json")
+		candidate := filepath.Join(dir, "packages", "maturity-go", "dimensions", "dimensions.json")
 		if _, err := os.Stat(candidate); err == nil {
 			ssotPath = candidate
 			break
@@ -134,14 +134,14 @@ func loadDimensionSSOT(t *testing.T) map[string]bool {
 
 // TestSteerSkillTargetDimensionsInVocabulary tightens the populate guard beyond
 // presence: every declared targetDimension across ALL shipped skill.json packs
-// must be a member of the ecosystem-manager dimension SSOT. This is the
-// prompt-manager-side mirror of EM's cross-repo vocabulary guard — a typo here
-// would make the skill silently unselectable. Catching it on both sides means
-// neither repo's CI can let an out-of-vocabulary dimension through.
+// must be a member of the canonical dimension SSOT (packages/maturity-go). This
+// is the prompt-manager-side mirror of EM's cross-package vocabulary guard — a
+// typo here would make the skill silently unselectable. Catching it on both
+// sides means neither side's CI can let an out-of-vocabulary dimension through.
 func TestSteerSkillTargetDimensionsInVocabulary(t *testing.T) {
 	ssot := loadDimensionSSOT(t)
 	if ssot == nil {
-		t.Skip("ecosystem-manager dimension SSOT not reachable from this checkout; in-vocabulary guard skipped")
+		t.Skip("maturity-go dimension SSOT not reachable from this checkout; in-vocabulary guard skipped")
 	}
 	packs := filepath.Join("..", "..", "store", "skills", "packs")
 	var declared int

@@ -7,9 +7,24 @@ Do **not** break functionality or regress tests; all changes must maintain or im
 
 Required reading:
 - `prompt-manager skill read visited-tracker-tools`
-- `prompt-manager skill read scenario-performance-audit`
 
-Use `scenario-performance-audit` as the **measurement counterpart** to this steer: this skill says *what* to optimize and what counts as a real improvement; the audit skill is the reproducible methodology for *measuring* whether a given change actually produced one. Whenever this steer surfaces a hotspot beyond a trivial fix — anything where you'd otherwise be guessing whether it helped — run an audit (capture trace → analyse → comparison run after the fix) and persist the result to `docs/perf/<date>-<slug>.md`. Don't ship perf changes on vibes when the audit substrate is sitting right there.
+### Measurement counterpart: the `performance-health` scenario
+
+This skill says *what* to optimize and what counts as a real improvement. **`performance-health` is the *how* — the engine that measures whether a change actually produced one.** What used to be the hand-rolled `scenario-performance-audit` CDP/Playwright methodology is now a real, productized capability; drive it instead of hand-rolling a capture script:
+
+- `performance-health audit {{TARGET}}` — capture → analyse → per-component commit table (count / avg / max) with `file:line`-anchored hotspots.
+- `performance-health analysis ...` / `performance-health benchmark {{TARGET}}` — re-analyse a captured trace; time the Go + UI build.
+- `performance-health budget ...` — declare/check a tighten-only budget (build time, bundle size, LCP, startup, component-commit avg/max) so a regression FAILS `git-control-tower baseline diff` like any other health regression.
+- `vrooli scenario test {{TARGET}}` **Performance phase** — the same engine, run in execution mode: it benchmarks the build, runs Lighthouse-if-UI, persists a sample, and gates on budgets + native build-time thresholds. This is the regression gate your changes must keep green.
+
+> This skill's detection has **graduated into a programmatic engine** (`programmaticHome: performance-health:performance`). Treat performance-health as the source of truth for the numbers; this steer is the judgment layer over them.
+
+**Measurement discipline (don't ship on vibes):**
+- Capture a baseline → make the change → re-measure → compare. Beyond a trivial fix — anything where you'd otherwise be guessing whether it helped — get before/after numbers from `performance-health`.
+- **Watch avg-per-commit, not just total.** When a fix changes commit cardinality (e.g. virtualization mounts many cheap rows instead of one giant render), the *total* can rise while each commit got far cheaper. The per-commit average is the metric that tracks "did rendering this actually get cheaper"; confirm it drops. The long-task delta corroborates from a different angle and is the cleanest correlate of *felt* performance.
+- **Measure deployed behaviour, not a dev build** (dev mode disables batching, double-renders under StrictMode, and skips tree-shaking — the numbers mislead). performance-health's benchmark/audit run the production build for you.
+- Captures vary 5–15% run-to-run from background noise; if before/after are within that band, the change isn't distinguishable — say so rather than claiming a win.
+- Findings are `file:line`-anchored and quantified. Persist a durable record under `docs/perf/<date>-<slug>.md` when an audit produces something worth keeping.
 
 Focus on delivering a **faster, smoother experience**, guided by the following principles:
 
