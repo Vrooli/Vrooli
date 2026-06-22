@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui coverage-model-lifecycle model-install-e2e headless-ai-e2e gpu-e2e check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui coverage-model-lifecycle model-install-e2e headless-ai-e2e gpu-e2e check setup open orient temporal-models endpoints backends-doc
 
 .DEFAULT_GOAL := help
 
@@ -224,6 +224,9 @@ orient: ## Show generated-scenario orientation progress
 
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
 	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+
+backends-doc: ## Regenerate the generated host-tool matrix in docs/reference/backends.md from providerSpecs()
+	@cd api && UPDATE_BACKENDS_DOC=1 go test ./internal/ai/ -run TestBackendsDocHostToolMatrixUpToDate -count=1 >/dev/null && echo "backends.md host-tool matrix regenerated"
 
 run: start
 

@@ -220,6 +220,21 @@
     "thumbnailAlt": "{{operation}} の結果",
     "openOutput": "出力を開く"
   },
+  "backends": {
+    "title": "バックグラウンドエンジン",
+    "description": "オンデマンドで導入する任意のAIエンジン。既定のセットアップではダウンロードされません。",
+    "loading": "エンジンを確認中…",
+    "empty": "導入可能な任意エンジンはありません。",
+    "operationsLabel": "対応操作",
+    "ready": "導入済み",
+    "notInstalled": "未導入",
+    "install": "インストール",
+    "installing": "インストール中…",
+    "installStarted": "インストール中 (ジョブ {{jobId}}、約 {{eta}} 秒)",
+    "alreadyInstalled": "導入済み",
+    "manualHint": "{{detail}}",
+    "remediationLabel": "実行: {{cmd}}"
+  },
   "models": {
     "title": "モデルレジストリ",
     "loading": "モデルを読み込み中…",
@@ -236,6 +251,8 @@
     "hardwareLabel": "ハードウェア:",
     "hardware": {
       "gpuRequired": "GPU が必要",
+      "gpuAvailable": "✓ GPU で実行できます",
+      "gpuShort": "VRAM が約 {{gb}} GB 不足",
       "cpuOk": "✓ お使いの CPU で動作",
       "vram": "VRAM {{gb}} GB 以上が必要",
       "ram": "RAM {{gb}} GB 以上が必要",
@@ -299,6 +316,56 @@
       "useDefault": "組み込みデフォルトを使用",
       "clear": "クリア",
       "none": "なし"
+    },
+    "picker": {
+      "titleFor": "{{op}} のモデル",
+      "close": "閉じる",
+      "loading": "ハードウェアに合うモデルを検索中…",
+      "size": "{{size}} MB",
+      "manualTitle": "手動セットアップ",
+      "trigger": {
+        "label": "モデル",
+        "loading": "モデルを選択中…",
+        "none": "利用可能なモデルがありません",
+        "change": "変更"
+      },
+      "host": {
+        "gpu": "{{name}} · VRAM {{total}} GB（空き {{free}} GB）",
+        "gpuUnknown": "{{name}} · VRAM 不明",
+        "noGpu": "GPU が検出されません — CPU のみ",
+        "specs": "{{cores}} コア · RAM {{ram}} GB"
+      },
+      "fit": {
+        "gpu": "GPU で実行できます",
+        "cpu": "CPU で実行できます",
+        "cpuFallback": "CPU で実行（現在 GPU には収まりません）",
+        "insufficientVram": "空き VRAM が約 {{gb}} GB 不足",
+        "noGpu": "GPU が必要です（未検出）",
+        "unsupportedOs": "{{os}}/{{arch}} 向けビルドがありません"
+      },
+      "state": {
+        "ready": "準備完了",
+        "needsModel": "重みが未ダウンロード",
+        "needsBackend": "エンジン未インストール",
+        "needsBackendManual": "エンジンの手動セットアップが必要",
+        "needsBoth": "重みとエンジンが必要",
+        "disabled": "設定で無効",
+        "insufficient": "このハードウェアでは実行不可",
+        "unsupported": "お使いの OS では利用不可"
+      },
+      "action": {
+        "select": "使用",
+        "selected": "使用中",
+        "installModel": "ダウンロード",
+        "installBackend": "エンジンをインストール",
+        "enable": "有効化",
+        "manualSteps": "セットアップ手順",
+        "installing": "インストール中…"
+      },
+      "footer": {
+        "all": "このタスク向けの全 {{count}} モデルを表示 — 実行できないものも理由がわかるように表示しています。",
+        "none": "このタスク向けの他のモデルはありません。"
+      }
     }
   },
   "workspace": {
@@ -535,8 +602,6 @@
       "seedLock": "シードを固定",
       "seedRandomize": "シードをランダム化",
       "variationsLabel": "バリエーション",
-      "modelLabel": "モデル（任意）",
-      "modelPlaceholder": "お使いのハードウェアに最適なもの",
       "byokLabel": "有料クラウドを許可（BYOK）",
       "advanced": "詳細設定",
       "usesCurrent": "現在のキャンバス画像を使用します。",

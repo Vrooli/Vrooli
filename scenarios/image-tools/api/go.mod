@@ -16,6 +16,7 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/image v0.42.0
@@ -51,6 +52,8 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/measures-go => ../../../packages/measures-go
 

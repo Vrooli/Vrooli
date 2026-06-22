@@ -332,13 +332,15 @@ func TestArgBuilders(t *testing.T) {
 		},
 		{
 			name: "realesrgan scale",
+			// Uses the release's bundled model name (resolved relative to the
+			// binary), not a -m dir or the image-tools model id.
 			args: mustArgs(t, buildRealesrgan, req("upscale", []string{"/in.png"}, map[string]string{"scale": "2"})),
-			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "2", "-n", "m1"},
+			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "2", "-n", "realesr-animevideov3"},
 		},
 		{
 			name: "realesrgan denoise",
 			args: mustArgs(t, buildRealesrgan, req("denoise", []string{"/in.png"}, map[string]string{"denoise": "3"})),
-			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "4", "-n", "m1", "-dn", "3"},
+			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "4", "-n", "realesr-animevideov3"},
 		},
 		{
 			name: "rembg",
@@ -547,8 +549,8 @@ func TestLlamaCppProvider_AvailabilityMissingBinary(t *testing.T) {
 	if a.Available {
 		t.Fatalf("provider should be unavailable when llama.cpp binaries are absent")
 	}
-	if !strings.Contains(a.Detail, "llama-mtmd-cli/llama-cli") || !strings.Contains(a.Provision, "Scenario Dependency Analyzer") {
-		t.Fatalf("availability should include binary and provisioning detail: %+v", a)
+	if !strings.Contains(a.Detail, "llama-mtmd-cli/llama-cli") || !strings.Contains(a.Provision, "vrooli host install llama-cpp") {
+		t.Fatalf("availability should include binary and derived host-tool remediation: %+v", a)
 	}
 }
 

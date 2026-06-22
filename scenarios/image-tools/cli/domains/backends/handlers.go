@@ -74,7 +74,7 @@ func formatBackend(b *modelsv1.BackendStatus) string {
 	if b.GpuCapable {
 		gpu = "gpu-capable"
 	}
-	return fmt.Sprintf("%s [%s, %s, %s] ops=%s — %s; provision: %s",
+	line := fmt.Sprintf("%s [%s, %s, %s] ops=%s — %s; provision: %s",
 		b.Name,
 		availability,
 		tier,
@@ -83,6 +83,59 @@ func formatBackend(b *modelsv1.BackendStatus) string {
 		b.Detail,
 		b.Provision,
 	)
+	// Surface the exact remediation command for a missing host tool so the gap
+	// is fixable straight from doctor output (Phase 6 doctor unification).
+	if b.Remediation != "" {
+		line += fmt.Sprintf("; remediation: %s", b.Remediation)
+	}
+	return line
+}
+
+// ensure installs a missing host-tool backend on demand (EnsureBackend → durable
+// job, mirroring `models install`). Manual / capability-gated tools return
+// guidance with no job.
+func (h *handlers) ensure(ctx cliapp.RunContext) error {
+	tool := ctx.Positional("tool")
+	dryRun := ctx.BoolFlag("dry-run")
+	resp, err := h.client.EnsureBackend(context.Background(), connect.NewRequest(&modelsv1.EnsureBackendRequest{
+		Tool:   tool,
+		DryRun: dryRun,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("ensure backend %q", tool), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no ensure response")
+	}
+	msg := resp.Msg
+	switch {
+	case msg.AlreadyInstalled:
+		return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
+			Result:  []string{fmt.Sprintf("Backend tool %s is already installed.", msg.Tool)},
+			Changes: []string{"no install job submitted"},
+		})
+	case msg.Manual:
+		return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
+			Result:  []string{fmt.Sprintf("Backend tool %s needs a manual install (%s).", msg.Tool, msg.State)},
+			Changes: []string{"no install job submitted"},
+			NextCommand: []string{
+				strings.TrimSpace(msg.Detail),
+			},
+		})
+	case msg.JobId == "":
+		return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
+			Result:  []string{fmt.Sprintf("Backend tool %s: %s.", msg.Tool, msg.State)},
+			Changes: []string{strings.TrimSpace(msg.Detail)},
+		})
+	default:
+		return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
+			Result:  []string{fmt.Sprintf("Installing backend tool %s (job %s, ~%ds).", msg.Tool, msg.JobId, msg.EtaSeconds)},
+			Changes: []string{"durable install job submitted"},
+			NextCommand: []string{
+				fmt.Sprintf("`jobs wait %s` — block once on completion", msg.JobId),
+			},
+		})
+	}
 }
 
 func countUnavailableLocal(backends []*modelsv1.BackendStatus) int {

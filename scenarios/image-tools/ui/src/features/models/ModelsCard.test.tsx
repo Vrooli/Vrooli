@@ -263,7 +263,9 @@ describe("ModelsCard", () => {
       "Allowed below 1M MAU",
     );
     const hardware = screen.getByTestId(selectors.models.hardware);
-    expect(hardware.textContent).toContain("Needs a GPU");
+    // Host-aware: the mock host has a capable GPU, so a GPU-required model reads
+    // affirmatively ("Runs on your GPU") rather than a static "Needs a GPU".
+    expect(hardware.textContent).toContain("Runs on your GPU");
     expect(hardware.textContent).toContain("8 GB VRAM");
     expect(hardware.textContent).toContain("~4s per image on a 4090");
     // One chip per hardware-fit signal (GPU, VRAM, RAM, speed note).

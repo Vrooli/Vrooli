@@ -15,6 +15,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"ModelsService.DoctorBackends": h.doctor,
+		"ModelsService.EnsureBackend":  h.ensure,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

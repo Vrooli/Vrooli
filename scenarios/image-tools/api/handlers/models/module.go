@@ -19,7 +19,7 @@ import (
 // ModelsService handler over the declarative registry. The registry (validated
 // seed catalog) is loaded once in main.go and shared; the enabled-state overlay
 // is persisted in SQLite via the models store.
-func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, ensurer BackendEnsurer, logger *log.Logger) module.Module {
 	store := internalmodels.NewStore(db)
 	connectPath, connectHandler := modelsconnect.NewModelsServiceHandler(NewConnectHandler(Deps{
 		Registry:               reg,
@@ -30,6 +30,7 @@ func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalc
 		Jobs:                   jobs,
 		OpDefaults:             internalmodels.NewOpDefaultStore(db),
 		EstimateInstallSeconds: estimateInstallSeconds,
+		Ensurer:                ensurer,
 		Logger:                 logger,
 	}))
 	return module.Module{
@@ -219,6 +220,86 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Doctor backends", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/DoctorBackends -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
+		ID:          "backends_ensure",
+		Path:        modelsconnect.ModelsServiceEnsureBackendProcedure,
+		Method:      "POST",
+		Summary:     "Install a missing host-tool backend on demand",
+		Description: "Ensures a backend's host tool is installed. Already-present, manual, and capability-gated (not-applicable) tools return immediately with guidance and no job. A fetchable tool submits a durable job (shells `vrooli host install <tool> --json`) and returns a job id + ETA; block once on jobs wait. Pass tool or operation.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"tool": "string", "operation": "string", "dry_run": "bool"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"tool":              "string",
+				"job_id":            "string (empty when no job submitted)",
+				"eta_seconds":       "int",
+				"already_installed": "bool",
+				"manual":            "bool",
+				"state":             "string",
+				"detail":            "string",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing/unknown tool or operation with no host-tool backend"},
+			{Status: 500, Code: "internal", Description: "Probe or job submission failure"},
+			{Status: 501, Code: "unimplemented", Description: "Backend provisioning unavailable (read-only wiring)"},
+		},
+		Examples: []module.Example{
+			{Name: "Ensure realesrgan", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/EnsureBackend -H 'Content-Type: application/json' -d '{\"tool\":\"realesrgan-ncnn-vulkan\"}'"},
+		},
+	},
+	{
+		ID:          "models_host_summary",
+		Path:        modelsconnect.ModelsServiceGetHostSummaryProcedure,
+		Method:      "POST",
+		Summary:     "Get this host's AI-relevant hardware summary",
+		Description: "Returns the machine's GPU name + total/free VRAM, CPU cores, RAM, and os/arch — the snapshot the model-catalog UI uses to render hardware-fit affirmatively (\"Runs on your GPU\") instead of a static requirement chip.",
+		Category:    "models",
+		Request:     &module.Schema{Type: "object"},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"host": "HostSummary (gpu name/vram/cores/ram/os/arch)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 500, Code: "internal", Description: "Host probe failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Host summary", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/GetHostSummary -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
+		ID:          "models_operation_candidates",
+		Path:        modelsconnect.ModelsServiceListOperationModelsProcedure,
+		Method:      "POST",
+		Summary:     "List host-aware candidate models for an operation",
+		Description: "Returns every model serving an operation, each annotated for this host: hardware fit (will it run, on GPU or CPU, or not at all), backend readiness (is the host program/weights provisioned, and is the install one-click or manual), and a single ready_state the model picker styles on. The data source behind the in-product model picker — unlike SelectModel it returns the full menu (including models that cannot run here) so the picker is transparent about why a model was chosen and what each alternative needs.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"operation": "string"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"operation":       "string",
+				"host":            "HostSummary (gpu name/vram/cores/ram)",
+				"candidates":      "array<CandidateModel> (model + fit + backend + ready_state)",
+				"selected_id":     "string",
+				"selected_reason": "string",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Operation missing or not in the vocabulary"},
+			{Status: 500, Code: "internal", Description: "Host probe / model-state load failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Candidates for text_to_image", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListOperationModels -H 'Content-Type: application/json' -d '{\"operation\":\"text_to_image\"}'"},
 		},
 	},
 	{

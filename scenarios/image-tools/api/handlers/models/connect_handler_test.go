@@ -279,6 +279,32 @@ func TestDoctorBackendsReportsCatalogDeclaredBackendReadiness(t *testing.T) {
 	}
 }
 
+func TestDoctorBackendsOverlaysHostToolReadiness(t *testing.T) {
+	h, _ := newTestHandler(t, cpuOnlyHost)
+	resp, err := h.DoctorBackends(context.Background(), connect.NewRequest(&modelsv1.DoctorBackendsRequest{}))
+	if err != nil {
+		t.Fatalf("doctor backends: %v", err)
+	}
+	var sawLlamaTool bool
+	for _, b := range resp.Msg.Backends {
+		if b.Name == "llama.cpp" {
+			sawLlamaTool = true
+			if b.HostTool != "llama-cpp" {
+				t.Fatalf("llama.cpp host_tool = %q, want llama-cpp", b.HostTool)
+			}
+			if b.HostToolReady {
+				t.Fatalf("unavailable backend should report host_tool_ready=false")
+			}
+			if b.Remediation != "vrooli host install llama-cpp" {
+				t.Fatalf("remediation = %q, want `vrooli host install llama-cpp`", b.Remediation)
+			}
+		}
+	}
+	if !sawLlamaTool {
+		t.Fatalf("expected a llama.cpp backend row with host-tool overlay")
+	}
+}
+
 func containsStr(ss []string, want string) bool {
 	for _, s := range ss {
 		if s == want {

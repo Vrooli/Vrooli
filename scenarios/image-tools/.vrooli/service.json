@@ -218,6 +218,53 @@
         "develop"
       ],
       "notes": "Deterministic ops use pure-Go imaging by default; ffmpeg is only consulted for the formats Go can't handle, and conversion degrades gracefully (clear error) when it is absent. Never required (headless tenet)."
+    },
+    {
+      "name": "realesrgan-ncnn-vulkan",
+      "required": false,
+      "reason": "Optional upscale/denoise backend (Real-ESRGAN ncnn-vulkan). Fetched on demand into ~/.vrooli/bin via `vrooli host install`; never auto-downloaded by default setup (headless tenet).",
+      "when": ["develop"],
+      "notes": "Data-declared url/release host tool (internal/tools/realesrgan-ncnn-vulkan). Backs the realesrgan-ncnn-vulkan provider's upscale/denoise ops."
+    },
+    {
+      "name": "sd",
+      "required": false,
+      "manual": true,
+      "reason": "Optional generative backend (stable-diffusion.cpp) for text_to_image/image_to_image. GPU-recommended; no checksum-pinnable release, so install is manual.",
+      "when": ["develop"],
+      "notes": "Capability-gated (requires GPU) in internal/tools/sd; resolves not-applicable on CPU-only hosts. Backs the stable-diffusion.cpp provider."
+    },
+    {
+      "name": "iopaint",
+      "required": false,
+      "manual": true,
+      "reason": "Optional object-removal/inpainting backend (IOPaint). Python/pip tool; surfaced but never auto-fetched.",
+      "when": ["develop"],
+      "notes": "Backs the iopaint provider's object_removal op. Install with pipx/pip (see installHint)."
+    },
+    {
+      "name": "rembg",
+      "required": false,
+      "manual": true,
+      "reason": "Optional background-removal backend (rembg). Python/pip tool; surfaced but never auto-fetched.",
+      "when": ["develop"],
+      "notes": "Backs the rembg provider's background_removal/background_replace ops. Install with pipx/pip (see installHint)."
+    },
+    {
+      "name": "llama-cpp",
+      "required": false,
+      "manual": true,
+      "reason": "Optional caption backend (llama.cpp multimodal runner). Built/installed manually; surfaced but never auto-fetched.",
+      "when": ["develop"],
+      "notes": "Backs the llama.cpp provider's caption op (llama-mtmd-cli/llama-cli)."
+    },
+    {
+      "name": "python",
+      "required": false,
+      "manual": true,
+      "reason": "Optional Python runtime for the embedded ONNX/diffusers sidecars (diffusers, onnxruntime, python-sidecar providers). The pip stacks (torch/onnxruntime/etc.) are surfaced, not auto-fetched.",
+      "when": ["develop"],
+      "notes": "Python itself is usually present; the sidecar pip dependencies remain a manual/pip concern (out of scope for binary fetch). Backs the python-based AI providers."
     }
   ],
   "dependencies": {

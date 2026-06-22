@@ -5,7 +5,7 @@
  */
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
-import { HardwareSchema } from "@vrooli/proto-types/image-tools/v1/models/models_pb";
+import { HardwareSchema, HostSummarySchema } from "@vrooli/proto-types/image-tools/v1/models/models_pb";
 
 import { strings } from "../../consts/strings";
 import { hardwareFitChips } from "./hardwareFit";
@@ -62,4 +62,33 @@ describe("hardwareFitChips", () => {
     const noNote = hardwareFitChips(create(HardwareSchema, { cpuCapable: true, speedNote: "  " }));
     expect(noNote.map((c) => c.key)).not.toContain(strings.models.hardware.speedNote);
   });
+
+  it("reads a GPU-required model affirmatively on a host with a fitting GPU", () => {
+    const host = create(HostSummarySchema, { hasGpu: true, vramKnown: true, vramTotalGb: 16 });
+    const chips = hardwareFitChips(create(HardwareSchema, { gpuRequired: true, minVramGb: 8 }), host);
+    expect(chips[0]).toEqual({ key: strings.models.hardware.gpuAvailable, tone: "positive" });
+  });
+
+  it("reads a GPU-required model affirmatively when the host GPU's VRAM is unknown", () => {
+    const host = create(HostSummarySchema, { hasGpu: true, vramKnown: false });
+    const chips = hardwareFitChips(create(HardwareSchema, { gpuRequired: true, minVramGb: 8 }), host);
+    expect(chips[0]).toEqual({ key: strings.models.hardware.gpuAvailable, tone: "positive" });
+  });
+
+  it("flags the free-VRAM shortfall when the host GPU is too busy", () => {
+    const host = create(HostSummarySchema, { hasGpu: true, vramKnown: true, vramTotalGb: 3 });
+    const chips = hardwareFitChips(create(HardwareSchema, { gpuRequired: true, minVramGb: 8 }), host);
+    expect(chips[0]).toEqual({
+      key: strings.models.hardware.gpuShort,
+      values: { gb: 5 },
+      tone: "caution",
+    });
+  });
+
+  it("falls back to the static requirement on a GPU-less host", () => {
+    const host = create(HostSummarySchema, { hasGpu: false });
+    const chips = hardwareFitChips(create(HardwareSchema, { gpuRequired: true, minVramGb: 8 }), host);
+    expect(chips[0]).toEqual({ key: strings.models.hardware.gpuRequired, tone: "caution" });
+  });
+
 });

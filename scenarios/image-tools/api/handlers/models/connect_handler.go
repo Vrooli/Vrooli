@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
+	internalhosttool "image-tools/internal/hosttool"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
 
@@ -15,6 +18,12 @@ import (
 
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 )
+
+// BackendEnsurer ensures a host-tool backend is installed. main.go passes the
+// real hosttool.Ensurer; nil in read-only wiring disables EnsureBackend.
+type BackendEnsurer interface {
+	Inspect(ctx context.Context, tool string) (*internalhosttool.Status, error)
+}
 
 // JobSubmitter is the narrow slice of the durable job manager the models handler
 // needs to launch a download. main.go passes the real *jobs.Manager.
@@ -44,7 +53,14 @@ type Deps struct {
 	// EstimateInstallSeconds estimates model-download ETA for submitted jobs.
 	// Defaults to models.EstimateInstallSeconds.
 	EstimateInstallSeconds EstimateInstallSecondsFunc
-	Logger                 *log.Logger
+	// Ensurer probes/installs host-tool backends for EnsureBackend + doctor
+	// readiness (may be nil in read-only wiring).
+	Ensurer BackendEnsurer
+	// EnsureEtaSeconds is the initial ETA reported for a backend-ensure job.
+	// Defaults to a conservative fixed estimate (host-tool sizes are not in the
+	// model catalog).
+	EnsureEtaSeconds int
+	Logger           *log.Logger
 }
 
 type connectHandler struct {
@@ -59,6 +75,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	}
 	if d.EstimateInstallSeconds == nil {
 		d.EstimateInstallSeconds = internalmodels.EstimateInstallSeconds
+	}
+	if d.EnsureEtaSeconds <= 0 {
+		d.EnsureEtaSeconds = 90
 	}
 	return &connectHandler{deps: d}
 }
@@ -400,6 +419,77 @@ func (h *connectHandler) DoctorBackends(ctx context.Context, _ *connect.Request[
 		return nil, connect.NewError(connect.CodeInternal, errors.New("backend registry is not configured"))
 	}
 	return connect.NewResponse(backendReportToProto(h.deps.Backends.DoctorForModels(ctx, h.deps.Registry.Models()))), nil
+}
+
+// EnsureBackend installs a missing host-tool backend on demand. It first probes
+// (dry-run) to short-circuit already-present, manual, and not-applicable tools
+// with guidance and no job; otherwise it submits a durable job (mirroring
+// InstallModel) that shells `vrooli host install <tool> --json` and survives
+// client cancellation.
+func (h *connectHandler) EnsureBackend(ctx context.Context, req *connect.Request[modelsv1.EnsureBackendRequest]) (*connect.Response[modelsv1.EnsureBackendResponse], error) {
+	if h.deps.Ensurer == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("backend provisioning unavailable"))
+	}
+	tool := strings.TrimSpace(req.Msg.GetTool())
+	if tool == "" {
+		if op := strings.TrimSpace(req.Msg.GetOperation()); op != "" {
+			if resolved, ok := internalhosttool.ToolForOperation(op); ok {
+				tool = resolved
+			} else {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("operation %q has no host-tool backend", op))
+			}
+		}
+	}
+	if tool == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("tool or operation is required"))
+	}
+	if !internalhosttool.KnownTool(tool) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown backend host tool %q", tool))
+	}
+
+	status, err := h.deps.Ensurer.Inspect(ctx, tool)
+	if err != nil {
+		h.deps.Logger.Printf("models.EnsureBackend inspect %q: %v", tool, err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("probe host tool"))
+	}
+	state := status.GetExecutionState()
+	detail := strings.TrimSpace(strings.Join(status.GetNotes(), "; "))
+
+	resp := &modelsv1.EnsureBackendResponse{Tool: tool, State: state, Detail: detail}
+	switch state {
+	case "already_present":
+		resp.AlreadyInstalled = true
+		return connect.NewResponse(resp), nil
+	case "manual_action_required", "unsupported", "not_applicable":
+		// No auto-fetch path; return guidance, no job.
+		resp.Manual = true
+		return connect.NewResponse(resp), nil
+	}
+
+	// would_install / pending → fetchable.
+	if req.Msg.GetDryRun() {
+		return connect.NewResponse(resp), nil
+	}
+	if h.deps.Jobs == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable jobs unavailable"))
+	}
+	payload, err := json.Marshal(internalhosttool.EnsurePayload{Tool: tool})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("encode ensure request"))
+	}
+	job, err := h.deps.Jobs.Submit(ctx, internaljobs.Spec{
+		Operation:        internalhosttool.EnsureJobOperation,
+		Lane:             internaljobs.LaneCPU,
+		Payload:          payload,
+		EstimatedSeconds: h.deps.EnsureEtaSeconds,
+	})
+	if err != nil {
+		h.deps.Logger.Printf("models.EnsureBackend submit %q: %v", tool, err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("submit ensure job"))
+	}
+	resp.JobId = job.ID
+	resp.EtaSeconds = int32(h.deps.EnsureEtaSeconds)
+	return connect.NewResponse(resp), nil
 }
 
 // selectError maps selector errors to actionable Connect codes.

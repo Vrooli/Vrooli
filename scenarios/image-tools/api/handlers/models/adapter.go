@@ -1,8 +1,10 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
+	internalai "image-tools/internal/ai"
 	internalbackends "image-tools/internal/backends"
 	internalmodels "image-tools/internal/models"
 
@@ -179,7 +181,7 @@ func backendReportToProto(r internalbackends.DoctorReport) *modelsv1.DoctorBacke
 		Backends: make([]*modelsv1.BackendStatus, 0, len(r.Backends)),
 	}
 	for _, b := range r.Backends {
-		out.Backends = append(out.Backends, &modelsv1.BackendStatus{
+		status := &modelsv1.BackendStatus{
 			Name:       b.Name,
 			Operations: append([]string(nil), b.Operations...),
 			Available:  b.Available,
@@ -188,7 +190,19 @@ func backendReportToProto(r internalbackends.DoctorReport) *modelsv1.DoctorBacke
 			GpuCapable: b.GPUCapable,
 			Detail:     b.Detail,
 			Provision:  b.Provision,
-		})
+		}
+		// Overlay the host-tool readiness contract: which platform host tool the
+		// backend needs, whether it is present (the provider probe answers this),
+		// and the exact remediation command. The provider→host-tool map is the
+		// single source of truth in internal/ai.
+		if tool, ok := internalai.HostToolForProvider(b.Name); ok {
+			status.HostTool = tool
+			status.HostToolReady = b.Available
+			if !b.Available {
+				status.Remediation = fmt.Sprintf("vrooli host install %s", tool)
+			}
+		}
+		out.Backends = append(out.Backends, status)
 	}
 	return out
 }

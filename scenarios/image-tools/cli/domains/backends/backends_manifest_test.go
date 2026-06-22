@@ -14,8 +14,17 @@ func TestBackendsGroupRegisters(t *testing.T) {
 	if group.Name != GroupName {
 		t.Fatalf("group name = %q, want %q", group.Name, GroupName)
 	}
-	if len(group.Subcommands) != 1 || group.Subcommands[0].Name != "doctor" {
-		t.Fatalf("unexpected commands: %+v", group.Subcommands)
+	got := make(map[string]bool, len(group.Subcommands))
+	for _, sub := range group.Subcommands {
+		got[sub.Name] = true
+	}
+	for _, want := range []string{"doctor", "ensure"} {
+		if !got[want] {
+			t.Fatalf("missing %q command; got: %+v", want, group.Subcommands)
+		}
+	}
+	if len(group.Subcommands) != 2 {
+		t.Fatalf("expected exactly doctor + ensure, got: %+v", group.Subcommands)
 	}
 }
 

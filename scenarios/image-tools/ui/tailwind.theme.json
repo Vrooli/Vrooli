@@ -18,7 +18,8 @@
     "app-danger": "var(--color-danger)",
     "app-warning": "var(--color-warning)",
     "app-info": "var(--color-info)",
-    "app-focus": "var(--color-focus)"
+    "app-focus": "var(--color-focus)",
+    "app-overlay": "var(--color-overlay)"
   },
   "borderRadius": {
     "control": "var(--radius-control)",

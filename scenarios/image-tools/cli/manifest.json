@@ -375,6 +375,36 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "ensure",
+          "description": "Install a missing host-tool backend on demand as a durable job (--dry-run to preview). Manual/capability-gated tools return guidance with no job.",
+          "positionals": [
+            {
+              "name": "tool",
+              "required": true,
+              "description": "Host tool name (e.g. realesrgan-ncnn-vulkan), or pass a backend's host tool"
+            }
+          ],
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Report what would be fetched without downloading"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "EnsureBackend"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -783,6 +813,16 @@
       "service": "SelectionService",
       "method": "Segment",
       "reason": "Smart-select execution rides the REST multipart edge (POST /api/v1/selection/segment); image bytes can't ride a Connect call, so the segment command is hand-appended in cli/domains/selection/register.go."
+    },
+    {
+      "service": "ModelsService",
+      "method": "ListOperationModels",
+      "reason": "Host-aware candidate menu for the in-product model picker (a UI affordance). The same facts are available on the CLI in composable pieces: `models list --operation <op>` (catalog), `models select <op>` (the chosen model + gpu_viable), and `backends doctor` (host-tool readiness)."
+    },
+    {
+      "service": "ModelsService",
+      "method": "GetHostSummary",
+      "reason": "Hardware snapshot for the model-catalog UI's host-aware fit chips (a UI affordance). The CLI already exposes host hardware via the root `vrooli host inventory --json`."
     }
   ]
 }

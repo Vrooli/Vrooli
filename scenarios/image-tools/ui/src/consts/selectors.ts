@@ -408,6 +408,20 @@ const literalSelectors = {
     empty: "activity-empty",
     error: "activity-error",
   },
+  backends: {
+    card: "backends-card",
+    list: "backends-list",
+    loading: "backends-loading",
+    empty: "backends-empty",
+    error: "backends-error",
+    name: "backends-name",
+    operations: "backends-operations",
+    state: "backends-state",
+    installButton: "backends-install-button",
+    installNotice: "backends-install-notice",
+    manualHint: "backends-manual-hint",
+    remediation: "backends-remediation",
+  },
   models: {
     card: "models-card",
     list: "models-list",
@@ -467,6 +481,16 @@ const literalSelectors = {
       select: "models-defaults-select",
       source: "models-defaults-source",
       clearButton: "models-defaults-clear-button",
+    },
+    // Host-aware model picker (the menu behind every AI action). The static
+    // ids live here; the per-model-id dynamic selectors are in the dynamic tree.
+    pickerTrigger: "models-picker-trigger",
+    picker: {
+      sheet: "models-picker-sheet",
+      host: "models-picker-host",
+      loading: "models-picker-loading",
+      error: "models-picker-error",
+      footer: "models-picker-footer",
     },
   },
   locale: {
@@ -796,6 +820,53 @@ const dynamicSelectorDefinitions = {
       description: "Activity row 'open output' button by 1-based index",
       testIdPattern: "activity-open-${index}",
       params: { index: { type: "number" } },
+    }),
+  },
+  models: {
+    pickerRow: defineDynamicSelector({
+      description: "Model-picker candidate row by model id",
+      testIdPattern: "models-picker-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerSelect: defineDynamicSelector({
+      description: "Model-picker 'use this model' button by model id",
+      testIdPattern: "models-picker-select-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerInUse: defineDynamicSelector({
+      description: "Model-picker 'in use' marker by model id",
+      testIdPattern: "models-picker-inuse-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerInstallModel: defineDynamicSelector({
+      description: "Model-picker download-weights button by model id",
+      testIdPattern: "models-picker-install-model-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerInstallBackend: defineDynamicSelector({
+      description: "Model-picker install-engine button by model id",
+      testIdPattern: "models-picker-install-backend-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerEnable: defineDynamicSelector({
+      description: "Model-picker enable-model button by model id",
+      testIdPattern: "models-picker-enable-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerManualToggle: defineDynamicSelector({
+      description: "Model-picker manual-setup toggle by model id",
+      testIdPattern: "models-picker-manual-toggle-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerManual: defineDynamicSelector({
+      description: "Model-picker manual-setup panel by model id",
+      testIdPattern: "models-picker-manual-${id}",
+      params: { id: { type: "string" } },
+    }),
+    pickerRowError: defineDynamicSelector({
+      description: "Model-picker per-row error by model id",
+      testIdPattern: "models-picker-row-error-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   settingsPage: {

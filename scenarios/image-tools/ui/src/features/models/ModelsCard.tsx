@@ -77,6 +77,15 @@ export function ModelsCard() {
     queryFn: () => modelsClient.listModels({}),
   });
 
+  // Host snapshot so the per-model hardware chips read affirmatively ("Runs on
+  // your GPU") on a capable machine instead of a static "Needs a GPU" warning.
+  const hostQuery = useQuery({
+    queryKey: ["host-summary"],
+    queryFn: () => modelsClient.getHostSummary({}),
+    staleTime: 60_000,
+  });
+  const host = hostQuery.data?.host;
+
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: MODELS_QUERY_KEY });
 
   const setEnabledMutation = useMutation({
@@ -224,7 +233,7 @@ export function ModelsCard() {
                     className="mt-2 flex flex-wrap gap-1.5"
                     aria-label={t(strings.models.hardwareLabel)}
                   >
-                    {hardwareFitChips(model.hardware).map((chip) => (
+                    {hardwareFitChips(model.hardware, host).map((chip) => (
                       <span
                         key={chip.key}
                         data-testid={selectors.models.hardwareChip}

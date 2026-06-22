@@ -1,12 +1,14 @@
 # UI Performance Capture
 
 This directory ships a starting-point capture script for running a headless,
-reproducible Chrome performance trace against this scenario's UI. Use it
-together with the `scenario-performance-audit` skill, which is the
-authoritative methodology:
+reproducible Chrome performance trace against this scenario's UI. The capture
+methodology is now productized in the **performance-health** scenario; use it
+together with the `performance` steer skill, which is the authoritative
+judgment layer:
 
 ```bash
-prompt-manager skill read scenario-performance-audit
+prompt-manager skill read performance
+performance-health audit <scenario>
 ```
 
 ## What's in here

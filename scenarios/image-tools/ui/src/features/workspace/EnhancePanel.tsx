@@ -8,6 +8,7 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { listAIOperations, type AIParamsInput } from "../../api/ai";
+import { ModelPickerButton } from "../models/ModelPickerButton";
 import { AI_FALLBACK_ICON, TIER_LABEL, UPSCALE_SCALES, aiPresentation } from "./aiCatalog";
 import { MODE_LABEL } from "./modeLabels";
 import { isEnhanceActive, type UseEnhance } from "./useEnhance";
@@ -62,6 +63,7 @@ export function EnhancePanel({
   const [scale, setScale] = useState<string>(UPSCALE_SCALES[0]);
   const [realism, setRealism] = useState(DEFAULT_REALISM);
   const [faceAware, setFaceAware] = useState(false);
+  const [modelOverride, setModelOverride] = useState("");
   // The op that most recently launched a run — drives the post-success
   // "naturalize this result?" nudge after an over-smoothing op.
   const [lastRunOp, setLastRunOp] = useState("");
@@ -88,14 +90,20 @@ export function EnhancePanel({
   }, [operation, preview]);
 
   const params: AIParamsInput = useMemo(() => {
-    if (operation === "upscale") {
-      return { scale: Number(scale) };
+    const base: AIParamsInput =
+      operation === "upscale"
+        ? { scale: Number(scale) }
+        : operation === "naturalize"
+          ? { realism, faceAware }
+          : {};
+    if (modelOverride.trim()) {
+      base.modelOverride = modelOverride.trim();
     }
-    if (operation === "naturalize") {
-      return { realism, faceAware };
-    }
-    return {};
-  }, [operation, scale, realism, faceAware]);
+    return base;
+  }, [operation, scale, realism, faceAware, modelOverride]);
+
+  const opMeta = operation ? aiPresentation(operation) : undefined;
+  const operationLabel = opMeta ? t(opMeta.labelKey) : operation;
 
   // After an over-smoothing op succeeds, offer Naturalize as the next step
   // (unless the user is already on it). Cleared as soon as the op changes.
@@ -276,18 +284,15 @@ export function EnhancePanel({
             </div>
           )}
 
-          {model && model.id !== "" && (
-            <p
-              data-testid={selectors.workspace.enhance.modelBadge}
-              className="text-xs text-app-muted-foreground"
-            >
-              <span className="font-medium text-app-foreground">{model.name}</span>
-              {" · "}
-              {model.cpuCapable
-                ? t(strings.workspace.enhance.install.cpu)
-                : t(strings.workspace.enhance.install.gpu, { vram: model.minVramGb })}
-              {model.speedNote ? ` · ${model.speedNote}` : ""}
-            </p>
+          {operation && (
+            <div data-testid={selectors.workspace.enhance.modelBadge}>
+              <ModelPickerButton
+                operation={operation}
+                operationLabel={operationLabel}
+                value={modelOverride}
+                onChange={setModelOverride}
+              />
+            </div>
           )}
 
           {!input && (

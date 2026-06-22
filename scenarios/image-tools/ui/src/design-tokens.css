@@ -22,6 +22,9 @@
   --color-warning: #d97706;
   --color-info: #0284c7;
   --color-focus: #2563eb;
+  /* Modal scrim — a fixed dark veil behind dialogs/drawers, theme-independent
+     (a backdrop should darken the page in both Studio and Console). */
+  --color-overlay: rgba(15, 23, 42, 0.62);
   /* Transparency checkerboard for the canvas workspace. */
   --canvas-checker-a: #ffffff;
   --canvas-checker-b: #ece7dc;

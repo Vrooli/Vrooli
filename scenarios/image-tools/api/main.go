@@ -16,6 +16,7 @@ import (
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	"image-tools/internal/clock"
+	internalhosttool "image-tools/internal/hosttool"
 	"image-tools/internal/jobrunner"
 	internaljobs "image-tools/internal/jobs"
 	internalmeasures "image-tools/internal/measures"
@@ -334,6 +335,28 @@ func main() {
 		return rec.Path, nil
 	})
 
+	// On-demand host-tool backend provisioning. The durable job shells
+	// `vrooli host install <tool> --json` (the same compose-don't-reinvent path
+	// capabilities uses for host inventory) so a missing generative backend can
+	// be installed from the product with live progress and client-cancel safety.
+	backendEnsurer := internalhosttool.NewEnsurer()
+	dispatcher.Register(internalhosttool.EnsureJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+		var p internalhosttool.EnsurePayload
+		if err := json.Unmarshal(job.Payload, &p); err != nil {
+			return "", fmt.Errorf("decode ensure payload: %w", err)
+		}
+		emit(5, "downloading "+p.Tool)
+		st, err := backendEnsurer.Ensure(jobCtx, p.Tool)
+		if err != nil {
+			return "", fmt.Errorf("ensure backend %q: %w", p.Tool, err)
+		}
+		if !st.GetOk() {
+			return "", fmt.Errorf("ensure backend %q: %s", p.Tool, strings.Join(st.GetNotes(), "; "))
+		}
+		emit(100, st.GetExecutionState())
+		return st.GetCommand(), nil
+	})
+
 	// Backend provider registry: register the standalone AI backends and enforce
 	// the headless tenet at boot (every AI op must have a non-ComfyUI provider).
 	backendReg := backends.New()
@@ -413,7 +436,7 @@ func main() {
 		looksH.Module(db, blobStore, log.Default()),
 		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, func(sizeMBApprox int) int {
 			return internalmodels.EstimateInstallSecondsAt(sizeMBApprox, runtimeCfg.InstallMBPerSecond)
-		}, log.Default()),
+		}, backendEnsurer, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
 		safetyH.Module(deployTier),
 		selectionH.Module(blobStore, jobManager, log.Default()),

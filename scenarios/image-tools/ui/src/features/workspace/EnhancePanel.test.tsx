@@ -5,17 +5,27 @@
  * exercised in isolation (the lifecycle itself is covered by useEnhance.test).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 import { makeAIMocks, makeSelectedModel } from "./mocks/ai";
+import { makeModelsMocks } from "../models/mocks/models";
+import { makeModel } from "../models/mocks/factories";
 
 vi.mock("../../api/ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/ai")>();
   return { ...actual, ...makeAIMocks() };
+});
+
+// The panel renders <ModelPickerButton/>, which fires a real `selectModel`
+// query for its trigger label. Mock the models API so the panel renders
+// hermetically (no network) — the picker itself is covered by its own tests.
+vi.mock("../../api/models", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/models")>();
+  return { ...actual, ...makeModelsMocks() };
 });
 
 import { EnhancePanel } from "./EnhancePanel";
@@ -167,15 +177,19 @@ describe("EnhancePanel", () => {
     expect(screen.getByText(/Large result/i)).toBeInTheDocument();
   });
 
-  it("renders the hardware-fit model badge with its speed note", async () => {
-    const enhance = fakeEnhance({
-      model: makeSelectedModel({ name: "real-esrgan", cpuCapable: false, minVramGb: 6, speedNote: "~8s" }),
-    });
-    renderPanel(enhance);
+  it("renders the host-aware model picker trigger inside the model badge", async () => {
+    const { modelsClient } = await import("../../api/models");
+    const { makeSelectModelResponse } = await import("../models/mocks/factories");
+    vi.mocked(modelsClient.selectModel).mockResolvedValue(
+      makeSelectModelResponse({ model: makeModel({ id: "real-esrgan", name: "real-esrgan" }) }),
+    );
+    renderPanel(fakeEnhance());
 
     const badge = await screen.findByTestId(selectors.workspace.enhance.modelBadge);
-    expect(badge.textContent).toContain("real-esrgan");
-    expect(badge.textContent).toContain("~8s");
+    // The static "model detected" badge was replaced by the picker trigger.
+    const trigger = within(badge).getByTestId(selectors.models.pickerTrigger);
+    expect(trigger).toBeInTheDocument();
+    await waitFor(() => expect(trigger.textContent).toContain("real-esrgan"));
   });
 
   it("lists fallback-tier warnings when the run reports them", async () => {

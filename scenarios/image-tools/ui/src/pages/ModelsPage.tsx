@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { AddCustomModelForm } from "../features/models/AddCustomModelForm";
+import { BackendsCard } from "../features/models/BackendsCard";
 import { BlocklistCard } from "../features/models/BlocklistCard";
 import { ModelsCard } from "../features/models/ModelsCard";
 import { useTranslation } from "../i18n";
@@ -18,6 +19,7 @@ export function ModelsPage() {
         {t(strings.pages.models.title)}
       </h2>
       <ModelsCard />
+      <BackendsCard />
       <AddCustomModelForm />
       <BlocklistCard />
     </section>

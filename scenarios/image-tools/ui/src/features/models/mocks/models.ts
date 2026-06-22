@@ -21,13 +21,18 @@ import { vi } from "vitest";
 
 import {
   makeAddCustomModelResponse,
+  makeDoctorBackendsResponse,
+  makeEnsureBackendResponse,
   makeInstallModelResponse,
   makeListBlocklistResponse,
   makeListDefaultsResponse,
   makeListModelsResponse,
+  makeHostSummary,
+  makeListOperationModelsResponse,
   makeListOperationsResponse,
   makeModel,
   makeRemoveModelResponse,
+  makeSelectModelResponse,
   makeSetDefaultModelResponse,
   makeSetModelEnabledResponse,
 } from "./factories";
@@ -43,7 +48,14 @@ export interface ModelsMocks {
     setDefaultModel: ReturnType<typeof vi.fn>;
     listDefaults: ReturnType<typeof vi.fn>;
     listBlocklist: ReturnType<typeof vi.fn>;
+    doctorBackends: ReturnType<typeof vi.fn>;
+    ensureBackend: ReturnType<typeof vi.fn>;
+    selectModel: ReturnType<typeof vi.fn>;
+    listOperationModels: ReturnType<typeof vi.fn>;
+    getHostSummary: ReturnType<typeof vi.fn>;
   };
+  /** Standalone `listOperationModels(operation)` helper re-exported by api/models. */
+  listOperationModels: ReturnType<typeof vi.fn>;
 }
 
 export const makeModelsMocks = (): ModelsMocks => ({
@@ -69,5 +81,15 @@ export const makeModelsMocks = (): ModelsMocks => ({
       ),
     listDefaults: vi.fn().mockResolvedValue(makeListDefaultsResponse()),
     listBlocklist: vi.fn().mockResolvedValue(makeListBlocklistResponse()),
+    doctorBackends: vi.fn().mockResolvedValue(makeDoctorBackendsResponse()),
+    ensureBackend: vi
+      .fn()
+      .mockImplementation((input: { tool: string }) =>
+        Promise.resolve(makeEnsureBackendResponse({ tool: input.tool })),
+      ),
+    selectModel: vi.fn().mockResolvedValue(makeSelectModelResponse()),
+    listOperationModels: vi.fn().mockResolvedValue(makeListOperationModelsResponse()),
+    getHostSummary: vi.fn().mockResolvedValue({ host: makeHostSummary() }),
   },
+  listOperationModels: vi.fn().mockResolvedValue(makeListOperationModelsResponse()),
 });

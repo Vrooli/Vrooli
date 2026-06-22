@@ -22,6 +22,7 @@ import {
   createPresentation,
   type SizePreset,
 } from "./createCatalog";
+import { ModelPickerButton } from "../models/ModelPickerButton";
 import { MaskBrush } from "./MaskBrush";
 import { MODE_LABEL } from "./modeLabels";
 import { isCreateActive, type CreateVariation, type UseCreate } from "./useCreate";
@@ -86,6 +87,9 @@ export function CreatePanel({
     () => generationOps.find((op) => op.name === operation),
     [generationOps, operation],
   );
+
+  const opMeta = operation ? createPresentation(operation) : undefined;
+  const operationLabel = opMeta ? t(opMeta.labelKey) : operation;
 
   // Default to the first generation op once discovery resolves.
   useEffect(() => {
@@ -383,18 +387,6 @@ export function CreatePanel({
                   onChange={(e) => setNegative(e.target.value)}
                 />
               </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-xs text-app-muted-foreground">
-                  {t(strings.workspace.create.modelLabel)}
-                </span>
-                <Input
-                  data-testid={selectors.workspace.create.model}
-                  type="text"
-                  value={modelOverride}
-                  placeholder={t(strings.workspace.create.modelPlaceholder)}
-                  onChange={(e) => setModelOverride(e.target.value)}
-                />
-              </label>
               <Toggle
                 label={t(strings.workspace.create.byokLabel)}
                 checked={allowByok}
@@ -423,18 +415,15 @@ export function CreatePanel({
             </div>
           )}
 
-          {model && model.id !== "" && (
-            <p
-              data-testid={selectors.workspace.create.modelBadge}
-              className="text-xs text-app-muted-foreground"
-            >
-              <span className="font-medium text-app-foreground">{model.name}</span>
-              {" · "}
-              {model.cpuCapable
-                ? t(strings.workspace.enhance.install.cpu)
-                : t(strings.workspace.enhance.install.gpu, { vram: model.minVramGb })}
-              {model.speedNote ? ` · ${model.speedNote}` : ""}
-            </p>
+          {operation && (
+            <div data-testid={selectors.workspace.create.modelBadge}>
+              <ModelPickerButton
+                operation={operation}
+                operationLabel={operationLabel}
+                value={modelOverride}
+                onChange={setModelOverride}
+              />
+            </div>
           )}
 
           {create.phase === "needs-install" && model ? (

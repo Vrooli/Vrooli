@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/binaryfetch"
 )
 
 // writeTemp writes content to a temp file and returns its path.
@@ -31,23 +33,23 @@ func TestValidateArtifact_RejectsHTMLPage(t *testing.T) {
 	html := append([]byte("<!DOCTYPE html>\n<html><head><title>rembg</title></head><body>"), bytes.Repeat([]byte("x"), 2048)...)
 	p := writeTemp(t, "page.onnx", html)
 	err := validateArtifact(p, Asset{Filename: "page.onnx", Kind: ArtifactONNX})
-	if !errors.Is(err, ErrArtifactNotWeight) {
-		t.Fatalf("expected ErrArtifactNotWeight for an HTML page, got %v", err)
+	if !errors.Is(err, binaryfetch.ErrLooksLikeHTML) {
+		t.Fatalf("expected ErrLooksLikeHTML for an HTML page, got %v", err)
 	}
 }
 
 func TestValidateArtifact_RejectsHTMLEvenWhenGenericKind(t *testing.T) {
 	html := append([]byte("<html><body>not a model</body>"), bytes.Repeat([]byte("x"), 2048)...)
 	p := writeTemp(t, "page.bin", html)
-	if err := validateArtifact(p, Asset{Filename: "page.bin", Kind: ArtifactGeneric}); !errors.Is(err, ErrArtifactNotWeight) {
+	if err := validateArtifact(p, Asset{Filename: "page.bin", Kind: ArtifactGeneric}); !errors.Is(err, binaryfetch.ErrLooksLikeHTML) {
 		t.Fatalf("HTML must be rejected for generic kind too, got %v", err)
 	}
 }
 
 func TestValidateArtifact_RejectsTooSmall(t *testing.T) {
 	p := writeTemp(t, "tiny.onnx", []byte("nope"))
-	if err := validateArtifact(p, Asset{Filename: "tiny.onnx", Kind: ArtifactONNX}); !errors.Is(err, ErrArtifactTooSmall) {
-		t.Fatalf("expected ErrArtifactTooSmall, got %v", err)
+	if err := validateArtifact(p, Asset{Filename: "tiny.onnx", Kind: ArtifactONNX}); !errors.Is(err, binaryfetch.ErrTooSmall) {
+		t.Fatalf("expected ErrTooSmall, got %v", err)
 	}
 }
 
@@ -55,8 +57,8 @@ func TestValidateArtifact_RejectsBelowDeclaredMinBytes(t *testing.T) {
 	// 4 KiB of real ONNX, but the asset declares it should be at least 1 MiB.
 	p := writeTemp(t, "short.onnx", append(onnxBytes(), bytes.Repeat([]byte{0}, 4096)...))
 	err := validateArtifact(p, Asset{Filename: "short.onnx", Kind: ArtifactONNX, MinBytes: 1 << 20})
-	if !errors.Is(err, ErrArtifactTooSmall) {
-		t.Fatalf("expected ErrArtifactTooSmall vs declared min_bytes, got %v", err)
+	if !errors.Is(err, binaryfetch.ErrTooSmall) {
+		t.Fatalf("expected ErrTooSmall vs declared min_bytes, got %v", err)
 	}
 }
 
@@ -98,7 +100,7 @@ func TestInstall_RejectsHTMLPageDownload(t *testing.T) {
 	f.payload = append([]byte("<!DOCTYPE html><html><head></head><body>rembg releases</body></html>"), bytes.Repeat([]byte(" "), 4096)...)
 
 	_, err := f.in.Install(ctx, installTestModelID, nil)
-	if !errors.Is(err, ErrArtifactNotWeight) {
+	if !errors.Is(err, binaryfetch.ErrLooksLikeHTML) {
 		t.Fatalf("an HTML-page download must be rejected, got %v", err)
 	}
 	if f.in.Installed(ctx, installTestModelID) {

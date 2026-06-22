@@ -266,11 +266,29 @@ func intParam(req backends.Request, key string, def int) int {
 
 func strParam(req backends.Request, key string) string { return req.Params[key] }
 
-// buildStableDiffusionCpp assembles a stable-diffusion.cpp (`sd`) invocation for
-// text_to_image / image_to_image. Shape: sd -m <model> -p <prompt> [-n <neg>]
-// [--cfg-scale x] --steps n -W w -H h [-s seed] [-M img2img -i in --strength x] -o out.
+// buildStableDiffusionCpp assembles a stable-diffusion.cpp `sd-cli` invocation
+// for text_to_image / image_to_image. Shape: sd-cli -m <model> -p <prompt>
+// [-n <neg>] [--cfg-scale x] --steps n -W w -H h [-s seed] [-i in --strength x]
+// -o out. image_to_image is selected by passing -i <init>; the run mode stays
+// the default img_gen (the new -M flag's values are img_gen|vid_gen|upscale|
+// convert|metadata, so the old `-M img2img` is gone).
+// sdModelArg resolves the weights argument for sd-cli. The image-tools model
+// install dir holds a single-file checkpoint (.safetensors/.gguf/.ckpt), but
+// sd-cli's `-m` expects that FILE — handed a bare directory it tries to load a
+// diffusers-layout tree and fails. Resolve the single-file checkpoint inside the
+// dir; fall back to the path as-is when none is found (already a file, or a
+// diffusers-layout dir sd-cli can load directly).
+func sdModelArg(modelDir string) string {
+	for _, pattern := range []string{"*.safetensors", "*.gguf", "*.ckpt"} {
+		if matches, _ := filepath.Glob(filepath.Join(modelDir, pattern)); len(matches) > 0 {
+			return matches[0]
+		}
+	}
+	return modelDir
+}
+
 func buildStableDiffusionCpp(req backends.Request, modelDir string) ([]string, error) {
-	args := []string{"-m", modelDir, "-o", req.Output.LocalPath, "-p", strParam(req, "prompt")}
+	args := []string{"-m", sdModelArg(modelDir), "-o", req.Output.LocalPath, "-p", strParam(req, "prompt")}
 	if neg := strParam(req, "negative_prompt"); neg != "" {
 		args = append(args, "-n", neg)
 	}
@@ -288,7 +306,7 @@ func buildStableDiffusionCpp(req backends.Request, modelDir string) ([]string, e
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, "-M", "img2img", "-i", in)
+		args = append(args, "-i", in)
 		if s := strParam(req, "strength"); s != "" {
 			args = append(args, "--strength", s)
 		}
@@ -395,26 +413,29 @@ func buildIopaint(req backends.Request, modelDir string) ([]string, error) {
 	}, nil
 }
 
-// buildRealesrgan assembles a realesrgan-ncnn-vulkan invocation. Upscale uses
-// the requested scale. Denoise uses Real-ESRGAN's realesr-general-x4v3 -dn
-// mode, which denoises while producing the model's native 4x output.
-// Shape: realesrgan-ncnn-vulkan -i <in> -o <out> -s <scale> -m <model-dir> -n <model-id> [-dn n].
-func buildRealesrgan(req backends.Request, modelDir string) ([]string, error) {
+// buildRealesrgan assembles a realesrgan-ncnn-vulkan invocation. The prebuilt
+// release ships its own `models/` directory (realesr-animevideov3 at -s 2/3/4
+// and realesrgan-x4plus), which the binary resolves relative to its own
+// location — so we pass a bundled model NAME via -n and let the tool find the
+// weights, rather than a -m model dir or the image-tools model id (neither of
+// which holds the ncnn .param/.bin files). realesr-animevideov3 is the
+// variable-scale general model used for both upscale and denoise.
+// Shape: realesrgan-ncnn-vulkan -i <in> -o <out> -s <scale> -n <bundled-model>.
+func buildRealesrgan(req backends.Request, _ string) ([]string, error) {
 	in, err := in0(req)
 	if err != nil {
 		return nil, err
 	}
-	args := []string{
+	scale := intParam(req, "scale", 4)
+	if scale < 2 || scale > 4 {
+		scale = 4
+	}
+	return []string{
 		"-i", in,
 		"-o", req.Output.LocalPath,
-		"-s", strconv.Itoa(intParam(req, "scale", 4)),
-		"-m", modelDir,
-		"-n", req.Model.ID,
-	}
-	if req.Operation == "denoise" {
-		args = append(args, "-dn", strconv.Itoa(intParam(req, "denoise", 2)))
-	}
-	return args, nil
+		"-s", strconv.Itoa(scale),
+		"-n", "realesr-animevideov3",
+	}, nil
 }
 
 // buildRembg assembles a rembg invocation. background_removal writes an RGBA
@@ -596,11 +617,87 @@ type providerSpec struct {
 	ops        []string
 	build      argBuilder
 	gpuCapable bool // backend can use the GPU (false for the CPU-only onnx sidecar)
-	provision  string
-	imports    []string
+	// hostTool is the platform host-tool NAME this backend depends on (the
+	// cross-module contract: the scenario declares it in service.json hostTools
+	// and the platform defines it in internal/tools/<hostTool>/tool.json). The
+	// `provision` message and docs/reference/backends.md are DERIVED from it, so
+	// there is one source of truth and no free-text drift.
+	hostTool string
+	// pipDeps are the Python packages a python-backed provider also needs beyond
+	// the host `python` tool itself (surfaced honestly; not auto-fetched).
+	pipDeps []string
+	imports []string
 }
 
-const llamaCppProvision = "install llama.cpp's multimodal runner (llama-mtmd-cli or compatible llama-cli) through Scenario Dependency Analyzer; see docs/reference/backends.md"
+// provision returns the derived remediation message for this provider: the exact
+// `vrooli host install <tool>` command plus any pip dependencies. Never
+// hand-written — see deriveProvision.
+func (s providerSpec) provision() string { return deriveProvision(s.hostTool, s.pipDeps) }
+
+// deriveProvision builds the single canonical provisioning message from a host
+// tool name (+ optional pip deps). This is the one place the remediation command
+// is spelled, so the runtime error, doctor output, and backends.md cannot drift.
+func deriveProvision(hostTool string, pipDeps []string) string {
+	msg := fmt.Sprintf("install the %q host tool — run `vrooli host install %s` (see docs/reference/backends.md)", hostTool, hostTool)
+	if len(pipDeps) > 0 {
+		msg += fmt.Sprintf("; this Python backend also needs pip packages: %s", strings.Join(pipDeps, ", "))
+	}
+	return msg
+}
+
+const llamaCppHostTool = "llama-cpp"
+
+var llamaCppProvision = deriveProvision(llamaCppHostTool, nil)
+
+// HostToolBinding records which platform host tool (and pip deps) a backend
+// provider needs. It is the structured contract the conformance tests and the
+// generated backends.md consume. Built from providerSpecs() so it cannot drift
+// from the registered providers.
+type HostToolBinding struct {
+	Provider string
+	HostTool string
+	Ops      []string
+	PipDeps  []string
+}
+
+// HostToolForProvider returns the host tool a backend provider depends on,
+// matched by provider name. Reports false for in-process / cloud providers that
+// need no host tool.
+func HostToolForProvider(provider string) (string, bool) {
+	for _, b := range HostToolBindings() {
+		if b.Provider == provider && b.HostTool != "" {
+			return b.HostTool, true
+		}
+	}
+	return "", false
+}
+
+// HostToolForOperation returns the host tool of the backend that serves an
+// operation, matched against the provider bindings. Reports false when no
+// host-tool-backed provider serves the op.
+func HostToolForOperation(operation string) (string, bool) {
+	for _, b := range HostToolBindings() {
+		for _, op := range b.Ops {
+			if op == operation && b.HostTool != "" {
+				return b.HostTool, true
+			}
+		}
+	}
+	return "", false
+}
+
+// HostToolBindings returns the provider→host-tool bindings for every standalone
+// backend that depends on a host tool (including llama.cpp). In-process
+// providers (builtin/computed/library-go) need no host tool and are omitted.
+func HostToolBindings() []HostToolBinding {
+	specs := providerSpecs()
+	out := make([]HostToolBinding, 0, len(specs)+1)
+	for _, s := range specs {
+		out = append(out, HostToolBinding{Provider: s.name, HostTool: s.hostTool, Ops: append([]string(nil), s.ops...), PipDeps: append([]string(nil), s.pipDeps...)})
+	}
+	out = append(out, HostToolBinding{Provider: "llama.cpp", HostTool: llamaCppHostTool, Ops: []string{"caption"}})
+	return out
+}
 
 type llamaCppProvider struct {
 	lookPath lookPathFunc
@@ -689,14 +786,14 @@ func (p *llamaCppProvider) resolveProgram() (string, error) {
 
 func providerSpecs() []providerSpec {
 	return []providerSpec{
-		{name: "stable-diffusion.cpp", program: "sd", ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true, provision: "install stable-diffusion.cpp's sd binary via Scenario Dependency Analyzer; see docs/reference/backends.md"},
-		{name: "diffusers", program: "python3", ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, provision: "install the embedded Python sidecar runtime dependencies via Scenario Dependency Analyzer; see docs/reference/backends.md", imports: []string{"diffusers", "torch", "PIL"}},
-		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true, provision: "install the iopaint CLI via Scenario Dependency Analyzer; see docs/reference/backends.md"},
-		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale", "denoise"}, build: buildRealesrgan, gpuCapable: true, provision: "install the realesrgan-ncnn-vulkan binary via Scenario Dependency Analyzer; see docs/reference/backends.md"},
-		{name: "rembg", program: "rembg", ops: []string{"background_removal", "background_replace"}, build: buildRembg, gpuCapable: false, provision: "install the rembg CLI via Scenario Dependency Analyzer; see docs/reference/backends.md"},
-		{name: "onnxruntime", program: "python3", ops: []string{"denoise", "deblur", "background_removal", "colorize", "depth_map", "object_detection", "segment", "tagging", "nsfw_classify", "embedding"}, build: buildOnnxSidecar, gpuCapable: false, provision: "ensure python3 plus onnxruntime/Pillow/numpy for the embedded sidecar; see docs/reference/backends.md", imports: []string{"onnxruntime", "PIL", "numpy"}},
-		{name: "python-sidecar", program: "python3", ops: []string{"colorize"}, build: buildPythonSidecar, gpuCapable: false, provision: "ensure python3 plus onnxruntime/Pillow/numpy for the embedded sidecar via Scenario Dependency Analyzer; see docs/reference/backends.md", imports: []string{"onnxruntime", "PIL", "numpy"}},
-		{name: "python-sidecar", program: "python3", ops: []string{"face_restore", "old_photo_restore"}, build: buildPythonSidecar, gpuCapable: false, provision: "install RestoreFormer++ Python runtime dependencies (torch, basicsr, facexlib, Pillow, numpy) through Scenario Dependency Analyzer; see docs/reference/backends.md", imports: []string{"torch", "basicsr", "facexlib", "PIL", "numpy"}},
+		{name: "stable-diffusion.cpp", program: "sd", ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true, hostTool: "sd"},
+		{name: "diffusers", program: "python3", ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, hostTool: "python", pipDeps: []string{"diffusers", "torch", "Pillow"}, imports: []string{"diffusers", "torch", "PIL"}},
+		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true, hostTool: "iopaint"},
+		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale", "denoise"}, build: buildRealesrgan, gpuCapable: true, hostTool: "realesrgan-ncnn-vulkan"},
+		{name: "rembg", program: "rembg", ops: []string{"background_removal", "background_replace"}, build: buildRembg, gpuCapable: false, hostTool: "rembg"},
+		{name: "onnxruntime", program: "python3", ops: []string{"denoise", "deblur", "background_removal", "colorize", "depth_map", "object_detection", "segment", "tagging", "nsfw_classify", "embedding"}, build: buildOnnxSidecar, gpuCapable: false, hostTool: "python", pipDeps: []string{"onnxruntime", "Pillow", "numpy"}, imports: []string{"onnxruntime", "PIL", "numpy"}},
+		{name: "python-sidecar", program: "python3", ops: []string{"colorize"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "python", pipDeps: []string{"onnxruntime", "Pillow", "numpy"}, imports: []string{"onnxruntime", "PIL", "numpy"}},
+		{name: "python-sidecar", program: "python3", ops: []string{"face_restore", "old_photo_restore"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "python", pipDeps: []string{"torch", "basicsr", "facexlib", "Pillow", "numpy"}, imports: []string{"torch", "basicsr", "facexlib", "PIL", "numpy"}},
 	}
 }
 
@@ -704,7 +801,7 @@ func providerSpecs() []providerSpec {
 // lookPath/run to use the real os/exec implementations.
 func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner) error {
 	for _, s := range providerSpecs() {
-		p := &execProvider{name: s.name, program: s.program, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision, imports: s.imports, lookPath: lookPath, run: run}
+		p := &execProvider{name: s.name, program: s.program, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
 		if s.name == "onnxruntime" && run == nil {
 			p.warm = newWarmSidecarRunner()
 		}

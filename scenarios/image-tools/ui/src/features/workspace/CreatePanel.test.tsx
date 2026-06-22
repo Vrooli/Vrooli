@@ -21,10 +21,20 @@ import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 import { makeAIMocks, makeSelectedModel } from "./mocks/ai";
+import { makeModelsMocks } from "../models/mocks/models";
+import { makeModel } from "../models/mocks/factories";
 
 vi.mock("../../api/ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/ai")>();
   return { ...actual, ...makeAIMocks() };
+});
+
+// The panel renders <ModelPickerButton/>, which fires a real `selectModel`
+// query for its trigger label. Mock the models API so the panel renders
+// hermetically (no network) — the picker itself is covered by its own tests.
+vi.mock("../../api/models", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/models")>();
+  return { ...actual, ...makeModelsMocks() };
 });
 
 const policyMock = vi.hoisted(
@@ -167,7 +177,7 @@ describe("CreatePanel", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("threads size, seed, variations, negative, model-override and BYOK into the params", async () => {
+  it("threads size, seed, variations, negative and BYOK into the params", async () => {
     const user = userEvent.setup();
     const create = fakeCreate();
     renderPanel(create);
@@ -186,9 +196,9 @@ describe("CreatePanel", () => {
     await user.type(screen.getByTestId(selectors.workspace.create.seed), "42");
     await user.click(screen.getByTestId(selectors.workspace.create.seedLock));
 
-    // Advanced disclosure: negative prompt, model override, BYOK.
+    // Advanced disclosure: negative prompt, BYOK. (The model override moved out of
+    // a free-text input and into the host-aware ModelPickerButton — covered there.)
     await user.type(screen.getByTestId(selectors.workspace.create.negative), "blurry");
-    await user.type(screen.getByTestId(selectors.workspace.create.model), "sdxl-custom");
     await user.click(screen.getByTestId(selectors.workspace.create.byok));
 
     await user.click(screen.getByTestId(selectors.workspace.create.run));
@@ -202,7 +212,6 @@ describe("CreatePanel", () => {
         height: 512,
         variations: 3,
         seed: 42n,
-        modelOverride: "sdxl-custom",
         allowByok: true,
       }),
       undefined,
@@ -271,20 +280,18 @@ describe("CreatePanel", () => {
     expect(screen.getByTestId(selectors.workspace.create.run)).toBeDisabled();
   });
 
-  it("renders the model badge with hardware fit and speed note", async () => {
-    const create = fakeCreate({
-      model: makeSelectedModel({
-        id: "sd-1.5",
-        name: "sd-1.5",
-        cpuCapable: false,
-        minVramGb: 8,
-        speedNote: "~20s",
-      }),
-    });
-    renderPanel(create);
+  it("renders the host-aware model picker trigger inside the model badge", async () => {
+    const { modelsClient } = await import("../../api/models");
+    const { makeSelectModelResponse } = await import("../models/mocks/factories");
+    vi.mocked(modelsClient.selectModel).mockResolvedValue(
+      makeSelectModelResponse({ model: makeModel({ id: "sd-1.5", name: "sd-1.5" }) }),
+    );
+    renderPanel(fakeCreate());
     const badge = await screen.findByTestId(selectors.workspace.create.modelBadge);
-    expect(badge.textContent).toContain("sd-1.5");
-    expect(badge.textContent).toContain("~20s");
+    // The static "model detected" label was replaced by the picker trigger.
+    const trigger = within(badge).getByTestId(selectors.models.pickerTrigger);
+    expect(trigger).toBeInTheDocument();
+    await waitFor(() => expect(trigger.textContent).toContain("sd-1.5"));
   });
 
   it("shows live per-variation progress with a cancel control while running", async () => {

@@ -57,6 +57,29 @@ backend actually probeable/executable on this host?".
 | `library-go` | linked Go library | `duplicate_detect`, `qr_barcode_read` | no (CPU) | Registered runtime provider shipped in the API binary; no model weights. |
 | `library-cgo` | host C/C++ library / binary | `ocr`, `face_detection` | no (CPU) | Registered Tesseract OCR and OpenCV YuNet providers; host binaries/libraries/data are managed through SDA. |
 
+### Host-tool provisioning (generated)
+
+The table below is generated from `providerSpecs()` (`api/internal/ai`) — the
+single source of truth for which platform host tool each backend needs and the
+exact remediation command. Do not edit it by hand; run `make backends-doc` to
+regenerate. A test (`TestBackendsDocHostToolMatrixUpToDate`) fails the build if
+it drifts. Host tools are declared as data in `internal/tools/<name>/tool.json`
+and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
+
+<!-- BEGIN GENERATED: host-tool-matrix (regenerate with `make backends-doc`) -->
+| Backend (provider) | Host tool | Operations | Install / remediation |
+|---|---|---|---|
+| `diffusers` | `python` | `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install python` + pip: diffusers, torch, Pillow |
+| `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
+| `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
+| `onnxruntime` | `python` | `denoise`, `deblur`, `background_removal`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install python` + pip: onnxruntime, Pillow, numpy |
+| `python-sidecar` | `python` | `colorize` | `vrooli host install python` + pip: onnxruntime, Pillow, numpy |
+| `python-sidecar` | `python` | `face_restore`, `old_photo_restore` | `vrooli host install python` + pip: torch, basicsr, facexlib, Pillow, numpy |
+| `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | `vrooli host install realesrgan-ncnn-vulkan` |
+| `rembg` | `rembg` | `background_removal`, `background_replace` | `vrooli host install rembg` |
+| `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | `vrooli host install sd` |
+<!-- END GENERATED: host-tool-matrix -->
+
 ## Operation Support Matrix
 
 This matrix is the operator lookup for the enabled default path of each

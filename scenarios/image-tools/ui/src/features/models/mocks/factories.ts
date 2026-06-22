@@ -15,31 +15,49 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import {
   AddCustomModelResponseSchema,
+  BackendReadinessSchema,
+  BackendStatusSchema,
   BlocklistEntrySchema,
+  CandidateModelSchema,
   CapabilityLabelsSchema,
   CommercialUse,
+  DoctorBackendsResponseSchema,
+  EnsureBackendResponseSchema,
   HardwareSchema,
+  HostSummarySchema,
   InstallModelResponseSchema,
   InstallStateSchema,
   ListBlocklistResponseSchema,
   ListDefaultsResponseSchema,
   ListModelsResponseSchema,
+  ListOperationModelsResponseSchema,
   ListOperationsResponseSchema,
+  ModelFitSchema,
   ModelSchema,
   OpDefaultSchema,
   RemoveModelResponseSchema,
+  SelectModelResponseSchema,
   SetDefaultModelResponseSchema,
   SetModelEnabledResponseSchema,
   type AddCustomModelResponse,
+  type BackendReadiness,
+  type BackendStatus,
   type BlocklistEntry,
+  type CandidateModel,
+  type DoctorBackendsResponse,
+  type EnsureBackendResponse,
+  type HostSummary,
   type InstallModelResponse,
   type ListBlocklistResponse,
   type ListDefaultsResponse,
   type ListModelsResponse,
+  type ListOperationModelsResponse,
   type ListOperationsResponse,
   type Model,
+  type ModelFit,
   type OpDefault,
   type RemoveModelResponse,
+  type SelectModelResponse,
   type SetDefaultModelResponse,
   type SetModelEnabledResponse,
 } from "@vrooli/proto-types/image-tools/v1/models/models_pb";
@@ -57,7 +75,53 @@ export type {
   ListBlocklistResponse,
   BlocklistEntry,
   OpDefault,
+  BackendStatus,
+  DoctorBackendsResponse,
+  EnsureBackendResponse,
+  ListOperationModelsResponse,
+  CandidateModel,
+  ModelFit,
+  BackendReadiness,
+  HostSummary,
+  SelectModelResponse,
 };
+
+export const makeBackendStatus = (
+  overrides: MessageInitShape<typeof BackendStatusSchema> = {},
+): BackendStatus =>
+  create(BackendStatusSchema, {
+    name: "realesrgan-ncnn-vulkan",
+    operations: ["upscale", "denoise"],
+    available: false,
+    standalone: true,
+    cloud: false,
+    gpuCapable: true,
+    detail: "not found on PATH",
+    provision: "vrooli host install realesrgan-ncnn-vulkan",
+    hostTool: "realesrgan-ncnn-vulkan",
+    hostToolReady: false,
+    remediation: "vrooli host install realesrgan-ncnn-vulkan",
+    ...overrides,
+  });
+
+export const makeDoctorBackendsResponse = (
+  overrides: MessageInitShape<typeof DoctorBackendsResponseSchema> = {},
+): DoctorBackendsResponse =>
+  create(DoctorBackendsResponseSchema, { ok: false, backends: [], ...overrides });
+
+export const makeEnsureBackendResponse = (
+  overrides: MessageInitShape<typeof EnsureBackendResponseSchema> = {},
+): EnsureBackendResponse =>
+  create(EnsureBackendResponseSchema, {
+    tool: "realesrgan-ncnn-vulkan",
+    jobId: "ensure-job-1",
+    etaSeconds: 90,
+    alreadyInstalled: false,
+    manual: false,
+    state: "would_install",
+    detail: "",
+    ...overrides,
+  });
 
 export const makeModel = (overrides: MessageInitShape<typeof ModelSchema> = {}): Model =>
   create(ModelSchema, {
@@ -162,5 +226,85 @@ export const makeSetModelEnabledResponse = (
 ): SetModelEnabledResponse =>
   create(SetModelEnabledResponseSchema, {
     model: makeModel(),
+    ...overrides,
+  });
+
+// --- Model-picker fixtures (host-aware candidate menu behind every AI action) ---
+
+export const makeHostSummary = (
+  overrides: MessageInitShape<typeof HostSummarySchema> = {},
+): HostSummary =>
+  create(HostSummarySchema, {
+    hasGpu: true,
+    gpuName: "NVIDIA RTX 4090",
+    gpuCount: 1,
+    vramTotalGb: 24,
+    vramFreeGb: 20,
+    vramKnown: true,
+    ramGb: 64,
+    cpuCores: 16,
+    os: "linux",
+    arch: "amd64",
+    ...overrides,
+  });
+
+export const makeModelFit = (
+  overrides: MessageInitShape<typeof ModelFitSchema> = {},
+): ModelFit =>
+  create(ModelFitSchema, {
+    runnable: true,
+    gpuViable: true,
+    fitClass: "gpu",
+    vramShortfallGb: 0,
+    warnings: [],
+    ...overrides,
+  });
+
+export const makeBackendReadiness = (
+  overrides: MessageInitShape<typeof BackendReadinessSchema> = {},
+): BackendReadiness =>
+  create(BackendReadinessSchema, {
+    backend: "onnx",
+    hostTool: "realesrgan-ncnn-vulkan",
+    ready: true,
+    installTier: "auto",
+    remediation: "",
+    manualHint: "",
+    detail: "",
+    ...overrides,
+  });
+
+export const makeCandidateModel = (
+  overrides: MessageInitShape<typeof CandidateModelSchema> = {},
+): CandidateModel =>
+  create(CandidateModelSchema, {
+    model: makeModel({ id: "cand-1", name: "Real-ESRGAN x4" }),
+    fit: makeModelFit(),
+    backend: makeBackendReadiness(),
+    readyState: "ready",
+    selected: true,
+    ...overrides,
+  });
+
+export const makeListOperationModelsResponse = (
+  overrides: MessageInitShape<typeof ListOperationModelsResponseSchema> = {},
+): ListOperationModelsResponse =>
+  create(ListOperationModelsResponseSchema, {
+    operation: "upscale",
+    host: makeHostSummary(),
+    candidates: [makeCandidateModel()],
+    selectedId: "cand-1",
+    selectedReason: "best fit for this host",
+    ...overrides,
+  });
+
+export const makeSelectModelResponse = (
+  overrides: MessageInitShape<typeof SelectModelResponseSchema> = {},
+): SelectModelResponse =>
+  create(SelectModelResponseSchema, {
+    model: makeModel({ id: "cand-1", name: "Real-ESRGAN x4" }),
+    gpuViable: true,
+    reason: "best fit for this host",
+    warnings: [],
     ...overrides,
   });

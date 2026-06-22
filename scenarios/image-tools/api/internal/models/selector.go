@@ -90,6 +90,50 @@ func Fit(m Model, h capabilities.Host) HardwareFit {
 	return fit
 }
 
+// SupportsHost reports whether the model declares a build for the host's
+// os/arch. An empty OSArch list means "no constraint declared" and is treated as
+// supported (the deterministic/built-in tiers omit it).
+func (m Model) SupportsHost(h capabilities.Host) bool {
+	if len(m.Hardware.OSArch) == 0 {
+		return true
+	}
+	want := h.OS + "/" + h.Arch
+	for _, oa := range m.Hardware.OSArch {
+		if oa == want {
+			return true
+		}
+	}
+	return false
+}
+
+// FitClass refines a HardwareFit into a single host-aware badge class for the
+// model picker:
+//
+//	"gpu"               will run on a detected GPU (fast)
+//	"cpu"               will run on the CPU (no GPU acceleration / conservative fallback)
+//	"insufficient_vram" a GPU is present but free VRAM is short and there is no CPU path
+//	"no_gpu"            the model needs a GPU and none was detected
+//	"unsupported_os"    no build for this host's os/arch
+//
+// Unlike the bare runnable/gpu_viable booleans, this lets the UI render an
+// affirmative, host-aware label ("Runs on your GPU") instead of a static
+// requirement chip that reads as a warning even when the host can run the model.
+func FitClass(m Model, h capabilities.Host, fit HardwareFit) string {
+	if !m.SupportsHost(h) {
+		return "unsupported_os"
+	}
+	if fit.GPUViable {
+		return "gpu"
+	}
+	if m.Hardware.CPUCapable {
+		return "cpu"
+	}
+	if h.HasGPU() {
+		return "insufficient_vram"
+	}
+	return "no_gpu"
+}
+
 // EnabledFunc reports a model's runtime-enabled state (the SQLite overlay over
 // the seed's .Enabled). A nil EnabledFunc falls back to Model.Enabled.
 type EnabledFunc func(id string) bool

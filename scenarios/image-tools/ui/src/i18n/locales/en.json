@@ -224,6 +224,21 @@
     "thumbnailAlt": "Result of {{operation}}",
     "openOutput": "Open output"
   },
+  "backends": {
+    "title": "Background engines",
+    "description": "Optional AI engines installed on demand. Default setup never downloads these.",
+    "loading": "Checking engines…",
+    "empty": "No optional engines to install.",
+    "operationsLabel": "Powers",
+    "ready": "Installed",
+    "notInstalled": "Not installed",
+    "install": "Install",
+    "installing": "Installing…",
+    "installStarted": "Installing (job {{jobId}}, ~{{eta}}s)",
+    "alreadyInstalled": "Already installed",
+    "manualHint": "{{detail}}",
+    "remediationLabel": "Run: {{cmd}}"
+  },
   "models": {
     "title": "Model registry",
     "loading": "Loading models…",
@@ -236,6 +251,8 @@
     "hardwareLabel": "Hardware:",
     "hardware": {
       "gpuRequired": "Needs a GPU",
+      "gpuAvailable": "✓ Runs on your GPU",
+      "gpuShort": "Needs ~{{gb}} GB more VRAM",
       "cpuOk": "✓ Runs on your CPU",
       "vram": "Needs ≥ {{gb}} GB VRAM",
       "ram": "Needs ≥ {{gb}} GB RAM",
@@ -303,6 +320,56 @@
       "useDefault": "Use built-in default",
       "clear": "Clear",
       "none": "None"
+    },
+    "picker": {
+      "titleFor": "Model for {{op}}",
+      "close": "Close",
+      "loading": "Finding models for your hardware…",
+      "size": "{{size}} MB",
+      "manualTitle": "Manual setup",
+      "trigger": {
+        "label": "Model",
+        "loading": "Choosing a model…",
+        "none": "No model available",
+        "change": "Change"
+      },
+      "host": {
+        "gpu": "{{name}} · {{total}} GB VRAM ({{free}} GB free)",
+        "gpuUnknown": "{{name}} · VRAM unknown",
+        "noGpu": "No GPU detected — CPU only",
+        "specs": "{{cores}} cores · {{ram}} GB RAM"
+      },
+      "fit": {
+        "gpu": "Runs on your GPU",
+        "cpu": "Runs on your CPU",
+        "cpuFallback": "Runs on CPU (won't fit your GPU right now)",
+        "insufficientVram": "Needs ~{{gb}} GB more free VRAM",
+        "noGpu": "Requires a GPU (none detected)",
+        "unsupportedOs": "No build for {{os}}/{{arch}}"
+      },
+      "state": {
+        "ready": "Ready",
+        "needsModel": "Weights not downloaded",
+        "needsBackend": "Engine not installed",
+        "needsBackendManual": "Engine needs manual setup",
+        "needsBoth": "Weights + engine needed",
+        "disabled": "Disabled in settings",
+        "insufficient": "Can't run on your hardware",
+        "unsupported": "Not available for your OS"
+      },
+      "action": {
+        "select": "Use",
+        "selected": "In use",
+        "installModel": "Download",
+        "installBackend": "Install engine",
+        "enable": "Enable",
+        "manualSteps": "Setup steps",
+        "installing": "Installing…"
+      },
+      "footer": {
+        "all": "Showing all {{count}} models for this task — ones you can't run yet are shown so you can see why.",
+        "none": "No other models available for this task."
+      }
     }
   },
   "workspace": {
@@ -539,8 +606,6 @@
       "seedLock": "Lock seed",
       "seedRandomize": "Randomize seed",
       "variationsLabel": "Variations",
-      "modelLabel": "Model (optional)",
-      "modelPlaceholder": "Best fit for your hardware",
       "byokLabel": "Allow paid cloud (BYOK)",
       "advanced": "Advanced",
       "usesCurrent": "Uses the current canvas image.",

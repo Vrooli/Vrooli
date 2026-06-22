@@ -286,3 +286,66 @@ func TestFit(t *testing.T) {
 		t.Fatalf("cpu model on cpu host should be runnable, got %+v", f)
 	}
 }
+
+func TestFitClass(t *testing.T) {
+	cases := []struct {
+		name  string
+		model Model
+		host  capabilities.Host
+		want  string
+	}{
+		{
+			name:  "gpu viable",
+			model: Model{Hardware: Hardware{CPUCapable: true, MinVRAMGB: 4}},
+			host:  gpuHost(12),
+			want:  "gpu",
+		},
+		{
+			name:  "cpu fallback on cpu host",
+			model: Model{Hardware: Hardware{CPUCapable: true}},
+			host:  cpuHost(),
+			want:  "cpu",
+		},
+		{
+			name:  "gpu-required model on cpu host",
+			model: Model{Hardware: Hardware{GPURequired: true, MinVRAMGB: 8}},
+			host:  cpuHost(),
+			want:  "no_gpu",
+		},
+		{
+			name:  "gpu present but free VRAM short, no cpu path",
+			model: Model{Hardware: Hardware{MinVRAMGB: 8}},
+			host:  busyGPUHost(12, 11),
+			want:  "insufficient_vram",
+		},
+		{
+			name:  "unsupported os/arch",
+			model: Model{Hardware: Hardware{CPUCapable: true, OSArch: []string{"darwin/arm64"}}},
+			host:  cpuHost(),
+			want:  "unsupported_os",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := FitClass(tc.model, tc.host, Fit(tc.model, tc.host))
+			if got != tc.want {
+				t.Fatalf("FitClass = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSupportsHost(t *testing.T) {
+	none := Model{Hardware: Hardware{}}
+	if !none.SupportsHost(cpuHost()) {
+		t.Fatal("empty OSArch should support any host")
+	}
+	linux := Model{Hardware: Hardware{OSArch: []string{"linux/amd64", "darwin/arm64"}}}
+	if !linux.SupportsHost(cpuHost()) {
+		t.Fatal("linux/amd64 host should be supported")
+	}
+	mac := Model{Hardware: Hardware{OSArch: []string{"darwin/arm64"}}}
+	if mac.SupportsHost(cpuHost()) {
+		t.Fatal("linux host must not match darwin-only model")
+	}
+}
