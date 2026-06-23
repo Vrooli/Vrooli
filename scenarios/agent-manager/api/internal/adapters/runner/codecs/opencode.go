@@ -490,6 +490,20 @@ func openCodeNoOpErrorMessage(summary *domain.RunSummary) string {
 	return base
 }
 
+// openCodeNoEffectErrorMessage explains a run that issued tool calls but had
+// none complete successfully — the agent attempted actions that did not land
+// (e.g. a write to a non-existent/wrong directory). Distinct from the
+// zero-tool-call no-op: here the model DID try to act, it just failed to.
+func openCodeNoEffectErrorMessage(toolCalls int, summary *domain.RunSummary) string {
+	base := fmt.Sprintf("opencode run made %d tool call(s) but none completed successfully — "+
+		"the agent's actions did not land (e.g. a write to a non-existent or wrong directory), "+
+		"so the run did no effective work", toolCalls)
+	if summary != nil && looksLikeUnexecutedToolCall(summary.Description) {
+		return base + "; the model emitted a tool call as text instead of executing it"
+	}
+	return base
+}
+
 // looksLikeUnexecutedToolCall reports whether text is (just) a tool call
 // rendered as JSON — an object carrying a function name and arguments,
 // optionally wrapped in a ``` fence. A well-behaved run never leaves a raw
@@ -528,17 +542,25 @@ func (c *OpenCode) PostClassify(_ State, result *runner.ExecuteResult) {
 		return
 	}
 	if result.Success {
-		// A clean exit that executed zero tool calls did no observable work.
-		// For an agentic coding runner this is a no-op, not a success — even
-		// reading a file is a tool call. The most common cause: some Ollama
-		// model templates return tool calls as message
-		// text instead of structured tool_calls, so opencode never executes
-		// them. Reclassify so the run reports as failed rather than as a
-		// silent false success.
-		if result.Metrics.ToolCallCount == 0 {
+		// A clean exit that produced no successful tool result did no
+		// observable work. For an agentic coding runner this is a no-op,
+		// not a success — even reading a file is a tool call with a result.
+		// Two shapes both slip past a bare exit-code check:
+		//   - zero tool calls:        the agent took no action at all.
+		//   - calls but no successes: the agent attempted actions that never
+		//     landed — e.g. a write to a hallucinated/non-existent directory,
+		//     or (with some Ollama model templates) a tool call narrated as
+		//     message text that opencode never executed.
+		// Reclassify so the run reports as failed rather than as a silent
+		// false success.
+		if result.Metrics.SuccessfulToolResults == 0 {
 			result.Success = false
 			result.ExitCode = openCodeNoOpExitCode
-			result.ErrorMessage = openCodeNoOpErrorMessage(result.Summary)
+			if result.Metrics.ToolCallCount == 0 {
+				result.ErrorMessage = openCodeNoOpErrorMessage(result.Summary)
+			} else {
+				result.ErrorMessage = openCodeNoEffectErrorMessage(result.Metrics.ToolCallCount, result.Summary)
+			}
 		}
 		return
 	}
@@ -614,6 +636,12 @@ func (c *OpenCode) UpdateMetrics(event *domain.RunEvent, metrics *runner.Executi
 		// OpenCode bundles tool call + result in one event with
 		// status="completed"; count the result as a tool call.
 		metrics.ToolCallCount++
+		// A result that reported success is proof the agent's action
+		// actually landed (file read/written/edited). PostClassify reads
+		// this to tell real work from a silent no-op.
+		if data.Success {
+			metrics.SuccessfulToolResults++
+		}
 	case *domain.MetricEventData:
 		if data.Name == "tokens" {
 			totalTokens := int(data.Value)

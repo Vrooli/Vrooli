@@ -396,17 +396,40 @@ func TestOpenCode_DecodeStreamLine_CapturesSessionID(t *testing.T) {
 
 func TestOpenCode_PostClassify_NoOpForSuccessWithToolCalls(t *testing.T) {
 	c := NewOpenCodeForTest()
-	// A genuine success (it executed at least one tool call) is left untouched.
+	// A genuine success: it executed a tool call that produced a successful
+	// result, so its actions actually landed. Left untouched.
 	result := &runner.ExecuteResult{
 		Success: true,
-		Metrics: runner.ExecutionMetrics{ToolCallCount: 1},
+		Metrics: runner.ExecutionMetrics{ToolCallCount: 1, SuccessfulToolResults: 1},
 	}
 	c.PostClassify(c.NewState(), result)
 	if !result.Success {
-		t.Errorf("expected Success to remain true for a run with tool calls")
+		t.Errorf("expected Success to remain true for a run with a successful tool result")
 	}
 	if result.ErrorMessage != "" {
 		t.Errorf("expected unchanged ErrorMessage, got %q", result.ErrorMessage)
+	}
+}
+
+func TestOpenCode_PostClassify_FlipsToolCallsWithNoSuccessfulResult(t *testing.T) {
+	c := NewOpenCodeForTest()
+	// Clean exit, the agent emitted a tool call, but nothing landed (no
+	// successful tool result) — e.g. a write to a hallucinated path. This is
+	// the silent-success hole: exit 0 with no effective work. Reclassify.
+	result := &runner.ExecuteResult{
+		Success:  true,
+		ExitCode: 0,
+		Metrics:  runner.ExecutionMetrics{ToolCallCount: 1, SuccessfulToolResults: 0},
+	}
+	c.PostClassify(c.NewState(), result)
+	if result.Success {
+		t.Fatal("expected a run with tool calls but no successful result to be reclassified as failure")
+	}
+	if result.ExitCode != openCodeNoOpExitCode {
+		t.Errorf("ExitCode = %d, want %d", result.ExitCode, openCodeNoOpExitCode)
+	}
+	if !strings.Contains(result.ErrorMessage, "none completed successfully") {
+		t.Errorf("expected no-effective-work message, got %q", result.ErrorMessage)
 	}
 }
 

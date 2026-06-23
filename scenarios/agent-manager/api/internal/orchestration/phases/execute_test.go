@@ -6,6 +6,7 @@ package phases
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -285,4 +286,45 @@ func TestModelFallback_UsesClassifier(t *testing.T) {
 		t.Fatalf("classifier drift: expected model-unavailable classification, got %+v", got)
 	}
 	var _ error = errors.New("classifier test placeholder")
+}
+
+// groundWorkingDir — strengthens cwd path grounding in the system prompt.
+
+func TestGroundWorkingDir(t *testing.T) {
+	const dir = "/tmp/work-abc"
+
+	t.Run("empty dir leaves prompt untouched", func(t *testing.T) {
+		if got := groundWorkingDir("sys", ""); got != "sys" {
+			t.Fatalf("got %q, want unchanged %q", got, "sys")
+		}
+		if got := groundWorkingDir("sys", "   "); got != "sys" {
+			t.Fatalf("whitespace dir should be treated as empty, got %q", got)
+		}
+	})
+
+	t.Run("appends directive carrying the absolute dir", func(t *testing.T) {
+		got := groundWorkingDir("existing system prompt", dir)
+		if !strings.HasPrefix(got, "existing system prompt") {
+			t.Fatalf("original system prompt must be preserved at the front: %q", got)
+		}
+		if !strings.Contains(got, dir) {
+			t.Fatalf("directive must contain the absolute dir %q: %q", dir, got)
+		}
+		if !strings.Contains(got, "<working-directory>") || !strings.Contains(got, "</working-directory>") {
+			t.Fatalf("directive must be wrapped in a working-directory block: %q", got)
+		}
+		if !strings.Contains(got, "Do not invent or target any other directory") {
+			t.Fatalf("directive must instruct against other directories: %q", got)
+		}
+	})
+
+	t.Run("empty system prompt yields just the directive", func(t *testing.T) {
+		got := groundWorkingDir("", dir)
+		if strings.HasPrefix(got, "\n") {
+			t.Fatalf("must not lead with blank separator when system prompt empty: %q", got)
+		}
+		if !strings.Contains(got, dir) {
+			t.Fatalf("directive must contain the dir: %q", got)
+		}
+	})
 }

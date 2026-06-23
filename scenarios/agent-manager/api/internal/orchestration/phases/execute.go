@@ -14,6 +14,7 @@ package phases
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -105,7 +106,7 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 		WorkingDir:     in.WorkingDir,
 		SandboxID:      in.SandboxID,
 		Prompt:         in.Prompt,
-		SystemPrompt:   in.SystemPrompt,
+		SystemPrompt:   groundWorkingDir(in.SystemPrompt, in.WorkingDir),
 		EventSink:      in.EventSink,
 		Attachments:    in.Attachments,
 		Environment:    in.EnvVars,
@@ -134,6 +135,38 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	out.ExecErr = validated.ExecErr
 
 	return out
+}
+
+// groundWorkingDir strengthens path grounding by appending an explicit,
+// unambiguous working-directory directive to the system prompt.
+//
+// Every runner already receives the working directory — but only as a single
+// passive line buried in a large system prompt (e.g. opencode's "Working
+// directory: <dir>"). Capable cloud models connect that fact to file paths
+// reliably; weaker models (notably local Ollama coders) intermittently ignore
+// it and emit a write to a hallucinated absolute path, producing a run that
+// "succeeds" while writing nothing useful. Stating the directory plainly with
+// a directive to use it eliminated that failure in testing.
+//
+// Applied to all runners via the shared SystemPrompt field (Claude delivers it
+// through --append-system-prompt; Codex/OpenCode prepend it to the prompt).
+// The directive is model-agnostic and harmless to capable models. Empty
+// workingDir (no resolved directory) leaves the prompt untouched.
+func groundWorkingDir(systemPrompt, workingDir string) string {
+	dir := strings.TrimSpace(workingDir)
+	if dir == "" {
+		return systemPrompt
+	}
+	directive := "<working-directory>\n" +
+		"Your working directory for this task is the absolute path: " + dir + "\n" +
+		"All relative paths resolve against it. When you create, edit, or read files, use " +
+		"paths under this directory — either an absolute path beginning with " + dir + "/ or a " +
+		"path relative to it. Do not invent or target any other directory.\n" +
+		"</working-directory>"
+	if strings.TrimSpace(systemPrompt) == "" {
+		return directive
+	}
+	return systemPrompt + "\n\n" + directive
 }
 
 // ExecuteWithModelFallbackInput is the explicit input.

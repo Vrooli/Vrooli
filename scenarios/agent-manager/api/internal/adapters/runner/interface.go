@@ -323,7 +323,14 @@ type ExecutionMetrics struct {
 	CacheReadTokens     int
 	CacheCreationTokens int
 	ToolCallCount       int
-	CostEstimateUSD     float64
+	// SuccessfulToolResults counts tool results that reported success
+	// (ToolResultEventData.Success). It is the "did the agent's actions
+	// actually land?" signal: a run can emit a tool call yet produce no
+	// successful result (e.g. a write to a hallucinated path, or a tool
+	// call narrated as text the runner never executed). Codecs use this to
+	// distinguish real work from a silent no-op in PostClassify.
+	SuccessfulToolResults int
+	CostEstimateUSD       float64
 }
 
 // TotalTokens returns total tokens used, including cache tokens.
