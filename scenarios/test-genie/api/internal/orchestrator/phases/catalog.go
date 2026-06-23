@@ -53,8 +53,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		ProviderScenario: "cli-health",
 		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_CLI,
 		Emoji:            "📑",
-		Timeout:          60 * time.Second,
-		Description:      "Validates cli/manifest.json bindings against proto descriptors via cli-health.",
+		Timeout:          90 * time.Second,
+		Description:      "Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest.",
+		// Opt into execution so cli-health runs its runtime CLI probe (resolve +
+		// `--help`-tree walk) on top of the static manifest↔proto cross-check.
+		// Degrades to a warning when the scenario's binary is absent in the run
+		// context, so this never false-fails an uninstalled CLI.
+		IncludeExecution: true,
 	}))
 	register(delegatedSpec(Delegated{
 		Name:             UIHealth,
@@ -160,12 +165,6 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Description:      "Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension.",
 		IncludeExecution: true,
 	}))
-	register(Spec{
-		Name:         Integration,
-		Runner:       runIntegrationPhase,
-		Description:  "Exercises CLI runtime behavior, API health, and WebSocket connectivity.",
-		Capabilities: runnability.PhaseCapabilities{NeedsAPI: true},
-	})
 	// Storage runs immediately before playbooks: it delegates test-isolation +
 	// storage-conventions validation to storage-health and maps findings into the
 	// FINDING_SOURCE_STORAGE channel. Its L2 isolation rung is the fail-closed

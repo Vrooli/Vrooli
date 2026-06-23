@@ -34,6 +34,9 @@ type Runner struct {
 	capturer *browsercapture.Capturer
 	// checker validates preconditions. Defaulted when nil.
 	checker *preflight.Checker
+	// freshness reports UI bundle staleness via the canonical content-hash
+	// freshness engine. Defaulted to the CLI-backed checker when nil.
+	freshness freshnessChecker
 	// starter brings up the scenario when its UI port is absent. Defaulted to
 	// the lifecycle-backed targetruntime starter when auto-start is enabled.
 	starter scenarioStarter
@@ -82,6 +85,9 @@ func NewRunner(capturer *browsercapture.Capturer, opts ...RunnerOption) *Runner 
 	if r.checker == nil {
 		r.checker = preflight.NewChecker()
 	}
+	if r.freshness == nil {
+		r.freshness = newCLIFreshnessChecker()
+	}
 	if r.starter == nil {
 		r.starter = lifecycleStarter{}
 	}
@@ -114,6 +120,11 @@ func WithAutoStart(enabled bool) RunnerOption {
 // WithChecker overrides the preflight checker (for testing).
 func WithChecker(c *preflight.Checker) RunnerOption {
 	return func(r *Runner) { r.checker = c }
+}
+
+// WithFreshnessChecker overrides the UI bundle freshness checker (for testing).
+func WithFreshnessChecker(f freshnessChecker) RunnerOption {
+	return func(r *Runner) { r.freshness = f }
 }
 
 // WithScenarioStarter overrides the scenario starter (for testing).
@@ -160,17 +171,19 @@ func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir, runID strin
 		return r.persist(ctx, writer, scenarioDir, scenarioName, Skipped(scenarioName, "UI directory not detected")), nil
 	}
 
-	// Step 2: bundle freshness.
+	// Step 2: bundle freshness, via the canonical content-hash engine. A
+	// resolution error is non-fatal (graceful degradation): log and proceed
+	// rather than blocking a render on an infra hiccup.
 	var bundleStatus *BundleStatus
-	if bs, err := r.checker.CheckBundleFreshness(ctx, scenarioDir); err != nil {
+	if stale, reason, err := r.freshness.UIBundleStale(ctx, scenarioName, scenarioDir); err != nil {
 		r.log("Bundle freshness check failed: %v", err)
-	} else if bs != nil {
-		bundleStatus = &BundleStatus{Fresh: bs.Fresh, Reason: bs.Reason, Config: bs.Config}
-		if !bs.Fresh {
-			r.log("UI bundle is stale: %s", bs.Reason)
+	} else {
+		bundleStatus = &BundleStatus{Fresh: !stale, Reason: reason}
+		if stale {
+			r.log("UI bundle is stale: %s", reason)
 			result := Blocked(scenarioName,
 				fmt.Sprintf("%s\n  ↳ Fix: vrooli scenario restart %s\n  ↳ Then verify: vrooli scenario ui-smoke %s",
-					bs.Reason, scenarioName, scenarioName),
+					reason, scenarioName, scenarioName),
 				BlockedReasonBundleStale)
 			result.Bundle = bundleStatus
 			return r.persist(ctx, writer, scenarioDir, scenarioName, result), nil

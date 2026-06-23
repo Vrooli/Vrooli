@@ -1,8 +1,10 @@
 // Package preflight validates the engine-agnostic preconditions for a UI smoke
-// test: the scenario has a UI directory and a defined UI port, its bundle is
-// fresh, the @vrooli/iframe-bridge dependency is present, and the UI port is
-// discoverable and listening. It is a dependency-light leaf: it knows nothing
-// about the browser engine that ultimately drives the smoke capture.
+// test: the scenario has a UI directory and a defined UI port, the
+// @vrooli/iframe-bridge dependency is present, and the UI port is discoverable
+// and listening. It is a dependency-light leaf: it knows nothing about the
+// browser engine that ultimately drives the smoke capture. Bundle freshness is
+// no longer its concern — the runner delegates that to the canonical
+// content-hash freshness engine (`vrooli scenario freshness`).
 package preflight
 
 import (
@@ -17,16 +19,6 @@ import (
 	"strings"
 	"time"
 )
-
-// BundleStatus describes UI bundle freshness.
-type BundleStatus struct {
-	// Fresh indicates whether the bundle is up-to-date.
-	Fresh bool
-	// Reason describes why the bundle is stale (if applicable).
-	Reason string
-	// Config carries the raw bundle-check configuration from service.json.
-	Config json.RawMessage
-}
 
 // BridgeStatus describes iframe-bridge dependency status.
 type BridgeStatus struct {
@@ -121,184 +113,6 @@ func WithPortValidator(validator PortValidator) CheckerOption {
 	return func(c *Checker) {
 		c.portValidator = validator
 	}
-}
-
-// CheckBundleFreshness verifies the UI bundle is up-to-date.
-func (c *Checker) CheckBundleFreshness(ctx context.Context, scenarioDir string) (*BundleStatus, error) {
-	// Check if ui/dist/index.html exists
-	distIndex := filepath.Join(scenarioDir, "ui", "dist", "index.html")
-	if _, err := os.Stat(distIndex); os.IsNotExist(err) {
-		return &BundleStatus{
-			Fresh:  false,
-			Reason: "UI bundle missing (ui/dist/index.html not found)",
-		}, nil
-	}
-
-	// Load service.json to check for ui-bundle configuration
-	serviceJSON := filepath.Join(scenarioDir, ".vrooli", "service.json")
-	config, err := loadBundleConfig(serviceJSON)
-	if err != nil {
-		// If we can't load config, assume bundle is fresh if dist exists
-		return &BundleStatus{Fresh: true}, nil
-	}
-
-	// Check if bundle needs rebuild based on source file timestamps
-	if config != nil {
-		fresh, reason := c.checkBundleTimestamps(scenarioDir, config)
-		return &BundleStatus{
-			Fresh:  fresh,
-			Reason: reason,
-			Config: config.Raw,
-		}, nil
-	}
-
-	return &BundleStatus{Fresh: true}, nil
-}
-
-// bundleConfig holds ui-bundle check configuration from service.json.
-type bundleConfig struct {
-	Type        string          `json:"type"`
-	SourceGlobs []string        `json:"source_globs"`
-	DistPath    string          `json:"dist_path"`
-	Raw         json.RawMessage `json:"-"`
-}
-
-func loadBundleConfig(serviceJSONPath string) (*bundleConfig, error) {
-	data, err := os.ReadFile(serviceJSONPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var manifest struct {
-		Lifecycle struct {
-			Setup struct {
-				Condition struct {
-					Checks []json.RawMessage `json:"checks"`
-				} `json:"condition"`
-			} `json:"setup"`
-		} `json:"lifecycle"`
-	}
-
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, err
-	}
-
-	for _, checkRaw := range manifest.Lifecycle.Setup.Condition.Checks {
-		var check bundleConfig
-		if err := json.Unmarshal(checkRaw, &check); err != nil {
-			continue
-		}
-		if check.Type == "ui-bundle" {
-			check.Raw = checkRaw
-			return &check, nil
-		}
-	}
-
-	return nil, nil
-}
-
-func (c *Checker) checkBundleTimestamps(scenarioDir string, config *bundleConfig) (bool, string) {
-	distPath := config.DistPath
-	if distPath == "" {
-		distPath = "ui/dist"
-	}
-
-	distDir := filepath.Join(scenarioDir, distPath)
-	distInfo, err := os.Stat(distDir)
-	if err != nil {
-		return false, fmt.Sprintf("dist directory not found: %s", distPath)
-	}
-
-	distModTime := distInfo.ModTime()
-
-	// Check source files against dist
-	sourceGlobs := config.SourceGlobs
-	if len(sourceGlobs) == 0 {
-		sourceGlobs = []string{"ui/src/**/*", "ui/package.json"}
-	}
-
-	for _, glob := range sourceGlobs {
-		matches, err := expandGlob(scenarioDir, glob)
-		if err != nil {
-			continue
-		}
-
-		for _, match := range matches {
-			info, err := os.Stat(match)
-			if err != nil {
-				continue
-			}
-			if info.ModTime().After(distModTime) {
-				rel, _ := filepath.Rel(scenarioDir, match)
-				return false, fmt.Sprintf("Source file newer than bundle: %s", rel)
-			}
-		}
-	}
-
-	return true, ""
-}
-
-// expandGlob expands a glob pattern that may contain ** for recursive matching.
-// Unlike filepath.Glob, this properly supports ** to match any number of directories.
-func expandGlob(baseDir, pattern string) ([]string, error) {
-	// Check if pattern contains **
-	if !strings.Contains(pattern, "**") {
-		// Use standard filepath.Glob for non-recursive patterns
-		fullPattern := filepath.Join(baseDir, pattern)
-		return filepath.Glob(fullPattern)
-	}
-
-	// Split pattern at **
-	parts := strings.SplitN(pattern, "**", 2)
-	prefix := strings.TrimSuffix(parts[0], string(filepath.Separator))
-	suffix := ""
-	if len(parts) > 1 {
-		suffix = strings.TrimPrefix(parts[1], string(filepath.Separator))
-	}
-
-	// Start directory for walking
-	startDir := filepath.Join(baseDir, prefix)
-	if _, err := os.Stat(startDir); os.IsNotExist(err) {
-		return nil, nil // Directory doesn't exist, return empty matches
-	}
-
-	var matches []string
-	err := filepath.WalkDir(startDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil // Skip files/dirs we can't access
-		}
-
-		// Skip directories themselves, only match files
-		if d.IsDir() {
-			return nil
-		}
-
-		// If there's a suffix pattern, check if the filename matches
-		if suffix != "" {
-			// Get the path relative to startDir
-			relPath, err := filepath.Rel(startDir, path)
-			if err != nil {
-				return nil
-			}
-
-			// Check if the relative path matches the suffix pattern
-			// For patterns like **/*.ts, suffix is "*.ts"
-			// We need to check if the filename matches
-			matched, err := filepath.Match(suffix, filepath.Base(relPath))
-			if err != nil || !matched {
-				// Also try matching the full relative path for patterns like **/foo/bar.ts
-				matched, err = filepath.Match(suffix, relPath)
-				if err != nil || !matched {
-					return nil
-				}
-			}
-		}
-
-		matches = append(matches, path)
-		return nil
-	})
-
-	return matches, err
 }
 
 // CheckIframeBridge verifies @vrooli/iframe-bridge is installed.

@@ -104,7 +104,7 @@ func TestCuratedPresetsIncludeProto(t *testing.T) {
 // the build instead of changing runtime behavior unnoticed.
 func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 	// Pinned expectations transcribed from the pre-refactor runtimeNeeds switch
-	// (smoke/playbooks/performance → UI, integration → API) plus the playbooks
+	// (smoke/playbooks/performance → UI) plus the playbooks
 	// DB-isolation/lifecycle-mutation contract.
 	type want struct {
 		ui, api, mutates, deferred bool
@@ -113,7 +113,6 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 	expected := map[Name]want{
 		Smoke:       {ui: true},
 		Performance: {ui: true},
-		Integration: {api: true},
 		Playbooks:   {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRouted},
 	}
 
@@ -155,7 +154,6 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 		Docs:         "TEST_GENIE_SKIP_DOCS",
 		Smoke:        "TEST_GENIE_SKIP_SMOKE",
 		Unit:         "TEST_GENIE_SKIP_UNIT",
-		Integration:  "TEST_GENIE_SKIP_INTEGRATION",
 		Storage:      "TEST_GENIE_SKIP_STORAGE",
 		Playbooks:    "TEST_GENIE_SKIP_PLAYBOOKS",
 		Business:     "TEST_GENIE_SKIP_BUSINESS",

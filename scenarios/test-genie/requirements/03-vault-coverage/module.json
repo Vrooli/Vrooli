@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Recreate the dashboard, vault builder, and coverage analytics stack on React + Vite.",
-    "last_validated_at": "2026-06-15T15:36:43-04:00",
+    "last_validated_at": "2026-06-22T16:47:08-04:00",
     "module_name": "Vault \u0026 Coverage Experience",
     "prd_ref": "OT-P1-003",
     "priority": "P1"
@@ -10,7 +10,7 @@
     {
       "id": "TESTGENIE-VAULT-P1",
       "title": "Vault lifecycle + coverage UX",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "Deliver UI workflows to configure vault phases, monitor execution, and inspect coverage gaps in real time.",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "ui/src/pages/Generate/PhaseSelector.test.tsx",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Current UI tests only cover generation controls; coverage analytics and vault builders still need dedicated tests"
         }
       ]

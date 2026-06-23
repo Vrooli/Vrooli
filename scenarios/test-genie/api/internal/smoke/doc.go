@@ -13,8 +13,9 @@
 //     internal/evidence analyzer, and persists artifacts.
 //   - internal/browsercapture: authors the inline smoke workflow and maps the
 //     BAS timeline into engine-agnostic evidence.
-//   - preflight: validates preconditions (UI directory, bundle freshness, UI
-//     port, iframe-bridge dependency).
+//   - preflight: validates preconditions (UI directory, UI port,
+//     iframe-bridge dependency). Bundle freshness is delegated to the canonical
+//     content-hash engine via `vrooli scenario freshness` (see freshness.go).
 //   - artifacts: persists the screenshot, console, network, and raw evidence.
 //
 // The browser engine choice never leaks past internal/browsercapture; the smoke

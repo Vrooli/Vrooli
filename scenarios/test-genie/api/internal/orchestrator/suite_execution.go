@@ -68,7 +68,6 @@ const (
 	PhaseQuality                  = phases.Quality
 	PhaseDocs                     = phases.Docs
 	PhaseUnit                     = phases.Unit
-	PhaseIntegration              = phases.Integration
 	PhaseBusiness                 = phases.Business
 	PhasePerformance              = phases.Performance
 )

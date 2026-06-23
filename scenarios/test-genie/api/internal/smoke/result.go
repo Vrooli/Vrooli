@@ -157,9 +157,6 @@ type BundleStatus struct {
 
 	// Reason describes why the bundle is stale (if applicable).
 	Reason string `json:"reason,omitempty"`
-
-	// Config contains the bundle check configuration.
-	Config json.RawMessage `json:"config,omitempty"`
 }
 
 // BridgeStatus describes iframe-bridge dependency status.

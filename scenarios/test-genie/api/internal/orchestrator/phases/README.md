@@ -16,7 +16,6 @@ flowchart TB
         structure["structure"]
         deps["dependencies"]
         unit["unit"]
-        integration["integration"]
         playbooks["playbooks"]
         business["business"]
         performance["performance"]
@@ -32,7 +31,6 @@ flowchart TB
     reg --> structure
     reg --> deps
     reg --> unit
-    reg --> integration
     reg --> playbooks
     reg --> business
     reg --> performance
@@ -40,7 +38,6 @@ flowchart TB
     structure --> runner
     deps --> runner
     unit --> runner
-    integration --> runner
     playbooks --> runner
     business --> runner
     performance --> runner
@@ -155,16 +152,6 @@ diagnostics to Unit Health:
 - Uses a long provider timeout because test execution can be slow
 - Maps coverage-dimension assessment findings into `FINDING_SOURCE_COVERAGE`
 
-### integration
-
-**File:** `phase_integration.go`
-
-Exercises runtime liveness checks against a started scenario:
-
-- CLI runtime behavior (binary discovery, help/version, unknown-command, no-args)
-- API health endpoint (status + response time)
-- WebSocket connectivity (when a `websocket.path` is configured)
-
 ### playbooks
 
 **File:** `phase_playbooks.go`
@@ -276,7 +263,6 @@ phases/
 │
 ├── phase_structure.go      # Structure validation
 ├── phase_validationprovider.go # Shared health-provider delegation
-├── phase_integration.go    # Integration tests
 ├── phase_playbooks.go      # BAS workflow execution
 ├── phase_business.go       # Requirements auditing
 ├── phase_performance.go    # Performance benchmarks

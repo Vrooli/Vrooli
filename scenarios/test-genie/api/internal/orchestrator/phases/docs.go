@@ -131,7 +131,7 @@ func RenderPresetsMarkdown(catalog *Catalog) string {
 	b.WriteString("{\n")
 	b.WriteString("  \"presets\": {\n")
 	b.WriteString("    \"ci-fast\": [\"structure\", \"unit\"],\n")
-	b.WriteString("    \"nightly\": [\"structure\", \"dependencies\", \"unit\", \"integration\", \"business\", \"performance\"]\n")
+	b.WriteString("    \"nightly\": [\"structure\", \"dependencies\", \"unit\", \"business\", \"performance\"]\n")
 	b.WriteString("  }\n")
 	b.WriteString("}\n")
 	b.WriteString("```\n")

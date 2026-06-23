@@ -164,7 +164,6 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Storage, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Business, Runner: noOp})
@@ -373,8 +372,8 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 
 		result, err := orchestrator.Execute(context.Background(), SuiteExecutionRequest{
 			ScenarioName: "demo",
-			Phases:       []string{"structure", "unit", "integration"},
-			Skip:         []string{"integration"},
+			Phases:       []string{"structure", "unit", "docs"},
+			Skip:         []string{"docs"},
 			FailFast:     true,
 		})
 		if err != nil {
@@ -383,11 +382,11 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 		if !result.FailFast {
 			t.Fatalf("expected failFast to be preserved")
 		}
-		expectedRequested := []string{"structure", "unit", "integration"}
+		expectedRequested := []string{"structure", "unit", "docs"}
 		if strings.Join(result.RequestedPhases, ",") != strings.Join(expectedRequested, ",") {
 			t.Fatalf("unexpected requested phases: %#v", result.RequestedPhases)
 		}
-		if strings.Join(result.RequestedSkipPhases, ",") != "integration" {
+		if strings.Join(result.RequestedSkipPhases, ",") != "docs" {
 			t.Fatalf("unexpected requested skip phases: %#v", result.RequestedSkipPhases)
 		}
 		if strings.Join(result.PlannedPhases, ",") != "structure,unit" {
@@ -635,7 +634,7 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
-		if err := os.WriteFile(configPath, []byte(`{"phases":{"integration":{"enabled":false}}}`), 0o644); err != nil {
+		if err := os.WriteFile(configPath, []byte(`{"phases":{"docs":{"enabled":false}}}`), 0o644); err != nil {
 			t.Fatalf("failed to write testing config: %v", err)
 		}
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -664,16 +663,16 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 			t.Fatalf("execution failed: %v", err)
 		}
 		for _, phase := range result.Phases {
-			if phase.Name == "integration" {
-				t.Fatalf("expected integration phase to be disabled via testing config")
+			if phase.Name == "docs" {
+				t.Fatalf("expected docs phase to be disabled via testing config")
 			}
 		}
 		// All catalog phases run except the one disabled via testing config
-		// (integration). Derive the expected count from the catalog so adding
+		// (docs). Derive the expected count from the catalog so adding
 		// a phase doesn't require a hand-edit here.
 		expectedPhases := len(phasespkg.DefaultCatalog().All()) - 1
 		if len(result.Phases) != expectedPhases {
-			t.Fatalf("expected %d phases after disabling integration, got %d", expectedPhases, len(result.Phases))
+			t.Fatalf("expected %d phases after disabling docs, got %d", expectedPhases, len(result.Phases))
 		}
 	})
 }

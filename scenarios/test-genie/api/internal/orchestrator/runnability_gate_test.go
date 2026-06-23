@@ -36,7 +36,7 @@ func TestComputeSuiteVerdict(t *testing.T) {
 	defs := []phases.Definition{
 		{Name: phases.Structure},
 		{Name: phases.Smoke, Optional: true},
-		{Name: phases.Integration},
+		{Name: phases.Unit},
 	}
 	cases := []struct {
 		name    string
@@ -47,7 +47,7 @@ func TestComputeSuiteVerdict(t *testing.T) {
 			name: "all passed → PASS",
 			results: []PhaseExecutionResult{
 				{Name: "structure", Status: phaseStatusPassed},
-				{Name: "integration", Status: phaseStatusPassed},
+				{Name: "unit", Status: phaseStatusPassed},
 			},
 			want: SuiteVerdictPass,
 		},
@@ -55,7 +55,7 @@ func TestComputeSuiteVerdict(t *testing.T) {
 			name: "any failed → FAIL",
 			results: []PhaseExecutionResult{
 				{Name: "structure", Status: phaseStatusPassed},
-				{Name: "integration", Status: phaseStatusFailed},
+				{Name: "unit", Status: phaseStatusFailed},
 			},
 			want: SuiteVerdictFail,
 		},
@@ -63,7 +63,7 @@ func TestComputeSuiteVerdict(t *testing.T) {
 			name: "non-optional skip → PARTIAL",
 			results: []PhaseExecutionResult{
 				{Name: "structure", Status: phaseStatusPassed},
-				{Name: "integration", Status: phaseStatusSkipped},
+				{Name: "unit", Status: phaseStatusSkipped},
 			},
 			want: SuiteVerdictPartial,
 		},
@@ -78,7 +78,7 @@ func TestComputeSuiteVerdict(t *testing.T) {
 		{
 			name: "failure dominates a skip",
 			results: []PhaseExecutionResult{
-				{Name: "integration", Status: phaseStatusSkipped},
+				{Name: "unit", Status: phaseStatusSkipped},
 				{Name: "structure", Status: phaseStatusFailed},
 			},
 			want: SuiteVerdictFail,

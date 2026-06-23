@@ -66,10 +66,11 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		}
 		// IncludeExecution pins which delegates request execution-mode validation:
 		// the provider actually runs its measurements (not just inspects) and gates
-		// on the result. Unit executes the suite, Measures runs its checks, and
-		// Performance benchmarks the Go + UI build and runs Lighthouse-if-UI. Every
-		// other delegate is inspection-only.
-		executionPhases := map[Name]bool{Unit: true, Measures: true, Performance: true}
+		// on the result. Unit executes the suite, Measures runs its checks,
+		// Performance benchmarks the Go + UI build and runs Lighthouse-if-UI, and
+		// Contracts asks cli-health to run its runtime CLI probe on top of the
+		// static manifest↔proto cross-check. Every other delegate is inspection-only.
+		executionPhases := map[Name]bool{Unit: true, Measures: true, Performance: true, Contracts: true}
 		if provider.IncludeExecution != executionPhases[phase] {
 			t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, executionPhases[phase])
 		}

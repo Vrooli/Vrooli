@@ -474,6 +474,14 @@ func newIntegrationScenario(t *testing.T) *integrationScenario {
 		t.Fatalf("failed to write module.json: %v", err)
 	}
 
+	// REQ-CORE-002 declares a `test`-type validation ref. Structural validation
+	// (intent-go RefExistsRule) resolves test refs relative to the scenario root
+	// and fails when the file is absent, so the fixture must materialize it to
+	// represent a valid scenario (a requirement validated by a real test file).
+	if err := os.WriteFile(filepath.Join(scenarioDir, "integration_test.go"), []byte("package scenario\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed test-ref file: %v", err)
+	}
+
 	return &integrationScenario{
 		dir:  scenarioDir,
 		name: scenarioName,

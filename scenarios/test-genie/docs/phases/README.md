@@ -7,7 +7,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 | Order | Phase | Timeout | Optional | Runtime | Source | Purpose |
 |-------|-------|---------|----------|---------|--------|---------|
 | 1 | [Structure](structure/README.md) | 1m | No | No | validation-provider | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. |
-| 2 | [Contracts](contracts/README.md) | 1m | No | No | validation-provider | Validates cli/manifest.json bindings against proto descriptors via cli-health. |
+| 2 | [Contracts](contracts/README.md) | 90s | No | No | validation-provider | Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest. |
 | 3 | [UI Health](ui-health/README.md) | 1m | No | No | validation-provider | Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health. |
 | 4 | [Standards](standards/README.md) | 1m | No | No | validation-provider | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). |
 | 5 | [Architecture](architecture/README.md) | 2m | Yes | No | validation-provider | Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode. |
@@ -17,19 +17,18 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 | 9 | [Performance](performance/README.md) | 5m | Yes | Yes | validation-provider | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result. |
 | 10 | [Smoke](smoke/README.md) | 15m | Yes | Yes | native | Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors. |
 | 11 | [Unit](unit/README.md) | 15m | No | No | validation-provider | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. |
-| 12 | [Integration](integration/README.md) | 15m | No | Yes | native | Exercises CLI runtime behavior, API health, and WebSocket connectivity. |
-| 13 | [Storage](storage/README.md) | 2m | No | No | validation-provider | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database. |
-| 14 | [Playbooks](playbooks/README.md) | 15m | No | Yes | native | Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows. |
-| 15 | [Business](business/README.md) | 15m | No | No | native | Audits requirements modules to guarantee operational targets stay mapped. |
-| 16 | [Tidiness](tidiness/README.md) | 2m | Yes | No | validation-provider | Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel. |
-| 17 | [Security](security/README.md) | 3m | Yes | No | validation-provider | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. |
-| 18 | [Measures](measures/README.md) | 3m | Yes | No | validation-provider | Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension. |
-| 19 | [Proto](proto/README.md) | 2m | Yes | No | validation-provider | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. |
+| 12 | [Storage](storage/README.md) | 2m | No | No | validation-provider | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database. |
+| 13 | [Playbooks](playbooks/README.md) | 15m | No | Yes | native | Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows. |
+| 14 | [Business](business/README.md) | 15m | No | No | native | Audits requirements modules to guarantee operational targets stay mapped. |
+| 15 | [Tidiness](tidiness/README.md) | 2m | Yes | No | validation-provider | Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel. |
+| 16 | [Security](security/README.md) | 3m | Yes | No | validation-provider | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. |
+| 17 | [Measures](measures/README.md) | 3m | Yes | No | validation-provider | Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension. |
+| 18 | [Proto](proto/README.md) | 2m | Yes | No | validation-provider | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. |
 
 ## Static Phases
 
 - [Structure](structure/README.md) - Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run.
-- [Contracts](contracts/README.md) - Validates cli/manifest.json bindings against proto descriptors via cli-health.
+- [Contracts](contracts/README.md) - Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest.
 - [UI Health](ui-health/README.md) - Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health.
 - [Standards](standards/README.md) - Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config).
 - [Architecture](architecture/README.md) - Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode.
@@ -48,7 +47,6 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 
 - [Performance](performance/README.md) - Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result.
 - [Smoke](smoke/README.md) - Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.
-- [Integration](integration/README.md) - Exercises CLI runtime behavior, API health, and WebSocket connectivity.
 - [Playbooks](playbooks/README.md) - Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows.
 
 ## Running Phases

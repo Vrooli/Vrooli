@@ -34,11 +34,11 @@ var curatedPresets = map[Preset][]Name{
 	// phases — see orchestrator/requirements_decision.go), so quick/smoke stay
 	// side-effect-free.
 	PresetQuick: {Structure, Standards, Docs, Business, Unit, Proto},
-	PresetSmoke: {Structure, Standards, Quality, Docs, Business, Integration, Proto},
+	PresetSmoke: {Structure, Standards, Quality, Docs, Business, Proto},
 	// architecture-audit is the per-surface conformance battery plus the
 	// structural cohesion axis — the single command the screaming-
 	// architecture skill points at. Excludes runtime phases (unit, smoke,
-	// integration, performance). The architecture phase remains advisory
+	// performance). The architecture phase remains advisory
 	// for low-confidence authority, but high-confidence blocker findings
 	// gate by default.
 	PresetArchitectureAudit: {

@@ -28,7 +28,7 @@
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-003 | Vault & Coverage UX | Surface requirement coverage, execution insights, and vault/test-gap guidance directly in the UI so operators can steer improvements without reading raw logs.
+- [ ] OT-P1-003 | Vault & Coverage UX | Surface requirement coverage, execution insights, and vault/test-gap guidance directly in the UI so operators can steer improvements without reading raw logs.
 
 ### 🟢 P2 – Future / expansion
 
