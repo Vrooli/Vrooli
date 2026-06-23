@@ -16,7 +16,7 @@ Define performance budgets and measurement constraints for network diagnostics a
 
 ## Current Measurements
 
-No product measurements exist yet. The generated scaffold was created successfully with post-hooks, but product performance has not been implemented.
+The snapshot domain now records read-only baseline measurements using standard-library probes: DNS lookup latency, WAN TCP reachability, IPv4/IPv6 TCP availability, TCP-based packet-loss/jitter approximation, redacted host facts, and resolver count where the host resolver configuration is available. Gateway reachability and throughput remain explicit unsupported/unavailable results until capability adapters or approved measurement backends exist.
 
 ## Known Constraints
 
@@ -29,7 +29,7 @@ No product measurements exist yet. The generated scaffold was created successful
 
 1. Run scenario tests.
 2. Run deterministic snapshot tests with fake probes.
-3. Run a controlled local snapshot against a known network.
+3. Run a controlled local snapshot against a known network and keep the first persisted `status=baseline` snapshot as comparison evidence.
 4. Compare report shape and timing against previous baseline.
 5. Record significant measurement changes in observability notes.
 

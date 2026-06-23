@@ -208,7 +208,10 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "resources": {},
+    "scenarios": {}
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/network-manager.db"
   }

@@ -1,55 +1,67 @@
 package optimize
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	optimizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/optimization"
 	optimizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/optimization/optimization_v1connect"
 	"google.golang.org/protobuf/proto"
 )
 
-type handlers struct{ core *cliapp.ScenarioApp }
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client optimizationconnect.OptimizationServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		core:   core,
+		client: optimizationconnect.NewOptimizationServiceClient(httpClient, baseURL),
+	}
+}
 
 func (h handlers) run(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*optimizationv1.CreateOptimizationRunRequest, *optimizationv1.CreateOptimizationRunResponse](h.core, http.MethodPost, optimizationconnect.OptimizationServiceCreateOptimizationRunProcedure, &optimizationv1.CreateOptimizationRunRequest{ScoringProfile: ctx.Flag("scoring-profile"), DryRun: ctx.BoolFlag("dry-run")})
+	resp, err := h.client.CreateOptimizationRun(context.Background(), connect.NewRequest(&optimizationv1.CreateOptimizationRunRequest{ScoringProfile: ctx.Flag("scoring-profile"), DryRun: ctx.BoolFlag("dry-run")}))
 	if err != nil {
 		return cliapp.WrapAPIError("create optimization run", err, nil)
 	}
-	return renderRun(ctx, resp, resp.GetRun())
+	return renderRun(ctx, resp.Msg, resp.Msg.GetRun())
 }
 
 func (h handlers) candidate(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*optimizationv1.RunCandidateRequest, *optimizationv1.RunCandidateResponse](h.core, http.MethodPost, optimizationconnect.OptimizationServiceRunCandidateProcedure, &optimizationv1.RunCandidateRequest{RunId: ctx.Positional("run_id"), CandidateId: ctx.Flag("candidate-id")})
+	resp, err := h.client.RunCandidate(context.Background(), connect.NewRequest(&optimizationv1.RunCandidateRequest{RunId: ctx.Positional("run_id"), CandidateId: ctx.Flag("candidate-id")}))
 	if err != nil {
 		return cliapp.WrapAPIError("run candidate", err, nil)
 	}
-	return renderRun(ctx, resp, resp.GetRun())
+	return renderRun(ctx, resp.Msg, resp.Msg.GetRun())
 }
 
 func (h handlers) score(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*optimizationv1.ScoreCandidatesRequest, *optimizationv1.ScoreCandidatesResponse](h.core, http.MethodPost, optimizationconnect.OptimizationServiceScoreCandidatesProcedure, &optimizationv1.ScoreCandidatesRequest{RunId: ctx.Positional("run_id")})
+	resp, err := h.client.ScoreCandidates(context.Background(), connect.NewRequest(&optimizationv1.ScoreCandidatesRequest{RunId: ctx.Positional("run_id")}))
 	if err != nil {
 		return cliapp.WrapAPIError("score candidates", err, nil)
 	}
-	return renderRun(ctx, resp, resp.GetRun())
+	return renderRun(ctx, resp.Msg, resp.Msg.GetRun())
 }
 
 func (h handlers) approve(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*optimizationv1.ApproveCandidateRequest, *optimizationv1.ApproveCandidateResponse](h.core, http.MethodPost, optimizationconnect.OptimizationServiceApproveCandidateProcedure, &optimizationv1.ApproveCandidateRequest{RunId: ctx.Positional("run_id"), CandidateId: ctx.Flag("candidate-id"), Approved: ctx.BoolFlag("approved")})
+	resp, err := h.client.ApproveCandidate(context.Background(), connect.NewRequest(&optimizationv1.ApproveCandidateRequest{RunId: ctx.Positional("run_id"), CandidateId: ctx.Flag("candidate-id"), Approved: ctx.BoolFlag("approved")}))
 	if err != nil {
 		return cliapp.WrapAPIError("approve candidate", err, nil)
 	}
-	return renderRunMutation(ctx, resp, resp.GetRun())
+	return renderRunMutation(ctx, resp.Msg, resp.Msg.GetRun())
 }
 
 func (h handlers) rollback(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*optimizationv1.RollbackOptimizationRequest, *optimizationv1.RollbackOptimizationResponse](h.core, http.MethodPost, optimizationconnect.OptimizationServiceRollbackOptimizationProcedure, &optimizationv1.RollbackOptimizationRequest{RunId: ctx.Positional("run_id")})
+	resp, err := h.client.RollbackOptimization(context.Background(), connect.NewRequest(&optimizationv1.RollbackOptimizationRequest{RunId: ctx.Positional("run_id")}))
 	if err != nil {
 		return cliapp.WrapAPIError("rollback optimization", err, nil)
 	}
-	return renderRunMutation(ctx, resp, resp.GetRun())
+	return renderRunMutation(ctx, resp.Msg, resp.Msg.GetRun())
 }
 
 func renderRun(ctx cliapp.RunContext, payload proto.Message, run *optimizationv1.OptimizationRun) error {

@@ -2,50 +2,80 @@ package resolver
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
 	"network-manager/internal/module"
+	domainresolver "network-manager/internal/resolver"
 
 	resolverv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/resolver"
 	resolverconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/resolver/resolver_v1connect"
 )
 
-type handler struct{}
+type handler struct {
+	service *domainresolver.Service
+}
 
-func Module() module.Module {
-	path, h := resolverconnect.NewResolverServiceHandler(&handler{})
+func Module(db domainresolver.SQLExecutor) module.Module {
+	service := domainresolver.NewService(domainresolver.Config{
+		Repo:   domainresolver.NewSQLiteRepository(db),
+		Client: domainresolver.ConservativeAdGuardClient{},
+	})
+	path, h := resolverconnect.NewResolverServiceHandler(&handler{service: service})
 	return module.Module{Name: "resolver", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
 }
 
-func Schema() string { return "" }
+func Schema() string { return domainresolver.Schema() }
 
-func (h *handler) GetResolverStatus(context.Context, *connect.Request[resolverv1.GetResolverStatusRequest]) (*connect.Response[resolverv1.GetResolverStatusResponse], error) {
-	return connect.NewResponse(&resolverv1.GetResolverStatusResponse{Status: status()}), nil
+func (h *handler) GetResolverStatus(ctx context.Context, _ *connect.Request[resolverv1.GetResolverStatusRequest]) (*connect.Response[resolverv1.GetResolverStatusResponse], error) {
+	status, err := h.service.Status(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&resolverv1.GetResolverStatusResponse{Status: toProtoStatus(status)}), nil
 }
 
-func (h *handler) ConfigureAdGuardHome(context.Context, *connect.Request[resolverv1.ConfigureAdGuardHomeRequest]) (*connect.Response[resolverv1.ConfigureAdGuardHomeResponse], error) {
-	return connect.NewResponse(&resolverv1.ConfigureAdGuardHomeResponse{Status: status(), NextSteps: []string{"Implement AdGuard Home adapter/resource before applying resolver config."}}), nil
+func (h *handler) ConfigureAdGuardHome(ctx context.Context, req *connect.Request[resolverv1.ConfigureAdGuardHomeRequest]) (*connect.Response[resolverv1.ConfigureAdGuardHomeResponse], error) {
+	status, steps, err := h.service.ConfigureAdGuardHome(ctx, req.Msg.GetBaseUrl(), req.Msg.GetUsername(), req.Msg.GetTokenRef(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&resolverv1.ConfigureAdGuardHomeResponse{Status: toProtoStatus(status), NextSteps: steps}), nil
 }
 
-func (h *handler) UpdateUpstreams(context.Context, *connect.Request[resolverv1.UpdateUpstreamsRequest]) (*connect.Response[resolverv1.UpdateUpstreamsResponse], error) {
-	return connect.NewResponse(&resolverv1.UpdateUpstreamsResponse{Status: status(), Changes: []string{"Preview only; no upstreams changed."}}), nil
+func (h *handler) UpdateUpstreams(ctx context.Context, req *connect.Request[resolverv1.UpdateUpstreamsRequest]) (*connect.Response[resolverv1.UpdateUpstreamsResponse], error) {
+	status, changes, err := h.service.UpdateUpstreams(ctx, req.Msg.GetUpstreams(), req.Msg.GetDryRun())
+	if err != nil {
+		code := connect.CodeInvalidArgument
+		if errors.Is(err, domainresolver.ErrClientUnsupported) {
+			code = connect.CodeFailedPrecondition
+		}
+		return nil, connect.NewError(code, err)
+	}
+	return connect.NewResponse(&resolverv1.UpdateUpstreamsResponse{Status: toProtoStatus(status), Changes: changes}), nil
 }
 
-func (h *handler) CheckResolverHealth(context.Context, *connect.Request[resolverv1.CheckResolverHealthRequest]) (*connect.Response[resolverv1.CheckResolverHealthResponse], error) {
-	return connect.NewResponse(&resolverv1.CheckResolverHealthResponse{Status: status(), Checks: []string{"AdGuard Home adapter not configured yet."}}), nil
+func (h *handler) CheckResolverHealth(ctx context.Context, _ *connect.Request[resolverv1.CheckResolverHealthRequest]) (*connect.Response[resolverv1.CheckResolverHealthResponse], error) {
+	status, checks, err := h.service.Health(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&resolverv1.CheckResolverHealthResponse{Status: toProtoStatus(status), Checks: checks}), nil
 }
 
-func status() *resolverv1.ResolverStatus {
+func toProtoStatus(status domainresolver.Status) *resolverv1.ResolverStatus {
 	return &resolverv1.ResolverStatus{
-		Backend:   "adguard-home",
-		Status:    "not_configured",
-		Upstreams: []string{},
-		Warnings:  []string{"Managed resolver adapter is scaffolded but not connected."},
+		Backend:          status.Backend,
+		Status:           status.Status,
+		BaseUrl:          status.BaseURL,
+		Upstreams:        status.Upstreams,
+		FilteringEnabled: status.FilteringEnabled,
+		Warnings:         status.Warnings,
 	}
 }
 

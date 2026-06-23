@@ -9,7 +9,7 @@ import (
 const GroupName = "resolver"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := handlers{core: core}
+	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ResolverService.GetResolverStatus":    h.status,
 		"ResolverService.ConfigureAdGuardHome": h.configureAdGuard,

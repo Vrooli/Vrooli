@@ -1,9 +1,20 @@
 package snapshot
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	domainsnapshot "network-manager/internal/snapshot"
+	"network-manager/internal/testutil/db"
+
+	"github.com/stretchr/testify/require"
+	apidb "github.com/vrooli/api-core/database"
+)
 
 func TestModuleExposesEndpoints(t *testing.T) {
-	m := Module()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(domainsnapshot.Schema)))
+	m := Module(d)
 	if m.Name != "snapshot" {
 		t.Fatalf("module name = %q, want snapshot", m.Name)
 	}

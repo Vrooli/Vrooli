@@ -9,7 +9,7 @@ import (
 const GroupName = "adapters"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := handlers{core: core}
+	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"AdapterService.ListCapabilities":         h.capabilities,
 		"AdapterService.ExplainUnsupportedAction": h.explain,

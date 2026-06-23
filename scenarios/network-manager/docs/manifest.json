@@ -621,6 +621,24 @@
             "requiredHeadings": ["Progress Log"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "docType": "storage-audit",
+          "title": "Storage Audit",
+          "aliases": ["storage-architecture", "persistence-audit"],
+          "description": "Storage ownership, migration strategy, and persistence architecture findings",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["storage-architecture", "persistence"],
+          "maturity": "draft",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "conditional",
+          "condition": "Required once the scenario owns persisted product state.",
+          "ownerSkills": ["storage-steer"],
+          "validation": {
+            "requiredHeadings": ["Last Updated", "Current Pattern", "Migration Strategy", "Architecture Status", "Issues Found", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
         }
       ]
     }

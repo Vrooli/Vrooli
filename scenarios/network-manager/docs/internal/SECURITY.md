@@ -37,7 +37,7 @@ Secrets must be stored through Vrooli secret handling and never written into doc
 - Auth model is not yet implemented.
 - Resolver resource secret handling is not yet implemented.
 - Router adapter credential policy is deferred.
-- Query-log retention defaults require implementation before deployment.
+- Query-log storage is not implemented; retention defaults are now persisted as disabled/no-op until a governed query-log source exists.
 
 ## Cross-References
 

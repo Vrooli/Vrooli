@@ -1,46 +1,58 @@
 package devices
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/inventory"
 	inventoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/inventory/inventory_v1connect"
 )
 
-type handlers struct{ core *cliapp.ScenarioApp }
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client inventoryconnect.InventoryServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return handlers{
+		core:   core,
+		client: inventoryconnect.NewInventoryServiceClient(httpClient, baseURL),
+	}
+}
 
 func (h handlers) refresh(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*inventoryv1.RefreshInventoryRequest, *inventoryv1.RefreshInventoryResponse](h.core, http.MethodPost, inventoryconnect.InventoryServiceRefreshInventoryProcedure, &inventoryv1.RefreshInventoryRequest{DryRun: ctx.BoolFlag("dry-run")})
+	resp, err := h.client.RefreshInventory(context.Background(), connect.NewRequest(&inventoryv1.RefreshInventoryRequest{DryRun: ctx.BoolFlag("dry-run")}))
 	if err != nil {
 		return cliapp.WrapAPIError("refresh inventory", err, nil)
 	}
-	return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{Summary: []string{"Inventory refresh complete."}, ResultsHeading: "Devices", Results: formatDevices(resp.GetDevices()), RetrievalHints: resp.GetFindings()})
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Inventory refresh complete."}, ResultsHeading: "Devices", Results: formatDevices(resp.Msg.GetDevices()), RetrievalHints: resp.Msg.GetFindings()})
 }
 
 func (h handlers) list(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*inventoryv1.ListDevicesRequest, *inventoryv1.ListDevicesResponse](h.core, http.MethodPost, inventoryconnect.InventoryServiceListDevicesProcedure, &inventoryv1.ListDevicesRequest{Group: ctx.Flag("group")})
+	resp, err := h.client.ListDevices(context.Background(), connect.NewRequest(&inventoryv1.ListDevicesRequest{Group: ctx.Flag("group")}))
 	if err != nil {
 		return cliapp.WrapAPIError("list devices", err, nil)
 	}
-	return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{Summary: []string{"Fetched devices."}, ResultsHeading: "Devices", Results: formatDevices(resp.GetDevices())})
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Fetched devices."}, ResultsHeading: "Devices", Results: formatDevices(resp.Msg.GetDevices())})
 }
 
 func (h handlers) group(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*inventoryv1.UpdateDeviceGroupRequest, *inventoryv1.UpdateDeviceGroupResponse](h.core, http.MethodPost, inventoryconnect.InventoryServiceUpdateDeviceGroupProcedure, &inventoryv1.UpdateDeviceGroupRequest{Id: ctx.Positional("id"), Group: ctx.Flag("group")})
+	resp, err := h.client.UpdateDeviceGroup(context.Background(), connect.NewRequest(&inventoryv1.UpdateDeviceGroupRequest{Id: ctx.Positional("id"), Group: ctx.Flag("group")}))
 	if err != nil {
 		return cliapp.WrapAPIError("update device group", err, nil)
 	}
-	return cliapp.RenderProtoMutation(ctx, resp, cliapp.MutationReport{Result: []string{"Updated device group."}, Changes: []string{formatDevice(resp.GetDevice())}})
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{"Updated device group."}, Changes: []string{formatDevice(resp.Msg.GetDevice())}})
 }
 
 func (h handlers) explain(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*inventoryv1.ExplainDeviceIdentityRequest, *inventoryv1.ExplainDeviceIdentityResponse](h.core, http.MethodPost, inventoryconnect.InventoryServiceExplainDeviceIdentityProcedure, &inventoryv1.ExplainDeviceIdentityRequest{Id: ctx.Positional("id")})
+	resp, err := h.client.ExplainDeviceIdentity(context.Background(), connect.NewRequest(&inventoryv1.ExplainDeviceIdentityRequest{Id: ctx.Positional("id")}))
 	if err != nil {
 		return cliapp.WrapAPIError("explain device identity", err, nil)
 	}
-	return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{Summary: []string{formatDevice(resp.GetDevice())}, ResultsHeading: "Evidence", Results: resp.GetEvidence()})
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{formatDevice(resp.Msg.GetDevice())}, ResultsHeading: "Evidence", Results: resp.Msg.GetEvidence()})
 }
 
 func formatDevices(devices []*inventoryv1.Device) []string {

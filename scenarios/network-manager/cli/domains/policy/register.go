@@ -9,7 +9,7 @@ import (
 const GroupName = "policy"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := handlers{core: core}
+	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"PolicyService.PreviewPolicyChange":  h.preview,
 		"PolicyService.ApplyPolicyChange":    h.apply,

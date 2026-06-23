@@ -17,6 +17,7 @@ Primary stored records:
 - optimization experiment runs,
 - approval and rollback records,
 - privacy/retention settings,
+- Home Automation action invocations and redacted events,
 - exported reports.
 
 ## Data Ownership
@@ -38,20 +39,30 @@ Implementation should add domain-owned schema files beside domain code. Expected
 - `network_snapshots`
 - `snapshot_probe_results`
 - `resolver_backends`
+- `resolver_upstreams`
 - `adapter_capabilities`
+- `adapter_platform_summaries`
+- `policy_change_plans`
+- `approval_records`
+- `rollback_records`
 - `devices`
 - `device_groups`
 - `policy_profiles`
-- `policy_change_plans`
 - `optimization_runs`
 - `optimization_candidates`
-- `approval_records`
-- `rollback_records`
+- `optimization_approval_records`
+- `optimization_rollback_records`
 - `retention_settings`
+- `visibility_settings`
+- `privacy_sweep_records`
+- `home_action_invocations`
+- `home_events`
 
 ## Migrations And Compatibility
 
 Migrations must preserve local operator data. Any schema that stores device identity, query visibility, approvals, or rollback handles needs migration tests before it can be considered production-ready.
+
+Network Manager is still greenfield, so implemented domains use idempotent per-domain schema providers rather than versioned migrations. Current implemented storage covers snapshots, adapter capabilities, resolver backends/upstreams, conservative policy change ledgers, device inventory/group labels, retention settings, visibility settings, privacy sweep records, optimization run/candidate/approval/rollback ledgers, and Home Automation action/event audit records.
 
 ## Import / Export
 
@@ -70,6 +81,7 @@ Default retention should be minimal:
 
 - DNS query-level visibility: disabled or short retention by default.
 - Health snapshots: retained long enough for trends and optimization comparison.
+- Retention sweeps preserve the first baseline snapshot while pruning expired non-baseline snapshots.
 - Device inventory: retained while devices remain relevant, with manual delete.
 - Audit mode: longer retention only when small-office profile is explicitly selected.
 

@@ -36,6 +36,11 @@
       "node": {}
     }
   },
+  "phases": {
+    "standards": {
+      "timeout": "300s"
+    }
+  },
   "business": {
     "checks": {
       "endpoints": {

@@ -123,14 +123,14 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "network-manager-api", "1.0.0"),
-		adaptersH.Module(),
-		homeintegrationH.Module(),
-		inventoryH.Module(),
-		optimizationH.Module(),
-		policyH.Module(),
-		privacyH.Module(),
-		resolverH.Module(),
-		snapshotH.Module(),
+		adaptersH.Module(db),
+		homeintegrationH.Module(db),
+		inventoryH.Module(db),
+		optimizationH.Module(db),
+		policyH.Module(db),
+		privacyH.Module(db),
+		resolverH.Module(db),
+		snapshotH.Module(db),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

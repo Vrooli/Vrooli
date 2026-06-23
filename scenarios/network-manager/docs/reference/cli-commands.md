@@ -31,7 +31,7 @@ Persists CLI config such as `api_base` or token values.
 
 ## Scenario commands — Network Manager
 
-Implemented scaffold command groups:
+Implemented command groups:
 
 | Command | Purpose | Requirement |
 |---|---|---|
@@ -67,9 +67,18 @@ Implemented scaffold command groups:
 | `network-manager home invoke <name>` | Invoke a Home Automation action. | `NM-P0-007` |
 | `network-manager home events` | List Home Automation events. | `NM-P0-007` |
 
-Current behavior is contract-first scaffold behavior: commands call the API
-and return safe placeholder/read-only responses until the concrete AdGuard
-Home, host, router, inventory, and optimization adapters are implemented.
+Current behavior is mixed implementation state. Snapshot, adapters, resolver,
+policy, inventory, privacy, optimization, and Home Automation commands call service-backed APIs with persisted state.
+Policy live resolver writes still fail closed through the conservative adapter
+until a governed AdGuard Home policy client confirms support. Inventory
+production discovery reports unsupported until a governed resolver client can
+provide client evidence, but identity reconciliation and storage are implemented.
+Optimization can create baseline-backed experiment ledgers, run read-only
+candidate snapshots, score reliability-first evidence, require approval, and
+record apply/rollback outcomes. Production persistent optimization apply returns
+`manual_required` until a real adapter can prove rollback support. Home
+Automation write actions require approval and return `manual_required` when no
+supported publisher/adapter path can safely mutate network state.
 
 ## Output contracts
 

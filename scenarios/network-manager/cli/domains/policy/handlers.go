@@ -1,59 +1,71 @@
 package policy
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy"
 	policyconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy/policy_v1connect"
 	"google.golang.org/protobuf/proto"
 )
 
-type handlers struct{ core *cliapp.ScenarioApp }
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client policyconnect.PolicyServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return handlers{
+		core:   core,
+		client: policyconnect.NewPolicyServiceClient(httpClient, baseURL),
+	}
+}
 
 func (h handlers) preview(ctx cliapp.RunContext) error {
 	values := []string{}
 	if v := ctx.Flag("value"); v != "" {
 		values = append(values, v)
 	}
-	resp, err := cliapp.Call[*policyv1.PreviewPolicyChangeRequest, *policyv1.PreviewPolicyChangeResponse](h.core, http.MethodPost, policyconnect.PolicyServicePreviewPolicyChangeProcedure, &policyv1.PreviewPolicyChangeRequest{Target: ctx.Flag("target"), Action: ctx.Flag("action"), Values: values})
+	resp, err := h.client.PreviewPolicyChange(context.Background(), connect.NewRequest(&policyv1.PreviewPolicyChangeRequest{Target: ctx.Flag("target"), Action: ctx.Flag("action"), Values: values}))
 	if err != nil {
 		return cliapp.WrapAPIError("preview policy change", err, nil)
 	}
-	return renderChange(ctx, resp, resp.GetPreview())
+	return renderChange(ctx, resp.Msg, resp.Msg.GetPreview())
 }
 
 func (h handlers) apply(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*policyv1.ApplyPolicyChangeRequest, *policyv1.ApplyPolicyChangeResponse](h.core, http.MethodPost, policyconnect.PolicyServiceApplyPolicyChangeProcedure, &policyv1.ApplyPolicyChangeRequest{PreviewId: ctx.Positional("preview_id"), Approved: ctx.BoolFlag("approved")})
+	resp, err := h.client.ApplyPolicyChange(context.Background(), connect.NewRequest(&policyv1.ApplyPolicyChangeRequest{PreviewId: ctx.Positional("preview_id"), Approved: ctx.BoolFlag("approved")}))
 	if err != nil {
 		return cliapp.WrapAPIError("apply policy change", err, nil)
 	}
-	return renderMutation(ctx, resp, resp.GetChange())
+	return renderMutation(ctx, resp.Msg, resp.Msg.GetChange())
 }
 
 func (h handlers) rollback(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*policyv1.RollbackPolicyChangeRequest, *policyv1.RollbackPolicyChangeResponse](h.core, http.MethodPost, policyconnect.PolicyServiceRollbackPolicyChangeProcedure, &policyv1.RollbackPolicyChangeRequest{Id: ctx.Positional("id")})
+	resp, err := h.client.RollbackPolicyChange(context.Background(), connect.NewRequest(&policyv1.RollbackPolicyChangeRequest{Id: ctx.Positional("id")}))
 	if err != nil {
 		return cliapp.WrapAPIError("rollback policy change", err, nil)
 	}
-	return renderMutation(ctx, resp, resp.GetChange())
+	return renderMutation(ctx, resp.Msg, resp.Msg.GetChange())
 }
 
 func (h handlers) pause(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*policyv1.PauseFilteringRequest, *policyv1.PauseFilteringResponse](h.core, http.MethodPost, policyconnect.PolicyServicePauseFilteringProcedure, &policyv1.PauseFilteringRequest{Target: ctx.Flag("target"), Duration: ctx.Flag("duration")})
+	resp, err := h.client.PauseFiltering(context.Background(), connect.NewRequest(&policyv1.PauseFilteringRequest{Target: ctx.Flag("target"), Duration: ctx.Flag("duration")}))
 	if err != nil {
 		return cliapp.WrapAPIError("pause filtering", err, nil)
 	}
-	return renderMutation(ctx, resp, resp.GetChange())
+	return renderMutation(ctx, resp.Msg, resp.Msg.GetChange())
 }
 
 func (h handlers) resume(ctx cliapp.RunContext) error {
-	resp, err := cliapp.Call[*policyv1.ResumeFilteringRequest, *policyv1.ResumeFilteringResponse](h.core, http.MethodPost, policyconnect.PolicyServiceResumeFilteringProcedure, &policyv1.ResumeFilteringRequest{Target: ctx.Flag("target")})
+	resp, err := h.client.ResumeFiltering(context.Background(), connect.NewRequest(&policyv1.ResumeFilteringRequest{Target: ctx.Flag("target")}))
 	if err != nil {
 		return cliapp.WrapAPIError("resume filtering", err, nil)
 	}
-	return renderMutation(ctx, resp, resp.GetChange())
+	return renderMutation(ctx, resp.Msg, resp.Msg.GetChange())
 }
 
 func renderChange(ctx cliapp.RunContext, payload proto.Message, c *policyv1.PolicyChange) error {

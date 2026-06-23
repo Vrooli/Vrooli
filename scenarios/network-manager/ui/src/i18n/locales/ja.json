@@ -2,14 +2,19 @@
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Network Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
     "title": "Network Manager",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "eyebrow": "Local network control",
+    "description": "Operational snapshots, DNS policy, devices, optimization evidence, and privacy controls for the current network."
   },
   "layout": {
     "sidebarLabel": "サイドバーナビゲーション",
     "bottomNavLabel": "下部ナビゲーション",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "ダッシュボード",
+      "snapshots": "Snapshots",
+      "resolver": "Resolver",
+      "devices": "Devices",
+      "optimization": "Optimize",
       "settings": "設定"
     }
   },
@@ -24,13 +29,105 @@
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "description": "Current operational posture across snapshots, resolver, adapters, devices, policy readiness, and privacy.",
+      "latestSnapshot": "Latest snapshot",
+      "resolverStatus": "Resolver status",
+      "adapterCapabilities": "Adapter capabilities",
+      "optimizationReadiness": "Optimization readiness",
+      "privacyPosture": "Privacy posture",
+      "noSnapshots": "No snapshots yet. Run a snapshot before optimization.",
+      "supported": "supported",
+      "unsupported": "unsupported",
+      "ready": "Ready when a baseline snapshot exists.",
+      "blocked": "Blocked until a baseline snapshot is captured."
+    },
+    "snapshots": {
+      "title": "Snapshots",
+      "description": "Run read-only measurements, inspect support status, findings, and export evidence.",
+      "run": "Run snapshot",
+      "export": "Export latest report",
+      "metrics": "Metrics",
+      "findings": "Findings",
+      "empty": "No stored snapshots yet.",
+      "report": "Report preview"
+    },
+    "resolver": {
+      "title": "Resolver and policy",
+      "description": "Inspect AdGuard status, preview DNS changes, require approval, and keep rollback visible.",
+      "upstreams": "Upstreams",
+      "previewUpstreams": "Preview upstream update",
+      "policyTarget": "Policy target",
+      "policyAction": "Policy action",
+      "policyValues": "Policy values",
+      "previewPolicy": "Preview policy",
+      "approveApply": "Approve and apply",
+      "rollback": "Rollback",
+      "previewRequired": "Preview a policy change before apply.",
+      "confirmation": "Approval required before persistent DNS policy changes.",
+      "actions": {
+        "allowlist": "Allowlist",
+        "denylist": "Denylist",
+        "blocklist": "Blocklist",
+        "pause": "Pause",
+        "resume": "Resume"
+      }
+    },
+    "devices": {
+      "title": "Devices",
+      "description": "Inventory LAN-visible clients with identity confidence, group labels, and privacy cues.",
+      "refresh": "Refresh inventory",
+      "empty": "No devices are currently stored.",
+      "hostname": "Hostname",
+      "address": "Address",
+      "group": "Group",
+      "confidence": "Confidence",
+      "notes": "Notes"
+    },
+    "optimization": {
+      "title": "Optimization",
+      "description": "Create baseline-backed safe experiments, score candidates, and require approval before apply.",
+      "start": "Start safe run",
+      "score": "Score candidates",
+      "approve": "Approve top candidate",
+      "empty": "No optimization run in this session.",
+      "comparison": "Baseline, candidate, and after evidence stay together before any approval."
     },
     "settings": {
       "title": "設定",
+      "description": "Control display preferences and verify privacy defaults before exposing sensitive network detail.",
       "themeHeading": "外観",
-      "localeHeading": "言語"
+      "localeHeading": "言語",
+      "retentionHeading": "Retention",
+      "visibilityHeading": "Visibility",
+      "queryLogDays": "Query log days",
+      "snapshotDays": "Snapshot days",
+      "experimentDays": "Experiment days",
+      "showQueryDomains": "Show query domains",
+      "showDeviceHistory": "Show device history",
+      "householdMode": "Household mode"
+    }
+  },
+  "network": {
+    "loading": "Loading network state…",
+    "error": "Unable to load network state. Check that Network Manager is running.",
+    "unknown": "Unknown",
+    "none": "None",
+    "status": "Status",
+    "created": "Created",
+    "profile": "Profile",
+    "backend": "Backend",
+    "filtering": "Filtering",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "metric": "Metric",
+    "value": "Value",
+    "unit": "Unit",
+    "approvalRequired": "Approval required",
+    "rollbackSupported": "Rollback supported",
+    "timeline": {
+      "baseline": "Baseline",
+      "candidate": "Candidate",
+      "after": "After"
     }
   },
   "health": {

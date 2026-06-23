@@ -7,7 +7,11 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
+import { DevicesPage } from "../pages/DevicesPage";
+import { OptimizationPage } from "../pages/OptimizationPage";
+import { ResolverPolicyPage } from "../pages/ResolverPolicyPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { SnapshotsPage } from "../pages/SnapshotsPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -21,6 +25,10 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "snapshots", element: <SnapshotsPage /> },
+      { path: "resolver", element: <ResolverPolicyPage /> },
+      { path: "devices", element: <DevicesPage /> },
+      { path: "optimization", element: <OptimizationPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

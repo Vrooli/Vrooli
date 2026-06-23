@@ -86,9 +86,9 @@ Add new capabilities by extending the owning domain first:
 
 ## Architecture Maturity
 
-Current maturity: oriented scaffold with a complete product charter and requirements registry. Product implementation has not started.
+Current maturity: P0 core domains are service-backed for snapshots, adapter capabilities, resolver configuration, policy ledgers, inventory, privacy, optimization, and Home Automation actions/events. The operator UI now consumes those domains through generated Connect clients and exposes the P0 control center surfaces.
 
-The first real implementation slice should be read-only health snapshots and adapter capability discovery. Persistent network changes should not be implemented until approval and rollback records exist.
+Persistent live network changes remain conservative by design: resolver/router writes and optimization apply paths require capability support, approval, and rollback/manual recovery state before claiming success. The default production adapters still return unsupported or manual-required for live mutation until governed AdGuard/router clients are connected.
 
 ## Intentional Deviations
 

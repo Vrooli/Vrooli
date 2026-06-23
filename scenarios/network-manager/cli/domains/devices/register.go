@@ -9,7 +9,7 @@ import (
 const GroupName = "devices"
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	h := handlers{core: core}
+	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"InventoryService.RefreshInventory":      h.refresh,
 		"InventoryService.ListDevices":           h.list,
