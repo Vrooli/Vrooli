@@ -33,8 +33,8 @@ type HistoryFilters struct {
 // GetHistory retrieves execution history with optional filtering
 func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformance, error) {
 	query := `
-		SELECT id, profile_id, task_id as execution_id, scenario_name, start_metrics,
-		       end_metrics, phase_breakdown, total_iterations, total_duration_ms,
+		SELECT id, profile_id, task_id as execution_id, scenario_name,
+		       phase_breakdown, total_iterations, total_duration_ms,
 		       user_rating, user_comments, user_feedback_at, executed_at
 		FROM profile_executions
 		WHERE 1=1
@@ -74,7 +74,7 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 
 	for rows.Next() {
 		var perf ProfilePerformance
-		var startMetricsJSON, endMetricsJSON, phaseBreakdownJSON []byte
+		var phaseBreakdownJSON []byte
 		var userRating sql.NullInt64
 		var userComments sql.NullString
 		var userFeedbackAt sql.NullTime
@@ -84,8 +84,6 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 			&perf.ProfileID,
 			&perf.ExecutionID,
 			&perf.ScenarioName,
-			&startMetricsJSON,
-			&endMetricsJSON,
 			&phaseBreakdownJSON,
 			&perf.TotalIterations,
 			&perf.TotalDuration,
@@ -97,17 +95,6 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 		if err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("failed to scan history row: %w", err)
-		}
-
-		// Unmarshal JSON fields
-		if err := json.Unmarshal(startMetricsJSON, &perf.StartMetrics); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("failed to unmarshal start metrics: %w", err)
-		}
-
-		if err := json.Unmarshal(endMetricsJSON, &perf.EndMetrics); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("failed to unmarshal end metrics: %w", err)
 		}
 
 		if err := json.Unmarshal(phaseBreakdownJSON, &perf.PhaseBreakdown); err != nil {
@@ -216,15 +203,15 @@ func (s *HistoryService) loadFeedbackEntries(executionID string) ([]ExecutionFee
 // GetExecution retrieves a specific execution by ID
 func (s *HistoryService) GetExecution(executionID string) (*ProfilePerformance, error) {
 	query := `
-		SELECT id, profile_id, task_id as execution_id, scenario_name, start_metrics,
-		       end_metrics, phase_breakdown, total_iterations, total_duration_ms,
+		SELECT id, profile_id, task_id as execution_id, scenario_name,
+		       phase_breakdown, total_iterations, total_duration_ms,
 		       user_rating, user_comments, user_feedback_at, executed_at
 		FROM profile_executions
 		WHERE task_id = ?
 	`
 
 	var perf ProfilePerformance
-	var startMetricsJSON, endMetricsJSON, phaseBreakdownJSON []byte
+	var phaseBreakdownJSON []byte
 	var userRating sql.NullInt64
 	var userComments sql.NullString
 	var userFeedbackAt sql.NullTime
@@ -234,8 +221,6 @@ func (s *HistoryService) GetExecution(executionID string) (*ProfilePerformance, 
 		&perf.ProfileID,
 		&perf.ExecutionID,
 		&perf.ScenarioName,
-		&startMetricsJSON,
-		&endMetricsJSON,
 		&phaseBreakdownJSON,
 		&perf.TotalIterations,
 		&perf.TotalDuration,
@@ -250,15 +235,6 @@ func (s *HistoryService) GetExecution(executionID string) (*ProfilePerformance, 
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to query execution: %w", err)
-	}
-
-	// Unmarshal JSON fields
-	if err := json.Unmarshal(startMetricsJSON, &perf.StartMetrics); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal start metrics: %w", err)
-	}
-
-	if err := json.Unmarshal(endMetricsJSON, &perf.EndMetrics); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal end metrics: %w", err)
 	}
 
 	if err := json.Unmarshal(phaseBreakdownJSON, &perf.PhaseBreakdown); err != nil {
@@ -384,7 +360,6 @@ type PhaseStats struct {
 type ScenarioStats struct {
 	ScenarioName   string  `json:"scenario_name"`
 	ExecutionCount int     `json:"execution_count"`
-	AvgImprovement float64 `json:"avg_improvement"`
 	AvgRating      float64 `json:"avg_rating"`
 }
 
@@ -427,7 +402,6 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 	// Scenario statistics accumulator
 	scenarioData := make(map[string]struct {
 		count       int
-		improvement float64
 		rating      float64
 		ratingCount int
 	})
@@ -453,10 +427,8 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 		}
 
 		// Scenario statistics
-		improvement := exec.EndMetrics.OperationalTargetsPercentage - exec.StartMetrics.OperationalTargetsPercentage
 		data := scenarioData[exec.ScenarioName]
 		data.count++
-		data.improvement += improvement
 		if exec.UserFeedback != nil {
 			data.rating += float64(exec.UserFeedback.Rating)
 			data.ratingCount++
@@ -487,7 +459,6 @@ func (s *HistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytic
 		stats := ScenarioStats{
 			ScenarioName:   name,
 			ExecutionCount: data.count,
-			AvgImprovement: data.improvement / float64(data.count),
 		}
 		if data.ratingCount > 0 {
 			stats.AvgRating = data.rating / float64(data.ratingCount)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer/gameguard"
+	"github.com/ecosystem-manager/api/pkg/completeness"
 	"github.com/ecosystem-manager/api/pkg/dtv"
 	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
@@ -54,7 +55,7 @@ func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, 
 		&findings.TestGenieRunner{ProjectRoot: projectRoot},
 		catalog,
 		promptEnhancer,
-		NewMetricsCollector(projectRoot),
+		completeness.NewClient(0),
 		NewTraceStore(db),
 		effectiveness.NewSQLiteStore(db),
 	)
@@ -68,15 +69,15 @@ func NewExecutionOrchestratorDefault(profileRepo ProfileRepository, db *sql.DB, 
 // DIAGNOSE → SELECT → (EXECUTE happens out-of-band via agent-manager) → MEASURE
 // → TERMINATE loop, persisting a decision trace each iteration.
 type ExecutionOrchestrator struct {
-	stateManager     ExecutionStateRepository
-	profileService   ProfileRepository
-	auditRunner      findings.AuditRunner
-	catalog          skillmap.CatalogSource
-	promptEnhancer   PromptEnhancerAPI
-	metricsCollector MetricsProvider
-	traceStore       *TraceStore
-	effectiveness    effectiveness.Store
-	terminator       *Terminator
+	stateManager   ExecutionStateRepository
+	profileService ProfileRepository
+	auditRunner    findings.AuditRunner
+	catalog        skillmap.CatalogSource
+	promptEnhancer PromptEnhancerAPI
+	completeness   completeness.Provider
+	traceStore     *TraceStore
+	effectiveness  effectiveness.Store
+	terminator     *Terminator
 
 	// pendingCost holds the token cost of the most recent agent run per task,
 	// recorded by the queue via RecordRunCost and consumed once at the next
@@ -122,24 +123,24 @@ func NewExecutionOrchestrator(
 	auditRunner findings.AuditRunner,
 	catalog skillmap.CatalogSource,
 	promptEnhancer PromptEnhancerAPI,
-	metricsCollector MetricsProvider,
+	completenessProvider completeness.Provider,
 	traceStore *TraceStore,
 	effectivenessStore effectiveness.Store,
 ) *ExecutionOrchestrator {
 	return &ExecutionOrchestrator{
-		stateManager:     stateManager,
-		profileService:   profileService,
-		auditRunner:      auditRunner,
-		catalog:          catalog,
-		promptEnhancer:   promptEnhancer,
-		metricsCollector: metricsCollector,
-		traceStore:       traceStore,
-		effectiveness:    effectivenessStore,
-		terminator:       NewTerminator(),
-		pendingCost:      make(map[string]RunCost),
-		pendingRunID:     make(map[string]string),
-		fitnessSnaps:     make(map[string]*taskFitness),
-		degradedLogged:   make(map[string]bool),
+		stateManager:   stateManager,
+		profileService: profileService,
+		auditRunner:    auditRunner,
+		catalog:        catalog,
+		promptEnhancer: promptEnhancer,
+		completeness:   completenessProvider,
+		traceStore:     traceStore,
+		effectiveness:  effectivenessStore,
+		terminator:     NewTerminator(),
+		pendingCost:    make(map[string]RunCost),
+		pendingRunID:   make(map[string]string),
+		fitnessSnaps:   make(map[string]*taskFitness),
+		degradedLogged: make(map[string]bool),
 	}
 }
 
@@ -195,7 +196,7 @@ func (o *ExecutionOrchestrator) runSelect(state *ProfileExecutionState, profile 
 	// Maturity-ladder runtime (nil unless the profile enables a ladder) is shared
 	// by both the greedy and bandit selection paths so rung governance applies
 	// regardless of whether the effectiveness ledger is wired.
-	ladderRT := newLadderRuntime(profile, state.Metrics)
+	ladderRT := newLadderRuntime(profile, state.Completeness)
 	if o.effectiveness == nil {
 		return NewSelector(o.resolver()).WithLadder(ladderRT).SelectNextSkill(state.Findings, profile), dtvSelectionInfo{}
 	}
@@ -335,18 +336,18 @@ func (o *ExecutionOrchestrator) auditPreset(profile *AutoSteerProfile) string {
 	return defaultAuditPreset
 }
 
-// collectMetrics best-effort gathers gap metrics for the objective's
-// operational-targets target. Failures are non-fatal (returns the zero value).
-func (o *ExecutionOrchestrator) collectMetrics(scenarioName string, iteration int) MetricsSnapshot {
-	if o.metricsCollector == nil {
-		return MetricsSnapshot{Timestamp: time.Now()}
+// fetchScore reads the scenario's completeness measurement from the
+// scenario-completeness-scoring authority — the rung, build state, and
+// operational-targets completion the controller gates on. Plan D2: measurement
+// is load-bearing for termination, so unlike the DTV seam it does NOT fail open;
+// the error is returned and the caller degrades loudly (abort the start, or halt
+// the iteration with a measurement_unavailable stop reason) rather than
+// substituting a home-grown collector.
+func (o *ExecutionOrchestrator) fetchScore(ctx context.Context, scenarioName string) (completeness.Score, error) {
+	if o.completeness == nil {
+		return completeness.Score{}, fmt.Errorf("no completeness provider wired")
 	}
-	m, err := o.metricsCollector.CollectMetrics(scenarioName, iteration, iteration)
-	if err != nil || m == nil {
-		log.Printf("Auto Steer: gap-metric collection failed (non-fatal): %v", err)
-		return MetricsSnapshot{Timestamp: time.Now()}
-	}
-	return *m
+	return o.completeness.Score(ctx, scenarioName)
 }
 
 // StartExecution runs the initial DIAGNOSE + SELECT for a task: full audit,
@@ -370,9 +371,17 @@ func (o *ExecutionOrchestrator) StartExecution(taskID, profileID, scenarioName s
 		return nil, fmt.Errorf("initial audit failed: %w", err)
 	}
 
+	// Plan D1: fetch the completeness score AFTER the audit above wrote fresh
+	// phase-results, so rung/OT% reflect this iteration. Plan D2: no fallback —
+	// if measurement is unavailable the start aborts loudly.
+	score, err := o.fetchScore(context.Background(), scenarioName)
+	if err != nil {
+		return nil, fmt.Errorf("completeness measurement unavailable: %w", err)
+	}
+
 	state := o.stateManager.InitializeState(taskID, profileID)
 	state.Findings = fs
-	state.Metrics = o.collectMetrics(scenarioName, 0)
+	state.Completeness = score
 	state.ScoreHistory = []float64{fs.TotalScore}
 
 	o.selectInto(state, profile, scenarioName)
@@ -576,7 +585,21 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 	o.assignCredit(state, diff, cost, gaming)
 	state.Findings = newFS
 	state.ScoreHistory = append(state.ScoreHistory, scoreAfter)
-	state.Metrics = o.collectMetrics(scenarioName, state.Iteration)
+
+	// Plan D1: re-audit above wrote fresh phase-results; read the completeness
+	// score now so rung/OT% reflect this iteration. Plan D2: measurement is
+	// load-bearing for termination — if it is unavailable, halt the run loudly
+	// (measurement_unavailable) rather than continuing on stale/zero data.
+	score, scoreErr := o.fetchScore(context.Background(), scenarioName)
+	if scoreErr != nil {
+		log.Printf("Auto Steer: task %s halting — %s: %v", taskID, StopMeasurementUnavailable, scoreErr)
+		o.recordHalt(state, StopMeasurementUnavailable)
+		if err := o.stateManager.FinalizeExecution(state, scenarioName); err != nil {
+			return nil, fmt.Errorf("failed to finalize execution: %w", err)
+		}
+		return &IterationEvaluation{ShouldStop: true, Reason: StopMeasurementUnavailable}, nil
+	}
+	state.Completeness = score
 
 	// Snapshot the objective-met signal and the completed iteration before SELECT
 	// advances the counter — the Baseline Modes checkpoint_on_green cadence reads

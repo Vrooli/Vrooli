@@ -18,10 +18,10 @@ export default function App() {
   const { activeModal, setActiveModal, isFilterPanelOpen } = useAppState();
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [selectedTab, setSelectedTab] = useState<'details' | 'prompt' | 'executions' | 'insights' | 'campaigns'>('details');
+  const [selectedTab, setSelectedTab] = useState<'details' | 'prompt' | 'executions' | 'campaigns'>('details');
   const deleteTask = useDeleteTask();
 
-  const handleSelectTask = (task: Task, tab: 'details' | 'prompt' | 'executions' | 'insights' | 'campaigns' = 'details') => {
+  const handleSelectTask = (task: Task, tab: 'details' | 'prompt' | 'executions' | 'campaigns' = 'details') => {
     setSelectedTask(task);
     setSelectedTab(tab);
   };

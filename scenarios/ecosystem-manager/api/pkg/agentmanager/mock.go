@@ -27,10 +27,6 @@ type MockAgentService struct {
 	ExecuteTaskAsyncRunID string
 	ExecuteTaskAsyncError error
 
-	// ExecuteInsight configuration
-	ExecuteInsightResult *ExecuteResult
-	ExecuteInsightError  error
-
 	// GetRunStatus configuration
 	GetRunStatusResult *domainpb.Run
 	GetRunStatusError  error
@@ -58,7 +54,6 @@ type MockAgentService struct {
 		ResolveURL       int
 		ExecuteTask      int
 		ExecuteTaskAsync int
-		ExecuteInsight   int
 		GetRunStatus     int
 		GetRunDiff       int
 		StopRun          int
@@ -69,7 +64,6 @@ type MockAgentService struct {
 	// Capture last call arguments
 	LastExecuteTaskReq      ExecuteRequest
 	LastExecuteTaskAsyncReq ExecuteRequest
-	LastInsightReq          InsightRequest
 	LastStopRunID           string
 	LastGetRunStatusID      string
 	LastGetRunDiffID        string
@@ -90,10 +84,6 @@ func NewMockAgentService() *MockAgentService {
 			Success: true,
 		},
 		ExecuteTaskAsyncRunID: "mock-async-run-id",
-		ExecuteInsightResult: &ExecuteResult{
-			RunID:   "mock-insight-run-id",
-			Success: true,
-		},
 		GetRunStatusResult: &domainpb.Run{
 			Id:     "mock-run-id",
 			Status: domainpb.RunStatus_RUN_STATUS_COMPLETE,
@@ -149,14 +139,6 @@ func (m *MockAgentService) ExecuteTaskAsync(ctx context.Context, req ExecuteRequ
 	return m.ExecuteTaskAsyncRunID, m.ExecuteTaskAsyncError
 }
 
-func (m *MockAgentService) ExecuteInsight(ctx context.Context, req InsightRequest) (*ExecuteResult, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.Calls.ExecuteInsight++
-	m.LastInsightReq = req
-	return m.ExecuteInsightResult, m.ExecuteInsightError
-}
-
 func (m *MockAgentService) GetRunStatus(ctx context.Context, runID string) (*domainpb.Run, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -209,7 +191,6 @@ func (m *MockAgentService) Reset() {
 		ResolveURL       int
 		ExecuteTask      int
 		ExecuteTaskAsync int
-		ExecuteInsight   int
 		GetRunStatus     int
 		GetRunDiff       int
 		StopRun          int
@@ -218,7 +199,6 @@ func (m *MockAgentService) Reset() {
 	}{}
 	m.LastExecuteTaskReq = ExecuteRequest{}
 	m.LastExecuteTaskAsyncReq = ExecuteRequest{}
-	m.LastInsightReq = InsightRequest{}
 	m.LastStopRunID = ""
 	m.LastGetRunStatusID = ""
 	m.LastGetRunDiffID = ""

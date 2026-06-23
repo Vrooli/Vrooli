@@ -10,8 +10,6 @@ CREATE TABLE IF NOT EXISTS profile_executions (
     profile_id TEXT NOT NULL,
     task_id TEXT NOT NULL,
     scenario_name TEXT NOT NULL,
-    start_metrics TEXT,
-    end_metrics TEXT,
     phase_breakdown TEXT,
     total_iterations INTEGER DEFAULT 0,
     total_duration_ms INTEGER,

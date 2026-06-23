@@ -97,13 +97,6 @@ func TestExecuteRequestEnvironmentRoundTrips(t *testing.T) {
 	if got := mock.LastExecuteTaskAsyncReq.Environment["VROOLI_SHADOW_SCENARIOS"]; got != "swarm-manager" {
 		t.Fatalf("ExecuteTaskAsync did not carry Environment: got %v", mock.LastExecuteTaskAsyncReq.Environment)
 	}
-
-	if _, err := mock.ExecuteInsight(t.Context(), InsightRequest{Environment: env}); err != nil {
-		t.Fatalf("ExecuteInsight: %v", err)
-	}
-	if got := mock.LastInsightReq.Environment["VROOLI_SHADOW_SCENARIOS"]; got != "swarm-manager" {
-		t.Fatalf("ExecuteInsight did not carry Environment: got %v", mock.LastInsightReq.Environment)
-	}
 }
 
 func equalEnv(a, b map[string]string) bool {

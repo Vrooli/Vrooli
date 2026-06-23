@@ -131,9 +131,6 @@ type Processor struct {
 	// History manager for execution history persistence (Phase 3.2 extraction)
 	historyManager *HistoryManager
 
-	// Insight manager for insight report generation and persistence (Phase 3.3 extraction)
-	insightManager *InsightManager
-
 	// Timeout watchdog for enforcing task timeouts
 	watchdog *TimeoutWatchdog
 
@@ -308,15 +305,6 @@ func NewProcessor(deps ProcessorDeps) *Processor {
 	p.executionManager.SetWakeFunc(p.Wake)
 	p.executionManager.SetFinalizeFunc(p.finalizeTaskStatus)
 
-	// Create InsightManager with shared dependencies
-	p.insightManager = NewInsightManager(InsightManagerDeps{
-		TaskLogsDir:    taskLogsDir,
-		HistoryManager: historyManager,
-		AgentSvc:       deps.AgentSvc,
-		Assembler:      deps.Assembler,
-		Storage:        deps.Storage,
-	})
-
 	return p
 }
 
@@ -328,10 +316,9 @@ func NewProcessorWithDefaults(storage tasks.StorageAPI, assembler *prompts.Assem
 
 	// Create agent service with default config
 	agentSvc := agentmanager.NewAgentService(agentmanager.Config{
-		TaskProfileKey:     "ecosystem-manager-tasks",
-		InsightsProfileKey: "ecosystem-manager-insights",
-		Timeout:            30 * time.Second,
-		VrooliRoot:         vrooliRoot,
+		TaskProfileKey: "ecosystem-manager-tasks",
+		Timeout:        30 * time.Second,
+		VrooliRoot:     vrooliRoot,
 	})
 
 	processor := NewProcessor(ProcessorDeps{

@@ -23,34 +23,6 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 
 	taskID := uuid.New().String()
 
-	startMetrics := MetricsSnapshot{
-		Timestamp:                    time.Now().Add(-1 * time.Hour),
-		PhaseLoops:                   0,
-		TotalLoops:                   0,
-		BuildStatus:                  1,
-		OperationalTargetsTotal:      10,
-		OperationalTargetsPassing:    5,
-		OperationalTargetsPercentage: 50.0,
-		UX: &UXMetrics{
-			AccessibilityScore: 70.0,
-			UITestCoverage:     40.0,
-		},
-	}
-
-	endMetrics := MetricsSnapshot{
-		Timestamp:                    time.Now(),
-		PhaseLoops:                   5,
-		TotalLoops:                   15,
-		BuildStatus:                  1,
-		OperationalTargetsTotal:      10,
-		OperationalTargetsPassing:    9,
-		OperationalTargetsPercentage: 90.0,
-		UX: &UXMetrics{
-			AccessibilityScore: 92.0,
-			UITestCoverage:     75.0,
-		},
-	}
-
 	phaseBreakdown := []SkillPerformance{
 		{
 			SkillName:     "progress",
@@ -64,15 +36,13 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 		},
 	}
 
-	startMetricsJSON, _ := json.Marshal(startMetrics)
-	endMetricsJSON, _ := json.Marshal(endMetrics)
 	phaseBreakdownJSON, _ := json.Marshal(phaseBreakdown)
 
 	query := `
 		INSERT INTO profile_executions (
-			id, profile_id, task_id, scenario_name, start_metrics, end_metrics,
+			id, profile_id, task_id, scenario_name,
 			phase_breakdown, total_iterations, total_duration_ms, executed_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := db.Exec(query,
@@ -80,8 +50,6 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 		profileID,
 		taskID,
 		scenarioName,
-		startMetricsJSON,
-		endMetricsJSON,
 		phaseBreakdownJSON,
 		15,
 		900000, // 15 minutes
@@ -437,9 +405,6 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 			if stats.ScenarioName == "scenario-a" {
 				if stats.ExecutionCount != 2 {
 					t.Errorf("Expected 2 executions for scenario-a, got %d", stats.ExecutionCount)
-				}
-				if stats.AvgImprovement != 40.0 {
-					t.Errorf("Expected avg improvement 40.0, got %f", stats.AvgImprovement)
 				}
 				if stats.AvgRating != 5.0 {
 					t.Errorf("Expected avg rating 5.0, got %f", stats.AvgRating)

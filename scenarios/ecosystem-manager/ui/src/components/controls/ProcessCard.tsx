@@ -1,6 +1,6 @@
 import { useState, useEffect, type KeyboardEvent, type MouseEvent } from 'react';
 import { Button } from '../ui/button';
-import { XCircle, Clock, Lightbulb, Zap } from 'lucide-react';
+import { XCircle, Clock, Zap } from 'lucide-react';
 import { useTerminateProcess } from '../../hooks/useRunningProcesses';
 import type { RunningProcess } from '../../types/api';
 
@@ -45,16 +45,14 @@ export function ProcessCard({ process, onSelect }: ProcessCardProps) {
   const handleTerminate = (event: MouseEvent) => {
     event.stopPropagation();
     const taskId = process.task_id || process.process_id;
-    const processTypeLabel = process.process_type === 'insight' ? 'insight generation' : 'task';
-    if (confirm(`Terminate ${processTypeLabel} process for task ${taskId}?`)) {
+    if (confirm(`Terminate task process for task ${taskId}?`)) {
       terminateProcess.mutate(taskId);
     }
   };
 
-  const isInsight = process.process_type === 'insight';
-  const ProcessIcon = isInsight ? Lightbulb : Zap;
-  const iconColor = isInsight ? 'text-amber-500' : 'text-blue-500';
-  const bgColor = isInsight ? 'bg-amber-500/10 hover:bg-amber-500/20' : 'bg-muted/50 hover:bg-muted';
+  const ProcessIcon = Zap;
+  const iconColor = 'text-blue-500';
+  const bgColor = 'bg-muted/50 hover:bg-muted';
 
   return (
     <div
@@ -80,7 +78,7 @@ export function ProcessCard({ process, onSelect }: ProcessCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium truncate">
-              {isInsight ? 'Generating Insights' : `Task ${process.task_id.slice(0, 8)}`}
+              {`Task ${process.task_id.slice(0, 8)}`}
             </span>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
@@ -92,7 +90,7 @@ export function ProcessCard({ process, onSelect }: ProcessCardProps) {
               {process.task_title}
             </div>
           )}
-          {!isInsight && process.agent_id && (
+          {process.agent_id && (
             <div className="text-xs text-muted-foreground truncate">
               Agent: {process.agent_id}
             </div>

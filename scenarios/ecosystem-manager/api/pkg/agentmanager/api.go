@@ -12,11 +12,11 @@ type AgentServiceAPI interface {
 	// IsAvailable checks if agent-manager is reachable.
 	IsAvailable(ctx context.Context) bool
 
-	// Initialize ensures both task and insights profiles exist.
-	// Call this at startup to create/update profiles.
+	// Initialize ensures the task profile exists.
+	// Call this at startup to create/update the profile.
 	Initialize(ctx context.Context) error
 
-	// UpdateProfiles updates both profiles with current settings.
+	// UpdateProfiles updates the task profile with current settings.
 	// Call this when settings change to propagate new config.
 	UpdateProfiles(ctx context.Context) error
 
@@ -29,9 +29,6 @@ type AgentServiceAPI interface {
 	// ExecuteTaskAsync starts a task run without waiting for completion.
 	// Returns the run ID for tracking.
 	ExecuteTaskAsync(ctx context.Context, req ExecuteRequest) (string, error)
-
-	// ExecuteInsight runs an insight generation task.
-	ExecuteInsight(ctx context.Context, req InsightRequest) (*ExecuteResult, error)
 
 	// GetRunStatus returns the current status of a run.
 	GetRunStatus(ctx context.Context, runID string) (*domainpb.Run, error)

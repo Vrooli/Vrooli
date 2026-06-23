@@ -61,7 +61,7 @@ func creditOrchestrator(runner findings.AuditRunner) (*ExecutionOrchestrator, *e
 	store := effectiveness.NewMemoryStore()
 	orch := NewExecutionOrchestrator(
 		stateRepo, profileRepo, runner, catalog,
-		NewMockPromptEnhancerAPI(), NewMockMetricsProvider(), NewTraceStore(nil), store,
+		NewMockPromptEnhancerAPI(), NewMockCompletenessProvider(), NewTraceStore(nil), store,
 	)
 	return orch, store
 }

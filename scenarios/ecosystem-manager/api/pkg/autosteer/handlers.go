@@ -452,7 +452,7 @@ func (h *AutoSteerHandlers) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, state.Metrics)
+	writeJSON(w, http.StatusOK, state.Completeness)
 }
 
 // GetHistory handles GET /api/auto-steer/history

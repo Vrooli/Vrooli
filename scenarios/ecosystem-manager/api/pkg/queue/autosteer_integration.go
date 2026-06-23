@@ -100,10 +100,10 @@ func (a *AutoSteerIntegration) InitializeAutoSteer(task *tasks.TaskItem, scenari
 		return fmt.Errorf("failed to start Auto Steer execution: %w", err)
 	}
 
-	log.Printf("Auto Steer initialized successfully for task %s - starting with %d recorded loop(s)",
-		task.ID, state.Metrics.TotalLoops)
-	systemlog.Infof("Auto Steer: Task %s initialized - recorded loops: %d",
-		task.ID, state.Metrics.TotalLoops)
+	log.Printf("Auto Steer initialized successfully for task %s - starting at iteration %d",
+		task.ID, state.Iteration)
+	systemlog.Infof("Auto Steer: Task %s initialized - iteration: %d",
+		task.ID, state.Iteration)
 
 	return nil
 }

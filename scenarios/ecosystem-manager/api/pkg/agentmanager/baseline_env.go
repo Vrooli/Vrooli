@@ -74,7 +74,7 @@ func unionCSV(csv, add string) string {
 
 // AmbientShadowEnv collects the Baseline-Modes shadow-routing variables present
 // in the current process environment, returning a map suitable for
-// ExecuteRequest.Environment / InsightRequest.Environment.
+// ExecuteRequest.Environment.
 //
 // When ecosystem-manager runs inside an active baseline engagement, the
 // engagement sets VROOLI_SHADOW_SCENARIOS in EM's environment; forwarding it

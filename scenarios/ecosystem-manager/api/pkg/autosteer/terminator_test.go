@@ -45,9 +45,9 @@ func TestTerminator_NotMet_FindingAboveSeverity(t *testing.T) {
 
 func TestTerminator_ObjectiveMet_OperationalTargetsGate(t *testing.T) {
 	term := NewTerminator()
-	state := stateWithFindings(nil)            // no findings
-	state.Metrics.OperationalTargetsTotal = 10 // targets are declared, so the gate applies
-	state.Metrics.OperationalTargetsPercentage = 80
+	state := stateWithFindings(nil) // no findings
+	state.Completeness.OTTotal = 10 // targets are declared, so the gate applies
+	state.Completeness.OTPercentage = 80
 	profile := &AutoSteerProfile{
 		Objective: Objective{Targets: ObjectiveTargets{MaxOpenSeverity: "warning", OperationalTargetsPct: 90}},
 		Budget:    Budget{MaxIterations: 40},
@@ -56,7 +56,7 @@ func TestTerminator_ObjectiveMet_OperationalTargetsGate(t *testing.T) {
 	if stop, _ := term.ShouldStop(state, profile); stop {
 		t.Fatal("expected to continue: operational targets gate not satisfied")
 	}
-	state.Metrics.OperationalTargetsPercentage = 95
+	state.Completeness.OTPercentage = 95
 	if stop, _ := term.ShouldStop(state, profile); !stop {
 		t.Fatal("expected objective met once operational targets reach the threshold")
 	}
@@ -64,9 +64,9 @@ func TestTerminator_ObjectiveMet_OperationalTargetsGate(t *testing.T) {
 
 func TestTerminator_ObjectiveMet_NoOperationalTargetsIsVacuouslySatisfied(t *testing.T) {
 	term := NewTerminator()
-	state := stateWithFindings(nil)           // no findings
-	state.Metrics.OperationalTargetsTotal = 0 // scenario declares no operational targets
-	state.Metrics.OperationalTargetsPercentage = 0
+	state := stateWithFindings(nil) // no findings
+	state.Completeness.OTTotal = 0  // scenario declares no operational targets
+	state.Completeness.OTPercentage = 0
 	profile := &AutoSteerProfile{
 		Objective: Objective{Targets: ObjectiveTargets{MaxOpenSeverity: "warning", OperationalTargetsPct: 90}},
 		Budget:    Budget{MaxIterations: 40},

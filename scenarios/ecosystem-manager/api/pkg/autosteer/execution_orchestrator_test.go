@@ -66,7 +66,7 @@ func loopOrchestrator(runner findings.AuditRunner) (*ExecutionOrchestrator, *Moc
 	}}
 	orch := NewExecutionOrchestrator(
 		stateRepo, profileRepo, runner, catalog,
-		NewMockPromptEnhancerAPI(), NewMockMetricsProvider(), NewTraceStore(nil),
+		NewMockPromptEnhancerAPI(), NewMockCompletenessProvider(), NewTraceStore(nil),
 		effectiveness.NewMemoryStore(),
 	)
 	return orch, stateRepo, profileRepo
@@ -228,13 +228,14 @@ func TestEvaluateStart_UnmetTargetsButNothingSteerableStops(t *testing.T) {
 	catalog := &skillmap.FakeCatalog{Declarations: []skillmap.SkillDeclaration{
 		{ID: "refactor", Dimensions: []string{"standards"}},
 	}}
-	metrics := NewMockMetricsProvider()
-	metrics.Metrics.OperationalTargetsTotal = 10  // targets declared…
-	metrics.Metrics.OperationalTargetsPassing = 5 // …but only half pass (50% < 90%)
-	metrics.Metrics.OperationalTargetsPercentage = 50
+	comp := NewMockCompletenessProvider()
+	comp.Result.OTTotal = 10  // targets declared…
+	comp.Result.OTPassing = 5 // …but only half pass (50% < 90%)
+	comp.Result.OTPercentage = 50
+	comp.Result.OTHasTargets = true
 	orch := NewExecutionOrchestrator(
 		stateRepo, profileRepo, &shrinkingRunner{audits: []*findings.Audit{standardsAudit(0)}},
-		catalog, NewMockPromptEnhancerAPI(), metrics, NewTraceStore(nil),
+		catalog, NewMockPromptEnhancerAPI(), comp, NewTraceStore(nil),
 		effectiveness.NewMemoryStore(),
 	)
 

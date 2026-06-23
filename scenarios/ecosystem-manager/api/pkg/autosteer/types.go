@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ecosystem-manager/api/pkg/completeness"
 	"github.com/ecosystem-manager/api/pkg/findings"
 )
 
@@ -416,81 +417,6 @@ func (p *AutoSteerProfile) dtvPriorConfig() DTVPriorConfig {
 	return cfg
 }
 
-// MetricsSnapshot captures gap-metric measurements at a point in time. In the
-// controller model these are NOT the primary state (that is the findings
-// vector); they are retained as gap measurements for the objective's
-// operational-targets target and for history/analytics.
-type MetricsSnapshot struct {
-	Timestamp time.Time `json:"timestamp"`
-
-	// TotalLoops is the global controller iteration counter.
-	PhaseLoops                   int     `json:"phase_loops"`
-	TotalLoops                   int     `json:"total_loops"`
-	BuildStatus                  int     `json:"build_status"` // 0 = failing, 1 = passing
-	OperationalTargetsTotal      int     `json:"operational_targets_total"`
-	OperationalTargetsPassing    int     `json:"operational_targets_passing"`
-	OperationalTargetsPercentage float64 `json:"operational_targets_percentage"`
-	// OperationalTargetsKnown reports whether the operational-targets metric was
-	// actually collected (true) versus a zero-valued best-effort failure (false).
-	// The ladder's R4 gate reads this to avoid treating a collection failure as
-	// "no targets declared". A zero-value MetricsSnapshot (collectMetrics error
-	// path) leaves this false, which is the correct "unknown" signal.
-	OperationalTargetsKnown bool `json:"operational_targets_known"`
-
-	// Mode-specific metrics (optional, populated based on scenario capabilities)
-	UX          *UXMetrics          `json:"ux,omitempty"`
-	Refactor    *RefactorMetrics    `json:"refactor,omitempty"`
-	Test        *TestMetrics        `json:"test,omitempty"`
-	Performance *PerformanceMetrics `json:"performance,omitempty"`
-	Security    *SecurityMetrics    `json:"security,omitempty"`
-}
-
-// UXMetrics captures user experience quality metrics
-type UXMetrics struct {
-	AccessibilityScore    float64 `json:"accessibility_score"`     // 0-100
-	UITestCoverage        float64 `json:"ui_test_coverage"`        // 0-100
-	ResponsiveBreakpoints int     `json:"responsive_breakpoints"`  // Count of breakpoints
-	UserFlowsImplemented  int     `json:"user_flows_implemented"`  // Count of complete user flows
-	LoadingStatesCount    int     `json:"loading_states_count"`    // Count of loading states
-	ErrorHandlingCoverage float64 `json:"error_handling_coverage"` // 0-100
-}
-
-// RefactorMetrics captures code quality metrics
-type RefactorMetrics struct {
-	CyclomaticComplexityAvg float64 `json:"cyclomatic_complexity_avg"` // Average complexity
-	DuplicationPercentage   float64 `json:"duplication_percentage"`    // 0-100
-	StandardsViolations     int     `json:"standards_violations"`      // Count of violations
-	TidinessScore           float64 `json:"tidiness_score"`            // 0-100 from tidiness-manager
-	TechDebtItems           int     `json:"tech_debt_items"`           // Count of tech debt items
-}
-
-// TestMetrics captures testing quality metrics
-type TestMetrics struct {
-	UnitTestCoverage        float64 `json:"unit_test_coverage"`        // 0-100
-	IntegrationTestCoverage float64 `json:"integration_test_coverage"` // 0-100
-	UITestCoverage          float64 `json:"ui_test_coverage"`          // 0-100
-	EdgeCasesCovered        int     `json:"edge_cases_covered"`        // Count of edge cases
-	FlakyTests              int     `json:"flaky_tests"`               // Count of flaky tests
-	TestQualityScore        float64 `json:"test_quality_score"`        // 0-100
-}
-
-// PerformanceMetrics captures performance metrics
-type PerformanceMetrics struct {
-	BundleSizeKB      float64 `json:"bundle_size_kb"`       // Bundle size in KB
-	InitialLoadTimeMS int     `json:"initial_load_time_ms"` // Initial load time in ms
-	LCPMS             int     `json:"lcp_ms"`               // Largest Contentful Paint in ms
-	FIDMS             int     `json:"fid_ms"`               // First Input Delay in ms
-	CLSScore          float64 `json:"cls_score"`            // Cumulative Layout Shift score
-}
-
-// SecurityMetrics captures security quality metrics
-type SecurityMetrics struct {
-	VulnerabilityCount      int     `json:"vulnerability_count"`       // Count of vulnerabilities
-	InputValidationCoverage float64 `json:"input_validation_coverage"` // 0-100
-	AuthImplementationScore float64 `json:"auth_implementation_score"` // 0-100
-	SecurityScanScore       float64 `json:"security_scan_score"`       // 0-100
-}
-
 // DecisionTraceEntry records one controller iteration's reasoning so the loop is
 // a glass box (see CONTROL-MODEL.md "Transparency"). One entry is appended when
 // a skill is selected; ScoreAfter / RealizedDelta are filled after the skill
@@ -580,10 +506,12 @@ type ProfileExecutionState struct {
 	ScoreHistory []float64 `json:"score_history"`
 	// Trace is the per-iteration decision trace.
 	Trace []DecisionTraceEntry `json:"trace"`
-	// Metrics is the latest gap-metric snapshot (operational targets, build).
-	Metrics     MetricsSnapshot `json:"metrics"`
-	StartedAt   time.Time       `json:"started_at"`
-	LastUpdated time.Time       `json:"last_updated"`
+	// Completeness is the latest measurement fetched from the
+	// scenario-completeness-scoring authority (rung, build, operational targets).
+	// It replaces the deleted self-collected MetricsSnapshot.
+	Completeness completeness.Score `json:"completeness"`
+	StartedAt    time.Time          `json:"started_at"`
+	LastUpdated  time.Time          `json:"last_updated"`
 }
 
 // IterationEvaluation is the result of a controller MEASURE+TERMINATE step.
@@ -617,8 +545,6 @@ type ProfilePerformance struct {
 	ProfileID       string                   `json:"profile_id"`
 	ScenarioName    string                   `json:"scenario_name"`
 	ExecutionID     string                   `json:"execution_id"`
-	StartMetrics    MetricsSnapshot          `json:"start_metrics"`
-	EndMetrics      MetricsSnapshot          `json:"end_metrics"`
 	PhaseBreakdown  []SkillPerformance       `json:"phase_breakdown"`
 	TotalIterations int                      `json:"total_iterations"`
 	TotalDuration   int64                    `json:"total_duration"` // milliseconds

@@ -23,6 +23,11 @@ const (
 	StopNothingActionable  = "nothing_actionable"
 	StopThrashingCycle     = "thrashing_cycle"
 	StopNoNetProgress      = "no_net_progress"
+	// StopMeasurementUnavailable halts a run when the completeness-scoring
+	// authority is unreachable mid-loop. Measurement is load-bearing for
+	// termination, so the controller degrades loudly rather than continuing on
+	// stale/zero data (plan D2 — no fallback collector).
+	StopMeasurementUnavailable = "measurement_unavailable"
 )
 
 // severityRank maps a configured max-open-severity string to a comparable rank.
@@ -81,8 +86,8 @@ func objectiveMet(state *ProfileExecutionState, profile *AutoSteerProfile) (bool
 	// Operational-targets gate: only applies when the scenario actually declares
 	// operational targets. A scenario with none is vacuously satisfied — treating
 	// "no targets" as 0% would make objective-met permanently unreachable.
-	if target := profile.Objective.Targets.OperationalTargetsPct; target > 0 && state.Metrics.OperationalTargetsTotal > 0 {
-		if state.Metrics.OperationalTargetsPercentage < target {
+	if target := profile.Objective.Targets.OperationalTargetsPct; target > 0 && state.Completeness.OTTotal > 0 {
+		if state.Completeness.OTPercentage < target {
 			return false, ""
 		}
 	}

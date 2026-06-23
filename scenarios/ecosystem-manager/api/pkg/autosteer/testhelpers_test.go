@@ -133,35 +133,6 @@ func joinStrings(strs []string, sep string) string {
 	return result
 }
 
-// AssertMetricsEqual checks if two metric snapshots are equal (within tolerance for floats)
-func AssertMetricsEqual(t *testing.T, expected, actual MetricsSnapshot, tolerance float64) {
-	t.Helper()
-
-	if abs(expected.OperationalTargetsPercentage-actual.OperationalTargetsPercentage) > tolerance {
-		t.Errorf("Operational targets percentage mismatch: expected %.2f, got %.2f",
-			expected.OperationalTargetsPercentage, actual.OperationalTargetsPercentage)
-	}
-
-	if expected.BuildStatus != actual.BuildStatus {
-		t.Errorf("Build status mismatch: expected %d, got %d", expected.BuildStatus, actual.BuildStatus)
-	}
-
-	// Check UX metrics if present
-	if expected.UX != nil && actual.UX != nil {
-		if abs(expected.UX.AccessibilityScore-actual.UX.AccessibilityScore) > tolerance {
-			t.Errorf("Accessibility score mismatch: expected %.2f, got %.2f",
-				expected.UX.AccessibilityScore, actual.UX.AccessibilityScore)
-		}
-	}
-}
-
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 // WaitForCondition polls until a condition is met or timeout
 func WaitForCondition(t *testing.T, timeout time.Duration, condition func() bool) bool {
 	t.Helper()

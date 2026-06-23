@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Input } from '../ui/input';
 import { ExecutionDetailCard } from '../executions/ExecutionDetailCard';
 import { ExecutionFeedbackPanel } from '@/components/executions/ExecutionFeedbackPanel';
-import { SystemInsightsTab } from '../insights';
 import { useSystemLogs } from '@/hooks/useSystemLogs';
 import { useAllAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedSkillNames } from '@/hooks/usePromptFiles';
@@ -34,7 +33,7 @@ type ExecutionStatus = 'all' | 'running' | 'completed' | 'failed' | 'rate_limite
 type NormalizedLevel = 'debug' | 'info' | 'warning' | 'error' | 'other';
 
 export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
-  const [activeTab, setActiveTab] = useState<'logs' | 'executions' | 'performance' | 'insights'>('logs');
+  const [activeTab, setActiveTab] = useState<'logs' | 'executions' | 'performance'>('logs');
   const [logLevel, setLogLevel] = useState<LogLevel>('all');
   const [autoScroll, setAutoScroll] = useState(true);
   const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('all');
@@ -351,7 +350,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
         <Tabs
           value={activeTab}
           onValueChange={(value) =>
-            setActiveTab(value as 'logs' | 'executions' | 'performance' | 'insights')
+            setActiveTab(value as 'logs' | 'executions' | 'performance')
           }
           className="flex-1 flex flex-col"
         >
@@ -368,10 +367,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
               <TabsTrigger value="performance" className="gap-2">
                 <LineChart className="h-4 w-4" />
                 Auto Steer Performance
-              </TabsTrigger>
-              <TabsTrigger value="insights" className="gap-2">
-                <Activity className="h-4 w-4" />
-                Insights
               </TabsTrigger>
             </TabsList>
 
@@ -841,10 +836,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 )}
               </div>
             </div>
-          </TabsContent>
-
-          <TabsContent value="insights" className="flex-1 flex flex-col">
-            <SystemInsightsTab />
           </TabsContent>
         </Tabs>
       </DialogContent>

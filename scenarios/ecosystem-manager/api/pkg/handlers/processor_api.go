@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"time"
-
-	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/ecosystem-manager/api/pkg/queue"
 )
 
@@ -43,15 +40,4 @@ type ProcessorAPI interface {
 	LoadExecutionHistory(taskID string) ([]queue.ExecutionHistory, error)
 	LoadAllExecutionHistory() ([]queue.ExecutionHistory, error)
 	GetExecutionFilePath(taskID, executionID, filename string) string
-
-	// Insight-related methods
-	LoadInsightReports(taskID string) ([]insights.InsightReport, error)
-	LoadInsightReport(taskID, reportID string) (*insights.InsightReport, error)
-	SaveInsightReport(report insights.InsightReport) error
-	UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error
-	LoadAllInsightReports(sinceTime time.Time) ([]insights.InsightReport, error)
-	BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error)
-	GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*insights.InsightReport, error)
-	GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*insights.InsightReport, error)
-	GenerateSystemInsightReport(sinceTime time.Time) (*insights.SystemInsightReport, error)
 }

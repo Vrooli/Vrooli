@@ -3,7 +3,9 @@ package autosteer
 import (
 	"testing"
 
+	"github.com/ecosystem-manager/api/pkg/completeness"
 	"github.com/ecosystem-manager/api/pkg/findings"
+	"github.com/vrooli/maturity-go/ladder"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
@@ -29,7 +31,9 @@ func TestTerminator_RungHoldBlocksObjective(t *testing.T) {
 	state := stateWithFindings([]findings.Finding{
 		finding("sec", "security", architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR),
 	})
-	state.Metrics = MetricsSnapshot{BuildStatus: 1}
+	// completeness reports R1 unsatisfied (the security error) — the rung-hold is
+	// the only thing that can keep a ladder profile running here.
+	state.Completeness = completeness.Score{WorkingRung: string(ladder.RungR1), BuildPassing: true}
 
 	// Without the ladder: severity objective is met (ERROR ≤ blocker) → stop.
 	if stop, _ := term.ShouldStop(state, ladderTermProfile(false)); !stop {
@@ -49,11 +53,9 @@ func TestTerminator_RungHoldClearsWhenLadderHolds(t *testing.T) {
 	state := stateWithFindings([]findings.Finding{
 		finding("a", "docs", architecturev1.FindingSeverity_FINDING_SEVERITY_INFO),
 	})
-	// OperationalTargetsKnown=true with no targets ⇒ R4 vacuously satisfied (the
-	// metric was collected; the scenario simply declares no targets). Without the
-	// flag the new R4 gate treats OT as unknown and the ladder correctly refuses
-	// to declare capability progression met.
-	state.Metrics = MetricsSnapshot{BuildStatus: 1, OperationalTargetsKnown: true}
+	// completeness reports the ladder clean to the top rung — the single ladder
+	// evaluation EM now consumes (plan D4) — so the rung-hold gate clears.
+	state.Completeness = completeness.Score{LadderClean: true, BuildPassing: true, OTKnown: true}
 
 	if stop, reason := term.ShouldStop(state, ladderTermProfile(true)); !stop {
 		t.Fatalf("ladder profile should stop once rungs hold, got reason=%q", reason)

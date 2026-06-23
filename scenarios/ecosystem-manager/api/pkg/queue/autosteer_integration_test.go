@@ -48,7 +48,7 @@ func objectiveProfile(id, name string, allowed ...string) *autosteer.AutoSteerPr
 // each steer skill against the standards dimension.
 func newTestOrchestrator(profileRepo *autosteer.MockProfileRepository) (*autosteer.ExecutionOrchestrator, *autosteer.MockExecutionStateRepository) {
 	stateRepo := autosteer.NewMockExecutionStateRepository()
-	metricsProvider := autosteer.NewMockMetricsProvider()
+	completenessProvider := autosteer.NewMockCompletenessProvider()
 	promptEnhancer := autosteer.NewMockPromptEnhancerAPI()
 
 	audit := &findings.Audit{
@@ -81,7 +81,7 @@ func newTestOrchestrator(profileRepo *autosteer.MockProfileRepository) (*autoste
 		runner,
 		catalog,
 		promptEnhancer,
-		metricsProvider,
+		completenessProvider,
 		autosteer.NewTraceStore(nil),
 		effectiveness.NewMemoryStore(),
 	)

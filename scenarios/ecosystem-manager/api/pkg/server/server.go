@@ -59,10 +59,9 @@ type Application struct {
 	db           *sql.DB
 
 	// Auto Steer components
-	autoSteerProfileService   autosteer.ProfileServiceAPI
-	autoSteerExecutionEngine  *autosteer.ExecutionOrchestrator
-	autoSteerHistoryService   *autosteer.HistoryService
-	autoSteerMetricsCollector *autosteer.MetricsCollector
+	autoSteerProfileService  autosteer.ProfileServiceAPI
+	autoSteerExecutionEngine *autosteer.ExecutionOrchestrator
+	autoSteerHistoryService  *autosteer.HistoryService
 
 	// Handlers
 	taskHandlers           *handlers.TaskHandlers
@@ -70,7 +69,6 @@ type Application struct {
 	healthHandlers         *handlers.HealthHandlers
 	settingsHandlers       *handlers.SettingsHandlers
 	promptsHandlers        *handlers.PromptsHandlers
-	insightHandlers        *handlers.InsightHandlers
 	autoSteerHandlers      *autosteer.AutoSteerHandlers
 	skillsSyncHandlers     *handlers.SkillsSyncHandlers
 	visitedTrackerHandlers *handlers.VisitedTrackerHandlers
@@ -320,7 +318,6 @@ func (a *Application) initializeComponents() error {
 			counts["profile_execution_state"])
 	}
 
-	a.autoSteerMetricsCollector = autosteer.NewMetricsCollector(a.projectRoot)
 	profilesDir := filepath.Join(a.scenarioRoot, "profiles")
 	profileRepo, err := autosteer.NewFileProfileRepository(profilesDir)
 	if err != nil {
@@ -377,7 +374,6 @@ func (a *Application) initializeComponents() error {
 	a.healthHandlers = handlers.NewHealthHandlers(a.processor, a.taskRecycler, queueDir, a.db, apiVersion)
 	a.settingsHandlers = handlers.NewSettingsHandlers(a.processor, a.wsManager, a.taskRecycler)
 	a.promptsHandlers = handlers.NewPromptsHandlers(a.assembler)
-	a.insightHandlers = handlers.NewInsightHandlers(a.processor, filepath.Dir(a.scenarioRoot))
 	a.visitedTrackerHandlers = handlers.NewVisitedTrackerHandlers(a.projectRoot)
 	a.importanceHandlers = handlers.NewImportanceHandlers(importanceService)
 	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(
@@ -413,7 +409,6 @@ func (a *Application) setupRoutes() http.Handler {
 	a.registerPromptRoutes(api)
 	a.registerQueueRoutes(api)
 	a.registerSettingsRoutes(api)
-	a.registerInsightRoutes(api)
 	a.registerAutoSteerRoutes(api)
 	a.registerSkillsRoutes(api)
 	a.registerVisitedTrackerRoutes(api)
@@ -530,20 +525,6 @@ func (a *Application) registerSettingsRoutes(api *mux.Router) {
 	api.HandleFunc("/settings", a.settingsHandlers.UpdateSettingsHandler).Methods("PUT")
 	api.HandleFunc("/settings/reset", a.settingsHandlers.ResetSettingsHandler).Methods("POST")
 	api.HandleFunc("/settings/recycler/models", a.settingsHandlers.GetRecyclerModelsHandler).Methods("GET")
-}
-
-func (a *Application) registerInsightRoutes(api *mux.Router) {
-	// Task-level insight routes
-	api.HandleFunc("/tasks/{id}/insights", a.insightHandlers.GetTaskInsightsHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/insights/preview", a.insightHandlers.PreviewInsightPromptHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/insights/generate", a.insightHandlers.GenerateInsightReportHandler).Methods("POST")
-	api.HandleFunc("/tasks/{id}/insights/{report_id}", a.insightHandlers.GetInsightReportHandler).Methods("GET")
-	api.HandleFunc("/tasks/{id}/insights/{report_id}/suggestions/{suggestion_id}/status", a.insightHandlers.UpdateSuggestionStatusHandler).Methods("POST")
-	api.HandleFunc("/tasks/{id}/insights/{report_id}/suggestions/{suggestion_id}/apply", a.insightHandlers.ApplySuggestionHandler).Methods("POST")
-
-	// System-level insight routes
-	api.HandleFunc("/insights/system", a.insightHandlers.GetSystemInsightsHandler).Methods("GET")
-	api.HandleFunc("/insights/system/generate", a.insightHandlers.GenerateSystemInsightsHandler).Methods("POST")
 }
 
 func (a *Application) registerAutoSteerRoutes(api *mux.Router) {

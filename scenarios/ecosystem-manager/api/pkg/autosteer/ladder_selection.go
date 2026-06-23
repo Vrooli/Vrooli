@@ -3,37 +3,74 @@ package autosteer
 import (
 	"sort"
 
+	"github.com/ecosystem-manager/api/pkg/completeness"
 	"github.com/ecosystem-manager/api/pkg/findings"
-	"github.com/vrooli/maturity-go/dimensions"
 	"github.com/vrooli/maturity-go/ladder"
 )
 
-// errorSeverityRank is the findingRank value at/above which a finding counts as
-// "error or worse" for the coarse ladder gates (ERROR=3, BLOCKER=4).
-const errorSeverityRank = 3
-
 // newLadderRuntime builds the selector's maturity-ladder context from a profile
-// and the current metrics snapshot. Returns nil when the profile has no enabled
+// and the latest completeness score. Returns nil when the profile has no enabled
 // ladder block (rung governance off).
-func newLadderRuntime(profile *AutoSteerProfile, metrics MetricsSnapshot) *ladderRuntime {
+//
+// Plan D4: the rung is the one completeness-scoring already computed (a single
+// maturity-go ladder evaluation over the cached findings) — EM no longer
+// re-derives it from raw signals. completeness reports the lowest unsatisfied
+// rung across the whole ladder (R0–R4); this caps it at the profile's top rung,
+// so a profile that only pursues, say, R2 treats anything above R2 as "clean to
+// the top — no constraint this loop".
+func newLadderRuntime(profile *AutoSteerProfile, score completeness.Score) *ladderRuntime {
 	if !profile.ladderEnabled() {
 		return nil
 	}
-	th := ladder.DefaultThresholds()
-	if bf := profile.Ladder.BoostFactor; bf > 0 {
-		th.BoostFactor = bf
-	}
-	if dc := profile.Ladder.DimensionMaxCount; dc > 0 {
-		th.DimensionMaxCount = dc
-	}
-	th.StandardsMaxCount = profile.Ladder.StandardsMaxCount
-	th.StructureMaxCount = profile.Ladder.StructureMaxCount
-
-	top := ladder.RungID("")
+	top := ladder.RungR4
 	if r, ok := ladder.ParseRung(profile.Ladder.TopRung); ok {
 		top = r
 	}
-	return &ladderRuntime{metrics: metrics, thresholds: th, topRung: top}
+	boost := profile.Ladder.BoostFactor
+	if boost <= 0 {
+		boost = ladder.DefaultThresholds().BoostFactor
+	}
+	return &ladderRuntime{workingRung: cappedWorkingRung(score, top), boostFactor: boost, topRung: top}
+}
+
+// cappedWorkingRung resolves the rung the controller should work this loop: the
+// lowest unsatisfied rung completeness-scoring reported, capped at topRung.
+// Returns "" when the ladder is clean to the profile's top rung (no constraint).
+func cappedWorkingRung(score completeness.Score, top ladder.RungID) ladder.RungID {
+	if score.LadderClean || score.WorkingRung == "" {
+		return ""
+	}
+	wr, ok := ladder.ParseRung(score.WorkingRung)
+	if !ok {
+		return ""
+	}
+	if rungIndex(wr) > rungIndex(top) {
+		return "" // unsatisfied rung is above the profile's ceiling — clean to top
+	}
+	return wr
+}
+
+// rungIndex returns a rung's position in climb order (R0=0 … R4=4), or -1 if
+// unrecognized. Used to compare a working rung against the profile's top rung.
+func rungIndex(id ladder.RungID) int {
+	for i, r := range ladder.Rungs() {
+		if r.ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// rungByID returns the canonical rung definition (dimensions + hard/soft gate)
+// for an ID, so the selector can apply its governance without re-evaluating the
+// gate predicate.
+func rungByID(id ladder.RungID) (ladder.Rung, bool) {
+	for _, r := range ladder.Rungs() {
+		if r.ID == id {
+			return r, true
+		}
+	}
+	return ladder.Rung{}, false
 }
 
 // WithLadder attaches a maturity-ladder runtime to a Selector (chainable). A nil
@@ -44,43 +81,20 @@ func (s *Selector) WithLadder(rt *ladderRuntime) *Selector {
 	return s
 }
 
-// ladderSignals derives the rung-gate Signals from the controller's findings
-// state, the metrics snapshot, and the profile's operational-targets target.
-func ladderSignals(state findings.FindingsState, metrics MetricsSnapshot, profile *AutoSteerProfile) ladder.Signals {
-	errPlus := make(map[dimensions.Dimension]int)
-	for _, f := range state.Findings {
-		if findingRank(f.Severity) >= errorSeverityRank {
-			errPlus[f.Dimension]++
-		}
-	}
-	sig := ladder.Signals{
-		ErrorPlusByDimension: errPlus,
-		CountByDimension:     state.DimensionCount,
-		BuildPassing:         metrics.BuildStatus == 1,
-		OTPercentage:         metrics.OperationalTargetsPercentage,
-		OTHasTargets:         metrics.OperationalTargetsTotal > 0,
-		OTKnown:              metrics.OperationalTargetsKnown,
-	}
-	if profile != nil {
-		sig.OTTarget = profile.Objective.Targets.OperationalTargetsPct
-	}
-	return sig
-}
-
-// applyRung adjusts the ranked dimensions for the lowest unsatisfied rung: a hard
-// rung restricts selection to that rung's dimensions (falling back to the full
-// set if none are open so the loop never stalls); a soft rung multiplies its
+// applyRung adjusts the ranked dimensions for the rung the controller is working
+// this loop (resolved by completeness-scoring, capped at the profile's top rung):
+// a hard rung restricts selection to that rung's dimensions (falling back to the
+// full set if none are open so the loop never stalls); a soft rung multiplies its
 // dimensions' scores by the boost factor and re-sorts. Returns the (possibly
 // reordered) ranking and the rung label for the trace. When the ladder imposes no
 // constraint this loop it returns the input unchanged and an empty label.
-func (s *Selector) applyRung(ranked []weightedDimension, state findings.FindingsState, profile *AutoSteerProfile) ([]weightedDimension, string) {
-	if s.ladder == nil {
+func (s *Selector) applyRung(ranked []weightedDimension, _ findings.FindingsState, _ *AutoSteerProfile) ([]weightedDimension, string) {
+	if s.ladder == nil || s.ladder.workingRung == "" {
 		return ranked, ""
 	}
-	sig := ladderSignals(state, s.ladder.metrics, profile)
-	rung, ok := ladder.Lowest(sig, s.ladder.thresholds, s.ladder.topRung)
+	rung, ok := rungByID(s.ladder.workingRung)
 	if !ok {
-		return ranked, "" // ladder clean to the top rung — no constraint
+		return ranked, ""
 	}
 	label := string(rung.ID)
 
@@ -103,7 +117,7 @@ func (s *Selector) applyRung(ranked []weightedDimension, state findings.Findings
 	// Soft rung: amplify the rung's dimensions so they dominate, but keep every
 	// dimension eligible so a higher-rung blocker (or a re-opened lower gate) still
 	// surfaces next loop.
-	boost := s.ladder.thresholds.BoostFactor
+	boost := s.ladder.boostFactor
 	if boost <= 0 {
 		boost = ladder.DefaultThresholds().BoostFactor
 	}
@@ -124,13 +138,17 @@ func (s *Selector) applyRung(ranked []weightedDimension, state findings.Findings
 }
 
 // rungsHoldForObjective reports whether every rung up to the profile's top rung
-// is satisfied — the terminator's rung-hold gate. A profile with no ladder always
-// holds (the ladder imposes no extra termination condition).
+// is satisfied — the terminator's rung-hold gate. It reads completeness-scoring's
+// single ladder evaluation (plan D4): the ladder holds to the top rung when
+// either the whole ladder is clean or the lowest unsatisfied rung is above the
+// profile's ceiling. A profile with no ladder always holds.
 func rungsHoldForObjective(state *ProfileExecutionState, profile *AutoSteerProfile) bool {
 	if !profile.ladderEnabled() {
 		return true
 	}
-	rt := newLadderRuntime(profile, state.Metrics)
-	sig := ladderSignals(state.Findings, rt.metrics, profile)
-	return ladder.AllHold(sig, rt.thresholds, rt.topRung)
+	top := ladder.RungR4
+	if r, ok := ladder.ParseRung(profile.Ladder.TopRung); ok {
+		top = r
+	}
+	return cappedWorkingRung(state.Completeness, top) == ""
 }

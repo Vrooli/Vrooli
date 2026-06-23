@@ -42,8 +42,3 @@ type ExecutionHistoryRepository interface {
 
 // Compile-time interface assertion
 var _ ExecutionHistoryRepository = (*HistoryService)(nil)
-
-// MetricsProvider abstracts gap-metric collection for testability.
-type MetricsProvider interface {
-	CollectMetrics(scenarioName string, phaseLoops, totalLoops int) (*MetricsSnapshot, error)
-}

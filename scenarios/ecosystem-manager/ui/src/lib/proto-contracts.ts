@@ -770,13 +770,12 @@ export function parseRunningProcessResponse(raw: unknown): RunningProcess {
   const startTime = firstString(r, ["started_at", "start_time"]) ?? "";
   const startMs = startTime ? new Date(startTime).getTime() : 0;
   const elapsed = numberValue(r.elapsed_seconds) ?? (startMs > 0 ? Math.floor((Date.now() - startMs) / 1000) : 0);
-  const processType = stringValue(r.process_type ?? r.processType);
 
   return {
     task_id: firstString(r, ["task_id", "taskId"]) ?? "",
     task_title: firstString(r, ["task_title", "taskTitle"]) ?? "",
     process_id: firstString(r, ["run_id", "process_id", "runId", "processId", "task_id"]) ?? "",
-    process_type: processType === "insight" ? "insight" : "task",
+    process_type: "task",
     agent_id: firstString(r, ["agent_tag", "agent_id", "agentTag", "agentId"]) ?? "",
     start_time: startTime,
     elapsed_seconds: elapsed,

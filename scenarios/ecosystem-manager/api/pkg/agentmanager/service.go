@@ -20,21 +20,18 @@ import (
 // It wraps the agent-manager client and handles profile management,
 // run execution, and status tracking for ecosystem tasks.
 type AgentService struct {
-	client             *Client
-	taskProfileKey     string
-	insightsProfileKey string
-	taskProfileID      string
-	insightsProfileID  string
-	vrooliRoot         string
-	mu                 sync.RWMutex
+	client         *Client
+	taskProfileKey string
+	taskProfileID  string
+	vrooliRoot     string
+	mu             sync.RWMutex
 }
 
 // Config contains configuration for the agent service.
 type Config struct {
-	TaskProfileKey     string
-	InsightsProfileKey string
-	Timeout            time.Duration
-	VrooliRoot         string
+	TaskProfileKey string
+	Timeout        time.Duration
+	VrooliRoot     string
 }
 
 // NewAgentService creates a new agent service.
@@ -45,10 +42,9 @@ func NewAgentService(cfg Config) *AgentService {
 	}
 	client := NewClient(timeout)
 	return &AgentService{
-		client:             client,
-		taskProfileKey:     cfg.TaskProfileKey,
-		insightsProfileKey: cfg.InsightsProfileKey,
-		vrooliRoot:         cfg.VrooliRoot,
+		client:         client,
+		taskProfileKey: cfg.TaskProfileKey,
+		vrooliRoot:     cfg.VrooliRoot,
 	}
 }
 
@@ -63,10 +59,9 @@ func (s *AgentService) ResolveURL(ctx context.Context) (string, error) {
 	return s.client.ResolveURL(ctx)
 }
 
-// Initialize ensures both task and insights profiles exist.
-// Call this at startup to create/update profiles.
+// Initialize ensures the task profile exists.
+// Call this at startup to create/update the profile.
 func (s *AgentService) Initialize(ctx context.Context) error {
-	// Initialize task profile
 	taskCfg := s.buildTaskProfileConfig()
 	taskResp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
 		ProfileKey:     s.taskProfileKey,
@@ -89,38 +84,14 @@ func (s *AgentService) Initialize(ctx context.Context) error {
 		log.Printf("[agent-manager] Resolved task profile '%s' (id=%s)", s.taskProfileKey, s.taskProfileID)
 	}
 
-	// Initialize insights profile
-	insightsCfg := s.buildInsightsProfileConfig()
-	insightsResp, err := s.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
-		ProfileKey:     s.insightsProfileKey,
-		Defaults:       s.buildProfile(s.insightsProfileKey, "ecosystem-manager-insights", "Agent profile for ecosystem-manager insight generation", insightsCfg),
-		UpdateExisting: false,
-	})
-	if err != nil {
-		return fmt.Errorf("ensure insights profile: %w", err)
-	}
-
-	s.mu.Lock()
-	if insightsResp.Profile != nil {
-		s.insightsProfileID = insightsResp.Profile.Id
-	}
-	s.mu.Unlock()
-
-	if insightsResp.Created {
-		log.Printf("[agent-manager] Created insights profile '%s' (id=%s)", s.insightsProfileKey, s.insightsProfileID)
-	} else {
-		log.Printf("[agent-manager] Resolved insights profile '%s' (id=%s)", s.insightsProfileKey, s.insightsProfileID)
-	}
-
 	return nil
 }
 
-// UpdateProfiles updates both profiles with current settings.
+// UpdateProfiles updates the task profile with current settings.
 // Call this when settings change to propagate new config.
 func (s *AgentService) UpdateProfiles(ctx context.Context) error {
 	s.mu.RLock()
 	taskID := s.taskProfileID
-	insightsID := s.insightsProfileID
 	s.mu.RUnlock()
 
 	if taskID != "" {
@@ -131,16 +102,6 @@ func (s *AgentService) UpdateProfiles(ctx context.Context) error {
 			return fmt.Errorf("update task profile: %w", err)
 		}
 		log.Printf("[agent-manager] Updated task profile '%s'", s.taskProfileKey)
-	}
-
-	if insightsID != "" {
-		insightsCfg := s.buildInsightsProfileConfig()
-		profile := s.buildProfile(s.insightsProfileKey, "ecosystem-manager-insights", "Agent profile for ecosystem-manager insight generation", insightsCfg)
-		profile.Id = insightsID
-		if _, err := s.client.UpdateProfile(ctx, insightsID, profile); err != nil {
-			return fmt.Errorf("update insights profile: %w", err)
-		}
-		log.Printf("[agent-manager] Updated insights profile '%s'", s.insightsProfileKey)
 	}
 
 	return nil
@@ -295,81 +256,6 @@ func (s *AgentService) ExecuteTaskAsync(ctx context.Context, req ExecuteRequest)
 	return run.Id, nil
 }
 
-// InsightRequest contains parameters for insight generation.
-type InsightRequest struct {
-	// Task ID for tracking
-	TaskID string
-	// Prompt to send to the agent
-	Prompt string
-	// Timeout for this execution
-	Timeout time.Duration
-	// Environment carries extra VROOLI_-prefixed env vars injected into the
-	// insight run (same Baseline Modes shadow-routing propagation as
-	// ExecuteRequest.Environment — an insight that analyzes a shadowed scenario
-	// should read the shadow too). Empty/nil ⇒ no extra env.
-	Environment map[string]string
-}
-
-// ExecuteInsight runs an insight generation task.
-func (s *AgentService) ExecuteInsight(ctx context.Context, req InsightRequest) (*ExecuteResult, error) {
-	tag := fmt.Sprintf("insight-%s", req.TaskID)
-
-	// Create task in agent-manager
-	amTask := &domainpb.Task{
-		Title:       fmt.Sprintf("Insight generation for %s", req.TaskID),
-		Description: "Ecosystem insight generation",
-		ScopePath:   s.vrooliRoot,
-		ProjectRoot: s.vrooliRoot,
-		CreatedBy:   "ecosystem-manager",
-	}
-
-	createdTask, err := s.client.CreateTask(ctx, amTask)
-	if err != nil {
-		return nil, fmt.Errorf("create task: %w", err)
-	}
-
-	// Build profile reference for insights
-	profileRef := s.buildInsightsProfileRef()
-
-	// Create run
-	timeout := req.Timeout
-	if timeout == 0 {
-		timeout = 5 * time.Minute
-	}
-
-	runReq := &apipb.CreateRunRequest{
-		TaskId:      createdTask.Id,
-		ProfileRef:  profileRef,
-		Tag:         &tag,
-		RunMode:     domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
-		Force:       true,
-		Prompt:      proto.String(req.Prompt),
-		Environment: req.Environment, // Baseline Modes shadow routing (P1.5 §137)
-		InlineConfig: &domainpb.RunConfigOverrides{
-			Timeout: durationpb.New(timeout),
-			// Insights are read-only analysis — the deliverable is a report
-			// on ecosystem health, not repo changes. ManualReview=true defers
-			// apply at run end so any inadvertent file mutations persist as
-			// pending-review for operator approval rather than auto-applying.
-			// See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
-			SandboxConfig: &domainpb.SandboxConfig{ManualReview: true},
-		},
-	}
-
-	run, err := s.client.CreateRun(ctx, runReq)
-	if err != nil {
-		return nil, fmt.Errorf("create run: %w", err)
-	}
-
-	// Wait for run to complete
-	completedRun, err := s.client.WaitForRun(ctx, run.Id, 2*time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("wait for run: %w", err)
-	}
-
-	return s.buildExecuteResult(completedRun), nil
-}
-
 // GetRunStatus returns the current status of a run.
 func (s *AgentService) GetRunStatus(ctx context.Context, runID string) (*domainpb.Run, error) {
 	return s.client.GetRun(ctx, runID)
@@ -428,17 +314,6 @@ func (s *AgentService) buildTaskProfileConfig() *ProfileConfig {
 	}
 }
 
-func (s *AgentService) buildInsightsProfileConfig() *ProfileConfig {
-	return &ProfileConfig{
-		RunnerType:      s.getRunnerType(),
-		MaxTurns:        20,  // Lower turns for insights
-		TimeoutSeconds:  300, // 5 minutes
-		AllowedTools:    []string{"Read", "Glob", "Grep", "Bash"},
-		SkipPermissions: true,
-		SandboxMode:     domainpb.SandboxMode_SANDBOX_MODE_OFF,
-	}
-}
-
 func (s *AgentService) getRunnerType() domainpb.RunnerType {
 	currentSettings := settings.GetSettings()
 	switch strings.ToLower(currentSettings.RunnerType) {
@@ -474,14 +349,6 @@ func (s *AgentService) buildTaskProfileRef() *apipb.ProfileRef {
 	return &apipb.ProfileRef{
 		ProfileKey: s.taskProfileKey,
 		Defaults:   s.buildProfile(s.taskProfileKey, "ecosystem-manager-tasks", "Agent profile for ecosystem-manager task execution", cfg),
-	}
-}
-
-func (s *AgentService) buildInsightsProfileRef() *apipb.ProfileRef {
-	cfg := s.buildInsightsProfileConfig()
-	return &apipb.ProfileRef{
-		ProfileKey: s.insightsProfileKey,
-		Defaults:   s.buildProfile(s.insightsProfileKey, "ecosystem-manager-insights", "Agent profile for ecosystem-manager insight generation", cfg),
 	}
 }
 

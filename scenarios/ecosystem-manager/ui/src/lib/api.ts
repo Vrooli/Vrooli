@@ -41,11 +41,6 @@ import type {
   DimensionInfo,
   ActiveTarget,
   Campaign,
-  InsightReport,
-  SystemInsightReport,
-  SystemInsightsResponse,
-  GenerateInsightOptions,
-  ApplySuggestionResult,
 } from '../types/api';
 import {
   parseTaskResponse,
@@ -641,104 +636,6 @@ class ApiClient {
   async resetCampaign(campaignId: string): Promise<unknown> {
     return this.fetchJSON<unknown>(`/api/visited-tracker/campaigns/${campaignId}/reset`, {
       method: 'POST',
-    });
-  }
-
-  // ==================== Insights ====================
-
-  async getTaskInsights(taskId: string): Promise<InsightReport[]> {
-    const response = await this.fetchJSON<{ insights: InsightReport[]; count: number }>(
-      `/api/tasks/${taskId}/insights`
-    );
-    return response.insights;
-  }
-
-  async getInsightReport(taskId: string, reportId: string): Promise<InsightReport> {
-    return this.fetchJSON<InsightReport>(`/api/tasks/${taskId}/insights/${reportId}`);
-  }
-
-  async generateInsightReport(
-    taskId: string,
-    options: GenerateInsightOptions = {}
-  ): Promise<unknown> {
-    const params = new URLSearchParams();
-    if (options.limit) params.append('limit', options.limit.toString());
-    if (options.status_filter) params.append('status_filter', options.status_filter);
-    if (options.include_files) params.append('include_files', options.include_files.join(','));
-
-    const queryString = params.toString();
-    const url = `/api/tasks/${taskId}/insights/generate${queryString ? '?' + queryString : ''}`;
-
-    return this.fetchJSON<unknown>(url, {
-      method: 'POST',
-    });
-  }
-
-  async applySuggestion(
-    taskId: string,
-    reportId: string,
-    suggestionId: string
-  ): Promise<ApplySuggestionResult> {
-    return this.fetchJSON<ApplySuggestionResult>(
-      `/api/tasks/${taskId}/insights/${reportId}/suggestions/${suggestionId}/apply`,
-      {
-        method: 'POST',
-      }
-    );
-  }
-
-  async getSystemInsights(sinceDays: number = 7): Promise<SystemInsightsResponse> {
-    const params = new URLSearchParams();
-    params.append('since_days', sinceDays.toString());
-
-    return this.fetchJSON<SystemInsightsResponse>(
-      `/api/insights/system?${params.toString()}`
-    );
-  }
-
-  async generateSystemInsights(sinceDays: number = 7): Promise<SystemInsightReport> {
-    const params = new URLSearchParams();
-    params.append('since_days', sinceDays.toString());
-
-    const response = await this.fetchJSON<{ report: SystemInsightReport }>(
-      `/api/insights/system/generate?${params.toString()}`,
-      {
-        method: 'POST',
-      }
-    );
-    return response.report;
-  }
-
-  async previewInsightPrompt(
-    taskId: string,
-    options: GenerateInsightOptions = {}
-  ): Promise<{ prompt: string; task_id: string; status_filter: string; limit: number; executions: number }> {
-    const params = new URLSearchParams();
-    if (options.limit) params.append('limit', options.limit.toString());
-    if (options.status_filter) params.append('status_filter', options.status_filter);
-    if (options.include_files) params.append('include_files', options.include_files.join(','));
-
-    const queryString = params.toString();
-    const url = `/api/tasks/${taskId}/insights/preview${queryString ? '?' + queryString : ''}`;
-
-    return await this.fetchJSON<{ prompt: string; task_id: string; status_filter: string; limit: number; executions: number }>(url);
-  }
-
-  async generateInsightReportWithPrompt(
-    taskId: string,
-    options: GenerateInsightOptions & { custom_prompt: string }
-  ): Promise<unknown> {
-    const params = new URLSearchParams();
-    if (options.limit) params.append('limit', options.limit.toString());
-    if (options.status_filter) params.append('status_filter', options.status_filter);
-    if (options.include_files) params.append('include_files', options.include_files.join(','));
-
-    const queryString = params.toString();
-    const url = `/api/tasks/${taskId}/insights/generate${queryString ? '?' + queryString : ''}`;
-
-    return this.fetchJSON<unknown>(url, {
-      method: 'POST',
-      body: JSON.stringify({ custom_prompt: options.custom_prompt }),
     });
   }
 

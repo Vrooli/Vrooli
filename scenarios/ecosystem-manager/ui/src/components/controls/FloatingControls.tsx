@@ -9,7 +9,7 @@ import { NewTaskButton } from './NewTaskButton';
 import type { Task } from '@/types/api';
 
 interface FloatingControlsProps {
-  onSelectTask?: (task: Task, tab?: 'details' | 'prompt' | 'executions' | 'insights' | 'campaigns') => void;
+  onSelectTask?: (task: Task, tab?: 'details' | 'prompt' | 'executions' | 'campaigns') => void;
 }
 
 export function FloatingControls({ onSelectTask }: FloatingControlsProps) {

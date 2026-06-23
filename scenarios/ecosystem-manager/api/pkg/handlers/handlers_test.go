@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
-	"github.com/ecosystem-manager/api/pkg/insights"
 	"github.com/ecosystem-manager/api/pkg/internal/testdb"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
@@ -232,43 +231,6 @@ func (f *fakeProcessor) LoadAllExecutionHistory() ([]queue.ExecutionHistory, err
 
 func (f *fakeProcessor) GetExecutionFilePath(taskID, executionID, filename string) string {
 	return ""
-}
-
-// Insight-related methods
-func (f *fakeProcessor) LoadInsightReports(taskID string) ([]insights.InsightReport, error) {
-	return nil, nil
-}
-
-func (f *fakeProcessor) LoadInsightReport(taskID, reportID string) (*insights.InsightReport, error) {
-	return nil, nil
-}
-
-func (f *fakeProcessor) SaveInsightReport(report insights.InsightReport) error {
-	return nil
-}
-
-func (f *fakeProcessor) UpdateSuggestionStatus(taskID, reportID, suggestionID, status string) error {
-	return nil
-}
-
-func (f *fakeProcessor) LoadAllInsightReports(sinceTime time.Time) ([]insights.InsightReport, error) {
-	return nil, nil
-}
-
-func (f *fakeProcessor) BuildInsightPrompt(taskID string, limit int, statusFilter string) (string, error) {
-	return "", nil
-}
-
-func (f *fakeProcessor) GenerateInsightReportForTask(taskID string, limit int, statusFilter string) (*insights.InsightReport, error) {
-	return nil, nil
-}
-
-func (f *fakeProcessor) GenerateInsightReportWithCustomPrompt(taskID string, limit int, statusFilter string, customPrompt string) (*insights.InsightReport, error) {
-	return nil, nil
-}
-
-func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*insights.SystemInsightReport, error) {
-	return nil, nil
 }
 
 // Verify fakeProcessor implements ProcessorAPI

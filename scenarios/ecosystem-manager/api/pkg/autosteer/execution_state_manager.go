@@ -74,8 +74,8 @@ func (m *ExecutionStateManager) Get(taskID string) (*ProfileExecutionState, erro
 		}
 	}
 	if !isNullJSON(metricsJSON) {
-		if err := json.Unmarshal(metricsJSON, &state.Metrics); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal metrics: %w", err)
+		if err := json.Unmarshal(metricsJSON, &state.Completeness); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal completeness score: %w", err)
 		}
 	}
 
@@ -96,9 +96,9 @@ func (m *ExecutionStateManager) Save(state *ProfileExecutionState) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal trace: %w", err)
 	}
-	metricsJSON, err := json.Marshal(state.Metrics)
+	metricsJSON, err := json.Marshal(state.Completeness)
 	if err != nil {
-		return fmt.Errorf("failed to marshal metrics: %w", err)
+		return fmt.Errorf("failed to marshal completeness score: %w", err)
 	}
 
 	state.LastUpdated = time.Now()
@@ -169,10 +169,6 @@ func (m *ExecutionStateManager) InitializeState(taskID, profileID string) *Profi
 func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, scenarioName string) error {
 	breakdown := skillBreakdownFromTrace(state.Trace)
 
-	metricsJSON, err := json.Marshal(state.Metrics)
-	if err != nil {
-		return fmt.Errorf("failed to marshal metrics: %w", err)
-	}
 	breakdownJSON, err := json.Marshal(breakdown)
 	if err != nil {
 		return fmt.Errorf("failed to marshal skill breakdown: %w", err)
@@ -182,21 +178,19 @@ func (m *ExecutionStateManager) FinalizeExecution(state *ProfileExecutionState, 
 
 	query := `
 		INSERT INTO profile_executions (
-			id, profile_id, task_id, scenario_name, start_metrics, end_metrics,
+			id, profile_id, task_id, scenario_name,
 			phase_breakdown, total_iterations, total_duration_ms, executed_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	// SQLite has no gen_random_uuid() default; the id is app-generated. Gap
-	// metrics are not the primary state; start and end carry the latest
-	// snapshot for analytics continuity.
+	// SQLite has no gen_random_uuid() default; the id is app-generated. The
+	// start/end gap-metric snapshots were trend analytics owned now by
+	// scenario-completeness-scoring's score trend — EM no longer persists them.
 	if _, err := m.db.Exec(query,
 		uuid.NewString(),
 		state.ProfileID,
 		state.TaskID,
 		scenarioName,
-		metricsJSON,
-		metricsJSON,
 		breakdownJSON,
 		state.Iteration,
 		totalDuration,

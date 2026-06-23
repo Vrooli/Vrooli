@@ -1,11 +1,14 @@
 package autosteer
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/ecosystem-manager/api/pkg/completeness"
 )
 
 // MockProfileRepository is an in-memory implementation of ProfileRepository for testing.
@@ -247,67 +250,55 @@ func (r *MockExecutionStateRepository) Reset() {
 	r.FinalizedTasks = nil
 }
 
-// MockMetricsProvider is a mock implementation of MetricsProvider for testing.
-type MockMetricsProvider struct {
-	// Metrics to return
-	Metrics *MetricsSnapshot
+// MockCompletenessProvider is a mock implementation of completeness.Provider for
+// testing the controller's delegated-measurement path.
+type MockCompletenessProvider struct {
+	// Result is the score returned on a successful fetch.
+	Result completeness.Score
 
-	// Error to return
-	Error error
+	// Err, when set, is returned instead of Result (exercises the D2 loud-degrade
+	// path).
+	Err error
 
 	// Call tracking
-	mu             sync.Mutex
-	CallCount      int
-	LastScenario   string
-	LastPhaseLoops int
-	LastTotalLoops int
+	mu           sync.Mutex
+	CallCount    int
+	LastScenario string
 }
 
 // Compile-time interface assertion
-var _ MetricsProvider = (*MockMetricsProvider)(nil)
+var _ completeness.Provider = (*MockCompletenessProvider)(nil)
 
-// NewMockMetricsProvider creates a new mock metrics provider.
-func NewMockMetricsProvider() *MockMetricsProvider {
-	return &MockMetricsProvider{
-		Metrics: &MetricsSnapshot{
-			OperationalTargetsPercentage: 50.0,
-			TotalLoops:                   0,
-			PhaseLoops:                   0,
-			BuildStatus:                  1, // 1 = passing
-		},
+// NewMockCompletenessProvider creates a mock that returns a healthy default
+// score (build passing, operational-targets signal collected). Tests override
+// Result/Err for specific cases.
+func NewMockCompletenessProvider() *MockCompletenessProvider {
+	return &MockCompletenessProvider{
+		Result: completeness.Score{BuildPassing: true, OTKnown: true},
 	}
 }
 
-// CollectMetrics returns the configured mock metrics.
-func (m *MockMetricsProvider) CollectMetrics(scenarioName string, phaseLoops, totalLoops int) (*MetricsSnapshot, error) {
+// Score returns the configured mock score (or Err).
+func (m *MockCompletenessProvider) Score(_ context.Context, scenario string) (completeness.Score, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.CallCount++
-	m.LastScenario = scenarioName
-	m.LastPhaseLoops = phaseLoops
-	m.LastTotalLoops = totalLoops
+	m.LastScenario = scenario
 
-	if m.Error != nil {
-		return nil, m.Error
+	if m.Err != nil {
+		return completeness.Score{}, m.Err
 	}
-
-	metrics := *m.Metrics
-	metrics.PhaseLoops = phaseLoops
-	metrics.TotalLoops = totalLoops
-
-	return &metrics, nil
+	return m.Result, nil
 }
 
 // Reset clears call tracking and error state.
-func (m *MockMetricsProvider) Reset() {
+func (m *MockCompletenessProvider) Reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.CallCount = 0
-	m.Error = nil
+	m.Err = nil
 	m.LastScenario = ""
-	m.LastPhaseLoops = 0
-	m.LastTotalLoops = 0
 }
 
 // MockPromptEnhancerAPI is a mock implementation of PromptEnhancerAPI for testing.

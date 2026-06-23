@@ -133,12 +133,14 @@ type Selector struct {
 	ladder *ladderRuntime
 }
 
-// ladderRuntime holds the per-selection maturity-ladder context: the metrics
-// snapshot the gates read, the resolved thresholds, and the profile's top rung.
+// ladderRuntime holds the per-selection maturity-ladder context: the rung the
+// controller works this loop (resolved by completeness-scoring and capped at the
+// profile's top rung — plan D4), the soft-boost factor, and the profile's top
+// rung. An empty workingRung means the ladder imposes no constraint this loop.
 type ladderRuntime struct {
-	metrics    MetricsSnapshot
-	thresholds ladder.Thresholds
-	topRung    ladder.RungID
+	workingRung ladder.RungID
+	boostFactor float64
+	topRung     ladder.RungID
 }
 
 // NewSelector creates a pure-greedy Selector (no effectiveness weighting, no
