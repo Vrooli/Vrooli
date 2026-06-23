@@ -83,6 +83,8 @@ vi.mock("../stores/useWorkspaceStore", () => {
     kokoroSpeed: 1,
     ttsBackendPreference: "auto" as const,
     autoTtsEnabled: false,
+    setPendingInputDraft: vi.fn(),
+    consumePendingInputDraft: vi.fn(() => undefined),
   };
   return {
     useWorkspaceStore: (selector?: (s: typeof store) => unknown) =>

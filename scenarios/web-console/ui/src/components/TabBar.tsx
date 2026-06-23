@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
@@ -9,8 +9,32 @@ import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import TabContextMenu from "./TabContextMenu";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
-import { useConversationStore } from "../stores/useConversationStore";
+import { getSessionUnreadCount, useConversationStore } from "../stores/useConversationStore";
 import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
+
+/**
+ * Per-tab unread badge. Subscribes to ONLY its own session's unread count
+ * (a primitive), so a new message re-renders just this badge — never the
+ * whole tab strip or sibling tabs. This is the isolation the multi-session
+ * performance overhaul depends on (Layer 0.1).
+ */
+const TabUnreadBadge = memo(function TabUnreadBadge({
+  sessionId,
+  supportsMessagesView,
+}: {
+  sessionId: string;
+  supportsMessagesView: boolean;
+}) {
+  const unreadCount = useConversationStore((state) =>
+    supportsMessagesView ? getSessionUnreadCount(state, sessionId) : 0,
+  );
+  if (unreadCount <= 0) return null;
+  return (
+    <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+      {unreadCount}
+    </span>
+  );
+});
 
 interface TabBarProps {
   panes: PaneMetadata[];
@@ -23,7 +47,7 @@ interface TabBarProps {
   trailingActions?: React.ReactNode;
 }
 
-export default function TabBar({
+function TabBar({
   panes,
   activePane,
   onNewTerminal,
@@ -44,8 +68,6 @@ export default function TabBar({
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const addGroup = useWorkspaceStore((s) => s.addGroup);
   const updateGroup = useWorkspaceStore((s) => s.updateGroup);
-  const conversationSessions = useConversationStore((s) => s.sessions);
-  const viewModes = useConversationStore((s) => s.viewModes);
   const { syncPaneOrder, syncActivePane, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
 
   // Inline rename state for tabs
@@ -235,12 +257,13 @@ export default function TabBar({
   const isDragging = dragState !== null;
 
   const groupMap = new Map(groups.map((g) => [g.id, g]));
+  // Unread badges are rendered per-tab via <TabUnreadBadge> so a new message
+  // re-renders only the affected badge — not the whole strip. So the strip
+  // structure is built without conversation data here.
   const renderItems = buildWorkspaceNavigationItems({
     panes,
     groups,
     activePane,
-    conversationSessions,
-    viewModes,
   });
 
   return (
@@ -297,7 +320,7 @@ export default function TabBar({
             );
           }
 
-          const { pane, globalIndex: idx, unreadCount } = item;
+          const { pane, globalIndex: idx } = item;
           const isActive = item.isActive;
           const isBeingDragged = dragState?.paneId === pane.sessionId;
           const isDropTarget =
@@ -408,11 +431,7 @@ export default function TabBar({
                 <span className="truncate max-w-[120px]">{pane.name}</span>
               )}
 
-              {unreadCount > 0 && (
-                <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
-                  {unreadCount}
-                </span>
-              )}
+              <TabUnreadBadge sessionId={pane.sessionId} supportsMessagesView={pane.supportsMessagesView} />
 
               {/* Close button - visible on hover or when active */}
               <button
@@ -504,3 +523,9 @@ export default function TabBar({
     </div>
   );
 }
+
+// Memoized so a Workspace re-render (e.g. a conversation event landing in the
+// store) does NOT re-render the whole tab strip. Unread badges update through
+// their own per-tab subscriptions; everything else here is driven by the
+// workspace store / props. Requires the call site to pass stable props.
+export default memo(TabBar);

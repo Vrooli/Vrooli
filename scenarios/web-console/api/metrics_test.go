@@ -3,15 +3,14 @@ package main
 import (
 	"context"
 	"testing"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
 
 	"connectrpc.com/connect"
 
 	metricsH "web-console/handlers/metrics"
 
 	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics"
-
-	"web-console/internal/events"
-	"web-console/internal/metrics"
 )
 
 // [REQ:P1-004b] Operational Metrics Collection - metrics tests

@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/ptyfake"
 
 	intai "web-console/internal/ai"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"web-console/internal/events"
-	"web-console/internal/metrics"
-	"web-console/internal/ptyfake"
 	intsessions "web-console/internal/sessions"
 	intworkspace "web-console/internal/workspace"
 )

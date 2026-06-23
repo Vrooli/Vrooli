@@ -27,6 +27,11 @@ import type { TTSPlaybackState } from "../audio-integration";
 const EMPTY_CONVERSATION_EVENTS: ConversationEvent[] = [];
 const EMPTY_CONVERSATION_CURSOR = { lastSeenSequence: 0, lastListenedSequence: 0 } as const;
 
+// Max age of an assistant event that may still trigger auto-TTS. Live events
+// arrive within milliseconds; this excludes a backlog replayed by the global
+// SSE channel after a reconnect from being read aloud all at once.
+const AUTO_TTS_MAX_AGE_MS = 60_000;
+
 /**
  * Backend synthesis limit in **bytes** (UTF-8). The Go backend checks
  * `len(req.Input)` which is byte length, so we must measure the same way.
@@ -93,12 +98,6 @@ interface TerminalPaneProps {
   onTtsSpeakingChange?: (speaking: boolean) => void;
   /** Called when the currently-speaking conversation event changes (for summarize controls). */
   onSpeakingEventChange?: (eventId: string | null) => void;
-  /**
-   * Called when an auto-summarize attempt for an assistant event fails.
-   * Consumers use this to surface a persistent banner. The error message is
-   * produced by the backend; eventId identifies the affected event.
-   */
-  onSummarizeError?: (eventId: string, message: string) => void;
   onConversationEventReceived?: (
     sessionId: string,
     event: ConversationEvent,
@@ -160,7 +159,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onSummarizeError, onNeedsUnlock, onConversationEventReceived }, ref) {
+  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived }, ref) {
     const { t } = useTranslation();
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
@@ -225,60 +224,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [ttsSpeaking]);
 
     const activePane = useWorkspaceStore((s) => s.activePane);
-    const { appendConversationEvent, persistCursor } = useConversationSession(sessionId);
-    const updateEvent = useConversationStore((state) => state.updateEvent);
+    const { persistCursor } = useConversationSession(sessionId);
     const conversationSession = useConversationStore((state) => state.sessions[sessionId]);
     const conversationEvents = conversationSession?.events ?? EMPTY_CONVERSATION_EVENTS;
     const conversationCursor = conversationSession?.cursor ?? EMPTY_CONVERSATION_CURSOR;
-
-    const handleConversationEvent = useCallback(async (
-      event: { id: string; source: string; role: "assistant" | "user"; text: string; speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean; createdAt?: string; sequence: number },
-      sendAck: (stage: string, message?: string, backend?: string) => void,
-    ) => {
-      const conversationEvent = {
-        id: event.id,
-        sessionId,
-        source: event.source,
-        role: event.role,
-        text: event.text,
-        speechParagraphs: event.speechParagraphs ?? [event.text],
-        originalSpeechParagraphs: event.originalSpeechParagraphs,
-        summarized: event.summarized ?? false,
-        createdAt: event.createdAt ?? new Date().toISOString(),
-        sequence: event.sequence,
-        deliveryState: "received",
-        ttsState: "idle",
-        consumptionState: "unseen",
-      } satisfies ConversationEvent;
-      appendConversationEvent(conversationEvent);
-      sendAck("received");
-      const isActivePane = activePane === sessionId;
-      if (isActivePane) {
-        void persistCursor({ lastSeenSequence: event.sequence });
-        sendAck("seen");
-      }
-      if (event.role !== "assistant") {
-        return;
-      }
-      if (!ttsSupported) {
-        sendAck("rejected", "No TTS backend is available in this tab");
-        return;
-      }
-      onConversationEventReceived?.(sessionId, conversationEvent, sendAck);
-    }, [activePane, appendConversationEvent, onConversationEventReceived, persistCursor, sessionId, ttsSupported]);
-
-    const handleConversationEventUpdate = useCallback((eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean; summarizeError?: string }) => {
-      if (patch.summarizeError) {
-        onSummarizeError?.(eventId, patch.summarizeError);
-      }
-      const storePatch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean } = {};
-      if (patch.speechParagraphs !== undefined) storePatch.speechParagraphs = patch.speechParagraphs;
-      if (patch.originalSpeechParagraphs !== undefined) storePatch.originalSpeechParagraphs = patch.originalSpeechParagraphs;
-      if (patch.summarized !== undefined) storePatch.summarized = patch.summarized;
-      if (Object.keys(storePatch).length > 0) {
-        updateEvent(sessionId, eventId, storePatch);
-      }
-    }, [sessionId, updateEvent, onSummarizeError]);
+    const conversationHydrated = conversationSession?.hydrated ?? false;
 
     useEffect(() => {
       if (activePane !== sessionId) return;
@@ -306,7 +256,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [needsUnlock, sessionId, unlockAudio]);
 
     // Delegate all WebSocket protocol handling to the session hook
-    const { submitInput, sendResize, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot } = useTerminalSession({
+    const { submitInput, sendResize, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot, sendConversationAck } = useTerminalSession({
       sessionId,
       terminal,
       onExit,
@@ -324,9 +274,69 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         });
         onReady?.();
       },
-      onConversationEvent: handleConversationEvent,
-      onConversationEventUpdate: handleConversationEventUpdate,
     });
+
+    // Auto-TTS is now driven from the conversation store rather than the
+    // terminal WS (conversation events arrive via the global SSE channel).
+    // We hold a per-session baseline at the tail seen when the session first
+    // hydrates so pre-existing history never auto-plays; only assistant events
+    // that land AFTER the baseline, while THIS pane is active, trigger playback.
+    // A recency gate prevents an SSE reconnect from auto-reading a backlog of
+    // missed messages. Playback telemetry acks still go over this pane's WS.
+    const autoTtsBaselineRef = useRef<number | null>(null);
+    useEffect(() => {
+      if (!conversationHydrated) return;
+      const maxSeq = conversationEvents.length > 0
+        ? (conversationEvents[conversationEvents.length - 1]?.sequence ?? 0)
+        : 0;
+      const baseline = autoTtsBaselineRef.current;
+      // First hydrate, or this pane isn't the active one: just advance the
+      // baseline so nothing pre-existing (or arriving in the background)
+      // auto-plays — and switching to this pane later won't replay it.
+      if (baseline === null || activePane !== sessionId) {
+        autoTtsBaselineRef.current = maxSeq;
+        return;
+      }
+      if (maxSeq <= baseline) return;
+      autoTtsBaselineRef.current = maxSeq;
+      if (!ttsSupported || !onConversationEventReceived) return;
+      // Auto-play only the newest fresh assistant event; the controller's own
+      // !isSpeaking gate handles the rest of any burst.
+      let latest: ConversationEvent | undefined;
+      for (let i = conversationEvents.length - 1; i >= 0; i--) {
+        const candidate = conversationEvents[i];
+        if (!candidate || candidate.sequence <= baseline) break;
+        if (candidate.role === "assistant") { latest = candidate; break; }
+      }
+      if (!latest) return;
+      const ageMs = Date.now() - new Date(latest.createdAt).getTime();
+      if (Number.isFinite(ageMs) && ageMs > AUTO_TTS_MAX_AGE_MS) return;
+      const event = latest;
+      onConversationEventReceived(sessionId, event, (stage, message, backend) =>
+        sendConversationAck(event.id, event.source, stage, message, backend),
+      );
+    }, [conversationHydrated, conversationEvents, activePane, sessionId, ttsSupported, onConversationEventReceived, sendConversationAck]);
+
+    // Pending-input draft round-trip. Offscreen terminals are unmounted to keep
+    // cost flat in N; without this, anything typed-but-not-yet-sent would be
+    // lost when the pane unmounts. On unmount we stash the unsent input; on the
+    // next mount we re-inject it (the gate queues it until the WS is ready).
+    const setPendingInputDraft = useWorkspaceStore((s) => s.setPendingInputDraft);
+    const consumePendingInputDraft = useWorkspaceStore((s) => s.consumePendingInputDraft);
+    const getPendingInputSnapshotRef = useRef(getPendingInputSnapshot);
+    getPendingInputSnapshotRef.current = getPendingInputSnapshot;
+    const submitInputRef = useRef(submitInput);
+    submitInputRef.current = submitInput;
+    useEffect(() => {
+      const draft = consumePendingInputDraft(sessionId);
+      if (draft) submitInputRef.current(draft, "toolbar-submit");
+      return () => {
+        const text = getPendingInputSnapshotRef.current()
+          .map((entry) => entry.data)
+          .join("");
+        if (text) setPendingInputDraft(sessionId, text);
+      };
+    }, [sessionId, consumePendingInputDraft, setPendingInputDraft]);
 
     // Expose submitInput + focus for parent components (mobile toolbar, launcher shortcuts)
     useImperativeHandle(ref, () => ({

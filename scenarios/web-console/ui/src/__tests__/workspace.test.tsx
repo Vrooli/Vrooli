@@ -463,7 +463,9 @@ describe("Workspace", () => {
     expect(screen.queryByTestId("tab-bar")).toBeNull();
     expect(screen.queryByTestId("pane-grid")).toBeNull();
     expect(screen.getByTestId(`tab-pane-${mockSession.id}`)).toBeTruthy();
-    expect(screen.getByTestId(`tab-pane-${session2.id}`)).toBeTruthy();
+    // Offscreen panes are now UNMOUNTED (warm-set scaling fix), not just hidden,
+    // so the inactive, non-warm pane is absent from the DOM.
+    expect(screen.queryByTestId(`tab-pane-${session2.id}`)).toBeNull();
   });
 
   it("opens and closes the mobile sidebar drawer", () => {

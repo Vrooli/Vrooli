@@ -6,10 +6,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"web-console/session"
-
 	"web-console/internal/events"
+	"web-console/session"
 
 	"github.com/gorilla/websocket"
 )
@@ -43,19 +41,11 @@ const (
 	// uses this to batch-render history in a single write, avoiding the
 	// visible "fast-forward replay" effect on page load/refresh.
 	MsgTypeHistoryEnd = "history_end"
-	// MsgTypeConversationEvent carries a semantic assistant event for the
-	// owning session.
-	MsgTypeConversationEvent = "conversation_event"
 	// MsgTypeConversationAck records browser-side delivery/playback progress.
+	// This is a client→server INPUT message (playback telemetry); the terminal
+	// WS keeps it even though conversation events themselves now stream over
+	// the global SSE channel (/api/v1/events/stream), not this socket.
 	MsgTypeConversationAck = "conversation_event_ack"
-	// MsgTypeConversationEventUpdate delivers async updates (e.g. summarization)
-	// for an already-delivered conversation event.
-	MsgTypeConversationEventUpdate = "conversation_event_update"
-	// MsgTypeConversationOutOfSync signals the client that at least one
-	// conversation event was dropped server-side (per-subscriber channel
-	// full). The client refetches via GET /conversation?since_sequence=N to
-	// close the gap.
-	MsgTypeConversationOutOfSync = "conversation_out_of_sync"
 	// MsgTypeSessionReady is emitted exactly once per WS connection after the
 	// PTY is confirmed to accept writes (ProbeReady). Until the client sees
 	// this, stdin must stay in the pending queue.
@@ -179,18 +169,6 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// reconnect boundaries on their stdin-ack write barrier.
 	wsGen := s.nextWSGen.Add(1)
 
-	// Subscribe to conversation side-channel for semantic assistant events.
-	fanout := s.fanouts.Get(sess.ID)
-	var (
-		conversationCh       chan ConversationEvent
-		conversationResyncCh <-chan struct{}
-	)
-	if fanout != nil {
-		conversationCh = fanout.Subscribe()
-		defer fanout.Unsubscribe(conversationCh)
-		conversationResyncCh = fanout.ResyncSignal(conversationCh)
-	}
-
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).
 	var writeMu sync.Mutex
@@ -279,36 +257,6 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				})
 				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)
-			case event, ok := <-conversationCh:
-				if !ok {
-					continue
-				}
-				msgType := MsgTypeConversationEvent
-				if event.IsUpdate {
-					msgType = MsgTypeConversationEventUpdate
-				}
-				writeMu.Lock()
-				_ = conn.WriteJSON(TerminalMessage{
-					Type:                     msgType,
-					Data:                     event.Text,
-					EventID:                  event.ID,
-					Source:                   event.Source,
-					Role:                     string(event.Role),
-					CreatedAt:                event.CreatedAt.UTC().Format(time.RFC3339),
-					Sequence:                 event.Sequence,
-					SpeechParagraphs:         event.SpeechParagraphs,
-					OriginalSpeechParagraphs: event.OriginalSpeechParagraphs,
-					Summarized:               event.Summarized,
-					SummarizeError:           event.SummarizeError,
-				})
-				writeMu.Unlock()
-			case <-conversationResyncCh:
-				// A prior SendConversation drop left this client out of
-				// sync. Tell the client so it refetches the gap via
-				// GET /conversation?since_sequence=N.
-				writeMu.Lock()
-				_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeConversationOutOfSync})
-				writeMu.Unlock()
 			case <-ctx.Done():
 				// Input loop exited (WS disconnect) — stop forwarding.
 				return

@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-
-	settingsH "web-console/handlers/settings"
 	"web-console/internal/backend"
 	"web-console/internal/config"
 	"web-console/internal/policy"
+
+	settingsH "web-console/handlers/settings"
 )
 
 // settingsAdapter satisfies handlers/settings.Service by translating

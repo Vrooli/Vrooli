@@ -3,10 +3,10 @@ package main
 import (
 	"strings"
 	"testing"
-
-	aiH "web-console/handlers/ai"
 	"web-console/internal/config"
 	"web-console/internal/policy"
+
+	aiH "web-console/handlers/ai"
 )
 
 // Tests for extracted decision helpers and boundary conditions.

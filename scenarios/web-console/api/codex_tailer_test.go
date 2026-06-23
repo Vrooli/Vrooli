@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+	"web-console/backends/codex"
+	"web-console/internal/ptyfake"
+	"web-console/session"
 
 	"github.com/gorilla/mux"
 
-	"web-console/backends/codex"
 	intevents "web-console/internal/events"
 	intmetrics "web-console/internal/metrics"
-	"web-console/internal/ptyfake"
-	"web-console/session"
 )
 
 func splitLines(data []byte) [][]byte {
@@ -70,7 +70,7 @@ func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 		},
 		summarizeAutoPolicy: defaultSummarizeAutoPolicy(),
 	}
-	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
+	srv.hub = NewConversationHub()
 
 	sess, err := sm.Create("", 80, 24, "", nil)
 	if err != nil {
@@ -143,9 +143,8 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 
-	fanout := srv.fanouts.Get(sess.ID)
-	eventCh := fanout.Subscribe()
-	defer fanout.Unsubscribe(eventCh)
+	sub, _, _ := srv.hub.Subscribe(0)
+	defer srv.hub.Unsubscribe(sub)
 
 	ct := NewCodexTailer(srv)
 	ct.staleTimeout = 2 * time.Second
@@ -174,12 +173,16 @@ func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	}
 
 	select {
-	case event := <-eventCh:
-		if event.Text != "Hello from the tailer" {
-			t.Fatalf("expected routed text, got %q", event.Text)
+	case env := <-sub.events:
+		if env.SessionID != sess.ID {
+			t.Fatalf("expected session %s, got %s", sess.ID, env.SessionID)
 		}
-		if event.SessionID != sess.ID {
-			t.Fatalf("expected session %s, got %s", sess.ID, event.SessionID)
+		payload, ok := env.Payload.(conversationEventPayload)
+		if !ok {
+			t.Fatalf("expected conversationEventPayload, got %T", env.Payload)
+		}
+		if payload.Text != "Hello from the tailer" {
+			t.Fatalf("expected routed text, got %q", payload.Text)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for conversation event from CodexTailer")

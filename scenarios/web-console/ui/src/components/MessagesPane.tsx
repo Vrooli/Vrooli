@@ -109,6 +109,16 @@ function writeScrollSnapshot(sessionId: string, snapshot: ScrollSnapshot): void 
 // MessagesPane
 // ---------------------------------------------------------------------------
 
+// The subset of TTSPlaybackState a message row's audio-settings popover needs.
+// We deliberately exclude the high-frequency fields (currentTime/duration/
+// isPaused) that the player polls at ~10 Hz during playback — including them
+// would re-render every visible row on each poll. The parent memoizes this
+// object so its identity is stable until one of these four values changes.
+type MessageAudioSettings = Pick<
+  TTSPlaybackState,
+  "volume" | "isMuted" | "playbackRate" | "capabilities"
+>;
+
 interface MessageRowProps {
   event: ConversationEvent;
   index: number;
@@ -128,7 +138,7 @@ interface MessageRowProps {
   onClearSummarizeError: (eventId: string) => void;
   onToggleSummarized: (eventId: string, useSummarized: boolean) => void;
   onChangeLevel: (eventId: string, level: SummarizationLevel) => void;
-  playbackState: TTSPlaybackState;
+  audioSettings: MessageAudioSettings;
   onSetPlaybackRate: (rate: number) => void;
   onSetVolume: (level: number) => void;
   onSetMuted: (next: boolean) => void;
@@ -161,7 +171,7 @@ const MessageRow = memo(function MessageRow({
   onClearSummarizeError,
   onToggleSummarized,
   onChangeLevel,
-  playbackState,
+  audioSettings,
   onSetPlaybackRate,
   onSetVolume,
   onSetMuted,
@@ -300,11 +310,11 @@ const MessageRow = memo(function MessageRow({
                     <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">{t(strings.messagesPane.audioSettingsHeading)}</h3>
                     <AudioSettingsContent
                       testIdPrefix={`msg-${event.id}`}
-                      volume={playbackState.volume}
-                      isMuted={playbackState.isMuted}
-                      playbackRate={playbackState.playbackRate}
+                      volume={audioSettings.volume}
+                      isMuted={audioSettings.isMuted}
+                      playbackRate={audioSettings.playbackRate}
                       isSummarized={useSummarized && hasSummary}
-                      capabilities={playbackState.capabilities}
+                      capabilities={audioSettings.capabilities}
                       onVolumeChange={onSetVolume}
                       onSetMuted={onSetMuted}
                       onSetPlaybackRate={onSetPlaybackRate}
@@ -344,11 +354,11 @@ const MessageRow = memo(function MessageRow({
                   >
                     <AudioSettingsContent
                       testIdPrefix={`msg-${event.id}`}
-                      volume={playbackState.volume}
-                      isMuted={playbackState.isMuted}
-                      playbackRate={playbackState.playbackRate}
+                      volume={audioSettings.volume}
+                      isMuted={audioSettings.isMuted}
+                      playbackRate={audioSettings.playbackRate}
                       isSummarized={useSummarized && hasSummary}
-                      capabilities={playbackState.capabilities}
+                      capabilities={audioSettings.capabilities}
                       onVolumeChange={onSetVolume}
                       onSetMuted={onSetMuted}
                       onSetPlaybackRate={onSetPlaybackRate}
@@ -424,7 +434,7 @@ const MessageRow = memo(function MessageRow({
   prevProps.loadingEventId === nextProps.loadingEventId &&
   prevProps.summarizeLevel === nextProps.summarizeLevel &&
   prevProps.summarizingEventId === nextProps.summarizingEventId &&
-  prevProps.playbackState === nextProps.playbackState &&
+  prevProps.audioSettings === nextProps.audioSettings &&
   prevProps.isMobile === nextProps.isMobile &&
   prevProps.isFocused === nextProps.isFocused &&
   prevProps.isSearchFocused === nextProps.isSearchFocused &&
@@ -457,6 +467,19 @@ export default function MessagesPane({
   const { t } = useTranslation();
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
   const isMobile = useMediaQuery("(max-width: 767px)");
+
+  // Stable subset of playbackState for the per-message audio popover. Keeping
+  // its identity stable across the player's ~10 Hz time polls is what stops
+  // every visible row from re-rendering during TTS playback.
+  const audioSettings = useMemo<MessageAudioSettings>(
+    () => ({
+      volume: playbackState.volume,
+      isMuted: playbackState.isMuted,
+      playbackRate: playbackState.playbackRate,
+      capabilities: playbackState.capabilities,
+    }),
+    [playbackState.volume, playbackState.isMuted, playbackState.playbackRate, playbackState.capabilities],
+  );
   const fontSize = useWorkspaceStore(
     useCallback((s) => s.panes.find((p) => p.sessionId === sessionId)?.fontSize ?? TERMINAL_FONT_SIZE, [sessionId]),
   );
@@ -949,7 +972,7 @@ export default function MessagesPane({
                     onClearSummarizeError={onClearSummarizeError}
                     onToggleSummarized={onToggleSummarized}
                     onChangeLevel={onChangeLevel}
-                    playbackState={playbackState}
+                    audioSettings={audioSettings}
                     onSetPlaybackRate={onSetPlaybackRate}
                     onSetVolume={onSetVolume}
                     onSetMuted={onSetMuted}

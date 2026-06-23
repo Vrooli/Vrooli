@@ -207,14 +207,7 @@ func (s *Server) handleTTSHookAck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ack requires source + stage", http.StatusBadRequest)
 		return
 	}
-	s.recordTTSAck(TTSClientAck{
-		EventID:   ack.EventID,
-		Source:    ack.Source,
-		SessionID: ack.SessionID,
-		Stage:     ack.Stage,
-		Backend:   ack.Backend,
-		Message:   ack.Message,
-	})
+	s.recordTTSAck(TTSClientAck(ack))
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -232,13 +225,7 @@ func (s *Server) handleTTSHookPlayback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "playback event requires source + stage", http.StatusBadRequest)
 		return
 	}
-	s.recordTTSPlaybackEvent(TTSPlaybackEvent{
-		Source:    ev.Source,
-		Stage:     ev.Stage,
-		Backend:   ev.Backend,
-		SessionID: ev.SessionID,
-		Message:   ev.Message,
-	})
+	s.recordTTSPlaybackEvent(TTSPlaybackEvent(ev))
 	w.WriteHeader(http.StatusNoContent)
 }
 

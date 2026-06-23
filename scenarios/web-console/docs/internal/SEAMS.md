@@ -276,6 +276,20 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 | `ConversationDispatcher.AppendUser(text, sessionID, source)` | Publish a user prompt (no TTS) |
 | `*Server` implements both implicitly | Compile-time check via `var _ ConversationDispatcher = (*Server)(nil)` |
 
+### Conversation Hub Seam (API)
+**Files**: `api/conversation_hub.go`, `api/events_stream.go`
+**Purpose**: Process-wide conversation event channel. Every conversation event (assistant/user append, async summarize update) is published once to `ConversationHub` and fanned out to all Server-Sent Events subscribers over `GET /api/v1/events/stream`, decoupled from any single session's terminal WebSocket. The browser opens ONE stream for ALL sessions, so unread badges and conversation deltas no longer depend on a per-session terminal WS being open. This replaced the per-session conversation fan-out entirely — there is exactly one conversation-event channel.
+
+| Component | Surface |
+|-----------|---------|
+| `ConversationHub.Publish(env) int64` | Assigns the next monotonic global id, retains in the ring buffer, fans out to subscribers (never blocks; drops + resync-signals a full subscriber) |
+| `ConversationHub.Subscribe(lastEventID) (*hubSubscriber, []HubEnvelope, gap)` | Registers a client; replays retained envelopes newer than the cursor; `gap=true` when the cursor predates the retained window |
+| `ConversationHub.Unsubscribe(sub)` | Removes a client from the fan-out (idempotent) |
+| `Server.publishConversationEvent(event)` | Single publish path; maps `event.IsUpdate` → kind (`conversation_event_update` / `conversation_event`) |
+| `Server.handleEventStream(w, r)` | SSE handler; honors `Last-Event-ID` header / `?last_event_id=` query (header wins); emits `conversation_out_of_sync` on gap so the client backfills via `GET /conversation?since_sequence=N` |
+
+**Knobs (package vars/consts for tests)**: `hubRingSize` (replay buffer depth, default 1024), `hubSubscriberBuffer` (per-subscriber channel, default 256), `hubHeartbeatInterval` (SSE keepalive comment cadence, default 15s).
+
 ### API↔CLI Parity Seam (CLI)
 **File**: `cli/parity_test.go`
 **Purpose**: Lock in the contract that every Connect-RPC method has a matching CLI command. Drift in either direction fails the test with a punch list so an agent can't ship a new RPC without a CLI command — and can't quietly drop a CLI command that the proto seed still references.

@@ -8,13 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	creackpty "github.com/creack/pty/v2"
-
 	"web-console/backends/claude"
 	"web-console/backends/codex"
 	"web-console/internal/config"
 	"web-console/internal/pty"
+
+	creackpty "github.com/creack/pty/v2"
 )
 
 // realPTY wraps a creack/pty process.

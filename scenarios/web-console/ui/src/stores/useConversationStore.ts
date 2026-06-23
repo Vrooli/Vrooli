@@ -35,6 +35,12 @@ const defaultCursor = (): ConversationCursor => ({
   lastListenedSequence: 0,
 });
 
+// Shared frozen empty array so selectors for sessions with no events return a
+// referentially-stable value. Returning a fresh `[]` each call would defeat
+// Zustand's Object.is short-circuit and re-render the subscriber on every
+// unrelated store update.
+const EMPTY_EVENTS: readonly ConversationEvent[] = Object.freeze([]);
+
 export const useConversationStore = create<ConversationStoreState & ConversationStoreActions>((set) => ({
   sessions: {},
   viewModes: {},
@@ -165,7 +171,7 @@ export const useConversationStore = create<ConversationStoreState & Conversation
 }));
 
 export function getSessionConversationEvents(state: ConversationStoreState, sessionId: string): ConversationEvent[] {
-  return state.sessions[sessionId]?.events ?? [];
+  return state.sessions[sessionId]?.events ?? (EMPTY_EVENTS as ConversationEvent[]);
 }
 
 export function getSessionConversationCursor(state: ConversationStoreState, sessionId: string): ConversationCursor {

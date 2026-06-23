@@ -83,6 +83,8 @@ vi.mock("../stores/useWorkspaceStore", () => {
     panes: [{ sessionId: "test-session", fontSize: 14, themeId: "slate-ocean" }],
     renamePaneById: vi.fn(),
     startMutedOnLoad: true,
+    setPendingInputDraft: vi.fn(),
+    consumePendingInputDraft: vi.fn(() => undefined),
   };
   const useWorkspaceStore = (selector: (s: Record<string, unknown>) => unknown) =>
     selector(baseState);

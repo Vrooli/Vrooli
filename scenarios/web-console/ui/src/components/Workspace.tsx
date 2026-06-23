@@ -1,6 +1,6 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // DOC: docs/internal/SEAMS.md#1-entry--presentation
-import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Loader2, Menu, MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -8,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
+import { useGlobalEventStream } from "../hooks/useGlobalEventStream";
+import { useConversationHydration } from "../hooks/useConversationHydration";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { useAppViewport } from "../hooks/useAppViewport";
 import { useTouchControls } from "../hooks/useTouchControls";
@@ -352,6 +354,10 @@ export default function Workspace() {
     clearError();
     handleLaunch();
   }, [clearError, handleLaunch]);
+
+  // Stable callback for the (memoized) TabBar so a conversation event landing
+  // in the store doesn't re-render the whole tab strip via an inline arrow.
+  const handleNewTerminal = useCallback(() => { handleLaunch(); }, [handleLaunch]);
 
   const doRemovePane = useCallback(
     (sessionId: string) => {
@@ -882,6 +888,43 @@ export default function Workspace() {
 
   // Compute layout
   const orderedPanes = workspacePanes;
+
+  // Single SSE subscription for the whole app: conversation events + unread
+  // updates for ALL sessions flow here, decoupled from any terminal WS. Auto-
+  // summarize failures surface through the active pane's banner handler.
+  useGlobalEventStream({ onSummarizeError: handlePaneSummarizeError });
+  // Keep every session's conversation hydrated for badges even when its
+  // terminal pane is unmounted (offscreen panes no longer hydrate themselves).
+  useConversationHydration(orderedPanes.map((pane) => pane.sessionId));
+
+  // --- Warm set: which sessions stay MOUNTED in tab-like modes ---
+  // The core scaling fix: instead of mounting all N panes (and paying for N
+  // xterms / WebSockets / observers) and hiding the inactive ones with
+  // visibility:hidden, we mount only a small LRU warm set. Cost is flat in N.
+  // K=2 (active + most-recent-previous) keeps the common back-and-forth toggle
+  // instant while still bounding live terminals to a constant. Grid mode is
+  // unchanged (it intentionally shows every visible cell).
+  const WARM_SET_SIZE = 2;
+  const [recentSessions, setRecentSessions] = useState<string[]>([]);
+  useEffect(() => {
+    const active = workspace.activePane;
+    if (!active) return;
+    setRecentSessions((prev) => {
+      if (prev[0] === active) return prev;
+      return [active, ...prev.filter((id) => id !== active)].slice(0, WARM_SET_SIZE);
+    });
+  }, [workspace.activePane]);
+  const mountedTabSessions = useMemo(() => {
+    const existing = new Set(orderedPanes.map((p) => p.sessionId));
+    const ids = new Set<string>();
+    if (workspace.activePane && existing.has(workspace.activePane)) ids.add(workspace.activePane);
+    for (const id of recentSessions) {
+      if (ids.size >= WARM_SET_SIZE) break;
+      if (existing.has(id)) ids.add(id);
+    }
+    return ids;
+  }, [orderedPanes, recentSessions, workspace.activePane]);
+
   const maxColumns = isMobile ? 1 : 2;
   const layout = resolveWorkspaceLayout(orderedPanes.length, maxColumns);
   const colFractions = reconcileTrackFractions(
@@ -1094,7 +1137,6 @@ export default function Workspace() {
         onTtsSpeakingChange={handleTtsSpeakingChange}
         onSpeakingEventChange={handlePaneTransportSpeakingEvent}
         onConversationEventReceived={handleConversationEventReceived}
-        onSummarizeError={handlePaneSummarizeError}
         onNeedsUnlock={handleNeedsUnlock}
         onPlayFromHere={playPaneFromHere}
         onPlayEvent={playPaneEvent}
@@ -1202,7 +1244,7 @@ export default function Workspace() {
         <TabBar
           panes={orderedPanes}
           activePane={workspace.activePane}
-          onNewTerminal={() => handleLaunch()}
+          onNewTerminal={handleNewTerminal}
           onOpenLauncher={openLauncher}
           onClosePane={handleRequestClose}
           isCreating={isCreating}
@@ -1335,7 +1377,7 @@ export default function Workspace() {
               </button>
             </div>
           )}
-            {orderedPanes.map((paneMeta) => {
+            {orderedPanes.filter((paneMeta) => mountedTabSessions.has(paneMeta.sessionId)).map((paneMeta) => {
               return (
                 <WorkspacePaneShell
                   key={paneMeta.sessionId}
@@ -1370,7 +1412,6 @@ export default function Workspace() {
                   onTtsSpeakingChange={handleTtsSpeakingChange}
                   onSpeakingEventChange={handlePaneTransportSpeakingEvent}
                   onConversationEventReceived={handleConversationEventReceived}
-                  onSummarizeError={handlePaneSummarizeError}
                   onNeedsUnlock={handleNeedsUnlock}
                   onPlayFromHere={playPaneFromHere}
                   onPlayEvent={playPaneEvent}

@@ -46,30 +46,19 @@ vi.mock("../hooks/useTextToSpeech", () => ({
   }),
 }));
 
-let capturedHandler:
-  | ((event: { id: string; source: string; role: "assistant" | "user"; text: string; speechParagraphs?: string[]; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
-  | undefined;
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-
   const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
   const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
-  const sendResize = vi.fn();
-  const subscribeInputSettled = vi.fn(() => () => {});
-  const subscribePendingInput = vi.fn(() => () => {});
-  const getPendingInputSnapshot = vi.fn(() => []);
   return {
-    useTerminalSession: (opts: { onConversationEvent?: typeof capturedHandler }) => {
-      capturedHandler = opts.onConversationEvent;
-      return {
-        submitInput,
-        gate,
-        sendResize,
-
-        subscribeInputSettled,
-        subscribePendingInput,
-        getPendingInputSnapshot,
-      };
-    },
+    useTerminalSession: () => ({
+      submitInput,
+      gate,
+      sendResize: vi.fn(),
+      subscribeInputSettled: vi.fn(() => () => {}),
+      subscribePendingInput: vi.fn(() => () => {}),
+      getPendingInputSnapshot: vi.fn(() => []),
+      sendConversationAck: vi.fn(),
+    }),
   };
 });
 
@@ -106,6 +95,8 @@ const storeState: Record<string, unknown> = {
   panes: [{ sessionId: SESSION_ID, name: "test", headerColor: "transparent", themeId: "default", fontSize: 14, groupId: null }],
   activePane: SESSION_ID,
   renamePaneById: vi.fn(),
+  setPendingInputDraft: vi.fn(),
+  consumePendingInputDraft: vi.fn(() => undefined),
 };
 
 vi.mock("../stores/useWorkspaceStore", () => ({
@@ -115,11 +106,28 @@ vi.mock("../stores/useWorkspaceStore", () => ({
 
 const { default: TerminalPane } = await import("../components/TerminalPane");
 const { useConversationStore } = await import("../stores/useConversationStore");
+type StoreConversationEvent = Parameters<ReturnType<typeof useConversationStore.getState>["appendEvent"]>[0];
+
+function makeEvent(id: string, sequence: number, text: string): StoreConversationEvent {
+  return {
+    id,
+    sessionId: SESSION_ID,
+    source: "claude_hook",
+    role: "assistant",
+    text,
+    speechParagraphs: [text],
+    summarized: false,
+    createdAt: new Date().toISOString(),
+    sequence,
+    deliveryState: "received",
+    ttsState: "idle",
+    consumptionState: "unseen",
+  };
+}
 
 describe("TerminalPane TTS stop prevents retry loop", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    capturedHandler = undefined;
     mockIsSpeaking = false;
     storeState.autoTtsEnabled = true;
     // Reset conversation store
@@ -144,12 +152,8 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
 
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
-    const ack = vi.fn();
-    await act(async () => {
-      await capturedHandler?.({
-        id: "evt-stop-1", source: "claude_hook", role: "assistant",
-        sequence: 42, text: "Stop me", speechParagraphs: ["Stop me"],
-      }, ack);
+    act(() => {
+      useConversationStore.getState().appendEvent(makeEvent("evt-stop-1", 42, "Stop me"));
     });
 
     await act(async () => {
@@ -161,7 +165,6 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     expect(session?.cursor.lastListenedSequence).toBe(0);
     expect(mockStop).toHaveBeenCalledTimes(1);
     expect(mockSpeakParagraphs).not.toHaveBeenCalled();
-    expect(ack).toHaveBeenCalledWith("received");
   });
 
   it("stopTts leaves multiple assistant events unlistened instead of skipping them", async () => {
@@ -169,13 +172,9 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
 
-    const ack = vi.fn();
     for (let i = 1; i <= 3; i++) {
-      await act(async () => {
-        await capturedHandler?.({
-          id: `evt-multi-${i}`, source: "claude_hook", role: "assistant",
-          sequence: 100 + i, text: `Message ${i}`, speechParagraphs: [`Message ${i}`],
-        }, ack);
+      act(() => {
+        useConversationStore.getState().appendEvent(makeEvent(`evt-multi-${i}`, 100 + i, `Message ${i}`));
       });
     }
 

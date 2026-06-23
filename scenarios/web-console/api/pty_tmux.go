@@ -17,12 +17,11 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
-
-	creackpty "github.com/creack/pty/v2"
-
 	"web-console/backends/claude"
 	"web-console/internal/config"
 	"web-console/internal/pty"
+
+	creackpty "github.com/creack/pty/v2"
 )
 
 // errPTYClosed is returned when I/O is attempted on a closed tmuxPTY.

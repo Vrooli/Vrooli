@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-
 	"web-console/internal/capabilities"
 )
 

@@ -123,10 +123,10 @@ editing JSON by hand.
 | Timeout seconds | `120` | 15-300 in UI | Per-summary deadline. It must stay below web-console's 150s audio-tools call timeout and audio-tools' 180s HTTP write timeout. |
 
 Model defaults are policy-driven, not release-hype-driven. The catalog
-currently recommends fast non-reasoning local candidates (`gemma3:4b`,
-`gemma3n:e2b`, `llama3.2:3b`, `llama3.2:1b`, `qwen2.5:3b`,
-`phi4-mini:3.8b`) and marks reasoning models (`qwen3:*`,
-`deepseek-r1:*`) as unsuitable for default TTS summaries. Missing recommended
+recommends **fast, non-reasoning** local models (small instruct/chat-tuned
+models track the installed set; see `resource-ollama policy roles`) and marks
+reasoning-tuned models as unsuitable for default TTS summaries because they are
+slower and spend output budget on internal reasoning. Missing recommended
 models show an `ollama pull <model>` command; Web Console never pulls models
 automatically.
 

@@ -2,10 +2,9 @@ package main
 
 import (
 	"testing"
+	"web-console/internal/policy"
 
 	"connectrpc.com/connect"
-
-	"web-console/internal/policy"
 )
 
 // --- HTTP handler tests ---

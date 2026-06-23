@@ -9,20 +9,19 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	intai "web-console/internal/ai"
 	"web-console/internal/audioports"
-
-	"web-console/session"
-
-	"connectrpc.com/connect"
-	"github.com/gorilla/mux"
-
 	"web-console/internal/config"
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/pty"
 	"web-console/internal/ptyfake"
+	"web-console/session"
+
+	intai "web-console/internal/ai"
+
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+
 	intsessions "web-console/internal/sessions"
 	intworkspace "web-console/internal/workspace"
 
@@ -36,7 +35,7 @@ func newTestServer() *Server {
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,
-		fanouts:     NewConversationFanoutRegistry().AttachToManager(sm),
+		hub:         NewConversationHub(),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     intai.NewChain(),
@@ -62,7 +61,7 @@ func newFakeTestServer() *Server {
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,
-		fanouts:     NewConversationFanoutRegistry().AttachToManager(sm),
+		hub:         NewConversationHub(),
 		events:      events.NewLogger(100),
 		metrics:     metrics.New(),
 		aiChain:     intai.NewChain(),

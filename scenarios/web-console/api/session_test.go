@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"testing"
 	"time"
-
 	"web-console/internal/config"
 	"web-console/internal/ptyfake"
 	"web-console/session"

@@ -6,12 +6,11 @@ import (
 	"runtime"
 	"testing"
 	"time"
-
-	"github.com/gorilla/mux"
-
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
+
+	"github.com/gorilla/mux"
 )
 
 // newHookTestServer returns a minimally-wired Server suitable for testing
@@ -34,7 +33,7 @@ func newHookTestServer(token string) *Server {
 		},
 		summarizeAutoPolicy: defaultSummarizeAutoPolicy(),
 	}
-	srv.fanouts = NewConversationFanoutRegistry().AttachToManager(sm)
+	srv.hub = NewConversationHub()
 	return srv
 }
 

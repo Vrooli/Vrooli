@@ -38,3 +38,14 @@ func wireDefaultManagerHooks(sm *session.Manager) {
 	sm.SetUploadDirFunc(resolveUploadDir)
 	sm.SetEnvForSessionFunc(defaultSessionEnv)
 }
+
+// defaultSessionEnv returns the per-session environment variables injected
+// into the spawned PTY. Wired into session.Manager.envForSession by both
+// constructors; tests can override the field for hermetic spawning.
+func defaultSessionEnv(sessionID string) map[string]string {
+	return map[string]string{
+		"WC_WEB_CONSOLE_SESSION_ID": sessionID,
+		"CODEX_HOME":                sessionCodexHome(sessionID),
+		"WC_CODEX_SESSIONS_DIR":     sessionCodexSessionsDir(sessionID),
+	}
+}

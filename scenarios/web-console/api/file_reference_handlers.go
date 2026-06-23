@@ -8,10 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
-
-	"web-console/session"
-
 	"web-console/internal/config"
+	"web-console/session"
 )
 
 const maxFilePreviewBytes int64 = 256 * 1024

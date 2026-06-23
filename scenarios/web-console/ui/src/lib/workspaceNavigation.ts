@@ -28,8 +28,14 @@ export interface BuildWorkspaceNavigationItemsOptions {
   panes: PaneMetadata[];
   groups: TabGroupMeta[];
   activePane: string | null;
-  conversationSessions: Record<string, ConversationSessionSnapshot | undefined>;
-  viewModes: Record<string, PaneViewMode | undefined>;
+  /**
+   * Per-session conversation snapshots. Optional: the tab strip renders unread
+   * badges via per-tab subscriptions (so a new message re-renders only the one
+   * badge), and builds its group/pane structure without conversation data.
+   * The sidebar passes this to populate previews/activity/unread.
+   */
+  conversationSessions?: Record<string, ConversationSessionSnapshot | undefined>;
+  viewModes?: Record<string, PaneViewMode | undefined>;
   lastVisitedBySession?: Record<string, string | undefined>;
   now?: Date;
 }
@@ -65,8 +71,8 @@ export function buildWorkspaceNavigationItems({
   panes,
   groups,
   activePane,
-  conversationSessions,
-  viewModes,
+  conversationSessions = {},
+  viewModes = {},
   lastVisitedBySession = {},
   now = new Date(),
 }: BuildWorkspaceNavigationItemsOptions): WorkspaceNavigationItem[] {

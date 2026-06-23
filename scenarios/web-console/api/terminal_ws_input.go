@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-
 	"web-console/internal/events"
 	"web-console/session"
 

@@ -5,13 +5,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"web-console/internal/backend"
+	"web-console/internal/sessionstore"
 
 	"connectrpc.com/connect"
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
-
-	"web-console/internal/backend"
-	"web-console/internal/sessionstore"
 )
 
 // newRecoveryTestServer wires the in-memory store + fake PTY factory so the

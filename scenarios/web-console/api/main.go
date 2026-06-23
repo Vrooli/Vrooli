@@ -17,7 +17,13 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
+	"web-console/internal/audioports"
+	"web-console/internal/backend"
+	"web-console/internal/capabilities"
+	"web-console/internal/config"
+	"web-console/internal/events"
+	"web-console/internal/metrics"
+	"web-console/internal/sessionstore"
 	"web-console/session"
 
 	"github.com/gorilla/handlers"
@@ -45,14 +51,9 @@ import (
 	workspaceH "web-console/handlers/workspace"
 	audiotoolsint "web-console/integrations/audiotools"
 	intai "web-console/internal/ai"
-	"web-console/internal/audioports"
-	"web-console/internal/backend"
-	"web-console/internal/capabilities"
-	"web-console/internal/config"
-	"web-console/internal/events"
-	"web-console/internal/metrics"
+
 	intsessions "web-console/internal/sessions"
-	"web-console/internal/sessionstore"
+
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -131,7 +132,7 @@ type Server struct {
 	db                   *sql.DB
 	router               *mux.Router
 	sessions             *session.Manager
-	fanouts              *ConversationFanoutRegistry
+	hub                  *ConversationHub
 	events               *events.Logger
 	metrics              *metrics.Metrics
 	backendRegistry      *backend.Registry
@@ -265,7 +266,6 @@ func NewServer(db *sql.DB) *Server {
 	eventLog := events.NewLogger(1000)
 	metrics := metrics.New()
 	sessions := newSessionManager()
-	fanouts := NewConversationFanoutRegistry().AttachToManager(sessions)
 
 	// Initialize backend registry and session metadata store
 	backendRegistry := InitDefaultRegistry()
@@ -291,7 +291,7 @@ func NewServer(db *sql.DB) *Server {
 		db:              db,
 		router:          mux.NewRouter(),
 		sessions:        sessions,
-		fanouts:         fanouts,
+		hub:             NewConversationHub(),
 		events:          eventLog,
 		metrics:         metrics,
 		backendRegistry: backendRegistry,
@@ -490,6 +490,12 @@ func (s *Server) setupRoutes() {
 	if s.audioToolsResolver != nil {
 		s.router.Handle("/api/v1/voice/stream", newVoiceStreamProxy(s.audioToolsResolver))
 	}
+
+	// Global conversation event channel (Server-Sent Events). The UI opens ONE
+	// stream for ALL sessions; conversation events no longer ride the
+	// per-session terminal WebSocket. Raw HTTP handler (not Connect-RPC) because
+	// SSE is a long-lived streaming response the browser EventSource consumes.
+	s.router.HandleFunc("/api/v1/events/stream", s.handleEventStream).Methods("GET")
 
 	// Hooks — REST webhook receivers (Claude Code CLI dictates wire shape).
 	hooksH.Module(hooksH.Deps{

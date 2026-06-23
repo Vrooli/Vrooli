@@ -132,6 +132,9 @@ vi.mock("../stores/useConversationStore", () => {
     viewModes: {} as Record<string, string>,
     setViewMode: vi.fn(),
     clearSession: vi.fn(),
+    hydrateSession: vi.fn(),
+    appendEvent: vi.fn(),
+    updateEvent: vi.fn(),
   };
   const useConversationStore = (selector?: (state: typeof store) => unknown) => {
     return selector ? selector(store) : store;

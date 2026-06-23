@@ -13,10 +13,7 @@ import {
   type TerminalInputGate,
 } from "../../components/terminal/inputGate";
 import { getTerminalDebugProbe } from "../../components/terminal/debug";
-import type {
-  ConversationEventMessage,
-  TerminalMessage,
-} from "../../types/terminal";
+import type { TerminalMessage } from "../../types/terminal";
 import {
   useTerminalTransport,
   type SocketFactory,
@@ -75,19 +72,6 @@ export interface UseTerminalSessionOptions {
   onExit?: (sessionId: string) => void;
   onReady?: () => void;
   createSocket?: SocketFactory;
-  onConversationEvent?: (
-    event: ConversationEventMessage,
-    sendAck: (stage: string, message?: string, backend?: string) => void,
-  ) => void;
-  onConversationEventUpdate?: (
-    eventId: string,
-    patch: {
-      speechParagraphs?: string[];
-      originalSpeechParagraphs?: string[];
-      summarized?: boolean;
-      summarizeError?: string;
-    },
-  ) => void;
 }
 
 export interface UseTerminalSessionResult {
@@ -98,6 +82,19 @@ export interface UseTerminalSessionResult {
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
   subscribePendingInput: (cb: () => void) => () => void;
   getPendingInputSnapshot: () => readonly PendingInputEntry[];
+  /**
+   * Sends a conversation_event_ack frame (client→server playback telemetry)
+   * over this pane's terminal WebSocket. Conversation events themselves now
+   * arrive via the global SSE channel, but acks stay on the per-pane WS since
+   * playback only happens on the mounted/active pane.
+   */
+  sendConversationAck: (
+    eventId: string,
+    source: string,
+    stage: string,
+    message?: string,
+    backend?: string,
+  ) => void;
 }
 
 /**
@@ -127,8 +124,6 @@ export function useTerminalSession({
   onExit,
   onReady,
   createSocket,
-  onConversationEvent,
-  onConversationEventUpdate,
 }: UseTerminalSessionOptions): UseTerminalSessionResult {
   const sessionReadyRef = useRef(false);
   const wsGenAtReadyRef = useRef(0);
@@ -139,12 +134,8 @@ export function useTerminalSession({
 
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
-  const onConversationEventRef = useRef(onConversationEvent);
-  const onConversationEventUpdateRef = useRef(onConversationEventUpdate);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
-  onConversationEventRef.current = onConversationEvent;
-  onConversationEventUpdateRef.current = onConversationEventUpdate;
 
   const wsUrl = buildSessionWsUrl(sessionId);
 
@@ -240,16 +231,17 @@ export function useTerminalSession({
 
   const sendConversationAck = useCallback(
     (
-      event: ConversationEventMessage,
+      eventId: string,
+      source: string,
       stage: string,
       message?: string,
       backend?: string,
     ) => {
-      if (!event.id || !event.source) return;
+      if (!eventId || !source) return;
       transport.sendJson({
         type: "conversation_event_ack",
-        eventId: event.id,
-        source: event.source,
+        eventId,
+        source,
         stage,
         backend,
         data: message,
@@ -333,47 +325,13 @@ export function useTerminalSession({
           );
           break;
         }
-        case "conversation_event": {
-          if (msg.data && msg.eventId && msg.source && msg.sequence) {
-            const event: ConversationEventMessage = {
-              id: msg.eventId,
-              source: msg.source,
-              role: msg.role === "user" ? "user" : "assistant",
-              text: msg.data,
-              speechParagraphs: msg.speechParagraphs,
-              originalSpeechParagraphs: msg.originalSpeechParagraphs,
-              summarized: msg.summarized,
-              createdAt: msg.createdAt,
-              sequence: msg.sequence,
-            };
-            onConversationEventRef.current?.(event, (stage, message, backend) =>
-              sendConversationAck(event, stage, message, backend),
-            );
-          }
-          break;
-        }
-        case "conversation_event_update": {
-          if (msg.eventId) {
-            onConversationEventUpdateRef.current?.(msg.eventId, {
-              speechParagraphs: msg.speechParagraphs,
-              originalSpeechParagraphs: msg.originalSpeechParagraphs,
-              summarized: msg.summarized,
-              summarizeError: msg.summarizeError,
-            });
-          }
-          break;
-        }
-        case "conversation_out_of_sync": {
-          void refreshConversationSession(sessionId);
-          break;
-        }
         case "resize_info": {
           break;
         }
       }
     });
     return unsubscribe;
-  }, [transport, sessionId, sendConversationAck, stdin]);
+  }, [transport, sessionId, stdin]);
 
   // xterm.onData → gate.submit (single path). localEcho prediction
   // still runs on printable single chars before dispatch.
@@ -450,5 +408,6 @@ export function useTerminalSession({
     subscribeInputSettled: stdin.subscribeInputSettled,
     subscribePendingInput: stdin.subscribePendingInput,
     getPendingInputSnapshot: stdin.getPendingSnapshot,
+    sendConversationAck,
   };
 }

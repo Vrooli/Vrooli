@@ -87,6 +87,10 @@ interface WorkspaceState {
    *  automatically when the tab is hidden (app switch, tab switch).
    *  DOC: docs/internal/VOICE-LATENCY.md#low-latency-voice-mode */
   lowLatencyVoice: boolean;
+  /** Unsent terminal input keyed by session, snapshotted when a pane unmounts
+   *  (offscreen sessions are unmounted to keep cost flat in N) and re-injected
+   *  on remount. Ephemeral — not persisted. */
+  pendingInputDrafts: Record<string, string>;
 }
 
 interface WorkspaceActions {
@@ -142,13 +146,17 @@ interface WorkspaceActions {
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
   setKeepScreenAwake: (enabled: boolean) => void;
   setLowLatencyVoice: (enabled: boolean) => void;
+  /** Stash a session's unsent terminal input before its pane unmounts. */
+  setPendingInputDraft: (sessionId: string, draft: string) => void;
+  /** Read and clear a session's stashed input (returns undefined if none). */
+  consumePendingInputDraft: (sessionId: string) => string | undefined;
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
 
 export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       panes: [],
       columnFractions: [],
       rowFractions: [],
@@ -183,6 +191,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       plusButtonBehavior: "launcher",
       recentCombos: [],
       modifiers: { ctrl: false, alt: false, shift: false },
+      pendingInputDrafts: {},
       groups: [],
       tabContextMenu: null,
       keepScreenAwake: true,
@@ -217,11 +226,16 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }),
 
       removePane: (sessionId) =>
-        set((state) => ({
-          panes: state.panes.filter((p) => p.sessionId !== sessionId),
-          activePane:
-            state.activePane === sessionId ? null : state.activePane,
-        })),
+        set((state) => {
+          const pendingInputDrafts = { ...state.pendingInputDrafts };
+          delete pendingInputDrafts[sessionId];
+          return {
+            panes: state.panes.filter((p) => p.sessionId !== sessionId),
+            activePane:
+              state.activePane === sessionId ? null : state.activePane,
+            pendingInputDrafts,
+          };
+        }),
 
       renamePaneById: (sessionId, name) =>
         set((state) => ({
@@ -302,6 +316,23 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set((state) => ({ modifiers: { ...state.modifiers, [key]: !state.modifiers[key] } })),
       clearModifiers: () =>
         set({ modifiers: { ctrl: false, alt: false, shift: false } }),
+      setPendingInputDraft: (sessionId, draft) =>
+        set((state) => {
+          const next = { ...state.pendingInputDrafts };
+          if (draft) next[sessionId] = draft;
+          else delete next[sessionId];
+          return { pendingInputDrafts: next };
+        }),
+      consumePendingInputDraft: (sessionId) => {
+        const draft = get().pendingInputDrafts[sessionId];
+        if (draft === undefined) return undefined;
+        set((state) => {
+          const next = { ...state.pendingInputDrafts };
+          delete next[sessionId];
+          return { pendingInputDrafts: next };
+        });
+        return draft;
+      },
       setGroups: (groups) => set({ groups }),
       addGroup: (group) => set((state) => ({ groups: [...state.groups, group] })),
       removeGroup: (groupId) => set((state) => ({

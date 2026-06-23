@@ -93,11 +93,10 @@ func (s *Server) AppendAssistant(responseText, targetSessionID, source string) C
 
 	event, result := s.conversations.AppendAssistantEvent(targetSessionID, source, responseText)
 	if result.Appended && !result.Duplicate {
-		// Send event to clients immediately so the text lands in the UI with
-		// no delay — audio is handled separately below.
-		if fanout := s.fanouts.Get(targetSessionID); fanout != nil {
-			fanout.Send(event)
-		}
+		// Publish to the global event channel immediately so the text lands in
+		// every subscribed client with no delay — audio is handled separately
+		// below.
+		s.publishConversationEvent(event)
 
 		policy := s.getSummarizeAutoPolicy()
 		shouldSummarize := s.summarizer != nil && policy.Enabled && len(event.Text) >= policy.CharThreshold
@@ -127,9 +126,7 @@ func (s *Server) AppendUser(promptText, targetSessionID, source string) Conversa
 
 	event, result := s.conversations.AppendUserEvent(targetSessionID, source, promptText)
 	if result.Appended && !result.Duplicate {
-		if fanout := s.fanouts.Get(targetSessionID); fanout != nil {
-			fanout.Send(event)
-		}
+		s.publishConversationEvent(event)
 	}
 	return result
 }
@@ -170,9 +167,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 		errEvent := event
 		errEvent.IsUpdate = true
 		errEvent.SummarizeError = summarizeErrorMessage(err)
-		if fanout := s.fanouts.Get(sessionID); fanout != nil {
-			fanout.Send(errEvent)
-		}
+		s.publishConversationEvent(errEvent)
 		return
 	}
 	logSummarizeResult("auto", policy, event.ID, len(event.Text), out, nil)
@@ -189,9 +184,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	event.SpeechParagraphs = newParagraphs
 	event.Summarized = true
 	event.IsUpdate = true
-	if fanout := s.fanouts.Get(sessionID); fanout != nil {
-		fanout.Send(event)
-	}
+	s.publishConversationEvent(event)
 }
 
 // splitIntoSpeechParagraphs is the local, dependency-free fallback for
