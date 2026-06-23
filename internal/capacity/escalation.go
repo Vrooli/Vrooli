@@ -53,21 +53,16 @@ func PlanEscalation(requesterPriority int, deficit int64, candidates []CapacityC
 		return plan
 	}
 
+	// Reclaim eligibility (§8.3): unprotected, active-status, idle beyond grace,
+	// and either strictly-lower priority (the strict default) or an idle
+	// yield-opted claim the requester sits at/above the floor of. reclaimEligibleFor
+	// encodes the whole rule; for non-opt-in claims it is byte-identical to the
+	// strict lower-priority test.
 	eligible := make([]CapacityClaim, 0, len(candidates))
 	for _, c := range candidates {
-		if c.Priority >= requesterPriority {
-			continue // never reclaim equal/higher priority
+		if reclaimEligibleFor(c, requesterPriority, policy, now) {
+			eligible = append(eligible, c)
 		}
-		if c.Protected {
-			continue // hard rule: protected is never touched
-		}
-		if !IsActiveClaimStatus(c.Status) {
-			continue
-		}
-		if !isReclaimEligible(c, policy.IdleGrace, now) {
-			continue // active, or within idle grace — not eligible
-		}
-		eligible = append(eligible, c)
 	}
 
 	// Reclaim the lowest-priority, longest-idle claims first so we disturb the

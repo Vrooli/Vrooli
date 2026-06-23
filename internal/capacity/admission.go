@@ -15,14 +15,23 @@ import (
 // block => the resource is not (yet) a capacity adopter and admission is a
 // no-op (the dormant-by-default property that keeps Phase 3 parity-safe).
 type ResourceClaimSpec struct {
-	ResourceKind   string          `json:"resource_kind"`
-	PreferredBytes int64           `json:"preferred_bytes"`
-	FloorBytes     int64           `json:"floor_bytes"`
-	Priority       string          `json:"priority"` // tier name
-	GPUIndex       *int            `json:"gpu_index,omitempty"`
-	Protected      bool            `json:"protected,omitempty"`
-	TTLSeconds     int             `json:"ttl_seconds,omitempty"`
-	Profile        *DegradeProfile `json:"profile,omitempty"`
+	ResourceKind   string `json:"resource_kind"`
+	PreferredBytes int64  `json:"preferred_bytes"`
+	FloorBytes     int64  `json:"floor_bytes"`
+	Priority       string `json:"priority"` // tier name
+	GPUIndex       *int   `json:"gpu_index,omitempty"`
+	Protected      bool   `json:"protected,omitempty"`
+	// YieldWhenIdle opts the resource's claim into the idle-yield rule (§8.3): an
+	// idle (beyond grace) claim yields its capacity to active work at/above the
+	// idle_yield_floor. Default false keeps the strict-priority rule.
+	YieldWhenIdle bool `json:"yield_when_idle,omitempty"`
+	// IdleUnloadTTLSeconds opts the resource into autonomous idle-unload (§Phase 3):
+	// once its claim has been idle this long the broker proactively unloads it to
+	// floor (advisory logs / enforce actuates), accepting a cold start on next use.
+	// 0 (the default) disables it for this resource — autonomous unload is opt-in.
+	IdleUnloadTTLSeconds int             `json:"idle_unload_ttl_seconds,omitempty"`
+	TTLSeconds           int             `json:"ttl_seconds,omitempty"`
+	Profile              *DegradeProfile `json:"profile,omitempty"`
 }
 
 // resourceManifestEnvelope is the minimal shape we decode from resource.json —
@@ -67,8 +76,14 @@ type AdmitOptions struct {
 	// EnforceEnv overrides the VROOLI_CAPACITY_ENFORCE read (tests).
 	EnforceEnv string
 	Source     CapacitySource
-	OpenStore  func(ctx context.Context) (AdmitStore, error)
-	Clock      func() time.Time
+	// Attributor resolves observed GPU PIDs to owners for the presence-aware
+	// admission sweep. nil resolves the production docker attributor.
+	Attributor Attributor
+	// Exec runs an adopter's degrade verb during enforce-mode actuation. nil
+	// resolves the production CmdExecutor (shells the owner's resource CLI).
+	Exec      ApplyExecutor
+	OpenStore func(ctx context.Context) (AdmitStore, error)
+	Clock     func() time.Time
 }
 
 // AdmissionResult reports what admission did. Skipped=true means no claim was
@@ -111,12 +126,6 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 	defer store.Close()
 
 	now := admitNow(opts)
-	// Self-clean: expire stale claims before deciding so a crashed prior owner's
-	// claim doesn't count against this start.
-	if _, err := store.ExpireStaleClaims(ctx, now); err != nil {
-		return AdmissionResult{}, err
-	}
-
 	policy, err := store.GetPolicy(ctx)
 	if err != nil {
 		return AdmissionResult{}, err
@@ -132,15 +141,47 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 	if source == nil {
 		source = HostInventorySource{}
 	}
+	attr := opts.Attributor
+	if attr == nil {
+		attr = NewDockerAttributor()
+	}
+	var ledger []CapacityClaim
 	snapshot, snapErr := source.Snapshot(ctx)
 	if snapErr != nil {
+		// Sensing unavailable: do NOT expire — a presence miss must never strand a
+		// live resident. Decide on the optimistic preferred grant.
 		verdict.Warnings = append(verdict.Warnings, "capacity sensing unavailable: "+snapErr.Error())
 	} else {
-		ledger, listErr := store.ListClaims(ctx, ClaimFilter{ResourceKind: req.ResourceKind, Statuses: ActiveClaimStatuses()})
+		// Presence-aware self-clean (opportunistic sweep, §8.6): refresh resident
+		// claims still observed on the GPU, then expire dead ones — so a crashed
+		// prior owner's claim doesn't count against this start, but a live resident
+		// whose heartbeat lapsed is rescued rather than wrongly expired.
+		if _, err := Sweep(ctx, store, snapshot, attr, policy, now); err != nil {
+			return AdmissionResult{}, err
+		}
+		listed, listErr := store.ListClaims(ctx, ClaimFilter{ResourceKind: req.ResourceKind, Statuses: ActiveClaimStatuses()})
 		if listErr != nil {
 			return AdmissionResult{}, listErr
 		}
+		ledger = listed
 		verdict = Decide(req, snapshot, ledger, policy, now)
+	}
+
+	// Enforce-mode actuation (§8.8): when the grant depends on reclaiming idle
+	// lower-priority capacity, plan + actuate the degrade ladder BEFORE recording
+	// the new claim, so the space is actually freed. Advisory/off only log the
+	// plan. Actuation failure is non-fatal — it surfaces as a warning and the
+	// claim is still recorded (the requester proceeds, honestly degraded).
+	if effective == EnforceOn && verdict.Granted() && verdict.ReclaimBytes > 0 {
+		_, actResult, actErr := EnforceReclaim(ctx, store, req.Priority, verdict, ledger, opts.Exec, policy, effective, now)
+		if actErr != nil {
+			verdict.Warnings = append(verdict.Warnings, "capacity actuation error: "+actErr.Error())
+		}
+		for _, oc := range actResult.Outcomes {
+			if oc.Err != "" {
+				verdict.Warnings = append(verdict.Warnings, fmt.Sprintf("degrade of %q failed: %s", oc.OwnerID, oc.Err))
+			}
+		}
 	}
 
 	amount := req.PreferredBytes
@@ -151,6 +192,27 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 			status = StatusDegraded
 		}
 	}
+	// Idempotent claim (§8.7): a resident that is re-admitted (lifecycle restart,
+	// repeated start) must NOT stack a second claim. If an active claim for this
+	// (resource owner, resource_kind) already exists, renew its heartbeat and
+	// reuse it instead of inserting a duplicate.
+	existing, listErr := store.ListClaims(ctx, ClaimFilter{
+		OwnerKind:    OwnerKindResource,
+		OwnerID:      opts.ResourceName,
+		ResourceKind: req.ResourceKind,
+		Statuses:     ActiveClaimStatuses(),
+	})
+	if listErr != nil {
+		return AdmissionResult{}, listErr
+	}
+	if len(existing) > 0 {
+		reused := existing[0]
+		if refreshed, hbErr := store.HeartbeatClaim(ctx, reused.ClaimID, reused.Generation, normalizeAdmitTTL(req.TTL)); hbErr == nil {
+			reused = refreshed
+		}
+		return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: reused.ClaimID, Reason: "reused existing active claim"}, nil
+	}
+
 	claim := CapacityClaim{
 		OwnerKind:      OwnerKindResource,
 		OwnerID:        opts.ResourceName,
@@ -161,6 +223,8 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		FloorBytes:     req.FloorBytes,
 		Priority:       req.Priority,
 		Protected:      req.Protected,
+		YieldWhenIdle:  req.YieldWhenIdle,
+		IdleUnloadTTL:  req.IdleUnloadTTL,
 		Status:         status,
 		DegradeProfile: req.Profile,
 	}
@@ -169,6 +233,16 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		return AdmissionResult{}, err
 	}
 	return AdmissionResult{Enforce: effective, Verdict: verdict, ClaimID: created.ClaimID}, nil
+}
+
+// normalizeAdmitTTL resolves the heartbeat TTL for a reused claim: a declared
+// positive TTL is honored, otherwise the engine default (the sweep keeps
+// residents alive regardless, but a renewed deadline gives the next sweep slack).
+func normalizeAdmitTTL(ttl time.Duration) time.Duration {
+	if ttl > 0 {
+		return ttl
+	}
+	return DefaultHeartbeatTTL
 }
 
 func (spec ResourceClaimSpec) toRequest(resourceName string) CapacityRequest {
@@ -186,6 +260,8 @@ func (spec ResourceClaimSpec) toRequest(resourceName string) CapacityRequest {
 		FloorBytes:     spec.FloorBytes,
 		Priority:       ParsePriorityTier(spec.Priority),
 		Protected:      spec.Protected,
+		YieldWhenIdle:  spec.YieldWhenIdle,
+		IdleUnloadTTL:  time.Duration(spec.IdleUnloadTTLSeconds) * time.Second,
 		Profile:        spec.Profile,
 		TTL:            ttl,
 	}

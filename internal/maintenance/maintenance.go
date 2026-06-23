@@ -158,11 +158,27 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 		for _, instance := range expiredLeases {
 			stopped = append(stopped, control.Stopped(instance.Scenario+"/"+instance.InstanceID, "Expired stale starting runtime lease"))
 		}
-		expiredRuntime, err := expireNonAuthoritativeRegistryState(ctx, store)
+		expiredRuntime, reclaimable, err := expireNonAuthoritativeRegistryState(ctx, store)
 		if err != nil {
 			return control.StopReport{}, err
 		}
 		stopped = append(stopped, expiredRuntime...)
+
+		// Port reclamation: expiring the registry record frees the CLAIM, but a
+		// leaked process from the dead instance may still hold the OS port, which
+		// is exactly the orphan-squat that makes test-genie's stricter
+		// resolveURLs time out. Evict each holder — but ONLY after re-validating
+		// it is still a Vrooli process from this install (stillVrooliOrphan), so a
+		// foreign service that legitimately reused the port is never killed.
+		for _, candidate := range reclaimable {
+			item, evicted := c.reclaimSquattedPort(candidate)
+			switch {
+			case evicted:
+				stopped = append(stopped, item)
+			case item.Error != "":
+				failed = append(failed, item)
+			}
+		}
 
 		finalized, err := finalizeStuckStoppingInstances(ctx, store)
 		if err != nil {
@@ -201,6 +217,17 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 		return control.StopReport{}, err
 	}
 	stopped = append(stopped, swept...)
+
+	// Always-on resident-claim sweep (capacity §8.6): refresh GPU claims still
+	// observed on the host and expire dead ones, so resident model-server claims
+	// no longer depend on a 6h ttl_seconds stopgap. Best-effort: a ledger that
+	// does not exist yet, or transient sensing/DB trouble, never fails the lock
+	// sweep this rides on.
+	if capacityExpired, capErr := c.sweepCapacityClaims(ctx); capErr == nil {
+		stopped = append(stopped, capacityExpired...)
+	} else {
+		failed = append(failed, control.Failed("capacity-sweep", capErr))
+	}
 
 	return control.StopReport{
 		Stopped: stopped,
@@ -266,6 +293,32 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 		Failed:  failed,
 		Message: control.StopSummary(len(stopped), len(failed)),
 	}, nil
+}
+
+// reclaimSquattedPort evicts a process still holding a port whose owning
+// instance was just expired as non-authoritative. It returns the result item
+// and whether an eviction actually happened. The guard is the same one
+// KillOrphans uses: the PID is signaled ONLY while it still resolves to a Vrooli
+// process from this install, so a foreign service that reused the freed port —
+// or a recycled PID — is never killed. A missing process (already gone) is a
+// silent no-op: the port is already reclaimed.
+func (c *Controller) reclaimSquattedPort(candidate PortReclaimCandidate) (control.ResultItem, bool) {
+	name := fmt.Sprintf("%s:%d", candidate.Scenario, candidate.Port)
+	// Re-validate right before signaling to close the check-and-act race: only a
+	// live Vrooli orphan from this install is eligible for eviction.
+	if !c.stillVrooliOrphan(candidate.PID) {
+		return control.ResultItem{}, false
+	}
+	if err := killProcessFn(candidate.PID, false); err != nil && !isMissingProcessError(err) {
+		return control.Failed(name, err), false
+	}
+	time.Sleep(150 * time.Millisecond)
+	if pidIsRunningFn(candidate.PID) && c.stillVrooliOrphan(candidate.PID) {
+		if err := killProcessFn(candidate.PID, true); err != nil && !isMissingProcessError(err) {
+			return control.Failed(name, err), false
+		}
+	}
+	return control.Stopped(name, fmt.Sprintf("Reclaimed port %d from orphaned pid %d", candidate.Port, candidate.PID)), true
 }
 
 // CleanStaleRecords removes scenario process records whose PID no longer

@@ -110,6 +110,34 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			capacitycli.RenderSweep,
 		),
+		capacitycli.CommandGC: rootcli.BindGlobalCommand(deps.Stdout,
+			func(ctx C, args []string) (struct{}, error) {
+				return struct{}{}, capacitycli.ParseGCRequest(args)
+			},
+			func(ctx C, _ struct{}) (cliout.Format, capacityapp.GCOutput, error) {
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return "", capacityapp.GCOutput{}, err
+				}
+				resp, err := deps.service(ctx).GC(context.Background())
+				return format, resp, err
+			},
+			capacitycli.RenderGC,
+		),
+		capacitycli.CommandRecommend: rootcli.BindGlobalCommand(deps.Stdout,
+			func(ctx C, args []string) (capacityapp.RecommendRequest, error) {
+				return capacitycli.ParseRecommendRequest(args)
+			},
+			func(ctx C, req capacityapp.RecommendRequest) (cliout.Format, capacityapp.RecommendOutput, error) {
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return "", capacityapp.RecommendOutput{}, err
+				}
+				resp, err := deps.service(ctx).Recommend(context.Background(), req)
+				return format, resp, err
+			},
+			capacitycli.RenderRecommend,
+		),
 		capacitycli.CommandPolicy: rootcli.BindGlobalCommand(deps.Stdout,
 			func(ctx C, args []string) (capacitycli.PolicyArgs, error) {
 				return capacitycli.ParsePolicyRequest(args)

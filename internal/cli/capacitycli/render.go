@@ -51,8 +51,9 @@ func RenderList(w io.Writer, format cliout.Format, resp capacityapp.ListOutput) 
 		return nil
 	}
 	for _, c := range resp.Claims {
-		_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\t%s\tprio=%s\tprotected=%t\t%s\n",
-			c.ClaimID, c.OwnerKind, c.OwnerID, c.ResourceKind, c.Status, c.PriorityTier, c.Protected, humanBytes(c.AmountBytes))
+		_, _ = fmt.Fprintf(w, "%s\t%s/%s\t%s\t%s\tprio=%s\tprotected=%t\tgranted=%s\tobserved=%s\tpeak=%s\n",
+			c.ClaimID, c.OwnerKind, c.OwnerID, c.ResourceKind, c.Status, c.PriorityTier, c.Protected,
+			humanBytes(c.AmountBytes), humanBytes(c.ObservedBytes), humanBytes(c.ObservedPeakBytes))
 	}
 	return nil
 }
@@ -82,15 +83,51 @@ func RenderSweep(w io.Writer, format cliout.Format, resp capacityapp.SweepOutput
 	if format == cliout.FormatJSON {
 		return cliout.WriteJSON(w, resp)
 	}
-	if len(resp.Refreshed) == 0 && len(resp.Expired) == 0 {
-		_, _ = fmt.Fprintln(w, "no resident claims refreshed or expired")
+	if len(resp.Refreshed) == 0 && len(resp.Expired) == 0 && len(resp.Adopted) == 0 && len(resp.IdleUnloadCandidates) == 0 {
+		_, _ = fmt.Fprintln(w, "no resident claims refreshed, expired, or adopted")
 		return nil
 	}
 	for _, c := range resp.Refreshed {
 		_, _ = fmt.Fprintf(w, "refreshed\t%s\t%s\n", c.OwnerID, c.ClaimID)
 	}
+	for _, c := range resp.Adopted {
+		_, _ = fmt.Fprintf(w, "adopted\t%s\t%s\n", c.OwnerID, c.ClaimID)
+	}
 	for _, c := range resp.Expired {
 		_, _ = fmt.Fprintf(w, "expired\t%s\t%s\n", c.OwnerID, c.ClaimID)
+	}
+	for _, c := range resp.IdleUnloadCandidates {
+		_, _ = fmt.Fprintf(w, "would-idle-unload (advisory)\t%s\t%s\t->%s\n", c.OwnerID, c.ClaimID, c.Status)
+	}
+	return nil
+}
+
+// RenderGC renders the terminal-claim GC result.
+func RenderGC(w io.Writer, format cliout.Format, resp capacityapp.GCOutput) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, resp)
+	}
+	if resp.Pruned == 0 {
+		_, _ = fmt.Fprintf(w, "no terminal claims past retention %s to prune\n", resp.RetentionSpent)
+		return nil
+	}
+	_, _ = fmt.Fprintf(w, "pruned %d terminal claim(s) (%s) past retention %s\n", resp.Pruned, humanBytes(resp.Bytes), resp.RetentionSpent)
+	return nil
+}
+
+// RenderRecommend renders advisory right-sizing suggestions.
+func RenderRecommend(w io.Writer, format cliout.Format, resp capacityapp.RecommendOutput) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, resp)
+	}
+	if len(resp.Recommendations) == 0 {
+		_, _ = fmt.Fprintln(w, "no right-sizing recommendations (claims are right-sized, or lack observed-peak data)")
+		return nil
+	}
+	for _, r := range resp.Recommendations {
+		_, _ = fmt.Fprintf(w, "%s\t%s\treserve=%s\tpeak=%s\tsuggest=%s\tsaves=%s\n",
+			r.OwnerID, r.ClaimID, humanBytes(r.PreferredBytes), humanBytes(r.ObservedPeakBytes),
+			humanBytes(r.SuggestedBytes), humanBytes(r.SavingsBytes))
 	}
 	return nil
 }

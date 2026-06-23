@@ -2,6 +2,7 @@ package maintenance
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 type capacitySweepStore interface {
 	capacity.ClaimRepository
 	capacity.PolicyRepository
+	GCTerminalClaims(ctx context.Context, olderThan time.Time) (capacity.GCResult, error)
 	Close() error
 }
 
@@ -31,6 +33,14 @@ var (
 	capacityAttributorFn = func() capacity.Attributor { return capacity.NewDockerAttributor() }
 	capacitySweepFn      = capacity.Sweep
 	capacityNowFn        = func() time.Time { return time.Now().UTC() }
+	// capacityExecFn resolves the degrade actuator for autonomous idle-unload.
+	// Production shells the owner's resource CLI; idle-unload only actuates under
+	// enforce=on (advisory just logs the would-unload), so this is dormant by
+	// default. Tests override it so no real exec runs.
+	capacityExecFn    = func() capacity.ApplyExecutor { return capacity.DefaultExecutor() }
+	capacityEnforceFn = func(policy capacity.Policy) string {
+		return policy.EffectiveEnforce(os.Getenv(capacity.EnvEnforce))
+	}
 )
 
 // openCapacityStoreIfPresent opens the capacity ledger ONLY when it already
@@ -75,13 +85,56 @@ func (c *Controller) sweepCapacityClaims(ctx context.Context) ([]control.ResultI
 		// Sensing unavailable: skip the sweep entirely (never expire unverified).
 		return nil, nil
 	}
-	result, err := capacitySweepFn(ctx, store, snapshot, capacityAttributorFn(), policy, capacityNowFn())
+	now := capacityNowFn()
+	result, err := capacitySweepFn(ctx, store, snapshot, capacityAttributorFn(), policy, now)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]control.ResultItem, 0, len(result.Expired))
+	items := make([]control.ResultItem, 0, len(result.Expired)+1)
 	for _, claim := range result.Expired {
 		items = append(items, control.Stopped(claim.OwnerID, "Expired stale capacity claim "+claim.ClaimID))
+	}
+	// Autonomous idle-unload (plan §Phase 3 keystone): proactively free VRAM from
+	// claims idle beyond their idle_unload_ttl, accepting a cold start on next use.
+	// Gated by enforce mode — advisory LOGS the would-unload (no actuation),
+	// enforce=on actuates through the degrade path (debounce-respected, fail-open).
+	// GC + sampling above stay safe regardless.
+	enforce := capacityEnforceFn(policy)
+	if active, listErr := store.ListClaims(ctx, capacity.ClaimFilter{Statuses: capacity.ActiveClaimStatuses()}); listErr == nil {
+		plan, _, _ := capacity.RunIdleUnload(ctx, store, active, capacityExecFn(), policy, enforce, now)
+		for _, a := range plan.Actions {
+			if a.Action != capacity.ActionRequestDegrade {
+				continue
+			}
+			verb := "would idle-unload (advisory)"
+			if enforce == capacity.EnforceOn {
+				verb = "idle-unloaded"
+			}
+			items = append(items, control.Stopped(a.OwnerID, fmt.Sprintf("%s claim %s to %q", verb, a.ClaimID, a.ToStep)))
+		}
+	}
+
+	// Claim-on-observe adoption (plan §Phase 6): an observed GPU consumer whose
+	// resource.json declares a capacity block but holds NO active claim (a resident
+	// that predates the admission hook, e.g. kyutai-stt / speaker-verification) is
+	// adopted into the ledger from its declared spec — idempotent, declared-only,
+	// advisory-safe. The SpecLoader reads resource.json under the source root.
+	loadSpec := func(name string) (capacity.ResourceClaimSpec, bool, error) {
+		return capacity.LoadResourceClaimSpec(c.Root, name)
+	}
+	if adopted, adoptErr := capacity.AdoptObservedResidents(ctx, store, snapshot, capacityAttributorFn(), policy, loadSpec, now); adoptErr == nil {
+		for _, cl := range adopted {
+			items = append(items, control.Started(cl.OwnerID, "Adopted declared resident into capacity ledger ("+cl.ClaimID+")"))
+		}
+	}
+
+	// Terminal-claim GC (plan §Phase 1): prune released/expired/preempted rows
+	// past the retention window so the ledger does not accumulate dead history.
+	// Always safe (frees no live capacity); disabled when retention <= 0.
+	if policy.TerminalRetention > 0 {
+		if gc, gcErr := store.GCTerminalClaims(ctx, now.Add(-policy.TerminalRetention)); gcErr == nil && gc.Count > 0 {
+			items = append(items, control.Stopped("capacity", fmt.Sprintf("Pruned %d terminal capacity claim(s) past retention", gc.Count)))
+		}
 	}
 	return items, nil
 }

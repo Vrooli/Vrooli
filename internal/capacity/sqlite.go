@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -72,6 +73,17 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	clk := cfg.Clock
 	if clk == nil {
 		clk = realClock{}
+	}
+
+	// Hard test-isolation seam (plan §Phase 1): under `go test`, opening the
+	// ledger without an explicit DBPath would silently resolve to (and write) the
+	// LIVE ~/.vrooli/state/capacity.db — VROOLI_HOME does NOT isolate it, the very
+	// gotcha that left `iy-grant-*` fixtures in the live ledger. Refuse, so every
+	// capacity test must pass Config{DBPath: t.TempDir()...}. HomeDir-overridden
+	// stores (cfg.HomeDir set) are still allowed for tests that fully redirect the
+	// home root.
+	if testing.Testing() && strings.TrimSpace(cfg.DBPath) == "" && strings.TrimSpace(cfg.HomeDir) == "" {
+		return nil, fmt.Errorf("capacity ledger: tests must pass an explicit Config.DBPath (or HomeDir); refusing to open the live ledger at the default path")
 	}
 
 	dbPath := cfg.DBPath
@@ -179,15 +191,17 @@ func (s *SQLiteStore) CreateClaim(ctx context.Context, claim CapacityClaim, ttl 
 		_, execErr := tx.ExecContext(ctx, `
 INSERT INTO capacity_claims (
   claim_id, owner_kind, owner_id, instance_id, resource_kind, gpu_index,
-  amount_bytes, preferred_bytes, floor_bytes, priority, protected, status,
+  amount_bytes, preferred_bytes, floor_bytes, priority, protected, yield_when_idle, status,
   activity_state, generation, created_at, updated_at, last_heartbeat_at,
-  heartbeat_deadline_at, last_active_at, degrade_profile
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  heartbeat_deadline_at, last_active_at, degrade_profile,
+  observed_bytes, observed_peak_bytes, observed_at, idle_unload_ttl_seconds
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			claim.ClaimID, claim.OwnerKind, claim.OwnerID, claim.InstanceID, claim.ResourceKind,
 			optionalIntValue(claim.GPUIndex), claim.AmountBytes, claim.PreferredBytes, claim.FloorBytes,
-			claim.Priority, boolToInt(claim.Protected), claim.Status, claim.ActivityState, claim.Generation,
+			claim.Priority, boolToInt(claim.Protected), boolToInt(claim.YieldWhenIdle), claim.Status, claim.ActivityState, claim.Generation,
 			formatTime(claim.CreatedAt), formatTime(claim.UpdatedAt), formatOptionalTime(claim.LastHeartbeatAt),
-			formatOptionalTime(claim.HeartbeatDeadlineAt), formatOptionalTime(claim.LastActiveAt), profileJSON)
+			formatOptionalTime(claim.HeartbeatDeadlineAt), formatOptionalTime(claim.LastActiveAt), profileJSON,
+			claim.ObservedBytes, claim.ObservedPeakBytes, formatOptionalTime(claim.ObservedAt), int64(claim.IdleUnloadTTL/time.Second))
 		if execErr != nil {
 			return fmt.Errorf("insert capacity claim: %w", execErr)
 		}
@@ -399,6 +413,78 @@ WHERE claim_id = ? AND status IN (?, ?, ?)`,
 	return expired, nil
 }
 
+// GCTerminalClaims prunes terminal (released/expired/preempted) claims whose
+// updated_at is older than olderThan, returning how many rows were deleted and
+// the sum of their last-recorded amount_bytes (informational). Active claims
+// (reserved/granted/degraded) are NEVER pruned — only history is collected. GC
+// is always safe regardless of enforce mode (it never frees live capacity, it
+// only trims dead rows).
+func (s *SQLiteStore) GCTerminalClaims(ctx context.Context, olderThan time.Time) (GCResult, error) {
+	cutoff := formatTime(olderThan.UTC())
+	var res GCResult
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		row := tx.QueryRowContext(ctx, `
+SELECT COUNT(*), COALESCE(SUM(amount_bytes), 0)
+FROM capacity_claims
+WHERE status NOT IN (?, ?, ?) AND updated_at < ?`,
+			StatusReserved, StatusGranted, StatusDegraded, cutoff)
+		if scanErr := row.Scan(&res.Count, &res.Bytes); scanErr != nil {
+			return fmt.Errorf("count terminal capacity claims: %w", scanErr)
+		}
+		if res.Count == 0 {
+			return nil
+		}
+		if _, execErr := tx.ExecContext(ctx, `
+DELETE FROM capacity_claims
+WHERE status NOT IN (?, ?, ?) AND updated_at < ?`,
+			StatusReserved, StatusGranted, StatusDegraded, cutoff); execErr != nil {
+			return fmt.Errorf("prune terminal capacity claims: %w", execErr)
+		}
+		return nil
+	})
+	if err != nil {
+		return GCResult{}, err
+	}
+	return res, nil
+}
+
+// RecordObserved persists a usage-sampling result on an active claim (§Phase 2):
+// the latest observed bytes, the decaying peak, and the sample time. It is pure
+// telemetry — it does NOT bump the generation (so it never invalidates a pending
+// activity report or arbitration decision) and only writes active claims (a
+// terminal claim is never resurrected). Observed usage NEVER feeds Decide
+// (contract C1).
+func (s *SQLiteStore) RecordObserved(ctx context.Context, claimID string, observed, peak int64, at time.Time) (CapacityClaim, error) {
+	if strings.TrimSpace(claimID) == "" {
+		return CapacityClaim{}, fmt.Errorf("%w: claim_id is required", ErrInvalidClaim)
+	}
+	var out CapacityClaim
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		result, execErr := tx.ExecContext(ctx, `
+UPDATE capacity_claims
+SET observed_bytes = ?, observed_peak_bytes = ?, observed_at = ?
+WHERE claim_id = ? AND status IN (?, ?, ?)`,
+			observed, peak, formatTime(at.UTC()), claimID, StatusReserved, StatusGranted, StatusDegraded)
+		if execErr != nil {
+			return fmt.Errorf("record observed usage: %w", execErr)
+		}
+		affected, raErr := result.RowsAffected()
+		if raErr != nil {
+			return fmt.Errorf("inspect observed-usage update: %w", raErr)
+		}
+		if affected == 0 {
+			// Claim terminal or absent — telemetry on a dead row is a silent no-op.
+			return nil
+		}
+		out, execErr = getClaimTx(ctx, tx, claimID)
+		return execErr
+	})
+	if err != nil {
+		return CapacityClaim{}, err
+	}
+	return out, nil
+}
+
 // GetClaim returns a single claim by ID.
 func (s *SQLiteStore) GetClaim(ctx context.Context, claimID string) (CapacityClaim, error) {
 	var out CapacityClaim
@@ -532,6 +618,49 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.upd
 	return next, nil
 }
 
+// sweepCursorKey is the reserved capacity_policy row holding the last
+// resident-claim sweep time (§8.6). It is NOT a tunable lever: withKey rejects
+// it as unknown, so GetPolicy skips it and `policy get` never lists it. Storing
+// it in the existing key/value table avoids a schema migration while letting the
+// debounce survive across the short-lived CLI/maintenance processes that drive
+// the sweep.
+const sweepCursorKey = "__sweep_last_at"
+
+// LastSweepAt returns the last recorded resident-claim sweep time. ok is false
+// (with a zero time, nil error) when no sweep has been recorded yet.
+func (s *SQLiteStore) LastSweepAt(ctx context.Context) (time.Time, bool, error) {
+	var raw string
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		return tx.QueryRowContext(ctx, `SELECT value FROM capacity_policy WHERE key = ?`, sweepCursorKey).Scan(&raw)
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return time.Time{}, false, nil
+	}
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	t, perr := parseRequiredTime(raw)
+	if perr != nil || t.IsZero() {
+		return time.Time{}, false, nil
+	}
+	return t.UTC(), true, nil
+}
+
+// RecordSweepAt stamps the time of the most recent sweep so the opportunistic
+// callers can debounce to policy.SweepInterval.
+func (s *SQLiteStore) RecordSweepAt(ctx context.Context, at time.Time) error {
+	return s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		_, execErr := tx.ExecContext(ctx, `
+INSERT INTO capacity_policy (key, value, updated_at) VALUES (?, ?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+			sweepCursorKey, formatTime(at.UTC()), formatTime(s.now()))
+		if execErr != nil {
+			return fmt.Errorf("record capacity sweep cursor: %w", execErr)
+		}
+		return nil
+	})
+}
+
 // --- transaction + scan helpers (mirror scenarioruntime) ---
 
 func (s *SQLiteStore) withTx(ctx context.Context, fn func(*sql.Tx) error) error {
@@ -607,9 +736,10 @@ func finishMutation(ctx context.Context, tx *sql.Tx, result sql.Result, claimID 
 
 const claimSelectSQL = `
 SELECT claim_id, owner_kind, owner_id, instance_id, resource_kind, gpu_index,
-  amount_bytes, preferred_bytes, floor_bytes, priority, protected, status,
+  amount_bytes, preferred_bytes, floor_bytes, priority, protected, yield_when_idle, status,
   activity_state, generation, created_at, updated_at, last_heartbeat_at,
-  heartbeat_deadline_at, last_active_at, degrade_profile
+  heartbeat_deadline_at, last_active_at, degrade_profile,
+  observed_bytes, observed_peak_bytes, observed_at, idle_unload_ttl_seconds
 FROM capacity_claims`
 
 func getClaimTx(ctx context.Context, tx *sql.Tx, claimID string) (CapacityClaim, error) {
@@ -628,29 +758,35 @@ type rowScanner interface {
 
 func scanClaimRow(row rowScanner) (CapacityClaim, error) {
 	var (
-		c          CapacityClaim
-		gpuIndex   sql.NullInt64
-		protected  int64
-		lastHB     sql.NullString
-		hbDeadline sql.NullString
-		lastActive sql.NullString
-		profile    string
-		created    string
-		updated    string
+		c            CapacityClaim
+		gpuIndex     sql.NullInt64
+		protected    int64
+		yieldOnIdle  int64
+		lastHB       sql.NullString
+		hbDeadline   sql.NullString
+		lastActive   sql.NullString
+		profile      string
+		created      string
+		updated      string
+		observedAt   sql.NullString
+		idleUnloadTS int64
 	)
 	if err := row.Scan(
 		&c.ClaimID, &c.OwnerKind, &c.OwnerID, &c.InstanceID, &c.ResourceKind, &gpuIndex,
-		&c.AmountBytes, &c.PreferredBytes, &c.FloorBytes, &c.Priority, &protected, &c.Status,
+		&c.AmountBytes, &c.PreferredBytes, &c.FloorBytes, &c.Priority, &protected, &yieldOnIdle, &c.Status,
 		&c.ActivityState, &c.Generation, &created, &updated, &lastHB,
 		&hbDeadline, &lastActive, &profile,
+		&c.ObservedBytes, &c.ObservedPeakBytes, &observedAt, &idleUnloadTS,
 	); err != nil {
 		return CapacityClaim{}, err
 	}
+	c.IdleUnloadTTL = time.Duration(idleUnloadTS) * time.Second
 	if gpuIndex.Valid {
 		idx := int(gpuIndex.Int64)
 		c.GPUIndex = &idx
 	}
 	c.Protected = protected != 0
+	c.YieldWhenIdle = yieldOnIdle != 0
 	var err error
 	if c.CreatedAt, err = parseRequiredTime(created); err != nil {
 		return CapacityClaim{}, err
@@ -665,6 +801,9 @@ func scanClaimRow(row rowScanner) (CapacityClaim, error) {
 		return CapacityClaim{}, err
 	}
 	if c.LastActiveAt, err = parseOptionalTime(lastActive); err != nil {
+		return CapacityClaim{}, err
+	}
+	if c.ObservedAt, err = parseOptionalTime(observedAt); err != nil {
 		return CapacityClaim{}, err
 	}
 	if c.DegradeProfile, err = unmarshalProfile(profile); err != nil {

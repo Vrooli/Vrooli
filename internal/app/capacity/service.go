@@ -20,6 +20,7 @@ import (
 type Store interface {
 	engine.ClaimRepository
 	engine.PolicyRepository
+	GCTerminalClaims(ctx context.Context, olderThan time.Time) (engine.GCResult, error)
 	Close() error
 }
 
@@ -30,6 +31,18 @@ type Service struct {
 	Source     engine.CapacitySource
 	Attributor engine.Attributor
 	Clock      func() time.Time
+	// SourceRoot is the Vrooli source root used to resolve a resource's declared
+	// capacity block for claim-on-observe adoption (§Phase 6). Empty falls back to
+	// the VROOLI_SOURCE_ROOT env the CLI sets; when neither resolves, adoption is a
+	// no-op (the maintenance pass remains the always-on adoption driver).
+	SourceRoot string
+}
+
+func (s Service) sourceRoot() string {
+	if strings.TrimSpace(s.SourceRoot) != "" {
+		return s.SourceRoot
+	}
+	return strings.TrimSpace(os.Getenv("VROOLI_SOURCE_ROOT"))
 }
 
 func (s Service) now() time.Time {
@@ -62,45 +75,60 @@ func (s Service) attributor() engine.Attributor {
 
 // ClaimView is the JSON/text projection of a claim.
 type ClaimView struct {
-	ClaimID        string  `json:"claim_id"`
-	OwnerKind      string  `json:"owner_kind"`
-	OwnerID        string  `json:"owner_id"`
-	InstanceID     string  `json:"instance_id,omitempty"`
-	ResourceKind   string  `json:"resource_kind"`
-	GPUIndex       *int    `json:"gpu_index,omitempty"`
-	AmountBytes    int64   `json:"amount_bytes"`
-	PreferredBytes int64   `json:"preferred_bytes"`
-	FloorBytes     int64   `json:"floor_bytes"`
-	Priority       int     `json:"priority"`
-	PriorityTier   string  `json:"priority_tier"`
-	Protected      bool    `json:"protected"`
-	Status         string  `json:"status"`
-	ActivityState  string  `json:"activity_state"`
-	Generation     int64   `json:"generation"`
-	LastActiveAt   *string `json:"last_active_at,omitempty"`
+	ClaimID           string  `json:"claim_id"`
+	OwnerKind         string  `json:"owner_kind"`
+	OwnerID           string  `json:"owner_id"`
+	InstanceID        string  `json:"instance_id,omitempty"`
+	ResourceKind      string  `json:"resource_kind"`
+	GPUIndex          *int    `json:"gpu_index,omitempty"`
+	AmountBytes       int64   `json:"amount_bytes"`
+	PreferredBytes    int64   `json:"preferred_bytes"`
+	FloorBytes        int64   `json:"floor_bytes"`
+	Priority          int     `json:"priority"`
+	PriorityTier      string  `json:"priority_tier"`
+	Protected         bool    `json:"protected"`
+	YieldWhenIdle     bool    `json:"yield_when_idle"`
+	Status            string  `json:"status"`
+	ActivityState     string  `json:"activity_state"`
+	Generation        int64   `json:"generation"`
+	LastActiveAt      *string `json:"last_active_at,omitempty"`
+	ObservedBytes     int64   `json:"observed_bytes"`
+	ObservedPeakBytes int64   `json:"observed_peak_bytes"`
+	ObservedAt        *string `json:"observed_at,omitempty"`
+	IdleUnloadTTL     string  `json:"idle_unload_ttl,omitempty"`
 }
 
 func viewClaim(c engine.CapacityClaim) ClaimView {
 	v := ClaimView{
-		ClaimID:        c.ClaimID,
-		OwnerKind:      c.OwnerKind,
-		OwnerID:        c.OwnerID,
-		InstanceID:     c.InstanceID,
-		ResourceKind:   c.ResourceKind,
-		GPUIndex:       c.GPUIndex,
-		AmountBytes:    c.AmountBytes,
-		PreferredBytes: c.PreferredBytes,
-		FloorBytes:     c.FloorBytes,
-		Priority:       c.Priority,
-		PriorityTier:   engine.PriorityTierName(c.Priority),
-		Protected:      c.Protected,
-		Status:         c.Status,
-		ActivityState:  c.ActivityState,
-		Generation:     c.Generation,
+		ClaimID:           c.ClaimID,
+		OwnerKind:         c.OwnerKind,
+		OwnerID:           c.OwnerID,
+		InstanceID:        c.InstanceID,
+		ResourceKind:      c.ResourceKind,
+		GPUIndex:          c.GPUIndex,
+		AmountBytes:       c.AmountBytes,
+		PreferredBytes:    c.PreferredBytes,
+		FloorBytes:        c.FloorBytes,
+		Priority:          c.Priority,
+		PriorityTier:      engine.PriorityTierName(c.Priority),
+		Protected:         c.Protected,
+		YieldWhenIdle:     c.YieldWhenIdle,
+		Status:            c.Status,
+		ActivityState:     c.ActivityState,
+		Generation:        c.Generation,
+		ObservedBytes:     c.ObservedBytes,
+		ObservedPeakBytes: c.ObservedPeakBytes,
 	}
 	if c.LastActiveAt != nil {
 		ts := c.LastActiveAt.UTC().Format(time.RFC3339)
 		v.LastActiveAt = &ts
+	}
+	if c.ObservedAt != nil {
+		ts := c.ObservedAt.UTC().Format(time.RFC3339)
+		v.ObservedAt = &ts
+	}
+	if c.IdleUnloadTTL > 0 {
+		v.IdleUnloadTTL = c.IdleUnloadTTL.String()
 	}
 	return v
 }
@@ -116,6 +144,8 @@ type ClaimRequest struct {
 	FloorBytes     int64
 	PriorityTier   string
 	Protected      bool
+	YieldWhenIdle  bool
+	IdleUnloadTTL  time.Duration
 	ProfileJSON    string
 	TTL            time.Duration
 }
@@ -155,6 +185,8 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 		FloorBytes:     req.FloorBytes,
 		Priority:       engine.ParsePriorityTier(req.PriorityTier),
 		Protected:      req.Protected,
+		YieldWhenIdle:  req.YieldWhenIdle,
+		IdleUnloadTTL:  req.IdleUnloadTTL,
 		Profile:        profile,
 		TTL:            req.TTL,
 	}
@@ -203,6 +235,8 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 		FloorBytes:     req.FloorBytes,
 		Priority:       engReq.Priority,
 		Protected:      req.Protected,
+		YieldWhenIdle:  req.YieldWhenIdle,
+		IdleUnloadTTL:  req.IdleUnloadTTL,
 		Status:         status,
 		DegradeProfile: profile,
 	}
@@ -321,6 +355,12 @@ func (s Service) List(ctx context.Context, req ListRequest) (ListOutput, error) 
 		return ListOutput{}, err
 	}
 	defer store.Close()
+	// Opportunistic, debounced resident-claim sweep (§8.6) so a list reflects
+	// presence-refreshed/expired claims during active periods. Best-effort: a
+	// sensing failure or cursor-less store is a silent no-op.
+	if policy, perr := store.GetPolicy(ctx); perr == nil {
+		_, _, _ = engine.MaybeSweep(ctx, store, s.source(), s.attributor(), policy, s.now())
+	}
 	filter := engine.ClaimFilter{OwnerID: req.OwnerID}
 	if req.ActiveOnly {
 		filter.Statuses = engine.ActiveClaimStatuses()
@@ -356,6 +396,12 @@ func (s Service) Reconcile(ctx context.Context) (ReconcileOutput, error) {
 	if err != nil {
 		return ReconcileOutput{}, fmt.Errorf("capacity sensing unavailable: %w", err)
 	}
+	// Opportunistic, debounced sweep (§8.6) reusing the snapshot we just took, so
+	// reconcile classifies against presence-refreshed/expired claims rather than a
+	// ledger that still lists a dead resident. Best-effort on a cursor-backed store.
+	if cursor, ok := any(store).(engine.SweepCursorStore); ok {
+		_, _, _ = engine.SweepIfDue(ctx, cursor, snapshot, s.attributor(), policy, s.now())
+	}
 	ledger, err := store.ListClaims(ctx, engine.ClaimFilter{Statuses: engine.ActiveClaimStatuses()})
 	if err != nil {
 		return ReconcileOutput{}, err
@@ -375,6 +421,13 @@ type SweepView struct {
 type SweepOutput struct {
 	Refreshed []SweepView `json:"refreshed"`
 	Expired   []SweepView `json:"expired"`
+	Adopted   []SweepView `json:"adopted,omitempty"`
+	// IdleUnloadCandidates are claims idle beyond their idle_unload_ttl that the
+	// broker WOULD autonomously unload (advisory). The CLI sweep verb only reports
+	// them — actuation happens solely in the always-on maintenance pass under
+	// enforce=on. Empty unless a resource declares idle_unload_ttl (or the
+	// default_idle_unload_ttl lever is set).
+	IdleUnloadCandidates []SweepView `json:"idle_unload_candidates,omitempty"`
 }
 
 // Sweep runs the resident-claim heartbeat driver: it renews the heartbeat of
@@ -396,7 +449,8 @@ func (s Service) Sweep(ctx context.Context) (SweepOutput, error) {
 	if err != nil {
 		return SweepOutput{}, fmt.Errorf("capacity sensing unavailable: %w", err)
 	}
-	result, err := engine.Sweep(ctx, store, snapshot, s.attributor(), policy, s.now())
+	now := s.now()
+	result, err := engine.Sweep(ctx, store, snapshot, s.attributor(), policy, now)
 	if err != nil {
 		return SweepOutput{}, err
 	}
@@ -410,6 +464,96 @@ func (s Service) Sweep(ctx context.Context) (SweepOutput, error) {
 	for _, c := range result.Expired {
 		out.Expired = append(out.Expired, SweepView{ClaimID: c.ClaimID, OwnerID: c.OwnerID, Status: c.Status})
 	}
+	// Claim-on-observe adoption (§Phase 6): adopt declared-but-unclaimed residents
+	// into the ledger from their resource.json capacity block (idempotent,
+	// declared-only, advisory-safe). Skipped when no source root resolves.
+	if root := s.sourceRoot(); root != "" {
+		loadSpec := func(name string) (engine.ResourceClaimSpec, bool, error) {
+			return engine.LoadResourceClaimSpec(root, name)
+		}
+		if adopted, adoptErr := engine.AdoptObservedResidents(ctx, store, snapshot, s.attributor(), policy, loadSpec, now); adoptErr == nil {
+			for _, c := range adopted {
+				out.Adopted = append(out.Adopted, SweepView{ClaimID: c.ClaimID, OwnerID: c.OwnerID, Status: c.Status})
+			}
+		}
+	}
+	// Advisory idle-unload candidates (§Phase 3): report (never actuate) which
+	// active claims are idle beyond their idle_unload_ttl. PlanIdleUnload is a pure
+	// planner; the CLI verb only surfaces the would-unload — actuation lives in the
+	// always-on maintenance pass under enforce=on.
+	if active, listErr := store.ListClaims(ctx, engine.ClaimFilter{Statuses: engine.ActiveClaimStatuses()}); listErr == nil {
+		for _, a := range engine.PlanIdleUnload(active, policy, now).Actions {
+			out.IdleUnloadCandidates = append(out.IdleUnloadCandidates, SweepView{ClaimID: a.ClaimID, OwnerID: a.OwnerID, Status: a.ToStep})
+		}
+	}
+	return out, nil
+}
+
+// RecommendRequest narrows the right-sizing scan.
+type RecommendRequest struct {
+	OwnerID string
+}
+
+// RecommendOutput is the advisory right-sizing suggestion set.
+type RecommendOutput struct {
+	Recommendations []engine.Recommendation `json:"recommendations"`
+}
+
+// Recommend compares active VRAM claims' declared reservations against their
+// observed peaks and returns advisory right-sizing suggestions (§Phase 4). It
+// never applies anything (contract C7) and stays silent for claims without
+// enough observed data. It runs an opportunistic, debounced sweep first so the
+// peaks it reads are fresh.
+func (s Service) Recommend(ctx context.Context, req RecommendRequest) (RecommendOutput, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return RecommendOutput{}, err
+	}
+	defer store.Close()
+	policy, err := store.GetPolicy(ctx)
+	if err != nil {
+		return RecommendOutput{}, err
+	}
+	// Best-effort fresh sample before reading peaks (cursor-backed + sensing only).
+	_, _, _ = engine.MaybeSweep(ctx, store, s.source(), s.attributor(), policy, s.now())
+	filter := engine.ClaimFilter{OwnerID: req.OwnerID, Statuses: engine.ActiveClaimStatuses()}
+	claims, err := store.ListClaims(ctx, filter)
+	if err != nil {
+		return RecommendOutput{}, err
+	}
+	return RecommendOutput{Recommendations: engine.Recommend(claims, policy)}, nil
+}
+
+// GCOutput reports what terminal-claim GC pruned.
+type GCOutput struct {
+	Pruned         int    `json:"pruned"`
+	Bytes          int64  `json:"bytes"`
+	RetentionSpent string `json:"retention"`
+}
+
+// GC prunes terminal (released/expired/preempted) claims older than the
+// terminal_retention lever. It is always safe — it frees no live capacity, only
+// trimming dead history (plan §Phase 1). A retention of 0 disables GC.
+func (s Service) GC(ctx context.Context) (GCOutput, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return GCOutput{}, err
+	}
+	defer store.Close()
+	policy, err := store.GetPolicy(ctx)
+	if err != nil {
+		return GCOutput{}, err
+	}
+	out := GCOutput{RetentionSpent: policy.TerminalRetention.String()}
+	if policy.TerminalRetention <= 0 {
+		return out, nil
+	}
+	res, err := store.GCTerminalClaims(ctx, s.now().Add(-policy.TerminalRetention))
+	if err != nil {
+		return GCOutput{}, err
+	}
+	out.Pruned = res.Count
+	out.Bytes = res.Bytes
 	return out, nil
 }
 

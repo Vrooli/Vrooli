@@ -22,17 +22,6 @@ func residentClaim(owner string) CapacityClaim {
 	}
 }
 
-func findClaim(t *testing.T, claims []CapacityClaim, id string) CapacityClaim {
-	t.Helper()
-	for _, c := range claims {
-		if c.ClaimID == id {
-			return c
-		}
-	}
-	t.Fatalf("claim %s not found in %d claims", id, len(claims))
-	return CapacityClaim{}
-}
-
 // A resident claim whose owner is still observed on the GPU is heartbeated, not
 // expired — even after its deadline would otherwise have lapsed.
 func TestSweepRefreshesObservedResidentClaim(t *testing.T) {

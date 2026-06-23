@@ -62,25 +62,27 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		available = 0
 	}
 
-	// Reclaim accounting: idle-eligible lower-priority unprotected claims can be
-	// reclaimed right now; the broader set could be reclaimed if they go idle.
+	// Reclaim accounting: idle-eligible reclaimable claims can be reclaimed right
+	// now; the broader reclaimable set could be reclaimed once it goes idle. Both
+	// honor the idle-yield rule, so an idle yield-opted higher-priority claim
+	// (e.g. interactive whisper) counts toward what a batch requester can reclaim.
 	var reclaimNowBytes, potentialBytes int64
 	var reclaimTargets []string
 	aheadCount := 0
 	for _, c := range ledger {
-		if c.Priority >= req.Priority {
-			if IsActiveClaimStatus(c.Status) {
-				aheadCount++
+		if !IsActiveClaimStatus(c.Status) {
+			continue
+		}
+		if potentialReclaimEligibleFor(c, req.Priority, policy) {
+			potentialBytes += c.AmountBytes
+			if isReclaimEligible(c, policy.IdleGrace, now) {
+				reclaimNowBytes += c.AmountBytes
+				reclaimTargets = append(reclaimTargets, c.ClaimID)
 			}
 			continue
 		}
-		if !IsActiveClaimStatus(c.Status) || c.Protected {
-			continue
-		}
-		potentialBytes += c.AmountBytes
-		if isReclaimEligible(c, policy.IdleGrace, now) {
-			reclaimNowBytes += c.AmountBytes
-			reclaimTargets = append(reclaimTargets, c.ClaimID)
+		if c.Priority >= req.Priority {
+			aheadCount++
 		}
 	}
 
@@ -95,6 +97,7 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 			v := Verdict{GrantedBytes: cand.amount, Step: cand.label}
 			if cand.amount > available {
 				v.ReclaimTargets = reclaimTargets
+				v.ReclaimBytes = cand.amount - available
 				v.Warnings = append(v.Warnings, fmt.Sprintf("grant requires reclaiming %d idle lower-priority claim(s)", len(reclaimTargets)))
 			}
 			if cand.label == top.label && cand.amount == top.amount {
@@ -116,7 +119,7 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		return Verdict{
 			Kind:          VerdictQueue,
 			QueuePosition: aheadCount + 1,
-			Reason:        fmt.Sprintf("floor %d exceeds available %d; waiting for %d reclaimable lower-priority claim(s) to idle", floor.amount, availableNow, len(potentialReclaimable(req, ledger))),
+			Reason:        fmt.Sprintf("floor %d exceeds available %d; waiting for %d reclaimable claim(s) to idle", floor.amount, availableNow, len(potentialReclaimable(req, ledger, policy))),
 		}
 	}
 	return Verdict{
@@ -229,6 +232,51 @@ func sameGPU(a, b *int) bool {
 	return av == bv
 }
 
+// potentialReclaimEligibleFor reports whether claim c could ever be reclaimed to
+// satisfy a requester of priority requesterPriority — IGNORING current activity
+// (it is the priority/protection gate, not the idleness test). A claim qualifies
+// when it is unprotected and active-status AND either:
+//
+//   - strict default: its priority is strictly lower than the requester's, OR
+//   - idle-yield (§8.3): it opted into yield_when_idle AND the requester's
+//     priority is at or above the idle-yield floor. This relaxes the strict
+//     lower-priority rule to permit EQUAL-priority reclaim of a yielded claim,
+//     but ONLY for claims that explicitly opted in.
+//
+// Claims without the flag keep the strict rule byte-for-byte. Pair this with
+// isReclaimEligible for "reclaimable right now".
+func potentialReclaimEligibleFor(c CapacityClaim, requesterPriority int, policy Policy) bool {
+	if c.Protected || !IsActiveClaimStatus(c.Status) {
+		return false
+	}
+	if c.Priority < requesterPriority {
+		return true // strict default: strictly-lower priority is reclaimable
+	}
+	if c.YieldWhenIdle && requesterPriority >= idleYieldFloor(policy) {
+		return true // idle-yield opt-in: yields to floor-and-above work
+	}
+	return false
+}
+
+// reclaimEligibleFor reports whether claim c may be reclaimed RIGHT NOW for a
+// requester of priority requesterPriority: it must pass the priority/protection
+// gate AND have dwelt idle beyond idle_grace. Active claims (and non-opt-in
+// higher/equal-priority claims) are never eligible — age/utilization never make
+// a claim eligible, only reported idle state does.
+func reclaimEligibleFor(c CapacityClaim, requesterPriority int, policy Policy, now time.Time) bool {
+	return potentialReclaimEligibleFor(c, requesterPriority, policy) && isReclaimEligible(c, policy.IdleGrace, now)
+}
+
+// idleYieldFloor normalizes the policy's idle-yield floor, defaulting a zero
+// value (a Policy constructed without DefaultPolicy) to batch — matching
+// DefaultPolicy — rather than 0, which would let any requester reclaim.
+func idleYieldFloor(policy Policy) int {
+	if policy.IdleYieldFloor <= 0 {
+		return PriorityBatch
+	}
+	return policy.IdleYieldFloor
+}
+
 // isReclaimEligible reports whether a claim may be reclaimed right now: it must
 // be reported idle and have dwelt idle for at least the grace period. Age and
 // utilization never make a claim eligible — only reported idle state does.
@@ -244,10 +292,10 @@ func isReclaimEligible(c CapacityClaim, grace time.Duration, now time.Time) bool
 	return !now.Before(since.Add(grace))
 }
 
-func potentialReclaimable(req CapacityRequest, ledger []CapacityClaim) []CapacityClaim {
+func potentialReclaimable(req CapacityRequest, ledger []CapacityClaim, policy Policy) []CapacityClaim {
 	var out []CapacityClaim
 	for _, c := range ledger {
-		if c.Priority < req.Priority && IsActiveClaimStatus(c.Status) && !c.Protected {
+		if potentialReclaimEligibleFor(c, req.Priority, policy) {
 			out = append(out, c)
 		}
 	}

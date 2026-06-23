@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/agentpolicyhandlers"
 	"github.com/vrooli/vrooli/internal/cli/authhandlers"
+	"github.com/vrooli/vrooli/internal/cli/capacityhandlers"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
@@ -973,7 +974,11 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Root:         func(ctx *CommandContext) string { return ctx.Root },
 			OutputFormat: projectOutputFormat,
 		}),
-		topcli.CommandHost:      func(ctx *CommandContext, args []string) error { return ctx.app.runHostCommand(ctx, args) },
+		topcli.CommandHost: func(ctx *CommandContext, args []string) error { return ctx.app.runHostCommand(ctx, args) },
+		topcli.CommandCapacity: capacityhandlers.RootHandler(capacityhandlers.HandlerDeps[*CommandContext]{
+			Stdout:       commandStdout,
+			OutputFormat: projectOutputFormat,
+		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}
 	templateValidationCleanupHandler := projectcli.TemplateValidationCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.TemplateValidationCleanupRequest) (projectcli.TemplateValidationCleanupResponse, error) {

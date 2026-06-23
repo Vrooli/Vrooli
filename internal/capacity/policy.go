@@ -50,6 +50,38 @@ type Policy struct {
 	// Empty (the default) means auto-stop is OFF for everyone — reconcile warns
 	// only.
 	AutoStopAllowlist []string `json:"auto_stop_allowlist"`
+	// SweepInterval is the cadence the opportunistic resident-claim sweep is
+	// debounced to (§8.6). The maintenance pass drives Sweep on lifecycle
+	// activity; reads (admission/list/reconcile) re-sweep at most this often.
+	SweepInterval time.Duration `json:"sweep_interval"`
+	// DegradeDebounce is the minimum dwell between two degrade actuations of the
+	// same target (§8.8 anti-thrash).
+	DegradeDebounce time.Duration `json:"degrade_debounce"`
+	// UpshiftHeadroom is the free VRAM (bytes) required before the actuator may
+	// upshift a degraded idle claim back toward preferred (§8.8 hysteresis).
+	UpshiftHeadroom int64 `json:"upshift_headroom"`
+	// IdleYieldFloor is the LOWEST requester priority tier (rank) that may reclaim
+	// an idle, yield_when_idle-opted claim (§8.3 idle-yield). When such a claim has
+	// dwelt idle beyond idle_grace, a requester whose priority is at or above this
+	// floor may reclaim it even at equal priority — relaxing the strict
+	// lower-priority rule, but only for claims that explicitly opted in. Default
+	// batch (the lowest tier), so an idle yield-opted claim yields to any GPU work.
+	IdleYieldFloor int `json:"idle_yield_floor"`
+	// TerminalRetention is how long a terminal (released/expired/preempted) claim
+	// survives before terminal-claim GC prunes it (ledger hygiene). Active claims
+	// are never pruned.
+	TerminalRetention time.Duration `json:"terminal_retention"`
+	// ObservedPeakHalflife is the decay half-life of the per-claim observed
+	// high-water mark (§Phase 2). A larger value remembers peaks longer.
+	ObservedPeakHalflife time.Duration `json:"observed_peak_halflife"`
+	// DefaultIdleUnloadTTL is the fallback autonomous idle-unload dwell (§Phase 3)
+	// applied to claims that do not declare their own idle_unload_ttl. 0 = off (the
+	// safe default — autonomous unload is opt-in per resource).
+	DefaultIdleUnloadTTL time.Duration `json:"default_idle_unload_ttl"`
+	// RecommendHeadroomPct is the safety margin (percent) added above a claim's
+	// observed peak when right-sizing recommends a smaller reservation (§Phase 4).
+	// A recommendation is NEVER below observed_peak * (1 + pct/100).
+	RecommendHeadroomPct int `json:"recommend_headroom"`
 }
 
 // DefaultPolicy returns the conservative V1 defaults: advisory enforcement,
@@ -63,6 +95,13 @@ func DefaultPolicy() Policy {
 		Enforce:                EnforceAdvisory,
 		PreemptEnabled:         false,
 		AutoStopAllowlist:      nil,
+		SweepInterval:          DefaultSweepInterval,
+		DegradeDebounce:        DefaultDegradeDebounce,
+		UpshiftHeadroom:        DefaultUpshiftHeadroom,
+		IdleYieldFloor:         PriorityBatch,
+		TerminalRetention:      DefaultTerminalRetention,
+		ObservedPeakHalflife:   DefaultObservedPeakHalflife,
+		RecommendHeadroomPct:   DefaultRecommendHeadroomPct,
 	}
 }
 
@@ -75,6 +114,14 @@ var PolicyKeys = []string{
 	"enforce",
 	"preempt_enabled",
 	"auto_stop_allowlist",
+	"sweep_interval",
+	"degrade_debounce",
+	"upshift_headroom",
+	"idle_yield_floor",
+	"terminal_retention",
+	"observed_peak_halflife",
+	"default_idle_unload_ttl",
+	"recommend_headroom",
 }
 
 // Get returns the string value of a policy key (for `policy get`).
@@ -94,6 +141,22 @@ func (p Policy) Get(key string) (string, error) {
 		return strconv.FormatBool(p.PreemptEnabled), nil
 	case "auto_stop_allowlist":
 		return strings.Join(p.AutoStopAllowlist, ","), nil
+	case "sweep_interval":
+		return p.SweepInterval.String(), nil
+	case "degrade_debounce":
+		return p.DegradeDebounce.String(), nil
+	case "upshift_headroom":
+		return strconv.FormatInt(p.UpshiftHeadroom, 10), nil
+	case "idle_yield_floor":
+		return PriorityTierName(p.IdleYieldFloor), nil
+	case "terminal_retention":
+		return p.TerminalRetention.String(), nil
+	case "observed_peak_halflife":
+		return p.ObservedPeakHalflife.String(), nil
+	case "default_idle_unload_ttl":
+		return p.DefaultIdleUnloadTTL.String(), nil
+	case "recommend_headroom":
+		return strconv.Itoa(p.RecommendHeadroomPct), nil
 	default:
 		return "", fmt.Errorf("%w: unknown policy key %q", ErrInvalidClaim, key)
 	}
@@ -142,6 +205,56 @@ func (p Policy) withKey(key, value string) (Policy, error) {
 		out.PreemptEnabled = b
 	case "auto_stop_allowlist":
 		out.AutoStopAllowlist = splitCSV(value)
+	case "sweep_interval":
+		d, err := time.ParseDuration(strings.TrimSpace(value))
+		if err != nil || d <= 0 {
+			return p, fmt.Errorf("%w: sweep_interval must be a positive duration", ErrInvalidClaim)
+		}
+		out.SweepInterval = d
+	case "degrade_debounce":
+		d, err := time.ParseDuration(strings.TrimSpace(value))
+		if err != nil || d < 0 {
+			return p, fmt.Errorf("%w: degrade_debounce must be a non-negative duration", ErrInvalidClaim)
+		}
+		out.DegradeDebounce = d
+	case "upshift_headroom":
+		n, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		if err != nil || n < 0 {
+			return p, fmt.Errorf("%w: upshift_headroom must be a non-negative integer", ErrInvalidClaim)
+		}
+		out.UpshiftHeadroom = n
+	case "idle_yield_floor":
+		v := strings.TrimSpace(value)
+		switch v {
+		case "interactive", "service", "batch":
+			out.IdleYieldFloor = ParsePriorityTier(v)
+		default:
+			return p, fmt.Errorf("%w: idle_yield_floor must be one of interactive|service|batch", ErrInvalidClaim)
+		}
+	case "terminal_retention":
+		d, err := time.ParseDuration(strings.TrimSpace(value))
+		if err != nil || d < 0 {
+			return p, fmt.Errorf("%w: terminal_retention must be a non-negative duration", ErrInvalidClaim)
+		}
+		out.TerminalRetention = d
+	case "observed_peak_halflife":
+		d, err := time.ParseDuration(strings.TrimSpace(value))
+		if err != nil || d <= 0 {
+			return p, fmt.Errorf("%w: observed_peak_halflife must be a positive duration", ErrInvalidClaim)
+		}
+		out.ObservedPeakHalflife = d
+	case "default_idle_unload_ttl":
+		d, err := time.ParseDuration(strings.TrimSpace(value))
+		if err != nil || d < 0 {
+			return p, fmt.Errorf("%w: default_idle_unload_ttl must be a non-negative duration (0 = off)", ErrInvalidClaim)
+		}
+		out.DefaultIdleUnloadTTL = d
+	case "recommend_headroom":
+		n, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || n < 0 {
+			return p, fmt.Errorf("%w: recommend_headroom must be a non-negative integer percent", ErrInvalidClaim)
+		}
+		out.RecommendHeadroomPct = n
 	default:
 		return p, fmt.Errorf("%w: unknown policy key %q", ErrInvalidClaim, key)
 	}

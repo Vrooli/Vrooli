@@ -59,6 +59,39 @@ func TestAdmitResourceRecordsClaim(t *testing.T) {
 	}
 }
 
+func TestAdmitResourceIdempotentReuse(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeResourceManifest(t, root, "whisper", `{"capacity":{"resource_kind":"vram","preferred_bytes":7516192768,"floor_bytes":1073741824,"priority":"service"}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{
+		Root: root, ResourceName: "whisper",
+		Source:    StaticSource{Inventory: snapshotWith(16, 0)},
+		OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory,
+	}
+
+	first, err := AdmitResource(ctx, opts)
+	if err != nil || first.ClaimID == "" {
+		t.Fatalf("first AdmitResource() = %+v, err %v", first, err)
+	}
+	// Re-admitting the same resident (restart) must reuse the existing active
+	// claim, not stack a second one.
+	second, err := AdmitResource(ctx, opts)
+	if err != nil {
+		t.Fatalf("second AdmitResource() error = %v", err)
+	}
+	if second.ClaimID != first.ClaimID {
+		t.Errorf("second claim id = %q, want reuse of %q", second.ClaimID, first.ClaimID)
+	}
+
+	store, _ := open(ctx)
+	defer store.Close()
+	claims, _ := store.ListClaims(ctx, ClaimFilter{OwnerID: "whisper", Statuses: ActiveClaimStatuses()})
+	if len(claims) != 1 {
+		t.Fatalf("ledger has %d active whisper claims, want exactly 1 (idempotent)", len(claims))
+	}
+}
+
 func TestAdmitResourceFlagOffIsByteIdenticalNoop(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()

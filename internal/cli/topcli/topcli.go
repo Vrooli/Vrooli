@@ -35,6 +35,7 @@ const (
 	CommandAgentPolicy  CommandID = "agent-policy"
 	CommandRecovery     CommandID = "recovery"
 	CommandHost         CommandID = "host"
+	CommandCapacity     CommandID = "capacity"
 )
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
@@ -64,6 +65,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandAgentPolicy), Group: "Maintenance Commands", Summary: "Manage permissions across every installed coding-agent resource", Handler: CommandAgentPolicy, Suggestable: true},
 		{Name: string(CommandRecovery), Group: "Maintenance Commands", Summary: "Baseline Modes recovery floor: restore points and engagement manifests", Handler: CommandRecovery, Suggestable: true},
 		{Name: string(CommandHost), Group: "Maintenance Commands", Summary: "Inspect local host inventory via the shared Go collector", Handler: CommandHost, Suggestable: true},
+		{Name: string(CommandCapacity), Group: "Maintenance Commands", Summary: "Arbitrate host resource capacity (GPU VRAM/RAM/CPU) via the claim ledger", Handler: CommandCapacity, Suggestable: true},
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 	}
 }

@@ -53,6 +53,7 @@ func Reconcile(ctx context.Context, snapshot hostinventory.Snapshot, ledger []Ca
 
 		finding.ClaimID = claim.ClaimID
 		finding.ClaimedBytes = claim.AmountBytes
+		finding.ObservedPeakBytes = claim.ObservedPeakBytes
 		finding.OwnerKind = claim.OwnerKind
 		finding.OwnerID = claim.OwnerID
 		if observed > claim.AmountBytes+policy.ReconcileWarnThreshold {

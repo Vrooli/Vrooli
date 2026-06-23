@@ -10,7 +10,11 @@ import (
 // database via PRAGMA user_version (mirroring internal/scenarioruntime). Bump it
 // only alongside a row-preserving migration; greenfield rebuilds are rejected
 // loudly rather than silently dropping live claims.
-const SchemaVersion = 1
+//
+// v2: adds capacity_claims.yield_when_idle (additive ALTER TABLE; idle-yield).
+// v3: adds observed_bytes, observed_peak_bytes, observed_at (usage sampling /
+// decaying high-water mark) and idle_unload_ttl_seconds (autonomous idle-unload).
+const SchemaVersion = 3
 
 // Owner kinds — who holds a claim.
 const (
@@ -75,6 +79,48 @@ const DefaultHeartbeatTTL = 30 * time.Second
 // before it becomes reclaim-eligible. Age alone never triggers reclaim; this is
 // only the dwell time AFTER the work-owner has reported idle.
 const DefaultIdleGrace = 60 * time.Second
+
+// DefaultSweepInterval is the target cadence for the opportunistic resident-claim
+// sweep (§8.6). The always-on maintenance pass drives Sweep on lifecycle
+// activity; the opportunistic sweeps on admission/list/reconcile are debounced to
+// this interval so rapid reads do not re-collect the GPU snapshot on every call.
+const DefaultSweepInterval = 15 * time.Second
+
+// DefaultDegradeDebounce is the minimum dwell between two degrade actuations of
+// the same target, preventing a flapping requester from thrashing a resident
+// server's VRAM (§8.8 anti-thrash).
+const DefaultDegradeDebounce = 30 * time.Second
+
+// DefaultUpshiftHeadroom is the free VRAM (bytes) that must be available before
+// the actuator may upshift a degraded, idle claim back toward its preferred step
+// (§8.8 hysteresis).
+const DefaultUpshiftHeadroom = 2 * 1024 * 1024 * 1024 // 2 GiB
+
+// DefaultObservedPeakHalflife is the decay half-life of the per-claim observed
+// high-water mark (§Phase 2 sampling): a recorded peak loses half its value each
+// half-life so a stale spike does not pin a reservation forever, yet a single
+// idle reading never erases a real working-set peak.
+const DefaultObservedPeakHalflife = 10 * time.Minute
+
+// DefaultRecommendHeadroomPct is the safety margin (percent) added above a
+// claim's observed peak when right-sizing recommends a smaller reservation
+// (§Phase 4). A recommendation is never below observed_peak * (1 + pct/100).
+const DefaultRecommendHeadroomPct = 20
+
+// DefaultTerminalRetention is how long a terminal (released/expired/preempted)
+// claim survives in the ledger before terminal-claim GC prunes it. Terminal
+// claims hold no capacity; they are kept briefly so a `capacity list` right after
+// a release/expire still shows recent history, then pruned so the ledger does not
+// accumulate dead rows.
+const DefaultTerminalRetention = 24 * time.Hour
+
+// GCResult reports what terminal-claim GC pruned: the number of rows deleted and
+// the sum of their last-recorded amount_bytes (informational — terminal claims
+// hold no live capacity).
+type GCResult struct {
+	Count int   `json:"count"`
+	Bytes int64 `json:"bytes"`
+}
 
 var (
 	// ErrNotFound is returned when a claim row does not exist.
@@ -165,17 +211,23 @@ type DegradeProfile struct {
 
 // CapacityClaim is the ledger row (plan §8.1).
 type CapacityClaim struct {
-	ClaimID             string
-	OwnerKind           string
-	OwnerID             string
-	InstanceID          string // links to a scenarioruntime instance when applicable
-	ResourceKind        string
-	GPUIndex            *int
-	AmountBytes         int64 // current granted amount (the active degradation step)
-	PreferredBytes      int64 // top of the profile
-	FloorBytes          int64 // min-viable
-	Priority            int
-	Protected           bool
+	ClaimID        string
+	OwnerKind      string
+	OwnerID        string
+	InstanceID     string // links to a scenarioruntime instance when applicable
+	ResourceKind   string
+	GPUIndex       *int
+	AmountBytes    int64 // current granted amount (the active degradation step)
+	PreferredBytes int64 // top of the profile
+	FloorBytes     int64 // min-viable
+	Priority       int
+	Protected      bool
+	// YieldWhenIdle opts this claim into the idle-yield rule (§8.3): when it has
+	// dwelt idle beyond idle_grace its effective priority drops to the
+	// idle_yield_floor for reclaim eligibility, so active work at or above the
+	// floor may reclaim its capacity. Active claims are NEVER demoted. Claims
+	// without the flag keep the strict-priority rule byte-for-byte.
+	YieldWhenIdle       bool
 	Status              string
 	ActivityState       string
 	Generation          int64
@@ -185,6 +237,20 @@ type CapacityClaim struct {
 	HeartbeatDeadlineAt *time.Time
 	LastActiveAt        *time.Time
 	DegradeProfile      *DegradeProfile
+	// ObservedBytes is the latest sampled GPU usage attributed to this claim's
+	// owner (telemetry; never fed into Decide — contract C1).
+	ObservedBytes int64
+	// ObservedPeakBytes is the decaying high-water mark of observed usage
+	// (contract C2): VRAM is non-compressible so we track the peak, not an average.
+	ObservedPeakBytes int64
+	// ObservedAt is when ObservedBytes/ObservedPeakBytes were last sampled; nil
+	// until the first sample. Used to age the decaying peak.
+	ObservedAt *time.Time
+	// IdleUnloadTTL is the autonomous idle-unload dwell (§Phase 3): once the claim
+	// has been idle this long the broker proactively degrades it to floor/unloaded
+	// (advisory logs, enforce actuates). 0 disables autonomous unload for this
+	// claim. Distinct from idle_grace (which gates demand-driven reclaim).
+	IdleUnloadTTL time.Duration
 }
 
 // ClaimFilter narrows ListClaims.
@@ -207,6 +273,8 @@ type CapacityRequest struct {
 	FloorBytes     int64
 	Priority       int
 	Protected      bool
+	YieldWhenIdle  bool
+	IdleUnloadTTL  time.Duration
 	Profile        *DegradeProfile
 	TTL            time.Duration
 }
@@ -223,8 +291,13 @@ type Verdict struct {
 	// ReclaimTargets are claim IDs the caller would need to reclaim (degrade or
 	// preempt, per the escalation ladder) to realize this grant. Empty when the
 	// grant fits in immediately-free capacity. Decide only names them; the
-	// escalation ladder (Phase 4) decides whether/how to act.
+	// actuator (§8.8) decides whether/how to act.
 	ReclaimTargets []string `json:"reclaim_targets,omitempty"`
+	// ReclaimBytes is the deficit (bytes) that must be freed from idle
+	// lower-priority claims to realize this grant — i.e. how much the granted step
+	// exceeds immediately-free capacity. Zero when the grant fits in free space.
+	// The enforce-mode actuator plans an escalation to free exactly this much.
+	ReclaimBytes int64 `json:"reclaim_bytes,omitempty"`
 }
 
 // Granted reports whether the verdict permits the caller to proceed on the GPU
@@ -235,18 +308,19 @@ func (v Verdict) Granted() bool {
 
 // Finding is one reconciliation result (plan §7 Phase 2 / doc.go).
 type Finding struct {
-	Class         string `json:"class"` // claimed | unclaimed | over_claim
-	OwnerID       string `json:"owner_id"`
-	OwnerKind     string `json:"owner_kind,omitempty"`
-	ResourceKind  string `json:"resource_kind"`
-	GPUIndex      *int   `json:"gpu_index,omitempty"`
-	PID           int    `json:"pid,omitempty"`
-	ProcessName   string `json:"process_name,omitempty"`
-	ObservedBytes int64  `json:"observed_bytes"`
-	ClaimedBytes  int64  `json:"claimed_bytes,omitempty"`
-	ClaimID       string `json:"claim_id,omitempty"`
-	Severity      string `json:"severity"` // info | warn
-	Message       string `json:"message"`
+	Class             string `json:"class"` // claimed | unclaimed | over_claim
+	OwnerID           string `json:"owner_id"`
+	OwnerKind         string `json:"owner_kind,omitempty"`
+	ResourceKind      string `json:"resource_kind"`
+	GPUIndex          *int   `json:"gpu_index,omitempty"`
+	PID               int    `json:"pid,omitempty"`
+	ProcessName       string `json:"process_name,omitempty"`
+	ObservedBytes     int64  `json:"observed_bytes"`
+	ObservedPeakBytes int64  `json:"observed_peak_bytes,omitempty"`
+	ClaimedBytes      int64  `json:"claimed_bytes,omitempty"`
+	ClaimID           string `json:"claim_id,omitempty"`
+	Severity          string `json:"severity"` // info | warn
+	Message           string `json:"message"`
 }
 
 // ClaimRepository is the per-concern repository for claim lifecycle (mirrors
@@ -259,6 +333,7 @@ type ClaimRepository interface {
 	ReleaseClaim(ctx context.Context, claimID string) (CapacityClaim, error)
 	PreemptClaim(ctx context.Context, claimID string, reason string) (CapacityClaim, error)
 	ExpireStaleClaims(ctx context.Context, at time.Time) ([]CapacityClaim, error)
+	RecordObserved(ctx context.Context, claimID string, observed, peak int64, at time.Time) (CapacityClaim, error)
 	GetClaim(ctx context.Context, claimID string) (CapacityClaim, error)
 	ListClaims(ctx context.Context, filter ClaimFilter) ([]CapacityClaim, error)
 }

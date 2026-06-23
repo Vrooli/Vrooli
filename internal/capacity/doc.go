@@ -74,15 +74,132 @@
 //	batch       (10) — image generation, background work
 //
 // protected=1 is set automatically while activity_state=="active" for
-// interactive owners. Preemption rule: a requester may reclaim from a target
-// ONLY IF the target is "idle" beyond idle_grace AND target.priority <
-// requester.priority AND target.protected==0. Age and utilization NEVER trigger
-// reclaim.
+// interactive owners (and cleared when they go idle), so a resource is protected
+// only WHILE it is working — dynamic protection, not a static flag. Preemption
+// rule: a requester may reclaim from a target ONLY IF the target is "idle"
+// beyond idle_grace AND target.protected==0 AND it passes the priority gate.
+// Age and utilization NEVER trigger reclaim.
+//
+// Priority gate (the reclaim-eligibility decision boundary, reclaimEligibleFor):
+//
+//   - strict default: target.priority < requester.priority. A claim is reclaimable
+//     only by strictly-higher-priority work. This is the behavior every claim gets
+//     unless it opts in below — byte-identical to the pre-idle-yield engine.
+//   - idle-yield opt-in (yield_when_idle=1): when such a claim has dwelt idle
+//     beyond idle_grace, it yields its capacity to active work at OR ABOVE the
+//     idle_yield_floor (a tunable tier lever, default batch). This RELAXES the
+//     strict rule to permit equal-priority reclaim — but ONLY for claims that
+//     explicitly opted in, and ONLY while idle. Active claims are NEVER demoted.
+//     It is how an idle interactive whisper frees VRAM for a batch SD job, then
+//     recovers (upshift) when it next transcribes. Without the opt-in, an idle
+//     interactive claim stays untouchable (strict priority), which is why the
+//     activity signal alone is inert — the engine needs this rule too.
+//
+// Idle-yield is opt-in PER RESOURCE (not a global enforce flip) so the blast
+// radius is exactly the resources that declare yield_when_idle. whisper opts in;
+// kyutai-stt and others keep strict priority.
+//
+// # The three time axes — "idle" disambiguated (autonomy plan §Phase 0)
+//
+// The word "idle" is overloaded across the broker; it actually names THREE
+// distinct, independent axes, and conflating them is the source of confusion:
+//
+//   - LIVENESS (heartbeat_deadline_at): is the owner still alive? A claim whose
+//     deadline lapses with no observed GPU presence is swept to "expired". This is
+//     a binary alive/dead signal, NEVER a workload signal.
+//   - ACTIVITY (activity_state ∈ active|idle): is the owner doing work RIGHT NOW?
+//     Reported by the work-owner (never inferred). Gates demand-driven reclaim
+//     eligibility together with idle_grace (the dwell after a report of "idle").
+//   - IDLE-UNLOAD (idle_unload_ttl): has the owner been idle long enough that the
+//     broker should AUTONOMOUSLY free its VRAM, accepting a cold start on next use?
+//     This is a NEW axis (autonomy plan). It is distinct from idle_grace:
+//     idle_grace bounds *demand-driven* reclaim (someone else wants the space);
+//     idle_unload_ttl bounds *proactive* unload (nobody is asking — the broker
+//     reclaims because the capacity is sitting idle). Per-resource opt-in
+//     (0 = off), with an optional default_idle_unload_ttl lever. The autonomous
+//     unload actuates only under enforce=on; advisory logs the would-unload.
+//
+// # Observed-usage sampling (decaying high-water mark) — telemetry only
+//
+// Each maintenance sweep samples, per active VRAM claim, the owner's currently
+// observed GPU bytes (reusing reconcile's owner attribution) and folds it into a
+// DECAYING high-water mark (peak), persisted on the claim as observed_bytes (the
+// latest sample), observed_peak_bytes (the decaying peak), observed_at (sample
+// time). The peak ages by a half-life lever (observed_peak_halflife) so a stale
+// spike does not pin the reservation forever, yet a real working-set peak is not
+// erased by a single idle reading:
+//
+//	peak = max(now_observed, prev_peak * 0.5^(dt/halflife))   dt = now - observed_at
+//
+// VRAM is non-compressible, so we size to the PEAK, not an average (contract C2).
+// Sampling is pure telemetry: it is recorded via RecordObserved, which does NOT
+// bump the claim generation (so it never races a concurrent activity report) and
+// NEVER feeds the Decide committed math (contract C1 — committed stays = the
+// declared reservation; the phantom-free-space problem is fixed honestly by
+// right-sizing the declared number and by idle-unload, not by feeding live
+// observation into admission).
+//
+// # Right-sizing recommendation (advisory) — `vrooli capacity recommend`
+//
+// Once a claim has accumulated enough observed-peak samples, `capacity recommend`
+// compares its declared preferred_bytes against observed_peak_bytes and, when the
+// peak plus a headroom lever (recommend_headroom) is materially below preferred,
+// emits a suggested smaller reservation. It is ADVISORY ONLY — never auto-applied
+// (contract C7) — and NEVER recommends below observed_peak + headroom (the
+// idle-snapshot trap: a lone idle reading must never shrink a reservation; only
+// real-work peak counts). It is the signal/feedback surface a human or operator
+// acts on, not an enforcement action.
+//
+// # Terminal-claim GC (ledger hygiene) — `vrooli capacity gc`
+//
+// Released/expired/preempted claims are TERMINAL: they hold no capacity and exist
+// only as history. Left unpruned the ledger fills with dead rows (the live ledger
+// accumulated 71/74 terminal rows incl. test fixtures). GCTerminalClaims deletes
+// terminal rows whose updated_at is older than the terminal_retention lever
+// (default 24h); active claims are NEVER pruned. The maintenance sweep GCs each
+// pass, and `vrooli capacity gc` runs it on demand (reporting count + bytes
+// pruned). GC is always safe regardless of enforce mode.
+//
+// # Reconcile/sweep-driven adoption (claim-on-observe) — declared residents
+//
+// Sweep only REFRESHES existing claims; a resident that predates the admission
+// hook (e.g. kyutai-stt / speaker-verification, up for weeks, never re-admitted)
+// shows as UNCLAIMED forever. Claim-on-observe closes that: when the sweep
+// observes a GPU consumer that attributes to an owner whose resource.json
+// declares a capacity block AND that owner holds no active claim, it CREATES the
+// claim on the owner's behalf from the declared spec (contract C6). It is
+// idempotent (an owner with an active claim is a no-op), advisory-safe, and only
+// fires for owners with a DECLARED block — an undeclared observed consumer still
+// only warns (unchanged).
+//
+// # Activity-source contract (who reports active/idle)
+//
+// activity_state is the work-owner-reported truth source (never inferred). For a
+// given resource there is EXACTLY ONE reporter (single source of truth — two
+// reporters would race last-writer-wins). WHERE that reporter sits depends on the
+// resource's transport:
+//
+//   - whisper (request/response HTTP): reported at the RESOURCE EDGE. A host-side
+//     reverse proxy in whisper's data path brackets each `POST /asr` (active on
+//     request-in, idle after a debounce on response-out) and reports via the
+//     `vrooli capacity activity` CLI. The edge is the only place that covers ALL
+//     consumers — the host dictation tool and the browser WhisperProvider are
+//     clients Vrooli does not own and cannot instrument caller-side. The edge is
+//     fail-open: it always forwards the request even if every capacity call fails.
+//   - kyutai-stt (websocket streaming): reported CALLER-SIDE (audio-tools brackets
+//     the whole transcription session). An edge proxy bracketing individual frames
+//     would flap; the caller knows session boundaries the edge cannot see.
+//
+// So: whisper -> edge; kyutai-stt -> caller-side. This is NOT "the resource always
+// owns reporting" — it is transport-driven. audio-tools therefore reports activity
+// for kyutai-stt only; it does NOT report whisper (the edge is whisper's sole
+// source).
 //
 // # 8.4 Adopter / CLI contract — `vrooli capacity <verb> [--json]`
 //
 //	claim --owner-kind --owner-id --resource-kind vram --preferred <bytes> --floor <bytes>
-//	      --priority <tier> [--gpu-index N] [--instance-id ID] [--profile <json>] [--ttl <dur>] [--protected]
+//	      --priority <tier> [--gpu-index N] [--instance-id ID] [--profile <json>] [--ttl <dur>]
+//	      [--protected] [--yield-when-idle]
 //	    -> {claim_id, granted_amount, step, verdict, warnings}
 //	heartbeat --claim-id [--ttl]      # renews liveness; does NOT change activity
 //	activity  --claim-id --state active|idle   # work-owner reports activity (the idleness truth source)
@@ -91,6 +208,8 @@
 //	list      [--owner ...] [--json]
 //	reconcile [--json]
 //	sweep     [--json]               # resident-claim liveness driver (see below)
+//	gc        [--json]               # prune terminal claims past terminal_retention
+//	recommend [--owner ...] [--json] # advisory right-sizing from observed peaks
 //	policy    {get,set} <key> <value>
 //
 // Resources call these from their lib/docker.sh pre-start/while-running hooks;
@@ -114,8 +233,72 @@
 // the stale sweep, so an observed-alive owner is rescued rather than expired);
 // every other active claim past its deadline is then expired as usual. Op-scoped
 // and non-vram claims are never presence-refreshed. Sweep mutates the ledger but
-// never enforces; it is meant to be driven periodically (system-monitor's
-// collector loop, a cleanup pass, or `vrooli capacity sweep`).
+// never enforces.
+//
+// # 8.6 Sweep-driver host + cadence (completion plan §8.2)
+//
+// The PRIMARY, always-on driver is the platform maintenance pass
+// (internal/maintenance.Controller.CleanStaleLocks), which already runs
+// ExpireStaleStartingLeases on lifecycle activity; the capacity sweep rides the
+// same cadence (no new daemon process). SECONDARY, opportunistic sweeps run on
+// every AdmitResource and on `capacity list/reconcile` reads (cheap; cover the
+// gaps between maintenance passes). Cadence is the tunable lever
+// `sweep_interval` (default DefaultSweepInterval); the opportunistic sweeps mean
+// resident liveness no longer depends on a 6h ttl_seconds stopgap. system-monitor
+// MAY additionally call `vrooli capacity sweep` while running (belt-and-suspenders
+// for its dashboard) but is NEVER required — the broker works with it down.
+//
+// # 8.7 Resident-claim lifecycle (wired via the lifecycle, not the shell)
+//
+// Resident model servers (whisper, kyutai-stt, reranker, speaker-verification)
+// declare a `capacity` block in resource.json; the broker — not the resource's
+// shell — owns their claim lifecycle, because the compose-service driver starts
+// them with `docker compose up` directly and never calls lib/docker.sh:
+//   - CLAIM on start: the lifecycle admission hook (internal/lifecycle
+//     admitResourceCapacity → AdmitResource) records the claim when the resource
+//     is started as a dependency. IDEMPOTENT: if an active claim for this
+//     (resource owner, resource_kind) already exists it is heartbeat-renewed and
+//     reused — a restart/re-admit must not stack or leak a second claim.
+//   - LIVENESS while running: the §8.6 sweep presence-refreshes the claim from
+//     the GPU snapshot (the container cannot heartbeat itself). The 6h
+//     ttl_seconds stopgap is therefore REMOVED — claims fall back to
+//     default_heartbeat_ttl, kept alive by the sweep.
+//   - RELEASE on stop: when the container disappears its claim is no longer
+//     observed on the GPU, so the sweep expires it once the deadline lapses
+//     ("killing the container expires it", §10). The explicit
+//     `vrooli capacity release --claim-id <id>` verb remains available for
+//     op-scoped/manual owners and is a no-op when already released.
+//
+// # 8.8 Degrade actuator + escalation executor (enforce mode only)
+//
+// Actuate(ctx, plan EscalationPlan, store, exec ApplyExecutor, policy, now)
+// consumes a PlanEscalation result and EXECUTES it (PlanEscalation stays a pure
+// planner; Actuate is the orchestration layer it always lacked). For each
+// request-degrade action it resolves the target claim's DegradeProfile.Apply
+// {Verb,Argv}, substitutes "{label}" with the chosen step, and runs the owner's
+// degrade verb through the injectable ApplyExecutor seam (production =
+// exec.Command of the owner's CLI; tests = fake — no real exec/docker in unit
+// runs). On success it records status=degraded + the new amount_bytes; on
+// actuator FAILURE it leaves the claim unchanged and surfaces a warn finding
+// (never strand a resource off-GPU). The preempt rung runs only when
+// policy.preempt_enabled AND enforce. Debounce (`degrade_debounce`) skips
+// re-degrading a target too soon; upshift only when free headroom ≥
+// `upshift_headroom` and the target is idle. Every actuation and every skip
+// emits an honest log/finding — no silent caps. Actuate runs ONLY in enforce
+// mode; advisory logs the plan but does not act.
+//
+// # 8.9 Adopter degrade-verb semantics
+//
+//   - whisper `capacity-degrade --to <label>` (resource CLI verb): label ∈
+//     profile steps; persists the choice as an operator-pin and recreates the
+//     container with the smaller ASR_MODEL; idempotent (already-at-target =
+//     no-op); REFUSES while activity_state=="active" (the whisper edge marks it —
+//     see the activity-source contract) as adopter-side defense in depth; the
+//     `--upshift` path recreates larger when idle + headroom returns.
+//   - ollama `degrade`: unloads the Nth resident model; idempotent; reported via
+//     the planner package.
+//   - image-tools SD: existing in-process fp16→CPU resize on a non-grant verdict
+//     (verified, not re-built).
 //
 // # 8.5 Decision contract
 //
@@ -126,11 +309,12 @@
 //	Queue        — wait, with a position
 //	Deny(reason) — cannot satisfy even the floor
 //
-// Advisory mode (VROOLI_CAPACITY_ENFORCE=off, the V1 default) logs the verdict
-// and ALWAYS lets the caller proceed (the caller chooses its own fallback).
-// Enforced mode honors the verdict. Decide is a PURE function: no enforcement
-// side effects, no nvidia-smi/docker calls (capacity is read through the
-// injected CapacitySource seam).
+// Advisory mode (VROOLI_CAPACITY_ENFORCE=advisory, the V1 default — see the
+// admission-default note below) records the claim, logs the verdict, and ALWAYS
+// lets the caller proceed (the caller chooses its own fallback). Enforced mode
+// (`on`) honors the verdict and runs the actuator. Decide is a PURE function: no
+// enforcement side effects, no nvidia-smi/docker calls (capacity is read through
+// the injected CapacitySource seam).
 //
 // # Reconciliation contract (plan §7 Phase 2)
 //
@@ -150,6 +334,29 @@
 // capacity_policy table and editable via `vrooli capacity policy set`:
 // tracking_threshold (bytes), idle_grace (duration), default_heartbeat_ttl,
 // reconcile_warn_threshold (bytes over claim), enforce (off|advisory|on),
-// preempt_enabled (bool), auto_stop_allowlist (csv). No silent caps — every
-// threshold is logged and tunable.
+// preempt_enabled (bool), auto_stop_allowlist (csv), sweep_interval (duration —
+// §8.6 cadence), degrade_debounce (duration — §8.8 anti-thrash), upshift_headroom
+// (bytes — §8.8 hysteresis), idle_yield_floor (tier — §8.3 the lowest requester
+// priority that may reclaim an idle yield-opted claim, default batch),
+// terminal_retention (duration — how long a terminal claim survives before GC,
+// default 24h), observed_peak_halflife (duration — the decay half-life of the
+// observed high-water mark, default 10m), default_idle_unload_ttl (duration — the
+// fallback autonomous idle-unload TTL for claims that do not declare their own,
+// 0 = off), recommend_headroom (percent — the safety margin added above the
+// observed peak when right-sizing, default 20). No silent caps — every threshold
+// is logged and tunable.
+//
+// # Admission default — RATIFIED: advisory (completion plan §8.1)
+//
+// DefaultPolicy() returns EnforceAdvisory: a started resource's claim is recorded
+// and the verdict logged/warned, but the start is NEVER blocked. This is a
+// DELIBERATE divergence from the original plan
+// (capacity-broker-internal-capacity-arbitration-system-monitor-ux), which
+// specified `off` as the default. Advisory was chosen so the ledger is populated
+// and observability works out-of-the-box at zero start-path risk.
+// VROOLI_CAPACITY_ENFORCE=off remains the byte-identical escape hatch
+// (parity-tested in admission_test.go): with it the admission hook is a complete
+// no-op and the resource start path is identical to legacy. `on` additionally
+// enables actuation (§8.8). The divergence is recorded here and in the original
+// plan's note.
 package capacity

@@ -1794,3 +1794,70 @@ func TestListRuntimeClaimsCapturesListenerSnapshotOnce(t *testing.T) {
 		t.Fatalf("listener snapshot captured %d times for %d claims; must be exactly 1 (per-claim fork regression)", captures, claimCount)
 	}
 }
+
+// TestReclaimSquattedPortEvictsOnlyVrooliOrphans proves the port-reclamation
+// guard: a leaked Vrooli process holding a just-released port is evicted, while
+// a foreign process (or a recycled/absent PID) that happens to hold the port is
+// never killed.
+func TestReclaimSquattedPortEvictsOnlyVrooliOrphans(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	vrooliOrphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
+	foreign := processTableEntry{PID: 8000, PPID: 1, PGID: 8000, Executable: "/usr/bin/postgres", Command: "/usr/bin/postgres"}
+
+	originalKill := killProcessFn
+	originalRead := readProcessEntryFn
+	originalRunning := pidIsRunningFn
+	t.Cleanup(func() {
+		killProcessFn = originalKill
+		readProcessEntryFn = originalRead
+		pidIsRunningFn = originalRunning
+	})
+
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		switch pid {
+		case 5200:
+			return vrooliOrphan, true
+		case 8000:
+			return foreign, true
+		default:
+			return processTableEntry{}, false
+		}
+	}
+	var killed []int
+	killProcessFn = func(pid int, _ bool) error {
+		killed = append(killed, pid)
+		return nil
+	}
+	pidIsRunningFn = func(int) bool { return false } // dies on SIGTERM; no SIGKILL escalation
+
+	c := NewController(root, home)
+
+	// A confirmed Vrooli orphan holding the released port is evicted.
+	item, evicted := c.reclaimSquattedPort(PortReclaimCandidate{Scenario: "beta", Port: 7100, PID: 5200})
+	if !evicted {
+		t.Fatalf("expected a Vrooli orphan to be evicted, got item=%#v", item)
+	}
+	if len(killed) != 1 || killed[0] != 5200 {
+		t.Fatalf("expected exactly pid 5200 signaled, got %v", killed)
+	}
+
+	// A foreign process that reused the port is never killed.
+	killed = nil
+	if _, evicted := c.reclaimSquattedPort(PortReclaimCandidate{Scenario: "beta", Port: 7100, PID: 8000}); evicted {
+		t.Fatal("expected a foreign process NOT to be evicted")
+	}
+	if len(killed) != 0 {
+		t.Fatalf("foreign process must not be signaled, got %v", killed)
+	}
+
+	// A recycled/absent PID is a silent no-op.
+	killed = nil
+	if _, evicted := c.reclaimSquattedPort(PortReclaimCandidate{Scenario: "beta", Port: 7100, PID: 9999}); evicted {
+		t.Fatal("expected an absent PID NOT to be evicted")
+	}
+	if len(killed) != 0 {
+		t.Fatalf("absent PID must not be signaled, got %v", killed)
+	}
+}

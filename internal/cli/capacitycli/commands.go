@@ -22,6 +22,8 @@ const (
 	CommandList      CommandID = "list"
 	CommandReconcile CommandID = "reconcile"
 	CommandSweep     CommandID = "sweep"
+	CommandGC        CommandID = "gc"
+	CommandRecommend CommandID = "recommend"
 	CommandPolicy    CommandID = "policy"
 )
 
@@ -57,6 +59,8 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					{Name: "--floor", ValueName: "bytes", Description: "Minimum viable amount (bytes or e.g. 1GiB)"},
 					{Name: "--priority", ValueName: "tier", Description: "interactive|service|batch (default batch)"},
 					{Name: "--protected", Description: "Never preempt/degrade while active"},
+					{Name: "--yield-when-idle", Description: "When idle beyond grace, yield capacity to active work at/above idle_yield_floor"},
+					{Name: "--idle-unload-ttl", ValueName: "dur", Description: "Autonomously unload to floor after this much idle dwell (e.g. 30m; 0 = off)"},
 					{Name: "--profile", ValueName: "json", Description: "Degradation profile JSON"},
 					{Name: "--ttl", ValueName: "dur", Description: "Heartbeat TTL (e.g. 30s)"},
 					commandtree.JSONOption(),
@@ -128,12 +132,32 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Handler: CommandSweep,
 		},
 		{
+			Name:    string(CommandGC),
+			Summary: "Prune terminal (released/expired/preempted) claims past terminal_retention",
+			Group:   groupObserve,
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+			Handler: CommandGC,
+		},
+		{
+			Name:    string(CommandRecommend),
+			Summary: "Advisory right-sizing: flag claims whose observed peak is well below their reservation",
+			Group:   groupObserve,
+			Args: commandtree.ArgSchema{
+				Options: []commandtree.OptionArg{{Name: "--owner", ValueName: "id", Description: "Filter to one owner id"}, commandtree.JSONOption()},
+			},
+			Handler: CommandRecommend,
+		},
+		{
 			Name:    string(CommandPolicy),
 			Summary: "Get or set tunable policy levers: policy {get,set} <key> [value]",
 			Group:   groupPolicy,
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{
 					{Name: "action", Description: "get|set"},
+					{Name: "key", Description: "policy lever key (optional for get)"},
+					{Name: "value", Description: "new value (set only)", Repeatable: true},
 				},
 				Options: []commandtree.OptionArg{commandtree.JSONOption()},
 			},
@@ -168,6 +192,10 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 	if err != nil {
 		return capacityapp.ClaimRequest{}, err
 	}
+	idleUnloadTTL, err := parseTTL(parsed.FlagValue("--idle-unload-ttl"))
+	if err != nil {
+		return capacityapp.ClaimRequest{}, err
+	}
 	return capacityapp.ClaimRequest{
 		OwnerKind:      parsed.FlagValue("--owner-kind"),
 		OwnerID:        parsed.FlagValue("--owner-id"),
@@ -178,6 +206,8 @@ func ParseClaimRequest(args []string) (capacityapp.ClaimRequest, error) {
 		FloorBytes:     floor,
 		PriorityTier:   parsed.FlagValue("--priority"),
 		Protected:      parsed.HasFlag("--protected"),
+		YieldWhenIdle:  parsed.HasFlag("--yield-when-idle"),
+		IdleUnloadTTL:  idleUnloadTTL,
 		ProfileJSON:    parsed.FlagValue("--profile"),
 		TTL:            ttl,
 	}, nil
@@ -238,6 +268,21 @@ func ParseListRequest(args []string) (capacityapp.ListRequest, error) {
 func ParseSweepRequest(args []string) error {
 	_, err := parse(CommandSweep, "vrooli capacity sweep", args)
 	return err
+}
+
+// ParseGCRequest validates `vrooli capacity gc` (only --json/help).
+func ParseGCRequest(args []string) error {
+	_, err := parse(CommandGC, "vrooli capacity gc", args)
+	return err
+}
+
+// ParseRecommendRequest parses `vrooli capacity recommend [--owner X]`.
+func ParseRecommendRequest(args []string) (capacityapp.RecommendRequest, error) {
+	parsed, err := parse(CommandRecommend, "vrooli capacity recommend", args)
+	if err != nil {
+		return capacityapp.RecommendRequest{}, err
+	}
+	return capacityapp.RecommendRequest{OwnerID: parsed.FlagValue("--owner")}, nil
 }
 
 // PolicyArgs is the parsed policy action.
