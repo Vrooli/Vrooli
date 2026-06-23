@@ -1,61 +1,57 @@
 # Ollama Documentation
 
-Comprehensive documentation for the Ollama local LLM inference resource.
+Documentation for the Ollama local LLM inference resource.
+
+Ollama runs **exclusively as a Docker container** managed by the Vrooli
+docker-service driver — there is no host install and no `manage.sh` script. Lifecycle
+goes through `vrooli resource …`; model commands run inside the container via
+`docker exec ollama ollama …`.
 
 ## 📚 Documentation Structure
 
-### Getting Started
-- [Installation Guide](INSTALLATION.md) - Setup and model installation
-- [Configuration](CONFIGURATION.md) - Environment variables and settings
-- [Models Guide](MODELS.md) - Available models and selection
-
-### Usage & API
-- [API Reference](API.md) - REST endpoints and examples
-- [Command Line Usage](CLI.md) - Using the manage.sh script
-- [Usage Examples](API.md#examples) - Request patterns and workflows
-
-### Advanced Topics
-- [Performance Tuning](PERFORMANCE.md) - Optimization and hardware requirements
-- [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
-- [Development](DEVELOPMENT.md) - Contributing and extending
+- [Installation Guide](INSTALLATION.md) — Docker-only setup, lifecycle, and configuration
+- [Models Guide](MODELS.md) — available models and selection
+- [Embedding Models](EMBEDDING_MODELS.md) — embedding model guidance
+- [Operations](OPERATIONS.md) — architecture boundary and operator checklist
 
 ## 🚀 Quick Start
 
 ```bash
-# Install Ollama with default models
-./manage.sh --action install
+# Pull the image and start the container
+vrooli resource install ollama
+vrooli resource start ollama
 
-# Check status and models
-./manage.sh --action status
+# Check status and health
+vrooli resource status ollama
 
-# Send a prompt
-./manage.sh --action prompt --text "Explain machine learning"
+# Pull a model and send a prompt
+docker exec ollama ollama pull llama3.1:8b
+curl http://localhost:11434/api/generate \
+  -d '{"model":"llama3.1:8b","prompt":"Explain machine learning","stream":false}'
 ```
 
 ## 📋 Quick Reference
 
-### Essential Commands
 ```bash
-# Model management
-./manage.sh --action models                    # List available models
-./manage.sh --action pull --models "llama3.1:8b"  # Download specific model
+# Lifecycle (docker-service driver)
+vrooli resource start|stop|restart|status|logs ollama
 
-# Text generation
-./manage.sh --action prompt --text "Your question" --type code
-./manage.sh --action prompt --model "deepseek-r1:8b" --type reasoning
-
-# System management
-./manage.sh --action start|stop|restart|status
+# Model management (no host CLI — run inside the container)
+docker exec ollama ollama list
+docker exec ollama ollama pull llama3.1:8b
+docker exec ollama ollama rm llama3.1:8b
 ```
+
+Scenarios declare model **roles** in their ollama dependency config; `resource-ollama
+ensure` pulls any missing resolved models into the running container.
 
 ### Key Endpoints
 - **Health**: http://localhost:11434/api/tags
 - **Generate**: http://localhost:11434/api/generate
-- **Models**: http://localhost:11434/api/tags
+- **Embeddings**: http://localhost:11434/api/embeddings
 
 ## 🔗 Quick Links
 
 - **Default URL**: http://localhost:11434
-- **Model Recommendations**: [Models Guide](MODELS.md#default-models)
-- **API Examples**: [API Reference](API.md#examples)
+- **Model Recommendations**: [Models Guide](MODELS.md)
 - **Official Ollama Docs**: https://ollama.ai/docs

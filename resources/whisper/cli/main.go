@@ -6,6 +6,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
+	"github.com/vrooli/vrooli/resources/whisper/cli/internal/activityproxy"
 	"github.com/vrooli/vrooli/resources/whisper/cli/internal/recommend"
 )
 
@@ -50,7 +51,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	groups := app.StandardLifecycleCommands()
 	groups = append(groups, cliapp.CommandGroup{
 		Title:    "Capability",
-		Commands: []cliapp.Command{recommend.Commands(nil), recommend.DegradeCommand(nil)},
+		Commands: []cliapp.Command{recommend.Commands(nil), recommend.DegradeCommand(nil), activityproxy.Command(nil)},
 	})
 	app.SetCommands(groups)
 	return app, nil

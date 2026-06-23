@@ -59,7 +59,7 @@
     "preferred_bytes": 8589934592,
     "floor_bytes": 2147483648,
     "priority": "interactive",
-    "protected": true,
+    "yield_when_idle": true,
     "profile": {
       "steps": [
         { "label": "large-v3", "amount_bytes": 8589934592 },
@@ -70,6 +70,14 @@
       "upshift": true
     }
   },
+  "companions": [
+    {
+      "name": "activity-edge",
+      "command": "resource-whisper",
+      "args": ["activity-proxy"],
+      "port": 8090
+    }
+  ],
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {
@@ -91,6 +99,11 @@
       "name": "http",
       "container": 9000,
       "host": 8090
+    },
+    {
+      "name": "upstream",
+      "container": 9000,
+      "host": 18090
     }
   ],
   "orchestration": {
@@ -106,7 +119,8 @@
       "WHISPER_HOST": "localhost"
     },
     "from_ports": {
-      "WHISPER_PORT": "http"
+      "WHISPER_PORT": "http",
+      "WHISPER_UPSTREAM_PORT": "upstream"
     },
     "derived": {
       "WHISPER_URL": {

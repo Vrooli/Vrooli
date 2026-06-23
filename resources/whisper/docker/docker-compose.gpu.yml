@@ -7,7 +7,7 @@ services:
     hostname: whisper
     restart: unless-stopped
     ports:
-      - "${WHISPER_BIND_ADDRESS:-127.0.0.1}:${WHISPER_PORT:-8090}:9000"
+      - "${WHISPER_BIND_ADDRESS:-127.0.0.1}:${WHISPER_UPSTREAM_PORT:-18090}:9000"
     volumes:
       - whisper_models:/root/.cache/whisper:rw
       - whisper_uploads:/app/uploads:rw

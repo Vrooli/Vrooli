@@ -1,10 +1,17 @@
 # Ollama Models Guide
 
-Comprehensive guide to available models and selection strategies.
+Guide to available models and selection strategies.
 
-## Default Models (2025 Recommendations)
+Ollama runs as a Docker container, so there is no host `ollama` CLI. Pull models
+inside the container with `docker exec ollama ollama pull <model>`. Scenarios should
+prefer declaring model **roles** in their ollama dependency config (resolved through
+[`model-policy.json`](../model-policy.json)); `resource-ollama ensure` then pulls any
+missing resolved models automatically. The manual `docker exec` commands below are for
+ad-hoc/local use.
 
-These models are installed by default and cover most use cases:
+## Recommended Default Models
+
+A good starting set covering most use cases:
 
 | Model | Size | Best For | Download Size |
 |-------|------|----------|---------------|
@@ -12,7 +19,7 @@ These models are installed by default and cover most use cases:
 | **deepseek-r1:8b** | 8B params | Reasoning, math, analysis | 4.9GB |
 | **qwen2.5-coder:7b** | 7B params | Code generation, debugging | 4.2GB |
 
-**Total**: ~14GB storage required
+**Total**: ~14GB storage required (stored in the `/root/.ollama` bind-mount volume).
 
 ## Model Categories
 
@@ -21,14 +28,11 @@ These models are installed by default and cover most use cases:
 Best for: Chat, Q&A, general assistance, content creation
 
 ```bash
-# Recommended general models
-./manage.sh --action pull --models "llama3.1:8b"      # Balanced performance
-./manage.sh --action pull --models "llama3.1:70b"     # Highest quality (40GB)
-./manage.sh --action pull --models "llama3.2:3b"      # Lightweight (2GB)
-
-# Alternative options
-./manage.sh --action pull --models "gemma2:9b"        # Google's model
-./manage.sh --action pull --models "mistral:7b"       # Fast inference
+docker exec ollama ollama pull llama3.1:8b      # Balanced performance
+docker exec ollama ollama pull llama3.1:70b     # Highest quality (40GB)
+docker exec ollama ollama pull llama3.2:3b      # Lightweight (2GB)
+docker exec ollama ollama pull gemma2:9b        # Google's model
+docker exec ollama ollama pull mistral:7b       # Fast inference
 ```
 
 ### Code Generation Models
@@ -36,13 +40,10 @@ Best for: Chat, Q&A, general assistance, content creation
 Best for: Programming, code review, debugging, technical documentation
 
 ```bash
-# Code-specialized models
-./manage.sh --action pull --models "qwen2.5-coder:7b"    # Multi-language coding
-./manage.sh --action pull --models "codellama:13b"       # Meta's code model
-./manage.sh --action pull --models "deepseek-coder:6.7b" # Strong code reasoning
-
-# Instruction-tuned for code
-./manage.sh --action pull --models "codegemma:7b"        # Google code model
+docker exec ollama ollama pull qwen2.5-coder:7b    # Multi-language coding
+docker exec ollama ollama pull codellama:13b       # Meta's code model
+docker exec ollama ollama pull deepseek-coder:6.7b # Strong code reasoning
+docker exec ollama ollama pull codegemma:7b        # Google code model
 ```
 
 ### Reasoning & Math Models
@@ -50,10 +51,9 @@ Best for: Programming, code review, debugging, technical documentation
 Best for: Logic problems, mathematical reasoning, step-by-step analysis
 
 ```bash
-# Reasoning specialists
-./manage.sh --action pull --models "deepseek-r1:8b"      # Advanced reasoning
-./manage.sh --action pull --models "qwen2.5:14b"         # Strong math skills
-./manage.sh --action pull --models "llama3.1:70b"        # Best overall reasoning
+docker exec ollama ollama pull deepseek-r1:8b      # Advanced reasoning
+docker exec ollama ollama pull qwen2.5:14b         # Strong math skills
+docker exec ollama ollama pull llama3.1:70b        # Best overall reasoning
 ```
 
 ### Vision/Multimodal Models
@@ -61,10 +61,9 @@ Best for: Logic problems, mathematical reasoning, step-by-step analysis
 Best for: Image analysis, visual Q&A, document understanding
 
 ```bash
-# Vision-capable models
-./manage.sh --action pull --models "llava:13b"           # Image + text
-./manage.sh --action pull --models "llava-phi3:3.8b"     # Lightweight vision
-./manage.sh --action pull --models "bakllava:7b"         # Alternative vision model
+docker exec ollama ollama pull llava:13b           # Image + text
+docker exec ollama ollama pull llava-phi3:3.8b     # Lightweight vision
+docker exec ollama ollama pull bakllava:7b         # Alternative vision model
 ```
 
 ### Lightweight Models
@@ -72,120 +71,59 @@ Best for: Image analysis, visual Q&A, document understanding
 Best for: Resource-constrained environments, quick responses
 
 ```bash
-# Small but capable
-./manage.sh --action pull --models "llama3.2:3b"         # 2GB, good performance
-./manage.sh --action pull --models "qwen2.5:3b"          # Multilingual, compact
-./manage.sh --action pull --models "gemma2:2b"           # Ultra-lightweight
+docker exec ollama ollama pull llama3.2:3b         # 2GB, good performance
+docker exec ollama ollama pull qwen2.5:3b          # Multilingual, compact
+docker exec ollama ollama pull gemma2:2b           # Ultra-lightweight
 ```
 
 ## Model Selection Strategy
 
 ### By Use Case
 
-#### Development & Programming
 ```bash
-# Optimal setup for developers
-./manage.sh --action pull --models "qwen2.5-coder:7b,deepseek-coder:6.7b,llama3.1:8b"
-```
+# Development & programming
+docker exec ollama ollama pull qwen2.5-coder:7b
+docker exec ollama ollama pull deepseek-coder:6.7b
 
-#### Research & Analysis  
-```bash
-# Best for analytical work
-./manage.sh --action pull --models "deepseek-r1:8b,llama3.1:70b,qwen2.5:14b"
-```
-
-#### General Productivity
-```bash
-# Balanced for everyday use
-./manage.sh --action pull --models "llama3.1:8b,qwen2.5-coder:7b,gemma2:9b"
+# Research & analysis
+docker exec ollama ollama pull deepseek-r1:8b
+docker exec ollama ollama pull qwen2.5:14b
 ```
 
 ### By Hardware Constraints
 
-#### 8GB RAM
 ```bash
-# Conservative selection
-./manage.sh --action pull --models "llama3.2:3b,qwen2.5:3b"
-```
+# 8GB RAM — conservative
+docker exec ollama ollama pull llama3.2:3b
+docker exec ollama ollama pull qwen2.5:3b
 
-#### 16GB RAM
-```bash
-# Balanced selection
-./manage.sh --action pull --models "llama3.1:8b,qwen2.5-coder:7b"
-```
+# 16GB RAM — balanced
+docker exec ollama ollama pull llama3.1:8b
+docker exec ollama ollama pull qwen2.5-coder:7b
 
-#### 32GB+ RAM
-```bash
-# Full capability
-./manage.sh --action pull --models "llama3.1:70b,deepseek-r1:8b,qwen2.5-coder:7b"
+# 32GB+ RAM — full capability
+docker exec ollama ollama pull llama3.1:70b
+docker exec ollama ollama pull deepseek-r1:8b
 ```
 
 ## Model Management
 
-### Installation Commands
-
-```bash
-# Install single model
-./manage.sh --action pull --models "llama3.1:8b"
-
-# Install multiple models
-./manage.sh --action pull --models "llama3.1:8b,deepseek-r1:8b"
-
-# Force re-download
-./manage.sh --action pull --models "llama3.1:8b" --force
-
-# Install all default models
-./manage.sh --action install-defaults
-```
-
-### Model Information
-
 ```bash
 # List installed models
-./manage.sh --action list-installed
+docker exec ollama ollama list
 
 # Show model details
-./manage.sh --action model-info --model "llama3.1:8b"
+docker exec ollama ollama show llama3.1:8b
 
-# Check disk usage
-./manage.sh --action disk-usage
+# Remove a model
+docker exec ollama ollama rm old-model:7b
 
-# Available models catalog
-./manage.sh --action models
+# Re-pull (refresh) a model
+docker exec ollama ollama pull llama3.1:8b
 ```
 
-### Cleanup and Optimization
-
-```bash
-# Remove unused models
-./manage.sh --action cleanup-models
-
-# Remove specific model
-./manage.sh --action remove --model "old-model:7b"
-
-# Free up space (remove all but defaults)
-./manage.sh --action reset-models
-```
-
-## Automatic Model Selection
-
-The manage.sh script automatically selects models based on task type:
-
-### Type-Based Selection
-
-```bash
-# Automatically chooses best available model for task
-./manage.sh --action prompt --text "Fix this Python code" --type code
-./manage.sh --action prompt --text "Solve this equation" --type reasoning
-./manage.sh --action prompt --text "Explain quantum physics" --type general
-```
-
-### Selection Priority
-
-1. **Code tasks**: qwen2.5-coder → deepseek-coder → codellama → general models
-2. **Reasoning tasks**: deepseek-r1 → llama3.1:70b → qwen2.5:14b → general models  
-3. **General tasks**: llama3.1:8b → gemma2 → mistral → any available
-4. **Vision tasks**: llava → bakllava → text-only models
+Model files live in the `${RESOURCE_DATA_DIR}` → `/root/.ollama` bind-mount and
+persist across container restarts.
 
 ## Model Performance Guide
 
@@ -206,32 +144,22 @@ The manage.sh script automatically selects models based on task type:
 
 ## Advanced Configuration
 
-### Memory Management
+### Memory / concurrency
 
-```bash
-# Limit models in memory
-export OLLAMA_MAX_LOADED_MODELS=2
-
-# Set memory threshold
-export OLLAMA_LOW_MEMORY_THRESHOLD=0.8
-
-# Preload specific models
-./manage.sh --action preload --models "llama3.1:8b,qwen2.5-coder:7b"
-```
+Concurrency and loaded-model limits are declared in
+[`resource.json`](../resource.json) under `runtime.env` (`OLLAMA_NUM_PARALLEL`,
+`OLLAMA_MAX_LOADED_MODELS`). The container's hard memory ceiling is
+`runtime.memory_limit: 12g`. Edit those and `vrooli resource restart ollama`.
 
 ### Custom Models
 
 ```bash
-# Create custom model from Modelfile
-./manage.sh --action create-model --name "my-assistant" --modelfile /path/to/Modelfile
-
-# Import GGUF files
-./manage.sh --action import-gguf --file /path/to/model.gguf --name "custom-model"
+# Create a custom model from a Modelfile placed in the data volume
+docker exec ollama ollama create my-assistant -f /root/.ollama/Modelfile
 ```
 
 ## Next Steps
 
-- [Configure model parameters](CONFIGURATION.md#model-configuration)
-- [Learn the API](API.md) for programmatic access
-- [Optimize performance](PERFORMANCE.md) for your hardware
-- [Review the resource docs](README.md) for current usage guidance
+- [Installation Guide](INSTALLATION.md) — setup and configuration
+- [Embedding Models](EMBEDDING_MODELS.md) — embedding model guidance
+- [Resource docs](README.md) — current usage guidance

@@ -17,13 +17,13 @@ Managed Ollama runtime for local model serving and inference workloads.
 
 ## Architecture
 
-This resource is being aligned to the updated `docker-service` structure.
+This resource follows the `docker-service` structure. Ollama runs exclusively as a
+Docker container — there is no host-systemd install and no `lib/` shell layer.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `model-policy.json` is the declarative authority for Ollama roles, concrete model catalog entries, capacity estimates, and estimate provenance.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Ollama-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
 
 The intended escalation path is:
 
@@ -239,5 +239,5 @@ fails fast with a structured error. There is no HTTP fallback by design.
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for model workflows.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
-- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- New logic lands in Go under `cli/internal/...`; the deployment/management axis stays in the Docker driver and `resource.json`.
 - Keep user-facing model and API guidance in the existing docs set, and use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/ollama/docs/OPERATIONS.md) as the architecture boundary for future migrations.
