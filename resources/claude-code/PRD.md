@@ -121,10 +121,9 @@ primary_provider:
 fallback_provider:
   name: Ollama-Code
   models:
-    - qwen2.5-coder:14b (primary fallback)
-    - qwen2.5-coder:7b (fast responses)
-    - codellama:7b (specialized coding)
-    - deepseek-r1:8b (reasoning tasks)
+    - Resolved from the ollama resource's `code.local` role
+      (resources/ollama/model-policy.json) — a local coding-capable model
+      with structured tool-calls, plus the policy-defined fallbacks.
   capabilities:
     - Unlimited local inference
     - No rate limits

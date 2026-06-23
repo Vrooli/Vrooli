@@ -4,17 +4,21 @@ This document provides guidance on which Ollama models to use for different embe
 
 ## 🎯 Quick Reference
 
-**For most use cases, use: `nomic-embed-text:latest`**
+**For most use cases, use the `embedding.default` role** — resolve it with
+`resource-ollama policy resolve --role embedding.default` (currently a 768-dim
+text-embedding model). The role is the source of truth; the concrete tag below
+is shown only to illustrate the dimensions contract.
 
-## 📊 Available Models and Dimensions
+## 📊 Dimensions contract
 
-| Model | Dimensions | Status | Best Use Case |
-|-------|------------|--------|---------------|
-| `nomic-embed-text:latest` | **768** | ✅ **RECOMMENDED** | Text embeddings, property search, code similarity |
-| `llama3.1:8b` | 4096 | ❌ **AVOID** | Too large for most collections - use for chat only |
-| `llama3.2-vision:11b` | N/A | ❌ **NO EMBEDDINGS** | Vision tasks only, no embedding support |
-| `codellama:7b` | 4096 | ❌ **AVOID** | Too large for most collections - use for code chat only |
-| `llama2:7b` | 4096 | ❌ **AVOID** | Too large for most collections |
+Embedding dimensions must match the target Qdrant collection. The
+`embedding.default` role is sized for the project's 768-dim collections.
+
+| Model class | Dimensions | Status | Notes |
+|-------------|------------|--------|-------|
+| `embedding.default` role (768-dim text embedder) | **768** | ✅ **USE THIS** | Text embeddings, property search, code similarity |
+| General chat/code models (8B+) | 4096 | ❌ **AVOID** | Wrong dimensionality for the 768-dim collections — use them for chat/code, never embeddings |
+| Vision models | N/A | ❌ **NO EMBEDDINGS** | No embedding output at all |
 
 ## 🗄️ Qdrant Collection Compatibility
 
@@ -155,5 +159,5 @@ jq 'length' your_vector.json
 
 ---
 
-**Last Updated**: $(date)
-**Tested With**: Ollama v1.15.1, Qdrant v1.15.1
+The authoritative embedding model is the `embedding.default` role in
+[`model-policy.json`](../model-policy.json); see git history for revision dates.

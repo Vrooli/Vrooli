@@ -166,8 +166,10 @@ resource_configuration:
 customization:
   user_configurable:
     - parameter: default_models
-      description: Models to install automatically
-      default: ["llama3.1:8b", "deepseek-r1:8b", "qwen2.5-coder:7b"]
+      description: >-
+        Models to install automatically. Governed by the role policy in
+        model-policy.json (resolved primaries for the embedding/chat/code
+        roles), not a hard-coded list — see `resource-ollama policy roles`.
       
     - parameter: gpu_enabled
       description: Enable GPU acceleration

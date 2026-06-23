@@ -16,86 +16,86 @@
       }
     },
     "chat.small": {
-      "model": "llama3.2:3b",
-      "fallbacks": ["llama3.2:1b"],
+      "model": "qwen3.5:4b",
+      "fallbacks": ["llama3.2:3b", "llama3.2:1b"],
       "required_capabilities": ["generate", "chat"],
       "description": "Small local chat/generation role for low-latency or low-memory scenario paths.",
       "preference": 20,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "resources/ollama/docs/MODELS.md and scenario manifest inventory",
-        "observed_at": "2026-06-10",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (tiny/fast general)",
+        "observed_at": "2026-06-23",
         "sample_count": 0
       }
     },
     "chat.default": {
-      "model": "qwen3:4b",
-      "fallbacks": ["llama3.2:3b", "llama3.1:8b"],
+      "model": "qwen3.5:9b",
+      "fallbacks": ["qwen3.5:4b", "llama3.1:8b"],
       "required_capabilities": ["generate", "chat", "summarize"],
       "description": "Default local generation role for synthesis, summarization, and lightweight agent workflows.",
       "preference": 30,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "scenario manifest inventory and existing qwen3 usage in web-search/knowledge-observatory",
-        "observed_at": "2026-06-10",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (default general)",
+        "observed_at": "2026-06-23",
         "sample_count": 0
       }
     },
     "summarize.default": {
-      "model": "qwen3:4b",
-      "fallbacks": ["llama3.2:3b"],
+      "model": "qwen3.5:9b",
+      "fallbacks": ["qwen3.5:4b", "llama3.2:3b"],
       "required_capabilities": ["generate", "chat", "summarize"],
       "description": "Default summarization and distillation role for text-heavy scenario outputs.",
       "preference": 40,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "scenario manifest inventory",
-        "observed_at": "2026-06-10",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (default general)",
+        "observed_at": "2026-06-23",
         "sample_count": 0
       }
     },
     "rerank.llm_fallback": {
-      "model": "qwen3:4b",
-      "fallbacks": ["qwen3:1.7b"],
+      "model": "qwen3.5:4b",
+      "fallbacks": ["qwen3:4b", "qwen3:1.7b"],
       "required_capabilities": ["generate", "rerank"],
       "description": "LLM fallback reranking role used when the dedicated reranker resource is unavailable.",
       "preference": 50,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "cli-health/web-search/knowledge-observatory manifests and reranker degradation notes",
-        "observed_at": "2026-06-10",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (tiny/fast general)",
+        "observed_at": "2026-06-23",
         "sample_count": 0
       }
     },
     "classify.routing": {
-      "model": "qwen3:1.7b",
-      "fallbacks": ["qwen3:4b"],
+      "model": "qwen3.5:4b",
+      "fallbacks": ["qwen3:1.7b", "qwen3:4b"],
       "required_capabilities": ["generate", "classify"],
       "description": "Small local generation role for structured routing/classification decisions.",
       "preference": 55,
       "provenance": {
-        "source_kind": "scenario_pin",
+        "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "search-hub classifier manifest and routing implementation inventory",
-        "observed_at": "2026-06-10",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (tiny/fast general)",
+        "observed_at": "2026-06-23",
         "sample_count": 0
       }
     },
     "code.local": {
-      "model": "qwen2.5-coder:14b",
-      "fallbacks": ["qwen2.5-coder:7b", "codellama:7b"],
+      "model": "gemma4:12b",
+      "fallbacks": ["qwen2.5-coder:14b", "qwen2.5-coder:7b", "codellama:7b"],
       "required_capabilities": ["generate", "code"],
       "description": "Local code-assistance role for scenarios that explicitly need code-specialized generation.",
       "preference": 60,
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
-        "source": "agent-manager manifest inventory and resources/ollama/docs/MODELS.md",
-        "observed_at": "2026-06-10",
+        "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (balanced coding)",
+        "observed_at": "2026-06-23",
         "sample_count": 0
       }
     }
@@ -133,6 +133,90 @@
           "confidence": "medium",
           "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
           "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen3.5:4b": {
+      "family": "qwen",
+      "tags": ["3.5", "4b"],
+      "capabilities": ["generate", "chat", "summarize", "rerank", "classify", "tools"],
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 3.0,
+      "ram_gb_estimate": 6.0,
+      "vram_gb_estimate": 6.0,
+      "default_eligible": true,
+      "use_case_notes": "Tiny/fast general model — small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
+      "caveats": ["The bare ':4b' tag pulls Ollama's default quant; pin a quant-specific tag to force Q8_0."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-23 best-available local-model survey; tag verified against ollama library registry",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual 4B parameter-size estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen3.5:9b": {
+      "family": "qwen",
+      "tags": ["3.5", "9b"],
+      "capabilities": ["generate", "chat", "summarize", "tools"],
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 6.0,
+      "ram_gb_estimate": 11.0,
+      "vram_gb_estimate": 11.0,
+      "default_eligible": true,
+      "use_case_notes": "Default general model for synthesis and summarization. Recommended quant Q6_K (~7.5 GB) or Q8_0 (~9.5 GB).",
+      "caveats": ["May exceed the default 12 GiB Ollama container budget at Q8_0 alongside other resident models."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-23 best-available local-model survey; tag verified against ollama library registry",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual 9B parameter-size estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        }
+      }
+    },
+    "gemma4:12b": {
+      "family": "gemma",
+      "tags": ["4", "12b"],
+      "capabilities": ["generate", "chat", "code", "tools"],
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 7.0,
+      "ram_gb_estimate": 12.0,
+      "vram_gb_estimate": 12.0,
+      "default_eligible": true,
+      "use_case_notes": "Balanced local coding model (Gemma 4 12B). Recommended official QAT Q4_0 (~6.7 GB).",
+      "caveats": ["Tight fit for the default 12 GiB Ollama budget when other models are resident; capacity planner should flag co-residency."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "ChatGPT 2026-06-23 best-available local-model survey; tag verified against ollama library registry",
+          "observed_at": "2026-06-23",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual 12B QAT-Q4 estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-23",
           "sample_count": 0
         }
       }
@@ -175,7 +259,7 @@
       "vram_gb_estimate": 4.0,
       "default_eligible": true,
       "use_case_notes": "Small balanced general-purpose model for local chat/generation.",
-      "caveats": ["Prefer qwen3:4b for default synthesis when host capacity permits."],
+      "caveats": ["Prefer qwen3.5:4b for default synthesis when host capacity permits."],
       "provenance": {
         "identity": {
           "source_kind": "manual_policy",
@@ -230,7 +314,7 @@
       "ram_gb_estimate": 3.0,
       "vram_gb_estimate": 3.0,
       "default_eligible": false,
-      "use_case_notes": "Small LLM rerank fallback candidate observed in health/search manifests.",
+      "use_case_notes": "Small LLM rerank/classify fallback candidate observed in health/search manifests.",
       "caveats": ["Prior search quality notes report weak discrimination for some reranking workloads."],
       "provenance": {
         "identity": {
@@ -258,7 +342,7 @@
       "ram_gb_estimate": 5.0,
       "vram_gb_estimate": 5.0,
       "default_eligible": true,
-      "use_case_notes": "Default local synthesis and LLM-rerank fallback model for search-heavy scenarios.",
+      "use_case_notes": "Prior-generation local synthesis and LLM-rerank fallback model retained as a deeper fallback.",
       "caveats": ["LLM reranking is a fallback; prefer the dedicated reranker resource for production quality."],
       "provenance": {
         "identity": {
@@ -286,7 +370,7 @@
       "ram_gb_estimate": 8.0,
       "vram_gb_estimate": 8.0,
       "default_eligible": false,
-      "use_case_notes": "Code-specialized fallback for hosts that cannot carry the 14B coder role target.",
+      "use_case_notes": "Code-specialized fallback for hosts that cannot carry the gemma4:12b coder role target.",
       "caveats": ["Direct use should explain why general chat/code role defaults are insufficient."],
       "provenance": {
         "identity": {
@@ -314,7 +398,7 @@
       "ram_gb_estimate": 16.0,
       "vram_gb_estimate": 16.0,
       "default_eligible": false,
-      "use_case_notes": "Higher-quality local code model for explicit code-generation scenarios.",
+      "use_case_notes": "Higher-quality prior-generation local code model retained as the first code.local fallback.",
       "caveats": ["Usually too large for the default 12 GiB Ollama container budget; capacity planner should flag this unless the runtime budget is raised."],
       "provenance": {
         "identity": {
@@ -343,7 +427,7 @@
       "vram_gb_estimate": 8.0,
       "default_eligible": false,
       "use_case_notes": "Legacy code-specialized fallback retained for existing model-orchestration manifests.",
-      "caveats": ["Prefer qwen2.5-coder role targets for new code workflows."],
+      "caveats": ["Prefer gemma4:12b / qwen2.5-coder role targets for new code workflows."],
       "provenance": {
         "identity": {
           "source_kind": "scenario_pin",

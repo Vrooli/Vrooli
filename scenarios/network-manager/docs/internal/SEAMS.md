@@ -1,0 +1,51 @@
+# Seams — Network Manager
+
+## Wire contracts live in proto, not seams
+
+Proto definitions will own the API wire shape. This document records substitutable implementation boundaries, not request/response schema.
+
+## Workflow transitions are not seams
+
+Optimization and policy transitions are modeled in [`../concepts/FLOWS.md`](../concepts/FLOWS.md). A seam is an interface where production uses one implementation and tests use a fake.
+
+## Current seams
+
+| Seam | Production role | Test fake | Requirements |
+|---|---|---|---|
+| `SnapshotProbeRunner` | Runs DNS, gateway, WAN, loss, jitter, throughput, and host probes. | Deterministic fake probes. | `NM-P0-001`, `NM-P0-005` |
+| `ResolverAdapter` | Talks to AdGuard Home first, later Pi-hole/Technitium. | Fake resolver with capability and failure knobs. | `NM-P0-002`, `NM-P0-003` |
+| `DeviceDiscoverySource` | Reads client evidence from resolver/router/host sources. | Fake inventory sources with ambiguous identity cases. | `NM-P0-004` |
+| `AdapterRegistry` | Selects host, resolver, router, and manual adapters. | Fake registry for Linux/macOS/Windows/manual capabilities. | `NM-P0-006` |
+| `OptimizationScorer` | Scores candidate configs by reliability-first metrics. | Fixed-score scorer for workflow tests. | `NM-P0-005` |
+| `ApprovalStore` | Persists approvals and rollback handles. | In-memory store. | `NM-P0-003`, `NM-P0-005`, `NM-P0-008` |
+| `HomeAutomationPublisher` | Publishes actions/events to Home Automation. | Capturing publisher. | `NM-P0-007` |
+| `RetentionPolicy` | Applies privacy and audit retention rules. | Fake clock + in-memory records. | `NM-P0-008` |
+
+## Adding a new seam
+
+Add a seam only when it crosses a real boundary: external system, clock/time, storage, adapter capability, scoring policy, event publisher, or long-running workflow. Keep interfaces small and domain-owned.
+
+## Architecture Alignment Notes
+
+Network Manager's highest-risk seams are resolver/router/host adapters. They must report capabilities before use and must not let unsupported platforms look supported.
+
+## UI-side seams
+
+UI tests should fake generated API clients and operation-state polling. UI components should not know how resolver/router adapters work.
+
+## What is NOT a seam
+
+- A helper function inside one domain.
+- A React component prop.
+- A data transformation with no external dependency.
+- A workflow state transition.
+
+## API contract manifest
+
+Endpoint metadata remains generated from API registration. Do not hand-edit `.vrooli/endpoints.json`.
+
+## Cross-references
+
+- [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
+- [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)
+- [`TESTING.md`](TESTING.md)

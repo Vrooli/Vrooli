@@ -16,9 +16,9 @@ OPENCODE_DEFAULT_PROVIDER="openrouter"
 OPENCODE_DEFAULT_CHAT_MODEL="deepseek/deepseek-v4-flash"
 OPENCODE_DEFAULT_COMPLETION_MODEL="deepseek/deepseek-v4-flash"
 
-# Default local model used when Ollama is auto-selected.
-# qwen3-coder is the current purpose-built agentic coding model with reliable
-# tool-calling. (qwen2.5-coder — the previous generation — advertises a "tools"
-# capability but does NOT return structured tool_calls on older Ollama
-# runtimes, so opencode never executes the calls; see opencode::ollama::pick_model.)
-OPENCODE_OLLAMA_DEFAULT_MODEL="${OPENCODE_OLLAMA_DEFAULT_MODEL:-qwen3-coder}"
+# Default local model used when Ollama is auto-selected. Aligned with the
+# `code.local` role in resources/ollama/model-policy.json (gemma4:12b — the
+# balanced local coding model). pick_model still probes tool-calling support
+# at config-write time and falls through its preference list if this model is
+# absent or does not return structured tool_calls (see opencode::ollama::pick_model).
+OPENCODE_OLLAMA_DEFAULT_MODEL="${OPENCODE_OLLAMA_DEFAULT_MODEL:-gemma4:12b}"

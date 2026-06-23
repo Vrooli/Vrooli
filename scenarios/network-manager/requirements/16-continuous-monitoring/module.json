@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "continuous-monitoring",
+    "description": "Recurring snapshots and regression detection.",
+    "prd_ref": "OT-P1-007",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-007",
+      "title": "Continuous monitoring detects network regressions",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "monitoring",
+      "criticality": "P1",
+      "description": "The scenario shall schedule recurring health snapshots, compare them against baselines, and alert when resolver, gateway, ISP, or filtering failures appear.",
+      "tags": ["monitoring", "regression", "alerts"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add scheduler and regression-detection tests tagged [REQ:NM-P1-007] after monitoring support lands."
+        }
+      ]
+    }
+  ]
+}

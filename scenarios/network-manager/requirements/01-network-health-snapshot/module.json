@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "network-health-snapshot",
+    "description": "Repeatable health snapshots for internet and local network quality.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P0-001",
+      "title": "Network health snapshots capture comparable quality metrics",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "diagnostics",
+      "criticality": "P0",
+      "description": "The scenario shall produce a repeatable health snapshot that includes gateway reachability, WAN reachability, DNS latency, resolver behavior, IPv4/IPv6 status, packet loss, jitter, throughput, and local host/network facts with timestamps and measurement confidence.",
+      "tags": ["snapshot", "diagnostics", "network-quality"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add API and domain tests tagged [REQ:NM-P0-001] that run deterministic probe fakes and verify the snapshot report schema and confidence flags."
+        }
+      ]
+    }
+  ]
+}

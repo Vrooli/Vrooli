@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "household-policy-profiles",
+    "description": "Household and device-group policy profiles.",
+    "prd_ref": "OT-P1-001",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-001",
+      "title": "Household policy profiles group devices by intent",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "The scenario shall support trusted, kids, guest, IoT, and work profiles with per-group DNS policy, filtering strength, schedule, and override behavior.",
+      "tags": ["household-policy", "device-groups"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add profile service and UI tests tagged [REQ:NM-P1-001] once household policy profiles are implemented."
+        }
+      ]
+    }
+  ]
+}

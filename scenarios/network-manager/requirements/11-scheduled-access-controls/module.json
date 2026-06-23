@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "scheduled-access-controls",
+    "description": "Scheduled access and temporary pause/resume controls.",
+    "prd_ref": "OT-P1-002",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-002",
+      "title": "Access schedules control devices and groups",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "The scenario shall support bedtime, focus, guest-window, and temporary pause/resume policies for devices and groups with visible active windows and override records.",
+      "tags": ["schedules", "pause", "resume"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add scheduler and policy-resolution tests tagged [REQ:NM-P1-002] after scheduling support lands."
+        }
+      ]
+    }
+  ]
+}

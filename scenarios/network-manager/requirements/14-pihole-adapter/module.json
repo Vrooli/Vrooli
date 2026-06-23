@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "pihole-adapter",
+    "description": "Second managed resolver backend for Pi-hole.",
+    "prd_ref": "OT-P1-005",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-005",
+      "title": "Pi-hole can be selected as a managed resolver backend",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "resolver",
+      "criticality": "P1",
+      "description": "The scenario shall support Pi-hole as a managed resolver backend for focused DNS sinkhole deployments while preserving the same policy and health abstraction used by AdGuard Home where capabilities overlap.",
+      "tags": ["pihole", "dns", "resolver"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add resolver adapter parity tests tagged [REQ:NM-P1-005] after Pi-hole support is implemented."
+        }
+      ]
+    }
+  ]
+}

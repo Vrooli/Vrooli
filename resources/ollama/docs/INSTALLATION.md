@@ -122,8 +122,9 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
   above; stop the host process holding `:11434`, then `vrooli resource start ollama`.
 - **GPU not detected** — confirm `nvidia-smi` works on the host and the NVIDIA
   Container Toolkit is installed; restart the container.
-- **Insufficient memory** — prefer smaller models (`llama3.2:3b`, `qwen2.5:3b`) or
-  raise `runtime.memory_limit` in `resource.json`.
+- **Insufficient memory** — prefer a smaller role target (e.g. the `chat.small`
+  role; see `resource-ollama policy roles`) or raise `runtime.memory_limit` in
+  `resource.json`.
 - **Inspect the container** — `docker logs ollama`, `docker inspect ollama`.
 
 ## Next Steps

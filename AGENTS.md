@@ -8,7 +8,16 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 1. **Commands**: 
    - Run `vrooli help` to see available.
 1. **Testing**: 
-   - Use `vrooli scenario test <name>` (or test-genie) to run scenario tests.
+   - Use `vrooli scenario test <name>` (or `test-genie execute <name>`) to run scenario tests.
+   - **The run is owned by the test-genie server, so it survives your command being cancelled.** Just run it. The run id + a re-attach command are printed up front, and a known-long run auto-backgrounds so your shell returns immediately.
+   - **Do NOT poll with repeated "still waiting" checks. To wait, block ONCE with the quiet wait verb:**
+     `test-genie runs wait --json <scenario> <run-id>` (also `vrooli scenario test wait <scenario> <run-id>`). It blocks server-side and returns exactly once with the verdict + the run's real exit code (0 passed, 1 failed/aborted, 124 if you pass `--timeout` and it elapses first). It does NOT stream — one call, one return. This is the verb the start banner and re-attach commands print; copy it verbatim.
+     - **If you must bound the wait, use `--timeout=<seconds>`.** On timeout it returns `124`, the JSON snapshot still carries `recommended_next_check_seconds`, and stderr prints the exact re-invoke line. **Re-call only after that many seconds — never poll faster, never re-run immediately.**
+     - `test-genie runs follow <scenario> <run-id>` is the **human** live-watch verb (a continuous, heartbeating stream). Do not use it to "wait" as an agent — a backgrounded stream re-wakes you on every heartbeat. Use `runs wait --json`.
+     - Cancel ≠ abort — to actually stop a run use `vrooli scenario test abort <scenario> <run-id>`.
+   - **One run per scenario at a time.** The test-genie server allows at most one in-progress run per scenario (different scenarios run concurrently). An identical re-request coalesces onto the running run (no second suite); a *different* request for a busy scenario is rejected with the in-flight run id + `runs wait --json`/`runs abort` guidance — wait or abort, don't retry-spam.
+   - **Waiting on several runs at once?** Use one `test-genie runs wait-all --run <scenario>:<run-id> --run …` call (repeatable; add `--json`). It blocks until every named run is terminal and returns one aggregate exit code (0 all passed, 1 any failed, 124 any still in-flight at `--timeout`, 2 any not-comparable) — so two parallel suites/diffs resolve in a single call instead of two backgrounded streams.
+   - **Baseline diff is durable too — don't poll it.** `git-control-tower baseline diff --scenario S --name N` returns immediately with a run id + re-attach command (it reuses a clean-tree run when one exists, so it usually doesn't even re-run the suite). Resolve the verdict with `git-control-tower baseline diff status --scenario S --name N --run <run-id>` (exit `0` clean, `1` regression, `2` not-comparable, `3` not-ready), or add `--wait` to block server-side and print it inline.
 2. **Files**: Always prefer editing existing files over creating new ones
 3. **Bug reporting & work logging**:
    - If you spot a defect outside your current scope, load the writer instructions with `prompt-manager skill read report-bug`, then file to scenario-qa with `prompt-manager team knowledge-add scenario-qa --topic="bug-inbox/<signal-type>/<slug>" --content "<front-matter + body>"`. `report-bug` is a prompt-manager skill, not a shell executable. If the knowledge writer is unavailable, fall back to `swarm-manager captures create --text "<bug report + attempted command>"` and say the bug writer was unavailable.
@@ -20,7 +29,11 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
      - One Vrooli CLI command cleanly does it and no action exists → `prompt-manager action create --name "…" --command '<argv with {{placeholders}}>'` (previews by default; add `--apply` to register). Creating an action is free — no decision required.
      - It took several commands, only partly worked, or you improvised → `swarm-manager captures create --text "<intent / what you did / the friction>"`. Don't stitch multiple actions together; the capture becomes an enhancement or capability-gap the system triages into a single clean command later.
      - Something is broken → use the `report-bug` skill workflow above; do not run `report-bug` as a shell command.
-5. **Dependencies**: Never install packages without explicit permission
+5. **Dependencies**: All third-party dependency work — finding, approving, changing, and installing packages — flows through **Scenario Dependency Analyzer (SDA)**, the dependency-intelligence authority. Never hand-edit `.vrooli/dependencies/approved-dependencies.json` and never run a raw package manager (`pnpm add`, `go get`, `npm install`, `pip install`).
+   - **Find** a package: `scenario-dependency-analyzer deps approved search "<purpose>" [--ecosystem npm] [--framework react] [--surface ui]` (AI-ranked approved/denied records + ranges + security state). Also reachable via `search-hub query "<purpose>" --type dependency`.
+   - **Install** into a surface: `scenario-dependency-analyzer deps install <ecosystem>/<package>[@ver] --scenario <name> --surface <ui|api|cli>` (resolves the package manager + manifest, enforces governance, re-scans for CVEs; dry-run by default, add `--apply`).
+   - **Approve / change / deny**: `scenario-dependency-analyzer deps approved {approve-observed,widen-range,deny-vulnerable,explain,list}` (validated, dry-run-by-default, captures evidence + security scan).
+   - These commands never need raw-install permission and are the only sanctioned path in autonomous (no-human) runs.
 6. **Managing Scenarios**:
    - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`
    - **Alternative**: `vrooli scenario start <name>` for direct CLI management
