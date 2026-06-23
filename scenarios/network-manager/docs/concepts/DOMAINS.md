@@ -8,17 +8,17 @@ Use this document to decide which domain owns each concept, table, proto operati
 
 ## Domain Inventory
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
+| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Refs |
 |---|---|---|---|---|---|---|
-| snapshot | Produce comparable network health measurements. | Reporting / measurement | Snapshot runs and probe results. | API, CLI, UI | `NM-P0-001` | Future `api/internal/snapshot/`, `ui/src/features/snapshot/` |
-| resolver | Manage DNS/filtering backends, AdGuard Home first. | Integration / policy | Resolver config, backend status, adapter capability reports. | API, CLI, UI | `NM-P0-002`, `NM-P1-005`, `NM-P2-001` | Future `api/internal/resolver/` |
-| policy | Preview, apply, pause, resume, and roll back DNS filtering policy. | Policy / command | Policy profiles, allow/deny lists, rollback records. | API, CLI, UI | `NM-P0-003`, `NM-P1-001`, `NM-P1-002` | Future `api/internal/policy/` |
-| inventory | Track network clients and identity confidence. | Entity / reconciliation | Devices, groups, identifiers, last-seen records. | API, CLI, UI | `NM-P0-004` | Future `api/internal/inventory/` |
-| optimization | Run baseline/candidate/after experiments and score candidates. | Workflow / decision support | Experiment runs, measurements, scores, approvals. | API, CLI, UI | `NM-P0-005` | Future `api/internal/optimization/` |
-| adapters | Normalize OS, resolver, router, and manual capabilities. | Platform abstraction | Capability snapshots and unsupported reasons. | API, CLI | `NM-P0-006`, `NM-P1-003`, `NM-P1-004`, `NM-P1-008` | Future `api/internal/adapters/` |
-| homeintegration | Provide actions/events consumed by Home Automation. | Integration contract | Event log and action audit references. | API, events | `NM-P0-007` | Future `api/internal/homeintegration/` |
-| privacy | Apply retention, visibility, and audit-mode rules. | Governance / policy | Retention settings, visibility settings, audit profile. | API, CLI, UI | `NM-P0-008`, `NM-P1-006` | Future `api/internal/privacy/` |
-| monitoring | Schedule recurring checks and detect regressions. | Monitoring / alerting | Monitor schedules, baseline comparisons, alerts. | API, CLI, UI | `NM-P1-007` | Future `api/internal/monitoring/` |
+| snapshot | Produce comparable network health measurements. | Reporting / measurement | Snapshot runs and probe results. | API, CLI, UI | `NM-P0-001` | path:packages/proto/schemas/network-manager/v1/snapshot, path:api/handlers/snapshot, path:cli/domains/snapshot |
+| resolver | Manage DNS/filtering backends, AdGuard Home first. | Integration / policy | Resolver config, backend status, adapter capability reports. | API, CLI, UI | `NM-P0-002`, `NM-P1-005`, `NM-P2-001` | path:packages/proto/schemas/network-manager/v1/resolver, path:api/handlers/resolver, path:cli/domains/resolver |
+| policy | Preview, apply, pause, resume, and roll back DNS filtering policy. | Policy / command | Policy profiles, allow/deny lists, rollback records. | API, CLI, UI | `NM-P0-003`, `NM-P1-001`, `NM-P1-002` | path:packages/proto/schemas/network-manager/v1/policy, path:api/handlers/policy, path:cli/domains/policy |
+| inventory | Track network clients and identity confidence. | Entity / reconciliation | Devices, groups, identifiers, last-seen records. | API, CLI, UI | `NM-P0-004` | path:packages/proto/schemas/network-manager/v1/inventory, path:api/handlers/inventory, path:cli/domains/devices |
+| optimization | Run baseline/candidate/after experiments and score candidates. | Workflow / decision support | Experiment runs, measurements, scores, approvals. | API, CLI, UI | `NM-P0-005` | path:packages/proto/schemas/network-manager/v1/optimization, path:api/handlers/optimization, path:cli/domains/optimize |
+| adapters | Normalize OS, resolver, router, and manual capabilities. | Platform abstraction | Capability snapshots and unsupported reasons. | API, CLI | `NM-P0-006`, `NM-P1-003`, `NM-P1-004`, `NM-P1-008` | path:packages/proto/schemas/network-manager/v1/adapters, path:api/handlers/adapters, path:cli/domains/adapters |
+| homeintegration | Provide actions/events consumed by Home Automation. | Integration contract | Event log and action audit references. | API, CLI, events | `NM-P0-007` | path:packages/proto/schemas/network-manager/v1/home_integration, path:api/handlers/homeintegration, path:cli/domains/home |
+| privacy | Apply retention, visibility, and audit-mode rules. | Governance / policy | Retention settings, visibility settings, audit profile. | API, CLI, UI | `NM-P0-008`, `NM-P1-006` | path:packages/proto/schemas/network-manager/v1/privacy, path:api/handlers/privacy, path:cli/domains/privacy |
+| monitoring | Schedule recurring checks and detect regressions. | Monitoring / alerting | Monitor schedules, baseline comparisons, alerts. | API, CLI, UI | `NM-P1-007` | Future path:api/internal/monitoring |
 
 ## Domain Details
 

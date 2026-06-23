@@ -31,24 +31,45 @@ Persists CLI config such as `api_base` or token values.
 
 ## Scenario commands — Network Manager
 
-Planned command groups:
+Implemented scaffold command groups:
 
 | Command | Purpose | Requirement |
 |---|---|---|
 | `network-manager snapshot run` | Run a read-only health snapshot. | `NM-P0-001` |
 | `network-manager snapshot list` | List stored snapshots. | `NM-P0-001` |
+| `network-manager snapshot get <id>` | Get a stored snapshot. | `NM-P0-001` |
 | `network-manager snapshot export <id>` | Export a health report. | `NM-P0-001` |
 | `network-manager resolver status` | Show AdGuard Home and DNS backend health. | `NM-P0-002` |
 | `network-manager resolver configure-adguard` | Configure the first resolver backend. | `NM-P0-002` |
+| `network-manager resolver upstreams` | Preview or update resolver upstreams. | `NM-P0-002` |
+| `network-manager resolver health` | Run resolver health checks. | `NM-P0-002` |
 | `network-manager policy preview` | Preview filtering changes. | `NM-P0-003` |
 | `network-manager policy apply` | Apply an approved policy change. | `NM-P0-003` |
 | `network-manager policy rollback <id>` | Roll back a policy change. | `NM-P0-003` |
+| `network-manager policy pause` | Pause filtering for a target. | `NM-P0-003` |
+| `network-manager policy resume` | Resume filtering for a target. | `NM-P0-003` |
 | `network-manager devices refresh` | Refresh LAN-visible device inventory. | `NM-P0-004` |
 | `network-manager devices list` | List devices with identity confidence. | `NM-P0-004` |
+| `network-manager devices group <id>` | Assign a device group. | `NM-P0-004` |
+| `network-manager devices explain <id>` | Explain identity confidence. | `NM-P0-004` |
 | `network-manager optimize run` | Run a baseline/candidate optimization experiment. | `NM-P0-005` |
+| `network-manager optimize candidate <run-id>` | Run one optimization candidate. | `NM-P0-005` |
+| `network-manager optimize score <run-id>` | Score optimization candidates. | `NM-P0-005` |
 | `network-manager optimize approve <run-id>` | Approve a candidate apply. | `NM-P0-005` |
+| `network-manager optimize rollback <run-id>` | Roll back an optimization run. | `NM-P0-005` |
 | `network-manager adapters capabilities` | List supported host/resolver/router actions. | `NM-P0-006` |
-| `network-manager privacy settings` | Show retention and visibility defaults. | `NM-P0-008` |
+| `network-manager adapters explain <action>` | Explain unsupported actions. | `NM-P0-006` |
+| `network-manager adapters platform` | Show detected platform summary. | `NM-P0-006` |
+| `network-manager privacy retention` | Show retention defaults. | `NM-P0-008` |
+| `network-manager privacy retention-set` | Update retention defaults. | `NM-P0-008` |
+| `network-manager privacy visibility` | Show visibility defaults. | `NM-P0-008` |
+| `network-manager home actions` | List Home Automation actions. | `NM-P0-007` |
+| `network-manager home invoke <name>` | Invoke a Home Automation action. | `NM-P0-007` |
+| `network-manager home events` | List Home Automation events. | `NM-P0-007` |
+
+Current behavior is contract-first scaffold behavior: commands call the API
+and return safe placeholder/read-only responses until the concrete AdGuard
+Home, host, router, inventory, and optimization adapters are implemented.
 
 ## Output contracts
 

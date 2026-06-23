@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -32,12 +32,12 @@
             "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.network_manager.v1.health.Response",
+            "proto_full_name": "vrooli.network_manager.v1.shared.Response",
             "transport": "json",
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.network_manager.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.network_manager.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -45,207 +45,529 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.network_manager.v1.notes.NotesService/ListNotes",
+      "id": "adapters_capabilities",
+      "path": "/vrooli.network_manager.v1.adapters.AdapterService/ListCapabilities",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
+      "summary": "List adapter capabilities",
+      "description": "",
+      "category": "adapters",
+      "request": {
+        "type": "object"
+      },
       "response": {
         "type": "object",
         "properties": {
-          "notes": "array<Note>"
+          "capabilities": "array<Capability>"
         }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.network_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
+      }
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.network_manager.v1.notes.NotesService/CreateNote",
+      "id": "adapters_explain_unsupported",
+      "path": "/vrooli.network_manager.v1.adapters.AdapterService/ExplainUnsupportedAction",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
+      "summary": "Explain unsupported adapter action",
+      "description": "",
+      "category": "adapters",
       "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
+        "type": "object"
       },
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
+          "capabilities": "array<Capability>"
         }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.network_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
+      }
     },
     {
-      "id": "notes_get",
-      "path": "/vrooli.network_manager.v1.notes.NotesService/GetNote",
+      "id": "adapters_platform",
+      "path": "/vrooli.network_manager.v1.adapters.AdapterService/GetPlatformSummary",
       "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
+      "summary": "Get platform summary",
+      "description": "",
+      "category": "adapters",
       "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
+        "type": "object"
       },
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
+          "capabilities": "array<Capability>"
         }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.network_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
+      }
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.network_manager.v1.notes.NotesService/CountNotes",
+      "id": "home_actions_list",
+      "path": "/vrooli.network_manager.v1.home_integration.HomeIntegrationService/ListActions",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
+      "summary": "List Home Automation actions",
+      "description": "",
+      "category": "home_integration",
       "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
+        "type": "object"
       },
       "response": {
         "type": "object",
         "properties": {
-          "count": "int64 (notes created in the window)"
+          "events": "array<HomeEvent>"
         }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.network_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
+      }
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "home_action_invoke",
+      "path": "/vrooli.network_manager.v1.home_integration.HomeIntegrationService/InvokeAction",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
+      "summary": "Invoke Home Automation action",
+      "description": "",
+      "category": "home_integration",
       "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
+        "type": "object"
       },
       "response": {
         "type": "object",
         "properties": {
-          "attachment": "Attachment"
+          "events": "array<HomeEvent>"
         }
+      }
+    },
+    {
+      "id": "home_events_list",
+      "path": "/vrooli.network_manager.v1.home_integration.HomeIntegrationService/ListRecentEvents",
+      "method": "POST",
+      "summary": "List recent Home Automation events",
+      "description": "",
+      "category": "home_integration",
+      "request": {
+        "type": "object"
       },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<HomeEvent>"
         }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+      }
+    },
+    {
+      "id": "inventory_refresh",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/RefreshInventory",
+      "method": "POST",
+      "summary": "Refresh device inventory",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
         }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.network_manager.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.network_manager.v1.errors.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
+      }
+    },
+    {
+      "id": "inventory_list",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/ListDevices",
+      "method": "POST",
+      "summary": "List devices",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      }
+    },
+    {
+      "id": "inventory_group_update",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/UpdateDeviceGroup",
+      "method": "POST",
+      "summary": "Update device group",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      }
+    },
+    {
+      "id": "inventory_identity_explain",
+      "path": "/vrooli.network_manager.v1.inventory.InventoryService/ExplainDeviceIdentity",
+      "method": "POST",
+      "summary": "Explain device identity",
+      "description": "",
+      "category": "inventory",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      }
+    },
+    {
+      "id": "optimization_create",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/CreateOptimizationRun",
+      "method": "POST",
+      "summary": "Create optimization run",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_candidate_run",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/RunCandidate",
+      "method": "POST",
+      "summary": "Run optimization candidate",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_score",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/ScoreCandidates",
+      "method": "POST",
+      "summary": "Score optimization candidates",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_approve",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/ApproveCandidate",
+      "method": "POST",
+      "summary": "Approve optimization candidate",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "optimization_rollback",
+      "path": "/vrooli.network_manager.v1.optimization.OptimizationService/RollbackOptimization",
+      "method": "POST",
+      "summary": "Rollback optimization",
+      "description": "",
+      "category": "optimization",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "run": "OptimizationRun"
+        }
+      }
+    },
+    {
+      "id": "policy_preview",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/PreviewPolicyChange",
+      "method": "POST",
+      "summary": "Preview filtering policy change",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_apply",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/ApplyPolicyChange",
+      "method": "POST",
+      "summary": "Apply approved filtering policy change",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_rollback",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/RollbackPolicyChange",
+      "method": "POST",
+      "summary": "Rollback filtering policy change",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_pause",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/PauseFiltering",
+      "method": "POST",
+      "summary": "Pause filtering",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_resume",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/ResumeFiltering",
+      "method": "POST",
+      "summary": "Resume filtering",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "privacy_retention_get",
+      "path": "/vrooli.network_manager.v1.privacy.PrivacyService/GetRetentionSettings",
+      "method": "POST",
+      "summary": "Get retention settings",
+      "description": "",
+      "category": "privacy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "privacy settings"
+        }
+      }
+    },
+    {
+      "id": "privacy_retention_update",
+      "path": "/vrooli.network_manager.v1.privacy.PrivacyService/UpdateRetentionSettings",
+      "method": "POST",
+      "summary": "Update retention settings",
+      "description": "",
+      "category": "privacy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "privacy settings"
+        }
+      }
+    },
+    {
+      "id": "privacy_visibility_get",
+      "path": "/vrooli.network_manager.v1.privacy.PrivacyService/GetVisibilitySettings",
+      "method": "POST",
+      "summary": "Get visibility settings",
+      "description": "",
+      "category": "privacy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "settings": "privacy settings"
+        }
+      }
+    },
+    {
+      "id": "resolver_status",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/GetResolverStatus",
+      "method": "POST",
+      "summary": "Get resolver status",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "resolver_configure_adguard",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/ConfigureAdGuardHome",
+      "method": "POST",
+      "summary": "Configure AdGuard Home",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "resolver_update_upstreams",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/UpdateUpstreams",
+      "method": "POST",
+      "summary": "Update resolver upstreams",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "resolver_health",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/CheckResolverHealth",
+      "method": "POST",
+      "summary": "Check resolver health",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_run",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/RunSnapshot",
+      "method": "POST",
+      "summary": "Run network health snapshot",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_list",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/ListSnapshots",
+      "method": "POST",
+      "summary": "List network health snapshots",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_get",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/GetSnapshot",
+      "method": "POST",
+      "summary": "Get network health snapshot",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
+      "id": "snapshot_export",
+      "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/ExportSnapshotReport",
+      "method": "POST",
+      "summary": "Export network health report",
+      "description": "",
+      "category": "snapshot",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
         }
       }
     }

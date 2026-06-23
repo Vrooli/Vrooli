@@ -22,11 +22,25 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	adaptersH "network-manager/handlers/adapters"
 	healthH "network-manager/handlers/health"
-	notesH "network-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
+	homeintegrationH "network-manager/handlers/homeintegration"
+	inventoryH "network-manager/handlers/inventory"
+	optimizationH "network-manager/handlers/optimization"
+	policyH "network-manager/handlers/policy"
+	privacyH "network-manager/handlers/privacy"
+	resolverH "network-manager/handlers/resolver"
+	snapshotH "network-manager/handlers/snapshot"
 	localdb "network-manager/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/notes" // EXAMPLE-DOMAIN:notes
+	adaptersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/adapters"
+	homeintegrationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/home_integration"
+	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/inventory"
+	optimizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/optimization"
+	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy"
+	privacyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/privacy"
+	resolverv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/resolver"
+	snapshotv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/snapshot"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +50,14 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, adaptersH.Endpoints...)
+	out = append(out, homeintegrationH.Endpoints...)
+	out = append(out, inventoryH.Endpoints...)
+	out = append(out, optimizationH.Endpoints...)
+	out = append(out, policyH.Endpoints...)
+	out = append(out, privacyH.Endpoints...)
+	out = append(out, resolverH.Endpoints...)
+	out = append(out, snapshotH.Endpoints...)
 	return out
 }
 
@@ -63,7 +84,14 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_network_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "adapters", File: adaptersv1.File_network_manager_v1_adapters_adapters_proto},
+		{Module: "home_integration", File: homeintegrationv1.File_network_manager_v1_home_integration_home_integration_proto},
+		{Module: "inventory", File: inventoryv1.File_network_manager_v1_inventory_inventory_proto},
+		{Module: "optimization", File: optimizationv1.File_network_manager_v1_optimization_optimization_proto},
+		{Module: "policy", File: policyv1.File_network_manager_v1_policy_policy_proto},
+		{Module: "privacy", File: privacyv1.File_network_manager_v1_privacy_privacy_proto},
+		{Module: "resolver", File: resolverv1.File_network_manager_v1_resolver_resolver_proto},
+		{Module: "snapshot", File: snapshotv1.File_network_manager_v1_snapshot_snapshot_proto},
 	}
 }
 
@@ -78,6 +106,13 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(adaptersH.Schema),
+		apidb.SchemaProviderFunc(homeintegrationH.Schema),
+		apidb.SchemaProviderFunc(inventoryH.Schema),
+		apidb.SchemaProviderFunc(optimizationH.Schema),
+		apidb.SchemaProviderFunc(policyH.Schema),
+		apidb.SchemaProviderFunc(privacyH.Schema),
+		apidb.SchemaProviderFunc(resolverH.Schema),
+		apidb.SchemaProviderFunc(snapshotH.Schema),
 	}
 }

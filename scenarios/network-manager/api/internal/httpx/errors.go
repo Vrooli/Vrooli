@@ -76,6 +76,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
+	setBaselineSecurityHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
@@ -90,7 +91,15 @@ func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
 		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
 		return
 	}
+	setBaselineSecurityHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
+}
+
+func setBaselineSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "0")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 }

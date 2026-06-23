@@ -1,10 +1,9 @@
 package testutil_test
 
 import (
-	"bufio"
 	"go/parser"
 	"go/token"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,76 +25,61 @@ import (
 // The test is opinionated: any import whose path begins with
 // `<module>/internal/testutil` from a non-`_test.go` file fails.
 func TestNoProductionImports(t *testing.T) {
-	module := readModuleName(t)
-	prefix := module + "/internal/testutil"
+	const prefix = "network-manager/internal/testutil"
 
 	root := "../"
-	fset := token.NewFileSet()
 	violations := []string{}
 
 	walk(t, root, func(path string) {
-		if !strings.HasSuffix(path, ".go") {
-			return
-		}
-		if strings.HasSuffix(path, "_test.go") {
-			return
-		}
 		rel := strings.TrimPrefix(path, root)
-		if strings.Contains(rel, "/vendor/") {
+		if !isProductionGoFile(rel) {
 			return
 		}
-		// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
-		// _test.go files in other packages can import them); generated/ holds
-		// temporal-model output (replay.go, runtime.go) that legitimately bridges
-		// production transition functions into the modeltest harness. Both are test
-		// scaffolding by directory-shape, exempt from the testutil-import rule.
-		if pathHasDir(rel, "mocks") || pathHasDir(rel, "generated") {
-			return
-		}
-
-		file, err := parser.ParseFile(fset, path, nil, parser.ImportsOnly)
-		if err != nil {
-			t.Errorf("parse %s: %v", path, err)
-			return
-		}
-		for _, imp := range file.Imports {
-			ip := strings.Trim(imp.Path.Value, `"`)
-			if strings.HasPrefix(ip, prefix) {
-				violations = append(violations, rel+" imports "+ip)
-			}
-		}
+		violations = append(violations, importViolations(t, path, rel, prefix)...)
 	})
 
-	if len(violations) > 0 {
-		t.Errorf("production code must not import %s/...", prefix)
-		for _, v := range violations {
-			t.Errorf("  %s", v)
-		}
-	}
+	reportImportViolations(t, prefix, violations)
 }
 
-// readModuleName returns the module path declared in the api root's
-// go.mod. The walker is at ../../go.mod relative to this test file
-// (api/internal/testutil/ is two levels deep).
-func readModuleName(t *testing.T) string {
-	t.Helper()
-	f, err := os.Open(filepath.Join("..", "..", "go.mod"))
-	if err != nil {
-		t.Fatalf("open go.mod: %v", err)
+func isProductionGoFile(rel string) bool {
+	if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(rel, "_test.go") {
+		return false
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if rest, ok := strings.CutPrefix(line, "module "); ok {
-			return strings.TrimSpace(rest)
+	if strings.Contains(rel, "/vendor/") {
+		return false
+	}
+	// mocks/ holds test-only fakes that lack the _test.go suffix; generated/
+	// holds temporal-model output that legitimately bridges production
+	// transition functions into the modeltest harness.
+	return !pathHasDir(rel, "mocks") && !pathHasDir(rel, "generated")
+}
+
+func importViolations(t *testing.T, path, rel, prefix string) []string {
+	t.Helper()
+	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+	if err != nil {
+		t.Errorf("parse %s: %v", path, err)
+		return nil
+	}
+	violations := []string{}
+	for _, imp := range file.Imports {
+		ip := strings.Trim(imp.Path.Value, `"`)
+		if strings.HasPrefix(ip, prefix) {
+			violations = append(violations, rel+" imports "+ip)
 		}
 	}
-	if err := sc.Err(); err != nil {
-		t.Fatalf("scan go.mod: %v", err)
+	return violations
+}
+
+func reportImportViolations(t *testing.T, prefix string, violations []string) {
+	t.Helper()
+	if len(violations) == 0 {
+		return
 	}
-	t.Fatal("module directive not found in go.mod")
-	return ""
+	t.Errorf("production code must not import %s/...", prefix)
+	for _, v := range violations {
+		t.Errorf("  %s", v)
+	}
 }
 
 // walk iterates every .go file under root, calling fn for each. The
@@ -103,20 +87,22 @@ func readModuleName(t *testing.T) string {
 // internal references that would otherwise self-flag.
 func walk(t *testing.T, root string, fn func(path string)) {
 	t.Helper()
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		t.Fatalf("readdir %s: %v", root, err)
-	}
-	for _, e := range entries {
-		full := filepath.Join(root, e.Name())
-		if e.IsDir() {
-			if filepath.Base(full) == "testutil" {
-				continue
-			}
-			walk(t, full, fn)
-			continue
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			t.Errorf("walk %s: %v", path, err)
+			return nil
 		}
-		fn(full)
+		if d.IsDir() {
+			if filepath.Base(path) == "testutil" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		fn(path)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", root, err)
 	}
 }
 

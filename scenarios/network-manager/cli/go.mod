@@ -3,7 +3,6 @@ module network-manager/cli
 go 1.25.0
 
 require (
-	connectrpc.com/connect v1.19.2
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -11,7 +10,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	connectrpc.com/connect v1.19.2 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

@@ -1,7 +1,14 @@
 package domains
 
 import (
-	"network-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"network-manager/cli/domains/adapters"
+	"network-manager/cli/domains/devices"
+	"network-manager/cli/domains/home"
+	"network-manager/cli/domains/optimize"
+	"network-manager/cli/domains/policy"
+	"network-manager/cli/domains/privacy"
+	"network-manager/cli/domains/resolver"
+	"network-manager/cli/domains/snapshot"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +44,21 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
+	for _, register := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
+		snapshot.Register,
+		resolver.Register,
+		policy.Register,
+		devices.Register,
+		optimize.Register,
+		adapters.Register,
+		privacy.Register,
+		home.Register,
+	} {
+		group, err := register(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
 	return groups, nil
 }

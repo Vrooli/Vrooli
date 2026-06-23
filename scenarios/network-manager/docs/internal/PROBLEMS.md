@@ -20,11 +20,11 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ## Entries
 
-### 2026-06-23 — Product scaffold is documentation-only
+### 2026-06-23 — Product domain implementations are scaffolded
 
-- Signal: Scenario was generated and PRD/requirements/docs were authored, but product code still contains template example behavior.
-- Impact: Implementation agents must not treat current UI/API/CLI behavior as Network Manager functionality.
-- Next action: Build the first real vertical slice, then remove template example domains with the detemplate flow.
+- Signal: P0 proto/API/CLI domains exist and template `notes` was removed, but domain behavior returns safe placeholder/read-only responses.
+- Impact: Implementation agents can build behind stable contracts, but operators must not treat current responses as real network measurements or resolver changes.
+- Next action: Implement the first real vertical slice, likely `snapshot run` with deterministic probe fakes and `[REQ:NM-P0-001]` tests.
 
 ### 2026-06-23 — AdGuard Home resource still needs implementation decision
 
@@ -40,7 +40,7 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ## Architecture Drift
 
-No drift yet. The main risk is accidentally extending template example domains instead of replacing them with Network Manager domains.
+No drift yet. The template example domain has been removed; the main risk is leaving scaffold responses in place without requirement-tagged domain tests.
 
 ## Cross-references
 

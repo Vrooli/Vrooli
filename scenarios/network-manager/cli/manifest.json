@@ -1,86 +1,302 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "network-manager",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Network Manager operator CLI surface for health snapshots, resolver management, filtering policy, device inventory, optimization experiments, adapter capabilities, privacy defaults, and Home Automation integration.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "snapshot",
+      "description": "Run and inspect read-only network health snapshots",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
+          "name": "run",
+          "description": "Run a read-only network health snapshot",
+          "flags": [
+            { "name": "profile", "description": "Scoring/deployment profile such as home or small-office" },
+            { "name": "dry-run", "bool": true, "description": "Return the planned snapshot flow without live probes" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "RunSnapshot" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
+          "name": "list",
+          "description": "List stored snapshots",
+          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "ListSnapshots" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
           "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
+          "description": "Get a snapshot by id",
+          "positionals": [{ "name": "id", "required": true, "description": "Snapshot id" }],
+          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "GetSnapshot" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
+          "name": "export",
+          "description": "Export a snapshot report",
+          "positionals": [{ "name": "id", "required": true, "description": "Snapshot id" }],
+          "flags": [{ "name": "format", "description": "Report format (markdown or json)" }],
+          "binding": { "kind": "connect-rpc", "service": "SnapshotService", "method": "ExportSnapshotReport" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "resolver",
+      "description": "Inspect and configure the managed DNS resolver backend",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show AdGuard Home and DNS backend status",
+          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "GetResolverStatus" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "configure-adguard",
+          "description": "Configure the AdGuard Home backend",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
+            { "name": "base-url", "description": "AdGuard Home API base URL" },
+            { "name": "username", "description": "AdGuard Home username" },
+            { "name": "token-ref", "description": "Secret-store reference for the AdGuard Home token/password" },
+            { "name": "dry-run", "bool": true, "description": "Preview configuration without saving" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": { "type": "time_window", "default": "this_week" }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
+          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "ConfigureAdGuardHome" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "upstreams",
+          "description": "Preview or update resolver upstreams",
+          "flags": [
+            { "name": "upstream", "description": "Upstream resolver URL/address; repeat by shell invocation once multi-value flags land" },
+            { "name": "dry-run", "bool": true, "description": "Preview without applying" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "UpdateUpstreams" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "health",
+          "description": "Run resolver health checks",
+          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "CheckResolverHealth" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "policy",
+      "description": "Preview, apply, pause, resume, and rollback filtering policy changes",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview a filtering change",
+          "flags": [
+            { "name": "target", "description": "Device, group, or resolver target" },
+            { "name": "action", "description": "Policy action to preview" },
+            { "name": "value", "description": "Policy value" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "PreviewPolicyChange" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "apply",
+          "description": "Apply an approved policy preview",
+          "positionals": [{ "name": "preview_id", "required": true, "description": "Preview id" }],
+          "flags": [{ "name": "approved", "bool": true, "description": "Required approval acknowledgement" }],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "ApplyPolicyChange" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "rollback",
+          "description": "Roll back a policy change",
+          "positionals": [{ "name": "id", "required": true, "description": "Policy change id" }],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "RollbackPolicyChange" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "pause",
+          "description": "Pause filtering for a target",
+          "flags": [
+            { "name": "target", "description": "Device or group target" },
+            { "name": "duration", "description": "Pause duration such as 30m" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "PauseFiltering" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "resume",
+          "description": "Resume filtering for a target",
+          "flags": [{ "name": "target", "description": "Device or group target" }],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "ResumeFiltering" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "devices",
+      "description": "Refresh and inspect LAN-visible device inventory",
+      "commands": [
+        {
+          "name": "refresh",
+          "description": "Refresh device inventory",
+          "flags": [{ "name": "dry-run", "bool": true, "description": "Preview discovery without persisting" }],
+          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "RefreshInventory" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list",
+          "description": "List devices",
+          "flags": [{ "name": "group", "description": "Filter by group" }],
+          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "ListDevices" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "group",
+          "description": "Assign a device to a group",
+          "positionals": [{ "name": "id", "required": true, "description": "Device id" }],
+          "flags": [{ "name": "group", "required": true, "description": "Target group" }],
+          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "UpdateDeviceGroup" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "explain",
+          "description": "Explain a device identity",
+          "positionals": [{ "name": "id", "required": true, "description": "Device id" }],
+          "binding": { "kind": "connect-rpc", "service": "InventoryService", "method": "ExplainDeviceIdentity" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "optimize",
+      "description": "Run safe optimization experiments",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Create an optimization run",
+          "flags": [
+            { "name": "scoring-profile", "description": "Scoring profile such as balanced-reliability" },
+            { "name": "dry-run", "bool": true, "description": "Preview run setup" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "CreateOptimizationRun" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "candidate",
+          "description": "Run one optimization candidate",
+          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
+          "flags": [{ "name": "candidate-id", "required": true, "description": "Candidate id" }],
+          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "RunCandidate" },
+          "governance": { "effect": "read", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "score",
+          "description": "Score candidates for a run",
+          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
+          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "ScoreCandidates" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "approve",
+          "description": "Approve a candidate apply",
+          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
+          "flags": [
+            { "name": "candidate-id", "required": true, "description": "Candidate id" },
+            { "name": "approved", "bool": true, "description": "Required approval acknowledgement" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "ApproveCandidate" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "rollback",
+          "description": "Rollback an optimization run",
+          "positionals": [{ "name": "run_id", "required": true, "description": "Run id" }],
+          "binding": { "kind": "connect-rpc", "service": "OptimizationService", "method": "RollbackOptimization" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "adapters",
+      "description": "Inspect host, resolver, router, and manual adapter capabilities",
+      "commands": [
+        {
+          "name": "capabilities",
+          "description": "List adapter capabilities",
+          "binding": { "kind": "connect-rpc", "service": "AdapterService", "method": "ListCapabilities" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "explain",
+          "description": "Explain why an action is unsupported",
+          "positionals": [{ "name": "action", "required": true, "description": "Action name" }],
+          "binding": { "kind": "connect-rpc", "service": "AdapterService", "method": "ExplainUnsupportedAction" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "platform",
+          "description": "Show detected platform summary",
+          "binding": { "kind": "connect-rpc", "service": "AdapterService", "method": "GetPlatformSummary" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "privacy",
+      "description": "Inspect and update privacy-preserving defaults",
+      "commands": [
+        {
+          "name": "retention",
+          "description": "Show retention settings",
+          "binding": { "kind": "connect-rpc", "service": "PrivacyService", "method": "GetRetentionSettings" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "retention-set",
+          "description": "Update retention settings",
+          "flags": [
+            { "name": "query-log-days", "description": "DNS query-log retention days" },
+            { "name": "snapshot-days", "description": "Snapshot retention days" },
+            { "name": "experiment-days", "description": "Experiment retention days" },
+            { "name": "profile", "description": "Retention profile label" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PrivacyService", "method": "UpdateRetentionSettings" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "visibility",
+          "description": "Show visibility settings",
+          "binding": { "kind": "connect-rpc", "service": "PrivacyService", "method": "GetVisibilitySettings" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "home",
+      "description": "Expose actions and events for Home Automation",
+      "commands": [
+        {
+          "name": "actions",
+          "description": "List Home Automation actions",
+          "binding": { "kind": "connect-rpc", "service": "HomeIntegrationService", "method": "ListActions" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "invoke",
+          "description": "Invoke a Home Automation action",
+          "positionals": [{ "name": "name", "required": true, "description": "Action name" }],
+          "flags": [{ "name": "approved", "bool": true, "description": "Approval acknowledgement for write actions" }],
+          "binding": { "kind": "connect-rpc", "service": "HomeIntegrationService", "method": "InvokeAction" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "events",
+          "description": "List recent Home Automation events",
+          "binding": { "kind": "connect-rpc", "service": "HomeIntegrationService", "method": "ListRecentEvents" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier." }
-    ]
+    "domains": []
   },
   "omitted": []
 }
