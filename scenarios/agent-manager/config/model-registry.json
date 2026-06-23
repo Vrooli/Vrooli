@@ -74,22 +74,26 @@
     "opencode": {
       "models": [
         {
-          "id": "anthropic/claude-sonnet-4-6",
-          "description": "Balanced default for OpenCode."
+          "id": "openrouter/deepseek/deepseek-v4-pro",
+          "description": "Coding low tier. DeepSeek V4 Pro via OpenRouter — cheapest coding-capable model with reliable structured tool-calls."
         },
         {
-          "id": "anthropic/claude-opus-4-7",
-          "description": "Highest reasoning capability."
+          "id": "openrouter/google/gemini-3.5-flash",
+          "description": "Coding mid tier. Gemini 3.5 Flash via OpenRouter — fast, balanced step up from DeepSeek V4 Pro."
         },
         {
-          "id": "anthropic/claude-haiku-4-5",
-          "description": "Fast, low-cost option."
+          "id": "openrouter/anthropic/claude-opus-4.8",
+          "description": "Coding high tier. Claude Opus 4.8 via OpenRouter — highest reasoning capability."
+        },
+        {
+          "id": "openrouter/deepseek/deepseek-v4-flash",
+          "description": "Non-coding / general default. DeepSeek V4 Flash via OpenRouter — cheap, fast general-purpose model."
         }
       ],
       "presets": {
-        "CHEAP": ["anthropic/claude-haiku-4-5"],
-        "FAST": ["anthropic/claude-sonnet-4-6", ""],
-        "SMART": ["anthropic/claude-opus-4-7", ""]
+        "CHEAP": ["openrouter/deepseek/deepseek-v4-pro", ""],
+        "FAST": ["openrouter/google/gemini-3.5-flash", ""],
+        "SMART": ["openrouter/anthropic/claude-opus-4.8", ""]
       }
     }
   }

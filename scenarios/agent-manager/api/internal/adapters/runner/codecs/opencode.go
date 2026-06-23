@@ -157,14 +157,81 @@ func (c *OpenCode) Available(ctx context.Context) (bool, string) {
 	return true, "opencode CLI is available"
 }
 
-// ProbeModel satisfies [Codec]. Lightweight by design — a deep probe
-// would burn vendor quota; runtime classification surfaces a real
-// "model is gone" failure on first use.
+// ProbeModel satisfies [Codec]. Lightweight by design — it never makes a
+// billable vendor call. Beyond the availability check it does a quota-free
+// LOCAL validation: cloud models are confirmed against opencode's catalog
+// cache and Ollama models against the locally-pulled tag list, so an
+// undeclared/dead model surfaces a clear message instead of opencode's
+// opaque ProviderModelNotFoundError. Any uncertain case degrades to nil.
 func (c *OpenCode) ProbeModel(ctx context.Context, modelID string) error {
 	if available, msg := c.Available(ctx); !available {
 		return fmt.Errorf("opencode unavailable: %s", msg)
 	}
-	return nil
+	var ollamaModels []string
+	if c.ollama != nil {
+		ollamaModels = c.ollama.list()
+	}
+	return validateOpenCodeModel(modelID, ollamaModels, opencodeCatalogPath())
+}
+
+// opencodeCatalogPath returns the path to opencode's local model catalog
+// cache (populated by the opencode binary from models.dev). Empty when the
+// user cache dir cannot be resolved.
+func opencodeCatalogPath() string {
+	dir, err := os.UserCacheDir()
+	if err != nil || dir == "" {
+		return ""
+	}
+	return filepath.Join(dir, "opencode", "models.json")
+}
+
+// validateOpenCodeModel reports an error ONLY when it can positively confirm
+// the model id is unusable. Every uncertain case — empty model, missing
+// catalog cache, unreachable Ollama daemon, unknown provider — degrades to
+// nil so preflight never false-rejects a run. ollamaModels is the list of
+// locally-pulled models in "ollama/<tag>" form; catalogPath points at the
+// opencode cloud-catalog cache.
+func validateOpenCodeModel(modelID string, ollamaModels []string, catalogPath string) error {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return nil // runner-default sentinel — accept
+	}
+	// Local Ollama models resolve through opencode's first-class ollama
+	// provider, so the tag must actually be pulled on this host.
+	if bare, isOllama := strings.CutPrefix(modelID, ollamaModelPrefix); isOllama {
+		if len(ollamaModels) == 0 {
+			return nil // daemon unreachable / cold cache — cannot confirm
+		}
+		for _, m := range ollamaModels {
+			if m == ollamaModelPrefix+bare {
+				return nil
+			}
+		}
+		return fmt.Errorf("ollama model %q is not pulled locally — run `ollama pull %s` or choose an installed model", modelID, bare)
+	}
+	// Cloud models are "<provider>/<rest>"; confirm against the catalog.
+	provider, rest, ok := strings.Cut(modelID, "/")
+	if !ok || provider == "" || rest == "" || catalogPath == "" {
+		return nil
+	}
+	data, err := os.ReadFile(catalogPath)
+	if err != nil {
+		return nil // no catalog cache — cannot confirm
+	}
+	var catalog map[string]struct {
+		Models map[string]json.RawMessage `json:"models"`
+	}
+	if err := json.Unmarshal(data, &catalog); err != nil {
+		return nil
+	}
+	prov, ok := catalog[provider]
+	if !ok {
+		return nil // unknown provider — cannot confirm absence
+	}
+	if _, ok := prov.Models[rest]; ok {
+		return nil
+	}
+	return fmt.Errorf("model %q is not available from provider %q in the opencode catalog — opencode would fail with ProviderModelNotFoundError; check the model id (e.g. \"openrouter/<vendor>/<model>\") or refresh the catalog", modelID, provider)
 }
 
 // Labels satisfies [Codec].
@@ -417,8 +484,8 @@ func openCodeNoOpErrorMessage(summary *domain.RunSummary) string {
 	base := "opencode run made no tool calls — the agent took no action (no files read or changed), so the run did no work"
 	if summary != nil && looksLikeUnexecutedToolCall(summary.Description) {
 		return base + "; the model emitted a tool call as text instead of executing it. " +
-			"This happens with Ollama models whose template does not return structured tool_calls (e.g. qwen2.5-coder); " +
-			"use a tool-calling-capable model such as llama3.1, llama3.2, or mistral, or an OpenRouter model"
+			"This happens with Ollama models whose template does not return structured tool_calls; " +
+			"use a tool-calling-capable model such as gemma4:12b, llama3.1, llama3.2, or mistral, or an OpenRouter model"
 	}
 	return base
 }
@@ -464,7 +531,7 @@ func (c *OpenCode) PostClassify(_ State, result *runner.ExecuteResult) {
 		// A clean exit that executed zero tool calls did no observable work.
 		// For an agentic coding runner this is a no-op, not a success — even
 		// reading a file is a tool call. The most common cause: some Ollama
-		// model templates (e.g. qwen2.5-coder) return tool calls as message
+		// model templates return tool calls as message
 		// text instead of structured tool_calls, so opencode never executes
 		// them. Reclassify so the run reports as failed rather than as a
 		// silent false success.

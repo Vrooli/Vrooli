@@ -1656,6 +1656,21 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		cfg.Model = chain.Primary()
 	}
 
+	// Preflight model validation: surface an undeclared/dead model as a clear
+	// validation error here instead of letting the runner fail downstream with
+	// an opaque provider error (e.g. opencode's ProviderModelNotFoundError).
+	// Gated on IsAvailable so an unavailable/stub runner never false-rejects a
+	// run; ProbeModel is cheap for every runner and makes no billable call.
+	if strings.TrimSpace(cfg.Model) != "" && o.runners != nil {
+		if r, rerr := o.runners.Get(cfg.RunnerType); rerr == nil && r != nil {
+			if avail, _ := r.IsAvailable(ctx); avail {
+				if perr := r.ProbeModel(ctx, cfg.Model); perr != nil {
+					return nil, nil, domain.NewValidationError("model", perr.Error())
+				}
+			}
+		}
+	}
+
 	// Validate extra flags against runner allowlists (delegate to seam)
 	if o.flagValidator != nil {
 		for rt, flags := range cfg.ExtraFlags {

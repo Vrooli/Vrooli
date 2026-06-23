@@ -21,11 +21,11 @@ func TestOllamaLister_CachesWithinTTL(t *testing.T) {
 	now := time.Unix(0, 0)
 	fetch := func(ctx context.Context) ([]string, error) {
 		calls++
-		return []string{"ollama/qwen2.5-coder:14b"}, nil
+		return []string{"ollama/gemma4:12b"}, nil
 	}
 	l := newOllamaListerForTest(fetch, 60*time.Second, func() time.Time { return now })
 
-	if got := l.list(); len(got) != 1 || got[0] != "ollama/qwen2.5-coder:14b" {
+	if got := l.list(); len(got) != 1 || got[0] != "ollama/gemma4:12b" {
 		t.Fatalf("first list = %v", got)
 	}
 	// Second call within TTL must not re-fetch.
@@ -103,7 +103,7 @@ func TestOllamaBaseURL(t *testing.T) {
 }
 
 func TestSplitOllamaModel(t *testing.T) {
-	if bare, ok := splitOllamaModel("ollama/qwen2.5-coder:14b"); !ok || bare != "qwen2.5-coder:14b" {
+	if bare, ok := splitOllamaModel("ollama/gemma4:12b"); !ok || bare != "gemma4:12b" {
 		t.Fatalf("ollama-prefixed split = (%q,%v)", bare, ok)
 	}
 	if bare, ok := splitOllamaModel("gpt-5.5"); ok || bare != "gpt-5.5" {
@@ -121,11 +121,11 @@ func TestCodex_BuildArgs_OllamaRoutesToOSS(t *testing.T) {
 		RunID: uuid.New(),
 		ResolvedConfig: &domain.RunConfig{
 			RunnerType: domain.RunnerTypeCodex,
-			Model:      "ollama/qwen2.5-coder:14b",
+			Model:      "ollama/gemma4:12b",
 		},
 	})
 	assertContainsSeq(t, args, "--oss", "--local-provider", "ollama")
-	assertContainsSeq(t, args, "-m", "qwen2.5-coder:14b")
+	assertContainsSeq(t, args, "-m", "gemma4:12b")
 }
 
 func TestCodex_BuildArgs_CloudModelNoOSS(t *testing.T) {
@@ -182,14 +182,14 @@ func TestCodex_BuildContinueArgs_OllamaAndImages(t *testing.T) {
 func TestCodex_Capabilities_AppendsOllamaModels(t *testing.T) {
 	c := NewCodexForTest()
 	c.ollama = newOllamaListerForTest(
-		func(ctx context.Context) ([]string, error) { return []string{"ollama/qwen2.5-coder:14b"}, nil },
+		func(ctx context.Context) ([]string, error) { return []string{"ollama/gemma4:12b"}, nil },
 		time.Minute, func() time.Time { return time.Unix(0, 0) },
 	)
 	models := c.Capabilities().SupportedModels
 	if indexOf(models, "gpt-5.5") == -1 {
 		t.Fatalf("curated cloud model missing: %v", models)
 	}
-	if indexOf(models, "ollama/qwen2.5-coder:14b") == -1 {
+	if indexOf(models, "ollama/gemma4:12b") == -1 {
 		t.Fatalf("local ollama model not appended: %v", models)
 	}
 }
