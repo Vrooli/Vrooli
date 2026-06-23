@@ -61,14 +61,29 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		// context, so this never false-fails an uninstalled CLI.
 		IncludeExecution: true,
 	}))
-	register(delegatedSpec(Delegated{
+	// ui-health is the single UI-validation authority. Its static groups
+	// (manifest/slot/overlay, UI-interop, net-new UI standards) always run and
+	// gate; with execution requested it additionally drives the BAS render +
+	// iframe-bridge handshake runtime group (folded from the retired smoke
+	// phase). NeedsUI + RequiredResources:[BAS] let the runnability gate SKIP
+	// (never fail) the phase when no UI surface or BAS is present, mirroring the
+	// performance phase's execution-mode contract; ui-health additionally
+	// degrades its runtime group internally so a reachable-but-UI-less run still
+	// returns the static report.
+	uiHealthSpec := delegatedSpec(Delegated{
 		Name:             UIHealth,
 		ProviderScenario: "ui-health",
 		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_UI,
 		Emoji:            "🎨",
-		Timeout:          60 * time.Second,
-		Description:      "Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health.",
-	}))
+		Timeout:          5 * time.Minute,
+		IncludeExecution: true,
+		Description:      "Delegates all UI validation to ui-health: static ui/manifest.json + slot/overlay rules, static UI-interop, and net-new UI standards (always run and gate), plus a BAS-driven runtime render + iframe-bridge handshake group when execution is requested. Runtime checks degrade to skipped (never failed) when BAS or the UI surface is unavailable.",
+	})
+	uiHealthSpec.Capabilities = runnability.PhaseCapabilities{
+		NeedsUI:           true,
+		RequiredResources: []string{runnability.ResourceBAS},
+	}
+	register(uiHealthSpec)
 	register(delegatedSpec(Delegated{
 		Name:             Standards,
 		ProviderScenario: "scenario-auditor",
@@ -143,19 +158,6 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	// TestCapabilityManifestCoversEveryPhase.
 	performanceSpec.Capabilities = runnability.PhaseCapabilities{NeedsUI: true}
 	register(performanceSpec)
-	register(Spec{
-		Name:        Smoke,
-		Runner:      runSmokePhase,
-		Optional:    true,
-		Description: "Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.",
-		Capabilities: runnability.PhaseCapabilities{
-			NeedsUI: true,
-			// Smoke runs on the Browser Automation Studio workflow engine. When
-			// BAS is unreachable the runnability gate skips smoke (resource
-			// unavailable) instead of failing it hard.
-			RequiredResources: []string{runnability.ResourceBAS},
-		},
-	})
 	register(delegatedSpec(Delegated{
 		Name:             Unit,
 		ProviderScenario: "unit-health",

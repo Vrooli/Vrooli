@@ -10,7 +10,9 @@ import (
 
 	"connectrpc.com/connect"
 
+	"ui-health/internal/codefacts"
 	"ui-health/internal/services/manifestvalidation"
+	"ui-health/internal/uiruntime"
 
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
@@ -30,6 +32,18 @@ type Deps struct {
 	// RepoRoot is the repository root used to resolve a scenario's directory for
 	// fix operations and the runtime AutofixAvailable check.
 	RepoRoot string
+	// CodeFacts answers "does this scenario have a UI surface, and what
+	// framework" via the Code Facts authority (degrading to a filesystem probe).
+	// nil is safe — the handler falls back to a default client.
+	CodeFacts codefacts.Describer
+	// Freshness backs the static UI-bundle freshness group (the canonical
+	// content-hash engine via the typed vrooli CLI). nil is safe — the handler
+	// falls back to a default client.
+	Freshness freshnessClient
+	// Runtime runs the BAS-driven runtime/render group when execution is
+	// requested (include_execution=true) and the scenario has a UI. nil disables
+	// the runtime group (static checks only).
+	Runtime uiruntime.Checker
 	// Environment is the host CaptureEnvironment captured once at module init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
 	// backfills os/arch/num_cpu from the stdlib.
@@ -73,6 +87,17 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	// carry an honest autofix flag.
 	root := h.resolveScenarioRoot(req.Msg.GetScenario(), req.Msg.GetPath())
 	report.Findings = append(report.Findings, runInteropFindings(root, req.Msg.GetScenario())...)
+	// Static freshness group (group 4): the canonical content-hash engine flags a
+	// stale UI bundle as a gating ERROR (restart remediation), parity with the
+	// retired smoke phase. Runs on every validation, including --static-only —
+	// it needs no BAS — and degrades gracefully when freshness can't be resolved.
+	report.Findings = append(report.Findings, h.freshnessFindings(ctx, req.Msg.GetScenario(), root)...)
+	// Runtime/render group: runs only when the caller requested execution
+	// (include_execution=true, i.e. not --static-only) and the scenario has a UI.
+	// Static-only validations make no Code Facts or BAS calls. The group never
+	// hard-fails on infra absence — unreachable BAS yields skipped findings.
+	staticOnly := !req.Msg.GetIncludeExecution()
+	report.Findings = append(report.Findings, h.runtimeFindings(ctx, req.Msg.GetScenario(), root, staticOnly)...)
 	enrichAutofix(&report, h.deps.Fixer, root)
 	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
 	if err != nil {

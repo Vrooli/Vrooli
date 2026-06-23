@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/basprobe"
 	"test-genie/internal/captureprofile"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/requirements"
@@ -23,7 +24,6 @@ import (
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/selfidentity"
 	"test-genie/internal/shared"
-	"test-genie/internal/smoke"
 
 	"github.com/google/uuid"
 
@@ -442,7 +442,7 @@ func resolveResources(ctx context.Context, defs []phases.Definition) map[string]
 	for name := range required {
 		switch name {
 		case runnability.ResourceBAS:
-			resources[name] = smoke.ProbeBAS(ctx)
+			resources[name] = basprobe.ProbeBAS(ctx)
 		default:
 			// Unknown resource: leave unset (treated as unavailable) so a
 			// phase that requires it skips with a clear reason rather than

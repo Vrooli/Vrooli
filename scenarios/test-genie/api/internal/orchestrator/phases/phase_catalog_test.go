@@ -31,21 +31,6 @@ func TestNewDefaultPhaseCatalogRegistersPhases(t *testing.T) {
 	}
 }
 
-func TestDefaultPhaseCatalogBuildsBeforeSmoke(t *testing.T) {
-	catalog := NewDefaultCatalog(time.Minute)
-	performance, ok := catalog.Order(Performance)
-	if !ok {
-		t.Fatalf("expected performance phase to be registered")
-	}
-	smoke, ok := catalog.Order(Smoke)
-	if !ok {
-		t.Fatalf("expected smoke phase to be registered")
-	}
-	if performance >= smoke {
-		t.Fatalf("performance order = %d, smoke order = %d; performance must run first so UI bundles exist before smoke", performance, smoke)
-	}
-}
-
 func TestNormalizePhaseName(t *testing.T) {
 	name, ok := NormalizeName("  Unit  ")
 	if !ok {

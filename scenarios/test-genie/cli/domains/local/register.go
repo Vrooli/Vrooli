@@ -13,7 +13,6 @@ import (
 	"test-genie/cli/runlocal"
 	"test-genie/cli/runs"
 	"test-genie/cli/storage"
-	"test-genie/cli/uismoke"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -28,12 +27,6 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Trigger scenario-local test runner",
 				Run:         func(args []string) error { return runlocal.Run(runtime.RunLocal, args) },
-			},
-			{
-				Name:        "ui-smoke",
-				NeedsAPI:    true,
-				Description: "Run UI smoke test for a scenario",
-				Run:         func(args []string) error { return uismoke.Run(runtime.UISmoke, args) },
 			},
 			{
 				Name:        "registry",

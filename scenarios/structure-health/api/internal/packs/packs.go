@@ -28,9 +28,6 @@ import (
 	testcoverage "structure-health/internal/packs/structurepack/testcoverage"
 	uilifecyclelaunch "structure-health/internal/packs/structurepack/uilifecyclelaunch"
 	uistructure "structure-health/internal/packs/structurepack/uistructure"
-	focusvisible "structure-health/internal/packs/uipack/focusvisible"
-	helmetframe "structure-health/internal/packs/uipack/helmetframe"
-	spatialnav "structure-health/internal/packs/uipack/spatialnav"
 )
 
 // DefaultProfileID is the profile whose conformance packs reproduce the
@@ -216,32 +213,10 @@ var registry = []entry{
 			return runtimestorage.CheckRepoLocalRuntimeStorage([]byte(c), p, s)
 		},
 	},
-
-	// ---- ui pack: per-file ui rules ----
-	{
-		Code: "PROFILE_FOCUS_VISIBLE", Name: "Focus Visible Styles",
-		Feed: feedPerFile, Target: scan.TargetUI, Severity: "low", Surface: "ui",
-		run: func(c, p, s string) []auditrules.Violation {
-			v, _ := focusvisible.Check(c, p, s)
-			return v
-		},
-	},
-	{
-		Code: "PROFILE_HELMET_FRAME", Name: "Helmet Frame Ancestors",
-		Feed: feedPerFile, Target: scan.TargetUI, Severity: "high", Surface: "ui",
-		run: func(c, p, s string) []auditrules.Violation {
-			v, _ := helmetframe.Check(c, p, s)
-			return v
-		},
-	},
-	{
-		Code: "PROFILE_SPATIAL_NAV", Name: "Spatial Nav Provider",
-		Feed: feedPerFile, Target: scan.TargetUI, Severity: "medium", Surface: "ui",
-		run: func(c, p, s string) []auditrules.Violation {
-			v, _ := spatialnav.Check(c, p, s)
-			return v
-		},
-	},
+	// NOTE: the per-file UI pack rules (focus-visible, helmet-frame-ancestors,
+	// spatial-nav-provider) moved to the ui-health scenario, which is now the
+	// single authority for all static UI-interop validation. structure-health
+	// keeps only generic skeleton facts.
 }
 
 // Evaluate runs every conformance pack against the scanned scenario and returns

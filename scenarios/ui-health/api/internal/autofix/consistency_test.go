@@ -22,7 +22,11 @@ func TestRuntimeAutofixMatchesMaturityDeclaration(t *testing.T) {
 		t.Fatalf("load maturity spec: %v", err)
 	}
 
-	autofixCodes := []string{RuleSlotDirMissing, RuleSlotParentDirMissing}
+	autofixCodes := []string{
+		RuleSlotDirMissing, RuleSlotParentDirMissing,
+		RuleInteropHScreen, RuleInteropProtectiveComments,
+		RuleStandardTSConfigStrict, RuleStandardI18nLocaleParity,
+	}
 	for _, code := range autofixCodes {
 		if FixClassFor(code) != "autofix" {
 			t.Fatalf("FixClassFor(%q) is not autofix; update this test's code list", code)

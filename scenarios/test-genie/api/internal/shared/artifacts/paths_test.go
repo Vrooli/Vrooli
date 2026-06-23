@@ -45,38 +45,6 @@ func TestPhaseResultsPath(t *testing.T) {
 	}
 }
 
-func TestUISmokeArtifactPath(t *testing.T) {
-	tests := []struct {
-		name        string
-		scenarioDir string
-		filename    string
-		want        string
-	}{
-		{
-			name:        "screenshot",
-			scenarioDir: "/scenarios/test",
-			filename:    "screenshot.png",
-			want:        "/scenarios/test/coverage/runs/" + testRunID + "/ui-smoke/screenshot.png",
-		},
-		{
-			name:        "console logs",
-			scenarioDir: "/scenarios/test",
-			filename:    "console.json",
-			want:        "/scenarios/test/coverage/runs/" + testRunID + "/ui-smoke/console.json",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := UISmokeArtifactPath(tt.scenarioDir, testRunID, tt.filename)
-			want := filepath.FromSlash(tt.want)
-			if got != want {
-				t.Errorf("UISmokeArtifactPath() = %q, want %q", got, want)
-			}
-		})
-	}
-}
-
 func TestRunDirAndIndexPath(t *testing.T) {
 	scenarioDir := "/scenarios/test"
 
@@ -142,12 +110,6 @@ func TestRelativePaths(t *testing.T) {
 			fn:       RelativePhaseResultsPath,
 			filename: "unit.json",
 			want:     "coverage/runs/" + testRunID + "/phase-results/unit.json",
-		},
-		{
-			name:     "ui smoke",
-			fn:       RelativeUISmokeArtifactPath,
-			filename: "screenshot.png",
-			want:     "coverage/runs/" + testRunID + "/ui-smoke/screenshot.png",
 		},
 		{
 			name:     "automation",

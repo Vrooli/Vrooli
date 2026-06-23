@@ -8,7 +8,6 @@ import (
 	"test-genie/cli/playbooksseed"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
-	"test-genie/cli/uismoke"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -53,7 +52,6 @@ func NewApp() (*App, error) {
 				Generate:   generate.NewClient(core.APIClient),
 				Execute:    execute.NewClient(core.APIClient, core.HTTPClient),
 				RunLocal:   runlocal.NewClient(core.APIClient),
-				UISmoke:    uismoke.NewClient(core.APIClient),
 				Seed:       playbooksseed.NewClient(core.APIClient),
 				Status:     status.NewClient(core.APIClient),
 				HTTPClient: core.HTTPClient,

@@ -3,18 +3,14 @@ package scenarios
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"test-genie/internal/shared"
-	sharedruns "test-genie/internal/shared/runs"
-	"test-genie/internal/smoke"
 )
 
 type scenarioSummaryStore interface {
@@ -271,157 +267,4 @@ func (s *ScenarioDirectoryService) RunScenarioTests(ctx context.Context, scenari
 		return nil, nil, err
 	}
 	return cmd, result, nil
-}
-
-// UISmokeResult represents the outcome of a UI smoke test.
-type UISmokeResult struct {
-	Scenario            string          `json:"scenario"`
-	Status              string          `json:"status"`
-	BlockedReason       string          `json:"blocked_reason,omitempty"`
-	Message             string          `json:"message"`
-	Timestamp           time.Time       `json:"timestamp"`
-	DurationMs          int64           `json:"duration_ms"`
-	UIURL               string          `json:"ui_url,omitempty"`
-	Handshake           json.RawMessage `json:"handshake,omitempty"`
-	NetworkFailureCount int             `json:"network_failure_count"`
-	PageErrorCount      int             `json:"page_error_count"`
-	ConsoleErrorCount   int             `json:"console_error_count"`
-	Artifacts           json.RawMessage `json:"artifacts,omitempty"`
-	Bundle              json.RawMessage `json:"bundle,omitempty"`
-}
-
-// RunUISmoke executes a UI smoke test for the specified scenario.
-// If uiURL is provided, it overrides the auto-detected URL.
-// If timeoutMs is > 0, it overrides the default timeout.
-// When scenarioDirOverride is non-empty, it is used instead of resolving via
-// scenariosRoot. See packages/cli-core/cliutil/sandbox.go.
-func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario string, uiURL string, timeoutMs int64, scenarioDirOverride string) (*UISmokeResult, error) {
-	scenario = strings.TrimSpace(scenario)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenario name is required")
-	}
-	dir := strings.TrimSpace(scenarioDirOverride)
-	if dir == "" {
-		if s.scenariosRoot == "" {
-			return nil, fmt.Errorf("scenarios root is not configured")
-		}
-		dir = filepath.Join(s.scenariosRoot, scenario)
-	}
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("scenario directory not found: %w", os.ErrNotExist)
-		}
-		return nil, fmt.Errorf("failed to access scenario directory: %w", err)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("scenario path is not a directory")
-	}
-
-	opts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
-	if timeoutMs > 0 {
-		opts = append(opts, smoke.WithRunnerTimeout(time.Duration(timeoutMs)*time.Millisecond))
-	}
-	if uiURL != "" {
-		opts = append(opts, smoke.WithUIURL(uiURL))
-	}
-
-	runner, err := smoke.NewBASRunner(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("ui smoke test setup failed: %w", err)
-	}
-	result, err := runner.Run(ctx, scenario, dir, sharedruns.NewRunID())
-	if err != nil {
-		return nil, fmt.Errorf("ui smoke test failed: %w", err)
-	}
-
-	return convertSmokeResult(result), nil
-}
-
-// UISmokeOptions contains options for running a UI smoke test.
-type UISmokeOptions struct {
-	URL       string
-	TimeoutMs int64
-	AutoStart bool
-	// ScenarioDirOverride overrides the scenario directory path for sandboxed agents.
-	// See packages/cli-core/cliutil/sandbox.go.
-	ScenarioDirOverride string
-}
-
-// RunUISmokeWithOpts executes a UI smoke test with full options support.
-func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scenario string, opts UISmokeOptions) (*UISmokeResult, error) {
-	scenario = strings.TrimSpace(scenario)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenario name is required")
-	}
-	dir := strings.TrimSpace(opts.ScenarioDirOverride)
-	if dir == "" {
-		if s.scenariosRoot == "" {
-			return nil, fmt.Errorf("scenarios root is not configured")
-		}
-		dir = filepath.Join(s.scenariosRoot, scenario)
-	}
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("scenario directory not found: %w", os.ErrNotExist)
-		}
-		return nil, fmt.Errorf("failed to access scenario directory: %w", err)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("scenario path is not a directory")
-	}
-
-	runnerOpts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
-	if opts.TimeoutMs > 0 {
-		runnerOpts = append(runnerOpts, smoke.WithRunnerTimeout(time.Duration(opts.TimeoutMs)*time.Millisecond))
-	}
-	if opts.URL != "" {
-		runnerOpts = append(runnerOpts, smoke.WithUIURL(opts.URL))
-	}
-	if opts.AutoStart {
-		runnerOpts = append(runnerOpts, smoke.WithAutoStart(true))
-	}
-
-	runner, err := smoke.NewBASRunner(ctx, runnerOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("ui smoke test setup failed: %w", err)
-	}
-	result, err := runner.Run(ctx, scenario, dir, sharedruns.NewRunID())
-	if err != nil {
-		return nil, fmt.Errorf("ui smoke test failed: %w", err)
-	}
-
-	return convertSmokeResult(result), nil
-}
-
-// convertSmokeResult converts a smoke.Result to a UISmokeResult API response.
-func convertSmokeResult(result *smoke.Result) *UISmokeResult {
-	apiResult := &UISmokeResult{
-		Scenario:            result.Scenario,
-		Status:              string(result.Status),
-		BlockedReason:       string(result.BlockedReason),
-		Message:             result.Message,
-		Timestamp:           result.Timestamp,
-		DurationMs:          result.DurationMs,
-		UIURL:               result.UIURL,
-		NetworkFailureCount: result.NetworkFailureCount,
-		PageErrorCount:      result.PageErrorCount,
-		ConsoleErrorCount:   result.ConsoleErrorCount,
-	}
-
-	// Marshal nested structs to JSON
-	if handshakeData, err := json.Marshal(result.Handshake); err == nil {
-		apiResult.Handshake = handshakeData
-	}
-	if artifactsData, err := json.Marshal(result.Artifacts); err == nil {
-		apiResult.Artifacts = artifactsData
-	}
-	if result.Bundle != nil {
-		if bundleData, err := json.Marshal(result.Bundle); err == nil {
-			apiResult.Bundle = bundleData
-		}
-	}
-
-	return apiResult
 }

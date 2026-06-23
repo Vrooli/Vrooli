@@ -52,7 +52,7 @@ test-genie execute my-scenario --preset architecture-audit
 |-------|-------------|---------|
 | Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
 | Contracts | Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest. | 90s |
-| UI Health | Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health. | 1m |
+| UI Health | Delegates all UI validation to ui-health: static ui/manifest.json + slot/overlay rules, static UI-interop, and net-new UI standards (always run and gate), plus a BAS-driven runtime render + iframe-bridge handshake group when execution is requested. Runtime checks degrade to skipped (never failed) when BAS or the UI surface is unavailable. | 5m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
 | Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
 | Architecture | Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode. | 2m |
@@ -70,14 +70,13 @@ test-genie execute my-scenario --preset comprehensive
 |-------|-------------|---------|
 | Structure | Delegates scenario skeleton + lifecycle-wiring validation to structure-health, which reconciles code-facts ground truth against declared service.json intent (profile-aware) and maps findings into the FINDING_SOURCE_STRUCTURE channel before any tests run. | 1m |
 | Contracts | Validates cli/manifest.json bindings against proto descriptors via cli-health, and (with execution requested) reconciles the binary's runtime CLI surface against the manifest. | 90s |
-| UI Health | Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health. | 1m |
+| UI Health | Delegates all UI validation to ui-health: static ui/manifest.json + slot/overlay rules, static UI-interop, and net-new UI standards (always run and gate), plus a BAS-driven runtime render + iframe-bridge handshake group when execution is requested. Runtime checks degrade to skipped (never failed) when BAS or the UI surface is unavailable. | 5m |
 | Standards | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config). | 1m |
 | Architecture | Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode. | 2m |
 | Dependencies | Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService. | 15m |
 | Quality | Delegates static quality contracts, lint/type policy, and strict config validation to quality-health. | 2m |
 | DOCS | Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService. | 1m |
 | Performance | Delegates Go API and UI build benchmarking plus Lighthouse audits (performance, accessibility, SEO) to the performance-health scenario through ScenarioValidationService, running the measurements and gating on the result. | 5m |
-| Smoke | Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors. | 15m |
 | Unit | Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension. | 15m |
 | Storage | Delegates storage judgment — schema layout, migration hygiene, persistence-seam adoption, and (the safety throughline) test-isolation seam-wiring — to storage-health, mapping findings into the FINDING_SOURCE_STORAGE channel. Its L2 isolation rung statically gates whether the playbooks phase may run destructive end-to-end flows against an isolated test database. | 2m |
 | Playbooks | Executes Vrooli Ascension workflows declared under bas/ to validate end-to-end UI flows. | 15m |
@@ -100,7 +99,6 @@ test-genie execute my-scenario --preset comprehensive
 | Quality | No | Yes | No | Yes |
 | DOCS | Yes | Yes | Yes | Yes |
 | Performance | No | No | No | Yes |
-| Smoke | No | No | No | Yes |
 | Unit | Yes | No | No | Yes |
 | Storage | No | No | No | Yes |
 | Playbooks | No | No | No | Yes |

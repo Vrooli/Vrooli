@@ -1,0 +1,248 @@
+package uiruntime
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	"ui-health/internal/evidence"
+
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basexec "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+)
+
+// errBASUnavailable signals the BAS engine could not be reached or driven. The
+// runner maps it to a skipped (resource unavailable) finding — never a failure.
+var errBASUnavailable = errors.New("browser-automation-studio unavailable")
+
+// runResult is the thin reduction of a BAS ExecutionTimeline the runtime group
+// needs: the handshake assert outcome, a screenshot-present flag, and
+// best-effort console/network observations.
+type runResult struct {
+	loaded            bool
+	loadError         string
+	handshakeSignaled bool
+	handshakeError    string
+	screenshotRef     string
+	console           []evidence.ConsoleEntry
+	network           []evidence.NetworkEntry
+}
+
+// evidence converts the run result into the engine-agnostic evidence the shared
+// analyzer verdicts on.
+func (r *runResult) evidenceFor(url string) evidence.Evidence {
+	if r == nil {
+		return evidence.Evidence{URL: url, Loaded: false, LoadError: "no BAS result"}
+	}
+	return evidence.Evidence{
+		URL:           url,
+		Loaded:        r.loaded,
+		LoadError:     r.loadError,
+		Handshake:     evidence.Handshake{Signaled: r.handshakeSignaled, TimedOut: !r.handshakeSignaled, Error: r.handshakeError},
+		Console:       r.console,
+		Network:       r.network,
+		ScreenshotRef: r.screenshotRef,
+	}
+}
+
+// basRunner drives one handshake workflow on BAS and returns the thin result.
+type basRunner interface {
+	Run(ctx context.Context, def map[string]any) (*runResult, error)
+}
+
+// connectRunner is the production basRunner over BAS's WorkflowsService +
+// ExecutionsService Connect-RPCs.
+type connectRunner struct {
+	// resolveBAS returns the BAS scenario base URL (scheme://host:port, no
+	// /api/v1 suffix). nil is not valid — New wires a discovery-backed resolver.
+	resolveBAS func(ctx context.Context) (string, error)
+	httpClient connect.HTTPClient
+	// pollInterval / pollTimeout bound the execution wait loop.
+	pollInterval time.Duration
+	pollTimeout  time.Duration
+}
+
+func (c *connectRunner) Run(ctx context.Context, def map[string]any) (*runResult, error) {
+	baseURL, err := c.resolveBAS(ctx)
+	if err != nil || strings.TrimSpace(baseURL) == "" {
+		return nil, errBASUnavailable
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 120 * time.Second}
+	}
+	wf := apiconnect.NewWorkflowsServiceClient(httpClient, baseURL)
+	ex := apiconnect.NewExecutionsServiceClient(httpClient, baseURL)
+
+	proto, err := definitionToProto(def)
+	if err != nil {
+		return nil, fmt.Errorf("build workflow definition: %w", err)
+	}
+
+	collect := true
+	resp, err := wf.ExecuteAdhocWorkflow(ctx, connect.NewRequest(&basexec.ExecuteAdhocRequest{
+		FlowDefinition: proto,
+		Metadata:       &basexec.ExecutionMetadata{Name: "ui-health-runtime", Description: "ui-health runtime/render"},
+		Parameters: &basexec.ExecutionParameters{
+			ArtifactConfig: &basexec.ArtifactCollectionConfig{
+				CollectConsoleLogs:   &collect,
+				CollectNetworkEvents: &collect,
+				CollectTelemetry:     &collect,
+			},
+		},
+	}))
+	if err != nil {
+		return nil, errBASUnavailable
+	}
+	execID := resp.Msg.GetExecutionId()
+	if strings.TrimSpace(execID) == "" {
+		return nil, errBASUnavailable
+	}
+
+	// Poll to terminal. A workflow *failure* (e.g. the handshake assert timing
+	// out) is an expected runtime outcome, not a transport error — the timeline
+	// is the source of truth, so a non-completed terminal state is not fatal here.
+	c.waitTerminal(ctx, ex, execID)
+
+	tlResp, err := ex.GetExecutionTimeline(ctx, connect.NewRequest(&basapi.GetExecutionTimelineRequest{ExecutionId: execID}))
+	if err != nil {
+		return nil, errBASUnavailable
+	}
+	return readTimeline(tlResp.Msg), nil
+}
+
+func (c *connectRunner) waitTerminal(ctx context.Context, ex apiconnect.ExecutionsServiceClient, execID string) {
+	interval := c.pollInterval
+	if interval <= 0 {
+		interval = time.Second
+	}
+	timeout := c.pollTimeout
+	if timeout <= 0 {
+		timeout = 90 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		st, err := ex.GetExecution(ctx, connect.NewRequest(&basapi.GetExecutionRequest{ExecutionId: execID}))
+		if err == nil && isTerminal(st.Msg.GetExecution().GetStatus()) {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if time.Now().After(deadline) {
+				return
+			}
+		}
+	}
+}
+
+func isTerminal(s basbase.ExecutionStatus) bool {
+	switch s {
+	case basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		basbase.ExecutionStatus_EXECUTION_STATUS_FAILED,
+		basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED:
+		return true
+	default:
+		return false
+	}
+}
+
+// definitionToProto turns the workflow-definition map into the BAS proto,
+// mirroring test-genie's proven conversion (marshal → protojson unmarshal,
+// discarding unknown fields for forward-compat).
+func definitionToProto(def map[string]any) (*basworkflows.WorkflowDefinitionV2, error) {
+	raw, err := json.Marshal(def)
+	if err != nil {
+		return nil, err
+	}
+	out := &basworkflows.WorkflowDefinitionV2{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// readTimeline reduces the BAS ExecutionTimeline to the runtime group's thin
+// result: the handshake assert (the hard gate), screenshot presence, and
+// best-effort console (timeline logs) / network (NETWORK_EVENT artifacts).
+func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
+	r := &runResult{loaded: true}
+	if tl == nil {
+		return &runResult{loaded: false, loadError: "BAS produced no timeline for the workflow"}
+	}
+	handshakeSeen := false
+	for _, e := range tl.GetEntries() {
+		switch e.GetNodeId() {
+		case nodeHandshake:
+			handshakeSeen = true
+			if a := e.GetContext().GetAssertion(); a != nil {
+				r.handshakeSignaled = a.GetSuccess()
+				if !a.GetSuccess() {
+					r.handshakeError = firstNonEmpty(a.GetMessage(), e.GetContext().GetError())
+				}
+			} else {
+				r.handshakeSignaled = e.GetContext().GetSuccess()
+				if !r.handshakeSignaled {
+					r.handshakeError = e.GetContext().GetError()
+				}
+			}
+		case nodeScreens:
+			if e.GetTelemetry().GetScreenshot() != nil {
+				r.screenshotRef = "captured"
+			}
+			for _, art := range e.GetAggregates().GetArtifacts() {
+				if art.GetType() == basbase.ArtifactType_ARTIFACT_TYPE_SCREENSHOT {
+					r.screenshotRef = "captured"
+				}
+			}
+		}
+	}
+	if !handshakeSeen {
+		// The handshake step never ran (an earlier step failed) — fail closed.
+		r.handshakeError = "handshake step did not execute"
+	}
+	for _, l := range tl.GetLogs() {
+		r.console = append(r.console, evidence.ConsoleEntry{
+			Level:   normalizeLevel(l.GetLevel().String()),
+			Message: l.GetMessage(),
+		})
+	}
+	return r
+}
+
+// normalizeLevel maps a BAS LogLevel enum string (LOG_LEVEL_ERROR) to the
+// lowercase token the evidence analyzer counts ("error"/"warn"/...).
+func normalizeLevel(level string) string {
+	token := strings.ToLower(strings.TrimPrefix(level, "LOG_LEVEL_"))
+	switch token {
+	case "warning":
+		return "warn"
+	default:
+		return token
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}

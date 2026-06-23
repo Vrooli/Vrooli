@@ -774,7 +774,6 @@
         "dependencies": { "$ref": "#/definitions/phase_options" },
         "quality": { "$ref": "#/definitions/phase_options" },
         "docs": { "$ref": "#/definitions/phase_options" },
-        "smoke": { "$ref": "#/definitions/phase_options" },
         "unit": { "$ref": "#/definitions/phase_options" },
         "storage": { "$ref": "#/definitions/phase_options" },
         "playbooks": { "$ref": "#/definitions/phase_options" },

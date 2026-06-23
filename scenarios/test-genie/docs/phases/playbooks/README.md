@@ -111,9 +111,9 @@ These findings are **additive observations**: they appear alongside the
 workflow's pass/fail result and never, on their own, flip a passing workflow to
 failed. A clean workflow with console errors surfaces them; an all-green clean
 workflow stays green with no findings. The console/network/screenshot extraction
-is shared with smoke via `playbooks/execution/evidence_adapter.go`, and the
-verdict rules live once in `internal/evidence` — they cannot drift between the
-two browser phases.
+is shared with the standalone ui-smoke harness via
+`playbooks/execution/evidence_adapter.go`, and the verdict rules live once in
+`internal/evidence` — they cannot drift between the two BAS-driven consumers.
 
 ## Workflow Structure
 

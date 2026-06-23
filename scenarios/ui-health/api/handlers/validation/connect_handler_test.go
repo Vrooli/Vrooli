@@ -77,6 +77,16 @@ func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 		"slot_instances_empty",
 		"path_pattern_unknown_token",
 		"slot_dir_overlap_equal",
+		"runtime_render_ok",
+		"runtime_handshake_failed",
+		"runtime_network_failure",
+		"runtime_render_broken",
+		"runtime_page_error",
+		"runtime_load_failed",
+		"runtime_render_failed",
+		"runtime_console_errors",
+		"runtime_skipped_ui_unavailable",
+		"runtime_skipped_bas_unavailable",
 	} {
 		if _, ok := spec.Findings[code]; !ok {
 			t.Fatalf("maturity spec does not map emitted finding code %q", code)

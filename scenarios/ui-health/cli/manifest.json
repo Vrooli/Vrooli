@@ -17,6 +17,13 @@
               "description": "Scenario id (directory name under scenarios/)"
             }
           ],
+          "flags": [
+            {
+              "name": "static-only",
+              "bool": true,
+              "description": "Run static checks only (manifest, interop, standards, freshness); skip the BAS-driven runtime/render group and any auto-start"
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ScenarioValidationService",

@@ -58,13 +58,33 @@ type Fixer struct {
 	registry  *autofixcore.Registry
 }
 
-// New builds the ui-health auto-fix registry over the given validator.
+// New builds the ui-health auto-fix registry over the given validator. It
+// registers the manifest fixers plus the safe-subset interop fixers; this is the
+// single ui-health auto-fix entrypoint across every check group.
 func New(validator Validator) *Fixer {
 	f := &Fixer{validator: validator}
-	f.registry = autofixcore.NewRegistry(
-		autofixcore.Fixer{RuleID: RuleSlotDirMissing, Preview: f.previewMissingDir(RuleSlotDirMissing), CanFix: f.canFix(RuleSlotDirMissing)},
-		autofixcore.Fixer{RuleID: RuleSlotParentDirMissing, Preview: f.previewMissingDir(RuleSlotParentDirMissing), CanFix: f.canFix(RuleSlotParentDirMissing)},
-	)
+	fixers := []autofixcore.Fixer{
+		{RuleID: RuleSlotDirMissing, Preview: f.previewMissingDir(RuleSlotDirMissing), CanFix: f.canFix(RuleSlotDirMissing)},
+		{RuleID: RuleSlotParentDirMissing, Preview: f.previewMissingDir(RuleSlotParentDirMissing), CanFix: f.canFix(RuleSlotParentDirMissing)},
+	}
+	rewriteSpecs := append(f.interopFixers(), f.standardRewriteFixers()...)
+	for _, spec := range rewriteSpecs {
+		spec := spec
+		fixers = append(fixers, autofixcore.Fixer{
+			RuleID:  spec.ruleID,
+			Preview: f.previewInterop(spec),
+			CanFix:  f.canFixInterop(spec),
+		})
+	}
+	// The net-new i18n locale-parity fixer needs a sibling catalog (en.json), so
+	// it cannot use the single-file rewrite machinery — register its bespoke
+	// preview/canFix directly.
+	fixers = append(fixers, autofixcore.Fixer{
+		RuleID:  RuleStandardI18nLocaleParity,
+		Preview: f.previewI18nLocaleParity,
+		CanFix:  f.canFixI18nLocaleParity,
+	})
+	f.registry = autofixcore.NewRegistry(fixers...)
 	return f
 }
 
@@ -73,7 +93,9 @@ func New(validator Validator) *Fixer {
 // counterpart of the maturity.json declaration.
 func FixClassFor(code string) autofixcore.FixClass {
 	switch code {
-	case RuleSlotDirMissing, RuleSlotParentDirMissing:
+	case RuleSlotDirMissing, RuleSlotParentDirMissing,
+		RuleInteropHScreen, RuleInteropProtectiveComments,
+		RuleStandardTSConfigStrict, RuleStandardI18nLocaleParity:
 		return autofixcore.FixClassAutofix
 	default:
 		return autofixcore.FixClassDetectionOnly

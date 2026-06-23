@@ -74,16 +74,16 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "0") // always follow inline
 	fake := &executeFakeRuns{}
 	srv := newExecuteTestServer(t,
-		`{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"integration","estimatedDurationSeconds":2,"timeoutSeconds":120}],"summary":{"phaseCount":2,"estimatedDurationSeconds":3,"timeoutSeconds":180}}`,
+		`{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"storage","estimatedDurationSeconds":2,"timeoutSeconds":120}],"summary":{"phaseCount":2,"estimatedDurationSeconds":3,"timeoutSeconds":180}}`,
 		fake)
 
 	t.Setenv("TEST_GENIE_API_BASE", srv.URL)
 	app := newTestApp(t)
-	if err := app.Run([]string{"execute", "demo", "unit", "integration"}); err != nil {
+	if err := app.Run([]string{"execute", "demo", "unit", "storage"}); err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}
-	if got := fake.started.GetPhases(); !reflect.DeepEqual(got, []string{"unit", "integration"}) {
-		t.Fatalf("expected phases [unit integration], got %v", got)
+	if got := fake.started.GetPhases(); !reflect.DeepEqual(got, []string{"unit", "storage"}) {
+		t.Fatalf("expected phases [unit storage], got %v", got)
 	}
 }
 

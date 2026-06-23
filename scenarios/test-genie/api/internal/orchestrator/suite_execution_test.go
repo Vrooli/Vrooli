@@ -162,7 +162,6 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Docs, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Storage, Runner: noOp})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp})
@@ -489,8 +488,8 @@ func TestPrepareTargetRuntimeIgnoresGenericPortEnvironment(t *testing.T) {
 	}
 
 	env := workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: filepath.Join(t.TempDir(), "demo")}
-	smokeDef := phasespkg.Definition{Name: phasespkg.Smoke, Capabilities: runnability.PhaseCapabilities{Phase: phasespkg.Smoke.String(), NeedsUI: true}}
-	_, _, _, _, err := orch.prepareTargetRuntime(context.Background(), env, []phasespkg.Definition{smokeDef}, SuiteExecutionRequest{}, io.Discard)
+	uiPhaseDef := phasespkg.Definition{Name: phasespkg.Performance, Capabilities: runnability.PhaseCapabilities{Phase: phasespkg.Performance.String(), NeedsUI: true}}
+	_, _, _, _, err := orch.prepareTargetRuntime(context.Background(), env, []phasespkg.Definition{uiPhaseDef}, SuiteExecutionRequest{}, io.Discard)
 	if err == nil {
 		t.Fatal("expected runtime start failure")
 	}

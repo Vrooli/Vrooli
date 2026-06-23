@@ -366,5 +366,5 @@ When `reporting.formats` includes `"json"`, the following files are generated:
 
 - [Performance Phase](README.md) - Performance phase overview
 - [Phases Overview](../README.md) - 8-phase architecture
-- [UI Smoke Testing](../smoke/README.md) - Fast UI validation
+- [UI Health Phase](../ui-health/README.md) - UI validation (static + BAS-driven render/handshake)
 - [Requirements Sync](../business/README.md) - Evidence collection

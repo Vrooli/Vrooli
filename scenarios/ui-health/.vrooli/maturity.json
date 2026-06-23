@@ -204,6 +204,287 @@
       "dimension": "ui",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "interop_iframe_bridge_dep": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_bridge_init": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_bridge_app_id": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_iframe_guard": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_capture_enabled": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_relative_base": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_router_basename": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_api_base_dep": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_resolve_api_base_single": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_proxy_base_preserved": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_hardcoded_localhost": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_secure_tunnel": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_standard_server": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_no_custom_server": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_shortcut_relay": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_no_scattered_keydown": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_spatial_nav_init": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_helmet_frame_ancestors": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_focus_visible_styles": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "interop_banned_scroll": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "interop_h_screen": {
+      "local_level_impact": "L1",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence"],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "interop_protective_comments": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["react-coherence"],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "freshness_ui_bundle_stale": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "runtime_render_ok": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["ux"]
+    },
+    "runtime_handshake_failed": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["vrooli-ui-interop", "ux"]
+    },
+    "runtime_network_failure": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-stability", "ux"]
+    },
+    "runtime_render_broken": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "runtime_page_error": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-stability", "ux"]
+    },
+    "runtime_load_failed": {
+      "local_level_impact": "L3",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-stability", "ux"]
+    },
+    "runtime_render_failed": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "runtime_console_errors": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-stability", "ux"]
+    },
+    "runtime_skipped_ui_unavailable": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["ux"]
+    },
+    "runtime_skipped_bas_unavailable": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["ux"]
+    },
+    "standard_i18n_locale_parity": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ux", "react-coherence"],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "standard_no_raw_hex": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["ux", "react-coherence"]
+    },
+    "standard_a11y_harness": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ux"]
+    },
+    "standard_pwa_manifest": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ux", "react-coherence"]
+    },
+    "standard_tsconfig_strict": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-stability"],
+      "fix_class": "auto",
+      "fixer_status": "implemented"
+    },
+    "standard_eslint_stability": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-stability"]
     }
   },
   "fallback": {

@@ -35,7 +35,7 @@ func surfaceDef(name phases.Name) phases.Definition {
 func TestComputeSuiteVerdict(t *testing.T) {
 	defs := []phases.Definition{
 		{Name: phases.Structure},
-		{Name: phases.Smoke, Optional: true},
+		{Name: phases.Performance, Optional: true},
 		{Name: phases.Unit},
 	}
 	cases := []struct {
@@ -71,7 +71,7 @@ func TestComputeSuiteVerdict(t *testing.T) {
 			name: "optional skip stays PASS",
 			results: []PhaseExecutionResult{
 				{Name: "structure", Status: phaseStatusPassed},
-				{Name: "smoke", Status: phaseStatusSkipped},
+				{Name: "performance", Status: phaseStatusSkipped},
 			},
 			want: SuiteVerdictPass,
 		},
@@ -102,10 +102,10 @@ func TestRunSelectedPhasesSkipsUnrunnableSurfacePhaseOnSelf(t *testing.T) {
 
 	defs := []phases.Definition{
 		staticDef(phases.Structure),
-		surfaceDef(phases.Smoke),
+		surfaceDef(phases.Performance),
 	}
-	// Self-target, no live surfaces: the smoke phase cannot run without a start
-	// that would SIGTERM the suite, so it must skip.
+	// Self-target, no live surfaces: the performance phase cannot run without a
+	// start that would SIGTERM the suite, so it must skip.
 	rc := runnability.RunContext{TargetIsSelf: true, LiveSurfaces: runnability.Surfaces{}}
 
 	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil, nil)
@@ -122,15 +122,15 @@ func TestRunSelectedPhasesSkipsUnrunnableSurfacePhaseOnSelf(t *testing.T) {
 	if byName["structure"].Status != phaseStatusPassed {
 		t.Errorf("structure should pass, got %q", byName["structure"].Status)
 	}
-	smoke := byName["smoke"]
-	if smoke.Status != phaseStatusSkipped {
-		t.Fatalf("smoke should be skipped on self with no live UI, got %q", smoke.Status)
+	perf := byName["performance"]
+	if perf.Status != phaseStatusSkipped {
+		t.Fatalf("performance should be skipped on self with no live UI, got %q", perf.Status)
 	}
-	if smoke.RunnabilityVerdict != "skip" {
-		t.Errorf("smoke RunnabilityVerdict = %q, want skip", smoke.RunnabilityVerdict)
+	if perf.RunnabilityVerdict != "skip" {
+		t.Errorf("performance RunnabilityVerdict = %q, want skip", perf.RunnabilityVerdict)
 	}
-	if smoke.RunnabilityReason == "" {
-		t.Error("skipped smoke phase should carry a runnability reason")
+	if perf.RunnabilityReason == "" {
+		t.Error("skipped performance phase should carry a runnability reason")
 	}
 }
 
@@ -140,7 +140,7 @@ func TestRunSelectedPhasesRunsSurfacePhaseWhenLive(t *testing.T) {
 	o := &SuiteOrchestrator{projectRoot: t.TempDir(), phaseTimeout: phases.DefaultTimeout}
 	runLogDir := t.TempDir()
 
-	defs := []phases.Definition{surfaceDef(phases.Smoke)}
+	defs := []phases.Definition{surfaceDef(phases.Performance)}
 	rc := runnability.RunContext{TargetIsSelf: true, LiveSurfaces: runnability.Surfaces{UI: true}}
 
 	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil, nil)
@@ -148,6 +148,6 @@ func TestRunSelectedPhasesRunsSurfacePhaseWhenLive(t *testing.T) {
 		t.Fatal("unexpected failure")
 	}
 	if len(results) != 1 || results[0].Status != phaseStatusPassed {
-		t.Fatalf("smoke should run+pass when UI is live, got %+v", results)
+		t.Fatalf("performance should run+pass when UI is live, got %+v", results)
 	}
 }

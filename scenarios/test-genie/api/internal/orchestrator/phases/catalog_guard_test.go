@@ -111,7 +111,7 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 		dbiso                      runnability.DBIsolation
 	}
 	expected := map[Name]want{
-		Smoke:       {ui: true},
+		UIHealth:    {ui: true},
 		Performance: {ui: true},
 		Playbooks:   {ui: true, mutates: true, deferred: true, dbiso: runnability.DBIsolationRouted},
 	}
@@ -152,7 +152,6 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 		Dependencies: "TEST_GENIE_SKIP_DEPENDENCIES",
 		Quality:      "TEST_GENIE_SKIP_QUALITY",
 		Docs:         "TEST_GENIE_SKIP_DOCS",
-		Smoke:        "TEST_GENIE_SKIP_SMOKE",
 		Unit:         "TEST_GENIE_SKIP_UNIT",
 		Storage:      "TEST_GENIE_SKIP_STORAGE",
 		Playbooks:    "TEST_GENIE_SKIP_PLAYBOOKS",

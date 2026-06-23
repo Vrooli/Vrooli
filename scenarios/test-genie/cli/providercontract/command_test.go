@@ -267,6 +267,10 @@ func stubProviderBaseURL(t *testing.T, url string) func() {
 }
 
 type fakeValidationService struct {
+	// Embed the generated unimplemented handler so the fake satisfies the full
+	// ScenarioValidationService interface (PreviewFix/ApplyFix) while only the
+	// ValidateScenario path these tests exercise is overridden below.
+	scenariovalidationconnect.UnimplementedScenarioValidationServiceHandler
 	resp *scenariovalidationv1.ValidateScenarioResponse
 }
 

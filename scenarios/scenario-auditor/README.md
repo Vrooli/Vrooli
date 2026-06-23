@@ -110,7 +110,7 @@ This ensures the CLI works correctly even when multiple scenarios are running wi
 scenario-auditor standards scan scenario-auditor --wait
 
 # Target a specific rule and wait for completion (recommended for fixes)
-scenario-auditor standards scan ecosystem-manager --rule interop_iframe_guard --wait --timeout 10m
+scenario-auditor standards scan ecosystem-manager --rule structure_required_dirs --wait --timeout 10m
 
 # Run a full scan only if you need the complete violation list
 scenario-auditor standards scan ecosystem-manager

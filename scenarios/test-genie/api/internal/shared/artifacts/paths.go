@@ -117,27 +117,6 @@ const (
 
 	// SeedStateFile is the filename for seed state.
 	SeedStateFile = "seed-state.json"
-
-	// UISmokeLatest is the filename for UI smoke test results.
-	UISmokeLatest = "latest.json"
-
-	// UISmokeScreenshot is the filename for UI smoke screenshot.
-	UISmokeScreenshot = "screenshot.png"
-
-	// UISmokeConsole is the filename for UI smoke console logs.
-	UISmokeConsole = "console.json"
-
-	// UISmokeNetwork is the filename for UI smoke network failures.
-	UISmokeNetwork = "network.json"
-
-	// UISmokeDOM is the filename for UI smoke DOM snapshot.
-	UISmokeDOM = "dom.html"
-
-	// UISmokeRaw is the filename for UI smoke raw response.
-	UISmokeRaw = "raw.json"
-
-	// UISmokeReadme is the filename for UI smoke README.
-	UISmokeReadme = "README.md"
 )
 
 // ============================================================================
@@ -208,11 +187,6 @@ func PhaseResultsPath(scenarioDir, runID, filename string) string {
 	return filepath.Join(RunPhaseResultsDir(scenarioDir, runID), filename)
 }
 
-// UISmokeArtifactPath returns the absolute path for a UI smoke artifact in a run.
-func UISmokeArtifactPath(scenarioDir, runID, filename string) string {
-	return filepath.Join(RunUISmokeDir(scenarioDir, runID), filename)
-}
-
 // AutomationArtifactPath returns the absolute path for an automation/playbook artifact in a run.
 func AutomationArtifactPath(scenarioDir, runID, filename string) string {
 	return filepath.Join(RunAutomationDir(scenarioDir, runID), filename)
@@ -281,11 +255,6 @@ func AllCoverageSubdirs(scenarioDir string) []string {
 // RelativePhaseResultsPath returns the run-relative path for a phase results file.
 func RelativePhaseResultsPath(runID, filename string) string {
 	return filepath.Join(RunsDir, runID, PhaseResultsSubdir, filename)
-}
-
-// RelativeUISmokeArtifactPath returns the run-relative path for a UI smoke artifact.
-func RelativeUISmokeArtifactPath(runID, filename string) string {
-	return filepath.Join(RunsDir, runID, UISmokeSubdir, filename)
 }
 
 // RelativeAutomationArtifactPath returns the run-relative path for an automation artifact.

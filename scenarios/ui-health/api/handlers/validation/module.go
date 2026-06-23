@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 
 	"ui-health/internal/autofix"
+	"ui-health/internal/codefacts"
 	"ui-health/internal/module"
 	"ui-health/internal/services/manifestvalidation"
+	"ui-health/internal/uiruntime"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -46,6 +48,15 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		Fixer:        autofix.New(validator),
 		RepoRoot:     repoRoot,
 		Environment:  environment,
+		CodeFacts:    codefacts.New(),
+		// Freshness backs the static UI-bundle freshness group via the canonical
+		// content-hash engine (typed vrooli CLI). Degrades gracefully when the
+		// engine can't be resolved.
+		Freshness: vroolicli.New(),
+		// Runtime drives the BAS iframe-bridge handshake + render group when a
+		// caller requests execution (include_execution=true) against a UI scenario.
+		// It degrades gracefully — unreachable BAS/UI yields skipped findings.
+		Runtime: uiruntime.New(logger),
 	}))
 	return module.Module{
 		Name: "validation",

@@ -45,7 +45,6 @@ func (p *TestingToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinition
 	return []*toolspb.ToolDefinition{
 		p.runTestSuiteTool(),
 		p.runScenarioTestsTool(),
-		p.runUiSmokeTool(),
 		p.getExecutionTool(),
 		p.listExecutionsTool(),
 		p.listScenariosTool(),
@@ -168,52 +167,6 @@ func (p *TestingToolProvider) runScenarioTestsTool() *toolspb.ToolDefinition {
 					map[string]interface{}{
 						"scenario":         "ecosystem-manager",
 						"preferred_runner": "go",
-					},
-				),
-			},
-		},
-	}
-}
-
-func (p *TestingToolProvider) runUiSmokeTool() *toolspb.ToolDefinition {
-	return &toolspb.ToolDefinition{
-		Name:        "run_ui_smoke",
-		Description: "Run UI smoke tests for a scenario. Tests that the UI loads and basic interactions work. Requires the browser-automation-studio scenario to be running.",
-		Category:    "test_execution",
-		Parameters: &toolspb.ToolParameters{
-			Type: "object",
-			Properties: map[string]*toolspb.ParameterSchema{
-				"scenario": {
-					Type:        "string",
-					Description: "Name of the scenario to test",
-				},
-				"ui_url": {
-					Type:        "string",
-					Description: "URL of the UI to test. Auto-detected from scenario config if not specified.",
-				},
-				"timeout_ms": {
-					Type:        "integer",
-					Default:     IntValue(30000),
-					Description: "Timeout in milliseconds for the smoke test",
-				},
-			},
-			Required: []string{"scenario"},
-		},
-		Metadata: &toolspb.ToolMetadata{
-			EnabledByDefault:   true,
-			RequiresApproval:   false,
-			TimeoutSeconds:     120,
-			RateLimitPerMinute: 10,
-			CostEstimate:       "medium",
-			LongRunning:        true,
-			Idempotent:         true,
-			Tags:               []string{"testing", "ui", "smoke"},
-			Examples: []*toolspb.ToolExample{
-				NewToolExample(
-					"Run UI smoke test with custom timeout",
-					map[string]interface{}{
-						"scenario":   "agent-inbox",
-						"timeout_ms": 60000,
 					},
 				),
 			},

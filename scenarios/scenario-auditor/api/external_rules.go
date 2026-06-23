@@ -55,7 +55,9 @@ var (
 func registerDefaultExternalProviders() {
 	externalProvidersOnce.Do(func() {
 		for _, provider := range []externalRuleProvider{
-			newAppMonitorInteropProvider(),
+			// NOTE: the app-monitor interop provider was removed — the static
+			// UI-interop rules moved to ui-health, the single UI-validation
+			// authority. scenario-auditor no longer registers interop_* rules.
 			newPRDControlTowerProvider(),
 			newStackGovernorProvider(),
 			newTestGenieProvider(),

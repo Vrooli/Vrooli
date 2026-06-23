@@ -89,8 +89,6 @@ type scenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
 	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
-	RunUISmoke(ctx context.Context, name string, uiURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
-	RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ListFilesWithMeta(ctx context.Context, name string, opts scenarios.FileListOptions) (scenarios.FileListResult, error)
 	ScenarioRoot() string
@@ -237,7 +235,6 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}", s.handleGetScenario).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/run-tests", s.handleRunScenarioTests).Methods("POST")
-	apiRouter.HandleFunc("/scenarios/{name}/ui-smoke", s.handleUISmoke).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/apply", s.handlePlaybooksSeedApply).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup", s.handlePlaybooksSeedCleanup).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/cleanup-force", s.handlePlaybooksSeedCleanupForce).Methods("POST")

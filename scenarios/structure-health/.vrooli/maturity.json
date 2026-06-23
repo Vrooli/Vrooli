@@ -228,27 +228,6 @@
       "dimension": "structure",
       "severity_default": "SEVERITY_ERROR",
       "clean_requirement": "required"
-    },
-    "PROFILE_FOCUS_VISIBLE": {
-      "local_level_impact": "L4",
-      "global_impact": "evolvability_gap",
-      "dimension": "structure",
-      "severity_default": "SEVERITY_WARNING",
-      "clean_requirement": "advisory"
-    },
-    "PROFILE_HELMET_FRAME": {
-      "local_level_impact": "L4",
-      "global_impact": "evolvability_gap",
-      "dimension": "structure",
-      "severity_default": "SEVERITY_ERROR",
-      "clean_requirement": "required"
-    },
-    "PROFILE_SPATIAL_NAV": {
-      "local_level_impact": "L4",
-      "global_impact": "evolvability_gap",
-      "dimension": "structure",
-      "severity_default": "SEVERITY_WARNING",
-      "clean_requirement": "advisory"
     }
   },
   "fallback": {

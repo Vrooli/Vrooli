@@ -35,8 +35,12 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // exit code without a duplicated stderr noise line.
 func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	name := ctx.Positional("name")
+	// Direct CLI use runs the full report (static + runtime/render) by default;
+	// --static-only restricts to the no-browser groups (no BAS, no auto-start).
+	staticOnly := ctx.FlagDeclared("static-only") && ctx.BoolFlag("static-only")
 	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
-		Scenario: name,
+		Scenario:         name,
+		IncludeExecution: !staticOnly,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)

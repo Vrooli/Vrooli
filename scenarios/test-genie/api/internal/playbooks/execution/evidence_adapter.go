@@ -11,11 +11,10 @@ import (
 )
 
 // This file is the single home for mapping a BAS [ParsedTimeline] onto the
-// engine-agnostic [evidence.Evidence] model. Both browser-driven phases consume
-// it: the smoke phase (via internal/browsercapture) and the playbooks phase (via
-// [ToEvidence]). Keeping console/network extraction here — beside the
+// engine-agnostic [evidence.Evidence] model. The playbooks phase consumes it
+// (via [ToEvidence]). Keeping console/network extraction here — beside the
 // ParsedTimeline it reads — means the timeline→evidence rules have exactly one
-// implementation and cannot drift between phases.
+// implementation and cannot drift between consumers.
 
 // ConsoleEntries extracts console messages from the container-level timeline
 // logs, normalizing each level so the evidence analyzer can classify errors vs

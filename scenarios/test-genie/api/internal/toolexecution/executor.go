@@ -34,7 +34,6 @@ type ScenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
 	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
-	RunUISmoke(ctx context.Context, name string, uiURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ScenarioRoot() string
 }
@@ -110,8 +109,6 @@ func (e *ServerExecutor) Execute(ctx context.Context, toolName string, args map[
 		return e.runTestSuite(ctx, args)
 	case "run_scenario_tests":
 		return e.runScenarioTests(ctx, args)
-	case "run_ui_smoke":
-		return e.runUISmoke(ctx, args)
 	case "get_execution":
 		return e.getExecution(ctx, args)
 	case "list_executions":
@@ -212,26 +209,6 @@ func (e *ServerExecutor) runScenarioTests(ctx context.Context, args map[string]i
 	return SuccessResult(map[string]interface{}{
 		"scenario": scenario,
 		"command":  cmd,
-		"result":   result,
-	}), nil
-}
-
-func (e *ServerExecutor) runUISmoke(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
-	scenario := getStringArg(args, "scenario", "")
-	if scenario == "" {
-		return ErrorResult("scenario is required", CodeInvalidArgs), nil
-	}
-
-	uiURL := getStringArg(args, "ui_url", "")
-	timeoutMs := int64(getIntArg(args, "timeout_ms", 30000))
-
-	result, err := e.scenarioDirectory.RunUISmoke(ctx, scenario, uiURL, timeoutMs, "")
-	if err != nil {
-		return ErrorResult(fmt.Sprintf("failed to run UI smoke test: %v", err), CodeInternalError), nil
-	}
-
-	return SuccessResult(map[string]interface{}{
-		"scenario": scenario,
 		"result":   result,
 	}), nil
 }
