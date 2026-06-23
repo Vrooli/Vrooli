@@ -87,6 +87,7 @@
       "OLLAMA_MAX_LOADED_MODELS": "3",
       "OLLAMA_FLASH_ATTENTION": "1",
       "OLLAMA_KEEP_ALIVE": "5m",
+      "OLLAMA_CONTEXT_LENGTH": "8192",
       "OLLAMA_ORIGINS": "*"
     },
     "volumes": [
@@ -171,6 +172,7 @@
       "OLLAMA_NUM_PARALLEL",
       "OLLAMA_MAX_LOADED_MODELS",
       "OLLAMA_FLASH_ATTENTION",
+      "OLLAMA_CONTEXT_LENGTH",
       "OLLAMA_ORIGINS"
     ],
     "derived": {

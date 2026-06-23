@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.adapters;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/adapters;adapters_v1";
+
+// AdapterService reports host, resolver, router, and manual capabilities.
+service AdapterService {
+  rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse);
+  rpc ExplainUnsupportedAction(ExplainUnsupportedActionRequest) returns (ExplainUnsupportedActionResponse);
+  rpc GetPlatformSummary(GetPlatformSummaryRequest) returns (GetPlatformSummaryResponse);
+}
+
+message Capability {
+  string adapter = 1;
+  string action = 2;
+  bool supported = 3;
+  bool requires_admin = 4;
+  bool rollback_supported = 5;
+  string reason = 6;
+}
+
+message PlatformSummary {
+  string os = 1;
+  string arch = 2;
+  string profile = 3;
+  repeated string notes = 4;
+}
+
+message ListCapabilitiesRequest {
+}
+
+message ListCapabilitiesResponse {
+  repeated Capability capabilities = 1;
+}
+
+message ExplainUnsupportedActionRequest {
+  string action = 1;
+}
+
+message ExplainUnsupportedActionResponse {
+  Capability capability = 1;
+  repeated string manual_steps = 2;
+}
+
+message GetPlatformSummaryRequest {
+}
+
+message GetPlatformSummaryResponse {
+  PlatformSummary summary = 1;
+}

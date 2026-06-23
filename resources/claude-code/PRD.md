@@ -176,7 +176,7 @@ environment_variables:
   
   # Execution settings
   CLAUDE_CODE_DEFAULT_MODEL: claude-3-5-sonnet-latest
-  CLAUDE_CODE_FALLBACK_MODEL: qwen2.5-coder:14b
+  CLAUDE_CODE_FALLBACK_MODEL: gemma4:12b
   CLAUDE_CODE_MAX_RETRIES: 3
   CLAUDE_CODE_TIMEOUT: 600
   
@@ -242,8 +242,8 @@ vrooli vault set ANTHROPIC_API_KEY "your-key-here"
 vrooli resource install ollama
 
 # 4. Pull recommended Ollama models
-resource-ollama pull qwen2.5-coder:14b
-resource-ollama pull codellama:7b
+resource-ollama pull gemma4:12b
+resource-ollama pull llama3.1:8b
 
 # 5. Verify installation
 resource-claude-code status
@@ -299,9 +299,9 @@ trigger_conditions:
 
 fallback_behavior:
   model_selection:
-    - Primary: qwen2.5-coder:14b (best quality)
-    - Fast: qwen2.5-coder:7b (quick responses)
-    - Specialized: codellama:7b (code-specific)
+    - Primary: gemma4:12b (best quality, tool-calling capable)
+    - Fast: llama3.2:3b (quick responses)
+    - Specialized: llama3.1:8b (reliable structured tool calls)
   
   limitations:
     - No tool execution (text responses only)

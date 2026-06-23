@@ -269,8 +269,8 @@ opencode::ollama::reachable() {
 # opencode::ollama::supports_tools reports whether a pulled Ollama model
 # actually returns STRUCTURED tool calls rather than narrating a tool call as
 # plain text. Ollama advertises a "tools" capability for models whose chat
-# template cannot be parsed back into tool_calls on a given runtime (e.g.
-# qwen2.5-coder on older Ollama), so the capability flag alone is unreliable —
+# template cannot be parsed back into tool_calls on a given runtime (some
+# coder-family templates narrate the call as text), so the flag alone is unreliable —
 # the only sound signal is a live probe. Best-effort and fail-OPEN: if the
 # probe cannot run (no curl/jq, daemon error, empty reply) it returns success
 # so discovery is never blocked on the probe itself. It returns failure only
@@ -296,8 +296,8 @@ opencode::ollama::supports_tools() {
 # model (newest families first), then a general chat model, excluding
 # embedding-only models that cannot serve a chat. Each candidate is probed for
 # STRUCTURED tool calls before selection so a model that only narrates tool
-# calls (e.g. qwen2.5-coder on an old runtime) is skipped rather than silently
-# chosen. Falls back to the configured default when discovery is unavailable.
+# calls as text is skipped rather than silently chosen. Falls back to the
+# configured default when discovery is unavailable.
 opencode::ollama::pick_model() {
     local preferred="${OPENCODE_OLLAMA_DEFAULT_MODEL:-qwen3-coder}"
     local tags names
@@ -322,11 +322,12 @@ opencode::ollama::pick_model() {
         printf '%s' "${preferred}"
         return 0
     fi
-    # Prefer tool-calling-capable models, newest coder families first. Demote
-    # qwen2.5-coder/coder beneath proven tool-callers; the probe is the real
-    # gate, the order is just the search priority.
+    # Prefer tool-calling-capable models, newest coder families first. The probe
+    # is the real gate, the order is just the search priority. (qwen2.5-coder was
+    # removed from this list and from model-policy: its template narrates tool
+    # calls as text instead of emitting tool_calls, so it never passes the probe.)
     local pref match
-    for pref in 'qwen3-coder' 'qwen3' 'llama3.1' 'llama3' 'mistral' 'qwen2.5-coder' 'coder' 'qwen' 'phi'; do
+    for pref in 'qwen3-coder' 'qwen3' 'llama3.1' 'llama3' 'mistral' 'coder' 'qwen' 'phi'; do
         match="$(grep -m1 -iF "${pref}" <<<"${names}" || true)"
         if [[ -n "${match}" ]] && opencode::ollama::supports_tools "${match}"; then
             printf '%s' "${match}"
@@ -386,19 +387,33 @@ opencode::ensure_config() {
     local provider="${OPENCODE_DEFAULT_PROVIDER}"
     local chat_model="${OPENCODE_DEFAULT_CHAT_MODEL}"
     local completion_model="${OPENCODE_DEFAULT_COMPLETION_MODEL}"
-    local use_ollama=0
-    if [[ "${have_openrouter}" -eq 0 ]] && opencode::ollama::reachable; then
+    local use_ollama=0 ollama_reachable=0
+    if opencode::ollama::reachable; then
+        ollama_reachable=1
+    fi
+    # Use Ollama as the ACTIVE default model only when there is no usable cloud
+    # key. (The local provider block itself is still written whenever Ollama is
+    # reachable — see below — so `-m ollama/<model>` works even with a cloud key.)
+    if [[ "${have_openrouter}" -eq 0 && "${ollama_reachable}" -eq 1 ]]; then
         use_ollama=1
         provider="ollama"
         chat_model="$(opencode::ollama::pick_model)"
         completion_model="${chat_model}"
     fi
 
+    # Model declared in the local Ollama provider block: the picked model when
+    # Ollama is the active provider, otherwise the configured local default — so
+    # the block is always present and selectable on a reachable host.
+    local ollama_block_model="${OPENCODE_OLLAMA_DEFAULT_MODEL}"
+    if [[ "${use_ollama}" -eq 1 ]]; then
+        ollama_block_model="${chat_model}"
+    fi
+
     if [[ ! -f "${OPENCODE_CONFIG_FILE}" ]]; then
         log::info "Creating default OpenCode config at ${OPENCODE_CONFIG_FILE}"
         opencode::default_config_payload "${provider}" "${chat_model}" "${completion_model}" >"${OPENCODE_CONFIG_FILE}"
-        if [[ "${use_ollama}" -eq 1 ]]; then
-            opencode::config::ensure_ollama_provider "${OPENCODE_CONFIG_FILE}" "${chat_model}" "${completion_model}"
+        if [[ "${ollama_reachable}" -eq 1 ]]; then
+            opencode::config::ensure_ollama_provider "${OPENCODE_CONFIG_FILE}" "${ollama_block_model}" "${ollama_block_model}"
         fi
         return 0
     fi
@@ -457,8 +472,17 @@ opencode::ensure_config() {
         fi
     fi
 
-    if [[ "${use_ollama}" -eq 1 ]]; then
-        opencode::config::ensure_ollama_provider "${OPENCODE_CONFIG_FILE}" "${chat_model}" "${completion_model}"
+    # Write/refresh the local Ollama provider block whenever Ollama is reachable
+    # — so `-m ollama/<model>` resolves even on a host whose active default is a
+    # cloud model (use_ollama=0). If Ollama is NOT reachable but a block already
+    # exists, still migrate it so a stale block (old @ai-sdk/openai-compatible
+    # /v1 shape, or a retired model like qwen2.5-coder) self-heals to the current
+    # native + num_ctx shape. The writer preserves other model keys and only
+    # drops qwen2.5-coder, so this never clobbers a hand-picked local model.
+    if [[ "${ollama_reachable}" -eq 1 ]]; then
+        opencode::config::ensure_ollama_provider "${OPENCODE_CONFIG_FILE}" "${ollama_block_model}" "${ollama_block_model}"
+    elif jq -e '.provider.ollama' "${OPENCODE_CONFIG_FILE}" >/dev/null 2>&1; then
+        opencode::config::ensure_ollama_provider "${OPENCODE_CONFIG_FILE}" "${OPENCODE_OLLAMA_DEFAULT_MODEL}" "${OPENCODE_OLLAMA_DEFAULT_MODEL}"
     fi
 
     # Loud warning when the active provider needs a key we can't resolve and
@@ -468,11 +492,22 @@ opencode::ensure_config() {
     fi
 }
 
-# opencode::config::ensure_ollama_provider writes an OpenAI-compatible
-# Ollama provider block (npm @ai-sdk/openai-compatible, baseURL
-# http://localhost:11434/v1) into opencode.json, declaring the requested
-# models so `opencode run -m ollama/<model>` resolves. Idempotent: only
-# writes when the block is absent or differs.
+# opencode::config::ensure_ollama_provider writes the native Ollama provider
+# block into opencode.json so `opencode run -m ollama/<model>` resolves.
+#
+# It uses the native provider (npm ollama-ai-provider-v2, baseURL
+# http://localhost:11434/api) rather than the generic @ai-sdk/openai-compatible
+# /v1 shim, because the native /api/chat path: (1) parses structured tool_calls
+# reliably under streaming, and (2) accepts Ollama-native options like num_ctx.
+# The OpenAI /v1 shim cannot set num_ctx, so local models were stuck at the
+# 4096 default and thinking models truncated (finish_reason=length, output:1).
+#
+# Each managed model is declared with options.options.num_ctx (the native
+# provider reads providerOptions.ollama.options.num_ctx — hence the nested
+# options) and a matching limit.{context,output} so opencode budgets correctly.
+# Any stale qwen2.5-coder entry is dropped: that family narrates tool calls as
+# text instead of emitting tool_calls and has been retired in favour of gemma4.
+# Idempotent: only writes when the block is absent or differs.
 opencode::config::ensure_ollama_provider() {
     local config_path="${1:-${OPENCODE_CONFIG_FILE}}"
     local chat_model="${2:-${OPENCODE_OLLAMA_DEFAULT_MODEL}}"
@@ -480,8 +515,10 @@ opencode::config::ensure_ollama_provider() {
     command -v jq >/dev/null 2>&1 || return 0
     [[ -f "${config_path}" ]] || return 0
 
-    local base_url
-    base_url="$(opencode::ollama::base_url)/v1"
+    local base_url num_ctx out_limit
+    base_url="$(opencode::ollama::base_url)/api"
+    num_ctx="${OPENCODE_OLLAMA_NUM_CTX:-16384}"
+    out_limit=$(( num_ctx / 2 ))
 
     local tmp
     tmp=$(mktemp "${TMPDIR:-/tmp}/opencode-config.XXXXXX")
@@ -489,19 +526,22 @@ opencode::config::ensure_ollama_provider() {
         --arg base "${base_url}" \
         --arg chat "${chat_model}" \
         --arg small "${completion_model}" \
+        --argjson ctx "${num_ctx}" \
+        --argjson out "${out_limit}" \
         '.provider = (.provider // {})
          | .provider.ollama = (.provider.ollama // {})
-         | .provider.ollama.npm = "@ai-sdk/openai-compatible"
+         | .provider.ollama.npm = "ollama-ai-provider-v2"
          | .provider.ollama.name = "Ollama (local)"
          | .provider.ollama.options = (.provider.ollama.options // {})
          | .provider.ollama.options.baseURL = $base
          | .provider.ollama.models = (.provider.ollama.models // {})
-         | .provider.ollama.models[$chat] = (.provider.ollama.models[$chat] // {})
-         | .provider.ollama.models[$small] = (.provider.ollama.models[$small] // {})' \
+         | .provider.ollama.models |= with_entries(select(.key | test("qwen2.5-coder") | not))
+         | .provider.ollama.models[$chat] = {options: {options: {num_ctx: $ctx}}, limit: {context: $ctx, output: $out}}
+         | .provider.ollama.models[$small] = {options: {options: {num_ctx: $ctx}}, limit: {context: $ctx, output: $out}}' \
         "${config_path}" >"${tmp}" 2>/dev/null; then
         if ! cmp -s "${config_path}" "${tmp}"; then
             mv "${tmp}" "${config_path}"
-            log::info "Configured local Ollama provider in ${config_path}"
+            log::info "Configured local Ollama provider (native ollama-ai-provider-v2, num_ctx=${num_ctx}) in ${config_path}"
         else
             rm -f "${tmp}"
         fi

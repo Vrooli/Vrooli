@@ -22,3 +22,12 @@ OPENCODE_DEFAULT_COMPLETION_MODEL="deepseek/deepseek-v4-flash"
 # at config-write time and falls through its preference list if this model is
 # absent or does not return structured tool_calls (see opencode::ollama::pick_model).
 OPENCODE_OLLAMA_DEFAULT_MODEL="${OPENCODE_OLLAMA_DEFAULT_MODEL:-gemma4:12b}"
+
+# Per-model context window (num_ctx) for the local Ollama coding agent. Opencode
+# injects a large system prompt (~7.5k tokens), so the Ollama default of 4096
+# overflows before a thinking model (gemma4/qwen3) can act — every run dies
+# finish_reason=length with output:1. This value is written into opencode.json
+# per-model as provider.ollama.models[<model>].options.options.num_ctx and
+# mirrored into limit.{context,output}, so the local coder has room to reason +
+# tool-call. It layers ABOVE the global OLLAMA_CONTEXT_LENGTH daemon default.
+OPENCODE_OLLAMA_NUM_CTX="${OPENCODE_OLLAMA_NUM_CTX:-16384}"

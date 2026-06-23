@@ -87,7 +87,7 @@
     },
     "code.local": {
       "model": "gemma4:12b",
-      "fallbacks": ["qwen2.5-coder:14b", "qwen2.5-coder:7b", "codellama:7b"],
+      "fallbacks": ["llama3.1:8b", "llama3.2:3b"],
       "required_capabilities": ["generate", "code"],
       "description": "Local code-assistance role for scenarios that explicitly need code-specialized generation.",
       "preference": 60,
@@ -361,62 +361,6 @@
         }
       }
     },
-    "qwen2.5-coder:7b": {
-      "family": "qwen-coder",
-      "tags": ["2.5", "7b"],
-      "capabilities": ["generate", "chat", "code"],
-      "context_window_tokens": 32768,
-      "disk_size_gb_estimate": 4.2,
-      "ram_gb_estimate": 8.0,
-      "vram_gb_estimate": 8.0,
-      "default_eligible": false,
-      "use_case_notes": "Code-specialized fallback for hosts that cannot carry the gemma4:12b coder role target.",
-      "caveats": ["Direct use should explain why general chat/code role defaults are insufficient."],
-      "provenance": {
-        "identity": {
-          "source_kind": "manual_policy",
-          "confidence": "medium",
-          "source": "resources/ollama/docs/MODELS.md",
-          "observed_at": "2026-06-10",
-          "sample_count": 0
-        },
-        "capacity_estimates": {
-          "source_kind": "static_estimate",
-          "confidence": "medium",
-          "source": "resources/ollama/docs/MODELS.md download-size guidance; pending measured profile ingestion",
-          "observed_at": "2026-06-10",
-          "sample_count": 0
-        }
-      }
-    },
-    "qwen2.5-coder:14b": {
-      "family": "qwen-coder",
-      "tags": ["2.5", "14b"],
-      "capabilities": ["generate", "chat", "code"],
-      "context_window_tokens": 32768,
-      "disk_size_gb_estimate": 9.0,
-      "ram_gb_estimate": 16.0,
-      "vram_gb_estimate": 16.0,
-      "default_eligible": false,
-      "use_case_notes": "Higher-quality prior-generation local code model retained as the first code.local fallback.",
-      "caveats": ["Usually too large for the default 12 GiB Ollama container budget; capacity planner should flag this unless the runtime budget is raised."],
-      "provenance": {
-        "identity": {
-          "source_kind": "scenario_pin",
-          "confidence": "medium",
-          "source": "agent-manager manifest inventory",
-          "observed_at": "2026-06-10",
-          "sample_count": 0
-        },
-        "capacity_estimates": {
-          "source_kind": "static_estimate",
-          "confidence": "low",
-          "source": "manual 14B model estimate pending Ollama /api/show and measured profile ingestion",
-          "observed_at": "2026-06-10",
-          "sample_count": 0
-        }
-      }
-    },
     "codellama:7b": {
       "family": "codellama",
       "tags": ["7b"],
@@ -427,7 +371,7 @@
       "vram_gb_estimate": 8.0,
       "default_eligible": false,
       "use_case_notes": "Legacy code-specialized fallback retained for existing model-orchestration manifests.",
-      "caveats": ["Prefer gemma4:12b / qwen2.5-coder role targets for new code workflows."],
+      "caveats": ["Prefer the gemma4:12b code.local role target for new code workflows; codellama:7b cannot emit structured tool calls and is unsuitable for agentic/tool use."],
       "provenance": {
         "identity": {
           "source_kind": "scenario_pin",

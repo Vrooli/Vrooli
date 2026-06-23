@@ -66,7 +66,7 @@ instead of hard-coding concrete model names:
 | `chat.default` | `qwen3:4b` | default local chat/synthesis |
 | `summarize.default` | `qwen3:4b` | text distillation and summaries |
 | `rerank.llm_fallback` | `qwen3:4b` | fallback reranking when the reranker resource is unavailable |
-| `code.local` | `qwen2.5-coder:14b` | local code-specialized generation |
+| `code.local` | `gemma4:12b` | local code-specialized generation (tool-calling capable) |
 
 The catalog includes static capacity estimates today. Each estimate carries
 provenance and confidence so later `/api/show`, `/api/ps`, and measured-profile
@@ -94,8 +94,8 @@ Direct concrete models remain an escape hatch, not the preferred path. Use
 ```json
 "models": [
   {
-    "name": "qwen2.5-coder",
-    "tag": "14b",
+    "name": "gemma4",
+    "tag": "12b",
     "reason": "code-specialized local generation",
     "owner": "agent-manager",
     "review_after": "2026-09-01"

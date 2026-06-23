@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.snapshot;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/snapshot;snapshot_v1";
+
+// SnapshotService owns read-only network health measurements.
+service SnapshotService {
+  rpc RunSnapshot(RunSnapshotRequest) returns (RunSnapshotResponse);
+  rpc ListSnapshots(ListSnapshotsRequest) returns (ListSnapshotsResponse);
+  rpc GetSnapshot(GetSnapshotRequest) returns (GetSnapshotResponse);
+  rpc ExportSnapshotReport(ExportSnapshotReportRequest) returns (ExportSnapshotReportResponse);
+}
+
+message Snapshot {
+  string id = 1;
+  string status = 2;
+  string profile = 3;
+  string summary = 4;
+  repeated Metric metrics = 5;
+  repeated string findings = 6;
+  string created_at = 7;
+}
+
+message Metric {
+  string name = 1;
+  string value = 2;
+  string unit = 3;
+  string status = 4;
+}
+
+message RunSnapshotRequest {
+  string profile = 1;
+  bool dry_run = 2;
+}
+
+message RunSnapshotResponse {
+  Snapshot snapshot = 1;
+}
+
+message ListSnapshotsRequest {
+}
+
+message ListSnapshotsResponse {
+  repeated Snapshot snapshots = 1;
+}
+
+message GetSnapshotRequest {
+  string id = 1;
+}
+
+message GetSnapshotResponse {
+  Snapshot snapshot = 1;
+}
+
+message ExportSnapshotReportRequest {
+  string id = 1;
+  string format = 2;
+}
+
+message ExportSnapshotReportResponse {
+  string id = 1;
+  string format = 2;
+  string report = 3;
+}

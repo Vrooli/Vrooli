@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.policy;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy;policy_v1";
+
+// PolicyService owns DNS filtering policy previews and approved changes.
+service PolicyService {
+  rpc PreviewPolicyChange(PreviewPolicyChangeRequest) returns (PreviewPolicyChangeResponse);
+  rpc ApplyPolicyChange(ApplyPolicyChangeRequest) returns (ApplyPolicyChangeResponse);
+  rpc RollbackPolicyChange(RollbackPolicyChangeRequest) returns (RollbackPolicyChangeResponse);
+  rpc PauseFiltering(PauseFilteringRequest) returns (PauseFilteringResponse);
+  rpc ResumeFiltering(ResumeFilteringRequest) returns (ResumeFilteringResponse);
+}
+
+message PolicyChange {
+  string id = 1;
+  string target = 2;
+  string action = 3;
+  string status = 4;
+  repeated string effects = 5;
+  bool rollback_supported = 6;
+}
+
+message PreviewPolicyChangeRequest {
+  string target = 1;
+  string action = 2;
+  repeated string values = 3;
+}
+
+message PreviewPolicyChangeResponse {
+  PolicyChange preview = 1;
+}
+
+message ApplyPolicyChangeRequest {
+  string preview_id = 1;
+  bool approved = 2;
+}
+
+message ApplyPolicyChangeResponse {
+  PolicyChange change = 1;
+}
+
+message RollbackPolicyChangeRequest {
+  string id = 1;
+}
+
+message RollbackPolicyChangeResponse {
+  PolicyChange change = 1;
+}
+
+message PauseFilteringRequest {
+  string target = 1;
+  string duration = 2;
+}
+
+message PauseFilteringResponse {
+  PolicyChange change = 1;
+}
+
+message ResumeFilteringRequest {
+  string target = 1;
+}
+
+message ResumeFilteringResponse {
+  PolicyChange change = 1;
+}

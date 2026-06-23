@@ -63,7 +63,7 @@ func TestBuildReportResolvesScenarioRolesAndBudgets(t *testing.T) {
 	if len(report.Scenarios) != 1 {
 		t.Fatalf("Scenarios len = %d, want 1", len(report.Scenarios))
 	}
-	if got, want := strings.Join(report.Scenarios[0].Models, ","), "nomic-embed-text:latest,qwen3:4b"; got != want {
+	if got, want := strings.Join(report.Scenarios[0].Models, ","), "nomic-embed-text:latest,qwen3.5:9b"; got != want {
 		t.Fatalf("resolved models = %q, want %q", got, want)
 	}
 	if report.Totals.DistinctModels != 2 {
@@ -76,13 +76,22 @@ func TestBuildReportResolvesScenarioRolesAndBudgets(t *testing.T) {
 
 func TestBuildReportFlagsDirectModelsAndBudgetFailure(t *testing.T) {
 	root := testRoot(t)
+	// Shrink the runtime memory budget below the direct model's footprint so the
+	// oversized-direct-model budget-failure path fires. gemma4:12b is ~12 GB, so
+	// an 8 GB runtime limit makes the resident estimate exceed the budget. (This
+	// no longer relies on a specific too-big catalog model — qwen2.5-coder:14b,
+	// which it used to use, was retired.)
+	if err := os.WriteFile(filepath.Join(root, "resources", "ollama", "resource.json"),
+		[]byte(`{"runtime":{"memory_limit":"8g","env":{"OLLAMA_NUM_PARALLEL":"4","OLLAMA_MAX_LOADED_MODELS":"3"}}}`), 0o644); err != nil {
+		t.Fatalf("write resource manifest: %v", err)
+	}
 	writeScenario(t, root, "agent-manager", `{
 	  "dependencies": {
 	    "resources": {
 	      "ollama": {
 	        "type": "ollama",
 	        "enabled": true,
-	        "models": ["qwen2.5-coder:14b"]
+	        "models": ["gemma4:12b"]
 	      }
 	    }
 	  }

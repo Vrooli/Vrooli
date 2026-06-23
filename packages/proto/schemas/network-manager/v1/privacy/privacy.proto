@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package vrooli.network_manager.v1.privacy;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/privacy;privacy_v1";
+
+// PrivacyService owns retention and visibility defaults for sensitive network data.
+service PrivacyService {
+  rpc GetRetentionSettings(GetRetentionSettingsRequest) returns (GetRetentionSettingsResponse);
+  rpc UpdateRetentionSettings(UpdateRetentionSettingsRequest) returns (UpdateRetentionSettingsResponse);
+  rpc GetVisibilitySettings(GetVisibilitySettingsRequest) returns (GetVisibilitySettingsResponse);
+}
+
+message RetentionSettings {
+  int32 query_log_days = 1;
+  int32 snapshot_days = 2;
+  int32 experiment_days = 3;
+  string profile = 4;
+}
+
+message VisibilitySettings {
+  bool show_query_domains = 1;
+  bool show_device_history = 2;
+  bool household_mode = 3;
+  repeated string notes = 4;
+}
+
+message GetRetentionSettingsRequest {
+}
+
+message GetRetentionSettingsResponse {
+  RetentionSettings settings = 1;
+}
+
+message UpdateRetentionSettingsRequest {
+  RetentionSettings settings = 1;
+}
+
+message UpdateRetentionSettingsResponse {
+  RetentionSettings settings = 1;
+}
+
+message GetVisibilitySettingsRequest {
+}
+
+message GetVisibilitySettingsResponse {
+  VisibilitySettings settings = 1;
+}
