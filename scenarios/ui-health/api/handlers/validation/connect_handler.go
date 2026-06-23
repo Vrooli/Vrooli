@@ -23,6 +23,13 @@ type Deps struct {
 	Logger       *log.Logger
 	Validator    Validator
 	MaturitySpec *assessment.Spec
+	// Fixer drives the deterministic auto-fix RPCs (PreviewFix/ApplyFix) and
+	// supplies the per-finding AutofixAvailable signal. nil disables fixing
+	// (PreviewFix/ApplyFix return Unimplemented; findings report no autofix).
+	Fixer FixProvider
+	// RepoRoot is the repository root used to resolve a scenario's directory for
+	// fix operations and the runtime AutofixAvailable check.
+	RepoRoot string
 	// Environment is the host CaptureEnvironment captured once at module init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
 	// backfills os/arch/num_cpu from the stdlib.
@@ -59,6 +66,14 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	// Compose the static UI-interop check group into the same report (ui-health
+	// is the single authority for these rules), then enrich every finding with
+	// its fix classification and the live AutofixAvailable signal before the
+	// assessment is built, so the maturity finding and the conformance rollup
+	// carry an honest autofix flag.
+	root := h.resolveScenarioRoot(req.Msg.GetScenario(), req.Msg.GetPath())
+	report.Findings = append(report.Findings, runInteropFindings(root, req.Msg.GetScenario())...)
+	enrichAutofix(&report, h.deps.Fixer, root)
 	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
 	if err != nil {
 		collector.Stop()
@@ -79,12 +94,14 @@ func buildMaturityAssessment(rep manifestvalidation.Report, spec *assessment.Spe
 	findings := make([]assessment.Finding, 0, len(rep.Findings))
 	for _, f := range rep.Findings {
 		findings = append(findings, assessment.Finding{
-			Code:        f.Code,
-			Severity:    severityToken(f.Severity),
-			Message:     f.Message,
-			Location:    f.Location,
-			Remediation: f.Suggestion,
-			Phase:       spec.Phase,
+			Code:             f.Code,
+			Severity:         severityToken(f.Severity),
+			Message:          f.Message,
+			Location:         f.Location,
+			Remediation:      f.Suggestion,
+			Phase:            spec.Phase,
+			FixClass:         f.FixClass,
+			AutofixAvailable: f.AutofixAvailable,
 		})
 	}
 	return assessment.BuildProtoAssessment(assessment.BuildInput{

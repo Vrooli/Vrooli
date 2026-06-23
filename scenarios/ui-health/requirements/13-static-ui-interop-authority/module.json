@@ -1,0 +1,95 @@
+{
+  "description": "ui-health is the single authority for every static UI-interop check. app-monitor must consume the `InteropComplianceReport` API-to-API over `api-core/discovery` rather than re-implementing interop checks, and must degrade to an \"interop unavailable\" state if ui-health is down rather than failing or producing false results.",
+  "module_id": "MOD-P0-013",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "All static UI-interop checks must run from within ui-health and be exposed via an `InteropComplianceReport`. No other scenario may hand-roll a duplicate static interop check; ui-health is the single source of truth for interop compliance.",
+      "id": "REQ-P0-011",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "All static UI-interop checks run from ui-health",
+      "validation": [
+        {
+          "notes": "ui-health produces an InteropComplianceReport covering every static interop check",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Each interop check is registered exactly once within ui-health's check registry",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run ui-health against a scenario with an interop violation and confirm the InteropComplianceReport reports it",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "ui-health is the single authority for static UI-interop compliance; no duplicate interop check exists in another scenario",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-011"
+      ],
+      "description": "app-monitor must consume the `InteropComplianceReport` from ui-health over Connect via `api-core/discovery`. When ui-health is unreachable, app-monitor must degrade gracefully to an \"interop unavailable\" state instead of erroring or reporting false compliance.",
+      "id": "REQ-P0-012",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "app-monitor consumes report over Connect and degrades gracefully",
+      "validation": [
+        {
+          "notes": "app-monitor resolves ui-health via api-core/discovery and fetches the InteropComplianceReport over Connect",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "When ui-health is unreachable, app-monitor surfaces interop unavailable rather than an error or false compliance",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "With ui-health running, app-monitor reflects the InteropComplianceReport contents end-to-end",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "With ui-health stopped, app-monitor reports interop unavailable and remains functional",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "app-monitor does not maintain its own copy of interop logic; it is purely a consumer of ui-health's report",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Static UI-interop authority"
+}

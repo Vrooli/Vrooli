@@ -16,7 +16,19 @@
     "08-widgetdeclaration-contract-defined/module.json",
     "09-ui-inspection-surface/module.json",
     "10-framework-dispatch-resolver-is-data-driv/module.json",
-    "11-widget-standard-consumer-integration/module.json"
+    "11-widget-standard-consumer-integration/module.json",
+    "12-single-consolidated-ui-validation-report/module.json",
+    "13-static-ui-interop-authority/module.json",
+    "14-bundle-freshness-via-canonical-engine/module.json",
+    "15-runtime-render-validation-via-bas/module.json",
+    "16-graceful-degradation-and-static-only/module.json",
+    "17-code-facts-driven-ui-gating/module.json",
+    "18-deterministic-auto-fix/module.json",
+    "19-i18n-locale-parity-standard/module.json",
+    "20-design-token-theming-standard/module.json",
+    "21-accessibility-axe-wcag-standard/module.json",
+    "22-favicon-webmanifest-viewport-standard/module.json",
+    "23-strict-config-react-stability-lint-standard/module.json"
   ],
   "modules": [
     {
@@ -84,6 +96,78 @@
       "path": "11-widget-standard-consumer-integration",
       "priority": "P2",
       "title": "Widget standard consumer integration"
+    },
+    {
+      "id": "MOD-P0-012",
+      "path": "12-single-consolidated-ui-validation-report",
+      "priority": "P0",
+      "title": "Single consolidated UI-validation report"
+    },
+    {
+      "id": "MOD-P0-013",
+      "path": "13-static-ui-interop-authority",
+      "priority": "P0",
+      "title": "Static UI-interop authority"
+    },
+    {
+      "id": "MOD-P0-014",
+      "path": "14-bundle-freshness-via-canonical-engine",
+      "priority": "P0",
+      "title": "Bundle freshness via canonical engine"
+    },
+    {
+      "id": "MOD-P0-015",
+      "path": "15-runtime-render-validation-via-bas",
+      "priority": "P0",
+      "title": "Runtime/render validation via BAS"
+    },
+    {
+      "id": "MOD-P0-016",
+      "path": "16-graceful-degradation-and-static-only",
+      "priority": "P0",
+      "title": "Graceful degradation + --static-only"
+    },
+    {
+      "id": "MOD-P0-017",
+      "path": "17-code-facts-driven-ui-gating",
+      "priority": "P0",
+      "title": "Code-facts-driven UI gating"
+    },
+    {
+      "id": "MOD-P0-018",
+      "path": "18-deterministic-auto-fix",
+      "priority": "P0",
+      "title": "Deterministic auto-fix"
+    },
+    {
+      "id": "MOD-P1-019",
+      "path": "19-i18n-locale-parity-standard",
+      "priority": "P1",
+      "title": "i18n locale-parity standard"
+    },
+    {
+      "id": "MOD-P1-020",
+      "path": "20-design-token-theming-standard",
+      "priority": "P1",
+      "title": "design-token / theming standard"
+    },
+    {
+      "id": "MOD-P1-021",
+      "path": "21-accessibility-axe-wcag-standard",
+      "priority": "P1",
+      "title": "accessibility (axe/WCAG) standard"
+    },
+    {
+      "id": "MOD-P1-022",
+      "path": "22-favicon-webmanifest-viewport-standard",
+      "priority": "P1",
+      "title": "favicon / webmanifest / viewport standard"
+    },
+    {
+      "id": "MOD-P1-023",
+      "path": "23-strict-config-react-stability-lint-standard",
+      "priority": "P1",
+      "title": "strict-config + react-stability lint standard"
     }
   ]
 }

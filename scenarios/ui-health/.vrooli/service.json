@@ -217,6 +217,22 @@
         "startup_policy": "try_start",
         "description": "Implements InventoryService.ScanScenario for React scenarios; ui-health dispatches per-scenario UI scans to it over Connect-RPC.",
         "degraded_behavior": "React scenarios are skipped during reindex; validation findings still emit."
+      },
+      "browser-automation-studio": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Drives the target UI in a real browser over Connect-RPC (CaptureService.Capture + Workflows/Executions) for the runtime/render check group: handshake, storage-shim, console errors, asset/proxy load, theme apply, axe/WCAG, shortcut relay, spatial focus.",
+        "degraded_behavior": "Runtime/render checks are reported skipped (resource unavailable); all static check groups still run and report."
+      },
+      "code-facts": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Static UI-existence / framework authority (CodeFactsService.DescribeCodeFacts) used to gate UI checks by surface presence and framework, replacing hand-rolled directory/port probing.",
+        "degraded_behavior": "UI-presence gating falls back to manifest/on-disk heuristics; validation still emits."
       }
     },
     "resources": {

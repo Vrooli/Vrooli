@@ -11,10 +11,24 @@
           "name": "scenario",
           "description": "Validate a single scenario by id",
           "positionals": [
-            { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario id (directory name under scenarios/)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -26,20 +40,51 @@
           "name": "query",
           "description": "Search the indexed corpus by natural-language text",
           "positionals": [
-            { "name": "text", "required": true, "description": "Natural-language query" }
+            {
+              "name": "text",
+              "required": true,
+              "description": "Natural-language query"
+            }
           ],
           "flags": [
-            { "name": "limit", "default": "10", "description": "Maximum results to return" },
-            { "name": "mode", "description": "Force a retrieval mode: ai | text (default lets the server choose)" }
+            {
+              "name": "limit",
+              "default": "10",
+              "description": "Maximum results to return"
+            },
+            {
+              "name": "mode",
+              "description": "Force a retrieval mode: ai | text (default lets the server choose)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "SearchService", "method": "Search" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "status",
           "description": "Report search backend availability (ollama, qdrant, indexed count)",
-          "binding": { "kind": "connect-rpc", "service": "SearchService", "method": "Status" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -51,29 +96,162 @@
           "name": "run",
           "description": "Start a reindex job",
           "flags": [
-            { "name": "scenario", "description": "Limit to a single scenario; empty means all" },
-            { "name": "dry-run", "bool": true, "description": "Compute planned upserts/deletes without writing" }
+            {
+              "name": "scenario",
+              "description": "Limit to a single scenario; empty means all"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Compute planned upserts/deletes without writing"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "Reindex" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReindexService",
+            "method": "Reindex"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "status",
           "description": "Poll a reindex job's progress",
           "positionals": [
-            { "name": "job_id", "required": true, "description": "Job id returned by `reindex run`" }
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "ReindexStatus" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReindexService",
+            "method": "ReindexStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "cancel",
           "description": "Request cooperative cancellation of an in-flight reindex job",
           "positionals": [
-            { "name": "job_id", "required": true, "description": "Job id returned by `reindex run`" }
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ReindexService", "method": "ReindexCancel" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReindexService",
+            "method": "ReindexCancel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Preview or apply ui-health's deterministic UI auto-fixes for a scenario's auto-fixable findings",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Preview (or, with --apply, apply) deterministic UI fixes for a scenario's auto-fixable findings",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the fixes (default is a dry-run preview)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply deterministic UI fixes for a scenario's auto-fixable findings",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
         }
       ]
     }

@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"ui-health/cli/domains/fix"
 	"ui-health/cli/domains/reindex"
 	"ui-health/cli/domains/search"
 	"ui-health/cli/domains/validate"
@@ -28,5 +29,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{validateGroup, searchGroup, reindexGroup}, nil
+	fixGroup, err := fix.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{validateGroup, searchGroup, reindexGroup, fixGroup}, nil
 }

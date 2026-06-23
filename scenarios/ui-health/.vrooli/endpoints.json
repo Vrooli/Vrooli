@@ -197,6 +197,68 @@
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
         }
       ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview ui-health's deterministic UI auto-fixes for a scenario",
+      "description": "Previews (dry-run) the safe mechanical remediations ui-health can apply to a scenario's auto-fixable UI findings, returning candidate edits without writing.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional, explicit scenario root)",
+          "rule_ids": "string[] (optional, restrict to finding codes)",
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool (false for preview)",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Preview fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply ui-health's deterministic UI auto-fixes for a scenario",
+      "description": "Writes the safe mechanical remediations ui-health can apply to a scenario's auto-fixable UI findings. Idempotent: re-applying a fixed scenario yields no candidates.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string (optional, explicit scenario root)",
+          "rule_ids": "string[] (optional, restrict to finding codes)",
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool (true)",
+          "candidates": "scenario_validation.v1.FixCandidate[]",
+          "messages": "string[]",
+          "scenario": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Apply fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
     }
   ]
 }

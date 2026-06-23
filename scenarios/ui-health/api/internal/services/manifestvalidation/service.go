@@ -38,6 +38,14 @@ type Finding struct {
 	Location   string
 	Message    string
 	Suggestion string
+	// FixClass and AutofixAvailable are enriched by the validation handler after
+	// validation (they live here, not on the validator, to keep the
+	// manifestvalidation package free of an autofix dependency — see
+	// handlers/validation/connect_handler.go). FixClass is the provider fix
+	// classification ("autofix"/"detection_only"); AutofixAvailable is true only
+	// when a registered fixer can currently remediate this specific finding.
+	FixClass         string
+	AutofixAvailable bool
 }
 
 // Summary counts findings by severity.

@@ -5,6 +5,7 @@ import (
 	"log"
 	"path/filepath"
 
+	"ui-health/internal/autofix"
 	"ui-health/internal/module"
 	"ui-health/internal/services/manifestvalidation"
 
@@ -42,6 +43,8 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		Logger:       logger,
 		Validator:    validator,
 		MaturitySpec: spec,
+		Fixer:        autofix.New(validator),
+		RepoRoot:     repoRoot,
 		Environment:  environment,
 	}))
 	return module.Module{
@@ -78,6 +81,54 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"},
+		},
+	},
+	{
+		ID:          "validation_preview_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		Method:      "POST",
+		Summary:     "Preview ui-health's deterministic UI auto-fixes for a scenario",
+		Description: "Previews (dry-run) the safe mechanical remediations ui-health can apply to a scenario's auto-fixable UI findings, returning candidate edits without writing.",
+		Category:    "validation",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"scenario": "string (required, scenario id)", "path": "string (optional, explicit scenario root)", "rule_ids": "string[] (optional, restrict to finding codes)"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario":   "string",
+				"applied":    "bool (false for preview)",
+				"candidates": "scenario_validation.v1.FixCandidate[]",
+				"messages":   "string[]",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Preview fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"},
+		},
+	},
+	{
+		ID:          "validation_apply_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		Method:      "POST",
+		Summary:     "Apply ui-health's deterministic UI auto-fixes for a scenario",
+		Description: "Writes the safe mechanical remediations ui-health can apply to a scenario's auto-fixable UI findings. Idempotent: re-applying a fixed scenario yields no candidates.",
+		Category:    "validation",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"scenario": "string (required, scenario id)", "path": "string (optional, explicit scenario root)", "rule_ids": "string[] (optional, restrict to finding codes)"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenario":   "string",
+				"applied":    "bool (true)",
+				"candidates": "scenario_validation.v1.FixCandidate[]",
+				"messages":   "string[]",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Apply fixes", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"},
 		},
 	},
 }
