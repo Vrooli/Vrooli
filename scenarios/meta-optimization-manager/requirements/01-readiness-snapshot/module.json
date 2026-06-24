@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "module": "readiness-snapshot",
+    "description": "OT-P0-001 — one-call readiness snapshot across the three projections + empirical trend.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MOM-READINESS-001",
+      "title": "status returns per-projection coverage + denominator-confidence + empirical trend",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "coverage",
+      "description": "The status command/RPC aggregates each projection's coverage (computed live from the owner's `space --projection` verb joined against the live registries) with its denominator-confidence and the latest trials trend, in a single call.",
+      "tags": ["coverage", "status", "aggregator"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: coverage joins denominator (space verb) against numerator (live registries); target api/internal/coverage." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: status output shape (typed proto-JSON); target cli/domains/coverage." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: status against live owner scenarios; target bas/cases/coverage." }
+      ]
+    },
+    {
+      "id": "MOM-READINESS-002",
+      "title": "coverage computed live, never stored; degrades gracefully when an owner is down",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "coverage",
+      "description": "The numerator is never persisted; when a denominator owner or registry is unreachable, the affected projection reports 'unavailable' rather than failing the whole snapshot.",
+      "tags": ["coverage", "graceful-degradation"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: owner-down path yields per-projection unavailable, not error." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: degraded-owner snapshot stays partial, not failed." }
+      ]
+    }
+  ]
+}

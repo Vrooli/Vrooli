@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "module": "foundation",
+    "description": "Starter requirements that keep generated scenarios valid until the PRD-specific registry is generated.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "FOUND-001",
+      "title": "Replace starter requirements with PRD-specific operational targets",
+      "status": "planned",
+      "prd_ref": "PRD.md",
+      "category": "foundation",
+      "criticality": "P0",
+      "description": "This generated scenario must replace the template starter registry with requirements generated from its own PRD before product implementation begins.",
+      "tags": [
+        "template-starter",
+        "requirements"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Run `prd-control-tower requirements generate meta-optimization-manager` after Gate 1 in docs/START-HERE.md, then remove or replace this starter requirement."
+        }
+      ]
+    }
+  ]
+}

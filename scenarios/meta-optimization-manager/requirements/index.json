@@ -1,0 +1,17 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking meta-optimization-manager operational targets to technical requirements.",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-readiness-snapshot/module.json",
+    "02-focus/module.json",
+    "03-gaps-registry/module.json",
+    "04-base-doc-integrity/module.json",
+    "05-trials/module.json",
+    "06-convergence/module.json",
+    "07-ui-dashboard/module.json",
+    "08-attested-search/module.json"
+  ]
+}

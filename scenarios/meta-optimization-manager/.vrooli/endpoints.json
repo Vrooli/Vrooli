@@ -1,0 +1,253 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "object",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.meta_optimization_manager.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.meta_optimization_manager.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "notes_list",
+      "path": "/vrooli.meta_optimization_manager.v1.notes.NotesService/ListNotes",
+      "method": "POST",
+      "summary": "List notes",
+      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
+      "category": "notes",
+      "response": {
+        "type": "object",
+        "properties": {
+          "notes": "array<Note>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List notes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.meta_optimization_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "notes_create",
+      "path": "/vrooli.meta_optimization_manager.v1.notes.NotesService/CreateNote",
+      "method": "POST",
+      "summary": "Create a note",
+      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "body": "string",
+          "title": "string (required, non-whitespace)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "note": "Note"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or whitespace-only title"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create note",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.meta_optimization_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
+        }
+      ]
+    },
+    {
+      "id": "notes_get",
+      "path": "/vrooli.meta_optimization_manager.v1.notes.NotesService/GetNote",
+      "method": "POST",
+      "summary": "Get a note by id",
+      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "note": "Note"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No note with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get note",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.meta_optimization_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "notes_count",
+      "path": "/vrooli.meta_optimization_manager.v1.notes.NotesService/CountNotes",
+      "method": "POST",
+      "summary": "Count notes in a time window",
+      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (notes created in the window)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unresolvable or malformed time window"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Count this week",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.meta_optimization_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "notes_attach",
+      "path": "/api/v1/notes/{id}/attachments",
+      "method": "POST",
+      "summary": "Upload a note attachment",
+      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
+      "category": "notes",
+      "request": {
+        "type": "multipart/form-data",
+        "properties": {
+          "file": "file (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "attachment": "Attachment"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Missing file or invalid multipart upload"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No note with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "BlobStore or metadata persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Attach file",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+        }
+      ],
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.meta_optimization_manager.v1.notes.UploadAttachmentResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.meta_optimization_manager.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    }
+  ]
+}
