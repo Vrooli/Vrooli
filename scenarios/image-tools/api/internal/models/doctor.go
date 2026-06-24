@@ -93,6 +93,48 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 	return CatalogDoctorReport{OK: ok, Findings: findings}
 }
 
+// RegistryLint checks the fetch-strategy contract over EVERY row (enabled and
+// disabled), so a landing-page-only stub cannot ship undetected — it is caught in
+// `go test` / `models registry-lint`, not at a user's failed install. The rule:
+// a weight-backed model must declare a concrete fetch strategy (assets[]/repo/
+// local_path) OR be honestly marked source.manual. download_url is never a fetch
+// strategy (it is documentation-only). An enabled offender is an error; a disabled
+// one a warning (it must be fixed before it can be enabled).
+func (r *Registry) RegistryLint() CatalogDoctorReport {
+	var findings []CatalogFinding
+	for _, m := range r.models {
+		if f := fetchStrategyFinding(m); f != nil {
+			findings = append(findings, *f)
+		}
+	}
+	ok := true
+	for _, f := range findings {
+		if f.Severity == FindingError {
+			ok = false
+			break
+		}
+	}
+	return CatalogDoctorReport{OK: ok, Findings: findings}
+}
+
+// fetchStrategyFinding returns a finding when a weight-backed model has no
+// concrete, auto-resolvable install source and is not honestly marked manual.
+func fetchStrategyFinding(m Model) *CatalogFinding {
+	if !m.RequiresWeights() || m.HasFetchStrategy() || m.Source.Manual {
+		return nil
+	}
+	sev := FindingWarning
+	if m.Enabled {
+		sev = FindingError
+	}
+	return &CatalogFinding{
+		Severity: sev,
+		Code:     "model_without_fetch_strategy",
+		ModelID:  m.ID,
+		Message:  "weight-backed model declares no assets[]/repo/local_path and is not marked source.manual; its download_url is documentation-only and is never fetched — add a concrete fetch source or set source.manual",
+	}
+}
+
 func doctorModelInstallable(m Model, add func(CatalogFinding)) bool {
 	if !m.Enabled {
 		return false

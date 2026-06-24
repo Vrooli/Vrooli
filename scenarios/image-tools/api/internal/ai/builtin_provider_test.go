@@ -18,7 +18,7 @@ import (
 
 func TestRegisterProviders_PromotesInProcessBackendFamilies(t *testing.T) {
 	reg := backends.New()
-	if err := RegisterProviders(reg, func(string) (string, error) { return "/bin/x", nil }, nil); err != nil {
+	if err := RegisterProviders(reg, func(string) (string, error) { return "/bin/x", nil }, nil, ""); err != nil {
 		t.Fatalf("register providers: %v", err)
 	}
 

@@ -32,7 +32,7 @@ func (f *fakeWarmRunner) Close() error { return nil }
 // boot-time backends.Validate invariant holds.
 func TestRegisterProviders_SatisfiesBootInvariant(t *testing.T) {
 	reg := backends.New()
-	if err := RegisterProviders(reg, func(string) (string, error) { return "/bin/x", nil }, nil); err != nil {
+	if err := RegisterProviders(reg, func(string) (string, error) { return "/bin/x", nil }, nil, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	if err := reg.Validate(); err != nil {
@@ -45,11 +45,77 @@ func TestRegisterProviders_SatisfiesBootInvariant(t *testing.T) {
 	}
 }
 
+// TestProgramName_PythonUsesVenvInterpreter proves the isolation seam: a Python
+// backend invokes the scenario's absolute venv interpreter when one is set, falls
+// back to bare "python3" when it is not, and a non-Python backend is never
+// rewritten to the interpreter (its alias/PATH resolution is untouched).
+func TestProgramName_PythonUsesVenvInterpreter(t *testing.T) {
+	const venv = "/data/image-tools/pyenv/bin/python"
+
+	py := &execProvider{name: "diffusers", program: "python3", pythonInterpreter: venv}
+	if got := py.programName(); got != venv {
+		t.Errorf("python backend with venv: programName() = %q, want %q", got, venv)
+	}
+
+	pyNoVenv := &execProvider{name: "diffusers", program: "python3"}
+	if got := pyNoVenv.programName(); got != "python3" {
+		t.Errorf("python backend without venv must fall back to PATH python3, got %q", got)
+	}
+
+	// A non-python backend must ignore the interpreter entirely.
+	sd := &execProvider{name: "sd", program: "sd", pythonInterpreter: venv}
+	if got := sd.programName(); got != "sd" {
+		t.Errorf("non-python backend must not use the venv interpreter, got %q", got)
+	}
+
+	// GPU-alias resolution for non-python backends is unaffected by the seam.
+	sdGPU := &execProvider{
+		name: "sd", program: "sd", programAliases: []string{"sd-gpu"}, pythonInterpreter: venv,
+		lookPath: func(f string) (string, error) {
+			if f == "sd-gpu" {
+				return "/usr/bin/sd-gpu", nil
+			}
+			return "", errors.New("not found")
+		},
+	}
+	if got := sdGPU.programName(); got != "sd-gpu" {
+		t.Errorf("alias resolution broken by seam: got %q, want sd-gpu", got)
+	}
+}
+
+// TestRegisterProviders_ThreadsInterpreterToPythonBackendsOnly proves the venv
+// interpreter reaches every Python backend and no binary backend.
+func TestRegisterProviders_ThreadsInterpreterToPythonBackendsOnly(t *testing.T) {
+	reg := backends.New()
+	const venv = "/data/pyenv/bin/python"
+	if err := RegisterProviders(reg, func(string) (string, error) { return venv, nil }, nil, venv); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	for _, s := range providerSpecs() {
+		for _, p := range reg.Providers(s.ops[0]) {
+			ep, ok := p.(*execProvider)
+			if !ok || ep.name != s.name {
+				continue
+			}
+			if s.isPython() {
+				if ep.pythonInterpreter != venv {
+					t.Errorf("python backend %q did not receive venv interpreter (got %q)", s.name, ep.pythonInterpreter)
+				}
+				if ep.programName() != venv {
+					t.Errorf("python backend %q programName = %q, want venv", s.name, ep.programName())
+				}
+			} else if ep.pythonInterpreter != "" {
+				t.Errorf("binary backend %q must not carry a venv interpreter (got %q)", s.name, ep.pythonInterpreter)
+			}
+		}
+	}
+}
+
 // TestExecProvider_Availability proves availability tracks the program on PATH.
 func TestExecProvider_Availability(t *testing.T) {
 	reg := backends.New()
 	missing := func(string) (string, error) { return "", errors.New("not found") }
-	if err := RegisterProviders(reg, missing, nil); err != nil {
+	if err := RegisterProviders(reg, missing, nil, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	for _, p := range reg.Providers("upscale") {

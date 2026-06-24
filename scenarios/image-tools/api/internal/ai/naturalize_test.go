@@ -164,7 +164,7 @@ func TestNaturalize_EngineVertical(t *testing.T) {
 		t.Fatalf("load registry: %v", err)
 	}
 	backendReg := backends.New()
-	if err := RegisterProviders(backendReg, func(string) (string, error) { return "/bin/x", nil }, nil); err != nil {
+	if err := RegisterProviders(backendReg, func(string) (string, error) { return "/bin/x", nil }, nil, ""); err != nil {
 		t.Fatalf("register providers: %v", err)
 	}
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())

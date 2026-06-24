@@ -7,9 +7,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	internalai "image-tools/internal/ai"
 	internalanalysis "image-tools/internal/analysis"
@@ -22,6 +24,8 @@ import (
 	internalmeasures "image-tools/internal/measures"
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/modules"
+	"image-tools/internal/pydeps"
+	"image-tools/internal/pyenv"
 	"image-tools/internal/safety"
 	"image-tools/internal/server"
 	"image-tools/internal/sidecar"
@@ -299,16 +303,53 @@ func main() {
 	// `python3 -m image_tools_sidecar.<op>` invocations resolve regardless of the
 	// process working directory. The runtime packages it imports (onnxruntime,
 	// Pillow, numpy) are host provisioning — see docs/reference/backends.md.
-	if sidecarPath, scErr := sidecar.EnsureOnPath(filepath.Join(modelsRoot, "sidecar")); scErr != nil {
+	var sidecarPath string
+	if p, scErr := sidecar.EnsureOnPath(filepath.Join(modelsRoot, "sidecar")); scErr != nil {
 		log.Printf("WARNING: sidecar materialize failed (%v); onnxruntime AI ops will be unavailable", scErr)
 	} else {
+		sidecarPath = p
 		log.Printf("sidecar ready on PYTHONPATH: %s", sidecarPath)
+	}
+
+	// Python isolation seam (IMG robustness): provision a private, lock-pinned uv
+	// venv whose ABSOLUTE interpreter the Python backends invoke — never a bare
+	// "python3" off the host PATH — so torch/diffusers/transformers/onnxruntime
+	// come from the committed lock and cannot be perturbed by other Python on the
+	// box. Decided up front (the interpreter path is deterministic even before the
+	// build finishes):
+	//   * uv present → use the venv interpreter and build/repair it. The first
+	//     build syncs torch (multi-GB) so it runs in the BACKGROUND; until it
+	//     completes the Python backends report "not yet provisioned" (honest),
+	//     then become available. Steady-state boots are instant (sentinel match).
+	//   * uv absent  → fall back to PATH python3 (pre-isolation behaviour) with a
+	//     precise `vrooli host install uv` hint. Never blocks or crashes boot.
+	var pythonInterpreter string
+	venvDir := filepath.Join(modelsRoot, "pyenv")
+	if _, uvErr := exec.LookPath("uv"); uvErr != nil {
+		log.Printf("WARNING: uv not found on PATH; Python backends use the shared host PATH python3 (unisolated). Run `vrooli host install uv` and restart to isolate them.")
+	} else if lockPath, lpErr := pydeps.Materialize(modelsRoot); lpErr != nil {
+		log.Printf("WARNING: materialize python lock failed (%v); Python backends fall back to PATH python3", lpErr)
+	} else {
+		pythonInterpreter = pyenv.InterpreterPath(venvDir)
+		venvSpec := pyenv.Spec{VenvDir: venvDir, LockFile: lockPath}
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			defer cancel()
+			interp, err := pyenv.Ensure(ctx, venvSpec, nil)
+			if err != nil {
+				log.Printf("WARNING: python venv provisioning failed (%v); Python AI backends stay unavailable until it succeeds — restart the scenario to retry (a changed lock auto-resyncs)", err)
+				return
+			}
+			log.Printf("python venv ready (lock %s): %s", interp.LockHash[:12], interp.Python)
+		}()
 	}
 
 	// Model management (IMG-P0-007): the Installer owns checksummed downloads,
 	// disk-space checks, removal, and custom/local entries. Install state is
 	// DB-backed (model_install) so modelInstalled reflects a completed download,
-	// not just a stray directory.
+	// not just a stray directory. The Smoke gate runs an install-time load-smoke
+	// (fetch → env → smoke) through the venv interpreter so an installed-but-broken
+	// model fails the install instead of surfacing as a late job crash.
 	installer := &internalmodels.Installer{
 		Root:      modelsRoot,
 		Reg:       registry,
@@ -317,6 +358,11 @@ func main() {
 		Download:  internalmodels.HTTPDownloader{},
 		RepoFetch: &internalmodels.HFSnapshotFetcher{},
 		DiskAvail: internalmodels.DefaultDiskAvail,
+		Smoke: &internalmodels.SmokeConfig{
+			Python:     pythonInterpreter,
+			PythonPath: sidecarPath,
+			LockHash:   pydeps.LockHash(),
+		},
 	}
 	modelInstalled := func(id string) bool {
 		return installer.Installed(context.Background(), id)
@@ -361,7 +407,7 @@ func main() {
 	// Backend provider registry: register the standalone AI backends and enforce
 	// the headless tenet at boot (every AI op must have a non-ComfyUI provider).
 	backendReg := backends.New()
-	if err := internalai.RegisterProviders(backendReg, nil, nil); err != nil {
+	if err := internalai.RegisterProviders(backendReg, nil, nil, pythonInterpreter); err != nil {
 		log.Fatalf("ai provider registration failed: %v", err)
 	}
 	if err := internalanalysis.RegisterBackendProviders(backendReg); err != nil {
@@ -428,9 +474,27 @@ func main() {
 	deployTier := safety.ResolveTier()
 	safetyGate := safety.NewGate(deployTier, safety.NewConsentLog(db.Primary()))
 
+	// Non-critical health summary: an enabled model whose install-time load-smoke
+	// FAILED (installed but not runnable) degrades /health so the standard probe
+	// surfaces it; the transient env-not-provisioned state (venv still building)
+	// is intentionally not a degrade.
+	healthModelRuntime := func(ctx context.Context) error {
+		var failed []string
+		for _, f := range installer.DoctorRuntime(ctx, registry.Models(), nil) {
+			if f.Code == "enabled_model_smoke_failed" {
+				failed = append(failed, f.ModelID)
+			}
+		}
+		if len(failed) > 0 {
+			return fmt.Errorf("%d enabled model(s) failed load-smoke (installed but not runnable): %s",
+				len(failed), strings.Join(failed, ", "))
+		}
+		return nil
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
-		healthH.Module(db, "image-tools-api", "1.0.0"),
+		healthH.Module(db, "image-tools-api", "1.0.0", healthModelRuntime),
 		aiH.Module(aiEngine, registry, blobStore, jobManager, safetyGate, log.Default()),
 		analysisH.Module(analysisService, jobManager, log.Default()),
 		diffH.Module(blobStore, jobManager, log.Default()),

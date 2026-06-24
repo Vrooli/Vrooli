@@ -410,8 +410,32 @@ func (h *connectHandler) ListDefaults(ctx context.Context, _ *connect.Request[mo
 	return connect.NewResponse(resp), nil
 }
 
-func (h *connectHandler) DoctorCatalog(_ context.Context, _ *connect.Request[modelsv1.DoctorCatalogRequest]) (*connect.Response[modelsv1.DoctorCatalogResponse], error) {
-	return connect.NewResponse(doctorReportToProto(h.deps.Registry.DoctorCatalog())), nil
+func (h *connectHandler) DoctorCatalog(ctx context.Context, _ *connect.Request[modelsv1.DoctorCatalogRequest]) (*connect.Response[modelsv1.DoctorCatalogResponse], error) {
+	report := h.deps.Registry.DoctorCatalog()
+	// Fold in the fetch-strategy lint over ALL rows (incl. disabled) so a
+	// landing-page-only stub surfaces here, not at a user's failed install.
+	lint := h.deps.Registry.RegistryLint()
+	report.Findings = append(report.Findings, lint.Findings...)
+	if !lint.OK {
+		report.OK = false
+	}
+	// Fold in the runtime "enabled ⇒ runnable" findings (env provisioned + smoke
+	// passed) that the static catalog check cannot see, so a model that is
+	// installed-but-broken or enabled-without-a-ready-venv surfaces here.
+	if h.deps.Installer != nil {
+		overlay, err := h.overlay(ctx)
+		if err != nil {
+			h.deps.Logger.Printf("models.DoctorCatalog overlay: %v", err)
+		}
+		runtime := h.deps.Installer.DoctorRuntime(ctx, h.deps.Registry.Models(), overlay)
+		report.Findings = append(report.Findings, runtime...)
+		for _, f := range runtime {
+			if f.Severity == internalmodels.FindingError {
+				report.OK = false
+			}
+		}
+	}
+	return connect.NewResponse(doctorReportToProto(report)), nil
 }
 
 func (h *connectHandler) DoctorBackends(ctx context.Context, _ *connect.Request[modelsv1.DoctorBackendsRequest]) (*connect.Response[modelsv1.DoctorBackendsResponse], error) {

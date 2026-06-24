@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -77,6 +78,67 @@ func TestSeedDoctorCatalogIsInstallable(t *testing.T) {
 		if f.Severity == FindingError {
 			t.Fatalf("seed doctor returned error finding after Phase 1 catalog hardening: %+v", f)
 		}
+	}
+}
+
+// TestSeedRegistryLintIsClean is the build-time guard that every weight-backed
+// seed row — enabled OR disabled — declares a concrete fetch strategy
+// (assets[]/repo/local_path) or is honestly marked source.manual. It is what
+// stops a landing-page-only stub from shipping and failing at a user's install.
+func TestSeedRegistryLintIsClean(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	lint := r.RegistryLint()
+	if !lint.OK || len(lint.Findings) != 0 {
+		t.Fatalf("seed registry-lint must be clean (every weight-backed row has a fetch strategy or source.manual); findings: %+v", lint.Findings)
+	}
+}
+
+// TestRegistryLintFlagsLandingPageStub proves the lint catches a weight-backed row
+// whose only source is a documentation download_url, and that marking it manual
+// (or giving it a concrete strategy) clears the finding.
+func TestRegistryLintFlagsLandingPageStub(t *testing.T) {
+	base := `{
+	  "schema_version": "1.0.0",
+	  "operations_vocabulary": ["upscale"],
+	  "models": [
+	    {
+	      "id": "stub", "name": "Landing Page Stub", "operations": ["upscale"],
+	      "default_for": [], "tier": "nice-to-have", "backend": "onnxruntime",
+	      "hardware": {"cpu_capable": true}, "capability_labels": {"commercial_use": "yes"},
+	      "enabled": %s,
+	      "source": {%s"download_url": "https://example.com/model-landing-page"}
+	    }
+	  ]
+	}`
+	// disabled stub with only a download_url → warning.
+	r, err := Parse([]byte(fmt.Sprintf(base, "false", "")))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	lint := r.RegistryLint()
+	if len(lint.Findings) != 1 || lint.Findings[0].Code != "model_without_fetch_strategy" {
+		t.Fatalf("disabled stub should yield one model_without_fetch_strategy finding: %+v", lint.Findings)
+	}
+	if lint.Findings[0].Severity != FindingWarning {
+		t.Errorf("disabled stub finding should be a warning, got %q", lint.Findings[0].Severity)
+	}
+	if !lint.OK {
+		t.Error("a disabled-only (warning) lint should still be OK=true")
+	}
+
+	// enabled stub → error (and not OK).
+	r, _ = Parse([]byte(fmt.Sprintf(base, "true", "")))
+	if lint := r.RegistryLint(); lint.OK || lint.Findings[0].Severity != FindingError {
+		t.Fatalf("enabled stub must be an error: %+v", lint.Findings)
+	}
+
+	// marked manual → clean.
+	r, _ = Parse([]byte(fmt.Sprintf(base, "false", `"manual": true, `)))
+	if lint := r.RegistryLint(); !lint.OK || len(lint.Findings) != 0 {
+		t.Fatalf("manual-marked stub must lint clean: %+v", lint.Findings)
 	}
 }
 

@@ -51,6 +51,13 @@ type argBuilder func(req backends.Request, modelDir string) ([]string, error)
 type execProvider struct {
 	name    string
 	program string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
+	// pythonInterpreter, when set, is the ABSOLUTE path to this scenario's private
+	// uv-built venv interpreter (<scenario-data>/pyenv/bin/python). Python backends
+	// (program=="python3") invoke it directly instead of resolving a bare "python3"
+	// off the host PATH, so their heavy deps (torch/diffusers/transformers/
+	// onnxruntime) come from the lock-pinned venv and cannot be perturbed by other
+	// Python on the box. Empty ⇒ fall back to PATH "python3" (uv/venv absent).
+	pythonInterpreter string
 	// programAliases are preferred program names tried (in order) on PATH before
 	// program. They let an optional GPU build install under a distinct command
 	// (e.g. "sd-gpu") and be picked up automatically without colliding with the
@@ -102,6 +109,11 @@ func (p *execProvider) IsCloud() bool        { return false }
 // base program ("sd"). Resolution is cheap (a PATH lookup) and done per call so
 // installing a GPU build at runtime is picked up without a restart.
 func (p *execProvider) programName() string {
+	// Python backends invoke the scenario's private venv interpreter by absolute
+	// path when one is provisioned — never a bare "python3" off the host PATH.
+	if p.program == "python3" && p.pythonInterpreter != "" {
+		return p.pythonInterpreter
+	}
 	lookPath := p.lookPath
 	if lookPath == nil {
 		lookPath = exec.LookPath
@@ -858,6 +870,10 @@ type providerSpec struct {
 // hand-written — see deriveProvision.
 func (s providerSpec) provision() string { return deriveProvision(s.hostTool, s.pipDeps) }
 
+// isPython reports whether this backend is served by the Python interpreter (and
+// therefore runs from the scenario's private uv venv when one is provisioned).
+func (s providerSpec) isPython() bool { return s.program == "python3" }
+
 // deriveProvision builds the single canonical provisioning message from a host
 // tool name (+ optional pip deps). This is the one place the remediation command
 // is spelled, so the runtime error, doctor output, and backends.md cannot drift.
@@ -1023,9 +1039,18 @@ func providerSpecs() []providerSpec {
 
 // RegisterProviders registers the standalone AI backends on reg. Pass nil
 // lookPath/run to use the real os/exec implementations.
-func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner) error {
+//
+// pythonInterpreter is the absolute path to the scenario's private uv venv
+// interpreter; when non-empty, every Python backend invokes it directly instead
+// of a bare "python3" off the host PATH (the isolation seam — see internal/pyenv
+// and main.go boot wiring). Pass "" to fall back to PATH "python3" (venv/uv
+// absent), which preserves the pre-isolation behaviour.
+func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner, pythonInterpreter string) error {
 	for _, s := range providerSpecs() {
 		p := &execProvider{name: s.name, program: s.program, programAliases: s.programAliases, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
+		if s.isPython() {
+			p.pythonInterpreter = pythonInterpreter
+		}
 		if s.name == "onnxruntime" && run == nil {
 			p.warm = newWarmSidecarRunner()
 		}

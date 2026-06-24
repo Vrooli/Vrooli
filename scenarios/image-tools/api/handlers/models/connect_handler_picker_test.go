@@ -7,9 +7,39 @@ import (
 	"connectrpc.com/connect"
 
 	"image-tools/internal/capabilities"
+	internalmodels "image-tools/internal/models"
+	"image-tools/internal/smoke"
 
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 )
+
+// TestReadyState_EnvAndSmokeOverrides proves the picker surfaces "installed but
+// not runnable" before a user picks the model: an installed+enabled+backend-ready
+// candidate degrades to env_not_provisioned (no venv) or smoke_failed (load-smoke
+// failed), while a passing/absent/not-applicable smoke status stays "ready".
+func TestReadyState_EnvAndSmokeOverrides(t *testing.T) {
+	ready := &modelsv1.BackendReadiness{Ready: true, InstallTier: "auto"}
+	cases := []struct {
+		name  string
+		smoke internalmodels.SmokeStatus
+		want  string
+	}{
+		{"not applicable (binary backend)", internalmodels.SmokeStatus{}, "ready"},
+		{"env not provisioned", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: false}, "env_not_provisioned"},
+		{"smoke failed", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true, Verdict: smoke.Verdict{Pass: false}}, "smoke_failed"},
+		{"smoke passed", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true, Verdict: smoke.Verdict{Pass: true}}, "ready"},
+		{"env ok, no verdict yet", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true}, "ready"},
+	}
+	for _, c := range cases {
+		if got := readyState(true, true, "ok", ready, c.smoke); got != c.want {
+			t.Errorf("%s: readyState = %q, want %q", c.name, got, c.want)
+		}
+	}
+	// A not-yet-installed model is unaffected by the smoke override.
+	if got := readyState(false, true, "ok", ready, internalmodels.SmokeStatus{Applicable: true}); got != "needs_model_install" {
+		t.Errorf("smoke override must not apply to a not-installed model: %q", got)
+	}
+}
 
 // TestListOperationModels checks the picker data source: a GPU host's summary is
 // reported, every candidate carries a fit class + ready_state, and a weightless

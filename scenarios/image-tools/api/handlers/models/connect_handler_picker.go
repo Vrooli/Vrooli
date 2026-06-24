@@ -105,11 +105,19 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 			installed = true
 		}
 		backend := h.backendReadiness(ctx, m, providerStatus, toolCache)
+		var smokeStatus internalmodels.SmokeStatus
+		if h.deps.Installer != nil && installed {
+			dir := h.deps.Installer.ModelDir(m.ID)
+			if rec, ok := installs[m.ID]; ok && rec.Path != "" {
+				dir = rec.Path
+			}
+			smokeStatus = h.deps.Installer.SmokeStatusFor(m, dir)
+		}
 		out.Candidates = append(out.Candidates, &modelsv1.CandidateModel{
 			Model:      domainToProto(m, viewFor(m, customMap[m.ID], overlay, installs)),
 			Fit:        fitToProto(fit, fitClass),
 			Backend:    backend,
-			ReadyState: readyState(installed, enabled, fitClass, backend),
+			ReadyState: readyState(installed, enabled, fitClass, backend, smokeStatus),
 			Selected:   m.ID == selectedID,
 		})
 	}
@@ -193,9 +201,12 @@ func classifyTier(tool string, st *cliv1.CliHostInstallStatus) *toolTier {
 	}
 }
 
-// readyState collapses fit + enable + install + backend into the single verdict
-// the picker styles and acts on.
-func readyState(installed, enabled bool, fitClass string, br *modelsv1.BackendReadiness) string {
+// readyState collapses fit + enable + install + backend + Python-env/smoke into
+// the single verdict the picker styles and acts on. The env/smoke overrides only
+// apply to a model whose weights are installed and whose backend is otherwise
+// ready — they surface "installed but not runnable" (env not provisioned, or the
+// install-time load-smoke failed) BEFORE the user picks the model.
+func readyState(installed, enabled bool, fitClass string, br *modelsv1.BackendReadiness, smoke internalmodels.SmokeStatus) string {
 	switch fitClass {
 	case "unsupported_os":
 		return "unsupported"
@@ -209,6 +220,14 @@ func readyState(installed, enabled bool, fitClass string, br *modelsv1.BackendRe
 	backendAuto := br.GetInstallTier() == "auto"
 	switch {
 	case installed && backendReady:
+		if smoke.Applicable {
+			if !smoke.EnvProvisioned {
+				return "env_not_provisioned"
+			}
+			if smoke.HasVerdict && !smoke.Verdict.Pass {
+				return "smoke_failed"
+			}
+		}
 		return "ready"
 	case !installed && backendReady:
 		return "needs_model_install"
@@ -238,14 +257,18 @@ func readyRank(state string) int {
 		return 3
 	case "needs_backend_manual":
 		return 4
-	case "disabled":
+	case "env_not_provisioned":
 		return 5
-	case "insufficient":
+	case "smoke_failed":
 		return 6
-	case "unsupported":
+	case "disabled":
 		return 7
-	default:
+	case "insufficient":
 		return 8
+	case "unsupported":
+		return 9
+	default:
+		return 10
 	}
 }
 

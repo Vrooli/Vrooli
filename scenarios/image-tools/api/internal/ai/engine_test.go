@@ -138,7 +138,7 @@ func TestPlan_ModelNotInstalled(t *testing.T) {
 		t.Fatalf("load registry: %v", err)
 	}
 	backendReg := backends.New()
-	if err := RegisterProviders(backendReg, func(string) (string, error) { return "/usr/bin/x", nil }, nil); err != nil {
+	if err := RegisterProviders(backendReg, func(string) (string, error) { return "/usr/bin/x", nil }, nil, ""); err != nil {
 		t.Fatalf("register providers: %v", err)
 	}
 	eng, err := NewEngine(Deps{

@@ -22,6 +22,11 @@ type Deps struct {
 	Pinger  database.Pinger
 	Service string
 	Version string
+	// ModelRuntime, when set, is a NON-critical check that reports whether every
+	// enabled model is actually runnable (Python env provisioned + install-time
+	// load-smoke passed). A failure degrades health (never 503) so an operator
+	// sees "installed but broken" models on the standard probe. nil → not added.
+	ModelRuntime func(ctx context.Context) error
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -29,10 +34,13 @@ type Deps struct {
 // is registered as Critical: a failed ping flips the response to
 // status="unhealthy" with HTTP 503.
 func NewHandler(d Deps) http.HandlerFunc {
-	return apihealth.New(d.Service).
+	b := apihealth.New(d.Service).
 		Version(d.Version).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
-		}), apihealth.Critical).
-		Handler()
+		}), apihealth.Critical)
+	if d.ModelRuntime != nil {
+		b = b.Check(apihealth.Func("model_runtime", d.ModelRuntime), apihealth.Optional)
+	}
+	return b.Handler()
 }

@@ -44,6 +44,10 @@ var (
 	// ErrLocalPathMissing is returned when a custom local model points at a path
 	// that does not exist.
 	ErrLocalPathMissing = errors.New("models: custom model local path does not exist")
+	// ErrManualInstall is returned when a weight-backed model is honestly marked
+	// source.manual: it has no auto-fetchable artifact and must be installed
+	// manually per its docs_url (the installer never GETs a documentation page).
+	ErrManualInstall = errors.New("models: model requires manual installation")
 )
 
 // diskMarginFraction reserves headroom above the model's approximate size so an
@@ -299,6 +303,10 @@ type Installer struct {
 	DiskAvail DiskSpaceFunc
 	// Now sources timestamps (defaults to time.Now).
 	Now func() time.Time
+	// Smoke, when set, runs an install-time load-smoke after a successful fetch
+	// (fetch → env → smoke), so an installed-but-broken model fails the install
+	// instead of surfacing as a late job crash. nil disables the gate.
+	Smoke *SmokeConfig
 }
 
 func (in *Installer) now() time.Time {
@@ -365,15 +373,25 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 		return InstallRecord{}, err
 	}
 
-	// Idempotent: already installed on disk → no-op.
+	// Idempotent: already installed on disk → no re-download. Still re-validate via
+	// smoke (cache-cheap when the verdict is a fresh pass) so a now-provisioned env
+	// or a changed lock re-proves the model — and a previously-failed smoke keeps
+	// reporting failure until fixed.
 	if in.Installed(ctx, id) {
-		emit(100, "already installed")
+		var rec InstallRecord
 		if in.State != nil {
-			if rec, ok, _ := in.State.Get(ctx, id); ok {
-				return rec, nil
+			if got, ok, _ := in.State.Get(ctx, id); ok {
+				rec = got
 			}
 		}
-		return InstallRecord{ID: id, Installed: true, Path: in.modelDir(id)}, nil
+		if rec.Path == "" {
+			rec = InstallRecord{ID: id, Installed: true, Path: in.modelDir(id)}
+		}
+		if err := in.ensureSmoke(ctx, m, rec.Path, rec.Checksum, emit); err != nil {
+			return rec, err
+		}
+		emit(100, "already installed")
+		return rec, nil
 	}
 
 	// A custom local model is "installed" by reference — no download.
@@ -399,6 +417,12 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 	// its pinned revision; integrity is a tree-manifest hash, not a per-file URL.
 	if m.Source.HasRepo() {
 		return in.installRepo(ctx, id, m, emit)
+	}
+
+	// A weight-backed model honestly marked manual has no auto-fetchable artifact
+	// (its download_url is a documentation page). Refuse rather than GET HTML.
+	if m.RequiresWeights() && m.Source.Manual {
+		return InstallRecord{}, fmt.Errorf("%w: %q must be installed manually per its docs_url (no single auto-fetchable artifact)", ErrManualInstall, id)
 	}
 
 	// Resolve the asset list. Seed models declare Source.Assets (direct,
@@ -443,6 +467,12 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 		if err := in.State.Set(ctx, rec); err != nil {
 			return InstallRecord{}, err
 		}
+	}
+	// Proven-before-use: the weights are recorded as installed, but a smoke
+	// failure is reported as the install outcome so the caller sees the model is
+	// broken (the weights are kept for retry once the cause is fixed).
+	if err := in.ensureSmoke(ctx, m, dir, primarySum, emit); err != nil {
+		return rec, err
 	}
 	emit(100, "installed")
 	return rec, nil
@@ -596,6 +626,9 @@ func (in *Installer) installRepo(ctx context.Context, id string, m Model, emit f
 		if err := in.State.Set(ctx, rec); err != nil {
 			return InstallRecord{}, err
 		}
+	}
+	if err := in.ensureSmoke(ctx, m, dir, manifest, emit); err != nil {
+		return rec, err
 	}
 	emit(100, "installed")
 	return rec, nil

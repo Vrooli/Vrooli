@@ -1,16 +1,15 @@
-# Diffusers AI backend (edit_instruct / inpaint / outpaint / background_replace).
-# Governed via scenario-dependency-analyzer (deps-approved records); this file is
-# the pinned manifest for provisioning the diffusers python sidecar.
+# DEPRECATED as a hand-maintained manifest — kept only as a stable entry point.
 #
-# CRITICAL: transformers MUST stay <5. diffusers 0.38 loads SD/InstructPix2Pix
-# checkpoints through the transformers 4.x CLIP layout (CLIPTextModel.text_model);
-# transformers 5.x removed that attribute, so a 5.x install breaks edit_instruct
-# with "'CLIPTextModel' object has no attribute 'text_model'". >=4.49 keeps
-# Qwen2.5-VL support (Qwen-Image-Edit-2509).
-torch
-torchvision
-diffusers>=0.36.0
-transformers>=4.49,<5
-accelerate
-huggingface_hub
-Pillow
+# The image-tools Python backends are provisioned from a per-scenario, lock-pinned
+# uv venv. The SINGLE version source of truth is the fully pinned + hashed
+#   internal/pydeps/requirements.lock
+# generated from the governed, ranged
+#   internal/pydeps/requirements.in
+# (see internal/pydeps/README.md to regenerate). At runtime the lock is embedded
+# in the binary, materialized into the scenario data dir, and synced into the venv
+# by internal/pyenv — it is NOT read from this path.
+#
+# This file simply re-exports the lock so `pip install -r requirements.txt` (or any
+# tool that still looks here) resolves the exact same pinned set. Do not add loose
+# pins here; edit requirements.in and regenerate the lock.
+-r internal/pydeps/requirements.lock

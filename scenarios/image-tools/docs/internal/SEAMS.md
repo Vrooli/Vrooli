@@ -564,6 +564,50 @@ pure (torch-free) Python checks inside `go test` and assert Go↔Python parity, 
 the registry, the catalog doctor, and the runner cannot drift. A new architecture
 is one Go row + one Python adapter + (once attended-proven) `Ready=true`.
 
+## Python-isolation seams (private venv + load-smoke)
+
+The Python AI backends (diffusers, onnxruntime, python-sidecar) run from a
+**private, lock-pinned uv venv** invoked by absolute interpreter path — never a
+bare `python3` off the host PATH — so their heavy deps (torch/diffusers/
+transformers/onnxruntime) come from the committed lock and cannot be perturbed by
+other Python on the host. Three seams + one config layer make this testable:
+
+- **`internal/pyenv` — `pyenv.Runner`** (`Ensure(ctx, Spec, Runner) (Interpreter,
+  error)`). The injected `Runner` is the `uv` exec boundary (venv create + `uv pip
+  sync`); a `lockHash` sentinel in the venv records the lock it was built from, so
+  Ensure is build-if-absent / resync-if-lock-changed / idempotent. Tests assert
+  the argv assembly + idempotency with a fake runner — no real uv. Production wires
+  `nil` (os/exec) in `main.go`, gated on `uv` presence (absent ⇒ fall back to PATH
+  python3, never crash boot).
+- **`internal/smoke` — `smoke.Runner` / `smoke.Invoker`** (`Probe(ctx, args)`). The
+  generic boundary that runs a Python probe module in a given interpreter and
+  caches the pass/fail `Verdict` keyed by (model hash, lock hash). Tests inject a
+  fake runner; production wires os/exec.
+- **`internal/models` — `SmokeConfig.Run`** (the image-tools-specific binding):
+  `Installer.ensureSmoke` maps a model → probe args (diffusers family / onnx) and
+  invokes `smoke.Invoker`. Tests inject the fake runner via `SmokeConfig.Run`;
+  `main.go` wires the venv interpreter + sidecar PYTHONPATH + `pydeps.LockHash()`.
+- **`internal/pydeps`** is NOT a seam — it is the scenario-specific *config* layer
+  (the embedded `requirements.in`/`requirements.lock` + the lock↔SDA conformance
+  test). It is image-tools data, like the registry schema, and stays here.
+
+### Extraction-ready: lift to platform packages on the second consumer
+
+`internal/pyenv` and `internal/smoke` are deliberately **scenario-agnostic** —
+they import only the standard library (verified: `go list -deps` shows no
+`image-tools/*` or `vrooli/*` dependency). They take paths, a lockfile, a module
+name, and an exec Runner; they know nothing about models, backends, or operations.
+The image-tools-specific glue (model→probe-args, the `pydeps` lock content, the
+`main.go` wiring) lives outside them.
+
+This is **design-for-extraction, not premature extraction** (rule of three). The
+trigger is **video-tools** (or any second model-managing scenario) becoming the
+second consumer: at that point lift `internal/pyenv` → `packages/pyenv-go` and
+`internal/smoke` → `packages/smoke-go`, following the `packages/binaryfetch`
+extraction precedent (a stdlib-only, cross-module package consumed by the platform
+host-tool handler). Until then, one consumer = keep them in-scenario; a premature
+platform package would be a generalization from a single example.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

@@ -174,6 +174,91 @@ def _find_single_file(model_dir: str) -> Optional[str]:
     return None
 
 
+def smoke(*, family: str, model_dir: str, deep: bool = False) -> str:
+    """Install-time load-smoke for a diffusers-family model. Proves the provisioned
+    runtime can CONSTRUCT this model before a user op depends on it, WITHOUT a full
+    forward pass.
+
+    Default (cheap) checks, sufficient to catch the common "installed but broken"
+    cases without loading multi-GB weights:
+      * the family adapter is registered and proven (ready=True);
+      * diffusers/torch import from the provisioned venv;
+      * the declared pipeline_class is an attribute of the installed diffusers
+        (catches "runtime too old for this pipeline architecture");
+      * the model dir is a recognizable install shape (repo tree with
+        model_index.json, or a single-file checkpoint).
+    deep=True additionally LOADS the pipeline (from_pretrained/from_single_file)
+    on a low-mem path — opt-in, because it reads the full weights (prohibitive for
+    a 57GB model at install time). Returns a human summary; raises SystemExit via
+    _common.fail on any failure (never a fabricated pass).
+    """
+    adapter = adapter_for(family)
+    if not adapter.ready:
+        _common.fail(
+            f"diffusers family {family!r} adapter is not yet proven: {adapter.pending}",
+            code=4,
+        )
+
+    try:
+        import diffusers  # noqa: WPS433
+        import torch  # noqa: WPS433,F401
+    except ImportError as exc:  # pragma: no cover - exercised on un-provisioned hosts
+        _common.fail(
+            f"missing diffusers backend ({exc}); the Python venv is not provisioned. "
+            "Ensure `vrooli host install uv`, then restart image-tools to build/repair the venv.",
+            code=3,
+        )
+
+    cls = getattr(diffusers, adapter.pipeline_class, None)
+    if cls is None:
+        _common.fail(
+            f"installed diffusers has no pipeline class {adapter.pipeline_class!r} for "
+            f"family {family!r} (runtime too old? check runtime.min_runtime)",
+            code=5,
+        )
+
+    if not os.path.isdir(model_dir):
+        _common.fail(f"model dir {model_dir!r} does not exist", code=4)
+    single = _find_single_file(model_dir)
+    repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+    if not repo_index and single is None:
+        _common.fail(
+            f"model dir {model_dir!r} has neither model_index.json (repo) nor a "
+            "single-file .safetensors/.ckpt checkpoint (incomplete download?)",
+            code=5,
+        )
+
+    if not deep:
+        shape = "repo" if repo_index else "single-file"
+        return (
+            f"diffusers smoke OK (shallow): family={family} class={adapter.pipeline_class} "
+            f"shape={shape}; pipeline class resolves and the install shape is valid"
+        )
+
+    # deep: actually construct the pipeline (reads full weights).
+    use_cuda = torch.cuda.is_available()
+    dtype = _resolve_dtype(torch, adapter.dtype, use_cuda)
+    load_kwargs = {"torch_dtype": dtype}
+    if adapter.disable_safety:
+        load_kwargs["safety_checker"] = None
+    try:
+        if repo_index:
+            pipe = diffusers.DiffusionPipeline.from_pretrained(model_dir, **load_kwargs)
+        else:
+            pipe = cls.from_single_file(single, **load_kwargs)
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"deep smoke: failed to construct {family!r} from {model_dir!r}: {exc}", code=5)
+        raise
+    got = type(pipe).__name__
+    if got != adapter.pipeline_class:
+        _common.fail(
+            f"deep smoke: model at {model_dir!r} loaded as {got}, expected "
+            f"{adapter.pipeline_class} for family {family!r}",
+            code=5,
+        )
+    return f"diffusers smoke OK (deep): constructed {got} from {model_dir}"
+
+
 def run(*, family: str, model_dir: str, image_paths, out_path: str, params: "Params") -> None:
     """Load the family's pipeline from model_dir and run one edit, writing a PNG.
 

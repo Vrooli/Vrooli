@@ -213,12 +213,34 @@ type Source struct {
 	// the install source, fetched in whole at Repo.Revision; integrity is the
 	// tree-manifest checksum. Repo and Assets are mutually exclusive fetch
 	// strategies behind one installer seam.
-	Repo     RepoSource `json:"repo,omitempty"`
-	Checksum Checksum   `json:"checksum"`
+	Repo RepoSource `json:"repo,omitempty"`
+	// Manual declares — honestly — that this weight-backed model has NO single
+	// auto-fetchable artifact: its weights must be obtained manually per docs_url
+	// (e.g. an upstream that ships only a landing page or a multi-file repo with no
+	// pinned revision). The installer refuses to auto-install it (no HTML GET of a
+	// documentation page), and registry-lint accepts it instead of demanding an
+	// assets[]/repo it cannot honestly declare. download_url stays documentation-only.
+	Manual   bool     `json:"manual,omitempty"`
+	Checksum Checksum `json:"checksum"`
 }
 
 // HasRepo reports whether the source installs from a multi-file repo snapshot.
 func (s Source) HasRepo() bool { return strings.TrimSpace(s.Repo.RepoID) != "" }
+
+// HasFetchStrategy reports whether a weight-backed model declares a concrete,
+// auto-resolvable install source (direct assets, a pinned repo snapshot, or a
+// local path). A model with none is installable only if it is honestly marked
+// Manual; otherwise its download_url is a documentation page the installer must
+// never fetch. Weightless models (builtin/computed/library) need no strategy.
+func (m Model) HasFetchStrategy() bool {
+	if !m.RequiresWeights() {
+		return true
+	}
+	if strings.TrimSpace(m.Source.LocalPath) != "" || m.Source.HasRepo() || len(m.Source.Assets) > 0 {
+		return true
+	}
+	return false
+}
 
 // Model is one registry entry: a concrete model/library backing one or more
 // operations.
