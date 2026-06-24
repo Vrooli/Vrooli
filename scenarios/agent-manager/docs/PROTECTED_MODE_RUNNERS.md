@@ -145,8 +145,9 @@ upstream CLI allows," not faked support.
 **Model advertisement (`SupportedModels`).** Each codec advertises a
 curated cloud list and, for codex + opencode, **appends the
 locally-pulled `ollama/*` models** discovered via a cached (60s TTL)
-`/api/tags` probe (`codecs/ollama.go`). The probe is agent-safe: a
-unreachable daemon degrades to the curated list, never an error. claude-code
+exec to the probe SSOT (`resource-ollama models list --json`, wrapped in
+`codecs/ollama.go`). The probe is agent-safe: an unreachable daemon or
+absent SSOT degrades to the curated list, never an error. claude-code
 advertises Anthropic aliases only. `SupportedFeatures` /
 `AllowedExtraFlags` differ per upstream CLI (claude exposes
 `EnableBrowser` / `--disallowedTools`; codex + opencode expose `--verbose`)

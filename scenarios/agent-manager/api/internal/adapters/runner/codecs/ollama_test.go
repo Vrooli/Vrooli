@@ -3,6 +3,8 @@ package codecs
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -78,27 +80,52 @@ func TestOllamaLister_NilSafe(t *testing.T) {
 	}
 }
 
-func TestOllamaBaseURL(t *testing.T) {
-	cases := []struct {
-		name string
-		env  string
-		want string
-	}{
-		{"default", "", "http://localhost:11434"},
-		{"bare-host", "myhost", "http://myhost:11434"},
-		{"host-port", "myhost:9999", "http://myhost:9999"},
-		{"scheme-host", "http://10.0.0.5", "http://10.0.0.5:11434"},
-		{"scheme-host-port", "https://gpu.box:443", "https://gpu.box:443"},
+// TestParseOllamaListJSON covers the SSOT payload decode: prefixing, sorting,
+// blank-skip, and unknown-field tolerance.
+func TestParseOllamaListJSON(t *testing.T) {
+	out, err := parseOllamaListJSON([]byte(`{"models":["qwen3.5:9b","gemma4:12b","  "],"extra":"ignored"}`))
+	if err != nil {
+		t.Fatalf("parse err: %v", err)
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// t.Setenv to "" can't truly unset, but the resolver treats an
-			// empty OLLAMA_HOST as unset, so the default-URL case still holds.
-			t.Setenv("OLLAMA_HOST", tc.env)
-			if got := ollamaBaseURL(); got != tc.want {
-				t.Fatalf("ollamaBaseURL(%q) = %q, want %q", tc.env, got, tc.want)
-			}
-		})
+	want := []string{"ollama/gemma4:12b", "ollama/qwen3.5:9b"} // sorted, blank dropped
+	if len(out) != len(want) {
+		t.Fatalf("got %v want %v", out, want)
+	}
+	for i := range want {
+		if out[i] != want[i] {
+			t.Fatalf("got %v want %v", out, want)
+		}
+	}
+}
+
+// TestDefaultOllamaFetch_ExecBridge exercises the real exec path against a
+// fake `resource-ollama` placed on PATH, proving the codec shells the SSOT
+// (not raw HTTP) and maps its JSON to prefixed ids.
+func TestDefaultOllamaFetch_ExecBridge(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, ollamaSSOTCommand)
+	body := "#!/bin/sh\nif [ \"$1\" = \"models\" ] && [ \"$2\" = \"list\" ]; then\n  printf '%s' '{\"models\":[\"gemma4:12b\",\"llama3.1:8b\"]}'\n  exit 0\nfi\nexit 2\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	got, err := defaultOllamaFetch(context.Background())
+	if err != nil {
+		t.Fatalf("fetch err: %v", err)
+	}
+	want := []string{"ollama/gemma4:12b", "ollama/llama3.1:8b"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("got %v want %v", got, want)
+	}
+}
+
+// TestDefaultOllamaFetch_DegradesWhenSSOTAbsent: a missing SSOT binary returns
+// an error (the lister then degrades to the last-known list).
+func TestDefaultOllamaFetch_DegradesWhenSSOTAbsent(t *testing.T) {
+	t.Setenv("PATH", t.TempDir()) // no resource-ollama here
+	if _, err := defaultOllamaFetch(context.Background()); err == nil {
+		t.Fatal("expected error when the SSOT binary is absent")
 	}
 }
 

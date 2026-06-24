@@ -271,7 +271,7 @@ func (c *OpenCode) BuildPrompt(_ string, _ []runner.Attachment) string { return 
 // caller MUST close stdin — core.Runner does that automatically when the
 // codec returns "" from BuildPrompt. Image attachments are passed via
 // `-f/--file` (one per attachment).
-func (c *OpenCode) BuildArgs(_ State, req runner.ExecuteRequest) []string {
+func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	args := []string{
 		"run",
 		req.EffectivePrompt(),
@@ -285,6 +285,9 @@ func (c *OpenCode) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	// different tree entirely. Pin the session to the run's WorkingDir.
 	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
 		args = append(args, "--dir", dir)
+		if s, ok := state.(*opencodeState); ok {
+			s.workingDir = dir
+		}
 	}
 	cfg := req.GetConfig()
 	if cfg.Model != "" {
@@ -300,7 +303,7 @@ func (c *OpenCode) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 // BuildContinueArgs satisfies [Codec]. `opencode run --session <id>`
 // resumes an existing session with a follow-up prompt and any image
 // attachments via `-f/--file`.
-func (c *OpenCode) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
+func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []string {
 	args := []string{
 		"run",
 		req.Prompt,
@@ -311,6 +314,9 @@ func (c *OpenCode) BuildContinueArgs(_ State, req runner.ContinueRequest) []stri
 	// Pin the resumed session to the run's WorkingDir — see BuildArgs.
 	if dir := strings.TrimSpace(req.WorkingDir); dir != "" {
 		args = append(args, "--dir", dir)
+		if s, ok := state.(*opencodeState); ok {
+			s.workingDir = dir
+		}
 	}
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	return args
@@ -324,6 +330,12 @@ func (c *OpenCode) BuildContinueArgs(_ State, req runner.ContinueRequest) []stri
 type opencodeState struct {
 	sessionID   string
 	stepTermina bool // set by step_finish parsing when reason is terminal
+	// workingDir is the run's pinned --dir (absolute). Stashed by
+	// BuildArgs/BuildContinueArgs so the stream decoder can reject tool
+	// results whose target path resolves outside it (defense-in-depth
+	// against a model fabricating an absolute path — see toolTargetOutsideDir).
+	// Empty (e.g. transcript replay, no resolved dir) disables the guard.
+	workingDir string
 }
 
 func (s *opencodeState) SessionID() string { return s.sessionID }
@@ -740,12 +752,12 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 
 	case "tool_call", "tool_use", "tool-call":
 		if streamEvent.Part != nil {
-			return parseOpenCodeToolUse(runID, streamEvent.Part), nil
+			return parseOpenCodeToolUse(runID, streamEvent.Part, state.workingDir), nil
 		}
 
 	case "tool_result", "tool-result":
 		if streamEvent.Part != nil {
-			return parseOpenCodeToolResult(runID, streamEvent.Part), nil
+			return parseOpenCodeToolResult(runID, streamEvent.Part, state.workingDir), nil
 		}
 
 	case "step_finish":
@@ -798,9 +810,9 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 				return []*domain.RunEvent{domain.NewMessageEvent(runID, "assistant", runner.StripANSI(streamEvent.Part.Text))}, nil
 			}
 		case "tool", "tool-call", "tool_call", "tool_use":
-			return parseOpenCodeToolUse(runID, streamEvent.Part), nil
+			return parseOpenCodeToolUse(runID, streamEvent.Part, state.workingDir), nil
 		case "tool-result", "tool_result":
-			return parseOpenCodeToolResult(runID, streamEvent.Part), nil
+			return parseOpenCodeToolResult(runID, streamEvent.Part, state.workingDir), nil
 		}
 	}
 
@@ -810,8 +822,10 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 }
 
 // parseOpenCodeToolUse extracts a tool_call (and possibly a bundled
-// tool_result when state.status == completed) from a part.
-func parseOpenCodeToolUse(runID uuid.UUID, part *OpenCodePart) []*domain.RunEvent {
+// tool_result when state.status == completed) from a part. workingDir is the
+// run's pinned --dir; a completed write/edit whose target resolves outside it
+// is downgraded to an error result (see toolTargetOutsideDir).
+func parseOpenCodeToolUse(runID uuid.UUID, part *OpenCodePart, workingDir string) []*domain.RunEvent {
 	toolName := part.Tool
 	if toolName == "" {
 		toolName = part.Name
@@ -840,6 +854,8 @@ func parseOpenCodeToolUse(runID uuid.UUID, part *OpenCodePart) []*domain.RunEven
 		var errMsg error
 		if part.IsError {
 			errMsg = fmt.Errorf("%s", output)
+		} else if guardErr := toolTargetOutsideDir(toolName, input, workingDir); guardErr != nil {
+			errMsg = guardErr
 		}
 		events = append(events, domain.NewToolResultEvent(runID, toolName, part.CallID, output, errMsg))
 		return events
@@ -847,9 +863,66 @@ func parseOpenCodeToolUse(runID uuid.UUID, part *OpenCodePart) []*domain.RunEven
 	return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}
 }
 
+// toolTargetOutsideDir reports an error when a mutating tool's target path
+// resolves outside the run's pinned working directory. It is the
+// defense-in-depth half of the grounding fix: even with the directory in the
+// model's context, a weak model can still emit a write to a fabricated
+// absolute path. Such a result did not land useful work inside the run's
+// scope, so it must NOT count as a successful tool result.
+//
+// Only mutating tools (write/edit/patch) are guarded — reads and shell
+// commands legitimately touch paths elsewhere. An empty workingDir, a missing
+// path, or a relative path (resolves under the dir by definition) all pass.
+func toolTargetOutsideDir(toolName string, input map[string]interface{}, workingDir string) error {
+	dir := strings.TrimSpace(workingDir)
+	if dir == "" || input == nil {
+		return nil
+	}
+	if !isMutatingOpenCodeTool(toolName) {
+		return nil
+	}
+	target := openCodeToolTargetPath(input)
+	if target == "" || !filepath.IsAbs(target) {
+		return nil // no target, or relative → resolves under the dir
+	}
+	rel, err := filepath.Rel(dir, filepath.Clean(target))
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("tool %q targeted %q outside the run's working directory %q — "+
+			"the write did not land in scope and is rejected as ineffective", toolName, target, dir)
+	}
+	return nil
+}
+
+// isMutatingOpenCodeTool reports whether an opencode tool name writes to the
+// filesystem (and thus has a guardable target path). Matched
+// case-insensitively against the file-mutating tool family.
+func isMutatingOpenCodeTool(toolName string) bool {
+	switch strings.ToLower(strings.TrimSpace(toolName)) {
+	case "write", "edit", "patch", "multiedit", "apply_patch", "applypatch":
+		return true
+	default:
+		return false
+	}
+}
+
+// openCodeToolTargetPath extracts the filesystem target from a tool input.
+// opencode's file tools key it as "filePath"; tolerate "path"/"file" too.
+func openCodeToolTargetPath(input map[string]interface{}) string {
+	for _, key := range []string{"filePath", "path", "file"} {
+		if v, ok := input[key]; ok {
+			if s, ok := v.(string); ok {
+				if s = strings.TrimSpace(s); s != "" {
+					return s
+				}
+			}
+		}
+	}
+	return ""
+}
+
 // parseOpenCodeToolResult extracts a tool_result (and possibly a
 // preceding tool_call when state.input is non-nil) from a part.
-func parseOpenCodeToolResult(runID uuid.UUID, part *OpenCodePart) []*domain.RunEvent {
+func parseOpenCodeToolResult(runID uuid.UUID, part *OpenCodePart, workingDir string) []*domain.RunEvent {
 	toolName := part.Tool
 	if toolName == "" {
 		toolName = part.Name
@@ -867,6 +940,12 @@ func parseOpenCodeToolResult(runID uuid.UUID, part *OpenCodePart) []*domain.RunE
 	if part.IsError {
 		events = append(events, domain.NewToolResultEvent(runID, toolName, part.CallID, "", fmt.Errorf("%s", output)))
 		return events
+	}
+	if part.State != nil {
+		if guardErr := toolTargetOutsideDir(toolName, part.State.Input, workingDir); guardErr != nil {
+			events = append(events, domain.NewToolResultEvent(runID, toolName, part.CallID, "", guardErr))
+			return events
+		}
 	}
 	events = append(events, domain.NewToolResultEvent(runID, toolName, part.CallID, output, nil))
 	return events

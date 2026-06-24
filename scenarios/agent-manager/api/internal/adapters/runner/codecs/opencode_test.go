@@ -498,6 +498,99 @@ func TestOpenCode_PostClassify_NoOpWhenMessageMeaningful(t *testing.T) {
 }
 
 // =============================================================================
+// Out-of-dir write guard (defense-in-depth against fabricated absolute paths)
+// =============================================================================
+
+func TestToolTargetOutsideDir(t *testing.T) {
+	dir := "/work/project"
+	cases := []struct {
+		name     string
+		tool     string
+		input    map[string]interface{}
+		wantBlnk bool // true => guard returns nil (allowed)
+	}{
+		{"write inside dir", "write", map[string]interface{}{"filePath": "/work/project/sub/a.txt"}, true},
+		{"write the dir itself", "write", map[string]interface{}{"filePath": "/work/project"}, true},
+		{"write outside dir", "write", map[string]interface{}{"filePath": "/tmp/elsewhere/a.txt"}, false},
+		{"edit outside dir", "edit", map[string]interface{}{"filePath": "/etc/passwd"}, false},
+		{"relative path allowed", "write", map[string]interface{}{"filePath": "hello.txt"}, true},
+		{"non-mutating read outside dir", "read", map[string]interface{}{"filePath": "/tmp/x"}, true},
+		{"bash never guarded", "bash", map[string]interface{}{"command": "ls /tmp"}, true},
+		{"no target path", "write", map[string]interface{}{"content": "hi"}, true},
+		{"path key variant outside", "patch", map[string]interface{}{"path": "/var/data/x"}, false},
+	}
+	for _, tc := range cases {
+		err := toolTargetOutsideDir(tc.tool, tc.input, dir)
+		if tc.wantBlnk && err != nil {
+			t.Errorf("%s: expected allowed, got error %v", tc.name, err)
+		}
+		if !tc.wantBlnk && err == nil {
+			t.Errorf("%s: expected guard to reject, got nil", tc.name)
+		}
+	}
+}
+
+func TestToolTargetOutsideDir_EmptyDirDisablesGuard(t *testing.T) {
+	if err := toolTargetOutsideDir("write", map[string]interface{}{"filePath": "/tmp/anywhere"}, ""); err != nil {
+		t.Errorf("empty workingDir must disable the guard, got %v", err)
+	}
+}
+
+// TestOpenCode_Decode_OutOfDirWrite_NotSuccessful drives the full decode path:
+// BuildArgs pins --dir onto the shared state, then a completed write to a
+// fabricated absolute path outside that dir must decode to a FAILED tool
+// result (so SuccessfulToolResults stays 0 and PostClassify flips the run).
+func TestOpenCode_Decode_OutOfDirWrite_NotSuccessful(t *testing.T) {
+	c := NewOpenCodeForTest()
+	state := c.NewState().(*opencodeState)
+	c.BuildArgs(state, runner.ExecuteRequest{
+		RunID:      uuid.New(),
+		Prompt:     "write hello",
+		WorkingDir: "/work/project",
+	})
+	line := `{"type":"tool_use","sessionID":"s","part":{"type":"tool","tool":"write","callID":"c1","state":{"status":"completed","input":{"filePath":"/tmp/opencode-smoketown/hello.txt"},"output":"file written"}}}`
+	events, err := c.DecodeStreamLine(state, uuid.New(), line)
+	if err != nil {
+		t.Fatalf("decode err: %v", err)
+	}
+	var sawResult bool
+	for _, ev := range events {
+		if data, ok := ev.Data.(*domain.ToolResultEventData); ok {
+			sawResult = true
+			if data.Success {
+				t.Error("expected out-of-dir write to decode as a NON-successful tool result")
+			}
+			if !strings.Contains(data.Error, "outside the run's working directory") {
+				t.Errorf("expected out-of-dir error message, got %q", data.Error)
+			}
+		}
+	}
+	if !sawResult {
+		t.Fatal("expected a tool result event")
+	}
+}
+
+func TestOpenCode_Decode_InDirWrite_Successful(t *testing.T) {
+	c := NewOpenCodeForTest()
+	state := c.NewState().(*opencodeState)
+	c.BuildArgs(state, runner.ExecuteRequest{
+		RunID:      uuid.New(),
+		Prompt:     "write hello",
+		WorkingDir: "/work/project",
+	})
+	line := `{"type":"tool_use","sessionID":"s","part":{"type":"tool","tool":"write","callID":"c1","state":{"status":"completed","input":{"filePath":"/work/project/hello.txt"},"output":"file written"}}}`
+	events, err := c.DecodeStreamLine(state, uuid.New(), line)
+	if err != nil {
+		t.Fatalf("decode err: %v", err)
+	}
+	for _, ev := range events {
+		if data, ok := ev.Data.(*domain.ToolResultEventData); ok && !data.Success {
+			t.Errorf("expected in-dir write to remain successful, got error %q", data.Error)
+		}
+	}
+}
+
+// =============================================================================
 // ClassifyTerminalError
 // =============================================================================
 
@@ -557,6 +650,38 @@ func TestOpenCode_UpdateMetrics(t *testing.T) {
 		}
 	})
 }
+
+// TestOpenCode_UpdateMetrics_SuccessfulToolResults asserts SuccessfulToolResults
+// increments ONLY on a tool result that reported success — a failed result (the
+// shape an out-of-dir/hallucinated write produces) bumps ToolCallCount but not
+// SuccessfulToolResults, which is what PostClassify keys the silent-success
+// reclassification on.
+func TestOpenCode_UpdateMetrics_SuccessfulToolResults(t *testing.T) {
+	c := NewOpenCodeForTest()
+	metrics := runner.ExecutionMetrics{}
+	last := ""
+
+	ok := domain.NewToolResultEvent(uuid.New(), "write", "c1", "file written", nil)
+	c.UpdateMetrics(ok, &metrics, &last)
+	if metrics.SuccessfulToolResults != 1 {
+		t.Errorf("after a successful result, SuccessfulToolResults=%d want 1", metrics.SuccessfulToolResults)
+	}
+
+	failed := domain.NewToolResultEvent(uuid.New(), "write", "c2", "", errTestToolFailure)
+	c.UpdateMetrics(failed, &metrics, &last)
+	if metrics.SuccessfulToolResults != 1 {
+		t.Errorf("a failed result must not increment SuccessfulToolResults, got %d", metrics.SuccessfulToolResults)
+	}
+	if metrics.ToolCallCount != 2 {
+		t.Errorf("both results count as tool calls, ToolCallCount=%d want 2", metrics.ToolCallCount)
+	}
+}
+
+var errTestToolFailure = errTest("tool failed")
+
+type errTest string
+
+func (e errTest) Error() string { return string(e) }
 
 // =============================================================================
 // ParseTranscriptLine — terminal extraction

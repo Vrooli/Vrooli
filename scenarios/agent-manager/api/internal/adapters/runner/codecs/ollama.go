@@ -3,25 +3,28 @@
 // Capabilities().SupportedModels.
 //
 // Capabilities() is on the hot path (flag validation calls it per run), so
-// the lister caches the /api/tags result for a short TTL: the first call (or
-// the first after the TTL elapses) performs one bounded HTTP probe, and every
-// call in between returns the cached slice. When Ollama is unreachable the
-// lister degrades to the last-known list (empty on a cold miss) and never
-// hard-fails — local models simply don't surface until the daemon answers.
+// the lister caches the result for a short TTL: the first call (or the first
+// after the TTL elapses) shells out once to the Ollama probe SSOT
+// (`resource-ollama models list --json`) — the single authority for Ollama
+// model discovery — and every call in between returns the cached slice. When
+// the SSOT is unreachable (CLI absent / daemon down) the lister degrades to
+// the last-known list (empty on a cold miss) and never hard-fails — local
+// models simply don't surface until the probe answers. This mirrors the
+// existing exec-to-resource-ollama pattern in
+// adapters/recommendation/ollama_extractor.go; no raw /api/tags HTTP path
+// lives here anymore.
 //
 // Model ids are emitted in the uniform `ollama/<name>` form used by both the
 // codex codec (which strips the prefix and drives `--oss --local-provider
 // ollama`) and the opencode codec (whose provider block resolves the same
-// slug). Tests inject a stub fetcher so no network access is required.
+// slug). Tests inject a stub fetcher so no subprocess is required.
 package codecs
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/url"
-	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"sync"
@@ -32,12 +35,17 @@ import (
 // Ollama models across the codecs.
 const ollamaModelPrefix = "ollama/"
 
-// ollamaListTTL bounds how often the lister probes /api/tags.
+// ollamaListTTL bounds how often the lister shells out to the probe SSOT.
 const ollamaListTTL = 60 * time.Second
 
-// ollamaProbeTimeout bounds a single /api/tags probe so a slow or wedged
-// daemon never stalls the Capabilities() hot path.
-const ollamaProbeTimeout = 2 * time.Second
+// ollamaProbeTimeout bounds a single `resource-ollama models list` probe so a
+// slow or wedged daemon never stalls the Capabilities() hot path. Slightly
+// larger than the old direct-HTTP budget to absorb subprocess spawn.
+const ollamaProbeTimeout = 5 * time.Second
+
+// ollamaSSOTCommand is the probe SSOT binary every Ollama discovery flows
+// through (resolved on PATH, as in ollama_extractor.go).
+const ollamaSSOTCommand = "resource-ollama"
 
 // ollamaLister discovers locally-pulled Ollama models with a TTL cache.
 // The zero value is not usable; construct via newOllamaLister.
@@ -51,9 +59,9 @@ type ollamaLister struct {
 	fetchedAt time.Time
 }
 
-// newOllamaLister returns a lister that probes the local Ollama daemon's
-// /api/tags endpoint (resolved from OLLAMA_HOST, defaulting to
-// http://localhost:11434).
+// newOllamaLister returns a lister that discovers installed models by shelling
+// out to the probe SSOT (`resource-ollama models list --json`); it never opens
+// a daemon HTTP connection itself.
 func newOllamaLister() *ollamaLister {
 	l := &ollamaLister{ttl: ollamaListTTL, nowFn: time.Now}
 	l.fetch = defaultOllamaFetch
@@ -96,35 +104,35 @@ func (l *ollamaLister) list() []string {
 	return out
 }
 
-// defaultOllamaFetch performs one bounded GET against the local Ollama
-// daemon's /api/tags endpoint and returns the pulled models as
-// `ollama/<name>` ids, sorted for deterministic advertisement.
+// defaultOllamaFetch shells out once to the probe SSOT
+// (`resource-ollama models list --json`) and returns the pulled models as
+// `ollama/<name>` ids, sorted for deterministic advertisement. Mirrors
+// ollama_extractor.go's exec discipline: a bounded context, JSON decode that
+// tolerates unknown fields, and graceful failure (the caller degrades to the
+// last-known list — never a crash). It is intentionally the ONLY Ollama
+// discovery path in agent-manager.
 func defaultOllamaFetch(ctx context.Context) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ollamaBaseURL()+"/api/tags", nil)
+	cmd := exec.CommandContext(ctx, ollamaSSOTCommand, "models", "list", "--json")
+	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ollama /api/tags: %s", resp.Status)
-	}
+	return parseOllamaListJSON(out)
+}
 
+// parseOllamaListJSON decodes the `resource-ollama models list --json` payload
+// ({"models":["gemma4:12b",...]}) into sorted `ollama/<name>` ids. Unknown
+// fields are tolerated (DiscardUnknown discipline).
+func parseOllamaListJSON(data []byte) ([]string, error) {
 	var payload struct {
-		Models []struct {
-			Name string `json:"name"`
-		} `json:"models"`
+		Models []string `json:"models"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal(bytes.TrimSpace(data), &payload); err != nil {
 		return nil, err
 	}
-
 	out := make([]string, 0, len(payload.Models))
-	for _, m := range payload.Models {
-		name := strings.TrimSpace(m.Name)
+	for _, name := range payload.Models {
+		name = strings.TrimSpace(name)
 		if name == "" {
 			continue
 		}
@@ -132,28 +140,6 @@ func defaultOllamaFetch(ctx context.Context) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
-}
-
-// ollamaBaseURL resolves the Ollama daemon base URL from OLLAMA_HOST,
-// tolerating a bare host (no scheme) or a host without a port — mirroring the
-// resource-side `ollama::base_url` bash helper so Go and shell agree.
-func ollamaBaseURL() string {
-	const fallback = "http://localhost:11434"
-	raw := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
-	if raw == "" {
-		return fallback
-	}
-	if !strings.Contains(raw, "://") {
-		raw = "http://" + raw
-	}
-	u, err := url.Parse(raw)
-	if err != nil || u.Host == "" {
-		return fallback
-	}
-	if u.Port() == "" {
-		u.Host = u.Host + ":11434"
-	}
-	return u.Scheme + "://" + u.Host
 }
 
 // splitOllamaModel reports whether a model id targets the local Ollama
