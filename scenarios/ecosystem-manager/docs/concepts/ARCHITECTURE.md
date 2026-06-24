@@ -75,7 +75,7 @@ The scenario owns:
 - lifecycle metadata under `.vrooli/`,
 - the git-tracked auto-steer profile registry under `profiles/`,
 - the domain-owned SQLite schemas under
-  `api/pkg/{autosteer,effectiveness,steering}/schema.sql`,
+  `api/pkg/{autosteer,steering}/schema.sql`,
 - proto schemas under `packages/proto/schemas/ecosystem-manager/`.
 
 The scenario does not own:

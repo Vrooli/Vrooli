@@ -88,19 +88,18 @@ This is the scenario's signature pattern and the reason the seams exist.
 (see [../concepts/CONTROL-MODEL.md](../concepts/CONTROL-MODEL.md)):
 
 ```
-MetricsProvider (sensor) ─▶ ConditionEvaluator + PhaseCoordinator (control law)
+completeness Score + test-genie findings (sensors) ─▶ Selector + Terminator (control law)
         ▲                              │
         │                              ▼
  ExecutionStateRepository  ◀── ExecutionOrchestrator ──▶ agent-manager (actuator)
         (controller state)
 ```
 
-**The pattern.** Substitute `MetricsProvider` with `MockMetricsProvider`
-([CODE: api/pkg/autosteer/repositories_mock.go]::`NewMockMetricsProvider`)
-and feed it a synthetic `MetricsSnapshot`. Because the sensor now returns
-exactly the values you choose, every downstream decision becomes
-deterministic and table-driven — **without running a real agent or
-collecting real metrics**:
+**The pattern.** Substitute the completeness `Provider` (and the findings
+runner) with fakes that return a synthetic `Score` / findings vector.
+Because the sensors now return exactly the values you choose, every
+downstream decision becomes deterministic and table-driven — **without
+running a real agent or collecting real measurements**:
 
 - **Stop-condition evaluation** — set the snapshot so a phase's
   `StopConditions` are (or aren't) satisfied; assert `Evaluate` and the

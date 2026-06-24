@@ -11,7 +11,7 @@ var schemaSQL string
 
 // Schema returns the Auto Steer controller's SQLite DDL for registration with
 // database.EnsureSchemas (see pkg/dbschema). It owns profile_executions,
-// profile_execution_state, decision_trace, and execution_feedback_entries.
+// profile_execution_state, and decision_trace.
 func Schema() string { return schemaSQL }
 
 // GetTableCounts returns the count of records in each controller table (for

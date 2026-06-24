@@ -46,9 +46,6 @@ const (
 	// ProcessLoopSafetyInterval controls how often the processor self-wakes
 	ProcessLoopSafetyInterval = 30 * time.Second
 
-	// TimeoutWatchdogInterval is how frequently the watchdog scans for timed-out tasks
-	TimeoutWatchdogInterval = 30 * time.Second
-
 	// MaxTurnsCleanupDelay is the additional wait after MAX_TURNS before cleanup
 	MaxTurnsCleanupDelay = 500 * time.Millisecond
 )

@@ -123,12 +123,6 @@ func (m *MockExecutionRegistry) GetAllExecutions() []taskExecutionSnapshot {
 	return snapshots
 }
 
-func (m *MockExecutionRegistry) GetTimedOutExecutions() []taskExecutionSnapshot {
-	return nil
-}
-
-func (m *MockExecutionRegistry) MarkTimedOut(taskID string) {}
-
 func (m *MockExecutionRegistry) Clear() int {
 	count := len(m.registrations)
 	m.registrations = make(map[string]*taskExecution)

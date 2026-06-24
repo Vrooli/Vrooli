@@ -117,8 +117,6 @@ Postgres connection or pool.
 | `profile_executions` | `api/pkg/autosteer/schema.sql` | Auto-steer run records / history & analytics |
 | `profile_execution_state` | `api/pkg/autosteer/schema.sql` | Live auto-steer run state |
 | `decision_trace` | `api/pkg/autosteer/schema.sql` | Per-iteration controller decision trace |
-| `execution_feedback_entries` | `api/pkg/autosteer/schema.sql` | Per-run feedback entries |
-| `skill_dimension_effectiveness` | `api/pkg/effectiveness/schema.sql` | Per-(skill, dimension) effectiveness ledger |
 | `steering_queue_state` | `api/pkg/steering/schema.sql` | Steering queue persistence |
 
 Filesystem state lives alongside the database: the runtime task queue is

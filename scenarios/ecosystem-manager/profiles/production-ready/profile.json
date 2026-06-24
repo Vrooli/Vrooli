@@ -8,6 +8,7 @@
       "operational-targets": 1.2,
       "cycles": 1.0,
       "structure": 1.0,
+      "contracts": 1.0,
       "ui": 0.9,
       "performance": 0.9,
       "docs": 0.8,

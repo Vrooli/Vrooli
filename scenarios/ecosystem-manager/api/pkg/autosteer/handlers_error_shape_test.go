@@ -1,13 +1,11 @@
 package autosteer
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 type stubProfileService struct {
@@ -58,22 +56,6 @@ func (s *stubHistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerfor
 
 func (s *stubHistoryService) GetExecution(executionID string) (*ProfilePerformance, error) {
 	return nil, nil
-}
-
-func (s *stubHistoryService) SubmitFeedback(executionID string, rating int, comments string) error {
-	return nil
-}
-
-func (s *stubHistoryService) SubmitFeedbackEntry(executionID string, req ExecutionFeedbackRequest) (*ExecutionFeedbackEntry, error) {
-	return &ExecutionFeedbackEntry{
-		ID:              executionID,
-		Category:        req.Category,
-		Severity:        req.Severity,
-		SuggestedAction: req.SuggestedAction,
-		Comments:        req.Comments,
-		Metadata:        req.Metadata,
-		CreatedAt:       time.Now().UTC(),
-	}, nil
 }
 
 func (s *stubHistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytics, error) {
@@ -188,28 +170,5 @@ func TestGetExecutionState_NotFoundStructured(t *testing.T) {
 
 	if resp.Message != "No execution state found" {
 		t.Fatalf("expected message 'No execution state found', got %q", resp.Message)
-	}
-}
-
-func TestSubmitFeedback_InvalidRatingStructured(t *testing.T) {
-	handlers := NewAutoSteerHandlers(&stubProfileService{}, &stubExecutionEngine{}, &stubHistoryService{})
-
-	body := bytes.NewBufferString(`{"rating": 6}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/auto-steer/history/exec-1/feedback", body)
-	w := httptest.NewRecorder()
-
-	handlers.SubmitFeedback(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
-
-	var resp ErrorResponse
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if resp.Message != "Rating must be between 1 and 5" {
-		t.Fatalf("unexpected message: %q", resp.Message)
 	}
 }

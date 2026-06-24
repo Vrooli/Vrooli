@@ -18,7 +18,7 @@ func setupHistoryTestDB(t *testing.T) (*sql.DB, func()) {
 	return testdb.NewSQLite(t, Schema()), func() {}
 }
 
-func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioName string, withFeedback bool) string {
+func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioName string) string {
 	t.Helper()
 
 	taskID := uuid.New().String()
@@ -59,18 +59,6 @@ func createTestExecution(t *testing.T, db *sql.DB, profileID string, scenarioNam
 		t.Fatalf("Failed to create test execution: %v", err)
 	}
 
-	if withFeedback {
-		feedbackQuery := `
-			UPDATE profile_executions
-			SET user_rating = ?, user_comments = ?, user_feedback_at = ?
-			WHERE task_id = ?
-		`
-		_, err = db.Exec(feedbackQuery, 5, "Excellent results!", time.Now().UTC(), taskID)
-		if err != nil {
-			t.Fatalf("Failed to add feedback: %v", err)
-		}
-	}
-
 	return taskID
 }
 
@@ -87,9 +75,9 @@ func TestHistoryService_GetHistory(t *testing.T) {
 	profileID1 := uuid.New().String()
 	profileID2 := uuid.New().String()
 
-	createTestExecution(t, db, profileID1, "scenario-a", true)
-	createTestExecution(t, db, profileID1, "scenario-a", false)
-	createTestExecution(t, db, profileID2, "scenario-b", true)
+	createTestExecution(t, db, profileID1, "scenario-a")
+	createTestExecution(t, db, profileID1, "scenario-a")
+	createTestExecution(t, db, profileID2, "scenario-b")
 
 	t.Run("get all history", func(t *testing.T) {
 		history, err := service.GetHistory(HistoryFilters{})
@@ -202,27 +190,6 @@ func TestHistoryService_GetHistory(t *testing.T) {
 			t.Errorf("Expected 2 executions matching filters, got %d", len(history))
 		}
 	})
-
-	t.Run("user feedback is included", func(t *testing.T) {
-		history, err := service.GetHistory(HistoryFilters{})
-		if err != nil {
-			t.Fatalf("GetHistory() error = %v", err)
-		}
-
-		feedbackCount := 0
-		for _, exec := range history {
-			if exec.UserFeedback != nil {
-				feedbackCount++
-				if exec.UserFeedback.Rating == 0 {
-					t.Error("User feedback should have rating")
-				}
-			}
-		}
-
-		if feedbackCount != 2 {
-			t.Errorf("Expected 2 executions with feedback, got %d", feedbackCount)
-		}
-	})
 }
 
 func TestHistoryService_GetExecution(t *testing.T) {
@@ -235,7 +202,7 @@ func TestHistoryService_GetExecution(t *testing.T) {
 	service := NewHistoryService(db)
 
 	profileID := uuid.New().String()
-	taskID := createTestExecution(t, db, profileID, "test-scenario", true)
+	taskID := createTestExecution(t, db, profileID, "test-scenario")
 
 	t.Run("get existing execution", func(t *testing.T) {
 		exec, err := service.GetExecution(taskID)
@@ -258,79 +225,10 @@ func TestHistoryService_GetExecution(t *testing.T) {
 		if len(exec.PhaseBreakdown) != 2 {
 			t.Errorf("Expected 2 phases, got %d", len(exec.PhaseBreakdown))
 		}
-		if exec.UserFeedback == nil {
-			t.Error("Expected user feedback to be present")
-		}
-		if exec.UserFeedback != nil && exec.UserFeedback.Rating != 5 {
-			t.Errorf("Expected rating 5, got %d", exec.UserFeedback.Rating)
-		}
 	})
 
 	t.Run("get non-existent execution", func(t *testing.T) {
 		_, err := service.GetExecution(uuid.New().String())
-		if err == nil {
-			t.Error("Expected error for non-existent execution")
-		}
-	})
-}
-
-func TestHistoryService_SubmitFeedback(t *testing.T) {
-	db, cleanup := setupHistoryTestDB(t)
-	if db == nil {
-		return
-	}
-	defer cleanup()
-
-	service := NewHistoryService(db)
-
-	profileID := uuid.New().String()
-	taskID := createTestExecution(t, db, profileID, "test-scenario", false)
-
-	t.Run("submit feedback successfully", func(t *testing.T) {
-		err := service.SubmitFeedback(taskID, 4, "Good but could be better")
-		if err != nil {
-			t.Fatalf("SubmitFeedback() error = %v", err)
-		}
-
-		// Verify feedback was saved
-		exec, err := service.GetExecution(taskID)
-		if err != nil {
-			t.Fatalf("GetExecution() error = %v", err)
-		}
-
-		if exec.UserFeedback == nil {
-			t.Fatal("Expected user feedback to be present")
-		}
-		if exec.UserFeedback.Rating != 4 {
-			t.Errorf("Expected rating 4, got %d", exec.UserFeedback.Rating)
-		}
-		if exec.UserFeedback.Comments != "Good but could be better" {
-			t.Errorf("Expected comments 'Good but could be better', got %s", exec.UserFeedback.Comments)
-		}
-	})
-
-	t.Run("update existing feedback", func(t *testing.T) {
-		err := service.SubmitFeedback(taskID, 5, "Actually it's excellent!")
-		if err != nil {
-			t.Fatalf("SubmitFeedback() error = %v", err)
-		}
-
-		// Verify feedback was updated
-		exec, err := service.GetExecution(taskID)
-		if err != nil {
-			t.Fatalf("GetExecution() error = %v", err)
-		}
-
-		if exec.UserFeedback.Rating != 5 {
-			t.Errorf("Expected rating 5, got %d", exec.UserFeedback.Rating)
-		}
-		if exec.UserFeedback.Comments != "Actually it's excellent!" {
-			t.Errorf("Expected updated comments, got %s", exec.UserFeedback.Comments)
-		}
-	})
-
-	t.Run("submit feedback for non-existent execution", func(t *testing.T) {
-		err := service.SubmitFeedback(uuid.New().String(), 5, "Test")
 		if err == nil {
 			t.Error("Expected error for non-existent execution")
 		}
@@ -349,9 +247,9 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 	profileID := uuid.New().String()
 
 	// Create multiple executions with different scenarios
-	createTestExecution(t, db, profileID, "scenario-a", true)
-	createTestExecution(t, db, profileID, "scenario-a", true)
-	createTestExecution(t, db, profileID, "scenario-b", false)
+	createTestExecution(t, db, profileID, "scenario-a")
+	createTestExecution(t, db, profileID, "scenario-a")
+	createTestExecution(t, db, profileID, "scenario-b")
 
 	t.Run("get analytics for profile with executions", func(t *testing.T) {
 		analytics, err := service.GetProfileAnalytics(profileID)
@@ -369,11 +267,6 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 
 		if analytics.AvgIterations != 15.0 {
 			t.Errorf("Expected avg iterations 15.0, got %f", analytics.AvgIterations)
-		}
-
-		// Should have average rating from 2 executions with feedback
-		if analytics.AvgRating != 5.0 {
-			t.Errorf("Expected avg rating 5.0, got %f", analytics.AvgRating)
 		}
 
 		// Verify phase statistics
@@ -406,9 +299,6 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 				if stats.ExecutionCount != 2 {
 					t.Errorf("Expected 2 executions for scenario-a, got %d", stats.ExecutionCount)
 				}
-				if stats.AvgRating != 5.0 {
-					t.Errorf("Expected avg rating 5.0, got %f", stats.AvgRating)
-				}
 			}
 		}
 	})
@@ -421,10 +311,6 @@ func TestHistoryService_GetProfileAnalytics(t *testing.T) {
 
 		if analytics.TotalExecutions != 0 {
 			t.Errorf("Expected 0 total executions, got %d", analytics.TotalExecutions)
-		}
-
-		if analytics.AvgRating != 0 {
-			t.Errorf("Expected avg rating 0, got %f", analytics.AvgRating)
 		}
 
 		if len(analytics.PhaseStats) != 0 {
@@ -446,7 +332,7 @@ func TestHistoryService_PhaseEffectiveness(t *testing.T) {
 
 	service := NewHistoryService(db)
 	profileID := uuid.New().String()
-	createTestExecution(t, db, profileID, "test-scenario", false)
+	createTestExecution(t, db, profileID, "test-scenario")
 
 	analytics, err := service.GetProfileAnalytics(profileID)
 	if err != nil {

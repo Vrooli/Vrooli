@@ -3,8 +3,8 @@ package findings
 import "github.com/vrooli/maturity-go/dimensions"
 
 // Diff is the per-dimension change in the open-findings set across one
-// controller iteration, computed by stable finding ID. It is the signal credit
-// assignment attributes to the skill that ran (see pkg/effectiveness.CreditEvent).
+// controller iteration, computed by stable finding ID. It is the realized
+// per-dimension delta the controller records on the decision trace.
 type Diff struct {
 	// ClosedByDimension counts findings present before and absent after, bucketed
 	// by the dimension they belonged to.

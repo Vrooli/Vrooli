@@ -30,7 +30,6 @@ in [`DATA.md`](DATA.md).
 | steering | Selects the steering mode (profile / queue / manual / none) for a task. | `steering_queue_state` | API, UI | `api/pkg/steering/` |
 | settings | Processor configuration (concurrency, auto-requeue, runner models). | settings state | API, UI | `api/pkg/settings/` |
 | discovery | Catalog of improvable scenarios/resources and their PRD completion. | none (reads repo + `PRD.md`) | API, UI | `api/pkg/discovery/` |
-| insights | Post-run analysis: structured feedback and applicable suggestions. Served by auto-steer (not a standalone package). | `execution_feedback_entries` | API, UI | `api/pkg/autosteer/history_service.go`, `handlers.go` |
 | prompts | Assemble agent prompts; sync the steer-skill catalog. | prompt files; skills cache | API | `api/pkg/prompts/` |
 | logs | Date-stamped system audit trail. | `logs/<date>.log` | API, CLI, UI | `api/pkg/systemlog/` |
 
@@ -117,13 +116,6 @@ in [`DATA.md`](DATA.md).
   [`INTEGRATIONS.md`](INTEGRATIONS.md).
 - Surfaces: `GET /api/{resources,scenarios}`, `GET /api/operations`,
   `GET /api/categories`.
-
-### insights
-
-- Purpose: turn execution history into structured, severity-tagged
-  suggestions an operator (or future controller) can apply.
-- Owns: `execution_feedback_entries`.
-- Surfaces: `GET/POST /api/tasks/{id}/insights*`.
 
 ### prompts
 

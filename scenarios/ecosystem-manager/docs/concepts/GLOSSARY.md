@@ -71,12 +71,10 @@ diminishing-returns, or budget-exhausted (no per-phase gates).
 reasoning (state → choice → rationale → realized delta), persisted and
 surfaced in the UI. [CODE: api/pkg/autosteer/decision_trace.go]
 
-**Metric (current)** — A scalar measurement collected each iteration
-(e.g., `operational_targets_percentage`, `accessibility_score`,
-`unit_test_coverage`). [CODE: api/pkg/autosteer/metrics.go]
-
-**MetricsSnapshot** — The collected set of metrics for one iteration,
-persisted in execution state.
+**Completeness score** — The maturity rung, build/phase status, and
+operational-targets completion the controller reads each iteration from
+**scenario-completeness-scoring** (`GetScore`) via the `pkg/completeness`
+seam. EM no longer self-collects metrics; measurement is delegated.
 
 **Finding (target)** — A structured `test-genie` audit result with a
 dimension, severity, and location. The controller's state is the *set of
@@ -94,41 +92,25 @@ keys on.
 which finding dimensions each steer skill targets. The linchpin of
 diagnosis-driven selection.
 
-**Effectiveness table** — Per-`(skill, dimension)` memory tracking
-*efficacy* (findings closed per token, learned at runtime). Powers both
-selection and thrashing damping. Implemented (v1) in `pkg/effectiveness`
-(`skill_dimension_effectiveness` table). Trust/cost/stability priors from
-DTV are wired: `DTVPriorProvider` seeds the cold start and the bandit blend
-washes it out as live evidence accrues.
+**Findings diff** — The per-dimension change in the open-findings set
+across one iteration (closed/introduced by stable finding ID), computed by
+`findings.DiffStates`. It is the realized delta the controller records on
+the decision trace.
 
-**Credit assignment** — After each run, diffing the findings set into
-closed/introduced (by stable finding ID, bucketed by dimension) and
-attributing the delta to the skill that ran, to update the effectiveness
-table. Implemented (v1) — `findings.DiffStates` + `effectiveness.Record`.
-
-**Thrashing** — Wasted oscillation. *Flavor 1* is intrinsic single-skill
-non-convergence (caught by DTV). *Flavor 2* is inter-skill oscillation on
-a live target (caught by runtime detection). See the three-layer defense
-in [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
+**Thrashing** — Wasted oscillation: the controller grinding without
+closing findings, or re-opening what a prior iteration closed. The greedy
+controller defends against it at termination via the diminishing-returns
+floor and the findings-fingerprint cycle check — see
+[`CONTROL-MODEL.md`](CONTROL-MODEL.md).
 
 **Findings fingerprint** — A SHA256 hash of the open-findings ID set used
-to detect state cycles (thrashing) in one repeat. Implemented (v1) —
-computed in `pkg/findings` and compared by the terminator's cycle detector.
+to detect state cycles (thrashing) in one repeat — computed in
+`pkg/findings` and compared by the terminator's cycle detector.
 
 ## Integration Terms
 
 **Agent-manager** — The scenario that executes every agent run. The
 execution boundary; auto-steer never runs an agent directly.
-
-**Development Toolchain Validator (DTV)** — Validates steer skills/tools
-against pristine goldens. For the controller it is an *eligibility gate*
-(DTV-red skills are barred from the autonomous fleet), a source of
-*trust/cost priors*, and *Layer-1 thrashing prevention*. Wired: the
-`DTVEligibilityFilter` gates and `DTVPriorProvider` seeds priors via the
-`dtv.Client` read seam (fail-open when DTV is unreachable). When the gate
-degrades (DTV down or all candidates red) the controller proceeds with the
-least-bad skill, halves the remaining budget, and flags the iteration
-(proceed-cap-flag policy).
 
 **test-genie** — Produces the structured findings that become the
 controller's state. Wired as the state source via `findings.TestGenieRunner`

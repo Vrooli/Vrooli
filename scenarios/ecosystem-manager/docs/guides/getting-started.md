@@ -29,7 +29,7 @@ UI is served on its configured `UI_PORT`.
 
 `make status` prints the allocated `UI_PORT`. Open `http://localhost:<UI_PORT>`.
 You should see the kanban board (Pending / In Progress / Review / Completed /
-Failed) and the insights panels.
+Failed) and the steering and execution-history panels.
 
 ## 3. Create your first task
 

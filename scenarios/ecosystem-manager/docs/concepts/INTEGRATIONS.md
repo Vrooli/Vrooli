@@ -22,7 +22,7 @@ behavior — the controller is only as available as its inputs.
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| Embedded SQLite | local file (not a resource) | n/a | analytics, auto-steer, steering, insights | `api/pkg/storagepaths.SQLiteDSN()`; domain-owned schemas applied at boot via `database.EnsureSchemas` | `/health` unhealthy if the storage data root is not writable; execution state cannot persist. |
+| Embedded SQLite | local file (not a resource) | n/a | analytics, auto-steer, steering | `api/pkg/storagepaths.SQLiteDSN()`; domain-owned schemas applied at boot via `database.EnsureSchemas` | `/health` unhealthy if the storage data root is not writable; execution state cannot persist. |
 | agent-manager | scenario | yes | tasks, auto-steer | Start/stop/stream every agent run | Tasks cannot execute; queue stalls. |
 | prompt-manager | resource/scenario | yes (for steering) | auto-steer (skills) | `GET /api/skills`, `POST /api/skills/sync` | Steering prompts/skills unavailable; graceful degradation. |
 | claude-code | resource | yes | execution | AI model backing agent runs | Generation/improvement runs cannot proceed. |
@@ -91,7 +91,7 @@ These are the inputs to the **closed-loop controller** described in
 | Input | Role in the controller | Status |
 |---|---|---|
 | test-genie | Findings-based state — what's broken/risky feeds the controller's next move. | Wired — `findings.TestGenieRunner` is the DIAGNOSE/MEASURE audit runner. |
-| development-toolchain-validator (DTV) | Skill trust + cost priors, an eligibility gate, and a Layer-1 thrashing-prevention layer over steering choices. | Wired — `DTVEligibilityFilter` + `DTVPriorProvider` over the `dtv.Client` read seam (fail-open when DTV is unreachable; proceed-cap-flag when the gate degrades). |
+| scenario-completeness-scoring | The maturity rung, build/phase status, and operational-targets completion the controller reads each iteration. | Wired — `pkg/completeness` Connect client over `GetScore` (does NOT fail open; measurement is load-bearing for termination). |
 
 ## Cross-References
 

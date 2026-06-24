@@ -37,8 +37,6 @@ type ExecutionEngineAPI interface {
 type HistoryServiceAPI interface {
 	GetHistory(filters HistoryFilters) ([]ProfilePerformance, error)
 	GetExecution(executionID string) (*ProfilePerformance, error)
-	SubmitFeedback(executionID string, rating int, comments string) error
-	SubmitFeedbackEntry(executionID string, req ExecutionFeedbackRequest) (*ExecutionFeedbackEntry, error)
 	GetProfileAnalytics(profileID string) (*ProfileAnalytics, error)
 }
 
@@ -423,53 +421,6 @@ func (h *AutoSteerHandlers) GetExecution(w http.ResponseWriter, r *http.Request)
 	}
 
 	writeJSON(w, http.StatusOK, execution)
-}
-
-// SubmitFeedback handles POST /api/auto-steer/history/:executionId/feedback
-func (h *AutoSteerHandlers) SubmitFeedback(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	executionID := vars["executionId"]
-
-	var feedback struct {
-		Rating   int    `json:"rating"`
-		Comments string `json:"comments"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&feedback); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid request body: "+err.Error())
-		return
-	}
-
-	if feedback.Rating < 1 || feedback.Rating > 5 {
-		writeError(w, http.StatusBadRequest, "Rating must be between 1 and 5")
-		return
-	}
-
-	if err := h.historyService.SubmitFeedback(executionID, feedback.Rating, feedback.Comments); err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to submit feedback: "+err.Error())
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// SubmitFeedbackEntry records structured feedback for an execution.
-func (h *AutoSteerHandlers) SubmitFeedbackEntry(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	executionID := vars["executionId"]
-
-	var req ExecutionFeedbackRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid feedback payload: "+err.Error())
-		return
-	}
-	entry, err := h.historyService.SubmitFeedbackEntry(executionID, req)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to submit feedback entry: "+err.Error())
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, entry)
 }
 
 // GetProfileAnalytics handles GET /api/auto-steer/analytics/:profileId

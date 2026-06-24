@@ -38,12 +38,6 @@ type ExecutionRegistryAPI interface {
 	// GetAllExecutions returns a snapshot of all current executions for iteration.
 	GetAllExecutions() []taskExecutionSnapshot
 
-	// GetTimedOutExecutions returns snapshots of executions that have exceeded their timeout.
-	GetTimedOutExecutions() []taskExecutionSnapshot
-
-	// MarkTimedOut marks an execution as timed out (for watchdog use).
-	MarkTimedOut(taskID string)
-
 	// Clear removes all executions from the registry.
 	Clear() int
 }

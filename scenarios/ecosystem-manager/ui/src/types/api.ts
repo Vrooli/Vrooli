@@ -326,55 +326,8 @@ export interface AutoSteerExecutionState {
   /** Total weighted score after each iteration (the convergence curve). */
   score_history?: number[];
   trace?: DecisionTraceEntry[];
-  metrics?: MetricsSnapshot;
   started_at?: string;
   last_updated?: string;
-}
-
-export interface MetricsSnapshot {
-  timestamp: string;
-  phase_loops: number;
-  total_loops: number;
-  build_status: number;
-  operational_targets_total: number;
-  operational_targets_passing: number;
-  operational_targets_percentage: number;
-  ux?: {
-    accessibility_score: number;
-    ui_test_coverage: number;
-    responsive_breakpoints: number;
-    user_flows_implemented: number;
-    loading_states_count: number;
-    error_handling_coverage: number;
-  };
-  refactor?: {
-    cyclomatic_complexity_avg: number;
-    duplication_percentage: number;
-    standards_violations: number;
-    tidiness_score: number;
-    tech_debt_items: number;
-  };
-  test?: {
-    unit_test_coverage: number;
-    integration_test_coverage: number;
-    ui_test_coverage: number;
-    edge_cases_covered: number;
-    flaky_tests: number;
-    test_quality_score: number;
-  };
-  performance?: {
-    bundle_size_kb: number;
-    initial_load_time_ms: number;
-    lcp_ms: number;
-    fid_ms: number;
-    cls_score: number;
-  };
-  security?: {
-    vulnerability_count: number;
-    input_validation_coverage: number;
-    auth_implementation_score: number;
-    security_scan_score: number;
-  };
 }
 
 /**
@@ -388,45 +341,15 @@ export interface SkillPerformance {
   weighted_delta: number;
 }
 
-export interface UserFeedback {
-  rating: number;
-  comments?: string;
-  submitted_at: string;
-}
-
 export interface ProfilePerformance {
   id: string;
   profile_id: string;
   scenario_name: string;
   execution_id: string;
-  start_metrics: MetricsSnapshot;
-  end_metrics: MetricsSnapshot;
   phase_breakdown: SkillPerformance[];
   total_iterations: number;
   total_duration: number;
-  user_feedback?: UserFeedback;
   executed_at: string;
-  feedback_entries?: ExecutionFeedbackEntry[];
-}
-
-type OpenString<T extends string> = T | (string & {});
-
-export interface ExecutionFeedbackEntry {
-  id: string;
-  category: string;
-  severity: OpenString<'low' | 'medium' | 'high' | 'critical'>;
-  suggested_action?: string;
-  comments?: string;
-  metadata?: Record<string, unknown>;
-  created_at: string;
-}
-
-export interface ExecutionFeedbackEntryPayload {
-  category: string;
-  severity: OpenString<'low' | 'medium' | 'high' | 'critical'>;
-  suggested_action?: string;
-  comments?: string;
-  metadata?: Record<string, unknown>;
 }
 
 // ==================== Discovery Types ====================

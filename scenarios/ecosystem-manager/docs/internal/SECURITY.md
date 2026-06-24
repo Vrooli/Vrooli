@@ -66,7 +66,7 @@ model is ever added it belongs at the API/service layer.
 | No authentication or authorization | conditional | Required before any non-local or multi-operator deployment. |
 | CORS defaults to `*` | medium | Before binding the API to any non-loopback interface. |
 | No audit/review of agent-applied diffs at this layer | medium | Owned by agent-manager sandbox + downstream review; revisit if ecosystem-manager gains direct apply authority. |
-| No semantic safety gate on autonomous changes | high (integrity) | Revisit when control-model effectiveness/thrashing defenses ship (see CONTROL-MODEL.md / PROBLEMS.md). |
+| No semantic safety gate on autonomous changes | high (integrity) | Owned by the gameguard promote-safety gate + agent-manager review; revisit if a richer semantic diff gate is added (see CONTROL-MODEL.md). |
 
 ## Cross-References
 

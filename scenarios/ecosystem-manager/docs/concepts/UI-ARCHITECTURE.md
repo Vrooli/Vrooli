@@ -27,8 +27,7 @@ ui/src/components/
 ├── steer/           # SteeringConfigPicker, SteeringConfigDialog,
 │   │                #   PhasePicker, PhasePickerDialog, SteerFocusBadge
 │   └── panels/      #   ProfilePanel, QueuePanel, ManualPanel, NonePanel
-├── executions/      # ExecutionDetailCard, ExecutionFeedbackPanel
-├── insights/        # InsightsTab, SystemInsightsTab, *Card, *Viewer (analytics)
+├── executions/      # ExecutionDetailCard
 ├── filters/         # FilterPanel
 ├── modals/          # CreateTaskModal, TaskDetailsModal, SettingsModal,
 │                    #   SystemLogsModal, AutoSteerProfileEditorModal, …
@@ -39,7 +38,7 @@ ui/src/components/
 ```
 
 The tree is organized by **feature/concern folders chosen by hand**
-(`kanban/`, `steer/`, `executions/`, `insights/`, …), not by a manifest-driven
+(`kanban/`, `steer/`, `executions/`, …), not by a manifest-driven
 slot taxonomy. The `steer/` tree mirrors the Auto Steer model: a top-level
 config picker, a phase picker, and one panel per steering mode
 (Profile / Queue / Manual / None).
@@ -84,8 +83,8 @@ taxonomy here would mean:
 - **Author `ui/manifest.json`** against schema `scenario-ui-manifest/v1`,
   mapping the existing folders to slots — e.g. `components/` →
   `shared-component`, `components/ui/` → `ui-primitive`, `modals/` to a
-  modal slot, and the feature folders (`kanban/`, `steer/`, `executions/`,
-  `insights/`) to feature slots. Because the schema does not enum-restrict
+  modal slot, and the feature folders (`kanban/`, `steer/`, `executions/`)
+  to feature slots. Because the schema does not enum-restrict
   slot names, the feature folders can keep their current names.
 - **Reconcile the layout** where it diverges from template defaults (this
   tree groups by feature under `components/`; the template default expects a
@@ -103,4 +102,4 @@ components by the folder conventions above, not by slot.
 - Template UI-architecture concept (slot taxonomy): the react-vite v2 `docs/concepts/UI-ARCHITECTURE.md`
 - Schema (when adopted): `.vrooli/schemas/scenario-ui-manifest.schema.json` (`$id: scenario-ui-manifest/v1`)
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — system boundaries
-- [`DOMAINS.md`](DOMAINS.md) — domain ownership reflected in the `steer/`/`insights/`/`executions/` UI grouping
+- [`DOMAINS.md`](DOMAINS.md) — domain ownership reflected in the `steer/`/`executions/` UI grouping

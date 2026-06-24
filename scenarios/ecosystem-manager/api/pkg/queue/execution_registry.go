@@ -141,36 +141,6 @@ func (r *ExecutionRegistry) GetAllExecutions() []taskExecutionSnapshot {
 	return snapshots
 }
 
-// GetTimedOutExecutions returns snapshots of executions that have exceeded their timeout
-func (r *ExecutionRegistry) GetTimedOutExecutions() []taskExecutionSnapshot {
-	r.executionsMu.RLock()
-	defer r.executionsMu.RUnlock()
-
-	timedOut := make([]taskExecutionSnapshot, 0)
-	for taskID, exec := range r.executions {
-		if exec.isTimedOut() {
-			timedOut = append(timedOut, taskExecutionSnapshot{
-				TaskID:    taskID,
-				AgentTag:  exec.agentTag,
-				RunID:     exec.runID,
-				Started:   exec.started,
-				TimeoutAt: exec.timeoutAt,
-				TimedOut:  true,
-			})
-		}
-	}
-	return timedOut
-}
-
-// MarkTimedOut marks an execution as timed out (for watchdog use)
-func (r *ExecutionRegistry) MarkTimedOut(taskID string) {
-	r.executionsMu.Lock()
-	defer r.executionsMu.Unlock()
-	if exec, exists := r.executions[taskID]; exists {
-		exec.timedOut = true
-	}
-}
-
 // taskExecutionSnapshot is an immutable copy of execution state for external use
 type taskExecutionSnapshot struct {
 	TaskID    string

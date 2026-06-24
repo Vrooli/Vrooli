@@ -123,9 +123,8 @@ Auto-Steer drives iterative, phase-based agent runs against a task using
 a tunable **profile**. Profiles are stored on the filesystem under
 `profiles/<id-or-name>/profile.json`, indexed by `profiles/metadata.json`.
 Run state and history persist to the embedded SQLite database
-(`profile_executions`, `profile_execution_state`, `steering_queue_state`,
-`execution_feedback_entries`). Handlers:
-[CODE: api/pkg/server/server.go] (`registerAutoSteerRoutes`).
+(`profile_executions`, `profile_execution_state`, `steering_queue_state`).
+Handlers: [CODE: api/pkg/server/server.go] (`registerAutoSteerRoutes`).
 
 ### Profiles & templates
 
@@ -148,19 +147,17 @@ Run state and history persist to the embedded SQLite database
 | `GET /api/auto-steer/execution/{taskId}` | Current execution state for a task |
 | `GET /api/auto-steer/metrics/{taskId}` | Live metrics for a task's run |
 
-### History, feedback & analytics
+### History & analytics
 
 | Method & path | Purpose |
 |---|---|
 | `GET /api/auto-steer/history` | List past executions |
 | `GET /api/auto-steer/history/{executionId}` | One execution's detail |
-| `POST /api/auto-steer/history/{executionId}/feedback` | Submit run-level feedback |
-| `POST /api/auto-steer/history/{executionId}/feedback/entries` | Append a feedback entry |
 | `GET /api/auto-steer/analytics/{profileId}` | Aggregate analytics for a profile |
 
 ---
 
-## Settings, Discovery & Insights
+## Settings & Discovery
 
 ### Settings
 
@@ -186,23 +183,6 @@ Handlers: [CODE: api/pkg/server/server.go] (`registerDiscoveryRoutes`).
 | `GET /api/scenarios/{name}/status` | One scenario's status |
 | `GET /api/operations` | Supported operation types |
 | `GET /api/categories` | Target categories |
-
-### Insights
-
-AI-generated improvement reports and applicable suggestions, scoped to a
-task or to the whole system. Handlers:
-[CODE: api/pkg/server/server.go] (`registerInsightRoutes`).
-
-| Method & path | Purpose |
-|---|---|
-| `GET /api/tasks/{id}/insights` | Task insight reports |
-| `GET /api/tasks/{id}/insights/preview` | Preview the insight prompt |
-| `POST /api/tasks/{id}/insights/generate` | Generate a new insight report |
-| `GET /api/tasks/{id}/insights/{report_id}` | One report |
-| `POST .../insights/{report_id}/suggestions/{suggestion_id}/status` | Set a suggestion's status |
-| `POST .../insights/{report_id}/suggestions/{suggestion_id}/apply` | Apply a suggestion |
-| `GET /api/insights/system` | System-level insights |
-| `POST /api/insights/system/generate` | Generate system-level insights |
 
 ### Importance
 

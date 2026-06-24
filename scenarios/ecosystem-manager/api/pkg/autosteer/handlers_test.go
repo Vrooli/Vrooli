@@ -353,61 +353,6 @@ func TestHandlers_GetTemplates(t *testing.T) {
 	})
 }
 
-func TestHandlers_SubmitFeedback(t *testing.T) {
-	db, cleanup := setupHistoryTestDB(t)
-	if db == nil {
-		return
-	}
-	defer cleanup()
-
-	historyService := NewHistoryService(db)
-	handlers := NewAutoSteerHandlers(nil, nil, historyService)
-
-	taskID := createTestExecution(t, db, uuid.New().String(), "test-scenario", false)
-
-	t.Run("submit valid feedback", func(t *testing.T) {
-		feedback := struct {
-			Rating   int    `json:"rating"`
-			Comments string `json:"comments"`
-		}{
-			Rating:   5,
-			Comments: "Excellent!",
-		}
-
-		body, _ := json.Marshal(feedback)
-		req := httptest.NewRequest(http.MethodPost, "/api/auto-steer/history/"+taskID+"/feedback", bytes.NewBuffer(body))
-		req = mux.SetURLVars(req, map[string]string{"executionId": taskID})
-		w := httptest.NewRecorder()
-
-		handlers.SubmitFeedback(w, req)
-
-		if w.Code != http.StatusNoContent {
-			t.Errorf("Expected status %d, got %d", http.StatusNoContent, w.Code)
-		}
-	})
-
-	t.Run("submit invalid rating", func(t *testing.T) {
-		feedback := struct {
-			Rating   int    `json:"rating"`
-			Comments string `json:"comments"`
-		}{
-			Rating:   6, // Invalid - must be 1-5
-			Comments: "Test",
-		}
-
-		body, _ := json.Marshal(feedback)
-		req := httptest.NewRequest(http.MethodPost, "/api/auto-steer/history/"+taskID+"/feedback", bytes.NewBuffer(body))
-		req = mux.SetURLVars(req, map[string]string{"executionId": taskID})
-		w := httptest.NewRecorder()
-
-		handlers.SubmitFeedback(w, req)
-
-		if w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
-		}
-	})
-}
-
 func TestHandlers_GetHistory(t *testing.T) {
 	db, cleanup := setupHistoryTestDB(t)
 	if db == nil {
@@ -419,8 +364,8 @@ func TestHandlers_GetHistory(t *testing.T) {
 	handlers := NewAutoSteerHandlers(nil, nil, historyService)
 
 	profileID := uuid.New().String()
-	createTestExecution(t, db, profileID, "scenario-a", true)
-	createTestExecution(t, db, profileID, "scenario-b", false)
+	createTestExecution(t, db, profileID, "scenario-a")
+	createTestExecution(t, db, profileID, "scenario-b")
 
 	t.Run("get all history", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/history", nil)

@@ -26,7 +26,6 @@ type taskExecution struct {
 	runID     string // agent-manager run ID for StopRun calls
 	started   time.Time
 	timeoutAt time.Time // When this execution will timeout
-	timedOut  bool      // Whether timeout has already occurred
 }
 
 // getRunID returns the agent-manager run ID, empty if not set
@@ -63,9 +62,6 @@ func (qp *Processor) stopRunViaAgentManager(taskID string) error {
 func (te *taskExecution) isTimedOut() bool {
 	if te == nil {
 		return false
-	}
-	if te.timedOut {
-		return true
 	}
 	if !te.timeoutAt.IsZero() && time.Now().After(te.timeoutAt) {
 		return true
@@ -130,9 +126,6 @@ type Processor struct {
 
 	// History manager for execution history persistence (Phase 3.2 extraction)
 	historyManager *HistoryManager
-
-	// Timeout watchdog for enforcing task timeouts
-	watchdog *TimeoutWatchdog
 
 	// Optional scheduling signal providers. Nil providers return neutral values,
 	// preserving the current priority-first scheduler unless the queue setting
@@ -360,12 +353,6 @@ func (qp *Processor) InitializeWorkers() {
 
 	// Reconcile any stale in-progress tasks left behind from previous runs
 	go qp.initialInProgressReconcile()
-
-	// Create and start timeout enforcement watchdog (defense-in-depth)
-	if qp.watchdog == nil && qp.registry != nil && qp.agentSvc != nil {
-		qp.watchdog = NewTimeoutWatchdog(qp.registry, qp.agentSvc)
-		qp.watchdog.Start()
-	}
 }
 
 // SetCoordinator injects a central coordinator for lifecycle-aware transitions.
@@ -517,9 +504,6 @@ func (qp *Processor) Stop() {
 
 // Shutdown stops background workers and should be called during full application teardown.
 func (qp *Processor) Shutdown() {
-	if qp.watchdog != nil {
-		qp.watchdog.Stop()
-	}
 	qp.cancel()
 }
 

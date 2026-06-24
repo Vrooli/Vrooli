@@ -54,8 +54,8 @@ This is the loop the whole scenario exists to run.
      `profile.Phases[CurrentPhaseIndex].SkillIDs`.
   2. **Execute** — the queue processor assembles a prompt with the
      steering section and runs the agent via agent-manager.
-  3. **Measure** — `metrics.go::CollectMetrics` gathers a
-     `MetricsSnapshot` (universal + UX/test/refactor/perf/security).
+  3. **Measure** — re-audit via test-genie and read the completeness
+     `Score` from scenario-completeness-scoring (`pkg/completeness`).
   4. **Evaluate** — `phase_coordinator.go::ShouldAdvancePhase` checks the
      iteration cap and the phase's stop conditions
      (`evaluator.go::Evaluate`, recursive AND/OR).
@@ -104,14 +104,13 @@ This is the loop the whole scenario exists to run.
 |---|---|---|
 | QUEUED | Awaiting a processor slot | queue directory |
 | RUNNING | Agent executing this iteration | `profile_execution_state` |
-| EVALUATING | Metrics collected; deciding next action | `profile_execution_state` |
+| EVALUATING | Measurement read; deciding next action | `profile_execution_state` |
 | COMPLETE | All phases finished | `profile_executions` |
 | HALTED | A quality gate blocked advancement | `profile_executions` |
 
 Illegal transitions: advancing past the final phase without finalizing;
-evaluating without a collected `MetricsSnapshot`; referencing a metric in
-a stop condition that was not collected (raises `MetricUnavailableError`
-in `evaluator.go::GetMetricValue`).
+evaluating without a completeness `Score` (measurement is load-bearing for
+termination and does not fail open — see `pkg/completeness`).
 
 ## Maturity Ladder
 

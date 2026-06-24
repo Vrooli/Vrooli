@@ -32,8 +32,6 @@ import type {
   AutoSteerProfile,
   AutoSteerTemplate,
   ProfilePerformance,
-  ExecutionFeedbackEntry,
-  ExecutionFeedbackEntryPayload,
   HealthResponse,
   AutoSteerExecutionState,
   DecisionTraceResponse,
@@ -551,16 +549,6 @@ class ApiClient {
 
   async getAutoSteerExecution(executionId: string): Promise<ProfilePerformance> {
     return this.fetchJSON<ProfilePerformance>(`/api/auto-steer/history/${executionId}`);
-  }
-
-  async submitExecutionFeedbackEntry(
-    executionId: string,
-    payload: ExecutionFeedbackEntryPayload
-  ): Promise<ExecutionFeedbackEntry> {
-    return this.fetchJSON<ExecutionFeedbackEntry>(`/api/auto-steer/history/${executionId}/feedback/entries`, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
   }
 
   async resetAutoSteerExecution(taskId: string): Promise<{ success: boolean; message?: string }> {

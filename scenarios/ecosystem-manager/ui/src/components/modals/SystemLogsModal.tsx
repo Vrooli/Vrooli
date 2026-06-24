@@ -12,14 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Input } from '../ui/input';
 import { ExecutionDetailCard } from '../executions/ExecutionDetailCard';
-import { ExecutionFeedbackPanel } from '@/components/executions/ExecutionFeedbackPanel';
 import { useSystemLogs } from '@/hooks/useSystemLogs';
 import { useAllAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
-import type { ExecutionHistory, MetricsSnapshot, ProfilePerformance } from '@/types/api';
+import type { ExecutionHistory, ProfilePerformance } from '@/types/api';
 import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
 import { getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge.helpers';
 
@@ -204,12 +203,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
     }
   };
 
-  const computeImprovement = (perf: ProfilePerformance) => {
-    const start = perf.start_metrics.operational_targets_percentage;
-    const end = perf.end_metrics.operational_targets_percentage;
-    return end - start;
-  };
-
   const filteredExecutions = useMemo(() => {
     const search = executionSearch.trim().toLowerCase();
     return executions
@@ -322,23 +315,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   const selectedPerformance =
     filteredPerformance.find((perf) => perf.id === selectedPerformanceId) ?? null;
 
-  const averageImprovement =
-    filteredPerformance.length === 0
-      ? 0
-      : filteredPerformance.reduce((sum, perf) => sum + computeImprovement(perf), 0) /
-        filteredPerformance.length;
-
-  const ratingData = filteredPerformance.reduce(
-    (acc, perf) => {
-      if (perf.user_feedback?.rating) {
-        acc.total += perf.user_feedback.rating;
-        acc.count += 1;
-      }
-      return acc;
-    },
-    { total: 0, count: 0 },
-  );
-  const averageRating = ratingData.count === 0 ? null : ratingData.total / ratingData.count;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -651,20 +627,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 <div className="text-xs uppercase text-slate-400 mb-1">Executions</div>
                 <div className="text-xl font-semibold text-white">{filteredPerformance.length}</div>
               </div>
-              <div className="rounded-lg border border-white/5 bg-slate-900/70 p-4">
-                <div className="text-xs uppercase text-slate-400 mb-1">Avg improvement</div>
-                <div className="text-xl font-semibold text-emerald-300">
-                  {averageImprovement >= 0 ? '+' : ''}
-                  {averageImprovement.toFixed(1)}%
-                </div>
-              </div>
-              <div className="rounded-lg border border-white/5 bg-slate-900/70 p-4">
-                <div className="text-xs uppercase text-slate-400 mb-1">Avg rating</div>
-                <div className="text-xl font-semibold text-amber-200">
-                  {averageRating !== null ? averageRating.toFixed(1) : '—'}
-                  <span className="text-sm text-slate-500 ml-1">/5</span>
-                </div>
-              </div>
             </div>
 
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-4 overflow-hidden">
@@ -677,9 +639,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                     <div className="p-10 text-center text-slate-500">No performance runs yet</div>
                   )}
                   {filteredPerformance.map((perf) => {
-                    const improvement = computeImprovement(perf);
                     const durationText = formatDurationMs(perf.total_duration);
-                    const rating = perf.user_feedback?.rating;
                     const perfId = perf.id;
                     return (
                       <button
@@ -700,10 +660,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                               {profileNameMap[perf.profile_id] || 'Unknown profile'}
                             </div>
                           </div>
-                          <div className={`text-sm font-semibold ${improvement >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                            {improvement >= 0 ? '+' : ''}
-                            {improvement.toFixed(1)}%
-                          </div>
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-200">
                           <span>{formatDateTime(perf.executed_at)}</span>
@@ -711,12 +667,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                           <span>{perf.total_iterations} iterations</span>
                           <span>•</span>
                           <span>{durationText}</span>
-                          {rating ? (
-                            <>
-                              <span>•</span>
-                              <span className="text-amber-200">{'★'.repeat(rating)}{'☆'.repeat(5 - rating)}</span>
-                            </>
-                          ) : null}
                         </div>
                       </button>
                     );
@@ -753,31 +703,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                         <div className="text-lg font-semibold text-white">
                           {formatDurationMs(selectedPerformance.total_duration)}
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-white/5 bg-slate-800/60 overflow-hidden">
-                      <div className="grid grid-cols-3 text-xs text-slate-300 bg-white/5">
-                        <div className="px-3 py-2">Metric</div>
-                        <div className="px-3 py-2">Start</div>
-                        <div className="px-3 py-2">End</div>
-                      </div>
-                      <div className="divide-y divide-white/5 text-sm">
-                        {([
-                          ['operational_targets_percentage', 'Operational targets %'],
-                          ['operational_targets_passing', 'Targets passing'],
-                          ['build_status', 'Build status'],
-                        ] satisfies Array<[keyof MetricsSnapshot, string]>).map(([key, label]) => {
-                          const start = selectedPerformance.start_metrics[key];
-                          const end = selectedPerformance.end_metrics[key];
-                          return (
-                            <div key={key} className="grid grid-cols-3 px-3 py-2">
-                              <div className="text-slate-200">{label}</div>
-                              <div className="text-slate-300">{start}</div>
-                              <div className="text-slate-300">{end}</div>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
 
@@ -825,13 +750,6 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                         </div>
                       )}
                     </div>
-                    <ExecutionFeedbackPanel
-                      executionId={selectedPerformance.execution_id}
-                      entries={selectedPerformance.feedback_entries ?? []}
-                      onSubmitted={() => {
-                        void refetchPerformance();
-                      }}
-                    />
                   </div>
                 )}
               </div>

@@ -154,8 +154,7 @@ type ClaudeCodeResponse struct {
 	CleanOutputPath  string `json:"clean_output_path,omitempty"`
 	// TokensUsed is the total tokens (input + output) the agent run consumed, as
 	// reported by agent-manager's run summary. Zero means "not reported" (an
-	// explicit unknown sentinel — the Auto Steer controller does not treat an
-	// unknown cost as cheap; see pkg/autosteer.RunCost).
+	// explicit unknown sentinel).
 	TokensUsed int `json:"tokens_used,omitempty"`
 }
 

@@ -628,9 +628,9 @@ func (em *ExecutionManager) handleAgentManagerEvent(taskID, agentTag string, evt
 	}
 }
 
-// tokensFromRun extracts the agent run's total token cost from its summary.
-// A missing summary yields 0 — an explicit "unknown", which the Auto Steer
-// controller does not treat as a free run (see pkg/autosteer.RunCost).
+// tokensFromRun extracts the agent run's total token cost from its summary,
+// surfaced on the response as TokensUsed. A missing summary yields 0 — an
+// explicit "unknown".
 func tokensFromRun(run *domainpb.Run) int {
 	if run == nil || run.Summary == nil {
 		return 0
@@ -749,8 +749,8 @@ func (em *ExecutionManager) handleSuccessfulExecution(result *tasks.ClaudeCodeRe
 	task.CompletionCount++
 	task.LastCompletedAt = task.CompletedAt
 
-	// Hand the agent run's token cost to the Auto Steer controller before the
-	// continuation decision so credit assignment can weight by reduction-per-token.
+	// Record the agent run's ID on the Auto Steer controller before the
+	// continuation decision (used for the decision trace and run correlation).
 	em.recordAutoSteerRunID(task, result)
 
 	// Handle steering continuation logic

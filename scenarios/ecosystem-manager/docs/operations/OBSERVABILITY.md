@@ -21,8 +21,8 @@ Use this document to answer:
 | `GET /health` | health | API | API + embedded SQLite handle reachability | healthy |
 | `GET /api/queue/status` | operational | queue processor | Processor running, depth, backoff state | processor running, no stuck backoff |
 | Task throughput & success rate | product | `profile_executions` (run records, aggregated on read) | Work completed per operation type | success rate trending up per operation |
-| PRD completion improvement | product | `profile_executions.start_metrics`/`end_metrics` | Did an improvement run raise PRD score? | end ≥ start |
-| Auto-steer convergence | product | `profile_executions.phase_breakdown` + `user_rating` feedback | Loops converging, not thrashing | phases progressing, ratings positive |
+| PRD completion | product | scenario-completeness-scoring `GetScore` (read live per iteration; not persisted) | Operational-target completion the controller steers toward | operational-targets % rising across iterations |
+| Auto-steer convergence | product | `profile_executions.phase_breakdown` + `decision_trace` | Loops converging, not thrashing | phases progressing, weighted score improving |
 | Live task/queue updates | operational | WebSocket `/ws` | Real-time UI state of tasks/queue | pushes events while processor runs |
 
 ## Logs
@@ -42,8 +42,8 @@ via the API/UI; there is **no external metrics backend**.
 | Metric | Status | Source | Notes |
 |---|---|---|---|
 | Operation throughput / success rate | active | `profile_executions` | Aggregated on read from run records. |
-| PRD completion delta | active | `profile_executions.start_metrics`/`end_metrics` | Improvement-loop effectiveness. |
-| Auto-steer convergence | active | `profile_executions.phase_breakdown`, `execution_feedback_entries` | Phase progression + user ratings. |
+| PRD completion | active | scenario-completeness-scoring `GetScore` | Read live per iteration for termination; not persisted as a per-run delta. |
+| Auto-steer convergence | active | `profile_executions.phase_breakdown`, `decision_trace` | Phase progression + weighted-score gradient. |
 | Queue depth / backoff | active | `GET /api/queue/status`, `steering_queue_state` | Live operational state. |
 
 ## Alerts / Health

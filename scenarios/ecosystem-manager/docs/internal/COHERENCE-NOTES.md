@@ -39,7 +39,7 @@ Connect-RPC foundation).
 
 ## Un-migrated domains
 
-`tasks`, `queue`, `autosteer`, `discovery`, `insights`, `prompts`, `executions`
+`tasks`, `queue`, `autosteer`, `discovery`, `prompts`, `executions`
 keep their REST routes until each gets its own follow-up migration. Their REST
 coexistence is expected and is not drift to "fix" ad hoc — migrate the whole
 domain or leave it.

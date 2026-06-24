@@ -13,9 +13,6 @@ CREATE TABLE IF NOT EXISTS profile_executions (
     phase_breakdown TEXT,
     total_iterations INTEGER DEFAULT 0,
     total_duration_ms INTEGER,
-    user_rating INTEGER CHECK (user_rating IS NULL OR (user_rating >= 1 AND user_rating <= 5)),
-    user_comments TEXT,
-    user_feedback_at TIMESTAMP,
     executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT profile_executions_task_unique UNIQUE (task_id)
 );
@@ -63,17 +60,3 @@ CREATE TABLE IF NOT EXISTS decision_trace (
 );
 
 CREATE INDEX IF NOT EXISTS idx_decision_trace_task ON decision_trace(task_id, iteration);
-
--- Structured feedback annotations for completed runs.
-CREATE TABLE IF NOT EXISTS execution_feedback_entries (
-    id TEXT PRIMARY KEY,
-    execution_task_id TEXT NOT NULL,
-    category TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    suggested_action TEXT,
-    comments TEXT,
-    metadata TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_execution_feedback_entries_task_id ON execution_feedback_entries(execution_task_id);

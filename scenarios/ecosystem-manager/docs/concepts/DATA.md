@@ -27,7 +27,7 @@ live's database, queue, or logs.
 
 | Substrate | Storage class | What lives there | Source of truth for |
 |---|---|---|---|
-| **SQLite** — `<data-root>/vrooli/<namespace>/ecosystem-manager.db` | `ClassData` | Run history, live auto-steer/steering execution state, per-iteration decision traces, effectiveness ledger, execution feedback | Anything *produced by* a run (history, in-flight state, metrics) |
+| **SQLite** — `<data-root>/vrooli/<namespace>/ecosystem-manager.db` | `ClassData` | Run history, live auto-steer/steering execution state, per-iteration decision traces | Anything *produced by* a run (history, in-flight state, metrics) |
 | **Filesystem queue** — `<data-root>/vrooli/<namespace>/queue/<status>/*.yaml` | `ClassData` | The task queue | Task lifecycle (status = directory) |
 | **System logs** — `<logs-root>/vrooli/<namespace>/` | `ClassLogs` | Audit log + per-task-run execution logs (`task-runs/`) | Operational history |
 | **Settings** — `<config-root>/vrooli/<namespace>/settings.json` | `ClassConfig` | Mutable operator settings | Runtime configuration |
@@ -47,12 +47,10 @@ domain-owned schemas are applied at boot by `database.EnsureSchemas` via
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| `profile_executions` | auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Indefinite | Text PK (app-generated UUID), one per task (`UNIQUE(task_id)`); `start_metrics`/`end_metrics`/`phase_breakdown` JSON text, `total_iterations`, `user_rating`/`user_comments`. |
+| `profile_executions` | auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Indefinite | Text PK (app-generated UUID), one per task (`UNIQUE(task_id)`); `phase_breakdown` JSON text, `total_iterations`, `total_duration_ms`. |
 | `profile_execution_state` | auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Until execution completes (then folded into history) | `task_id` PK (objective-controller shape); `iteration`, `current_skill`/`current_rationale`, `findings`/`score_history`/`trace`/`metrics` JSON text; `last_updated` maintained in application code. |
 | `decision_trace` | auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Indefinite | One row per controller iteration; persists reasoning after the live `state.Trace` is dropped on finalize. |
-| `skill_dimension_effectiveness` | effectiveness | SQLite | `api/pkg/effectiveness/schema.sql` | Indefinite | Composite PK `(skill_id, dimension)`; commutative credit-event counters; `last_run_at` advanced via `max(...)` upsert. |
 | `steering_queue_state` | steering | SQLite | `api/pkg/steering/schema.sql` | Until queue drains | `task_id` PK; `current_index` plus RFC3339 `created_at`/`updated_at`. |
-| `execution_feedback_entries` | insights/auto-steer | SQLite | `api/pkg/autosteer/schema.sql` | Indefinite | Text PK (app-generated UUID); `category`/`severity`/`suggested_action`/`comments`/`metadata`; indexed by `execution_task_id`. |
 | Auto-steer profiles | auto-steer | Filesystem (scenario tree) | `profiles/<id-or-name>/profile.json` | Until deleted by an operator | Human-authored, version-controlled config; indexed by `profiles/metadata.json`. Intentionally NOT in the DB and NOT under the storage root. |
 | Task queue | tasks | Filesystem (`ClassData`) | `<data-root>/…/queue/<status>/` (YAML) | Until task is purged | Directory name *is* the status; transitions are atomic file moves. |
 | System logs | operations | Filesystem (`ClassLogs`) | `<logs-root>/…/<date>.log` + `task-runs/` | Indefinite (no rotation today) | Date-stamped audit log and per-task-run execution logs. |
@@ -65,8 +63,6 @@ domain-owned schemas are applied at boot by `database.EnsureSchemas` via
 | `profile_executions` | auto-steer | `api/pkg/autosteer/schema.sql` | auto-steer history service |
 | `profile_execution_state` | auto-steer | `api/pkg/autosteer/schema.sql` | auto-steer controller (live state) |
 | `decision_trace` | auto-steer | `api/pkg/autosteer/schema.sql` | decision-trace store |
-| `execution_feedback_entries` | auto-steer | `api/pkg/autosteer/schema.sql` | execution-feedback handlers |
-| `skill_dimension_effectiveness` | effectiveness | `api/pkg/effectiveness/schema.sql` | effectiveness ledger |
 | `steering_queue_state` | steering | `api/pkg/steering/schema.sql` | steering queue runner |
 | `profile.json` + `metadata.json` | auto-steer | `profiles/` | profile loader/editor |
 | queue YAML | tasks | `<data-root>/…/queue/<status>/` | task queue manager |
@@ -104,8 +100,7 @@ mode, no dual-read, and no importer for old repo-local queue YAML.
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| `profile_executions` / `decision_trace` / `execution_feedback_entries` | Manual only | Indefinite for analytics/learning | **No auto-purge.** Tables grow unbounded; a retention policy is not yet implemented. |
-| `skill_dimension_effectiveness` | Manual only | Indefinite | Bounded by skill×dimension cardinality. |
+| `profile_executions` / `decision_trace` | Manual only | Indefinite for analytics | **No auto-purge.** Tables grow unbounded; a retention policy is not yet implemented. |
 | `profile_execution_state` / `steering_queue_state` | Completion of the run/queue | Transient by nature | Orphaned rows from interrupted runs are not garbage-collected automatically. |
 | Profiles | Operator deletes the directory | Until deleted | n/a |
 | System logs | Manual only | Indefinite | **No log rotation.** The logs dir grows without bound. |
@@ -115,9 +110,7 @@ mode, no dual-read, and no importer for old repo-local queue YAML.
 Ecosystem-manager stores **no end-user PII**. Its data is about Vrooli's
 *own* scenarios and resources plus agent run metadata: operation types,
 target scenario/resource names, durations, statuses, PRD completion
-percentages, phase metrics, and operator-authored profiles/feedback. The
-`user_rating`/`user_comments` fields on `profile_executions` are operator
-feedback about a run, not third-party personal data. If a future domain
+percentages, phase metrics, and operator-authored profiles. If a future domain
 ever stores personal, regulated, or customer data, update this document and
 [`../internal/SECURITY.md`](../internal/SECURITY.md) before that work lands.
 

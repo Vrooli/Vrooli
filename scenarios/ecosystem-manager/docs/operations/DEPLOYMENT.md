@@ -36,7 +36,7 @@ Tier-1 local stack.
 - **Database**: embedded SQLite file at
   `<data-root>/vrooli/<namespace>/ecosystem-manager.db` (resolved via
   `api/pkg/storagepaths`). Domain-owned schemas
-  (`api/pkg/{autosteer,effectiveness,steering}/schema.sql`) are applied
+  (`api/pkg/{autosteer,steering}/schema.sql`) are applied
   at API boot by `database.EnsureSchemas`.
 - **Hard dependencies (must be running)**:
   - `agent-manager` — executes the agent runs that perform generation and
@@ -58,7 +58,7 @@ entirely through the scenario lifecycle. There is no standalone artifact.
 | API | Go binary built by the scenario lifecycle (`make build` / `vrooli scenario`). Never direct-exec the binary. |
 | UI | Vite production bundle served by the lifecycle-managed UI server. |
 | CLI | Go CLI installed through the scenario manifest install hooks. |
-| Schema | Domain-owned `api/pkg/{autosteer,effectiveness,steering}/schema.sql`, applied at API boot via `database.EnsureSchemas`; idempotent (`CREATE TABLE ... IF NOT EXISTS`). |
+| Schema | Domain-owned `api/pkg/{autosteer,steering}/schema.sql`, applied at API boot via `database.EnsureSchemas`; idempotent (`CREATE TABLE ... IF NOT EXISTS`). |
 
 ## Release Checklist
 

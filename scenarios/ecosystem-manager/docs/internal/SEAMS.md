@@ -66,21 +66,21 @@ non-deterministic loop behavior into table-driven unit tests.
 
 | | |
 |---|---|
-| **Seam** | Persistence of completed profile executions + feedback + analytics |
-| **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`ExecutionHistoryRepository` (`GetHistory`, `GetExecution`, `SubmitFeedback`, `SubmitFeedbackEntry`, `GetProfileAnalytics`) |
-| **Production wiring** | `HistoryService` over SQLite ([CODE: api/pkg/autosteer/history_service.go], tables `profile_executions` / `execution_feedback_entries`). Asserted with `var _ ExecutionHistoryRepository = (*HistoryService)(nil)`. |
+| **Seam** | Persistence of completed profile executions + analytics |
+| **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`ExecutionHistoryRepository` (`GetHistory`, `GetExecution`, `GetProfileAnalytics`) |
+| **Production wiring** | `HistoryService` over SQLite ([CODE: api/pkg/autosteer/history_service.go], table `profile_executions`). Asserted with `var _ ExecutionHistoryRepository = (*HistoryService)(nil)`. |
 | **Test fake** | Substituted via the in-memory mock family in [CODE: api/pkg/autosteer/repositories_mock.go]; history handler tests use it. |
-| **Why it exists** | Separates the write-then-analyze surface (history, feedback, analytics) from live loop state. Replaying history in a test doesn't perturb the running-execution table. |
+| **Why it exists** | Separates the write-then-analyze surface (history, analytics) from live loop state. Replaying history in a test doesn't perturb the running-execution table. |
 
-### MetricsProvider (the controller's sensor) — highest-value seam
+### Score (the controller's sensor) — highest-value seam
 
 | | |
 |---|---|
-| **Seam** | Metrics collection — the sensor the closed loop reads each iteration |
-| **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`MetricsProvider` (`CollectMetrics(scenarioName, phaseLoops, totalLoops) (*MetricsSnapshot, error)`) |
-| **Production wiring** | `MetricsCollector` ([CODE: api/pkg/autosteer/metrics.go]) — runs real coverage/quality probes against a target scenario. |
-| **Test fake** | `MockMetricsProvider` ([CODE: api/pkg/autosteer/repositories_mock.go]::`NewMockMetricsProvider`) — returns a caller-configured synthetic `MetricsSnapshot`. |
-| **Why it exists** | **This is the load-bearing test seam.** Real metric collection shells out to scenario tooling and is slow, non-deterministic, and side-effecting. By injecting a synthetic snapshot the test drives the loop's stop conditions exactly: `ShouldAdvancePhase` ([CODE: api/pkg/autosteer/phase_coordinator.go (32-71)]), condition evaluation, phase advancement, and requeue-vs-stop ([CODE: api/pkg/queue/autosteer_integration.go (180-227)]) all become table-driven. Every `*_unit_test.go` in `autosteer/` constructs the loop with `NewMockMetricsProvider()`. |
+| **Seam** | Completeness measurement — the sensor the closed loop reads each iteration |
+| **Interface** | [CODE: api/pkg/completeness/score.go]::`Provider` (`Score(ctx, scenario) (Score, error)`) |
+| **Production wiring** | `Client` ([CODE: api/pkg/completeness/client.go]) — a Connect-RPC client over scenario-completeness-scoring's `GetScore`, resolved per call via api-core discovery. Does NOT fail open (measurement is load-bearing for termination — plan D2). |
+| **Test fake** | A caller-supplied `Provider` returning a synthetic `Score`; the contract test points the client at an in-process handler. |
+| **Why it exists** | Real measurement is a cross-scenario RPC — slow, non-deterministic, side-effecting. Injecting a synthetic `Score` drives the loop's termination (objective-met / diminishing-returns / budget) deterministically in unit tests. |
 
 ### ConditionEvaluatorAPI / PhaseCoordinatorAPI / IterationEvaluatorAPI / PromptEnhancerAPI (pure-logic components)
 
@@ -122,36 +122,6 @@ non-deterministic loop behavior into table-driven unit tests.
 | **Test fake** | Tests inject short/zero timeouts and pre-set timestamps via the mock agent service and synthetic state rather than racing real clocks. |
 | **Why it exists** | Timeout-driven branches (run took too long → stop) must be reachable without `time.Sleep`. Keeping time at the edge means the loop's decision logic never reads the wall clock directly. |
 
-### EffectivenessStore (the controller's learning ledger) — v1
-
-| | |
-|---|---|
-| **Seam** | Per-`(skill, dimension)` effectiveness ledger the bandit reads (selection) and credit assignment writes (after each iteration) |
-| **Interface** | [CODE: api/pkg/effectiveness/effectiveness.go]::`Store` (`Get`, `Bulk`, `Record`, `List`) |
-| **Production wiring** | `SQLiteStore` ([CODE: api/pkg/effectiveness/sqlite_store.go], table `skill_dimension_effectiveness` from [CODE: api/pkg/effectiveness/schema.sql], applied via `dbschema.AllSchemas()` + `database.EnsureSchemas` at boot); injected into the orchestrator in `NewExecutionOrchestratorDefault`. Asserted with `var _ Store = (*SQLiteStore)(nil)`. |
-| **Test fake** | `MemoryStore` ([CODE: api/pkg/effectiveness/memory_store.go]) — concurrency-safe in-memory ledger with an injectable clock; used by selector/credit tests. |
-| **Why it exists** | Keeps the bandit math out of `autosteer` so it is unit-testable in isolation, and lets selection/credit tests seed a deterministic efficacy history without a database. The derived efficacy (shrinkage prior) is computed on read, never stored, so the policy can evolve without a migration. |
-
-### RunCost source (token cost into the controller) — v1
-
-| | |
-|---|---|
-| **Seam** | The agent run's token cost flowing into credit assignment (reduction-per-token) |
-| **Interface** | [CODE: api/pkg/autosteer/run_cost.go]::`RunCost`; recorded via `ExecutionOrchestrator.RecordRunCost(taskID, RunCost)` and consumed once at the next `EvaluateIteration`. |
-| **Production wiring** | The queue extracts `tokensFromRun(*domainpb.Run)` from agent-manager's `RunSummary.TokensUsed` ([CODE: api/pkg/queue/execution_manager.go]) and calls `RecordRunCost` after a successful run. A zero total is an explicit "unknown" (not treated as free). |
-| **Test fake** | Tests call `RecordRunCost` directly (or pass a `RunCost` to credit-assignment tests); `tokensFromRun` is unit-tested against a fake `domainpb.Run`. |
-| **Why it exists** | The run executes out-of-band, so its cost arrives via this stash rather than a MEASURE return value. Isolating it lets credit/selection tests control token cost deterministically. |
-
-### EligibilityFilter (Layer-1 hard gate) — DTV-backed
-
-| | |
-|---|---|
-| **Seam** | Pre-selection skill gate (Layer-1 thrashing prevention / DTV) |
-| **Interface** | [CODE: api/pkg/autosteer/selector.go]::`EligibilityFilter` (`Allow(skillID, dim) bool`); the cold-start `PriorProvider` and the all-red `TrustRanker` are sibling seams. |
-| **Production wiring** | `DTVEligibilityFilter` gates DTV-red skills and `DTVPriorProvider` seeds the cold-start prior, both over a per-task `FitnessSnapshot` from the `dtv.Client` read seam ([CODE: api/pkg/autosteer/execution_orchestrator.go]::`dtvSeams`). UNKNOWN fitness fails open (allow-all + uniform prior). When the gate degrades — DTV unreachable or every candidate red — the controller proceeds with the highest-trust (`TrustRanker`-ordered) skill, halves the remaining iteration budget once, and flags the iteration (`GateDegradedCause`). `AllowAllFilter`/`UniformPrior` are wired only when DTV is disabled on the profile or no fitness provider is set. |
-| **Test fake** | Tests inject a custom filter/prior or build a `FitnessSnapshot` directly (`pkg/autosteer/dtv_selection_test.go`, `gate_policy_test.go`). |
-| **Why it exists** | Keeps the DTV integration behind a narrow seam so selection logic never calls DTV synchronously and tests substitute fitness deterministically. |
-
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching
@@ -187,7 +157,7 @@ mechanical:
   dependencies; tests call them directly. The *interface* around the
   evaluator exists so callers can stub the whole component, not because
   the helpers need a seam.
-- **Domain value types** — `MetricsSnapshot`, `StopCondition`,
+- **Domain value types** — `Score` (`pkg/completeness`), `StopCondition`,
   `ProfileExecutionState`, `PhaseAdvanceDecision`. These are data
   contracts passed through seams, not boundaries themselves.
 - **`gorilla/mux` routing** — route registration in
@@ -213,7 +183,7 @@ mechanical:
 | **Interface** | The transport edge is the generated `DiscoveryServiceHandler` ([CODE: packages/proto/schemas/ecosystem-manager/v1/discovery/discovery.proto]); the domain seam is [CODE: api/internal/discovery/service.go]::`Service` (`Resources`, `Scenarios`, `Resource`, `Scenario`, `Operations`, `ResourceCategories`, `ScenarioCategories`) plus `ToConnectError`. |
 | **Production wiring** | `handlers/discovery.Module(assembler)` ([CODE: api/handlers/discovery/module.go]) builds the Connect handler over `internal/discovery.NewService` and mounts it via `connectx.RegisterServices`; registered in `server.connectModules()` ([CODE: api/pkg/server/server.go]) and `internal/modules.AllEndpoints()`/`MigratedDomains()`. |
 | **Test fake** | The discovery sweep is faked at the `commandRunner` seam in [CODE: api/internal/discovery/runner.go] (`execRunner`), exercised by [CODE: api/internal/discovery/discovery_test.go]; the Connect handler maps sentinel errors (`ErrResourceNotFound`→`CodeNotFound`, `ErrEmptyName`→`CodeInvalidArgument`). |
-| **Why it exists** | The copy-this-shape reference for migrating the remaining REST domains (tasks, queue, autosteer, insights, prompts, executions) to Connect-RPC. The thin handler → `internal/<domain>` service split is also the god-object decomposition reference. |
+| **Why it exists** | The copy-this-shape reference for migrating the remaining REST domains (tasks, queue, autosteer, prompts, executions) to Connect-RPC. The thin handler → `internal/<domain>` service split is also the god-object decomposition reference. |
 
 ## Cross-references
 

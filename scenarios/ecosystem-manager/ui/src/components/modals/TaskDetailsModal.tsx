@@ -32,7 +32,6 @@ import { useAllAutoSteerProfiles, useAutoSteerExecutionState, useResetAutoSteerE
 import { api, ApiError } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
-import { ExecutionFeedbackDialog } from '@/components/executions/ExecutionFeedbackPanel';
 import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
 import { getExecutionSteerFocus, type SteerFocusInfo } from '@/components/steer/SteerFocusBadge.helpers';
 import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
@@ -326,13 +325,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   }, [rawExecutions]);
   const latestExecution = sortedExecutions[0] ?? null;
   const selectedExecution = sortedExecutions.find(exec => exec.id === selectedExecutionId) || null;
-  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
-  const [feedbackDialogExecutionId, setFeedbackDialogExecutionId] = useState<string | null>(null);
-  const openFeedbackDialog = (executionId?: string | null) => {
-    if (!executionId) return;
-    setFeedbackDialogExecutionId(executionId);
-    setFeedbackDialogOpen(true);
-  };
 
   // Initialize form when the task identity changes (avoid clobbering in-flight edits)
   const taskSeed = useMemo(() => {
@@ -1162,18 +1154,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                             <div className={`text-sm font-semibold ${getStatusTone(exec.status)}`}>
                               {exec.status}
                             </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="p-1 text-slate-300 hover:text-slate-100"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openFeedbackDialog(exec.id);
-                                }}
-                                aria-label="Report execution issue"
-                              >
-                              <AlertCircle className="h-4 w-4" />
-                            </Button>
                           </div>
                         </div>
                         {(steerFocus.autoSteerProfileName || steerFocus.manualSetLabel) && (
@@ -1200,18 +1180,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   profilesById={autoSteerProfilesById}
                   skillNames={skillNames}
                 />
-                {selectedExecution && (
-                  <div className="flex justify-end mt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openFeedbackDialog(selectedExecution.id)}
-                    >
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      Report issue
-                    </Button>
-                  </div>
-                )}
               </div>
             )}
           </TabsContent>
@@ -1221,16 +1189,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
             <CampaignsTab task={task} />
           </TabsContent>
         </Tabs>
-        <ExecutionFeedbackDialog
-          executionId={feedbackDialogExecutionId}
-          open={feedbackDialogOpen}
-          onOpenChange={(value) => {
-            setFeedbackDialogOpen(value);
-            if (!value) {
-              setFeedbackDialogExecutionId(null);
-            }
-          }}
-        />
 
         <DialogFooter className="gap-2">
           <Button

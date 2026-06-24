@@ -35,8 +35,6 @@ var _ ExecutionStateRepository = (*ExecutionStateManager)(nil)
 type ExecutionHistoryRepository interface {
 	GetHistory(filters HistoryFilters) ([]ProfilePerformance, error)
 	GetExecution(executionID string) (*ProfilePerformance, error)
-	SubmitFeedback(executionID string, rating int, comments string) error
-	SubmitFeedbackEntry(executionID string, req ExecutionFeedbackRequest) (*ExecutionFeedbackEntry, error)
 	GetProfileAnalytics(profileID string) (*ProfileAnalytics, error)
 }
 

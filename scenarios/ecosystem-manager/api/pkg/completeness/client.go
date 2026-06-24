@@ -21,7 +21,7 @@ const scenarioName = "scenario-completeness-scoring"
 const defaultTimeout = 10 * time.Second
 
 // Client is a Connect-RPC client for completeness-scoring's ScoreService,
-// resolved per call via api-core discovery (mirrors pkg/dtv's pattern).
+// resolved per call via api-core discovery.
 type Client struct {
 	httpClient *http.Client
 	// resolve returns the scoring service's base URL; injectable so the contract
@@ -46,7 +46,7 @@ func NewClient(timeout time.Duration) *Client {
 var _ Provider = (*Client)(nil)
 
 // Score fetches the cached completeness payload for a scenario and maps it to the
-// EM projection. Unlike the DTV seam it does NOT fail open: any
+// EM projection. It does NOT fail open: any
 // resolution/transport/RPC error is returned so the controller degrades loudly
 // (plan D2) — measurement is load-bearing for termination.
 func (c *Client) Score(ctx context.Context, scenario string) (Score, error) {
