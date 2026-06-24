@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 const minRetentionIntervalSeconds = 60
@@ -31,6 +33,14 @@ type RetentionScheduler struct {
 	log      *slog.Logger
 	clock    Clock
 
+	// Per-process retention (additive to the metrics blob retention above):
+	// raw rows older than rawRetention are downsampled into per-minute rollups,
+	// and rollups older than rollupRetention are pruned. Nil procRepo disables
+	// this (e.g. an in-memory repo without process sampling wired).
+	procRepo        repository.ProcessSampleRepository
+	rawRetention    time.Duration
+	rollupRetention time.Duration
+
 	mu          sync.Mutex
 	hasRun      bool
 	lastRunAt   time.Time
@@ -52,6 +62,14 @@ func NewRetentionScheduler(maint *MetricsMaintenanceService, settings *SettingsM
 		log:      log,
 		clock:    RealClock{},
 	}
+}
+
+// WithProcessRetention enables raw-then-rollup retention of per-process samples.
+func (s *RetentionScheduler) WithProcessRetention(repo repository.ProcessSampleRepository, raw, rollup time.Duration) *RetentionScheduler {
+	s.procRepo = repo
+	s.rawRetention = raw
+	s.rollupRetention = rollup
+	return s
 }
 
 // Start launches the scheduler. Retention runs once immediately when
@@ -120,6 +138,44 @@ func (s *RetentionScheduler) runOnce(ctx context.Context) {
 		"retention_days", settings.MetricsRetentionDays,
 		"compact_after", settings.CompactAfterRetention,
 	)
+
+	s.runProcessRetention(ctx)
+}
+
+// runProcessRetention downsamples raw per-process rows older than rawRetention
+// into per-minute rollups, then prunes rollups older than rollupRetention. Each
+// step's outcome is logged (what was collapsed / pruned — no silent caps).
+func (s *RetentionScheduler) runProcessRetention(ctx context.Context) {
+	if s.procRepo == nil {
+		return
+	}
+	now := s.clock.Now()
+
+	if s.rawRetention > 0 {
+		cutoff := now.Add(-s.rawRetention)
+		// Roll up everything from the epoch up to the raw cutoff. Passing a zero
+		// `from` lets the repo collapse any backlog; overlapping re-runs merge
+		// into existing rollups rather than double-counting.
+		rollup, err := s.procRepo.RollupProcessSamples(ctx, time.Time{}, cutoff)
+		if err != nil {
+			s.log.Error("process rollup failed", "error", err)
+		} else if rollup.RawRowsConsumed > 0 {
+			s.log.Info("process samples downsampled",
+				"raw_rows_consumed", rollup.RawRowsConsumed,
+				"rollup_rows", rollup.RollupRows,
+				"raw_retention", s.rawRetention,
+			)
+		}
+	}
+
+	if s.rollupRetention > 0 {
+		cutoff := now.Add(-s.rollupRetention)
+		if pruned, err := s.procRepo.PruneProcessRollupsBefore(ctx, cutoff); err != nil {
+			s.log.Error("process rollup prune failed", "error", err)
+		} else if pruned > 0 {
+			s.log.Info("process rollups pruned", "pruned_rows", pruned, "rollup_retention", s.rollupRetention)
+		}
+	}
 }
 
 // Status returns the outcome of the most recent scheduled run.

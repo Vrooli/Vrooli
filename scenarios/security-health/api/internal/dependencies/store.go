@@ -798,6 +798,50 @@ func appendUnique(values []string, value string) []string {
 	return append(values, value)
 }
 
+// GetOSVScanCache returns the cached parsed OSV report for a scenario when the
+// stored content hash matches key (a hit). On any miss — no row, a stale key, or
+// an unparseable payload — it returns ok=false so the caller re-scans. The key
+// match is the correctness gate: it folds in every lockfile's content plus the
+// scanner version and OSV-DB epoch, so a hit can never serve a result that a
+// real change would have altered.
+func (s *Store) GetOSVScanCache(ctx context.Context, scenario, key string) (report []byte, ok bool) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT cache_key, report_json FROM osv_scan_cache WHERE scenario = ?`, scenario)
+	var storedKey, payload string
+	if err := row.Scan(&storedKey, &payload); err != nil {
+		return nil, false
+	}
+	if storedKey != key || strings.TrimSpace(payload) == "" {
+		return nil, false
+	}
+	return []byte(payload), true
+}
+
+// PutOSVScanCache records (replacing any prior row) the parsed OSV report for a
+// scenario under its content-hash key. One row per scenario keeps the table
+// bounded by fleet size; the next key change overwrites it in place.
+func (s *Store) PutOSVScanCache(ctx context.Context, scenario, key string, report []byte, now string) error {
+	if strings.TrimSpace(scenario) == "" || strings.TrimSpace(key) == "" {
+		return nil
+	}
+	payload := string(report)
+	if strings.TrimSpace(payload) == "" {
+		payload = "{}"
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO osv_scan_cache (scenario, cache_key, report_json, created_at)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(scenario) DO UPDATE SET
+			cache_key = excluded.cache_key,
+			report_json = excluded.report_json,
+			created_at = excluded.created_at`,
+		scenario, key, payload, now)
+	if err != nil {
+		return fmt.Errorf("put osv scan cache for %s: %w", scenario, err)
+	}
+	return nil
+}
+
 // SetReconcileState records the latest reconcile timestamp + outcome.
 func (s *Store) SetReconcileState(ctx context.Context, at, outcome string) error {
 	_, err := s.db.ExecContext(ctx, `

@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -23,6 +24,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "current", Description: "Get the current metrics snapshot", Run: func(args []string) error { return runCurrent(core, args) }},
 			{Name: "detailed", Description: "Get detailed system metrics", Run: func(args []string) error { return runDetailed(core, args) }},
 			{Name: "processes", Description: "Get process monitoring metrics", Run: func(args []string) error { return runProcesses(core, args) }},
+			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Run: func(args []string) error { return runProcessTimeline(core, args) }},
 			{Name: "infrastructure", Description: "Get infrastructure pool and queue metrics", Run: func(args []string) error { return runInfrastructure(core, args) }},
 			{Name: "timeline", Description: "Get recent metrics history", Run: func(args []string) error { return runTimeline(core, args) }},
 		},
@@ -237,6 +239,101 @@ func runTimeline(core *cliapp.ScenarioApp, args []string) error {
 		RetrievalHints: []string{"system-monitor watch", "system-monitor metrics current --fresh"},
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+// processTimelineEntry mirrors the plain-JSON shape returned by
+// GET /api/v1/metrics/processes/timeline (see handlers/metrics.go).
+type processTimelineEntry struct {
+	Owner       string  `json:"owner"`
+	Comm        string  `json:"comm"`
+	PID         int     `json:"pid"`
+	Aggregated  bool    `json:"aggregated"`
+	CPUPct      float64 `json:"cpu_pct"`
+	RSSKB       int64   `json:"rss_kb"`
+	SampleCount int64   `json:"sample_count"`
+	FirstSeen   string  `json:"first_seen"`
+	LastSeen    string  `json:"last_seen"`
+}
+
+type processTimelineResponse struct {
+	WindowSeconds int                    `json:"window_seconds"`
+	Owner         string                 `json:"owner"`
+	Top           int                    `json:"top"`
+	Count         int                    `json:"count"`
+	Entries       []processTimelineEntry `json:"entries"`
+}
+
+func runProcessTimeline(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("metrics process-timeline")
+	window := fs.String("window", "5m", "Window duration (e.g. 5m, 1h) or bare seconds")
+	owner := fs.String("owner", "", "Filter to a single owner/scenario")
+	top := fs.Int("top", 20, "Maximum ranked consumers to return")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if *top <= 0 {
+		return fmt.Errorf("--top must be greater than 0")
+	}
+
+	query := map[string][]string{
+		"window": {*window},
+		"top":    {fmt.Sprintf("%d", *top)},
+	}
+	if strings.TrimSpace(*owner) != "" {
+		query["owner"] = []string{*owner}
+	}
+
+	body, err := core.Get("/metrics/processes/timeline", query)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		return support.PrettyPrintJSON(body)
+	}
+
+	var response processTimelineResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("decode process timeline: %w", err)
+	}
+
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Window: %ds", response.WindowSeconds),
+			fmt.Sprintf("Owner filter: %s", ownerFilterLabel(response.Owner)),
+			fmt.Sprintf("Ranked consumers: %d", response.Count),
+		},
+		ResultsHeading: "Top Consumers by Scenario",
+		Results:        processTimelineRows(response.Entries),
+		RetrievalHints: []string{
+			"system-monitor metrics process-timeline --window 1h --json",
+			"system-monitor metrics process-timeline --owner security-health",
+		},
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+func ownerFilterLabel(owner string) string {
+	if strings.TrimSpace(owner) == "" {
+		return "all owners"
+	}
+	return owner
+}
+
+func processTimelineRows(entries []processTimelineEntry) []string {
+	if len(entries) == 0 {
+		return []string{"No process samples in the requested window yet."}
+	}
+	rows := make([]string, 0, len(entries))
+	for _, e := range entries {
+		pid := "aggregated"
+		if !e.Aggregated && e.PID > 0 {
+			pid = fmt.Sprintf("pid=%d", e.PID)
+		}
+		rows = append(rows, fmt.Sprintf("%s %s cpu=%s rss=%.1fMB samples=%d (%s)",
+			e.Owner, e.Comm, support.FormatPercent(e.CPUPct), float64(e.RSSKB)/1024, e.SampleCount, pid))
+	}
+	return rows
 }
 
 func floatList(values []float64) string {

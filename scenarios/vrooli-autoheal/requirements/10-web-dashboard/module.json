@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-10T16:46:49-04:00"
+    "last_validated_at": "2026-06-24T10:40:39-04:00"
   },
   "requirements": [
     {
       "id": "UI-HEALTH-001",
       "title": "Current health status display",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "Dashboard shows current status (ok/warning/critical) for all checks",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "UI-HEALTH-002",
       "title": "Health status color coding",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "Green for ok, amber for warning, red for critical",
@@ -31,14 +31,14 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "UI-EVENTS-001",
       "title": "Recent events timeline",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "Show recent health check results and auto-heal actions",
@@ -47,7 +47,7 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -63,7 +63,7 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Action log UI pending implementation"
         }
       ]
@@ -71,7 +71,7 @@
     {
       "id": "UI-REFRESH-001",
       "title": "Auto-refresh status",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "Dashboard automatically refreshes status at configurable interval",
@@ -80,14 +80,14 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "UI-RESPONSIVE-001",
       "title": "Responsive design",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "Dashboard works on desktop and tablet screen sizes",
@@ -96,7 +96,7 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     }

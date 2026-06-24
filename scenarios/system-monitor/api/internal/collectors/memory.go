@@ -14,18 +14,27 @@ import (
 // MemoryCollector collects memory metrics
 type MemoryCollector struct {
 	BaseCollector
+	snapshots SnapshotProvider
 }
 
 // NewMemoryCollector creates a new memory collector
 func NewMemoryCollector() *MemoryCollector {
 	return &MemoryCollector{
 		BaseCollector: NewBaseCollector("memory", 10*time.Second),
+		snapshots:     defaultSnapshotProvider(),
+	}
+}
+
+// SetSnapshotProvider injects the shared host-inventory provider.
+func (c *MemoryCollector) SetSnapshotProvider(p SnapshotProvider) {
+	if p != nil {
+		c.snapshots = p
 	}
 }
 
 // Collect gathers memory metrics
 func (c *MemoryCollector) Collect(ctx context.Context) (*MetricData, error) {
-	snapshot, _ := hostinventory.Collect(ctx)
+	snapshot, _ := c.snapshots.Snapshot(ctx)
 	memUsage := c.getMemoryUsage(snapshot)
 	memDetails := c.getMemoryDetails(snapshot)
 	swapInfo := c.getSwapUsage(snapshot)

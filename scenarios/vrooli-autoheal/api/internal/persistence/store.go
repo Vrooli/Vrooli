@@ -172,6 +172,28 @@ func (s *Store) CleanupOldSystemEvents(ctx context.Context, before time.Time) (i
 	return s.cleanupOldSystemEventsSQLite(ctx, before)
 }
 
+// GetJournalCursor returns the persisted incremental-ingest cursor for the
+// given logical source key (empty state if none recorded).
+func (s *Store) GetJournalCursor(ctx context.Context, sourceKey string) (systemevents.CursorState, error) {
+	return s.getJournalCursorSQLite(ctx, sourceKey)
+}
+
+// SetJournalCursor persists the incremental-ingest cursor for the source key.
+func (s *Store) SetJournalCursor(ctx context.Context, sourceKey string, state systemevents.CursorState) error {
+	return s.setJournalCursorSQLite(ctx, sourceKey, state)
+}
+
+// IsBootScanned reports whether the (sourceKey, bootID) pair has already been
+// scanned to completion.
+func (s *Store) IsBootScanned(ctx context.Context, sourceKey, bootID string) (bool, error) {
+	return s.isBootScannedSQLite(ctx, sourceKey, bootID)
+}
+
+// MarkBootScanned records that (sourceKey, bootID) has been scanned.
+func (s *Store) MarkBootScanned(ctx context.Context, sourceKey, bootID string) error {
+	return s.markBootScannedSQLite(ctx, sourceKey, bootID)
+}
+
 func (s *Store) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {
 	return s.saveHostInventorySnapshotSQLite(ctx, inv)
 }

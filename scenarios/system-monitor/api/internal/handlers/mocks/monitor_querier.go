@@ -2,8 +2,10 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
 // MonitorQuerier is a configurable test double for handlers.MonitorQuerier.
@@ -13,6 +15,7 @@ type MonitorQuerier struct {
 	detailedMetrics  *models.DetailedMetrics
 	timelineResponse *models.MetricsTimelineResponse
 	processData      *models.ProcessMonitorData
+	processTimeline  []repository.ProcessTimelineEntry
 	infraData        *models.InfrastructureMonitorData
 	active           bool
 	err              error
@@ -83,6 +86,15 @@ func (m *MonitorQuerier) GetMetricsTimeline(_ context.Context, _, _ int) (*model
 
 func (m *MonitorQuerier) GetProcessMonitorData(_ context.Context) (*models.ProcessMonitorData, error) {
 	return m.processData, m.err
+}
+
+func (m *MonitorQuerier) WithProcessTimeline(entries []repository.ProcessTimelineEntry) *MonitorQuerier {
+	m.processTimeline = entries
+	return m
+}
+
+func (m *MonitorQuerier) GetProcessTimeline(_ context.Context, _ time.Duration, _ string, _ int) ([]repository.ProcessTimelineEntry, error) {
+	return m.processTimeline, m.err
 }
 
 func (m *MonitorQuerier) GetInfrastructureMonitorData(_ context.Context) (*models.InfrastructureMonitorData, error) {

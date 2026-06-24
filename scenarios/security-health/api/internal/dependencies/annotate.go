@@ -2,29 +2,106 @@ package dependencies
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"log"
+	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 
+	"golang.org/x/sync/errgroup"
+
+	"security-health/internal/clock"
 	"security-health/internal/validation"
 )
 
+const (
+	// EnvScanConcurrency caps how many scenarios are scanned in parallel during a
+	// fleet annotate. Bounds peak CPU (the fleet walk runs ~110 osv-scanner
+	// subprocesses) while still shortening the unavoidable changed-scenario pass.
+	// Mirrors the architecture-cartographer *_VALIDATE_CONCURRENCY precedent.
+	EnvScanConcurrency = "SECURITY_HEALTH_SCAN_CONCURRENCY"
+	// DefaultScanConcurrency is the conservative parallelism used when the env
+	// knob is unset/invalid — small so a fleet re-scan can't re-storm the CPU.
+	DefaultScanConcurrency = 4
+)
+
+// scanCache is the result-cache surface the Annotator needs (satisfied by
+// *Store). Kept as an interface so annotate is testable without a real DB and so
+// a nil cache cleanly disables caching (cold path = always scan).
+type scanCache interface {
+	GetOSVScanCache(ctx context.Context, scenario, key string) ([]byte, bool)
+	PutOSVScanCache(ctx context.Context, scenario, key string, report []byte, now string) error
+}
+
 // Annotator adds known-vulnerability status to discovered dependency records
-// using osv-scanner (run once per scenario). It is a thin adapter over the
-// validation package's OSV runner so the SBOM index and the validation gate
-// agree on vuln data.
+// using osv-scanner. It is a thin adapter over the validation package's OSV
+// runner so the SBOM index and the validation gate agree on vuln data.
+//
+// Scans are content-cached: a per-scenario key over every lockfile's content
+// plus the osv-scanner version and offline OSV-DB epoch gates the subprocess, so
+// an unchanged scenario re-uses its parsed report instead of re-running the
+// scanner. The fleet annotate runs scenarios in bounded parallel (concurrency
+// env-capped) against the offline OSV DB.
 type Annotator struct {
 	repoRoot string
 	cmd      validation.Commander
+	cache    scanCache
+	clock    clock.Clock
+
+	// scannerVersion + dayEpoch are folded into every cache key. scannerVersion
+	// invalidates the whole cache on an osv-scanner upgrade (a new scanner can
+	// surface new findings); dayEpoch (the UTC date) bounds cache staleness to a
+	// day so a scenario with unchanged dependencies still re-scans daily and
+	// picks up vulnerabilities newly published upstream. Computed once per
+	// Annotate call.
+	scannerVersion string
+	dayEpoch       string
+
+	// last run's scan counters (observability): how many scenarios re-ran the
+	// scanner vs. were served from cache.
+	lastScansRun     atomic.Int64
+	lastScansSkipped atomic.Int64
 }
 
 // NewAnnotator returns an annotator rooted at repoRoot. A nil Commander uses
-// the real exec-backed one.
+// the real exec-backed one. Result caching is opt-in via WithCache; without it
+// every scenario scans every reconcile (the pre-cache behaviour).
 func NewAnnotator(repoRoot string, cmd validation.Commander) *Annotator {
 	if cmd == nil {
 		cmd = validation.NewExecCommander()
 	}
-	return &Annotator{repoRoot: repoRoot, cmd: cmd}
+	return &Annotator{repoRoot: repoRoot, cmd: cmd, clock: clock.System{}}
+}
+
+// WithCache attaches the result cache (the SQLite store). Returns the annotator
+// for chaining at construction time.
+func (a *Annotator) WithCache(cache scanCache) *Annotator {
+	a.cache = cache
+	return a
+}
+
+// ScanStats reports the most recent Annotate run's cache effectiveness.
+type ScanStats struct {
+	ScansRun     int
+	ScansSkipped int
+}
+
+// LastScanStats returns the scenario scan/skip counts from the most recent
+// Annotate call (observability for the reconcile loop).
+func (a *Annotator) LastScanStats() ScanStats {
+	return ScanStats{
+		ScansRun:     int(a.lastScansRun.Load()),
+		ScansSkipped: int(a.lastScansSkipped.Load()),
+	}
 }
 
 // vulnIndex maps a dependency key (ecosystem|name|version) to its known vulns.
@@ -38,26 +115,208 @@ type vulnEntry struct {
 // grouped by scenario; osv-scanner runs once per scenario directory. A scenario
 // whose scan fails is left unannotated (no vulns recorded) rather than failing
 // the whole reconcile.
+//
+// Scenarios scan in bounded parallel (SECURITY_HEALTH_SCAN_CONCURRENCY). When a
+// cache is wired, an unchanged scenario (lockfile content + scanner version +
+// OSV-DB epoch all match) re-uses its stored report and skips the subprocess —
+// the headline steady-state CPU win. The cache key folds in everything that can
+// change the result, so any real change forces a re-scan (no false skips).
 func (a *Annotator) Annotate(ctx context.Context, records []DependencyRecord) {
+	a.lastScansRun.Store(0)
+	a.lastScansSkipped.Store(0)
+
 	byScenario := map[string][]int{}
 	for i, r := range records {
 		byScenario[r.Scenario] = append(byScenario[r.Scenario], i)
 	}
-	for scenario, idxs := range byScenario {
-		scenarioDir := filepath.Join(a.repoRoot, "scenarios", scenario)
-		report, err := validation.RunOSVScanner(ctx, a.cmd, scenarioDir)
-		if err != nil {
-			continue
-		}
-		index := buildVulnIndex(report)
-		for _, i := range idxs {
-			if entry, ok := index[records[i].matchKey()]; ok {
-				records[i].VulnIDs = entry.ids
-				records[i].MaxSeverity = entry.maxSeverity
-				records[i].Vulnerabilities = entry.vulnerabilities
+
+	// Capture the scanner version + day epoch once for the whole pass: both are
+	// loop-invariant, and a per-scenario probe would add a subprocess per scan.
+	a.scannerVersion = validation.OSVScannerVersion(ctx, a.cmd)
+	a.dayEpoch = a.now()[:10] // UTC date YYYY-MM-DD → at most one re-scan/day
+
+	// Stable scenario order so the bounded pass is deterministic and tests can
+	// reason about it.
+	scenarios := make([]string, 0, len(byScenario))
+	for scenario := range byScenario {
+		scenarios = append(scenarios, scenario)
+	}
+	sort.Strings(scenarios)
+
+	// annotated entries are applied back into the shared records slice under a
+	// mutex; each goroutine only touches its own scenario's indices, but the
+	// write-back is serialized to keep the race detector and reviewers happy.
+	var writeMu sync.Mutex
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(a.concurrency())
+	for _, scenario := range scenarios {
+		scenario, idxs := scenario, byScenario[scenario]
+		g.Go(func() error {
+			if gctx.Err() != nil {
+				return nil
 			}
+			report, served, ok := a.scanScenario(gctx, scenario)
+			if !ok {
+				return nil // scan failed: leave this scenario unannotated
+			}
+			if served {
+				a.lastScansSkipped.Add(1)
+			} else {
+				a.lastScansRun.Add(1)
+			}
+			index := buildVulnIndex(report)
+			writeMu.Lock()
+			for _, i := range idxs {
+				if entry, ok := index[records[i].matchKey()]; ok {
+					records[i].VulnIDs = entry.ids
+					records[i].MaxSeverity = entry.maxSeverity
+					records[i].Vulnerabilities = entry.vulnerabilities
+				}
+			}
+			writeMu.Unlock()
+			return nil
+		})
+	}
+	_ = g.Wait()
+}
+
+// concurrency resolves the parallel-scan cap from the environment, clamping to a
+// sane minimum and falling back to the default for an unset/invalid value.
+func (a *Annotator) concurrency() int {
+	raw := strings.TrimSpace(os.Getenv(EnvScanConcurrency))
+	if raw == "" {
+		return DefaultScanConcurrency
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		log.Printf("[security-health] invalid %s=%q, using default %d", EnvScanConcurrency, raw, DefaultScanConcurrency)
+		return DefaultScanConcurrency
+	}
+	return n
+}
+
+// scanScenario returns the OSV report for one scenario, served from the cache
+// when the content key matches (served=true) or freshly scanned otherwise. A
+// fresh successful scan is written back to the cache. ok=false means the scan
+// failed and the scenario should be left unannotated.
+func (a *Annotator) scanScenario(ctx context.Context, scenario string) (report validation.OSVReport, served, ok bool) {
+	scenarioDir := filepath.Join(a.repoRoot, "scenarios", scenario)
+	key := a.scenarioCacheKey(scenarioDir)
+
+	if a.cache != nil && key != "" {
+		if payload, hit := a.cache.GetOSVScanCache(ctx, scenario, key); hit {
+			var cached validation.OSVReport
+			if err := json.Unmarshal(payload, &cached); err == nil {
+				return cached, true, true
+			}
+			// Corrupt payload: fall through and re-scan (then overwrite).
 		}
 	}
+
+	report, ok2 := a.runScan(ctx, scenarioDir)
+	if !ok2 {
+		return validation.OSVReport{}, false, false
+	}
+	a.storeCache(ctx, scenario, key, report)
+	return report, false, true
+}
+
+func (a *Annotator) runScan(ctx context.Context, scenarioDir string) (validation.OSVReport, bool) {
+	report, err := validation.RunOSVScanner(ctx, a.cmd, scenarioDir)
+	if err != nil {
+		return validation.OSVReport{}, false
+	}
+	return report, true
+}
+
+func (a *Annotator) storeCache(ctx context.Context, scenario, key string, report validation.OSVReport) {
+	if a.cache == nil || key == "" {
+		return
+	}
+	payload, err := json.Marshal(report)
+	if err != nil {
+		return
+	}
+	if err := a.cache.PutOSVScanCache(ctx, scenario, key, payload, a.now()); err != nil {
+		log.Printf("[security-health] osv scan cache write failed for %s: %v", scenario, err)
+	}
+}
+
+func (a *Annotator) now() string {
+	c := a.clock
+	if c == nil {
+		c = clock.System{}
+	}
+	return c.Now().UTC().Format(time.RFC3339)
+}
+
+// osvLockfiles is the set of resolved-version manifests osv-scanner reads for
+// the ecosystems this annotator keeps (Go + npm). Every name here is folded into
+// the cache key, so a change to any of them re-scans the scenario. npm versions
+// can be pinned by pnpm-lock.yaml OR package-lock.json OR yarn.lock OR
+// npm-shrinkwrap.json (the repo has 55+ package-lock.json files), so all four
+// npm lockfiles must be covered — omitting any is a false-skip bug (a changed
+// package-lock.json would be masked by a stale cache hit). A superset here only
+// ever causes an extra (correct) re-scan, never a missed one.
+var osvLockfiles = map[string]struct{}{
+	"go.mod":              {},
+	"go.sum":              {},
+	"pnpm-lock.yaml":      {},
+	"package-lock.json":   {},
+	"yarn.lock":           {},
+	"npm-shrinkwrap.json": {},
+}
+
+// scenarioCacheKey hashes everything that can change a scenario's osv-scanner
+// result: every resolved-version lockfile's content (osvLockfiles) under the
+// scenario tree, plus the osv-scanner version and the UTC day epoch. The
+// lockfile walk mirrors DiscoverScenario (same skipDirs) so the key tracks
+// exactly the inputs the scan reads. Returns "" when the dir can't be walked, in
+// which case the caller bypasses the cache and always scans (fail-safe: never a
+// false skip).
+func (a *Annotator) scenarioCacheKey(scenarioDir string) string {
+	h := sha256.New()
+	fmt.Fprintf(h, "v1\x00scanner=%s\x00day=%s\n", a.scannerVersion, a.dayEpoch)
+
+	type lock struct {
+		rel  string
+		data []byte
+	}
+	var locks []lock
+	walkErr := filepath.WalkDir(scenarioDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if _, skip := skipDirs[d.Name()]; skip {
+				return filepath.SkipDir
+			}
+			if path != scenarioDir && strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if _, ok := osvLockfiles[d.Name()]; ok {
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil
+			}
+			rel, _ := filepath.Rel(scenarioDir, path)
+			locks = append(locks, lock{rel: filepath.ToSlash(rel), data: data})
+		}
+		return nil
+	})
+	if walkErr != nil {
+		return ""
+	}
+	// Deterministic order regardless of walk traversal.
+	sort.Slice(locks, func(i, j int) bool { return locks[i].rel < locks[j].rel })
+	for _, l := range locks {
+		fmt.Fprintf(h, "%s\x00%d\n", l.rel, len(l.data))
+		h.Write(l.data)
+		h.Write([]byte{'\n'})
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // buildVulnIndex turns an OSV report into a per-dependency lookup keyed the

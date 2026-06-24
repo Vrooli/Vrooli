@@ -12,6 +12,7 @@ import (
 // GPUCollector adapts shared host inventory GPU facts into system-monitor metrics.
 type GPUCollector struct {
 	BaseCollector
+	snapshots SnapshotProvider
 }
 
 // NewGPUCollector constructs a GPU collector. The collector is disabled when the
@@ -19,6 +20,7 @@ type GPUCollector struct {
 func NewGPUCollector() *GPUCollector {
 	collector := &GPUCollector{
 		BaseCollector: NewBaseCollector("gpu", 15*time.Second),
+		snapshots:     defaultSnapshotProvider(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -31,6 +33,13 @@ func NewGPUCollector() *GPUCollector {
 	return collector
 }
 
+// SetSnapshotProvider injects the shared host-inventory provider.
+func (c *GPUCollector) SetSnapshotProvider(p SnapshotProvider) {
+	if p != nil {
+		c.snapshots = p
+	}
+}
+
 // Collect retrieves GPU metrics. When no GPUs are present, the collector emits an
 // empty metric payload with a descriptive warning so downstream consumers can
 // surface the absence without relying on mock data.
@@ -39,7 +48,7 @@ func (c *GPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 		return nil, fmt.Errorf("gpu collector disabled")
 	}
 
-	snapshot, err := hostinventory.Collect(ctx)
+	snapshot, err := c.snapshots.Snapshot(ctx)
 	if err != nil {
 		return nil, err
 	}

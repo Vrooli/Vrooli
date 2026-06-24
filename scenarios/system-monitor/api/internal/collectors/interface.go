@@ -135,7 +135,12 @@ func (b *BaseCollector) SetEnabled(enabled bool) {
 
 const defaultCommandTimeout = 2 * time.Second
 
-func commandOutput(ctx context.Context, timeout time.Duration, name string, args ...string) ([]byte, error) {
+// commandOutput is a package var so tests can stub it and assert how many
+// subprocesses a collection cycle forks (the no-double-fork guard for the
+// process collector). Production always uses execCommandOutput.
+var commandOutput = execCommandOutput
+
+func execCommandOutput(ctx context.Context, timeout time.Duration, name string, args ...string) ([]byte, error) {
 	if timeout <= 0 {
 		timeout = defaultCommandTimeout
 	}

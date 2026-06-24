@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-10T16:46:49-04:00"
+    "last_validated_at": "2026-06-24T10:40:39-04:00"
   },
   "requirements": [
     {
       "id": "INFRA-NET-001",
       "title": "Network connectivity check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Verify basic network connectivity via ping to configurable target",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -23,7 +23,7 @@
     {
       "id": "INFRA-DNS-001",
       "title": "DNS resolution check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Verify DNS resolution is working via lookup of configurable domain",
@@ -32,7 +32,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -40,7 +40,7 @@
     {
       "id": "INFRA-TIME-001",
       "title": "Time synchronization check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "Verify NTP is synchronized (platform-specific implementation)",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "INFRA-DISK-001",
       "title": "Disk space check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "Warn when disk usage exceeds configurable threshold",
@@ -66,7 +66,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -74,7 +74,7 @@
     {
       "id": "INFRA-SWAP-001",
       "title": "Swap usage check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "Warn when swap usage indicates memory pressure",
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -91,7 +91,7 @@
     {
       "id": "INFRA-ZOMBIE-001",
       "title": "Zombie process check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "Detect excessive zombie processes (Linux/macOS)",
@@ -100,7 +100,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -108,7 +108,7 @@
     {
       "id": "INFRA-PORT-001",
       "title": "Port exhaustion check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "Warn when ephemeral port usage is high",
@@ -117,7 +117,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -125,7 +125,7 @@
     {
       "id": "INFRA-RDP-001",
       "title": "RDP/xrdp health check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "Check xrdp (Linux) or TermService (Windows) is running",
@@ -134,7 +134,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -142,7 +142,7 @@
     {
       "id": "INFRA-RDP-002",
       "title": "RDP auto-restart",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "Attempt to restart RDP service if down",
@@ -151,7 +151,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -159,7 +159,7 @@
     {
       "id": "INFRA-DOCKER-001",
       "title": "Docker daemon health",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "Verify Docker daemon is responsive via docker info",
@@ -168,7 +168,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -176,7 +176,7 @@
     {
       "id": "INFRA-DOCKER-002",
       "title": "Docker auto-restart",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "Attempt to restart Docker service if unresponsive",
@@ -185,7 +185,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -193,7 +193,7 @@
     {
       "id": "INFRA-TUNNEL-001",
       "title": "Cloudflared service check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "Verify cloudflared service is active",
@@ -202,7 +202,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -210,7 +210,7 @@
     {
       "id": "INFRA-TUNNEL-002",
       "title": "Cloudflared connectivity test",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "Optionally test end-to-end tunnel connectivity",
@@ -219,7 +219,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -227,7 +227,7 @@
     {
       "id": "INFRA-TUNNEL-003",
       "title": "Cloudflared auto-restart",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "Restart cloudflared if service or connectivity check fails",
@@ -236,7 +236,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/infra_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go infrastructure-check tests (api/internal/checks/infra)"
         }
       ]
@@ -244,7 +244,7 @@
     {
       "id": "INFRA-SHUTDOWN-001",
       "title": "Graceful SIGTERM handling",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-009",
       "criticality": "P1",
       "description": "Loop mode handles SIGINT/SIGTERM cleanly, completing current tick before exit",
@@ -253,7 +253,7 @@
           "type": "test",
           "ref": "cli/loop/main_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go loop tests (cli/loop)"
         }
       ]

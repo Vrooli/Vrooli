@@ -36,7 +36,8 @@ type LogEntry struct {
 	PID        int       `json:"pid,omitempty"`
 	BootID     string    `json:"bootId,omitempty"`
 	Message    string    `json:"message"`
-	Raw        string    `json:"raw,omitempty"` // original line if structured parse failed
+	Cursor     string    `json:"cursor,omitempty"` // __CURSOR; only populated when ShowCursor was requested
+	Raw        string    `json:"raw,omitempty"`    // original line if structured parse failed
 }
 
 // BootRecord describes one entry from `journalctl --list-boots`.
@@ -59,6 +60,19 @@ type QueryOpts struct {
 	Grep     string   // -g <regex>
 	Tail     int      // -n <lines>; 0 = no limit
 	Reverse  bool     // -r (newest first within result set)
+
+	// AfterCursor, when set, emits `--after-cursor=<c>` so journalctl returns
+	// only entries newer than the given cursor. This is the seam for
+	// incremental, gap-free reads: persist the cursor of the last ingested
+	// entry and replay it on the next run rather than re-scanning the whole
+	// buffer. journalctl treats an unknown/invalidated cursor as "no match"
+	// (empty result), so callers MUST detect invalidation and fall back to a
+	// bounded re-scan rather than silently advancing past missed events.
+	AfterCursor string
+	// ShowCursor, when true, emits `--show-cursor` so the per-entry __CURSOR
+	// field is populated in JSON output. (journalctl prints a trailing
+	// "-- cursor: <c>" line in text mode; we only rely on the JSON field.)
+	ShowCursor bool
 }
 
 // Reader is the only sanctioned entry point for journalctl access.
@@ -202,6 +216,12 @@ func buildArgs(opts QueryOpts, jsonFormat bool) []string {
 	if opts.Boot != "" {
 		args = append(args, "-b", opts.Boot)
 	}
+	if opts.AfterCursor != "" {
+		args = append(args, "--after-cursor="+opts.AfterCursor)
+	}
+	if opts.ShowCursor {
+		args = append(args, "--show-cursor")
+	}
 	if opts.Since != "" {
 		args = append(args, "--since", opts.Since)
 	}
@@ -227,6 +247,7 @@ func buildArgs(opts QueryOpts, jsonFormat bool) []string {
 // arrive as strings (journald serializes everything that way).
 type rawJournalEntry struct {
 	Realtime    string          `json:"__REALTIME_TIMESTAMP"`
+	Cursor      string          `json:"__CURSOR"`
 	BootID      string          `json:"_BOOT_ID"`
 	Hostname    string          `json:"_HOSTNAME"`
 	Unit        string          `json:"_SYSTEMD_UNIT"`
@@ -271,7 +292,7 @@ func parseJSON(out []byte) ([]LogEntry, error) {
 func rawToEntry(r rawJournalEntry) LogEntry {
 	e := LogEntry{
 		Unit: r.Unit, UserUnit: r.UserUnit, Identifier: r.Identifier,
-		Hostname: r.Hostname, BootID: r.BootID, Priority: -1,
+		Hostname: r.Hostname, BootID: r.BootID, Cursor: r.Cursor, Priority: -1,
 	}
 	if r.Realtime != "" {
 		if us, err := strconv.ParseInt(r.Realtime, 10, 64); err == nil {

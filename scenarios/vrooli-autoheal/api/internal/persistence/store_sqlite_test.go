@@ -68,6 +68,77 @@ func TestSQLiteStore_SaveAndReadHealthResults(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_JournalCursorRoundTrip(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	const key = "journalctl/kernel"
+
+	// Cold read: empty state, no error.
+	got, err := store.GetJournalCursor(ctx, key)
+	if err != nil {
+		t.Fatalf("GetJournalCursor (cold): %v", err)
+	}
+	if got.Cursor != "" || got.BootID != "" {
+		t.Fatalf("cold cursor = %+v, want empty", got)
+	}
+
+	// Persist and read back.
+	want := systemevents.CursorState{Cursor: "s=abc;i=42", BootID: "boot-1", UpdatedAt: time.Now().UTC()}
+	if err := store.SetJournalCursor(ctx, key, want); err != nil {
+		t.Fatalf("SetJournalCursor: %v", err)
+	}
+	got, err = store.GetJournalCursor(ctx, key)
+	if err != nil {
+		t.Fatalf("GetJournalCursor: %v", err)
+	}
+	if got.Cursor != want.Cursor || got.BootID != want.BootID {
+		t.Fatalf("cursor round-trip = %+v, want %+v", got, want)
+	}
+
+	// Upsert (advance) overwrites in place.
+	advanced := systemevents.CursorState{Cursor: "s=abc;i=99", BootID: "boot-1"}
+	if err := store.SetJournalCursor(ctx, key, advanced); err != nil {
+		t.Fatalf("SetJournalCursor (advance): %v", err)
+	}
+	got, _ = store.GetJournalCursor(ctx, key)
+	if got.Cursor != "s=abc;i=99" {
+		t.Fatalf("advanced cursor = %q, want s=abc;i=99", got.Cursor)
+	}
+}
+
+func TestSQLiteStore_ScannedBootMarker(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	const key = "journalctl/kernel"
+
+	scanned, err := store.IsBootScanned(ctx, key, "boot-x")
+	if err != nil {
+		t.Fatalf("IsBootScanned (cold): %v", err)
+	}
+	if scanned {
+		t.Fatal("boot-x should not be scanned initially")
+	}
+
+	if err := store.MarkBootScanned(ctx, key, "boot-x"); err != nil {
+		t.Fatalf("MarkBootScanned: %v", err)
+	}
+	// Idempotent: marking twice is fine.
+	if err := store.MarkBootScanned(ctx, key, "boot-x"); err != nil {
+		t.Fatalf("MarkBootScanned (twice): %v", err)
+	}
+	scanned, _ = store.IsBootScanned(ctx, key, "boot-x")
+	if !scanned {
+		t.Fatal("boot-x should be scanned after marking")
+	}
+	// A different boot id under the same key is independent.
+	other, _ := store.IsBootScanned(ctx, key, "boot-y")
+	if other {
+		t.Fatal("boot-y should be independent of boot-x")
+	}
+}
+
 func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)

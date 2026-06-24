@@ -21,7 +21,9 @@ func NewProcessCollector() *ProcessCollector {
 	}
 }
 
-// Collect gathers process metrics
+// Collect gathers process metrics. Zombie and high-thread results are computed
+// once here and reused for the health summary — previously getProcessHealth
+// re-shelled both queries, doubling the forks per cycle.
 func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
 	totalProcesses := c.getTotalProcessCount(ctx)
 	zombieProcesses := c.getZombieProcesses(ctx)
@@ -37,7 +39,7 @@ func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
 			"zombie_processes":  zombieProcesses,
 			"high_thread_count": highThreadProcesses,
 			"top_by_cpu":        topProcesses,
-			"process_health":    c.getProcessHealth(ctx),
+			"process_health":    c.processHealth(ctx, zombieProcesses, highThreadProcesses),
 		},
 	}, nil
 }
@@ -127,21 +129,17 @@ func (c *ProcessCollector) getHighThreadProcesses(ctx context.Context) []map[str
 	return processes
 }
 
-// getProcessHealth returns overall process health metrics
-func (c *ProcessCollector) getProcessHealth(ctx context.Context) map[string]interface{} {
+// processHealth builds the health summary from the zombie and high-thread
+// results already computed in Collect (no re-shelling), plus a single
+// process-table scan for critical-process presence (replaces 4 pgrep forks).
+func (c *ProcessCollector) processHealth(ctx context.Context, zombies, highThread []map[string]interface{}) map[string]interface{} {
 	health := map[string]interface{}{
 		"status":             "healthy",
-		"zombie_count":       0,
-		"high_thread_count":  0,
+		"zombie_count":       len(zombies),
+		"high_thread_count":  len(highThread),
 		"leak_candidates":    0,
 		"critical_processes": c.checkCriticalProcesses(ctx),
 	}
-
-	zombies := c.getZombieProcesses(ctx)
-	health["zombie_count"] = len(zombies)
-
-	highThread := c.getHighThreadProcesses(ctx)
-	health["high_thread_count"] = len(highThread)
 
 	if len(zombies) > 5 || len(highThread) > 10 {
 		health["status"] = "warning"
@@ -150,37 +148,64 @@ func (c *ProcessCollector) getProcessHealth(ctx context.Context) map[string]inte
 	return health
 }
 
-// checkCriticalProcesses checks if critical processes are running
+// criticalProcessNames are the processes whose presence is reported in the
+// health summary.
+var criticalProcessNames = []string{
+	"postgres",
+	"redis-server",
+	"node",
+	"system-monitor-api",
+}
+
+// checkCriticalProcesses reports presence of each critical process using ONE
+// process-table scan (a single fork) rather than one pgrep fork per name.
 func (c *ProcessCollector) checkCriticalProcesses(ctx context.Context) []map[string]interface{} {
-	criticalProcesses := []string{
-		"postgres",
-		"redis-server",
-		"node",
-		"system-monitor-api",
-	}
+	running := c.runningCommandSet(ctx)
 
-	var status []map[string]interface{}
-
-	for _, process := range criticalProcesses {
-		running := c.isProcessRunning(ctx, process)
+	status := make([]map[string]interface{}, 0, len(criticalProcessNames))
+	for _, process := range criticalProcessNames {
 		status = append(status, map[string]interface{}{
 			"name":    process,
-			"running": running,
+			"running": runningContains(running, process),
 		})
 	}
-
 	return status
 }
 
-// isProcessRunning checks if a process is running
-func (c *ProcessCollector) isProcessRunning(ctx context.Context, processName string) bool {
+// runningCommandSet returns the set of running process command names from a
+// single `ps -eo comm` scan. On non-Linux platforms it returns nil and callers
+// treat every critical process as present (the prior behavior).
+func (c *ProcessCollector) runningCommandSet(ctx context.Context) map[string]struct{} {
 	if runtime.GOOS != "linux" {
-		return true // Assume running in non-Linux environments
+		return nil
 	}
+	output, err := commandOutput(ctx, 2*time.Second, "ps", "-eo", "comm", "--no-headers")
+	if err != nil {
+		return map[string]struct{}{}
+	}
+	set := map[string]struct{}{}
+	for _, line := range strings.Split(string(output), "\n") {
+		name := strings.TrimSpace(line)
+		if name != "" {
+			set[name] = struct{}{}
+		}
+	}
+	return set
+}
 
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", fmt.Sprintf("pgrep -f %s", processName))
-
-	return err == nil && len(strings.TrimSpace(string(output))) > 0
+// runningContains reports whether any running command name contains the target
+// substring (matching pgrep -f's loose semantics for names like "redis-server"
+// that ps may truncate). A nil set (non-Linux) is treated as "present".
+func runningContains(set map[string]struct{}, target string) bool {
+	if set == nil {
+		return true
+	}
+	for name := range set {
+		if name == target || strings.Contains(name, target) || strings.Contains(target, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetProcessFileDescriptors returns file descriptor count for a process

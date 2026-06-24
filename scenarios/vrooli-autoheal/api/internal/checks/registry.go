@@ -5,6 +5,7 @@ package checks
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -289,6 +290,37 @@ func (r *Registry) SetAutoHealPolicy(policy AutoHealPolicy) error {
 	p := policy
 	r.autoHealPolicy = &p
 	return nil
+}
+
+// SeedStartupJitter staggers the first run of interval checks so aligned
+// intervals don't burst together (a synchronized "thundering herd" that pegs a
+// core). For each check WITHOUT an existing lastRun (i.e. not restored from
+// persistence), it seeds lastRun to `now - offset` where offset is a per-check
+// random value in [0, interval). Because shouldRunCheck fires when
+// time.Since(lastRun) >= interval, the check first becomes due at
+// `now + (interval - offset)`, spreading first runs uniformly across the first
+// interval window. Checks already seeded from persisted results are left
+// untouched so restart behavior is unchanged.
+//
+// rng may be nil, in which case a time-seeded source is used. Passing a
+// deterministic source makes the spread assertable in tests.
+func (r *Registry) SeedStartupJitter(now time.Time, rng *rand.Rand) {
+	if rng == nil {
+		rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, check := range r.checks {
+		if _, exists := r.lastRun[id]; exists {
+			continue
+		}
+		interval := time.Duration(check.IntervalSeconds()) * time.Second
+		if interval <= 0 {
+			continue
+		}
+		offset := time.Duration(rng.Int63n(int64(interval)))
+		r.lastRun[id] = now.Add(-offset)
+	}
 }
 
 // SetClock sets the time source for cooldown calculations (used by tests).

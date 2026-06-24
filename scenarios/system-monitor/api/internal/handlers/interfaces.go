@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"time"
 
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
 	engine "github.com/vrooli/vrooli/internal/capacity"
@@ -17,6 +18,7 @@ type MonitorQuerier interface {
 	GetDetailedMetrics(ctx context.Context) (*models.DetailedMetrics, error)
 	GetMetricsTimeline(ctx context.Context, windowSeconds, sampleIntervalSeconds int) (*models.MetricsTimelineResponse, error)
 	GetProcessMonitorData(ctx context.Context) (*models.ProcessMonitorData, error)
+	GetProcessTimeline(ctx context.Context, window time.Duration, owner string, top int) ([]repository.ProcessTimelineEntry, error)
 	GetInfrastructureMonitorData(ctx context.Context) (*models.InfrastructureMonitorData, error)
 	IsActive() bool
 }

@@ -4,11 +4,55 @@ package checks
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
+
+// TestSeedStartupJitterSpreadsFirstRuns verifies per-check startup jitter:
+// each cold-start check's lastRun lands in [now-interval, now) so its first
+// run is staggered across (now, now+interval], and checks already seeded from
+// persistence are left untouched.
+func TestSeedStartupJitterSpreadsFirstRuns(t *testing.T) {
+	reg := NewRegistry(testPlatform())
+	const interval = 300
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		reg.Register(&mockCheck{id: id, interval: interval})
+	}
+	// Simulate a check restored from persistence: it already has a lastRun and
+	// must NOT be re-jittered.
+	restored := &mockCheck{id: "restored", interval: interval}
+	reg.Register(restored)
+	restoredAt := time.Date(2026, 6, 24, 11, 0, 0, 0, time.UTC)
+	reg.SetResult(Result{CheckID: "restored", Timestamp: restoredAt})
+
+	now := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
+	reg.SeedStartupJitter(now, rand.New(rand.NewSource(1)))
+
+	intervalDur := time.Duration(interval) * time.Second
+	offsets := map[time.Duration]struct{}{}
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		lastRun, ok := reg.lastRun[id]
+		if !ok {
+			t.Fatalf("check %q has no seeded lastRun", id)
+		}
+		offset := now.Sub(lastRun)
+		if offset < 0 || offset >= intervalDur {
+			t.Errorf("check %q offset = %s, want within [0, %s)", id, offset, intervalDur)
+		}
+		offsets[offset] = struct{}{}
+	}
+	if len(offsets) < 2 {
+		t.Errorf("jitter produced %d distinct offsets, want spread (>=2)", len(offsets))
+	}
+
+	// The restored check keeps its persisted lastRun (not jittered).
+	if got := reg.lastRun["restored"]; !got.Equal(restoredAt) {
+		t.Errorf("restored check lastRun = %s, want untouched %s", got, restoredAt)
+	}
+}
 
 // TestNewRegistry verifies registry initialization
 // [REQ:HEALTH-REGISTRY-001]

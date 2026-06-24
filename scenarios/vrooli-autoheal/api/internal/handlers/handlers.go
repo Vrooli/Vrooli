@@ -227,6 +227,11 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 		"checks":    summary.Checks,
 		"timestamp": summary.Timestamp,
 	}
+	if h.systemEventService != nil {
+		response["systemEvents"] = map[string]interface{}{
+			"journalctlExecsAvoided": h.systemEventService.ExecsAvoided(),
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -389,11 +394,15 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// refreshSystemEvents runs system-event ingestion on the tick path, but gated
+// behind the service's own (coarser) interval so the expensive journalctl
+// kernel-grep does not run on every 60s tick. The explicit refresh endpoint
+// still forces an immediate ingest.
 func (h *Handlers) refreshSystemEvents(ctx context.Context) {
 	if h.systemEventService == nil {
 		return
 	}
-	if _, err := h.systemEventService.Ingest(ctx); err != nil {
+	if _, _, err := h.systemEventService.IngestIfDue(ctx); err != nil {
 		apierrors.LogError("system-events", "ingest", err)
 	}
 }

@@ -20,16 +20,45 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
+// kernelSignalSourceKey namespaces this collector's persisted cursor and
+// per-boot scan markers in the CursorStore.
+const kernelSignalSourceKey = "journalctl/kernel"
+
+// kernelGrepPattern is the big-regex used to surface hardware/driver kernel
+// signals. Kept as a package var so a shared collection pass (sub-phase 2d)
+// could reuse it without duplicating the literal.
+const kernelGrepPattern = `Previous system reset reason|uncorrected error|machine check|MCE|hardware error|AER|NVRM|Xid|amdgpu|CMD_RUN timeout|Module nvidia|nvidia driver is not loaded|nvidia devices`
+
+// currentBootRescanTail bounds the fallback re-scan of the current boot when
+// no usable cursor exists (cold start or cursor invalidation). It matches the
+// pre-incremental `-n 500` behavior so detection coverage is unchanged.
+const currentBootRescanTail = 500
+
 type HostCollector struct {
 	platform *platform.Capabilities
 	exec     checks.CommandExecutor
 	journal  *journal.Reader
+	cursors  CursorStore
 	now      func() time.Time
 	readFile func(string) ([]byte, error)
 	glob     func(string) ([]string, error)
+
+	// execsAvoided counts journalctl kernel-grep invocations skipped because a
+	// historical boot was already scanned or the current boot was read
+	// incrementally via cursor. Surfaced through ExecsAvoided() for the status
+	// endpoint. Updated only on the single ingest goroutine.
+	execsAvoided int64
 }
 
 func NewHostCollector(plat *platform.Capabilities, exec checks.CommandExecutor, reader *journal.Reader) *HostCollector {
+	return NewHostCollectorWithCursors(plat, exec, reader, nil)
+}
+
+// NewHostCollectorWithCursors builds a HostCollector with an explicit
+// CursorStore for incremental kernel-signal ingestion. A nil cursors store
+// degrades gracefully to the legacy "scan every boot" behavior (still correct,
+// just not incremental), which keeps tests that don't care about cursors simple.
+func NewHostCollectorWithCursors(plat *platform.Capabilities, exec checks.CommandExecutor, reader *journal.Reader, cursors CursorStore) *HostCollector {
 	if plat == nil {
 		plat = platform.Detect()
 	}
@@ -43,10 +72,21 @@ func NewHostCollector(plat *platform.Capabilities, exec checks.CommandExecutor, 
 		platform: plat,
 		exec:     exec,
 		journal:  reader,
+		cursors:  cursors,
 		now:      func() time.Time { return time.Now().UTC() },
 		readFile: os.ReadFile,
 		glob:     filepath.Glob,
 	}
+}
+
+// ExecsAvoided returns the cumulative count of kernel-grep journalctl
+// invocations skipped since process start (already-scanned historical boots +
+// incremental current-boot reads). Safe to call from the ingest goroutine.
+func (c *HostCollector) ExecsAvoided() int64 {
+	if c == nil {
+		return 0
+	}
+	return c.execsAvoided
 }
 
 func (c *HostCollector) Collect(ctx context.Context) ([]Event, []SourceStatus) {
@@ -196,26 +236,152 @@ func (c *HostCollector) collectLinuxJournal(ctx context.Context) ([]Event, []Sou
 	return events, []SourceStatus{c.statusWithCount("journalctl", SourceOK, len(events), "")}
 }
 
+// collectKernelSignals greps the journal for hardware/driver kernel signals.
+//
+// Incremental strategy (gap-free):
+//   - Immutable historical boots (Index < 0) are scanned AT MOST ONCE. A
+//     persisted per-boot marker lets subsequent ingests skip them entirely
+//     instead of re-grepping every minute.
+//   - The current boot (Index == 0) is read incrementally via a persisted
+//     journald cursor: only entries newer than the last successfully-ingested
+//     one are fetched. On cold start or cursor invalidation (journal
+//     vacuum/rotation, reboot) we fall back to a bounded `-b 0 -n N` re-scan so
+//     no event is silently skipped.
+//
+// The cursor advances ONLY after a successful read, so a failed ingest never
+// moves past unread events.
+//
+// With a nil CursorStore the method degrades to scanning every boot each call
+// (legacy behavior) — still correct, just not incremental.
 func (c *HostCollector) collectKernelSignals(ctx context.Context, boots []journal.BootRecord) []Event {
 	var events []Event
 	for _, boot := range boots {
-		bootRef := boot.BootID
 		if boot.Index == 0 {
-			bootRef = "0"
-		}
-		logs, err := c.journal.QueryLogs(ctx, journal.QueryOpts{
-			Kernel: true,
-			Boot:   bootRef,
-			Grep:   `Previous system reset reason|uncorrected error|machine check|MCE|hardware error|AER|NVRM|Xid|amdgpu|CMD_RUN timeout|Module nvidia|nvidia driver is not loaded|nvidia devices`,
-			Tail:   500,
-		})
-		if err != nil {
+			events = append(events, c.collectCurrentBootKernelSignals(ctx, boot)...)
 			continue
 		}
-		for _, entry := range logs {
-			if event, ok := kernelLogEvent(entry, boot.BootID); ok {
-				events = append(events, event)
-			}
+		events = append(events, c.collectHistoricalBootKernelSignals(ctx, boot)...)
+	}
+	return events
+}
+
+// collectHistoricalBootKernelSignals scans an immutable past boot once and
+// records a marker so future ingests skip it.
+func (c *HostCollector) collectHistoricalBootKernelSignals(ctx context.Context, boot journal.BootRecord) []Event {
+	if c.cursors != nil && boot.BootID != "" {
+		if scanned, err := c.cursors.IsBootScanned(ctx, kernelSignalSourceKey, boot.BootID); err == nil && scanned {
+			c.execsAvoided++
+			return nil
+		}
+	}
+	logs, err := c.journal.QueryLogs(ctx, journal.QueryOpts{
+		Kernel: true,
+		Boot:   boot.BootID,
+		Grep:   kernelGrepPattern,
+		Tail:   currentBootRescanTail,
+	})
+	if err != nil {
+		// Leave the boot unmarked so the next ingest retries it — never mark a
+		// boot scanned on a failed read.
+		return nil
+	}
+	events := kernelEventsFrom(logs, boot.BootID)
+	if c.cursors != nil && boot.BootID != "" {
+		// Best-effort: a marker write failure just means we re-scan next time.
+		_ = c.cursors.MarkBootScanned(ctx, kernelSignalSourceKey, boot.BootID)
+	}
+	return events
+}
+
+// collectCurrentBootKernelSignals reads the live boot incrementally via a
+// persisted cursor, falling back to a bounded re-scan on cold start or cursor
+// invalidation.
+func (c *HostCollector) collectCurrentBootKernelSignals(ctx context.Context, boot journal.BootRecord) []Event {
+	if c.cursors == nil {
+		// Legacy path: bounded scan of the current boot every time.
+		logs, err := c.journal.QueryLogs(ctx, journal.QueryOpts{
+			Kernel: true,
+			Boot:   "0",
+			Grep:   kernelGrepPattern,
+			Tail:   currentBootRescanTail,
+		})
+		if err != nil {
+			return nil
+		}
+		return kernelEventsFrom(logs, boot.BootID)
+	}
+
+	prev, err := c.cursors.GetJournalCursor(ctx, kernelSignalSourceKey)
+	if err != nil {
+		prev = CursorState{}
+	}
+
+	useCursor := prev.Cursor != "" && prev.BootID == boot.BootID
+	if useCursor {
+		logs, qerr := c.journal.QueryLogs(ctx, journal.QueryOpts{
+			Kernel:      true,
+			Boot:        "0",
+			Grep:        kernelGrepPattern,
+			ShowCursor:  true,
+			AfterCursor: prev.Cursor,
+		})
+		if qerr == nil {
+			// Incremental read succeeded: we read only the delta instead of a
+			// full bounded re-scan.
+			c.execsAvoided++
+			c.advanceCursor(ctx, prev, logs, boot.BootID)
+			return kernelEventsFrom(logs, boot.BootID)
+		}
+		// Cursor invalidated (vacuum/rotation) or transient failure: fall
+		// through to a bounded re-scan. Do NOT advance the cursor here.
+	}
+
+	// Cold start, boot changed, or cursor invalidation: bounded re-scan.
+	logs, err := c.journal.QueryLogs(ctx, journal.QueryOpts{
+		Kernel:     true,
+		Boot:       "0",
+		Grep:       kernelGrepPattern,
+		ShowCursor: true,
+		Tail:       currentBootRescanTail,
+	})
+	if err != nil {
+		// Failed re-scan: leave the cursor untouched so the next ingest retries
+		// the same window — no silent event loss.
+		return nil
+	}
+	c.advanceCursor(ctx, prev, logs, boot.BootID)
+	return kernelEventsFrom(logs, boot.BootID)
+}
+
+// advanceCursor persists the cursor of the newest entry that carries one,
+// pinned to the current boot. If no entry carries a cursor (e.g. the delta was
+// empty), the prior cursor is retained so the next read resumes from the same
+// place.
+func (c *HostCollector) advanceCursor(ctx context.Context, prev CursorState, logs []journal.LogEntry, bootID string) {
+	if c.cursors == nil {
+		return
+	}
+	next := prev
+	next.BootID = bootID
+	for i := len(logs) - 1; i >= 0; i-- {
+		if logs[i].Cursor != "" {
+			next.Cursor = logs[i].Cursor
+			break
+		}
+	}
+	if next.Cursor == "" && next.BootID == prev.BootID {
+		// Nothing new to advance to and the boot is unchanged: skip the write.
+		return
+	}
+	next.UpdatedAt = c.now()
+	_ = c.cursors.SetJournalCursor(ctx, kernelSignalSourceKey, next)
+}
+
+func kernelEventsFrom(logs []journal.LogEntry, bootID string) []Event {
+	var events []Event
+	for _, entry := range logs {
+		if event, ok := kernelLogEvent(entry, bootID); ok {
+			events = append(events, event)
 		}
 	}
 	return events

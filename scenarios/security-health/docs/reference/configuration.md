@@ -32,6 +32,22 @@ for the full policy.
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/security-health.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `SECURITY_HEALTH_RECONCILE_INTERVAL` | `5m` | Base cadence of the background fleet reconcile loop (Go duration, e.g. `5m`, `10m`). A per-tick jitter of up to `interval/4` is added so a fleet of self-monitoring scenarios doesn't burst on an aligned boundary. Invalid/non-positive values fall back to the default. |
+| `SECURITY_HEALTH_SCAN_CONCURRENCY` | `4` | Max scenarios scanned in parallel during a fleet reconcile. Bounds peak CPU from the ~110 per-scenario `osv-scanner` runs; raise it to shorten a large changed-scenario pass at the cost of higher peak CPU. Minimum `1`; invalid values fall back to the default. |
+
+The per-scenario `osv-scanner` result is content-cached (no flag — on by default): a
+reconcile re-scans a scenario only when its resolved-version lockfiles
+(`go.mod`/`go.sum`/`pnpm-lock.yaml`/`package-lock.json`/`yarn.lock`/`npm-shrinkwrap.json`),
+the installed `osv-scanner` version, or the UTC calendar day changes — so steady-state
+reconciles run near-zero scanner subprocesses while every scenario still re-scans at most
+once per day to pick up newly-published vulnerabilities. The cache key folds in all of those
+inputs, so it is always correctness-preserving: a real change forces a re-scan and the daily
+epoch bounds staleness to a day. Scans run **online** (osv-scanner resolves the live OSV
+database); offline mode was rejected because osv-scanner loads its full ~200 MB+ per-ecosystem
+database into memory on every invocation (see `docs/perf/2026-06-24-reconcile-scan-incremental.md`).
+The reconcile loop and the on-demand `Reindex` RPC share an overlap lock so they can never
+scan the fleet concurrently. Cache effectiveness is reported on the dependencies `Status`
+reconcile outcome (`scans_run=… scans_skipped_cache=…`).
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

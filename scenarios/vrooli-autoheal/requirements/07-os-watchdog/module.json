@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-10T16:46:49-04:00"
+    "last_validated_at": "2026-06-24T10:40:39-04:00"
   },
   "requirements": [
     {
       "id": "WATCH-DETECT-001",
       "title": "Detect existing watchdog",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Check if OS-level watchdog is already installed and correctly configured",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
       ]
@@ -23,7 +23,7 @@
     {
       "id": "WATCH-LINUX-001",
       "title": "Linux systemd service",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Generate and install vrooli-autoheal.service with Restart=always and enable on boot",
@@ -32,7 +32,7 @@
           "type": "test",
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
       ]
@@ -40,7 +40,7 @@
     {
       "id": "WATCH-LINUX-002",
       "title": "Linux systemd verification",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Verify service has correct ExecStart pointing to vrooli-autoheal loop",
@@ -49,7 +49,7 @@
           "type": "test",
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
       ]
@@ -57,7 +57,7 @@
     {
       "id": "WATCH-WIN-001",
       "title": "Windows service/scheduled task",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Install Windows Task Scheduler job or service that runs vrooli-autoheal loop on boot",
@@ -66,7 +66,7 @@
           "type": "test",
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
       ]
@@ -74,7 +74,7 @@
     {
       "id": "WATCH-MAC-001",
       "title": "macOS launchd plist",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Generate and install LaunchAgent plist with KeepAlive=true",
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
       ]
@@ -91,7 +91,7 @@
     {
       "id": "WATCH-IDEMPOTENT-001",
       "title": "Idempotent installation",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Running watchdog installation multiple times produces identical configuration",
@@ -100,7 +100,7 @@
           "type": "test",
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
       ]
@@ -108,7 +108,7 @@
     {
       "id": "WATCH-GRACEFUL-001",
       "title": "Graceful failure on unsupported platforms",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Log warning and continue if watchdog installation not supported on platform",
@@ -117,7 +117,7 @@
           "type": "test",
           "ref": "api/internal/watchdog/watchdog_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
       ]

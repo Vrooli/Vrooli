@@ -72,6 +72,14 @@ type Service struct {
 	jobs   map[string]*reindexJob
 	jobSeq int
 
+	// reconcileMu serializes the full-fleet scan path so the periodic timer
+	// (RunReconcileOnce) and the on-demand Reindex job (runReindexJob) can never
+	// scan-storm the fleet concurrently. Held for the duration of a discover →
+	// apply pass; a contending caller blocks until the in-flight pass releases it
+	// (serialize, not skip — a triggered reindex must still run, just not
+	// overlapping). Scoped (single-scenario) reindexes do not take it.
+	reconcileMu sync.Mutex
+
 	// readiness caches the vector-index coverage gate so Search never makes a
 	// network call on the hot path. refreshReadiness recomputes it after each
 	// full reconcile and at startup; Search recomputes lazily past readinessTTL.
@@ -102,6 +110,12 @@ func NewService(d Deps) *Service {
 	annot := d.Annotator
 	if annot == nil {
 		annot = NewAnnotator(d.RepoRoot, validation.NewExecCommander())
+		// Wire the result cache (the SQLite store) so steady-state reconciles
+		// skip osv-scanner for unchanged scenarios and scan offline. An
+		// explicitly-supplied annotator (tests) opts in via WithCache itself.
+		if d.Store != nil {
+			annot = annot.WithCache(d.Store)
+		}
 	}
 	probe := d.AIProbe
 	if probe == nil && d.Index != nil {
@@ -407,6 +421,11 @@ func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (Re
 // RunReconcileOnce performs a synchronous fleet reconcile (used by the sync
 // loop). It discovers, annotates, applies, and records reconcile state.
 func (s *Service) RunReconcileOnce(ctx context.Context) error {
+	// Hold the overlap lock for the whole fleet pass so a concurrent on-demand
+	// reindex serializes behind it (no double scan-storm).
+	s.reconcileMu.Lock()
+	defer s.reconcileMu.Unlock()
+
 	fresh, err := s.discover(ctx, "")
 	if err != nil {
 		_ = s.store.SetReconcileState(ctx, s.now(), "discovery failed: "+err.Error())
@@ -417,7 +436,10 @@ func (s *Service) RunReconcileOnce(ctx context.Context) error {
 		return err
 	}
 	s.syncIndex(ctx, "")
-	_ = s.store.SetReconcileState(ctx, s.now(), fmt.Sprintf("reconciled %d records", len(fresh)))
+	stats := s.annot.LastScanStats()
+	_ = s.store.SetReconcileState(ctx, s.now(),
+		fmt.Sprintf("reconciled %d records (scans_run=%d scans_skipped_cache=%d)",
+			len(fresh), stats.ScansRun, stats.ScansSkipped))
 	return nil
 }
 
@@ -513,6 +535,18 @@ func (s *Service) runReindexJob(ctx context.Context, job *reindexJob, scenario s
 	if ctx.Err() != nil {
 		job.set("cancelled", -1, -1, "")
 		return
+	}
+	// A full-fleet reindex shares the storm-prone discover→apply path with the
+	// periodic reconcile; serialize behind the same lock so the timer and an
+	// on-demand reindex can't scan the whole fleet at once. Scoped reindexes
+	// (one scenario) are cheap and don't contend for it.
+	if scenario == "" {
+		s.reconcileMu.Lock()
+		defer s.reconcileMu.Unlock()
+		if ctx.Err() != nil {
+			job.set("cancelled", -1, -1, "")
+			return
+		}
 	}
 	fresh, err := s.discover(ctx, scenario)
 	if err != nil {

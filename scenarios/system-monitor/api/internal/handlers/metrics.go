@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
@@ -102,6 +103,91 @@ func (h *MetricsHandler) GetProcessMonitor(w http.ResponseWriter, r *http.Reques
 	}
 
 	httputil.SafeProtoJSON(w, h.log, r, convert.ProcessMonitorDataToProto(data))
+}
+
+// processTimelineEntryJSON is the wire shape for one ranked consumer. Plain
+// JSON (not proto) following the forensics/logs precedent in this scenario:
+// the attribution timeline has no cross-scenario clients, so adding ~2 proto
+// messages + a convert layer would be disproportionate. See forensics.go.
+type processTimelineEntryJSON struct {
+	Owner       string  `json:"owner"`
+	Comm        string  `json:"comm"`
+	PID         int     `json:"pid,omitempty"`
+	Aggregated  bool    `json:"aggregated"`
+	CPUPct      float64 `json:"cpu_pct"`
+	RSSKB       int64   `json:"rss_kb"`
+	SampleCount int64   `json:"sample_count"`
+	FirstSeen   string  `json:"first_seen,omitempty"`
+	LastSeen    string  `json:"last_seen,omitempty"`
+}
+
+type processTimelineResponseJSON struct {
+	WindowSeconds int                        `json:"window_seconds"`
+	Owner         string                     `json:"owner,omitempty"`
+	Top           int                        `json:"top"`
+	Count         int                        `json:"count"`
+	Entries       []processTimelineEntryJSON `json:"entries"`
+}
+
+// GetProcessTimeline handles GET /api/v1/metrics/processes/timeline. Query
+// params: window (duration, default 5m), owner (scenario filter), top (int).
+// It returns ranked consumers over the window, grouped by owner/scenario —
+// the standing replacement for the manual `ps`/`top` forensic.
+func (h *MetricsHandler) GetProcessTimeline(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	window := 5 * time.Minute
+	if ws := r.URL.Query().Get("window"); ws != "" {
+		if parsed, err := time.ParseDuration(ws); err == nil && parsed > 0 {
+			window = parsed
+		} else if secs, err := strconv.Atoi(ws); err == nil && secs > 0 {
+			// Accept a bare integer as seconds for parity with /metrics/timeline.
+			window = time.Duration(secs) * time.Second
+		}
+	}
+
+	owner := r.URL.Query().Get("owner")
+
+	top := 20
+	if t := r.URL.Query().Get("top"); t != "" {
+		if parsed, err := strconv.Atoi(t); err == nil && parsed > 0 {
+			top = parsed
+		}
+	}
+
+	entries, err := h.monitorSvc.GetProcessTimeline(ctx, window, owner, top)
+	if err != nil {
+		httputil.HandleError(w, h.log, r, err)
+		return
+	}
+
+	out := make([]processTimelineEntryJSON, 0, len(entries))
+	for _, e := range entries {
+		row := processTimelineEntryJSON{
+			Owner:       e.Owner,
+			Comm:        e.Comm,
+			PID:         e.PID,
+			Aggregated:  e.Aggregated,
+			CPUPct:      e.CPUPct,
+			RSSKB:       e.RSSKB,
+			SampleCount: e.SampleCount,
+		}
+		if !e.FirstSeen.IsZero() {
+			row.FirstSeen = e.FirstSeen.UTC().Format(time.RFC3339)
+		}
+		if !e.LastSeen.IsZero() {
+			row.LastSeen = e.LastSeen.UTC().Format(time.RFC3339)
+		}
+		out = append(out, row)
+	}
+
+	httputil.JSON(w, processTimelineResponseJSON{ //nolint:errcheck
+		WindowSeconds: int(window.Seconds()),
+		Owner:         owner,
+		Top:           top,
+		Count:         len(out),
+		Entries:       out,
+	})
 }
 
 // GetInfrastructureMonitor handles GET /api/v1/metrics/infrastructure

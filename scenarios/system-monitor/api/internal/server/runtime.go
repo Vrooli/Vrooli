@@ -79,8 +79,11 @@ func Run(cfg *config.Config) error {
 	}
 
 	// Metrics lifecycle: maintenance service + settings-driven retention scheduler.
+	// The scheduler also drives per-process raw-then-rollup retention (additive
+	// to the metrics-blob retention) on the same cadence.
 	maintenanceSvc := services.NewMetricsMaintenanceService(repo)
-	retentionScheduler := services.NewRetentionScheduler(maintenanceSvc, settingsMgr, apiLog.With("service", "retention"))
+	retentionScheduler := services.NewRetentionScheduler(maintenanceSvc, settingsMgr, apiLog.With("service", "retention")).
+		WithProcessRetention(repo, cfg.Monitoring.RawRetention, cfg.Monitoring.RollupRetention)
 	retentionScheduler.Start()
 
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc, settingsMgr)

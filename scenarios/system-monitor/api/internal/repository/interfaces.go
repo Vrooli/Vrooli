@@ -12,11 +12,82 @@ import (
 // Repository aggregates all repository interfaces
 type Repository interface {
 	MetricsRepository
+	ProcessSampleRepository
 	InvestigationRepository
 	ReportRepository
 	ThresholdRepository
 	AlertRepository
 	MaintenanceRepository
+}
+
+// ProcessSampleRepository persists and queries per-process samples used for the
+// "top consumers over time, attributed to scenario" timeline. It is additive to
+// the opaque metrics blob storage (MetricsRepository) and never replaces it.
+type ProcessSampleRepository interface {
+	// SaveProcessSamples writes one cycle's worth of per-process rows.
+	SaveProcessSamples(ctx context.Context, samples []ProcessSample) error
+
+	// QueryProcessTimeline returns ranked consumers over the window described by
+	// the query. Rows come from the raw table when available and the per-owner
+	// minute rollups for the older portion of the window.
+	QueryProcessTimeline(ctx context.Context, q ProcessTimelineQuery) ([]ProcessTimelineEntry, error)
+
+	// PruneProcessSamplesBefore deletes raw process rows older than cutoff.
+	PruneProcessSamplesBefore(ctx context.Context, cutoff time.Time) (int64, error)
+
+	// RollupProcessSamples downsamples raw rows in [from, to) into per-owner /
+	// per-minute aggregates, then deletes the raw rows it rolled up. It returns
+	// the number of raw rows consumed so the caller can log what was collapsed.
+	RollupProcessSamples(ctx context.Context, from, to time.Time) (RollupResult, error)
+
+	// PruneProcessRollupsBefore deletes per-minute rollup rows older than cutoff.
+	PruneProcessRollupsBefore(ctx context.Context, cutoff time.Time) (int64, error)
+}
+
+// ProcessSample is one observed process within a single sampling cycle, ready
+// to persist. CPUPct is share-of-one-CPU since the prior sample (may exceed
+// 100 for multi-threaded processes).
+type ProcessSample struct {
+	Timestamp time.Time
+	PID       int
+	PPID      int
+	Comm      string
+	Cmdline   string
+	Cwd       string
+	Owner     string
+	CPUPct    float64
+	RSSKB     int64
+	Threads   int
+}
+
+// ProcessTimelineQuery parameterizes a timeline read.
+type ProcessTimelineQuery struct {
+	Start time.Time
+	End   time.Time
+	Owner string // optional scenario filter; "" means all owners
+	Top   int    // optional cap on ranked rows returned; <=0 means a default
+}
+
+// ProcessTimelineEntry is one ranked consumer over the queried window,
+// aggregated across the samples that fell inside it.
+type ProcessTimelineEntry struct {
+	Owner       string
+	Comm        string
+	PID         int  // representative pid; 0 when aggregated across rollups
+	Aggregated  bool // true when the entry spans rollup (per-minute) rows
+	CPUPct      float64
+	RSSKB       int64
+	SampleCount int64
+	FirstSeen   time.Time
+	LastSeen    time.Time
+}
+
+// RollupResult reports the outcome of a downsampling pass.
+type RollupResult struct {
+	RawRowsConsumed int64
+	RollupRows      int64
+	From            time.Time
+	To              time.Time
 }
 
 // MetricsRepository handles metrics data persistence

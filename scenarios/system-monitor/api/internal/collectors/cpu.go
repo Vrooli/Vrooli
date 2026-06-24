@@ -15,6 +15,7 @@ import (
 // CPUCollector collects CPU metrics
 type CPUCollector struct {
 	BaseCollector
+	snapshots      SnapshotProvider
 	lastCPUStats   *cpuStats
 	lastSampleTime time.Time
 }
@@ -34,12 +35,21 @@ type cpuStats struct {
 func NewCPUCollector() *CPUCollector {
 	return &CPUCollector{
 		BaseCollector: NewBaseCollector("cpu", 10*time.Second),
+		snapshots:     defaultSnapshotProvider(),
+	}
+}
+
+// SetSnapshotProvider injects the shared host-inventory provider so a cycle
+// probes the host once across the cpu/memory/gpu collectors.
+func (c *CPUCollector) SetSnapshotProvider(p SnapshotProvider) {
+	if p != nil {
+		c.snapshots = p
 	}
 }
 
 // Collect gathers CPU metrics
 func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
-	snapshot, _ := hostinventory.Collect(ctx)
+	snapshot, _ := c.snapshots.Snapshot(ctx)
 	usage := c.getCPUUsage()
 	loadAvg := c.getLoadAverage(snapshot)
 	contextSwitches := c.getContextSwitches()

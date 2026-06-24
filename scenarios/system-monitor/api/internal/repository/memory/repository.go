@@ -22,6 +22,21 @@ type MemoryRepository struct {
 	anomalies       map[string]*models.Anomaly
 	thresholds      map[string]*models.Threshold
 	violations      []models.ThresholdViolation
+	processSamples  []repository.ProcessSample
+	processRollups  []processRollup
+}
+
+// processRollup is the in-memory analog of the SQLite process_sample_rollups
+// row (one per owner+comm+minute).
+type processRollup struct {
+	Minute      time.Time
+	Owner       string
+	Comm        string
+	AvgCPUPct   float64
+	MaxCPUPct   float64
+	AvgRSSKB    int64
+	MaxRSSKB    int64
+	SampleCount int64
 }
 
 type metricEntry struct {

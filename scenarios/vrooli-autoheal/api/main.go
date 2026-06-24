@@ -77,6 +77,14 @@ func run() error {
 	store := persistence.NewStore(db)
 	plat := platform.Detect()
 	systemEventService := systemevents.NewService(store, plat)
+	if raw := os.Getenv("AUTOHEAL_SYSTEMEVENTS_INTERVAL"); raw != "" {
+		if d, perr := time.ParseDuration(raw); perr == nil {
+			systemEventService.SetIngestInterval(d)
+			log.Printf("system-event ingest interval set to %s (from AUTOHEAL_SYSTEMEVENTS_INTERVAL)", d)
+		} else {
+			log.Printf("warning: invalid AUTOHEAL_SYSTEMEVENTS_INTERVAL %q: %v (using default %s)", raw, perr, systemevents.DefaultIngestInterval)
+		}
+	}
 	registry := checks.NewRegistry(plat)
 
 	// Wire config manager into registry for enable/autoHeal checks
@@ -108,6 +116,11 @@ func run() error {
 		log.Printf("warning: system event ingestion failed: %v", err)
 	}
 	cancel()
+
+	// Stagger the first run of interval checks so aligned intervals don't burst
+	// together on every cycle. Checks restored from persistence keep their
+	// existing schedule; only cold-start checks are jittered.
+	registry.SeedStartupJitter(time.Now(), nil)
 
 	// Schedule initial tick 5 seconds after startup to get fresh results
 	bootstrap.ScheduleInitialTick(registry, store, 5*time.Second)

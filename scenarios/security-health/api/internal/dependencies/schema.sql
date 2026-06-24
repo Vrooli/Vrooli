@@ -56,3 +56,20 @@ CREATE TABLE IF NOT EXISTS dependency_reconcile_state (
     last_reconcile_at TEXT,
     last_outcome      TEXT
 );
+
+-- osv-scanner result cache. One row per scenario, keyed by a content hash of
+-- everything that can change the scan result (every lockfile's content +
+-- osv-scanner version + offline OSV-DB epoch). A reconcile re-uses the cached
+-- parsed report whenever the key matches, skipping the osv-scanner subprocess
+-- entirely. The key construction (annotate.go scenarioCacheKey) guarantees any
+-- real change forces a re-scan, so a hit can never serve a stale result across
+-- a lockfile/scanner/DB change. The row is replaced (not appended) per scenario
+-- so the table stays bounded by fleet size.
+CREATE TABLE IF NOT EXISTS osv_scan_cache (
+    scenario    TEXT PRIMARY KEY,
+    cache_key   TEXT NOT NULL,             -- hex content hash; a mismatch => re-scan
+    report_json TEXT NOT NULL DEFAULT '{}',-- parsed validation.OSVReport (JSON)
+    created_at  TEXT NOT NULL              -- RFC3339
+);
+
+CREATE INDEX IF NOT EXISTS idx_osv_cache_key ON osv_scan_cache(cache_key);

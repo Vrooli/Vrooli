@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
@@ -19,6 +20,7 @@ import (
 type MonitorService struct {
 	config         *config.Config
 	repo           repository.MetricsRepository
+	procRepo       repository.ProcessSampleRepository
 	collectors     *collectors.CollectorRegistry
 	infra          infrastructure.Provider
 	clock          Clock
@@ -28,6 +30,16 @@ type MonitorService struct {
 	mu             sync.RWMutex
 	ctx            context.Context
 	cancel         context.CancelFunc
+
+	// Per-process sampling seams (3b/3c/3d). sampler walks /proc once per cycle;
+	// attributor maps each pid to its owning scenario; both are nil-safe so a
+	// service constructed without them simply skips process sampling.
+	snapshots         collectors.SnapshotProvider
+	sampler           procsampler.Sampler
+	attributor        *procsampler.Attributor
+	procSampleEvery   time.Duration
+	procSampleTopN    int
+	lastProcSampledAt time.Time
 }
 
 // MonitorOption configures a MonitorService.
@@ -47,6 +59,15 @@ func WithCollectors(cs ...collectors.Collector) MonitorOption {
 	}
 }
 
+// WithProcessSampling injects the per-process sampling seams (tests/wiring).
+func WithProcessSampling(repo repository.ProcessSampleRepository, sampler procsampler.Sampler, attributor *procsampler.Attributor) MonitorOption {
+	return func(s *MonitorService) {
+		s.procRepo = repo
+		s.sampler = sampler
+		s.attributor = attributor
+	}
+}
+
 // NewMonitorService creates a new monitor service
 func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, infra infrastructure.Provider, opts ...MonitorOption) *MonitorService {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -56,18 +77,41 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 		baseInterval = 10 * time.Second
 	}
 
-	svc := &MonitorService{
-		config:         cfg,
-		repo:           repo,
-		collectors:     collectors.NewCollectorRegistry(),
-		infra:          infra,
-		clock:          RealClock{},
-		active:         true,
-		metricInterval: baseInterval,
-		lastRun:        make(map[string]time.Time),
-		ctx:            ctx,
-		cancel:         cancel,
+	procEvery := cfg.Monitoring.ProcSampleInterval
+	if procEvery <= 0 {
+		procEvery = 20 * time.Second
 	}
+	procTopN := cfg.Monitoring.ProcSampleTopN
+	if procTopN <= 0 {
+		procTopN = 50
+	}
+
+	svc := &MonitorService{
+		config:          cfg,
+		repo:            repo,
+		collectors:      collectors.NewCollectorRegistry(),
+		infra:           infra,
+		clock:           RealClock{},
+		active:          true,
+		metricInterval:  baseInterval,
+		lastRun:         make(map[string]time.Time),
+		ctx:             ctx,
+		cancel:          cancel,
+		snapshots:       collectors.NewCachedSnapshotProvider(0),
+		procSampleEvery: procEvery,
+		procSampleTopN:  procTopN,
+	}
+
+	// The production repo implements ProcessSampleRepository too; capture it so
+	// the sampler can persist. Tests that inject a metrics-only repo leave this
+	// nil and process sampling is skipped.
+	if pr, ok := repo.(repository.ProcessSampleRepository); ok {
+		svc.procRepo = pr
+	}
+	svc.sampler = procsampler.NewSampler()
+	// Primary path is the bare-host /proc heuristic; the docker fallback only
+	// resolves genuinely containerized pids (none on a bare-host deployment).
+	svc.attributor = procsampler.NewAttributor(NewDockerFallback())
 
 	for _, opt := range opts {
 		opt(svc)
@@ -81,14 +125,22 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 	return svc
 }
 
-// registerCollectors registers all metric collectors
+// registerCollectors registers all metric collectors, sharing one cached host
+// snapshot provider across the cpu/memory/gpu collectors so a cycle probes the
+// host once instead of three times.
 func (s *MonitorService) registerCollectors() {
-	s.collectors.Register(collectors.NewCPUCollector())
-	s.collectors.Register(collectors.NewMemoryCollector())
+	cpu := collectors.NewCPUCollector()
+	cpu.SetSnapshotProvider(s.snapshots)
+	mem := collectors.NewMemoryCollector()
+	mem.SetSnapshotProvider(s.snapshots)
+
+	s.collectors.Register(cpu)
+	s.collectors.Register(mem)
 	s.collectors.Register(collectors.NewNetworkCollector())
 	s.collectors.Register(collectors.NewDiskCollector())
 	s.collectors.Register(collectors.NewProcessCollector())
 	if gpuCollector := collectors.NewGPUCollector(); gpuCollector.IsEnabled() {
+		gpuCollector.SetSnapshotProvider(s.snapshots)
 		s.collectors.Register(gpuCollector)
 	}
 }
@@ -242,6 +294,102 @@ func (s *MonitorService) collectMetrics() {
 			log.Printf("Failed to store metrics from %s: %v", data.CollectorName, err)
 		}
 	}
+
+	// Per-process attribution sampling runs on its own (typically slower)
+	// cadence; gate it so it doesn't fire on every fast metrics tick.
+	if s.shouldSampleProcesses(now) {
+		s.sampleProcesses(ctx, now)
+	}
+}
+
+// shouldSampleProcesses gates the /proc sampler to its configured interval.
+func (s *MonitorService) shouldSampleProcesses(now time.Time) bool {
+	if s.sampler == nil || s.procRepo == nil {
+		return false
+	}
+	s.mu.RLock()
+	last := s.lastProcSampledAt
+	s.mu.RUnlock()
+	if !last.IsZero() && now.Sub(last) < s.procSampleEvery {
+		return false
+	}
+	return true
+}
+
+// sampleProcesses walks /proc once, attributes each pid to its owning scenario,
+// caps to the configured top-N (logging what was dropped — no silent caps), and
+// persists the cycle to the process_samples table.
+func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time) {
+	s.mu.Lock()
+	s.lastProcSampledAt = now
+	s.mu.Unlock()
+
+	samples, err := s.sampler.Sample(ctx)
+	if err != nil {
+		if err == procsampler.ErrUnsupported {
+			return // non-Linux: aggregate collectors still work; nothing to persist
+		}
+		log.Printf("process sampler: %v", err)
+		return
+	}
+	if len(samples) == 0 {
+		return
+	}
+
+	if s.attributor != nil {
+		s.attributor.Attribute(ctx, samples)
+	}
+
+	// samples arrive sorted by descending CPU%; cap to top-N and log the drop.
+	dropped := 0
+	if s.procSampleTopN > 0 && len(samples) > s.procSampleTopN {
+		dropped = len(samples) - s.procSampleTopN
+		samples = samples[:s.procSampleTopN]
+	}
+	if dropped > 0 {
+		log.Printf("process sampler: capped to top %d by CPU, dropped %d lower-usage processes", s.procSampleTopN, dropped)
+	}
+
+	rows := make([]repository.ProcessSample, 0, len(samples))
+	for _, ps := range samples {
+		rows = append(rows, repository.ProcessSample{
+			Timestamp: now.UTC(),
+			PID:       ps.PID,
+			PPID:      ps.PPID,
+			Comm:      ps.Comm,
+			Cmdline:   ps.Cmdline,
+			Cwd:       ps.Cwd,
+			Owner:     ps.Owner,
+			CPUPct:    ps.CPUPct,
+			RSSKB:     ps.RSSKB,
+			Threads:   ps.Threads,
+		})
+	}
+	if err := s.procRepo.SaveProcessSamples(ctx, rows); err != nil {
+		log.Printf("process sampler: persist %d rows: %v", len(rows), err)
+	}
+}
+
+// GetProcessTimeline returns ranked process consumers over the window, grouped
+// by owner/scenario. It is the standing replacement for the manual `ps`/`top`
+// "top consumers by scenario" forensic.
+func (s *MonitorService) GetProcessTimeline(ctx context.Context, window time.Duration, owner string, top int) ([]repository.ProcessTimelineEntry, error) {
+	if s.procRepo == nil {
+		return nil, nil
+	}
+	if window <= 0 {
+		window = 5 * time.Minute
+	}
+	now := s.clock.Now()
+	return s.procRepo.QueryProcessTimeline(ctx, repository.ProcessTimelineQuery{
+		Start: now.Add(-window),
+		// Pad the end slightly so a sample written at exactly "now" (common in
+		// deterministic tests and same-tick reads) falls inside the half-open
+		// [Start, End) window the repositories use.
+		End:   now.Add(time.Second),
+		Owner: owner,
+		Top:   top,
+	})
 }
 
 // GetCurrentMetrics retrieves the current system metrics

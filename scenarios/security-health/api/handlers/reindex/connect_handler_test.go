@@ -19,6 +19,7 @@ type stubReindexer struct {
 func (s *stubReindexer) Reindex(_ context.Context, scenario string, dryRun bool) (depdomain.ReindexResult, error) {
 	return depdomain.ReindexResult{JobID: "job-1", PlannedUpserts: 3, PlannedDeletes: 1, DryRun: dryRun}, nil
 }
+
 func (s *stubReindexer) ReindexStatus(string) (string, int, int, string, bool) {
 	return "running", 2, 5, "", s.statusOK
 }

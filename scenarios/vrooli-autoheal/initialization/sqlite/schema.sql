@@ -84,6 +84,29 @@ CREATE TABLE IF NOT EXISTS system_event_sources (
     capabilities_json TEXT NOT NULL DEFAULT '{}'
 );
 
+-- Incremental ingest progress for journal-backed sources. Keyed by a logical
+-- source key (e.g. "journalctl/kernel"). `cursor` is the journald __CURSOR of
+-- the last successfully-ingested entry on the current boot; it advances ONLY
+-- after a successful ingest so a failed read never skips events. `boot_id`
+-- pins the cursor to a boot so a reboot forces a fresh read rather than
+-- replaying a stale cursor against a rotated journal.
+CREATE TABLE IF NOT EXISTS journal_cursors (
+    source_key TEXT PRIMARY KEY,
+    cursor TEXT NOT NULL DEFAULT '',
+    boot_id TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+);
+
+-- Per-boot "already scanned" markers so immutable historical boots are grepped
+-- at most once instead of every ingest. `source_key` namespaces the marker to
+-- a logical scan family so independent passes don't collide.
+CREATE TABLE IF NOT EXISTS journal_scanned_boots (
+    source_key TEXT NOT NULL,
+    boot_id TEXT NOT NULL,
+    scanned_at TEXT NOT NULL,
+    PRIMARY KEY (source_key, boot_id)
+);
+
 CREATE TABLE IF NOT EXISTS incidents (
     id TEXT PRIMARY KEY,
     fingerprint TEXT NOT NULL UNIQUE,

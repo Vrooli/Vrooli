@@ -319,6 +319,7 @@ vrooli-autoheal help watchdog
 |----------|-------------|---------|
 | `AUTOHEAL_API_PORT` | API port to connect to | Auto-detect |
 | `AUTOHEAL_API_HOST` | API host | localhost |
+| `AUTOHEAL_SYSTEMEVENTS_INTERVAL` | API-server knob: minimum interval between tick-driven kernel-signal (journalctl) ingestion passes. Decouples the expensive journal grep from the 60s health tick. Go duration; clamped to `[300s, 600s]`. The explicit `POST /api/v1/system-events/refresh` endpoint and startup ingestion bypass this throttle. | `300s` |
 | `VROOLI_LIFECYCLE_MANAGED` | Set by lifecycle system | - |
 
 ## Exit Codes

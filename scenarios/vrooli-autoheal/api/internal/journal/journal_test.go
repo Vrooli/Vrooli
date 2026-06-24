@@ -84,6 +84,56 @@ func TestBuildArgsEmptyOpts(t *testing.T) {
 	}
 }
 
+func TestBuildArgsEmitsCursorFlags(t *testing.T) {
+	args := buildArgs(QueryOpts{
+		Kernel:      true,
+		Boot:        "0",
+		Grep:        "panic",
+		AfterCursor: "s=abc;i=1",
+		ShowCursor:  true,
+	}, true)
+
+	want := []string{
+		"--no-pager", "-o", "json",
+		"-k",
+		"-b", "0",
+		"--after-cursor=s=abc;i=1",
+		"--show-cursor",
+		"-g", "panic",
+	}
+	if !reflect.DeepEqual(args, want) {
+		t.Errorf("buildArgs with cursor flags:\n got: %v\nwant: %v", args, want)
+	}
+}
+
+func TestBuildArgsOmitsCursorFlagsWhenUnset(t *testing.T) {
+	args := buildArgs(QueryOpts{Kernel: true}, true)
+	for _, a := range args {
+		if strings.HasPrefix(a, "--after-cursor") || a == "--show-cursor" {
+			t.Fatalf("cursor flags should be absent when unset: %v", args)
+		}
+	}
+}
+
+func TestQueryLogsParsesCursor(t *testing.T) {
+	r, mock := newReaderWithMock(t)
+	mock.DefaultResponse = checks.MockResponse{Output: []byte(strings.Join([]string{
+		`{"__CURSOR":"s=aaa;i=1","__REALTIME_TIMESTAMP":"1714900000000000","MESSAGE":"first"}`,
+		`{"__CURSOR":"s=aaa;i=2","__REALTIME_TIMESTAMP":"1714900001000000","MESSAGE":"second"}`,
+	}, "\n"))}
+
+	entries, err := r.QueryLogs(context.Background(), QueryOpts{ShowCursor: true})
+	if err != nil {
+		t.Fatalf("QueryLogs: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("got %d entries, want 2", len(entries))
+	}
+	if entries[0].Cursor != "s=aaa;i=1" || entries[1].Cursor != "s=aaa;i=2" {
+		t.Errorf("cursors not parsed: %q, %q", entries[0].Cursor, entries[1].Cursor)
+	}
+}
+
 func TestQueryLogsParsesJSON(t *testing.T) {
 	r, mock := newReaderWithMock(t)
 	mock.DefaultResponse = checks.MockResponse{Output: []byte(strings.Join([]string{

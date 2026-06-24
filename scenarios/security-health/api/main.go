@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -186,13 +187,25 @@ func main() {
 	}
 }
 
+// EnvReconcileInterval overrides the base reconcile cadence (Go duration, e.g.
+// "5m", "10m"). Falls back to defaultReconcileInterval when unset/invalid.
+const EnvReconcileInterval = "SECURITY_HEALTH_RECONCILE_INTERVAL"
+
+// defaultReconcileInterval is the periodic fleet-reconcile cadence. The actual
+// wait is this plus a per-tick jitter so a fleet of self-monitoring scenarios
+// doesn't burst on an aligned boundary.
+const defaultReconcileInterval = 5 * time.Minute
+
 // runReconcileLoop drives a periodic fleet reconcile. It runs once shortly
 // after boot (so a freshly-started scenario has an index) and then every
-// reconcileInterval until the context is cancelled. Reconcile failures are
-// logged and retried on the next tick — a transient scanner/network hiccup
-// must never crash the server.
+// reconcileInterval (+jitter) until the context is cancelled. Per-scenario
+// osv-scanner results are content-cached (see internal/dependencies), so a
+// steady-state reconcile re-scans only changed scenarios (and re-scans
+// everything at most once per day to pick up newly-published vulnerabilities).
+// Reconcile failures are logged and retried on the next tick — a transient
+// scanner hiccup must never crash the server.
 func runReconcileLoop(ctx context.Context, svc *dependencies.Service, logger *log.Logger) {
-	const reconcileInterval = 5 * time.Minute
+	interval := loadReconcileInterval(logger)
 	// Small initial delay so boot isn't competing with the first reconcile's
 	// fleet walk + osv-scanner calls.
 	timer := time.NewTimer(30 * time.Second)
@@ -205,7 +218,32 @@ func runReconcileLoop(ctx context.Context, svc *dependencies.Service, logger *lo
 			if err := svc.RunReconcileOnce(ctx); err != nil && ctx.Err() == nil {
 				logger.Printf("[security-health] dependency reconcile failed (will retry): %v", err)
 			}
-			timer.Reset(reconcileInterval)
+			timer.Reset(interval + reconcileJitter(interval))
 		}
 	}
+}
+
+// loadReconcileInterval reads the cadence from the environment, falling back to
+// the default for an empty/invalid/non-positive value.
+func loadReconcileInterval(logger *log.Logger) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(EnvReconcileInterval))
+	if raw == "" {
+		return defaultReconcileInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		logger.Printf("[security-health] invalid %s=%q, using default %s", EnvReconcileInterval, raw, defaultReconcileInterval)
+		return defaultReconcileInterval
+	}
+	return d
+}
+
+// reconcileJitter returns a random offset in [0, interval/4) so reconcile ticks
+// spread out instead of firing on an aligned boundary across the fleet.
+func reconcileJitter(interval time.Duration) time.Duration {
+	span := interval / 4
+	if span <= 0 {
+		return 0
+	}
+	return time.Duration(rand.Int63n(int64(span)))
 }

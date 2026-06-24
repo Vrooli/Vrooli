@@ -91,4 +91,8 @@ type IngestSummary struct {
 	Deduped    int            `json:"deduped"`
 	Sources    []SourceStatus `json:"sources"`
 	DurationMs int64          `json:"durationMs"`
+	// ExecsAvoided is the cumulative count of kernel-grep journalctl
+	// invocations skipped since process start via incremental ingestion
+	// (already-scanned historical boots + cursor-based current-boot reads).
+	ExecsAvoided int64 `json:"execsAvoided"`
 }

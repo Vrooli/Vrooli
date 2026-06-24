@@ -273,6 +273,68 @@ func (s *Store) upsertSystemEventSourceSQLite(ctx context.Context, source system
 	return err
 }
 
+func (s *Store) getJournalCursorSQLite(ctx context.Context, sourceKey string) (systemevents.CursorState, error) {
+	var state systemevents.CursorState
+	var updatedRaw any
+	err := s.db.QueryRowContext(ctx, `
+		SELECT cursor, boot_id, updated_at FROM journal_cursors WHERE source_key = ?
+	`, sourceKey).Scan(&state.Cursor, &state.BootID, &updatedRaw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return systemevents.CursorState{}, nil
+	}
+	if err != nil {
+		return systemevents.CursorState{}, fmt.Errorf("get journal cursor: %w", err)
+	}
+	if ts, perr := parseDBTime(updatedRaw); perr == nil {
+		state.UpdatedAt = ts
+	}
+	return state, nil
+}
+
+func (s *Store) setJournalCursorSQLite(ctx context.Context, sourceKey string, state systemevents.CursorState) error {
+	updatedAt := state.UpdatedAt
+	if updatedAt.IsZero() {
+		updatedAt = time.Now().UTC()
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO journal_cursors (source_key, cursor, boot_id, updated_at)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(source_key) DO UPDATE SET
+			cursor = excluded.cursor,
+			boot_id = excluded.boot_id,
+			updated_at = excluded.updated_at
+	`, sourceKey, state.Cursor, state.BootID, updatedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("set journal cursor: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) isBootScannedSQLite(ctx context.Context, sourceKey, bootID string) (bool, error) {
+	var one int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT 1 FROM journal_scanned_boots WHERE source_key = ? AND boot_id = ?
+	`, sourceKey, bootID).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("is boot scanned: %w", err)
+	}
+	return true, nil
+}
+
+func (s *Store) markBootScannedSQLite(ctx context.Context, sourceKey, bootID string) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT OR IGNORE INTO journal_scanned_boots (source_key, boot_id, scanned_at)
+		VALUES (?, ?, ?)
+	`, sourceKey, bootID, time.Now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("mark boot scanned: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) listSystemEventsSQLite(ctx context.Context, filters systemevents.Filters) (*systemevents.Response, error) {
 	if filters.Limit <= 0 {
 		filters.Limit = 100

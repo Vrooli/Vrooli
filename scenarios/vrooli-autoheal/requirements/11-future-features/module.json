@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-10T16:46:49-04:00"
+    "last_validated_at": "2026-06-24T10:40:39-04:00"
   },
   "requirements": [
     {
       "id": "FUTURE-CERT-001",
       "title": "Certificate expiration monitoring",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "criticality": "P2",
       "description": "Check SSL certificates and warn before expiration",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/certificate_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go certificate-check tests (api/internal/checks/infra)"
         }
       ]
@@ -23,7 +23,7 @@
     {
       "id": "FUTURE-DISPLAY-001",
       "title": "Display manager health",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Monitor GDM/lightdm/sddm for Linux desktop systems",
@@ -32,7 +32,7 @@
           "type": "test",
           "ref": "api/internal/checks/infra/display_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Covered by Go display-manager-check tests (api/internal/checks/infra)"
         }
       ]
@@ -43,8 +43,7 @@
       "status": "planned",
       "prd_ref": "OT-P2-003",
       "criticality": "P2",
-      "description": "Send alerts to Slack/Discord/email on critical failures",
-      "validation": []
+      "description": "Send alerts to Slack/Discord/email on critical failures"
     },
     {
       "id": "FUTURE-PLUGIN-001",
@@ -52,8 +51,7 @@
       "status": "planned",
       "prd_ref": "OT-P2-004",
       "criticality": "P2",
-      "description": "Allow external health check definitions via config files",
-      "validation": []
+      "description": "Allow external health check definitions via config files"
     },
     {
       "id": "FUTURE-AI-001",
@@ -61,8 +59,7 @@
       "status": "planned",
       "prd_ref": "OT-P2-005",
       "criticality": "P2",
-      "description": "Use Ollama to analyze failure patterns and suggest fixes",
-      "validation": []
+      "description": "Use Ollama to analyze failure patterns and suggest fixes"
     },
     {
       "id": "FUTURE-MOBILE-001",
@@ -70,8 +67,7 @@
       "status": "planned",
       "prd_ref": "OT-P2-006",
       "criticality": "P2",
-      "description": "Push notifications and status monitoring on mobile devices",
-      "validation": []
+      "description": "Push notifications and status monitoring on mobile devices"
     }
   ]
 }

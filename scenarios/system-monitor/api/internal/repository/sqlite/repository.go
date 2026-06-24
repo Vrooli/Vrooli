@@ -99,6 +99,41 @@ CREATE TABLE IF NOT EXISTS threshold_violations (
 	trend TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_violations_timestamp ON threshold_violations(timestamp);
+
+-- Per-process samples (additive to the opaque metrics blob): one row per
+-- process per sampling cycle, the substrate for the attribution timeline.
+CREATE TABLE IF NOT EXISTS process_samples (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	ts DATETIME NOT NULL,
+	pid INTEGER NOT NULL,
+	ppid INTEGER NOT NULL,
+	comm TEXT NOT NULL,
+	cmdline TEXT,
+	cwd TEXT,
+	owner TEXT NOT NULL,
+	cpu_pct REAL NOT NULL,
+	rss_kb INTEGER NOT NULL,
+	threads INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_process_samples_ts ON process_samples(ts);
+CREATE INDEX IF NOT EXISTS idx_process_samples_owner_ts ON process_samples(owner, ts);
+
+-- Per-owner / per-minute rollups: raw rows older than the raw-retention window
+-- are downsampled here so longer windows stay cheap to query and store.
+CREATE TABLE IF NOT EXISTS process_sample_rollups (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	minute DATETIME NOT NULL,
+	owner TEXT NOT NULL,
+	comm TEXT NOT NULL,
+	avg_cpu_pct REAL NOT NULL,
+	max_cpu_pct REAL NOT NULL,
+	avg_rss_kb INTEGER NOT NULL,
+	max_rss_kb INTEGER NOT NULL,
+	sample_count INTEGER NOT NULL,
+	UNIQUE(minute, owner, comm)
+);
+CREATE INDEX IF NOT EXISTS idx_process_rollups_minute ON process_sample_rollups(minute);
+CREATE INDEX IF NOT EXISTS idx_process_rollups_owner_minute ON process_sample_rollups(owner, minute);
 `
 
 // Repository implements repository.Repository backed by SQLite.

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-10T16:46:49-04:00"
+    "last_validated_at": "2026-06-24T10:40:39-04:00"
   },
   "requirements": [
     {
@@ -38,7 +38,7 @@
     {
       "id": "CLI-LOOP-001",
       "title": "Loop command runs continuously",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "vrooli-autoheal loop repeatedly calls tick logic at configurable interval",
@@ -47,7 +47,7 @@
           "type": "test",
           "ref": "cli/loop/main_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Continuous run test pending"
         }
       ]

@@ -26,6 +26,15 @@ func newOSVScanner(cmd Commander) Scanner { return &osvScanner{cmd: cmd} }
 // the same vuln data the validation gate sees, without duplicating the
 // invocation. Returns an empty report (not an error) when osv-scanner is
 // absent or finds nothing.
+//
+// The scan runs online (osv-scanner resolves the live OSV database). Offline
+// mode was evaluated and rejected: osv-scanner loads its full per-ecosystem
+// database into memory on every invocation, and the npm database alone is
+// ~200 MB — measured at ~100 s and ~2.6 GB RSS per scan, which turns the
+// fleet's ~110-scenario cold pass into a ~45-minute, multi-GB-RAM storm. The
+// dependencies result cache (keyed on lockfile content + scanner version + a
+// daily epoch) is what eliminates steady-state scanning; online keeps the
+// unavoidable cold/daily scans cheap and detection-fresh.
 func RunOSVScanner(ctx context.Context, cmd Commander, scenarioDir string) (OSVReport, error) {
 	if cmd == nil {
 		cmd = NewExecCommander()
@@ -75,10 +84,10 @@ type OSVPackageInfo struct {
 }
 
 type OSVVuln struct {
-	ID               string `json:"id"`
+	ID               string   `json:"id"`
 	Aliases          []string `json:"aliases"`
-	Summary          string `json:"summary"`
-	Detail           string `json:"detail"`
+	Summary          string   `json:"summary"`
+	Detail           string   `json:"detail"`
 	DatabaseSpecific struct {
 		Severity string `json:"severity"`
 	} `json:"database_specific"`
@@ -145,7 +154,8 @@ func (o *osvScanner) Scan(ctx context.Context, scenarioDir string, _ Substrate) 
 func (o *osvScanner) run(ctx context.Context, scenarioDir string) (OSVReport, error) {
 	// -r recurses into subdirectories; --format json emits the structured
 	// report. osv-scanner exits non-zero when vulns are found.
-	stdout, stderr, _, err := o.cmd.Run(ctx, scenarioDir, "osv-scanner", "--format", "json", "-r", ".")
+	args := []string{"scan", "--format", "json", "-r", "."}
+	stdout, stderr, _, err := o.cmd.Run(ctx, scenarioDir, "osv-scanner", args...)
 	if err != nil {
 		return OSVReport{}, fmt.Errorf("osv-scanner failed to run: %w", err)
 	}
@@ -209,6 +219,34 @@ func osvFixHint(v OSVVuln) string {
 		}
 	}
 	return "the latest patched release"
+}
+
+// OSVScannerVersion returns the installed osv-scanner version string (the
+// `osv-scanner --version` first-line value), or "" when the binary is absent or
+// the probe fails. Folded into the dependencies result-cache key so a scanner
+// upgrade invalidates every cached scan (a new scanner can surface new
+// findings). Cheap and called once per loop, not per scan.
+func OSVScannerVersion(ctx context.Context, cmd Commander) string {
+	if cmd == nil {
+		cmd = NewExecCommander()
+	}
+	if _, err := cmd.LookPath("osv-scanner"); err != nil {
+		return ""
+	}
+	stdout, stderr, _, err := cmd.Run(ctx, "", "osv-scanner", "--version")
+	if err != nil {
+		return ""
+	}
+	out := strings.TrimSpace(string(stdout))
+	if out == "" {
+		out = strings.TrimSpace(string(stderr))
+	}
+	// First line is "osv-scanner version: X.Y.Z"; collapse to that line so a
+	// changing build-date footer doesn't churn the key needlessly.
+	if i := strings.IndexByte(out, '\n'); i >= 0 {
+		out = out[:i]
+	}
+	return strings.TrimSpace(out)
 }
 
 // osvMaxSeverityWord maps the normalized severity back to the lowercase word

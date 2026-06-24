@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -23,27 +24,53 @@ type Store interface {
 	ListSystemEvents(ctx context.Context, filters Filters) (*Response, error)
 	GetSystemEventSources(ctx context.Context) ([]SourceStatus, error)
 	CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error)
+	CursorStore
+}
+
+// ExecAvoider is implemented by collectors that track journalctl invocations
+// skipped via incremental ingestion (already-scanned boots + cursor reads).
+type ExecAvoider interface {
+	ExecsAvoided() int64
 }
 
 type Collector interface {
 	Collect(ctx context.Context) ([]Event, []SourceStatus)
 }
 
+// DefaultIngestInterval throttles tick-driven kernel-signal ingestion. The
+// 60s tick re-greps the journal far more often than host events change; gating
+// behind a coarser interval (mirroring the 30s host-inventory cache) gives an
+// immediate exec reduction with zero feature loss. Overridable via
+// AUTOHEAL_SYSTEMEVENTS_INTERVAL (clamped to [MinIngestInterval, MaxIngestInterval]).
+const (
+	DefaultIngestInterval = 300 * time.Second
+	MinIngestInterval     = 300 * time.Second
+	MaxIngestInterval     = 600 * time.Second
+)
+
 type Service struct {
 	store      Store
 	collectors []Collector
 	now        func() time.Time
 	retention  time.Duration
+
+	// interval gates IngestIfDue (the tick path). lastIngest is the last time
+	// an ingest actually ran. mu guards lastIngest against the (rare) concurrent
+	// tick/refresh overlap.
+	interval   time.Duration
+	mu         sync.Mutex
+	lastIngest time.Time
 }
 
 func NewService(store Store, plat *platform.Capabilities) *Service {
 	return &Service{
 		store: store,
 		collectors: []Collector{
-			NewHostCollector(plat, checks.DefaultExecutor, journal.NewReader(checks.DefaultExecutor)),
+			NewHostCollectorWithCursors(plat, checks.DefaultExecutor, journal.NewReader(checks.DefaultExecutor), store),
 		},
 		now:       func() time.Time { return time.Now().UTC() },
 		retention: DefaultRetention,
+		interval:  DefaultIngestInterval,
 	}
 }
 
@@ -51,7 +78,64 @@ func NewServiceWithCollectors(store Store, collectors []Collector, now func() ti
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}
-	return &Service{store: store, collectors: collectors, now: now, retention: DefaultRetention}
+	return &Service{store: store, collectors: collectors, now: now, retention: DefaultRetention, interval: DefaultIngestInterval}
+}
+
+// SetIngestInterval overrides the tick-path ingest throttle, clamped to
+// [MinIngestInterval, MaxIngestInterval]. A non-positive value resets to the
+// default.
+func (s *Service) SetIngestInterval(d time.Duration) {
+	if d <= 0 {
+		d = DefaultIngestInterval
+	}
+	if d < MinIngestInterval {
+		d = MinIngestInterval
+	}
+	if d > MaxIngestInterval {
+		d = MaxIngestInterval
+	}
+	s.mu.Lock()
+	s.interval = d
+	s.mu.Unlock()
+}
+
+// IngestIfDue runs Ingest only if at least the configured interval has elapsed
+// since the last ingest. It is the tick-path entry point: the 60s tick calls
+// it, but the underlying journalctl work runs at most once per interval. The
+// explicit refresh endpoint and startup still call Ingest directly to force a
+// fresh read. The bool reports whether an ingest actually ran.
+func (s *Service) IngestIfDue(ctx context.Context) (*IngestSummary, bool, error) {
+	if s == nil {
+		return nil, false, fmt.Errorf("system event service unavailable")
+	}
+	s.mu.Lock()
+	interval := s.interval
+	if interval <= 0 {
+		interval = DefaultIngestInterval
+	}
+	if !s.lastIngest.IsZero() && s.now().Sub(s.lastIngest) < interval {
+		s.mu.Unlock()
+		return nil, false, nil
+	}
+	s.mu.Unlock()
+
+	summary, err := s.Ingest(ctx)
+	return summary, true, err
+}
+
+// ExecsAvoided sums the journalctl execs avoided across collectors that track
+// it (the host collector's already-scanned-boot skips + incremental reads).
+func (s *Service) ExecsAvoided() int64 {
+	if s == nil {
+		return 0
+	}
+	var total int64
+	for _, collector := range s.collectors {
+		if avoider, ok := collector.(ExecAvoider); ok {
+			total += avoider.ExecsAvoided()
+		}
+	}
+	return total
 }
 
 func (s *Service) Ingest(ctx context.Context) (*IngestSummary, error) {
@@ -87,11 +171,15 @@ func (s *Service) Ingest(ctx context.Context) (*IngestSummary, error) {
 	if s.retention > 0 {
 		_, _ = s.store.CleanupOldSystemEvents(ctx, start.Add(-s.retention))
 	}
+	s.mu.Lock()
+	s.lastIngest = s.now()
+	s.mu.Unlock()
 	return &IngestSummary{
-		Ingested:   inserted,
-		Deduped:    deduped,
-		Sources:    sources,
-		DurationMs: s.now().Sub(start).Milliseconds(),
+		Ingested:     inserted,
+		Deduped:      deduped,
+		Sources:      sources,
+		DurationMs:   s.now().Sub(start).Milliseconds(),
+		ExecsAvoided: s.ExecsAvoided(),
 	}, nil
 }
 
