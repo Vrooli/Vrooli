@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -51,6 +52,74 @@ type tagsResponse struct {
 	Models []struct {
 		Name string `json:"name"`
 	} `json:"models"`
+}
+
+// ListModels returns the installed model references (e.g. "qwen3:4b"),
+// sorted for deterministic output. It is the SSOT primitive behind
+// `resource-ollama models list` — the single /api/tags reader callers depend
+// on instead of opening their own HTTP path.
+func (c *Client) ListModels(ctx context.Context) ([]string, error) {
+	tags, err := c.ListTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(tags))
+	for name := range tags {
+		if name = strings.TrimSpace(name); name != "" {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// ShowResponse captures the subset of POST /api/show the probe SSOT needs:
+// the model's live capability set, its prompt template (to detect stub
+// templates), and family/parameter metadata for reporting.
+type ShowResponse struct {
+	Template     string           `json:"template"`
+	Capabilities []string         `json:"capabilities"`
+	Parameters   string           `json:"parameters"`
+	Details      ShowModelDetails `json:"details"`
+	ModelInfo    map[string]any   `json:"model_info,omitempty"`
+}
+
+// ShowModelDetails is the nested details block of /api/show.
+type ShowModelDetails struct {
+	Family            string   `json:"family"`
+	Families          []string `json:"families,omitempty"`
+	Format            string   `json:"format,omitempty"`
+	ParameterSize     string   `json:"parameter_size,omitempty"`
+	QuantizationLevel string   `json:"quantization_level,omitempty"`
+}
+
+// ShowModel calls POST /api/show and returns the live model metadata. This is
+// the only /api/show reader in the tree — every capability/template check
+// flows through it (probe SSOT).
+func (c *Client) ShowModel(ctx context.Context, model string) (ShowResponse, error) {
+	body, err := json.Marshal(map[string]any{"name": model})
+	if err != nil {
+		return ShowResponse{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/show", bytes.NewReader(body))
+	if err != nil {
+		return ShowResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return ShowResponse{}, fmt.Errorf("show %s: %w", model, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return ShowResponse{}, fmt.Errorf("show %s: HTTP %d: %s", model, resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	var parsed ShowResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return ShowResponse{}, fmt.Errorf("decode show response: %w", err)
+	}
+	return parsed, nil
 }
 
 // ListTags returns the set of installed model references (e.g. "qwen3:4b").
@@ -360,6 +429,30 @@ type ChatMessage struct {
 	Content string `json:"content"`
 }
 
+// ChatTool is one tool advertised to the model on a /api/chat request. Only
+// the "function" tool type is used. Parameters is a raw JSON Schema object.
+type ChatTool struct {
+	Type     string           `json:"type"`
+	Function ChatToolFunction `json:"function"`
+}
+
+// ChatToolFunction describes a callable function offered to the model.
+type ChatToolFunction struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters,omitempty"`
+}
+
+// ChatToolCall is one structured tool call the model emitted in its response.
+// Its presence (vs. a tool call narrated as message text) is exactly what the
+// tool-calling smoke asserts.
+type ChatToolCall struct {
+	Function struct {
+		Name      string         `json:"name"`
+		Arguments map[string]any `json:"arguments,omitempty"`
+	} `json:"function"`
+}
+
 // ChatRequest mirrors the relevant subset of POST /api/chat. Stream is always
 // false at this layer.
 type ChatRequest struct {
@@ -368,12 +461,15 @@ type ChatRequest struct {
 	NumPredict  *int
 	Temperature *float64
 	Think       *bool
+	Tools       []ChatTool
 }
 
-// ChatResponse captures the buffered (stream=false) chat response shape.
+// ChatResponse captures the buffered (stream=false) chat response shape,
+// including any structured tool_calls the model emitted.
 type ChatResponse struct {
 	Message struct {
-		Content string `json:"content"`
+		Content   string         `json:"content"`
+		ToolCalls []ChatToolCall `json:"tool_calls,omitempty"`
 	} `json:"message"`
 	DoneReason string `json:"done_reason,omitempty"`
 	EvalCount  int    `json:"eval_count,omitempty"`
@@ -393,12 +489,14 @@ func (c *Client) Chat(ctx context.Context, in ChatRequest) (ChatResponse, error)
 		Messages []ChatMessage  `json:"messages"`
 		Stream   bool           `json:"stream"`
 		Think    *bool          `json:"think,omitempty"`
+		Tools    []ChatTool     `json:"tools,omitempty"`
 		Options  map[string]any `json:"options,omitempty"`
 	}{
 		Model:    in.Model,
 		Messages: in.Messages,
 		Stream:   false,
 		Think:    in.Think,
+		Tools:    in.Tools,
 		Options:  options,
 	}
 	if len(options) == 0 {

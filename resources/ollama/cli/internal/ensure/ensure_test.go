@@ -96,7 +96,7 @@ func TestRun_NoModelsIsNoop(t *testing.T) {
 	defer srv.Close()
 
 	var buf bytes.Buffer
-	if err := Run(context.Background(), Config{}, client, &buf); err != nil {
+	if err := Run(context.Background(), Config{}, client, &buf, nil); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if !strings.Contains(buf.String(), "nothing to do") {
@@ -114,7 +114,7 @@ func TestRun_AllModelsAlreadyInstalled(t *testing.T) {
 
 	cfg := Config{Models: []policy.DirectModelRequest{{Name: "qwen3:4b"}, {Name: "nomic-embed-text"}}}
 	var buf bytes.Buffer
-	if err := Run(context.Background(), cfg, client, &buf); err != nil {
+	if err := Run(context.Background(), cfg, client, &buf, nil); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if fake.pullCalls != 0 {
@@ -137,7 +137,7 @@ func TestRun_PullsOnlyMissing(t *testing.T) {
 
 	cfg := Config{Models: []policy.DirectModelRequest{{Name: "qwen3:4b"}, {Name: "nomic-embed-text:latest"}}}
 	var buf bytes.Buffer
-	if err := Run(context.Background(), cfg, client, &buf); err != nil {
+	if err := Run(context.Background(), cfg, client, &buf, nil); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if fake.pullCalls != 1 {
@@ -162,7 +162,7 @@ func TestRun_PullFailureIsReported(t *testing.T) {
 
 	cfg := Config{Models: []policy.DirectModelRequest{{Name: "broken:1.0"}}}
 	var buf bytes.Buffer
-	err := Run(context.Background(), cfg, client, &buf)
+	err := Run(context.Background(), cfg, client, &buf, nil)
 	if err == nil {
 		t.Fatal("expected error from failed pull")
 	}
@@ -208,7 +208,7 @@ func TestRun_ContextCancelAbortsPull(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
-	err := Run(ctx, Config{Models: []policy.DirectModelRequest{{Name: "slow"}}}, client, &bytes.Buffer{})
+	err := Run(ctx, Config{Models: []policy.DirectModelRequest{{Name: "slow"}}}, client, &bytes.Buffer{}, nil)
 	if err == nil {
 		t.Fatal("expected error when ctx is cancelled")
 	}
@@ -253,7 +253,7 @@ func TestRun_ResolvesRolesBeforePulling(t *testing.T) {
 
 	cfg := Config{ModelRoles: []policy.RoleRequest{{Role: "embedding.default"}}}
 	var buf bytes.Buffer
-	if err := Run(context.Background(), cfg, client, &buf); err != nil {
+	if err := Run(context.Background(), cfg, client, &buf, nil); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if fake.pullCalls != 1 {
@@ -404,5 +404,42 @@ func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
 	}
 	if got.Options["temperature"] != 0.25 {
 		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
+	}
+}
+
+// TestRun_AdmissionGateBlocksOnValidatorFailure proves the fail-closed gate:
+// when the injected validator rejects a resolved tool role, ensure returns an
+// error (the model is not silently seated).
+func TestRun_AdmissionGateBlocksOnValidatorFailure(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{"qwen3:4b": true}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	cfg := Config{Models: []policy.DirectModelRequest{{Name: "qwen3:4b"}}}
+	called := false
+	validator := func(ctx context.Context, roles []string) error {
+		called = true
+		return fmt.Errorf("model cannot tool-call")
+	}
+	err := Run(context.Background(), cfg, client, &bytes.Buffer{}, validator)
+	if !called {
+		t.Fatal("validator should run after models are confirmed installed")
+	}
+	if err == nil || !strings.Contains(err.Error(), "admission gate") {
+		t.Fatalf("expected admission-gate error, got %v", err)
+	}
+}
+
+// TestRun_AdmissionGatePassesWhenValidatorOK confirms a passing validator does
+// not block ensure.
+func TestRun_AdmissionGatePassesWhenValidatorOK(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{"qwen3:4b": true}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	cfg := Config{Models: []policy.DirectModelRequest{{Name: "qwen3:4b"}}}
+	err := Run(context.Background(), cfg, client, &bytes.Buffer{}, func(context.Context, []string) error { return nil })
+	if err != nil {
+		t.Fatalf("passing validator must not block ensure: %v", err)
 	}
 }

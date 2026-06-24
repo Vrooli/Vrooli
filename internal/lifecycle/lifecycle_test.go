@@ -2619,6 +2619,23 @@ func TestRegistryRuntimeHealthCheckUsesBoundPorts(t *testing.T) {
 	if runner.isRegistryRuntimeHealthy(item, registryRuntimeView{Authoritative: true, Ports: map[string]int{"API_PORT": port + 1}}) {
 		t.Fatalf("expected authoritative view with wrong port to fail health check")
 	}
+
+	// Orphan-squat guard (test-genie resolveURLs parity): a recorded owner PID
+	// that is known-dead fails health even though a process answers the bound
+	// port — the data plane belongs to an orphan, not this instance.
+	deadPID := 99999999
+	deadOwnerView := authorityView
+	deadOwnerView.Instance.OwnerPID = &deadPID
+	if runner.isRegistryRuntimeHealthy(item, deadOwnerView) {
+		t.Fatalf("expected dead owner pid to fail health (orphan squat)")
+	}
+	// A live owner PID still passes once the probe succeeds.
+	livePID := os.Getpid()
+	liveOwnerView := authorityView
+	liveOwnerView.Instance.OwnerPID = &livePID
+	if !runner.isRegistryRuntimeHealthy(item, liveOwnerView) {
+		t.Fatalf("expected live owner pid + healthy probe to pass")
+	}
 }
 
 func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {

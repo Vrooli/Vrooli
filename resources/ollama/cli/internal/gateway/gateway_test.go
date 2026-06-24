@@ -183,7 +183,7 @@ func TestGenerateJSONOutput(t *testing.T) {
 func TestGenerateRoleResolvesModel(t *testing.T) {
 	client := &fakeClient{
 		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
-			if in.Model != "qwen3:4b" {
+			if in.Model != "qwen3.5:9b" {
 				t.Errorf("model = %q", in.Model)
 			}
 			if in.Prompt != "hi" {
@@ -234,7 +234,7 @@ func TestGenerateAllowsUnknownDirectModelWithoutPolicyWindow(t *testing.T) {
 func TestChatRoleResolvesModelAndForwardsControls(t *testing.T) {
 	client := &fakeClient{
 		chat: func(_ context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
-			if in.Model != "qwen3:4b" {
+			if in.Model != "qwen3.5:9b" {
 				t.Errorf("model = %q", in.Model)
 			}
 			if len(in.Messages) != 2 {

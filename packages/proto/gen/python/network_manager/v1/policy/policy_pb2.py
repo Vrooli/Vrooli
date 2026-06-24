@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&network-manager/v1/policy/policy.proto\x12 vrooli.network_manager.v1.policy\"\xaf\x01\n\x0cPolicyChange\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x16\n\x06\x61\x63tion\x18\x03 \x01(\tR\x06\x61\x63tion\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x18\n\x07\x65\x66\x66\x65\x63ts\x18\x05 \x03(\tR\x07\x65\x66\x66\x65\x63ts\x12-\n\x12rollback_supported\x18\x06 \x01(\x08R\x11rollbackSupported\"d\n\x1aPreviewPolicyChangeRequest\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n\x06\x61\x63tion\x18\x02 \x01(\tR\x06\x61\x63tion\x12\x16\n\x06values\x18\x03 \x03(\tR\x06values\"g\n\x1bPreviewPolicyChangeResponse\x12H\n\x07preview\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x07preview\"U\n\x18\x41pplyPolicyChangeRequest\x12\x1d\n\npreview_id\x18\x01 \x01(\tR\tpreviewId\x12\x1a\n\x08\x61pproved\x18\x02 \x01(\x08R\x08\x61pproved\"c\n\x19\x41pplyPolicyChangeResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange\"-\n\x1bRollbackPolicyChangeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"f\n\x1cRollbackPolicyChangeResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange\"K\n\x15PauseFilteringRequest\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\x12\x1a\n\x08\x64uration\x18\x02 \x01(\tR\x08\x64uration\"`\n\x16PauseFilteringResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange\"0\n\x16ResumeFilteringRequest\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\"a\n\x17ResumeFilteringResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange2\xda\x05\n\rPolicyService\x12\x92\x01\n\x13PreviewPolicyChange\x12<.vrooli.network_manager.v1.policy.PreviewPolicyChangeRequest\x1a=.vrooli.network_manager.v1.policy.PreviewPolicyChangeResponse\x12\x8c\x01\n\x11\x41pplyPolicyChange\x12:.vrooli.network_manager.v1.policy.ApplyPolicyChangeRequest\x1a;.vrooli.network_manager.v1.policy.ApplyPolicyChangeResponse\x12\x95\x01\n\x14RollbackPolicyChange\x12=.vrooli.network_manager.v1.policy.RollbackPolicyChangeRequest\x1a>.vrooli.network_manager.v1.policy.RollbackPolicyChangeResponse\x12\x83\x01\n\x0ePauseFiltering\x12\x37.vrooli.network_manager.v1.policy.PauseFilteringRequest\x1a\x38.vrooli.network_manager.v1.policy.PauseFilteringResponse\x12\x86\x01\n\x0fResumeFiltering\x12\x38.vrooli.network_manager.v1.policy.ResumeFilteringRequest\x1a\x39.vrooli.network_manager.v1.policy.ResumeFilteringResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy;policy_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&network-manager/v1/policy/policy.proto\x12 vrooli.network_manager.v1.policy\"\xaf\x01\n\x0cPolicyChange\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x16\n\x06\x61\x63tion\x18\x03 \x01(\tR\x06\x61\x63tion\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x18\n\x07\x65\x66\x66\x65\x63ts\x18\x05 \x03(\tR\x07\x65\x66\x66\x65\x63ts\x12-\n\x12rollback_supported\x18\x06 \x01(\x08R\x11rollbackSupported\"\x9f\x02\n\rPolicyProfile\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12!\n\x0c\x64\x65vice_group\x18\x03 \x01(\tR\x0b\x64\x65viceGroup\x12-\n\x12\x66iltering_strength\x18\x04 \x01(\tR\x11\x66ilteringStrength\x12\x1a\n\x08schedule\x18\x05 \x01(\tR\x08schedule\x12+\n\x11override_behavior\x18\x06 \x01(\tR\x10overrideBehavior\x12\x16\n\x06status\x18\x07 \x01(\tR\x06status\x12\x18\n\x07\x65\x66\x66\x65\x63ts\x18\x08 \x03(\tR\x07\x65\x66\x66\x65\x63ts\x12\x1d\n\nupdated_at\x18\t \x01(\tR\tupdatedAt\"\xe4\x01\n\x18PolicyScheduleEvaluation\x12\x1d\n\nprofile_id\x18\x01 \x01(\tR\tprofileId\x12!\n\x0cprofile_name\x18\x02 \x01(\tR\x0bprofileName\x12\x16\n\x06target\x18\x03 \x01(\tR\x06target\x12\x16\n\x06\x61\x63tive\x18\x04 \x01(\x08R\x06\x61\x63tive\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x18\n\x07\x65\x66\x66\x65\x63ts\x18\x06 \x03(\tR\x07\x65\x66\x66\x65\x63ts\x12$\n\x0enext_change_at\x18\x07 \x01(\tR\x0cnextChangeAt\"\x93\x01\n\rGuidanceCheck\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n\x06status\x18\x03 \x01(\tR\x06status\x12\x1a\n\x08\x65vidence\x18\x04 \x01(\tR\x08\x65vidence\x12(\n\x0frecommendations\x18\x05 \x03(\tR\x0frecommendations\"\xc8\x02\n\x14PolicyGuidanceReport\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x18\n\x07profile\x18\x03 \x01(\tR\x07profile\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12G\n\x06\x63hecks\x18\x05 \x03(\x0b\x32/.vrooli.network_manager.v1.policy.GuidanceCheckR\x06\x63hecks\x12!\n\x0cmanual_steps\x18\x06 \x03(\tR\x0bmanualSteps\x12\'\n\x0f\x61\x64\x61pter_actions\x18\x07 \x03(\tR\x0e\x61\x64\x61pterActions\x12\x1e\n\nguardrails\x18\x08 \x03(\tR\nguardrails\x12!\n\x0cgenerated_at\x18\t \x01(\tR\x0bgeneratedAt\"d\n\x1aPreviewPolicyChangeRequest\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n\x06\x61\x63tion\x18\x02 \x01(\tR\x06\x61\x63tion\x12\x16\n\x06values\x18\x03 \x03(\tR\x06values\"g\n\x1bPreviewPolicyChangeResponse\x12H\n\x07preview\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x07preview\"U\n\x18\x41pplyPolicyChangeRequest\x12\x1d\n\npreview_id\x18\x01 \x01(\tR\tpreviewId\x12\x1a\n\x08\x61pproved\x18\x02 \x01(\x08R\x08\x61pproved\"c\n\x19\x41pplyPolicyChangeResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange\"-\n\x1bRollbackPolicyChangeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"f\n\x1cRollbackPolicyChangeResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange\"K\n\x15PauseFilteringRequest\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\x12\x1a\n\x08\x64uration\x18\x02 \x01(\tR\x08\x64uration\"`\n\x16PauseFilteringResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange\"0\n\x16ResumeFilteringRequest\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\"a\n\x17ResumeFilteringResponse\x12\x46\n\x06\x63hange\x18\x01 \x01(\x0b\x32..vrooli.network_manager.v1.policy.PolicyChangeR\x06\x63hange\">\n\x19ListPolicyProfilesRequest\x12!\n\x0c\x64\x65vice_group\x18\x01 \x01(\tR\x0b\x64\x65viceGroup\"i\n\x1aListPolicyProfilesResponse\x12K\n\x08profiles\x18\x01 \x03(\x0b\x32/.vrooli.network_manager.v1.policy.PolicyProfileR\x08profiles\"g\n\x1aUpsertPolicyProfileRequest\x12I\n\x07profile\x18\x01 \x01(\x0b\x32/.vrooli.network_manager.v1.policy.PolicyProfileR\x07profile\"h\n\x1bUpsertPolicyProfileResponse\x12I\n\x07profile\x18\x01 \x01(\x0b\x32/.vrooli.network_manager.v1.policy.PolicyProfileR\x07profile\"h\n\x1d\x45valuatePolicyScheduleRequest\x12\x1d\n\nprofile_id\x18\x01 \x01(\tR\tprofileId\x12\x16\n\x06target\x18\x02 \x01(\tR\x06target\x12\x10\n\x03now\x18\x03 \x01(\tR\x03now\"|\n\x1e\x45valuatePolicyScheduleResponse\x12Z\n\nevaluation\x18\x01 \x01(\x0b\x32:.vrooli.network_manager.v1.policy.PolicyScheduleEvaluationR\nevaluation\"b\n!DiagnoseEncryptedDnsBypassRequest\x12\x16\n\x06target\x18\x01 \x01(\tR\x06target\x12%\n\x0e\x61\x64\x61pter_backed\x18\x02 \x01(\x08R\radapterBacked\"t\n\"DiagnoseEncryptedDnsBypassResponse\x12N\n\x06report\x18\x01 \x01(\x0b\x32\x36.vrooli.network_manager.v1.policy.PolicyGuidanceReportR\x06report\"~\n\x1dGetEndpointDohGuidanceRequest\x12\x1a\n\x08platform\x18\x01 \x01(\tR\x08platform\x12\x18\n\x07\x62rowser\x18\x02 \x01(\tR\x07\x62rowser\x12\'\n\x0fmanagement_mode\x18\x03 \x01(\tR\x0emanagementMode\"p\n\x1eGetEndpointDohGuidanceResponse\x12N\n\x06report\x18\x01 \x01(\x0b\x32\x36.vrooli.network_manager.v1.policy.PolicyGuidanceReportR\x06report2\xe7\x0b\n\rPolicyService\x12\x92\x01\n\x13PreviewPolicyChange\x12<.vrooli.network_manager.v1.policy.PreviewPolicyChangeRequest\x1a=.vrooli.network_manager.v1.policy.PreviewPolicyChangeResponse\x12\x8c\x01\n\x11\x41pplyPolicyChange\x12:.vrooli.network_manager.v1.policy.ApplyPolicyChangeRequest\x1a;.vrooli.network_manager.v1.policy.ApplyPolicyChangeResponse\x12\x95\x01\n\x14RollbackPolicyChange\x12=.vrooli.network_manager.v1.policy.RollbackPolicyChangeRequest\x1a>.vrooli.network_manager.v1.policy.RollbackPolicyChangeResponse\x12\x83\x01\n\x0ePauseFiltering\x12\x37.vrooli.network_manager.v1.policy.PauseFilteringRequest\x1a\x38.vrooli.network_manager.v1.policy.PauseFilteringResponse\x12\x86\x01\n\x0fResumeFiltering\x12\x38.vrooli.network_manager.v1.policy.ResumeFilteringRequest\x1a\x39.vrooli.network_manager.v1.policy.ResumeFilteringResponse\x12\x8f\x01\n\x12ListPolicyProfiles\x12;.vrooli.network_manager.v1.policy.ListPolicyProfilesRequest\x1a<.vrooli.network_manager.v1.policy.ListPolicyProfilesResponse\x12\x92\x01\n\x13UpsertPolicyProfile\x12<.vrooli.network_manager.v1.policy.UpsertPolicyProfileRequest\x1a=.vrooli.network_manager.v1.policy.UpsertPolicyProfileResponse\x12\x9b\x01\n\x16\x45valuatePolicySchedule\x12?.vrooli.network_manager.v1.policy.EvaluatePolicyScheduleRequest\x1a@.vrooli.network_manager.v1.policy.EvaluatePolicyScheduleResponse\x12\xa7\x01\n\x1a\x44iagnoseEncryptedDnsBypass\x12\x43.vrooli.network_manager.v1.policy.DiagnoseEncryptedDnsBypassRequest\x1a\x44.vrooli.network_manager.v1.policy.DiagnoseEncryptedDnsBypassResponse\x12\x9b\x01\n\x16GetEndpointDohGuidance\x12?.vrooli.network_manager.v1.policy.GetEndpointDohGuidanceRequest\x1a@.vrooli.network_manager.v1.policy.GetEndpointDohGuidanceResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy;policy_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,26 +34,54 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZRgithub.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy;policy_v1'
   _globals['_POLICYCHANGE']._serialized_start=77
   _globals['_POLICYCHANGE']._serialized_end=252
-  _globals['_PREVIEWPOLICYCHANGEREQUEST']._serialized_start=254
-  _globals['_PREVIEWPOLICYCHANGEREQUEST']._serialized_end=354
-  _globals['_PREVIEWPOLICYCHANGERESPONSE']._serialized_start=356
-  _globals['_PREVIEWPOLICYCHANGERESPONSE']._serialized_end=459
-  _globals['_APPLYPOLICYCHANGEREQUEST']._serialized_start=461
-  _globals['_APPLYPOLICYCHANGEREQUEST']._serialized_end=546
-  _globals['_APPLYPOLICYCHANGERESPONSE']._serialized_start=548
-  _globals['_APPLYPOLICYCHANGERESPONSE']._serialized_end=647
-  _globals['_ROLLBACKPOLICYCHANGEREQUEST']._serialized_start=649
-  _globals['_ROLLBACKPOLICYCHANGEREQUEST']._serialized_end=694
-  _globals['_ROLLBACKPOLICYCHANGERESPONSE']._serialized_start=696
-  _globals['_ROLLBACKPOLICYCHANGERESPONSE']._serialized_end=798
-  _globals['_PAUSEFILTERINGREQUEST']._serialized_start=800
-  _globals['_PAUSEFILTERINGREQUEST']._serialized_end=875
-  _globals['_PAUSEFILTERINGRESPONSE']._serialized_start=877
-  _globals['_PAUSEFILTERINGRESPONSE']._serialized_end=973
-  _globals['_RESUMEFILTERINGREQUEST']._serialized_start=975
-  _globals['_RESUMEFILTERINGREQUEST']._serialized_end=1023
-  _globals['_RESUMEFILTERINGRESPONSE']._serialized_start=1025
-  _globals['_RESUMEFILTERINGRESPONSE']._serialized_end=1122
-  _globals['_POLICYSERVICE']._serialized_start=1125
-  _globals['_POLICYSERVICE']._serialized_end=1855
+  _globals['_POLICYPROFILE']._serialized_start=255
+  _globals['_POLICYPROFILE']._serialized_end=542
+  _globals['_POLICYSCHEDULEEVALUATION']._serialized_start=545
+  _globals['_POLICYSCHEDULEEVALUATION']._serialized_end=773
+  _globals['_GUIDANCECHECK']._serialized_start=776
+  _globals['_GUIDANCECHECK']._serialized_end=923
+  _globals['_POLICYGUIDANCEREPORT']._serialized_start=926
+  _globals['_POLICYGUIDANCEREPORT']._serialized_end=1254
+  _globals['_PREVIEWPOLICYCHANGEREQUEST']._serialized_start=1256
+  _globals['_PREVIEWPOLICYCHANGEREQUEST']._serialized_end=1356
+  _globals['_PREVIEWPOLICYCHANGERESPONSE']._serialized_start=1358
+  _globals['_PREVIEWPOLICYCHANGERESPONSE']._serialized_end=1461
+  _globals['_APPLYPOLICYCHANGEREQUEST']._serialized_start=1463
+  _globals['_APPLYPOLICYCHANGEREQUEST']._serialized_end=1548
+  _globals['_APPLYPOLICYCHANGERESPONSE']._serialized_start=1550
+  _globals['_APPLYPOLICYCHANGERESPONSE']._serialized_end=1649
+  _globals['_ROLLBACKPOLICYCHANGEREQUEST']._serialized_start=1651
+  _globals['_ROLLBACKPOLICYCHANGEREQUEST']._serialized_end=1696
+  _globals['_ROLLBACKPOLICYCHANGERESPONSE']._serialized_start=1698
+  _globals['_ROLLBACKPOLICYCHANGERESPONSE']._serialized_end=1800
+  _globals['_PAUSEFILTERINGREQUEST']._serialized_start=1802
+  _globals['_PAUSEFILTERINGREQUEST']._serialized_end=1877
+  _globals['_PAUSEFILTERINGRESPONSE']._serialized_start=1879
+  _globals['_PAUSEFILTERINGRESPONSE']._serialized_end=1975
+  _globals['_RESUMEFILTERINGREQUEST']._serialized_start=1977
+  _globals['_RESUMEFILTERINGREQUEST']._serialized_end=2025
+  _globals['_RESUMEFILTERINGRESPONSE']._serialized_start=2027
+  _globals['_RESUMEFILTERINGRESPONSE']._serialized_end=2124
+  _globals['_LISTPOLICYPROFILESREQUEST']._serialized_start=2126
+  _globals['_LISTPOLICYPROFILESREQUEST']._serialized_end=2188
+  _globals['_LISTPOLICYPROFILESRESPONSE']._serialized_start=2190
+  _globals['_LISTPOLICYPROFILESRESPONSE']._serialized_end=2295
+  _globals['_UPSERTPOLICYPROFILEREQUEST']._serialized_start=2297
+  _globals['_UPSERTPOLICYPROFILEREQUEST']._serialized_end=2400
+  _globals['_UPSERTPOLICYPROFILERESPONSE']._serialized_start=2402
+  _globals['_UPSERTPOLICYPROFILERESPONSE']._serialized_end=2506
+  _globals['_EVALUATEPOLICYSCHEDULEREQUEST']._serialized_start=2508
+  _globals['_EVALUATEPOLICYSCHEDULEREQUEST']._serialized_end=2612
+  _globals['_EVALUATEPOLICYSCHEDULERESPONSE']._serialized_start=2614
+  _globals['_EVALUATEPOLICYSCHEDULERESPONSE']._serialized_end=2738
+  _globals['_DIAGNOSEENCRYPTEDDNSBYPASSREQUEST']._serialized_start=2740
+  _globals['_DIAGNOSEENCRYPTEDDNSBYPASSREQUEST']._serialized_end=2838
+  _globals['_DIAGNOSEENCRYPTEDDNSBYPASSRESPONSE']._serialized_start=2840
+  _globals['_DIAGNOSEENCRYPTEDDNSBYPASSRESPONSE']._serialized_end=2956
+  _globals['_GETENDPOINTDOHGUIDANCEREQUEST']._serialized_start=2958
+  _globals['_GETENDPOINTDOHGUIDANCEREQUEST']._serialized_end=3084
+  _globals['_GETENDPOINTDOHGUIDANCERESPONSE']._serialized_start=3086
+  _globals['_GETENDPOINTDOHGUIDANCERESPONSE']._serialized_end=3198
+  _globals['_POLICYSERVICE']._serialized_start=3201
+  _globals['_POLICYSERVICE']._serialized_end=4712
 # @@protoc_insertion_point(module_scope)

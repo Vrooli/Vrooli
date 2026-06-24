@@ -195,9 +195,9 @@ opencode::install::execute() {
         return 1
     fi
 
-    # Resolve secrets first so ensure_config can decide OpenRouter vs Ollama
-    # and auth::sync_openrouter can populate the shared auth store.
-    opencode::load_secrets || true
+    # Generate opencode.json + sync OpenRouter auth via the Go config writer
+    # (resolves secrets, decides provider via the resource-ollama SSOT, and
+    # preserves the governed permission map). See cli/internal/{config,secrets}.
     opencode::ensure_config
     # Heal any pre-1.0 opencode.json that still carries the retired inline
     # `x-vrooli-managed-permissions` key (opencode rejects unknown top-level

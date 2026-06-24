@@ -13,9 +13,7 @@
     "dependencies",
     "quality",
     "docs",
-    "smoke",
     "unit",
-    "integration",
     "playbooks",
     "business",
     "performance",
@@ -185,11 +183,6 @@
       ]
     },
     {
-      "name": "smoke",
-      "status": "fail",
-      "findings": []
-    },
-    {
       "name": "unit",
       "status": "fail",
       "findings": [
@@ -205,11 +198,6 @@
           "stable_id": "afid:000000000000000b"
         }
       ]
-    },
-    {
-      "name": "integration",
-      "status": "pass",
-      "findings": []
     },
     {
       "name": "playbooks",

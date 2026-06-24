@@ -48,6 +48,21 @@ const (
 	// PolicyServiceResumeFilteringProcedure is the fully-qualified name of the PolicyService's
 	// ResumeFiltering RPC.
 	PolicyServiceResumeFilteringProcedure = "/vrooli.network_manager.v1.policy.PolicyService/ResumeFiltering"
+	// PolicyServiceListPolicyProfilesProcedure is the fully-qualified name of the PolicyService's
+	// ListPolicyProfiles RPC.
+	PolicyServiceListPolicyProfilesProcedure = "/vrooli.network_manager.v1.policy.PolicyService/ListPolicyProfiles"
+	// PolicyServiceUpsertPolicyProfileProcedure is the fully-qualified name of the PolicyService's
+	// UpsertPolicyProfile RPC.
+	PolicyServiceUpsertPolicyProfileProcedure = "/vrooli.network_manager.v1.policy.PolicyService/UpsertPolicyProfile"
+	// PolicyServiceEvaluatePolicyScheduleProcedure is the fully-qualified name of the PolicyService's
+	// EvaluatePolicySchedule RPC.
+	PolicyServiceEvaluatePolicyScheduleProcedure = "/vrooli.network_manager.v1.policy.PolicyService/EvaluatePolicySchedule"
+	// PolicyServiceDiagnoseEncryptedDnsBypassProcedure is the fully-qualified name of the
+	// PolicyService's DiagnoseEncryptedDnsBypass RPC.
+	PolicyServiceDiagnoseEncryptedDnsBypassProcedure = "/vrooli.network_manager.v1.policy.PolicyService/DiagnoseEncryptedDnsBypass"
+	// PolicyServiceGetEndpointDohGuidanceProcedure is the fully-qualified name of the PolicyService's
+	// GetEndpointDohGuidance RPC.
+	PolicyServiceGetEndpointDohGuidanceProcedure = "/vrooli.network_manager.v1.policy.PolicyService/GetEndpointDohGuidance"
 )
 
 // PolicyServiceClient is a client for the vrooli.network_manager.v1.policy.PolicyService service.
@@ -57,6 +72,11 @@ type PolicyServiceClient interface {
 	RollbackPolicyChange(context.Context, *connect.Request[policy.RollbackPolicyChangeRequest]) (*connect.Response[policy.RollbackPolicyChangeResponse], error)
 	PauseFiltering(context.Context, *connect.Request[policy.PauseFilteringRequest]) (*connect.Response[policy.PauseFilteringResponse], error)
 	ResumeFiltering(context.Context, *connect.Request[policy.ResumeFilteringRequest]) (*connect.Response[policy.ResumeFilteringResponse], error)
+	ListPolicyProfiles(context.Context, *connect.Request[policy.ListPolicyProfilesRequest]) (*connect.Response[policy.ListPolicyProfilesResponse], error)
+	UpsertPolicyProfile(context.Context, *connect.Request[policy.UpsertPolicyProfileRequest]) (*connect.Response[policy.UpsertPolicyProfileResponse], error)
+	EvaluatePolicySchedule(context.Context, *connect.Request[policy.EvaluatePolicyScheduleRequest]) (*connect.Response[policy.EvaluatePolicyScheduleResponse], error)
+	DiagnoseEncryptedDnsBypass(context.Context, *connect.Request[policy.DiagnoseEncryptedDnsBypassRequest]) (*connect.Response[policy.DiagnoseEncryptedDnsBypassResponse], error)
+	GetEndpointDohGuidance(context.Context, *connect.Request[policy.GetEndpointDohGuidanceRequest]) (*connect.Response[policy.GetEndpointDohGuidanceResponse], error)
 }
 
 // NewPolicyServiceClient constructs a client for the vrooli.network_manager.v1.policy.PolicyService
@@ -100,16 +120,51 @@ func NewPolicyServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(policyServiceMethods.ByName("ResumeFiltering")),
 			connect.WithClientOptions(opts...),
 		),
+		listPolicyProfiles: connect.NewClient[policy.ListPolicyProfilesRequest, policy.ListPolicyProfilesResponse](
+			httpClient,
+			baseURL+PolicyServiceListPolicyProfilesProcedure,
+			connect.WithSchema(policyServiceMethods.ByName("ListPolicyProfiles")),
+			connect.WithClientOptions(opts...),
+		),
+		upsertPolicyProfile: connect.NewClient[policy.UpsertPolicyProfileRequest, policy.UpsertPolicyProfileResponse](
+			httpClient,
+			baseURL+PolicyServiceUpsertPolicyProfileProcedure,
+			connect.WithSchema(policyServiceMethods.ByName("UpsertPolicyProfile")),
+			connect.WithClientOptions(opts...),
+		),
+		evaluatePolicySchedule: connect.NewClient[policy.EvaluatePolicyScheduleRequest, policy.EvaluatePolicyScheduleResponse](
+			httpClient,
+			baseURL+PolicyServiceEvaluatePolicyScheduleProcedure,
+			connect.WithSchema(policyServiceMethods.ByName("EvaluatePolicySchedule")),
+			connect.WithClientOptions(opts...),
+		),
+		diagnoseEncryptedDnsBypass: connect.NewClient[policy.DiagnoseEncryptedDnsBypassRequest, policy.DiagnoseEncryptedDnsBypassResponse](
+			httpClient,
+			baseURL+PolicyServiceDiagnoseEncryptedDnsBypassProcedure,
+			connect.WithSchema(policyServiceMethods.ByName("DiagnoseEncryptedDnsBypass")),
+			connect.WithClientOptions(opts...),
+		),
+		getEndpointDohGuidance: connect.NewClient[policy.GetEndpointDohGuidanceRequest, policy.GetEndpointDohGuidanceResponse](
+			httpClient,
+			baseURL+PolicyServiceGetEndpointDohGuidanceProcedure,
+			connect.WithSchema(policyServiceMethods.ByName("GetEndpointDohGuidance")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // policyServiceClient implements PolicyServiceClient.
 type policyServiceClient struct {
-	previewPolicyChange  *connect.Client[policy.PreviewPolicyChangeRequest, policy.PreviewPolicyChangeResponse]
-	applyPolicyChange    *connect.Client[policy.ApplyPolicyChangeRequest, policy.ApplyPolicyChangeResponse]
-	rollbackPolicyChange *connect.Client[policy.RollbackPolicyChangeRequest, policy.RollbackPolicyChangeResponse]
-	pauseFiltering       *connect.Client[policy.PauseFilteringRequest, policy.PauseFilteringResponse]
-	resumeFiltering      *connect.Client[policy.ResumeFilteringRequest, policy.ResumeFilteringResponse]
+	previewPolicyChange        *connect.Client[policy.PreviewPolicyChangeRequest, policy.PreviewPolicyChangeResponse]
+	applyPolicyChange          *connect.Client[policy.ApplyPolicyChangeRequest, policy.ApplyPolicyChangeResponse]
+	rollbackPolicyChange       *connect.Client[policy.RollbackPolicyChangeRequest, policy.RollbackPolicyChangeResponse]
+	pauseFiltering             *connect.Client[policy.PauseFilteringRequest, policy.PauseFilteringResponse]
+	resumeFiltering            *connect.Client[policy.ResumeFilteringRequest, policy.ResumeFilteringResponse]
+	listPolicyProfiles         *connect.Client[policy.ListPolicyProfilesRequest, policy.ListPolicyProfilesResponse]
+	upsertPolicyProfile        *connect.Client[policy.UpsertPolicyProfileRequest, policy.UpsertPolicyProfileResponse]
+	evaluatePolicySchedule     *connect.Client[policy.EvaluatePolicyScheduleRequest, policy.EvaluatePolicyScheduleResponse]
+	diagnoseEncryptedDnsBypass *connect.Client[policy.DiagnoseEncryptedDnsBypassRequest, policy.DiagnoseEncryptedDnsBypassResponse]
+	getEndpointDohGuidance     *connect.Client[policy.GetEndpointDohGuidanceRequest, policy.GetEndpointDohGuidanceResponse]
 }
 
 // PreviewPolicyChange calls vrooli.network_manager.v1.policy.PolicyService.PreviewPolicyChange.
@@ -137,6 +192,34 @@ func (c *policyServiceClient) ResumeFiltering(ctx context.Context, req *connect.
 	return c.resumeFiltering.CallUnary(ctx, req)
 }
 
+// ListPolicyProfiles calls vrooli.network_manager.v1.policy.PolicyService.ListPolicyProfiles.
+func (c *policyServiceClient) ListPolicyProfiles(ctx context.Context, req *connect.Request[policy.ListPolicyProfilesRequest]) (*connect.Response[policy.ListPolicyProfilesResponse], error) {
+	return c.listPolicyProfiles.CallUnary(ctx, req)
+}
+
+// UpsertPolicyProfile calls vrooli.network_manager.v1.policy.PolicyService.UpsertPolicyProfile.
+func (c *policyServiceClient) UpsertPolicyProfile(ctx context.Context, req *connect.Request[policy.UpsertPolicyProfileRequest]) (*connect.Response[policy.UpsertPolicyProfileResponse], error) {
+	return c.upsertPolicyProfile.CallUnary(ctx, req)
+}
+
+// EvaluatePolicySchedule calls
+// vrooli.network_manager.v1.policy.PolicyService.EvaluatePolicySchedule.
+func (c *policyServiceClient) EvaluatePolicySchedule(ctx context.Context, req *connect.Request[policy.EvaluatePolicyScheduleRequest]) (*connect.Response[policy.EvaluatePolicyScheduleResponse], error) {
+	return c.evaluatePolicySchedule.CallUnary(ctx, req)
+}
+
+// DiagnoseEncryptedDnsBypass calls
+// vrooli.network_manager.v1.policy.PolicyService.DiagnoseEncryptedDnsBypass.
+func (c *policyServiceClient) DiagnoseEncryptedDnsBypass(ctx context.Context, req *connect.Request[policy.DiagnoseEncryptedDnsBypassRequest]) (*connect.Response[policy.DiagnoseEncryptedDnsBypassResponse], error) {
+	return c.diagnoseEncryptedDnsBypass.CallUnary(ctx, req)
+}
+
+// GetEndpointDohGuidance calls
+// vrooli.network_manager.v1.policy.PolicyService.GetEndpointDohGuidance.
+func (c *policyServiceClient) GetEndpointDohGuidance(ctx context.Context, req *connect.Request[policy.GetEndpointDohGuidanceRequest]) (*connect.Response[policy.GetEndpointDohGuidanceResponse], error) {
+	return c.getEndpointDohGuidance.CallUnary(ctx, req)
+}
+
 // PolicyServiceHandler is an implementation of the vrooli.network_manager.v1.policy.PolicyService
 // service.
 type PolicyServiceHandler interface {
@@ -145,6 +228,11 @@ type PolicyServiceHandler interface {
 	RollbackPolicyChange(context.Context, *connect.Request[policy.RollbackPolicyChangeRequest]) (*connect.Response[policy.RollbackPolicyChangeResponse], error)
 	PauseFiltering(context.Context, *connect.Request[policy.PauseFilteringRequest]) (*connect.Response[policy.PauseFilteringResponse], error)
 	ResumeFiltering(context.Context, *connect.Request[policy.ResumeFilteringRequest]) (*connect.Response[policy.ResumeFilteringResponse], error)
+	ListPolicyProfiles(context.Context, *connect.Request[policy.ListPolicyProfilesRequest]) (*connect.Response[policy.ListPolicyProfilesResponse], error)
+	UpsertPolicyProfile(context.Context, *connect.Request[policy.UpsertPolicyProfileRequest]) (*connect.Response[policy.UpsertPolicyProfileResponse], error)
+	EvaluatePolicySchedule(context.Context, *connect.Request[policy.EvaluatePolicyScheduleRequest]) (*connect.Response[policy.EvaluatePolicyScheduleResponse], error)
+	DiagnoseEncryptedDnsBypass(context.Context, *connect.Request[policy.DiagnoseEncryptedDnsBypassRequest]) (*connect.Response[policy.DiagnoseEncryptedDnsBypassResponse], error)
+	GetEndpointDohGuidance(context.Context, *connect.Request[policy.GetEndpointDohGuidanceRequest]) (*connect.Response[policy.GetEndpointDohGuidanceResponse], error)
 }
 
 // NewPolicyServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -184,6 +272,36 @@ func NewPolicyServiceHandler(svc PolicyServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(policyServiceMethods.ByName("ResumeFiltering")),
 		connect.WithHandlerOptions(opts...),
 	)
+	policyServiceListPolicyProfilesHandler := connect.NewUnaryHandler(
+		PolicyServiceListPolicyProfilesProcedure,
+		svc.ListPolicyProfiles,
+		connect.WithSchema(policyServiceMethods.ByName("ListPolicyProfiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	policyServiceUpsertPolicyProfileHandler := connect.NewUnaryHandler(
+		PolicyServiceUpsertPolicyProfileProcedure,
+		svc.UpsertPolicyProfile,
+		connect.WithSchema(policyServiceMethods.ByName("UpsertPolicyProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	policyServiceEvaluatePolicyScheduleHandler := connect.NewUnaryHandler(
+		PolicyServiceEvaluatePolicyScheduleProcedure,
+		svc.EvaluatePolicySchedule,
+		connect.WithSchema(policyServiceMethods.ByName("EvaluatePolicySchedule")),
+		connect.WithHandlerOptions(opts...),
+	)
+	policyServiceDiagnoseEncryptedDnsBypassHandler := connect.NewUnaryHandler(
+		PolicyServiceDiagnoseEncryptedDnsBypassProcedure,
+		svc.DiagnoseEncryptedDnsBypass,
+		connect.WithSchema(policyServiceMethods.ByName("DiagnoseEncryptedDnsBypass")),
+		connect.WithHandlerOptions(opts...),
+	)
+	policyServiceGetEndpointDohGuidanceHandler := connect.NewUnaryHandler(
+		PolicyServiceGetEndpointDohGuidanceProcedure,
+		svc.GetEndpointDohGuidance,
+		connect.WithSchema(policyServiceMethods.ByName("GetEndpointDohGuidance")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.network_manager.v1.policy.PolicyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PolicyServicePreviewPolicyChangeProcedure:
@@ -196,6 +314,16 @@ func NewPolicyServiceHandler(svc PolicyServiceHandler, opts ...connect.HandlerOp
 			policyServicePauseFilteringHandler.ServeHTTP(w, r)
 		case PolicyServiceResumeFilteringProcedure:
 			policyServiceResumeFilteringHandler.ServeHTTP(w, r)
+		case PolicyServiceListPolicyProfilesProcedure:
+			policyServiceListPolicyProfilesHandler.ServeHTTP(w, r)
+		case PolicyServiceUpsertPolicyProfileProcedure:
+			policyServiceUpsertPolicyProfileHandler.ServeHTTP(w, r)
+		case PolicyServiceEvaluatePolicyScheduleProcedure:
+			policyServiceEvaluatePolicyScheduleHandler.ServeHTTP(w, r)
+		case PolicyServiceDiagnoseEncryptedDnsBypassProcedure:
+			policyServiceDiagnoseEncryptedDnsBypassHandler.ServeHTTP(w, r)
+		case PolicyServiceGetEndpointDohGuidanceProcedure:
+			policyServiceGetEndpointDohGuidanceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -223,4 +351,24 @@ func (UnimplementedPolicyServiceHandler) PauseFiltering(context.Context, *connec
 
 func (UnimplementedPolicyServiceHandler) ResumeFiltering(context.Context, *connect.Request[policy.ResumeFilteringRequest]) (*connect.Response[policy.ResumeFilteringResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.policy.PolicyService.ResumeFiltering is not implemented"))
+}
+
+func (UnimplementedPolicyServiceHandler) ListPolicyProfiles(context.Context, *connect.Request[policy.ListPolicyProfilesRequest]) (*connect.Response[policy.ListPolicyProfilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.policy.PolicyService.ListPolicyProfiles is not implemented"))
+}
+
+func (UnimplementedPolicyServiceHandler) UpsertPolicyProfile(context.Context, *connect.Request[policy.UpsertPolicyProfileRequest]) (*connect.Response[policy.UpsertPolicyProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.policy.PolicyService.UpsertPolicyProfile is not implemented"))
+}
+
+func (UnimplementedPolicyServiceHandler) EvaluatePolicySchedule(context.Context, *connect.Request[policy.EvaluatePolicyScheduleRequest]) (*connect.Response[policy.EvaluatePolicyScheduleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.policy.PolicyService.EvaluatePolicySchedule is not implemented"))
+}
+
+func (UnimplementedPolicyServiceHandler) DiagnoseEncryptedDnsBypass(context.Context, *connect.Request[policy.DiagnoseEncryptedDnsBypassRequest]) (*connect.Response[policy.DiagnoseEncryptedDnsBypassResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.policy.PolicyService.DiagnoseEncryptedDnsBypass is not implemented"))
+}
+
+func (UnimplementedPolicyServiceHandler) GetEndpointDohGuidance(context.Context, *connect.Request[policy.GetEndpointDohGuidanceRequest]) (*connect.Response[policy.GetEndpointDohGuidanceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.policy.PolicyService.GetEndpointDohGuidance is not implemented"))
 }

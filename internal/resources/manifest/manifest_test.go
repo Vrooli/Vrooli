@@ -113,10 +113,10 @@ func TestSupportForCurrentPlatformUsesMappedOSNames(t *testing.T) {
 
 func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name: "litellm",
+		Name: "legacy-proxy",
 		CLI: &scenario.CLIConfig{
 			Enabled: true,
-			Command: "resource-litellm",
+			Command: "resource-legacy-proxy",
 			Adapter: scenario.CLIAdapterConfig{
 				Kind:      "go_module",
 				ModuleDir: "cli",
@@ -126,7 +126,7 @@ func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
 		PortabilityTier:       "full",
 		LegacyRepoDataAllowed: true,
 		Runtime: ResourceRuntime{
-			Image: "ghcr.io/berriai/litellm:main-latest",
+			Image: "ghcr.io/example/legacy-proxy:latest",
 		},
 	})
 	if err != nil {

@@ -24,10 +24,18 @@ const (
 	logPrefix              = "ollama-ensure:"
 )
 
+// AdmissionValidator is the fail-closed model-admission gate run after pulls.
+// It receives the role names resolved in this ensure; returning an error
+// aborts ensure so a model that cannot satisfy a tool role is not seated. It
+// is injected (rather than imported) so the low-level ensure package never
+// depends on the higher-level probe/doctor logic. nil disables the gate.
+type AdmissionValidator func(ctx context.Context, resolvedRoles []string) error
+
 // CommandGroup returns the cliapp group registering the `ensure` verb on the
-// resource's CLI. Pass the result into app.SetCommands alongside
-// app.StandardLifecycleCommands().
-func CommandGroup() cliapp.CommandGroup {
+// resource's CLI. The optional validator wires the fail-closed admission gate
+// (built from the models-doctor SSOT by main). Pass the result into
+// app.SetCommands alongside app.StandardLifecycleCommands().
+func CommandGroup(validator AdmissionValidator) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
 		Title: "Dependency Ensurance",
 		Commands: []cliapp.Command{
@@ -35,13 +43,13 @@ func CommandGroup() cliapp.CommandGroup {
 				Name:        "ensure",
 				Description: "Resolve and pull models declared in a scenario's ollama dependency config",
 				Usage:       "resource-ollama ensure --config-base64 <base64-json>",
-				Run:         runCLI,
+				Run:         func(args []string) error { return runCLI(args, validator) },
 			},
 		},
 	}
 }
 
-func runCLI(args []string) error {
+func runCLI(args []string, validator AdmissionValidator) error {
 	var (
 		configB64      string
 		timeoutSeconds int
@@ -87,12 +95,14 @@ func runCLI(args []string) error {
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 		defer cancel()
 	}
-	return Run(ctx, cfg, NewClient(), os.Stdout)
+	return Run(ctx, cfg, NewClient(), os.Stdout, validator)
 }
 
 // Run is the testable entry point: given a parsed config, a client, and a
-// writer, it lists installed tags, diffs, and pulls the missing ones.
-func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer) error {
+// writer, it lists installed tags, diffs, pulls the missing ones, and — when a
+// validator is supplied — runs the fail-closed admission gate over the
+// resolved roles before returning success.
+func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer, validator AdmissionValidator) error {
 	resolution, err := resolveConfigModels(cfg)
 	if err != nil {
 		return err
@@ -106,14 +116,28 @@ func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer) erro
 	}
 
 	refs := make([]string, 0, len(resolution.Models))
+	resolvedRoles := make([]string, 0, len(resolution.Models))
 	for _, m := range resolution.Models {
 		refs = append(refs, m.Ref)
 		if m.Source == "role" {
+			resolvedRoles = append(resolvedRoles, m.Role)
 			fmt.Fprintf(stdout, "%s resolved role %s -> %s\n", logPrefix, m.Role, m.Ref)
 		}
 	}
 	if len(refs) == 0 {
 		fmt.Fprintf(stdout, "%s config listed only empty model specs; nothing to do\n", logPrefix)
+		return nil
+	}
+
+	// gate runs the fail-closed admission validator over the resolved roles
+	// after the models are confirmed present. A nil validator is a no-op.
+	gate := func() error {
+		if validator == nil {
+			return nil
+		}
+		if err := validator(ctx, resolvedRoles); err != nil {
+			return fmt.Errorf("model admission gate: %w", err)
+		}
 		return nil
 	}
 
@@ -130,7 +154,7 @@ func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer) erro
 	}
 	if len(missing) == 0 {
 		fmt.Fprintf(stdout, "%s all %d model(s) already installed\n", logPrefix, len(refs))
-		return nil
+		return gate()
 	}
 
 	fmt.Fprintf(stdout, "%s pulling %d missing model(s): %s\n", logPrefix, len(missing), strings.Join(missing, ", "))
@@ -154,7 +178,7 @@ func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer) erro
 	if len(errs) > 0 {
 		return fmt.Errorf("%d model pull(s) failed: %w", len(errs), errors.Join(errs...))
 	}
-	return nil
+	return gate()
 }
 
 func resolveConfigModels(cfg Config) (policy.Resolution, error) {

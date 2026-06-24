@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -175,12 +176,22 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		}
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "build")
 	case "start":
-		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d")
+		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d"); err != nil {
+			return err
+		}
+		startCompanions(manifest.Name, manifest.Companions, stderr)
+		return nil
 	case "restart":
-		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d", "--force-recreate")
+		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d", "--force-recreate"); err != nil {
+			return err
+		}
+		startCompanions(manifest.Name, manifest.Companions, stderr)
+		return nil
 	case "stop":
+		stopCompanions(manifest.Name, manifest.Companions, stderr)
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "stop")
 	case "uninstall":
+		stopCompanions(manifest.Name, manifest.Companions, stderr)
 		return composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "down", "-v", "--remove-orphans")
 	case "logs":
 		return composeCommand(ctx, controller, manifest, stdout, stderr, "logs")
@@ -466,7 +477,23 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		if state.Running {
 			return nil
 		}
+		// About to `docker start` a stopped container and re-bind its host ports.
+		// The external probe above found no healthy service, so a still-occupied
+		// host port is a non-container conflict — fail fast with remediation.
+		if err := preflightPortConflict(manifest); err != nil {
+			return err
+		}
 		return dockerCommand(ctx, controller, io.Discard, io.Discard, "start", name)
+	}
+
+	// Preflight: we are about to create a brand-new container and bind its host
+	// ports. The container does not exist and no healthy external service answered
+	// the health probe above, so a still-occupied host port means a non-container
+	// process owns it (classically a legacy host-systemd Ollama from before the
+	// Docker migration). `docker run -p host:container` would otherwise fail with a
+	// cryptic bind error and crash-loop, so we surface an actionable message first.
+	if err := preflightPortConflict(manifest); err != nil {
+		return err
 	}
 
 	args, err := buildDockerRunArgs(controller, manifest, name)
@@ -474,6 +501,46 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		return err
 	}
 	return dockerCommand(ctx, controller, io.Discard, io.Discard, args...)
+}
+
+// preflightPortConflict reports an actionable error when any of the manifest's
+// host ports is already bound by a process other than our own container. It is
+// only meaningful on the create-new-container path: the caller has already
+// established that our container does not exist and that no healthy external
+// service is serving the resource, so a bound port is a genuine host conflict
+// rather than the resource already running. This is graceful-degradation design —
+// a clear failure with remediation instead of a crash-loop.
+func preflightPortConflict(manifest ResourceManifest) error {
+	for _, port := range manifest.Ports {
+		hostPort := port.Host
+		if hostPort <= 0 {
+			hostPort = port.Container
+		}
+		if hostPort <= 0 {
+			continue
+		}
+		if hostPortInUse(hostPort) {
+			return fmt.Errorf(
+				"resource %q cannot start: host port %d is already in use by a non-container process. "+
+					"This resource runs %s as a Docker container, but a host service (e.g. a legacy host-systemd %s) is holding the port. "+
+					"Stop and remove the host process — e.g. `sudo systemctl disable --now %s` or terminate whatever is listening on :%d — then retry.",
+				manifest.Name, hostPort, manifest.Name, manifest.Name, manifest.Name, hostPort)
+		}
+	}
+	return nil
+}
+
+// hostPortInUse returns true when the given TCP port cannot be bound on the host,
+// which indicates another process is already listening on it. We probe by binding
+// and immediately releasing rather than shelling out to lsof/ss so the check stays
+// dependency-free and cross-platform.
+func hostPortInUse(port int) bool {
+	listener, err := net.Listen("tcp", net.JoinHostPort("", strconv.Itoa(port)))
+	if err != nil {
+		return true
+	}
+	_ = listener.Close()
+	return false
 }
 
 // buildDockerRunArgs assembles the `docker run` argument list for a docker-service
@@ -1080,13 +1147,17 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 	if len(command) == 0 {
 		return nil
 	}
+	// Capture stderr (bounded tail) so a failing install surfaces its reason —
+	// e.g. a coding-agent resource refusing to clobber a root-owned system
+	// copy — instead of a bare "exit status N". Successful installs stay quiet.
+	stderrTail := newTailBuffer(16 << 10)
 	cmd := shell.Command(shell.Spec{
 		Name:   command[0],
 		Args:   command[1:],
 		Dir:    controller.Root,
 		Env:    resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
 		Stdout: io.Discard,
-		Stderr: io.Discard,
+		Stderr: stderrTail,
 	})
 	runCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
@@ -1097,5 +1168,30 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 	if runCtx.Err() != nil {
 		return runCtx.Err()
 	}
+	if waitErr != nil {
+		if detail := strings.TrimSpace(stderrTail.String()); detail != "" {
+			return fmt.Errorf("%w\n%s", waitErr, detail)
+		}
+	}
 	return waitErr
 }
+
+// tailBuffer is an io.Writer that retains only the last max bytes written —
+// enough to surface the tail of a failing command's stderr (where the error
+// reason typically lives) without buffering unbounded output.
+type tailBuffer struct {
+	max int
+	buf []byte
+}
+
+func newTailBuffer(max int) *tailBuffer { return &tailBuffer{max: max} }
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.buf = append(b.buf, p...)
+	if len(b.buf) > b.max {
+		b.buf = b.buf[len(b.buf)-b.max:]
+	}
+	return len(p), nil
+}
+
+func (b *tailBuffer) String() string { return string(b.buf) }

@@ -63,6 +63,21 @@ func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryR
 	if !view.Authoritative {
 		return false
 	}
+	deps := r.runtimeDeps()
+	// Orphan-squat guard — align lifecycle health with test-genie's
+	// targetruntime.resolveURLs, which requires the recorded owner PID to be alive
+	// before trusting a port probe. Reconciliation keeps an instance authoritative
+	// for the whole heartbeat TTL even if its owner died mid-window, so a foreign
+	// process squatting a bound port could answer the manifest probe and read as
+	// "healthy" while the real owner is gone. When the recorded owner PID is known
+	// and not running, the data plane belongs to an orphan, not this instance —
+	// report unhealthy no matter who answers the port. Unknown owner PID (nil) or
+	// an unavailable liveness probe is NOT condemned (positive bad evidence only).
+	if pid := view.Instance.OwnerPID; pid != nil && deps.isPIDRunning != nil && !deps.isPIDRunning(*pid) {
+		r.logWarn("Registry runtime owner pid is not alive; a bound port answered by another process would be an orphan squat",
+			logx.AttrScenario, item.Slug, "owner_pid", *pid)
+		return false
+	}
 	health := item.Manifest.HealthConfig()
 	if health == nil || len(health.Checks) == 0 {
 		return true
@@ -73,7 +88,6 @@ func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryR
 	// bounded to a few quick attempts (~3 over ~3s) since the registry already
 	// proved the instance is *running* — we are only confirming data-plane
 	// readiness. We fail toward reuse only after the probe is persistently bad.
-	deps := r.runtimeDeps()
 	const attempts = 3
 	const interval = 1 * time.Second
 	for attempt := 0; attempt < attempts; attempt++ {

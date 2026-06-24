@@ -43,7 +43,7 @@
   "compose_file": "docker/docker-compose.yml",
   "runtime_env_command": {
     "command": "resource-whisper",
-    "args": ["recommend-model", "--env", "--budget-pct", "50"],
+    "args": ["recommend-model", "--env", "--budget-pct", "60"],
     "timeout_seconds": 5
   },
   "gpu": {

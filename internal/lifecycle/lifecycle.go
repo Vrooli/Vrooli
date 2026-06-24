@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
@@ -909,7 +910,37 @@ func (r *Runner) enforceResourceHostRequirements(resourceName string) error {
 		r.logError("Host requirements enforcement failed", err, logx.AttrDependency, resourceName)
 		return err
 	}
+	r.admitResourceCapacity(resourceName)
 	return nil
+}
+
+// admitResourceCapacity runs the advisory capacity broker admission for a
+// resource before it starts (plan §7 Phase 3). It is ALWAYS advisory in V1:
+// dormant unless the resource declares a `capacity` block in resource.json and
+// enforcement is enabled, and it NEVER blocks the start — any error is logged,
+// never propagated. Flag OFF (VROOLI_CAPACITY_ENFORCE=off) or no declared block
+// makes this a byte-identical no-op.
+func (r *Runner) admitResourceCapacity(resourceName string) {
+	result, err := capacity.AdmitResource(context.Background(), capacity.AdmitOptions{
+		Root:         r.Root,
+		ResourceName: resourceName,
+	})
+	if err != nil {
+		r.logWarn("Capacity admission skipped (advisory)", logx.AttrDependency, resourceName, "error", err.Error())
+		return
+	}
+	if result.Skipped {
+		return
+	}
+	r.logInfo("Capacity admission recorded",
+		logx.AttrDependency, resourceName,
+		"verdict", result.Verdict.Kind,
+		"granted_bytes", result.Verdict.GrantedBytes,
+		"enforce", result.Enforce,
+		"claim_id", result.ClaimID)
+	for _, warn := range result.Verdict.Warnings {
+		r.logWarn("Capacity admission warning", logx.AttrDependency, resourceName, "warning", warn)
+	}
 }
 
 func (r *Runner) logger() *slog.Logger {

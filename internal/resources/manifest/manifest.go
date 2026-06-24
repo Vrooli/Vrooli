@@ -64,6 +64,13 @@ type ResourceManifest struct {
 	HostTools             []hostreqspec.Declaration    `json:"hostTools,omitempty"`
 	HostSafeguards        []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
 	GPU                   *ResourceGPU                 `json:"gpu,omitempty"`
+	// Companions are long-lived HOST-side processes the compose-service driver
+	// starts after the container(s) come up and stops when the resource stops.
+	// They exist for resources whose container alone cannot do everything on the
+	// host — e.g. whisper's activity edge (a reverse proxy that brackets each
+	// /asr to report capacity activity). Absent (the default) => the driver is
+	// byte-identical to no-companion behavior.
+	Companions []ResourceCompanion `json:"companions,omitempty"`
 	// RuntimeEnvCommand, when set, runs before every compose invocation
 	// for this resource. Its stdout must be lines of `KEY=VALUE` pairs;
 	// each pair is appended to the compose process environment. Use it
@@ -82,6 +89,24 @@ type ResourceRuntimeEnvCommand struct {
 	Args    []string `json:"args,omitempty"`
 	// TimeoutSeconds caps the harvest. Default 5s.
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
+}
+
+// ResourceCompanion is one host-side companion process supervised alongside a
+// compose-service resource. It is launched detached (its own session) so it
+// survives the short-lived control CLI, tracked by a pidfile under the
+// runtime-home processes dir, and signaled on stop. Start/stop is idempotent and
+// best-effort: a companion that fails to start is a logged warning, not a fatal
+// error (the resource's health check surfaces a dead edge).
+type ResourceCompanion struct {
+	// Name is a stable identifier (the pidfile/logfile basename).
+	Name string `json:"name"`
+	// Command is the executable to run (resolved on PATH), e.g. "resource-whisper".
+	Command string `json:"command"`
+	// Args are the subcommand + flags, e.g. ["activity-proxy"].
+	Args []string `json:"args,omitempty"`
+	// Port is the host port the companion owns (informational; surfaced in the
+	// process record so operators can see what binds it).
+	Port int `json:"port,omitempty"`
 }
 
 type ResourceGPU struct {

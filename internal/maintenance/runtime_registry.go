@@ -210,16 +210,27 @@ func supervisorSessionsByID(sessions []scenarioruntime.SupervisorSession) map[st
 	return out
 }
 
-func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaintenanceStore) ([]control.ResultItem, error) {
+// PortReclaimCandidate names a declared port still held by a live process after
+// its owning instance was expired as non-authoritative. The caller decides
+// whether to evict the holder — and only ever does so once it has confirmed the
+// PID is a stale Vrooli orphan from this install, never a foreign service.
+type PortReclaimCandidate struct {
+	Scenario string
+	Port     int
+	PID      int
+}
+
+func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaintenanceStore) ([]control.ResultItem, []PortReclaimCandidate, error) {
 	host, err := hostsession.DefaultProvider{}.Current(ctx, "")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	stopped := make([]control.ResultItem, 0)
+	var reclaim []PortReclaimCandidate
 	pidRunning := newPIDLivenessMemo(processIsRunning)
 	// Gather all store state FIRST, then capture listener evidence: this path
 	// EXPIRES claims on known-absent listeners, so evidence captured before a
@@ -230,7 +241,7 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 		Statuses: scenarioruntime.ActivePortClaimStatuses(),
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	claimsByInstance := make(map[string][]scenarioruntime.PortClaim, len(instances))
 	for _, claim := range activeClaims {
@@ -242,7 +253,7 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 	}
 	refsByInstance, err := store.ListProcessRefsForInstances(ctx, instanceIDs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	listenerSnapshot := captureListenerSnapshotFn()
 	for _, instance := range instances {
@@ -266,24 +277,35 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 					continue
 				}
 				if _, err := store.ExpirePortClaim(ctx, claim.Claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
-					return nil, err
+					return nil, nil, err
 				}
 				stopped = append(stopped, control.Stopped(strconv.Itoa(claim.Claim.Port), "Expired non-authoritative registry claim "+claim.Claim.ClaimID))
 			}
 			continue
 		}
 		if _, err := store.ExpireInstance(ctx, instance.InstanceID, reconciled.Reason); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
-			return nil, err
+			return nil, nil, err
 		}
 		stopped = append(stopped, control.Stopped(instance.Scenario+"/"+instance.InstanceID, "Expired non-authoritative registry instance: "+reconciled.Reason))
 		for _, claim := range claims {
 			if _, err := store.ExpirePortClaim(ctx, claim.ClaimID); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
-				return nil, err
+				return nil, nil, err
 			}
 			stopped = append(stopped, control.Stopped(strconv.Itoa(claim.Port), "Expired non-authoritative registry claim "+claim.ClaimID))
+			// The registry record is gone, but a leaked process from this dead
+			// instance may still hold the OS port. Record each live listener on the
+			// just-released port as a reclaim candidate; the caller evicts only the
+			// ones it can confirm are stale Vrooli orphans from this install.
+			if claim.Port > 0 {
+				for _, listener := range listenerSnapshot.Listening(claim.Port).Listeners {
+					if listener.PID > 0 {
+						reclaim = append(reclaim, PortReclaimCandidate{Scenario: instance.Scenario, Port: claim.Port, PID: listener.PID})
+					}
+				}
+			}
 		}
 	}
-	return stopped, nil
+	return stopped, reclaim, nil
 }
 
 // finalizeStuckStoppingInstances finalizes runtime_instances rows that got

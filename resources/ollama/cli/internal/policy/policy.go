@@ -20,12 +20,92 @@ type Policy struct {
 }
 
 type Role struct {
-	Model                string     `json:"model"`
-	Fallbacks            []string   `json:"fallbacks"`
-	RequiredCapabilities []string   `json:"required_capabilities"`
-	Description          string     `json:"description"`
-	Preference           int        `json:"preference"`
-	Provenance           Provenance `json:"provenance"`
+	Model                string            `json:"model"`
+	Fallbacks            []string          `json:"fallbacks"`
+	RequiredCapabilities []string          `json:"required_capabilities"`
+	Description          string            `json:"description"`
+	Preference           int               `json:"preference"`
+	SamplingDefaults     *SamplingDefaults `json:"sampling_defaults,omitempty"`
+	Provenance           Provenance        `json:"provenance"`
+}
+
+// SamplingDefaults is an optional, bounded per-role sampling lever. It is the
+// control surface for "how deterministic should this role's generations be":
+// a tool-grounding role (code.local) pins a low temperature so weak local
+// models stop fabricating; a chat role keeps moderate variety. Values are
+// clamped on read (see Resolve) — never trusted raw — and omission is a valid,
+// documented state: no sampling keys are pinned and the model's own defaults
+// apply.
+type SamplingDefaults struct {
+	Temperature *float64 `json:"temperature,omitempty"`
+	TopP        *float64 `json:"top_p,omitempty"`
+	TopK        *int     `json:"top_k,omitempty"`
+}
+
+// Sampling is a fully-resolved, clamped sampling triple ready to write into a
+// runtime config (e.g. opencode.json provider options). Only the fields the
+// role actually declared are marked present.
+type Sampling struct {
+	Temperature    float64 `json:"temperature"`
+	TopP           float64 `json:"top_p"`
+	TopK           int     `json:"top_k"`
+	HasTemperature bool    `json:"has_temperature"`
+	HasTopP        bool    `json:"has_top_p"`
+	HasTopK        bool    `json:"has_top_k"`
+}
+
+// Sampling bound constants — the safe envelope every declared value is clamped
+// into on read. A misconfigured policy can never push a runtime out of range.
+const (
+	minTemperature = 0.0
+	maxTemperature = 2.0
+	minTopP        = 0.0
+	maxTopP        = 1.0
+	minTopK        = 0
+	maxTopK        = 1000
+)
+
+// Resolve clamps the declared sampling into the safe envelope. A nil receiver
+// (role declared no sampling_defaults) resolves to an all-absent Sampling so
+// callers omit the keys and fall back to the model's own defaults.
+func (s *SamplingDefaults) Resolve() Sampling {
+	var out Sampling
+	if s == nil {
+		return out
+	}
+	if s.Temperature != nil {
+		out.Temperature = clampFloat(*s.Temperature, minTemperature, maxTemperature)
+		out.HasTemperature = true
+	}
+	if s.TopP != nil {
+		out.TopP = clampFloat(*s.TopP, minTopP, maxTopP)
+		out.HasTopP = true
+	}
+	if s.TopK != nil {
+		out.TopK = clampInt(*s.TopK, minTopK, maxTopK)
+		out.HasTopK = true
+	}
+	return out
+}
+
+func clampFloat(v, lo, hi float64) float64 {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}
+
+func clampInt(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 type Model struct {
@@ -186,6 +266,8 @@ type ResolvedPolicyModel struct {
 	RAMGBEstimate        float64               `json:"ram_gb_estimate"`
 	VRAMGBEstimate       float64               `json:"vram_gb_estimate"`
 	DefaultEligible      bool                  `json:"default_eligible"`
+	SamplingDefaults     *SamplingDefaults     `json:"sampling_defaults,omitempty"`
+	Sampling             *Sampling             `json:"sampling,omitempty"`
 	RoleProvenance       *Provenance           `json:"role_provenance,omitempty"`
 	Provenance           map[string]Provenance `json:"provenance,omitempty"`
 }
@@ -359,6 +441,9 @@ func (p Policy) ResolveRole(roleName string) (ResolvedPolicyModel, error) {
 	resolved.Role = roleName
 	resolved.Fallbacks = append([]string{}, role.Fallbacks...)
 	resolved.RequiredCapabilities = append([]string{}, role.RequiredCapabilities...)
+	resolved.SamplingDefaults = role.SamplingDefaults
+	sampling := role.SamplingDefaults.Resolve()
+	resolved.Sampling = &sampling
 	roleProvenance := role.Provenance
 	resolved.RoleProvenance = &roleProvenance
 	return resolved, nil

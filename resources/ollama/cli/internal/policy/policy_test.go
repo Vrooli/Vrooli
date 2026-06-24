@@ -170,3 +170,52 @@ func testProvenance(kind string) Provenance {
 		SampleCount: 0,
 	}
 }
+
+func fptr(f float64) *float64 { return &f }
+func iptr(i int) *int         { return &i }
+
+func TestSamplingResolve_ClampAndPresence(t *testing.T) {
+	// Out-of-range values clamp into the safe envelope.
+	s := (&SamplingDefaults{Temperature: fptr(5.0), TopP: fptr(1.5), TopK: iptr(-3)}).Resolve()
+	if s.Temperature != maxTemperature || s.TopP != maxTopP || s.TopK != minTopK {
+		t.Fatalf("clamp failed: %+v", s)
+	}
+	if !s.HasTemperature || !s.HasTopP || !s.HasTopK {
+		t.Fatalf("expected all present, got %+v", s)
+	}
+	// In-range values pass through.
+	s2 := (&SamplingDefaults{Temperature: fptr(0.1)}).Resolve()
+	if s2.Temperature != 0.1 || !s2.HasTemperature || s2.HasTopP || s2.HasTopK {
+		t.Fatalf("partial sampling wrong: %+v", s2)
+	}
+}
+
+func TestSamplingResolve_NilIsAbsentFallback(t *testing.T) {
+	var s *SamplingDefaults
+	got := s.Resolve()
+	if got.HasTemperature || got.HasTopP || got.HasTopK {
+		t.Fatalf("nil sampling must resolve to all-absent fallback, got %+v", got)
+	}
+}
+
+func TestResolveRole_CarriesClampedSampling(t *testing.T) {
+	p, err := LoadFile(filepath.Join("..", "..", "..", "model-policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := p.ResolveRole("code.local")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Sampling == nil || !resolved.Sampling.HasTemperature || resolved.Sampling.Temperature != 0.1 {
+		t.Fatalf("code.local sampling = %+v", resolved.Sampling)
+	}
+	// A role without sampling_defaults resolves to an all-absent Sampling.
+	emb, err := p.ResolveRole("embedding.default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emb.Sampling != nil && emb.Sampling.HasTemperature {
+		t.Fatalf("embedding.default should have no pinned sampling, got %+v", emb.Sampling)
+	}
+}

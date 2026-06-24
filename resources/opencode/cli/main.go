@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"resource-opencode/cli/internal/configcli"
 	"resource-opencode/cli/internal/permissionscli"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -55,6 +56,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
+			configcli.Commands(configcli.Default()),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
 				DisplayName:   appName,

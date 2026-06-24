@@ -35,6 +35,10 @@
       "required_capabilities": ["generate", "chat", "summarize"],
       "description": "Default local generation role for synthesis, summarization, and lightweight agent workflows.",
       "preference": 30,
+      "sampling_defaults": {
+        "temperature": 0.7,
+        "top_p": 0.95
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -88,9 +92,14 @@
     "code.local": {
       "model": "gemma4:12b",
       "fallbacks": ["llama3.1:8b", "llama3.2:3b"],
-      "required_capabilities": ["generate", "code"],
-      "description": "Local code-assistance role for scenarios that explicitly need code-specialized generation.",
+      "required_capabilities": ["generate", "code", "tools"],
+      "description": "Local code-assistance role for scenarios that explicitly need code-specialized generation. Consumed by agentic tool-calling runners (OpenCode), so tool-calling is a hard requirement enforced by the model-admission gate.",
       "preference": 60,
+      "sampling_defaults": {
+        "temperature": 0.1,
+        "top_p": 0.9,
+        "top_k": 40
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
