@@ -22,7 +22,7 @@ type handler struct {
 func Module(db domainresolver.SQLExecutor) module.Module {
 	service := domainresolver.NewService(domainresolver.Config{
 		Repo:   domainresolver.NewSQLiteRepository(db),
-		Client: domainresolver.ConservativeAdGuardClient{},
+		Client: domainresolver.NewResourceBackedAdGuardClient(nil),
 	})
 	path, h := resolverconnect.NewResolverServiceHandler(&handler{service: service})
 	return module.Module{Name: "resolver", Mount: func(r *mux.Router) {

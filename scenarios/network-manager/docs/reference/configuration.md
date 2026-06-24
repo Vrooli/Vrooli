@@ -33,12 +33,16 @@ for the full policy.
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
-Planned P0 resolver settings should be added only when the AdGuard Home adapter/resource is implemented:
+AdGuard Home resource settings are optional and normally supplied by the
+`adguard-home` Vrooli resource. `resolver configure-adguard` defaults from
+these exports when flags are omitted:
 
 | Variable | Purpose |
 |---|---|
-| `ADGUARD_HOME_URL` | Base URL for an existing or resource-managed AdGuard Home instance. |
-| `ADGUARD_HOME_TOKEN` | Secret token or credential reference for the AdGuard Home API. |
+| `ADGUARD_HOME_BASE_URL` / `ADGUARD_HOME_URL` | Base URL for the resource-managed AdGuard Home instance. |
+| `ADGUARD_HOME_DNS_BIND_IP` | LAN address where the AdGuard resource publishes DNS port 53. This should be a DHCP-reserved/static server IP. |
+| `ADGUARD_HOME_CREDENTIAL_REF` | `resource-vault` KV path for the AdGuard Home admin credential. Network Manager stores this reference only and reads the `password` field at health/preview time. |
+| `ADGUARD_HOME_USERNAME` | Optional username hint used when configuring the backend. If omitted, Network Manager tries the credential secret's `username` field, then falls back to `admin`. |
 | `NETWORK_MANAGER_PROFILE` | Deployment profile such as `home` or `small-office`. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
@@ -80,9 +84,22 @@ Single source of truth for everything the lifecycle needs to know.
 | `lifecycle.test` | which test command to invoke |
 | `lifecycle.stop` | how to shut down cleanly |
 | `environment` | static env vars set for every lifecycle step |
-| `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
+| `dependencies.resources` | shared local resources (including optional `adguard-home`) |
 
-The generated scaffold ships with no external resource dependency. Network Manager's first real resource decision is AdGuard Home; add it to `.vrooli/service.json` only through the governed resource/scenario workflow when the resolver adapter is implemented.
+Network Manager declares `adguard-home` as an optional dependency. The scenario
+continues to run without it and reports resolver status as `not_configured`,
+`setup_required`, `auth_failed`, or `unreachable` until a governed AdGuard Home
+resource and credential reference are configured.
+
+The canonical AdGuard credential shape is:
+
+```bash
+resource-vault content set --path secret/resources/adguard-home/admin --key username --value admin
+resource-vault content set --path secret/resources/adguard-home/admin --key password --value '<generated-password>'
+```
+
+Only the `secret/resources/adguard-home/admin` reference is stored in Network
+Manager's SQLite database.
 
 ## Schema bootstrap
 

@@ -209,7 +209,16 @@
     }
   },
   "dependencies": {
-    "resources": {},
+    "resources": {
+      "adguard-home": {
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "freshness_policy": "reuse_running",
+        "description": "Optional managed DNS filtering backend. Network Manager stays conservative when AdGuard Home is unavailable.",
+        "degraded_behavior": "Resolver health remains not_configured/setup_required/auth_failed/unreachable until a governed AdGuard Home resource and credential reference are configured."
+      }
+    },
     "scenarios": {}
   },
   "environment": {

@@ -3,6 +3,8 @@ package resolver
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -32,7 +34,12 @@ func (h handlers) status(ctx cliapp.RunContext) error {
 }
 
 func (h handlers) configureAdGuard(ctx cliapp.RunContext) error {
-	req := &resolverv1.ConfigureAdGuardHomeRequest{BaseUrl: ctx.Flag("base-url"), Username: ctx.Flag("username"), TokenRef: ctx.Flag("token-ref"), DryRun: ctx.BoolFlag("dry-run")}
+	req := &resolverv1.ConfigureAdGuardHomeRequest{
+		BaseUrl:  firstNonEmpty(ctx.Flag("base-url"), os.Getenv("ADGUARD_HOME_BASE_URL"), os.Getenv("ADGUARD_HOME_URL")),
+		Username: firstNonEmpty(ctx.Flag("username"), os.Getenv("ADGUARD_HOME_USERNAME")),
+		TokenRef: firstNonEmpty(ctx.Flag("token-ref"), os.Getenv("ADGUARD_HOME_CREDENTIAL_REF")),
+		DryRun:   ctx.BoolFlag("dry-run"),
+	}
 	resp, err := h.client.ConfigureAdGuardHome(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("configure AdGuard Home", err, nil)
@@ -69,4 +76,13 @@ func formatStatus(s *resolverv1.ResolverStatus) string {
 		return "Resolver status unavailable."
 	}
 	return fmt.Sprintf("backend=%s status=%s filtering=%t", s.GetBackend(), s.GetStatus(), s.GetFilteringEnabled())
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return ""
 }

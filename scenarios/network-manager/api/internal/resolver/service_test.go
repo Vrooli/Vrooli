@@ -137,6 +137,35 @@ func TestConfigureAdGuardHomeRequiresSecretReference(t *testing.T) {
 	require.Contains(t, err.Error(), "token_ref")
 }
 
+func TestConfigureAdGuardHomeDefaultsFromResourceExports(t *testing.T) {
+	// [REQ:NM-P0-002] Resource-managed AdGuard exports can satisfy the default backend shape without plaintext secrets.
+	t.Setenv("ADGUARD_HOME_BASE_URL", "http://localhost:3000")
+	t.Setenv("ADGUARD_HOME_USERNAME", "admin")
+	t.Setenv("ADGUARD_HOME_CREDENTIAL_REF", "secret/resources/adguard-home/admin")
+	repo := newFakeRepo()
+	svc := NewService(Config{Repo: repo, Client: fakeAdGuardClient{checkStatus: ClientStatus{
+		Status:           "configured_unverified",
+		FilteringEnabled: false,
+		Checks:           []string{"reachable"},
+	}}})
+
+	status, steps, err := svc.ConfigureAdGuardHome(context.Background(), "", "", "", true)
+	require.NoError(t, err)
+	require.Equal(t, "dry_run", status.Status)
+	require.Equal(t, "http://localhost:3000", status.BaseURL)
+	require.NotEmpty(t, steps)
+
+	status, _, err = svc.ConfigureAdGuardHome(context.Background(), "", "", "", false)
+	require.NoError(t, err)
+	require.Equal(t, "configured_unverified", status.Status)
+
+	cfg, err := repo.GetBackend(context.Background(), AdGuardHomeBackend)
+	require.NoError(t, err)
+	require.Equal(t, "http://localhost:3000", cfg.BaseURL)
+	require.Equal(t, "admin", cfg.Username)
+	require.Equal(t, "secret/resources/adguard-home/admin", cfg.TokenRef)
+}
+
 func TestUpdateUpstreamsRequiresConfiguredClientSupport(t *testing.T) {
 	// [REQ:NM-P0-002] Persistent upstream writes fail closed when the adapter cannot apply them.
 	repo := newFakeRepo()

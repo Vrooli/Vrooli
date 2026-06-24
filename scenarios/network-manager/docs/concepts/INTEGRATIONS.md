@@ -18,7 +18,31 @@ This document records Network Manager's external resources, scenario dependencie
 
 ## Vrooli Resources
 
-AdGuard Home should be modeled as the first managed resolver resource or resource-backed adapter. The scenario should not hand-run package managers or raw Docker commands for resolver installation; resource setup must follow Vrooli resource governance when implemented.
+AdGuard Home is now modeled as the first managed resolver resource:
+
+- Resource ID: `adguard-home`
+- Resource CLI: `resource-adguard-home`
+- Default admin/API export: `ADGUARD_HOME_BASE_URL`
+- DNS bind export: `ADGUARD_HOME_DNS_BIND_IP`
+- Credential reference export: `ADGUARD_HOME_CREDENTIAL_REF`
+- Network Manager dependency: optional, ignored by default until an operator enables and bootstraps the resource.
+
+The scenario must not hand-run package managers or raw Docker commands for
+resolver installation. Resource setup follows Vrooli resource governance, and
+Network Manager stores only the AdGuard credential reference. Live filtering is
+claimed only after AdGuard confirms protection/filtering state; network-wide
+enforcement additionally requires client/router DNS evidence.
+
+Network Manager resolves the referenced AdGuard credential through
+`resource-vault content get` when checking resolver health or previewing
+upstreams. Persistent resolver/policy writes still require the approval and
+rollback-backed policy adapter; the resolver client returns fail-closed instead
+of applying direct upstream changes.
+
+The resource binds DNS to the server LAN IP rather than `0.0.0.0:53`, preserving
+the host's `systemd-resolved` loopback stub while exposing AdGuard to LAN
+clients. Operators must reserve that server IP in the router before advertising
+it as the DHCP/RDNSS DNS target.
 
 ## Scenario Dependencies
 

@@ -20,6 +20,12 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ## Entries
 
+### 2026-06-24 — AdGuard Home DNS is bound but bootstrap and live adapters are pending
+
+- Signal: `adguard-home` is now a first-class Vrooli resource with pinned Docker image, resource exports, optional Network Manager dependency, and `resource-adguard-home api-health --json`. The resource starts locally with DNS published at `192.168.1.173:53/tcp` and `192.168.1.173:53/udp`, while `systemd-resolved` keeps `127.0.0.53/54:53`. Current local API health is `setup_required`, which means the container is reachable but AdGuard first-run setup is incomplete.
+- Impact: The original host port 53 conflict is resolved without disabling local resolver services. Network Manager can default resolver configuration from resource exports, store only the credential reference, and report verified AdGuard health once available. It still must not claim network-wide ad blocking, apply live policy changes, import AdGuard clients, or apply optimization candidates until the resource is bootstrapped, authenticated, has protection enabled, has client/router DNS evidence where needed, and the mutation adapters have rollback support.
+- Next action: Reserve `192.168.1.173` in the router, complete or automate AdGuard bootstrap, store the admin credential at `secret/resources/adguard-home/admin`, verify `api-health` is healthy with protection enabled and minimal query logging, then connect router DNS rollout, rollback-backed policy mutation, device inventory, and optimization adapters.
+
 ### 2026-06-24 — Continuous monitoring is operator-triggered
 
 - Signal: Network Manager now persists monitoring schedules, runs snapshot comparisons against a baseline, and records regression alerts through API/CLI/UI, but it does not run a background scheduler loop.

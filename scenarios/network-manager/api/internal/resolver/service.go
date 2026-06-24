@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -133,9 +134,9 @@ func (s *Service) statusFromClient(ctx context.Context, cfg BackendConfig) (Stat
 }
 
 func normalizeConfig(baseURL, username, tokenRef string) (BackendConfig, error) {
-	baseURL = strings.TrimSpace(baseURL)
-	username = strings.TrimSpace(username)
-	tokenRef = strings.TrimSpace(tokenRef)
+	baseURL = firstNonEmpty(baseURL, os.Getenv("ADGUARD_HOME_BASE_URL"), os.Getenv("ADGUARD_HOME_URL"))
+	username = firstNonEmpty(username, os.Getenv("ADGUARD_HOME_USERNAME"))
+	tokenRef = firstNonEmpty(tokenRef, os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"))
 	if baseURL == "" {
 		return BackendConfig{}, fmt.Errorf("base_url is required")
 	}
@@ -147,6 +148,15 @@ func normalizeConfig(baseURL, username, tokenRef string) (BackendConfig, error) 
 		return BackendConfig{}, fmt.Errorf("token_ref is required; plaintext resolver tokens are not accepted")
 	}
 	return BackendConfig{Backend: AdGuardHomeBackend, BaseURL: strings.TrimRight(baseURL, "/"), Username: username, TokenRef: tokenRef}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func normalizeUpstreams(values []string) ([]string, error) {
