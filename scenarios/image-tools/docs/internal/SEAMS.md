@@ -538,6 +538,32 @@ The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
 
+## RepoFetcher seam (multi-file model snapshot install)
+
+`internal/models/install.go` defines `RepoFetcher` (`Snapshot(ctx, RepoSource,
+destDir, emit)`) as a sibling of the `Downloader` seam. A model whose
+`Source.Repo` is set installs the whole repo at its pinned revision instead of a
+list of discrete asset URLs; integrity is a tree-manifest hash, not a per-file
+checksum. Production impl: `HFSnapshotFetcher` shells
+`huggingface_hub.snapshot_download` (governed dep — never reimplement HF/LFS
+fetch in Go). Tests inject a fake fetcher that writes a file tree, so the install
+path (disk preflight, tree-manifest pin/verify, idempotency, cleanup-on-mismatch)
+is covered without network/python. Wire the production fetcher in `main.go`
+(`RepoFetch: &internalmodels.HFSnapshotFetcher{}`).
+
+## Diffusers family-adapter seam (declared execution)
+
+The diffusers backend dispatches edit execution from data, not hardcoded Python.
+`internal/models/families.go` is the Go SSOT of registered family adapters
+(`name`, `pipeline_class`, `Ready`); `internal/sidecar/py/image_tools_sidecar/
+_diffusers.py` holds the mirrored Python adapter table + the one generic runner.
+A registry model selects its adapter via `Runtime.Family`; the Go arg-builder
+passes `--family`; the runner maps normalized params → that family's call kwargs.
+`TestDiffusersFamilyAdaptersMirrorPython` + `TestDiffusersSidecarContract` run the
+pure (torch-free) Python checks inside `go test` and assert Go↔Python parity, so
+the registry, the catalog doctor, and the runner cannot drift. A new architecture
+is one Go row + one Python adapter + (once attended-proven) `Ready=true`.
+
 ## Cross-references
 
 - Test fakes lifecycle and naming convention: [`docs/internal/TESTING.md`](TESTING.md).

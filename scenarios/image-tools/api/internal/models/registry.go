@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 //go:embed registry.seed.json
@@ -152,6 +153,48 @@ type Asset struct {
 	MinBytes int64 `json:"min_bytes,omitempty"`
 }
 
+// Runtime declares HOW a weight-backed model executes, so a single generic
+// sidecar runner can dispatch the correct pipeline class + call kwargs from data
+// instead of hardcoded per-model Python (the diffusers backend previously
+// supported exactly one model because the class + kwargs were baked into
+// edit_instruct.py). It is required for diffusers-backed models — the catalog
+// doctor asserts an enabled diffusers model names a registered family adapter —
+// and is the zero value for backends that need no such dispatch.
+type Runtime struct {
+	// Family keys the sidecar adapter table AND the Go-side registered-family set
+	// (families.go). One family per pipeline architecture; a genuinely new
+	// architecture is one new adapter row, an existing one is reuse.
+	Family string `json:"family"`
+	// PipelineClass is the diffusers pipeline class the family loads/expects
+	// (e.g. "QwenImageEditPlusPipeline"). diffusers auto-resolves the class from
+	// model_index.json on load; this is asserted post-load and documents intent.
+	PipelineClass string `json:"pipeline_class"`
+	// Dtype is the torch dtype the family loads in ("float16", "bfloat16"). Empty
+	// means the sidecar's device default (fp16 on cuda, fp32 on cpu).
+	Dtype string `json:"dtype"`
+	// MinRuntime is the minimum runtime/library constraint surfaced to the
+	// provision/availability check (e.g. "diffusers>=0.36.0"; a git ref for a
+	// bleeding-edge family). Phase 4 enforces it; informational otherwise.
+	MinRuntime string `json:"min_runtime"`
+}
+
+// RepoSource is a HuggingFace-style multi-file model repository — the install
+// shape diffusers models use (a directory of model_index.json + sharded
+// safetensors across transformer/text_encoder/vae/… subdirs), which cannot be
+// expressed as a handful of discrete Asset URLs without drifting every upstream
+// revision. The installer fetches the whole snapshot, pinned to an immutable
+// Revision, and integrity is a tree-manifest hash over the fetched files.
+type RepoSource struct {
+	// RepoID is the HuggingFace repo (e.g. "Qwen/Qwen-Image-Edit-2509").
+	RepoID string `json:"repo_id"`
+	// Revision pins an IMMUTABLE commit SHA (never a moving branch/tag) so the
+	// fetched tree — and thus the tree-manifest checksum — is reproducible.
+	Revision string `json:"revision"`
+	// AllowPatterns optionally restricts which files are fetched (e.g. skip the
+	// original/ fp32 mirror). Empty fetches the whole repo.
+	AllowPatterns []string `json:"allow_patterns,omitempty"`
+}
+
 // Source records where the model artifact comes from.
 type Source struct {
 	// DownloadURL is the single remote URL for an operator-registered CUSTOM
@@ -165,9 +208,17 @@ type Source struct {
 	// Assets are the direct, resolvable weight artifacts for a seed model. When
 	// present they are the install source (DownloadURL is ignored). The installer
 	// downloads + validates each one into the model dir under its Filename.
-	Assets   []Asset  `json:"assets,omitempty"`
-	Checksum Checksum `json:"checksum"`
+	Assets []Asset `json:"assets,omitempty"`
+	// Repo is a multi-file model repository (diffusers snapshot). When set it is
+	// the install source, fetched in whole at Repo.Revision; integrity is the
+	// tree-manifest checksum. Repo and Assets are mutually exclusive fetch
+	// strategies behind one installer seam.
+	Repo     RepoSource `json:"repo,omitempty"`
+	Checksum Checksum   `json:"checksum"`
 }
+
+// HasRepo reports whether the source installs from a multi-file repo snapshot.
+func (s Source) HasRepo() bool { return strings.TrimSpace(s.Repo.RepoID) != "" }
 
 // Model is one registry entry: a concrete model/library backing one or more
 // operations.
@@ -186,6 +237,7 @@ type Model struct {
 	IO               IO               `json:"io"`
 	CapabilityLabels CapabilityLabels `json:"capability_labels"`
 	Source           Source           `json:"source"`
+	Runtime          Runtime          `json:"runtime"`
 	Enabled          bool             `json:"enabled"`
 }
 
@@ -199,6 +251,10 @@ const BackendBuiltin = "builtin"
 const (
 	BackendComputed  = "computed"
 	BackendLibraryGo = "library-go"
+	// BackendDiffusers is the python diffusers sidecar backend. edit_instruct
+	// models on this backend run through the generic _diffusers runner and so
+	// must declare a registered, runnable runtime family (DoctorCatalog enforces).
+	BackendDiffusers = "diffusers"
 )
 
 // RequiresWeights reports whether a model needs downloaded artifacts on disk to
@@ -393,6 +449,24 @@ func (r *Registry) validateModel(m Model) error {
 	if !m.Hardware.CPUCapable && !m.Hardware.GPURequired {
 		// A model that is neither CPU-capable nor GPU-required is unrunnable.
 		return fmt.Errorf("model is neither cpu_capable nor gpu_required")
+	}
+	// A declared runtime family must name a registered adapter (typo guard), and
+	// any declared pipeline_class must match that adapter's — so the registry
+	// can't drift from the executor. The doctor (DoctorCatalog) additionally
+	// REQUIRES the family on enabled diffusers models; here we only validate what
+	// is declared so non-diffusers entries stay unaffected.
+	// Assets and Repo are mutually exclusive fetch strategies.
+	if len(m.Source.Assets) > 0 && m.Source.HasRepo() {
+		return fmt.Errorf("source declares both assets and repo (mutually exclusive fetch strategies)")
+	}
+	if fam := strings.TrimSpace(m.Runtime.Family); fam != "" {
+		reg, ok := DiffusersFamilyByName(fam)
+		if !ok {
+			return fmt.Errorf("runtime.family %q is not a registered diffusers adapter", fam)
+		}
+		if pc := strings.TrimSpace(m.Runtime.PipelineClass); pc != "" && pc != reg.PipelineClass {
+			return fmt.Errorf("runtime.pipeline_class %q does not match family %q (%s)", pc, fam, reg.PipelineClass)
+		}
 	}
 	return nil
 }

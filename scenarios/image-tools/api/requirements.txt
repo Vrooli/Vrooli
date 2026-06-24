@@ -1,0 +1,16 @@
+# Diffusers AI backend (edit_instruct / inpaint / outpaint / background_replace).
+# Governed via scenario-dependency-analyzer (deps-approved records); this file is
+# the pinned manifest for provisioning the diffusers python sidecar.
+#
+# CRITICAL: transformers MUST stay <5. diffusers 0.38 loads SD/InstructPix2Pix
+# checkpoints through the transformers 4.x CLIP layout (CLIPTextModel.text_model);
+# transformers 5.x removed that attribute, so a 5.x install breaks edit_instruct
+# with "'CLIPTextModel' object has no attribute 'text_model'". >=4.49 keeps
+# Qwen2.5-VL support (Qwen-Image-Edit-2509).
+torch
+torchvision
+diffusers>=0.36.0
+transformers>=4.49,<5
+accelerate
+huggingface_hub
+Pillow

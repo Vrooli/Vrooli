@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -94,6 +95,15 @@ func EstimateInstallSecondsAt(sizeMBApprox, mbPerSecond int) int {
 // HTTPDownloader. emit reports byte progress (total may be -1 if unknown).
 type Downloader interface {
 	Download(ctx context.Context, rawURL, destPath string, emit func(done, total int64)) error
+}
+
+// RepoFetcher fetches a whole multi-file model repository (a HuggingFace
+// snapshot) at a pinned revision into destDir. It is a seam (like Downloader) so
+// the engine is testable without network/python; the production implementation
+// (HFSnapshotFetcher) shells huggingface_hub.snapshot_download. emit reports
+// byte progress (total may be -1 if unknown).
+type RepoFetcher interface {
+	Snapshot(ctx context.Context, repo RepoSource, destDir string, emit func(done, total int64)) error
 }
 
 // DiskSpaceFunc reports the free bytes available at path's filesystem. The
@@ -282,6 +292,9 @@ type Installer struct {
 	State *InstallStore
 	// Download fetches remote artifacts (HTTPDownloader in production).
 	Download Downloader
+	// RepoFetch fetches multi-file repo snapshots (HFSnapshotFetcher in
+	// production). nil disables repo-source installs (they fail with a clear error).
+	RepoFetch RepoFetcher
 	// DiskAvail reports free space at Root (diskAvail in production).
 	DiskAvail DiskSpaceFunc
 	// Now sources timestamps (defaults to time.Now).
@@ -380,6 +393,12 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 		}
 		emit(100, "registered local model")
 		return rec, nil
+	}
+
+	// A repo-source model (diffusers multi-file snapshot) is fetched in whole at
+	// its pinned revision; integrity is a tree-manifest hash, not a per-file URL.
+	if m.Source.HasRepo() {
+		return in.installRepo(ctx, id, m, emit)
 	}
 
 	// Resolve the asset list. Seed models declare Source.Assets (direct,
@@ -507,6 +526,141 @@ func (in *Installer) downloadAssets(ctx context.Context, id, dir string, assets 
 		}
 	}
 	return primarySum, totalSize, nil
+}
+
+// installRepo fetches a multi-file repo snapshot at its pinned revision, pins the
+// tree-manifest checksum on first install (verifying it against a previously
+// pinned value on re-install), and records the install. The whole snapshot is the
+// unit of integrity — there is no single "primary" file.
+func (in *Installer) installRepo(ctx context.Context, id string, m Model, emit func(progress int, message string)) (InstallRecord, error) {
+	if in.RepoFetch == nil {
+		return InstallRecord{}, fmt.Errorf("%w: %q is a repo source but no RepoFetcher is configured", ErrNoDownloadSource, id)
+	}
+	if strings.TrimSpace(m.Source.Repo.Revision) == "" {
+		// Pinning by an immutable commit SHA is mandatory for reproducible installs.
+		return InstallRecord{}, fmt.Errorf("models: %q repo source has no pinned revision", id)
+	}
+
+	// Disk-space awareness: refuse before downloading if there isn't room.
+	required := requiredBytes(m.SizeMBApprox)
+	if in.DiskAvail != nil {
+		avail, derr := in.DiskAvail(in.Root)
+		if derr != nil {
+			return InstallRecord{}, fmt.Errorf("models: check disk space: %w", derr)
+		}
+		if avail < required {
+			return InstallRecord{}, fmt.Errorf("%w: need ~%d MiB free at %s, have %d MiB",
+				ErrInsufficientDisk, required>>20, in.Root, avail>>20)
+		}
+	}
+
+	dir := in.modelDir(id)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return InstallRecord{}, fmt.Errorf("models: create model dir: %w", err)
+	}
+
+	emit(5, "fetching "+m.Source.Repo.RepoID+"@"+shortRev(m.Source.Repo.Revision))
+	if err := in.RepoFetch.Snapshot(ctx, m.Source.Repo, dir, func(done, total int64) {
+		if total > 0 {
+			emit(5+int(float64(done)/float64(total)*80), "fetching "+m.Source.Repo.RepoID)
+		}
+	}); err != nil {
+		_ = os.RemoveAll(dir)
+		return InstallRecord{}, fmt.Errorf("models: fetch repo %q (%s): %w", id, m.Source.Repo.RepoID, err)
+	}
+
+	emit(88, "verifying snapshot")
+	manifest, totalSize, err := treeManifestHash(dir)
+	if err != nil {
+		_ = os.RemoveAll(dir)
+		return InstallRecord{}, fmt.Errorf("models: hash repo snapshot %q: %w", id, err)
+	}
+
+	// Checksum precedence: a previously pinned tree-manifest hash wins; then the
+	// seed's published value. A mismatch fails the install. Absence pins the
+	// freshly computed manifest (never hand-written — see DECISIONS).
+	expected := strings.TrimSpace(m.Source.Checksum.Value)
+	if pinned := in.pinnedChecksum(ctx, id); pinned != "" {
+		expected = pinned
+	}
+	if expected != "" && !strings.EqualFold(expected, manifest) {
+		_ = os.RemoveAll(dir)
+		return InstallRecord{}, fmt.Errorf("%w: %q repo snapshot expected %s got %s", ErrChecksumMismatch, id, expected, manifest)
+	}
+
+	rec := InstallRecord{
+		ID: id, Installed: true, Path: dir, Checksum: manifest,
+		SizeBytes: totalSize, InstalledAt: in.now(),
+	}
+	if in.State != nil {
+		if err := in.State.Set(ctx, rec); err != nil {
+			return InstallRecord{}, err
+		}
+	}
+	emit(100, "installed")
+	return rec, nil
+}
+
+// treeManifestHash computes a deterministic integrity hash over every regular
+// file under dir: sha256 of the sorted "relpath\x00filesha256\n" lines. It is the
+// multi-file analogue of a single artifact's sha256 — stable across re-fetches of
+// the same immutable revision, sensitive to any changed/added/removed file. The
+// HuggingFace cache bookkeeping dir (.cache) is excluded. Returns the hash and
+// the total bytes of the hashed files.
+func treeManifestHash(dir string) (string, int64, error) {
+	type entry struct {
+		rel string
+		sha string
+	}
+	var entries []entry
+	var total int64
+	walkErr := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".cache" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		sum, size, hErr := hashFile(p)
+		if hErr != nil {
+			return hErr
+		}
+		rel, relErr := filepath.Rel(dir, p)
+		if relErr != nil {
+			return relErr
+		}
+		entries = append(entries, entry{rel: filepath.ToSlash(rel), sha: sum})
+		total += size
+		return nil
+	})
+	if walkErr != nil {
+		return "", 0, walkErr
+	}
+	if len(entries) == 0 {
+		return "", 0, fmt.Errorf("repo snapshot is empty")
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].rel < entries[j].rel })
+	h := sha256.New()
+	for _, e := range entries {
+		_, _ = io.WriteString(h, e.rel)
+		_, _ = h.Write([]byte{0})
+		_, _ = io.WriteString(h, e.sha)
+		_, _ = h.Write([]byte{'\n'})
+	}
+	return hex.EncodeToString(h.Sum(nil)), total, nil
+}
+
+func shortRev(rev string) string {
+	if len(rev) > 12 {
+		return rev[:12]
+	}
+	return rev
 }
 
 // Remove deletes a model's downloaded weights and clears its install record. A

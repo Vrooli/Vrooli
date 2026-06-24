@@ -69,7 +69,7 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 <!-- BEGIN GENERATED: host-tool-matrix (regenerate with `make backends-doc`) -->
 | Backend (provider) | Host tool | Operations | Install / remediation |
 |---|---|---|---|
-| `diffusers` | `python` | `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install python` + pip: diffusers, torch, Pillow |
+| `diffusers` | `python` | `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install python` + pip: diffusers, torch, transformers, accelerate, torchvision, huggingface_hub, Pillow |
 | `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
 | `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
 | `onnxruntime` | `python` | `denoise`, `deblur`, `background_removal`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install python` + pip: onnxruntime, Pillow, numpy |

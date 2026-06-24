@@ -378,12 +378,26 @@ func TestArgBuilders(t *testing.T) {
 		},
 		{
 			name: "diffusers edit_instruct",
-			args: mustArgs(t, buildDiffusers, req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "make it winter", "cfg_scale": "7.5", "strength": "1.5", "seed": "42"})),
-			want: []string{"-m", "image_tools_sidecar.edit_instruct", "--model", "/models/m1", "--image", "/in.png", "--prompt", "make it winter", "--out", "/out.png", "--guidance", "7.5", "--image-guidance", "1.5", "--seed", "42"},
+			args: mustArgs(t, buildDiffusers, func() backends.Request {
+				r := req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "make it winter", "cfg_scale": "7.5", "strength": "1.5", "seed": "42", "steps": "30", "negative_prompt": "blurry"})
+				r.Model.Runtime.Family = "instruct-pix2pix"
+				return r
+			}()),
+			// The pipeline class is selected by --family, not hardcoded. --steps and
+			// --negative-prompt are passed only when explicitly requested.
+			want: []string{"-m", "image_tools_sidecar.edit_instruct", "--model", "/models/m1", "--family", "instruct-pix2pix", "--image", "/in.png", "--prompt", "make it winter", "--out", "/out.png", "--steps", "30", "--guidance", "7.5", "--image-guidance", "1.5", "--negative-prompt", "blurry", "--seed", "42"},
 		},
 		{
 			name: "diffusers edit_instruct needs input",
-			err:  argErr(buildDiffusers, req("edit_instruct", nil, map[string]string{"prompt": "x"})),
+			err: func() bool {
+				r := req("edit_instruct", nil, map[string]string{"prompt": "x"})
+				r.Model.Runtime.Family = "instruct-pix2pix"
+				return argErr(buildDiffusers, r)
+			}(),
+		},
+		{
+			name: "diffusers edit_instruct needs a runtime family",
+			err:  argErr(buildDiffusers, req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "x"})),
 		},
 		{
 			name: "diffusers inpaint via dispatcher",

@@ -315,6 +315,7 @@ func main() {
 		Custom:    internalmodels.NewCustomStore(db),
 		State:     internalmodels.NewInstallStore(db),
 		Download:  internalmodels.HTTPDownloader{},
+		RepoFetch: &internalmodels.HFSnapshotFetcher{},
 		DiskAvail: internalmodels.DefaultDiskAvail,
 	}
 	modelInstalled := func(id string) bool {

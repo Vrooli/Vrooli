@@ -260,6 +260,19 @@ more fundamental blocker beyond absent backends — the `models install` path is
 stub that fetches landing pages, not weights (see the 2026-06-18 entry below).
 Deterministic ops + `analyze probe` run end-to-end for real; no AI op can.
 
+**Update (2026-06-24, diffusers-edit substrate):** `edit_instruct` now runs
+end-to-end on a GPU host. Qwen-Image-Edit-2509 was installed via the new
+revision-pinned repo-snapshot path (`Source.Repo` + `HFSnapshotFetcher`, 57.7 GB,
+rev `d3968ef9`), loaded through the generic `_diffusers` runner (family
+`qwen-image-edit-plus`, class auto-resolved + asserted), and run with adaptive
+sequential CPU-offload on a contended 16 GB RTX 4070 Ti SUPER — producing a
+correct instruction edit (red→green circle + yellow border; identity preserved;
+8 steps, 161 s). torch/torchvision/transformers/accelerate/huggingface_hub were
+provisioned via SDA-governed records. `qwen-image-edit` is now `enabled`. This is
+the first heavy diffusers AI op proven live end-to-end (background_removal proved
+the onnxruntime path 2026-06-18). InstructPix2Pix (CPU edit default) and the
+inpaint/onnx ops still await their own attended runs.
+
 **Owner:** unassigned (Phase 4 wires model download; then run the attended gate).
 
 **Refs:** `api/internal/ai/`, `api/internal/analysis/`, `docs/internal/TESTING.md`

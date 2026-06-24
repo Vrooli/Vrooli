@@ -61,6 +61,10 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 			add(f)
 		}
 
+		for _, f := range doctorDiffusersEditRunnable(m) {
+			add(f)
+		}
+
 		installable := doctorModelInstallable(m, add)
 		if m.Enabled && installable {
 			for _, op := range m.Operations {
@@ -96,11 +100,24 @@ func doctorModelInstallable(m Model, add func(CatalogFinding)) bool {
 	if !m.RequiresWeights() || strings.TrimSpace(m.Source.LocalPath) != "" {
 		return true
 	}
+	// A repo snapshot is a valid fetch strategy, but the revision MUST be pinned
+	// to an immutable commit SHA for a reproducible install + tree-manifest hash.
+	if m.Source.HasRepo() {
+		if strings.TrimSpace(m.Source.Repo.Revision) == "" {
+			add(CatalogFinding{
+				Code:    "repo_source_without_pinned_revision",
+				ModelID: m.ID,
+				Message: "enabled repo-source model has no pinned revision (commit SHA)",
+			})
+			return false
+		}
+		return true
+	}
 	if len(m.Source.Assets) == 0 {
 		add(CatalogFinding{
 			Code:    "enabled_model_without_assets",
 			ModelID: m.ID,
-			Message: "enabled weight-backed model has no source.assets[] and no local_path",
+			Message: "enabled weight-backed model has no source.assets[], repo, or local_path",
 		})
 		return false
 	}
@@ -130,6 +147,48 @@ func doctorModelInstallable(m Model, add func(CatalogFinding)) bool {
 		}
 	}
 	return installable
+}
+
+// doctorDiffusersEditRunnable enforces the "enabled ⇒ runnable" invariant for
+// diffusers instruction-edit models (the ones that execute through the generic
+// _diffusers runner). An enabled such model must name a registered family adapter
+// that is proven (Ready), and declare its minimum runtime — so it is impossible
+// to enable a model that the runner would refuse or that has no pinned runtime.
+// Inpaint/outpaint diffusers models use a different sidecar and carry no family,
+// so they are out of scope here.
+func doctorDiffusersEditRunnable(m Model) []CatalogFinding {
+	if !m.Enabled || m.Backend != BackendDiffusers || !m.ServesOperation("edit_instruct") {
+		return nil
+	}
+	fam := strings.TrimSpace(m.Runtime.Family)
+	if fam == "" {
+		return []CatalogFinding{{
+			Code:    "enabled_edit_model_without_family",
+			ModelID: m.ID,
+			Message: "enabled diffusers edit_instruct model declares no runtime.family adapter",
+		}}
+	}
+	// validateModel guarantees a declared family is registered, so the lookup
+	// always resolves here; the readiness + min_runtime checks are what this
+	// invariant adds on top.
+	reg, _ := DiffusersFamilyByName(fam)
+	var out []CatalogFinding
+	if !reg.Ready {
+		out = append(out, CatalogFinding{
+			Code:    "enabled_edit_model_family_not_ready",
+			ModelID: m.ID,
+			Message: fmt.Sprintf("runtime.family %q adapter is not yet proven runnable: %s", fam, reg.Pending),
+		})
+	}
+	if strings.TrimSpace(m.Runtime.MinRuntime) == "" {
+		out = append(out, CatalogFinding{
+			Severity: FindingWarning,
+			Code:     "enabled_edit_model_without_min_runtime",
+			ModelID:  m.ID,
+			Message:  "enabled diffusers edit_instruct model declares no runtime.min_runtime",
+		})
+	}
+	return out
 }
 
 func doctorChecksumPolicy(m Model) []CatalogFinding {

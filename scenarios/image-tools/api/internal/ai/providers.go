@@ -49,23 +49,23 @@ type argBuilder func(req backends.Request, modelDir string) ([]string, error)
 // the engine applies (so it can produce a precise "model not installed" hint),
 // keeping providers model-agnostic.
 type execProvider struct {
-	name       string
-	program    string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
+	name    string
+	program string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
 	// programAliases are preferred program names tried (in order) on PATH before
 	// program. They let an optional GPU build install under a distinct command
 	// (e.g. "sd-gpu") and be picked up automatically without colliding with the
 	// base CPU launcher's command name. Empty for backends with no GPU variant.
 	programAliases []string
 	ops            []string
-	build      argBuilder
-	gpuCapable bool // can this backend (the TYPE) use the GPU? (CPU-only sidecars: false)
-	provision  string
-	imports    []string
-	lookPath   lookPathFunc
-	checkPy    pythonModuleChecker
-	checkONNX  onnxProviderChecker
-	run        commandRunner
-	warm       warmRunner
+	build          argBuilder
+	gpuCapable     bool // can this backend (the TYPE) use the GPU? (CPU-only sidecars: false)
+	provision      string
+	imports        []string
+	lookPath       lookPathFunc
+	checkPy        pythonModuleChecker
+	checkONNX      onnxProviderChecker
+	run            commandRunner
+	warm           warmRunner
 	// gpuProbe, when set, reports whether the INSTALLED binary actually has a GPU
 	// compute backend compiled in (a prebuilt release may be CPU-only even though
 	// the backend type can use a GPU). gpuCapable gates the type; gpuProbe gates
@@ -567,27 +567,43 @@ func buildDiffusersInpaint(req backends.Request, modelDir string) ([]string, err
 // prompt-only: there is no mask, and `prompt` is the natural-language
 // instruction ("make it winter", "add sunglasses"). cfg_scale maps to the text
 // guidance scale; image_guidance (how faithful to the source) defaults inside
-// the sidecar but can be overridden via the `strength` param.
-// Shape: python3 -m image_tools_sidecar.edit_instruct --model <dir> --image <in>
-// --prompt <instruction> --out <out> [--steps n] [--guidance x] [--image-guidance x] [--seed s].
+// the sidecar but can be overridden via the `strength` param. The concrete
+// pipeline class + call contract are selected by the model's registry runtime
+// family (passed via --family), not hardcoded — so the diffusers backend runs
+// every registered edit family, not just InstructPix2Pix.
+// Shape: python3 -m image_tools_sidecar.edit_instruct --model <dir> --family <fam>
+// --image <in> --prompt <instruction> --out <out> [--steps n] [--guidance x]
+// [--image-guidance x] [--negative-prompt p] [--seed s].
 func buildDiffusersEditInstruct(req backends.Request, modelDir string) ([]string, error) {
 	in, err := in0(req)
 	if err != nil {
 		return nil, err
 	}
+	family := strings.TrimSpace(req.Model.Runtime.Family)
+	if family == "" {
+		return nil, fmt.Errorf("diffusers edit_instruct: model %q has no runtime.family (not runnable)", req.Model.ID)
+	}
 	args := []string{
 		"-m", "image_tools_sidecar.edit_instruct",
 		"--model", modelDir,
+		"--family", family,
 		"--image", in,
 		"--prompt", strParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
-		"--steps", strconv.Itoa(intParam(req, "steps", 20)),
+	}
+	// Pass --steps only when explicitly requested so each family applies its own
+	// default (e.g. 20 for InstructPix2Pix, 40 for Qwen-Image-Edit).
+	if s := intParam(req, "steps", 0); s > 0 {
+		args = append(args, "--steps", strconv.Itoa(s))
 	}
 	if g := strParam(req, "cfg_scale"); g != "" {
 		args = append(args, "--guidance", g)
 	}
 	if ig := strParam(req, "strength"); ig != "" {
 		args = append(args, "--image-guidance", ig)
+	}
+	if np := strParam(req, "negative_prompt"); np != "" {
+		args = append(args, "--negative-prompt", np)
 	}
 	if seed := strParam(req, "seed"); seed != "" {
 		args = append(args, "--seed", seed)
@@ -995,7 +1011,7 @@ func (p *llamaCppProvider) resolveProgram() (string, error) {
 func providerSpecs() []providerSpec {
 	return []providerSpec{
 		{name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true, hostTool: "sd"},
-		{name: "diffusers", program: "python3", ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, hostTool: "python", pipDeps: []string{"diffusers", "torch", "Pillow"}, imports: []string{"diffusers", "torch", "PIL"}},
+		{name: "diffusers", program: "python3", ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, hostTool: "python", pipDeps: []string{"diffusers", "torch", "transformers", "accelerate", "torchvision", "huggingface_hub", "Pillow"}, imports: []string{"diffusers", "torch", "PIL"}},
 		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true, hostTool: "iopaint"},
 		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale", "denoise"}, build: buildRealesrgan, gpuCapable: true, hostTool: "realesrgan-ncnn-vulkan"},
 		{name: "rembg", program: "rembg", ops: []string{"background_removal", "background_replace"}, build: buildRembg, gpuCapable: false, hostTool: "rembg"},

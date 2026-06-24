@@ -66,3 +66,66 @@ func TestDoctorCatalogReportsActionableFindings(t *testing.T) {
 		}
 	}
 }
+
+// TestDoctorDiffusersEditRunnableInvariant pins the Phase-4 "enabled ⇒ runnable"
+// invariant for diffusers edit_instruct models: an enabled such model must name a
+// registered, proven family adapter and declare a min_runtime. Each failure mode
+// is asserted on a deliberately-broken enabled fixture.
+func TestDoctorDiffusersEditRunnableInvariant(t *testing.T) {
+	base := func(id, family, minRuntime string) string {
+		runtime := ""
+		if family != "" || minRuntime != "" {
+			runtime = `, "runtime": {"family": "` + family + `", "min_runtime": "` + minRuntime + `"}`
+		}
+		return `{
+		  "schema_version": "1.0.0",
+		  "operations_vocabulary": ["edit_instruct"],
+		  "models": [{
+		    "id": "` + id + `", "name": "Edit", "operations": ["edit_instruct"],
+		    "default_for": ["edit_instruct"], "tier": "quality", "backend": "diffusers",
+		    "hardware": {"gpu_required": true}, "capability_labels": {"commercial_use": "yes"},
+		    "source": {"local_path": "/tmp/x"}, "enabled": true` + runtime + `
+		  }],
+		  "blocklist": [{"id": "x", "operations": ["edit_instruct"], "license": "t", "reason": "r"}]
+		}`
+	}
+	cases := []struct {
+		name   string
+		family string
+		minRT  string
+		want   string
+	}{
+		{"no family", "", "", "enabled_edit_model_without_family"},
+		{"not ready family", "flux-2-klein", "diffusers>=1", "enabled_edit_model_family_not_ready"},
+		{"no min_runtime", "instruct-pix2pix", "", "enabled_edit_model_without_min_runtime"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, err := Parse([]byte(base("edit-x", tc.family, tc.minRT)))
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			var got []string
+			for _, f := range r.DoctorCatalog().Findings {
+				if f.ModelID == "edit-x" {
+					got = append(got, f.Code)
+				}
+			}
+			if !containsCode(got, tc.want) {
+				t.Fatalf("expected finding %q, got %v", tc.want, got)
+			}
+		})
+	}
+
+	// A correctly-declared enabled edit model (ready family + min_runtime) draws no
+	// runnable-invariant finding.
+	r, err := Parse([]byte(base("good-edit", "instruct-pix2pix", "diffusers>=0.21.0")))
+	if err != nil {
+		t.Fatalf("Parse good: %v", err)
+	}
+	for _, f := range r.DoctorCatalog().Findings {
+		if f.ModelID == "good-edit" && f.Code != "checksum_pinned_without_value" {
+			t.Errorf("unexpected finding on a well-formed edit model: %+v", f)
+		}
+	}
+}

@@ -80,6 +80,109 @@ func TestSeedDoctorCatalogIsInstallable(t *testing.T) {
 	}
 }
 
+// parseSeedWithEnabled re-parses the bundled seed with the given model ids forced
+// enabled, returning the indexed registry. It edits the raw JSON (not a typed
+// Model) so the overlay exercises the same Parse path the loader uses.
+func parseSeedWithEnabled(t *testing.T, ids ...string) *Registry {
+	t.Helper()
+	var doc map[string]any
+	if err := json.Unmarshal(seedBytes, &doc); err != nil {
+		t.Fatalf("unmarshal seed: %v", err)
+	}
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	for _, raw := range doc["models"].([]any) {
+		m := raw.(map[string]any)
+		if want[m["id"].(string)] {
+			m["enabled"] = true
+		}
+	}
+	out, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatalf("marshal seed overlay: %v", err)
+	}
+	r, err := Parse(out)
+	if err != nil {
+		t.Fatalf("Parse seed overlay: %v", err)
+	}
+	return r
+}
+
+// TestNewEditInstructModelsInstallabilityContract pins the per-model doctor
+// verdict for the three diffusers instruction-edit models:
+//   - qwen-image-edit ships ENABLED: it has a repo fetch strategy with a PINNED
+//     revision (Phase 2) and a proven (Ready) family adapter, and was validated
+//     end-to-end on a GPU host. It is doctor-clean.
+//   - flux-2-klein-4b and longcat-image-edit-turbo ship DISABLED: they have no
+//     fetch strategy yet AND their family adapters are not proven, so force-enabling
+//     either fires both `enabled_model_without_assets` and
+//     `enabled_edit_model_family_not_ready`.
+//
+// The shipped seed (with qwen enabled) is clean.
+func TestNewEditInstructModelsInstallabilityContract(t *testing.T) {
+	enabledProven := "qwen-image-edit"
+	pending := []string{"flux-2-klein-4b", "longcat-image-edit-turbo"}
+
+	base, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !base.DoctorCatalog().OK {
+		t.Fatal("shipped seed catalog should be clean with qwen enabled")
+	}
+
+	// qwen ships enabled, weight-backed, with a pinned repo revision.
+	qwen, ok := base.ByID(enabledProven)
+	if !ok || !qwen.Enabled {
+		t.Fatalf("%s should ship enabled after the e2e proof", enabledProven)
+	}
+	if strings.TrimSpace(qwen.Source.Repo.Revision) == "" {
+		t.Fatalf("%s repo source must pin a revision", enabledProven)
+	}
+
+	// flux/longcat ship disabled and must stay so until their adapters are proven.
+	for _, id := range pending {
+		m, ok := base.ByID(id)
+		if !ok {
+			t.Fatalf("seed missing %q", id)
+		}
+		if m.Enabled {
+			t.Fatalf("%s ships enabled but its family adapter is not proven", id)
+		}
+	}
+
+	// Force-enabling the pending pair fires both invariants.
+	r := parseSeedWithEnabled(t, pending...)
+	report := r.DoctorCatalog()
+	if report.OK {
+		t.Fatal("DoctorCatalog should not be OK with the pending models enabled")
+	}
+	byModel := make(map[string][]string)
+	for _, f := range report.Findings {
+		byModel[f.ModelID] = append(byModel[f.ModelID], f.Code)
+	}
+	for _, id := range pending {
+		codes := byModel[id]
+		if !containsCode(codes, "enabled_model_without_assets") {
+			t.Errorf("%s: expected enabled_model_without_assets, got %v", id, codes)
+		}
+		if !containsCode(codes, "enabled_edit_model_family_not_ready") {
+			t.Errorf("%s: expected enabled_edit_model_family_not_ready, got %v", id, codes)
+		}
+	}
+}
+
+func containsCode(codes []string, want string) bool {
+	for _, c := range codes {
+		if c == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestWeightlessBackendsDoNotRequireInstallAssets(t *testing.T) {
 	r, err := Load()
 	if err != nil {
