@@ -77,80 +77,15 @@ BadExample:
 
 package checks
 
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-
-	"ui-health/internal/uiinterop"
-)
+import "ui-health/internal/uiinterop"
 
 func init() {
 	uiinterop.Register("interop_iframe_bridge_dep", checkIframeBridgeDep)
 }
 
+// checkIframeBridgeDep verifies @vrooli/iframe-bridge is declared in
+// ui/package.json. The read/parse/lookup body is shared with interop_api_base_dep
+// via checkPackageJSONDependency (see helpers.go).
 func checkIframeBridgeDep(ctx uiinterop.CheckContext) uiinterop.RuleResult {
-	const ruleID = "interop_iframe_bridge_dep"
-	const depName = "@vrooli/iframe-bridge"
-	pkgPath := filepath.Join(ctx.ScenarioRoot, "ui", "package.json")
-
-	data, err := os.ReadFile(pkgPath)
-	if err != nil {
-		return uiinterop.RuleResult{
-			RuleID:     ruleID,
-			Skipped:    true,
-			SkipReason: "ui/package.json not found",
-			Message:    "ui/package.json not found; skipping dependency check",
-		}
-	}
-
-	var pkg struct {
-		Dependencies    map[string]string `json:"dependencies"`
-		DevDependencies map[string]string `json:"devDependencies"`
-	}
-	if err := json.Unmarshal(data, &pkg); err != nil {
-		return uiinterop.RuleResult{
-			RuleID:  ruleID,
-			Passed:  false,
-			Message: "failed to parse ui/package.json: " + err.Error(),
-			Violations: []uiinterop.Violation{{
-				RuleID:         ruleID,
-				Severity:       "critical",
-				Title:          "Unparseable package.json",
-				Description:    "ui/package.json could not be parsed as JSON",
-				FilePath:       "ui/package.json",
-				Recommendation: "Fix JSON syntax in ui/package.json",
-			}},
-		}
-	}
-
-	// Check both dependencies and devDependencies.
-	if _, ok := pkg.Dependencies[depName]; ok {
-		return uiinterop.RuleResult{
-			RuleID:  ruleID,
-			Passed:  true,
-			Message: depName + " found in dependencies",
-		}
-	}
-	if _, ok := pkg.DevDependencies[depName]; ok {
-		return uiinterop.RuleResult{
-			RuleID:  ruleID,
-			Passed:  true,
-			Message: depName + " found in devDependencies",
-		}
-	}
-
-	return uiinterop.RuleResult{
-		RuleID:  ruleID,
-		Passed:  false,
-		Message: depName + " not found in ui/package.json",
-		Violations: []uiinterop.Violation{{
-			RuleID:         ruleID,
-			Severity:       "critical",
-			Title:          "Missing " + depName,
-			Description:    depName + " not found in dependencies or devDependencies",
-			FilePath:       "ui/package.json",
-			Recommendation: "Run `pnpm add " + depName + "` in the ui/ directory",
-		}},
-	}
+	return checkPackageJSONDependency(ctx, "interop_iframe_bridge_dep", "@vrooli/iframe-bridge")
 }

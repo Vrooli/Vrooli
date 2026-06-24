@@ -43,10 +43,10 @@
     {
       "id": "type-scenario",
       "action": {
-        "type": "ACTION_TYPE_TYPE",
-        "type": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
           "selector": "[data-testid='reindex-scenario-input']",
-          "text": "ui-health"
+          "value": "ui-health"
         },
         "metadata": { "label": "Scope to ui-health" }
       }

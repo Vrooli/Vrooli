@@ -42,7 +42,7 @@
 
 ### 🟢 P2 – Future / expansion
 
-- [ ] OT-P2-001 | AI Predictions | Use Ollama llama3.2:latest for advanced pattern analysis
+- [ ] OT-P2-001 | AI Predictions | Use a local Ollama generation model (the `chat.default` role) for advanced pattern analysis
 - [ ] OT-P2-002 | Mobile Responsive | Optimize UI for mobile devices with responsive CSS
 - [ ] OT-P2-003 | Export Features | Download predictions and trip plans in CSV and JSON formats
 
@@ -56,7 +56,7 @@
 - PostgreSQL for historical foliage data, weather records, user reports, and trip plans
 - Redis for real-time data caching and performance optimization
 
-**AI Integration**: Direct Ollama API calls for foliage peak predictions (llama3.2:latest model) with fallback to latitude-based typical peak weeks
+**AI Integration**: Direct Ollama API calls for foliage peak predictions (a local generation model resolved from the ollama `chat.default` role) with fallback to latitude-based typical peak weeks
 
 **Integration Strategy**: Direct API/CLI flows for weather data collection; Ollama API calls per shared-workflows protocol
 

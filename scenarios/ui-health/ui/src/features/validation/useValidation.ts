@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { validateScenario, type ValidationResult } from "../../api/validation";
 
-const RECENT_STORAGE_KEY = "ui-health.validation.recent.v1";
+// localStorage key for recent-run history, not a credential.
+const RECENT_STORAGE_KEY = "ui-health.validation.recent.v1"; // gitleaks:allow
 const RECENT_LIMIT = 25;
 
 export type RecentRun = {

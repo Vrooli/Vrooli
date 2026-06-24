@@ -54,13 +54,6 @@
       "severity_default": "SEVERITY_INFO",
       "recommended_skill_ids": ["ecosystem-fit"]
     },
-    "service_json_path_invalid": {
-      "local_level_impact": "L0",
-      "global_impact": "foundation_blocker",
-      "dimension": "ui",
-      "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ecosystem-fit"]
-    },
     "service_json_missing": {
       "local_level_impact": "L0",
       "global_impact": "foundation_blocker",

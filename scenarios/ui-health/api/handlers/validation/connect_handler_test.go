@@ -57,7 +57,6 @@ func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 	for _, code := range []string{
 		"no_ui_surface",
 		"ui_predates_template_layout",
-		"service_json_path_invalid",
 		"service_json_missing",
 		"service_json_invalid",
 		"template_id_missing",

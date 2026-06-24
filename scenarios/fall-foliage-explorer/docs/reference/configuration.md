@@ -15,7 +15,7 @@ Required resources are declared in [CODE: .vrooli/service.json]:
 
 - `postgres` for regions, weather, predictions, reports, and trips.
 - `redis` for planned real-time weather caching.
-- `ollama` with `llama3.2:latest` for advanced predictions.
+- `ollama` (the `chat.default` role) for advanced predictions.
 - `qdrant` for generated embeddings.
 
 ## Environment Variables

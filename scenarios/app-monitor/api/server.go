@@ -201,11 +201,11 @@ func setupRouter(h *Handlers, cfg *config.Config, db *sql.DB) *gin.Engine {
 		v1.GET("/apps/:id/logs/background", h.app.GetAppBackgroundLogs)
 		v1.GET("/apps/:id/metrics", h.app.GetAppMetrics)
 
-		// Rules metadata endpoint
-		v1.GET("/rules", h.app.GetRuleDefs)
-
-		// Quality endpoints (scenario-auditor consumption)
-		v1.GET("/quality/scenario/:name/standards", h.app.GetInteropStandards)
+		// NOTE: the /rules metadata endpoint and the /quality/scenario/:name/
+		// standards endpoint were removed when the static UI-interop rules engine
+		// moved to ui-health (the single UI-validation authority). Interop
+		// compliance is still served at /apps/:id/diagnostics/interop, now sourced
+		// from ui-health over Connect.
 
 		// Log endpoints for scenarios using app name
 		v1.GET("/logs/:appName", h.app.GetAppLogs)
