@@ -131,6 +131,7 @@ export default function Workspace() {
     keepScreenAwake: state.keepScreenAwake,
     vadAutoStop: state.vadAutoStop,
     groups: state.groups,
+    sidebarSortMode: state.sidebarSortMode,
     plusButtonBehavior: state.plusButtonBehavior,
     defaultHeaderColor: state.defaultHeaderColor,
     defaultThemeId: state.defaultThemeId,
@@ -1151,6 +1152,7 @@ export default function Workspace() {
     conversationSessions,
     viewModes: conversationViewModes,
     lastVisitedBySession,
+    sortMode: workspace.sidebarSortMode,
   });
   const activeNavigationItem = navigationItems.find(
     (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,

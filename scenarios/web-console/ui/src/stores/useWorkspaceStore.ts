@@ -18,6 +18,9 @@ export interface PaneMetadata {
 export type DisplayMode = "grid" | "tabs" | "sidebar";
 export type ToolbarLayout = "compact" | "expanded";
 export type PlusButtonBehavior = "launcher" | "new-terminal";
+/** Sidebar ordering: "manual" honors backend sort_order (drag-reorderable);
+ *  the rest are view-only sorts that never write sort_order. */
+export type SidebarSortMode = "manual" | "name" | "activity" | "unread";
 
 export interface TabGroupMeta {
   id: string;
@@ -76,6 +79,11 @@ interface WorkspaceState {
   plusButtonBehavior: PlusButtonBehavior;
   /** Recently used key combo IDs for the combo picker. Max 5, most recent first. */
   recentCombos: string[];
+  /** Recently picked header colors (individual hex values, not pairs). Max 6,
+   *  most recent first. Recorded only on explicit user pick. */
+  recentHeaderColors: string[];
+  /** Sidebar session ordering mode. View-only except "manual". */
+  sidebarSortMode: SidebarSortMode;
   /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
   modifiers: ModifierState;
   groups: TabGroupMeta[];
@@ -134,6 +142,9 @@ interface WorkspaceActions {
   setPlusButtonBehavior: (behavior: PlusButtonBehavior) => void;
   resetLayout: () => void;
   addRecentCombo: (comboId: string) => void;
+  /** Record an explicitly-picked header color into recents (dedup, cap 6). */
+  addRecentHeaderColor: (color: string) => void;
+  setSidebarSortMode: (mode: SidebarSortMode) => void;
   toggleModifier: (key: keyof ModifierState) => void;
   clearModifiers: () => void;
   setGroups: (groups: TabGroupMeta[]) => void;
@@ -141,6 +152,9 @@ interface WorkspaceActions {
   removeGroup: (groupId: string) => void;
   updateGroup: (groupId: string, update: Partial<Omit<TabGroupMeta, "id">>) => void;
   setPaneGroup: (sessionId: string, groupId: string | null) => void;
+  /** Assign a pane to a group AND move it adjacent to the group's last member
+   *  so groups stay contiguous. Returns nothing; caller syncs order + update. */
+  addPaneToGroup: (sessionId: string, groupId: string) => void;
   toggleGroupCollapsed: (groupId: string) => void;
   applyAppearanceToAll: (sessionId: string) => void;
   setTabContextMenu: (menu: TabContextMenuState | null) => void;
@@ -190,6 +204,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       defaultFontSize: TERMINAL_FONT_SIZE,
       plusButtonBehavior: "launcher",
       recentCombos: [],
+      recentHeaderColors: [],
+      sidebarSortMode: "manual",
       modifiers: { ctrl: false, alt: false, shift: false },
       pendingInputDrafts: {},
       groups: [],
@@ -202,6 +218,16 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           const filtered = state.recentCombos.filter((id) => id !== comboId);
           return { recentCombos: [comboId, ...filtered].slice(0, 5) };
         }),
+
+      addRecentHeaderColor: (color) =>
+        set((state) => {
+          // Recents track individual colors only; ignore transparent and pairs.
+          if (color === "transparent" || color.includes("|")) return state;
+          const filtered = state.recentHeaderColors.filter((c) => c !== color);
+          return { recentHeaderColors: [color, ...filtered].slice(0, 6) };
+        }),
+
+      setSidebarSortMode: (mode) => set({ sidebarSortMode: mode }),
 
       addPane: (sessionId, name, activate, supportsMessagesView = false) =>
         set((state) => {
@@ -345,6 +371,28 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setPaneGroup: (sessionId, groupId) => set((state) => ({
         panes: state.panes.map((p) => p.sessionId === sessionId ? { ...p, groupId } : p),
       })),
+      addPaneToGroup: (sessionId, groupId) => set((state) => {
+        const tagged = state.panes.map((p) =>
+          p.sessionId === sessionId ? { ...p, groupId } : p,
+        );
+        // Index of the group's last *other* member (the pane being added is
+        // excluded so it doesn't anchor on itself).
+        let lastMember = -1;
+        tagged.forEach((p, i) => {
+          if (p.groupId === groupId && p.sessionId !== sessionId) lastMember = i;
+        });
+        // First member of a (possibly new) group: nothing to be contiguous with.
+        if (lastMember === -1) return { panes: tagged };
+        const fromIdx = tagged.findIndex((p) => p.sessionId === sessionId);
+        const next = [...tagged];
+        const [item] = next.splice(fromIdx, 1);
+        if (!item) return { panes: tagged };
+        // After removal the last-member index shifts left by one if the moved
+        // pane was before it; insert just after the last member either way.
+        const insertAt = fromIdx < lastMember ? lastMember : lastMember + 1;
+        next.splice(insertAt, 0, item);
+        return { panes: next };
+      }),
       toggleGroupCollapsed: (groupId) => set((state) => ({
         groups: state.groups.map((g) =>
           g.id === groupId ? { ...g, isCollapsed: !g.isCollapsed } : g
@@ -368,7 +416,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 14,
+      version: 15,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -433,6 +481,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           delete state.vadSilenceTimeoutMs;
           delete state.segmentSilenceMs;
         }
+        if (version < 15) {
+          state.recentHeaderColors ??= [];
+          state.sidebarSortMode ??= "manual";
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -464,6 +516,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         defaultFontSize: state.defaultFontSize,
         plusButtonBehavior: state.plusButtonBehavior,
         recentCombos: state.recentCombos,
+        recentHeaderColors: state.recentHeaderColors,
+        sidebarSortMode: state.sidebarSortMode,
         keepScreenAwake: state.keepScreenAwake,
         lowLatencyVoice: state.lowLatencyVoice,
       }),

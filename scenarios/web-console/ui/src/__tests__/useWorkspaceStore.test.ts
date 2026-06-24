@@ -248,4 +248,112 @@ describe("useWorkspaceStore", () => {
       expect(useWorkspaceStore.getState().keepScreenAwake).toBe(true);
     });
   });
+
+  describe("addRecentHeaderColor", () => {
+    beforeEach(() => {
+      useWorkspaceStore.setState({ recentHeaderColors: [] });
+    });
+
+    it("prepends most-recent-first", () => {
+      useWorkspaceStore.getState().addRecentHeaderColor("#ff6b6b");
+      useWorkspaceStore.getState().addRecentHeaderColor("#4dabf7");
+      expect(useWorkspaceStore.getState().recentHeaderColors).toEqual(["#4dabf7", "#ff6b6b"]);
+    });
+
+    it("dedups and promotes an existing color", () => {
+      useWorkspaceStore.getState().addRecentHeaderColor("#ff6b6b");
+      useWorkspaceStore.getState().addRecentHeaderColor("#4dabf7");
+      useWorkspaceStore.getState().addRecentHeaderColor("#ff6b6b");
+      expect(useWorkspaceStore.getState().recentHeaderColors).toEqual(["#ff6b6b", "#4dabf7"]);
+    });
+
+    it("caps at 6 entries", () => {
+      for (const c of ["#111111", "#222222", "#333333", "#444444", "#555555", "#666666", "#777777"]) {
+        useWorkspaceStore.getState().addRecentHeaderColor(c);
+      }
+      const recents = useWorkspaceStore.getState().recentHeaderColors;
+      expect(recents).toHaveLength(6);
+      expect(recents[0]).toBe("#777777");
+      expect(recents).not.toContain("#111111");
+    });
+
+    it("ignores transparent and pair values", () => {
+      useWorkspaceStore.getState().addRecentHeaderColor("transparent");
+      useWorkspaceStore.getState().addRecentHeaderColor("#ff6b6b|#4dabf7");
+      expect(useWorkspaceStore.getState().recentHeaderColors).toEqual([]);
+    });
+  });
+
+  describe("addPaneToGroup", () => {
+    const pane = (sessionId: string, groupId: string | null = null) => ({
+      sessionId,
+      name: sessionId,
+      headerColor: "transparent",
+      themeId: "default",
+      fontSize: 14,
+      groupId,
+      supportsMessagesView: false,
+    });
+
+    it("moves a pane adjacent to the group's last member (contiguity)", () => {
+      useWorkspaceStore.setState({
+        panes: [pane("a", "g1"), pane("b"), pane("c", "g1"), pane("d")],
+      });
+      // Add "d" to g1 → should land right after "c" (g1's last member).
+      useWorkspaceStore.getState().addPaneToGroup("d", "g1");
+      const order = useWorkspaceStore.getState().panes.map((p) => p.sessionId);
+      expect(order).toEqual(["a", "b", "c", "d"]);
+      const d = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "d");
+      expect(d?.groupId).toBe("g1");
+    });
+
+    it("pulls a pane up to sit beside an earlier group block", () => {
+      useWorkspaceStore.setState({
+        panes: [pane("a", "g1"), pane("b", "g1"), pane("c"), pane("d")],
+      });
+      useWorkspaceStore.getState().addPaneToGroup("d", "g1");
+      const order = useWorkspaceStore.getState().panes.map((p) => p.sessionId);
+      expect(order).toEqual(["a", "b", "d", "c"]);
+    });
+
+    it("leaves order unchanged for the first member of a group", () => {
+      useWorkspaceStore.setState({
+        panes: [pane("a"), pane("b"), pane("c")],
+      });
+      useWorkspaceStore.getState().addPaneToGroup("b", "g1");
+      const order = useWorkspaceStore.getState().panes.map((p) => p.sessionId);
+      expect(order).toEqual(["a", "b", "c"]);
+      expect(useWorkspaceStore.getState().panes[1]?.groupId).toBe("g1");
+    });
+  });
+
+  describe("setSidebarSortMode", () => {
+    it("updates the sidebar sort mode", () => {
+      useWorkspaceStore.getState().setSidebarSortMode("activity");
+      expect(useWorkspaceStore.getState().sidebarSortMode).toBe("activity");
+      useWorkspaceStore.getState().setSidebarSortMode("manual");
+      expect(useWorkspaceStore.getState().sidebarSortMode).toBe("manual");
+    });
+  });
+
+  describe("persist migration v14→v15", () => {
+    it("seeds new fields without dropping existing persisted state", () => {
+      const migrate = useWorkspaceStore.persist.getOptions().migrate;
+      expect(migrate).toBeDefined();
+      if (!migrate) throw new Error("migrate function missing");
+      const prior = {
+        voiceShortcut: "Ctrl+Shift+Space",
+        defaultHeaderColor: "#ff6b6b",
+        recentCombos: ["ctrl-c"],
+        displayMode: "sidebar",
+      };
+      const migrated = migrate(prior, 14) as Record<string, unknown>;
+      expect(migrated.recentHeaderColors).toEqual([]);
+      expect(migrated.sidebarSortMode).toBe("manual");
+      // Existing persisted fields survive untouched.
+      expect(migrated.defaultHeaderColor).toBe("#ff6b6b");
+      expect(migrated.recentCombos).toEqual(["ctrl-c"]);
+      expect(migrated.displayMode).toBe("sidebar");
+    });
+  });
 });

@@ -183,7 +183,13 @@
     "sessionCount": "{{count}} sessions",
     "sessionCount_one": "1 session",
     "unreadSummary": "{{count}} unread",
-    "unreadSummary_one": "1 unread"
+    "unreadSummary_one": "1 unread",
+    "sortLabel": "Sort",
+    "sortManual": "Manual",
+    "sortName": "Name",
+    "sortActivity": "Recent activity",
+    "sortUnread": "Unread",
+    "reorderAria": "Reorder {{name}}"
   },
   "tabContextMenu": {
     "rename": "Rename",
@@ -191,6 +197,8 @@
     "removeFromGroup": "Remove from Group",
     "addToGroup": "Add to Group",
     "newGroup": "New Group...",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
     "closeTab": "Close Tab",
     "copyDebugLog": "Copy debug log"
   },
@@ -665,7 +673,10 @@
     "customColorTitle": "Custom color",
     "terminalThemeHeading": "Terminal Theme",
     "fontSizeHeading": "Font Size",
-    "applyToAll": "Apply to all sessions"
+    "applyToAll": "Apply to all sessions",
+    "recentColorsHeading": "Recent",
+    "addSecondaryColor": "Add second color",
+    "removeSecondaryColor": "Remove second color"
   },
   "audioSettings": {
     "volume": "Volume",
@@ -690,5 +701,13 @@
     "summaryTitle": "{{level}} summary — click to switch",
     "originalTitle": "Original — click to switch",
     "summarizeTitle": "Click to summarize"
+  },
+  "groupContextMenu": {
+    "rename": "Rename",
+    "recolor": "Recolor",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "ungroupAll": "Ungroup all",
+    "delete": "Delete group"
   }
 }

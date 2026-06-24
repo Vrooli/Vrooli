@@ -196,6 +196,12 @@ export const strings = {
     sessionCount_one: "sessionSidebar.sessionCount_one",
     unreadSummary: "sessionSidebar.unreadSummary",
     unreadSummary_one: "sessionSidebar.unreadSummary_one",
+    sortLabel: "sessionSidebar.sortLabel",
+    sortManual: "sessionSidebar.sortManual",
+    sortName: "sessionSidebar.sortName",
+    sortActivity: "sessionSidebar.sortActivity",
+    sortUnread: "sessionSidebar.sortUnread",
+    reorderAria: "sessionSidebar.reorderAria",
   },
   tabContextMenu: {
     rename: "tabContextMenu.rename",
@@ -203,6 +209,8 @@ export const strings = {
     removeFromGroup: "tabContextMenu.removeFromGroup",
     addToGroup: "tabContextMenu.addToGroup",
     newGroup: "tabContextMenu.newGroup",
+    moveUp: "tabContextMenu.moveUp",
+    moveDown: "tabContextMenu.moveDown",
     closeTab: "tabContextMenu.closeTab",
     copyDebugLog: "tabContextMenu.copyDebugLog",
   },
@@ -678,6 +686,9 @@ export const strings = {
     terminalThemeHeading: "appearance.terminalThemeHeading",
     fontSizeHeading: "appearance.fontSizeHeading",
     applyToAll: "appearance.applyToAll",
+    recentColorsHeading: "appearance.recentColorsHeading",
+    addSecondaryColor: "appearance.addSecondaryColor",
+    removeSecondaryColor: "appearance.removeSecondaryColor",
   },
   audioSettings: {
     volume: "audioSettings.volume",
@@ -702,6 +713,14 @@ export const strings = {
     summaryTitle: "playbackMode.summaryTitle",
     originalTitle: "playbackMode.originalTitle",
     summarizeTitle: "playbackMode.summarizeTitle",
+  },
+  groupContextMenu: {
+    rename: "groupContextMenu.rename",
+    recolor: "groupContextMenu.recolor",
+    collapse: "groupContextMenu.collapse",
+    expand: "groupContextMenu.expand",
+    ungroupAll: "groupContextMenu.ungroupAll",
+    delete: "groupContextMenu.delete",
   },
 } as const;
 

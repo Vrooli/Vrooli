@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ConversationEvent } from "../api/conversation";
-import { buildWorkspaceNavigationItems, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
+import { buildWorkspaceNavigationItems, countWorkspaceUnreadMessages, sortPanesForView, type PaneSortMetrics } from "../lib/workspaceNavigation";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import type { PaneMetadata, TabGroupMeta } from "../stores/useWorkspaceStore";
 
@@ -34,6 +34,42 @@ describe("workspace display mode helpers", () => {
     expect(isTabLikeDisplayMode("grid")).toBe(false);
     expect(isTabLikeDisplayMode("tabs")).toBe(true);
     expect(isTabLikeDisplayMode("sidebar")).toBe(true);
+  });
+});
+
+describe("sortPanesForView", () => {
+  const metrics = new Map<string, PaneSortMetrics>([
+    ["a", { name: "Charlie", activityMs: 100, unread: 0 }],
+    ["b", { name: "alpha", activityMs: 300, unread: 5 }],
+    ["c", { name: "Bravo", activityMs: 200, unread: 2 }],
+  ]);
+
+  it("manual mode is a stable identity passthrough", () => {
+    const panes = [pane("a"), pane("b"), pane("c")];
+    expect(sortPanesForView(panes, "manual", metrics)).toBe(panes);
+  });
+
+  it("name mode sorts case-insensitively by locale", () => {
+    const result = sortPanesForView([pane("a"), pane("b"), pane("c")], "name", metrics);
+    expect(result.map((p) => p.sessionId)).toEqual(["b", "c", "a"]); // alpha, Bravo, Charlie
+  });
+
+  it("activity mode sorts most-recent first", () => {
+    const result = sortPanesForView([pane("a"), pane("b"), pane("c")], "activity", metrics);
+    expect(result.map((p) => p.sessionId)).toEqual(["b", "c", "a"]); // 300, 200, 100
+  });
+
+  it("unread mode sorts by unread desc, then activity", () => {
+    const result = sortPanesForView([pane("a"), pane("b"), pane("c")], "unread", metrics);
+    expect(result.map((p) => p.sessionId)).toEqual(["b", "c", "a"]); // 5, 2, 0
+  });
+
+  it("sorts within group partitions, preserving block order", () => {
+    // Group g1 (a, c) appears first, then ungrouped (b). Sorting by name must
+    // keep g1's panes together and ahead of the ungrouped block.
+    const panes = [pane("a", "g1"), pane("c", "g1"), pane("b")];
+    const result = sortPanesForView(panes, "name", metrics);
+    expect(result.map((p) => p.sessionId)).toEqual(["c", "a", "b"]); // Bravo, Charlie | alpha
   });
 });
 

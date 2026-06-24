@@ -182,7 +182,13 @@
     "sessionCount": "{{count}} جلسات",
     "sessionCount_one": "جلسة واحدة",
     "unreadSummary": "{{count}} غير مقروءة",
-    "unreadSummary_one": "واحدة غير مقروءة"
+    "unreadSummary_one": "واحدة غير مقروءة",
+    "sortLabel": "Sort",
+    "sortManual": "Manual",
+    "sortName": "Name",
+    "sortActivity": "Recent activity",
+    "sortUnread": "Unread",
+    "reorderAria": "Reorder {{name}}"
   },
   "tabContextMenu": {
     "rename": "إعادة التسمية",
@@ -190,6 +196,8 @@
     "removeFromGroup": "إزالة من المجموعة",
     "addToGroup": "إضافة إلى مجموعة",
     "newGroup": "مجموعة جديدة...",
+    "moveUp": "تحريك لأعلى",
+    "moveDown": "تحريك لأسفل",
     "closeTab": "إغلاق التبويب",
     "copyDebugLog": "نسخ سجل التصحيح"
   },
@@ -647,7 +655,10 @@
     "customColorTitle": "لون مخصص",
     "terminalThemeHeading": "مظهر الطرفية",
     "fontSizeHeading": "حجم الخط",
-    "applyToAll": "تطبيق على جميع الجلسات"
+    "applyToAll": "تطبيق على جميع الجلسات",
+    "recentColorsHeading": "Recent",
+    "addSecondaryColor": "Add second color",
+    "removeSecondaryColor": "Remove second color"
   },
   "audioSettings": {
     "volume": "مستوى الصوت",
@@ -672,5 +683,13 @@
     "summaryTitle": "ملخص {{level}} — انقر للتبديل",
     "originalTitle": "الأصل — انقر للتبديل",
     "summarizeTitle": "انقر للتلخيص"
+  },
+  "groupContextMenu": {
+    "rename": "Rename",
+    "recolor": "Recolor",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "ungroupAll": "Ungroup all",
+    "delete": "Delete group"
   }
 }

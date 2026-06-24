@@ -1,7 +1,7 @@
 import type { ConversationCursor, ConversationEvent } from "../api/conversation";
 import { formatRelativeTime, stripMarkdown } from "../components/MessageJumpList.helpers";
 import type { PaneViewMode } from "../stores/useConversationStore";
-import type { PaneMetadata, TabGroupMeta } from "../stores/useWorkspaceStore";
+import type { PaneMetadata, SidebarSortMode, TabGroupMeta } from "../stores/useWorkspaceStore";
 
 type ConversationSessionSnapshot = {
   events: ConversationEvent[];
@@ -38,6 +38,72 @@ export interface BuildWorkspaceNavigationItemsOptions {
   viewModes?: Record<string, PaneViewMode | undefined>;
   lastVisitedBySession?: Record<string, string | undefined>;
   now?: Date;
+  /**
+   * View-only ordering for the sidebar. "manual" (default) preserves the
+   * backend sort_order (the `panes` array order); the rest sort *within* each
+   * group partition without ever mutating sort_order. The tab strip omits this
+   * (always manual).
+   */
+  sortMode?: SidebarSortMode;
+}
+
+/** Per-pane comparison inputs used by the non-manual sidebar sorts. */
+export interface PaneSortMetrics {
+  name: string;
+  /** Activity timestamp in ms (latest event, else last-visited, else 0). */
+  activityMs: number;
+  unread: number;
+}
+
+/**
+ * View-only reorder of panes for the sidebar. Groups stay contiguous: panes
+ * are bucketed by `groupId` in first-appearance order, each bucket is sorted by
+ * the chosen comparator, then buckets are concatenated back in block order.
+ * "manual" returns the input untouched (stable passthrough).
+ */
+export function sortPanesForView(
+  panes: PaneMetadata[],
+  sortMode: SidebarSortMode,
+  metrics: Map<string, PaneSortMetrics>,
+): PaneMetadata[] {
+  if (sortMode === "manual") return panes;
+
+  const bucketOrder: (string | null)[] = [];
+  const buckets = new Map<string | null, PaneMetadata[]>();
+  for (const pane of panes) {
+    const key = pane.groupId;
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(key, bucket);
+      bucketOrder.push(key);
+    }
+    bucket.push(pane);
+  }
+
+  const empty: PaneSortMetrics = { name: "", activityMs: 0, unread: 0 };
+  const compare = (a: PaneMetadata, b: PaneMetadata): number => {
+    const ma = metrics.get(a.sessionId) ?? empty;
+    const mb = metrics.get(b.sessionId) ?? empty;
+    switch (sortMode) {
+      case "name":
+        return ma.name.localeCompare(mb.name);
+      case "activity":
+        return mb.activityMs - ma.activityMs;
+      case "unread":
+        return mb.unread - ma.unread || mb.activityMs - ma.activityMs;
+      default:
+        return 0;
+    }
+  };
+
+  const result: PaneMetadata[] = [];
+  for (const key of bucketOrder) {
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    result.push(...[...bucket].sort(compare));
+  }
+  return result;
 }
 
 function countUnreadMessages(pane: PaneMetadata, session: ConversationSessionSnapshot | undefined): number {
@@ -75,12 +141,31 @@ export function buildWorkspaceNavigationItems({
   viewModes = {},
   lastVisitedBySession = {},
   now = new Date(),
+  sortMode = "manual",
 }: BuildWorkspaceNavigationItemsOptions): WorkspaceNavigationItem[] {
   const groupMap = new Map(groups.map((group) => [group.id, group]));
   const items: WorkspaceNavigationItem[] = [];
   let lastGroupId: string | null | undefined = undefined;
 
-  panes.forEach((pane, idx) => {
+  // Non-manual sidebar sorts reorder a view-only copy (sort_order is never
+  // touched). Metrics are computed once up front so the comparator is cheap.
+  let orderedPanes = panes;
+  if (sortMode !== "manual") {
+    const metrics = new Map<string, PaneSortMetrics>();
+    for (const pane of panes) {
+      const session = conversationSessions[pane.sessionId];
+      const latest = latestEvent(session?.events ?? []);
+      const activityAt = latest?.createdAt ?? lastVisitedBySession[pane.sessionId] ?? null;
+      metrics.set(pane.sessionId, {
+        name: pane.name,
+        activityMs: activityAt ? Date.parse(activityAt) || 0 : 0,
+        unread: countUnreadMessages(pane, session),
+      });
+    }
+    orderedPanes = sortPanesForView(panes, sortMode, metrics);
+  }
+
+  orderedPanes.forEach((pane, idx) => {
     const groupId = pane.groupId;
     const group = groupId ? groupMap.get(groupId) : undefined;
 

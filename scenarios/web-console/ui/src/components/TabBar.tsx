@@ -3,11 +3,13 @@ import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
+import { paneColorStyle, nextGroupColor } from "../lib/paneColor";
 import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import TabContextMenu from "./TabContextMenu";
+import GroupContextMenu from "./GroupContextMenu";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { getSessionUnreadCount, useConversationStore } from "../stores/useConversationStore";
 import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
@@ -65,10 +67,15 @@ function TabBar({
   const tabContextMenu = useWorkspaceStore((s) => s.tabContextMenu);
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
+  const addPaneToGroup = useWorkspaceStore((s) => s.addPaneToGroup);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const addGroup = useWorkspaceStore((s) => s.addGroup);
   const updateGroup = useWorkspaceStore((s) => s.updateGroup);
-  const { syncPaneOrder, syncActivePane, syncCreateGroup, syncPaneUpdate, syncUpdateGroup } = useWorkspaceSync();
+  const removeGroup = useWorkspaceStore((s) => s.removeGroup);
+  const { syncPaneOrder, syncActivePane, syncCreateGroup, syncPaneUpdate, syncUpdateGroup, syncDeleteGroup } = useWorkspaceSync();
+
+  // Group context menu (long-press / right-click on a group label).
+  const [groupMenu, setGroupMenu] = useState<{ groupId: string; position: { x: number; y: number } } | null>(null);
 
   // Inline rename state for tabs
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
@@ -179,6 +186,42 @@ function TabBar({
     },
   });
 
+  const openGroupMenu = useCallback((groupId: string, x: number, y: number) => {
+    setGroupMenu({ groupId, position: { x, y } });
+  }, []);
+
+  const groupPressGesture = usePressGesture<string>({
+    longPressMs: 500,
+    moveThresholdPx: DRAG_THRESHOLD,
+    onTap: (groupId) => toggleGroupCollapsed(groupId),
+    onLongPress: (groupId, point) => openGroupMenu(groupId, point.x, point.y),
+  });
+
+  /** Assign a pane to a group, keeping the group contiguous + syncing both. */
+  const handleAddPaneToGroup = useCallback((sessionId: string, groupId: string) => {
+    addPaneToGroup(sessionId, groupId);
+    syncPaneUpdate(sessionId, { group_id: groupId });
+    const { panes: updated, activePane: active } = useWorkspaceStore.getState();
+    syncPaneOrder(updated.map((p) => p.sessionId), active);
+  }, [addPaneToGroup, syncPaneUpdate, syncPaneOrder]);
+
+  /** Clear group membership for every pane in a group (group itself stays). */
+  const ungroupAllMembers = useCallback((groupId: string) => {
+    for (const p of useWorkspaceStore.getState().panes) {
+      if (p.groupId === groupId) {
+        setPaneGroup(p.sessionId, null);
+        syncPaneUpdate(p.sessionId, { group_id: null });
+      }
+    }
+  }, [setPaneGroup, syncPaneUpdate]);
+
+  /** Hard-delete a group: ungroup its members, then drop it locally + remotely. */
+  const deleteGroup = useCallback((groupId: string) => {
+    ungroupAllMembers(groupId);
+    removeGroup(groupId);
+    syncDeleteGroup(groupId);
+  }, [ungroupAllMembers, removeGroup, syncDeleteGroup]);
+
   // Auto-scroll active tab into view
   useEffect(() => {
     if (activeTabRef.current && tabContainerRef.current) {
@@ -284,7 +327,11 @@ function TabBar({
                 key={`group-${group.id}`}
                 data-testid={`tab-group-${group.id}`}
                 className="flex items-center gap-1 px-2 text-xs shrink-0 border-r border-wc-default text-wc-text-secondary hover:bg-wc-surface-raised transition-colors"
-                onClick={() => toggleGroupCollapsed(group.id)}
+                {...groupPressGesture.getGestureHandlers(group.id)}
+                onClick={() => {
+                  if (groupPressGesture.shouldSuppressClick(group.id)) return;
+                  toggleGroupCollapsed(group.id);
+                }}
                 title={group.isCollapsed ? t(strings.tabBar.expandGroup, { name: group.name }) : t(strings.tabBar.collapseGroup, { name: group.name })}
               >
                 <span
@@ -405,12 +452,12 @@ function TabBar({
               }}
             >
               {/* Color indicator */}
-              {pane.headerColor !== "transparent" && (
-                <span
-                  className="absolute left-0 top-0 bottom-0 w-0.5"
-                  style={{ backgroundColor: pane.headerColor }}
-                />
-              )}
+              {(() => {
+                const accentStyle = paneColorStyle(pane.headerColor, "bar");
+                return accentStyle ? (
+                  <span className="absolute left-0 top-0 bottom-0 w-1" style={accentStyle} />
+                ) : null;
+              })()}
 
               {/* Tab name (inline editable) */}
               {editingTabId === pane.sessionId ? (
@@ -490,8 +537,7 @@ function TabBar({
             }}
             onCustomize={() => setAppearanceModalPane(tabContextMenu.sessionId)}
             onAddToGroup={(groupId) => {
-              setPaneGroup(tabContextMenu.sessionId, groupId);
-              syncPaneUpdate(tabContextMenu.sessionId, { group_id: groupId });
+              handleAddPaneToGroup(tabContextMenu.sessionId, groupId);
             }}
             onRemoveFromGroup={() => {
               setPaneGroup(tabContextMenu.sessionId, null);
@@ -500,15 +546,17 @@ function TabBar({
             onCreateGroup={async () => {
               const targetSessionId = tabContextMenu.sessionId;
               try {
-                const serverGroup = await syncCreateGroup("New Group", "#3b82f6");
+                const serverGroup = await syncCreateGroup(
+                  "New Group",
+                  nextGroupColor(groups.map((g) => g.color)),
+                );
                 addGroup({
                   id: serverGroup.id,
                   name: serverGroup.name,
                   color: serverGroup.color,
                   isCollapsed: false,
                 });
-                setPaneGroup(targetSessionId, serverGroup.id);
-                syncPaneUpdate(targetSessionId, { group_id: serverGroup.id });
+                handleAddPaneToGroup(targetSessionId, serverGroup.id);
                 // Immediately enter rename mode so user can name the group
                 startGroupRename(serverGroup.id, serverGroup.name);
               } catch (err) {
@@ -517,6 +565,27 @@ function TabBar({
             }}
             onClose={onClosePane}
             onDismiss={() => setTabContextMenu(null)}
+          />
+        );
+      })()}
+
+      {/* Group context menu */}
+      {groupMenu && (() => {
+        const group = groups.find((g) => g.id === groupMenu.groupId);
+        if (!group) return null;
+        return (
+          <GroupContextMenu
+            position={groupMenu.position}
+            group={group}
+            onRename={() => startGroupRename(group.id, group.name)}
+            onRecolor={(color) => {
+              updateGroup(group.id, { color });
+              syncUpdateGroup(group.id, { color });
+            }}
+            onToggleCollapse={() => toggleGroupCollapsed(group.id)}
+            onUngroupAll={() => ungroupAllMembers(group.id)}
+            onDelete={() => deleteGroup(group.id)}
+            onDismiss={() => setGroupMenu(null)}
           />
         );
       })()}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, ClipboardCopy, FolderPlus, FolderMinus, Palette, Pencil, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, ClipboardCopy, FolderPlus, FolderMinus, Palette, Pencil, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
@@ -19,6 +19,14 @@ interface TabContextMenuProps {
   onAddToGroup: (groupId: string) => void;
   onRemoveFromGroup: () => void;
   onCreateGroup: () => void;
+  /**
+   * Reorder this pane one slot earlier/later. Only supplied by the sidebar in
+   * manual-sort mode (and omitted at the list boundaries), so these are the
+   * touch-friendly equivalent of the hover-only drag handle. When undefined the
+   * menu item is hidden.
+   */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
   onClose: (sessionId: string) => void;
   onDismiss: () => void;
 }
@@ -33,6 +41,8 @@ export default function TabContextMenu({
   onAddToGroup,
   onRemoveFromGroup,
   onCreateGroup,
+  onMoveUp,
+  onMoveDown,
   onClose,
   onDismiss,
 }: TabContextMenuProps) {
@@ -125,6 +135,33 @@ export default function TabContextMenu({
             </div>
           )}
         </div>
+      )}
+
+      {/* Reorder (touch-friendly stand-in for the hover-only drag handle) */}
+      {(onMoveUp || onMoveDown) && (
+        <>
+          <div className="border-t border-wc-default my-1" />
+          {onMoveUp && (
+            <button
+              data-testid="tab-ctx-move-up"
+              className={contextMenuItemClass}
+              onClick={() => handleAction(onMoveUp)}
+            >
+              <ArrowUp className="h-4 w-4 shrink-0" />
+              {t(strings.tabContextMenu.moveUp)}
+            </button>
+          )}
+          {onMoveDown && (
+            <button
+              data-testid="tab-ctx-move-down"
+              className={contextMenuItemClass}
+              onClick={() => handleAction(onMoveDown)}
+            >
+              <ArrowDown className="h-4 w-4 shrink-0" />
+              {t(strings.tabContextMenu.moveDown)}
+            </button>
+          )}
+        </>
       )}
 
       {/* Divider */}

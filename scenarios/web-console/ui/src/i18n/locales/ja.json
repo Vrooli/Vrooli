@@ -182,7 +182,13 @@
     "sessionCount": "{{count}}セッション",
     "sessionCount_one": "1セッション",
     "unreadSummary": "{{count}}件未読",
-    "unreadSummary_one": "1件未読"
+    "unreadSummary_one": "1件未読",
+    "sortLabel": "Sort",
+    "sortManual": "Manual",
+    "sortName": "Name",
+    "sortActivity": "Recent activity",
+    "sortUnread": "Unread",
+    "reorderAria": "Reorder {{name}}"
   },
   "tabContextMenu": {
     "rename": "名前を変更",
@@ -190,6 +196,8 @@
     "removeFromGroup": "グループから削除",
     "addToGroup": "グループに追加",
     "newGroup": "新しいグループ...",
+    "moveUp": "上へ移動",
+    "moveDown": "下へ移動",
     "closeTab": "タブを閉じる",
     "copyDebugLog": "デバッグログをコピー"
   },
@@ -646,7 +654,10 @@
     "customColorTitle": "カスタムカラー",
     "terminalThemeHeading": "ターミナルテーマ",
     "fontSizeHeading": "フォントサイズ",
-    "applyToAll": "すべてのセッションに適用"
+    "applyToAll": "すべてのセッションに適用",
+    "recentColorsHeading": "Recent",
+    "addSecondaryColor": "Add second color",
+    "removeSecondaryColor": "Remove second color"
   },
   "audioSettings": {
     "volume": "音量",
@@ -671,5 +682,13 @@
     "summaryTitle": "{{level}}要約 — クリックで切替",
     "originalTitle": "原文 — クリックで切替",
     "summarizeTitle": "クリックで要約"
+  },
+  "groupContextMenu": {
+    "rename": "Rename",
+    "recolor": "Recolor",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "ungroupAll": "Ungroup all",
+    "delete": "Delete group"
   }
 }

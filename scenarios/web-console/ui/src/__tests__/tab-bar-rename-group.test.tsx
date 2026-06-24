@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import TabBar from "../components/TabBar";
 import { useWorkspaceStore, type PaneMetadata, type TabGroupMeta } from "../stores/useWorkspaceStore";
+import { HEADER_COLORS } from "../consts/config";
 
 // [REQ:P0-001a] Tab rename + group creation — regression tests
 
@@ -149,7 +150,8 @@ describe("TabBar create group", () => {
 
     // Wait for async group creation
     await waitFor(() => {
-      expect(mockCreateTabGroup).toHaveBeenCalledWith({ name: "New Group", color: "#3b82f6" });
+      // New groups get an auto-distinct palette color (no existing groups → first entry).
+      expect(mockCreateTabGroup).toHaveBeenCalledWith({ name: "New Group", color: HEADER_COLORS[0] });
     });
 
     // Group should be added to store

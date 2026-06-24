@@ -6,6 +6,7 @@ import type { PaneViewMode } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
+import { paneColorStyle } from "../lib/paneColor";
 import { Button } from "./ui/button";
 
 interface TerminalHeaderProps {
@@ -62,8 +63,7 @@ export default function TerminalHeader({
     requestAnimationFrame(() => inputRef.current?.select());
   }, [name]);
 
-  const bgStyle =
-    headerColor !== "transparent" ? { backgroundColor: headerColor } : undefined;
+  const bgStyle = paneColorStyle(headerColor, "header");
 
   return (
     <div

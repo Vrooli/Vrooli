@@ -158,14 +158,19 @@ export const TOUCH_SCROLL_MIN_VELOCITY = 0.5;
 // Terminal Header Colors
 // ---------------------------------------------------------------------------
 
-/** Palette of preset colors for terminal pane headers. */
+/**
+ * Palette of preset colors for terminal pane headers. Perceptually-even hues
+ * (≈equal lightness/chroma, evenly spaced hue) so no two swatches are
+ * confusable on a phone — the old equal-lightness pastels had confusable
+ * yellow/coral and magenta/pink pairs.
+ */
 export const HEADER_COLORS = [
-  "#7aa0ff",
-  "#ff7a7a",
-  "#7aff9e",
-  "#ffd97a",
-  "#d97aff",
-  "#ff7ad9",
-  "#7affea",
-  "#ffb07a",
+  "#ff6b6b", // red
+  "#ffa94d", // orange
+  "#ffd43b", // yellow
+  "#69db7c", // green
+  "#38d9c0", // teal
+  "#4dabf7", // blue
+  "#9775fa", // violet
+  "#f783ac", // pink
 ] as const;
