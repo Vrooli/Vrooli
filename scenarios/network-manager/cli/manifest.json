@@ -126,6 +126,60 @@
           "flags": [{ "name": "target", "description": "Device or group target" }],
           "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "ResumeFiltering" },
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "profiles",
+          "description": "List household policy profiles",
+          "flags": [{ "name": "group", "description": "Filter profiles by device group" }],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "ListPolicyProfiles" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "profile-set",
+          "description": "Create or update a household policy profile",
+          "flags": [
+            { "name": "id", "description": "Existing profile id to update" },
+            { "name": "name", "required": true, "description": "Profile name such as kids or guest" },
+            { "name": "group", "required": true, "description": "Device group this profile targets" },
+            { "name": "strength", "description": "Filtering strength: off, light, standard, or strict" },
+            { "name": "schedule", "description": "Schedule: always, disabled, or daily:HH:MM-HH:MM" },
+            { "name": "override", "description": "Override behavior: manual_required, parent_override, or temporary_pause" },
+            { "name": "status", "description": "Profile status: enabled or disabled" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "UpsertPolicyProfile" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "schedule",
+          "description": "Evaluate a household policy schedule",
+          "positionals": [{ "name": "profile_id", "required": true, "description": "Policy profile id" }],
+          "flags": [
+            { "name": "target", "description": "Device, group, or network target" },
+            { "name": "now", "description": "RFC3339 timestamp for deterministic evaluation" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "EvaluatePolicySchedule" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "bypass-guidance",
+          "description": "Diagnose IPv6 and encrypted DNS bypass guidance",
+          "flags": [
+            { "name": "target", "description": "Device, group, or network target" },
+            { "name": "adapter-backed", "bool": true, "description": "Include adapter-backed preview actions when a capable adapter exists" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "DiagnoseEncryptedDnsBypass" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "doh-guidance",
+          "description": "Generate browser and endpoint DoH policy guidance",
+          "flags": [
+            { "name": "platform", "description": "Endpoint platform such as windows, macos, ios, android, or linux" },
+            { "name": "browser", "description": "Browser such as chrome, edge, firefox, or safari" },
+            { "name": "management-mode", "description": "Management mode such as mdm, group-policy, managed-browser, or manual" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PolicyService", "method": "GetEndpointDohGuidance" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

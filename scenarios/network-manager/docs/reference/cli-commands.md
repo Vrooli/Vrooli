@@ -48,6 +48,11 @@ Implemented command groups:
 | `network-manager policy rollback <id>` | Roll back a policy change. | `NM-P0-003` |
 | `network-manager policy pause` | Pause filtering for a target. | `NM-P0-003` |
 | `network-manager policy resume` | Resume filtering for a target. | `NM-P0-003` |
+| `network-manager policy profiles` | List household policy profiles. | `NM-P1-001` |
+| `network-manager policy profile-set` | Store household policy profile intent. | `NM-P1-001` |
+| `network-manager policy schedule <profile-id>` | Evaluate a profile schedule for a target without live mutation. | `NM-P1-002` |
+| `network-manager policy bypass-guidance` | Diagnose IPv6, DoT, DoQ, and DoH bypass guidance without live mutation. | `NM-P1-004` |
+| `network-manager policy doh-guidance` | Generate endpoint/browser DoH policy guidance without invasive inspection. | `NM-P1-008` |
 | `network-manager devices refresh` | Refresh LAN-visible device inventory. | `NM-P0-004` |
 | `network-manager devices list` | List devices with identity confidence. | `NM-P0-004` |
 | `network-manager devices group <id>` | Assign a device group. | `NM-P0-004` |
@@ -73,6 +78,13 @@ Policy live resolver writes still fail closed through the conservative adapter
 until a governed AdGuard Home policy client confirms support. Inventory
 production discovery reports unsupported until a governed resolver client can
 provide client evidence, but identity reconciliation and storage are implemented.
+Household policy profiles are persisted and schedules can be evaluated, but
+automatic enforcement returns manual-required intent until resolver/router
+capabilities prove safe live changes.
+IPv6/encrypted-DNS bypass and endpoint/browser DoH guidance commands are
+read-only. They produce manual steps and adapter-preview instructions where
+appropriate, but they do not mutate router, firewall, browser, or endpoint
+state.
 Optimization can create baseline-backed experiment ledgers, run read-only
 candidate snapshots, score reliability-first evidence, require approval, and
 record apply/rollback outcomes. Production persistent optimization apply returns

@@ -11,6 +11,7 @@ import (
 
 type SQLExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
@@ -124,6 +125,86 @@ VALUES (?, ?, ?, ?, ?)
 	return rollback, nil
 }
 
+func (r *sqliteRepository) ListProfiles(ctx context.Context, deviceGroup string) ([]Profile, error) {
+	query := `
+SELECT id, name, device_group, filtering_strength, schedule, override_behavior,
+       status, effects_json, created_at, updated_at
+FROM policy_profiles
+`
+	args := []any{}
+	if deviceGroup != "" {
+		query += "WHERE device_group = ?\n"
+		args = append(args, deviceGroup)
+	}
+	query += "ORDER BY device_group, name"
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list policy profiles: %w", err)
+	}
+	defer rows.Close()
+
+	profiles := []Profile{}
+	for rows.Next() {
+		profile, err := scanProfile(rows)
+		if err != nil {
+			return nil, err
+		}
+		profiles = append(profiles, profile)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate policy profiles: %w", err)
+	}
+	return profiles, nil
+}
+
+func (r *sqliteRepository) UpsertProfile(ctx context.Context, profile Profile) (Profile, error) {
+	if profile.CreatedAt.IsZero() {
+		profile.CreatedAt = time.Now().UTC()
+	}
+	if profile.UpdatedAt.IsZero() {
+		profile.UpdatedAt = profile.CreatedAt
+	}
+	effectsJSON, err := encodeStrings(profile.Effects)
+	if err != nil {
+		return Profile{}, err
+	}
+	if _, err := r.db.ExecContext(ctx, `
+INSERT INTO policy_profiles (
+  id, name, device_group, filtering_strength, schedule, override_behavior,
+  status, effects_json, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  name = excluded.name,
+  device_group = excluded.device_group,
+  filtering_strength = excluded.filtering_strength,
+  schedule = excluded.schedule,
+  override_behavior = excluded.override_behavior,
+  status = excluded.status,
+  effects_json = excluded.effects_json,
+  updated_at = excluded.updated_at
+`, profile.ID, profile.Name, profile.DeviceGroup, profile.FilteringStrength, profile.Schedule, profile.OverrideBehavior, profile.Status, effectsJSON, formatTime(profile.CreatedAt), formatTime(profile.UpdatedAt)); err != nil {
+		return Profile{}, fmt.Errorf("upsert policy profile %q: %w", profile.ID, err)
+	}
+	return profile, nil
+}
+
+func (r *sqliteRepository) GetProfile(ctx context.Context, id string) (Profile, error) {
+	row := r.db.QueryRowContext(ctx, `
+SELECT id, name, device_group, filtering_strength, schedule, override_behavior,
+       status, effects_json, created_at, updated_at
+FROM policy_profiles
+WHERE id = ?
+`, id)
+	profile, err := scanProfile(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Profile{}, ErrNotFound
+	}
+	if err != nil {
+		return Profile{}, err
+	}
+	return profile, nil
+}
+
 type changeScanner interface {
 	Scan(dest ...any) error
 }
@@ -154,6 +235,28 @@ func scanChange(row changeScanner) (Change, error) {
 		return Change{}, fmt.Errorf("parse policy change updated_at: %w", err)
 	}
 	return change, nil
+}
+
+func scanProfile(row changeScanner) (Profile, error) {
+	var profile Profile
+	var effectsJSON, createdAt, updatedAt string
+	if err := row.Scan(&profile.ID, &profile.Name, &profile.DeviceGroup, &profile.FilteringStrength, &profile.Schedule, &profile.OverrideBehavior, &profile.Status, &effectsJSON, &createdAt, &updatedAt); err != nil {
+		return Profile{}, err
+	}
+	var err error
+	profile.Effects, err = decodeStrings(effectsJSON)
+	if err != nil {
+		return Profile{}, err
+	}
+	profile.CreatedAt, err = time.Parse(TimeFormat, createdAt)
+	if err != nil {
+		return Profile{}, fmt.Errorf("parse policy profile created_at: %w", err)
+	}
+	profile.UpdatedAt, err = time.Parse(TimeFormat, updatedAt)
+	if err != nil {
+		return Profile{}, fmt.Errorf("parse policy profile updated_at: %w", err)
+	}
+	return profile, nil
 }
 
 func encodeStrings(values []string) (string, error) {

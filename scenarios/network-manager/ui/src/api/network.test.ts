@@ -19,6 +19,11 @@ const clients = vi.hoisted(() => ({
     previewPolicyChange: vi.fn(),
     applyPolicyChange: vi.fn(),
     rollbackPolicyChange: vi.fn(),
+    listPolicyProfiles: vi.fn(),
+    upsertPolicyProfile: vi.fn(),
+    evaluatePolicySchedule: vi.fn(),
+    diagnoseEncryptedDnsBypass: vi.fn(),
+    getEndpointDohGuidance: vi.fn(),
   },
   privacy: {
     getRetentionSettings: vi.fn(),
@@ -109,6 +114,11 @@ describe("network API wrappers", () => {
     clients.policy.previewPolicyChange.mockResolvedValueOnce({ preview: { id: "preview-1" } });
     clients.policy.applyPolicyChange.mockResolvedValueOnce({ change: { id: "change-1" } });
     clients.policy.rollbackPolicyChange.mockResolvedValueOnce({ change: { id: "rollback-1" } });
+    clients.policy.listPolicyProfiles.mockResolvedValueOnce({ profiles: [{ id: "profile-1" }] });
+    clients.policy.upsertPolicyProfile.mockResolvedValueOnce({ profile: { id: "profile-1", name: "Kids" } });
+    clients.policy.evaluatePolicySchedule.mockResolvedValueOnce({ evaluation: { profileId: "profile-1", status: "active" } });
+    clients.policy.diagnoseEncryptedDnsBypass.mockResolvedValueOnce({ report: { id: "guidance-1", profile: "ipv6-encrypted-dns" } });
+    clients.policy.getEndpointDohGuidance.mockResolvedValueOnce({ report: { id: "guidance-2", profile: "endpoint-doh" } });
     clients.inventory.refreshInventory.mockResolvedValueOnce({ devices: [{ id: "device-1" }], findings: ["finding"] });
     clients.inventory.listDevices.mockResolvedValueOnce({ devices: [{ id: "device-2" }] });
     clients.inventory.updateDeviceGroup.mockResolvedValueOnce({ device: { id: "device-2", group: "trusted" } });
@@ -123,6 +133,21 @@ describe("network API wrappers", () => {
     await expect(network.previewPolicyChange({ target: "all", action: "denylist", values: ["example.test"] })).resolves.toMatchObject({ id: "preview-1" });
     await expect(network.applyPolicyChange("preview-1")).resolves.toMatchObject({ id: "change-1" });
     await expect(network.rollbackPolicyChange("change-1")).resolves.toMatchObject({ id: "rollback-1" });
+    await expect(network.fetchPolicyProfiles("kids")).resolves.toEqual([{ id: "profile-1" }]);
+    await expect(network.upsertPolicyProfile({
+      name: "Kids",
+      deviceGroup: "kids",
+      filteringStrength: "strict",
+      schedule: "always",
+      overrideBehavior: "manual_required",
+    })).resolves.toMatchObject({ id: "profile-1" });
+    await expect(network.evaluatePolicySchedule("profile-1", "group:kids")).resolves.toMatchObject({ status: "active" });
+    await expect(network.diagnoseEncryptedDnsBypass("network", false)).resolves.toMatchObject({ profile: "ipv6-encrypted-dns" });
+    await expect(network.fetchEndpointDohGuidance({
+      platform: "windows",
+      browser: "chrome",
+      managementMode: "group-policy",
+    })).resolves.toMatchObject({ profile: "endpoint-doh" });
     await expect(network.refreshInventory()).resolves.toMatchObject({ findings: ["finding"] });
     await expect(network.fetchDevices("trusted")).resolves.toEqual([{ id: "device-2" }]);
     await expect(network.updateDeviceGroup("device-2", "trusted")).resolves.toMatchObject({ group: "trusted" });

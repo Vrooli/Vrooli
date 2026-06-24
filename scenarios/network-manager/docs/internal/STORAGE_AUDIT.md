@@ -15,7 +15,7 @@
 
 - [x] Greenfield: idempotent `Schema()` providers only
 - [ ] Brownfield: versioned migrations
-- Current data state: dev-only/local baseline snapshots plus local adapter/resolver configuration, policy preview/approval/rollback evidence, device inventory/group labels, privacy retention/visibility defaults, optimization experiment ledgers, and Home Automation action/event audit records
+- Current data state: dev-only/local baseline snapshots plus local adapter/resolver configuration, policy profile intent, policy preview/approval/rollback evidence, device inventory/group labels, privacy retention/visibility defaults, optimization experiment ledgers, and Home Automation action/event audit records
 
 ## Architecture Status
 
@@ -24,7 +24,7 @@
 - [x] Snapshot schema is idempotent
 - [x] Adapter domain owns `adapter_capabilities` and `adapter_platform_summaries`
 - [x] Resolver domain owns `resolver_backends` and `resolver_upstreams`
-- [x] Policy domain owns `policy_change_plans`, `approval_records`, and `rollback_records`
+- [x] Policy domain owns `policy_profiles`, `policy_change_plans`, `approval_records`, and `rollback_records`
 - [x] Inventory domain owns `devices` and `device_groups`
 - [x] Privacy domain owns `retention_settings`, `visibility_settings`, and `privacy_sweep_records`
 - [x] Optimization domain owns `optimization_runs`, `optimization_candidates`, `optimization_approval_records`, and `optimization_rollback_records`
@@ -34,7 +34,7 @@
 ## Issues Found
 
 1. Inventory production discovery is conservative: the resolver-derived source reports unsupported until a governed resolver client can provide client evidence. The service/repository path is implemented and covered by deterministic fakes.
-2. Policy live resolver writes intentionally fail closed through the conservative adapter until an AdGuard Home policy client is governed and connected.
+2. Policy live resolver writes intentionally fail closed through the conservative adapter until an AdGuard Home policy client is governed and connected. Household profile storage and schedule evaluation are implemented as advisory intent; automatic enforcement is still capability-gated.
 3. Optimization persistent applies intentionally return `manual_required` through the default applier until a real resolver/router optimization adapter can apply and roll back live changes. Service tests cover capable fake apply/rollback paths without claiming production live mutation support.
 4. Home Automation write actions intentionally return `approval_required` or `manual_required` until a governed Home Automation publisher and network adapter path can safely mutate resolver/router state.
 5. Privacy retention sweep currently prunes expired non-baseline snapshots and records no-op notes for query logs and optimization ledgers until query log tables exist.

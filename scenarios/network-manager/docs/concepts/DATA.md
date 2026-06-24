@@ -62,7 +62,7 @@ Implementation should add domain-owned schema files beside domain code. Expected
 
 Migrations must preserve local operator data. Any schema that stores device identity, query visibility, approvals, or rollback handles needs migration tests before it can be considered production-ready.
 
-Network Manager is still greenfield, so implemented domains use idempotent per-domain schema providers rather than versioned migrations. Current implemented storage covers snapshots, adapter capabilities, resolver backends/upstreams, conservative policy change ledgers, device inventory/group labels, retention settings, visibility settings, privacy sweep records, optimization run/candidate/approval/rollback ledgers, and Home Automation action/event audit records.
+Network Manager is still greenfield, so implemented domains use idempotent per-domain schema providers rather than versioned migrations. Current implemented storage covers snapshots, adapter capabilities, resolver backends/upstreams, household policy profiles, conservative policy change ledgers, device inventory/group labels, retention settings, visibility settings, privacy sweep records, optimization run/candidate/approval/rollback ledgers, and Home Automation action/event audit records.
 
 ## Import / Export
 

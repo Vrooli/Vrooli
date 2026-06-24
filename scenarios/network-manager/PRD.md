@@ -28,8 +28,8 @@
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Household policy profiles | Add trusted, kids, guest, IoT, and work profiles with per-group DNS policy, filtering strength, schedule, and override behavior.
-- [ ] OT-P1-002 | Scheduled access controls | Support bedtime, focus, guest-window, and temporary pause/resume policies for devices and groups.
+- [x] OT-P1-001 | Household policy profiles | Add trusted, kids, guest, IoT, and work profiles with per-group DNS policy, filtering strength, schedule, and override behavior.
+- [x] OT-P1-002 | Scheduled access controls | Support bedtime, focus, guest-window, and temporary pause/resume policies for devices and groups.
 - [ ] OT-P1-003 | Router adapter pilot | Add one explicit router adapter, preferably OpenWrt, OPNsense/pfSense, or UniFi based on the operator's first real deployment environment.
 - [ ] OT-P1-004 | IPv6 and encrypted-DNS enforcement guidance | Diagnose IPv6 DNS bypasses, DoT/DoQ/DoH risks, and router/firewall rules, generating instructions or adapter-backed changes where supported.
 - [ ] OT-P1-005 | Pi-hole adapter | Support Pi-hole as a second managed resolver backend for users who prefer a focused DNS sinkhole appliance.

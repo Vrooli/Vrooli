@@ -385,6 +385,91 @@
       }
     },
     {
+      "id": "policy_profiles_list",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/ListPolicyProfiles",
+      "method": "POST",
+      "summary": "List household policy profiles",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_profiles_upsert",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/UpsertPolicyProfile",
+      "method": "POST",
+      "summary": "Create or update a household policy profile",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_schedule_evaluate",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/EvaluatePolicySchedule",
+      "method": "POST",
+      "summary": "Evaluate a policy schedule window",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_encrypted_dns_bypass",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/DiagnoseEncryptedDnsBypass",
+      "method": "POST",
+      "summary": "Diagnose IPv6 and encrypted-DNS bypass guidance",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
+      "id": "policy_endpoint_doh_guidance",
+      "path": "/vrooli.network_manager.v1.policy.PolicyService/GetEndpointDohGuidance",
+      "method": "POST",
+      "summary": "Generate endpoint DoH guidance",
+      "description": "",
+      "category": "policy",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "change": "PolicyChange"
+        }
+      }
+    },
+    {
       "id": "privacy_retention_get",
       "path": "/vrooli.network_manager.v1.privacy.PrivacyService/GetRetentionSettings",
       "method": "POST",

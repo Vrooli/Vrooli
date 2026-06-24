@@ -7,7 +7,7 @@ import type { Device } from "@vrooli/proto-types/network-manager/v1/inventory/in
 import { OptimizationService } from "@vrooli/proto-types/network-manager/v1/optimization/optimization_pb";
 import type { OptimizationRun } from "@vrooli/proto-types/network-manager/v1/optimization/optimization_pb";
 import { PolicyService } from "@vrooli/proto-types/network-manager/v1/policy/policy_pb";
-import type { PolicyChange } from "@vrooli/proto-types/network-manager/v1/policy/policy_pb";
+import type { PolicyChange, PolicyGuidanceReport, PolicyProfile, PolicyScheduleEvaluation } from "@vrooli/proto-types/network-manager/v1/policy/policy_pb";
 import { PrivacyService } from "@vrooli/proto-types/network-manager/v1/privacy/privacy_pb";
 import type { RetentionSettings, VisibilitySettings } from "@vrooli/proto-types/network-manager/v1/privacy/privacy_pb";
 import { ResolverService } from "@vrooli/proto-types/network-manager/v1/resolver/resolver_pb";
@@ -104,6 +104,61 @@ export async function rollbackPolicyChange(id: string): Promise<PolicyChange | u
   return resp.change;
 }
 
+export async function fetchPolicyProfiles(deviceGroup = ""): Promise<PolicyProfile[]> {
+  const resp = await policyClient.listPolicyProfiles({ deviceGroup });
+  return resp.profiles;
+}
+
+export async function upsertPolicyProfile(input: {
+  id?: string;
+  name: string;
+  deviceGroup: string;
+  filteringStrength: string;
+  schedule: string;
+  overrideBehavior: string;
+  status?: string;
+}): Promise<PolicyProfile | undefined> {
+  const resp = await policyClient.upsertPolicyProfile({
+    profile: {
+      id: input.id ?? "",
+      name: input.name,
+      deviceGroup: input.deviceGroup,
+      filteringStrength: input.filteringStrength,
+      schedule: input.schedule,
+      overrideBehavior: input.overrideBehavior,
+      status: input.status ?? "enabled",
+      effects: [],
+      updatedAt: "",
+    },
+  });
+  return resp.profile;
+}
+
+export async function evaluatePolicySchedule(
+  profileId: string,
+  target: string,
+): Promise<PolicyScheduleEvaluation | undefined> {
+  const resp = await policyClient.evaluatePolicySchedule({ profileId, target, now: "" });
+  return resp.evaluation;
+}
+
+export async function diagnoseEncryptedDnsBypass(
+  target: string,
+  adapterBacked = false,
+): Promise<PolicyGuidanceReport | undefined> {
+  const resp = await policyClient.diagnoseEncryptedDnsBypass({ target, adapterBacked });
+  return resp.report;
+}
+
+export async function fetchEndpointDohGuidance(input: {
+  platform: string;
+  browser: string;
+  managementMode: string;
+}): Promise<PolicyGuidanceReport | undefined> {
+  const resp = await policyClient.getEndpointDohGuidance(input);
+  return resp.report;
+}
+
 export async function refreshInventory(): Promise<{ devices: Device[]; findings: string[] }> {
   const resp = await inventoryClient.refreshInventory({ dryRun: false });
   return { devices: resp.devices, findings: resp.findings };
@@ -161,6 +216,9 @@ export type {
   OptimizationRun,
   PlatformSummary,
   PolicyChange,
+  PolicyGuidanceReport,
+  PolicyProfile,
+  PolicyScheduleEvaluation,
   ResolverStatus,
   RetentionSettings,
   Snapshot,

@@ -14,7 +14,7 @@ This document captures Network Manager's user/system workflows, lifecycle states
 | Device inventory refresh | Planned P0 | `NM-P0-004` | Identity confidence must be recorded. |
 | Optimization experiment | Planned P0 | `NM-P0-005` | Baseline/candidate/after with scoring. |
 | Home Automation action/event | Planned P0 | `NM-P0-007` | Consumed by home-automation. |
-| Household schedule evaluation | Deferred P1 | `NM-P1-001`, `NM-P1-002` | Device/group policy timing. |
+| Household schedule evaluation | Advisory P1 slice | `NM-P1-001`, `NM-P1-002` | Persisted device/group policy intent and manual-required schedule evaluation; automatic enforcement awaits resolver/router capability. |
 | Continuous monitoring | Deferred P1 | `NM-P1-007` | Recurring snapshots and regression detection. |
 
 ## Flow Details
@@ -36,6 +36,21 @@ This document captures Network Manager's user/system workflows, lifecycle states
 5. Resolver adapter applies the change.
 6. Rollback handle and audit entry are persisted.
 7. A rollback operation can restore the prior state if supported.
+
+### Household schedule evaluation
+
+1. Operator stores a named profile with a device group, filtering strength, schedule, and override behavior.
+2. Policy service validates and persists the profile intent.
+3. Operator or UI/CLI requests schedule evaluation for a profile and target.
+4. Service evaluates the current schedule window and returns `manual_required` effects rather than mutating resolver/router state.
+5. Future resolver/router adapters may turn the same profile intent into scheduled enforcement after capability and rollback support are proven.
+
+### Encrypted DNS guidance
+
+1. Operator requests IPv6/encrypted-DNS bypass guidance or endpoint/browser DoH guidance.
+2. Policy service generates a read-only report with checks, evidence, manual steps, adapter-preview actions, and guardrails.
+3. The report stays `manual_required` or `guidance_only` unless a future adapter can prove safe mutation and rollback support.
+4. Network Manager never uses TLS interception, hidden monitoring, or query-level surveillance to generate the guidance.
 
 ### Optimization experiment
 

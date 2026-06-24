@@ -43,12 +43,58 @@ type RollbackRecord struct {
 	CreatedAt time.Time
 }
 
+type Profile struct {
+	ID                string
+	Name              string
+	DeviceGroup       string
+	FilteringStrength string
+	Schedule          string
+	OverrideBehavior  string
+	Status            string
+	Effects           []string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ScheduleEvaluation struct {
+	ProfileID    string
+	ProfileName  string
+	Target       string
+	Active       bool
+	Status       string
+	Effects      []string
+	NextChangeAt time.Time
+}
+
+type GuidanceCheck struct {
+	ID              string
+	Title           string
+	Status          string
+	Evidence        string
+	Recommendations []string
+}
+
+type GuidanceReport struct {
+	ID             string
+	Target         string
+	Profile        string
+	Status         string
+	Checks         []GuidanceCheck
+	ManualSteps    []string
+	AdapterActions []string
+	Guardrails     []string
+	GeneratedAt    time.Time
+}
+
 type Repository interface {
 	SaveChange(ctx context.Context, change Change) (Change, error)
 	GetChange(ctx context.Context, id string) (Change, error)
 	UpdateChange(ctx context.Context, change Change) (Change, error)
 	SaveApproval(ctx context.Context, approval ApprovalRecord) (ApprovalRecord, error)
 	SaveRollback(ctx context.Context, rollback RollbackRecord) (RollbackRecord, error)
+	ListProfiles(ctx context.Context, deviceGroup string) ([]Profile, error)
+	UpsertProfile(ctx context.Context, profile Profile) (Profile, error)
+	GetProfile(ctx context.Context, id string) (Profile, error)
 }
 
 type AdapterPlan struct {

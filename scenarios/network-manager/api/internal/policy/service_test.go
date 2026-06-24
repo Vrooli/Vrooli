@@ -136,16 +136,116 @@ func TestPauseAndResumeCreatePreviews(t *testing.T) {
 	require.Equal(t, "resume_filtering", resume.Action)
 }
 
+func TestHouseholdPolicyProfilePersistsIntentWithoutApplyingLivePolicy(t *testing.T) {
+	// [REQ:NM-P1-001] Household profiles group devices by intent while keeping live changes approval-gated.
+	repo := newFakeRepo()
+	svc := NewService(Config{Repo: repo, Adapter: fakeAdapter{}, Now: fixedNow})
+
+	profile, err := svc.UpsertProfile(context.Background(), Profile{
+		Name:              "Kids",
+		DeviceGroup:       "kids",
+		FilteringStrength: "strict",
+		Schedule:          "daily:20:00-07:00",
+		OverrideBehavior:  "parent_override",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "kids", profile.DeviceGroup)
+	require.Equal(t, "strict", profile.FilteringStrength)
+	require.Equal(t, "enabled", profile.Status)
+	require.Contains(t, profile.Effects, "Persistent resolver changes still require preview and approval.")
+
+	profiles, err := svc.ListProfiles(context.Background(), "kids")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.Equal(t, profile.ID, profiles[0].ID)
+}
+
+func TestPolicyScheduleEvaluationUsesCurrentWindowAndManualStatus(t *testing.T) {
+	// [REQ:NM-P1-002] Scheduled access controls expose active windows without applying persistent DNS changes.
+	repo := newFakeRepo()
+	svc := NewService(Config{Repo: repo, Adapter: fakeAdapter{}, Now: fixedNow})
+	profile, err := svc.UpsertProfile(context.Background(), Profile{
+		Name:              "Focus",
+		DeviceGroup:       "work",
+		FilteringStrength: "standard",
+		Schedule:          "daily:09:00-17:00",
+	})
+	require.NoError(t, err)
+
+	active, err := svc.EvaluateSchedule(context.Background(), profile.ID, "group:work", time.Date(2026, 6, 23, 10, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.True(t, active.Active)
+	require.Equal(t, "active", active.Status)
+	require.Equal(t, "group:work", active.Target)
+	require.Equal(t, time.Date(2026, 6, 23, 17, 0, 0, 0, time.UTC), active.NextChangeAt)
+	require.Contains(t, active.Effects, "Schedule evaluation is advisory until an approved policy apply is run.")
+
+	inactive, err := svc.EvaluateSchedule(context.Background(), profile.ID, "group:work", time.Date(2026, 6, 23, 18, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.False(t, inactive.Active)
+	require.Equal(t, "inactive", inactive.Status)
+	require.Equal(t, time.Date(2026, 6, 24, 9, 0, 0, 0, time.UTC), inactive.NextChangeAt)
+}
+
+func TestPolicyScheduleEvaluationHandlesOvernightWindows(t *testing.T) {
+	// [REQ:NM-P1-002] Bedtime-style windows can cross midnight without becoming inactive before morning.
+	repo := newFakeRepo()
+	svc := NewService(Config{Repo: repo, Adapter: fakeAdapter{}, Now: fixedNow})
+	profile, err := svc.UpsertProfile(context.Background(), Profile{
+		Name:              "Kids bedtime",
+		DeviceGroup:       "kids",
+		FilteringStrength: "strict",
+		Schedule:          "daily:20:00-07:00",
+	})
+	require.NoError(t, err)
+
+	evaluation, err := svc.EvaluateSchedule(context.Background(), profile.ID, "group:kids", time.Date(2026, 6, 24, 6, 30, 0, 0, time.UTC))
+	require.NoError(t, err)
+	require.True(t, evaluation.Active)
+	require.Equal(t, time.Date(2026, 6, 24, 7, 0, 0, 0, time.UTC), evaluation.NextChangeAt)
+}
+
+func TestEncryptedDNSBypassGuidanceIsManualUnlessAdapterBacked(t *testing.T) {
+	// [REQ:NM-P1-004] IPv6 and encrypted-DNS bypass checks generate manual guidance without fake router enforcement.
+	svc := NewService(Config{Repo: newFakeRepo(), Adapter: fakeAdapter{}, Now: fixedNow})
+
+	report := svc.DiagnoseEncryptedDNSBypass(context.Background(), "network", false)
+	require.Equal(t, "ipv6-encrypted-dns", report.Profile)
+	require.Equal(t, "manual_required", report.Status)
+	require.Len(t, report.Checks, 3)
+	require.Contains(t, report.AdapterActions, "No adapter-backed bypass action is currently available for this target.")
+	require.Contains(t, report.Guardrails, "Do not inspect or log user browsing contents to detect bypasses.")
+
+	adapterBacked := svc.DiagnoseEncryptedDNSBypass(context.Background(), "group:kids", true)
+	require.Equal(t, "group:kids", adapterBacked.Target)
+	require.Contains(t, adapterBacked.AdapterActions[0], "Preview adapter rule")
+}
+
+func TestEndpointDoHGuidanceAvoidsInvasiveInspection(t *testing.T) {
+	// [REQ:NM-P1-008] Browser and endpoint DoH guidance avoids TLS interception and hidden traffic inspection.
+	svc := NewService(Config{Repo: newFakeRepo(), Adapter: fakeAdapter{}, Now: fixedNow})
+
+	report := svc.EndpointDoHGuidance(context.Background(), "Windows", "Chrome", "group policy")
+	require.Equal(t, "endpoint-doh", report.Profile)
+	require.Equal(t, "windows/chrome", report.Target)
+	require.Equal(t, "guidance_only", report.Status)
+	require.Contains(t, report.Guardrails, "No TLS interception.")
+	require.Contains(t, report.Guardrails, "No hidden endpoint monitoring.")
+	require.Contains(t, report.Checks[0].Evidence, "group-policy")
+	require.Contains(t, report.Checks[1].Recommendations[0], "DNS-over-HTTPS")
+}
+
 func fixedNow() time.Time {
 	return time.Date(2026, 6, 23, 17, 30, 0, 0, time.UTC)
 }
 
 type fakeRepo struct {
-	changes map[string]Change
+	changes  map[string]Change
+	profiles map[string]Profile
 }
 
 func newFakeRepo() *fakeRepo {
-	return &fakeRepo{changes: map[string]Change{}}
+	return &fakeRepo{changes: map[string]Change{}, profiles: map[string]Profile{}}
 }
 
 func (r *fakeRepo) SaveChange(_ context.Context, change Change) (Change, error) {
@@ -177,8 +277,36 @@ func (r *fakeRepo) SaveRollback(_ context.Context, rollback RollbackRecord) (Rol
 	return rollback, nil
 }
 
+func (r *fakeRepo) ListProfiles(_ context.Context, deviceGroup string) ([]Profile, error) {
+	profiles := []Profile{}
+	for _, profile := range r.profiles {
+		if deviceGroup == "" || profile.DeviceGroup == deviceGroup {
+			profiles = append(profiles, cloneProfile(profile))
+		}
+	}
+	return profiles, nil
+}
+
+func (r *fakeRepo) UpsertProfile(_ context.Context, profile Profile) (Profile, error) {
+	r.profiles[profile.ID] = cloneProfile(profile)
+	return profile, nil
+}
+
+func (r *fakeRepo) GetProfile(_ context.Context, id string) (Profile, error) {
+	profile, ok := r.profiles[id]
+	if !ok {
+		return Profile{}, ErrNotFound
+	}
+	return cloneProfile(profile), nil
+}
+
 func cloneChange(change Change) Change {
 	change.Values = append([]string(nil), change.Values...)
 	change.Effects = append([]string(nil), change.Effects...)
 	return change
+}
+
+func cloneProfile(profile Profile) Profile {
+	profile.Effects = append([]string(nil), profile.Effects...)
+	return profile
 }

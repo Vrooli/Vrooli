@@ -47,3 +47,33 @@ func TestSQLiteRepositoryStoresPolicyChangeApprovalAndRollback(t *testing.T) {
 	require.Equal(t, "applied", updated.Status)
 	require.Equal(t, "rollback://policy/1", updated.RollbackHandle)
 }
+
+func TestSQLiteRepositoryStoresPolicyProfiles(t *testing.T) {
+	// [REQ:NM-P1-001] Household policy profile intent is stored in domain-owned policy storage.
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(Schema)))
+	repo := NewSQLiteRepository(d)
+
+	profile, err := repo.UpsertProfile(context.Background(), Profile{
+		ID:                "profile-kids",
+		Name:              "Kids",
+		DeviceGroup:       "kids",
+		FilteringStrength: "strict",
+		Schedule:          "daily:20:00-07:00",
+		OverrideBehavior:  "parent_override",
+		Status:            "enabled",
+		Effects:           []string{"stored"},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, profile.CreatedAt)
+
+	profiles, err := repo.ListProfiles(context.Background(), "kids")
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.Equal(t, []string{"stored"}, profiles[0].Effects)
+
+	stored, err := repo.GetProfile(context.Background(), "profile-kids")
+	require.NoError(t, err)
+	require.Equal(t, "strict", stored.FilteringStrength)
+	require.Equal(t, "daily:20:00-07:00", stored.Schedule)
+}

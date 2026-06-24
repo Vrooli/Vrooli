@@ -19,6 +19,11 @@ const api = vi.hoisted(() => ({
   previewPolicyChange: vi.fn(),
   applyPolicyChange: vi.fn(),
   rollbackPolicyChange: vi.fn(),
+  fetchPolicyProfiles: vi.fn(),
+  upsertPolicyProfile: vi.fn(),
+  evaluatePolicySchedule: vi.fn(),
+  diagnoseEncryptedDnsBypass: vi.fn(),
+  fetchEndpointDohGuidance: vi.fn(),
   previewUpstreams: vi.fn(),
   refreshInventory: vi.fn(),
   updateDeviceGroup: vi.fn(),
@@ -110,6 +115,7 @@ describe("Network Manager control pages", () => {
       upstreams: ["https://dns.example.test/dns-query"],
       warnings: [],
     });
+    api.fetchPolicyProfiles.mockResolvedValueOnce([]);
     api.previewPolicyChange.mockResolvedValueOnce({
       id: "preview-1",
       target: "all-devices",
@@ -151,6 +157,115 @@ describe("Network Manager control pages", () => {
     await waitFor(() => expect(api.applyPolicyChange).toHaveBeenCalledWith("preview-1"));
     await userEvent.click(screen.getByRole("button", { name: "pages.resolver.rollback" }));
     await waitFor(() => expect(api.rollbackPolicyChange).toHaveBeenCalledWith("change-1"));
+  });
+
+  it("creates household policy profiles and evaluates schedules", async () => {
+    // [REQ:NM-P1-001] [REQ:NM-P1-002] Household profiles and schedules are visible operator workflows.
+    api.fetchResolverStatus.mockResolvedValueOnce({
+      backend: "adguardhome",
+      status: "healthy",
+      filteringEnabled: true,
+      upstreams: [],
+      warnings: [],
+    });
+    api.fetchPolicyProfiles.mockResolvedValueOnce([]);
+    api.upsertPolicyProfile.mockResolvedValueOnce({
+      id: "profile-kids",
+      name: "Kids",
+      deviceGroup: "kids",
+      filteringStrength: "strict",
+      schedule: "daily:20:00-07:00",
+      overrideBehavior: "parent_override",
+      status: "enabled",
+      effects: ["stored"],
+      updatedAt: "2026-06-23T20:00:00Z",
+    });
+    api.fetchPolicyProfiles.mockResolvedValueOnce([
+      {
+        id: "profile-kids",
+        name: "Kids",
+        deviceGroup: "kids",
+        filteringStrength: "strict",
+        schedule: "daily:20:00-07:00",
+        overrideBehavior: "parent_override",
+        status: "enabled",
+        effects: ["stored"],
+        updatedAt: "2026-06-23T20:00:00Z",
+      },
+    ]);
+    api.evaluatePolicySchedule.mockResolvedValueOnce({
+      profileId: "profile-kids",
+      profileName: "Kids",
+      target: "group:kids",
+      active: true,
+      status: "active",
+      effects: ["Schedule evaluation is advisory until an approved policy apply is run."],
+      nextChangeAt: "2026-06-24T07:00:00Z",
+    });
+
+    renderWithProviders(<ResolverPolicyPage />);
+
+    expect(await screen.findByTestId(selectors.network.policyProfiles)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "pages.resolver.saveProfile" }));
+    await waitFor(() => expect(api.upsertPolicyProfile).toHaveBeenCalledWith(expect.objectContaining({
+      name: "Kids",
+      deviceGroup: "kids",
+      filteringStrength: "strict",
+      schedule: "daily:20:00-07:00",
+      overrideBehavior: "parent_override",
+    })));
+    expect(await screen.findByText(/profile-kids|Kids/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "pages.resolver.evaluateSchedule" }));
+    await waitFor(() => expect(api.evaluatePolicySchedule).toHaveBeenCalledWith("profile-kids", "group:kids"));
+    expect(await screen.findByText(/active/)).toBeInTheDocument();
+  });
+
+  it("renders encrypted DNS and endpoint DoH guidance controls", async () => {
+    // [REQ:NM-P1-004] [REQ:NM-P1-008] Operators can generate bypass and endpoint DoH guidance without invasive enforcement.
+    api.fetchResolverStatus.mockResolvedValueOnce({
+      backend: "adguardhome",
+      status: "healthy",
+      filteringEnabled: true,
+      upstreams: [],
+      warnings: [],
+    });
+    api.fetchPolicyProfiles.mockResolvedValueOnce([]);
+    api.diagnoseEncryptedDnsBypass.mockResolvedValueOnce({
+      id: "guidance-bypass",
+      target: "network",
+      profile: "ipv6-encrypted-dns",
+      status: "manual_required",
+      checks: [{ id: "doh", title: "DNS over HTTPS bypass", status: "guidance_only", evidence: "endpoint policy", recommendations: [] }],
+      manualSteps: [],
+      adapterActions: [],
+      guardrails: ["Do not inspect or log user browsing contents to detect bypasses."],
+      generatedAt: "2026-06-23T20:00:00Z",
+    });
+    api.fetchEndpointDohGuidance.mockResolvedValueOnce({
+      id: "guidance-doh",
+      target: "windows/chrome",
+      profile: "endpoint-doh",
+      status: "guidance_only",
+      checks: [{ id: "privacy", title: "Privacy boundary", status: "enforced_by_design", evidence: "No TLS interception.", recommendations: [] }],
+      manualSteps: [],
+      adapterActions: [],
+      guardrails: ["No TLS interception."],
+      generatedAt: "2026-06-23T20:00:00Z",
+    });
+
+    renderWithProviders(<ResolverPolicyPage />);
+
+    expect(await screen.findByTestId(selectors.network.policyGuidance)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "pages.resolver.bypassGuidance" }));
+    await waitFor(() => expect(api.diagnoseEncryptedDnsBypass).toHaveBeenCalledWith("network", false));
+    expect(await screen.findByText(/ipv6-encrypted-dns/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "pages.resolver.dohGuidance" }));
+    await waitFor(() => expect(api.fetchEndpointDohGuidance).toHaveBeenCalledWith({
+      platform: "windows",
+      browser: "chrome",
+      managementMode: "group-policy",
+    }));
+    expect(await screen.findByText(/endpoint-doh/)).toBeInTheDocument();
   });
 
   it("runs snapshot actions and renders report output", async () => {

@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "scheduled-access-controls",
     "description": "Scheduled access and temporary pause/resume controls.",
+    "last_validated_at": "2026-06-23T16:25:50-04:00",
+    "module": "scheduled-access-controls",
     "prd_ref": "OT-P1-002",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,17 +11,44 @@
     {
       "id": "NM-P1-002",
       "title": "Access schedules control devices and groups",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "policy",
       "criticality": "P1",
       "description": "The scenario shall support bedtime, focus, guest-window, and temporary pause/resume policies for devices and groups with visible active windows and override records.",
-      "tags": ["schedules", "pause", "resume"],
+      "tags": [
+        "schedules",
+        "pause",
+        "resume"
+      ],
       "validation": [
         {
-          "type": "planned",
-          "status": "planned",
-          "notes": "Add scheduler and policy-resolution tests tagged [REQ:NM-P1-002] after scheduling support lands."
+          "type": "test",
+          "ref": "api/internal/policy/service_test.go::TestPolicyScheduleEvaluationUsesCurrentWindowAndManualStatus",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies active/inactive schedule windows remain advisory until an approved policy apply."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/policy/service_test.go::TestPolicyScheduleEvaluationHandlesOvernightWindows",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies bedtime-style schedule windows can cross midnight."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/policy/handlers_test.go::TestHandlersScheduleCallsGeneratedClient",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies the schedule CLI delegates evaluation to the generated Connect client."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/NetworkPages.test.tsx::creates household policy profiles and evaluates schedules",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Verifies the operator UI can evaluate household profile schedules."
         }
       ]
     }

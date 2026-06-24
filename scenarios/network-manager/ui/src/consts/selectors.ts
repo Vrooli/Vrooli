@@ -338,6 +338,8 @@ const literalSelectors = {
     resolverStatus: "network-resolver-status",
     capabilitySummary: "network-capability-summary",
     policyPreview: "network-policy-preview",
+    policyProfiles: "network-policy-profiles",
+    policyGuidance: "network-policy-guidance",
     deviceTable: "network-device-table",
     optimizationTimeline: "network-optimization-timeline",
     privacySummary: "network-privacy-summary",

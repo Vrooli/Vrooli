@@ -14,7 +14,7 @@ Lifecycle health endpoint for API readiness. This remains an operational REST ex
 |---|---|---|
 | `SnapshotService` | `RunSnapshot`, `GetSnapshot`, `ListSnapshots`, `ExportSnapshotReport` | `NM-P0-001` |
 | `ResolverService` | `GetResolverStatus`, `ConfigureAdGuardHome`, `UpdateUpstreams`, `CheckResolverHealth` | `NM-P0-002` |
-| `PolicyService` | `PreviewPolicyChange`, `ApplyPolicyChange`, `RollbackPolicyChange`, `PauseFiltering`, `ResumeFiltering` | `NM-P0-003` |
+| `PolicyService` | `PreviewPolicyChange`, `ApplyPolicyChange`, `RollbackPolicyChange`, `PauseFiltering`, `ResumeFiltering`, `ListPolicyProfiles`, `UpsertPolicyProfile`, `EvaluatePolicySchedule`, `DiagnoseEncryptedDnsBypass`, `GetEndpointDohGuidance` | `NM-P0-003`, `NM-P1-001`, `NM-P1-002`, `NM-P1-004`, `NM-P1-008` |
 | `InventoryService` | `RefreshInventory`, `ListDevices`, `UpdateDeviceGroup`, `ExplainDeviceIdentity` | `NM-P0-004` |
 | `OptimizationService` | `CreateOptimizationRun`, `RunCandidate`, `ScoreCandidates`, `ApproveCandidate`, `RollbackOptimization` | `NM-P0-005` |
 | `AdapterService` | `ListCapabilities`, `ExplainUnsupportedAction`, `GetPlatformSummary` | `NM-P0-006` |
@@ -31,7 +31,7 @@ Resolver endpoints must hide backend-specific details behind capability reports.
 
 ## Policy API
 
-Policy mutation endpoints must support preview before apply and a rollback handle after apply when the backend supports rollback.
+Policy mutation endpoints must support preview before apply and a rollback handle after apply when the backend supports rollback. Household profile endpoints persist policy intent and evaluate schedules without claiming live resolver/router enforcement. Guidance endpoints diagnose IPv6/encrypted-DNS bypass and endpoint/browser DoH controls as read-only reports; they must not mutate router, firewall, browser, or endpoint policy.
 
 ## Optimization API
 

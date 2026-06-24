@@ -64,6 +64,33 @@
       "rollback": "Rollback",
       "previewRequired": "Preview a policy change before apply.",
       "confirmation": "Approval required before persistent DNS policy changes.",
+      "profiles": "Household profiles",
+      "profileName": "Profile name",
+      "profileGroup": "Device group",
+      "profileStrength": "Filtering strength",
+      "profileSchedule": "Schedule",
+      "profileOverride": "Override behavior",
+      "saveProfile": "Save profile",
+      "evaluateSchedule": "Evaluate schedule",
+      "scheduleEvaluation": "Schedule evaluation",
+      "guidance": "Bypass and endpoint guidance",
+      "guidanceTarget": "Guidance target",
+      "endpointPlatform": "Endpoint platform",
+      "endpointBrowser": "Endpoint browser",
+      "managementMode": "Management mode",
+      "bypassGuidance": "Bypass guidance",
+      "dohGuidance": "DoH guidance",
+      "strength": {
+        "light": "Light",
+        "standard": "Standard",
+        "strict": "Strict",
+        "off": "Off"
+      },
+      "override": {
+        "manualRequired": "Manual required",
+        "parentOverride": "Parent override",
+        "temporaryPause": "Temporary pause"
+      },
       "actions": {
         "allowlist": "Allowlist",
         "denylist": "Denylist",

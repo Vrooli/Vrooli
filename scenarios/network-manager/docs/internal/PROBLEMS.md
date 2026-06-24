@@ -20,6 +20,30 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ## Entries
 
+### 2026-06-23 — Encrypted DNS guidance is advisory
+
+- Signal: Network Manager now generates IPv6 resolver, DoT/DoQ, DoH, and endpoint/browser guidance through PolicyService, CLI, and UI, but it does not mutate router/firewall or endpoint policy.
+- Impact: Operators can identify bypass risk areas and get manual or adapter-preview instructions without unsafe enforcement claims, TLS interception, packet capture, or hidden monitoring. Actual enforcement still depends on future governed router/firewall/endpoint adapters with rollback support.
+- Next action: Promote guidance items to adapter-backed previews only after the relevant adapter advertises safe mutation and rollback capability.
+
+### 2026-06-23 — Encrypted DNS guidance suite hit embedded validator EOFs
+
+- Signal: `vrooli scenario test network-manager` for the encrypted-DNS guidance slice completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-health validation RPC failed: unavailable: unexpected EOF`. Direct `cli-health validate scenario network-manager` passed, while direct `storage-health validate scenario network-manager` returned `deadline_exceeded` awaiting response headers.
+- Impact: API/CLI/UI/proto/SDA/requirements/unit-health/ui-health checks passed directly, and live CLI smoke verified the new guidance RPCs. The comprehensive suite remains blocked by external validator instability, not by localized guidance behavior.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
+
+### 2026-06-23 — Household policy schedules are advisory
+
+- Signal: Phase 11 now persists household policy profiles and evaluates schedules for targets, but schedule evaluation returns manual-required intent instead of applying live DNS/router changes.
+- Impact: Operators can model household profiles and see active/inactive windows through API/CLI/UI without unsafe automation. Actual scheduled enforcement still depends on governed AdGuard/router adapters with rollback support.
+- Next action: Wire profile enforcement only after a resolver/router adapter advertises safe mutation and rollback capability.
+
+### 2026-06-23 — Phase 11 suite hit embedded validator EOFs
+
+- Signal: `vrooli scenario test network-manager` run `20260623-202256-d05ab551` completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Impact: Direct API/CLI/UI/proto/SDA/requirements/unit-health/ui-health checks passed, direct `cli-health validate scenario network-manager` passed before and after the suite, and direct `storage-health validate scenario network-manager` reproduced the known EOF. The comprehensive suite remains blocked by external validator RPC instability, not by a localized Phase 11 profile/schedule failure.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
+
 ### 2026-06-23 — Product UI is live but still conservative
 
 - Signal: The operator UI now has dashboard, snapshot, resolver/policy, devices, optimization, and settings/privacy pages backed by generated Connect clients. Mutating surfaces remain preview/approval-oriented and reflect the same conservative backend behavior as CLI/API.
