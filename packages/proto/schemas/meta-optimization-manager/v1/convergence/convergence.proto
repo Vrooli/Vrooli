@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package vrooli.meta_optimization_manager.v1.convergence;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/convergence;convergence_v1";
+
+// =============================================================================
+// CONVERGENCE DOMAIN — template & reference-scenario fitness
+// =============================================================================
+//
+// @stability draft
+//
+// ConvergenceService measures the upstream generators of scenarios: per-template
+// fitness across four lenses, gold-star reference-scenario health/eligibility,
+// and the convergence trend over dated fitness-audit records (the compounding
+// proof). It delegates raw code structure to code-facts / architecture-cartographer
+// and toolchain-clean results to test-genie / scenario-auditor; it never re-runs
+// the toolchain. It surfaces numbers + candidates only — tiering/substrate/
+// nomination stay agentic. See docs/agent-system/REFERENCE_PATTERN_FITNESS.md.
+// =============================================================================
+
+service ConvergenceService {
+  // GetConvergenceStatus returns the fitness summary + reference health across
+  // all templates (OT-P1-002).
+  rpc GetConvergenceStatus(GetConvergenceStatusRequest) returns (GetConvergenceStatusResponse);
+
+  // GetTemplateFitness returns the four-lens fitness counts + tier for one
+  // template (or all).
+  rpc GetTemplateFitness(GetTemplateFitnessRequest) returns (GetTemplateFitnessResponse);
+
+  // ListReferences returns gold-star reference-scenario health + eligibility.
+  rpc ListReferences(ListReferencesRequest) returns (ListReferencesResponse);
+
+  // GetConvergenceTrend returns per-replica-cost / coordinated-edit points over
+  // the dated fitness-audit records.
+  rpc GetConvergenceTrend(GetConvergenceTrendRequest) returns (GetConvergenceTrendResponse);
+}
+
+// FitnessTier is a coarse grade derived from the four lenses (advisory only).
+enum FitnessTier {
+  FITNESS_TIER_UNSPECIFIED = 0;
+  FITNESS_TIER_STRONG = 1;
+  FITNESS_TIER_FAIR = 2;
+  FITNESS_TIER_WEAK = 3;
+}
+
+// ReferenceEligibility is the gold-star eligibility verdict for a reference.
+enum ReferenceEligibility {
+  REFERENCE_ELIGIBILITY_UNSPECIFIED = 0;
+  REFERENCE_ELIGIBILITY_ELIGIBLE = 1;
+  REFERENCE_ELIGIBILITY_CANDIDATE = 2;
+  REFERENCE_ELIGIBILITY_INELIGIBLE = 3;
+}
+
+// TemplateFitness is the four-lens fitness of one template.
+message TemplateFitness {
+  string template = 1;
+  int32 per_replica_cost = 2;            // lens 1: lines/files each replica must carry
+  int32 drift_surface_count = 3;         // lens 2: surfaces where replicas drift
+  int32 comment_only_contract_count = 4; // lens 3: contracts expressed in comments, not code
+  int32 coordinated_edit_count = 5;      // lens 4: edits that must change N files together
+  FitnessTier tier = 6;
+}
+
+// ReferenceHealth is the gold-star health of one reference scenario.
+message ReferenceHealth {
+  string scenario = 1;
+  bool stale_from_template = 2;
+  google.protobuf.Timestamp last_template_sync = 3;
+  bool clean_on_all_tools = 4;
+  int32 stability_days = 5; // >= 60 for eligibility
+  int32 breadth = 6;        // number of patterns it demonstrates
+  ReferenceEligibility eligibility = 7;
+}
+
+// FitnessTrendPoint is one dated point in a template's convergence trend.
+message FitnessTrendPoint {
+  string template = 1;
+  google.protobuf.Timestamp at = 2;
+  int32 per_replica_cost = 3;
+  int32 coordinated_edit_count = 4;
+}
+
+message GetConvergenceStatusRequest {}
+
+message GetConvergenceStatusResponse {
+  repeated TemplateFitness templates = 1;
+  repeated ReferenceHealth references = 2;
+}
+
+message GetTemplateFitnessRequest {
+  string template = 1; // optional; unset => all templates
+}
+
+message GetTemplateFitnessResponse {
+  repeated TemplateFitness templates = 1;
+}
+
+message ListReferencesRequest {
+  ReferenceEligibility eligibility = 1; // optional filter
+}
+
+message ListReferencesResponse {
+  repeated ReferenceHealth references = 1;
+}
+
+message GetConvergenceTrendRequest {
+  string template = 1; // optional; unset => all templates
+}
+
+message GetConvergenceTrendResponse {
+  repeated FitnessTrendPoint points = 1;
+}

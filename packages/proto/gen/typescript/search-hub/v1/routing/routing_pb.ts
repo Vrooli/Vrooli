@@ -2,15 +2,15 @@
 // @generated from file search-hub/v1/routing/routing.proto (package vrooli.search_hub.v1.routing, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file search-hub/v1/routing/routing.proto.
  */
 export const file_search_hub_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLBAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkigwIKD1NlYXJjaE92ZXJyaWRlcxIbCg5yZXJhbmtfZW5hYmxlZBgBIAEoCEgAiAEBEhkKDHJlcmFua19ibGVuZBgCIAEoCEgBiAEBEh0KEHJlcmFua19zaG9ydGxpc3QYAyABKAVIAogBARIaCg1mbG9vcl9tYXhfZ2FwGAQgASgBSAOIAQESHQoQZmxvb3JfaGFyZF9mbG9vchgFIAEoAUgEiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yIuABCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBEjkKB21lYXN1cmUYCiABKAsyKC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQiggIKCk1lYXN1cmVIaXQSEgoKbWVhc3VyZV9pZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRJECgZwYXJhbXMYAyADKAsyNC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQuUGFyYW1zRW50cnkSDgoGYW5zd2VyGAQgASgJEg0KBW5lZWRzGAUgAygJEg4KBmVmZmVjdBgGIAEoCRIWCg5leGVjdXRlZF9xdWVyeRgHIAEoCRISCgpjb25maWRlbmNlGAggASgBGi0KC1BhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEikAEKE1Byb3ZpZGVyUmVzdWx0R3JvdXASEwoLcHJvdmlkZXJfaWQYASABKAkSNQoEaGl0cxgCIAMoCzInLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoSGl0Eg0KBWNvdW50GAMgASgFEhAKCGRlZ3JhZGVkGAQgASgIEgwKBG5vdGUYBSABKAki+gEKDVF1ZXJ5UmVzcG9uc2USNwoGcmFua2VkGAEgAygLMicudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TZWFyY2hIaXQSQQoGZ3JvdXBzGAIgAygLMjEudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlclJlc3VsdEdyb3VwEhgKEGNvcnBvcmFfc2VhcmNoZWQYAyADKAkSGwoTcm91dGluZ19leHBsYW5hdGlvbhgEIAMoCRIQCghyZXJhbmtlZBgFIAEoCBIQCghkZWdyYWRlZBgGIAEoCBISCgpsYXRlbmN5X21zGAcgASgDIg8KDVN0YXR1c1JlcXVlc3QicgoOUHJvdmlkZXJIZWFsdGgSEwoLcHJvdmlkZXJfaWQYASABKAkSEQoJcmVhY2hhYmxlGAIgASgIEhEKCWZyZXNobmVzcxgDIAEoCRITCgtwb2ludF9jb3VudBgEIAEoAxIQCghkZWdyYWRlZBgFIAEoCCKLAQoOU3RhdHVzUmVzcG9uc2USPwoJcHJvdmlkZXJzGAEgAygLMiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5Qcm92aWRlckhlYWx0aBIcChRjbGFzc2lmaWVyX2F2YWlsYWJsZRgCIAEoCBIaChJyZXJhbmtlcl9hdmFpbGFibGUYAyABKAgy1wEKDlJvdXRpbmdTZXJ2aWNlEmAKBVF1ZXJ5EioudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5RdWVyeVJlcXVlc3QaKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlF1ZXJ5UmVzcG9uc2USYwoGU3RhdHVzEisudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXF1ZXN0GiwudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TdGF0dXNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlYXJjaC1odWIvdjEvcm91dGluZztyb3V0aW5nX3YxYgZwcm90bzM");
+  fileDesc("CiNzZWFyY2gtaHViL3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZyLBAQoMUXVlcnlSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBXR5cGVzGAIgAygJEgsKA2FsbBgDIAEoCBINCgVsaW1pdBgEIAEoBRINCgVncm91cBgFIAEoCRIPCgdleHBsYWluGAYgASgIEkAKCW92ZXJyaWRlcxgHIAEoCzItLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU2VhcmNoT3ZlcnJpZGVzEhUKDWNvbnRyb2xfdG9rZW4YCCABKAkigwIKD1NlYXJjaE92ZXJyaWRlcxIbCg5yZXJhbmtfZW5hYmxlZBgBIAEoCEgAiAEBEhkKDHJlcmFua19ibGVuZBgCIAEoCEgBiAEBEh0KEHJlcmFua19zaG9ydGxpc3QYAyABKAVIAogBARIaCg1mbG9vcl9tYXhfZ2FwGAQgASgBSAOIAQESHQoQZmxvb3JfaGFyZF9mbG9vchgFIAEoAUgEiAEBQhEKD19yZXJhbmtfZW5hYmxlZEIPCg1fcmVyYW5rX2JsZW5kQhMKEV9yZXJhbmtfc2hvcnRsaXN0QhAKDl9mbG9vcl9tYXhfZ2FwQhMKEV9mbG9vcl9oYXJkX2Zsb29yIqMCCglTZWFyY2hIaXQSEwoLcHJvdmlkZXJfaWQYASABKAkSFgoOcHJvdmlkZXJfZ3JvdXAYAiABKAkSDAoEdHlwZRgDIAEoCRIKCgJpZBgEIAEoCRINCgV0aXRsZRgFIAEoCRIPCgdzbmlwcGV0GAYgASgJEgwKBHBhdGgYByABKAkSDQoFc2NvcmUYCCABKAESFAoMcmVyYW5rX3Njb3JlGAkgASgBEjkKB21lYXN1cmUYCiABKAsyKC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLk1lYXN1cmVIaXQSQQoLYXR0ZXN0YXRpb24YCyABKAsyLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLkF0dGVzdGVkQW5zd2VyIoICCgpNZWFzdXJlSGl0EhIKCm1lYXN1cmVfaWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSRAoGcGFyYW1zGAMgAygLMjQudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5NZWFzdXJlSGl0LlBhcmFtc0VudHJ5Eg4KBmFuc3dlchgEIAEoCRINCgVuZWVkcxgFIAMoCRIOCgZlZmZlY3QYBiABKAkSFgoOZXhlY3V0ZWRfcXVlcnkYByABKAkSEgoKY29uZmlkZW5jZRgIIAEoARotCgtQYXJhbXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIvoBCg5BdHRlc3RlZEFuc3dlchINCgVjbGFpbRgBIAEoCRI5CgljaXRhdGlvbnMYAiADKAsyJi52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLkNpdGF0aW9uEjIKBWJhc2lzGAMgASgOMiMudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5CYXNpcxI+CgtzdWZmaWNpZW5jeRgEIAEoDjIpLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuU3VmZmljaWVuY3kSDAoEZ2FwcxgFIAMoCRIcChRzdWdnZXN0ZWRfZm9sbG93X3VwcxgGIAMoCSI3CghDaXRhdGlvbhIPCgdsb2NhdG9yGAEgASgJEgwKBGtpbmQYAiABKAkSDAoEbm90ZRgDIAEoCSKQAQoTUHJvdmlkZXJSZXN1bHRHcm91cBITCgtwcm92aWRlcl9pZBgBIAEoCRI1CgRoaXRzGAIgAygLMicudnJvb2xpLnNlYXJjaF9odWIudjEucm91dGluZy5TZWFyY2hIaXQSDQoFY291bnQYAyABKAUSEAoIZGVncmFkZWQYBCABKAgSDAoEbm90ZRgFIAEoCSL6AQoNUXVlcnlSZXNwb25zZRI3CgZyYW5rZWQYASADKAsyJy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlNlYXJjaEhpdBJBCgZncm91cHMYAiADKAsyMS52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlByb3ZpZGVyUmVzdWx0R3JvdXASGAoQY29ycG9yYV9zZWFyY2hlZBgDIAMoCRIbChNyb3V0aW5nX2V4cGxhbmF0aW9uGAQgAygJEhAKCHJlcmFua2VkGAUgASgIEhAKCGRlZ3JhZGVkGAYgASgIEhIKCmxhdGVuY3lfbXMYByABKAMiDwoNU3RhdHVzUmVxdWVzdCJyCg5Qcm92aWRlckhlYWx0aBITCgtwcm92aWRlcl9pZBgBIAEoCRIRCglyZWFjaGFibGUYAiABKAgSEQoJZnJlc2huZXNzGAMgASgJEhMKC3BvaW50X2NvdW50GAQgASgDEhAKCGRlZ3JhZGVkGAUgASgIIosBCg5TdGF0dXNSZXNwb25zZRI/Cglwcm92aWRlcnMYASADKAsyLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlByb3ZpZGVySGVhbHRoEhwKFGNsYXNzaWZpZXJfYXZhaWxhYmxlGAIgASgIEhoKEnJlcmFua2VyX2F2YWlsYWJsZRgDIAEoCCqPAQoFQmFzaXMSFQoRQkFTSVNfVU5TUEVDSUZJRUQQABIRCg1CQVNJU19ERVJJVkVEEAESEwoPQkFTSVNfVkFMSURBVEVEEAISHQoZQkFTSVNfREVDTEFSRURfVU5WRVJJRklFRBADEhYKEkJBU0lTX0NPTlRSQURJQ1RFRBAEEhAKDEJBU0lTX0FCU0VOVBAFKncKC1N1ZmZpY2llbmN5EhsKF1NVRkZJQ0lFTkNZX1VOU1BFQ0lGSUVEEAASFAoQU1VGRklDSUVOQ1lfRlVMTBABEhcKE1NVRkZJQ0lFTkNZX1BBUlRJQUwQAhIcChhTVUZGSUNJRU5DWV9JTlNVRkZJQ0lFTlQQAzLXAQoOUm91dGluZ1NlcnZpY2USYAoFUXVlcnkSKi52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlF1ZXJ5UmVxdWVzdBorLnZyb29saS5zZWFyY2hfaHViLnYxLnJvdXRpbmcuUXVlcnlSZXNwb25zZRJjCgZTdGF0dXMSKy52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlN0YXR1c1JlcXVlc3QaLC52cm9vbGkuc2VhcmNoX2h1Yi52MS5yb3V0aW5nLlN0YXR1c1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2VhcmNoLWh1Yi92MS9yb3V0aW5nO3JvdXRpbmdfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryRequest
@@ -195,6 +195,19 @@ export type SearchHit = Message<"vrooli.search_hub.v1.routing.SearchHit"> & {
    * @generated from field: vrooli.search_hub.v1.routing.MeasureHit measure = 10;
    */
   measure?: MeasureHit | undefined;
+
+  /**
+   * Set when this hit carries an attested architectural answer (the
+   * understand-the-codebase contract). Like `measure`, it is an optional carrier
+   * mirroring MeasureHit: the router never interprets it, it transports it; the
+   * provider fills it and the central router maps it via
+   * ResultMapping.attestation_field. Trust rides INSIDE the result (basis +
+   * sufficiency), never folded into `score`. Optional for any provider; the
+   * conformance lint requires architectural providers to populate it.
+   *
+   * @generated from field: vrooli.search_hub.v1.routing.AttestedAnswer attestation = 11;
+   */
+  attestation?: AttestedAnswer | undefined;
 };
 
 /**
@@ -297,6 +310,111 @@ export const MeasureHitSchema: GenMessage<MeasureHit> = /*@__PURE__*/
   messageDesc(file_search_hub_v1_routing_routing, 3);
 
 /**
+ * AttestedAnswer is the structured payload of an attested architectural answer:
+ * a claim about the codebase carried with its provenance and two honesty axes,
+ * so trust travels INSIDE the result rather than being folded into the relevance
+ * `score`. It is the wire form of search-hub's answer to an "understand the
+ * codebase" question (how is X structured / what depends on Y / does the doc
+ * match the code). It mirrors MeasureHit as an optional SearchHit carrier:
+ * providers emit it as JSON and the router maps it generically via
+ * ResultMapping.attestation_field — the router never interprets it.
+ *
+ * The vocabulary (Basis, Sufficiency) is the canonical attestation contract
+ * defined in meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md; keep
+ * these enums in lockstep with that document and with the matching enums in
+ * packages/proto/schemas/meta-optimization-manager/v1/shared/model.proto.
+ *
+ * @generated from message vrooli.search_hub.v1.routing.AttestedAnswer
+ */
+export type AttestedAnswer = Message<"vrooli.search_hub.v1.routing.AttestedAnswer"> & {
+  /**
+   * The claim about the codebase, rendered for presentation.
+   *
+   * @generated from field: string claim = 1;
+   */
+  claim: string;
+
+  /**
+   * Provenance pointers behind the claim (file:line / url / command). The
+   * conformance lint requires at least one when basis == BASIS_DERIVED.
+   *
+   * @generated from field: repeated vrooli.search_hub.v1.routing.Citation citations = 2;
+   */
+  citations: Citation[];
+
+  /**
+   * How we know it (epistemic provenance).
+   *
+   * @generated from field: vrooli.search_hub.v1.routing.Basis basis = 3;
+   */
+  basis: Basis;
+
+  /**
+   * Whether the source is even shaped to answer the question (orthogonal to
+   * basis).
+   *
+   * @generated from field: vrooli.search_hub.v1.routing.Sufficiency sufficiency = 4;
+   */
+  sufficiency: Sufficiency;
+
+  /**
+   * Known gaps in this answer — what it does NOT cover.
+   *
+   * @generated from field: repeated string gaps = 5;
+   */
+  gaps: string[];
+
+  /**
+   * Suggested next reads / commands to close the gaps or go deeper.
+   *
+   * @generated from field: repeated string suggested_follow_ups = 6;
+   */
+  suggestedFollowUps: string[];
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.AttestedAnswer.
+ * Use `create(AttestedAnswerSchema)` to create a new message.
+ */
+export const AttestedAnswerSchema: GenMessage<AttestedAnswer> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 4);
+
+/**
+ * Citation is a single provenance pointer behind an attested answer.
+ *
+ * @generated from message vrooli.search_hub.v1.routing.Citation
+ */
+export type Citation = Message<"vrooli.search_hub.v1.routing.Citation"> & {
+  /**
+   * file:line / url / command — where the claim can be verified.
+   *
+   * @generated from field: string locator = 1;
+   */
+  locator: string;
+
+  /**
+   * code | doc | contract | runtime | external.
+   *
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * Optional human note about what this citation establishes.
+   *
+   * @generated from field: string note = 3;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.search_hub.v1.routing.Citation.
+ * Use `create(CitationSchema)` to create a new message.
+ */
+export const CitationSchema: GenMessage<Citation> = /*@__PURE__*/
+  messageDesc(file_search_hub_v1_routing_routing, 5);
+
+/**
  * Phase-4 honest grouping (pre-rerank): candidates kept per provider.
  *
  * @generated from message vrooli.search_hub.v1.routing.ProviderResultGroup
@@ -337,7 +455,7 @@ export type ProviderResultGroup = Message<"vrooli.search_hub.v1.routing.Provider
  * Use `create(ProviderResultGroupSchema)` to create a new message.
  */
 export const ProviderResultGroupSchema: GenMessage<ProviderResultGroup> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 4);
+  messageDesc(file_search_hub_v1_routing_routing, 6);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.QueryResponse
@@ -396,7 +514,7 @@ export type QueryResponse = Message<"vrooli.search_hub.v1.routing.QueryResponse"
  * Use `create(QueryResponseSchema)` to create a new message.
  */
 export const QueryResponseSchema: GenMessage<QueryResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 5);
+  messageDesc(file_search_hub_v1_routing_routing, 7);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusRequest
@@ -409,7 +527,7 @@ export type StatusRequest = Message<"vrooli.search_hub.v1.routing.StatusRequest"
  * Use `create(StatusRequestSchema)` to create a new message.
  */
 export const StatusRequestSchema: GenMessage<StatusRequest> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 6);
+  messageDesc(file_search_hub_v1_routing_routing, 8);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.ProviderHealth
@@ -448,7 +566,7 @@ export type ProviderHealth = Message<"vrooli.search_hub.v1.routing.ProviderHealt
  * Use `create(ProviderHealthSchema)` to create a new message.
  */
 export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 7);
+  messageDesc(file_search_hub_v1_routing_routing, 9);
 
 /**
  * @generated from message vrooli.search_hub.v1.routing.StatusResponse
@@ -477,7 +595,102 @@ export type StatusResponse = Message<"vrooli.search_hub.v1.routing.StatusRespons
  * Use `create(StatusResponseSchema)` to create a new message.
  */
 export const StatusResponseSchema: GenMessage<StatusResponse> = /*@__PURE__*/
-  messageDesc(file_search_hub_v1_routing_routing, 8);
+  messageDesc(file_search_hub_v1_routing_routing, 10);
+
+/**
+ * Basis is the epistemic-provenance axis of the attestation contract: how do we
+ * know the answer? Ordered most-trusted to least. Keep in lockstep with
+ * meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md.
+ *
+ * @generated from enum vrooli.search_hub.v1.routing.Basis
+ */
+export enum Basis {
+  /**
+   * @generated from enum value: BASIS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * computed directly from code (AST/graph/facts)
+   *
+   * @generated from enum value: BASIS_DERIVED = 1;
+   */
+  DERIVED = 1,
+
+  /**
+   * doc claim checked against code; agrees (zero drift)
+   *
+   * @generated from enum value: BASIS_VALIDATED = 2;
+   */
+  VALIDATED = 2,
+
+  /**
+   * doc claim exists but cannot be fully validated
+   *
+   * @generated from enum value: BASIS_DECLARED_UNVERIFIED = 3;
+   */
+  DECLARED_UNVERIFIED = 3,
+
+  /**
+   * doc claim disagrees with code (drift)
+   *
+   * @generated from enum value: BASIS_CONTRADICTED = 4;
+   */
+  CONTRADICTED = 4,
+
+  /**
+   * no source of truth; pointer-only
+   *
+   * @generated from enum value: BASIS_ABSENT = 5;
+   */
+  ABSENT = 5,
+}
+
+/**
+ * Describes the enum vrooli.search_hub.v1.routing.Basis.
+ */
+export const BasisSchema: GenEnum<Basis> = /*@__PURE__*/
+  enumDesc(file_search_hub_v1_routing_routing, 0);
+
+/**
+ * Sufficiency is the coverage axis of the attestation contract: is the source
+ * even shaped to answer the question? Orthogonal to Basis.
+ *
+ * @generated from enum vrooli.search_hub.v1.routing.Sufficiency
+ */
+export enum Sufficiency {
+  /**
+   * @generated from enum value: SUFFICIENCY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * source covers the question completely
+   *
+   * @generated from enum value: SUFFICIENCY_FULL = 1;
+   */
+  FULL = 1,
+
+  /**
+   * answers part; the rest is gapped
+   *
+   * @generated from enum value: SUFFICIENCY_PARTIAL = 2;
+   */
+  PARTIAL = 2,
+
+  /**
+   * accurate as far as it goes, but lacks conventions
+   *
+   * @generated from enum value: SUFFICIENCY_INSUFFICIENT = 3;
+   */
+  INSUFFICIENT = 3,
+}
+
+/**
+ * Describes the enum vrooli.search_hub.v1.routing.Sufficiency.
+ */
+export const SufficiencySchema: GenEnum<Sufficiency> = /*@__PURE__*/
+  enumDesc(file_search_hub_v1_routing_routing, 1);
 
 /**
  * @generated from service vrooli.search_hub.v1.routing.RoutingService

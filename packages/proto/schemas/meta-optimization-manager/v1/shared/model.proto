@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package vrooli.meta_optimization_manager.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/shared;shared_v1";
+
+// =============================================================================
+// COVERAGE MODEL — shared enums
+// =============================================================================
+//
+// @stability stable
+//
+// The cross-domain vocabulary of the readiness model, defined once and shared by
+// the coverage / convergence / focus / trials services. The canonical prose
+// definition lives in docs/concepts/COVERAGE-MODEL.md; these enums are the wire
+// encoding of that model. Keep them in lockstep with that document.
+// =============================================================================
+
+// Projection is one of the three readiness projections. Software engineering by
+// a (local) agent is understand -> change -> verify; each projection is owned by
+// the scenario holding its ground truth. The change itself (code synthesis) is
+// the model's own job and is NOT a projection — it is proven empirically by the
+// trials domain. UNSPECIFIED is used for gaps that are not projection-scoped
+// (e.g. convergence or cross-cutting/global gaps).
+enum Projection {
+  PROJECTION_UNSPECIFIED = 0;
+  PROJECTION_ANSWER = 1;   // search-hub — can the project be understood?
+  PROJECTION_VALIDATE = 2; // test-genie — can a change be verified + auto-fixed?
+  PROJECTION_GUIDE = 3;    // prompt-manager — is there a skill per SWE task?
+}
+
+// DenominatorConfidence is how complete we believe a denominator (a space doc)
+// itself is. Every coverage number is reported with it; the honesty is recursive
+// ("X% complete against a Y-confidence denominator") so the board can never imply
+// false completeness.
+enum DenominatorConfidence {
+  DENOMINATOR_CONFIDENCE_UNSPECIFIED = 0;
+  DENOMINATOR_CONFIDENCE_AUTHORITATIVE = 1; // exhaustively enumerated
+  DENOMINATOR_CONFIDENCE_PARTIAL = 2;       // major cells enumerated, not swept
+  DENOMINATOR_CONFIDENCE_SKETCH = 3;        // first cut, judgment-heavy
+}
+
+// CellStatus is the live status of a single denominator cell.
+enum CellStatus {
+  CELL_STATUS_UNSPECIFIED = 0;
+  CELL_STATUS_NOW = 1;      // a live provider / phase / skill answers it today
+  CELL_STATUS_IN_REACH = 2; // substrate exists — build / attest / extend
+  CELL_STATUS_MISSING = 3;  // no provider / substrate; a true gap
+}
+
+// Basis is the epistemic provenance axis of the attestation contract: how do we
+// know the answer? Ordered most-trusted to least.
+enum Basis {
+  BASIS_UNSPECIFIED = 0;
+  BASIS_DERIVED = 1;             // computed directly from code (AST/graph/facts)
+  BASIS_VALIDATED = 2;           // doc claim checked against code; agrees (zero drift)
+  BASIS_DECLARED_UNVERIFIED = 3; // doc claim exists but cannot be fully validated
+  BASIS_CONTRADICTED = 4;        // doc claim disagrees with code (drift)
+  BASIS_ABSENT = 5;              // no source of truth; pointer-only
+}
+
+// Sufficiency is the coverage axis of the attestation contract: is the source
+// even shaped to answer the question? Orthogonal to Basis.
+enum Sufficiency {
+  SUFFICIENCY_UNSPECIFIED = 0;
+  SUFFICIENCY_FULL = 1;         // source covers the question completely
+  SUFFICIENCY_PARTIAL = 2;      // answers part; the rest is gapped
+  SUFFICIENCY_INSUFFICIENT = 3; // accurate as far as it goes, but lacks conventions
+}
+
+// Severity grades a base-document-integrity issue.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_WARN = 2;
+  SEVERITY_ERROR = 3; // an ERROR flips the base-doc gate non-zero
+}

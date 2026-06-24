@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package vrooli.meta_optimization_manager.v1.trials;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/trials;trials_v1";
+
+// =============================================================================
+// TRIALS DOMAIN — the empirical local-model gate
+// =============================================================================
+//
+// @stability draft
+//
+// TrialsService runs a task suite (generated from the Guide space) through a
+// local model via agent-manager (runner=opencode + local-model config) inside
+// workspace-sandbox, evaluates by deterministic checks where possible and an
+// agent-judge otherwise, and records success-rate + tokens + wall-time as a
+// historical trend (OT-P1-001). It also reports the recursive Guide-gate-coverage
+// metric. Readiness is ultimately proven here, not declared from coverage.
+// =============================================================================
+
+service TrialsService {
+  // ListTrialTasks returns the task suite (generated from the Guide space).
+  rpc ListTrialTasks(ListTrialTasksRequest) returns (ListTrialTasksResponse);
+
+  // RunTrials dispatches a task or suite through agent-manager + workspace-sandbox
+  // and returns the started runs. The one trials action; gated behind explicit
+  // invocation, always sandboxed.
+  rpc RunTrials(RunTrialsRequest) returns (RunTrialsResponse);
+
+  // GetTrialHistory returns the success-rate / tokens / time trend over time.
+  rpc GetTrialHistory(GetTrialHistoryRequest) returns (GetTrialHistoryResponse);
+
+  // GetTrialRun returns one run with its sandbox diff, verdict, tokens, and time.
+  rpc GetTrialRun(GetTrialRunRequest) returns (GetTrialRunResponse);
+
+  // GetGateCoverage returns the % of Guide-space tasks that have a live empirical
+  // gate (the recursive Guide-coverage metric).
+  rpc GetGateCoverage(GetGateCoverageRequest) returns (GetGateCoverageResponse);
+}
+
+// TrialVerdict is the outcome of a single run.
+enum TrialVerdict {
+  TRIAL_VERDICT_UNSPECIFIED = 0;
+  TRIAL_VERDICT_PASS = 1;  // deterministic check passed (compiles/tests/output) or judge pass
+  TRIAL_VERDICT_FAIL = 2;  // ran but produced a wrong / insufficient result
+  TRIAL_VERDICT_ERROR = 3; // the run itself errored (sandbox / agent failure)
+}
+
+// TrialTask is one empirical task in the suite, generated from the Guide space.
+message TrialTask {
+  string id = 1;
+  string suite = 2;         // add-feature | research | comprehend | bugfix | negative
+  string guide_task_id = 3; // the Guide-space row this exercises
+  string description = 4;
+  // a negative / honesty case: the agent should correctly distrust a
+  // low-confidence answer rather than hallucinate.
+  bool negative = 5;
+}
+
+// TrialRun is one local-model run, dispatched via agent-manager inside
+// workspace-sandbox.
+message TrialRun {
+  string id = 1;
+  string task_id = 2;
+  string suite = 3;
+  string model = 4;
+  TrialVerdict verdict = 5;
+  int64 tokens = 6;
+  int64 duration_ms = 7;
+  // workspace-sandbox run/diff handle — the definitive attribution of changed
+  // files to this run.
+  string sandbox_diff_ref = 8;
+  google.protobuf.Timestamp at = 9;
+}
+
+message ListTrialTasksRequest {
+  string suite = 1; // optional filter
+}
+
+message ListTrialTasksResponse {
+  repeated TrialTask tasks = 1;
+}
+
+message RunTrialsRequest {
+  string suite = 1;   // optional; run a whole suite
+  string task_id = 2; // optional; run a single task
+  string model = 3;   // optional; local-model id (default from config)
+}
+
+message RunTrialsResponse {
+  repeated TrialRun runs = 1; // the runs dispatched
+}
+
+// TrialHistoryPoint is an aggregated metric point in the trend.
+message TrialHistoryPoint {
+  google.protobuf.Timestamp at = 1;
+  double success_rate = 2;
+  int64 median_tokens = 3;
+  int64 median_duration_ms = 4;
+  int32 run_count = 5;
+}
+
+message GetTrialHistoryRequest {
+  string task_id = 1; // optional filter
+  string suite = 2;   // optional filter
+}
+
+message GetTrialHistoryResponse {
+  repeated TrialHistoryPoint points = 1;
+  repeated TrialRun recent_runs = 2;
+}
+
+message GetTrialRunRequest {
+  string id = 1;
+}
+
+message GetTrialRunResponse {
+  TrialRun run = 1;
+}
+
+message GetGateCoverageRequest {}
+
+message GetGateCoverageResponse {
+  int32 guide_tasks_total = 1;
+  int32 guide_tasks_with_gate = 2;
+  double gate_coverage_ratio = 3;
+}

@@ -1,0 +1,169 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "adguard-home",
+  "display_name": "AdGuard Home",
+  "description": "Managed AdGuard Home DNS filtering and resolver service",
+  "cli": {
+    "enabled": true,
+    "command": "resource-adguard-home",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": ["linux", "darwin"],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": ["windows"],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-adguard-home"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "partial",
+  "category": "dns",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "dependencies": [],
+  "credentials": {
+    "secret_ref": "secret/resources/adguard-home/admin",
+    "env": [
+      {
+        "env": "ADGUARD_HOME_USERNAME",
+        "label": "AdGuard Home admin username",
+        "description": "Administrator username used by resource-local diagnostics and Network Manager when checking AdGuard Home.",
+        "classification": "infrastructure",
+        "required": false,
+        "default_hint": "admin"
+      },
+      {
+        "env": "ADGUARD_HOME_PASSWORD",
+        "label": "AdGuard Home admin password",
+        "description": "Administrator password stored through the Vrooli secret flow; never pass this value to Network Manager directly.",
+        "classification": "infrastructure",
+        "required": false,
+        "default_hint": "Generate a high-entropy password during bootstrap."
+      }
+    ]
+  },
+  "ports": [
+    {
+      "name": "admin",
+      "container": 3000,
+      "host": 3000,
+      "protocol": "tcp"
+    },
+    {
+      "name": "dns-tcp",
+      "host_ip": "192.168.1.173",
+      "container": 53,
+      "host": 53,
+      "protocol": "tcp"
+    },
+    {
+      "name": "dns-udp",
+      "host_ip": "192.168.1.173",
+      "container": 53,
+      "host": 53,
+      "protocol": "udp"
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:3000/",
+      "expected_status": [200, 302, 401],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    }
+  ],
+  "runtime": {
+    "image": "adguard/adguardhome:v0.107.77",
+    "container_name": "vrooli-adguard-home-resource",
+    "env": {
+      "ADGUARD_HOME_BASE_URL": "http://localhost:3000",
+      "ADGUARD_HOME_CREDENTIAL_REF": "secret/resources/adguard-home/admin"
+    },
+    "volumes": [
+      {
+        "source": "${RESOURCE_DATA_DIR}",
+        "target": "/opt/adguardhome/work"
+      },
+      {
+        "source": "${RESOURCE_CONFIG_DIR}",
+        "target": "/opt/adguardhome/conf"
+      }
+    ]
+  },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific dependency settings for adguard-home.",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "environment_exports": {
+    "static": {
+      "ADGUARD_HOME_HOST": "localhost",
+      "ADGUARD_HOME_DNS_BIND_IP": "192.168.1.173"
+    },
+    "from_ports": {
+      "ADGUARD_HOME_PORT": "admin",
+      "ADGUARD_HOME_DNS_TCP_PORT": "dns-tcp",
+      "ADGUARD_HOME_DNS_UDP_PORT": "dns-udp"
+    },
+    "from_runtime_env": [
+      "ADGUARD_HOME_CREDENTIAL_REF"
+    ],
+    "derived": {
+      "ADGUARD_HOME_URL": {
+        "template": "http://$ADGUARD_HOME_HOST:$ADGUARD_HOME_PORT"
+      },
+      "ADGUARD_HOME_BASE_URL": {
+        "template": "http://$ADGUARD_HOME_HOST:$ADGUARD_HOME_PORT"
+      }
+    }
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 30,
+    "startup_time_estimate": "5-15s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 30,
+    "stop_timeout_seconds": 30,
+    "retries": 2
+  },
+  "template_version": "2"
+}

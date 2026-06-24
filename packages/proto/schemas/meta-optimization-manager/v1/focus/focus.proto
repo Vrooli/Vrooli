@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package vrooli.meta_optimization_manager.v1.focus;
+
+import "meta-optimization-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus;focus_v1";
+
+// =============================================================================
+// FOCUS DOMAIN — gaps registry + prioritization
+// =============================================================================
+//
+// @stability draft
+//
+// FocusService maintains the gaps registry (every known gap with its qualitative
+// notes/approaches/context, including cross-cutting/global gaps and
+// explored-but-unbuilt ideas) and ranks gaps by impact x importance across all
+// projections + convergence. It answers the team's "what do I do next?" question
+// with context, not just a percentage. See docs/concepts/COVERAGE-MODEL.md.
+// =============================================================================
+
+service FocusService {
+  // GetFocus returns the ranked next-best gaps (impact x importance) (OT-P0-002).
+  rpc GetFocus(GetFocusRequest) returns (GetFocusResponse);
+
+  // ListGaps returns the full gaps registry, optionally filtered (OT-P0-003).
+  rpc ListGaps(ListGapsRequest) returns (ListGapsResponse);
+
+  // GetGap returns one gap with its full qualitative context.
+  rpc GetGap(GetGapRequest) returns (GetGapResponse);
+
+  // AddGapNote appends an explored approach/idea to a gap — the one focus write
+  // verb (the "store our thinking" primitive).
+  rpc AddGapNote(AddGapNoteRequest) returns (AddGapNoteResponse);
+}
+
+// Gap is one known gap with its qualitative context.
+message Gap {
+  string id = 1;
+  shared.Projection projection = 2; // UNSPECIFIED for convergence / cross-cutting gaps
+  string title = 3;
+  shared.CellStatus status = 4;     // the source cell's status (usually MISSING / IN_REACH)
+  string source_cell_id = 5;        // the denominator cell this gap came from, if any
+  bool global = 6;                  // a cross-cutting gap not tied to a single cell
+  repeated string notes = 7;        // qualitative context
+  repeated string approaches = 8;   // explored-but-unbuilt ideas (the "store our thinking")
+  repeated string follow_ups = 9;   // suggested next reads / commands
+}
+
+// FocusItem is a ranked next-best gap.
+message FocusItem {
+  Gap gap = 1;
+  double impact = 2;
+  double importance = 3;
+  double priority_score = 4; // impact x importance
+  string rationale = 5;
+}
+
+message GetFocusRequest {
+  int32 limit = 1;                  // top-N; 0 => default
+  shared.Projection projection = 2; // optional filter
+}
+
+message GetFocusResponse {
+  repeated FocusItem items = 1;
+}
+
+message ListGapsRequest {
+  shared.Projection projection = 1; // optional filter
+  string cell_id = 2;               // optional filter
+  shared.CellStatus status = 3;     // optional filter
+}
+
+message ListGapsResponse {
+  repeated Gap gaps = 1;
+}
+
+message GetGapRequest {
+  string id = 1;
+}
+
+message GetGapResponse {
+  Gap gap = 1;
+}
+
+message AddGapNoteRequest {
+  string id = 1;
+  string approach = 2; // the approach / idea to append
+}
+
+message AddGapNoteResponse {
+  Gap gap = 1; // the updated gap
+}

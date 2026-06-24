@@ -1,0 +1,136 @@
+# AdGuard Home
+
+Managed AdGuard Home DNS filtering and resolver service
+
+This resource was generated from the `docker-service` template and then
+specialized for AdGuard Home.
+
+## Intent
+
+- Resource ID: `adguard-home`
+- Category: `dns`
+- Driver: `docker-service`
+- Portability tier: `partial`
+- Pinned image: `adguard/adguardhome:v0.107.77`
+
+## Use Cases
+
+- Provide the governed local DNS filtering backend for Network Manager.
+- Export stable AdGuard connection details to scenarios through Vrooli resource environment exports.
+- Keep AdGuard configuration and work data in resource-managed durable directories.
+- Let resource-local diagnostics prove AdGuard control-plane status before any scenario claims ad blocking is active.
+
+## Architecture
+
+The CLI stays thin on purpose.
+
+- `resource.json` is the declarative authority for lifecycle, install, invoke, freshness, exports, and runtime metadata.
+- `cli/` is the single binary entrypoint and command wiring surface.
+- `cli/internal/adguard` is the narrow AdGuard Home control API client used by diagnostics.
+- `cli/internal/health` classifies setup, auth, protection, upstream, and query-log posture from that client.
+
+## Ports
+
+The manifest declares:
+
+| Name | Host | Container | Purpose |
+|---|---:|---:|---|
+| `admin` | `3000/tcp` | `3000/tcp` | AdGuard setup/admin/control API |
+| `dns-tcp` | `192.168.1.173:53/tcp` | `53/tcp` | DNS service |
+| `dns-udp` | `192.168.1.173:53/udp` | `53/udp` | DNS service |
+
+Port `53` is intentionally not hidden behind a random high port. Network-wide
+DNS filtering only works when clients or a router can actually reach the DNS
+listener they are configured to use.
+
+DNS is bound to the server LAN address instead of every host interface. That
+preserves the host's `systemd-resolved` loopback stub on `127.0.0.53:53` while
+exposing AdGuard to LAN clients. On this host the bind address is
+`192.168.1.173`; reserve that address in router DHCP before advertising it as
+household DNS. On another host, change both DNS `host_ip` entries and
+`ADGUARD_HOME_DNS_BIND_IP` to that server's reserved/static LAN address.
+
+## Environment Exports
+
+Scenarios should consume these exports rather than hard-coded values:
+
+```text
+ADGUARD_HOME_HOST
+ADGUARD_HOME_PORT
+ADGUARD_HOME_DNS_TCP_PORT
+ADGUARD_HOME_DNS_UDP_PORT
+ADGUARD_HOME_DNS_BIND_IP
+ADGUARD_HOME_URL
+ADGUARD_HOME_BASE_URL
+ADGUARD_HOME_CREDENTIAL_REF
+```
+
+`ADGUARD_HOME_CREDENTIAL_REF` points at `secret/resources/adguard-home/admin`.
+Network Manager should receive that reference only; it must not store or log the
+plain admin password.
+
+## Diagnostics
+
+```bash
+resource-adguard-home api-health --json
+resource-adguard-home api-health --base-url http://localhost:3000 --json
+resource-adguard-home bootstrap --base-url http://localhost:3000 --json
+resource-adguard-home config preview --upstream https://dns.quad9.net/dns-query --json
+resource-adguard-home clients list --json
+resource-adguard-home querylog privacy --json
+```
+
+Credentials default from `ADGUARD_HOME_USERNAME` and `ADGUARD_HOME_PASSWORD`.
+The `api-health` command reports:
+
+- `setup_required` when the control API is not mounted yet.
+- `auth_failed` when credentials are rejected.
+- `unreachable` when the admin endpoint cannot be reached.
+- `degraded` when protection is disabled, filtering state is unknown, or query logs are enabled.
+- `healthy` only when protection is enabled and query logs are disabled or minimal.
+
+Additional diagnostics are intentionally narrow:
+
+- `config preview` reads current upstream DNS config and previews a proposed upstream set. It can optionally call AdGuard's upstream test endpoint with `--test-upstreams`, but it does not mutate configuration.
+- `clients list` reads configured and automatically discovered AdGuard clients without reading query-level DNS log entries.
+- `querylog privacy` reports query-log configuration through `/control/querylog/config`, falling back to the legacy `/control/querylog_info` endpoint when necessary.
+
+Persistent DNS filtering changes should go through Network Manager policy and rollback ledgers, not resource-local ad hoc commands.
+
+## First-Run Bootstrap
+
+Use the resource-local bootstrap command after `vrooli resource start
+adguard-home` reports the container is running:
+
+```bash
+resource-adguard-home bootstrap --base-url http://localhost:3000 --json
+```
+
+The command calls AdGuard Home's first-install control API, generates a
+high-entropy admin password when none is supplied, stores `username` and
+`password` under `secret/resources/adguard-home/admin` through
+`resource-vault content`, and prints only the credential reference. It also
+hardens privacy by disabling query logging after setup when the AdGuard API
+accepts the current config shape.
+
+After bootstrap, configure Network Manager with the secret reference only:
+
+```bash
+network-manager resolver configure-adguard \
+  --base-url http://localhost:3000 \
+  --username admin \
+  --token-ref secret/resources/adguard-home/admin \
+  --json
+```
+
+Network Manager must continue to report `not_configured`, `setup_required`,
+`auth_failed`, or `unreachable` until the resource is reachable,
+authenticated, and protection/filtering is verified.
+
+## Current Host DNS Design
+
+The current host runs `systemd-resolved` on loopback port `53`, which is fine.
+The AdGuard resource publishes DNS on `192.168.1.173:53` instead. If that LAN
+address or port is occupied, `vrooli resource start adguard-home` should fail
+clearly. Do not claim "ad blocking active" until AdGuard is running,
+authenticated, and serving DNS on the intended LAN listener.

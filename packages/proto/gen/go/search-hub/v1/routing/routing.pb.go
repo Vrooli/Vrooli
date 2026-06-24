@@ -21,6 +21,121 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Basis is the epistemic-provenance axis of the attestation contract: how do we
+// know the answer? Ordered most-trusted to least. Keep in lockstep with
+// meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md.
+type Basis int32
+
+const (
+	Basis_BASIS_UNSPECIFIED         Basis = 0
+	Basis_BASIS_DERIVED             Basis = 1 // computed directly from code (AST/graph/facts)
+	Basis_BASIS_VALIDATED           Basis = 2 // doc claim checked against code; agrees (zero drift)
+	Basis_BASIS_DECLARED_UNVERIFIED Basis = 3 // doc claim exists but cannot be fully validated
+	Basis_BASIS_CONTRADICTED        Basis = 4 // doc claim disagrees with code (drift)
+	Basis_BASIS_ABSENT              Basis = 5 // no source of truth; pointer-only
+)
+
+// Enum value maps for Basis.
+var (
+	Basis_name = map[int32]string{
+		0: "BASIS_UNSPECIFIED",
+		1: "BASIS_DERIVED",
+		2: "BASIS_VALIDATED",
+		3: "BASIS_DECLARED_UNVERIFIED",
+		4: "BASIS_CONTRADICTED",
+		5: "BASIS_ABSENT",
+	}
+	Basis_value = map[string]int32{
+		"BASIS_UNSPECIFIED":         0,
+		"BASIS_DERIVED":             1,
+		"BASIS_VALIDATED":           2,
+		"BASIS_DECLARED_UNVERIFIED": 3,
+		"BASIS_CONTRADICTED":        4,
+		"BASIS_ABSENT":              5,
+	}
+)
+
+func (x Basis) Enum() *Basis {
+	p := new(Basis)
+	*p = x
+	return p
+}
+
+func (x Basis) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Basis) Descriptor() protoreflect.EnumDescriptor {
+	return file_search_hub_v1_routing_routing_proto_enumTypes[0].Descriptor()
+}
+
+func (Basis) Type() protoreflect.EnumType {
+	return &file_search_hub_v1_routing_routing_proto_enumTypes[0]
+}
+
+func (x Basis) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Basis.Descriptor instead.
+func (Basis) EnumDescriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{0}
+}
+
+// Sufficiency is the coverage axis of the attestation contract: is the source
+// even shaped to answer the question? Orthogonal to Basis.
+type Sufficiency int32
+
+const (
+	Sufficiency_SUFFICIENCY_UNSPECIFIED  Sufficiency = 0
+	Sufficiency_SUFFICIENCY_FULL         Sufficiency = 1 // source covers the question completely
+	Sufficiency_SUFFICIENCY_PARTIAL      Sufficiency = 2 // answers part; the rest is gapped
+	Sufficiency_SUFFICIENCY_INSUFFICIENT Sufficiency = 3 // accurate as far as it goes, but lacks conventions
+)
+
+// Enum value maps for Sufficiency.
+var (
+	Sufficiency_name = map[int32]string{
+		0: "SUFFICIENCY_UNSPECIFIED",
+		1: "SUFFICIENCY_FULL",
+		2: "SUFFICIENCY_PARTIAL",
+		3: "SUFFICIENCY_INSUFFICIENT",
+	}
+	Sufficiency_value = map[string]int32{
+		"SUFFICIENCY_UNSPECIFIED":  0,
+		"SUFFICIENCY_FULL":         1,
+		"SUFFICIENCY_PARTIAL":      2,
+		"SUFFICIENCY_INSUFFICIENT": 3,
+	}
+)
+
+func (x Sufficiency) Enum() *Sufficiency {
+	p := new(Sufficiency)
+	*p = x
+	return p
+}
+
+func (x Sufficiency) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Sufficiency) Descriptor() protoreflect.EnumDescriptor {
+	return file_search_hub_v1_routing_routing_proto_enumTypes[1].Descriptor()
+}
+
+func (Sufficiency) Type() protoreflect.EnumType {
+	return &file_search_hub_v1_routing_routing_proto_enumTypes[1]
+}
+
+func (x Sufficiency) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Sufficiency.Descriptor instead.
+func (Sufficiency) EnumDescriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{1}
+}
+
 type QueryRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Query string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
@@ -235,7 +350,15 @@ type SearchHit struct {
 	// rather than a retrieved document, this carries the structured measure
 	// answer/resolution. Greenfield-additive: every retrieval provider leaves it
 	// unset and consumers that do not understand measures ignore it.
-	Measure       *MeasureHit `protobuf:"bytes,10,opt,name=measure,proto3" json:"measure,omitempty"`
+	Measure *MeasureHit `protobuf:"bytes,10,opt,name=measure,proto3" json:"measure,omitempty"`
+	// Set when this hit carries an attested architectural answer (the
+	// understand-the-codebase contract). Like `measure`, it is an optional carrier
+	// mirroring MeasureHit: the router never interprets it, it transports it; the
+	// provider fills it and the central router maps it via
+	// ResultMapping.attestation_field. Trust rides INSIDE the result (basis +
+	// sufficiency), never folded into `score`. Optional for any provider; the
+	// conformance lint requires architectural providers to populate it.
+	Attestation   *AttestedAnswer `protobuf:"bytes,11,opt,name=attestation,proto3" json:"attestation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -336,6 +459,13 @@ func (x *SearchHit) GetRerankScore() float64 {
 func (x *SearchHit) GetMeasure() *MeasureHit {
 	if x != nil {
 		return x.Measure
+	}
+	return nil
+}
+
+func (x *SearchHit) GetAttestation() *AttestedAnswer {
+	if x != nil {
+		return x.Attestation
 	}
 	return nil
 }
@@ -471,6 +601,175 @@ func (x *MeasureHit) GetConfidence() float64 {
 	return 0
 }
 
+// AttestedAnswer is the structured payload of an attested architectural answer:
+// a claim about the codebase carried with its provenance and two honesty axes,
+// so trust travels INSIDE the result rather than being folded into the relevance
+// `score`. It is the wire form of search-hub's answer to an "understand the
+// codebase" question (how is X structured / what depends on Y / does the doc
+// match the code). It mirrors MeasureHit as an optional SearchHit carrier:
+// providers emit it as JSON and the router maps it generically via
+// ResultMapping.attestation_field — the router never interprets it.
+//
+// The vocabulary (Basis, Sufficiency) is the canonical attestation contract
+// defined in meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md; keep
+// these enums in lockstep with that document and with the matching enums in
+// packages/proto/schemas/meta-optimization-manager/v1/shared/model.proto.
+type AttestedAnswer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The claim about the codebase, rendered for presentation.
+	Claim string `protobuf:"bytes,1,opt,name=claim,proto3" json:"claim,omitempty"`
+	// Provenance pointers behind the claim (file:line / url / command). The
+	// conformance lint requires at least one when basis == BASIS_DERIVED.
+	Citations []*Citation `protobuf:"bytes,2,rep,name=citations,proto3" json:"citations,omitempty"`
+	// How we know it (epistemic provenance).
+	Basis Basis `protobuf:"varint,3,opt,name=basis,proto3,enum=vrooli.search_hub.v1.routing.Basis" json:"basis,omitempty"`
+	// Whether the source is even shaped to answer the question (orthogonal to
+	// basis).
+	Sufficiency Sufficiency `protobuf:"varint,4,opt,name=sufficiency,proto3,enum=vrooli.search_hub.v1.routing.Sufficiency" json:"sufficiency,omitempty"`
+	// Known gaps in this answer — what it does NOT cover.
+	Gaps []string `protobuf:"bytes,5,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	// Suggested next reads / commands to close the gaps or go deeper.
+	SuggestedFollowUps []string `protobuf:"bytes,6,rep,name=suggested_follow_ups,json=suggestedFollowUps,proto3" json:"suggested_follow_ups,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *AttestedAnswer) Reset() {
+	*x = AttestedAnswer{}
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttestedAnswer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttestedAnswer) ProtoMessage() {}
+
+func (x *AttestedAnswer) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttestedAnswer.ProtoReflect.Descriptor instead.
+func (*AttestedAnswer) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AttestedAnswer) GetClaim() string {
+	if x != nil {
+		return x.Claim
+	}
+	return ""
+}
+
+func (x *AttestedAnswer) GetCitations() []*Citation {
+	if x != nil {
+		return x.Citations
+	}
+	return nil
+}
+
+func (x *AttestedAnswer) GetBasis() Basis {
+	if x != nil {
+		return x.Basis
+	}
+	return Basis_BASIS_UNSPECIFIED
+}
+
+func (x *AttestedAnswer) GetSufficiency() Sufficiency {
+	if x != nil {
+		return x.Sufficiency
+	}
+	return Sufficiency_SUFFICIENCY_UNSPECIFIED
+}
+
+func (x *AttestedAnswer) GetGaps() []string {
+	if x != nil {
+		return x.Gaps
+	}
+	return nil
+}
+
+func (x *AttestedAnswer) GetSuggestedFollowUps() []string {
+	if x != nil {
+		return x.SuggestedFollowUps
+	}
+	return nil
+}
+
+// Citation is a single provenance pointer behind an attested answer.
+type Citation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// file:line / url / command — where the claim can be verified.
+	Locator string `protobuf:"bytes,1,opt,name=locator,proto3" json:"locator,omitempty"`
+	// code | doc | contract | runtime | external.
+	Kind string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Optional human note about what this citation establishes.
+	Note          string `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Citation) Reset() {
+	*x = Citation{}
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Citation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Citation) ProtoMessage() {}
+
+func (x *Citation) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Citation.ProtoReflect.Descriptor instead.
+func (*Citation) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Citation) GetLocator() string {
+	if x != nil {
+		return x.Locator
+	}
+	return ""
+}
+
+func (x *Citation) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Citation) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
 // Phase-4 honest grouping (pre-rerank): candidates kept per provider.
 type ProviderResultGroup struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
@@ -487,7 +786,7 @@ type ProviderResultGroup struct {
 
 func (x *ProviderResultGroup) Reset() {
 	*x = ProviderResultGroup{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -499,7 +798,7 @@ func (x *ProviderResultGroup) String() string {
 func (*ProviderResultGroup) ProtoMessage() {}
 
 func (x *ProviderResultGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[4]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -512,7 +811,7 @@ func (x *ProviderResultGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderResultGroup.ProtoReflect.Descriptor instead.
 func (*ProviderResultGroup) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{4}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProviderResultGroup) GetProviderId() string {
@@ -571,7 +870,7 @@ type QueryResponse struct {
 
 func (x *QueryResponse) Reset() {
 	*x = QueryResponse{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +882,7 @@ func (x *QueryResponse) String() string {
 func (*QueryResponse) ProtoMessage() {}
 
 func (x *QueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[5]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +895,7 @@ func (x *QueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryResponse.ProtoReflect.Descriptor instead.
 func (*QueryResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{5}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *QueryResponse) GetRanked() []*SearchHit {
@@ -656,7 +955,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -668,7 +967,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +980,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{6}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{8}
 }
 
 type ProviderHealth struct {
@@ -698,7 +997,7 @@ type ProviderHealth struct {
 
 func (x *ProviderHealth) Reset() {
 	*x = ProviderHealth{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +1009,7 @@ func (x *ProviderHealth) String() string {
 func (*ProviderHealth) ProtoMessage() {}
 
 func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[7]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +1022,7 @@ func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderHealth.ProtoReflect.Descriptor instead.
 func (*ProviderHealth) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{7}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ProviderHealth) GetProviderId() string {
@@ -773,7 +1072,7 @@ type StatusResponse struct {
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[8]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -785,7 +1084,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[8]
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -798,7 +1097,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{8}
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StatusResponse) GetProviders() []*ProviderHealth {
@@ -846,7 +1145,7 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\r_rerank_blendB\x13\n" +
 	"\x11_rerank_shortlistB\x10\n" +
 	"\x0e_floor_max_gapB\x13\n" +
-	"\x11_floor_hard_floor\"\xb8\x02\n" +
+	"\x11_floor_hard_floor\"\x88\x03\n" +
 	"\tSearchHit\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +
@@ -859,7 +1158,8 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\x05score\x18\b \x01(\x01R\x05score\x12!\n" +
 	"\frerank_score\x18\t \x01(\x01R\vrerankScore\x12B\n" +
 	"\ameasure\x18\n" +
-	" \x01(\v2(.vrooli.search_hub.v1.routing.MeasureHitR\ameasure\"\xdd\x02\n" +
+	" \x01(\v2(.vrooli.search_hub.v1.routing.MeasureHitR\ameasure\x12N\n" +
+	"\vattestation\x18\v \x01(\v2,.vrooli.search_hub.v1.routing.AttestedAnswerR\vattestation\"\xdd\x02\n" +
 	"\n" +
 	"MeasureHit\x12\x1d\n" +
 	"\n" +
@@ -875,7 +1175,18 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"confidence\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb9\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xba\x02\n" +
+	"\x0eAttestedAnswer\x12\x14\n" +
+	"\x05claim\x18\x01 \x01(\tR\x05claim\x12D\n" +
+	"\tcitations\x18\x02 \x03(\v2&.vrooli.search_hub.v1.routing.CitationR\tcitations\x129\n" +
+	"\x05basis\x18\x03 \x01(\x0e2#.vrooli.search_hub.v1.routing.BasisR\x05basis\x12K\n" +
+	"\vsufficiency\x18\x04 \x01(\x0e2).vrooli.search_hub.v1.routing.SufficiencyR\vsufficiency\x12\x12\n" +
+	"\x04gaps\x18\x05 \x03(\tR\x04gaps\x120\n" +
+	"\x14suggested_follow_ups\x18\x06 \x03(\tR\x12suggestedFollowUps\"L\n" +
+	"\bCitation\x12\x18\n" +
+	"\alocator\x18\x01 \x01(\tR\alocator\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\"\xb9\x01\n" +
 	"\x13ProviderResultGroup\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12;\n" +
@@ -904,7 +1215,19 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\x0eStatusResponse\x12J\n" +
 	"\tproviders\x18\x01 \x03(\v2,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x121\n" +
 	"\x14classifier_available\x18\x02 \x01(\bR\x13classifierAvailable\x12-\n" +
-	"\x12reranker_available\x18\x03 \x01(\bR\x11rerankerAvailable2\xd7\x01\n" +
+	"\x12reranker_available\x18\x03 \x01(\bR\x11rerankerAvailable*\x8f\x01\n" +
+	"\x05Basis\x12\x15\n" +
+	"\x11BASIS_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rBASIS_DERIVED\x10\x01\x12\x13\n" +
+	"\x0fBASIS_VALIDATED\x10\x02\x12\x1d\n" +
+	"\x19BASIS_DECLARED_UNVERIFIED\x10\x03\x12\x16\n" +
+	"\x12BASIS_CONTRADICTED\x10\x04\x12\x10\n" +
+	"\fBASIS_ABSENT\x10\x05*w\n" +
+	"\vSufficiency\x12\x1b\n" +
+	"\x17SUFFICIENCY_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10SUFFICIENCY_FULL\x10\x01\x12\x17\n" +
+	"\x13SUFFICIENCY_PARTIAL\x10\x02\x12\x1c\n" +
+	"\x18SUFFICIENCY_INSUFFICIENT\x10\x032\xd7\x01\n" +
 	"\x0eRoutingService\x12`\n" +
 	"\x05Query\x12*.vrooli.search_hub.v1.routing.QueryRequest\x1a+.vrooli.search_hub.v1.routing.QueryResponse\x12c\n" +
 	"\x06Status\x12+.vrooli.search_hub.v1.routing.StatusRequest\x1a,.vrooli.search_hub.v1.routing.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1b\x06proto3"
@@ -921,36 +1244,45 @@ func file_search_hub_v1_routing_routing_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_routing_routing_proto_rawDescData
 }
 
-var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_search_hub_v1_routing_routing_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_search_hub_v1_routing_routing_proto_goTypes = []any{
-	(*QueryRequest)(nil),        // 0: vrooli.search_hub.v1.routing.QueryRequest
-	(*SearchOverrides)(nil),     // 1: vrooli.search_hub.v1.routing.SearchOverrides
-	(*SearchHit)(nil),           // 2: vrooli.search_hub.v1.routing.SearchHit
-	(*MeasureHit)(nil),          // 3: vrooli.search_hub.v1.routing.MeasureHit
-	(*ProviderResultGroup)(nil), // 4: vrooli.search_hub.v1.routing.ProviderResultGroup
-	(*QueryResponse)(nil),       // 5: vrooli.search_hub.v1.routing.QueryResponse
-	(*StatusRequest)(nil),       // 6: vrooli.search_hub.v1.routing.StatusRequest
-	(*ProviderHealth)(nil),      // 7: vrooli.search_hub.v1.routing.ProviderHealth
-	(*StatusResponse)(nil),      // 8: vrooli.search_hub.v1.routing.StatusResponse
-	nil,                         // 9: vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
+	(Basis)(0),                  // 0: vrooli.search_hub.v1.routing.Basis
+	(Sufficiency)(0),            // 1: vrooli.search_hub.v1.routing.Sufficiency
+	(*QueryRequest)(nil),        // 2: vrooli.search_hub.v1.routing.QueryRequest
+	(*SearchOverrides)(nil),     // 3: vrooli.search_hub.v1.routing.SearchOverrides
+	(*SearchHit)(nil),           // 4: vrooli.search_hub.v1.routing.SearchHit
+	(*MeasureHit)(nil),          // 5: vrooli.search_hub.v1.routing.MeasureHit
+	(*AttestedAnswer)(nil),      // 6: vrooli.search_hub.v1.routing.AttestedAnswer
+	(*Citation)(nil),            // 7: vrooli.search_hub.v1.routing.Citation
+	(*ProviderResultGroup)(nil), // 8: vrooli.search_hub.v1.routing.ProviderResultGroup
+	(*QueryResponse)(nil),       // 9: vrooli.search_hub.v1.routing.QueryResponse
+	(*StatusRequest)(nil),       // 10: vrooli.search_hub.v1.routing.StatusRequest
+	(*ProviderHealth)(nil),      // 11: vrooli.search_hub.v1.routing.ProviderHealth
+	(*StatusResponse)(nil),      // 12: vrooli.search_hub.v1.routing.StatusResponse
+	nil,                         // 13: vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
 }
 var file_search_hub_v1_routing_routing_proto_depIdxs = []int32{
-	1, // 0: vrooli.search_hub.v1.routing.QueryRequest.overrides:type_name -> vrooli.search_hub.v1.routing.SearchOverrides
-	3, // 1: vrooli.search_hub.v1.routing.SearchHit.measure:type_name -> vrooli.search_hub.v1.routing.MeasureHit
-	9, // 2: vrooli.search_hub.v1.routing.MeasureHit.params:type_name -> vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
-	2, // 3: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	2, // 4: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	4, // 5: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
-	7, // 6: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
-	0, // 7: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
-	6, // 8: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
-	5, // 9: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
-	8, // 10: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
-	9, // [9:11] is the sub-list for method output_type
-	7, // [7:9] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	3,  // 0: vrooli.search_hub.v1.routing.QueryRequest.overrides:type_name -> vrooli.search_hub.v1.routing.SearchOverrides
+	5,  // 1: vrooli.search_hub.v1.routing.SearchHit.measure:type_name -> vrooli.search_hub.v1.routing.MeasureHit
+	6,  // 2: vrooli.search_hub.v1.routing.SearchHit.attestation:type_name -> vrooli.search_hub.v1.routing.AttestedAnswer
+	13, // 3: vrooli.search_hub.v1.routing.MeasureHit.params:type_name -> vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
+	7,  // 4: vrooli.search_hub.v1.routing.AttestedAnswer.citations:type_name -> vrooli.search_hub.v1.routing.Citation
+	0,  // 5: vrooli.search_hub.v1.routing.AttestedAnswer.basis:type_name -> vrooli.search_hub.v1.routing.Basis
+	1,  // 6: vrooli.search_hub.v1.routing.AttestedAnswer.sufficiency:type_name -> vrooli.search_hub.v1.routing.Sufficiency
+	4,  // 7: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	4,  // 8: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	8,  // 9: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
+	11, // 10: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
+	2,  // 11: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
+	10, // 12: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
+	9,  // 13: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
+	12, // 14: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
+	13, // [13:15] is the sub-list for method output_type
+	11, // [11:13] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_routing_routing_proto_init() }
@@ -964,13 +1296,14 @@ func file_search_hub_v1_routing_routing_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_routing_routing_proto_rawDesc), len(file_search_hub_v1_routing_routing_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   10,
+			NumEnums:      2,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_search_hub_v1_routing_routing_proto_goTypes,
 		DependencyIndexes: file_search_hub_v1_routing_routing_proto_depIdxs,
+		EnumInfos:         file_search_hub_v1_routing_routing_proto_enumTypes,
 		MessageInfos:      file_search_hub_v1_routing_routing_proto_msgTypes,
 	}.Build()
 	File_search_hub_v1_routing_routing_proto = out.File

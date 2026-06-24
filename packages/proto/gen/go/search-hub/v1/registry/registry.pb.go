@@ -553,9 +553,19 @@ type ResultMapping struct {
 	// leaves it unset. Applied generically by the adapter, like the filters above
 	// (no per-provider code), so only the single registered measures provider
 	// (measures-health) populates it.
-	MeasureField  string `protobuf:"bytes,11,opt,name=measure_field,json=measureField,proto3" json:"measure_field,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MeasureField string `protobuf:"bytes,11,opt,name=measure_field,json=measureField,proto3" json:"measure_field,omitempty"`
+	// Optional attestation carrier path. When set, the adapter decodes the
+	// per-item object at this JSON path into SearchHit.attestation (the provider's
+	// attested architectural answer). The object follows the fixed AttestedAnswer
+	// contract (claim, citations, basis, sufficiency, gaps, suggested_follow_ups).
+	// Empty means "no attestation carrier" — ordinary retrieval providers leave it
+	// unset. Applied generically by the adapter, like measure_field and the
+	// filters above (no per-provider code). Architectural providers (e.g.
+	// architecture-cartographer, meta-optimization-manager) set it; the
+	// conformance lint enforces that.
+	AttestationField string `protobuf:"bytes,12,opt,name=attestation_field,json=attestationField,proto3" json:"attestation_field,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ResultMapping) Reset() {
@@ -661,6 +671,13 @@ func (x *ResultMapping) GetPresenceField() string {
 func (x *ResultMapping) GetMeasureField() string {
 	if x != nil {
 		return x.MeasureField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetAttestationField() string {
+	if x != nil {
+		return x.AttestationField
 	}
 	return ""
 }
@@ -1343,7 +1360,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"2\n" +
 	"\vCliEndpoint\x12#\n" +
-	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xb1\x03\n" +
+	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xde\x03\n" +
 	"\rResultMapping\x12!\n" +
 	"\fresults_path\x18\x01 \x01(\tR\vresultsPath\x12\x19\n" +
 	"\bid_field\x18\x02 \x01(\tR\aidField\x12\x1f\n" +
@@ -1360,7 +1377,8 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\ffilter_value\x18\t \x01(\tR\vfilterValue\x12%\n" +
 	"\x0epresence_field\x18\n" +
 	" \x01(\tR\rpresenceField\x12#\n" +
-	"\rmeasure_field\x18\v \x01(\tR\fmeasureField\"E\n" +
+	"\rmeasure_field\x18\v \x01(\tR\fmeasureField\x12+\n" +
+	"\x11attestation_field\x18\f \x01(\tR\x10attestationField\"E\n" +
 	"\vFloorConfig\x12\x17\n" +
 	"\amax_gap\x18\x01 \x01(\x01R\x06maxGap\x12\x1d\n" +
 	"\n" +

@@ -96,7 +96,7 @@ class CliEndpoint(_message.Message):
     def __init__(self, argv_template: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ResultMapping(_message.Message):
-    __slots__ = ("results_path", "id_field", "title_field", "score_field", "snippet_field", "path_field", "score_scale", "filter_field", "filter_value", "presence_field", "measure_field")
+    __slots__ = ("results_path", "id_field", "title_field", "score_field", "snippet_field", "path_field", "score_scale", "filter_field", "filter_value", "presence_field", "measure_field", "attestation_field")
     RESULTS_PATH_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_FIELD_NUMBER: _ClassVar[int]
@@ -108,6 +108,7 @@ class ResultMapping(_message.Message):
     FILTER_VALUE_FIELD_NUMBER: _ClassVar[int]
     PRESENCE_FIELD_FIELD_NUMBER: _ClassVar[int]
     MEASURE_FIELD_FIELD_NUMBER: _ClassVar[int]
+    ATTESTATION_FIELD_FIELD_NUMBER: _ClassVar[int]
     results_path: str
     id_field: str
     title_field: str
@@ -119,7 +120,8 @@ class ResultMapping(_message.Message):
     filter_value: str
     presence_field: str
     measure_field: str
-    def __init__(self, results_path: _Optional[str] = ..., id_field: _Optional[str] = ..., title_field: _Optional[str] = ..., score_field: _Optional[str] = ..., snippet_field: _Optional[str] = ..., path_field: _Optional[str] = ..., score_scale: _Optional[_Union[ScoreScale, str]] = ..., filter_field: _Optional[str] = ..., filter_value: _Optional[str] = ..., presence_field: _Optional[str] = ..., measure_field: _Optional[str] = ...) -> None: ...
+    attestation_field: str
+    def __init__(self, results_path: _Optional[str] = ..., id_field: _Optional[str] = ..., title_field: _Optional[str] = ..., score_field: _Optional[str] = ..., snippet_field: _Optional[str] = ..., path_field: _Optional[str] = ..., score_scale: _Optional[_Union[ScoreScale, str]] = ..., filter_field: _Optional[str] = ..., filter_value: _Optional[str] = ..., presence_field: _Optional[str] = ..., measure_field: _Optional[str] = ..., attestation_field: _Optional[str] = ...) -> None: ...
 
 class FloorConfig(_message.Message):
     __slots__ = ("max_gap", "hard_floor")

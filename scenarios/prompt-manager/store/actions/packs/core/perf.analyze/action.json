@@ -1,0 +1,76 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "perf.analyze",
+  "name": "Analyze a perf trace (React render hotspots + web-vitals)",
+  "description": "Analyze a captured performance trace: per-component commit attribution (which React component re-rendered, how often, how slow), web-vitals (LCP), long tasks, and located findings. The second half of the perf loop after perf.audit — turns a raw trace into a ranked list of render/jank hotspots you can act on.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "performance-health"
+  },
+  "command": {
+    "argv": [
+      "performance-health",
+      "analysis",
+      "analyze",
+      "--trace",
+      "{{trace}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "trace": {
+      "type": "string",
+      "required": true,
+      "description": "Trace artifact path/key from perf.audit."
+    }
+  },
+  "outputs": {
+    "findings": {
+      "type": "string",
+      "description": "JSON of located render/perf findings ranked by impact."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": false,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Analyze a trace produced by perf.audit.",
+      "input": {
+        "trace": "/tmp/perf/trace.json"
+      }
+    }
+  ],
+  "tags": [
+    "performance",
+    "ui",
+    "react",
+    "render",
+    "re-render",
+    "jank",
+    "component",
+    "commit",
+    "trace",
+    "analyze",
+    "hotspot",
+    "web-vitals",
+    "lcp",
+    "frame"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-06-22T00:00:00Z",
+  "updatedAt": "2026-06-22T00:00:00Z"
+}

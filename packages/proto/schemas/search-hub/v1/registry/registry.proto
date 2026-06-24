@@ -155,6 +155,16 @@ message ResultMapping {
   // (no per-provider code), so only the single registered measures provider
   // (measures-health) populates it.
   string measure_field = 11;
+  // Optional attestation carrier path. When set, the adapter decodes the
+  // per-item object at this JSON path into SearchHit.attestation (the provider's
+  // attested architectural answer). The object follows the fixed AttestedAnswer
+  // contract (claim, citations, basis, sufficiency, gaps, suggested_follow_ups).
+  // Empty means "no attestation carrier" — ordinary retrieval providers leave it
+  // unset. Applied generically by the adapter, like measure_field and the
+  // filters above (no per-provider code). Architectural providers (e.g.
+  // architecture-cartographer, meta-optimization-manager) set it; the
+  // conformance lint enforces that.
+  string attestation_field = 12;
 }
 
 // Per-leg score floor (query-time). A value of 0 means "use the regime
