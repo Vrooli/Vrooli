@@ -107,8 +107,6 @@ export const queryKeys = {
     dimensions: () => [...queryKeys.autoSteer.all, 'dimensions'] as const,
     executionState: (taskId: string) => [...queryKeys.autoSteer.all, 'execution-state', taskId] as const,
     decisionTrace: (taskId: string) => [...queryKeys.autoSteer.all, 'decision-trace', taskId] as const,
-    effectiveness: (skill?: string, dimension?: string) =>
-      [...queryKeys.autoSteer.all, 'effectiveness', skill ?? 'all', dimension ?? 'all'] as const,
     history: (profileId?: string, scenarioName?: string) =>
       [...queryKeys.autoSteer.all, 'history', profileId ?? 'all', scenarioName ?? 'all'] as const,
     historyDetail: (executionId: string) =>

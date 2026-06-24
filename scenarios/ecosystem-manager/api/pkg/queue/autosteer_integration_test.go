@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
-	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -83,7 +82,6 @@ func newTestOrchestrator(profileRepo *autosteer.MockProfileRepository) (*autoste
 		promptEnhancer,
 		completenessProvider,
 		autosteer.NewTraceStore(nil),
-		effectiveness.NewMemoryStore(),
 	)
 	return orchestrator, stateRepo
 }

@@ -73,21 +73,6 @@ export function useAutoSteerDecisionTrace(taskId?: string) {
 }
 
 /**
- * Effectiveness ledger — the operator's "which skills actually work" view,
- * optionally filtered by skill and/or dimension.
- */
-export function useAutoSteerEffectiveness(filters: { skill?: string; dimension?: string } = {}) {
-	return useQuery({
-		queryKey: queryKeys.autoSteer.effectiveness(filters.skill, filters.dimension),
-		queryFn: async () => {
-			const resp = await api.getAutoSteerEffectiveness(filters);
-			return resp.effectiveness;
-		},
-		staleTime: 15000,
-	});
-}
-
-/**
  * Reset Auto Steer execution state for a task
  */
 export function useResetAutoSteerExecution() {

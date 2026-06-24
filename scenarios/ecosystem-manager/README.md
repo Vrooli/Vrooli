@@ -18,10 +18,11 @@ board for visibility and control.
 
 - **One control plane for four operations** — scenario/resource ×
   generator/improver — instead of four separate tools.
-- **Auto-steer improvement loops** — apply steer skills across iterations
-  with metric-gated stop conditions and quality gates, executed via
-  `agent-manager`. (Today an open-loop schedule; being reframed as a
-  closed-loop controller — see the control model.)
+- **Auto-steer improvement loops** — a closed-loop controller that
+  diagnoses a target's open findings, selects the steer skill that best
+  closes the heaviest dimension, executes it via `agent-manager`, and
+  re-measures until the objective is met or the budget is exhausted — see
+  the control model.
 - **A Kanban board UI** — pending / in-progress / completed / failed /
   blocked, with steering configuration and execution history.
 - **Persistent run history and metrics** — SQLite-backed analytics on

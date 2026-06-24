@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/vrooli/maturity-go/dimensions"
-	"github.com/vrooli/maturity-go/ladder"
 )
 
 // SkillCatalogResolver is the selector's catalog view: dimension eligibility
@@ -17,8 +16,8 @@ type SkillCatalogResolver interface {
 	AllSkills() []string
 }
 
-// relevantDimensions returns the dimensions a profile values: explicit weights
-// plus every maturity-ladder dimension up to top_rung when the ladder is enabled.
+// relevantDimensions returns the dimensions a profile values (its explicit
+// weight keys).
 func relevantDimensions(profile *AutoSteerProfile) []dimensions.Dimension {
 	if profile == nil {
 		return nil
@@ -28,20 +27,6 @@ func relevantDimensions(profile *AutoSteerProfile) []dimensions.Dimension {
 		dim := dimensions.Dimension(raw)
 		if dimensions.IsValid(dim) {
 			seen[dim] = struct{}{}
-		}
-	}
-	if profile.ladderEnabled() {
-		top := ladder.RungR4
-		if parsed, ok := ladder.ParseRung(profile.Ladder.TopRung); ok {
-			top = parsed
-		}
-		for _, rung := range ladder.Rungs() {
-			for _, dim := range rung.Dimensions {
-				seen[dim] = struct{}{}
-			}
-			if rung.ID == top {
-				break
-			}
 		}
 	}
 	out := make([]dimensions.Dimension, 0, len(seen))

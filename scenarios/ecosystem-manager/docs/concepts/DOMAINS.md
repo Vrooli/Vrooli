@@ -30,7 +30,7 @@ in [`DATA.md`](DATA.md).
 | steering | Selects the steering mode (profile / queue / manual / none) for a task. | `steering_queue_state` | API, UI | `api/pkg/steering/` |
 | settings | Processor configuration (concurrency, auto-requeue, runner models). | settings state | API, UI | `api/pkg/settings/` |
 | discovery | Catalog of improvable scenarios/resources and their PRD completion. | none (reads repo + `PRD.md`) | API, UI | `api/pkg/discovery/` |
-| insights | Post-run analysis: structured feedback and applicable suggestions. | `execution_feedback_entries` | API, UI | `api/pkg/insights/` |
+| insights | Post-run analysis: structured feedback and applicable suggestions. Served by auto-steer (not a standalone package). | `execution_feedback_entries` | API, UI | `api/pkg/autosteer/history_service.go`, `handlers.go` |
 | prompts | Assemble agent prompts; sync the steer-skill catalog. | prompt files; skills cache | API | `api/pkg/prompts/` |
 | logs | Date-stamped system audit trail. | `logs/<date>.log` | API, CLI, UI | `api/pkg/systemlog/` |
 
@@ -74,23 +74,22 @@ in [`DATA.md`](DATA.md).
 - Internal structure: controller orchestrator (`execution_orchestrator.go`),
   greedy `Selector` (`selector.go`), gradient `Terminator` (`terminator.go`),
   findings ingestion (`pkg/findings`), skill→dimension resolver
-  (`pkg/skillmap`), dimension vocabulary (shared `packages/maturity-go/dimensions`), decision-trace
-  store (`decision_trace.go`), state manager (SQLite), profile repository
-  (filesystem), gap-metrics collectors (`metrics*.go`).
-- Status: **v1 effectiveness-weighted controller shipped** — findings
-  state, declared skill→dimension map, reduction-per-token bandit selection
-  (`pkg/effectiveness` ledger + credit assignment), Layer-2 runtime
-  thrashing defense (fingerprint cycle, net-progress window, hysteresis,
-  regression veto), gradient termination, decision trace. DTV priors /
-  eligibility gate remain P2 (seams in place) — see
-  [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
+  (`pkg/skillmap`), dimension vocabulary (shared `packages/maturity-go/dimensions`),
+  decision-trace store (`decision_trace.go`), state manager (SQLite), profile
+  repository (filesystem), completeness measurement (`pkg/completeness`, for the
+  operational-targets gate), and the anti-gaming promote-safety classifier
+  (`pkg/autosteer/gameguard`).
+- Status: **greedy controller** — diagnose open `test-genie` findings → select
+  the skill targeting the heaviest profile-weighted dimension → execute via
+  agent-manager → re-audit → terminate on objective-met / budget / diminishing
+  returns. Baseline-safe via the optional `baseline_promote` engagement; a gamed
+  run is blocked from promotion. See [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
 - Surfaces: the `/api/auto-steer/*` route group (incl.
-  `GET /execution/{taskId}/trace` and `GET /effectiveness`); CLI `steer`
-  group (incl. `effectiveness`, `trace`); UI steering panels +
-  decision-trace panel + effectiveness table.
+  `GET /execution/{taskId}/trace`); CLI `steer` group (incl. `trace`); UI
+  steering panels + decision-trace panel.
 - Tests: unit tests for selector, terminator, controller loop, findings,
-  skillmap, dimensions, profile validation/repository, and handlers — see
-  [`../internal/TESTING.md`](../internal/TESTING.md).
+  skillmap, dimensions, profile validation/repository, gaming promote-gate, and
+  handlers — see [`../internal/TESTING.md`](../internal/TESTING.md).
 
 ### steering
 
@@ -155,12 +154,11 @@ in [`DATA.md`](DATA.md).
 |---|---|---|
 | _None outstanding._ | — | — |
 
-The effectiveness store shipped as part of auto-steer v1 (`pkg/effectiveness`,
-`skill_dimension_effectiveness`); it is folded into the auto-steer domain rather
-than a standalone domain. The DTV trust gate likewise shipped: skill eligibility
-and cold-start priors are consumed through the auto-steer `EligibilityFilter` /
-`PriorProvider` seams (`DTVEligibilityFilter`, `DTVPriorProvider`, backed by the
-`dtv.Client` read seam), so it belongs to the auto-steer domain, not deferred.
+The auto-steer controller is intentionally greedy: it has no learned
+effectiveness ledger, no development-toolchain-validator eligibility gate, and no
+maturity-ladder rung governor. Those layers were removed in favor of a simple,
+explainable "fix the heaviest open dimension" selection — see the *Design
+History* section of [`CONTROL-MODEL.md`](CONTROL-MODEL.md).
 
 ## Non-Domains
 

@@ -32,25 +32,17 @@ func (s *TraceStore) Append(taskID, profileID, scenarioName string, e DecisionTr
 	if err != nil {
 		return fmt.Errorf("marshal dimension scores: %w", err)
 	}
-	excludedJSON, err := marshalExcluded(e.DTVExcluded)
-	if err != nil {
-		return fmt.Errorf("marshal dtv_excluded: %w", err)
-	}
 	query := `
 		INSERT INTO decision_trace (
 			task_id, profile_id, scenario_name, iteration, chosen_skill,
 			heaviest_dimension, rationale, dimension_scores, fingerprint,
-			score_before, score_after, realized_delta, tokens_used,
-			dtv_verdict, dtv_prior, dtv_excluded, dtv_gate_override, dtv_degraded,
-			gate_degraded_cause, predicted_reduction, current_rung
-		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			score_before, score_after, realized_delta
+		) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
 	`
 	_, err = s.db.Exec(query,
 		taskID, profileID, scenarioName, e.Iteration, e.ChosenSkill,
 		e.HeaviestDimension, e.Rationale, scoresJSON, e.Fingerprint,
-		e.ScoreBefore, e.ScoreAfter, e.RealizedDelta, e.TokensUsed,
-		e.DTVVerdict, e.DTVPrior, jsonOrNull(excludedJSON), e.DTVGateOverride, e.DTVDegraded,
-		e.GateDegradedCause, e.PredictedReduction, e.CurrentRung,
+		e.ScoreBefore, e.ScoreAfter, e.RealizedDelta,
 	)
 	if err != nil {
 		return fmt.Errorf("append decision trace: %w", err)
@@ -58,49 +50,19 @@ func (s *TraceStore) Append(taskID, profileID, scenarioName string, e DecisionTr
 	return nil
 }
 
-// jsonOrNull returns a NULL-able arg for a JSON TEXT column: a nil/empty byte
-// slice becomes SQL NULL (an empty []byte would otherwise store as an empty
-// string, which is invalid JSON), otherwise the bytes pass through.
-func jsonOrNull(b []byte) any {
-	if len(b) == 0 {
-		return nil
-	}
-	return b
-}
-
-// marshalExcluded marshals the DTV per-skill exclusion-reason map to JSON,
-// returning a nil slice (SQL NULL) for an empty map.
-func marshalExcluded(m map[string]string) ([]byte, error) {
-	if len(m) == 0 {
-		return nil, nil
-	}
-	return json.Marshal(m)
-}
-
 // SetRealized fills in the realized outcome of an iteration after re-audit: the
-// new score, realized delta, token cost, and the per-dimension findings flow.
+// new score, realized delta, and the anti-gaming verdict.
 func (s *TraceStore) SetRealized(taskID string, e DecisionTraceEntry) error {
 	if s == nil || s.db == nil {
 		return nil
 	}
-	closedJSON, err := marshalDimCounts(e.ClosedByDimension)
-	if err != nil {
-		return fmt.Errorf("marshal closed_by_dimension: %w", err)
-	}
-	introducedJSON, err := marshalDimCounts(e.IntroducedByDimension)
-	if err != nil {
-		return fmt.Errorf("marshal introduced_by_dimension: %w", err)
-	}
 	query := `
 		UPDATE decision_trace
-		SET score_after = ?, realized_delta = ?, tokens_used = ?,
-		    closed_by_dimension = ?, introduced_by_dimension = ?,
-		    regressed = ?, veto_applied = ?, gaming_cause = ?
+		SET score_after = ?, realized_delta = ?, gaming_cause = ?
 		WHERE task_id = ? AND iteration = ?
 	`
-	if _, err := s.db.Exec(query, e.ScoreAfter, e.RealizedDelta, e.TokensUsed,
-		jsonOrNull(closedJSON), jsonOrNull(introducedJSON), e.Regressed, e.VetoApplied,
-		e.GamingCause, taskID, e.Iteration); err != nil {
+	if _, err := s.db.Exec(query, e.ScoreAfter, e.RealizedDelta, e.GamingCause,
+		taskID, e.Iteration); err != nil {
 		return fmt.Errorf("set realized decision trace: %w", err)
 	}
 	return nil
@@ -120,16 +82,6 @@ func (s *TraceStore) SetHalt(taskID string, iteration int, reason string) error 
 	return nil
 }
 
-// marshalDimCounts marshals a per-dimension count map to JSON, returning a nil
-// slice (SQL NULL) for an empty map so the column stays clean when there is no
-// findings flow to record.
-func marshalDimCounts(m map[string]int) ([]byte, error) {
-	if len(m) == 0 {
-		return nil, nil
-	}
-	return json.Marshal(m)
-}
-
 // GetTrace returns the decision trace for a task ordered by iteration.
 func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 	if s == nil || s.db == nil {
@@ -138,11 +90,7 @@ func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 	query := `
 		SELECT iteration, chosen_skill, heaviest_dimension, rationale,
 		       dimension_scores, fingerprint, score_before, score_after,
-		       realized_delta, tokens_used, closed_by_dimension,
-		       introduced_by_dimension, regressed, veto_applied, halt_reason,
-		       dtv_verdict, dtv_prior, dtv_excluded, dtv_gate_override,
-		       dtv_degraded, gate_degraded_cause, predicted_reduction,
-		       gaming_cause, current_rung, created_at
+		       realized_delta, gaming_cause, halt_reason, created_at
 		FROM decision_trace
 		WHERE task_id = ?
 		ORDER BY iteration ASC
@@ -156,36 +104,17 @@ func (s *TraceStore) GetTrace(taskID string) ([]DecisionTraceEntry, error) {
 	out := make([]DecisionTraceEntry, 0)
 	for rows.Next() {
 		var e DecisionTraceEntry
-		var scoresJSON, closedJSON, introducedJSON, excludedJSON []byte
+		var scoresJSON []byte
 		if err := rows.Scan(
 			&e.Iteration, &e.ChosenSkill, &e.HeaviestDimension, &e.Rationale,
 			&scoresJSON, &e.Fingerprint, &e.ScoreBefore, &e.ScoreAfter,
-			&e.RealizedDelta, &e.TokensUsed, &closedJSON, &introducedJSON,
-			&e.Regressed, &e.VetoApplied, &e.HaltReason,
-			&e.DTVVerdict, &e.DTVPrior, &excludedJSON, &e.DTVGateOverride,
-			&e.DTVDegraded, &e.GateDegradedCause, &e.PredictedReduction,
-			&e.GamingCause, &e.CurrentRung, &e.Timestamp,
+			&e.RealizedDelta, &e.GamingCause, &e.HaltReason, &e.Timestamp,
 		); err != nil {
 			return nil, fmt.Errorf("scan decision trace: %w", err)
-		}
-		if !isNullJSON(excludedJSON) {
-			if err := json.Unmarshal(excludedJSON, &e.DTVExcluded); err != nil {
-				return nil, fmt.Errorf("unmarshal dtv_excluded: %w", err)
-			}
 		}
 		if !isNullJSON(scoresJSON) {
 			if err := json.Unmarshal(scoresJSON, &e.DimensionScores); err != nil {
 				return nil, fmt.Errorf("unmarshal dimension scores: %w", err)
-			}
-		}
-		if !isNullJSON(closedJSON) {
-			if err := json.Unmarshal(closedJSON, &e.ClosedByDimension); err != nil {
-				return nil, fmt.Errorf("unmarshal closed_by_dimension: %w", err)
-			}
-		}
-		if !isNullJSON(introducedJSON) {
-			if err := json.Unmarshal(introducedJSON, &e.IntroducedByDimension); err != nil {
-				return nil, fmt.Errorf("unmarshal introduced_by_dimension: %w", err)
 			}
 		}
 		out = append(out, e)

@@ -39,7 +39,7 @@ import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
 import { SteeringConfigPicker } from '@/components/steer/SteeringConfigPicker';
 import { deriveSteeringConfig, extractSteeringFields } from '@/components/steer/SteeringConfigPicker.helpers';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
-import { DecisionTracePanel, EffectivenessPanel } from '@/components/steer/DecisionTracePanel';
+import { DecisionTracePanel } from '@/components/steer/DecisionTracePanel';
 import { QueuePanel } from '@/components/steer/panels/QueuePanel';
 import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { formatSkillSetLabel } from '@/lib/utils';
@@ -1002,7 +1002,6 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                     )}
                     <div className="mt-3 border-t border-border/40 pt-3 space-y-3">
                       <DecisionTracePanel taskId={task.id} />
-                      <EffectivenessPanel />
                     </div>
                   </div>
                 )}

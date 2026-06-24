@@ -43,7 +43,6 @@ CREATE INDEX IF NOT EXISTS idx_profile_execution_state_profile_id ON profile_exe
 
 -- Per-iteration decision trace. Persists the controller's reasoning so it
 -- survives run finalization (the live state.Trace is deleted on finish).
--- Boolean fields are stored as INTEGER 0/1 (driver.Bool round-trips them).
 CREATE TABLE IF NOT EXISTS decision_trace (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id TEXT NOT NULL,
@@ -58,21 +57,8 @@ CREATE TABLE IF NOT EXISTS decision_trace (
     score_before REAL NOT NULL DEFAULT 0,
     score_after REAL NOT NULL DEFAULT 0,
     realized_delta REAL NOT NULL DEFAULT 0,
-    tokens_used INTEGER NOT NULL DEFAULT 0,
-    closed_by_dimension TEXT,
-    introduced_by_dimension TEXT,
-    regressed INTEGER NOT NULL DEFAULT 0,
-    veto_applied INTEGER NOT NULL DEFAULT 0,
-    halt_reason TEXT NOT NULL DEFAULT '',
-    dtv_verdict TEXT NOT NULL DEFAULT '',
-    dtv_prior REAL NOT NULL DEFAULT 0,
-    dtv_excluded TEXT,
-    dtv_gate_override INTEGER NOT NULL DEFAULT 0,
-    dtv_degraded INTEGER NOT NULL DEFAULT 0,
-    gate_degraded_cause TEXT NOT NULL DEFAULT '',
-    predicted_reduction REAL NOT NULL DEFAULT 0,
     gaming_cause TEXT NOT NULL DEFAULT '',
-    current_rung TEXT NOT NULL DEFAULT '',
+    halt_reason TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

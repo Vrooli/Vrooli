@@ -2,16 +2,13 @@ package autosteer
 
 import (
 	"fmt"
-	"math"
 	"strings"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 // diminishingReturnsWindow is the trailing number of score samples over which
-// the controller measures marginal improvement. It is the SAME measurement the
-// v1 Layer-2 net-progress thrashing detector extends (see CONTROL-MODEL.md
-// "Termination"); v1 adds the closed/introduced split, v0 uses net total only.
+// the controller measures marginal improvement.
 const diminishingReturnsWindow = 3
 
 // Stop reasons (stable strings surfaced in the decision trace and history).
@@ -21,12 +18,10 @@ const (
 	StopBudgetExhausted    = "budget_exhausted"
 	StopReasonContinue     = "continue"
 	StopNothingActionable  = "nothing_actionable"
-	StopThrashingCycle     = "thrashing_cycle"
-	StopNoNetProgress      = "no_net_progress"
 	// StopMeasurementUnavailable halts a run when the completeness-scoring
 	// authority is unreachable mid-loop. Measurement is load-bearing for
 	// termination, so the controller degrades loudly rather than continuing on
-	// stale/zero data (plan D2 — no fallback collector).
+	// stale/zero data (no fallback collector).
 	StopMeasurementUnavailable = "measurement_unavailable"
 )
 
@@ -117,47 +112,17 @@ func meanImprovement(history []float64) (float64, bool) {
 }
 
 // ShouldStop evaluates global termination. Order: objective-met (best outcome),
-// then the Layer-2 thrashing defenses (fingerprint cycle, then net-progress
-// stall — caught on first recurrence rather than at the backstop), then the
-// budget backstop, then diminishing returns.
+// then the budget backstop (max iterations), then diminishing returns.
 func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteerProfile) (bool, string) {
 	if state == nil || profile == nil {
 		return false, StopReasonContinue
 	}
 
-	// Objective is met only when the profile's targets are satisfied AND — when a
-	// maturity ladder is configured — every rung up to the profile's top rung
-	// holds. The rung-hold is a real extra guard whenever max_open_severity is set
-	// above "error": objectiveMet could pass with open error-level findings, but a
-	// ladder profile must still clear its hard rungs (R0/R1) before stopping.
 	if met, reason := objectiveMet(state, profile); met {
-		if rungsHoldForObjective(state, profile) {
-			return true, reason
-		}
+		return true, reason
 	}
 
-	if at := cycleRecurrence(state, profile.Budget.cycleWindow()); at > 0 {
-		return true, fmt.Sprintf(
-			"%s: current open-findings set recurred (last seen iteration %d) within a %d-iteration window",
-			StopThrashingCycle, at, profile.Budget.cycleWindow(),
-		)
-	}
-
-	if flow, ok := netFindingsFlow(state, profile.Budget.netProgressWindow()); ok &&
-		math.Abs(float64(flow)) <= profile.Budget.netProgressFloor() {
-		return true, fmt.Sprintf(
-			"%s: net findings flow %+d over last %d iterations within floor %.0f",
-			StopNoNetProgress, flow, profile.Budget.netProgressWindow(), profile.Budget.netProgressFloor(),
-		)
-	}
-
-	if cap := effectiveMaxIterations(state, profile); cap > 0 && state.Iteration >= cap {
-		if cap < profile.Budget.MaxIterations {
-			return true, fmt.Sprintf(
-				"%s: reached degraded-gate cap %d (halved from %d after the DTV gate degraded)",
-				StopBudgetExhausted, cap, profile.Budget.MaxIterations,
-			)
-		}
+	if cap := profile.Budget.MaxIterations; cap > 0 && state.Iteration >= cap {
 		return true, fmt.Sprintf("%s: reached max %d iterations", StopBudgetExhausted, cap)
 	}
 
@@ -171,77 +136,4 @@ func (t *Terminator) ShouldStop(state *ProfileExecutionState, profile *AutoSteer
 	}
 
 	return false, StopReasonContinue
-}
-
-// firstDegradedIteration returns the iteration of the earliest trace entry whose
-// Layer-1 DTV gate ran degraded (proceed-cap-flag, EM-P2), or 0 if none. The
-// latch lives in the trace itself (no separate state column) so it survives
-// persistence and the halving stays idempotent across iterations.
-func firstDegradedIteration(state *ProfileExecutionState) int {
-	for _, e := range state.Trace {
-		if e.GateDegradedCause != "" {
-			return e.Iteration
-		}
-	}
-	return 0
-}
-
-// effectiveMaxIterations applies the proceed-cap-flag budget penalty: once the
-// DTV gate has degraded, the remaining iteration budget (from the first degraded
-// iteration onward) is halved — applied exactly once because it is derived from
-// the fixed first-degraded iteration. Returns the profile's MaxIterations
-// unchanged when the gate never degraded (or no cap is set).
-func effectiveMaxIterations(state *ProfileExecutionState, profile *AutoSteerProfile) int {
-	maxIters := profile.Budget.MaxIterations
-	if maxIters <= 0 || state == nil {
-		return maxIters
-	}
-	d := firstDegradedIteration(state)
-	if d <= 0 || d >= maxIters {
-		return maxIters
-	}
-	remaining := maxIters - d
-	return d + remaining/2
-}
-
-// cycleRecurrence reports the iteration at which the current open-findings
-// fingerprint was previously seen within the trailing window of k iterations, or
-// 0 if there is no recurrence. An empty fingerprint (no open findings) never
-// counts as a cycle — that path is handled by objective-met.
-func cycleRecurrence(state *ProfileExecutionState, k int) int {
-	fp := state.Findings.Fingerprint
-	if fp == "" || k <= 0 {
-		return 0
-	}
-	n := len(state.Trace)
-	start := n - k
-	if start < 0 {
-		start = 0
-	}
-	for i := start; i < n; i++ {
-		if state.Trace[i].Fingerprint == fp {
-			return state.Trace[i].Iteration
-		}
-	}
-	return 0
-}
-
-// netFindingsFlow sums (closed − introduced) across all dimensions over the
-// trailing w completed iterations. The bool is false until w iterations exist.
-func netFindingsFlow(state *ProfileExecutionState, w int) (int, bool) {
-	n := len(state.Trace)
-	if w <= 0 || n < w {
-		return 0, false
-	}
-	flow := 0
-	for i := n - w; i < n; i++ {
-		e := state.Trace[i]
-		for _, c := range e.ClosedByDimension {
-			flow += c
-		}
-		for _, c := range e.IntroducedByDimension {
-			flow -= c
-		}
-	}
-	return flow, true
 }

@@ -29,15 +29,15 @@ func (o *ExecutionOrchestrator) RecordRunID(taskID, runID string) {
 	if o == nil || taskID == "" || runID == "" {
 		return
 	}
-	o.costMu.Lock()
-	defer o.costMu.Unlock()
+	o.runMu.Lock()
+	defer o.runMu.Unlock()
 	o.pendingRunID[taskID] = runID
 }
 
 // takeRunID pops the recorded run ID for a task (empty if none).
 func (o *ExecutionOrchestrator) takeRunID(taskID string) string {
-	o.costMu.Lock()
-	defer o.costMu.Unlock()
+	o.runMu.Lock()
+	defer o.runMu.Unlock()
 	id := o.pendingRunID[taskID]
 	delete(o.pendingRunID, taskID)
 	return id

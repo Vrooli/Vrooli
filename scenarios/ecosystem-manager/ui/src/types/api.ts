@@ -262,80 +262,21 @@ export interface DecisionTraceEntry {
   score_before?: number;
   score_after?: number;
   realized_delta?: number;
-  /** Agent run token cost for this iteration (0 = unknown). */
-  tokens_used?: number;
-  /** Per-dimension findings flow this iteration produced. */
-  closed_by_dimension?: Record<string, number>;
-  introduced_by_dimension?: Record<string, number>;
-  /** Net weighted score went up this iteration. */
-  regressed?: boolean;
-  /** The profile's regression veto fired this iteration. */
-  veto_applied?: boolean;
   /** Terminal halt reason, set on the final iteration. */
   halt_reason?: string;
-  /** DTV transparency (P2). The chosen skill's fitness verdict. */
-  dtv_verdict?: string;
-  /** The cold-start trust/cost prior DTV seeded for the chosen skill. */
-  dtv_prior?: number;
-  /** Skills the Layer-1 gate denied for the chosen dimension → reason. */
-  dtv_excluded?: Record<string, string>;
-  /** The gate would have emptied the dimension; fell back to allow-all. */
-  dtv_gate_override?: boolean;
-  /** DTV was unreachable; this selection used fail-open (P1) behavior. */
-  dtv_degraded?: boolean;
-  /**
-   * Non-empty when the Layer-1 DTV gate ran degraded under the proceed-cap-flag
-   * policy (P2): the controller did not stall, it proceeded with the least-bad
-   * skill and halved the remaining iteration budget once. One of
-   * 'dtv_unavailable' or 'all_red'. Empty ⇒ healthy gate.
-   */
-  gate_degraded_cause?: string;
-  /**
-   * Forward estimate (at SELECT time) of the weighted-score reduction the chosen
-   * skill will realize this iteration (bandit reduction-per-token × est. tokens,
-   * P4). Compared against realized_delta to surface calibration. 0 = no estimate.
-   */
-  predicted_reduction?: number;
   /**
    * Anti-gaming classifier verdict for this iteration. 'gamed:<causes>' (e.g.
    * 'gamed:test-weakening,suppression') when the code diff matched a gaming
-   * pattern — the iteration's bandit credit was zeroed and it is flagged here.
-   * 'flagged-for-review' for an ambiguous case (no auto-penalty). Empty ⇒ clean.
+   * pattern — the iteration is flagged here as a promote-safety signal.
+   * 'flagged-for-review' for an ambiguous case. Empty ⇒ clean.
    */
   gaming_cause?: string;
-  /**
-   * The maturity rung the controller worked this iteration (e.g. 'R1 Safe &
-   * standards-clean'). Set by the rung-aware selector. Empty ⇒ no ladder profile.
-   */
-  current_rung?: string;
 }
 
 export interface DecisionTraceResponse {
   task_id: string;
   trace: DecisionTraceEntry[];
   count: number;
-}
-
-/** One row of the per-(skill, dimension) effectiveness ledger. */
-export interface EffectivenessRow {
-  skill_id: string;
-  dimension: string;
-  closed_count: number;
-  introduced_count: number;
-  net_closed: number;
-  total_runs: number;
-  total_tokens: number;
-  avg_tokens_per_run: number;
-  observed_efficacy_per_ktok: number;
-  expected_efficacy_per_ktok: number;
-  last_run_at?: string;
-}
-
-export interface EffectivenessResponse {
-  effectiveness: EffectivenessRow[];
-  count: number;
-  prior: number;
-  shrinkage_k: number;
 }
 
 /** A built-in objective profile shipped with the system; same shape as a saved profile. */

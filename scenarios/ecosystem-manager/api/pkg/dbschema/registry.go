@@ -11,7 +11,6 @@ import (
 	"github.com/vrooli/api-core/database"
 
 	"github.com/ecosystem-manager/api/pkg/autosteer"
-	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/steering"
 )
 
@@ -21,7 +20,6 @@ import (
 func AllSchemas() []database.SchemaProvider {
 	return []database.SchemaProvider{
 		database.SchemaProviderFunc(autosteer.Schema),
-		database.SchemaProviderFunc(effectiveness.Schema),
 		database.SchemaProviderFunc(steering.Schema),
 	}
 }

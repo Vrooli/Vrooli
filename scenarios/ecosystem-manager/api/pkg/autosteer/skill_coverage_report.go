@@ -8,7 +8,6 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 	"github.com/vrooli/maturity-go/dimensions"
-	"github.com/vrooli/maturity-go/ladder"
 )
 
 // CoveragePolicy declares dimensions that are intentionally uncovered because
@@ -47,7 +46,6 @@ type CoverageReport struct {
 	Scenario               string                 `json:"scenario,omitempty"`
 	EffectiveAllowSet      []string               `json:"effective_allow_set"`
 	RelevantDimensions     []string               `json:"relevant_dimensions"`
-	GatedUncovered         []CoverageDimensionGap `json:"gated_uncovered"`
 	WeightedUnactionable   []CoverageDimensionGap `json:"weighted_unactionable"`
 	ExcludedSkills         []string               `json:"excluded_skills"`
 	KnownUncoveredInPlay   []CoverageKnownEntry   `json:"known_uncovered_in_play"`
@@ -120,16 +118,6 @@ func (r *CoverageReporter) Report(profileID, scenario string) (CoverageReport, e
 	}
 
 	knownInPlay := make(map[string]KnownUncovered)
-	for _, dim := range gatedDimensionsThroughProfile(profile) {
-		if len(resolver.EligibleSkills(dim, effective)) > 0 {
-			continue
-		}
-		gap := r.coverageGap(dim)
-		report.GatedUncovered = append(report.GatedUncovered, gap)
-		if gap.TrackingRef != "" {
-			knownInPlay[string(dim)] = r.policy.KnownUncovered[string(dim)]
-		}
-	}
 	for raw := range profile.Objective.DimensionWeights {
 		dim := dimensions.Dimension(raw)
 		if len(resolver.EligibleSkills(dim, effective)) > 0 {
@@ -141,9 +129,6 @@ func (r *CoverageReporter) Report(profileID, scenario string) (CoverageReport, e
 			knownInPlay[string(dim)] = r.policy.KnownUncovered[string(dim)]
 		}
 	}
-	sort.Slice(report.GatedUncovered, func(i, j int) bool {
-		return report.GatedUncovered[i].Dimension < report.GatedUncovered[j].Dimension
-	})
 	sort.Slice(report.WeightedUnactionable, func(i, j int) bool {
 		return report.WeightedUnactionable[i].Dimension < report.WeightedUnactionable[j].Dimension
 	})
@@ -175,32 +160,6 @@ func dimensionStrings(dims []dimensions.Dimension) []string {
 		out = append(out, string(dim))
 	}
 	sort.Strings(out)
-	return out
-}
-
-func gatedDimensionsThroughProfile(profile *AutoSteerProfile) []dimensions.Dimension {
-	if !profile.ladderEnabled() {
-		return nil
-	}
-	top := ladder.RungR4
-	if parsed, ok := ladder.ParseRung(profile.Ladder.TopRung); ok {
-		top = parsed
-	}
-	seen := make(map[dimensions.Dimension]struct{})
-	out := make([]dimensions.Dimension, 0)
-	for _, rung := range ladder.Rungs() {
-		for _, dim := range rung.Dimensions {
-			if _, dup := seen[dim]; dup {
-				continue
-			}
-			seen[dim] = struct{}{}
-			out = append(out, dim)
-		}
-		if rung.ID == top {
-			break
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
 	return out
 }
 

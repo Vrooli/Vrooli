@@ -174,9 +174,10 @@ type ObjectiveTargets struct {
 	OperationalTargetsPct float64 `json:"operational_targets_pct,omitempty"`
 }
 
-// Budget bounds the controller loop (Layer-3 backstop + cost control).
+// Budget bounds the controller loop (backstop + cost control).
 type Budget struct {
-	// MaxIterations is the hard iteration cap (Layer-3 thrash backstop).
+	// MaxIterations is the hard iteration cap (the loop's backstop / "bounded
+	// timeout" — the controller never runs more agent passes than this).
 	MaxIterations int `json:"max_iterations"`
 	// DiminishingReturnsFloor is the minimum mean weighted-score improvement per
 	// iteration (over the trailing window) below which the loop stops.
@@ -185,113 +186,6 @@ type Budget struct {
 	// iteration (only the chosen skill's dimensions); N>0 = run the full preset
 	// every N iterations and a targeted audit otherwise.
 	ReauditCadence int `json:"reaudit_cadence,omitempty"`
-
-	// Layer-2 runtime thrashing-defense knobs (all default to conservative
-	// non-zero values when left at 0; see CONTROL-MODEL.md "Termination").
-	//
-	// CycleWindow (K) is how many prior iterations the fingerprint cycle detector
-	// scans for a recurrence of the current open-findings set.
-	CycleWindow int `json:"cycle_window,omitempty"`
-	// NetProgressWindow (W) is the trailing iteration count over which net
-	// findings flow (closed − introduced) must clear NetProgressFloor.
-	NetProgressWindow int `json:"net_progress_window,omitempty"`
-	// NetProgressFloor is the minimum |net findings flow| over the window below
-	// which the loop is judged to be churning without net gain.
-	NetProgressFloor float64 `json:"net_progress_floor,omitempty"`
-	// SkillCooldown (C) is how many iterations a skill that regressed its own
-	// target dimension is deprioritized before it is eligible again.
-	SkillCooldown int `json:"skill_cooldown,omitempty"`
-	// RegressionVeto, when true, prominently flags (and applies cooldown to) any
-	// iteration whose net weighted score went up. P1 records the veto decision;
-	// speculative per-iteration rollback is out of scope.
-	RegressionVeto bool `json:"regression_veto,omitempty"`
-}
-
-// Layer-2 defaults: conservative so the cycle detector needs an exact repeat and
-// the net-progress window is wide. Applied when a profile leaves a knob at 0.
-const (
-	defaultCycleWindow       = 4
-	defaultNetProgressWindow = 3
-	defaultNetProgressFloor  = 0.0
-	defaultSkillCooldown     = 2
-)
-
-// cycleWindow returns the effective K.
-func (b Budget) cycleWindow() int {
-	if b.CycleWindow <= 0 {
-		return defaultCycleWindow
-	}
-	return b.CycleWindow
-}
-
-// netProgressWindow returns the effective W.
-func (b Budget) netProgressWindow() int {
-	if b.NetProgressWindow <= 0 {
-		return defaultNetProgressWindow
-	}
-	return b.NetProgressWindow
-}
-
-// netProgressFloor returns the effective net-progress floor.
-func (b Budget) netProgressFloor() float64 {
-	if b.NetProgressFloor < 0 {
-		return defaultNetProgressFloor
-	}
-	return b.NetProgressFloor
-}
-
-// skillCooldown returns the effective C.
-func (b Budget) skillCooldown() int {
-	if b.SkillCooldown <= 0 {
-		return defaultSkillCooldown
-	}
-	return b.SkillCooldown
-}
-
-// DTVObjective is the optional development-toolchain-validator block of a
-// profile's objective function (P2). It tunes how DTV fitness gates and seeds
-// selection. Absent (nil) means "DTV defaults": gate on red, seed priors — which
-// still degrades to exact P1 behavior whenever DTV has no data (fail-open).
-type DTVObjective struct {
-	// GateEnabled toggles the Layer-1 eligibility gate (deny DTV-red skills).
-	// nil ⇒ true (gate on). Set false to keep priors but never hard-gate.
-	GateEnabled *bool `json:"gate_enabled,omitempty"`
-	// PriorWeight scales the DTV trust/cost prior. 0/omitted ⇒ default weight;
-	// the bandit blend washes the prior out with live evidence regardless.
-	PriorWeight float64 `json:"prior_weight,omitempty"`
-	// TrustFloor is a pass-rate floor (0–1): below it the prior is 0 (a
-	// low-trust skill gets no cold-start head start). 0 ⇒ no floor.
-	TrustFloor float64 `json:"trust_floor,omitempty"`
-	// RefreshIters is the snapshot TTL in controller iterations. <=0 ⇒ default.
-	RefreshIters int `json:"refresh_iters,omitempty"`
-}
-
-// LadderObjective is the maturity-ladder objective-block. The ladder definition
-// (rungs + gates) is canonical in the shared maturity-go/ladder package; this
-// block only tunes how a profile pursues it.
-type LadderObjective struct {
-	// Enabled turns rung-governed selection on. false/absent ⇒ pure greedy.
-	Enabled bool `json:"enabled"`
-	// TopRung caps the highest rung the profile pursues ("R0".."R4" or a full
-	// label). Empty ⇒ the whole ladder (R4).
-	TopRung string `json:"top_rung,omitempty"`
-	// BoostFactor multiplies a soft rung's dimension weights. <=0 ⇒ ladder default.
-	BoostFactor float64 `json:"boost_factor,omitempty"`
-	// DimensionMaxCount overrides the general per-governed-dimension warning-density
-	// cap (the count of open findings, any severity, a rung tolerates). <=0 ⇒ ladder
-	// default (DefaultDimensionMaxCount). This is the knob that controls how
-	// aggressively the ladder holds a warning-heavy scenario at a lower rung.
-	DimensionMaxCount int `json:"dimension_max_count,omitempty"`
-	// StandardsMaxCount / StructureMaxCount tighten the R1/R2 gates with an
-	// optional dimension-specific count cap that overrides DimensionMaxCount
-	// (0 ⇒ use the general cap).
-	StandardsMaxCount int `json:"standards_max_count,omitempty"`
-	StructureMaxCount int `json:"structure_max_count,omitempty"`
-}
-
-// ladderEnabled reports whether rung-governed selection is on for this profile.
-func (p *AutoSteerProfile) ladderEnabled() bool {
-	return p != nil && p.Ladder != nil && p.Ladder.Enabled
 }
 
 // BaselinePromote cadence modes (Baseline Modes P6). The value selects WHEN an
@@ -302,9 +196,8 @@ const (
 	// stop (budget/diminishing/thrashing) abandons the shadow instead.
 	BaselinePromoteEndOfEngagement = "end_of_engagement"
 	// BaselinePromoteCheckpointOnGreen promotes early — the first time a cadence
-	// checkpoint observes an already-met objective while the loop would otherwise
-	// keep grinding (e.g. a ladder holding the run open for a higher rung) —
-	// banking the validated win rather than risking a later regression.
+	// checkpoint observes an already-met objective — banking the validated win
+	// rather than risking a later regression.
 	BaselinePromoteCheckpointOnGreen = "checkpoint_on_green"
 )
 
@@ -361,18 +254,11 @@ type AutoSteerProfile struct {
 	Description string    `json:"description"`
 	Objective   Objective `json:"objective"`
 	// AllowedSkills is an optional restriction mask over catalog-derived
-	// eligibility. Empty means "derive from objective dimensions and ladder."
+	// eligibility. Empty means "derive from the objective's weighted dimensions."
 	AllowedSkills []string `json:"allowed_skills,omitempty"`
 	// DeniedSkills subtracts specific catalog-derived skills from eligibility.
 	DeniedSkills []string `json:"denied_skills,omitempty"`
 	Budget       Budget   `json:"budget"`
-	// DTV is the optional development-toolchain-validator objective-block (P2).
-	DTV *DTVObjective `json:"dtv,omitempty"`
-	// Ladder is the optional maturity-ladder objective-block. When enabled the
-	// selector becomes rung-governed (hard-gate low rungs, soft-boost high rungs)
-	// and the terminator holds the objective until the ladder is clean to the
-	// profile's top rung. Absent/disabled ⇒ pure weighted-greedy selection.
-	Ladder *LadderObjective `json:"ladder,omitempty"`
 	// BaselinePromote is the optional Baseline Modes engagement block (P6).
 	// Absent/disabled ⇒ the loop edits the scenario in place (no shadow/promote).
 	BaselinePromote *BaselinePromoteObjective `json:"baseline_promote,omitempty"`
@@ -382,39 +268,6 @@ type AutoSteerProfile struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	Tags        []string  `json:"tags"`
-}
-
-// defaultDTVRefreshIters is the snapshot TTL (in controller iterations) when a
-// profile leaves dtv.refresh_iters unset: cheap enough to track skill changes,
-// infrequent enough to keep DTV off the hot SELECT path.
-const defaultDTVRefreshIters = 5
-
-// dtvGateEnabled reports whether the Layer-1 eligibility gate is on (default
-// true when the dtv block or its flag is absent).
-func (p *AutoSteerProfile) dtvGateEnabled() bool {
-	if p == nil || p.DTV == nil || p.DTV.GateEnabled == nil {
-		return true
-	}
-	return *p.DTV.GateEnabled
-}
-
-// dtvRefreshIters returns the effective snapshot TTL in iterations.
-func (p *AutoSteerProfile) dtvRefreshIters() int {
-	if p == nil || p.DTV == nil || p.DTV.RefreshIters <= 0 {
-		return defaultDTVRefreshIters
-	}
-	return p.DTV.RefreshIters
-}
-
-// dtvPriorConfig maps the profile's dtv block onto the prior-mapping config
-// (zero fields fall back to package defaults via withDefaults).
-func (p *AutoSteerProfile) dtvPriorConfig() DTVPriorConfig {
-	cfg := DTVPriorConfig{}
-	if p != nil && p.DTV != nil {
-		cfg.Weight = p.DTV.PriorWeight
-		cfg.TrustFloor = p.DTV.TrustFloor
-	}
-	return cfg
 }
 
 // DecisionTraceEntry records one controller iteration's reasoning so the loop is
@@ -432,60 +285,14 @@ type DecisionTraceEntry struct {
 	ScoreBefore       float64            `json:"score_before"`
 	ScoreAfter        float64            `json:"score_after"`
 	RealizedDelta     float64            `json:"realized_delta"`
-	// TokensUsed is the agent run's token cost for this iteration (0 = unknown).
-	TokensUsed int64 `json:"tokens_used"`
-	// ClosedByDimension / IntroducedByDimension are the per-dimension findings
-	// flow this iteration produced (filled after MEASURE, by stable finding ID).
-	ClosedByDimension     map[string]int `json:"closed_by_dimension,omitempty"`
-	IntroducedByDimension map[string]int `json:"introduced_by_dimension,omitempty"`
-	// Regressed is true when this iteration's net weighted score went up.
-	Regressed bool `json:"regressed,omitempty"`
-	// VetoApplied is true when the profile's regression veto fired this iteration
-	// OR the anti-gaming classifier zeroed credit (see GamingCause).
-	VetoApplied bool `json:"veto_applied,omitempty"`
 	// GamingCause records the anti-gaming classifier verdict for this iteration
 	// when it detected gaming-shaped work (e.g. "gamed:test-weakening,suppression")
-	// or flagged it for review ("flagged-for-review"). Empty ⇒ clean. When a
-	// "gamed:" verdict is present the iteration's bandit credit was zeroed.
+	// or flagged it for review ("flagged-for-review"). Empty ⇒ clean. A "gamed:"
+	// verdict blocks the shadow→live promote (see ExecutionOrchestrator.RunGamed).
 	GamingCause string `json:"gaming_cause,omitempty"`
 	// HaltReason is set on the final iteration when the controller stopped,
-	// capturing why (objective_met, thrashing_cycle, no_net_progress, …).
+	// capturing why (objective_met, budget_exhausted, diminishing_returns, …).
 	HaltReason string `json:"halt_reason,omitempty"`
-
-	// DTV transparency (P2). Populated only when the DTV seam is active.
-	// DTVVerdict is the chosen skill's DTV fitness verdict
-	// (unknown/green/yellow/red).
-	DTVVerdict string `json:"dtv_verdict,omitempty"`
-	// DTVPrior is the cold-start trust/cost prior DTV seeded for the chosen skill
-	// (0 when DTV had no usable data — i.e. P1 uniform).
-	DTVPrior float64 `json:"dtv_prior,omitempty"`
-	// DTVExcluded maps each skill the Layer-1 gate denied for the chosen
-	// dimension to its reason (e.g. "dtv:red").
-	DTVExcluded map[string]string `json:"dtv_excluded,omitempty"`
-	// DTVGateOverride is true when the gate would have emptied the chosen
-	// dimension and the selector fell back to allow-all to avoid stalling.
-	DTVGateOverride bool `json:"dtv_gate_override,omitempty"`
-	// DTVDegraded is true when this selection's fitness snapshot was captured
-	// while DTV was unreachable (fail-open ⇒ P1 behavior).
-	DTVDegraded bool `json:"dtv_degraded,omitempty"`
-	// PredictedReduction is the controller's forward estimate (at SELECT time) of
-	// the weighted-score reduction the chosen skill will realize this iteration:
-	// the bandit's expected reduction-per-token × estimated run tokens (EM-P4).
-	// Compared against RealizedDelta in the trace to surface bandit calibration.
-	// 0 when no estimate was computable (e.g. greedy cold start, no token model).
-	PredictedReduction float64 `json:"predicted_reduction,omitempty"`
-	// GateDegradedCause is non-empty when the Layer-1 DTV gate ran in a degraded
-	// mode for this iteration under the proceed-cap-flag policy (EM-P2): the
-	// controller did not stall, it proceeded with the least-bad skill and halved
-	// the remaining iteration budget once. One of GateCauseDTVUnavailable (DTV
-	// unreachable ⇒ no fitness data) or GateCauseAllRed (every eligible skill in
-	// the chosen dimension was DTV-red). Empty ⇒ healthy gate.
-	GateDegradedCause string `json:"gate_degraded_cause,omitempty"`
-	// CurrentRung is the maturity rung the controller worked this iteration (the
-	// lowest unsatisfied rung at or below the profile's top rung, e.g.
-	// "R1 Safe & standards-clean"). Empty when the profile has no ladder or the
-	// whole ladder already holds. Set at SELECT time.
-	CurrentRung string `json:"current_rung,omitempty"`
 }
 
 // ProfileExecutionState tracks the live state of an active controller run.
@@ -522,9 +329,10 @@ type IterationEvaluation struct {
 	// continues (empty when stopping).
 	ChosenSkill string `json:"chosen_skill,omitempty"`
 	// ObjectiveMet reports whether the profile's objective is satisfied by the
-	// state measured this iteration. It can be true even when ShouldStop is false
-	// (e.g. a ladder holding the run open for a higher rung); the Baseline Modes
-	// checkpoint_on_green cadence consumes it to promote a validated win early.
+	// state measured this iteration. The Baseline Modes checkpoint_on_green cadence
+	// consumes it to promote a validated win early. (Under the greedy terminator,
+	// objective-met also triggers a stop, so on the continue path this is normally
+	// false; the field is retained for the checkpoint cadence contract.)
 	ObjectiveMet bool `json:"objective_met,omitempty"`
 	// Iteration is the controller iteration this evaluation reflects, used by the
 	// checkpoint cadence to throttle how often an early promote is considered.

@@ -18,16 +18,18 @@ func eligibilityResolver() *skillmap.Resolver {
 	}}, func(string, ...any) {})
 }
 
-func TestRelevantDimensionsIncludesWeightsAndLadder(t *testing.T) {
+func TestRelevantDimensionsFromWeights(t *testing.T) {
 	p := &AutoSteerProfile{
 		Objective: Objective{DimensionWeights: map[string]float64{"ui": 1, "tests": 1}},
-		Ladder:    &LadderObjective{Enabled: true, TopRung: "R1"},
 	}
 	got := relevantDimensions(p)
-	for _, want := range []dimensions.Dimension{"ui", "tests", "standards", "structure", "security", "dependencies"} {
+	for _, want := range []dimensions.Dimension{"ui", "tests"} {
 		if !containsDimension(got, want) {
 			t.Fatalf("relevantDimensions missing %q from %v", want, got)
 		}
+	}
+	if len(got) != 2 {
+		t.Fatalf("relevantDimensions = %v, want exactly [tests ui]", got)
 	}
 }
 

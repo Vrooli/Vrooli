@@ -37,7 +37,6 @@ import type {
   HealthResponse,
   AutoSteerExecutionState,
   DecisionTraceResponse,
-  EffectivenessResponse,
   DimensionInfo,
   ActiveTarget,
   Campaign,
@@ -507,14 +506,6 @@ class ApiClient {
 
   async getAutoSteerDecisionTrace(taskId: string): Promise<DecisionTraceResponse> {
     return this.fetchJSON<DecisionTraceResponse>(`/api/auto-steer/execution/${taskId}/trace`);
-  }
-
-  async getAutoSteerEffectiveness(filters: { skill?: string; dimension?: string } = {}): Promise<EffectivenessResponse> {
-    const params = new URLSearchParams();
-    if (filters.skill) params.set('skill', filters.skill);
-    if (filters.dimension) params.set('dimension', filters.dimension);
-    const qs = params.toString();
-    return this.fetchJSON<EffectivenessResponse>(`/api/auto-steer/effectiveness${qs ? `?${qs}` : ''}`);
   }
 
   async updateAutoSteerProfile(id: string, profile: Partial<AutoSteerProfile>): Promise<AutoSteerProfile> {

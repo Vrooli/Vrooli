@@ -8,7 +8,6 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 	"github.com/vrooli/maturity-go/dimensions"
-	"github.com/vrooli/maturity-go/ladder"
 )
 
 type coveragePolicy struct {
@@ -126,31 +125,6 @@ func findPromptManagerPacksForCoverage(t *testing.T) string {
 	return ""
 }
 
-func gatedDimensionsThrough(profile *AutoSteerProfile) []dimensions.Dimension {
-	if !profile.ladderEnabled() {
-		return nil
-	}
-	top := ladder.RungR4
-	if parsed, ok := ladder.ParseRung(profile.Ladder.TopRung); ok {
-		top = parsed
-	}
-	seen := make(map[dimensions.Dimension]struct{})
-	out := make([]dimensions.Dimension, 0)
-	for _, rung := range ladder.Rungs() {
-		for _, dim := range rung.Dimensions {
-			if _, dup := seen[dim]; dup {
-				continue
-			}
-			seen[dim] = struct{}{}
-			out = append(out, dim)
-		}
-		if rung.ID == top {
-			break
-		}
-	}
-	return out
-}
-
 func dimensionHasEligibleSkill(profile *AutoSteerProfile, resolver *skillmap.Resolver, dim dimensions.Dimension) bool {
 	return len(resolver.EligibleSkills(dim, effectiveAllow(profile, resolver))) > 0
 }
@@ -175,24 +149,6 @@ func TestCoverageGuardCatalogReachability(t *testing.T) {
 		}
 		if !hit {
 			t.Errorf("skill %q declares valid dimensions %v but no shipped profile values any of them", skillID, dims)
-		}
-	}
-}
-
-func TestCoverageGuardLadderCoverage(t *testing.T) {
-	dir := profilesDir(t)
-	profiles := loadShippedProfiles(t, dir)
-	policy := loadCoveragePolicy(t, dir)
-	resolver := skillmap.NewResolverWithWarner(&skillmap.FakeCatalog{Declarations: loadCatalogDeclarations(t)}, func(string, ...any) {})
-	for _, profile := range profiles {
-		for _, dim := range gatedDimensionsThrough(profile) {
-			if dimensionHasEligibleSkill(profile, resolver, dim) {
-				continue
-			}
-			if _, known := policy.KnownUncovered[string(dim)]; known {
-				continue
-			}
-			t.Errorf("ladder profile %q gates dimension %q but no eligible skill targets it and coverage-policy.json has no known_uncovered entry", profile.Name, dim)
 		}
 	}
 }

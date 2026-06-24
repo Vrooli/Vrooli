@@ -249,10 +249,12 @@ func (em *ExecutionManager) applySteeringToPrompt(prompt string, task *tasks.Tas
 	return prompt
 }
 
-// recordAutoSteerRunCost forwards the just-completed agent run's token cost to
-// the Auto Steer controller (consumed at the next iteration's credit
-// assignment). No-op for non-Auto-Steer tasks or when the cost is unknown.
-func (em *ExecutionManager) recordAutoSteerRunCost(task *tasks.TaskItem, result *tasks.ClaudeCodeResponse) {
+// recordAutoSteerRunID stashes the just-completed agent run's ID with the Auto
+// Steer controller so the next EvaluateIteration can fetch this run's code-level
+// diff for the anti-gaming promote-gate classifier. No-op for non-Auto-Steer
+// tasks. (The controller is greedy and learning-free, so token cost is no longer
+// captured.)
+func (em *ExecutionManager) recordAutoSteerRunID(task *tasks.TaskItem, result *tasks.ClaudeCodeResponse) {
 	if task == nil || result == nil || task.AutoSteerProfileID == "" {
 		return
 	}
@@ -263,11 +265,6 @@ func (em *ExecutionManager) recordAutoSteerRunCost(task *tasks.TaskItem, result 
 	if orchestrator == nil {
 		return
 	}
-	orchestrator.RecordRunCost(task.ID, autosteer.RunCost{
-		TotalTokens: int64(result.TokensUsed),
-	})
-	// Stash the run ID so the next EvaluateIteration can fetch this run's
-	// code-level diff for the anti-gaming classifier.
 	if em.registry != nil {
 		orchestrator.RecordRunID(task.ID, em.registry.GetRunIDForTask(task.ID))
 	}
@@ -656,8 +653,8 @@ func (em *ExecutionManager) mapAgentManagerResult(run *domainpb.Run, task tasks.
 			response.FinalMessage = run.Summary.Description
 		}
 	}
-	// Token cost feeds the Auto Steer controller's reduction-per-token bandit
-	// (see pkg/autosteer.RunCost). agent-manager reports only a combined total.
+	// Token cost is surfaced for run history/display. agent-manager reports only
+	// a combined total.
 	response.TokensUsed = tokensFromRun(run)
 
 	if run.ErrorMsg != "" {
@@ -754,7 +751,7 @@ func (em *ExecutionManager) handleSuccessfulExecution(result *tasks.ClaudeCodeRe
 
 	// Hand the agent run's token cost to the Auto Steer controller before the
 	// continuation decision so credit assignment can weight by reduction-per-token.
-	em.recordAutoSteerRunCost(task, result)
+	em.recordAutoSteerRunID(task, result)
 
 	// Handle steering continuation logic
 	em.handleSteeringContinuation(task, autoSteerInitFailed)

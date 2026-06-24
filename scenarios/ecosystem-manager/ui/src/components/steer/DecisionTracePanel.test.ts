@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRealizedDelta, sumCounts, topDimensions } from './DecisionTracePanel.helpers';
+import { formatRealizedDelta, topDimensions } from './DecisionTracePanel.helpers';
 import type { DecisionTraceEntry } from '@/types/api';
 
 function entry(overrides: Partial<DecisionTraceEntry> = {}): DecisionTraceEntry {
@@ -50,15 +50,5 @@ describe('topDimensions', () => {
 
   it('returns an empty list when there are no open dimensions', () => {
     expect(topDimensions(entry({ dimension_scores: {} }))).toEqual([]);
-  });
-});
-
-describe('sumCounts', () => {
-  it('totals a per-dimension count map', () => {
-    expect(sumCounts({ standards: 2, tests: 3 })).toBe(5);
-  });
-
-  it('treats an absent map as zero', () => {
-    expect(sumCounts(undefined)).toBe(0);
   });
 });

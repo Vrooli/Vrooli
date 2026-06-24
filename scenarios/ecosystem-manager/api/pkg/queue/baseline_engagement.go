@@ -357,6 +357,20 @@ func (a *AutoSteerIntegration) closeEngagement(taskID string, te *taskEngagement
 		return
 	}
 	ctx := context.Background()
+	// Anti-gaming promote-safety gate: a run that only went "green" by faking it
+	// (weakened [REQ:] tests, deleted ledgers, suppression directives) must NOT be
+	// promoted to live. The gameguard classifier flags such iterations on the
+	// decision trace; RunGamed reports them. A gamed run is downgraded to abandon.
+	if green && a.executionOrchestrator != nil {
+		if gamed, err := a.executionOrchestrator.RunGamed(taskID); err != nil {
+			log.Printf("Baseline Modes: gaming check failed for %s (task %s) — proceeding with promote: %v", te.scenario, taskID, err)
+		} else if gamed {
+			green = false
+			reason = "blocked: gaming detected (faked green)"
+			log.Printf("Baseline Modes: PROMOTE BLOCKED for %s (task %s) — gaming detected; abandoning the shadow instead", te.scenario, taskID)
+			systemlog.Errorf("Baseline Modes: promote blocked for %s — gaming detected (faked green); shadow abandoned", te.scenario)
+		}
+	}
 	if green {
 		if err := a.baselineRunner.Promote(ctx, BaselinePromoteParams{
 			Scenario: te.scenario, ExcludeRun: te.runID, TagPrefix: te.tagPrefix,

@@ -8,9 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/ecosystem-manager/api/pkg/effectiveness"
-	"github.com/vrooli/maturity-go/dimensions"
 )
 
 type stubProfileService struct {
@@ -30,8 +27,6 @@ func (s *stubProfileService) GetTemplates() []*AutoSteerProfile                 
 type stubExecutionEngine struct {
 	state    *ProfileExecutionState
 	stateErr error
-	effStats []effectiveness.Stat
-	effErr   error
 }
 
 func (s *stubExecutionEngine) StartExecution(taskID, profileID, scenarioName string) (*ProfileExecutionState, error) {
@@ -53,14 +48,6 @@ func (s *stubExecutionEngine) GetCurrentSet(taskID string) ([]string, error) {
 
 func (s *stubExecutionEngine) GetDecisionTrace(taskID string) ([]DecisionTraceEntry, error) {
 	return nil, nil
-}
-
-func (s *stubExecutionEngine) Effectiveness(skillID string, dim dimensions.Dimension) ([]effectiveness.Stat, error) {
-	return s.effStats, s.effErr
-}
-
-func (s *stubExecutionEngine) EffectivenessPrior() (float64, float64) {
-	return 0, effectiveness.DefaultShrinkageK
 }
 
 type stubHistoryService struct{}
@@ -151,49 +138,6 @@ func TestGetCoverage_RequiresProfile(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
-	}
-}
-
-func TestGetEffectiveness_ReturnsLedgerWithDerivedEfficacy(t *testing.T) { // [REQ:EM-P1-006]
-	engine := &stubExecutionEngine{effStats: []effectiveness.Stat{
-		{SkillID: "lint-fix", Dimension: "standards", ClosedCount: 20, IntroducedCount: 0, TotalRuns: 5, TotalTokens: 5000},
-	}}
-	handlers := NewAutoSteerHandlers(&stubProfileService{}, engine, &stubHistoryService{})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/effectiveness?dimension=standards", nil)
-	w := httptest.NewRecorder()
-	handlers.GetEffectiveness(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (%s)", w.Code, w.Body.String())
-	}
-	var resp struct {
-		Effectiveness []effectivenessRow `json:"effectiveness"`
-		Count         int                `json:"count"`
-		ShrinkageK    float64            `json:"shrinkage_k"`
-	}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp.Count != 1 || len(resp.Effectiveness) != 1 {
-		t.Fatalf("expected 1 row, got %d", resp.Count)
-	}
-	row := resp.Effectiveness[0]
-	if row.SkillID != "lint-fix" || row.NetClosed != 20 || row.AvgTokensPerRun != 1000 {
-		t.Fatalf("unexpected row: %+v", row)
-	}
-	if row.ExpectedEfficacyPerKtok <= 0 {
-		t.Fatalf("expected positive efficacy estimate, got %v", row.ExpectedEfficacyPerKtok)
-	}
-}
-
-func TestGetEffectiveness_PropagatesError(t *testing.T) {
-	handlers := NewAutoSteerHandlers(&stubProfileService{}, &stubExecutionEngine{effErr: errors.New("boom")}, &stubHistoryService{})
-	req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/effectiveness", nil)
-	w := httptest.NewRecorder()
-	handlers.GetEffectiveness(w, req)
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("expected 500, got %d", w.Code)
 	}
 }
 

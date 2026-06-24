@@ -537,7 +537,6 @@ func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 
 	api.HandleFunc("/auto-steer/templates", a.autoSteerHandlers.GetTemplates).Methods("GET")
 	api.HandleFunc("/auto-steer/dimensions", a.autoSteerHandlers.GetDimensions).Methods("GET")
-	api.HandleFunc("/auto-steer/effectiveness", a.autoSteerHandlers.GetEffectiveness).Methods("GET")
 
 	api.HandleFunc("/auto-steer/execution/start", a.autoSteerHandlers.StartExecution).Methods("POST")
 	api.HandleFunc("/auto-steer/execution/evaluate", a.autoSteerHandlers.EvaluateIteration).Methods("POST")

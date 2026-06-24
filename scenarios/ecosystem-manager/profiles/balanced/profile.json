@@ -9,7 +9,9 @@
       "structure": 0.9,
       "ui": 0.9,
       "performance": 0.8,
-      "docs": 0.7
+      "storage": 0.8,
+      "docs": 0.7,
+      "business": 0.6
     },
     "targets": {
       "max_open_severity": "warning",
@@ -20,11 +22,6 @@
     "max_iterations": 40,
     "diminishing_returns_floor": 0.02,
     "reaudit_cadence": 5
-  },
-  "dtv": {
-    "gate_enabled": true,
-    "prior_weight": 1.0,
-    "refresh_iters": 5
   },
   "audit_preset": "comprehensive"
 }

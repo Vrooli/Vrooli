@@ -30,7 +30,6 @@ func TestCoverageReporterReportsKnownUncoveredDependencyGap(t *testing.T) { // [
 			"dependencies": 0.8,
 			"standards":    1,
 		}},
-		Ladder: &LadderObjective{Enabled: true, TopRung: "R1"},
 	}
 	catalog := &skillmap.FakeCatalog{Declarations: []skillmap.SkillDeclaration{
 		{ID: "lint-fix", Dimensions: []string{"standards"}},

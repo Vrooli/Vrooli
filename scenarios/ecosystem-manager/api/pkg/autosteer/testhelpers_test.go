@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/internal/testdb"
 )
 
@@ -18,13 +17,12 @@ type testDB struct {
 }
 
 // SetupTestDatabase opens a temp SQLite database with the controller's tables
-// (and the effectiveness ledger it shares startup DDL with) applied. The second
-// return value is a no-op cleanup retained for caller symmetry — t.Cleanup
-// already closes the DB. It never returns nil, so callers' Docker-skip guards
-// are simply dead under SQLite.
+// applied. The second return value is a no-op cleanup retained for caller
+// symmetry — t.Cleanup already closes the DB. It never returns nil, so callers'
+// Docker-skip guards are simply dead under SQLite.
 func SetupTestDatabase(t *testing.T) (*testDB, func()) {
 	t.Helper()
-	db := testdb.NewSQLite(t, Schema(), effectiveness.Schema())
+	db := testdb.NewSQLite(t, Schema())
 	return &testDB{db: db}, func() {}
 }
 

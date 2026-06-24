@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ecosystem-manager/api/pkg/effectiveness"
 	"github.com/ecosystem-manager/api/pkg/findings"
 	"github.com/ecosystem-manager/api/pkg/skillmap"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
@@ -67,7 +66,6 @@ func loopOrchestrator(runner findings.AuditRunner) (*ExecutionOrchestrator, *Moc
 	orch := NewExecutionOrchestrator(
 		stateRepo, profileRepo, runner, catalog,
 		NewMockPromptEnhancerAPI(), NewMockCompletenessProvider(), NewTraceStore(nil),
-		effectiveness.NewMemoryStore(),
 	)
 	return orch, stateRepo, profileRepo
 }
@@ -236,7 +234,6 @@ func TestEvaluateStart_UnmetTargetsButNothingSteerableStops(t *testing.T) {
 	orch := NewExecutionOrchestrator(
 		stateRepo, profileRepo, &shrinkingRunner{audits: []*findings.Audit{standardsAudit(0)}},
 		catalog, NewMockPromptEnhancerAPI(), comp, NewTraceStore(nil),
-		effectiveness.NewMemoryStore(),
 	)
 
 	taskID := "task-unmet-but-nothing"

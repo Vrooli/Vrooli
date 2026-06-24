@@ -1,22 +1,14 @@
 /**
  * Decision Trace panel — the controller's glass box.
  *
- * Renders the closed-loop controller's per-iteration reasoning for a
+ * Renders the pure-greedy controller's per-iteration reasoning for a
  * scenario-improver task: open findings by dimension (state) → chosen skill
  * (decision) → rationale → realized weighted-score delta after the run.
  * See docs/concepts/CONTROL-MODEL.md ("Transparency").
  */
-import { useAutoSteerDecisionTrace, useAutoSteerEffectiveness } from '@/hooks/useAutoSteer';
-import type { DecisionTraceEntry, EffectivenessRow } from '@/types/api';
-import {
-  calibrationError,
-  degradedGateLabel,
-  dtvVerdictClass,
-  formatPredictedReduction,
-  formatRealizedDelta,
-  sumCounts,
-  topDimensions,
-} from './DecisionTracePanel.helpers';
+import { useAutoSteerDecisionTrace } from '@/hooks/useAutoSteer';
+import type { DecisionTraceEntry } from '@/types/api';
+import { formatRealizedDelta, topDimensions } from './DecisionTracePanel.helpers';
 
 interface DecisionTraceListProps {
   entries: DecisionTraceEntry[];
@@ -32,22 +24,8 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
     );
   }
 
-  const calibration = calibrationError(entries);
-
   return (
     <ol className="space-y-3" role="list" aria-label="Controller decision trace">
-      {calibration && (
-        <li role="presentation" className="list-none">
-          <p
-            className="rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground"
-            data-testid="calibration-indicator"
-            aria-label={`Bandit calibration: mean absolute prediction error ${calibration.mae.toFixed(1)} over ${calibration.n} iterations`}
-          >
-            Bandit calibration: mean |predicted − realized| = {calibration.mae.toFixed(1)} over {calibration.n}{' '}
-            iteration{calibration.n === 1 ? '' : 's'}
-          </p>
-        </li>
-      )}
       {entries.map((entry) => {
         const dims = topDimensions(entry);
         return (
@@ -71,15 +49,8 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
               </span>
               <span
                 className="text-xs text-muted-foreground"
-                aria-label={`Realized delta ${formatRealizedDelta(entry)}${
-                  formatPredictedReduction(entry) ? `, predicted ${formatPredictedReduction(entry)}` : ''
-                }`}
+                aria-label={`Realized delta ${formatRealizedDelta(entry)}`}
               >
-                {formatPredictedReduction(entry) && (
-                  <span data-testid="trace-predicted" className="mr-2">
-                    pred Δ {formatPredictedReduction(entry)}
-                  </span>
-                )}
                 <span data-testid="trace-realized">Δ {formatRealizedDelta(entry)}</span>
               </span>
             </div>
@@ -110,39 +81,8 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
               </ul>
             )}
 
-            {(() => {
-              const closed = sumCounts(entry.closed_by_dimension);
-              const introduced = sumCounts(entry.introduced_by_dimension);
-              const showFlow = closed > 0 || introduced > 0 || (entry.tokens_used ?? 0) > 0;
-              if (!showFlow) return null;
-              return (
-                <p className="mt-1 text-[11px] text-muted-foreground" data-testid="trace-flow">
-                  {closed > 0 && <span>closed {closed}</span>}
-                  {introduced > 0 && <span>{closed > 0 ? ', ' : ''}introduced {introduced}</span>}
-                  {(entry.tokens_used ?? 0) > 0 && (
-                    <span>{closed > 0 || introduced > 0 ? ' · ' : ''}{entry.tokens_used} tok</span>
-                  )}
-                </p>
-              );
-            })()}
-
-            {(entry.regressed || entry.veto_applied || entry.halt_reason || entry.gaming_cause || entry.current_rung) && (
+            {(entry.gaming_cause || entry.halt_reason) && (
               <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Controller flags">
-                {entry.current_rung && (
-                  <li className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[11px] text-sky-600" data-testid="flag-rung">
-                    rung: {entry.current_rung}
-                  </li>
-                )}
-                {entry.regressed && (
-                  <li className="rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive" data-testid="flag-regressed">
-                    regressed
-                  </li>
-                )}
-                {entry.veto_applied && (
-                  <li className="rounded bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive" data-testid="flag-veto">
-                    regression veto
-                  </li>
-                )}
                 {entry.gaming_cause && (
                   <li
                     className={`rounded px-1.5 py-0.5 text-[11px] ${
@@ -153,58 +93,13 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
                     data-testid="flag-gaming"
                   >
                     {entry.gaming_cause.startsWith('gamed:')
-                      ? `⚠ ${entry.gaming_cause} (credit zeroed)`
+                      ? `⚠ ${entry.gaming_cause} (flagged for review)`
                       : entry.gaming_cause}
                   </li>
                 )}
                 {entry.halt_reason && (
                   <li className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-600" data-testid="flag-halt">
                     halt: {entry.halt_reason}
-                  </li>
-                )}
-              </ul>
-            )}
-
-            {entry.gate_degraded_cause && (
-              <p
-                className="mt-2 rounded border border-destructive/40 bg-destructive/15 px-2 py-1 text-[11px] font-medium text-destructive"
-                role="alert"
-                data-testid="gate-degraded"
-              >
-                ⚠ Degraded gate ({degradedGateLabel(entry.gate_degraded_cause)}) — proceeded with the
-                least-bad skill; remaining iteration budget halved. Review this iteration.
-              </p>
-            )}
-
-            {(entry.dtv_verdict || (entry.dtv_excluded && Object.keys(entry.dtv_excluded).length > 0) || entry.dtv_degraded) && (
-              <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="DTV fitness">
-                {entry.dtv_verdict && (
-                  <li
-                    className={`rounded px-1.5 py-0.5 text-[11px] ${dtvVerdictClass(entry.dtv_verdict)}`}
-                    data-testid="dtv-verdict"
-                  >
-                    DTV: {entry.dtv_verdict}
-                    {(entry.dtv_prior ?? 0) > 0 && ` · prior ${entry.dtv_prior?.toFixed(2)}`}
-                  </li>
-                )}
-                {entry.dtv_excluded &&
-                  Object.entries(entry.dtv_excluded).map(([skill, reason]) => (
-                    <li
-                      key={skill}
-                      className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
-                      data-testid="dtv-excluded"
-                    >
-                      gated {skill} ({reason})
-                    </li>
-                  ))}
-                {entry.dtv_gate_override && (
-                  <li className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-600" data-testid="dtv-override">
-                    all-red override
-                  </li>
-                )}
-                {entry.dtv_degraded && (
-                  <li className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground" data-testid="dtv-degraded">
-                    DTV degraded → P1
                   </li>
                 )}
               </ul>
@@ -217,69 +112,6 @@ export function DecisionTraceList({ entries }: DecisionTraceListProps) {
         );
       })}
     </ol>
-  );
-}
-
-interface EffectivenessTableProps {
-  rows: EffectivenessRow[];
-}
-
-/** Presentational, network-free effectiveness ledger — "which skills work". */
-export function EffectivenessTable({ rows }: EffectivenessTableProps) {
-  if (rows.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground" data-testid="effectiveness-empty">
-        No effectiveness data yet — the ledger fills as steered runs complete iterations.
-      </p>
-    );
-  }
-  return (
-    <table className="w-full text-left text-xs" aria-label="Skill effectiveness ledger">
-      <thead className="text-muted-foreground">
-        <tr>
-          <th className="py-1 pr-2 font-medium">Skill</th>
-          <th className="py-1 pr-2 font-medium">Dimension</th>
-          <th className="py-1 pr-2 font-medium" title="closed − introduced">Net</th>
-          <th className="py-1 pr-2 font-medium">Runs</th>
-          <th className="py-1 pr-2 font-medium" title="net findings per 1000 tokens">Efficacy</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={`${r.skill_id}:${r.dimension}`} className="border-t border-border/40">
-            <td className="py-1 pr-2 font-medium text-primary">{r.skill_id}</td>
-            <td className="py-1 pr-2">{r.dimension}</td>
-            <td className={`py-1 pr-2 ${r.net_closed < 0 ? 'text-destructive' : ''}`}>
-              {r.net_closed > 0 ? `+${r.net_closed}` : r.net_closed}
-            </td>
-            <td className="py-1 pr-2">{r.total_runs}</td>
-            <td className="py-1 pr-2">{r.expected_efficacy_per_ktok.toFixed(2)}/khtok</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-interface EffectivenessPanelProps {
-  skill?: string;
-  dimension?: string;
-}
-
-/** Data-fetching wrapper around EffectivenessTable. */
-export function EffectivenessPanel({ skill, dimension }: EffectivenessPanelProps) {
-  const { data: rows = [], isLoading, isError } = useAutoSteerEffectiveness({ skill, dimension });
-  return (
-    <section aria-label="Skill effectiveness" className="space-y-2">
-      <h4 className="text-sm font-semibold">Skill effectiveness</h4>
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading effectiveness ledger…</p>
-      ) : isError ? (
-        <p className="text-sm text-destructive">Failed to load the effectiveness ledger.</p>
-      ) : (
-        <EffectivenessTable rows={rows} />
-      )}
-    </section>
   );
 }
 

@@ -1,28 +1,6 @@
 {
   "profiles": [
     {
-      "id": "bb6ebf9e-a8c7-413b-af6f-02edc62df35a",
-      "name": "AB Control (no ladder)",
-      "description": "Live A/B control arm: balanced-ladder objective, max10, reaudit1, NO ladder. live-validation.",
-      "tags": [
-        "live-validation",
-        "ab-control"
-      ],
-      "kind": "profile",
-      "file": "bb6ebf9e-a8c7-413b-af6f-02edc62df35a/profile.json"
-    },
-    {
-      "id": "a714aa5f-47a7-4973-91ad-0ebdf1c05754",
-      "name": "AB Ladder R4",
-      "description": "Live A/B ladder arm: identical to AB Control except ladder enabled R4 boost8. live-validation.",
-      "tags": [
-        "live-validation",
-        "ab-ladder"
-      ],
-      "kind": "profile",
-      "file": "a714aa5f-47a7-4973-91ad-0ebdf1c05754/profile.json"
-    },
-    {
       "id": "balanced",
       "name": "Balanced",
       "description": "Well-rounded improvement across all dimensions. Suitable for most scenarios.",
@@ -33,40 +11,6 @@
       ],
       "kind": "template",
       "file": "balanced/profile.json"
-    },
-    {
-      "id": "e4237387-66bf-438e-99aa-ccf419160d8d",
-      "name": "Balanced (live-validation P8)",
-      "description": "Instantiated from balanced template for P8 selection-stress + convergence-proof runs.",
-      "tags": [
-        "balanced",
-        "live-validation"
-      ],
-      "kind": "profile",
-      "file": "e4237387-66bf-438e-99aa-ccf419160d8d/profile.json"
-    },
-    {
-      "id": "balanced-ladder",
-      "name": "Balanced (Maturity Ladder)",
-      "description": "Balanced template with rung-governed selection enabled: hard-gate low rungs (runnable/safe), soft-boost high rungs (architecture/features/capability). For A/B comparison against the plain balanced profile.",
-      "tags": [
-        "balanced",
-        "maturity-ladder",
-        "experimental"
-      ],
-      "kind": "template",
-      "file": "balanced-ladder/profile.json"
-    },
-    {
-      "id": "7bf62a70-e8c7-4f10-8e2d-d1e2f2617d16",
-      "name": "Balanced (P1 diagnostic max3)",
-      "description": "Tiny-budget clone of balanced for the attended P1 mechanical run.",
-      "tags": [
-        "balanced",
-        "p1-diagnostic"
-      ],
-      "kind": "profile",
-      "file": "7bf62a70-e8c7-4f10-8e2d-d1e2f2617d16/profile.json"
     },
     {
       "id": "8c3e5043-0b33-44e1-aa73-a044f6ac22c2",
@@ -104,7 +48,7 @@
     },
     {
       "id": "refactor-test-focus",
-      "name": "Refactor \u0026 Test Focus",
+      "name": "Refactor & Test Focus",
       "description": "For scenarios that work but need quality improvement. Focuses on testing and code quality.",
       "tags": [
         "quality",
