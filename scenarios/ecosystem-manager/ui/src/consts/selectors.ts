@@ -94,7 +94,8 @@ const formatTemplate = (template: string, values: Record<string, string | number
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
 const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<ParamSchema | undefined> =>
-  Boolean(value && typeof value === "object" && (value as Record<string, unknown>).kind === "dynamic-selector");
+  typeof value === "object" && value !== null && !Array.isArray(value) &&
+  "kind" in value && value.kind === "dynamic-selector";
 
 const normalizeParams = (
   definition: DynamicSelectorDefinition<ParamSchema | undefined>,

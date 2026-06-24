@@ -36,7 +36,11 @@ export function AgentTab({ settings, onChange, constraints }: AgentTabProps) {
 	        <Label htmlFor="runner-type">AI Runner</Label>
 	        <Select
 	          value={settings.runner_type}
-          onValueChange={(value) => onChange({ runner_type: value as AgentSettings['runner_type'] })}
+          onValueChange={(value) => {
+            if (value === 'claude-code' || value === 'codex' || value === 'opencode') {
+              onChange({ runner_type: value });
+            }
+          }}
         >
           <SelectTrigger id="runner-type" className="w-full">
             <SelectValue placeholder="Select AI runner" />

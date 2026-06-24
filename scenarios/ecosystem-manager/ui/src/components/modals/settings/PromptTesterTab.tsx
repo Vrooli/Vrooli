@@ -28,6 +28,7 @@ import { PromptLibraryPanel } from './PromptLibraryPanel';
 import { SteeringConfigPicker } from '@/components/steer/SteeringConfigPicker';
 import { extractSteeringFields } from '@/components/steer/SteeringConfigPicker.helpers';
 import type { TaskType, OperationType, Priority, SteeringConfig } from '@/types/api';
+import { isOperationType, isPriority, isTaskType } from '@/types/guards';
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
 
@@ -96,7 +97,7 @@ export function PromptTesterTab() {
               <Select
                 value={type}
                 onValueChange={(val: string) => {
-                  setType(val as TaskType);
+                  if (isTaskType(val)) setType(val);
                   if (val !== 'scenario') {
                     setTarget('');
                     setSteeringConfig({ strategy: 'none' });
@@ -118,7 +119,7 @@ export function PromptTesterTab() {
               <Select
                 value={operation}
                 onValueChange={(val: string) => {
-                  setOperation(val as OperationType);
+                  if (isOperationType(val)) setOperation(val);
                   if (val !== 'improver') {
                     setSteeringConfig({ strategy: 'none' });
                   }
@@ -171,7 +172,7 @@ export function PromptTesterTab() {
 
           <div className="space-y-2">
             <Label htmlFor="pt-priority">Priority</Label>
-            <Select value={priority} onValueChange={(val: string) => setPriority(val as Priority)}>
+            <Select value={priority} onValueChange={(val: string) => { if (isPriority(val)) setPriority(val); }}>
               <SelectTrigger id="pt-priority">
                 <SelectValue />
               </SelectTrigger>

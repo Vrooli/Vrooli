@@ -235,7 +235,7 @@ export function SkillPickerDialog({
             />
           </div>
 
-          <Select value={sortBy} onValueChange={(val) => setSortBy(val as SortOption)}>
+          <Select value={sortBy} onValueChange={(val) => { if (val === 'name' || val === 'recent' || val === 'most-used') setSortBy(val); }}>
             <SelectTrigger className="w-[140px] shrink-0">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>

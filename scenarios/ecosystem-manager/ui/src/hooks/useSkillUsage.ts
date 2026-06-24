@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
+import { isRecord } from '../types/guards';
 
 const STORAGE_KEY = 'ecosystem-manager:skill-usage';
 const MAX_RECENT = 10;
@@ -20,14 +21,13 @@ let cachedData: SkillUsageData | null = null;
 const listeners: Set<() => void> = new Set();
 
 function isSkillUsageData(value: unknown): value is SkillUsageData {
-	if (!value || typeof value !== 'object') return false;
-	const candidate = value as Record<string, unknown>;
+	if (!isRecord(value)) return false;
 	return (
-		Array.isArray(candidate.recent) &&
-		candidate.recent.every((item) => typeof item === 'string') &&
-		typeof candidate.frequency === 'object' &&
-		candidate.frequency !== null &&
-		typeof candidate.lastUpdated === 'string'
+		Array.isArray(value.recent) &&
+		value.recent.every((item) => typeof item === 'string') &&
+		typeof value.frequency === 'object' &&
+		value.frequency !== null &&
+		typeof value.lastUpdated === 'string'
 	);
 }
 

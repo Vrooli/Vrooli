@@ -234,8 +234,8 @@ export function QueuePanel({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      const oldIndex = itemIds.indexOf(active.id as string);
-      const newIndex = itemIds.indexOf(over.id as string);
+      const oldIndex = itemIds.indexOf(String(active.id));
+      const newIndex = itemIds.indexOf(String(over.id));
       if (oldIndex !== -1 && newIndex !== -1) {
         onChange(arrayMove(value, oldIndex, newIndex));
       }

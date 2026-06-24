@@ -53,8 +53,14 @@ import type {
   ConstraintRange,
   ExecutionHistory,
   ActiveTarget,
-  TaskStatus,
 } from "../types/api";
+import {
+  isOperationType,
+  isPriority,
+  isRecord,
+  isTaskStatus,
+  isTaskType,
+} from "../types/guards";
 
 // ---------------------------------------------------------------------------
 // Validator & helpers
@@ -69,12 +75,8 @@ function isJsonValue(value: unknown): value is JsonValue {
   const t = typeof value;
   if (t === "string" || t === "number" || t === "boolean") return true;
   if (Array.isArray(value)) return value.every(isJsonValue);
-  if (t === "object") return Object.values(value as Record<string, unknown>).every(isJsonValue);
+  if (t === "object") return isRecord(value) && Object.values(value).every(isJsonValue);
   return false;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -111,6 +113,16 @@ function firstBoolean(record: Record<string, unknown>, keys: string[]): boolean 
     if (value !== undefined) return value;
   }
   return undefined;
+}
+
+/**
+ * Reads runtime fields a proto Message carries beyond its generated type.
+ * The Go handler injects extra JSON fields (e.g. executionLimit) that the proto
+ * schema does not declare; this is the single sanctioned widening point so the
+ * call sites can read them without scattering casts.
+ */
+function extraFields(message: object): Record<string, unknown> {
+  return message as Record<string, unknown>;
 }
 
 function createProtoSchema<Shape extends Message>(
@@ -188,12 +200,6 @@ export const settingsProtoSchema = createProtoSchema(SettingsSchema, "settings")
 // Type guards
 // ---------------------------------------------------------------------------
 
-const TASK_STATUSES = new Set(["pending", "in-progress", "completed", "failed", "completed-finalized", "failed-blocked", "archived"]);
-
-function isTaskStatus(v: unknown): v is TaskStatus {
-  return typeof v === "string" && TASK_STATUSES.has(v);
-}
-
 const isTheme = (v: unknown): v is Settings["display"]["theme"] =>
   v === "light" || v === "dark" || v === "auto";
 
@@ -228,9 +234,9 @@ export function mapProtoTask(proto: ProtoTask, runtime?: {
   return {
     id: proto.id,
     title: proto.title,
-    type: proto.type as Task["type"],
-    operation: proto.operation as Task["operation"],
-    priority: proto.priority as Task["priority"],
+    type: isTaskType(proto.type) ? proto.type : "resource",
+    operation: isOperationType(proto.operation) ? proto.operation : "generator",
+    priority: isPriority(proto.priority) ? proto.priority : "medium",
     status: isTaskStatus(proto.status) ? proto.status : "pending",
     target: targets.filter(Boolean),
     notes: proto.notes || undefined,
@@ -265,7 +271,7 @@ function mapProtoProcessInfoToTaskProcess(proto: ProtoProcessInfo): ProcessInfo 
  * Replaces normalizeQueueStatus().
  */
 export function mapProtoQueueStatus(proto: ProtoQueueStatus): QueueStatus {
-  const extras = proto as unknown as Record<string, unknown>;
+  const extras = extraFields(proto);
   return {
     active: proto.isActive,
     slots_used: proto.maxSlots - proto.availableSlots,
@@ -297,7 +303,8 @@ export function mapProtoProcessInfoToRunning(proto: ProtoProcessInfo, extra?: {
     task_id: proto.taskId,
     task_title: extra?.taskTitle ?? "",
     process_id: proto.runId || proto.taskId,
-    process_type: (extra?.processType ?? "task") as RunningProcess["process_type"],
+    // process_type is the literal "task" — the only value the UI type allows.
+    process_type: "task",
     agent_id: proto.agentTag,
     start_time: proto.startedAt,
     elapsed_seconds: elapsed,
@@ -321,8 +328,8 @@ export function mapProtoExecutionRecord(proto: ProtoExecutionRecord): ExecutionH
     id: proto.executionId || proto.startTime || "",
     task_id: proto.taskId,
     task_title: proto.taskTitle || undefined,
-    task_type: proto.taskType as ExecutionHistory["task_type"],
-    task_operation: proto.taskOperation as ExecutionHistory["task_operation"],
+    task_type: isTaskType(proto.taskType) ? proto.taskType : undefined,
+    task_operation: isOperationType(proto.taskOperation) ? proto.taskOperation : undefined,
     agent_tag: proto.agentTag || undefined,
     process_id: proto.processId || undefined,
     start_time: proto.startTime,
@@ -380,7 +387,7 @@ const DEFAULT_SETTINGS: Settings = {
  */
 export function mapProtoSettings(proto: ProtoSettings): Settings {
   const recycler = proto.recycler;
-  const extras = proto as unknown as Record<string, unknown>;
+  const extras = extraFields(proto);
   return {
     processor: {
       concurrent_slots: proto.slots || DEFAULT_SETTINGS.processor.concurrent_slots,
@@ -481,18 +488,17 @@ const DEFAULT_CONSTRAINTS: SettingsConstraints = {
 };
 
 function parseConstraintRange(raw: unknown, fallback: ConstraintRange): ConstraintRange {
-  if (!raw || typeof raw !== "object") return fallback;
-  const r = raw as Record<string, unknown>;
+  if (!isRecord(raw)) return fallback;
   return {
-    min: typeof r.min === "number" ? r.min : fallback.min,
-    max: typeof r.max === "number" ? r.max : fallback.max,
+    min: typeof raw.min === "number" ? raw.min : fallback.min,
+    max: typeof raw.max === "number" ? raw.max : fallback.max,
   };
 }
 
 function parseConstraints(raw: unknown): SettingsConstraints {
-  if (!raw || typeof raw !== "object") return { ...DEFAULT_CONSTRAINTS };
-  const r = raw as Record<string, unknown>;
-  const recyclerRaw = r.recycler as Record<string, unknown> | undefined;
+  if (!isRecord(raw)) return { ...DEFAULT_CONSTRAINTS };
+  const r = raw;
+  const recyclerRaw = isRecord(r.recycler) ? r.recycler : undefined;
   return {
     slots: parseConstraintRange(r.slots, DEFAULT_CONSTRAINTS.slots),
     cooldown_seconds: parseConstraintRange(r.cooldown_seconds, DEFAULT_CONSTRAINTS.cooldown_seconds),
@@ -516,7 +522,7 @@ function parseConstraints(raw: unknown): SettingsConstraints {
  * Returns both settings and constraints (if present in the API response).
  */
 export function parseSettingsResponse(raw: unknown): { settings: Settings; constraints: SettingsConstraints } {
-  const wrapper = raw as Record<string, unknown> | undefined;
+  const wrapper = isRecord(raw) ? raw : undefined;
   const constraints = parseConstraints(wrapper?.constraints);
   try {
     // The API wraps settings in { settings: { ... } }
@@ -525,9 +531,8 @@ export function parseSettingsResponse(raw: unknown): { settings: Settings; const
     if (result.success) {
       const settings = mapProtoSettings(result.data);
       // Merge fields not in the proto schema from the raw source
-      const s = source as Record<string, unknown>;
-      if (typeof s.execution_limit === "number") {
-        settings.processor.execution_limit = s.execution_limit;
+      if (isRecord(source) && typeof source.execution_limit === "number") {
+        settings.processor.execution_limit = source.execution_limit;
       }
       return { settings, constraints };
     }
@@ -542,7 +547,7 @@ export function parseSettingsResponse(raw: unknown): { settings: Settings; const
  * when proto validation fails (e.g., server returns extra runtime fields).
  */
 export function parseTaskResponse(raw: unknown): Task {
-  if (!raw || typeof raw !== "object") {
+  if (!isRecord(raw)) {
     throw new Error("Invalid task response");
   }
   const result = taskProtoSchema.safeParse(raw);
@@ -550,7 +555,7 @@ export function parseTaskResponse(raw: unknown): Task {
     const task = mapProtoTask(result.data);
     // Proto parsing ignores runtime fields (current_process, execution_count, etc.)
     // that the Go handler injects beyond the proto schema. Merge them from raw data.
-    const r = raw as Record<string, unknown>;
+    const r = raw;
     const rawProcess = r.current_process ?? r.currentProcess;
     const process = normalizeProcessInfo(rawProcess);
     if (process) {
@@ -600,9 +605,8 @@ function parseSteeringQueue(value: unknown): string[][] | undefined {
   const queue = value
     .map((step) => {
       if (Array.isArray(step)) return parseSkillSet(step);
-      if (step && typeof step === "object") {
-        const record = step as Record<string, unknown>;
-        return parseSkillSet(record.skill_ids ?? record.skillIds);
+      if (isRecord(step)) {
+        return parseSkillSet(step.skill_ids ?? step.skillIds);
       }
       return undefined;
     })
@@ -716,7 +720,7 @@ function fallbackNormalizeExecution(raw: unknown): ExecutionHistory {
  * Parse raw queue status JSON with proto validation fallback.
  */
 export function parseQueueStatusResponse(raw: unknown): QueueStatus {
-  if (!raw || typeof raw !== "object") {
+  if (!isRecord(raw)) {
     return {
       active: false, slots_used: 0, max_concurrent: 1,
       available_slots: 1, tasks_remaining: 0, cooldown_seconds: 30,
@@ -727,14 +731,14 @@ export function parseQueueStatusResponse(raw: unknown): QueueStatus {
   if (result.success) {
     const status = mapProtoQueueStatus(result.data);
     // Merge fields not in the proto schema from the raw source
-    const r = raw as Record<string, unknown>;
+    const r = raw;
     if (typeof r.executions_completed === "number") status.executions_completed = r.executions_completed;
     if (typeof r.execution_limit === "number") status.execution_limit = r.execution_limit;
     if (typeof r.execution_limit_reached === "boolean") status.execution_limit_reached = r.execution_limit_reached;
     return status;
   }
   // Fallback: direct field mapping for snake_case responses
-  const r = raw as Record<string, unknown>;
+  const r = raw;
   const maxSlots = firstNumber(r, ["max_slots", "max_concurrent"]) ?? 1;
   const availableSlots = numberValue(r.available_slots) ?? maxSlots;
   const pendingCount = numberValue(r.pending_count) ?? 0;
@@ -760,13 +764,13 @@ export function parseQueueStatusResponse(raw: unknown): QueueStatus {
  * Parse a raw running process JSON entry with proto validation fallback.
  */
 export function parseRunningProcessResponse(raw: unknown): RunningProcess {
-  if (!raw || typeof raw !== "object") {
+  if (!isRecord(raw)) {
     return {
       task_id: "", task_title: "", process_id: "",
       process_type: "task", agent_id: "", start_time: "", elapsed_seconds: 0,
     };
   }
-  const r = raw as Record<string, unknown>;
+  const r = raw;
   const startTime = firstString(r, ["started_at", "start_time"]) ?? "";
   const startMs = startTime ? new Date(startTime).getTime() : 0;
   const elapsed = numberValue(r.elapsed_seconds) ?? (startMs > 0 ? Math.floor((Date.now() - startMs) / 1000) : 0);

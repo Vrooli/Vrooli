@@ -19,7 +19,8 @@ import { useAppState } from '../../contexts/useAppState';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useQueryParams } from '../../hooks/useQueryParams';
 import { useState, useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
-import type { TaskStatus, TaskType, OperationType, Priority, TaskSort } from '../../types/api';
+import type { TaskStatus, TaskSort } from '../../types/api';
+import { isOperationType, isPriority, isTaskSort, isTaskStatus, isTaskType } from '../../types/guards';
 
 const COLUMN_LABELS: Record<TaskStatus, string> = {
   pending: 'Pending',
@@ -116,7 +117,7 @@ export function FilterPanel() {
     if (key === 'sort' && value === defaultSort) return count;
     return count + 1;
   }, 0);
-  const visibleColumns = (Object.keys(columnVisibility) as TaskStatus[]).filter(
+  const visibleColumns = Object.keys(columnVisibility).filter(isTaskStatus).filter(
     (status) => columnVisibility[status]
   );
 
@@ -127,8 +128,8 @@ export function FilterPanel() {
 
   const handleHeaderPointerDown = (event: ReactPointerEvent) => {
     if (event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    if (target.closest('button')) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('button')) return;
 
     const panel = panelRef.current;
     if (!panel) return;
@@ -201,7 +202,7 @@ export function FilterPanel() {
           </Label>
           <Select
             value={filters.type || 'all'}
-            onValueChange={(value) => updateFilter('type', value === 'all' ? '' : (value as TaskType))}
+            onValueChange={(value) => updateFilter('type', isTaskType(value) ? value : '')}
           >
             <SelectTrigger id="type">
               <SelectValue placeholder="All types" />
@@ -221,7 +222,7 @@ export function FilterPanel() {
           </Label>
           <Select
             value={filters.operation || 'all'}
-            onValueChange={(value) => updateFilter('operation', value === 'all' ? '' : (value as OperationType))}
+            onValueChange={(value) => updateFilter('operation', isOperationType(value) ? value : '')}
           >
             <SelectTrigger id="operation">
               <SelectValue placeholder="All operations" />
@@ -241,7 +242,7 @@ export function FilterPanel() {
           </Label>
           <Select
             value={filters.priority || 'all'}
-            onValueChange={(value) => updateFilter('priority', value === 'all' ? '' : (value as Priority))}
+            onValueChange={(value) => updateFilter('priority', isPriority(value) ? value : '')}
           >
             <SelectTrigger id="priority">
               <SelectValue placeholder="All priorities" />
@@ -263,7 +264,7 @@ export function FilterPanel() {
           </Label>
           <Select
             value={filters.sort || defaultSort}
-            onValueChange={(value) => updateFilter('sort', value as TaskSort)}
+            onValueChange={(value) => updateFilter('sort', isTaskSort(value) ? value : defaultSort)}
           >
             <SelectTrigger id="sort">
               <SelectValue placeholder="Most recently updated" />
@@ -283,7 +284,7 @@ export function FilterPanel() {
             Column Visibility
           </Label>
           <div className="space-y-2">
-            {(Object.keys(columnVisibility) as TaskStatus[]).map((status) => (
+            {Object.keys(columnVisibility).filter(isTaskStatus).map((status) => (
               <div key={status} className="flex items-center gap-2">
                 <Checkbox
                   id={`column-${status}`}

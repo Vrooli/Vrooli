@@ -44,6 +44,7 @@ import { QueuePanel } from '@/components/steer/panels/QueuePanel';
 import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { formatSkillSetLabel } from '@/lib/utils';
 import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteeringConfig } from '@/types/api';
+import { isPriority } from '@/types/guards';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -742,7 +743,11 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
         <Tabs
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+          onValueChange={(value) => {
+            if (value === 'details' || value === 'prompt' || value === 'executions' || value === 'campaigns') {
+              setActiveTab(value);
+            }
+          }}
           className="w-full"
         >
           <TabsList className="grid w-full grid-cols-4">
@@ -786,7 +791,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
                 <div className="space-y-2">
                   <Label htmlFor="detail-priority">Priority</Label>
-                  <Select value={priority} onValueChange={(val: string) => setPriority(val as Priority)}>
+                  <Select value={priority} onValueChange={(val: string) => { if (isPriority(val)) setPriority(val); }}>
                     <SelectTrigger id="detail-priority">
                       <SelectValue />
                     </SelectTrigger>

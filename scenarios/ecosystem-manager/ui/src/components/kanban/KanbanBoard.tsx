@@ -26,6 +26,7 @@ import { useTaskUpdates } from '../../hooks/useTaskUpdates';
 import { useAllAutoSteerProfiles } from '../../hooks/useAutoSteer';
 import { useAppState } from '../../contexts/useAppState';
 import type { AutoSteerProfile, Task, TaskStatus } from '../../types/api';
+import { isTaskStatus } from '../../types/guards';
 
 // Column definitions with display labels
 const COLUMNS: Array<{ status: TaskStatus; title: string }> = [
@@ -116,7 +117,7 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
 
     if (!over) return;
 
-    const taskId = active.id as string;
+    const taskId = String(active.id);
     const overData = over.data.current as { type?: 'column' | 'task'; status?: TaskStatus; task?: Task } | undefined;
     const overType = overData?.type;
     let newStatus: TaskStatus | null = null;
@@ -131,12 +132,9 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
         const targetTask = tasks.find(t => t.id === over.id);
         newStatus = targetTask?.status ?? null;
       }
-    } else if (typeof over.id === 'string') {
+    } else if (isTaskStatus(over.id) && COLUMNS.some(col => col.status === over.id)) {
       // Fallback: if over.id matches a column status
-      const maybeStatus = over.id as TaskStatus;
-      if (COLUMNS.some(col => col.status === maybeStatus)) {
-        newStatus = maybeStatus;
-      }
+      newStatus = over.id;
     }
 
     if (!newStatus) return;
@@ -160,8 +158,9 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
       const scrollLock = scrollLockRef.current;
       const horizontalLockActive = scrollLock.timeout !== null;
 
-      const columnBody = (event.target as HTMLElement | null)?.closest('.kanban-column-body') as HTMLElement | null;
-      if (columnBody && !horizontalLockActive) {
+      const eventTarget = event.target instanceof HTMLElement ? event.target : null;
+      const columnBody = eventTarget?.closest('.kanban-column-body');
+      if (columnBody instanceof HTMLElement && !horizontalLockActive) {
         const canScrollVertically = columnBody.scrollHeight > columnBody.clientHeight;
         if (canScrollVertically) {
           const scrollTop = columnBody.scrollTop;

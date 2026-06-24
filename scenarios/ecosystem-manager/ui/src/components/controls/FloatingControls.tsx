@@ -82,8 +82,8 @@ export function FloatingControls({ onSelectTask }: FloatingControlsProps) {
 
   const handlePointerDown = (event: ReactPointerEvent) => {
     if (event.pointerType !== 'touch' && event.button !== 0) return;
-    const target = event.target as HTMLElement;
-    if (target.closest('button')) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('button')) return;
 
     const container = containerRef.current;
     if (!container) return;

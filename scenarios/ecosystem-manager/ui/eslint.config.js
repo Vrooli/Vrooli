@@ -34,7 +34,7 @@ export default tseslint.config(
     settings: {
       'import/resolver': {
         // eslint-import-resolver-typescript follows TS project references when
-        // given the root tsconfig; required for `import/no-cycle` to resolve.
+        // given the root tsconfig; required for the circular-import rule to resolve.
         typescript: {
           alwaysTryTypes: true,
           project: './tsconfig.json',

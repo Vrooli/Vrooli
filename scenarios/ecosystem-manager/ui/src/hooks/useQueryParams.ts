@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import type { TaskFilters } from '../types/api';
+import { isOperationType, isPriority, isTaskSort, isTaskType } from '../types/guards';
 
 /**
  * Syncs filter state with URL query parameters
@@ -20,10 +21,10 @@ export function useQueryParams(
     const sort = params.get('sort');
 
     if (search) urlFilters.search = search;
-    if (type) urlFilters.type = type as TaskFilters['type'];
-    if (operation) urlFilters.operation = operation as TaskFilters['operation'];
-    if (priority) urlFilters.priority = priority as TaskFilters['priority'];
-    if (sort) urlFilters.sort = sort as TaskFilters['sort'];
+    if (isTaskType(type)) urlFilters.type = type;
+    if (isOperationType(operation)) urlFilters.operation = operation;
+    if (isPriority(priority)) urlFilters.priority = priority;
+    if (isTaskSort(sort)) urlFilters.sort = sort;
 
     if (Object.keys(urlFilters).length > 0) {
       setFilters(urlFilters);

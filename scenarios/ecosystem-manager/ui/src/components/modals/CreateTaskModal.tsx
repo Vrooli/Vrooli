@@ -31,6 +31,7 @@ import { useDiscoveryStore, refreshDiscovery } from '@/stores/discoveryStore';
 import { SteeringConfigPicker } from '@/components/steer/SteeringConfigPicker';
 import { extractSteeringFields } from '@/components/steer/SteeringConfigPicker.helpers';
 import type { TaskType, OperationType, Priority, CreateTaskInput, SteeringConfig } from '@/types/api';
+import { isOperationType, isPriority, isTaskType } from '@/types/guards';
 
 interface CreateTaskModalProps {
   open: boolean;
@@ -196,7 +197,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
 	<Select value={type} onValueChange={(val: string) => {
-		setType(val as TaskType);
+		if (isTaskType(val)) setType(val);
 		void refreshDiscovery();
 	}}>
                 <SelectTrigger id="type">
@@ -211,7 +212,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
 
             <div className="space-y-2">
               <Label htmlFor="operation">Operation</Label>
-              <Select value={operation} onValueChange={(val: string) => setOperation(val as OperationType)}>
+              <Select value={operation} onValueChange={(val: string) => { if (isOperationType(val)) setOperation(val); }}>
                 <SelectTrigger id="operation">
                   <SelectValue />
                 </SelectTrigger>
@@ -285,7 +286,7 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
           {/* Priority */}
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>
-            <Select value={priority} onValueChange={(val: string) => setPriority(val as Priority)}>
+            <Select value={priority} onValueChange={(val: string) => { if (isPriority(val)) setPriority(val); }}>
               <SelectTrigger id="priority">
                 <SelectValue />
               </SelectTrigger>

@@ -4,29 +4,39 @@
 
 // ==================== Task Types ====================
 
-export type TaskStatus =
-  | 'pending'
-  | 'in-progress'
-  | 'completed'
-  | 'completed-finalized'
-  | 'failed'
-  | 'failed-blocked'
-  | 'archived';
+// Each union is derived from a single-source-of-truth tuple so the runtime
+// validators in ./guards.ts can never drift from the compile-time type.
+export const TASK_STATUSES = [
+  'pending',
+  'in-progress',
+  'completed',
+  'completed-finalized',
+  'failed',
+  'failed-blocked',
+  'archived',
+] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-export type TaskSort =
-  | 'updated_desc'
-  | 'updated_asc'
-  | 'created_desc'
-  | 'created_asc';
+export const TASK_SORTS = [
+  'updated_desc',
+  'updated_asc',
+  'created_desc',
+  'created_asc',
+] as const;
+export type TaskSort = (typeof TASK_SORTS)[number];
 
-export type TaskType = 'resource' | 'scenario';
+export const TASK_TYPES = ['resource', 'scenario'] as const;
+export type TaskType = (typeof TASK_TYPES)[number];
 
-export type OperationType = 'generator' | 'improver';
+export const OPERATION_TYPES = ['generator', 'improver'] as const;
+export type OperationType = (typeof OPERATION_TYPES)[number];
 
-export type Priority = 'critical' | 'high' | 'medium' | 'low';
+export const PRIORITIES = ['critical', 'high', 'medium', 'low'] as const;
+export type Priority = (typeof PRIORITIES)[number];
 
 // Steering strategy types for unified steering configuration
-export type SteeringStrategy = 'profile' | 'queue' | 'manual' | 'none';
+export const STEERING_STRATEGIES = ['profile', 'queue', 'manual', 'none'] as const;
+export type SteeringStrategy = (typeof STEERING_STRATEGIES)[number];
 
 export interface SteeringConfig {
   strategy: SteeringStrategy;

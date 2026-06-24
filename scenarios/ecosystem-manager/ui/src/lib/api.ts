@@ -463,7 +463,16 @@ class ApiClient {
   // ==================== Skills (from prompt-manager) ====================
 
   async listSkills(): Promise<SkillResponse[]> {
-    return this.fetchJSON<SkillResponse[]>(`/api/skills`);
+    const skills = await this.fetchJSON<SkillResponse[]>(`/api/skills`);
+    if (!Array.isArray(skills)) return [];
+    // The Go API marshals nil slices as JSON null, so `modes`/`tags` can arrive
+    // as null even though the type says string[]. Normalize at the boundary so
+    // every consumer (skill.modes[0], modes.slice, etc.) can trust the invariant.
+    return skills.map((skill) => ({
+      ...skill,
+      modes: Array.isArray(skill.modes) ? skill.modes : [],
+      tags: Array.isArray(skill.tags) ? skill.tags : [],
+    }));
   }
 
   async syncSkills(): Promise<SkillsSyncResult> {

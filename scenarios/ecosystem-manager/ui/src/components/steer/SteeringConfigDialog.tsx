@@ -15,6 +15,7 @@ import { ManualPanel } from './panels/ManualPanel';
 import { ProfilePanel } from './panels/ProfilePanel';
 import { QueuePanel } from './panels/QueuePanel';
 import type { SteeringConfig, SteeringStrategy, AutoSteerProfile, SkillInfo } from '@/types/api';
+import { isSteeringStrategy } from '@/types/guards';
 
 interface SteeringConfigDialogProps {
   open: boolean;
@@ -86,9 +87,10 @@ export function SteeringConfigDialog({
   }, [open, value]);
 
   const handleStrategyChange = (strategy: string) => {
+    if (!isSteeringStrategy(strategy)) return;
     setLocalConfig((prev) => ({
       ...prev,
-      strategy: strategy as SteeringStrategy,
+      strategy,
     }));
   };
 
