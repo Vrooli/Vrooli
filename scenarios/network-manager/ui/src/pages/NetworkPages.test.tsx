@@ -30,6 +30,8 @@ const api = vi.hoisted(() => ({
   createOptimizationRun: vi.fn(),
   scoreOptimizationRun: vi.fn(),
   approveOptimizationCandidate: vi.fn(),
+  upsertMonitoringSchedule: vi.fn(),
+  runMonitoringCheck: vi.fn(),
   fetchPrivacySettings: vi.fn(),
   runSnapshot: vi.fn(),
   exportSnapshotReport: vi.fn(),
@@ -50,6 +52,8 @@ describe("Network Manager control pages", () => {
       resolverStatus: { backend: "none", status: "unconfigured", filteringEnabled: false, upstreams: [], warnings: [] },
       capabilities: [],
       devices: [],
+      monitoringSchedules: [],
+      monitoringAlerts: [],
       retention: { queryLogDays: 0, snapshotDays: 14, experimentDays: 14, profile: "minimal" },
       visibility: { showQueryDomains: false, showDeviceHistory: false, householdMode: true, notes: [] },
     });
@@ -86,6 +90,8 @@ describe("Network Manager control pages", () => {
         { adapter: "router", action: "write", supported: false, requiresAdmin: true, rollbackSupported: false, reason: "unsupported" },
       ],
       devices: [],
+      monitoringSchedules: [],
+      monitoringAlerts: [],
       retention: { queryLogDays: 0, snapshotDays: 14, experimentDays: 14, profile: "minimal" },
       visibility: { showQueryDomains: false, showDeviceHistory: false, householdMode: false, notes: [] },
     });
@@ -104,6 +110,72 @@ describe("Network Manager control pages", () => {
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByTestId(selectors.network.error)).toBeInTheDocument();
+  });
+
+  it("creates and runs a continuous monitoring schedule from dashboard baseline evidence", async () => {
+    // [REQ:NM-P1-007] Continuous monitoring schedules recurring snapshots and exposes regression alerts.
+    api.fetchControlCenterOverview.mockResolvedValueOnce({
+      snapshots: [
+        {
+          id: "baseline-1",
+          status: "baseline",
+          profile: "home",
+          summary: "9 healthy",
+          createdAt: "2026-06-23T19:00:00Z",
+          metrics: [],
+          findings: [],
+        },
+      ],
+      resolverStatus: { backend: "adguardhome", status: "healthy", filteringEnabled: true, upstreams: [], warnings: [] },
+      capabilities: [],
+      devices: [],
+      monitoringSchedules: [
+        {
+          id: "schedule-1",
+          name: "Home baseline watch",
+          profile: "home",
+          baselineSnapshotId: "baseline-1",
+          intervalMinutes: 60,
+          enabled: true,
+          latencyThresholdMs: 100,
+          unavailableThreshold: 1,
+          effects: [],
+          createdAt: "2026-06-23T20:00:00Z",
+          updatedAt: "2026-06-23T20:00:00Z",
+        },
+      ],
+      monitoringAlerts: [
+        {
+          id: "alert-1",
+          scheduleId: "schedule-1",
+          snapshotId: "snapshot-2",
+          severity: "warning",
+          status: "open",
+          summary: "DNS lookup latency regressed against baseline.",
+          evidence: ["latency increased"],
+          createdAt: "2026-06-23T21:00:00Z",
+        },
+      ],
+      retention: { queryLogDays: 0, snapshotDays: 14, experimentDays: 14, profile: "minimal" },
+      visibility: { showQueryDomains: false, showDeviceHistory: false, householdMode: true, notes: [] },
+    });
+    api.upsertMonitoringSchedule.mockResolvedValueOnce({ id: "schedule-1" });
+    api.runMonitoringCheck.mockResolvedValueOnce({ id: "run-1", status: "regression_detected" });
+
+    renderWithProviders(<DashboardPage />);
+
+    const panel = await screen.findByTestId(selectors.network.monitoringPanel);
+    await waitFor(() => expect(panel).toHaveTextContent("baseline-1"));
+    expect(panel).toHaveTextContent("DNS lookup latency regressed");
+    await userEvent.click(screen.getByRole("button", { name: "pages.dashboard.monitoringSchedule" }));
+    await waitFor(() => expect(api.upsertMonitoringSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      baselineSnapshotId: "baseline-1",
+      intervalMinutes: 60,
+      latencyThresholdMs: 100,
+      unavailableThreshold: 1,
+    })));
+    await userEvent.click(screen.getByRole("button", { name: "pages.dashboard.monitoringRun" }));
+    await waitFor(() => expect(api.runMonitoringCheck).toHaveBeenCalledWith("schedule-1"));
   });
 
   it("keeps policy apply disabled until preview returns approval evidence", async () => {

@@ -4,6 +4,7 @@ import (
 	"network-manager/cli/domains/adapters"
 	"network-manager/cli/domains/devices"
 	"network-manager/cli/domains/home"
+	"network-manager/cli/domains/monitoring"
 	"network-manager/cli/domains/optimize"
 	"network-manager/cli/domains/policy"
 	"network-manager/cli/domains/privacy"
@@ -49,6 +50,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		resolver.Register,
 		policy.Register,
 		devices.Register,
+		monitoring.Register,
 		optimize.Register,
 		adapters.Register,
 		privacy.Register,

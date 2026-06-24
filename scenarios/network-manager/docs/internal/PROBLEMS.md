@@ -20,6 +20,24 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ## Entries
 
+### 2026-06-24 — Continuous monitoring is operator-triggered
+
+- Signal: Network Manager now persists monitoring schedules, runs snapshot comparisons against a baseline, and records regression alerts through API/CLI/UI, but it does not run a background scheduler loop.
+- Impact: Operators and agents can create schedules and trigger checks safely without adding long-running timer complexity to the API process. Automatic recurring execution still needs a lifecycle-aware scheduler that avoids duplicate runs and respects scenario shutdown.
+- Next action: Connect a Vrooli-managed scheduler or worker after schedule ownership, locking, and missed-run behavior are defined.
+
+### 2026-06-24 — storage-health deadline during monitoring slice
+
+- Signal: `storage-health validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers after the monitoring slice.
+- Impact: Direct API/CLI/UI/proto/SDA/requirements/unit-health checks passed or were in progress, and the new monitoring domain has domain-owned schema/repository tests. Static storage validation remains blocked by the previously filed external validator timeout class.
+- Next action: Track under existing storage-health EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the validator is responsive.
+
+### 2026-06-24 — Monitoring slice suite hit embedded validator EOFs
+
+- Signal: `vrooli scenario test network-manager` run `20260624-145028-9d371586` completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Impact: Direct `cli-health validate scenario network-manager` passed immediately after, runtime `network-manager status --json` was healthy, UI Health rendered the running UI successfully, and direct storage-health had already reproduced the known deadline/EOF class.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
+
 ### 2026-06-23 — Encrypted DNS guidance is advisory
 
 - Signal: Network Manager now generates IPv6 resolver, DoT/DoQ, DoH, and endpoint/browser guidance through PolicyService, CLI, and UI, but it does not mutate router/firewall or endpoint policy.

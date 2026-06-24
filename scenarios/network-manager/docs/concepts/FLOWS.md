@@ -15,7 +15,7 @@ This document captures Network Manager's user/system workflows, lifecycle states
 | Optimization experiment | Planned P0 | `NM-P0-005` | Baseline/candidate/after with scoring. |
 | Home Automation action/event | Planned P0 | `NM-P0-007` | Consumed by home-automation. |
 | Household schedule evaluation | Advisory P1 slice | `NM-P1-001`, `NM-P1-002` | Persisted device/group policy intent and manual-required schedule evaluation; automatic enforcement awaits resolver/router capability. |
-| Continuous monitoring | Deferred P1 | `NM-P1-007` | Recurring snapshots and regression detection. |
+| Continuous monitoring | Advisory P1 slice | `NM-P1-007` | Stored schedules, operator-triggered checks, recurring snapshot intent, and regression alerts. |
 
 ## Flow Details
 
@@ -51,6 +51,16 @@ This document captures Network Manager's user/system workflows, lifecycle states
 2. Policy service generates a read-only report with checks, evidence, manual steps, adapter-preview actions, and guardrails.
 3. The report stays `manual_required` or `guidance_only` unless a future adapter can prove safe mutation and rollback support.
 4. Network Manager never uses TLS interception, hidden monitoring, or query-level surveillance to generate the guidance.
+
+### Continuous monitoring
+
+1. Operator captures or selects a baseline snapshot.
+2. Operator stores a monitoring schedule with profile, interval, baseline snapshot, and alert thresholds.
+3. Operator, UI, CLI, or future scheduler requests a monitoring check for that schedule.
+4. Monitoring runs a fresh read-only snapshot through the snapshot service.
+5. Monitoring compares DNS latency, unavailable/failed probe count, and critical resolver/WAN probe status against the baseline.
+6. Regressions are persisted as open alerts; non-regression runs remain evidence without mutating resolver/router state.
+7. Current production behavior is advisory/operator-triggered. A future background scheduler can consume the stored schedule contract.
 
 ### Optimization experiment
 

@@ -342,6 +342,7 @@ const literalSelectors = {
     policyGuidance: "network-policy-guidance",
     deviceTable: "network-device-table",
     optimizationTimeline: "network-optimization-timeline",
+    monitoringPanel: "network-monitoring-panel",
     privacySummary: "network-privacy-summary",
     confirmation: "network-confirmation",
   },

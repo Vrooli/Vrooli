@@ -10,6 +10,12 @@ const clients = vi.hoisted(() => ({
     listDevices: vi.fn(),
     updateDeviceGroup: vi.fn(),
   },
+  monitoring: {
+    listMonitoringSchedules: vi.fn(),
+    upsertMonitoringSchedule: vi.fn(),
+    runMonitoringCheck: vi.fn(),
+    listMonitoringAlerts: vi.fn(),
+  },
   optimization: {
     createOptimizationRun: vi.fn(),
     scoreCandidates: vi.fn(),
@@ -55,6 +61,7 @@ describe("network API wrappers", () => {
     createClientMock
       .mockReturnValueOnce(clients.adapter)
       .mockReturnValueOnce(clients.inventory)
+      .mockReturnValueOnce(clients.monitoring)
       .mockReturnValueOnce(clients.optimization)
       .mockReturnValueOnce(clients.policy)
       .mockReturnValueOnce(clients.privacy)
@@ -68,6 +75,8 @@ describe("network API wrappers", () => {
     const capability = { action: "resolver.status" };
     const platform = { os: "linux" };
     const device = { id: "device-1" };
+    const schedule = { id: "schedule-1" };
+    const alert = { id: "alert-1" };
     const retention = { queryLogDays: 0 };
     const visibility = { householdMode: true };
     clients.snapshot.listSnapshots.mockResolvedValueOnce({ snapshots: [snapshot] });
@@ -75,6 +84,8 @@ describe("network API wrappers", () => {
     clients.adapter.listCapabilities.mockResolvedValueOnce({ capabilities: [capability] });
     clients.adapter.getPlatformSummary.mockResolvedValueOnce({ summary: platform });
     clients.inventory.listDevices.mockResolvedValueOnce({ devices: [device] });
+    clients.monitoring.listMonitoringSchedules.mockResolvedValueOnce({ schedules: [schedule] });
+    clients.monitoring.listMonitoringAlerts.mockResolvedValueOnce({ alerts: [alert] });
     clients.privacy.getRetentionSettings.mockResolvedValueOnce({ settings: retention });
     clients.privacy.getVisibilitySettings.mockResolvedValueOnce({ settings: visibility });
 
@@ -87,6 +98,8 @@ describe("network API wrappers", () => {
       capabilities: [capability],
       platform,
       devices: [device],
+      monitoringSchedules: [schedule],
+      monitoringAlerts: [alert],
       retention,
       visibility,
     });
@@ -122,6 +135,10 @@ describe("network API wrappers", () => {
     clients.inventory.refreshInventory.mockResolvedValueOnce({ devices: [{ id: "device-1" }], findings: ["finding"] });
     clients.inventory.listDevices.mockResolvedValueOnce({ devices: [{ id: "device-2" }] });
     clients.inventory.updateDeviceGroup.mockResolvedValueOnce({ device: { id: "device-2", group: "trusted" } });
+    clients.monitoring.listMonitoringSchedules.mockResolvedValueOnce({ schedules: [{ id: "schedule-1" }] });
+    clients.monitoring.upsertMonitoringSchedule.mockResolvedValueOnce({ schedule: { id: "schedule-1" } });
+    clients.monitoring.runMonitoringCheck.mockResolvedValueOnce({ run: { id: "run-1", status: "healthy" } });
+    clients.monitoring.listMonitoringAlerts.mockResolvedValueOnce({ alerts: [{ id: "alert-1" }] });
     clients.optimization.createOptimizationRun.mockResolvedValueOnce({ run: { id: "run-1" } });
     clients.optimization.scoreCandidates.mockResolvedValueOnce({ run: { id: "run-1", status: "scored" } });
     clients.optimization.approveCandidate.mockResolvedValueOnce({ run: { id: "run-1", status: "approved" } });
@@ -151,6 +168,18 @@ describe("network API wrappers", () => {
     await expect(network.refreshInventory()).resolves.toMatchObject({ findings: ["finding"] });
     await expect(network.fetchDevices("trusted")).resolves.toEqual([{ id: "device-2" }]);
     await expect(network.updateDeviceGroup("device-2", "trusted")).resolves.toMatchObject({ group: "trusted" });
+    await expect(network.fetchMonitoringSchedules()).resolves.toEqual([{ id: "schedule-1" }]);
+    await expect(network.upsertMonitoringSchedule({
+      name: "Home baseline watch",
+      profile: "home",
+      baselineSnapshotId: "snapshot-1",
+      intervalMinutes: 60,
+      enabled: true,
+      latencyThresholdMs: 100,
+      unavailableThreshold: 1,
+    })).resolves.toMatchObject({ id: "schedule-1" });
+    await expect(network.runMonitoringCheck("schedule-1")).resolves.toMatchObject({ id: "run-1" });
+    await expect(network.fetchMonitoringAlerts()).resolves.toEqual([{ id: "alert-1" }]);
     await expect(network.createOptimizationRun()).resolves.toMatchObject({ id: "run-1" });
     await expect(network.scoreOptimizationRun("run-1")).resolves.toMatchObject({ status: "scored" });
     await expect(network.approveOptimizationCandidate("run-1", "candidate-1")).resolves.toMatchObject({ status: "approved" });

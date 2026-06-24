@@ -35,6 +35,33 @@ network-manager snapshot export <snapshot-id> --format markdown
 
 No optimization candidate should run until at least one baseline snapshot exists.
 
+## Continuous Monitoring
+
+1. Create a baseline-anchored schedule after the first snapshot exists:
+
+```bash
+network-manager monitoring schedule-set \
+  --name "Home baseline watch" \
+  --baseline-snapshot-id <baseline-id> \
+  --profile home \
+  --interval-minutes 60 \
+  --json
+```
+
+2. Run an operator-triggered check:
+
+```bash
+network-manager monitoring run <schedule-id> --json
+```
+
+3. Review open regression alerts:
+
+```bash
+network-manager monitoring alerts --open-only --json
+```
+
+Schedules are persisted, but autonomous background execution is deferred until a lifecycle-aware scheduler owns locking and missed-run behavior.
+
 ## Privacy Defaults
 
 1. Confirm query-log visibility and retention before broad UI/device exposure:

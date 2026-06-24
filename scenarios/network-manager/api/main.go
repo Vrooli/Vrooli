@@ -25,6 +25,7 @@ import (
 	healthH "network-manager/handlers/health"
 	homeintegrationH "network-manager/handlers/homeintegration"
 	inventoryH "network-manager/handlers/inventory"
+	monitoringH "network-manager/handlers/monitoring"
 	optimizationH "network-manager/handlers/optimization"
 	policyH "network-manager/handlers/policy"
 	privacyH "network-manager/handlers/privacy"
@@ -126,6 +127,7 @@ func main() {
 		adaptersH.Module(db),
 		homeintegrationH.Module(db),
 		inventoryH.Module(db),
+		monitoringH.Module(db),
 		optimizationH.Module(db),
 		policyH.Module(db),
 		privacyH.Module(db),

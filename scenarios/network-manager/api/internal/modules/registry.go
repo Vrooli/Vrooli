@@ -26,6 +26,7 @@ import (
 	healthH "network-manager/handlers/health"
 	homeintegrationH "network-manager/handlers/homeintegration"
 	inventoryH "network-manager/handlers/inventory"
+	monitoringH "network-manager/handlers/monitoring"
 	optimizationH "network-manager/handlers/optimization"
 	policyH "network-manager/handlers/policy"
 	privacyH "network-manager/handlers/privacy"
@@ -36,6 +37,7 @@ import (
 	adaptersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/adapters"
 	homeintegrationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/home_integration"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/inventory"
+	monitoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/monitoring"
 	optimizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/optimization"
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy"
 	privacyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/privacy"
@@ -53,6 +55,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, adaptersH.Endpoints...)
 	out = append(out, homeintegrationH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
+	out = append(out, monitoringH.Endpoints...)
 	out = append(out, optimizationH.Endpoints...)
 	out = append(out, policyH.Endpoints...)
 	out = append(out, privacyH.Endpoints...)
@@ -87,6 +90,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "adapters", File: adaptersv1.File_network_manager_v1_adapters_adapters_proto},
 		{Module: "home_integration", File: homeintegrationv1.File_network_manager_v1_home_integration_home_integration_proto},
 		{Module: "inventory", File: inventoryv1.File_network_manager_v1_inventory_inventory_proto},
+		{Module: "monitoring", File: monitoringv1.File_network_manager_v1_monitoring_monitoring_proto},
 		{Module: "optimization", File: optimizationv1.File_network_manager_v1_optimization_optimization_proto},
 		{Module: "policy", File: policyv1.File_network_manager_v1_policy_policy_proto},
 		{Module: "privacy", File: privacyv1.File_network_manager_v1_privacy_privacy_proto},
@@ -109,6 +113,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(adaptersH.Schema),
 		apidb.SchemaProviderFunc(homeintegrationH.Schema),
 		apidb.SchemaProviderFunc(inventoryH.Schema),
+		apidb.SchemaProviderFunc(monitoringH.Schema),
 		apidb.SchemaProviderFunc(optimizationH.Schema),
 		apidb.SchemaProviderFunc(policyH.Schema),
 		apidb.SchemaProviderFunc(privacyH.Schema),

@@ -12,11 +12,14 @@ Define performance budgets and measurement constraints for network diagnostics a
 | Snapshot status update | Progress visible within 1 second of run start. |
 | DNS probe timeout | Configurable; default should avoid blocking the whole snapshot on one resolver. |
 | Health snapshot run | Bounded and cancellable; long tests should report partial progress. |
+| Monitoring check | One snapshot plus baseline comparison per trigger; minimum schedule interval is 5 minutes. |
 | Optimization candidate | Each candidate has an explicit timeout and stabilization window. |
 
 ## Current Measurements
 
 The snapshot domain now records read-only baseline measurements using standard-library probes: DNS lookup latency, WAN TCP reachability, IPv4/IPv6 TCP availability, TCP-based packet-loss/jitter approximation, redacted host facts, and resolver count where the host resolver configuration is available. Gateway reachability and throughput remain explicit unsupported/unavailable results until capability adapters or approved measurement backends exist.
+
+Monitoring now reuses the snapshot service and does not add additional live probes beyond a normal snapshot run. Regression comparison is in-process over persisted metric summaries and should be negligible relative to probe runtime.
 
 ## Known Constraints
 

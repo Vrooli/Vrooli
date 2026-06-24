@@ -16,6 +16,7 @@ Lifecycle health endpoint for API readiness. This remains an operational REST ex
 | `ResolverService` | `GetResolverStatus`, `ConfigureAdGuardHome`, `UpdateUpstreams`, `CheckResolverHealth` | `NM-P0-002` |
 | `PolicyService` | `PreviewPolicyChange`, `ApplyPolicyChange`, `RollbackPolicyChange`, `PauseFiltering`, `ResumeFiltering`, `ListPolicyProfiles`, `UpsertPolicyProfile`, `EvaluatePolicySchedule`, `DiagnoseEncryptedDnsBypass`, `GetEndpointDohGuidance` | `NM-P0-003`, `NM-P1-001`, `NM-P1-002`, `NM-P1-004`, `NM-P1-008` |
 | `InventoryService` | `RefreshInventory`, `ListDevices`, `UpdateDeviceGroup`, `ExplainDeviceIdentity` | `NM-P0-004` |
+| `MonitoringService` | `ListMonitoringSchedules`, `UpsertMonitoringSchedule`, `RunMonitoringCheck`, `ListMonitoringAlerts` | `NM-P1-007` |
 | `OptimizationService` | `CreateOptimizationRun`, `RunCandidate`, `ScoreCandidates`, `ApproveCandidate`, `RollbackOptimization` | `NM-P0-005` |
 | `AdapterService` | `ListCapabilities`, `ExplainUnsupportedAction`, `GetPlatformSummary` | `NM-P0-006` |
 | `HomeIntegrationService` | `ListActions`, `InvokeAction`, `ListRecentEvents` | `NM-P0-007` |
@@ -36,6 +37,10 @@ Policy mutation endpoints must support preview before apply and a rollback handl
 ## Optimization API
 
 Optimization endpoints must expose operation state and never apply persistent changes without approval. Candidate scoring is reliability-first: latency, jitter, packet loss, DNS performance, stability, then throughput.
+
+## Monitoring API
+
+Monitoring endpoints persist baseline-anchored recurring schedule intent, run operator-triggered read-only checks, and record regression alerts. They do not mutate resolver/router state and do not yet own autonomous background scheduling.
 
 ## Adding a new endpoint
 

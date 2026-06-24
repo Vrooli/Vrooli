@@ -20,6 +20,7 @@ Optimization and policy transitions are modeled in [`../concepts/FLOWS.md`](../c
 | `ApprovalStore` | Persists approvals and rollback handles. | In-memory store. | `NM-P0-003`, `NM-P0-005`, `NM-P0-008` |
 | `HomeAutomationPublisher` | Publishes actions/events to Home Automation. | Capturing publisher. | `NM-P0-007` |
 | `RetentionPolicy` | Applies privacy and audit retention rules. | Fake clock + in-memory records. | `NM-P0-008` |
+| `MonitoringSnapshotService` | Runs and reads snapshot evidence for monitoring comparisons. | Fake snapshot service with baseline/current metrics. | `NM-P1-007` |
 
 ## Adding a new seam
 

@@ -57,6 +57,10 @@ Implemented command groups:
 | `network-manager devices list` | List devices with identity confidence. | `NM-P0-004` |
 | `network-manager devices group <id>` | Assign a device group. | `NM-P0-004` |
 | `network-manager devices explain <id>` | Explain identity confidence. | `NM-P0-004` |
+| `network-manager monitoring schedules` | List recurring monitoring schedules. | `NM-P1-007` |
+| `network-manager monitoring schedule-set` | Create or update a baseline-anchored monitoring schedule. | `NM-P1-007` |
+| `network-manager monitoring run <schedule-id>` | Run a monitoring check and compare against baseline evidence. | `NM-P1-007` |
+| `network-manager monitoring alerts` | List regression alerts. | `NM-P1-007` |
 | `network-manager optimize run` | Run a baseline/candidate optimization experiment. | `NM-P0-005` |
 | `network-manager optimize candidate <run-id>` | Run one optimization candidate. | `NM-P0-005` |
 | `network-manager optimize score <run-id>` | Score optimization candidates. | `NM-P0-005` |
@@ -85,6 +89,9 @@ IPv6/encrypted-DNS bypass and endpoint/browser DoH guidance commands are
 read-only. They produce manual steps and adapter-preview instructions where
 appropriate, but they do not mutate router, firewall, browser, or endpoint
 state.
+Continuous monitoring commands persist baseline-anchored schedules and alerts.
+Checks are operator-triggered/advisory in this slice; autonomous background
+scheduling is deferred to a lifecycle-aware scheduler.
 Optimization can create baseline-backed experiment ledgers, run read-only
 candidate snapshots, score reliability-first evidence, require approval, and
 record apply/rollback outcomes. Production persistent optimization apply returns

@@ -215,6 +215,74 @@
       }
     },
     {
+      "id": "monitoring_schedules_list",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/ListMonitoringSchedules",
+      "method": "POST",
+      "summary": "List monitoring schedules",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
+      "id": "monitoring_schedules_upsert",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/UpsertMonitoringSchedule",
+      "method": "POST",
+      "summary": "Create or update a monitoring schedule",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
+      "id": "monitoring_run_check",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/RunMonitoringCheck",
+      "method": "POST",
+      "summary": "Run monitoring check",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
+      "id": "monitoring_alerts_list",
+      "path": "/vrooli.network_manager.v1.monitoring.MonitoringService/ListMonitoringAlerts",
+      "method": "POST",
+      "summary": "List monitoring alerts",
+      "description": "",
+      "category": "monitoring",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "monitoring": "proto response"
+        }
+      }
+    },
+    {
       "id": "optimization_create",
       "path": "/vrooli.network_manager.v1.optimization.OptimizationService/CreateOptimizationRun",
       "method": "POST",

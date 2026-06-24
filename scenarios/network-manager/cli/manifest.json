@@ -219,6 +219,53 @@
       ]
     },
     {
+      "name": "monitoring",
+      "description": "Schedule recurring health snapshots and inspect regression alerts",
+      "commands": [
+        {
+          "name": "schedules",
+          "description": "List monitoring schedules",
+          "flags": [{ "name": "include-disabled", "bool": true, "description": "Include disabled schedules" }],
+          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "ListMonitoringSchedules" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "schedule-set",
+          "description": "Create or update a monitoring schedule",
+          "flags": [
+            { "name": "id", "description": "Existing schedule id to update" },
+            { "name": "name", "required": true, "description": "Schedule name" },
+            { "name": "profile", "description": "Snapshot profile such as home or small-office" },
+            { "name": "baseline-snapshot-id", "required": true, "description": "Baseline snapshot id to compare against" },
+            { "name": "interval-minutes", "description": "Recurring interval in minutes, minimum 5" },
+            { "name": "latency-threshold-ms", "description": "Allowed DNS latency increase before alerting" },
+            { "name": "unavailable-threshold", "description": "Allowed increase in unavailable/failed probe count" },
+            { "name": "disabled", "bool": true, "description": "Save the schedule disabled" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "UpsertMonitoringSchedule" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "run",
+          "description": "Run a monitoring check for a schedule now",
+          "positionals": [{ "name": "schedule_id", "required": true, "description": "Monitoring schedule id" }],
+          "flags": [{ "name": "dry-run", "bool": true, "description": "Capture and compare without persisting the monitoring run or alerts" }],
+          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "RunMonitoringCheck" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "alerts",
+          "description": "List monitoring regression alerts",
+          "flags": [
+            { "name": "schedule-id", "description": "Filter alerts by schedule id" },
+            { "name": "open-only", "bool": true, "description": "Only show open alerts" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MonitoringService", "method": "ListMonitoringAlerts" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "optimize",
       "description": "Run safe optimization experiments",
       "commands": [

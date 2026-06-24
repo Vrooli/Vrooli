@@ -4,6 +4,8 @@ import { AdapterService } from "@vrooli/proto-types/network-manager/v1/adapters/
 import type { Capability, PlatformSummary } from "@vrooli/proto-types/network-manager/v1/adapters/adapters_pb";
 import { InventoryService } from "@vrooli/proto-types/network-manager/v1/inventory/inventory_pb";
 import type { Device } from "@vrooli/proto-types/network-manager/v1/inventory/inventory_pb";
+import { MonitoringService } from "@vrooli/proto-types/network-manager/v1/monitoring/monitoring_pb";
+import type { MonitoringAlert, MonitoringRun, MonitoringSchedule } from "@vrooli/proto-types/network-manager/v1/monitoring/monitoring_pb";
 import { OptimizationService } from "@vrooli/proto-types/network-manager/v1/optimization/optimization_pb";
 import type { OptimizationRun } from "@vrooli/proto-types/network-manager/v1/optimization/optimization_pb";
 import { PolicyService } from "@vrooli/proto-types/network-manager/v1/policy/policy_pb";
@@ -19,6 +21,7 @@ import { transport } from "./client";
 
 const adapterClient = createClient(AdapterService, transport);
 const inventoryClient = createClient(InventoryService, transport);
+const monitoringClient = createClient(MonitoringService, transport);
 const optimizationClient = createClient(OptimizationService, transport);
 const policyClient = createClient(PolicyService, transport);
 const privacyClient = createClient(PrivacyService, transport);
@@ -31,6 +34,8 @@ export interface ControlCenterOverview {
   capabilities: Capability[];
   platform?: PlatformSummary;
   devices: Device[];
+  monitoringSchedules: MonitoringSchedule[];
+  monitoringAlerts: MonitoringAlert[];
   retention?: RetentionSettings;
   visibility?: VisibilitySettings;
 }
@@ -42,6 +47,8 @@ export async function fetchControlCenterOverview(): Promise<ControlCenterOvervie
     capabilities,
     platform,
     devices,
+    monitoringSchedules,
+    monitoringAlerts,
     retention,
     visibility,
   ] = await Promise.all([
@@ -50,6 +57,8 @@ export async function fetchControlCenterOverview(): Promise<ControlCenterOvervie
     adapterClient.listCapabilities({}),
     adapterClient.getPlatformSummary({}),
     inventoryClient.listDevices({ group: "" }),
+    monitoringClient.listMonitoringSchedules({ includeDisabled: true }),
+    monitoringClient.listMonitoringAlerts({ scheduleId: "", openOnly: true }),
     privacyClient.getRetentionSettings({}),
     privacyClient.getVisibilitySettings({}),
   ]);
@@ -60,9 +69,54 @@ export async function fetchControlCenterOverview(): Promise<ControlCenterOvervie
     capabilities: capabilities.capabilities,
     platform: platform.summary,
     devices: devices.devices,
+    monitoringSchedules: monitoringSchedules.schedules,
+    monitoringAlerts: monitoringAlerts.alerts,
     retention: retention.settings,
     visibility: visibility.settings,
   };
+}
+
+export async function fetchMonitoringSchedules(includeDisabled = true): Promise<MonitoringSchedule[]> {
+  const resp = await monitoringClient.listMonitoringSchedules({ includeDisabled });
+  return resp.schedules;
+}
+
+export async function upsertMonitoringSchedule(input: {
+  id?: string;
+  name: string;
+  profile: string;
+  baselineSnapshotId: string;
+  intervalMinutes: number;
+  enabled: boolean;
+  latencyThresholdMs: number;
+  unavailableThreshold: number;
+}): Promise<MonitoringSchedule | undefined> {
+  const resp = await monitoringClient.upsertMonitoringSchedule({
+    schedule: {
+      id: input.id ?? "",
+      name: input.name,
+      profile: input.profile,
+      baselineSnapshotId: input.baselineSnapshotId,
+      intervalMinutes: input.intervalMinutes,
+      enabled: input.enabled,
+      latencyThresholdMs: input.latencyThresholdMs,
+      unavailableThreshold: input.unavailableThreshold,
+      effects: [],
+      createdAt: "",
+      updatedAt: "",
+    },
+  });
+  return resp.schedule;
+}
+
+export async function runMonitoringCheck(scheduleId: string): Promise<MonitoringRun | undefined> {
+  const resp = await monitoringClient.runMonitoringCheck({ scheduleId, dryRun: false });
+  return resp.run;
+}
+
+export async function fetchMonitoringAlerts(scheduleId = "", openOnly = true): Promise<MonitoringAlert[]> {
+  const resp = await monitoringClient.listMonitoringAlerts({ scheduleId, openOnly });
+  return resp.alerts;
 }
 
 export async function runSnapshot(profile = "home"): Promise<Snapshot | undefined> {
@@ -213,6 +267,9 @@ export async function fetchPrivacySettings(): Promise<{
 export type {
   Capability,
   Device,
+  MonitoringAlert,
+  MonitoringRun,
+  MonitoringSchedule,
   OptimizationRun,
   PlatformSummary,
   PolicyChange,

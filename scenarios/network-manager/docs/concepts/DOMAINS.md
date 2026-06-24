@@ -18,7 +18,7 @@ Use this document to decide which domain owns each concept, table, proto operati
 | adapters | Normalize OS, resolver, router, and manual capabilities. | Platform abstraction | Capability snapshots and unsupported reasons. | API, CLI | `NM-P0-006`, `NM-P1-003`, `NM-P1-004`, `NM-P1-008` | path:packages/proto/schemas/network-manager/v1/adapters, path:api/handlers/adapters, path:cli/domains/adapters |
 | homeintegration | Provide actions/events consumed by Home Automation. | Integration contract | Event log and action audit references. | API, CLI, events | `NM-P0-007` | path:packages/proto/schemas/network-manager/v1/home_integration, path:api/handlers/homeintegration, path:cli/domains/home |
 | privacy | Apply retention, visibility, and audit-mode rules. | Governance / policy | Retention settings, visibility settings, audit profile. | API, CLI, UI | `NM-P0-008`, `NM-P1-006` | path:packages/proto/schemas/network-manager/v1/privacy, path:api/handlers/privacy, path:cli/domains/privacy |
-| monitoring | Schedule recurring checks and detect regressions. | Monitoring / alerting | Monitor schedules, baseline comparisons, alerts. | API, CLI, UI | `NM-P1-007` | Future path:api/internal/monitoring |
+| monitoring | Schedule recurring checks and detect regressions. | Monitoring / alerting | Monitor schedules, baseline comparisons, alerts. | API, CLI, UI | `NM-P1-007` | path:packages/proto/schemas/network-manager/v1/monitoring, path:api/internal/monitoring, path:api/handlers/monitoring, path:cli/domains/monitoring |
 
 ## Domain Details
 
@@ -56,7 +56,7 @@ Centralizes query-log visibility, retention, household defaults, and small-offic
 
 ### monitoring
 
-Deferred until P1. Reuses snapshot and policy data to detect regressions over time.
+Persists recurring snapshot schedules, compares fresh snapshots against a baseline snapshot, and records open regression alerts. Current execution is operator-triggered/advisory; autonomous background scheduling can be added later without changing the stored schedule and alert contract.
 
 ## Shared Concepts
 
