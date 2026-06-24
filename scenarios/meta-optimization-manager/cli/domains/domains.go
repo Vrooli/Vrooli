@@ -1,7 +1,10 @@
 package domains
 
 import (
-	"meta-optimization-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"meta-optimization-manager/cli/domains/convergence"
+	"meta-optimization-manager/cli/domains/coverage"
+	"meta-optimization-manager/cli/domains/focus"
+	"meta-optimization-manager/cli/domains/trials"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +40,28 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	coverageGroup, err := coverage.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, coverageGroup)
+
+	focusGroups, err := focus.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, focusGroups...)
+
+	convergenceGroup, err := convergence.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, convergenceGroup)
+
+	trialsGroup, err := trials.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, trialsGroup)
 	return groups, nil
 }

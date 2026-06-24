@@ -84,7 +84,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-06-24 — example `notes` domain still present
 
-**Symptom:** The template's fenced `EXAMPLE-DOMAIN:notes` files are still in the tree (orientation `example-domain-removed` fails).
 
 **Root cause:** Documentation-first — the first real domain (`coverage`) is not yet built, so the example cannot be removed.
 

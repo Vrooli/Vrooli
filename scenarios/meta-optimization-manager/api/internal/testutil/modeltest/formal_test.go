@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
 	"meta-optimization-manager/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

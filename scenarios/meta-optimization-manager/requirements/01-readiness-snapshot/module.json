@@ -33,6 +33,19 @@
         { "type": "test", "phase": "unit", "status": "planned", "notes": "API: owner-down path yields per-projection unavailable, not error." },
         { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: degraded-owner snapshot stays partial, not failed." }
       ]
+    },
+    {
+      "id": "MOM-READINESS-003",
+      "title": "cell drill-down: list denominator grid rows and explain one cell with provenance",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "coverage",
+      "description": "Beyond the aggregate snapshot, `coverage cells` lists the denominator grid rows (filterable by projection/status) and `coverage explain <cell-id>` returns one cell with its owner, status, basis x sufficiency, and citations — the per-cell attestation behind the numbers.",
+      "tags": ["coverage", "cells", "attestation", "provenance"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: ListCells filters + ExplainCell provenance; target api/internal/coverage." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: cells/explain output shape; target cli/domains/coverage." }
+      ]
     }
   ]
 }

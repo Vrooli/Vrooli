@@ -32,6 +32,19 @@
         { "type": "test", "phase": "unit", "status": "planned", "notes": "API: stale-from-template date comparison + eligibility verdict; target api/internal/convergence." },
         { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: reference-health verdict over the gold-star reference." }
       ]
+    },
+    {
+      "id": "MOM-CONVERGENCE-003",
+      "title": "convergence trend over dated fitness-audit records (the compounding proof)",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "convergence",
+      "description": "`convergence trend` returns per-replica-cost and coordinated-edit-count over the dated fitness-audit records for a template, showing whether template fitness is improving over time — the compounding proof that template investment pays off across replicas.",
+      "tags": ["convergence", "trend", "compounding"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: trend series assembled from the dated fitness-audit index; target api/internal/convergence." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: trend over >=2 dated audit points." }
+      ]
     }
   ]
 }

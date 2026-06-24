@@ -208,7 +208,82 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "scenarios": {
+      "search-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Answer projection denominator (`search-hub space --projection answer`) and the live numerator (`providers list`). Also the registration target for the meta-optimization-manager search provider.",
+        "degraded_behavior": "Answer-projection coverage is reported unavailable (available=false) with an honest reason; the other projections still compute."
+      },
+      "test-genie": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Validate projection denominator (`test-genie space --projection validate`) and the live numerator (`health` / `fleet status`).",
+        "degraded_behavior": "Validate-projection coverage is reported unavailable; the other projections still compute."
+      },
+      "prompt-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Guide projection denominator (`prompt-manager space --projection guide`) and the live numerator (`graph health`). Also the trials task suite source.",
+        "degraded_behavior": "Guide-projection coverage is reported unavailable; the other projections still compute."
+      },
+      "scenario-completeness-scoring": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Per-scenario completeness numerator (GetScore) joined into the Answer maturity cell.",
+        "degraded_behavior": "Completeness-derived cells degrade to declared-unverified; coverage still computes."
+      },
+      "code-facts": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Structural facts (imports, replicas, surfaces) read by the convergence template-fitness lenses.",
+        "degraded_behavior": "Convergence template-fitness reports the affected lenses as unavailable."
+      },
+      "architecture-cartographer": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Structural cohesion / drift signals read by the convergence lenses.",
+        "degraded_behavior": "Convergence drift-surface lens reports unavailable; other lenses still compute."
+      },
+      "scenario-auditor": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Clean-on-all-tools reference-scenario health read by the convergence reference-eligibility check.",
+        "degraded_behavior": "Reference eligibility falls back to template-staleness only."
+      },
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Dispatches local-model trial runs (runner=opencode) for the empirical trials gate. Explicit-invocation only.",
+        "degraded_behavior": "`trials run` returns an explicit unavailable error; recorded history still serves."
+      },
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Isolates each trial run and attributes its diff (sandbox_diff_ref) for the empirical gate.",
+        "degraded_behavior": "`trials run` returns an explicit unavailable error; recorded history still serves."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/meta-optimization-manager.db"
   }

@@ -33,6 +33,19 @@
         { "type": "test", "phase": "unit", "status": "planned", "notes": "API: gate-coverage computation over the Guide space; target api/internal/trials." },
         { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: trials coverage output; target cli/domains/trials." }
       ]
+    },
+    {
+      "id": "MOM-TRIALS-003",
+      "title": "list the task suite and inspect a run with its sandbox diff",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "trials",
+      "description": "`trials list` enumerates the task suite generated from the Guide space, and `trials show <run-id>` returns one run with its verdict, tokens, wall-time, and the workspace-sandbox diff reference that definitively attributes changed files to that run.",
+      "tags": ["trials", "suite", "inspection", "workspace-sandbox"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: ListTrialTasks from the Guide space + GetTrialRun with sandbox diff ref; target api/internal/trials." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: trials list/show; target cli/domains/trials." }
+      ]
     }
   ]
 }

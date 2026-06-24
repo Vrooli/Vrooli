@@ -10,7 +10,9 @@
     "bottomNavLabel": "التنقل الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
+      "focus": "Focus",
+      "convergence": "Convergence",
+      "trials": "Trials",
       "settings": "الإعدادات"
     }
   },
@@ -22,14 +24,53 @@
       "system": "النظام"
     }
   },
+  "common": {
+    "loading": "Loading…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`."
+  },
   "pages": {
     "dashboard": {
       "title": "لوحة التحكم",
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
-      "statPlaceholderLabel": "إحصائية"
+      "projectionHeading": "Projections",
+      "coverageLabel": "coverage",
+      "confidenceLabel": "confidence",
+      "cellsLabel": "{{now}}/{{total}} now · {{inReach}} in reach · {{missing}} missing",
+      "trendHeading": "Latest trial trend",
+      "trendValue": "{{rate}}% success · {{tokens}} median tokens",
+      "noTrend": "No trial runs recorded yet.",
+      "unavailableReason": "Unavailable: {{reason}}",
+      "empty": "No projections returned. Is the scenario running?"
     },
-    "notes": {
-      "title": "الملاحظات"
+    "focus": {
+      "title": "Focus & gaps",
+      "description": "The ranked next-best gaps (impact × importance) and the full gaps registry with qualitative context.",
+      "focusHeading": "Ranked next-best gaps",
+      "gapsHeading": "Gaps registry",
+      "priorityLabel": "priority",
+      "globalBadge": "cross-cutting",
+      "empty": "No gaps surfaced — every cell is covered, or the owners are unreachable."
+    },
+    "convergence": {
+      "title": "Convergence",
+      "description": "Per-template four-lens fitness and gold-star reference-scenario health/eligibility.",
+      "templatesHeading": "Template fitness",
+      "referencesHeading": "Reference health",
+      "lensLabel": "per-replica {{cost}} · drift {{drift}} · comment-contracts {{contracts}} · coordinated-edits {{edits}}",
+      "referenceLabel": "stability {{days}}d · breadth {{breadth}}",
+      "cleanBadge": "clean",
+      "empty": "No templates or references found."
+    },
+    "trials": {
+      "title": "Trials",
+      "description": "The empirical local-model gate: success-rate / tokens / wall-time over time, plus Guide-gate coverage.",
+      "coverageHeading": "Guide-gate coverage",
+      "coverageValue": "{{rate}}% ({{withGate}}/{{total}} Guide tasks have a live gate)",
+      "historyHeading": "Trend",
+      "recentHeading": "Recent runs",
+      "historyPoint": "{{date}} — {{rate}}% success · {{tokens}} median tokens · {{runs}} runs",
+      "runMetrics": "{{tokens}} tokens · {{ms}}ms",
+      "empty": "No trial runs recorded yet — trials run on explicit invocation only (`trials run`)."
     },
     "settings": {
       "title": "الإعدادات",
@@ -52,24 +93,6 @@
     "summary": "{{count}} إشعارات",
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
-  },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

@@ -22,11 +22,17 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	convergenceH "meta-optimization-manager/handlers/convergence"
+	coverageH "meta-optimization-manager/handlers/coverage"
+	focusH "meta-optimization-manager/handlers/focus"
 	healthH "meta-optimization-manager/handlers/health"
-	notesH "meta-optimization-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
+	trialsH "meta-optimization-manager/handlers/trials"
 	localdb "meta-optimization-manager/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/notes" // EXAMPLE-DOMAIN:notes
+	convergencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/convergence"
+	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/coverage"
+	focusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus"
+	trialsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/trials"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +42,10 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, convergenceH.Endpoints...)
+	out = append(out, coverageH.Endpoints...)
+	out = append(out, focusH.Endpoints...)
+	out = append(out, trialsH.Endpoints...)
 	return out
 }
 
@@ -63,7 +72,10 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_meta_optimization_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "convergence", File: convergencev1.File_meta_optimization_manager_v1_convergence_convergence_proto},
+		{Module: "coverage", File: coveragev1.File_meta_optimization_manager_v1_coverage_coverage_proto},
+		{Module: "focus", File: focusv1.File_meta_optimization_manager_v1_focus_focus_proto},
+		{Module: "trials", File: trialsv1.File_meta_optimization_manager_v1_trials_trials_proto},
 	}
 }
 
@@ -78,6 +90,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(convergenceH.Schema),
+		apidb.SchemaProviderFunc(coverageH.Schema),
+		apidb.SchemaProviderFunc(focusH.Schema),
+		apidb.SchemaProviderFunc(trialsH.Schema),
 	}
 }

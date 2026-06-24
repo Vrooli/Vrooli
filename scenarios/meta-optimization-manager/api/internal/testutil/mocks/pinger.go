@@ -3,6 +3,7 @@ package mocks
 import (
 	"context"
 	"sync/atomic"
+
 	"meta-optimization-manager/internal/database"
 )
 

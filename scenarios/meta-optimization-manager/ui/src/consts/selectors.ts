@@ -308,28 +308,6 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
-  },
-  // EXAMPLE-DOMAIN:notes END
   locale: {
     switcher: "locale-switcher",
   },
@@ -346,8 +324,40 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
+    focus: "page-focus",
+    convergence: "page-convergence",
+    trials: "page-trials",
     settings: "page-settings",
+  },
+  readiness: {
+    card: "readiness-card",
+    loading: "readiness-loading",
+    error: "readiness-error",
+    empty: "readiness-empty",
+    projection: "readiness-projection",
+    trend: "readiness-trend",
+  },
+  focus: {
+    loading: "focus-loading",
+    error: "focus-error",
+    empty: "focus-empty",
+    item: "focus-item",
+    gap: "focus-gap",
+  },
+  convergence: {
+    loading: "convergence-loading",
+    error: "convergence-error",
+    empty: "convergence-empty",
+    template: "convergence-template",
+    reference: "convergence-reference",
+  },
+  trials: {
+    loading: "trials-loading",
+    error: "trials-error",
+    empty: "trials-empty",
+    coverage: "trials-coverage",
+    point: "trials-point",
+    run: "trials-run",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -380,7 +390,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "focus",
+            "convergence",
+            "trials",
             "settings",
           ] as const,
         },
@@ -394,7 +406,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "focus",
+            "convergence",
+            "trials",
             "settings",
           ] as const,
         },

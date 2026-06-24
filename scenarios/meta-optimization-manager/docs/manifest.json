@@ -242,6 +242,7 @@
           "description": "Canonical model the three coverage-space docs reference: the three projections, the denominator/numerator split, the entity x archetype x aspect question model, the two-axis attestation contract, and the status legend.",
           "audience": ["developers", "agents", "tools"],
           "canonicalFor": ["coverage-model", "attestation-contract", "readiness-projections"],
+          "requiredBy": ["generated", "oriented", "implemented"],
           "maturity": "draft",
           "completion": "required",
           "validation": {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"meta-optimization-manager/internal/module"
 
 	"github.com/gorilla/mux"

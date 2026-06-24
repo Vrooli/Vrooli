@@ -20,9 +20,19 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 
-  it("renders the notes page at /notes", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/notes"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.notes)).toBeInTheDocument();
+  it("renders the focus page at /focus", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/focus"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.focus)).toBeInTheDocument();
+  });
+
+  it("renders the convergence page at /convergence", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/convergence"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.convergence)).toBeInTheDocument();
+  });
+
+  it("renders the trials page at /trials", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/trials"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.trials)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

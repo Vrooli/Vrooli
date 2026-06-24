@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
 	"meta-optimization-manager/internal/testutil/repokit"
 
 	"github.com/stretchr/testify/require"

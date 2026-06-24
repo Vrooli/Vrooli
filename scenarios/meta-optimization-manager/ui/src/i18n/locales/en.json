@@ -2,15 +2,17 @@
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Meta-Optimization Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Meta-Optimization Manager",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "eyebrow": "Fleet-readiness control plane",
+    "description": "Measures local-coding-agent readiness across the Answer / Validate / Guide projections, ranks the next-best gaps, tracks template/reference convergence, and runs the empirical local-model gate."
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "bottomNavLabel": "Primary navigation (mobile)",
     "nav": {
-      "dashboard": "Dashboard",
-      "notes": "Notes",
+      "dashboard": "Readiness",
+      "focus": "Focus",
+      "convergence": "Convergence",
+      "trials": "Trials",
       "settings": "Settings"
     }
   },
@@ -22,14 +24,53 @@
       "system": "System"
     }
   },
+  "common": {
+    "loading": "Loading…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`."
+  },
   "pages": {
     "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+      "title": "Readiness scoreboard",
+      "description": "Per-projection coverage joined live against each owner, paired with denominator-confidence and the latest empirical trial trend.",
+      "projectionHeading": "Projections",
+      "coverageLabel": "coverage",
+      "confidenceLabel": "confidence",
+      "cellsLabel": "{{now}}/{{total}} now · {{inReach}} in reach · {{missing}} missing",
+      "trendHeading": "Latest trial trend",
+      "trendValue": "{{rate}}% success · {{tokens}} median tokens",
+      "noTrend": "No trial runs recorded yet.",
+      "unavailableReason": "Unavailable: {{reason}}",
+      "empty": "No projections returned. Is the scenario running?"
     },
-    "notes": {
-      "title": "Notes"
+    "focus": {
+      "title": "Focus & gaps",
+      "description": "The ranked next-best gaps (impact × importance) and the full gaps registry with qualitative context.",
+      "focusHeading": "Ranked next-best gaps",
+      "gapsHeading": "Gaps registry",
+      "priorityLabel": "priority",
+      "globalBadge": "cross-cutting",
+      "empty": "No gaps surfaced — every cell is covered, or the owners are unreachable."
+    },
+    "convergence": {
+      "title": "Convergence",
+      "description": "Per-template four-lens fitness and gold-star reference-scenario health/eligibility.",
+      "templatesHeading": "Template fitness",
+      "referencesHeading": "Reference health",
+      "lensLabel": "per-replica {{cost}} · drift {{drift}} · comment-contracts {{contracts}} · coordinated-edits {{edits}}",
+      "referenceLabel": "stability {{days}}d · breadth {{breadth}}",
+      "cleanBadge": "clean",
+      "empty": "No templates or references found."
+    },
+    "trials": {
+      "title": "Trials",
+      "description": "The empirical local-model gate: success-rate / tokens / wall-time over time, plus Guide-gate coverage.",
+      "coverageHeading": "Guide-gate coverage",
+      "coverageValue": "{{rate}}% ({{withGate}}/{{total}} Guide tasks have a live gate)",
+      "historyHeading": "Trend",
+      "recentHeading": "Recent runs",
+      "historyPoint": "{{date}} — {{rate}}% success · {{tokens}} median tokens · {{runs}} runs",
+      "runMetrics": "{{tokens}} tokens · {{ms}}ms",
+      "empty": "No trial runs recorded yet — trials run on explicit invocation only (`trials run`)."
     },
     "settings": {
       "title": "Settings",
@@ -52,24 +93,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

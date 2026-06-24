@@ -21,8 +21,11 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	convergenceH "meta-optimization-manager/handlers/convergence"
+	coverageH "meta-optimization-manager/handlers/coverage"
+	focusH "meta-optimization-manager/handlers/focus"
 	healthH "meta-optimization-manager/handlers/health"
-	notesH "meta-optimization-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
+	trialsH "meta-optimization-manager/handlers/trials"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -116,7 +119,10 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "meta-optimization-manager-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		coverageH.Module(db, clock.System{}, log.Default()),
+		focusH.Module(db, clock.System{}, log.Default()),
+		convergenceH.Module(db, clock.System{}, log.Default()),
+		trialsH.Module(db, clock.System{}, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -124,19 +130,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -152,4 +145,3 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

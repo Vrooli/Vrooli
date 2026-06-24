@@ -19,39 +19,39 @@ The cross-cutting model these domains share — the attestation contract, the en
 
 ### coverage
 - **Owns**: short-TTL cached coverage snapshots; the base-document-integrity findings. Does **not** own the denominators (the space docs live with their owner scenarios) or the numerators (computed live, never persisted).
-- **Proto operations**: `GetStatus` (per-projection coverage + denominator-confidence + latest trial trend), `ValidateBaseDocs` (referenced skills/providers/phases exist; ≠1-skill Guide rows flagged).
+- **Proto operations**: `GetStatus` (per-projection coverage + denominator-confidence + latest trial trend), `ListCells` (denominator grid rows, filterable by projection/status), `ExplainCell` (one cell: owner, status, basis × sufficiency, citations), `ValidateBaseDocs` (referenced skills/providers/phases exist; ≠1-skill Guide rows flagged).
 - **API behavior**: fan-out reads to each owner's `space --projection <p> --json` verb + the live registries (`search-hub providers`, `test-genie health`, `prompt-manager graph health`, `completeness-scoring GetScore`); join denominator vs numerator; degrade gracefully (per-projection "unavailable") when a source is down.
-- **CLI**: `meta-optimization-manager coverage status [--json]`, `coverage validate-docs [--projection] [--json]`.
+- **CLI**: `coverage status [--json]`, `coverage cells [--projection] [--status] [--json]`, `coverage explain <cell-id> [--json]`, `coverage validate-docs [--projection] [--json]`.
 - **UI**: the readiness scoreboard panel (P2).
 - **Storage**: SQLite snapshot cache only.
-- **Test evidence**: MOM-READINESS-001/002, MOM-BASEDOC-001/002.
+- **Test evidence**: MOM-READINESS-001/002/003, MOM-BASEDOC-001/002.
 
 ### convergence
 - **Owns**: a cached fitness-audit index (per-template counts + per-reference health verdicts + dated trend points).
-- **Proto operations**: `GetTemplateFitness` (per-replica cost, drift-surface count, comment-only-contract count, coordinated-edit count), `GetReferenceHealth` (stale-from-template, clean-on-all-tools, ≥60d stability, breadth), `GetConvergenceTrend`.
+- **Proto operations**: `GetConvergenceStatus` (fitness + reference-health summary across all templates), `GetTemplateFitness` (per-replica cost, drift-surface count, comment-only-contract count, coordinated-edit count + tier), `ListReferences` (gold-star reference health/eligibility: stale-from-template, clean-on-all-tools, ≥60d stability, breadth), `GetConvergenceTrend` (per-replica-cost / coordinated-edit over dated fitness-audit records).
 - **API behavior**: compute fitness counts (delegating raw code structure to code-facts / architecture-cartographer; the add/delete coordinated-edit walkthrough is the one genuinely new mechanization); read toolchain-clean results from test-genie / scenario-auditor; never re-run the toolchain. Surface numbers + flag candidates; tiering/substrate/nomination stay agentic.
-- **CLI**: `convergence fitness [--template] [--json]`, `convergence reference-health [--json]`, `convergence trend [--json]`.
+- **CLI**: `convergence status [--json]`, `convergence fitness [--template] [--json]`, `convergence references [--eligibility] [--json]`, `convergence trend [--template] [--json]`.
 - **UI**: the convergence-trend panel (P2).
 - **Storage**: SQLite fitness-audit index.
-- **Test evidence**: MOM-CONVERGENCE-001/002.
+- **Test evidence**: MOM-CONVERGENCE-001/002/003.
 
 ### focus
 - **Owns**: the gaps registry — every known gap with notes/approaches/context, including cross-cutting/global gaps and explored-but-unbuilt ideas.
-- **Proto operations**: `ListGaps` (filter by projection/cell), `GetFocus` (ranked next-best gaps).
+- **Proto operations**: `GetFocus` (ranked next-best gaps, impact × importance), `ListGaps` (filter by projection/cell/status), `GetGap` (one gap with full context), `AddGapNote` (append an explored approach — the one write verb).
 - **API behavior**: aggregate gaps from coverage + convergence + the registry; rank by impact × importance; return each with its qualitative context.
-- **CLI**: `focus [--json]`, `gaps [--projection] [--cell] [--json]`.
+- **CLI**: `focus [--limit] [--projection] [--json]`, `gaps [--projection] [--cell] [--status] [--json]`, `gaps show <id> [--json]`, `gaps note <id> --add "<approach>"`.
 - **UI**: the focus list + gaps registry panels (P2).
 - **Storage**: SQLite gaps registry.
-- **Test evidence**: MOM-FOCUS-001, MOM-GAPS-001.
+- **Test evidence**: MOM-FOCUS-001, MOM-GAPS-001/002.
 
 ### trials
 - **Owns**: the trials history time-series (success-rate + tokens + wall-time per run) and the per-task gate registry.
-- **Proto operations**: `RunTrials` (dispatch a task suite), `GetTrialHistory`, `GetGateCoverage` (% of Guide tasks with a live gate).
+- **Proto operations**: `ListTrialTasks` (the suite, generated from the Guide space), `RunTrials` (dispatch a task/suite via agent-manager + workspace-sandbox), `GetTrialHistory` (success/tokens/time trend), `GetTrialRun` (one run: verdict, sandbox diff, tokens, time), `GetGateCoverage` (% of Guide tasks with a live gate).
 - **API behavior**: dispatch SWE tasks (add-feature/research/comprehend/bugfix + negative cases) through agent-manager (runner=opencode + local-model config) inside workspace-sandbox; evaluate by deterministic checks where possible and an agent-judge otherwise; append metrics to history.
-- **CLI**: `trials run [--suite] [--json]`, `trials history [--json]`, `trials coverage [--json]`.
+- **CLI**: `trials list [--suite] [--json]`, `trials run [--suite|--task] [--model] [--json]`, `trials history [--json]`, `trials show <run-id> [--json]`, `trials coverage [--json]`.
 - **UI**: the trials-trend panel (P2).
 - **Storage**: SQLite trials history + gate registry.
-- **Test evidence**: MOM-TRIALS-001/002.
+- **Test evidence**: MOM-TRIALS-001/002/003.
 
 ## Shared Concepts
 
