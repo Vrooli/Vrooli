@@ -1,15 +1,17 @@
 package maintenance
 
 import (
+	"context"
 	"fmt"
-	"net/url"
-	"os"
 	"strconv"
+	"strings"
 
+	"connectrpc.com/connect"
 	maintenancepb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/maintenance"
+	maintenanceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/maintenance/maintenanceconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/proto"
 
 	"system-monitor/cli/internal/support"
 )
@@ -18,69 +20,73 @@ import (
 // stale metrics; compaction reclaims database file space. Destructive actions
 // require an explicit --confirm flag and are thin wrappers over the API.
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
 		Name:        "maintenance",
 		Description: "Preview and apply metrics retention and database compaction",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "retention", Description: "Preview or apply metrics retention (preview|apply)", Run: func(args []string) error { return runRetention(core, args) }},
-			{Name: "compact", Description: "Preview or apply database compaction (preview|apply)", Run: func(args []string) error { return runCompact(core, args) }},
+			{Name: "retention", Description: "Preview or apply metrics retention (preview|apply)", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "action", Required: true, Description: "preview or apply"}}, Flags: []cliapp.Flag{{Name: "days", Description: "Retention window in days", Default: "30"}, {Name: "confirm", Description: "Confirm destructive prune", Bool: true}}}, RunCtx: h.retention},
+			{Name: "compact", Description: "Preview or apply database compaction (preview|apply)", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "action", Required: true, Description: "preview or apply"}}, Flags: []cliapp.Flag{{Name: "confirm", Description: "Confirm compaction", Bool: true}}}, RunCtx: h.compact},
 		},
 	}
 }
 
-func runRetention(core *cliapp.ScenarioApp, args []string) error {
-	action, rest := splitAction(args)
+type handlers struct {
+	client maintenanceconnect.MaintenanceServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		client: maintenanceconnect.NewMaintenanceServiceClient(httpClient, baseURL),
+	}
+}
+
+func (h *handlers) retention(ctx cliapp.RunContext) error {
+	action := strings.TrimSpace(ctx.Positional("action"))
 	switch action {
 	case "preview":
-		return runRetentionPreview(core, rest)
+		return h.retentionPreview(ctx)
 	case "apply":
-		return runRetentionApply(core, rest)
+		return h.retentionApply(ctx)
 	default:
 		return fmt.Errorf("usage: system-monitor maintenance retention <preview|apply>")
 	}
 }
 
-func runCompact(core *cliapp.ScenarioApp, args []string) error {
-	action, rest := splitAction(args)
+func (h *handlers) compact(ctx cliapp.RunContext) error {
+	action := strings.TrimSpace(ctx.Positional("action"))
 	switch action {
 	case "preview":
-		return runCompactPreview(core, rest)
+		return h.compactPreview(ctx)
 	case "apply":
-		return runCompactApply(core, rest)
+		return h.compactApply(ctx)
 	default:
 		return fmt.Errorf("usage: system-monitor maintenance compact <preview|apply>")
 	}
 }
 
-func runRetentionPreview(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("maintenance retention preview")
-	days := fs.Int("days", 30, "Retention window in days")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if *days <= 0 {
-		return fmt.Errorf("--days must be greater than 0")
-	}
-
-	body, err := core.Get("/maintenance/metrics/retention/preview", url.Values{"days": {strconv.Itoa(*days)}})
+func (h *handlers) retentionPreview(ctx cliapp.RunContext) error {
+	days, err := daysFlag(ctx)
 	if err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
 
-	var resp maintenancepb.MetricsRetentionPreviewResponse
-	if err := support.DecodeProto(body, &resp); err != nil {
-		return err
+	resp, err := h.client.MetricsRetentionPreview(context.Background(), connect.NewRequest(&maintenancepb.MetricsRetentionPreviewRequest{
+		RetentionDays: int32(days),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("preview metrics retention", err, nil)
 	}
-	est := resp.GetEstimate()
-	stats := resp.GetDatabaseStats()
-	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no retention preview")
+	}
+	est := resp.Msg.GetEstimate()
+	stats := resp.Msg.GetDatabaseStats()
+	return renderProtoOperational(ctx, resp.Msg, cliapp.OperationalReport{
 		Status: []string{
-			fmt.Sprintf("Retention preview for %d-day window (cutoff %s).", *days, support.FormatMaybeString(est.GetCutoff(), "n/a")),
+			fmt.Sprintf("Retention preview for %d-day window (cutoff %s).", days, support.FormatMaybeString(est.GetCutoff(), "n/a")),
 			fmt.Sprintf("%d rows / %s would be pruned.", est.GetRowCount(), formatBytes(est.GetPayloadBytes())),
 		},
 		Triage: []cliapp.TriageGroup{
@@ -91,46 +97,35 @@ func runRetentionPreview(core *cliapp.ScenarioApp, args []string) error {
 			{Heading: "Database", Items: databaseStatLines(stats)},
 		},
 		NextSteps: []string{
-			fmt.Sprintf("system-monitor maintenance retention apply --days %d --confirm", *days),
+			fmt.Sprintf("system-monitor maintenance retention apply --days %d --confirm", days),
 			"system-monitor maintenance compact preview",
 		},
 	})
 }
 
-func runRetentionApply(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("maintenance retention apply")
-	days := fs.Int("days", 30, "Retention window in days")
-	confirm := fs.Bool("confirm", false, "Required: confirm the destructive prune")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if *days <= 0 {
-		return fmt.Errorf("--days must be greater than 0")
-	}
-	if !*confirm {
-		return fmt.Errorf("--confirm is required to apply retention (this deletes metrics older than %d days)", *days)
-	}
-
-	body, err := core.Request("POST", "/maintenance/metrics/retention/apply", nil, &maintenancepb.MetricsRetentionApplyRequest{
-		RetentionDays: int32(*days),
-		Confirm:       true,
-	})
+func (h *handlers) retentionApply(ctx cliapp.RunContext) error {
+	days, err := daysFlag(ctx)
 	if err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if !ctx.BoolFlag("confirm") {
+		return fmt.Errorf("--confirm is required to apply retention (this deletes metrics older than %d days)", days)
 	}
 
-	var resp maintenancepb.MetricsRetentionApplyResponse
-	if err := support.DecodeProto(body, &resp); err != nil {
-		return err
+	resp, err := h.client.MetricsRetentionApply(context.Background(), connect.NewRequest(&maintenancepb.MetricsRetentionApplyRequest{
+		RetentionDays: int32(days),
+		Confirm:       true,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("apply metrics retention", err, nil)
 	}
-	before := resp.GetDatabaseStatsBefore()
-	after := resp.GetDatabaseStatsAfter()
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Pruned %d metric rows (cutoff %s).", resp.GetResult().GetDeletedRows(), support.FormatMaybeString(resp.GetResult().GetCutoff(), "n/a"))},
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no retention result")
+	}
+	before := resp.Msg.GetDatabaseStatsBefore()
+	after := resp.Msg.GetDatabaseStatsAfter()
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Pruned %d metric rows (cutoff %s).", resp.Msg.GetResult().GetDeletedRows(), support.FormatMaybeString(resp.Msg.GetResult().GetCutoff(), "n/a"))},
 		Changes: []string{
 			fmt.Sprintf("Metric rows: %d -> %d", before.GetMetricRows(), after.GetMetricRows()),
 			fmt.Sprintf("DB size: %s -> %s", formatBytes(before.GetSizeBytes()), formatBytes(after.GetSizeBytes())),
@@ -140,63 +135,41 @@ func runRetentionApply(core *cliapp.ScenarioApp, args []string) error {
 	})
 }
 
-func runCompactPreview(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("maintenance compact preview")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/maintenance/metrics/compaction/preview", nil)
+func (h *handlers) compactPreview(ctx cliapp.RunContext) error {
+	resp, err := h.client.MetricsCompactionPreview(context.Background(), connect.NewRequest(&maintenancepb.MetricsCompactionPreviewRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("preview metrics compaction", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no compaction preview")
 	}
-
-	var resp maintenancepb.MetricsCompactionPreviewResponse
-	if err := support.DecodeProto(body, &resp); err != nil {
-		return err
-	}
-	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+	return renderProtoOperational(ctx, resp.Msg, cliapp.OperationalReport{
 		Status: []string{
-			fmt.Sprintf("Compaction could reclaim approximately %s.", formatBytes(resp.GetEstimatedReclaimableBytes())),
+			fmt.Sprintf("Compaction could reclaim approximately %s.", formatBytes(resp.Msg.GetEstimatedReclaimableBytes())),
 		},
 		Triage: []cliapp.TriageGroup{
-			{Heading: "Database", Items: databaseStatLines(resp.GetDatabaseStats())},
+			{Heading: "Database", Items: databaseStatLines(resp.Msg.GetDatabaseStats())},
 		},
 		NextSteps: []string{"system-monitor maintenance compact apply --confirm"},
 	})
 }
 
-func runCompactApply(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("maintenance compact apply")
-	confirm := fs.Bool("confirm", false, "Required: confirm the compaction")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if !*confirm {
+func (h *handlers) compactApply(ctx cliapp.RunContext) error {
+	if !ctx.BoolFlag("confirm") {
 		return fmt.Errorf("--confirm is required to apply compaction")
 	}
 
-	body, err := core.Request("POST", "/maintenance/metrics/compaction/apply", nil, &maintenancepb.MetricsCompactionApplyRequest{Confirm: true})
+	resp, err := h.client.MetricsCompactionApply(context.Background(), connect.NewRequest(&maintenancepb.MetricsCompactionApplyRequest{Confirm: true}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("apply metrics compaction", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no compaction result")
 	}
-
-	var resp maintenancepb.MetricsCompactionApplyResponse
-	if err := support.DecodeProto(body, &resp); err != nil {
-		return err
-	}
-	before := resp.GetDatabaseStatsBefore()
-	after := resp.GetDatabaseStatsAfter()
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Compaction reclaimed %s.", formatBytes(resp.GetReclaimedBytes()))},
+	before := resp.Msg.GetDatabaseStatsBefore()
+	after := resp.Msg.GetDatabaseStatsAfter()
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Compaction reclaimed %s.", formatBytes(resp.Msg.GetReclaimedBytes()))},
 		Changes: []string{
 			fmt.Sprintf("DB size: %s -> %s", formatBytes(before.GetSizeBytes()), formatBytes(after.GetSizeBytes())),
 			fmt.Sprintf("Freelist pages: %d -> %d", before.GetFreelistCount(), after.GetFreelistCount()),
@@ -205,11 +178,30 @@ func runCompactApply(core *cliapp.ScenarioApp, args []string) error {
 	})
 }
 
-func splitAction(args []string) (string, []string) {
-	if len(args) == 0 {
-		return "", nil
+func daysFlag(ctx cliapp.RunContext) (int, error) {
+	raw := strings.TrimSpace(ctx.Flag("days"))
+	if raw == "" {
+		raw = "30"
 	}
-	return args[0], args[1:]
+	return parseDays(raw)
+}
+
+func parseDays(raw string) (int, error) {
+	days, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return 0, fmt.Errorf("--days must be an integer")
+	}
+	if days <= 0 {
+		return 0, fmt.Errorf("--days must be greater than 0")
+	}
+	return days, nil
+}
+
+func renderProtoOperational(ctx cliapp.RunContext, payload proto.Message, report cliapp.OperationalReport) error {
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), payload)
+	}
+	return ctx.RenderOperational(report)
 }
 
 func databaseStatLines(s *maintenancepb.DatabaseStats) []string {

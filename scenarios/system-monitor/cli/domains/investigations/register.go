@@ -1,100 +1,107 @@
 package investigations
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
+	"strconv"
 	"strings"
 
+	"connectrpc.com/connect"
 	investigationspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations"
+	investigationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations/investigationsconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
 		Name:        "investigations",
 		Description: "List, inspect, trigger, and tune anomaly investigations",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "list", Description: "List recent investigations", Run: func(args []string) error { return runList(core, args) }},
-			{Name: "latest", Description: "Get the latest investigation", Run: func(args []string) error { return runGet(core, args, true) }},
-			{Name: "get", Description: "Get an investigation by ID", Run: func(args []string) error { return runGet(core, args, false) }},
-			{Name: "trigger", Description: "Trigger a new investigation", Run: func(args []string) error { return runTrigger(core, args) }},
-			{Name: "cooldown", Description: "Show cooldown status", Run: func(args []string) error { return runCooldown(core, args) }},
-			{Name: "cooldown-reset", Description: "Reset the investigation cooldown", Run: func(args []string) error { return runCooldownReset(core, args) }},
-			{Name: "cooldown-set", Description: "Update the cooldown duration", Run: func(args []string) error { return runCooldownSet(core, args) }},
-			{Name: "triggers", Description: "List trigger thresholds", Run: func(args []string) error { return runTriggers(core, args) }},
+			{Name: "list", Description: "List recent investigations", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "limit", Description: "Maximum number of investigations to return", Default: "20"}}}, RunCtx: h.list},
+			{Name: "latest", Description: "Get the latest investigation", RunCtx: h.latest},
+			{Name: "get", Description: "Get an investigation by ID", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Investigation ID"}}}, RunCtx: h.get},
+			{Name: "trigger", Description: "Trigger a new investigation", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "auto-fix", Description: "Request automatic remediation", Bool: true}, {Name: "note", Description: "Context for the investigation"}}}, RunCtx: h.trigger},
+			{Name: "cooldown", Description: "Show cooldown status", RunCtx: h.cooldown},
+			{Name: "cooldown-reset", Description: "Reset the investigation cooldown", RunCtx: h.cooldownReset},
+			{Name: "cooldown-set", Description: "Update the cooldown duration", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "seconds", Description: "Cooldown duration in seconds", Default: "0"}}}, RunCtx: h.cooldownSet},
+			{Name: "triggers", Description: "List trigger thresholds", RunCtx: h.triggers},
 		},
 	}
 }
 
-func runList(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("investigations list")
-	limit := fs.Int("limit", 20, "Maximum number of investigations to return")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if *limit <= 0 {
-		return fmt.Errorf("--limit must be greater than 0")
-	}
+type handlers struct {
+	client investigationsconnect.InvestigationsServiceClient
+}
 
-	body, err := core.Get("/investigations", map[string][]string{"limit": {fmt.Sprintf("%d", *limit)}})
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		client: investigationsconnect.NewInvestigationsServiceClient(httpClient, baseURL),
+	}
+}
+
+func (h *handlers) list(ctx cliapp.RunContext) error {
+	limit, err := positiveIntFlag(ctx, "limit")
 	if err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
 
-	var response investigationspb.ListInvestigationsResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	resp, err := h.client.ListInvestigations(context.Background(), connect.NewRequest(&investigationspb.ListInvestigationsRequest{
+		Limit: protoInt32(limit),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list investigations", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no investigations list")
 	}
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Investigations returned: %d", len(response.GetInvestigations())),
-			fmt.Sprintf("Limit applied: %d", *limit),
+			fmt.Sprintf("Investigations returned: %d", len(resp.Msg.GetInvestigations())),
+			fmt.Sprintf("Limit applied: %d", limit),
 		},
 		ResultsHeading: "Investigations",
-		Results:        investigationRows(response.GetInvestigations()),
+		Results:        investigationRows(resp.Msg.GetInvestigations()),
 		RetrievalHints: []string{"system-monitor investigations latest", "system-monitor investigations get <id>", "system-monitor investigations trigger --note \"describe the issue\""},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
-func runGet(core *cliapp.ScenarioApp, args []string, latest bool) error {
-	fs := support.NewFlagSet("investigations get")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	path := "/investigations/latest"
-	if !latest {
-		if fs.NArg() != 1 {
-			return fmt.Errorf("usage: system-monitor investigations get <id>")
-		}
-		path = "/investigations/" + strings.TrimSpace(fs.Arg(0))
-	}
-
-	body, err := core.Get(path, nil)
+func (h *handlers) latest(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetLatestInvestigation(context.Background(), connect.NewRequest(&investigationspb.GetLatestInvestigationRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get latest investigation", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil || resp.Msg.GetInvestigation() == nil {
+		return fmt.Errorf("server returned no latest investigation")
 	}
+	return renderInvestigation(ctx, resp.Msg, resp.Msg.GetInvestigation())
+}
 
-	var response investigationspb.Investigation
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+func (h *handlers) get(ctx cliapp.RunContext) error {
+	id := strings.TrimSpace(ctx.Positional("id"))
+	resp, err := h.client.GetInvestigation(context.Background(), connect.NewRequest(&investigationspb.GetInvestigationRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get investigation %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetInvestigation() == nil {
+		return fmt.Errorf("server returned no investigation")
+	}
+	return renderInvestigation(ctx, resp.Msg, resp.Msg.GetInvestigation())
+}
+
+func renderInvestigation(ctx cliapp.RunContext, payload proto.Message, response *investigationspb.Investigation) error {
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), payload)
 	}
 	report := cliapp.OperationalReport{
 		Status: []string{
@@ -122,71 +129,49 @@ func runGet(core *cliapp.ScenarioApp, args []string, latest bool) error {
 	if response.GetStatus() != investigationspb.InvestigationStatus_INVESTIGATION_STATUS_COMPLETED {
 		report.NextSteps = append(report.NextSteps, "system-monitor investigations latest")
 	}
-	return cliapp.RenderOperationalReport(os.Stdout, report)
+	return ctx.RenderOperational(report)
 }
 
-func runTrigger(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("investigations trigger")
-	autoFix := fs.Bool("auto-fix", false, "Request automatic remediation")
-	note := fs.String("note", "", "Context for the investigation")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	request := &investigationspb.TriggerInvestigationRequest{
-		AutoFix: *autoFix,
-		Note:    strings.TrimSpace(*note),
-	}
-	body, err := core.Request("POST", "/investigations/trigger", nil, request)
+func (h *handlers) trigger(ctx cliapp.RunContext) error {
+	resp, err := h.client.TriggerInvestigation(context.Background(), connect.NewRequest(&investigationspb.TriggerInvestigationRequest{
+		AutoFix: ctx.BoolFlag("auto-fix"),
+		Note:    strings.TrimSpace(ctx.Flag("note")),
+	}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("trigger investigation", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response investigationspb.TriggerInvestigationResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no trigger response")
 	}
 	report := cliapp.MutationReport{
 		Result: []string{
-			fmt.Sprintf("Investigation %s queued.", response.GetInvestigationId()),
-			fmt.Sprintf("Status: %s", response.GetStatus()),
+			fmt.Sprintf("Investigation %s queued.", resp.Msg.GetInvestigationId()),
+			fmt.Sprintf("Status: %s", resp.Msg.GetStatus()),
 		},
 		Changes: []string{
-			fmt.Sprintf("Auto-fix requested: %s", support.BoolString(response.GetAutoFix(), "yes", "no")),
-			fmt.Sprintf("Note: %s", support.FormatMaybeString(response.GetNote(), "none")),
+			fmt.Sprintf("Auto-fix requested: %s", support.BoolString(resp.Msg.GetAutoFix(), "yes", "no")),
+			fmt.Sprintf("Note: %s", support.FormatMaybeString(resp.Msg.GetNote(), "none")),
 		},
 		NextCommand: []string{
 			"system-monitor investigations latest",
-			fmt.Sprintf("system-monitor investigations get %s", response.GetInvestigationId()),
+			fmt.Sprintf("system-monitor investigations get %s", resp.Msg.GetInvestigationId()),
 		},
 	}
-	return cliapp.RenderMutationReport(os.Stdout, report)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, report)
 }
 
-func runCooldown(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("investigations cooldown")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/investigations/cooldown", nil)
+func (h *handlers) cooldown(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetCooldownStatus(context.Background(), connect.NewRequest(&investigationspb.GetCooldownStatusRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get investigation cooldown", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil || resp.Msg.GetCooldown() == nil {
+		return fmt.Errorf("server returned no cooldown status")
 	}
-
-	var response investigationspb.GetCooldownStatusResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
 	}
-	cooldown := response.GetCooldown()
+	cooldown := resp.Msg.GetCooldown()
 	report := cliapp.OperationalReport{
 		Status: []string{
 			fmt.Sprintf("Ready: %s", support.BoolString(cooldown.GetIsReady(), "yes", "no")),
@@ -198,83 +183,78 @@ func runCooldown(core *cliapp.ScenarioApp, args []string) error {
 		},
 		NextSteps: []string{"system-monitor investigations cooldown-reset", "system-monitor investigations cooldown-set --seconds 120"},
 	}
-	return cliapp.RenderOperationalReport(os.Stdout, report)
+	return ctx.RenderOperational(report)
 }
 
-func runCooldownReset(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("investigations cooldown-reset")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Request("POST", "/investigations/cooldown/reset", nil, nil)
+func (h *handlers) cooldownReset(ctx cliapp.RunContext) error {
+	resp, err := h.client.ResetCooldown(context.Background(), connect.NewRequest(&investigationspb.ResetCooldownRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("reset investigation cooldown", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no cooldown reset response")
 	}
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{"Investigation cooldown reset."},
 		Changes:     []string{"The next investigation can run immediately."},
 		NextCommand: []string{"system-monitor investigations cooldown", "system-monitor investigations trigger --note \"run a fresh diagnostic\""},
 	})
 }
 
-func runCooldownSet(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("investigations cooldown-set")
-	seconds := fs.Int("seconds", 0, "Cooldown duration in seconds")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if *seconds <= 0 {
+func (h *handlers) cooldownSet(ctx cliapp.RunContext) error {
+	seconds, err := positiveIntFlag(ctx, "seconds")
+	if err != nil {
 		return fmt.Errorf("--seconds must be greater than 0")
 	}
 
-	body, err := core.Request("PUT", "/investigations/cooldown/period", nil, map[string]int{"cooldown_period_seconds": *seconds})
+	resp, err := h.client.UpdateCooldownPeriod(context.Background(), connect.NewRequest(&investigationspb.UpdateCooldownPeriodRequest{CooldownPeriodSeconds: int32(seconds)}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("update investigation cooldown", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no cooldown update response")
 	}
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{"Investigation cooldown updated."},
-		Changes:     []string{fmt.Sprintf("New cooldown period: %ds", *seconds)},
+		Changes:     []string{fmt.Sprintf("New cooldown period: %ds", seconds)},
 		NextCommand: []string{"system-monitor investigations cooldown"},
 	})
 }
 
-func runTriggers(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("investigations triggers")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/investigations/triggers", nil)
+func (h *handlers) triggers(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetTriggers(context.Background(), connect.NewRequest(&investigationspb.GetTriggersRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get investigation triggers", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response investigationspb.GetTriggersResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no investigation triggers")
 	}
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Triggers configured: %d", len(response.GetTriggers())),
+			fmt.Sprintf("Triggers configured: %d", len(resp.Msg.GetTriggers())),
 		},
 		ResultsHeading: "Triggers",
-		Results:        triggerRows(response.GetTriggers()),
+		Results:        triggerRows(resp.Msg.GetTriggers()),
 		RetrievalHints: []string{"system-monitor investigations cooldown", "system-monitor status"},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
+}
+
+func positiveIntFlag(ctx cliapp.RunContext, name string) (int, error) {
+	value := strings.TrimSpace(ctx.Flag(name))
+	if value == "" {
+		return 0, fmt.Errorf("--%s is required", name)
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return 0, fmt.Errorf("--%s must be a positive integer", name)
+	}
+	return parsed, nil
+}
+
+func protoInt32(value int) *int32 {
+	v := int32(value)
+	return &v
 }
 
 func investigationRows(items []*investigationspb.Investigation) []string {

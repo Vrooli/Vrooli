@@ -1,62 +1,62 @@
 package metrics
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"os"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
+	"connectrpc.com/connect"
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics/metricsconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 
 	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
 		Name:        "metrics",
 		Description: "Inspect current, detailed, historical, process, and infrastructure metrics",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "current", Description: "Get the current metrics snapshot", Run: func(args []string) error { return runCurrent(core, args) }},
-			{Name: "detailed", Description: "Get detailed system metrics", Run: func(args []string) error { return runDetailed(core, args) }},
-			{Name: "processes", Description: "Get process monitoring metrics", Run: func(args []string) error { return runProcesses(core, args) }},
-			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Run: func(args []string) error { return runProcessTimeline(core, args) }},
-			{Name: "infrastructure", Description: "Get infrastructure pool and queue metrics", Run: func(args []string) error { return runInfrastructure(core, args) }},
-			{Name: "timeline", Description: "Get recent metrics history", Run: func(args []string) error { return runTimeline(core, args) }},
+			{Name: "current", Description: "Get the current metrics snapshot", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "fresh", Description: "Collect a fresh metrics snapshot", Bool: true}}}, RunCtx: h.current},
+			{Name: "detailed", Description: "Get detailed system metrics", RunCtx: h.detailed},
+			{Name: "processes", Description: "Get process monitoring metrics", RunCtx: h.processes},
+			{Name: "process-timeline", Description: "Top process consumers over a window, grouped by source scenario", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Window duration (e.g. 5m, 1h) or bare seconds", Default: "5m"}, {Name: "owner", Description: "Filter to a single owner/scenario"}, {Name: "top", Description: "Maximum ranked consumers to return", Default: "20"}}}, RunCtx: h.processTimeline},
+			{Name: "infrastructure", Description: "Get infrastructure pool and queue metrics", RunCtx: h.infrastructure},
+			{Name: "timeline", Description: "Get recent metrics history", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "window", Description: "Timeline window in seconds", Default: "120"}, {Name: "interval", Description: "Sample interval in seconds", Default: "5"}}}, RunCtx: h.timeline},
 		},
 	}
 }
 
-func runCurrent(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("metrics current")
-	fresh := fs.Bool("fresh", false, "Collect a fresh metrics snapshot")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
+type handlers struct {
+	client metricsconnect.MetricsServiceClient
+}
 
-	var body []byte
-	var err error
-	if *fresh {
-		body, err = core.Get("/metrics/current", map[string][]string{"fresh": {"true"}})
-	} else {
-		body, err = core.Get("/metrics/current", nil)
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		client: metricsconnect.NewMetricsServiceClient(httpClient, baseURL),
 	}
+}
+
+func (h *handlers) current(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetCurrentMetrics(context.Background(), connect.NewRequest(&metricspb.GetCurrentMetricsRequest{
+		Fresh: ctx.BoolFlag("fresh"),
+	}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get current metrics", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil || resp.Msg.GetMetrics() == nil {
+		return fmt.Errorf("server returned no current metrics")
 	}
 
-	var response metricspb.MetricsResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
-	}
+	response := resp.Msg.GetMetrics()
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Snapshot time: %s", support.FormatTimestamp(response.GetTimestamp())),
@@ -68,7 +68,7 @@ func runCurrent(core *cliapp.ScenarioApp, args []string) error {
 		ResultsHeading: "Key Signals",
 		Results: []string{
 			fmt.Sprintf("CPU vs memory delta: %.1f%%", response.GetCpuUsage()-response.GetMemoryUsage()),
-			fmt.Sprintf("Fresh collection requested: %s", support.BoolString(*fresh, "yes", "no")),
+			fmt.Sprintf("Fresh collection requested: %s", support.BoolString(ctx.BoolFlag("fresh"), "yes", "no")),
 		},
 		RetrievalHints: []string{
 			"system-monitor metrics detailed",
@@ -76,29 +76,19 @@ func runCurrent(core *cliapp.ScenarioApp, args []string) error {
 			"system-monitor alerts",
 		},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
-func runDetailed(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("metrics detailed")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/metrics/detailed", nil)
+func (h *handlers) detailed(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetDetailedMetrics(context.Background(), connect.NewRequest(&metricspb.GetDetailedMetricsRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get detailed metrics", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response metricspb.DetailedMetrics
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	if resp == nil || resp.Msg == nil || resp.Msg.GetMetrics() == nil {
+		return fmt.Errorf("server returned no detailed metrics")
 	}
 
+	response := resp.Msg.GetMetrics()
 	results := []string{
 		fmt.Sprintf("Load average: %s", floatList(response.GetCpuDetails().GetLoadAverage())),
 		fmt.Sprintf("Top CPU processes: %s", processNames(response.GetCpuDetails().GetTopProcesses())),
@@ -126,29 +116,19 @@ func runDetailed(core *cliapp.ScenarioApp, args []string) error {
 		Results:        results,
 		RetrievalHints: []string{"system-monitor metrics processes", "system-monitor metrics infrastructure", "system-monitor metrics timeline --window 300"},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
-func runProcesses(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("metrics processes")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/metrics/processes", nil)
+func (h *handlers) processes(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetProcessMonitor(context.Background(), connect.NewRequest(&metricspb.GetProcessMonitorRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get process metrics", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response metricspb.ProcessMonitorData
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	if resp == nil || resp.Msg == nil || resp.Msg.GetData() == nil {
+		return fmt.Errorf("server returned no process metrics")
 	}
 
+	response := resp.Msg.GetData()
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Snapshot time: %s", support.FormatTimestamp(response.GetTimestamp())),
@@ -160,29 +140,19 @@ func runProcesses(core *cliapp.ScenarioApp, args []string) error {
 		Results:        processRows(response.GetResourceMatrix()),
 		RetrievalHints: []string{"system-monitor metrics current", "system-monitor investigations trigger --note \"review abnormal processes\""},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
-func runInfrastructure(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("metrics infrastructure")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/metrics/infrastructure", nil)
+func (h *handlers) infrastructure(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetInfrastructureMonitor(context.Background(), connect.NewRequest(&metricspb.GetInfrastructureMonitorRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get infrastructure metrics", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response metricspb.InfrastructureMonitorData
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	if resp == nil || resp.Msg == nil || resp.Msg.GetData() == nil {
+		return fmt.Errorf("server returned no infrastructure metrics")
 	}
 
+	response := resp.Msg.GetData()
 	results := append(poolRows("DB", response.GetDatabasePools()), poolRows("HTTP", response.GetHttpClientPools())...)
 	results = append(results, fmt.Sprintf("Storage IO: read %.2f MB/s, write %.2f MB/s, disk queue depth %.2f, io wait %.2f%%", response.GetStorageIo().GetReadMbPerSec(), response.GetStorageIo().GetWriteMbPerSec(), response.GetStorageIo().GetDiskQueueDepth(), response.GetStorageIo().GetIoWaitPercent()))
 
@@ -198,36 +168,31 @@ func runInfrastructure(core *cliapp.ScenarioApp, args []string) error {
 		Results:        results,
 		RetrievalHints: []string{"system-monitor status", "system-monitor metrics detailed"},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
-func runTimeline(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("metrics timeline")
-	window := fs.Int("window", 120, "Timeline window in seconds")
-	interval := fs.Int("interval", 5, "Sample interval in seconds")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if *window <= 0 || *interval <= 0 {
-		return fmt.Errorf("--window and --interval must be greater than 0")
-	}
-
-	body, err := core.Get("/metrics/timeline", map[string][]string{
-		"window":   {fmt.Sprintf("%d", *window)},
-		"interval": {fmt.Sprintf("%d", *interval)},
-	})
+func (h *handlers) timeline(ctx cliapp.RunContext) error {
+	window, err := positiveIntFlag(ctx, "window")
 	if err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response metricspb.MetricsTimelineResponse
-	if err := support.DecodeProto(body, &response); err != nil {
+	interval, err := positiveIntFlag(ctx, "interval")
+	if err != nil {
 		return err
 	}
+
+	resp, err := h.client.GetMetricsTimeline(context.Background(), connect.NewRequest(&metricspb.GetMetricsTimelineRequest{
+		WindowSeconds:         protoInt32(window),
+		SampleIntervalSeconds: protoInt32(interval),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("get metrics timeline", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetTimeline() == nil {
+		return fmt.Errorf("server returned no metrics timeline")
+	}
+
+	response := resp.Msg.GetTimeline()
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Window: %ds", response.GetWindowSeconds()),
@@ -238,79 +203,47 @@ func runTimeline(core *cliapp.ScenarioApp, args []string) error {
 		Results:        timelineRows(response.GetSamples()),
 		RetrievalHints: []string{"system-monitor watch", "system-monitor metrics current --fresh"},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
-// processTimelineEntry mirrors the plain-JSON shape returned by
-// GET /api/v1/metrics/processes/timeline (see handlers/metrics.go).
-type processTimelineEntry struct {
-	Owner       string  `json:"owner"`
-	Comm        string  `json:"comm"`
-	PID         int     `json:"pid"`
-	Aggregated  bool    `json:"aggregated"`
-	CPUPct      float64 `json:"cpu_pct"`
-	RSSKB       int64   `json:"rss_kb"`
-	SampleCount int64   `json:"sample_count"`
-	FirstSeen   string  `json:"first_seen"`
-	LastSeen    string  `json:"last_seen"`
-}
-
-type processTimelineResponse struct {
-	WindowSeconds int                    `json:"window_seconds"`
-	Owner         string                 `json:"owner"`
-	Top           int                    `json:"top"`
-	Count         int                    `json:"count"`
-	Entries       []processTimelineEntry `json:"entries"`
-}
-
-func runProcessTimeline(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("metrics process-timeline")
-	window := fs.String("window", "5m", "Window duration (e.g. 5m, 1h) or bare seconds")
-	owner := fs.String("owner", "", "Filter to a single owner/scenario")
-	top := fs.Int("top", 20, "Maximum ranked consumers to return")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if *top <= 0 {
-		return fmt.Errorf("--top must be greater than 0")
-	}
-
-	query := map[string][]string{
-		"window": {*window},
-		"top":    {fmt.Sprintf("%d", *top)},
-	}
-	if strings.TrimSpace(*owner) != "" {
-		query["owner"] = []string{*owner}
-	}
-
-	body, err := core.Get("/metrics/processes/timeline", query)
+func (h *handlers) processTimeline(ctx cliapp.RunContext) error {
+	windowSeconds, err := windowSecondsFlag(ctx, "window")
 	if err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	top, err := positiveIntFlag(ctx, "top")
+	if err != nil {
+		return err
+	}
+	owner := strings.TrimSpace(ctx.Flag("owner"))
+
+	resp, err := h.client.GetProcessTimeline(context.Background(), connect.NewRequest(&metricspb.GetProcessTimelineRequest{
+		WindowSeconds: protoInt32(windowSeconds),
+		Owner:         owner,
+		Top:           protoInt32(top),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("get process timeline", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetTimeline() == nil {
+		return fmt.Errorf("server returned no process timeline")
 	}
 
-	var response processTimelineResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("decode process timeline: %w", err)
-	}
-
+	response := resp.Msg.GetTimeline()
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Window: %ds", response.WindowSeconds),
-			fmt.Sprintf("Owner filter: %s", ownerFilterLabel(response.Owner)),
-			fmt.Sprintf("Ranked consumers: %d", response.Count),
+			fmt.Sprintf("Window: %ds", response.GetWindowSeconds()),
+			fmt.Sprintf("Owner filter: %s", ownerFilterLabel(response.GetOwner())),
+			fmt.Sprintf("Ranked consumers: %d", response.GetCount()),
 		},
 		ResultsHeading: "Top Consumers by Scenario",
-		Results:        processTimelineRows(response.Entries),
+		Results:        processTimelineRows(response.GetEntries()),
 		RetrievalHints: []string{
 			"system-monitor metrics process-timeline --window 1h --json",
 			"system-monitor metrics process-timeline --owner security-health",
 		},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
 func ownerFilterLabel(owner string) string {
@@ -320,20 +253,54 @@ func ownerFilterLabel(owner string) string {
 	return owner
 }
 
-func processTimelineRows(entries []processTimelineEntry) []string {
+func processTimelineRows(entries []*metricspb.ProcessTimelineEntry) []string {
 	if len(entries) == 0 {
 		return []string{"No process samples in the requested window yet."}
 	}
 	rows := make([]string, 0, len(entries))
 	for _, e := range entries {
+		if e == nil {
+			continue
+		}
 		pid := "aggregated"
-		if !e.Aggregated && e.PID > 0 {
-			pid = fmt.Sprintf("pid=%d", e.PID)
+		if !e.GetAggregated() && e.GetPid() > 0 {
+			pid = fmt.Sprintf("pid=%d", e.GetPid())
 		}
 		rows = append(rows, fmt.Sprintf("%s %s cpu=%s rss=%.1fMB samples=%d (%s)",
-			e.Owner, e.Comm, support.FormatPercent(e.CPUPct), float64(e.RSSKB)/1024, e.SampleCount, pid))
+			e.GetOwner(), e.GetComm(), support.FormatPercent(e.GetCpuPct()), float64(e.GetRssKb())/1024, e.GetSampleCount(), pid))
 	}
 	return rows
+}
+
+func protoInt32(value int) *int32 {
+	converted := int32(value)
+	return &converted
+}
+
+func positiveIntFlag(ctx cliapp.RunContext, name string) (int, error) {
+	value, err := strconv.Atoi(strings.TrimSpace(ctx.Flag(name)))
+	if err != nil || value <= 0 {
+		return 0, fmt.Errorf("--%s must be a positive integer", name)
+	}
+	return value, nil
+}
+
+func windowSecondsFlag(ctx cliapp.RunContext, name string) (int, error) {
+	raw := strings.TrimSpace(ctx.Flag(name))
+	if raw == "" {
+		raw = "5m"
+	}
+	if seconds, err := strconv.Atoi(raw); err == nil {
+		if seconds <= 0 {
+			return 0, fmt.Errorf("--%s must be greater than 0", name)
+		}
+		return seconds, nil
+	}
+	duration, err := time.ParseDuration(raw)
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("--%s must be a positive duration or seconds value", name)
+	}
+	return int(duration.Seconds()), nil
 }
 
 func floatList(values []float64) string {

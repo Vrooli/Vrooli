@@ -40,6 +40,14 @@ type MonitorService struct {
 	procSampleEvery   time.Duration
 	procSampleTopN    int
 	lastProcSampledAt time.Time
+
+	lastCycleDuration       time.Duration
+	lastCycleForks          uint64
+	lastCollectorDurations  map[string]time.Duration
+	lastCollectorForks      map[string]uint64
+	lastProcSampleDuration  time.Duration
+	lastCommandForkCount    uint64
+	lastSelfMetricsRecorded time.Time
 }
 
 // MonitorOption configures a MonitorService.
@@ -74,7 +82,7 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 
 	baseInterval := cfg.Monitoring.MetricsInterval
 	if baseInterval <= 0 {
-		baseInterval = 10 * time.Second
+		baseInterval = 20 * time.Second
 	}
 
 	procEvery := cfg.Monitoring.ProcSampleInterval
@@ -87,19 +95,21 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 	}
 
 	svc := &MonitorService{
-		config:          cfg,
-		repo:            repo,
-		collectors:      collectors.NewCollectorRegistry(),
-		infra:           infra,
-		clock:           RealClock{},
-		active:          true,
-		metricInterval:  baseInterval,
-		lastRun:         make(map[string]time.Time),
-		ctx:             ctx,
-		cancel:          cancel,
-		snapshots:       collectors.NewCachedSnapshotProvider(0),
-		procSampleEvery: procEvery,
-		procSampleTopN:  procTopN,
+		config:                 cfg,
+		repo:                   repo,
+		collectors:             collectors.NewCollectorRegistry(),
+		infra:                  infra,
+		clock:                  RealClock{},
+		active:                 true,
+		metricInterval:         baseInterval,
+		lastRun:                make(map[string]time.Time),
+		lastCollectorDurations: make(map[string]time.Duration),
+		lastCollectorForks:     make(map[string]uint64),
+		ctx:                    ctx,
+		cancel:                 cancel,
+		snapshots:              collectors.NewCachedSnapshotProvider(0),
+		procSampleEvery:        procEvery,
+		procSampleTopN:         procTopN,
 	}
 
 	// The production repo implements ProcessSampleRepository too; capture it so
@@ -108,7 +118,8 @@ func NewMonitorService(cfg *config.Config, repo repository.MetricsRepository, in
 	if pr, ok := repo.(repository.ProcessSampleRepository); ok {
 		svc.procRepo = pr
 	}
-	svc.sampler = procsampler.NewSampler()
+	svc.sampler = procsampler.NewCachedSampler(procsampler.NewSampler(), time.Second)
+	collectors.SetTopProcessSampler(svc.sampler)
 	// Primary path is the bare-host /proc heuristic; the docker fallback only
 	// resolves genuinely containerized pids (none on a bare-host deployment).
 	svc.attributor = procsampler.NewAttributor(NewDockerFallback())
@@ -217,7 +228,7 @@ func (s *MonitorService) collectionLoop() {
 func (s *MonitorService) collectionTickInterval() time.Duration {
 	minInterval := s.EffectiveCollectionInterval()
 	if minInterval <= 0 {
-		minInterval = 10 * time.Second
+		minInterval = 20 * time.Second
 	}
 
 	for _, collector := range s.collectors.GetEnabled() {
@@ -239,7 +250,7 @@ func (s *MonitorService) shouldCollect(name string, interval time.Duration, now 
 		interval = s.EffectiveCollectionInterval()
 	}
 	if interval <= 0 {
-		interval = 10 * time.Second
+		interval = 20 * time.Second
 	}
 
 	s.mu.RLock()
@@ -264,6 +275,8 @@ func (s *MonitorService) collectMetrics() {
 	defer cancel()
 
 	now := s.clock.Now()
+	cycleStarted := time.Now()
+	cycleForksBefore := collectors.CommandForkCount()
 	var metricsData []*collectors.MetricData
 	var errors []error
 
@@ -274,7 +287,10 @@ func (s *MonitorService) collectMetrics() {
 			continue
 		}
 
+		started := time.Now()
+		forksBefore := collectors.CommandForkCount()
 		data, err := collector.Collect(ctx)
+		s.recordCollectorSelfMetrics(name, time.Since(started), collectors.CommandForkCount()-forksBefore)
 		s.markCollected(name, now)
 		if err != nil {
 			errors = append(errors, err)
@@ -300,6 +316,7 @@ func (s *MonitorService) collectMetrics() {
 	if s.shouldSampleProcesses(now) {
 		s.sampleProcesses(ctx, now)
 	}
+	s.recordCycleSelfMetrics(time.Since(cycleStarted), collectors.CommandForkCount()-cycleForksBefore, now)
 }
 
 // shouldSampleProcesses gates the /proc sampler to its configured interval.
@@ -324,7 +341,9 @@ func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time) {
 	s.lastProcSampledAt = now
 	s.mu.Unlock()
 
+	started := time.Now()
 	samples, err := s.sampler.Sample(ctx)
+	s.recordProcSampleDuration(time.Since(started))
 	if err != nil {
 		if err == procsampler.ErrUnsupported {
 			return // non-Linux: aggregate collectors still work; nothing to persist
@@ -367,6 +386,54 @@ func (s *MonitorService) sampleProcesses(ctx context.Context, now time.Time) {
 	}
 	if err := s.procRepo.SaveProcessSamples(ctx, rows); err != nil {
 		log.Printf("process sampler: persist %d rows: %v", len(rows), err)
+	}
+}
+
+func (s *MonitorService) recordCollectorSelfMetrics(name string, duration time.Duration, forks uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastCollectorDurations[name] = duration
+	s.lastCollectorForks[name] = forks
+}
+
+func (s *MonitorService) recordProcSampleDuration(duration time.Duration) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastProcSampleDuration = duration
+}
+
+func (s *MonitorService) recordCycleSelfMetrics(duration time.Duration, forks uint64, now time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastCycleDuration = duration
+	s.lastCycleForks = forks
+	s.lastCommandForkCount = collectors.CommandForkCount()
+	s.lastSelfMetricsRecorded = now
+}
+
+// SelfMetrics returns lightweight monitor overhead telemetry for health/status
+// payloads. It intentionally reports only the latest completed cycle.
+func (s *MonitorService) SelfMetrics() map[string]interface{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	collectorDurations := make(map[string]float64, len(s.lastCollectorDurations))
+	for name, duration := range s.lastCollectorDurations {
+		collectorDurations[name] = float64(duration.Microseconds()) / 1000
+	}
+	collectorForks := make(map[string]uint64, len(s.lastCollectorForks))
+	for name, forks := range s.lastCollectorForks {
+		collectorForks[name] = forks
+	}
+
+	return map[string]interface{}{
+		"last_cycle_duration_ms":       float64(s.lastCycleDuration.Microseconds()) / 1000,
+		"last_cycle_forks":             s.lastCycleForks,
+		"total_collector_forks":        s.lastCommandForkCount,
+		"collector_duration_ms":        collectorDurations,
+		"collector_forks":              collectorForks,
+		"last_proc_sample_duration_ms": float64(s.lastProcSampleDuration.Microseconds()) / 1000,
+		"recorded_at":                  s.lastSelfMetricsRecorded.UTC().Format(time.RFC3339),
 	}
 }
 

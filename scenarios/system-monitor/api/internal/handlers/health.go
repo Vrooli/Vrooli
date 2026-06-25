@@ -12,7 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	repocontract "github.com/vrooli/repo-contract-go"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	healthpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/healthutil"
@@ -27,6 +31,10 @@ type HealthHandler struct {
 	startTime   time.Time
 }
 
+type selfMetricsProvider interface {
+	SelfMetrics() map[string]interface{}
+}
+
 // NewHealthHandler creates a new health handler
 func NewHealthHandler(cfg *config.Config, monitorSvc MonitorQuerier, settingsMgr SettingsProvider) *HealthHandler {
 	return &HealthHandler{
@@ -39,7 +47,16 @@ func NewHealthHandler(cfg *config.Config, monitorSvc MonitorQuerier, settingsMgr
 
 // Handle processes health check requests
 func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	httputil.JSON(w, h.buildHealthResponse(r.Context())) //nolint:errcheck
+}
+
+// Health handles the typed Connect-RPC health contract while preserving the
+// same source data as the REST health probes.
+func (h *HealthHandler) Health(ctx context.Context, _ *connect.Request[healthpb.HealthRequest]) (*connect.Response[healthpb.HealthResponse], error) {
+	return connect.NewResponse(h.healthResponseToProto(h.buildHealthResponse(ctx))), nil
+}
+
+func (h *HealthHandler) buildHealthResponse(ctx context.Context) map[string]interface{} {
 	overallStatus := "healthy"
 
 	// Schema-compliant health response
@@ -130,8 +147,95 @@ func (h *HealthHandler) Handle(w http.ResponseWriter, r *http.Request) {
 			systemMetrics["active_monitoring"] = true
 		}
 	}
+	if provider, ok := h.monitorSvc.(selfMetricsProvider); ok {
+		systemMetrics := healthResponse["metrics"].(map[string]interface{})
+		systemMetrics["self"] = provider.SelfMetrics()
+	}
 
-	httputil.JSON(w, healthResponse) //nolint:errcheck
+	return healthResponse
+}
+
+func (h *HealthHandler) healthResponseToProto(response map[string]interface{}) *healthpb.HealthResponse {
+	return &healthpb.HealthResponse{
+		Status:           healthStatusToProto(stringValue(response["status"])),
+		Service:          stringValue(response["service"]),
+		Timestamp:        stringValue(response["timestamp"]),
+		Readiness:        boolValue(response["readiness"]),
+		Version:          stringValue(response["version"]),
+		ProcessorActive:  boolValue(response["processor_active"]),
+		MaintenanceState: stringValue(response["maintenance_state"]),
+		Dependencies:     mapToProtoJSONValues(mapValue(response["dependencies"])),
+		Metrics:          mapToProtoJSONValues(mapValue(response["metrics"])),
+	}
+}
+
+func healthStatusToProto(status string) commonv1.HealthStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "healthy":
+		return commonv1.HealthStatus_HEALTH_STATUS_HEALTHY
+	case "degraded":
+		return commonv1.HealthStatus_HEALTH_STATUS_DEGRADED
+	case "unhealthy":
+		return commonv1.HealthStatus_HEALTH_STATUS_UNHEALTHY
+	default:
+		return commonv1.HealthStatus_HEALTH_STATUS_UNSPECIFIED
+	}
+}
+
+func mapToProtoJSONValues(values map[string]interface{}) map[string]*commonv1.JsonValue {
+	out := make(map[string]*commonv1.JsonValue, len(values))
+	for key, value := range values {
+		out[key] = interfaceToProtoJSONValue(value)
+	}
+	return out
+}
+
+func interfaceToProtoJSONValue(value interface{}) *commonv1.JsonValue {
+	switch typed := value.(type) {
+	case nil:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_NullValue{NullValue: structpb.NullValue_NULL_VALUE}}
+	case bool:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_BoolValue{BoolValue: typed}}
+	case string:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: typed}}
+	case int:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: int64(typed)}}
+	case int64:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_IntValue{IntValue: typed}}
+	case float64:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_DoubleValue{DoubleValue: typed}}
+	case map[string]interface{}:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ObjectValue{ObjectValue: &commonv1.JsonObject{Fields: mapToProtoJSONValues(typed)}}}
+	case []interface{}:
+		values := make([]*commonv1.JsonValue, 0, len(typed))
+		for _, item := range typed {
+			values = append(values, interfaceToProtoJSONValue(item))
+		}
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: &commonv1.JsonList{Values: values}}}
+	default:
+		return &commonv1.JsonValue{Kind: &commonv1.JsonValue_StringValue{StringValue: fmt.Sprint(typed)}}
+	}
+}
+
+func stringValue(value interface{}) string {
+	if typed, ok := value.(string); ok {
+		return typed
+	}
+	return ""
+}
+
+func boolValue(value interface{}) bool {
+	if typed, ok := value.(bool); ok {
+		return typed
+	}
+	return false
+}
+
+func mapValue(value interface{}) map[string]interface{} {
+	if typed, ok := value.(map[string]interface{}); ok {
+		return typed
+	}
+	return nil
 }
 
 // checkMetricsCollection tests the core system monitoring capability

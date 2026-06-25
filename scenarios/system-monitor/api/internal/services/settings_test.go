@@ -51,7 +51,7 @@ func TestSettingsManager_LoadsWrapperShape(t *testing.T) {
 		"metadata": {"config_version": "1.0.0"},
 		"settings": {
 			"active": true,
-			"metric_collection_interval": 10,
+			"metric_collection_interval": 20,
 			"anomaly_detection_interval": 30,
 			"threshold_check_interval": 20,
 			"cooldown_period_seconds": 300,
@@ -70,8 +70,8 @@ func TestSettingsManager_LoadsWrapperShape(t *testing.T) {
 	if !got.Active {
 		t.Error("Active should load as true from the wrapper shape (regression)")
 	}
-	if got.MetricCollectionInterval != 10 {
-		t.Errorf("MetricCollectionInterval = %d, want 10", got.MetricCollectionInterval)
+	if got.MetricCollectionInterval != 20 {
+		t.Errorf("MetricCollectionInterval = %d, want 20", got.MetricCollectionInterval)
 	}
 	if got.MetricsRetentionDays != 30 {
 		t.Errorf("MetricsRetentionDays = %d, want default 30", got.MetricsRetentionDays)

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolregistry"
 )
@@ -39,8 +38,7 @@ func (h *ToolsHandler) GetManifest(w http.ResponseWriter, r *http.Request) {
 // GetTool handles GET /api/v1/tools/{name}
 // Returns a specific tool definition by name.
 func (h *ToolsHandler) GetTool(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
+	name := r.PathValue("name")
 
 	h.log.Debug("fetching tool", "name", name)
 
@@ -54,9 +52,11 @@ func (h *ToolsHandler) GetTool(w http.ResponseWriter, r *http.Request) {
 }
 
 // RegisterRoutes registers the tool discovery routes on the given router.
-func (h *ToolsHandler) RegisterRoutes(r *mux.Router) {
-	r.HandleFunc("/api/v1/tools", h.GetManifest).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/v1/tools/{name}", h.GetTool).Methods("GET", "OPTIONS")
+func (h *ToolsHandler) RegisterRoutes(r *http.ServeMux) {
+	r.HandleFunc("GET /api/v1/tools", h.GetManifest)
+	r.HandleFunc("OPTIONS /api/v1/tools", h.GetManifest)
+	r.HandleFunc("GET /api/v1/tools/{name}", h.GetTool)
+	r.HandleFunc("OPTIONS /api/v1/tools/{name}", h.GetTool)
 }
 
 // writeJSON writes a JSON response with the given status code through the

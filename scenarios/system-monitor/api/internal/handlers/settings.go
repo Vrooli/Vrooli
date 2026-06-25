@@ -3,9 +3,11 @@ package handlers
 // DOC: docs/reference/api-endpoints.md#settings
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
+	"connectrpc.com/connect"
 	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
@@ -27,8 +29,73 @@ func NewSettingsHandler(settingsManager SettingsProvider, log *slog.Logger) *Set
 	}
 }
 
-// GetSettings handles GET /api/settings
-func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
+// GetSettings handles the typed Connect-RPC settings read contract.
+func (h *SettingsHandler) GetSettings(context.Context, *connect.Request[settingspb.GetSettingsRequest]) (*connect.Response[settingspb.GetSettingsResponse], error) {
+	settings := h.settingsManager.GetSettings()
+	return connect.NewResponse(&settingspb.GetSettingsResponse{
+		Success:  true,
+		Settings: convert.SettingsToProto(&settings),
+	}), nil
+}
+
+// UpdateSettings handles the typed Connect-RPC settings update contract.
+func (h *SettingsHandler) UpdateSettings(_ context.Context, req *connect.Request[settingspb.UpdateSettingsRequest]) (*connect.Response[settingspb.UpdateSettingsResponse], error) {
+	newSettings := convert.ProtoToSettings(req.Msg.GetSettings())
+	if newSettings == nil {
+		return nil, connectError(apierrors.Validation("body", "Settings are required"))
+	}
+	if err := h.validateSettings(newSettings); err != nil {
+		return nil, connectError(err)
+	}
+	if err := h.settingsManager.UpdateSettings(*newSettings); err != nil {
+		return nil, connectError(apierrors.Internal("Failed to update settings", err))
+	}
+
+	updatedSettings := h.settingsManager.GetSettings()
+	return connect.NewResponse(&settingspb.UpdateSettingsResponse{
+		Success:  true,
+		Settings: convert.SettingsToProto(&updatedSettings),
+	}), nil
+}
+
+// ResetSettings handles the typed Connect-RPC settings reset contract.
+func (h *SettingsHandler) ResetSettings(context.Context, *connect.Request[settingspb.ResetSettingsRequest]) (*connect.Response[settingspb.ResetSettingsResponse], error) {
+	if err := h.settingsManager.ResetSettings(); err != nil {
+		return nil, connectError(apierrors.Internal("Failed to reset settings", err))
+	}
+
+	settings := h.settingsManager.GetSettings()
+	return connect.NewResponse(&settingspb.ResetSettingsResponse{
+		Success:  true,
+		Settings: convert.SettingsToProto(&settings),
+	}), nil
+}
+
+// GetMaintenanceState handles the typed Connect-RPC maintenance-state read contract.
+func (h *SettingsHandler) GetMaintenanceState(context.Context, *connect.Request[settingspb.GetMaintenanceStateRequest]) (*connect.Response[settingspb.GetMaintenanceStateResponse], error) {
+	return connect.NewResponse(&settingspb.GetMaintenanceStateResponse{
+		Success:          true,
+		MaintenanceState: h.settingsManager.GetMaintenanceState(),
+	}), nil
+}
+
+// SetMaintenanceState handles the typed Connect-RPC maintenance-state update contract.
+func (h *SettingsHandler) SetMaintenanceState(_ context.Context, req *connect.Request[settingspb.SetMaintenanceStateRequest]) (*connect.Response[settingspb.SetMaintenanceStateResponse], error) {
+	if req.Msg.GetMaintenanceState() != "active" && req.Msg.GetMaintenanceState() != "inactive" {
+		return nil, connectError(apierrors.Validation("maintenance_state", "Must be 'active' or 'inactive'"))
+	}
+	if err := h.settingsManager.SetMaintenanceState(req.Msg.GetMaintenanceState()); err != nil {
+		return nil, connectError(apierrors.Internal("Failed to update maintenance state", err))
+	}
+
+	return connect.NewResponse(&settingspb.SetMaintenanceStateResponse{
+		Success:          true,
+		MaintenanceState: h.settingsManager.GetMaintenanceState(),
+	}), nil
+}
+
+// HandleGetSettings handles GET /api/settings.
+func (h *SettingsHandler) HandleGetSettings(w http.ResponseWriter, r *http.Request) {
 	settings := h.settingsManager.GetSettings()
 
 	resp := &settingspb.GetSettingsResponse{
@@ -38,8 +105,8 @@ func (h *SettingsHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// UpdateSettings handles PUT /api/settings
-func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+// HandleUpdateSettings handles PUT /api/settings.
+func (h *SettingsHandler) HandleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var reqPb settingspb.UpdateSettingsRequest
 	if err := httputil.DecodeProtoJSON(r, &reqPb); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid JSON payload"))
@@ -73,8 +140,8 @@ func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request)
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// ResetSettings handles POST /api/settings/reset
-func (h *SettingsHandler) ResetSettings(w http.ResponseWriter, r *http.Request) {
+// HandleResetSettings handles POST /api/settings/reset.
+func (h *SettingsHandler) HandleResetSettings(w http.ResponseWriter, r *http.Request) {
 	if err := h.settingsManager.ResetSettings(); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Internal("Failed to reset settings", err))
 		return
@@ -89,8 +156,8 @@ func (h *SettingsHandler) ResetSettings(w http.ResponseWriter, r *http.Request) 
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// GetMaintenanceState handles GET /api/maintenance/state
-func (h *SettingsHandler) GetMaintenanceState(w http.ResponseWriter, r *http.Request) {
+// HandleGetMaintenanceState handles GET /api/maintenance/state.
+func (h *SettingsHandler) HandleGetMaintenanceState(w http.ResponseWriter, r *http.Request) {
 	state := h.settingsManager.GetMaintenanceState()
 
 	resp := &settingspb.GetMaintenanceStateResponse{
@@ -100,8 +167,8 @@ func (h *SettingsHandler) GetMaintenanceState(w http.ResponseWriter, r *http.Req
 	httputil.SafeProtoJSON(w, h.log, r, resp)
 }
 
-// SetMaintenanceState handles POST /api/maintenance/state
-func (h *SettingsHandler) SetMaintenanceState(w http.ResponseWriter, r *http.Request) {
+// HandleSetMaintenanceState handles POST /api/maintenance/state.
+func (h *SettingsHandler) HandleSetMaintenanceState(w http.ResponseWriter, r *http.Request) {
 	var reqPb settingspb.SetMaintenanceStateRequest
 	if err := httputil.DecodeProtoJSON(r, &reqPb); err != nil {
 		httputil.HandleError(w, h.log, r, apierrors.Validation("body", "Invalid JSON payload"))

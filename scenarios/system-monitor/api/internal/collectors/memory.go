@@ -2,13 +2,11 @@ package collectors
 
 import (
 	"context"
-	"fmt"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 )
 
 // MemoryCollector collects memory metrics
@@ -122,36 +120,25 @@ func GetTopProcessesByMemory(limit int) ([]map[string]interface{}, error) {
 		return []map[string]interface{}{}, nil
 	}
 
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c",
-		fmt.Sprintf("ps -eo pid,comm,%%cpu,%%mem,rss --sort=-%%mem --no-headers | head -%d", limit))
+	samples, err := topProcessSamples(limit, func(a, b procsampler.ProcessSample) bool {
+		if a.RSSKB != b.RSSKB {
+			return a.RSSKB > b.RSSKB
+		}
+		return a.CPUPct > b.CPUPct
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var processes []map[string]interface{}
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 5 {
-			continue
-		}
-
-		pid, _ := strconv.Atoi(fields[0])
-		cpuPercent, _ := strconv.ParseFloat(fields[2], 64)
-		memPercent, _ := strconv.ParseFloat(fields[3], 64)
-		rssKB, _ := strconv.ParseFloat(fields[4], 64)
-
+	totalKB := totalMemoryKB()
+	processes := make([]map[string]interface{}, 0, len(samples))
+	for _, sample := range samples {
 		processes = append(processes, map[string]interface{}{
-			"pid":         pid,
-			"name":        fields[1],
-			"cpu_percent": cpuPercent,
-			"mem_percent": memPercent,
-			"memory_mb":   rssKB / 1024,
+			"pid":         sample.PID,
+			"name":        sample.Comm,
+			"cpu_percent": sample.CPUPct,
+			"mem_percent": memoryPercent(sample.RSSKB, totalKB),
+			"memory_mb":   float64(sample.RSSKB) / 1024,
 		})
 	}
 

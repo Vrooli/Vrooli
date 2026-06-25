@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { protoFetch } from '../../../shared/api/apiFetch';
-import { parseExecuteScriptResponse } from '../../../shared/api/proto-contracts';
 import type { ModalState, InvestigationScript, ScriptExecution } from '../../../types';
 import { ScriptExecutionStatus } from '../../../types';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
@@ -88,6 +87,7 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
       const requestBody = scriptContent ? JSON.stringify({ content: scriptContent }) : '{}';
 
       try {
+        const { parseExecuteScriptResponse } = await import('../../../shared/api/proto-contracts');
         const data = await protoFetch(
           `/investigations/scripts/${encodeURIComponent(scriptId)}/execute`,
           parseExecuteScriptResponse,

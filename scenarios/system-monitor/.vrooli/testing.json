@@ -39,6 +39,11 @@
       }
     }
   },
+  "phases": {
+    "standards": {
+      "timeout": "120s"
+    }
+  },
   "structure": {
     "additional_dirs": [
       "ui"

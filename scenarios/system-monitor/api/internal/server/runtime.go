@@ -10,6 +10,10 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/agentmanager"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
@@ -38,7 +42,7 @@ func (shellExec) CombinedOutput(ctx context.Context, name string, args ...string
 func Run(cfg *config.Config) error {
 	setupLogging(cfg)
 
-	closer, repo := connectRepository(cfg)
+	closer, repo, routedDB := connectRepository(cfg)
 
 	_ = services.NewAlertService(cfg, repo) // Alert service available for future wiring //nolint:ineffassign
 	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
@@ -124,14 +128,19 @@ func Run(cfg *config.Config) error {
 	toolExecHandler := toolexecution.NewHandler(toolExecutor, slog.Default())
 	toolsHandler := toolhandlers.NewToolsHandler(toolRegistry, slog.Default())
 
-	router := buildRouter(healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
-	handler := buildMiddleware(cfg, router)
+	router := buildRouter(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler, settingsHandler, maintenanceHandler, capacityHandler, forensicsHandler, logsHandler, toolsHandler, toolExecHandler)
+	rootMux := http.NewServeMux()
+	if routedDB != nil {
+		devrouting.Register(rootMux, routedDB)
+	}
+	rootMux.Handle("/", router)
+	handler := apihttp.TestModeMiddleware(buildMiddleware(cfg, rootMux))
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.APIPort,
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: serverWriteTimeout(cfg),
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -152,15 +161,22 @@ func Run(cfg *config.Config) error {
 	return nil
 }
 
-func connectRepository(_ *config.Config) (io.Closer, repository.Repository) {
+func connectRepository(_ *config.Config) (io.Closer, repository.Repository, *database.RoutedDB) {
 	sqliteRepo, err := connectSQLite()
 	if err != nil {
 		slog.Warn("Failed to initialize SQLite, using in-memory storage", "error", err)
-		return io.NopCloser(nil), memory.NewRepository()
+		return io.NopCloser(nil), memory.NewRepository(), nil
 	}
 
-	return sqliteRepo, sqliteRepo
+	return sqliteRepo, sqliteRepo, sqliteRepo.RoutedDB()
 }
 
 // Ensure *sqliterepo.Repository satisfies repository.Repository at compile time.
 var _ repository.Repository = (*sqliterepo.Repository)(nil)
+
+func serverWriteTimeout(cfg *config.Config) time.Duration {
+	if cfg != nil && !cfg.IsProduction() {
+		return 75 * time.Second
+	}
+	return 15 * time.Second
+}

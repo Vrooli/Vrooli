@@ -34,3 +34,4 @@ ui/package-lock.json
 # Scenario lifecycle artifacts
 data/.setup-state
 .vrooli/deployment/
+docs/perf/2026-06-25-bright-window-after.pprof

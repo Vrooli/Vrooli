@@ -37,8 +37,9 @@ the manual "top consumers by scenario" forensic that found the recurring-scan st
   `osv-scanner → security-health` link. Non-scenario host procs → `unknown` (first-class
   bucket). The docker/cgroup attributor is a **fallback only**.
 - **Expose it** (`handlers/metrics.go`, `server/router.go`, `cli/domains/metrics/register.go`).
-  `GET /api/v1/metrics/processes/timeline?window=&owner=&top=` (gorilla/mux, plain JSON per the
-  scenario's existing forensics/logs handlers — no proto) returns ranked
+  The original slice exposed
+  `GET /api/v1/metrics/processes/timeline?window=&owner=&top=` as a temporary REST route.
+  Bright-window later promoted this to `MetricsService.GetProcessTimeline` over Connect, returning ranked
   `{owner, comm, pid, aggregated, cpu_pct, rss_kb, sample_count, first_seen, last_seen}`. CLI:
   `system-monitor metrics process-timeline --window --owner --top [--json]`. This is the
   standing replacement for the ad-hoc `ps`/`top` investigation.

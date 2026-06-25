@@ -29,6 +29,17 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "process-timeline",
+          "description": "Get top process consumers over a time window, grouped by source scenario",
+          "flags": [
+            { "name": "window", "description": "Timeline window duration, such as 5m or 1h" },
+            { "name": "owner", "description": "Filter to a single owner/scenario" },
+            { "name": "top", "description": "Maximum ranked consumers to return" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "GetProcessTimeline" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "infrastructure",
           "description": "Get infrastructure pool and queue metrics",
           "binding": { "kind": "connect-rpc", "service": "MetricsService", "method": "GetInfrastructureMonitor" },
@@ -89,6 +100,21 @@
           "description": "Show cooldown status",
           "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "GetCooldownStatus" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "cooldown-reset",
+          "description": "Reset the investigation cooldown",
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "ResetCooldown" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "cooldown-set",
+          "description": "Update the cooldown duration",
+          "flags": [
+            { "name": "seconds", "description": "Cooldown duration in seconds" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "InvestigationsService", "method": "UpdateCooldownPeriod" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
           "name": "triggers",
@@ -231,6 +257,7 @@
     { "service": "InvestigationsService", "method": "UpdateInvestigationProgress", "reason": "Server-internal lifecycle mutation written by the investigation runner during a run; not a user-facing CLI verb." },
     { "service": "InvestigationsService", "method": "AddInvestigationStep", "reason": "Server-internal lifecycle mutation written by the investigation runner during a run; not a user-facing CLI verb." },
     { "service": "InvestigationsService", "method": "UpdateTrigger", "reason": "Trigger thresholds are edited through the Settings UI; there is no CLI verb." },
+    { "service": "InvestigationsService", "method": "StopAgent", "reason": "Agent stop is a UI/control-plane safety action for active spawned agents; the CLI exposes investigation lifecycle inspection rather than direct agent process control." },
     { "service": "SettingsService", "method": "GetMaintenanceState", "reason": "Read via the `settings maintenance` command invoked with no positional argument; only the set path needs a distinct binding." },
     { "service": "MaintenanceService", "method": "MetricsRetentionPreview", "reason": "Reached via the `preview` positional of the `maintenance retention` command, whose binding names the consequential apply method." },
     { "service": "MaintenanceService", "method": "MetricsCompactionPreview", "reason": "Reached via the `preview` positional of the `maintenance compact` command, whose binding names the consequential apply method." },

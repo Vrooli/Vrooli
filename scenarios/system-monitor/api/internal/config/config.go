@@ -125,7 +125,7 @@ func Load() *Config {
 			APIBaseURL:  getEnv("API_BASE_URL", ""),
 		},
 		Monitoring: MonitoringConfig{
-			MetricsInterval:   time.Duration(getEnvAsInt("METRICS_INTERVAL_SECONDS", 10)) * time.Second,
+			MetricsInterval:   time.Duration(getEnvAsInt("METRICS_INTERVAL_SECONDS", 20)) * time.Second,
 			AnomalyInterval:   time.Duration(getEnvAsInt("ANOMALY_INTERVAL_SECONDS", 30)) * time.Second,
 			ReportInterval:    time.Duration(getEnvAsInt("REPORT_INTERVAL_HOURS", 1)) * time.Hour,
 			ThresholdInterval: time.Duration(getEnvAsInt("THRESHOLD_INTERVAL_SECONDS", 20)) * time.Second,
@@ -197,7 +197,7 @@ func (c *Config) validate() {
 
 	// Validate monitoring intervals
 	if c.Monitoring.MetricsInterval < time.Second {
-		c.Monitoring.MetricsInterval = 10 * time.Second
+		c.Monitoring.MetricsInterval = 20 * time.Second
 	}
 	if c.Monitoring.AnomalyInterval < time.Second {
 		c.Monitoring.AnomalyInterval = 30 * time.Second

@@ -3,11 +3,13 @@ package handlers
 // DOC: docs/reference/api-endpoints.md#maintenance
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
+	"connectrpc.com/connect"
 	maintenancepb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/maintenance"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
@@ -27,6 +29,74 @@ type MaintenanceHandler struct {
 // NewMaintenanceHandler creates a maintenance handler.
 func NewMaintenanceHandler(maint MaintenanceProvider, log *slog.Logger) *MaintenanceHandler {
 	return &MaintenanceHandler{log: log, maint: maint}
+}
+
+// MetricsRetentionPreview handles the typed Connect-RPC retention preview contract.
+func (h *MaintenanceHandler) MetricsRetentionPreview(ctx context.Context, req *connect.Request[maintenancepb.MetricsRetentionPreviewRequest]) (*connect.Response[maintenancepb.MetricsRetentionPreviewResponse], error) {
+	days := int(req.Msg.GetRetentionDays())
+	if days <= 0 {
+		days = defaultRetentionDays
+	}
+
+	estimate, stats, err := h.maint.RetentionPreview(ctx, days)
+	if err != nil {
+		return nil, connectError(mapMaintenanceError(err))
+	}
+
+	return connect.NewResponse(&maintenancepb.MetricsRetentionPreviewResponse{
+		Success:       true,
+		Estimate:      convert.RetentionEstimateToProto(estimate),
+		DatabaseStats: convert.DatabaseStatsToProto(stats),
+	}), nil
+}
+
+// MetricsRetentionApply handles the typed Connect-RPC retention apply contract.
+func (h *MaintenanceHandler) MetricsRetentionApply(ctx context.Context, req *connect.Request[maintenancepb.MetricsRetentionApplyRequest]) (*connect.Response[maintenancepb.MetricsRetentionApplyResponse], error) {
+	days := int(req.Msg.GetRetentionDays())
+	if days <= 0 {
+		days = defaultRetentionDays
+	}
+
+	result, before, after, err := h.maint.RetentionApply(ctx, days, req.Msg.GetConfirm())
+	if err != nil {
+		return nil, connectError(mapMaintenanceError(err))
+	}
+
+	return connect.NewResponse(&maintenancepb.MetricsRetentionApplyResponse{
+		Success:             true,
+		Result:              convert.RetentionResultToProto(result),
+		DatabaseStatsBefore: convert.DatabaseStatsToProto(before),
+		DatabaseStatsAfter:  convert.DatabaseStatsToProto(after),
+	}), nil
+}
+
+// MetricsCompactionPreview handles the typed Connect-RPC compaction preview contract.
+func (h *MaintenanceHandler) MetricsCompactionPreview(ctx context.Context, _ *connect.Request[maintenancepb.MetricsCompactionPreviewRequest]) (*connect.Response[maintenancepb.MetricsCompactionPreviewResponse], error) {
+	stats, reclaimable, err := h.maint.CompactionPreview(ctx)
+	if err != nil {
+		return nil, connectError(mapMaintenanceError(err))
+	}
+
+	return connect.NewResponse(&maintenancepb.MetricsCompactionPreviewResponse{
+		Success:                   true,
+		DatabaseStats:             convert.DatabaseStatsToProto(stats),
+		EstimatedReclaimableBytes: reclaimable,
+	}), nil
+}
+
+// MetricsCompactionApply handles the typed Connect-RPC compaction apply contract.
+func (h *MaintenanceHandler) MetricsCompactionApply(ctx context.Context, req *connect.Request[maintenancepb.MetricsCompactionApplyRequest]) (*connect.Response[maintenancepb.MetricsCompactionApplyResponse], error) {
+	result, err := h.maint.CompactionApply(ctx, req.Msg.GetConfirm())
+	if err != nil {
+		return nil, connectError(mapMaintenanceError(err))
+	}
+
+	return connect.NewResponse(&maintenancepb.MetricsCompactionApplyResponse{
+		Success:             true,
+		DatabaseStatsBefore: convert.DatabaseStatsToProto(result.StatsBefore),
+		DatabaseStatsAfter:  convert.DatabaseStatsToProto(result.StatsAfter),
+		ReclaimedBytes:      result.ReclaimedBytes,
+	}), nil
 }
 
 // mapMaintenanceError translates service errors to API errors.

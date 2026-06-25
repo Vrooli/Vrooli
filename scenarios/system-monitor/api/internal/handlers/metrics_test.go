@@ -29,7 +29,7 @@ func TestGetCurrentMetrics_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 
 	// Verify JSON contains expected fields.
@@ -58,7 +58,7 @@ func TestGetCurrentMetrics_Fresh(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current?fresh=true", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 }
 
@@ -69,7 +69,7 @@ func TestGetCurrentMetrics_Error(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/current", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusInternalServerError)
 }
 
@@ -101,7 +101,7 @@ func TestGetCurrentMetrics_WriteError_NoPanic(t *testing.T) {
 	w := newBrokenResponseWriter()
 
 	// This should not panic even though Write returns an error.
-	handler.GetCurrentMetrics(w, req)
+	handler.HandleGetCurrentMetrics(w, req)
 }
 
 func TestGetMetricsTimeline_Success(t *testing.T) {
@@ -132,7 +132,7 @@ func TestGetMetricsTimeline_Success(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=120", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 
 	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
@@ -158,7 +158,7 @@ func TestGetMetricsTimeline_EmptySamples(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 }
 
@@ -175,7 +175,7 @@ func TestGetMetricsTimeline_CustomWindow(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=300&interval=10", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 }
 
@@ -186,7 +186,7 @@ func TestGetMetricsTimeline_Error(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/timeline?window=120", nil)
 	w := httptest.NewRecorder()
 
-	handler.GetMetricsTimeline(w, req)
+	handler.HandleGetMetricsTimeline(w, req)
 	testutil.AssertStatusCode(t, w.Code, http.StatusInternalServerError)
 }
 

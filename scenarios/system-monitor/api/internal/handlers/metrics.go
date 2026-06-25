@@ -3,11 +3,17 @@ package handlers
 // DOC: docs/reference/api-endpoints.md#metrics
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
+	"connectrpc.com/connect"
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/convert"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/httputil"
@@ -30,8 +36,106 @@ func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier, log *slog.
 	}
 }
 
-// GetCurrentMetrics handles GET /api/v1/metrics/current
-func (h *MetricsHandler) GetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
+// GetCurrentMetrics handles the typed Connect-RPC metrics snapshot contract.
+func (h *MetricsHandler) GetCurrentMetrics(ctx context.Context, req *connect.Request[metricspb.GetCurrentMetricsRequest]) (*connect.Response[metricspb.GetCurrentMetricsResponse], error) {
+	var (
+		metrics *models.MetricsResponse
+		err     error
+	)
+	if req.Msg.GetFresh() {
+		metrics, err = h.monitorSvc.GetCurrentMetricsFresh(ctx)
+	} else {
+		metrics, err = h.monitorSvc.GetCurrentMetrics(ctx)
+	}
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetCurrentMetricsResponse{
+		Metrics: convert.MetricsResponseToProto(metrics),
+	}), nil
+}
+
+// GetDetailedMetrics handles the typed Connect-RPC detailed metrics contract.
+func (h *MetricsHandler) GetDetailedMetrics(ctx context.Context, _ *connect.Request[metricspb.GetDetailedMetricsRequest]) (*connect.Response[metricspb.GetDetailedMetricsResponse], error) {
+	metrics, err := h.monitorSvc.GetDetailedMetrics(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetDetailedMetricsResponse{
+		Metrics: convert.DetailedMetricsToProto(metrics),
+	}), nil
+}
+
+// GetProcessMonitor handles the typed Connect-RPC process monitor contract.
+func (h *MetricsHandler) GetProcessMonitor(ctx context.Context, _ *connect.Request[metricspb.GetProcessMonitorRequest]) (*connect.Response[metricspb.GetProcessMonitorResponse], error) {
+	data, err := h.monitorSvc.GetProcessMonitorData(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetProcessMonitorResponse{
+		Data: convert.ProcessMonitorDataToProto(data),
+	}), nil
+}
+
+// GetProcessTimeline handles the typed Connect-RPC process attribution timeline contract.
+func (h *MetricsHandler) GetProcessTimeline(ctx context.Context, req *connect.Request[metricspb.GetProcessTimelineRequest]) (*connect.Response[metricspb.GetProcessTimelineResponse], error) {
+	window := 5 * time.Minute
+	if req.Msg.GetWindowSeconds() > 0 {
+		window = time.Duration(req.Msg.GetWindowSeconds()) * time.Second
+	}
+	top := 20
+	if req.Msg.GetTop() > 0 {
+		top = int(req.Msg.GetTop())
+	}
+	owner := req.Msg.GetOwner()
+
+	entries, err := h.monitorSvc.GetProcessTimeline(ctx, window, owner, top)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetProcessTimelineResponse{
+		Timeline: convert.ProcessTimelineResponseToProto(int(window.Seconds()), owner, top, entries),
+	}), nil
+}
+
+// GetInfrastructureMonitor handles the typed Connect-RPC infrastructure metrics contract.
+func (h *MetricsHandler) GetInfrastructureMonitor(ctx context.Context, _ *connect.Request[metricspb.GetInfrastructureMonitorRequest]) (*connect.Response[metricspb.GetInfrastructureMonitorResponse], error) {
+	data, err := h.monitorSvc.GetInfrastructureMonitorData(ctx)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetInfrastructureMonitorResponse{
+		Data: convert.InfrastructureMonitorDataToProto(data),
+	}), nil
+}
+
+// GetMetricsTimeline handles the typed Connect-RPC metrics timeline contract.
+func (h *MetricsHandler) GetMetricsTimeline(ctx context.Context, req *connect.Request[metricspb.GetMetricsTimelineRequest]) (*connect.Response[metricspb.GetMetricsTimelineResponse], error) {
+	windowSeconds := 120
+	if req.Msg.GetWindowSeconds() > 0 {
+		windowSeconds = int(req.Msg.GetWindowSeconds())
+	}
+	sampleInterval := 5
+	if req.Msg.GetSampleIntervalSeconds() > 0 {
+		sampleInterval = int(req.Msg.GetSampleIntervalSeconds())
+	}
+
+	timeline, err := h.monitorSvc.GetMetricsTimeline(ctx, windowSeconds, sampleInterval)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&metricspb.GetMetricsTimelineResponse{
+		Timeline: convert.MetricsTimelineResponseToProto(timeline),
+	}), nil
+}
+
+// GetDiskDetail is proto-authored but not backed by a service operation yet.
+func (h *MetricsHandler) GetDiskDetail(context.Context, *connect.Request[metricspb.GetDiskDetailRequest]) (*connect.Response[metricspb.GetDiskDetailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("disk detail metrics are not implemented"))
+}
+
+// HandleGetCurrentMetrics handles GET /api/v1/metrics/current.
+func (h *MetricsHandler) HandleGetCurrentMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	fresh := r.URL.Query().Get("fresh")
@@ -52,8 +156,8 @@ func (h *MetricsHandler) GetCurrentMetrics(w http.ResponseWriter, r *http.Reques
 	httputil.SafeProtoJSON(w, h.log, r, convert.MetricsResponseToProto(metrics))
 }
 
-// GetMetricsTimeline handles GET /api/v1/metrics/timeline
-func (h *MetricsHandler) GetMetricsTimeline(w http.ResponseWriter, r *http.Request) {
+// HandleGetMetricsTimeline handles GET /api/v1/metrics/timeline.
+func (h *MetricsHandler) HandleGetMetricsTimeline(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	windowSeconds := 120
@@ -79,8 +183,8 @@ func (h *MetricsHandler) GetMetricsTimeline(w http.ResponseWriter, r *http.Reque
 	httputil.SafeProtoJSON(w, h.log, r, convert.MetricsTimelineResponseToProto(timeline))
 }
 
-// GetDetailedMetrics handles GET /api/v1/metrics/detailed
-func (h *MetricsHandler) GetDetailedMetrics(w http.ResponseWriter, r *http.Request) {
+// HandleGetDetailedMetrics handles GET /api/v1/metrics/detailed.
+func (h *MetricsHandler) HandleGetDetailedMetrics(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	metrics, err := h.monitorSvc.GetDetailedMetrics(ctx)
@@ -92,8 +196,8 @@ func (h *MetricsHandler) GetDetailedMetrics(w http.ResponseWriter, r *http.Reque
 	httputil.SafeProtoJSON(w, h.log, r, convert.DetailedMetricsToProto(metrics))
 }
 
-// GetProcessMonitor handles GET /api/v1/metrics/processes
-func (h *MetricsHandler) GetProcessMonitor(w http.ResponseWriter, r *http.Request) {
+// HandleGetProcessMonitor handles GET /api/v1/metrics/processes.
+func (h *MetricsHandler) HandleGetProcessMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	data, err := h.monitorSvc.GetProcessMonitorData(ctx)
@@ -129,11 +233,11 @@ type processTimelineResponseJSON struct {
 	Entries       []processTimelineEntryJSON `json:"entries"`
 }
 
-// GetProcessTimeline handles GET /api/v1/metrics/processes/timeline. Query
+// HandleGetProcessTimeline handles GET /api/v1/metrics/processes/timeline. Query
 // params: window (duration, default 5m), owner (scenario filter), top (int).
 // It returns ranked consumers over the window, grouped by owner/scenario —
 // the standing replacement for the manual `ps`/`top` forensic.
-func (h *MetricsHandler) GetProcessTimeline(w http.ResponseWriter, r *http.Request) {
+func (h *MetricsHandler) HandleGetProcessTimeline(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	window := 5 * time.Minute
@@ -190,8 +294,8 @@ func (h *MetricsHandler) GetProcessTimeline(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-// GetInfrastructureMonitor handles GET /api/v1/metrics/infrastructure
-func (h *MetricsHandler) GetInfrastructureMonitor(w http.ResponseWriter, r *http.Request) {
+// HandleGetInfrastructureMonitor handles GET /api/v1/metrics/infrastructure.
+func (h *MetricsHandler) HandleGetInfrastructureMonitor(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	data, err := h.monitorSvc.GetInfrastructureMonitorData(ctx)
@@ -201,4 +305,39 @@ func (h *MetricsHandler) GetInfrastructureMonitor(w http.ResponseWriter, r *http
 	}
 
 	httputil.SafeProtoJSON(w, h.log, r, convert.InfrastructureMonitorDataToProto(data))
+}
+
+func connectError(err error) error {
+	var apiErr *apierrors.APIError
+	if errors.As(err, &apiErr) {
+		return connect.NewError(apiErrorCode(apiErr.Category), err)
+	}
+	if errors.Is(err, context.Canceled) {
+		return connect.NewError(connect.CodeCanceled, err)
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return connect.NewError(connect.CodeUnavailable, err)
+	}
+	return connect.NewError(connect.CodeInternal, err)
+}
+
+func apiErrorCode(category apierrors.Category) connect.Code {
+	switch category {
+	case apierrors.CategoryValidation:
+		return connect.CodeInvalidArgument
+	case apierrors.CategoryUnauthorized:
+		return connect.CodeUnauthenticated
+	case apierrors.CategoryForbidden:
+		return connect.CodePermissionDenied
+	case apierrors.CategoryNotFound:
+		return connect.CodeNotFound
+	case apierrors.CategoryConflict:
+		return connect.CodeAborted
+	case apierrors.CategoryCooldown:
+		return connect.CodeResourceExhausted
+	case apierrors.CategoryUnavailable:
+		return connect.CodeUnavailable
+	default:
+		return connect.CodeInternal
+	}
 }

@@ -10,7 +10,8 @@ import (
 // SaveMetrics (which always stamps time.Now) so retention windows are testable.
 func insertMetricAt(t *testing.T, repo *Repository, collector string, ts time.Time, payload string) {
 	t.Helper()
-	if _, err := repo.db.Exec(
+	if _, err := repo.db.ExecContext(
+		context.Background(),
 		"INSERT INTO metrics (collector_name, metric_data, timestamp) VALUES (?, ?, ?)",
 		collector, payload, ts.UTC(),
 	); err != nil {

@@ -4,6 +4,14 @@
 
 **Authentication**: None currently. All endpoints are publicly accessible.
 
+**Runtime contract**: Proto-owned operations are served through generated
+Connect procedure paths such as
+`/vrooli.system_monitor.v1.metrics.MetricsService/GetCurrentMetrics`. The
+`/api/v1/...` paths in the proto-owned sections below are HTTP annotation
+inventory and historical compatibility context; they are not mounted as manual
+REST routes after the bright-window cleanup. Runtime REST exceptions are health
+probes, development pprof, logs, forensics, and tool discovery/execution.
+
 ---
 
 ## Health
@@ -23,7 +31,9 @@
 |--------|------|-------------|
 | GET | `/api/v1/metrics/current` | Current system metrics snapshot |
 | GET | `/api/v1/metrics/detailed` | Comprehensive metrics (CPU, memory, network, GPU, disk, processes, system health) |
+| GET | `/api/v1/metrics/timeline` | Recent metrics timeline |
 | GET | `/api/v1/metrics/processes` | Process monitoring data (zombies, high-thread, leak candidates) |
+| GET | `/api/v1/metrics/processes/timeline` | Ranked process consumers over a time window, grouped by owner/scenario |
 | GET | `/api/v1/metrics/infrastructure` | Infrastructure monitoring (DB pools, HTTP pools, queues, storage I/O) |
 
 ### GET /api/v1/metrics/current
@@ -68,9 +78,9 @@ Response:
 | GET | `/api/v1/investigations/triggers` | Get all investigation triggers |
 | PUT | `/api/v1/investigations/triggers/{id}` | Update trigger config |
 | PUT | `/api/v1/investigations/triggers/{id}/threshold` | Update trigger threshold only |
-| GET | `/api/v1/investigations/scripts` | List investigation scripts (placeholder -- returns empty array) |
-| GET | `/api/v1/investigations/scripts/{id}` | Get script by ID (placeholder -- returns not found) |
-| POST | `/api/v1/investigations/scripts/{id}/execute` | Execute investigation script (placeholder -- returns not found) |
+| GET | `/api/v1/investigations/scripts` | List investigation scripts |
+| GET | `/api/v1/investigations/scripts/{id}` | Get script by ID |
+| POST | `/api/v1/investigations/scripts/{id}/execute` | Execute investigation script |
 
 ### POST /api/v1/investigations/trigger
 
@@ -184,10 +194,13 @@ Configurable fields: `runner`, `model`, `max_turns`, `timeout`, `tools`, `skip_p
 
 ---
 
-## Missing Endpoints
+## Missing Product Endpoints
 
 The following endpoints are referenced by the UI but do not exist in the API:
 
-- `GET /api/v1/metrics/timeline` -- referenced by UI sparkline charts
 - `GET /api/v1/metrics/disk/details` -- referenced by UI disk detail view
 - `POST /api/v1/processes/{pid}/kill` -- referenced by UI process kill dialog (silently fails)
+
+## Connect Migration Notes
+
+Proto schemas and generated clients exist under `packages/proto/schemas/system-monitor/v1/` and `packages/proto/gen/`. The runtime mounts generated Connect handlers through `http.ServeMux`; gorilla/mux and proto-owned manual REST routes have been removed. Current non-blocking drift and REST exceptions are tracked in `[CODE: docs/internal/INTEROP_AUDIT.md]`.

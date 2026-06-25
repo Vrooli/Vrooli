@@ -1,6 +1,6 @@
 # Interoperability Audit: system-monitor
 
-**Date**: 2026-02-17 (updated 2026-02-17, scripts steer)
+**Date**: 2026-02-17 (updated 2026-06-25, bright-window closure)
 **Scenario**: system-monitor
 **Dependencies**: agent-manager (required)
 
@@ -9,9 +9,62 @@
 | Path | Protocol | Status |
 |------|----------|--------|
 | API → agent-manager | HTTP + protojson | Good |
-| UI → API | HTTP + JSON | Hardened (this audit) |
+| UI → API | Connect JSON for proto-owned calls + REST exceptions | Good |
+| CLI → API | Generated Connect clients + manifest bindings | Good |
+| API public contract | Generated Connect handlers on `http.ServeMux` + explicit REST exceptions | Good |
 
 ## Findings
+
+### Bright-window final route/proto state (2026-06-25)
+
+The proto layer is authored and generated for 8 services, and every proto-owned
+domain is mounted through generated Connect handlers:
+
+- `HealthService`
+- `MetricsService`
+- `ReportsService`
+- `SettingsService`
+- `CapacityService`
+- `MaintenanceService`
+- `InvestigationsService`
+- `ScriptsService`
+
+The API router now uses the standard library `http.ServeMux`; gorilla/mux is no
+longer a dependency. Manual REST routes for proto-owned metrics, reports,
+settings, capacity, maintenance, investigations, and scripts were removed. A
+live smoke confirmed `GET /api/v1/metrics/current` returns `404`, while
+`/vrooli.system_monitor.v1.metrics.MetricsService/GetCurrentMetrics` succeeds.
+
+#### Resolved in bright-window
+
+- **Metrics process timeline was code-ahead-of-proto**: `GetProcessTimeline`
+  was added to `MetricsService`, generated, implemented, mounted, bound in the
+  CLI manifest, and migrated to the generated CLI client.
+- **Cooldown mutations and agent stop were route-ahead-of-proto**:
+  `ResetCooldown`, `UpdateCooldownPeriod`, and `StopAgent` now have explicit
+  `InvestigationsService` RPCs.
+- **CLI raw calls were removed**: `metrics`, `reports`, `settings`, `capacity`,
+  `maintenance`, `investigations`, and `overview` use generated Connect clients.
+- **UI proto-owned calls no longer rely on legacy REST routes**:
+  `protoFetch()` maps existing hook paths to Connect JSON procedure paths while
+  preserving raw REST exceptions for logs/forensics/tools.
+
+#### Remaining intentional REST exceptions
+
+| Surface | Runtime path | Reason |
+|---|---|---|
+| Health probes | `/health`, `/api/v1/health` | Ops/lifecycle probes should remain simple HTTP GETs. |
+| Development profiling | `/debug/pprof/*` | Dev-only diagnostics, disabled in production. |
+| Forensics | `/api/v1/forensics/*` | Raw host diagnostics, not a typed scenario-domain contract. |
+| Logs | `/api/v1/logs*` | Raw log browsing/stream-like shapes, not covered by current proto services. |
+| Tool discovery/execution | `/api/v1/tools*`, `/api/v1/tools/execute` | Protocol-owned surface outside the system-monitor domain proto. |
+
+#### Remaining non-blocking drift
+
+| Drift | Current state | Decision |
+|---|---|---|
+| Disk detail | `MetricsService.GetDiskDetail` exists but remains unimplemented; stale UI/docs mention `/api/v1/metrics/disk/details`. | Keep as follow-up product work, not a migration blocker. |
+| Process kill | UI references `POST /processes/{pid}/kill`, but no API route exists. | Keep as follow-up safety design work. |
 
 ### Resolved
 
@@ -124,7 +177,7 @@
 - **useInvestigationAgents.ts**: 4 raw `fetch()` calls replaced:
   - `GET /investigations/agent/current` → `protoFetch` + `parseInvestigation`
   - `POST /investigations/agent/spawn` → `protoFetch` + `parseTriggerInvestigationResponse`
-  - `POST /investigations/agent/{id}/stop` → `apiFetch`
+  - `POST /investigations/agent/{id}/stop` → `protoFetch` + `InvestigationsService.StopAgent`
   - `GET /investigations/agent/{id}/status` → `protoFetch` + `parseInvestigation`
 - **Fragile multi-shape response parsing eliminated**: `extractAgents()` tried 4+ response shapes (array, `{agents:[]}`, `{agent:{}}`, bare object with `id`/`investigation_id`). Replaced with direct `protoFetch` + `protoToAgentState()` — single code path, proto-validated.
 - **AutomaticTriggersSection.tsx**: 5 raw `fetch()` calls replaced with `apiFetch`:
@@ -163,7 +216,7 @@
   - `UpdateInvestigationProgress` → `UpdateInvestigationProgressResponse`
   - `AddInvestigationStep` → `AddInvestigationStepResponse`
   - `UpdateTrigger` → `UpdateTriggerResponse`
-- Endpoints without proto response types kept as-is: `ResetCooldown`, `UpdateCooldownPeriod`, `UpdateTriggerThreshold`, `StopAgent`.
+- Endpoints without proto response types kept as-is: `UpdateTriggerThreshold`.
 
 #### F23: UI scripts hooks use apiFetch with unsafe casts instead of protoFetch (MEDIUM → RESOLVED)
 - `InvestigationScriptsPage.tsx`: `apiFetch<{ scripts?: InvestigationScript[] }>` replaced with `protoFetch + parseListScriptsResponse`. Script content fetch replaced with `protoFetch + parseGetScriptResponse`.

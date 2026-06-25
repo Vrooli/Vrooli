@@ -15,6 +15,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -48,6 +49,63 @@ type Sampler interface {
 	// Sample returns the live process table. The returned slice is sorted by
 	// descending CPUPct so callers can cheaply take a top-N slice.
 	Sample(ctx context.Context) ([]ProcessSample, error)
+}
+
+// CachedSampler shares one underlying /proc walk across callers inside a short
+// freshness window. It is intentionally tiny: the monitor cycle can call top-N
+// helpers and attribution persistence back-to-back without re-walking /proc,
+// while later cycles still refresh normally.
+type CachedSampler struct {
+	base Sampler
+	ttl  time.Duration
+	now  func() time.Time
+
+	mu        sync.Mutex
+	sampledAt time.Time
+	samples   []ProcessSample
+}
+
+// NewCachedSampler wraps base with a short-lived in-memory cache. Non-positive
+// ttl values disable caching while keeping the same interface.
+func NewCachedSampler(base Sampler, ttl time.Duration) *CachedSampler {
+	return &CachedSampler{base: base, ttl: ttl, now: time.Now}
+}
+
+// Sample returns the cached process table when it is still fresh, otherwise it
+// delegates to the wrapped sampler and stores a defensive copy.
+func (s *CachedSampler) Sample(ctx context.Context) ([]ProcessSample, error) {
+	if s == nil || s.base == nil {
+		return nil, ErrUnsupported
+	}
+	now := s.now()
+	s.mu.Lock()
+	if s.ttl > 0 && !s.sampledAt.IsZero() && now.Sub(s.sampledAt) < s.ttl {
+		out := cloneSamples(s.samples)
+		s.mu.Unlock()
+		return out, nil
+	}
+	s.mu.Unlock()
+
+	samples, err := s.base.Sample(ctx)
+	if err != nil {
+		return samples, err
+	}
+
+	s.mu.Lock()
+	s.sampledAt = now
+	s.samples = cloneSamples(samples)
+	out := cloneSamples(s.samples)
+	s.mu.Unlock()
+	return out, nil
+}
+
+func cloneSamples(in []ProcessSample) []ProcessSample {
+	if len(in) == 0 {
+		return []ProcessSample{}
+	}
+	out := make([]ProcessSample, len(in))
+	copy(out, in)
+	return out
 }
 
 // clockTicksPerSec is the kernel USER_HZ used to convert /proc utime+stime

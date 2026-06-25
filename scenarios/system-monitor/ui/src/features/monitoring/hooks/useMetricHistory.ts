@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
-import { parseMetricsTimelineResponse } from '../../../shared/api/proto-contracts';
 import type {
   MetricHistory,
   ChartDataPoint,
@@ -57,6 +56,7 @@ export const useMetricHistory = (
 
   const fetchMetricsTimeline = useCallback(async (windowSeconds = 120) => {
     try {
+      const { parseMetricsTimelineResponse } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch(`/metrics/timeline?window=${windowSeconds}`, parseMetricsTimelineResponse);
       if (!mountedRef.current || !data || !data.samples) return;
 

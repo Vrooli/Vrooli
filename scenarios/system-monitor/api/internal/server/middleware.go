@@ -4,15 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/gorilla/mux"
-
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/middleware"
 )
 
-func buildMiddleware(cfg *config.Config, router *mux.Router) http.Handler {
-	handler := http.Handler(router)
-
+func buildMiddleware(cfg *config.Config, handler http.Handler) http.Handler {
 	handler = middleware.MaxBodySize(1<<20, slog.Default())(handler) // 1MB body limit
 	handler = middleware.CORS(handler)
 

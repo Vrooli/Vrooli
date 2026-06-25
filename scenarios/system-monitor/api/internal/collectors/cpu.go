@@ -2,7 +2,6 @@ package collectors
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"runtime"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 )
 
 // CPUCollector collects CPU metrics
@@ -206,36 +206,25 @@ func GetTopProcessesByCPU(limit int) ([]map[string]interface{}, error) {
 		return []map[string]interface{}{}, nil
 	}
 
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c",
-		fmt.Sprintf("ps -eo pid,comm,%%cpu,%%mem,nlwp --sort=-%%cpu --no-headers | head -%d", limit))
+	samples, err := topProcessSamples(limit, func(a, b procsampler.ProcessSample) bool {
+		if a.CPUPct != b.CPUPct {
+			return a.CPUPct > b.CPUPct
+		}
+		return a.RSSKB > b.RSSKB
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	var processes []map[string]interface{}
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 5 {
-			continue
-		}
-
-		pid, _ := strconv.Atoi(fields[0])
-		cpuPercent, _ := strconv.ParseFloat(fields[2], 64)
-		memPercent, _ := strconv.ParseFloat(fields[3], 64)
-		threads, _ := strconv.Atoi(fields[4])
-
+	totalKB := totalMemoryKB()
+	processes := make([]map[string]interface{}, 0, len(samples))
+	for _, sample := range samples {
 		processes = append(processes, map[string]interface{}{
-			"pid":         pid,
-			"name":        fields[1],
-			"cpu_percent": cpuPercent,
-			"mem_percent": memPercent,
-			"threads":     threads,
+			"pid":         sample.PID,
+			"name":        sample.Comm,
+			"cpu_percent": sample.CPUPct,
+			"mem_percent": memoryPercent(sample.RSSKB, totalKB),
+			"threads":     sample.Threads,
 		})
 	}
 

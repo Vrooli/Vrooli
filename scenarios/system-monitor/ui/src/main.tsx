@@ -1,6 +1,5 @@
 import { Profiler, StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { initIframeBridgeChild } from '@vrooli/iframe-bridge'
 import App from './App.tsx'
 import { onProfilerRender } from './lib/profiler'
 
@@ -22,11 +21,15 @@ declare global {
   }
 }
 
-if (
-  typeof window !== 'undefined' &&
-  window.parent !== window &&
-  !window.__systemMonitorBridgeInitialized
-) {
+const initBridge = async () => {
+  if (
+    typeof window === 'undefined' ||
+    window.parent === window ||
+    window.__systemMonitorBridgeInitialized
+  ) {
+    return;
+  }
+
   let parentOrigin: string | undefined;
   try {
     if (document.referrer) {
@@ -36,21 +39,31 @@ if (
     // Fall back to default origin when parsing fails.
   }
 
+  const { initIframeBridgeChild } = await import('@vrooli/iframe-bridge');
   initIframeBridgeChild({ parentOrigin, appId: 'system-monitor' });
   window.__systemMonitorBridgeInitialized = true;
-}
+};
 
-const rootEl = document.getElementById('root');
-if (!rootEl) throw new Error('Root element not found');
-createRoot(rootEl).render(
-  <StrictMode>
-    {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
-        the profiling hook); emits user_timing entries via onProfilerRender
-        when the perf-build channel is active. See lib/profiler.ts. Add inner
-        <Profiler> boundaries around heavy subtrees as needed; do not remove
-        this one. */}
-    <Profiler id="App" onRender={onProfilerRender}>
-      <App />
-    </Profiler>
-  </StrictMode>,
-)
+const mountApp = () => {
+  const rootEl = document.getElementById('root');
+  if (!rootEl) throw new Error('Root element not found');
+  createRoot(rootEl).render(
+    <StrictMode>
+      {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
+          the profiling hook); emits user_timing entries via onProfilerRender
+          when the perf-build channel is active. See lib/profiler.ts. Add inner
+          <Profiler> boundaries around heavy subtrees as needed; do not remove
+          this one. */}
+      <Profiler id="App" onRender={onProfilerRender}>
+        <App />
+      </Profiler>
+    </StrictMode>,
+  )
+};
+
+void initBridge().finally(mountApp);
+
+window.setTimeout(() => {
+  void import('@vrooli/iframe-bridge/spatial')
+    .then(({ initSpatialNav }) => { initSpatialNav(); });
+}, 2200);

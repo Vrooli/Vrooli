@@ -1,10 +1,6 @@
 // DOC: docs/internal/COHERENCE-NOTES.md#bugs-found
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiFetch, extractErrorMessage, isApiError, protoFetch } from '../../../shared/api/apiFetch';
-import {
-  parseInvestigation,
-  parseTriggerInvestigationResponse,
-} from '../../../shared/api/proto-contracts';
+import { extractErrorMessage, isApiError, protoFetch } from '../../../shared/api/apiFetch';
 import { protoToAgentState } from '../../../shared/api/proto-converters';
 import { usePolling } from '../../../shared/hooks/usePolling';
 import type { InvestigationAgentState } from '../../../types';
@@ -24,6 +20,7 @@ export const useInvestigationAgents = () => {
 
   const fetchActiveAgents = useCallback(async () => {
     try {
+      const { parseInvestigation } = await import('../../../shared/api/proto-contracts');
       const inv = await protoFetch('/investigations/agent/current', parseInvestigation);
       // Server returns null JSON when no active agent
       if (!inv.id) {
@@ -49,6 +46,7 @@ export const useInvestigationAgents = () => {
     setSpawnAgentError(null);
     setIsSpawningAgent(true);
     try {
+      const { parseTriggerInvestigationResponse } = await import('../../../shared/api/proto-contracts');
       const resp = await protoFetch('/investigations/agent/spawn', parseTriggerInvestigationResponse, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,7 +103,7 @@ export const useInvestigationAgents = () => {
     });
 
     try {
-      await apiFetch<{ status: string; id: string }>(`/investigations/agent/${encodeURIComponent(agentId)}/stop`, {
+      await protoFetch<{ status: string; id: string }>(`/investigations/agent/${encodeURIComponent(agentId)}/stop`, data => data as { status: string; id: string }, {
         method: 'POST',
       });
       setAgents(prev => prev.filter(agent => agent.id !== agentId));
@@ -123,9 +121,14 @@ export const useInvestigationAgents = () => {
   }, []);
 
   useEffect(() => {
-    fetchActiveAgents().catch(() => {
-      // Initial fetch failure is non-fatal — polling will retry
-    });
+    const timeoutID = window.setTimeout(() => {
+      fetchActiveAgents().catch(() => {
+        // Initial fetch failure is non-fatal — polling will retry
+      });
+    }, 2200);
+    return () => {
+      window.clearTimeout(timeoutID);
+    };
   }, [fetchActiveAgents]);
 
   const hasActiveAgents = agents.some(agent => {
@@ -146,6 +149,7 @@ export const useInvestigationAgents = () => {
 
     await Promise.all(currentAgents.map(async agent => {
       try {
+        const { parseInvestigation } = await import('../../../shared/api/proto-contracts');
         const inv = await protoFetch(
           `/investigations/agent/${encodeURIComponent(agent.id)}/status`,
           parseInvestigation,

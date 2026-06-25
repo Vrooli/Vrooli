@@ -66,7 +66,7 @@ func WithSettingsConfigStore(cs ConfigStore) SettingsOption {
 // Default settings (always start inactive for safety)
 var defaultSettings = Settings{
 	Active:                   false, // ALWAYS start inactive for safety
-	MetricCollectionInterval: 10,    // 10 seconds
+	MetricCollectionInterval: 20,    // 20 seconds
 	AnomalyDetectionInterval: 30,    // 30 seconds
 	ThresholdCheckInterval:   20,    // 20 seconds
 	CooldownPeriodSeconds:    300,   // 5 minutes

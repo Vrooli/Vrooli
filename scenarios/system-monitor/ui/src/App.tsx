@@ -77,6 +77,7 @@ function getRouterBasename(): string {
 
 function AppContent() {
   const navigate = useNavigate();
+  const [showDeferredDashboard, setShowDeferredDashboard] = useState(false);
   const [dashboardState, setDashboardState] = useState<DashboardState>({
     lastUpdate: new Date().toISOString(),
     expandedCards: new Set(),
@@ -126,6 +127,8 @@ function AppContent() {
     saveScript
   } = useScriptExecution();
 
+  const hasOpenScriptModal = modalState.scriptEditor.isOpen || modalState.scriptResults.isOpen;
+
   const openDetailPage = (cardType: CardType) => {
     void navigate(`/metrics/${cardType}`);
   };
@@ -141,6 +144,15 @@ function AppContent() {
       lastUpdate: new Date().toISOString()
     }));
   }, [isLoading, error]);
+
+  useEffect(() => {
+    const timeoutID = window.setTimeout(() => {
+      setShowDeferredDashboard(true);
+    }, 2400);
+    return () => {
+      window.clearTimeout(timeoutID);
+    };
+  }, []);
 
   const toggleCard = (cardType: CardType) => {
     setDashboardState(prev => {
@@ -239,49 +251,53 @@ function AppContent() {
                       </ErrorBoundary>
                     </section>
 
-                    {/* Infrastructure Monitor Panel */}
-                    <section className="mb-lg">
-                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Infrastructure monitor failed to render.</div>}>
-                        <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
-                          <InfrastructureMonitor
-                            data={infrastructureData}
-                            isExpanded={dashboardState.expandedPanels.has('infrastructure')}
-                            onToggle={() => { togglePanel('infrastructure'); }}
-                            systemHealth={detailedMetrics?.systemDetails}
-                          />
-                        </Suspense>
-                      </ErrorBoundary>
-                    </section>
-
                     {/* Alert Panel */}
                     <section className="mb-lg">
                       <AlertPanel alerts={dashboardState.alerts} />
                     </section>
 
-                    {/* Investigations Section */}
-                    <section className="mb-lg">
-                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Investigations section failed to render.</div>}>
-                        <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
-                          <InvestigationsSection
-                            investigations={investigations}
-                            onOpenScriptEditor={openScriptEditor}
-                            onSpawnAgent={spawnAgent}
-                            agents={agents}
-                            isSpawningAgent={isSpawningAgent}
-                            spawnAgentError={spawnAgentError}
-                          />
-                        </Suspense>
-                      </ErrorBoundary>
-                    </section>
+                    {showDeferredDashboard ? (
+                      <>
+                        {/* Infrastructure Monitor Panel */}
+                        <section className="mb-lg">
+                          <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Infrastructure monitor failed to render.</div>}>
+                            <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
+                              <InfrastructureMonitor
+                                data={infrastructureData}
+                                isExpanded={dashboardState.expandedPanels.has('infrastructure')}
+                                onToggle={() => { togglePanel('infrastructure'); }}
+                                systemHealth={detailedMetrics?.systemDetails}
+                              />
+                            </Suspense>
+                          </ErrorBoundary>
+                        </section>
 
-                    {/* Playback Reports */}
-                    <section className="mb-lg">
-                      <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Reports failed to render.</div>}>
-                        <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
-                          <ReportsPanel />
-                        </Suspense>
-                      </ErrorBoundary>
-                    </section>
+                        {/* Investigations Section */}
+                        <section className="mb-lg">
+                          <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Investigations section failed to render.</div>}>
+                            <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
+                              <InvestigationsSection
+                                investigations={investigations}
+                                onOpenScriptEditor={openScriptEditor}
+                                onSpawnAgent={spawnAgent}
+                                agents={agents}
+                                isSpawningAgent={isSpawningAgent}
+                                spawnAgentError={spawnAgentError}
+                              />
+                            </Suspense>
+                          </ErrorBoundary>
+                        </section>
+
+                        {/* Playback Reports */}
+                        <section className="mb-lg">
+                          <ErrorBoundary fallback={<div className="card" style={{ padding: 'var(--spacing-lg)', color: 'var(--color-error)' }}>Reports failed to render.</div>}>
+                            <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
+                              <ReportsPanel />
+                            </Suspense>
+                          </ErrorBoundary>
+                        </section>
+                      </>
+                    ) : null}
                   </>
                 )}
               />
@@ -395,36 +411,42 @@ function AppContent() {
           </div>
         </main>
 
-        <ErrorBoundary fallback={null}>
-          <Suspense fallback={null}>
-            <Terminal
-              isVisible={dashboardState.terminalVisible}
-              onClose={toggleTerminal}
-            />
-          </Suspense>
-        </ErrorBoundary>
+        {dashboardState.terminalVisible ? (
+          <ErrorBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <Terminal
+                isVisible={dashboardState.terminalVisible}
+                onClose={toggleTerminal}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        ) : null}
 
-        <ErrorBoundary fallback={null}>
-          <Suspense fallback={null}>
-            <ModalsContainer
-              modalState={modalState}
-              onCloseScriptEditor={closeScriptEditor}
-              onCloseScriptResults={closeScriptResults}
-              onExecuteScript={executeScript}
-              onSaveScript={saveScript}
-            />
-          </Suspense>
-        </ErrorBoundary>
+        {hasOpenScriptModal ? (
+          <ErrorBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <ModalsContainer
+                modalState={modalState}
+                onCloseScriptEditor={closeScriptEditor}
+                onCloseScriptResults={closeScriptResults}
+                onExecuteScript={executeScript}
+                onSaveScript={saveScript}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        ) : null}
 
         {/* System Settings Modal */}
-        <ErrorBoundary fallback={null}>
-          <Suspense fallback={null}>
-            <SystemSettingsModal
-              isOpen={systemSettingsModalOpen}
-              onClose={() => { setSystemSettingsModalOpen(false); }}
-            />
-          </Suspense>
-        </ErrorBoundary>
+        {systemSettingsModalOpen ? (
+          <ErrorBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <SystemSettingsModal
+                isOpen={systemSettingsModalOpen}
+                onClose={() => { setSystemSettingsModalOpen(false); }}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        ) : null}
       </div>
       <ToastContainer />
     </ErrorBoundary>

@@ -3,89 +3,79 @@ package server
 // DOC: docs/reference/api-endpoints.md
 
 import (
-	"github.com/gorilla/mux"
+	"net/http"
+	"net/http/pprof"
 
+	capacityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/capacity/capacityconnect"
+	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health/healthconnect"
+	investigationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations/investigationsconnect"
+	maintenanceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/maintenance/maintenanceconnect"
+	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics/metricsconnect"
+	reportsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports/reportsconnect"
+	scriptsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts/scriptsconnect"
+	settingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings/settingsconnect"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolexecution"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/toolhandlers"
 )
 
-func buildRouter(health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) *mux.Router {
-	r := mux.NewRouter()
+func buildRouter(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, maintenance *handlers.MaintenanceHandler, capacity *handlers.CapacityHandler, forensicsH *handlers.ForensicsHandler, logsH *handlers.LogsHandler, tools *toolhandlers.ToolsHandler, toolExec *toolexecution.Handler) http.Handler {
+	r := http.NewServeMux()
+	mountDebugRoutes(cfg, r)
+	mountConnectRoutes(r, health, metrics, report, settings, capacity, maintenance, investigation)
 
-	r.HandleFunc("/health", health.Handle).Methods("GET")
-	r.HandleFunc("/api/v1/health", health.Handle).Methods("GET")
-
-	r.HandleFunc("/api/v1/metrics/current", metrics.GetCurrentMetrics).Methods("GET")
-	r.HandleFunc("/api/v1/metrics/detailed", metrics.GetDetailedMetrics).Methods("GET")
-	r.HandleFunc("/api/v1/metrics/timeline", metrics.GetMetricsTimeline).Methods("GET")
-	r.HandleFunc("/api/v1/metrics/processes/timeline", metrics.GetProcessTimeline).Methods("GET")
-	r.HandleFunc("/api/v1/metrics/processes", metrics.GetProcessMonitor).Methods("GET")
-	r.HandleFunc("/api/v1/metrics/infrastructure", metrics.GetInfrastructureMonitor).Methods("GET")
+	r.HandleFunc("GET /health", health.Handle)
+	r.HandleFunc("GET /api/v1/health", health.Handle)
 
 	// Crash-forensics + logs surfaces (plain JSON; see forensics.go header).
-	r.HandleFunc("/api/v1/forensics/pstore", forensicsH.Pstore).Methods("GET")
-	r.HandleFunc("/api/v1/forensics/boot-history", forensicsH.BootHistory).Methods("GET")
-	r.HandleFunc("/api/v1/forensics/mce", forensicsH.MCE).Methods("GET")
-	r.HandleFunc("/api/v1/forensics/summary", forensicsH.Summary).Methods("GET")
-	r.HandleFunc("/api/v1/logs", logsH.Logs).Methods("GET")
-	r.HandleFunc("/api/v1/logs/units", logsH.Units).Methods("GET")
-	r.HandleFunc("/api/v1/logs/boots", logsH.Boots).Methods("GET")
-
-	r.HandleFunc("/api/v1/investigations", investigation.ListInvestigations).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/latest", investigation.GetLatestInvestigation).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/trigger", investigation.TriggerInvestigation).Methods("POST")
-	r.HandleFunc("/api/v1/investigations/agent/spawn", investigation.TriggerInvestigation).Methods("POST")
-	r.HandleFunc("/api/v1/investigations/agent/current", investigation.GetCurrentAgent).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/agent/{id}/status", investigation.GetAgentStatusByID).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/agent/{id}/stop", investigation.StopAgent).Methods("POST")
-	r.HandleFunc("/api/v1/investigations/cooldown", investigation.GetCooldownStatus).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/cooldown/reset", investigation.ResetCooldown).Methods("POST")
-	r.HandleFunc("/api/v1/investigations/cooldown/period", investigation.UpdateCooldownPeriod).Methods("PUT")
-	r.HandleFunc("/api/v1/investigations/triggers", investigation.GetTriggers).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/triggers/{id}", investigation.UpdateTrigger).Methods("PUT")
-	r.HandleFunc("/api/v1/investigations/triggers/{id}/threshold", investigation.UpdateTriggerThreshold).Methods("PUT")
-	r.HandleFunc("/api/v1/investigations/scripts", investigation.ListScripts).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/scripts/{id}", investigation.GetScript).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/scripts/{id}/execute", investigation.ExecuteScript).Methods("POST")
-	r.HandleFunc("/api/v1/investigations/{id}", investigation.GetInvestigation).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/{id}/status", investigation.UpdateInvestigationStatus).Methods("PUT")
-	r.HandleFunc("/api/v1/investigations/{id}/findings", investigation.UpdateInvestigationFindings).Methods("PUT")
-	r.HandleFunc("/api/v1/investigations/{id}/progress", investigation.UpdateInvestigationProgress).Methods("PUT")
-	r.HandleFunc("/api/v1/investigations/{id}/step", investigation.AddInvestigationStep).Methods("POST")
-
-	r.HandleFunc("/api/v1/reports/generate", report.GenerateReport).Methods("POST")
-	r.HandleFunc("/api/v1/reports/{id}", report.GetReport).Methods("GET")
-	r.HandleFunc("/api/v1/reports", report.ListReports).Methods("GET")
-
-	r.HandleFunc("/api/v1/settings", settings.GetSettings).Methods("GET")
-	r.HandleFunc("/api/v1/settings", settings.UpdateSettings).Methods("PUT")
-	r.HandleFunc("/api/v1/settings/reset", settings.ResetSettings).Methods("POST")
-
-	r.HandleFunc("/api/v1/maintenance/state", settings.GetMaintenanceState).Methods("GET")
-	r.HandleFunc("/api/v1/maintenance/state", settings.SetMaintenanceState).Methods("POST")
-
-	r.HandleFunc("/api/v1/maintenance/metrics/retention/preview", maintenance.RetentionPreview).Methods("GET")
-	r.HandleFunc("/api/v1/maintenance/metrics/retention/apply", maintenance.RetentionApply).Methods("POST")
-	r.HandleFunc("/api/v1/maintenance/metrics/compaction/preview", maintenance.CompactionPreview).Methods("GET")
-	r.HandleFunc("/api/v1/maintenance/metrics/compaction/apply", maintenance.CompactionApply).Methods("POST")
-
-	r.HandleFunc("/api/v1/capacity/overview", capacity.Overview).Methods("GET")
-	r.HandleFunc("/api/v1/capacity/claims", capacity.ListClaims).Methods("GET")
-	r.HandleFunc("/api/v1/capacity/reconcile", capacity.Reconcile).Methods("GET")
-	r.HandleFunc("/api/v1/capacity/policy", capacity.GetPolicy).Methods("GET")
-	r.HandleFunc("/api/v1/capacity/policy", capacity.SetPolicy).Methods("POST")
-
-	r.HandleFunc("/api/v1/agent/config", investigation.GetAgentConfig).Methods("GET")
-	r.HandleFunc("/api/v1/agent/config", investigation.UpdateAgentConfig).Methods("PUT")
-	r.HandleFunc("/api/v1/agent/runners", investigation.GetAvailableRunners).Methods("GET")
-	r.HandleFunc("/api/v1/agent/status", investigation.GetAgentStatus).Methods("GET")
+	r.HandleFunc("GET /api/v1/forensics/pstore", forensicsH.Pstore)
+	r.HandleFunc("GET /api/v1/forensics/boot-history", forensicsH.BootHistory)
+	r.HandleFunc("GET /api/v1/forensics/mce", forensicsH.MCE)
+	r.HandleFunc("GET /api/v1/forensics/summary", forensicsH.Summary)
+	r.HandleFunc("GET /api/v1/logs", logsH.Logs)
+	r.HandleFunc("GET /api/v1/logs/units", logsH.Units)
+	r.HandleFunc("GET /api/v1/logs/boots", logsH.Boots)
 
 	// Tool Discovery Protocol routes
 	tools.RegisterRoutes(r)
 
 	// Tool Execution Protocol route
-	r.HandleFunc("/api/v1/tools/execute", toolExec.Execute).Methods("POST", "OPTIONS")
+	r.HandleFunc("POST /api/v1/tools/execute", toolExec.Execute)
+	r.HandleFunc("OPTIONS /api/v1/tools/execute", toolExec.Execute)
 
 	return r
+}
+
+func mountConnectRoutes(r *http.ServeMux, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, report *handlers.ReportHandler, settings *handlers.SettingsHandler, capacity *handlers.CapacityHandler, maintenance *handlers.MaintenanceHandler, investigation *handlers.InvestigationHandler) {
+	healthPath, healthHandler := healthconnect.NewHealthServiceHandler(health)
+	r.Handle(healthPath, healthHandler)
+	metricsPath, metricsHandler := metricsconnect.NewMetricsServiceHandler(metrics)
+	r.Handle(metricsPath, metricsHandler)
+	reportsPath, reportsHandler := reportsconnect.NewReportsServiceHandler(report)
+	r.Handle(reportsPath, reportsHandler)
+	settingsPath, settingsHandler := settingsconnect.NewSettingsServiceHandler(settings)
+	r.Handle(settingsPath, settingsHandler)
+	capacityPath, capacityHandler := capacityconnect.NewCapacityServiceHandler(capacity)
+	r.Handle(capacityPath, capacityHandler)
+	maintenancePath, maintenanceHandler := maintenanceconnect.NewMaintenanceServiceHandler(maintenance)
+	r.Handle(maintenancePath, maintenanceHandler)
+	investigationsPath, investigationsHandler := investigationsconnect.NewInvestigationsServiceHandler(investigation)
+	r.Handle(investigationsPath, investigationsHandler)
+	scriptsPath, scriptsHandler := scriptsconnect.NewScriptsServiceHandler(investigation)
+	r.Handle(scriptsPath, scriptsHandler)
+}
+
+func mountDebugRoutes(cfg *config.Config, r *http.ServeMux) {
+	if cfg == nil || cfg.IsProduction() {
+		return
+	}
+
+	r.HandleFunc("GET /debug/pprof/", pprof.Index)
+	r.HandleFunc("GET /debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
+	r.HandleFunc("POST /debug/pprof/symbol", pprof.Symbol)
+	r.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
 }

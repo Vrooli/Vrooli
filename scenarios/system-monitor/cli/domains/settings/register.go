@@ -1,68 +1,83 @@
 package settings
 
 import (
+	"context"
 	"fmt"
-	"os"
+	"strconv"
 	"strings"
 
+	"connectrpc.com/connect"
 	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
+	settingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings/settingsconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 
 	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
 		Name:        "settings",
 		Description: "Inspect and update monitor settings and maintenance state",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "get", Description: "Get current settings", Run: func(args []string) error { return runGet(core, args) }},
-			{Name: "update", Description: "Update monitor settings", Run: func(args []string) error { return runUpdate(core, args) }},
-			{Name: "reset", Description: "Reset settings to defaults", Run: func(args []string) error { return runReset(core, args) }},
-			{Name: "maintenance", Description: "Get or set maintenance state", Run: func(args []string) error { return runMaintenance(core, args) }},
+			{Name: "get", Description: "Get current settings", RunCtx: h.get},
+			{Name: "update", Description: "Update monitor settings", Args: updateArgs(), RunCtx: h.update},
+			{Name: "reset", Description: "Reset settings to defaults", RunCtx: h.reset},
+			{Name: "maintenance", Description: "Get or set maintenance state", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "state", Description: "Set maintenance state to active or inactive"}}}, RunCtx: h.maintenance},
 		},
 	}
 }
 
-type maintenanceStateResponse struct {
-	Success          bool   `json:"success"`
-	MaintenanceState string `json:"maintenanceState"`
+type handlers struct {
+	client settingsconnect.SettingsServiceClient
 }
 
-func runGet(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("settings get")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		client: settingsconnect.NewSettingsServiceClient(httpClient, baseURL),
+	}
+}
+
+func updateArgs() cliapp.ArgSchema {
+	return cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "active", Description: "Set monitoring active to true or false"},
+		{Name: "metric-interval", Description: "Metric collection interval in seconds", Default: "-1"},
+		{Name: "anomaly-interval", Description: "Anomaly detection interval in seconds", Default: "-1"},
+		{Name: "threshold-interval", Description: "Threshold check interval in seconds", Default: "-1"},
+		{Name: "cooldown", Description: "Cooldown period in seconds", Default: "-1"},
+		{Name: "cpu-threshold", Description: "CPU alert threshold", Default: "-1"},
+		{Name: "memory-threshold", Description: "Memory alert threshold", Default: "-1"},
+		{Name: "disk-threshold", Description: "Disk alert threshold", Default: "-1"},
+	}}
+}
+
+func (h *handlers) get(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetSettings(context.Background(), connect.NewRequest(&settingspb.GetSettingsRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get settings", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no settings response")
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
 	}
 
-	body, err := core.Get("/settings", nil)
+	maintenance, err := h.client.GetMaintenanceState(context.Background(), connect.NewRequest(&settingspb.GetMaintenanceStateRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get maintenance state", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response settingspb.GetSettingsResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
-	}
-	maintenance, err := getMaintenance(core)
-	if err != nil {
-		return err
-	}
-	settings := response.GetSettings()
+	settings := resp.Msg.GetSettings()
 	if settings == nil {
 		settings = &settingspb.SystemSettings{}
 	}
-	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+	return ctx.RenderOperational(cliapp.OperationalReport{
 		Status: []string{
 			fmt.Sprintf("Monitoring active: %s", support.BoolString(settings.GetActive(), "yes", "no")),
-			fmt.Sprintf("Maintenance state: %s", support.FormatMaybeString(maintenance.MaintenanceState, "inactive")),
+			fmt.Sprintf("Maintenance state: %s", support.FormatMaybeString(maintenance.Msg.GetMaintenanceState(), "inactive")),
 		},
 		Triage: []cliapp.TriageGroup{
 			{
@@ -91,183 +106,200 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 	})
 }
 
-func runUpdate(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("settings update")
-	active := fs.String("active", "", "Set monitoring active to true or false")
-	metricInterval := fs.Int("metric-interval", -1, "Metric collection interval in seconds")
-	anomalyInterval := fs.Int("anomaly-interval", -1, "Anomaly detection interval in seconds")
-	thresholdInterval := fs.Int("threshold-interval", -1, "Threshold check interval in seconds")
-	cooldown := fs.Int("cooldown", -1, "Cooldown period in seconds")
-	cpuThreshold := fs.Float64("cpu-threshold", -1, "CPU alert threshold")
-	memoryThreshold := fs.Float64("memory-threshold", -1, "Memory alert threshold")
-	diskThreshold := fs.Float64("disk-threshold", -1, "Disk alert threshold")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/settings", nil)
+func (h *handlers) update(ctx cliapp.RunContext) error {
+	current, err := h.client.GetSettings(context.Background(), connect.NewRequest(&settingspb.GetSettingsRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("get current settings", err, nil)
 	}
-	var current settingspb.GetSettingsResponse
-	if err := support.DecodeProto(body, &current); err != nil {
-		return err
+	if current == nil || current.Msg == nil {
+		return fmt.Errorf("server returned no current settings")
 	}
-	settings := current.GetSettings()
+	settings := current.Msg.GetSettings()
 	if settings == nil {
 		settings = &settingspb.SystemSettings{}
 	}
 
-	changed := false
-	if parsed, err := support.ParseOptionalBool(*active); err != nil {
-		return fmt.Errorf("--active %w", err)
-	} else if parsed != nil {
-		settings.Active = *parsed
-		changed = true
-	}
-	if *metricInterval >= 0 {
-		settings.MetricCollectionInterval = int32(*metricInterval)
-		changed = true
-	}
-	if *anomalyInterval >= 0 {
-		settings.AnomalyDetectionInterval = int32(*anomalyInterval)
-		changed = true
-	}
-	if *thresholdInterval >= 0 {
-		settings.ThresholdCheckInterval = int32(*thresholdInterval)
-		changed = true
-	}
-	if *cooldown >= 0 {
-		settings.CooldownPeriodSeconds = int32(*cooldown)
-		changed = true
-	}
-	if *cpuThreshold >= 0 {
-		settings.CpuThreshold = *cpuThreshold
-		changed = true
-	}
-	if *memoryThreshold >= 0 {
-		settings.MemoryThreshold = *memoryThreshold
-		changed = true
-	}
-	if *diskThreshold >= 0 {
-		settings.DiskThreshold = *diskThreshold
-		changed = true
+	changed, err := applySettingUpdates(ctx, settings)
+	if err != nil {
+		return err
 	}
 	if !changed {
 		return fmt.Errorf("no setting changes were provided")
 	}
 
-	updateBody, err := core.Request("PUT", "/settings", nil, &settingspb.UpdateSettingsRequest{Settings: settings})
+	updated, err := h.client.UpdateSettings(context.Background(), connect.NewRequest(&settingspb.UpdateSettingsRequest{Settings: settings}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("update settings", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(updateBody)
+	if updated == nil || updated.Msg == nil || updated.Msg.GetSettings() == nil {
+		return fmt.Errorf("server returned no updated settings")
 	}
-	var updated settingspb.UpdateSettingsResponse
-	if err := support.DecodeProto(updateBody, &updated); err != nil {
-		return err
-	}
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+	return cliapp.RenderProtoMutation(ctx, updated.Msg, cliapp.MutationReport{
 		Result: []string{"System monitor settings updated."},
 		Changes: []string{
-			fmt.Sprintf("Active: %s", support.BoolString(updated.GetSettings().GetActive(), "yes", "no")),
-			fmt.Sprintf("Metric interval: %ds", updated.GetSettings().GetMetricCollectionInterval()),
-			fmt.Sprintf("Anomaly interval: %ds", updated.GetSettings().GetAnomalyDetectionInterval()),
-			fmt.Sprintf("Threshold check: %ds", updated.GetSettings().GetThresholdCheckInterval()),
+			fmt.Sprintf("Active: %s", support.BoolString(updated.Msg.GetSettings().GetActive(), "yes", "no")),
+			fmt.Sprintf("Metric interval: %ds", updated.Msg.GetSettings().GetMetricCollectionInterval()),
+			fmt.Sprintf("Anomaly interval: %ds", updated.Msg.GetSettings().GetAnomalyDetectionInterval()),
+			fmt.Sprintf("Threshold check: %ds", updated.Msg.GetSettings().GetThresholdCheckInterval()),
 		},
 		NextCommand: []string{"system-monitor settings get", "system-monitor status"},
 	})
 }
 
-func runReset(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("settings reset")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Request("POST", "/settings/reset", nil, nil)
+func (h *handlers) reset(ctx cliapp.RunContext) error {
+	resp, err := h.client.ResetSettings(context.Background(), connect.NewRequest(&settingspb.ResetSettingsRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("reset settings", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil || resp.Msg.GetSettings() == nil {
+		return fmt.Errorf("server returned no reset settings")
 	}
-
-	var response settingspb.ResetSettingsResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
-	}
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{"System monitor settings reset to defaults."},
 		Changes: []string{
-			fmt.Sprintf("Active: %s", support.BoolString(response.GetSettings().GetActive(), "yes", "no")),
-			fmt.Sprintf("Metric interval: %ds", response.GetSettings().GetMetricCollectionInterval()),
-			fmt.Sprintf("CPU threshold: %.1f%%", response.GetSettings().GetCpuThreshold()),
+			fmt.Sprintf("Active: %s", support.BoolString(resp.Msg.GetSettings().GetActive(), "yes", "no")),
+			fmt.Sprintf("Metric interval: %ds", resp.Msg.GetSettings().GetMetricCollectionInterval()),
+			fmt.Sprintf("CPU threshold: %.1f%%", resp.Msg.GetSettings().GetCpuThreshold()),
 		},
 		NextCommand: []string{"system-monitor settings get", "system-monitor status"},
 	})
 }
 
-func runMaintenance(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("settings maintenance")
-	state := fs.String("state", "", "Set maintenance state to active or inactive")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	if strings.TrimSpace(*state) == "" {
-		response, err := getMaintenance(core)
+func (h *handlers) maintenance(ctx cliapp.RunContext) error {
+	state := strings.TrimSpace(ctx.Flag("state"))
+	if state == "" {
+		response, err := h.client.GetMaintenanceState(context.Background(), connect.NewRequest(&settingspb.GetMaintenanceStateRequest{}))
 		if err != nil {
-			return err
+			return cliapp.WrapAPIError("get maintenance state", err, nil)
 		}
-		if *jsonOutput {
-			return cliapp.PrintReportJSON(os.Stdout, response)
+		if response == nil || response.Msg == nil {
+			return fmt.Errorf("server returned no maintenance state")
 		}
-		return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
-			Status: []string{
-				fmt.Sprintf("Maintenance state: %s", support.FormatMaybeString(response.MaintenanceState, "inactive")),
+		return cliapp.RenderProtoList(ctx, response.Msg, cliapp.ListReport{
+			Summary: []string{
+				fmt.Sprintf("Maintenance state: %s", support.FormatMaybeString(response.Msg.GetMaintenanceState(), "inactive")),
 			},
-			Triage: []cliapp.TriageGroup{
-				{Heading: "Effect", Items: []string{"Maintenance mode suppresses normal health interpretation in the CLI status view."}},
-			},
-			NextSteps: []string{"system-monitor settings maintenance --state active", "system-monitor settings maintenance --state inactive"},
+			ResultsHeading: "Maintenance",
+			Results:        []string{"Maintenance mode suppresses normal health interpretation in the CLI status view."},
+			RetrievalHints: []string{"system-monitor settings maintenance --state active", "system-monitor settings maintenance --state inactive"},
 		})
 	}
 
-	next := strings.ToLower(strings.TrimSpace(*state))
+	next := strings.ToLower(state)
 	if next != "active" && next != "inactive" {
 		return fmt.Errorf("--state must be active or inactive")
 	}
-	body, err := core.Request("POST", "/maintenance/state", nil, &settingspb.SetMaintenanceStateRequest{MaintenanceState: next})
+	response, err := h.client.SetMaintenanceState(context.Background(), connect.NewRequest(&settingspb.SetMaintenanceStateRequest{MaintenanceState: next}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("set maintenance state", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if response == nil || response.Msg == nil {
+		return fmt.Errorf("server returned no maintenance state")
 	}
-	var response settingspb.SetMaintenanceStateResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
-	}
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+	return cliapp.RenderProtoMutation(ctx, response.Msg, cliapp.MutationReport{
 		Result:      []string{"Maintenance state updated."},
-		Changes:     []string{fmt.Sprintf("New maintenance state: %s", response.GetMaintenanceState())},
+		Changes:     []string{fmt.Sprintf("New maintenance state: %s", response.Msg.GetMaintenanceState())},
 		NextCommand: []string{"system-monitor status", "system-monitor settings get"},
 	})
 }
 
-func getMaintenance(core *cliapp.ScenarioApp) (*maintenanceStateResponse, error) {
-	body, err := core.Get("/maintenance/state", nil)
+type int32Setting struct {
+	flag  string
+	apply func(int32)
+}
+
+type float64Setting struct {
+	flag  string
+	apply func(float64)
+}
+
+func applySettingUpdates(ctx cliapp.RunContext, settings *settingspb.SystemSettings) (bool, error) {
+	activeChanged, err := applyActiveSetting(ctx, settings)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	var response maintenanceStateResponse
-	if err := support.DecodeJSON(body, &response); err != nil {
-		return nil, err
+	intChanged, err := applyInt32Settings(ctx, settings)
+	if err != nil {
+		return false, err
 	}
-	return &response, nil
+	floatChanged, err := applyFloat64Settings(ctx, settings)
+	if err != nil {
+		return false, err
+	}
+	return activeChanged || intChanged || floatChanged, nil
+}
+
+func applyActiveSetting(ctx cliapp.RunContext, settings *settingspb.SystemSettings) (bool, error) {
+	parsed, err := support.ParseOptionalBool(ctx.Flag("active"))
+	if err != nil {
+		return false, fmt.Errorf("--active %w", err)
+	}
+	if parsed == nil {
+		return false, nil
+	}
+	settings.Active = *parsed
+	return true, nil
+}
+
+func applyInt32Settings(ctx cliapp.RunContext, settings *settingspb.SystemSettings) (bool, error) {
+	changed := false
+	for _, item := range []int32Setting{
+		{flag: "metric-interval", apply: func(value int32) { settings.MetricCollectionInterval = value }},
+		{flag: "anomaly-interval", apply: func(value int32) { settings.AnomalyDetectionInterval = value }},
+		{flag: "threshold-interval", apply: func(value int32) { settings.ThresholdCheckInterval = value }},
+		{flag: "cooldown", apply: func(value int32) { settings.CooldownPeriodSeconds = value }},
+	} {
+		value, ok, err := optionalInt32(ctx, item.flag)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			item.apply(value)
+			changed = true
+		}
+	}
+	return changed, nil
+}
+
+func applyFloat64Settings(ctx cliapp.RunContext, settings *settingspb.SystemSettings) (bool, error) {
+	changed := false
+	for _, item := range []float64Setting{
+		{flag: "cpu-threshold", apply: func(value float64) { settings.CpuThreshold = value }},
+		{flag: "memory-threshold", apply: func(value float64) { settings.MemoryThreshold = value }},
+		{flag: "disk-threshold", apply: func(value float64) { settings.DiskThreshold = value }},
+	} {
+		value, ok, err := optionalFloat64(ctx, item.flag)
+		if err != nil {
+			return false, err
+		}
+		if ok {
+			item.apply(value)
+			changed = true
+		}
+	}
+	return changed, nil
+}
+
+func optionalInt32(ctx cliapp.RunContext, name string) (int32, bool, error) {
+	raw := strings.TrimSpace(ctx.Flag(name))
+	if raw == "" || raw == "-1" {
+		return 0, false, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil || value < 0 {
+		return 0, false, fmt.Errorf("--%s must be a non-negative integer", name)
+	}
+	return int32(value), true, nil
+}
+
+func optionalFloat64(ctx cliapp.RunContext, name string) (float64, bool, error) {
+	raw := strings.TrimSpace(ctx.Flag(name))
+	if raw == "" || raw == "-1" {
+		return 0, false, nil
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || value < 0 {
+		return 0, false, fmt.Errorf("--%s must be a non-negative number", name)
+	}
+	return value, true, nil
 }

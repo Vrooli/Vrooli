@@ -5,10 +5,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
+
+type selfMetricsCollector struct {
+	collectors.BaseCollector
+}
+
+func newSelfMetricsCollector() *selfMetricsCollector {
+	return &selfMetricsCollector{BaseCollector: collectors.NewBaseCollector("self-test", 10*time.Second)}
+}
+
+func (c *selfMetricsCollector) Collect(context.Context) (*collectors.MetricData, error) {
+	return &collectors.MetricData{
+		CollectorName: c.GetName(),
+		Timestamp:     time.Now(),
+		Type:          "test",
+		Values:        map[string]interface{}{"ok": true},
+	}, nil
+}
 
 func TestMonitorService_GetCurrentMetrics(t *testing.T) {
 	// Setup
@@ -179,5 +197,39 @@ func TestMonitorService_StartStop(t *testing.T) {
 		// Expected - context canceled synchronously by Stop.
 	case <-time.After(500 * time.Millisecond):
 		t.Error("service context not canceled after Stop()")
+	}
+}
+
+func TestMonitorServiceSelfMetricsRecordedAfterCollection(t *testing.T) {
+	cfg := &config.Config{Monitoring: config.MonitoringConfig{MetricsInterval: 10 * time.Second}}
+	svc := NewMonitorService(
+		cfg,
+		memory.NewRepository(),
+		infrastructure.NewStaticProvider(),
+		WithCollectors(newSelfMetricsCollector()),
+		WithProcessSampling(nil, nil, nil),
+	)
+
+	svc.collectMetrics()
+	self := svc.SelfMetrics()
+
+	durations, ok := self["collector_duration_ms"].(map[string]float64)
+	if !ok {
+		t.Fatalf("collector_duration_ms type = %T", self["collector_duration_ms"])
+	}
+	if _, ok := durations["self-test"]; !ok {
+		t.Fatalf("self-test duration missing from %+v", durations)
+	}
+
+	forks, ok := self["collector_forks"].(map[string]uint64)
+	if !ok {
+		t.Fatalf("collector_forks type = %T", self["collector_forks"])
+	}
+	if got := forks["self-test"]; got != 0 {
+		t.Fatalf("self-test forks = %d, want 0", got)
+	}
+
+	if self["recorded_at"] == "0001-01-01T00:00:00Z" {
+		t.Fatal("recorded_at was not updated")
 	}
 }

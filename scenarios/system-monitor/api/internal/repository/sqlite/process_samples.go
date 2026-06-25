@@ -5,7 +5,6 @@ package sqlite
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
@@ -52,36 +51,33 @@ func (r *Repository) SaveProcessSamples(ctx context.Context, samples []repositor
 // then sorts by CPU and applies the Top cap. Both queries are issued under the
 // read lock and fully drained before the next runs — the single-connection
 // SQLite pool deadlocks on a query nested inside an open rows loop.
-func (r *Repository) QueryProcessTimeline(_ context.Context, q repository.ProcessTimelineQuery) ([]repository.ProcessTimelineEntry, error) {
+func (r *Repository) QueryProcessTimeline(ctx context.Context, q repository.ProcessTimelineQuery) ([]repository.ProcessTimelineEntry, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	type agg struct {
-		owner       string
-		comm        string
-		pid         int
-		aggregated  bool
-		cpuSum      float64
-		cpuMax      float64
-		rssMax      int64
-		sampleCount int64
-		firstSeen   time.Time
-		lastSeen    time.Time
+	acc := repository.NewProcessTimelineAccumulator()
+	if err := r.addRawProcessTimelineRows(ctx, q, acc); err != nil {
+		return nil, err
 	}
-	merged := map[string]*agg{}
-	key := func(owner, comm string) string { return owner + "\x00" + comm }
+	if err := r.addRollupProcessTimelineRows(ctx, q, acc); err != nil {
+		return nil, err
+	}
+	return acc.Entries(q.Top), nil
+}
 
-	// --- raw rows ---
+func (r *Repository) addRawProcessTimelineRows(ctx context.Context, q repository.ProcessTimelineQuery, acc *repository.ProcessTimelineAccumulator) error {
 	rawQuery := `SELECT owner, comm, pid, cpu_pct, rss_kb, ts FROM process_samples WHERE ts >= ? AND ts < ?`
 	rawArgs := []interface{}{q.Start.UTC(), q.End.UTC()}
 	if q.Owner != "" {
 		rawQuery += " AND owner = ?"
 		rawArgs = append(rawArgs, q.Owner)
 	}
-	rawRows, err := r.db.Query(rawQuery, rawArgs...)
+	rawRows, err := r.db.QueryContext(ctx, rawQuery, rawArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("query raw process samples: %w", err)
+		return fmt.Errorf("query raw process samples: %w", err)
 	}
+	defer rawRows.Close()
+
 	for rawRows.Next() {
 		var (
 			owner, comm string
@@ -91,36 +87,14 @@ func (r *Repository) QueryProcessTimeline(_ context.Context, q repository.Proces
 			ts          time.Time
 		)
 		if err := rawRows.Scan(&owner, &comm, &pid, &cpu, &rss, &ts); err != nil {
-			rawRows.Close()
-			return nil, err
+			return err
 		}
-		a := merged[key(owner, comm)]
-		if a == nil {
-			a = &agg{owner: owner, comm: comm, pid: pid}
-			merged[key(owner, comm)] = a
-		}
-		a.cpuSum += cpu
-		if cpu > a.cpuMax {
-			a.cpuMax = cpu
-		}
-		if rss > a.rssMax {
-			a.rssMax = rss
-		}
-		a.sampleCount++
-		if a.firstSeen.IsZero() || ts.Before(a.firstSeen) {
-			a.firstSeen = ts
-		}
-		if ts.After(a.lastSeen) {
-			a.lastSeen = ts
-		}
+		acc.AddRaw(owner, comm, pid, cpu, rss, ts)
 	}
-	if err := rawRows.Err(); err != nil {
-		rawRows.Close()
-		return nil, err
-	}
-	rawRows.Close()
+	return rawRows.Err()
+}
 
-	// --- rollup rows (per-owner/minute) ---
+func (r *Repository) addRollupProcessTimelineRows(ctx context.Context, q repository.ProcessTimelineQuery, acc *repository.ProcessTimelineAccumulator) error {
 	rollQuery := `SELECT owner, comm, avg_cpu_pct, max_cpu_pct, max_rss_kb, sample_count, minute
 		FROM process_sample_rollups WHERE minute >= ? AND minute < ?`
 	rollArgs := []interface{}{q.Start.UTC(), q.End.UTC()}
@@ -128,10 +102,12 @@ func (r *Repository) QueryProcessTimeline(_ context.Context, q repository.Proces
 		rollQuery += " AND owner = ?"
 		rollArgs = append(rollArgs, q.Owner)
 	}
-	rollRows, err := r.db.Query(rollQuery, rollArgs...)
+	rollRows, err := r.db.QueryContext(ctx, rollQuery, rollArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("query process rollups: %w", err)
+		return fmt.Errorf("query process rollups: %w", err)
 	}
+	defer rollRows.Close()
+
 	for rollRows.Next() {
 		var (
 			owner, comm    string
@@ -141,73 +117,11 @@ func (r *Repository) QueryProcessTimeline(_ context.Context, q repository.Proces
 			minute         time.Time
 		)
 		if err := rollRows.Scan(&owner, &comm, &avgCPU, &maxCPU, &maxRSS, &count, &minute); err != nil {
-			rollRows.Close()
-			return nil, err
+			return err
 		}
-		a := merged[key(owner, comm)]
-		if a == nil {
-			a = &agg{owner: owner, comm: comm}
-			merged[key(owner, comm)] = a
-		}
-		a.aggregated = true
-		// avgCPU is a per-minute average over `count` raw samples; weight it by
-		// count so merging with raw rows keeps a consistent mean.
-		a.cpuSum += avgCPU * float64(count)
-		if maxCPU > a.cpuMax {
-			a.cpuMax = maxCPU
-		}
-		if maxRSS > a.rssMax {
-			a.rssMax = maxRSS
-		}
-		a.sampleCount += count
-		if a.firstSeen.IsZero() || minute.Before(a.firstSeen) {
-			a.firstSeen = minute
-		}
-		end := minute.Add(time.Minute)
-		if end.After(a.lastSeen) {
-			a.lastSeen = end
-		}
+		acc.AddRollup(owner, comm, avgCPU, maxCPU, maxRSS, count, minute)
 	}
-	if err := rollRows.Err(); err != nil {
-		rollRows.Close()
-		return nil, err
-	}
-	rollRows.Close()
-
-	entries := make([]repository.ProcessTimelineEntry, 0, len(merged))
-	for _, a := range merged {
-		avg := 0.0
-		if a.sampleCount > 0 {
-			avg = a.cpuSum / float64(a.sampleCount)
-		}
-		entries = append(entries, repository.ProcessTimelineEntry{
-			Owner:       a.owner,
-			Comm:        a.comm,
-			PID:         a.pid,
-			Aggregated:  a.aggregated,
-			CPUPct:      avg,
-			RSSKB:       a.rssMax,
-			SampleCount: a.sampleCount,
-			FirstSeen:   a.firstSeen,
-			LastSeen:    a.lastSeen,
-		})
-	}
-
-	sort.SliceStable(entries, func(i, j int) bool {
-		if entries[i].CPUPct != entries[j].CPUPct {
-			return entries[i].CPUPct > entries[j].CPUPct
-		}
-		return entries[i].RSSKB > entries[j].RSSKB
-	})
-
-	top := q.Top
-	if top <= 0 {
-		top = 20
-	}
-	if len(entries) > top {
-		entries = entries[:top]
-	}
-	return entries, nil
+	return rollRows.Err()
 }
 
 // PruneProcessSamplesBefore deletes raw rows older than cutoff.

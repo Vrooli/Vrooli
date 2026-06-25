@@ -1,12 +1,16 @@
 package overview
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
+	"connectrpc.com/connect"
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics/metricsconnect"
 	settingspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings"
+	settingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings/settingsconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -15,6 +19,7 @@ import (
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
+	h := newHandlers(core)
 	return cliapp.CommandGroup{
 		Title: "Overview",
 		Commands: []cliapp.Command{
@@ -27,7 +32,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Show monitor health, thresholds, and current alerts",
 				Run: func(args []string) error {
-					return runStatus(core, args)
+					return runStatus(h, args)
 				},
 			},
 			{
@@ -35,7 +40,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Show active alerts from the current metrics snapshot",
 				Run: func(args []string) error {
-					return runAlerts(core, args)
+					return runAlerts(h, args)
 				},
 			},
 			{
@@ -43,7 +48,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 				NeedsAPI:    true,
 				Description: "Stream the current metrics snapshot and alert state",
 				Run: func(args []string) error {
-					return runWatch(core, args)
+					return runWatch(h, args)
 				},
 			},
 			{
@@ -57,9 +62,17 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 	}
 }
 
-type maintenanceStateResponse struct {
-	Success          bool   `json:"success"`
-	MaintenanceState string `json:"maintenanceState"`
+type handlers struct {
+	metrics  metricsconnect.MetricsServiceClient
+	settings settingsconnect.SettingsServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		metrics:  metricsconnect.NewMetricsServiceClient(httpClient, baseURL),
+		settings: settingsconnect.NewSettingsServiceClient(httpClient, baseURL),
+	}
 }
 
 type statusReport struct {
@@ -70,7 +83,7 @@ type statusReport struct {
 	MaintenanceState         string `json:"maintenance_state"`
 }
 
-func runStatus(core *cliapp.ScenarioApp, args []string) error {
+func runStatus(h *handlers, args []string) error {
 	fs := support.NewFlagSet("status")
 	fresh := fs.Bool("fresh", false, "Collect a fresh metrics snapshot")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -78,22 +91,23 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	metrics, _, err := fetchCurrentMetrics(core, *fresh)
+	metrics, err := h.fetchCurrentMetrics(*fresh)
 	if err != nil {
 		return err
 	}
-	settings, err := fetchSettings(core)
+	settings, err := h.fetchSettings()
 	if err != nil {
 		return err
 	}
-	maintenance, err := fetchMaintenanceState(core)
+	maintenance, err := h.fetchMaintenanceState()
 	if err != nil {
 		return err
 	}
 
 	cpuThreshold, memoryThreshold, _ := support.MetricThresholds(settings)
 	alerts := support.DeriveAlerts(metrics, settings)
-	overall := support.OverallStatus(metrics, settings, maintenance.MaintenanceState)
+	maintenanceState := maintenance.GetMaintenanceState()
+	overall := support.OverallStatus(metrics, settings, maintenanceState)
 	report := statusReport{
 		OperationalReport: cliapp.OperationalReport{
 			Status: []string{
@@ -109,7 +123,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 					Heading: "Monitoring",
 					Items: []string{
 						fmt.Sprintf("Active: %s", support.BoolString(settings.GetActive(), "yes", "no")),
-						fmt.Sprintf("Maintenance state: %s", support.FormatMaybeString(maintenance.MaintenanceState, "inactive")),
+						fmt.Sprintf("Maintenance state: %s", support.FormatMaybeString(maintenanceState, "inactive")),
 						fmt.Sprintf("Metric interval: %ds", settings.GetMetricCollectionInterval()),
 						fmt.Sprintf("Anomaly interval: %ds", settings.GetAnomalyDetectionInterval()),
 						fmt.Sprintf("Cooldown: %ds", settings.GetCooldownPeriodSeconds()),
@@ -137,7 +151,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 		OverallStatus:    overall,
 		CPUThreshold:     fmt.Sprintf("%.1f%%", cpuThreshold),
 		MemoryThreshold:  fmt.Sprintf("%.1f%%", memoryThreshold),
-		MaintenanceState: support.FormatMaybeString(maintenance.MaintenanceState, "inactive"),
+		MaintenanceState: support.FormatMaybeString(maintenanceState, "inactive"),
 	}
 
 	if *jsonOutput {
@@ -151,7 +165,7 @@ type alertsReport struct {
 	Alerts            []support.Alert `json:"alerts"`
 }
 
-func runAlerts(core *cliapp.ScenarioApp, args []string) error {
+func runAlerts(h *handlers, args []string) error {
 	fs := support.NewFlagSet("alerts")
 	fresh := fs.Bool("fresh", false, "Collect a fresh metrics snapshot")
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -159,11 +173,11 @@ func runAlerts(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	metrics, _, err := fetchCurrentMetrics(core, *fresh)
+	metrics, err := h.fetchCurrentMetrics(*fresh)
 	if err != nil {
 		return err
 	}
-	settings, err := fetchSettings(core)
+	settings, err := h.fetchSettings()
 	if err != nil {
 		return err
 	}
@@ -194,7 +208,7 @@ func runAlerts(core *cliapp.ScenarioApp, args []string) error {
 	return cliapp.RenderListReport(os.Stdout, report.ListReport)
 }
 
-func runWatch(core *cliapp.ScenarioApp, args []string) error {
+func runWatch(h *handlers, args []string) error {
 	fs := support.NewFlagSet("watch")
 	interval := fs.Int("interval", 2, "Refresh interval in seconds")
 	iterations := fs.Int("iterations", 0, "Number of snapshots to render (0 means continuous)")
@@ -212,31 +226,36 @@ func runWatch(core *cliapp.ScenarioApp, args []string) error {
 
 	count := 0
 	for {
-		metrics, raw, err := fetchCurrentMetrics(core, *fresh)
+		metricsResp, err := h.metrics.GetCurrentMetrics(context.Background(), connect.NewRequest(&metricspb.GetCurrentMetricsRequest{Fresh: *fresh}))
 		if err != nil {
-			return err
+			return cliapp.WrapAPIError("get current metrics", err, nil)
 		}
+		if metricsResp == nil || metricsResp.Msg == nil || metricsResp.Msg.GetMetrics() == nil {
+			return fmt.Errorf("server returned no current metrics")
+		}
+		metrics := metricsResp.Msg.GetMetrics()
 		if *jsonOutput {
-			return support.PrettyPrintJSON(raw)
+			return cliapp.PrintProtoJSON(os.Stdout, metricsResp.Msg)
 		}
-		settings, err := fetchSettings(core)
+		settings, err := h.fetchSettings()
 		if err != nil {
 			return err
 		}
-		maintenance, err := fetchMaintenanceState(core)
+		maintenance, err := h.fetchMaintenanceState()
 		if err != nil {
 			return err
 		}
+		maintenanceState := maintenance.GetMaintenanceState()
 
 		fmt.Print("\033[H\033[2J")
 		fmt.Println("System Monitor Watch")
 		fmt.Printf("Time: %s\n", time.Now().Format("2006-01-02 15:04:05 MST"))
-		fmt.Printf("Overall: %s\n", support.OverallStatus(metrics, settings, maintenance.MaintenanceState))
+		fmt.Printf("Overall: %s\n", support.OverallStatus(metrics, settings, maintenanceState))
 		fmt.Printf("CPU: %s\n", support.FormatPercent(metrics.GetCpuUsage()))
 		fmt.Printf("Memory: %s\n", support.FormatPercent(metrics.GetMemoryUsage()))
 		fmt.Printf("TCP Connections: %d\n", metrics.GetTcpConnections())
 		fmt.Printf("GPU: %s\n", support.FormatMaybePercent(metrics.GpuUsage))
-		fmt.Printf("Maintenance: %s\n", support.FormatMaybeString(maintenance.MaintenanceState, "inactive"))
+		fmt.Printf("Maintenance: %s\n", support.FormatMaybeString(maintenanceState, "inactive"))
 		fmt.Println()
 		fmt.Println("Alerts:")
 		for _, line := range support.AlertLines(support.DeriveAlerts(metrics, settings)) {
@@ -289,51 +308,35 @@ func runDashboard(args []string) error {
 	})
 }
 
-func fetchCurrentMetrics(core *cliapp.ScenarioApp, fresh bool) (*metricspb.MetricsResponse, []byte, error) {
-	var body []byte
-	var err error
-	if fresh {
-		body, err = core.Get("/metrics/current", mapValues("fresh", "true"))
-	} else {
-		body, err = core.Get("/metrics/current", nil)
-	}
+func (h *handlers) fetchCurrentMetrics(fresh bool) (*metricspb.MetricsResponse, error) {
+	resp, err := h.metrics.GetCurrentMetrics(context.Background(), connect.NewRequest(&metricspb.GetCurrentMetricsRequest{Fresh: fresh}))
 	if err != nil {
-		return nil, nil, err
+		return nil, cliapp.WrapAPIError("get current metrics", err, nil)
 	}
-	var response metricspb.MetricsResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return nil, nil, err
+	if resp == nil || resp.Msg == nil || resp.Msg.GetMetrics() == nil {
+		return nil, fmt.Errorf("server returned no current metrics")
 	}
-	return &response, body, nil
+	return resp.Msg.GetMetrics(), nil
 }
 
-func fetchSettings(core *cliapp.ScenarioApp) (*settingspb.SystemSettings, error) {
-	body, err := core.Get("/settings", nil)
+func (h *handlers) fetchSettings() (*settingspb.SystemSettings, error) {
+	resp, err := h.settings.GetSettings(context.Background(), connect.NewRequest(&settingspb.GetSettingsRequest{}))
 	if err != nil {
-		return nil, err
+		return nil, cliapp.WrapAPIError("get settings", err, nil)
 	}
-	var response settingspb.GetSettingsResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return nil, err
-	}
-	if response.GetSettings() == nil {
+	if resp == nil || resp.Msg == nil || resp.Msg.GetSettings() == nil {
 		return &settingspb.SystemSettings{}, nil
 	}
-	return response.GetSettings(), nil
+	return resp.Msg.GetSettings(), nil
 }
 
-func fetchMaintenanceState(core *cliapp.ScenarioApp) (*maintenanceStateResponse, error) {
-	body, err := core.Get("/maintenance/state", nil)
+func (h *handlers) fetchMaintenanceState() (*settingspb.GetMaintenanceStateResponse, error) {
+	resp, err := h.settings.GetMaintenanceState(context.Background(), connect.NewRequest(&settingspb.GetMaintenanceStateRequest{}))
 	if err != nil {
-		return nil, err
+		return nil, cliapp.WrapAPIError("get maintenance state", err, nil)
 	}
-	var response maintenanceStateResponse
-	if err := support.DecodeJSON(body, &response); err != nil {
-		return nil, err
+	if resp == nil || resp.Msg == nil {
+		return &settingspb.GetMaintenanceStateResponse{}, nil
 	}
-	return &response, nil
-}
-
-func mapValues(key string, value string) map[string][]string {
-	return map[string][]string{key: {value}}
+	return resp.Msg, nil
 }

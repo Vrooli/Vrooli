@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"golang.org/x/sys/unix"
 )
 
 // DiskCollector collects disk metrics
@@ -65,24 +66,19 @@ func (c *DiskCollector) getDiskUsage() map[string]interface{} {
 		return usage
 	}
 
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "df -B1 / | tail -1 | awk '{print $2, $3, $4}'")
-	if err != nil {
+	total, free, available, err := statfsBytes("/")
+	if err != nil || total <= 0 {
 		return usage
 	}
 
-	fields := strings.Fields(strings.TrimSpace(string(output)))
-	if len(fields) >= 3 {
-		total, _ := strconv.ParseInt(fields[0], 10, 64)
-		used, _ := strconv.ParseInt(fields[1], 10, 64)
-		free, _ := strconv.ParseInt(fields[2], 10, 64)
-
-		usage["total"] = total
-		usage["used"] = used
-		usage["free"] = free
-		if total > 0 {
-			usage["percent"] = float64(used) / float64(total) * 100
-		}
+	used := total - free
+	if used < 0 {
+		used = 0
 	}
+	usage["total"] = total
+	usage["used"] = used
+	usage["free"] = available
+	usage["percent"] = float64(used) / float64(total) * 100
 
 	return usage
 }
@@ -105,10 +101,8 @@ func (c *DiskCollector) getIOStats() map[string]interface{} {
 		return ioStats
 	}
 
-	// Get I/O wait percentage from /proc/stat
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "grep '^cpu ' /proc/stat | awk '{print ($5/($2+$3+$4+$5+$6+$7+$8))*100}'")
-	if err == nil {
-		ioStats["io_wait_percent"], _ = strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+	if wait, ok := readIOWaitPercent(); ok {
+		ioStats["io_wait_percent"] = wait
 	}
 
 	// Mock additional stats for now
@@ -341,39 +335,70 @@ func cloneMap(source map[string]interface{}) map[string]interface{} {
 	return clone
 }
 
+func statfsBytes(path string) (total, free, available int64, err error) {
+	var stat unix.Statfs_t
+	if err := unix.Statfs(path, &stat); err != nil {
+		return 0, 0, 0, err
+	}
+	blockSize := int64(stat.Bsize)
+	if blockSize <= 0 {
+		return 0, 0, 0, nil
+	}
+	return int64(stat.Blocks) * blockSize, int64(stat.Bfree) * blockSize, int64(stat.Bavail) * blockSize, nil
+}
+
+func readIOWaitPercent() (float64, bool) {
+	raw, err := os.ReadFile("/proc/stat")
+	if err != nil {
+		return 0, false
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if !strings.HasPrefix(line, "cpu ") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 8 {
+			return 0, false
+		}
+		var total uint64
+		for _, field := range fields[1:] {
+			value, _ := strconv.ParseUint(field, 10, 64)
+			total += value
+		}
+		iowait, _ := strconv.ParseUint(fields[5], 10, 64)
+		if total == 0 {
+			return 0, false
+		}
+		return float64(iowait) / float64(total) * 100, true
+	}
+	return 0, false
+}
+
 // GetDiskPartitions returns information about disk partitions
 func GetDiskPartitions() ([]map[string]interface{}, error) {
 	if runtime.GOOS != "linux" {
 		return []map[string]interface{}{}, nil
 	}
 
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", "df -B1 --output=source,size,used,avail,pcent,target | tail -n +2")
+	mounts, err := readProcMounts()
 	if err != nil {
 		return nil, err
 	}
 
-	var partitions []map[string]interface{}
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-
-	for _, line := range lines {
-		if line == "" {
+	partitions := make([]map[string]interface{}, 0, len(mounts))
+	for _, mount := range mounts {
+		sizeBytes, freeBytes, availBytes, err := statfsBytes(mount.mountPoint)
+		if err != nil || sizeBytes <= 0 {
 			continue
 		}
-
-		fields := strings.Fields(line)
-		if len(fields) < 6 {
-			continue
+		usedBytes := sizeBytes - freeBytes
+		if usedBytes < 0 {
+			usedBytes = 0
 		}
-
-		sizeBytes, _ := strconv.ParseInt(fields[1], 10, 64)
-		usedBytes, _ := strconv.ParseInt(fields[2], 10, 64)
-		availBytes, _ := strconv.ParseInt(fields[3], 10, 64)
-		percent := strings.TrimSuffix(fields[4], "%")
-		percentVal, _ := strconv.ParseFloat(percent, 64)
-		mountPoint := strings.Join(fields[5:], " ")
+		percentVal := float64(usedBytes) / float64(sizeBytes) * 100
 
 		partitions = append(partitions, map[string]interface{}{
-			"device":          fields[0],
+			"device":          mount.device,
 			"size_bytes":      sizeBytes,
 			"size_human":      formatBytesHuman(sizeBytes),
 			"used_bytes":      usedBytes,
@@ -381,11 +406,43 @@ func GetDiskPartitions() ([]map[string]interface{}, error) {
 			"available_bytes": availBytes,
 			"available_human": formatBytesHuman(availBytes),
 			"use_percent":     percentVal,
-			"mount_point":     mountPoint,
+			"mount_point":     mount.mountPoint,
 		})
 	}
 
 	return partitions, nil
+}
+
+type procMount struct {
+	device     string
+	mountPoint string
+}
+
+func readProcMounts() ([]procMount, error) {
+	file, err := os.Open("/proc/mounts")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var mounts []procMount
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) < 2 {
+			continue
+		}
+		mounts = append(mounts, procMount{
+			device:     unescapeProcMount(fields[0]),
+			mountPoint: unescapeProcMount(fields[1]),
+		})
+	}
+	return mounts, scanner.Err()
+}
+
+func unescapeProcMount(value string) string {
+	replacer := strings.NewReplacer(`\040`, " ", `\011`, "\t", `\012`, "\n", `\134`, `\`)
+	return replacer.Replace(value)
 }
 
 func formatBytesHuman(bytesValue int64) string {

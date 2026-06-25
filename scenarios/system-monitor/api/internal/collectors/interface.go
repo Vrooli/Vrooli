@@ -5,6 +5,7 @@ package collectors
 import (
 	"context"
 	"os/exec"
+	"sync/atomic"
 	"time"
 )
 
@@ -140,6 +141,14 @@ const defaultCommandTimeout = 2 * time.Second
 // process collector). Production always uses execCommandOutput.
 var commandOutput = execCommandOutput
 
+var commandForkCount atomic.Uint64
+
+// CommandForkCount returns the number of production collector subprocesses
+// started since process boot.
+func CommandForkCount() uint64 {
+	return commandForkCount.Load()
+}
+
 func execCommandOutput(ctx context.Context, timeout time.Duration, name string, args ...string) ([]byte, error) {
 	if timeout <= 0 {
 		timeout = defaultCommandTimeout
@@ -148,5 +157,6 @@ func execCommandOutput(ctx context.Context, timeout time.Duration, name string, 
 	defer cancel()
 
 	cmd := exec.CommandContext(cmdCtx, name, args...)
+	commandForkCount.Add(1)
 	return cmd.Output()
 }

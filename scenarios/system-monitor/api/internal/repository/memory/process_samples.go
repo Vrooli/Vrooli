@@ -2,7 +2,6 @@ package memory
 
 import (
 	"context"
-	"sort"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
@@ -25,111 +24,30 @@ func (r *MemoryRepository) QueryProcessTimeline(_ context.Context, q repository.
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	type agg struct {
-		owner       string
-		comm        string
-		pid         int
-		aggregated  bool
-		cpuSum      float64
-		cpuMax      float64
-		rssMax      int64
-		sampleCount int64
-		firstSeen   time.Time
-		lastSeen    time.Time
-	}
-	merged := map[string]*agg{}
-	key := func(owner, comm string) string { return owner + "\x00" + comm }
-
+	acc := repository.NewProcessTimelineAccumulator()
 	for _, s := range r.processSamples {
-		if s.Timestamp.Before(q.Start) || !s.Timestamp.Before(q.End) {
+		if !processSampleMatchesQuery(s, q) {
 			continue
 		}
-		if q.Owner != "" && s.Owner != q.Owner {
-			continue
-		}
-		a := merged[key(s.Owner, s.Comm)]
-		if a == nil {
-			a = &agg{owner: s.Owner, comm: s.Comm, pid: s.PID}
-			merged[key(s.Owner, s.Comm)] = a
-		}
-		a.cpuSum += s.CPUPct
-		if s.CPUPct > a.cpuMax {
-			a.cpuMax = s.CPUPct
-		}
-		if s.RSSKB > a.rssMax {
-			a.rssMax = s.RSSKB
-		}
-		a.sampleCount++
-		if a.firstSeen.IsZero() || s.Timestamp.Before(a.firstSeen) {
-			a.firstSeen = s.Timestamp
-		}
-		if s.Timestamp.After(a.lastSeen) {
-			a.lastSeen = s.Timestamp
-		}
+		acc.AddRaw(s.Owner, s.Comm, s.PID, s.CPUPct, s.RSSKB, s.Timestamp)
 	}
 
 	for _, ru := range r.processRollups {
-		if ru.Minute.Before(q.Start) || !ru.Minute.Before(q.End) {
+		if !processRollupMatchesQuery(ru, q) {
 			continue
 		}
-		if q.Owner != "" && ru.Owner != q.Owner {
-			continue
-		}
-		a := merged[key(ru.Owner, ru.Comm)]
-		if a == nil {
-			a = &agg{owner: ru.Owner, comm: ru.Comm}
-			merged[key(ru.Owner, ru.Comm)] = a
-		}
-		a.aggregated = true
-		a.cpuSum += ru.AvgCPUPct * float64(ru.SampleCount)
-		if ru.MaxCPUPct > a.cpuMax {
-			a.cpuMax = ru.MaxCPUPct
-		}
-		if ru.MaxRSSKB > a.rssMax {
-			a.rssMax = ru.MaxRSSKB
-		}
-		a.sampleCount += ru.SampleCount
-		if a.firstSeen.IsZero() || ru.Minute.Before(a.firstSeen) {
-			a.firstSeen = ru.Minute
-		}
-		if end := ru.Minute.Add(time.Minute); end.After(a.lastSeen) {
-			a.lastSeen = end
-		}
+		acc.AddRollup(ru.Owner, ru.Comm, ru.AvgCPUPct, ru.MaxCPUPct, ru.MaxRSSKB, ru.SampleCount, ru.Minute)
 	}
 
-	entries := make([]repository.ProcessTimelineEntry, 0, len(merged))
-	for _, a := range merged {
-		avg := 0.0
-		if a.sampleCount > 0 {
-			avg = a.cpuSum / float64(a.sampleCount)
-		}
-		entries = append(entries, repository.ProcessTimelineEntry{
-			Owner:       a.owner,
-			Comm:        a.comm,
-			PID:         a.pid,
-			Aggregated:  a.aggregated,
-			CPUPct:      avg,
-			RSSKB:       a.rssMax,
-			SampleCount: a.sampleCount,
-			FirstSeen:   a.firstSeen,
-			LastSeen:    a.lastSeen,
-		})
-	}
-	sort.SliceStable(entries, func(i, j int) bool {
-		if entries[i].CPUPct != entries[j].CPUPct {
-			return entries[i].CPUPct > entries[j].CPUPct
-		}
-		return entries[i].RSSKB > entries[j].RSSKB
-	})
+	return acc.Entries(q.Top), nil
+}
 
-	top := q.Top
-	if top <= 0 {
-		top = 20
-	}
-	if len(entries) > top {
-		entries = entries[:top]
-	}
-	return entries, nil
+func processSampleMatchesQuery(s repository.ProcessSample, q repository.ProcessTimelineQuery) bool {
+	return !s.Timestamp.Before(q.Start) && s.Timestamp.Before(q.End) && (q.Owner == "" || s.Owner == q.Owner)
+}
+
+func processRollupMatchesQuery(ru processRollup, q repository.ProcessTimelineQuery) bool {
+	return !ru.Minute.Before(q.Start) && ru.Minute.Before(q.End) && (q.Owner == "" || ru.Owner == q.Owner)
 }
 
 // PruneProcessSamplesBefore drops raw rows older than cutoff.

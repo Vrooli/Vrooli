@@ -3,6 +3,7 @@ package collectors
 import (
 	"context"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -147,78 +148,133 @@ func TestMemoryCollector_Collect(t *testing.T) {
 // TestDiskCollector_Collect tests disk metrics collection
 func TestDiskCollector_Collect(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		collector := NewDiskCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-
-		if metrics == nil {
-			t.Fatal("Expected metrics, got nil")
-		}
-
-		if metrics.CollectorName != "disk" {
-			t.Errorf("Expected collector name 'disk', got %s", metrics.CollectorName)
-		}
+		assertCollectorBasics(t, NewDiskCollector(), "disk")
 	})
 
 	t.Run("DiskStats", func(t *testing.T) {
-		collector := NewDiskCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Fatalf("Failed to collect metrics: %v", err)
-		}
-
-		// Disk metrics should contain partition information
-		if metrics.Values == nil {
-			t.Fatal("Expected values map, got nil")
-		}
-
-		// Log available fields for debugging
+		metrics := mustCollectMetrics(t, NewDiskCollector())
 		t.Logf("Disk metrics values: %+v", metrics.Values)
 	})
+}
+
+func TestDiskCollector_NoSteadyForks(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("disk collector reads /proc/statfs only on linux")
+	}
+
+	c := NewDiskCollector()
+	forks := countCommandForks(t, func() error {
+		_, err := c.Collect(context.Background())
+		return err
+	})
+	if forks != 0 {
+		t.Errorf("disk collection forked %d times, want 0", forks)
+	}
 }
 
 // TestNetworkCollector_Collect tests network metrics collection
 func TestNetworkCollector_Collect(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		collector := NewNetworkCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
-		}
-
-		if metrics == nil {
-			t.Fatal("Expected metrics, got nil")
-		}
-
-		if metrics.CollectorName != "network" {
-			t.Errorf("Expected collector name 'network', got %s", metrics.CollectorName)
-		}
+		assertCollectorBasics(t, NewNetworkCollector(), "network")
 	})
 
 	t.Run("NetworkInterfaces", func(t *testing.T) {
-		collector := NewNetworkCollector()
-		ctx := context.Background()
-
-		metrics, err := collector.Collect(ctx)
-		if err != nil {
-			t.Fatalf("Failed to collect metrics: %v", err)
-		}
-
-		// Network metrics should contain interface information
-		if metrics.Values == nil {
-			t.Fatal("Expected values map, got nil")
-		}
-
+		metrics := mustCollectMetrics(t, NewNetworkCollector())
 		t.Logf("Network metrics values: %+v", metrics.Values)
 	})
+}
+
+func TestNetworkCollector_NoSteadyForks(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("network collector reads /proc only on linux")
+	}
+
+	c := NewNetworkCollector()
+	forks := countCommandForks(t, func() error {
+		_, err := c.Collect(context.Background())
+		return err
+	})
+	if forks != 0 {
+		t.Errorf("network collection forked %d times, want 0", forks)
+	}
+}
+
+func countCommandForks(t *testing.T, collect func() error) int {
+	t.Helper()
+
+	var mu sync.Mutex
+	forks := 0
+
+	orig := commandOutput
+	defer func() { commandOutput = orig }()
+	commandOutput = func(_ context.Context, _ time.Duration, name string, args ...string) ([]byte, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		forks++
+		return []byte(""), nil
+	}
+
+	if err := collect(); err != nil {
+		t.Fatalf("collect: %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	return forks
+}
+
+type testCollector interface {
+	Collect(context.Context) (*MetricData, error)
+}
+
+func assertCollectorBasics(t *testing.T, collector testCollector, wantName string) {
+	t.Helper()
+
+	metrics := mustCollectMetrics(t, collector)
+	if metrics.CollectorName != wantName {
+		t.Errorf("Expected collector name %q, got %s", wantName, metrics.CollectorName)
+	}
+}
+
+func mustCollectMetrics(t *testing.T, collector testCollector) *MetricData {
+	t.Helper()
+
+	metrics, err := collector.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to collect metrics: %v", err)
+	}
+	if metrics == nil {
+		t.Fatal("Expected metrics, got nil")
+	}
+	if metrics.Values == nil {
+		t.Fatal("Expected values map, got nil")
+	}
+	return metrics
+}
+
+func TestParseNetDevLine(t *testing.T) {
+	name, stats, ok := parseNetDevLine("  eth0: 100 2 3 4 0 0 0 0 900 8 7 6 0 0 0 0")
+	if !ok {
+		t.Fatal("parseNetDevLine returned !ok")
+	}
+	if name != "eth0" {
+		t.Fatalf("name = %q, want eth0", name)
+	}
+	if stats.bytesRecv != 100 || stats.packetsRecv != 2 || stats.errorsIn != 3 || stats.droppedIn != 4 {
+		t.Fatalf("recv stats parsed incorrectly: %+v", stats)
+	}
+	if stats.bytesSent != 900 || stats.packetsSent != 8 || stats.errorsOut != 7 || stats.droppedOut != 6 {
+		t.Fatalf("sent stats parsed incorrectly: %+v", stats)
+	}
+}
+
+func TestIsEphemeralAddressPort(t *testing.T) {
+	if !isEphemeralAddressPort("0100007F:7530") {
+		t.Fatal("port 30000 should be counted as ephemeral")
+	}
+	if isEphemeralAddressPort("0100007F:0050") {
+		t.Fatal("port 80 should not be counted as ephemeral")
+	}
 }
 
 // TestProcessCollector_Collect tests process metrics collection

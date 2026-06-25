@@ -3,6 +3,7 @@ package convert
 import (
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -79,6 +80,35 @@ func InfrastructureMonitorDataToProto(m *models.InfrastructureMonitorData) *metr
 		MessageQueues:   messageQueueInfoToProto(m.MessageQueues),
 		StorageIo:       storageIOInfoToProto(m.StorageIO),
 		Timestamp:       timestamppb.New(m.Timestamp),
+	}
+}
+
+func ProcessTimelineResponseToProto(windowSeconds int, owner string, top int, entries []repository.ProcessTimelineEntry) *metricspb.ProcessTimelineResponse {
+	pbEntries := make([]*metricspb.ProcessTimelineEntry, 0, len(entries))
+	for _, e := range entries {
+		row := &metricspb.ProcessTimelineEntry{
+			Owner:       e.Owner,
+			Comm:        e.Comm,
+			Pid:         int32(e.PID),
+			Aggregated:  e.Aggregated,
+			CpuPct:      e.CPUPct,
+			RssKb:       e.RSSKB,
+			SampleCount: e.SampleCount,
+		}
+		if !e.FirstSeen.IsZero() {
+			row.FirstSeen = timestamppb.New(e.FirstSeen)
+		}
+		if !e.LastSeen.IsZero() {
+			row.LastSeen = timestamppb.New(e.LastSeen)
+		}
+		pbEntries = append(pbEntries, row)
+	}
+	return &metricspb.ProcessTimelineResponse{
+		WindowSeconds: int32(windowSeconds),
+		Owner:         owner,
+		Top:           int32(top),
+		Count:         int32(len(pbEntries)),
+		Entries:       pbEntries,
 	}
 }
 

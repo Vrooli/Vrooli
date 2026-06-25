@@ -7,7 +7,7 @@
     },
     "settings": {
         "active": true,
-        "metric_collection_interval": 10,
+        "metric_collection_interval": 20,
         "anomaly_detection_interval": 30,
         "threshold_check_interval": 20,
         "cooldown_period_seconds": 300,

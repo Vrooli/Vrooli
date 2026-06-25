@@ -52,7 +52,7 @@ export default defineConfig(({ mode }): UserConfig => {
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
-      sourcemap: true,
+      sourcemap: isProfile,
       rollupOptions: {
         output: {
           // Split the vendor libraries that ARE on the initial-paint graph
@@ -67,7 +67,7 @@ export default defineConfig(({ mode }): UserConfig => {
           // Vite emit a <link rel="modulepreload"> for them — eagerly fetching
           // ~1 MB on the dashboard load, which is exactly what we're avoiding.
           manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'react-vendor': ['react', 'react-dom', 'react-dom/client', 'react-router-dom'],
             icons: ['lucide-react'],
           },
         },

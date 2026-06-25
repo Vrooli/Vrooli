@@ -3,15 +3,43 @@ package collectors
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 )
 
 // ProcessCollector collects process metrics
 type ProcessCollector struct {
 	BaseCollector
+}
+
+type processStat struct {
+	pid     int
+	comm    string
+	state   string
+	threads int
+	rssKB   int64
+}
+
+var (
+	topProcessSamplerMu sync.Mutex
+	topProcessSampler   procsampler.Sampler = procsampler.NewSampler()
+)
+
+func SetTopProcessSampler(sampler procsampler.Sampler) {
+	topProcessSamplerMu.Lock()
+	defer topProcessSamplerMu.Unlock()
+	if sampler == nil {
+		topProcessSampler = procsampler.NewSampler()
+		return
+	}
+	topProcessSampler = sampler
 }
 
 // NewProcessCollector creates a new process collector
@@ -25,9 +53,15 @@ func NewProcessCollector() *ProcessCollector {
 // once here and reused for the health summary — previously getProcessHealth
 // re-shelled both queries, doubling the forks per cycle.
 func (c *ProcessCollector) Collect(ctx context.Context) (*MetricData, error) {
-	totalProcesses := c.getTotalProcessCount(ctx)
-	zombieProcesses := c.getZombieProcesses(ctx)
-	highThreadProcesses := c.getHighThreadProcesses(ctx)
+	totalProcesses := 250
+	var zombieProcesses []map[string]interface{}
+	var highThreadProcesses []map[string]interface{}
+	if runtime.GOOS == "linux" {
+		stats, _ := readProcessStats(ctx)
+		totalProcesses = len(stats)
+		zombieProcesses = zombieProcessesFromStats(stats)
+		highThreadProcesses = highThreadProcessesFromStats(stats)
+	}
 	topProcesses, _ := GetTopProcessesByCPU(10)
 
 	return &MetricData{
@@ -50,13 +84,50 @@ func (c *ProcessCollector) getTotalProcessCount(ctx context.Context) int {
 		return 250
 	}
 
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", "ps -e --no-headers | wc -l")
+	stats, err := readProcessStats(ctx)
 	if err != nil {
 		return 0
 	}
+	return len(stats)
+}
 
-	count, _ := strconv.Atoi(strings.TrimSpace(string(output)))
-	return count
+func zombieProcessesFromStats(stats []processStat) []map[string]interface{} {
+	var zombies []map[string]interface{}
+	for _, stat := range stats {
+		if stat.state == "Z" {
+			zombies = append(zombies, map[string]interface{}{
+				"pid":    stat.pid,
+				"name":   stat.comm,
+				"status": "zombie",
+			})
+			if len(zombies) >= 10 {
+				break
+			}
+		}
+	}
+	return zombies
+}
+
+func highThreadProcessesFromStats(stats []processStat) []map[string]interface{} {
+	stats = append([]processStat(nil), stats...)
+	sort.SliceStable(stats, func(i, j int) bool {
+		return stats[i].threads > stats[j].threads
+	})
+
+	processes := []map[string]interface{}{}
+	for _, stat := range stats {
+		if stat.threads > 20 {
+			processes = append(processes, map[string]interface{}{
+				"pid":     stat.pid,
+				"name":    stat.comm,
+				"threads": stat.threads,
+			})
+			if len(processes) >= 5 {
+				break
+			}
+		}
+	}
+	return processes
 }
 
 // getZombieProcesses returns zombie processes
@@ -67,29 +138,12 @@ func (c *ProcessCollector) getZombieProcesses(ctx context.Context) []map[string]
 		return zombies
 	}
 
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", "ps -eo pid,comm,stat | grep ' Z' | head -10")
+	stats, err := readProcessStats(ctx)
 	if err != nil {
 		return zombies
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 2 {
-			pid, _ := strconv.Atoi(fields[0])
-			zombies = append(zombies, map[string]interface{}{
-				"pid":    pid,
-				"name":   fields[1],
-				"status": "zombie",
-			})
-		}
-	}
-
-	return zombies
+	return zombieProcessesFromStats(stats)
 }
 
 // getHighThreadProcesses returns processes with high thread counts
@@ -100,33 +154,11 @@ func (c *ProcessCollector) getHighThreadProcesses(ctx context.Context) []map[str
 		return processes
 	}
 
-	output, err := commandOutput(ctx, 2*time.Second, "bash", "-c", "ps -eo pid,comm,nlwp --sort=-nlwp --no-headers | head -5")
+	stats, err := readProcessStats(ctx)
 	if err != nil {
 		return processes
 	}
-
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		fields := strings.Fields(line)
-		if len(fields) >= 3 {
-			pid, _ := strconv.Atoi(fields[0])
-			threads, _ := strconv.Atoi(fields[2])
-
-			if threads > 20 { // Only include processes with >20 threads
-				processes = append(processes, map[string]interface{}{
-					"pid":     pid,
-					"name":    fields[1],
-					"threads": threads,
-				})
-			}
-		}
-	}
-
-	return processes
+	return highThreadProcessesFromStats(stats)
 }
 
 // processHealth builds the health summary from the zombie and high-thread
@@ -157,8 +189,8 @@ var criticalProcessNames = []string{
 	"system-monitor-api",
 }
 
-// checkCriticalProcesses reports presence of each critical process using ONE
-// process-table scan (a single fork) rather than one pgrep fork per name.
+// checkCriticalProcesses reports presence of each critical process using one
+// native /proc scan rather than one pgrep fork per name.
 func (c *ProcessCollector) checkCriticalProcesses(ctx context.Context) []map[string]interface{} {
 	running := c.runningCommandSet(ctx)
 
@@ -173,21 +205,20 @@ func (c *ProcessCollector) checkCriticalProcesses(ctx context.Context) []map[str
 }
 
 // runningCommandSet returns the set of running process command names from a
-// single `ps -eo comm` scan. On non-Linux platforms it returns nil and callers
-// treat every critical process as present (the prior behavior).
+// single /proc scan. On non-Linux platforms it returns nil and callers treat
+// every critical process as present (the prior behavior).
 func (c *ProcessCollector) runningCommandSet(ctx context.Context) map[string]struct{} {
 	if runtime.GOOS != "linux" {
 		return nil
 	}
-	output, err := commandOutput(ctx, 2*time.Second, "ps", "-eo", "comm", "--no-headers")
+	stats, err := readProcessStats(ctx)
 	if err != nil {
 		return map[string]struct{}{}
 	}
 	set := map[string]struct{}{}
-	for _, line := range strings.Split(string(output), "\n") {
-		name := strings.TrimSpace(line)
-		if name != "" {
-			set[name] = struct{}{}
+	for _, stat := range stats {
+		if stat.comm != "" {
+			set[stat.comm] = struct{}{}
 		}
 	}
 	return set
@@ -215,13 +246,12 @@ func GetProcessFileDescriptors(pid int) int {
 	}
 
 	fdDir := fmt.Sprintf("/proc/%d/fd", pid)
-	output, err := commandOutput(context.Background(), 2*time.Second, "bash", "-c", fmt.Sprintf("ls %s 2>/dev/null | wc -l", fdDir))
+	entries, err := os.ReadDir(fdDir)
 	if err != nil {
 		return 0
 	}
 
-	count, _ := strconv.Atoi(strings.TrimSpace(string(output)))
-	return count
+	return len(entries)
 }
 
 // GetResourceLeakCandidates identifies processes that might have resource leaks
@@ -238,4 +268,108 @@ func GetResourceLeakCandidates() []map[string]interface{} {
 			"description": "High file descriptor count",
 		},
 	}
+}
+
+func readProcessStats(ctx context.Context) ([]processStat, error) {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil, err
+	}
+	stats := make([]processStat, 0, len(entries))
+	for _, entry := range entries {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if !entry.IsDir() {
+			continue
+		}
+		pid, err := strconv.Atoi(entry.Name())
+		if err != nil {
+			continue
+		}
+		raw, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+		if err != nil {
+			continue
+		}
+		stat, ok := parseProcessStat(pid, string(raw))
+		if !ok {
+			continue
+		}
+		stats = append(stats, stat)
+	}
+	return stats, nil
+}
+
+func parseProcessStat(pid int, line string) (processStat, bool) {
+	line = strings.TrimSpace(line)
+	openParen := strings.IndexByte(line, '(')
+	closeParen := strings.LastIndexByte(line, ')')
+	if openParen < 0 || closeParen < 0 || closeParen < openParen {
+		return processStat{}, false
+	}
+	rest := strings.Fields(line[closeParen+1:])
+	if len(rest) < 22 {
+		return processStat{}, false
+	}
+	rssPages := atoiOrZero(rest[21])
+	return processStat{
+		pid:     pid,
+		comm:    line[openParen+1 : closeParen],
+		state:   rest[0],
+		threads: atoiOrZero(rest[17]),
+		rssKB:   int64(rssPages) * int64(os.Getpagesize()/1024),
+	}, true
+}
+
+func atoiOrZero(s string) int {
+	n, _ := strconv.Atoi(strings.TrimSpace(s))
+	return n
+}
+
+func topProcessSamples(limit int, less func(a, b procsampler.ProcessSample) bool) ([]procsampler.ProcessSample, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+	topProcessSamplerMu.Lock()
+	defer topProcessSamplerMu.Unlock()
+	samples, err := topProcessSampler.Sample(context.Background())
+	if err != nil {
+		if err == procsampler.ErrUnsupported {
+			return []procsampler.ProcessSample{}, nil
+		}
+		return nil, err
+	}
+	sort.SliceStable(samples, func(i, j int) bool {
+		return less(samples[i], samples[j])
+	})
+	if len(samples) > limit {
+		samples = samples[:limit]
+	}
+	return samples, nil
+}
+
+func totalMemoryKB() int64 {
+	raw, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return 0
+		}
+		n, _ := strconv.ParseInt(fields[1], 10, 64)
+		return n
+	}
+	return 0
+}
+
+func memoryPercent(rssKB, totalKB int64) float64 {
+	if rssKB <= 0 || totalKB <= 0 {
+		return 0
+	}
+	return float64(rssKB) / float64(totalKB) * 100
 }

@@ -1,11 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	handlermocks "github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/handlers/mocks"
@@ -24,7 +28,7 @@ func TestGetProcessTimeline_RankedWindow(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/processes/timeline?window=5m&top=10", nil)
 	w := httptest.NewRecorder()
-	handler.GetProcessTimeline(w, req)
+	handler.HandleGetProcessTimeline(w, req)
 
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 
@@ -61,11 +65,50 @@ func TestGetProcessTimeline_BareSecondsWindow(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/processes/timeline?window=120", nil)
 	w := httptest.NewRecorder()
-	handler.GetProcessTimeline(w, req)
+	handler.HandleGetProcessTimeline(w, req)
 
 	testutil.AssertStatusCode(t, w.Code, http.StatusOK)
 	body := testutil.DecodeJSONBody[map[string]interface{}](t, w.Body.Bytes())
 	if body["window_seconds"].(float64) != 120 {
 		t.Errorf("bare-seconds window_seconds = %v, want 120", body["window_seconds"])
 	}
+}
+
+func TestGetProcessTimelineConnect_RankedWindow(t *testing.T) {
+	now := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
+	mock := handlermocks.NewMonitorQuerier().WithProcessTimeline([]repository.ProcessTimelineEntry{
+		{Owner: "security-health", Comm: "osv-scanner", PID: 42, CPUPct: 130.5, RSSKB: 2048, SampleCount: 7, FirstSeen: now, LastSeen: now.Add(time.Minute)},
+	})
+
+	handler := NewMetricsHandler(&config.Config{}, mock, slog.Default())
+
+	resp, err := handler.GetProcessTimeline(context.Background(), connect.NewRequest(&metricspb.GetProcessTimelineRequest{
+		WindowSeconds: ptrInt32(300),
+		Owner:         "security-health",
+		Top:           ptrInt32(10),
+	}))
+	if err != nil {
+		t.Fatalf("GetProcessTimeline returned error: %v", err)
+	}
+
+	timeline := resp.Msg.GetTimeline()
+	if timeline.GetWindowSeconds() != 300 {
+		t.Fatalf("window_seconds = %d, want 300", timeline.GetWindowSeconds())
+	}
+	if timeline.GetOwner() != "security-health" {
+		t.Fatalf("owner = %q, want security-health", timeline.GetOwner())
+	}
+	if timeline.GetCount() != 1 {
+		t.Fatalf("count = %d, want 1", timeline.GetCount())
+	}
+	if got := timeline.GetEntries()[0].GetCpuPct(); got != 130.5 {
+		t.Fatalf("cpu_pct = %v, want 130.5", got)
+	}
+	if timeline.GetEntries()[0].GetFirstSeen() == nil {
+		t.Fatalf("first_seen missing")
+	}
+}
+
+func ptrInt32(v int32) *int32 {
+	return &v
 }

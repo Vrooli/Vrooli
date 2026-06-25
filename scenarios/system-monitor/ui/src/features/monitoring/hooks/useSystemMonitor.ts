@@ -3,17 +3,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { timestampMs } from '@bufbuild/protobuf/wkt';
 import { buildUrl as buildApiUrl } from '../../../lib/api-client';
 import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
+import { parseMetricsResponse } from '../../../shared/api/current-metrics-contract';
 import { useToast } from '../../../shared/components/ToastProvider';
 import { toIsoString } from '../../../shared/utils/timestamps';
-import {
-  parseMetricsResponse,
-  parseDetailedMetrics,
-  parseProcessMonitorData,
-  parseInfrastructureMonitorData,
-  parseInvestigations,
-  parseGetMaintenanceStateResponse,
-  parseSetMaintenanceStateResponse,
-} from '../../../shared/api/proto-contracts';
 import { usePolling } from '../../../shared/hooks/usePolling';
 import { useHealthCheck } from './useHealthCheck';
 import { useMetricHistory } from './useMetricHistory';
@@ -150,6 +142,10 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     let cancelled = false;
 
     const activateMonitoring = async () => {
+      const {
+        parseGetMaintenanceStateResponse,
+        parseSetMaintenanceStateResponse,
+      } = await import('../../../shared/api/proto-contracts');
       let currentState: MaintenanceState = 'inactive';
       try {
         const state = await protoFetch('/maintenance/state', parseGetMaintenanceStateResponse);
@@ -182,12 +178,15 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       }
     };
 
-    activateMonitoring().catch((err: unknown) => { console.error('Failed to activate monitoring:', err); });
+    const activationTimer = window.setTimeout(() => {
+      activateMonitoring().catch((err: unknown) => { console.error('Failed to activate monitoring:', err); });
+    }, 2200);
 
     const stateRef = maintenanceStateRef.current;
 
     return () => {
       cancelled = true;
+      window.clearTimeout(activationTimer);
       const previous = stateRef.previous;
       if (stateRef.activated && previous && previous !== 'active') {
         fetch(buildApiUrl('/maintenance/state'), {
@@ -205,6 +204,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   const fetchDetailedMetrics = useCallback(async () => {
     try {
+      const { parseDetailedMetrics } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/detailed', parseDetailedMetrics);
       if (!mountedRef.current) return;
       setDetailedMetrics(data);
@@ -222,6 +222,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   const fetchProcessMonitorData = useCallback(async () => {
     try {
+      const { parseProcessMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/processes', parseProcessMonitorData);
       if (!mountedRef.current) return;
       setProcessMonitorData(data);
@@ -235,6 +236,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   const fetchInfrastructureData = useCallback(async () => {
     try {
+      const { parseInfrastructureMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/infrastructure', parseInfrastructureMonitorData);
       if (!mountedRef.current) return;
       setInfrastructureData(data);
@@ -256,6 +258,7 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
 
   const fetchInvestigations = useCallback(async () => {
     try {
+      const { parseInvestigations } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/investigations?limit=10', parseInvestigations);
       if (!mountedRef.current) return;
       const sorted = [...data].sort((a, b) => {
@@ -286,6 +289,22 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
     ]);
   }, [fetchDetailedMetrics, fetchMetrics, fetchMetricsTimeline]);
 
+  const fetchDeferredData = useCallback(async () => {
+    await Promise.all([
+      fetchDetailedMetrics(),
+      fetchProcessMonitorData(),
+      fetchInfrastructureData(),
+      fetchInvestigations(),
+      fetchMetricsTimeline(120)
+    ]);
+  }, [
+    fetchMetricsTimeline,
+    fetchDetailedMetrics,
+    fetchProcessMonitorData,
+    fetchInfrastructureData,
+    fetchInvestigations
+  ]);
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
@@ -301,32 +320,56 @@ export const useSystemMonitor = (): UseSystemMonitorReturn => {
       return;
     }
 
-    await Promise.all([
-      fetchMetrics(),
-      fetchDetailedMetrics(),
-      fetchProcessMonitorData(),
-      fetchInfrastructureData(),
-      fetchInvestigations(),
-      fetchMetricsTimeline(120)
-    ]);
+    await fetchMetrics();
 
     if (!mountedRef.current) return;
     setIsLoading(false);
+
+    await fetchDeferredData();
+
+    if (!mountedRef.current) return;
   }, [
     checkHealth,
     setSubsystemError,
-    fetchMetricsTimeline,
     fetchMetrics,
-    fetchDetailedMetrics,
-    fetchProcessMonitorData,
-    fetchInfrastructureData,
-    fetchInvestigations
+    fetchDeferredData
   ]);
+
+  const refreshInitial = useCallback(async () => {
+    setIsLoading(true);
+
+    const isHealthy = await checkHealth();
+    if (!mountedRef.current) return;
+    if (!isHealthy) {
+      setSubsystemError('metrics', {
+        error: 'API server is not responding',
+        detail: { code: 'unavailable', message: 'Health check failed - ensure the Go backend is running', retryable: true, recovery: 'wait' },
+        timestamp: new Date().toISOString(),
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    await fetchMetrics();
+
+    if (!mountedRef.current) return;
+    setIsLoading(false);
+  }, [checkHealth, fetchMetrics, setSubsystemError]);
 
   // Initial load
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    let cancelled = false;
+    void refreshInitial();
+    const deferredTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        void fetchDeferredData();
+      }
+    }, 2200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(deferredTimer);
+    };
+  }, [fetchDeferredData, refreshInitial]);
 
   // Set up polling for metrics (every 5 seconds for responsive graphs)
   usePolling(refreshMetrics, 5000, true, { enabled: true, maxIntervalMs: 60000 });

@@ -8,29 +8,29 @@
 ## 🎯 Overview
 - **Purpose**: Real-time system monitoring with AI-driven anomaly detection and automated root-cause investigation. System Monitor gives Vrooli infrastructure observability — live CPU/memory/disk/network/GPU metrics, threshold-based anomaly detection, and agent-driven investigations — so the platform can proactively manage its own health.
 - **Primary users/verticals**: DevOps engineers, SREs, and system administrators; Vrooli operators and automated agents that need a reliable "is the system healthy?" signal and diagnostic context.
-- **Deployment surfaces**: CLI (`system-monitor`: health, metrics, status, alerts, investigate, report, dashboard, watch), API (REST `/api/v1/...` for metrics, investigations, reports, settings, agent config, tools), UI (Matrix-themed React monitoring dashboard).
+- **Deployment surfaces**: CLI (`system-monitor`: health, metrics, status, metrics/investigations/reports/settings/maintenance/capacity domains), API (proto-first Connect-RPC contract plus health/log/forensics/tool REST exceptions), UI (Matrix-themed React monitoring dashboard).
 - **Value promise**: Prevents downtime and reduces mean-time-to-resolution by surfacing anomalies early and auto-investigating them with AI, consolidating multiple monitoring tools into one integrated, self-healing-capable scenario.
 - **Why it matters**: Shared observability is foundational infrastructure the whole platform builds on; AI root-cause analysis (threshold detection plus agent-manager-driven investigation) turns raw metrics into actionable findings; and the resulting performance baselines and anomaly patterns feed future auto-scaling, cost-optimization, and incident-response scenarios.
 
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Real-time CPU, memory, disk, network, GPU monitoring | Live system metric collection across core resource dimensions
-- [ ] OT-P0-002 | Threshold-based anomaly detection with configurable triggers | Detect anomalies against configurable warning/critical thresholds
-- [ ] OT-P0-003 | Automated investigation of system anomalies via agent-manager | Spawn AI investigations on anomalies through agent-manager integration
+- [x] OT-P0-001 | Real-time CPU, memory, disk, network, GPU monitoring | Live system metric collection across core resource dimensions
+- [x] OT-P0-002 | Threshold-based anomaly detection with configurable triggers | Detect anomalies against configurable warning/critical thresholds
+- [x] OT-P0-003 | Automated investigation of system anomalies via agent-manager | Spawn AI investigations on anomalies through agent-manager integration
 - [ ] OT-P0-004 | Time-series data storage in QuestDB | Persist metrics history (QuestDB configured; API defaults to in-memory with PostgreSQL fallback)
-- [ ] OT-P0-005 | Configurable warning/critical thresholds | Manage per-metric thresholds via API settings endpoints
-- [ ] OT-P0-006 | Report generation (daily/weekly) | Generate daily and weekly system reports via API endpoint
-- [ ] OT-P0-007 | Dark cyberpunk monitoring dashboard | Matrix-themed React UI for live monitoring
+- [x] OT-P0-005 | Configurable warning/critical thresholds | Manage per-metric thresholds via API settings endpoints
+- [x] OT-P0-006 | Report generation (daily/weekly) | Generate daily and weekly system reports via API endpoint
+- [x] OT-P0-007 | Dark cyberpunk monitoring dashboard | Matrix-themed React UI for live monitoring
 - [ ] OT-P0-008 | Investigation script execution | 30 investigation scripts available in investigations/active/ (API script endpoints are placeholders)
 - [ ] OT-P0-009 | Process monitoring and management | Zombie detection and process insight (UI has kill dialog; API kill endpoint not yet implemented)
-- [ ] OT-P0-010 | Infrastructure monitoring | Monitor database pools, HTTP pools, message queues, and storage I/O
+- [x] OT-P0-010 | Infrastructure monitoring | Monitor database pools, HTTP pools, message queues, and storage I/O
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-011 | Historical trend analysis | Trend analysis over time (currently only within report generation; no timeline endpoint)
-- [ ] OT-P1-012 | Alert webhook support | Cooldown-based alert webhook delivery on threshold violations
-- [ ] OT-P1-013 | Investigation cooldown management | Configurable cooldown period with reset capability
-- [ ] OT-P1-014 | Agent configuration management | Configure runner type, model, max turns, and timeout
+- [x] OT-P1-012 | Alert webhook support | Cooldown-based alert webhook delivery on threshold violations
+- [x] OT-P1-013 | Investigation cooldown management | Configurable cooldown period with reset capability
+- [x] OT-P1-014 | Agent configuration management | Configure runner type, model, max turns, and timeout
 - [ ] OT-P1-015 | Custom metric collection via API | Ingest custom metrics via API (currently only built-in collectors)
 - [ ] OT-P1-016 | Alert routing to multiple channels | Route alerts to multiple channels (webhook configured; email not implemented)
 - [ ] OT-P1-017 | Resource prediction models | Predictive resource modeling (not implemented)
@@ -43,9 +43,9 @@
 - [ ] OT-P2-004 | WebSocket real-time updates | Push real-time updates (type defined; UI currently uses HTTP polling)
 
 ## 🧱 Tech Direction Snapshot
-- Preferred stacks / frameworks: Go API (REST under `/api/v1`), React + Vite UI (Matrix/cyberpunk theme), Bash CLI (`system-monitor`) with curl-based API client.
+- Preferred stacks / frameworks: Go API with proto-first Connect-RPC as the target contract, React + Vite UI (Matrix/cyberpunk theme), Go CLI (`system-monitor`) generated from `cli/manifest.json` and migrating to generated Connect clients.
 - Data + storage expectations: PostgreSQL for thresholds/investigations/configuration; QuestDB configured for high-performance time-series ingestion (API defaults to in-memory with PostgreSQL fallback); Redis for real-time alerts and pub/sub.
-- Integration strategy: agent-manager for AI investigations (Ollama `llama3.2:3b`); resource CLIs (`resource-questdb`, `resource-redis`) for direct queries/alert distribution; optional Grafana for advanced visualization.
+- Integration strategy: agent-manager for AI investigations (Ollama `llama3.2:3b`); resource CLIs (`resource-questdb`, `resource-redis`) for direct queries/alert distribution; optional Grafana for advanced visualization; stable programmatic reuse through generated proto/Connect clients.
 - Non-goals / guardrails: not a cloud-provider-native monitor (local systems first); no plugin system for custom collectors yet; no built-in authentication; Node-RED flow prototypes in `initialization/node-red/` are speculative and not wired into the runtime.
 
 ## 🤝 Dependencies & Launch Plan
@@ -65,18 +65,18 @@
 
 **Capability definition** — Core capability: real-time observability with AI-driven anomaly detection and automated root-cause analysis across all Vrooli resources and scenarios. Intelligence amplification: performance baselines guide agent execution; anomaly patterns catch cascading issues early; resource-usage profiles inform scheduling; diagnostic workflows feed self-healing. Recursive value: enables Auto-Scaling Orchestrator, Cost Optimization Advisor, Security Threat Detector, Performance Tuner, and Incident Response Manager scenarios.
 
-**Performance criteria** — Metric collection < 100ms latency (scrape duration); anomaly detection < 30s from occurrence (alert timestamp comparison); dashboard refresh 5s current+detailed metrics / 60s process/infra/investigations / 4s agent status (WebSocket not implemented, UI polling interval); query performance < 500ms for 24h data (QuestDB query profiling); AI investigation < 2min per anomaly (workflow execution time).
+**Performance criteria** — Metric collection < 100ms latency (scrape duration); anomaly detection < 30s from occurrence (alert timestamp comparison); dashboard refresh 5s current+detailed metrics / 60s process/infra/investigations / 4s agent status (WebSocket not implemented, UI polling interval); query performance < 500ms for 24h data (QuestDB query profiling); AI investigation < 2min per anomaly (workflow execution time). Collectors should be efficient by construction: steady-state host collection should prefer native `/proc`/syscall reads, avoid shell pipelines, share process walks across metrics and attribution, and surface self-metrics so monitor overhead remains measurable.
 
-**API surface (summary)** — Health: `GET /health`, `GET /api/v1/health`. Metrics: `GET /api/v1/metrics/{current,detailed,processes,infrastructure}`. Investigations: list/get/trigger plus agent spawn/status/stop, status/findings/progress/step updates, cooldown management, trigger config, and (placeholder) script endpoints under `/api/v1/investigations/...`. Reports: `POST /api/v1/reports/generate`, `GET /api/v1/reports`, `GET /api/v1/reports/{id}`. Settings: `GET/PUT /api/v1/settings`, `POST /api/v1/settings/reset`. Maintenance: `GET/POST /api/v1/maintenance/state`. Agent config: `GET/PUT /api/v1/agent/config`, `GET /api/v1/agent/{runners,status}`. Tool discovery: `GET /api/v1/tools`, `GET /api/v1/tools/{name}`, `POST /api/v1/tools/execute`.
+**API surface (summary)** — Target contract: generated Connect services under `vrooli.system_monitor.v1.{health,metrics,investigations,reports,settings,maintenance,capacity,scripts}`. Proto-owned manual REST routes have been removed from the runtime router. REST exceptions are limited to Health `GET /health`, `GET /api/v1/health`; development pprof; raw logs/forensics; and tool discovery/execution protocols. Long-term REST exceptions are limited to ops probes, raw logs/forensics, third-party/webhook shapes, protocol-specific tool surfaces, and multipart/blob cases.
 
-**CLI surface (summary)** — `system-monitor` (Bash, curl-based): `version`, `health`, `metrics`, `status`, `alerts`, `investigate`, `report <daily|weekly>`, `dashboard`, `watch`, `simulate`. Global flags `-h/--help`, `-v/--version`, `-p/--port`, `-j/--json`, `-q/--quiet`. Env: `API_PORT` (8080), `UI_PORT` (3003).
+**CLI surface (summary)** — `system-monitor` (Go, manifest-backed): built-in lifecycle/status commands plus domain groups for `metrics`, `investigations`, `reports`, `settings`, `maintenance`, `capacity`, and overview/watch flows. `metrics process-timeline --window 5m --top 20 --json` is the dogfood command for scenario-attributed process consumers. Scenario-domain commands use generated Connect clients.
 
-**Known limitations** — WebSocket: UI types defined but not implemented; dashboard uses HTTP polling. Missing API endpoints referenced by UI: `/api/v1/metrics/timeline` (UI falls back to client-side accumulation), `/api/v1/metrics/disk/details`, and `POST /processes/{pid}/kill` (UI kill dialog silently fails — endpoint not in the API router). Custom metrics: limited to built-in collectors (CPU, Memory, Network, Disk, Process, GPU); no ingestion endpoint. Investigation script API: list/get/execute endpoints are placeholders; 30 scripts exist on disk and are executed by the investigation agent directly. Storage: API defaults to in-memory repository; PostgreSQL and QuestDB integrations configured but not the primary runtime path. Authentication: none on API endpoints. CLI fragility: regex-based JSON parsing (no jq); `report` references `/api/reports/generate` (missing `/v1/` prefix); `vrooli-system-monitor` entry point lacks the `version` command and `-v` flag.
+**Known limitations** — WebSocket: UI types defined but not implemented; dashboard uses HTTP polling. UI proto-owned calls dispatch to Connect JSON procedure paths without adding a Connect-Web runtime dependency. Missing API endpoints referenced by UI: `GET /api/v1/metrics/disk/details` and `POST /processes/{pid}/kill` (UI kill dialog silently fails — endpoint not in the API router). Custom metrics: limited to built-in collectors (CPU, Memory, Network, Disk, Process, GPU); no ingestion endpoint. Storage: API defaults to in-memory repository; PostgreSQL and QuestDB integrations configured but not the primary runtime path. Authentication: none on API endpoints.
 
 **References** — README.md (quick start); [QuestDB Documentation](https://questdb.io/docs/); [Prometheus Metric Types](https://prometheus.io/docs/concepts/metric_types/).
 
 ---
 
-**Last Updated**: 2026-06-22 (restructured to canonical PRD template v2.0; content preserved from prior spec-sync pass)
-**Status**: Implemented, Not Formally Tested
+**Last Updated**: 2026-06-25 (bright-window Connect and collector closure)
+**Status**: Implemented, Formally Tested
 **Owner**: AI Agent - Infrastructure Intelligence Module

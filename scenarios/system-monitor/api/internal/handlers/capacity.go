@@ -3,11 +3,13 @@ package handlers
 // DOC: docs/reference/api-endpoints.md#capacity
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
 
+	"connectrpc.com/connect"
 	engine "github.com/vrooli/vrooli/internal/capacity"
 	capacitypb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/capacity"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
@@ -26,6 +28,81 @@ type CapacityHandler struct {
 // NewCapacityHandler creates a capacity handler.
 func NewCapacityHandler(capacity CapacityProvider, log *slog.Logger) *CapacityHandler {
 	return &CapacityHandler{log: log, capacity: capacity}
+}
+
+// GetCapacityOverview handles the typed Connect-RPC capacity overview contract.
+func (h *CapacityHandler) GetCapacityOverview(ctx context.Context, _ *connect.Request[capacitypb.GetCapacityOverviewRequest]) (*connect.Response[capacitypb.GetCapacityOverviewResponse], error) {
+	overview, err := h.capacity.Overview(ctx)
+	if err != nil {
+		return nil, connectError(apierrors.Internal("failed to read capacity overview", err))
+	}
+
+	return connect.NewResponse(&capacitypb.GetCapacityOverviewResponse{
+		Success:          true,
+		Gpus:             convert.GpuContentionsToProto(overview.GPUs),
+		Claims:           convert.CapacityClaimsToProto(overview.Claims),
+		SensingAvailable: overview.SensingAvailable,
+		Warnings:         overview.Warnings,
+	}), nil
+}
+
+// ListCapacityClaims handles the typed Connect-RPC capacity claim listing contract.
+func (h *CapacityHandler) ListCapacityClaims(ctx context.Context, req *connect.Request[capacitypb.ListCapacityClaimsRequest]) (*connect.Response[capacitypb.ListCapacityClaimsResponse], error) {
+	claims, err := h.capacity.ListClaims(ctx, req.Msg.GetOwnerId(), req.Msg.GetActiveOnly())
+	if err != nil {
+		return nil, connectError(apierrors.Internal("failed to list capacity claims", err))
+	}
+
+	return connect.NewResponse(&capacitypb.ListCapacityClaimsResponse{
+		Success: true,
+		Claims:  convert.CapacityClaimsToProto(claims),
+	}), nil
+}
+
+// ReconcileCapacity handles the typed Connect-RPC reconciliation contract.
+func (h *CapacityHandler) ReconcileCapacity(ctx context.Context, _ *connect.Request[capacitypb.ReconcileCapacityRequest]) (*connect.Response[capacitypb.ReconcileCapacityResponse], error) {
+	findings, err := h.capacity.Reconcile(ctx)
+	if err != nil {
+		return nil, connectError(apierrors.Unavailable("capacity reconciliation (host sensing)"))
+	}
+
+	return connect.NewResponse(&capacitypb.ReconcileCapacityResponse{
+		Success:  true,
+		Findings: convert.CapacityFindingsToProto(findings),
+	}), nil
+}
+
+// GetCapacityPolicy handles the typed Connect-RPC policy listing contract.
+func (h *CapacityHandler) GetCapacityPolicy(ctx context.Context, _ *connect.Request[capacitypb.GetCapacityPolicyRequest]) (*connect.Response[capacitypb.GetCapacityPolicyResponse], error) {
+	entries, err := h.capacity.Policy(ctx)
+	if err != nil {
+		return nil, connectError(apierrors.Internal("failed to read capacity policy", err))
+	}
+
+	return connect.NewResponse(&capacitypb.GetCapacityPolicyResponse{
+		Success: true,
+		Levers:  convert.PolicyLeversToProto(entries),
+	}), nil
+}
+
+// SetCapacityPolicy handles the typed Connect-RPC policy mutation contract.
+func (h *CapacityHandler) SetCapacityPolicy(ctx context.Context, req *connect.Request[capacitypb.SetCapacityPolicyRequest]) (*connect.Response[capacitypb.SetCapacityPolicyResponse], error) {
+	if req.Msg.GetKey() == "" {
+		return nil, connectError(apierrors.Validation("key", "is required"))
+	}
+
+	entries, err := h.capacity.SetPolicy(ctx, req.Msg.GetKey(), req.Msg.GetValue())
+	if err != nil {
+		if errors.Is(err, engine.ErrInvalidClaim) {
+			return nil, connectError(apierrors.Validation("value", err.Error()))
+		}
+		return nil, connectError(apierrors.Internal("failed to update capacity policy", err))
+	}
+
+	return connect.NewResponse(&capacitypb.SetCapacityPolicyResponse{
+		Success: true,
+		Levers:  convert.PolicyLeversToProto(entries),
+	}), nil
 }
 
 // Overview handles GET /api/v1/capacity/overview — per-GPU contention + claims.

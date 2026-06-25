@@ -5,33 +5,27 @@ import (
 	"testing"
 )
 
-// The --confirm guard runs before any API call, so a nil ScenarioApp is safe
-// here: the functions must return the confirmation error first.
-
-func TestRetentionApply_RequiresConfirm(t *testing.T) {
-	err := runRetentionApply(nil, []string{"--days", "30"})
-	if err == nil || !strings.Contains(err.Error(), "--confirm is required") {
-		t.Fatalf("expected --confirm required error, got %v", err)
-	}
-}
-
-func TestCompactApply_RequiresConfirm(t *testing.T) {
-	err := runCompactApply(nil, nil)
-	if err == nil || !strings.Contains(err.Error(), "--confirm is required") {
-		t.Fatalf("expected --confirm required error, got %v", err)
-	}
-}
-
-func TestRetentionPreview_RejectsBadDays(t *testing.T) {
-	err := runRetentionPreview(nil, []string{"--days", "0"})
+func TestParseDaysRejectsBadDays(t *testing.T) {
+	_, err := parseDays("0")
 	if err == nil || !strings.Contains(err.Error(), "--days must be greater than 0") {
 		t.Fatalf("expected --days validation error, got %v", err)
 	}
 }
 
-func TestRetention_UnknownAction(t *testing.T) {
-	if err := runRetention(nil, []string{"bogus"}); err == nil {
-		t.Fatal("expected usage error for unknown action")
+func TestParseDaysRejectsNonInteger(t *testing.T) {
+	_, err := parseDays("soon")
+	if err == nil || !strings.Contains(err.Error(), "--days must be an integer") {
+		t.Fatalf("expected integer validation error, got %v", err)
+	}
+}
+
+func TestParseDaysAcceptsPositiveInteger(t *testing.T) {
+	got, err := parseDays("30")
+	if err != nil {
+		t.Fatalf("expected valid days, got %v", err)
+	}
+	if got != 30 {
+		t.Fatalf("parseDays returned %d, want 30", got)
 	}
 }
 

@@ -1,26 +1,26 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-10T16:00:19-04:00"
+    "last_validated_at": "2026-06-25T09:55:24-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-002",
       "title": "Configurable Anomaly Detection",
-      "status": "in_progress",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
       "category": "core",
       "description": "System must implement threshold-based anomaly detection with user-configurable warning and critical thresholds for all metric types",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test threshold configuration"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test anomaly detection logic"
         },
         {
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "Detection latency < 30s"
+          "notes": "Detection latency \u003c 30s"
         },
         {
           "type": "test",
@@ -43,6 +43,5 @@
         }
       ]
     }
-  ],
-  "prd_ref": "Operational Targets > P0 > OT-P0-002"
+  ]
 }

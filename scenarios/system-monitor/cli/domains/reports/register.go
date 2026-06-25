@@ -1,116 +1,97 @@
 package reports
 
 import (
+	"context"
 	"fmt"
-	"os"
 	"strings"
 
+	"connectrpc.com/connect"
 	reportspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports"
+	reportsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports/reportsconnect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
+	"google.golang.org/protobuf/proto"
 
 	"system-monitor/cli/internal/support"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	h := newHandlers(core)
 	return cliapp.SubcommandGroup{
 		Name:        "reports",
 		Description: "Generate and inspect system health reports",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "generate", Description: "Generate a daily or weekly report", Run: func(args []string) error { return runGenerate(core, args) }},
-			{Name: "list", Description: "List generated reports", Run: func(args []string) error { return runList(core, args) }},
-			{Name: "get", Description: "Get a report by ID", Run: func(args []string) error { return runGet(core, args) }},
+			{Name: "generate", Description: "Generate a daily or weekly report", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "type", Required: true, Description: "Report type: daily or weekly"}}}, RunCtx: h.generate},
+			{Name: "list", Description: "List generated reports", RunCtx: h.list},
+			{Name: "get", Description: "Get a report by ID", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "Report ID"}}}, RunCtx: h.get},
 		},
 	}
 }
 
-func runGenerate(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("reports generate")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
+type handlers struct {
+	client reportsconnect.ReportsServiceClient
+}
+
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return &handlers{
+		client: reportsconnect.NewReportsServiceClient(httpClient, baseURL),
 	}
-	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: system-monitor reports generate <daily|weekly>")
-	}
-	reportType := strings.ToLower(strings.TrimSpace(fs.Arg(0)))
+}
+
+func (h *handlers) generate(ctx cliapp.RunContext) error {
+	reportType := strings.ToLower(strings.TrimSpace(ctx.Positional("type")))
 	if reportType != "daily" && reportType != "weekly" {
 		return fmt.Errorf("report type must be daily or weekly")
 	}
 
-	body, err := core.Request("POST", "/reports/generate", nil, &reportspb.GenerateReportRequest{Type: reportType})
+	resp, err := h.client.GenerateReport(context.Background(), connect.NewRequest(&reportspb.GenerateReportRequest{Type: reportType}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("generate report", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil || resp.Msg.GetReport() == nil {
+		return fmt.Errorf("server returned no generated report")
 	}
-
-	var report reportspb.EnhancedSystemReport
-	if err := support.DecodeProto(body, &report); err != nil {
-		return err
-	}
-	return renderReport(os.Stdout, &report, true)
+	return renderReport(ctx, resp.Msg, resp.Msg.GetReport(), true)
 }
 
-func runList(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("reports list")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-
-	body, err := core.Get("/reports", nil)
+func (h *handlers) list(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListReports(context.Background(), connect.NewRequest(&reportspb.ListReportsRequest{}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError("list reports", err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
-	}
-
-	var response reportspb.ListReportsResponse
-	if err := support.DecodeProto(body, &response); err != nil {
-		return err
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no reports list")
 	}
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Reports available: %d", response.GetCount()),
+			fmt.Sprintf("Reports available: %d", resp.Msg.GetCount()),
 		},
 		ResultsHeading: "Reports",
-		Results:        reportRows(response.GetReports()),
+		Results:        reportRows(resp.Msg.GetReports()),
 		RetrievalHints: []string{"system-monitor reports generate daily", "system-monitor reports get <id>"},
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderProtoList(ctx, resp.Msg, report)
 }
 
-func runGet(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("reports get")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
-	}
-	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: system-monitor reports get <id>")
-	}
-
-	body, err := core.Get("/reports/"+strings.TrimSpace(fs.Arg(0)), nil)
+func (h *handlers) get(ctx cliapp.RunContext) error {
+	id := strings.TrimSpace(ctx.Positional("id"))
+	resp, err := h.client.GetReport(context.Background(), connect.NewRequest(&reportspb.GetReportRequest{Id: id}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError(fmt.Sprintf("get report %q", id), err, nil)
 	}
-	if *jsonOutput {
-		return support.PrettyPrintJSON(body)
+	if resp == nil || resp.Msg == nil || resp.Msg.GetReport() == nil {
+		return fmt.Errorf("server returned no report")
 	}
-
-	var report reportspb.EnhancedSystemReport
-	if err := support.DecodeProto(body, &report); err != nil {
-		return err
-	}
-	return renderReport(os.Stdout, &report, false)
+	return renderReport(ctx, resp.Msg, resp.Msg.GetReport(), false)
 }
 
-func renderReport(stdout *os.File, report *reportspb.EnhancedSystemReport, generated bool) error {
+func renderReport(ctx cliapp.RunContext, payload proto.Message, report *reportspb.EnhancedSystemReport, generated bool) error {
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), payload)
+	}
+
 	status := []string{
 		fmt.Sprintf("Report ID: %s", report.GetReportId()),
 		fmt.Sprintf("Report type: %s", report.GetReportType()),
@@ -130,7 +111,7 @@ func renderReport(stdout *os.File, report *reportspb.EnhancedSystemReport, gener
 		recommendations = []string{"No recommendations were included in this report."}
 	}
 
-	return cliapp.RenderOperationalReport(stdout, cliapp.OperationalReport{
+	return ctx.RenderOperational(cliapp.OperationalReport{
 		Status: status,
 		Triage: []cliapp.TriageGroup{
 			{Heading: "Highlights", Items: highlights},
