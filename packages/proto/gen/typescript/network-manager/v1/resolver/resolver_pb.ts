@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file network-manager/v1/resolver/resolver.proto.
  */
 export const file_network_manager_v1_resolver_resolver: GenFile = /*@__PURE__*/
-  fileDesc("CipuZXR3b3JrLW1hbmFnZXIvdjEvcmVzb2x2ZXIvcmVzb2x2ZXIucHJvdG8SInZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIigwEKDlJlc29sdmVyU3RhdHVzEg8KB2JhY2tlbmQYASABKAkSDgoGc3RhdHVzGAIgASgJEhAKCGJhc2VfdXJsGAMgASgJEhEKCXVwc3RyZWFtcxgEIAMoCRIZChFmaWx0ZXJpbmdfZW5hYmxlZBgFIAEoCBIQCgh3YXJuaW5ncxgGIAMoCSIaChhHZXRSZXNvbHZlclN0YXR1c1JlcXVlc3QiXwoZR2V0UmVzb2x2ZXJTdGF0dXNSZXNwb25zZRJCCgZzdGF0dXMYASABKAsyMi52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLlJlc29sdmVyU3RhdHVzImUKG0NvbmZpZ3VyZUFkR3VhcmRIb21lUmVxdWVzdBIQCghiYXNlX3VybBgBIAEoCRIQCgh1c2VybmFtZRgCIAEoCRIRCgl0b2tlbl9yZWYYAyABKAkSDwoHZHJ5X3J1bhgEIAEoCCJ2ChxDb25maWd1cmVBZEd1YXJkSG9tZVJlc3BvbnNlEkIKBnN0YXR1cxgBIAEoCzIyLnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuUmVzb2x2ZXJTdGF0dXMSEgoKbmV4dF9zdGVwcxgCIAMoCSI8ChZVcGRhdGVVcHN0cmVhbXNSZXF1ZXN0EhEKCXVwc3RyZWFtcxgBIAMoCRIPCgdkcnlfcnVuGAIgASgIIm4KF1VwZGF0ZVVwc3RyZWFtc1Jlc3BvbnNlEkIKBnN0YXR1cxgBIAEoCzIyLnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuUmVzb2x2ZXJTdGF0dXMSDwoHY2hhbmdlcxgCIAMoCSIcChpDaGVja1Jlc29sdmVySGVhbHRoUmVxdWVzdCJxChtDaGVja1Jlc29sdmVySGVhbHRoUmVzcG9uc2USQgoGc3RhdHVzGAEgASgLMjIudnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5SZXNvbHZlclN0YXR1cxIOCgZjaGVja3MYAiADKAky5gQKD1Jlc29sdmVyU2VydmljZRKQAQoRR2V0UmVzb2x2ZXJTdGF0dXMSPC52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkdldFJlc29sdmVyU3RhdHVzUmVxdWVzdBo9LnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuR2V0UmVzb2x2ZXJTdGF0dXNSZXNwb25zZRKZAQoUQ29uZmlndXJlQWRHdWFyZEhvbWUSPy52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkNvbmZpZ3VyZUFkR3VhcmRIb21lUmVxdWVzdBpALnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuQ29uZmlndXJlQWRHdWFyZEhvbWVSZXNwb25zZRKKAQoPVXBkYXRlVXBzdHJlYW1zEjoudnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5VcGRhdGVVcHN0cmVhbXNSZXF1ZXN0GjsudnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5VcGRhdGVVcHN0cmVhbXNSZXNwb25zZRKWAQoTQ2hlY2tSZXNvbHZlckhlYWx0aBI+LnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuQ2hlY2tSZXNvbHZlckhlYWx0aFJlcXVlc3QaPy52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkNoZWNrUmVzb2x2ZXJIZWFsdGhSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL25ldHdvcmstbWFuYWdlci92MS9yZXNvbHZlcjtyZXNvbHZlcl92MWIGcHJvdG8z");
+  fileDesc("CipuZXR3b3JrLW1hbmFnZXIvdjEvcmVzb2x2ZXIvcmVzb2x2ZXIucHJvdG8SInZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIivQEKDlJlc29sdmVyU3RhdHVzEg8KB2JhY2tlbmQYASABKAkSDgoGc3RhdHVzGAIgASgJEhAKCGJhc2VfdXJsGAMgASgJEhEKCXVwc3RyZWFtcxgEIAMoCRIZChFmaWx0ZXJpbmdfZW5hYmxlZBgFIAEoCBIQCgh3YXJuaW5ncxgGIAMoCRIaChJlbmZvcmNlbWVudF9zdGF0dXMYByABKAkSHAoUZW5mb3JjZW1lbnRfZXZpZGVuY2UYCCADKAkiGgoYR2V0UmVzb2x2ZXJTdGF0dXNSZXF1ZXN0Il8KGUdldFJlc29sdmVyU3RhdHVzUmVzcG9uc2USQgoGc3RhdHVzGAEgASgLMjIudnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5SZXNvbHZlclN0YXR1cyJlChtDb25maWd1cmVBZEd1YXJkSG9tZVJlcXVlc3QSEAoIYmFzZV91cmwYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSEQoJdG9rZW5fcmVmGAMgASgJEg8KB2RyeV9ydW4YBCABKAgidgocQ29uZmlndXJlQWRHdWFyZEhvbWVSZXNwb25zZRJCCgZzdGF0dXMYASABKAsyMi52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLlJlc29sdmVyU3RhdHVzEhIKCm5leHRfc3RlcHMYAiADKAkiPAoWVXBkYXRlVXBzdHJlYW1zUmVxdWVzdBIRCgl1cHN0cmVhbXMYASADKAkSDwoHZHJ5X3J1bhgCIAEoCCJuChdVcGRhdGVVcHN0cmVhbXNSZXNwb25zZRJCCgZzdGF0dXMYASABKAsyMi52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLlJlc29sdmVyU3RhdHVzEg8KB2NoYW5nZXMYAiADKAkiHAoaQ2hlY2tSZXNvbHZlckhlYWx0aFJlcXVlc3QicQobQ2hlY2tSZXNvbHZlckhlYWx0aFJlc3BvbnNlEkIKBnN0YXR1cxgBIAEoCzIyLnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuUmVzb2x2ZXJTdGF0dXMSDgoGY2hlY2tzGAIgAygJImQKDFJvbGxvdXRDaGVjaxIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSEAoIZXZpZGVuY2UYBCABKAkSFwoPcmVjb21tZW5kYXRpb25zGAUgAygJIpQCCg5BZEd1YXJkUm9sbG91dBIOCgZzdGF0dXMYASABKAkSDwoHc3VtbWFyeRgCIAEoCRITCgtkbnNfYmluZF9pcBgDIAEoCRJLCg9yZXNvbHZlcl9zdGF0dXMYBCABKAsyMi52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLlJlc29sdmVyU3RhdHVzEkAKBmNoZWNrcxgFIAMoCzIwLnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuUm9sbG91dENoZWNrEhcKD3JvdXRlcl9zZXR0aW5ncxgGIAMoCRISCgpuZXh0X3N0ZXBzGAcgAygJEhAKCHdhcm5pbmdzGAggAygJIhoKGEdldEFkR3VhcmRSb2xsb3V0UmVxdWVzdCJgChlHZXRBZEd1YXJkUm9sbG91dFJlc3BvbnNlEkMKB3JvbGxvdXQYASABKAsyMi52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkFkR3VhcmRSb2xsb3V0MvkFCg9SZXNvbHZlclNlcnZpY2USkAEKEUdldFJlc29sdmVyU3RhdHVzEjwudnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5HZXRSZXNvbHZlclN0YXR1c1JlcXVlc3QaPS52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkdldFJlc29sdmVyU3RhdHVzUmVzcG9uc2USmQEKFENvbmZpZ3VyZUFkR3VhcmRIb21lEj8udnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5Db25maWd1cmVBZEd1YXJkSG9tZVJlcXVlc3QaQC52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkNvbmZpZ3VyZUFkR3VhcmRIb21lUmVzcG9uc2USigEKD1VwZGF0ZVVwc3RyZWFtcxI6LnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuVXBkYXRlVXBzdHJlYW1zUmVxdWVzdBo7LnZyb29saS5uZXR3b3JrX21hbmFnZXIudjEucmVzb2x2ZXIuVXBkYXRlVXBzdHJlYW1zUmVzcG9uc2USlgEKE0NoZWNrUmVzb2x2ZXJIZWFsdGgSPi52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkNoZWNrUmVzb2x2ZXJIZWFsdGhSZXF1ZXN0Gj8udnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5DaGVja1Jlc29sdmVySGVhbHRoUmVzcG9uc2USkAEKEUdldEFkR3VhcmRSb2xsb3V0EjwudnJvb2xpLm5ldHdvcmtfbWFuYWdlci52MS5yZXNvbHZlci5HZXRBZEd1YXJkUm9sbG91dFJlcXVlc3QaPS52cm9vbGkubmV0d29ya19tYW5hZ2VyLnYxLnJlc29sdmVyLkdldEFkR3VhcmRSb2xsb3V0UmVzcG9uc2VCWFpWZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9uZXR3b3JrLW1hbmFnZXIvdjEvcmVzb2x2ZXI7cmVzb2x2ZXJfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.network_manager.v1.resolver.ResolverStatus
@@ -45,6 +45,16 @@ export type ResolverStatus = Message<"vrooli.network_manager.v1.resolver.Resolve
    * @generated from field: repeated string warnings = 6;
    */
   warnings: string[];
+
+  /**
+   * @generated from field: string enforcement_status = 7;
+   */
+  enforcementStatus: string;
+
+  /**
+   * @generated from field: repeated string enforcement_evidence = 8;
+   */
+  enforcementEvidence: string[];
 };
 
 /**
@@ -218,6 +228,125 @@ export const CheckResolverHealthResponseSchema: GenMessage<CheckResolverHealthRe
   messageDesc(file_network_manager_v1_resolver_resolver, 8);
 
 /**
+ * @generated from message vrooli.network_manager.v1.resolver.RolloutCheck
+ */
+export type RolloutCheck = Message<"vrooli.network_manager.v1.resolver.RolloutCheck"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string evidence = 4;
+   */
+  evidence: string;
+
+  /**
+   * @generated from field: repeated string recommendations = 5;
+   */
+  recommendations: string[];
+};
+
+/**
+ * Describes the message vrooli.network_manager.v1.resolver.RolloutCheck.
+ * Use `create(RolloutCheckSchema)` to create a new message.
+ */
+export const RolloutCheckSchema: GenMessage<RolloutCheck> = /*@__PURE__*/
+  messageDesc(file_network_manager_v1_resolver_resolver, 9);
+
+/**
+ * @generated from message vrooli.network_manager.v1.resolver.AdGuardRollout
+ */
+export type AdGuardRollout = Message<"vrooli.network_manager.v1.resolver.AdGuardRollout"> & {
+  /**
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string summary = 2;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string dns_bind_ip = 3;
+   */
+  dnsBindIp: string;
+
+  /**
+   * @generated from field: vrooli.network_manager.v1.resolver.ResolverStatus resolver_status = 4;
+   */
+  resolverStatus?: ResolverStatus | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.network_manager.v1.resolver.RolloutCheck checks = 5;
+   */
+  checks: RolloutCheck[];
+
+  /**
+   * @generated from field: repeated string router_settings = 6;
+   */
+  routerSettings: string[];
+
+  /**
+   * @generated from field: repeated string next_steps = 7;
+   */
+  nextSteps: string[];
+
+  /**
+   * @generated from field: repeated string warnings = 8;
+   */
+  warnings: string[];
+};
+
+/**
+ * Describes the message vrooli.network_manager.v1.resolver.AdGuardRollout.
+ * Use `create(AdGuardRolloutSchema)` to create a new message.
+ */
+export const AdGuardRolloutSchema: GenMessage<AdGuardRollout> = /*@__PURE__*/
+  messageDesc(file_network_manager_v1_resolver_resolver, 10);
+
+/**
+ * @generated from message vrooli.network_manager.v1.resolver.GetAdGuardRolloutRequest
+ */
+export type GetAdGuardRolloutRequest = Message<"vrooli.network_manager.v1.resolver.GetAdGuardRolloutRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.network_manager.v1.resolver.GetAdGuardRolloutRequest.
+ * Use `create(GetAdGuardRolloutRequestSchema)` to create a new message.
+ */
+export const GetAdGuardRolloutRequestSchema: GenMessage<GetAdGuardRolloutRequest> = /*@__PURE__*/
+  messageDesc(file_network_manager_v1_resolver_resolver, 11);
+
+/**
+ * @generated from message vrooli.network_manager.v1.resolver.GetAdGuardRolloutResponse
+ */
+export type GetAdGuardRolloutResponse = Message<"vrooli.network_manager.v1.resolver.GetAdGuardRolloutResponse"> & {
+  /**
+   * @generated from field: vrooli.network_manager.v1.resolver.AdGuardRollout rollout = 1;
+   */
+  rollout?: AdGuardRollout | undefined;
+};
+
+/**
+ * Describes the message vrooli.network_manager.v1.resolver.GetAdGuardRolloutResponse.
+ * Use `create(GetAdGuardRolloutResponseSchema)` to create a new message.
+ */
+export const GetAdGuardRolloutResponseSchema: GenMessage<GetAdGuardRolloutResponse> = /*@__PURE__*/
+  messageDesc(file_network_manager_v1_resolver_resolver, 12);
+
+/**
  * ResolverService owns managed DNS resolver backend status and setup.
  *
  * @generated from service vrooli.network_manager.v1.resolver.ResolverService
@@ -254,6 +383,14 @@ export const ResolverService: GenService<{
     methodKind: "unary";
     input: typeof CheckResolverHealthRequestSchema;
     output: typeof CheckResolverHealthResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.network_manager.v1.resolver.ResolverService.GetAdGuardRollout
+   */
+  getAdGuardRollout: {
+    methodKind: "unary";
+    input: typeof GetAdGuardRolloutRequestSchema;
+    output: typeof GetAdGuardRolloutResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_network_manager_v1_resolver_resolver, 0);

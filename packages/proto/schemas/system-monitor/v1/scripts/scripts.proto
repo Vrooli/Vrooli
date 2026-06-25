@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.system_monitor.v1.scripts;
 
-import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/scripts;scripts";
 
@@ -156,13 +156,11 @@ service ScriptsService {
   // ListScripts returns available investigation scripts.
   rpc ListScripts(ListScriptsRequest) returns (ListScriptsResponse) {
     option (google.api.http) = {get: "/api/v1/investigations/scripts"};
-
   }
 
   // GetScript retrieves a specific script.
   rpc GetScript(GetScriptRequest) returns (GetScriptResponse) {
     option (google.api.http) = {get: "/api/v1/investigations/scripts/{id}"};
-
   }
 
   // ExecuteScript executes an investigation script.
@@ -171,6 +169,5 @@ service ScriptsService {
       post: "/api/v1/investigations/scripts/{id}/execute"
       body: "*"
     };
-
   }
 }

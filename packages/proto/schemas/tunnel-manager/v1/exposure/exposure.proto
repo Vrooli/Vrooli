@@ -134,8 +134,7 @@ message ListLeasesResponse {
   repeated Lease leases = 1;
 }
 
-message ListExposuresRequest {
-}
+message ListExposuresRequest {}
 
 message ListExposuresResponse {
   repeated Exposure exposures = 1;
@@ -150,8 +149,7 @@ message IsExposedResponse {
   string public_url = 2;
 }
 
-message ReconcileRequest {
-}
+message ReconcileRequest {}
 
 message ReconcileResponse {
   // Number of CORE routes ensured during reconciliation.

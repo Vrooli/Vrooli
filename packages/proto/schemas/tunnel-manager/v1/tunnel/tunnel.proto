@@ -59,8 +59,7 @@ message MetricsSample {
   google.protobuf.Timestamp scraped_at = 6;
 }
 
-message GetStatusRequest {
-}
+message GetStatusRequest {}
 
 message GetStatusResponse {
   TunnelStatus status = 1;
@@ -77,8 +76,7 @@ message ListMetricsResponse {
   repeated MetricsSample samples = 1;
 }
 
-message ScrapeRequest {
-}
+message ScrapeRequest {}
 
 message ScrapeResponse {
   MetricsSample sample = 1;

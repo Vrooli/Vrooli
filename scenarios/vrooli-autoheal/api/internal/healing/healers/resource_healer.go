@@ -60,7 +60,7 @@ func (h *ResourceHealer) Actions(lastResult *checks.Result) []checks.RecoveryAct
 		}
 	}
 
-	return []checks.RecoveryAction{
+	actions := []checks.RecoveryAction{
 		{
 			ID:          "start",
 			Name:        "Start",
@@ -104,6 +104,16 @@ func (h *ResourceHealer) Actions(lastResult *checks.Result) []checks.RecoveryAct
 			Available:   true,
 		},
 	}
+	if resourceCompanionDown(lastResult) {
+		actions = append([]checks.RecoveryAction{{
+			ID:          "respawn-companion",
+			Name:        "Respawn Companion",
+			Description: "Respawn the dead companion for the " + h.resourceName + " resource without restarting the container",
+			Dangerous:   false,
+			Available:   true,
+		}}, actions...)
+	}
+	return actions
 }
 
 // Execute runs a recovery action.
@@ -111,6 +121,8 @@ func (h *ResourceHealer) Execute(ctx context.Context, actionID string, lastResul
 	switch actionID {
 	case "start":
 		return h.strategy.Start(ctx, h.checkID)
+	case "respawn-companion":
+		return h.strategy.RespawnCompanion(ctx, h.checkID)
 	case "stop":
 		return h.strategy.Stop(ctx, h.checkID)
 	case "restart":
@@ -130,4 +142,17 @@ func (h *ResourceHealer) Execute(ctx context.Context, actionID string, lastResul
 			Message:  "Action not recognized",
 		}
 	}
+}
+
+func resourceCompanionDown(lastResult *checks.Result) bool {
+	if lastResult == nil {
+		return false
+	}
+	if statusText, ok := lastResult.Details["statusText"].(string); ok && strings.Contains(strings.ToLower(statusText), "companion down") {
+		return true
+	}
+	if output, ok := lastResult.Details["output"].(string); ok && strings.Contains(strings.ToLower(output), "companion down") {
+		return true
+	}
+	return strings.Contains(strings.ToLower(lastResult.Message), "companion down")
 }

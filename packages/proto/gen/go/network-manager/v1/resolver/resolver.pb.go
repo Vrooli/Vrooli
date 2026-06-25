@@ -22,15 +22,17 @@ const (
 )
 
 type ResolverStatus struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Backend          string                 `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
-	Status           string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	BaseUrl          string                 `protobuf:"bytes,3,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	Upstreams        []string               `protobuf:"bytes,4,rep,name=upstreams,proto3" json:"upstreams,omitempty"`
-	FilteringEnabled bool                   `protobuf:"varint,5,opt,name=filtering_enabled,json=filteringEnabled,proto3" json:"filtering_enabled,omitempty"`
-	Warnings         []string               `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Backend             string                 `protobuf:"bytes,1,opt,name=backend,proto3" json:"backend,omitempty"`
+	Status              string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	BaseUrl             string                 `protobuf:"bytes,3,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	Upstreams           []string               `protobuf:"bytes,4,rep,name=upstreams,proto3" json:"upstreams,omitempty"`
+	FilteringEnabled    bool                   `protobuf:"varint,5,opt,name=filtering_enabled,json=filteringEnabled,proto3" json:"filtering_enabled,omitempty"`
+	Warnings            []string               `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	EnforcementStatus   string                 `protobuf:"bytes,7,opt,name=enforcement_status,json=enforcementStatus,proto3" json:"enforcement_status,omitempty"`
+	EnforcementEvidence []string               `protobuf:"bytes,8,rep,name=enforcement_evidence,json=enforcementEvidence,proto3" json:"enforcement_evidence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ResolverStatus) Reset() {
@@ -101,6 +103,20 @@ func (x *ResolverStatus) GetFilteringEnabled() bool {
 func (x *ResolverStatus) GetWarnings() []string {
 	if x != nil {
 		return x.Warnings
+	}
+	return nil
+}
+
+func (x *ResolverStatus) GetEnforcementStatus() string {
+	if x != nil {
+		return x.EnforcementStatus
+	}
+	return ""
+}
+
+func (x *ResolverStatus) GetEnforcementEvidence() []string {
+	if x != nil {
+		return x.EnforcementEvidence
 	}
 	return nil
 }
@@ -497,18 +513,276 @@ func (x *CheckResolverHealthResponse) GetChecks() []string {
 	return nil
 }
 
+type RolloutCheck struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title           string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Status          string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Evidence        string                 `protobuf:"bytes,4,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Recommendations []string               `protobuf:"bytes,5,rep,name=recommendations,proto3" json:"recommendations,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RolloutCheck) Reset() {
+	*x = RolloutCheck{}
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RolloutCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RolloutCheck) ProtoMessage() {}
+
+func (x *RolloutCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RolloutCheck.ProtoReflect.Descriptor instead.
+func (*RolloutCheck) Descriptor() ([]byte, []int) {
+	return file_network_manager_v1_resolver_resolver_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RolloutCheck) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RolloutCheck) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *RolloutCheck) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RolloutCheck) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+func (x *RolloutCheck) GetRecommendations() []string {
+	if x != nil {
+		return x.Recommendations
+	}
+	return nil
+}
+
+type AdGuardRollout struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Status         string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Summary        string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
+	DnsBindIp      string                 `protobuf:"bytes,3,opt,name=dns_bind_ip,json=dnsBindIp,proto3" json:"dns_bind_ip,omitempty"`
+	ResolverStatus *ResolverStatus        `protobuf:"bytes,4,opt,name=resolver_status,json=resolverStatus,proto3" json:"resolver_status,omitempty"`
+	Checks         []*RolloutCheck        `protobuf:"bytes,5,rep,name=checks,proto3" json:"checks,omitempty"`
+	RouterSettings []string               `protobuf:"bytes,6,rep,name=router_settings,json=routerSettings,proto3" json:"router_settings,omitempty"`
+	NextSteps      []string               `protobuf:"bytes,7,rep,name=next_steps,json=nextSteps,proto3" json:"next_steps,omitempty"`
+	Warnings       []string               `protobuf:"bytes,8,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AdGuardRollout) Reset() {
+	*x = AdGuardRollout{}
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdGuardRollout) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdGuardRollout) ProtoMessage() {}
+
+func (x *AdGuardRollout) ProtoReflect() protoreflect.Message {
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdGuardRollout.ProtoReflect.Descriptor instead.
+func (*AdGuardRollout) Descriptor() ([]byte, []int) {
+	return file_network_manager_v1_resolver_resolver_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AdGuardRollout) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AdGuardRollout) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *AdGuardRollout) GetDnsBindIp() string {
+	if x != nil {
+		return x.DnsBindIp
+	}
+	return ""
+}
+
+func (x *AdGuardRollout) GetResolverStatus() *ResolverStatus {
+	if x != nil {
+		return x.ResolverStatus
+	}
+	return nil
+}
+
+func (x *AdGuardRollout) GetChecks() []*RolloutCheck {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+func (x *AdGuardRollout) GetRouterSettings() []string {
+	if x != nil {
+		return x.RouterSettings
+	}
+	return nil
+}
+
+func (x *AdGuardRollout) GetNextSteps() []string {
+	if x != nil {
+		return x.NextSteps
+	}
+	return nil
+}
+
+func (x *AdGuardRollout) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+type GetAdGuardRolloutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdGuardRolloutRequest) Reset() {
+	*x = GetAdGuardRolloutRequest{}
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdGuardRolloutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdGuardRolloutRequest) ProtoMessage() {}
+
+func (x *GetAdGuardRolloutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdGuardRolloutRequest.ProtoReflect.Descriptor instead.
+func (*GetAdGuardRolloutRequest) Descriptor() ([]byte, []int) {
+	return file_network_manager_v1_resolver_resolver_proto_rawDescGZIP(), []int{11}
+}
+
+type GetAdGuardRolloutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rollout       *AdGuardRollout        `protobuf:"bytes,1,opt,name=rollout,proto3" json:"rollout,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAdGuardRolloutResponse) Reset() {
+	*x = GetAdGuardRolloutResponse{}
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAdGuardRolloutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAdGuardRolloutResponse) ProtoMessage() {}
+
+func (x *GetAdGuardRolloutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_network_manager_v1_resolver_resolver_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAdGuardRolloutResponse.ProtoReflect.Descriptor instead.
+func (*GetAdGuardRolloutResponse) Descriptor() ([]byte, []int) {
+	return file_network_manager_v1_resolver_resolver_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetAdGuardRolloutResponse) GetRollout() *AdGuardRollout {
+	if x != nil {
+		return x.Rollout
+	}
+	return nil
+}
+
 var File_network_manager_v1_resolver_resolver_proto protoreflect.FileDescriptor
 
 const file_network_manager_v1_resolver_resolver_proto_rawDesc = "" +
 	"\n" +
-	"*network-manager/v1/resolver/resolver.proto\x12\"vrooli.network_manager.v1.resolver\"\xc4\x01\n" +
+	"*network-manager/v1/resolver/resolver.proto\x12\"vrooli.network_manager.v1.resolver\"\xa6\x02\n" +
 	"\x0eResolverStatus\x12\x18\n" +
 	"\abackend\x18\x01 \x01(\tR\abackend\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x19\n" +
 	"\bbase_url\x18\x03 \x01(\tR\abaseUrl\x12\x1c\n" +
 	"\tupstreams\x18\x04 \x03(\tR\tupstreams\x12+\n" +
 	"\x11filtering_enabled\x18\x05 \x01(\bR\x10filteringEnabled\x12\x1a\n" +
-	"\bwarnings\x18\x06 \x03(\tR\bwarnings\"\x1a\n" +
+	"\bwarnings\x18\x06 \x03(\tR\bwarnings\x12-\n" +
+	"\x12enforcement_status\x18\a \x01(\tR\x11enforcementStatus\x121\n" +
+	"\x14enforcement_evidence\x18\b \x03(\tR\x13enforcementEvidence\"\x1a\n" +
 	"\x18GetResolverStatusRequest\"g\n" +
 	"\x19GetResolverStatusResponse\x12J\n" +
 	"\x06status\x18\x01 \x01(\v22.vrooli.network_manager.v1.resolver.ResolverStatusR\x06status\"\x8a\x01\n" +
@@ -530,12 +804,32 @@ const file_network_manager_v1_resolver_resolver_proto_rawDesc = "" +
 	"\x1aCheckResolverHealthRequest\"\x81\x01\n" +
 	"\x1bCheckResolverHealthResponse\x12J\n" +
 	"\x06status\x18\x01 \x01(\v22.vrooli.network_manager.v1.resolver.ResolverStatusR\x06status\x12\x16\n" +
-	"\x06checks\x18\x02 \x03(\tR\x06checks2\xe6\x04\n" +
+	"\x06checks\x18\x02 \x03(\tR\x06checks\"\x92\x01\n" +
+	"\fRolloutCheck\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1a\n" +
+	"\bevidence\x18\x04 \x01(\tR\bevidence\x12(\n" +
+	"\x0frecommendations\x18\x05 \x03(\tR\x0frecommendations\"\xed\x02\n" +
+	"\x0eAdGuardRollout\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
+	"\asummary\x18\x02 \x01(\tR\asummary\x12\x1e\n" +
+	"\vdns_bind_ip\x18\x03 \x01(\tR\tdnsBindIp\x12[\n" +
+	"\x0fresolver_status\x18\x04 \x01(\v22.vrooli.network_manager.v1.resolver.ResolverStatusR\x0eresolverStatus\x12H\n" +
+	"\x06checks\x18\x05 \x03(\v20.vrooli.network_manager.v1.resolver.RolloutCheckR\x06checks\x12'\n" +
+	"\x0frouter_settings\x18\x06 \x03(\tR\x0erouterSettings\x12\x1d\n" +
+	"\n" +
+	"next_steps\x18\a \x03(\tR\tnextSteps\x12\x1a\n" +
+	"\bwarnings\x18\b \x03(\tR\bwarnings\"\x1a\n" +
+	"\x18GetAdGuardRolloutRequest\"i\n" +
+	"\x19GetAdGuardRolloutResponse\x12L\n" +
+	"\arollout\x18\x01 \x01(\v22.vrooli.network_manager.v1.resolver.AdGuardRolloutR\arollout2\xf9\x05\n" +
 	"\x0fResolverService\x12\x90\x01\n" +
 	"\x11GetResolverStatus\x12<.vrooli.network_manager.v1.resolver.GetResolverStatusRequest\x1a=.vrooli.network_manager.v1.resolver.GetResolverStatusResponse\x12\x99\x01\n" +
 	"\x14ConfigureAdGuardHome\x12?.vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeRequest\x1a@.vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeResponse\x12\x8a\x01\n" +
 	"\x0fUpdateUpstreams\x12:.vrooli.network_manager.v1.resolver.UpdateUpstreamsRequest\x1a;.vrooli.network_manager.v1.resolver.UpdateUpstreamsResponse\x12\x96\x01\n" +
-	"\x13CheckResolverHealth\x12>.vrooli.network_manager.v1.resolver.CheckResolverHealthRequest\x1a?.vrooli.network_manager.v1.resolver.CheckResolverHealthResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/resolver;resolver_v1b\x06proto3"
+	"\x13CheckResolverHealth\x12>.vrooli.network_manager.v1.resolver.CheckResolverHealthRequest\x1a?.vrooli.network_manager.v1.resolver.CheckResolverHealthResponse\x12\x90\x01\n" +
+	"\x11GetAdGuardRollout\x12<.vrooli.network_manager.v1.resolver.GetAdGuardRolloutRequest\x1a=.vrooli.network_manager.v1.resolver.GetAdGuardRolloutResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/resolver;resolver_v1b\x06proto3"
 
 var (
 	file_network_manager_v1_resolver_resolver_proto_rawDescOnce sync.Once
@@ -549,7 +843,7 @@ func file_network_manager_v1_resolver_resolver_proto_rawDescGZIP() []byte {
 	return file_network_manager_v1_resolver_resolver_proto_rawDescData
 }
 
-var file_network_manager_v1_resolver_resolver_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_network_manager_v1_resolver_resolver_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_network_manager_v1_resolver_resolver_proto_goTypes = []any{
 	(*ResolverStatus)(nil),               // 0: vrooli.network_manager.v1.resolver.ResolverStatus
 	(*GetResolverStatusRequest)(nil),     // 1: vrooli.network_manager.v1.resolver.GetResolverStatusRequest
@@ -560,25 +854,34 @@ var file_network_manager_v1_resolver_resolver_proto_goTypes = []any{
 	(*UpdateUpstreamsResponse)(nil),      // 6: vrooli.network_manager.v1.resolver.UpdateUpstreamsResponse
 	(*CheckResolverHealthRequest)(nil),   // 7: vrooli.network_manager.v1.resolver.CheckResolverHealthRequest
 	(*CheckResolverHealthResponse)(nil),  // 8: vrooli.network_manager.v1.resolver.CheckResolverHealthResponse
+	(*RolloutCheck)(nil),                 // 9: vrooli.network_manager.v1.resolver.RolloutCheck
+	(*AdGuardRollout)(nil),               // 10: vrooli.network_manager.v1.resolver.AdGuardRollout
+	(*GetAdGuardRolloutRequest)(nil),     // 11: vrooli.network_manager.v1.resolver.GetAdGuardRolloutRequest
+	(*GetAdGuardRolloutResponse)(nil),    // 12: vrooli.network_manager.v1.resolver.GetAdGuardRolloutResponse
 }
 var file_network_manager_v1_resolver_resolver_proto_depIdxs = []int32{
-	0, // 0: vrooli.network_manager.v1.resolver.GetResolverStatusResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
-	0, // 1: vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
-	0, // 2: vrooli.network_manager.v1.resolver.UpdateUpstreamsResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
-	0, // 3: vrooli.network_manager.v1.resolver.CheckResolverHealthResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
-	1, // 4: vrooli.network_manager.v1.resolver.ResolverService.GetResolverStatus:input_type -> vrooli.network_manager.v1.resolver.GetResolverStatusRequest
-	3, // 5: vrooli.network_manager.v1.resolver.ResolverService.ConfigureAdGuardHome:input_type -> vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeRequest
-	5, // 6: vrooli.network_manager.v1.resolver.ResolverService.UpdateUpstreams:input_type -> vrooli.network_manager.v1.resolver.UpdateUpstreamsRequest
-	7, // 7: vrooli.network_manager.v1.resolver.ResolverService.CheckResolverHealth:input_type -> vrooli.network_manager.v1.resolver.CheckResolverHealthRequest
-	2, // 8: vrooli.network_manager.v1.resolver.ResolverService.GetResolverStatus:output_type -> vrooli.network_manager.v1.resolver.GetResolverStatusResponse
-	4, // 9: vrooli.network_manager.v1.resolver.ResolverService.ConfigureAdGuardHome:output_type -> vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeResponse
-	6, // 10: vrooli.network_manager.v1.resolver.ResolverService.UpdateUpstreams:output_type -> vrooli.network_manager.v1.resolver.UpdateUpstreamsResponse
-	8, // 11: vrooli.network_manager.v1.resolver.ResolverService.CheckResolverHealth:output_type -> vrooli.network_manager.v1.resolver.CheckResolverHealthResponse
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: vrooli.network_manager.v1.resolver.GetResolverStatusResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
+	0,  // 1: vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
+	0,  // 2: vrooli.network_manager.v1.resolver.UpdateUpstreamsResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
+	0,  // 3: vrooli.network_manager.v1.resolver.CheckResolverHealthResponse.status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
+	0,  // 4: vrooli.network_manager.v1.resolver.AdGuardRollout.resolver_status:type_name -> vrooli.network_manager.v1.resolver.ResolverStatus
+	9,  // 5: vrooli.network_manager.v1.resolver.AdGuardRollout.checks:type_name -> vrooli.network_manager.v1.resolver.RolloutCheck
+	10, // 6: vrooli.network_manager.v1.resolver.GetAdGuardRolloutResponse.rollout:type_name -> vrooli.network_manager.v1.resolver.AdGuardRollout
+	1,  // 7: vrooli.network_manager.v1.resolver.ResolverService.GetResolverStatus:input_type -> vrooli.network_manager.v1.resolver.GetResolverStatusRequest
+	3,  // 8: vrooli.network_manager.v1.resolver.ResolverService.ConfigureAdGuardHome:input_type -> vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeRequest
+	5,  // 9: vrooli.network_manager.v1.resolver.ResolverService.UpdateUpstreams:input_type -> vrooli.network_manager.v1.resolver.UpdateUpstreamsRequest
+	7,  // 10: vrooli.network_manager.v1.resolver.ResolverService.CheckResolverHealth:input_type -> vrooli.network_manager.v1.resolver.CheckResolverHealthRequest
+	11, // 11: vrooli.network_manager.v1.resolver.ResolverService.GetAdGuardRollout:input_type -> vrooli.network_manager.v1.resolver.GetAdGuardRolloutRequest
+	2,  // 12: vrooli.network_manager.v1.resolver.ResolverService.GetResolverStatus:output_type -> vrooli.network_manager.v1.resolver.GetResolverStatusResponse
+	4,  // 13: vrooli.network_manager.v1.resolver.ResolverService.ConfigureAdGuardHome:output_type -> vrooli.network_manager.v1.resolver.ConfigureAdGuardHomeResponse
+	6,  // 14: vrooli.network_manager.v1.resolver.ResolverService.UpdateUpstreams:output_type -> vrooli.network_manager.v1.resolver.UpdateUpstreamsResponse
+	8,  // 15: vrooli.network_manager.v1.resolver.ResolverService.CheckResolverHealth:output_type -> vrooli.network_manager.v1.resolver.CheckResolverHealthResponse
+	12, // 16: vrooli.network_manager.v1.resolver.ResolverService.GetAdGuardRollout:output_type -> vrooli.network_manager.v1.resolver.GetAdGuardRolloutResponse
+	12, // [12:17] is the sub-list for method output_type
+	7,  // [7:12] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_network_manager_v1_resolver_resolver_proto_init() }
@@ -592,7 +895,7 @@ func file_network_manager_v1_resolver_resolver_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_network_manager_v1_resolver_resolver_proto_rawDesc), len(file_network_manager_v1_resolver_resolver_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

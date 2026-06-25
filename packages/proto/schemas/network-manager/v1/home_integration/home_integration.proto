@@ -25,8 +25,7 @@ message HomeEvent {
   string occurred_at = 4;
 }
 
-message ListActionsRequest {
-}
+message ListActionsRequest {}
 
 message ListActionsResponse {
   repeated HomeAction actions = 1;
@@ -44,8 +43,7 @@ message InvokeActionResponse {
   HomeEvent event = 3;
 }
 
-message ListRecentEventsRequest {
-}
+message ListRecentEventsRequest {}
 
 message ListRecentEventsResponse {
   repeated HomeEvent events = 1;

@@ -52,6 +52,28 @@ resource-whisper status
 curl http://localhost:8090/
 ```
 
+## Activity Edge
+
+Whisper clients must use `127.0.0.1:8090`. That port is owned by the host-side
+`activity-edge` companion, which forwards to the compose container on
+`127.0.0.1:18090`.
+
+The edge is intentionally part of the serving path: it is the only component that
+can see every `POST /asr` request from host dictation and browser clients, so it
+also reports whisper active/idle state to the capacity broker. If the container
+is healthy but `8090` refuses connections, the container is not the failing
+piece; the companion is down, STT is unavailable, and capacity reporting is
+blind. `vrooli resource status whisper` now reports that state distinctly, and
+`vrooli-autoheal` can recover it with a cheap `vrooli resource start whisper`
+reconcile that respawns the companion without restarting the container.
+
+The shared companion launcher also honors the resource's
+`orchestration.recovery_attempts` as a crash-loop cap for repeated stale-pid
+respawns. For whisper, two dead-edge respawns inside the rolling window are
+allowed; the next reconcile writes `activity-edge.failed` beside the pidfile and
+the status JSON reports `failed: true` with the terminal reason. A deliberate
+`vrooli resource stop whisper` clears the companion crash state.
+
 ## Notes
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for transcription workflows.

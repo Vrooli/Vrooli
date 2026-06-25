@@ -81,6 +81,10 @@ resource-adguard-home querylog privacy --json
 ```
 
 Credentials default from `ADGUARD_HOME_USERNAME` and `ADGUARD_HOME_PASSWORD`.
+When `ADGUARD_HOME_PASSWORD` is omitted, diagnostics resolve
+`--credential-ref`, `ADGUARD_HOME_CREDENTIAL_REF`, or
+`secret/resources/adguard-home/admin` through `resource-vault` and read only
+the `username` and `password` fields.
 The `api-health` command reports:
 
 - `setup_required` when the control API is not mounted yet.

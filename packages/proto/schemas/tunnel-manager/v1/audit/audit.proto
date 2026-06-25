@@ -51,8 +51,7 @@ message PortAuditResult {
   string detail = 6;
 }
 
-message RunAuditRequest {
-}
+message RunAuditRequest {}
 
 message RunAuditResponse {
   repeated PortAuditResult results = 1;

@@ -38,8 +38,7 @@ message RunSnapshotResponse {
   Snapshot snapshot = 1;
 }
 
-message ListSnapshotsRequest {
-}
+message ListSnapshotsRequest {}
 
 message ListSnapshotsResponse {
   repeated Snapshot snapshots = 1;

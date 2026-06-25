@@ -238,25 +238,21 @@ service CapacityService {
   // GetCapacityOverview returns live per-GPU contention plus active claims.
   rpc GetCapacityOverview(GetCapacityOverviewRequest) returns (GetCapacityOverviewResponse) {
     option (google.api.http) = {get: "/api/v1/capacity/overview"};
-
   }
 
   // ListCapacityClaims returns the claim ledger, optionally filtered.
   rpc ListCapacityClaims(ListCapacityClaimsRequest) returns (ListCapacityClaimsResponse) {
     option (google.api.http) = {get: "/api/v1/capacity/claims"};
-
   }
 
   // ReconcileCapacity classifies observed GPU consumers against the ledger.
   rpc ReconcileCapacity(ReconcileCapacityRequest) returns (ReconcileCapacityResponse) {
     option (google.api.http) = {get: "/api/v1/capacity/reconcile"};
-
   }
 
   // GetCapacityPolicy returns all tunable policy levers.
   rpc GetCapacityPolicy(GetCapacityPolicyRequest) returns (GetCapacityPolicyResponse) {
     option (google.api.http) = {get: "/api/v1/capacity/policy"};
-
   }
 
   // SetCapacityPolicy updates a single policy lever and returns the full policy.
@@ -265,6 +261,5 @@ service CapacityService {
       post: "/api/v1/capacity/policy"
       body: "*"
     };
-
   }
 }

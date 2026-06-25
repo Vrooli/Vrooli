@@ -85,8 +85,7 @@ message RouteClassification {
   string assessment = 5;
 }
 
-message RunProbesRequest {
-}
+message RunProbesRequest {}
 
 message RunProbesResponse {
   repeated ProbeResult results = 1;
@@ -103,8 +102,7 @@ message ListProbesResponse {
   repeated ProbeResult results = 1;
 }
 
-message ClassifyRequest {
-}
+message ClassifyRequest {}
 
 message ClassifyResponse {
   repeated RouteClassification classifications = 1;

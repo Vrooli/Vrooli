@@ -26,7 +26,7 @@ from common.v1 import types_pb2 as common_dot_v1_dot_types__pb2
 from google.api import annotations_pb2 as google_dot_api_dot_annotations__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%system-monitor/v1/health/health.proto\x12\x1fvrooli.system_monitor.v1.health\x1a\x15\x63ommon/v1/types.proto\x1a\x1cgoogle/api/annotations.proto\"\x0f\n\rHealthRequest\"\xcc\x04\n\x0eHealthResponse\x12/\n\x06status\x18\x01 \x01(\x0e\x32\x17.common.v1.HealthStatusR\x06status\x12\x18\n\x07service\x18\x02 \x01(\tR\x07service\x12\x1c\n\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n\treadiness\x18\x04 \x01(\x08R\treadiness\x12\x18\n\x07version\x18\x05 \x01(\tR\x07version\x12\x65\n\x0c\x64\x65pendencies\x18\x08 \x03(\x0b\x32\x41.vrooli.system_monitor.v1.health.HealthResponse.DependenciesEntryR\x0c\x64\x65pendencies\x12V\n\x07metrics\x18\t \x03(\x0b\x32<.vrooli.system_monitor.v1.health.HealthResponse.MetricsEntryR\x07metrics\x1aU\n\x11\x44\x65pendenciesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x1aP\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01J\x04\x08\x06\x10\x07J\x04\x08\x07\x10\x08R\x14\x64\x65pendencies_untypedR\x0fmetrics_untyped2\x8b\x01\n\rHealthService\x12z\n\x06Health\x12..vrooli.system_monitor.v1.health.HealthRequest\x1a/.vrooli.system_monitor.v1.health.HealthResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\x07/healthBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health;healthb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%system-monitor/v1/health/health.proto\x12\x1fvrooli.system_monitor.v1.health\x1a\x15\x63ommon/v1/types.proto\x1a\x1cgoogle/api/annotations.proto\"\x0f\n\rHealthRequest\"\xa4\x05\n\x0eHealthResponse\x12/\n\x06status\x18\x01 \x01(\x0e\x32\x17.common.v1.HealthStatusR\x06status\x12\x18\n\x07service\x18\x02 \x01(\tR\x07service\x12\x1c\n\ttimestamp\x18\x03 \x01(\tR\ttimestamp\x12\x1c\n\treadiness\x18\x04 \x01(\x08R\treadiness\x12\x18\n\x07version\x18\x05 \x01(\tR\x07version\x12\x65\n\x0c\x64\x65pendencies\x18\x08 \x03(\x0b\x32\x41.vrooli.system_monitor.v1.health.HealthResponse.DependenciesEntryR\x0c\x64\x65pendencies\x12V\n\x07metrics\x18\t \x03(\x0b\x32<.vrooli.system_monitor.v1.health.HealthResponse.MetricsEntryR\x07metrics\x12)\n\x10processor_active\x18\n \x01(\x08R\x0fprocessorActive\x12+\n\x11maintenance_state\x18\x0b \x01(\tR\x10maintenanceState\x1aU\n\x11\x44\x65pendenciesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01\x1aP\n\x0cMetricsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12*\n\x05value\x18\x02 \x01(\x0b\x32\x14.common.v1.JsonValueR\x05value:\x02\x38\x01J\x04\x08\x06\x10\x07J\x04\x08\x07\x10\x08R\x14\x64\x65pendencies_untypedR\x0fmetrics_untyped2\x8b\x01\n\rHealthService\x12z\n\x06Health\x12..vrooli.system_monitor.v1.health.HealthRequest\x1a/.vrooli.system_monitor.v1.health.HealthResponse\"\x0f\x82\xd3\xe4\x93\x02\t\x12\x07/healthBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/health;healthb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -43,11 +43,11 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_HEALTHREQUEST']._serialized_start=127
   _globals['_HEALTHREQUEST']._serialized_end=142
   _globals['_HEALTHRESPONSE']._serialized_start=145
-  _globals['_HEALTHRESPONSE']._serialized_end=733
-  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_start=515
-  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_end=600
-  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_start=602
-  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_end=682
-  _globals['_HEALTHSERVICE']._serialized_start=736
-  _globals['_HEALTHSERVICE']._serialized_end=875
+  _globals['_HEALTHRESPONSE']._serialized_end=821
+  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_start=603
+  _globals['_HEALTHRESPONSE_DEPENDENCIESENTRY']._serialized_end=688
+  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_start=690
+  _globals['_HEALTHRESPONSE_METRICSENTRY']._serialized_end=770
+  _globals['_HEALTHSERVICE']._serialized_start=824
+  _globals['_HEALTHSERVICE']._serialized_end=963
 # @@protoc_insertion_point(module_scope)

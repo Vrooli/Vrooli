@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.system_monitor.v1.metrics;
 
-import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics;metrics";
 
@@ -489,6 +489,54 @@ message ProcessMonitorData {
   google.protobuf.Timestamp timestamp = 3;
 }
 
+// ProcessTimelineEntry is one ranked process consumer over a window.
+message ProcessTimelineEntry {
+  // Owning scenario or attribution group.
+  string owner = 1;
+
+  // Process command name.
+  string comm = 2;
+
+  // Representative process id; zero when the row is aggregated from rollups.
+  int32 pid = 3;
+
+  // True when the row spans pre-aggregated rollup samples.
+  bool aggregated = 4;
+
+  // Average CPU percentage across samples in the requested window.
+  double cpu_pct = 5;
+
+  // Average resident set size in KiB across samples.
+  int64 rss_kb = 6;
+
+  // Number of samples included in the aggregate.
+  int64 sample_count = 7;
+
+  // First sample timestamp included in this row.
+  google.protobuf.Timestamp first_seen = 8;
+
+  // Last sample timestamp included in this row.
+  google.protobuf.Timestamp last_seen = 9;
+}
+
+// ProcessTimelineResponse ranks process consumers over a time window.
+message ProcessTimelineResponse {
+  // Duration of the window in seconds.
+  int32 window_seconds = 1;
+
+  // Optional owner/scenario filter used for the query.
+  string owner = 2;
+
+  // Requested maximum ranked rows.
+  int32 top = 3;
+
+  // Number of rows returned.
+  int32 count = 4;
+
+  // Ranked process consumers.
+  repeated ProcessTimelineEntry entries = 5;
+}
+
 // ProcessHealthInfo summarizes process health.
 message ProcessHealthInfo {
   // Total number of processes.
@@ -562,8 +610,11 @@ message StorageIOInfo {
 //
 // =============================================================================
 
-// GetCurrentMetricsRequest is empty - no parameters needed.
-message GetCurrentMetricsRequest {}
+// GetCurrentMetricsRequest specifies whether to bypass the cached snapshot.
+message GetCurrentMetricsRequest {
+  // Collect a fresh metrics snapshot instead of returning the cached one.
+  bool fresh = 1;
+}
 
 // GetCurrentMetricsResponse returns current system metrics.
 message GetCurrentMetricsResponse {
@@ -587,6 +638,24 @@ message GetProcessMonitorRequest {}
 message GetProcessMonitorResponse {
   // Process monitor data.
   ProcessMonitorData data = 1;
+}
+
+// GetProcessTimelineRequest specifies process timeline parameters.
+message GetProcessTimelineRequest {
+  // Window duration in seconds. Defaults to the API's standard process window.
+  optional int32 window_seconds = 1;
+
+  // Optional owner/scenario filter.
+  string owner = 2;
+
+  // Maximum ranked rows to return.
+  optional int32 top = 3;
+}
+
+// GetProcessTimelineResponse returns a ranked process-consumer timeline.
+message GetProcessTimelineResponse {
+  // Process timeline data.
+  ProcessTimelineResponse timeline = 1;
 }
 
 // GetInfrastructureMonitorRequest is empty - no parameters needed.
@@ -626,37 +695,36 @@ message GetDiskDetailResponse {
 service MetricsService {
   // GetCurrentMetrics returns the current system metrics snapshot.
   rpc GetCurrentMetrics(GetCurrentMetricsRequest) returns (GetCurrentMetricsResponse) {
-    option (google.api.http) = {get: "/api/v1/metrics"};
-
+    option (google.api.http) = {get: "/api/v1/metrics/current"};
   }
 
   // GetDetailedMetrics returns comprehensive system metrics.
   rpc GetDetailedMetrics(GetDetailedMetricsRequest) returns (GetDetailedMetricsResponse) {
     option (google.api.http) = {get: "/api/v1/metrics/detailed"};
-
   }
 
   // GetProcessMonitor returns process monitoring data.
   rpc GetProcessMonitor(GetProcessMonitorRequest) returns (GetProcessMonitorResponse) {
     option (google.api.http) = {get: "/api/v1/metrics/processes"};
+  }
 
+  // GetProcessTimeline returns ranked process consumers over a window.
+  rpc GetProcessTimeline(GetProcessTimelineRequest) returns (GetProcessTimelineResponse) {
+    option (google.api.http) = {get: "/api/v1/metrics/processes/timeline"};
   }
 
   // GetInfrastructureMonitor returns infrastructure monitoring data.
   rpc GetInfrastructureMonitor(GetInfrastructureMonitorRequest) returns (GetInfrastructureMonitorResponse) {
     option (google.api.http) = {get: "/api/v1/metrics/infrastructure"};
-
   }
 
   // GetMetricsTimeline returns a windowed metrics timeline.
   rpc GetMetricsTimeline(GetMetricsTimelineRequest) returns (GetMetricsTimelineResponse) {
     option (google.api.http) = {get: "/api/v1/metrics/timeline"};
-
   }
 
   // GetDiskDetail returns disk usage details.
   rpc GetDiskDetail(GetDiskDetailRequest) returns (GetDiskDetailResponse) {
     option (google.api.http) = {get: "/api/v1/metrics/disk"};
-
   }
 }

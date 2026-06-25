@@ -131,7 +131,6 @@ service MaintenanceService {
   // MetricsRetentionPreview previews a metrics retention prune.
   rpc MetricsRetentionPreview(MetricsRetentionPreviewRequest) returns (MetricsRetentionPreviewResponse) {
     option (google.api.http) = {get: "/api/v1/maintenance/metrics/retention/preview"};
-
   }
 
   // MetricsRetentionApply applies a metrics retention prune.
@@ -140,13 +139,11 @@ service MaintenanceService {
       post: "/api/v1/maintenance/metrics/retention/apply"
       body: "*"
     };
-
   }
 
   // MetricsCompactionPreview previews a database compaction.
   rpc MetricsCompactionPreview(MetricsCompactionPreviewRequest) returns (MetricsCompactionPreviewResponse) {
     option (google.api.http) = {get: "/api/v1/maintenance/metrics/compaction/preview"};
-
   }
 
   // MetricsCompactionApply applies a database compaction.
@@ -155,6 +152,5 @@ service MaintenanceService {
       post: "/api/v1/maintenance/metrics/compaction/apply"
       body: "*"
     };
-
   }
 }

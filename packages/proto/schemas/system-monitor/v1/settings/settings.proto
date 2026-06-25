@@ -155,7 +155,6 @@ service SettingsService {
   // GetSettings returns the current system settings.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
     option (google.api.http) = {get: "/api/v1/settings"};
-
   }
 
   // UpdateSettings updates system settings.
@@ -164,7 +163,6 @@ service SettingsService {
       put: "/api/v1/settings"
       body: "*"
     };
-
   }
 
   // ResetSettings resets settings to defaults.
@@ -173,13 +171,11 @@ service SettingsService {
       post: "/api/v1/settings/reset"
       body: "*"
     };
-
   }
 
   // GetMaintenanceState returns the maintenance state.
   rpc GetMaintenanceState(GetMaintenanceStateRequest) returns (GetMaintenanceStateResponse) {
     option (google.api.http) = {get: "/api/v1/maintenance/state"};
-
   }
 
   // SetMaintenanceState sets the maintenance state.
@@ -188,6 +184,5 @@ service SettingsService {
       post: "/api/v1/maintenance/state"
       body: "*"
     };
-
   }
 }

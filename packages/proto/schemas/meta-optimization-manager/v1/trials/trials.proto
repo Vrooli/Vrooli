@@ -43,15 +43,15 @@ service TrialsService {
 // TrialVerdict is the outcome of a single run.
 enum TrialVerdict {
   TRIAL_VERDICT_UNSPECIFIED = 0;
-  TRIAL_VERDICT_PASS = 1;  // deterministic check passed (compiles/tests/output) or judge pass
-  TRIAL_VERDICT_FAIL = 2;  // ran but produced a wrong / insufficient result
+  TRIAL_VERDICT_PASS = 1; // deterministic check passed (compiles/tests/output) or judge pass
+  TRIAL_VERDICT_FAIL = 2; // ran but produced a wrong / insufficient result
   TRIAL_VERDICT_ERROR = 3; // the run itself errored (sandbox / agent failure)
 }
 
 // TrialTask is one empirical task in the suite, generated from the Guide space.
 message TrialTask {
   string id = 1;
-  string suite = 2;         // add-feature | research | comprehend | bugfix | negative
+  string suite = 2; // add-feature | research | comprehend | bugfix | negative
   string guide_task_id = 3; // the Guide-space row this exercises
   string description = 4;
   // a negative / honesty case: the agent should correctly distrust a
@@ -84,9 +84,9 @@ message ListTrialTasksResponse {
 }
 
 message RunTrialsRequest {
-  string suite = 1;   // optional; run a whole suite
+  string suite = 1; // optional; run a whole suite
   string task_id = 2; // optional; run a single task
-  string model = 3;   // optional; local-model id (default from config)
+  string model = 3; // optional; local-model id (default from config)
 }
 
 message RunTrialsResponse {
@@ -104,7 +104,7 @@ message TrialHistoryPoint {
 
 message GetTrialHistoryRequest {
   string task_id = 1; // optional filter
-  string suite = 2;   // optional filter
+  string suite = 2; // optional filter
 }
 
 message GetTrialHistoryResponse {

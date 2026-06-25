@@ -130,6 +130,7 @@ func runAPIHealth(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL (default: $ADGUARD_HOME_BASE_URL, $ADGUARD_HOME_URL, or http://localhost:3000)")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username (defaults to $ADGUARD_HOME_USERNAME)")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password (defaults to $ADGUARD_HOME_PASSWORD)")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -138,9 +139,13 @@ func runAPIHealth(args []string, stdout io.Writer) error {
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 
+	creds, err := resolveDiagnosticCredentials(ctx, *credentialRef, *username, *password)
+	if err != nil {
+		return err
+	}
 	report, err := health.Probe(ctx, nil, resourceenv.ResolveBaseURL(*baseURL), health.Credentials{
-		Username: *username,
-		Password: *password,
+		Username: creds.Username,
+		Password: creds.Password,
 	})
 	if err != nil {
 		return err
@@ -180,6 +185,7 @@ func runConfigPreview(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	testUpstreams := fs.Bool("test-upstreams", false, "Ask AdGuard Home to test proposed upstream resolvers")
 	var upstreams multiFlag
@@ -188,7 +194,7 @@ func runConfigPreview(args []string, stdout io.Writer) error {
 		return err
 	}
 
-	client, ctx, cancel, err := newAdGuardClient(*baseURL, *username, *password, *timeout)
+	client, ctx, cancel, err := newAdGuardClient(*baseURL, *username, *password, *credentialRef, *timeout)
 	if err != nil {
 		return err
 	}
@@ -220,12 +226,13 @@ func runClientsList(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	client, ctx, cancel, err := newAdGuardClient(*baseURL, *username, *password, *timeout)
+	client, ctx, cancel, err := newAdGuardClient(*baseURL, *username, *password, *credentialRef, *timeout)
 	if err != nil {
 		return err
 	}
@@ -262,12 +269,13 @@ func runQueryLogPrivacy(args []string, stdout io.Writer) error {
 	baseURL := fs.String("base-url", "", "Override AdGuard Home base URL")
 	username := fs.String("username", os.Getenv("ADGUARD_HOME_USERNAME"), "AdGuard Home username")
 	password := fs.String("password", os.Getenv("ADGUARD_HOME_PASSWORD"), "AdGuard Home password")
+	credentialRef := fs.String("credential-ref", fallback(os.Getenv("ADGUARD_HOME_CREDENTIAL_REF"), "secret/resources/adguard-home/admin"), "Vault secret reference for admin credentials")
 	timeout := fs.Duration("timeout", 10*time.Second, "Probe timeout")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	client, ctx, cancel, err := newAdGuardClient(*baseURL, *username, *password, *timeout)
+	client, ctx, cancel, err := newAdGuardClient(*baseURL, *username, *password, *credentialRef, *timeout)
 	if err != nil {
 		return err
 	}
@@ -411,17 +419,54 @@ func runBootstrap(args []string, stdout io.Writer) error {
 	return writeBootstrapReport(stdout, *jsonOut, report, nil)
 }
 
-func newAdGuardClient(baseURL, username, password string, timeout time.Duration) (*adguard.Client, context.Context, context.CancelFunc, error) {
+func newAdGuardClient(baseURL, username, password, credentialRef string, timeout time.Duration) (*adguard.Client, context.Context, context.CancelFunc, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	creds, err := resolveDiagnosticCredentials(ctx, credentialRef, username, password)
+	if err != nil {
+		cancel()
+		return nil, nil, nil, err
+	}
 	client, err := adguard.NewClient(resourceenv.ResolveBaseURL(baseURL), adguard.Credentials{
-		Username: username,
-		Password: password,
+		Username: creds.Username,
+		Password: creds.Password,
 	}, adguard.WithHTTPClient(&http.Client{Timeout: timeout}))
 	if err != nil {
 		cancel()
 		return nil, nil, nil, err
 	}
 	return client, ctx, cancel, nil
+}
+
+func resolveDiagnosticCredentials(ctx context.Context, ref, username, password string) (adguard.Credentials, error) {
+	username = strings.TrimSpace(username)
+	password = strings.TrimSpace(password)
+	if password != "" {
+		if username == "" {
+			username = "admin"
+		}
+		return adguard.Credentials{Username: username, Password: password}, nil
+	}
+	path := normalizeCredentialRef(ref)
+	vault := cliVault{Command: "resource-vault", LookPath: exec.LookPath, Run: runCommand}
+	if value, found, err := vault.GetSecret(ctx, path, "password"); err != nil {
+		return adguard.Credentials{}, fmt.Errorf("read AdGuard password secret: %w", err)
+	} else if found {
+		password = value
+	}
+	if username == "" {
+		if value, found, err := vault.GetSecret(ctx, path, "username"); err != nil {
+			return adguard.Credentials{}, fmt.Errorf("read AdGuard username secret: %w", err)
+		} else if found {
+			username = value
+		}
+	}
+	if username == "" {
+		username = "admin"
+	}
+	if password == "" {
+		return adguard.Credentials{}, fmt.Errorf("credential ref %s does not contain an AdGuard password", path)
+	}
+	return adguard.Credentials{Username: username, Password: password}, nil
 }
 
 func writeIndentedJSON(stdout io.Writer, value any) error {

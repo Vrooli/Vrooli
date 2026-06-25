@@ -109,6 +109,28 @@ func TestVrooliStrategy_Stop(t *testing.T) {
 	})
 }
 
+func TestVrooliStrategy_RespawnCompanion(t *testing.T) {
+	exec := &mockExecutor{
+		combinedOutputResult: []byte("started"),
+	}
+	strategy := NewVrooliStrategy(VrooliResource, "whisper", exec)
+
+	result := strategy.RespawnCompanion(context.Background(), "resource-whisper")
+
+	if !result.Success {
+		t.Errorf("expected success, got error: %s", result.Error)
+	}
+	if result.ActionID != "respawn-companion" {
+		t.Errorf("ActionID = %q, want respawn-companion", result.ActionID)
+	}
+	if exec.lastCommand != "vrooli" {
+		t.Errorf("expected command 'vrooli', got %s", exec.lastCommand)
+	}
+	if len(exec.lastArgs) < 3 || exec.lastArgs[0] != "resource" || exec.lastArgs[1] != "start" || exec.lastArgs[2] != "whisper" {
+		t.Errorf("expected 'resource start whisper', got %v", exec.lastArgs)
+	}
+}
+
 func TestVrooliStrategy_Restart(t *testing.T) {
 	t.Run("successful restart", func(t *testing.T) {
 		exec := &mockExecutor{

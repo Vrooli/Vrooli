@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package vrooli.system_monitor.v1.investigations;
 
+import "google/api/annotations.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
-import "google/api/annotations.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations;investigations";
 
@@ -590,6 +590,27 @@ message GetCooldownStatusResponse {
   CooldownStatus cooldown = 1;
 }
 
+// ResetCooldownRequest resets the investigation cooldown.
+message ResetCooldownRequest {}
+
+// ResetCooldownResponse confirms the cooldown reset.
+message ResetCooldownResponse {
+  // Confirmation.
+  string status = 1;
+}
+
+// UpdateCooldownPeriodRequest updates the investigation cooldown duration.
+message UpdateCooldownPeriodRequest {
+  // New cooldown period in seconds.
+  int32 cooldown_period_seconds = 1;
+}
+
+// UpdateCooldownPeriodResponse confirms the cooldown period update.
+message UpdateCooldownPeriodResponse {
+  // Confirmation.
+  string status = 1;
+}
+
 // GetTriggersRequest is empty - no parameters needed.
 message GetTriggersRequest {}
 
@@ -628,25 +649,21 @@ service InvestigationsService {
       post: "/api/v1/investigations/trigger"
       body: "*"
     };
-
   }
 
   // GetInvestigation retrieves an investigation by ID.
   rpc GetInvestigation(GetInvestigationRequest) returns (GetInvestigationResponse) {
     option (google.api.http) = {get: "/api/v1/investigations/{id}"};
-
   }
 
   // GetLatestInvestigation retrieves the most recent investigation.
   rpc GetLatestInvestigation(GetLatestInvestigationRequest) returns (GetLatestInvestigationResponse) {
     option (google.api.http) = {get: "/api/v1/investigations/latest"};
-
   }
 
   // ListInvestigations returns recent investigations.
   rpc ListInvestigations(ListInvestigationsRequest) returns (ListInvestigationsResponse) {
     option (google.api.http) = {get: "/api/v1/investigations"};
-
   }
 
   // UpdateInvestigationStatus updates an investigation's status.
@@ -655,7 +672,6 @@ service InvestigationsService {
       put: "/api/v1/investigations/{id}/status"
       body: "*"
     };
-
   }
 
   // UpdateInvestigationFindings updates an investigation's findings.
@@ -664,7 +680,6 @@ service InvestigationsService {
       put: "/api/v1/investigations/{id}/findings"
       body: "*"
     };
-
   }
 
   // UpdateInvestigationProgress updates investigation progress.
@@ -673,7 +688,6 @@ service InvestigationsService {
       put: "/api/v1/investigations/{id}/progress"
       body: "*"
     };
-
   }
 
   // AddInvestigationStep adds a step to an investigation.
@@ -682,19 +696,32 @@ service InvestigationsService {
       post: "/api/v1/investigations/{id}/step"
       body: "*"
     };
-
   }
 
   // GetCooldownStatus returns the current investigation cooldown.
   rpc GetCooldownStatus(GetCooldownStatusRequest) returns (GetCooldownStatusResponse) {
     option (google.api.http) = {get: "/api/v1/investigations/cooldown"};
+  }
 
+  // ResetCooldown resets the investigation cooldown.
+  rpc ResetCooldown(ResetCooldownRequest) returns (ResetCooldownResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/cooldown/reset"
+      body: "*"
+    };
+  }
+
+  // UpdateCooldownPeriod updates the investigation cooldown duration.
+  rpc UpdateCooldownPeriod(UpdateCooldownPeriodRequest) returns (UpdateCooldownPeriodResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/investigations/cooldown/period"
+      body: "*"
+    };
   }
 
   // GetTriggers returns all trigger configurations.
   rpc GetTriggers(GetTriggersRequest) returns (GetTriggersResponse) {
     option (google.api.http) = {get: "/api/v1/investigations/triggers"};
-
   }
 
   // UpdateTrigger updates a trigger configuration.
@@ -703,6 +730,5 @@ service InvestigationsService {
       put: "/api/v1/investigations/triggers/{id}"
       body: "*"
     };
-
   }
 }

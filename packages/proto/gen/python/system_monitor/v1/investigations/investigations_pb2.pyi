@@ -1,8 +1,8 @@
 import datetime
 
+from google.api import annotations_pb2 as _annotations_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
-from google.api import annotations_pb2 as _annotations_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -408,6 +408,28 @@ class GetCooldownStatusResponse(_message.Message):
     COOLDOWN_FIELD_NUMBER: _ClassVar[int]
     cooldown: CooldownStatus
     def __init__(self, cooldown: _Optional[_Union[CooldownStatus, _Mapping]] = ...) -> None: ...
+
+class ResetCooldownRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ResetCooldownResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class UpdateCooldownPeriodRequest(_message.Message):
+    __slots__ = ("cooldown_period_seconds",)
+    COOLDOWN_PERIOD_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    cooldown_period_seconds: int
+    def __init__(self, cooldown_period_seconds: _Optional[int] = ...) -> None: ...
+
+class UpdateCooldownPeriodResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    def __init__(self, status: _Optional[str] = ...) -> None: ...
 
 class GetTriggersRequest(_message.Message):
     __slots__ = ()

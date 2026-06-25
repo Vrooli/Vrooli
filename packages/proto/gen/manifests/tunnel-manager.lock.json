@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "tunnel-manager",
-  "input_digest": "sha256:fce46178f5b4996bfc4e8e9d9f79c9827d0c544e4fdcb780732c6b5f1926f9fd",
+  "input_digest": "sha256:cd0aa8075a7e3866c88945d03c8ae641d780d9a3e4751623095ac49807b0f3ce",
   "input_files": [
     "schemas/tunnel-manager/v1/audit/audit.proto",
     "schemas/tunnel-manager/v1/config/config.proto",

@@ -39,12 +39,12 @@ message Gap {
   string id = 1;
   shared.Projection projection = 2; // UNSPECIFIED for convergence / cross-cutting gaps
   string title = 3;
-  shared.CellStatus status = 4;     // the source cell's status (usually MISSING / IN_REACH)
-  string source_cell_id = 5;        // the denominator cell this gap came from, if any
-  bool global = 6;                  // a cross-cutting gap not tied to a single cell
-  repeated string notes = 7;        // qualitative context
-  repeated string approaches = 8;   // explored-but-unbuilt ideas (the "store our thinking")
-  repeated string follow_ups = 9;   // suggested next reads / commands
+  shared.CellStatus status = 4; // the source cell's status (usually MISSING / IN_REACH)
+  string source_cell_id = 5; // the denominator cell this gap came from, if any
+  bool global = 6; // a cross-cutting gap not tied to a single cell
+  repeated string notes = 7; // qualitative context
+  repeated string approaches = 8; // explored-but-unbuilt ideas (the "store our thinking")
+  repeated string follow_ups = 9; // suggested next reads / commands
 }
 
 // FocusItem is a ranked next-best gap.
@@ -57,7 +57,7 @@ message FocusItem {
 }
 
 message GetFocusRequest {
-  int32 limit = 1;                  // top-N; 0 => default
+  int32 limit = 1; // top-N; 0 => default
   shared.Projection projection = 2; // optional filter
 }
 
@@ -67,8 +67,8 @@ message GetFocusResponse {
 
 message ListGapsRequest {
   shared.Projection projection = 1; // optional filter
-  string cell_id = 2;               // optional filter
-  shared.CellStatus status = 3;     // optional filter
+  string cell_id = 2; // optional filter
+  shared.CellStatus status = 3; // optional filter
 }
 
 message ListGapsResponse {

@@ -188,6 +188,18 @@ func TestQueryLogsErrorPropagated(t *testing.T) {
 	}
 }
 
+func TestQueryLogsEmptyExitOneMeansNoMatches(t *testing.T) {
+	r, mock := newReaderWithMock(t)
+	mock.DefaultResponse = checks.MockResponse{Error: errors.New("exit status 1")}
+	entries, err := r.QueryLogs(context.Background(), QueryOpts{Kernel: true, Grep: "pm_runtime_work .* hogged CPU"})
+	if err != nil {
+		t.Fatalf("QueryLogs: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("got %d entries, want 0", len(entries))
+	}
+}
+
 func TestQueryLogsFallsBackToTextOnJSONFailure(t *testing.T) {
 	r, mock := newReaderWithMock(t)
 	jsonKey := "journalctl --no-pager -o json -u docker"

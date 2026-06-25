@@ -84,8 +84,7 @@ message RecoveryEvent {
   google.protobuf.Timestamp created_at = 7;
 }
 
-message GetStateRequest {
-}
+message GetStateRequest {}
 
 message GetStateResponse {
   RecoveryState state = 1;

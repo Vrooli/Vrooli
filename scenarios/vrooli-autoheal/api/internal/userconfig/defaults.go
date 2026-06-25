@@ -83,6 +83,7 @@ func DefaultMonitoring() MonitoringConfig {
 			"qdrant",
 			"searxng",
 			"browserless",
+			"whisper",
 		},
 	}
 }
@@ -250,6 +251,12 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		AutoHeal:        true,
 		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
+	},
+	"resource-whisper": {
+		Enabled:         true,
+		AutoHeal:        true,
+		AutoHealOn:      "critical",
+		IntervalSeconds: 60,
 	},
 
 	// Vrooli API check

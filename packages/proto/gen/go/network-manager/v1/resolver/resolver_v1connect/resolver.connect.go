@@ -45,6 +45,9 @@ const (
 	// ResolverServiceCheckResolverHealthProcedure is the fully-qualified name of the ResolverService's
 	// CheckResolverHealth RPC.
 	ResolverServiceCheckResolverHealthProcedure = "/vrooli.network_manager.v1.resolver.ResolverService/CheckResolverHealth"
+	// ResolverServiceGetAdGuardRolloutProcedure is the fully-qualified name of the ResolverService's
+	// GetAdGuardRollout RPC.
+	ResolverServiceGetAdGuardRolloutProcedure = "/vrooli.network_manager.v1.resolver.ResolverService/GetAdGuardRollout"
 )
 
 // ResolverServiceClient is a client for the vrooli.network_manager.v1.resolver.ResolverService
@@ -54,6 +57,7 @@ type ResolverServiceClient interface {
 	ConfigureAdGuardHome(context.Context, *connect.Request[resolver.ConfigureAdGuardHomeRequest]) (*connect.Response[resolver.ConfigureAdGuardHomeResponse], error)
 	UpdateUpstreams(context.Context, *connect.Request[resolver.UpdateUpstreamsRequest]) (*connect.Response[resolver.UpdateUpstreamsResponse], error)
 	CheckResolverHealth(context.Context, *connect.Request[resolver.CheckResolverHealthRequest]) (*connect.Response[resolver.CheckResolverHealthResponse], error)
+	GetAdGuardRollout(context.Context, *connect.Request[resolver.GetAdGuardRolloutRequest]) (*connect.Response[resolver.GetAdGuardRolloutResponse], error)
 }
 
 // NewResolverServiceClient constructs a client for the
@@ -92,6 +96,12 @@ func NewResolverServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resolverServiceMethods.ByName("CheckResolverHealth")),
 			connect.WithClientOptions(opts...),
 		),
+		getAdGuardRollout: connect.NewClient[resolver.GetAdGuardRolloutRequest, resolver.GetAdGuardRolloutResponse](
+			httpClient,
+			baseURL+ResolverServiceGetAdGuardRolloutProcedure,
+			connect.WithSchema(resolverServiceMethods.ByName("GetAdGuardRollout")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +111,7 @@ type resolverServiceClient struct {
 	configureAdGuardHome *connect.Client[resolver.ConfigureAdGuardHomeRequest, resolver.ConfigureAdGuardHomeResponse]
 	updateUpstreams      *connect.Client[resolver.UpdateUpstreamsRequest, resolver.UpdateUpstreamsResponse]
 	checkResolverHealth  *connect.Client[resolver.CheckResolverHealthRequest, resolver.CheckResolverHealthResponse]
+	getAdGuardRollout    *connect.Client[resolver.GetAdGuardRolloutRequest, resolver.GetAdGuardRolloutResponse]
 }
 
 // GetResolverStatus calls vrooli.network_manager.v1.resolver.ResolverService.GetResolverStatus.
@@ -124,6 +135,11 @@ func (c *resolverServiceClient) CheckResolverHealth(ctx context.Context, req *co
 	return c.checkResolverHealth.CallUnary(ctx, req)
 }
 
+// GetAdGuardRollout calls vrooli.network_manager.v1.resolver.ResolverService.GetAdGuardRollout.
+func (c *resolverServiceClient) GetAdGuardRollout(ctx context.Context, req *connect.Request[resolver.GetAdGuardRolloutRequest]) (*connect.Response[resolver.GetAdGuardRolloutResponse], error) {
+	return c.getAdGuardRollout.CallUnary(ctx, req)
+}
+
 // ResolverServiceHandler is an implementation of the
 // vrooli.network_manager.v1.resolver.ResolverService service.
 type ResolverServiceHandler interface {
@@ -131,6 +147,7 @@ type ResolverServiceHandler interface {
 	ConfigureAdGuardHome(context.Context, *connect.Request[resolver.ConfigureAdGuardHomeRequest]) (*connect.Response[resolver.ConfigureAdGuardHomeResponse], error)
 	UpdateUpstreams(context.Context, *connect.Request[resolver.UpdateUpstreamsRequest]) (*connect.Response[resolver.UpdateUpstreamsResponse], error)
 	CheckResolverHealth(context.Context, *connect.Request[resolver.CheckResolverHealthRequest]) (*connect.Response[resolver.CheckResolverHealthResponse], error)
+	GetAdGuardRollout(context.Context, *connect.Request[resolver.GetAdGuardRolloutRequest]) (*connect.Response[resolver.GetAdGuardRolloutResponse], error)
 }
 
 // NewResolverServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -164,6 +181,12 @@ func NewResolverServiceHandler(svc ResolverServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resolverServiceMethods.ByName("CheckResolverHealth")),
 		connect.WithHandlerOptions(opts...),
 	)
+	resolverServiceGetAdGuardRolloutHandler := connect.NewUnaryHandler(
+		ResolverServiceGetAdGuardRolloutProcedure,
+		svc.GetAdGuardRollout,
+		connect.WithSchema(resolverServiceMethods.ByName("GetAdGuardRollout")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.network_manager.v1.resolver.ResolverService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ResolverServiceGetResolverStatusProcedure:
@@ -174,6 +197,8 @@ func NewResolverServiceHandler(svc ResolverServiceHandler, opts ...connect.Handl
 			resolverServiceUpdateUpstreamsHandler.ServeHTTP(w, r)
 		case ResolverServiceCheckResolverHealthProcedure:
 			resolverServiceCheckResolverHealthHandler.ServeHTTP(w, r)
+		case ResolverServiceGetAdGuardRolloutProcedure:
+			resolverServiceGetAdGuardRolloutHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -197,4 +222,8 @@ func (UnimplementedResolverServiceHandler) UpdateUpstreams(context.Context, *con
 
 func (UnimplementedResolverServiceHandler) CheckResolverHealth(context.Context, *connect.Request[resolver.CheckResolverHealthRequest]) (*connect.Response[resolver.CheckResolverHealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.resolver.ResolverService.CheckResolverHealth is not implemented"))
+}
+
+func (UnimplementedResolverServiceHandler) GetAdGuardRollout(context.Context, *connect.Request[resolver.GetAdGuardRolloutRequest]) (*connect.Response[resolver.GetAdGuardRolloutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.network_manager.v1.resolver.ResolverService.GetAdGuardRollout is not implemented"))
 }

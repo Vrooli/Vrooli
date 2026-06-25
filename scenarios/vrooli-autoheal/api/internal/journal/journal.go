@@ -109,6 +109,9 @@ func (r *Reader) QueryLogs(ctx context.Context, opts QueryOpts) ([]LogEntry, err
 	args := buildArgs(opts, true)
 	out, err := r.exec.CombinedOutput(ctx, "journalctl", args...)
 	if err != nil {
+		if isNoMatchExit(out, err) {
+			return nil, nil
+		}
 		// Surface argv to make debugging failures less mysterious.
 		return nil, fmt.Errorf("journalctl %s: %w (output: %s)",
 			strings.Join(args, " "), err, truncate(string(out), 200))
@@ -127,6 +130,10 @@ func (r *Reader) QueryLogs(ctx context.Context, opts QueryOpts) ([]LogEntry, err
 		return nil, fmt.Errorf("journalctl text fallback failed: %w", textErr)
 	}
 	return parseText(textOut), nil
+}
+
+func isNoMatchExit(out []byte, err error) bool {
+	return len(bytes.TrimSpace(out)) == 0 && strings.Contains(err.Error(), "exit status 1")
 }
 
 // Tail is a thin compatibility surface for callers that want raw text output

@@ -42,6 +42,9 @@ const (
 	// MetricsServiceGetProcessMonitorProcedure is the fully-qualified name of the MetricsService's
 	// GetProcessMonitor RPC.
 	MetricsServiceGetProcessMonitorProcedure = "/vrooli.system_monitor.v1.metrics.MetricsService/GetProcessMonitor"
+	// MetricsServiceGetProcessTimelineProcedure is the fully-qualified name of the MetricsService's
+	// GetProcessTimeline RPC.
+	MetricsServiceGetProcessTimelineProcedure = "/vrooli.system_monitor.v1.metrics.MetricsService/GetProcessTimeline"
 	// MetricsServiceGetInfrastructureMonitorProcedure is the fully-qualified name of the
 	// MetricsService's GetInfrastructureMonitor RPC.
 	MetricsServiceGetInfrastructureMonitorProcedure = "/vrooli.system_monitor.v1.metrics.MetricsService/GetInfrastructureMonitor"
@@ -61,6 +64,8 @@ type MetricsServiceClient interface {
 	GetDetailedMetrics(context.Context, *connect.Request[metrics.GetDetailedMetricsRequest]) (*connect.Response[metrics.GetDetailedMetricsResponse], error)
 	// GetProcessMonitor returns process monitoring data.
 	GetProcessMonitor(context.Context, *connect.Request[metrics.GetProcessMonitorRequest]) (*connect.Response[metrics.GetProcessMonitorResponse], error)
+	// GetProcessTimeline returns ranked process consumers over a window.
+	GetProcessTimeline(context.Context, *connect.Request[metrics.GetProcessTimelineRequest]) (*connect.Response[metrics.GetProcessTimelineResponse], error)
 	// GetInfrastructureMonitor returns infrastructure monitoring data.
 	GetInfrastructureMonitor(context.Context, *connect.Request[metrics.GetInfrastructureMonitorRequest]) (*connect.Response[metrics.GetInfrastructureMonitorResponse], error)
 	// GetMetricsTimeline returns a windowed metrics timeline.
@@ -99,6 +104,12 @@ func NewMetricsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(metricsServiceMethods.ByName("GetProcessMonitor")),
 			connect.WithClientOptions(opts...),
 		),
+		getProcessTimeline: connect.NewClient[metrics.GetProcessTimelineRequest, metrics.GetProcessTimelineResponse](
+			httpClient,
+			baseURL+MetricsServiceGetProcessTimelineProcedure,
+			connect.WithSchema(metricsServiceMethods.ByName("GetProcessTimeline")),
+			connect.WithClientOptions(opts...),
+		),
 		getInfrastructureMonitor: connect.NewClient[metrics.GetInfrastructureMonitorRequest, metrics.GetInfrastructureMonitorResponse](
 			httpClient,
 			baseURL+MetricsServiceGetInfrastructureMonitorProcedure,
@@ -125,6 +136,7 @@ type metricsServiceClient struct {
 	getCurrentMetrics        *connect.Client[metrics.GetCurrentMetricsRequest, metrics.GetCurrentMetricsResponse]
 	getDetailedMetrics       *connect.Client[metrics.GetDetailedMetricsRequest, metrics.GetDetailedMetricsResponse]
 	getProcessMonitor        *connect.Client[metrics.GetProcessMonitorRequest, metrics.GetProcessMonitorResponse]
+	getProcessTimeline       *connect.Client[metrics.GetProcessTimelineRequest, metrics.GetProcessTimelineResponse]
 	getInfrastructureMonitor *connect.Client[metrics.GetInfrastructureMonitorRequest, metrics.GetInfrastructureMonitorResponse]
 	getMetricsTimeline       *connect.Client[metrics.GetMetricsTimelineRequest, metrics.GetMetricsTimelineResponse]
 	getDiskDetail            *connect.Client[metrics.GetDiskDetailRequest, metrics.GetDiskDetailResponse]
@@ -143,6 +155,11 @@ func (c *metricsServiceClient) GetDetailedMetrics(ctx context.Context, req *conn
 // GetProcessMonitor calls vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor.
 func (c *metricsServiceClient) GetProcessMonitor(ctx context.Context, req *connect.Request[metrics.GetProcessMonitorRequest]) (*connect.Response[metrics.GetProcessMonitorResponse], error) {
 	return c.getProcessMonitor.CallUnary(ctx, req)
+}
+
+// GetProcessTimeline calls vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline.
+func (c *metricsServiceClient) GetProcessTimeline(ctx context.Context, req *connect.Request[metrics.GetProcessTimelineRequest]) (*connect.Response[metrics.GetProcessTimelineResponse], error) {
+	return c.getProcessTimeline.CallUnary(ctx, req)
 }
 
 // GetInfrastructureMonitor calls
@@ -170,6 +187,8 @@ type MetricsServiceHandler interface {
 	GetDetailedMetrics(context.Context, *connect.Request[metrics.GetDetailedMetricsRequest]) (*connect.Response[metrics.GetDetailedMetricsResponse], error)
 	// GetProcessMonitor returns process monitoring data.
 	GetProcessMonitor(context.Context, *connect.Request[metrics.GetProcessMonitorRequest]) (*connect.Response[metrics.GetProcessMonitorResponse], error)
+	// GetProcessTimeline returns ranked process consumers over a window.
+	GetProcessTimeline(context.Context, *connect.Request[metrics.GetProcessTimelineRequest]) (*connect.Response[metrics.GetProcessTimelineResponse], error)
 	// GetInfrastructureMonitor returns infrastructure monitoring data.
 	GetInfrastructureMonitor(context.Context, *connect.Request[metrics.GetInfrastructureMonitorRequest]) (*connect.Response[metrics.GetInfrastructureMonitorResponse], error)
 	// GetMetricsTimeline returns a windowed metrics timeline.
@@ -203,6 +222,12 @@ func NewMetricsServiceHandler(svc MetricsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(metricsServiceMethods.ByName("GetProcessMonitor")),
 		connect.WithHandlerOptions(opts...),
 	)
+	metricsServiceGetProcessTimelineHandler := connect.NewUnaryHandler(
+		MetricsServiceGetProcessTimelineProcedure,
+		svc.GetProcessTimeline,
+		connect.WithSchema(metricsServiceMethods.ByName("GetProcessTimeline")),
+		connect.WithHandlerOptions(opts...),
+	)
 	metricsServiceGetInfrastructureMonitorHandler := connect.NewUnaryHandler(
 		MetricsServiceGetInfrastructureMonitorProcedure,
 		svc.GetInfrastructureMonitor,
@@ -229,6 +254,8 @@ func NewMetricsServiceHandler(svc MetricsServiceHandler, opts ...connect.Handler
 			metricsServiceGetDetailedMetricsHandler.ServeHTTP(w, r)
 		case MetricsServiceGetProcessMonitorProcedure:
 			metricsServiceGetProcessMonitorHandler.ServeHTTP(w, r)
+		case MetricsServiceGetProcessTimelineProcedure:
+			metricsServiceGetProcessTimelineHandler.ServeHTTP(w, r)
 		case MetricsServiceGetInfrastructureMonitorProcedure:
 			metricsServiceGetInfrastructureMonitorHandler.ServeHTTP(w, r)
 		case MetricsServiceGetMetricsTimelineProcedure:
@@ -254,6 +281,10 @@ func (UnimplementedMetricsServiceHandler) GetDetailedMetrics(context.Context, *c
 
 func (UnimplementedMetricsServiceHandler) GetProcessMonitor(context.Context, *connect.Request[metrics.GetProcessMonitorRequest]) (*connect.Response[metrics.GetProcessMonitorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor is not implemented"))
+}
+
+func (UnimplementedMetricsServiceHandler) GetProcessTimeline(context.Context, *connect.Request[metrics.GetProcessTimelineRequest]) (*connect.Response[metrics.GetProcessTimelineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline is not implemented"))
 }
 
 func (UnimplementedMetricsServiceHandler) GetInfrastructureMonitor(context.Context, *connect.Request[metrics.GetInfrastructureMonitorRequest]) (*connect.Response[metrics.GetInfrastructureMonitorResponse], error) {

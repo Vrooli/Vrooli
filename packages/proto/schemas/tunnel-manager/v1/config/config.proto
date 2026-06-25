@@ -173,16 +173,14 @@ message CredentialStatus {
   bool ready = 5;
 }
 
-message GetConfigRequest {
-}
+message GetConfigRequest {}
 
 message GetConfigResponse {
   TunnelConfig config = 1;
   ConfigReadiness readiness = 2;
 }
 
-message GetCredentialStatusRequest {
-}
+message GetCredentialStatusRequest {}
 
 message GetCredentialStatusResponse {
   CredentialStatus status = 1;
@@ -250,8 +248,7 @@ message SwitchModeResponse {
   Mode current_mode = 2;
 }
 
-message GetDriftRequest {
-}
+message GetDriftRequest {}
 
 message GetDriftResponse {
   Mode mode = 1;

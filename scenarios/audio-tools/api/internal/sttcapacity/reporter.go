@@ -2,13 +2,20 @@
 // capacity broker (plan §7 Phase 7 audio-tools adopter).
 //
 // audio-tools holds NO VRAM capacity claim of its own — the backing STT
-// resource (whisper / kyutai-stt) declares and holds the claim, so audio-tools
-// never double-reserves. What audio-tools uniquely knows is *when a
-// transcription is in flight*, which the third-party model-server containers
-// cannot report for themselves. This package bridges that: at the start of a
-// streaming session on a local-resource engine it marks the resource's claim
-// activity=active (which protects it from idle reclaim per plan §8.3), and at
-// session end marks it idle again.
+// resource (kyutai-stt) declares and holds the claim, so audio-tools never
+// double-reserves. What audio-tools uniquely knows is *when a transcription
+// session is in flight*, which the model-server cannot report for itself. This
+// package bridges that: at the start of a streaming session on a local-resource
+// engine it marks the resource's claim activity=active (which protects it from
+// idle reclaim per plan §8.3), and at session end marks it idle again.
+//
+// SCOPE (activity-source contract, internal/capacity/doc.go): this reporter
+// covers kyutai-stt ONLY. kyutai-stt is a websocket streaming server, so the
+// CALLER (audio-tools) is the right place to bracket a whole session — the edge
+// can't see session boundaries. whisper is request/response HTTP and is reported
+// at its RESOURCE EDGE (a host-side proxy bracketing each /asr) so it covers the
+// host dictation tool and browser clients audio-tools never sees. There is
+// exactly ONE reporter per resource; whisper is deliberately NOT in scope here.
 //
 // It is strictly advisory and best-effort: a missing vrooli binary, a resource
 // with no live claim, or any CLI error is swallowed. Capacity reporting NEVER
@@ -23,9 +30,10 @@ import (
 
 // allowedResources is the whitelist of backing STT resources whose capacity
 // claim this reporter will ever touch. Defence-in-depth: the engine registry
-// already constrains engine.Resource, this is a second guard.
+// already constrains engine.Resource, this is a second guard. whisper is
+// intentionally absent — it is reported at its resource edge, not caller-side
+// (see the package doc and internal/capacity/doc.go activity-source contract).
 var allowedResources = map[string]struct{}{
-	"whisper":    {},
 	"kyutai-stt": {},
 }
 

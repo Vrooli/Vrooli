@@ -10,6 +10,7 @@ service ResolverService {
   rpc ConfigureAdGuardHome(ConfigureAdGuardHomeRequest) returns (ConfigureAdGuardHomeResponse);
   rpc UpdateUpstreams(UpdateUpstreamsRequest) returns (UpdateUpstreamsResponse);
   rpc CheckResolverHealth(CheckResolverHealthRequest) returns (CheckResolverHealthResponse);
+  rpc GetAdGuardRollout(GetAdGuardRolloutRequest) returns (GetAdGuardRolloutResponse);
 }
 
 message ResolverStatus {
@@ -19,10 +20,11 @@ message ResolverStatus {
   repeated string upstreams = 4;
   bool filtering_enabled = 5;
   repeated string warnings = 6;
+  string enforcement_status = 7;
+  repeated string enforcement_evidence = 8;
 }
 
-message GetResolverStatusRequest {
-}
+message GetResolverStatusRequest {}
 
 message GetResolverStatusResponse {
   ResolverStatus status = 1;
@@ -50,10 +52,34 @@ message UpdateUpstreamsResponse {
   repeated string changes = 2;
 }
 
-message CheckResolverHealthRequest {
-}
+message CheckResolverHealthRequest {}
 
 message CheckResolverHealthResponse {
   ResolverStatus status = 1;
   repeated string checks = 2;
+}
+
+message RolloutCheck {
+  string id = 1;
+  string title = 2;
+  string status = 3;
+  string evidence = 4;
+  repeated string recommendations = 5;
+}
+
+message AdGuardRollout {
+  string status = 1;
+  string summary = 2;
+  string dns_bind_ip = 3;
+  ResolverStatus resolver_status = 4;
+  repeated RolloutCheck checks = 5;
+  repeated string router_settings = 6;
+  repeated string next_steps = 7;
+  repeated string warnings = 8;
+}
+
+message GetAdGuardRolloutRequest {}
+
+message GetAdGuardRolloutResponse {
+  AdGuardRollout rollout = 1;
 }

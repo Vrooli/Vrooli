@@ -68,6 +68,33 @@ func (v *VrooliStrategy) Start(ctx context.Context, checkID string) checks.Actio
 	return result
 }
 
+// RespawnCompanion reconciles host-side companions by running the idempotent
+// resource start path. For compose resources this leaves a live container alone
+// and only respawns dead companions tracked by stale pidfiles.
+func (v *VrooliStrategy) RespawnCompanion(ctx context.Context, checkID string) checks.ActionResult {
+	start := time.Now()
+	result := checks.ActionResult{
+		ActionID:  "respawn-companion",
+		CheckID:   checkID,
+		Timestamp: start,
+	}
+
+	output, err := v.executor.CombinedOutput(ctx, "vrooli", string(v.entityType), "start", v.entityName)
+	result.Output = string(output)
+	result.Duration = time.Since(start)
+
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Message = fmt.Sprintf("Failed to respawn companion for %s %s", v.entityType, v.entityName)
+		return result
+	}
+
+	result.Success = true
+	result.Message = fmt.Sprintf("%s %s companion respawn reconciled successfully", v.entityType, v.entityName)
+	return result
+}
+
 // Stop stops the resource or scenario.
 func (v *VrooliStrategy) Stop(ctx context.Context, checkID string) checks.ActionResult {
 	start := time.Now()

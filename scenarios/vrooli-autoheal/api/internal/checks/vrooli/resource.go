@@ -5,6 +5,7 @@ package vrooli
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -72,6 +73,11 @@ var resourceMetadata = map[string]struct {
 		title:       "Browserless Chrome",
 		description: "Checks Browserless headless Chrome resource via vrooli CLI",
 		importance:  "Required for web scraping, screenshots, and browser automation",
+	},
+	"whisper": {
+		title:       "Whisper STT",
+		description: "Checks Whisper speech-to-text resource and its activity edge via vrooli CLI",
+		importance:  "Required for local speech-to-text and whisper capacity activity reporting",
 	},
 }
 
@@ -228,6 +234,15 @@ func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.Reco
 			Available:   true, // Always available
 		},
 	}
+	if companionDown(lastResult) {
+		actions = append([]checks.RecoveryAction{{
+			ID:          "respawn-companion",
+			Name:        "Respawn Companion",
+			Description: "Respawn the dead companion for the " + c.resourceName + " resource without restarting the container",
+			Dangerous:   false,
+			Available:   true,
+		}}, actions...)
+	}
 
 	return actions
 }
@@ -246,6 +261,9 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	needsVerification := false
 	switch actionID {
 	case "start":
+		args = []string{"resource", "start", c.resourceName}
+		needsVerification = true
+	case "respawn-companion":
 		args = []string{"resource", "start", c.resourceName}
 		needsVerification = true
 	case "stop":
@@ -294,6 +312,19 @@ func (c *ResourceCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	}
 
 	return result
+}
+
+func companionDown(lastResult *checks.Result) bool {
+	if lastResult == nil {
+		return false
+	}
+	if statusText, ok := lastResult.Details["statusText"].(string); ok && strings.Contains(strings.ToLower(statusText), "companion down") {
+		return true
+	}
+	if output, ok := lastResult.Details["output"].(string); ok && strings.Contains(strings.ToLower(output), "companion down") {
+		return true
+	}
+	return strings.Contains(strings.ToLower(lastResult.Message), "companion down")
 }
 
 // verifyRecovery checks that the resource is actually healthy after a start/restart action

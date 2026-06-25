@@ -53,6 +53,23 @@ func TestPMRuntimeOKBelowWarn(t *testing.T) {
 	}
 }
 
+func TestPMRuntimeEmptyJournalGrepExitOneIsOK(t *testing.T) {
+	c, mock := newPMRuntimeWithMock(true, 0, nil)
+	queryKey := "journalctl --no-pager -o json -k --since 1 hour ago -g pm_runtime_work .* hogged CPU -n 1000"
+	mock.Responses[queryKey] = checks.MockResponse{Error: errors.New("exit status 1")}
+
+	r := c.Run(context.Background())
+	if r.Status != checks.StatusOK {
+		t.Errorf("Status = %s, want OK for empty grep result", r.Status)
+	}
+	if got := r.Details["count"]; got != 0 {
+		t.Errorf("count = %v, want 0", got)
+	}
+	if _, ok := r.Details["error"]; ok {
+		t.Errorf("error detail should be absent for empty grep result: %+v", r.Details)
+	}
+}
+
 func TestPMRuntimeWarningAtThreshold(t *testing.T) {
 	c, _ := newPMRuntimeWithMock(true, 75, nil)
 	r := c.Run(context.Background())

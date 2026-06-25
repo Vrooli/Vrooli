@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.system_monitor.v1.reports;
 
-import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/reports;reports";
 
@@ -276,18 +276,15 @@ service ReportsService {
       post: "/api/v1/reports/generate"
       body: "*"
     };
-
   }
 
   // ListReports returns available reports.
   rpc ListReports(ListReportsRequest) returns (ListReportsResponse) {
     option (google.api.http) = {get: "/api/v1/reports"};
-
   }
 
   // GetReport retrieves a specific report.
   rpc GetReport(GetReportRequest) returns (GetReportResponse) {
     option (google.api.http) = {get: "/api/v1/reports/{id}"};
-
   }
 }

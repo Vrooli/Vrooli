@@ -79,9 +79,13 @@ type HealthResponse struct {
 	// Status of downstream dependencies.
 	Dependencies map[string]*v1.JsonValue `protobuf:"bytes,8,rep,name=dependencies,proto3" json:"dependencies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Additional health metrics for monitoring.
-	Metrics       map[string]*v1.JsonValue `protobuf:"bytes,9,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Metrics map[string]*v1.JsonValue `protobuf:"bytes,9,rep,name=metrics,proto3" json:"metrics,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Whether monitoring processors are currently active.
+	ProcessorActive bool `protobuf:"varint,10,opt,name=processor_active,json=processorActive,proto3" json:"processor_active,omitempty"`
+	// Current maintenance state.
+	MaintenanceState string `protobuf:"bytes,11,opt,name=maintenance_state,json=maintenanceState,proto3" json:"maintenance_state,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *HealthResponse) Reset() {
@@ -163,12 +167,26 @@ func (x *HealthResponse) GetMetrics() map[string]*v1.JsonValue {
 	return nil
 }
 
+func (x *HealthResponse) GetProcessorActive() bool {
+	if x != nil {
+		return x.ProcessorActive
+	}
+	return false
+}
+
+func (x *HealthResponse) GetMaintenanceState() string {
+	if x != nil {
+		return x.MaintenanceState
+	}
+	return ""
+}
+
 var File_system_monitor_v1_health_health_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_health_health_proto_rawDesc = "" +
 	"\n" +
 	"%system-monitor/v1/health/health.proto\x12\x1fvrooli.system_monitor.v1.health\x1a\x15common/v1/types.proto\x1a\x1cgoogle/api/annotations.proto\"\x0f\n" +
-	"\rHealthRequest\"\xcc\x04\n" +
+	"\rHealthRequest\"\xa4\x05\n" +
 	"\x0eHealthResponse\x12/\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x17.common.v1.HealthStatusR\x06status\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
@@ -176,7 +194,10 @@ const file_system_monitor_v1_health_health_proto_rawDesc = "" +
 	"\treadiness\x18\x04 \x01(\bR\treadiness\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12e\n" +
 	"\fdependencies\x18\b \x03(\v2A.vrooli.system_monitor.v1.health.HealthResponse.DependenciesEntryR\fdependencies\x12V\n" +
-	"\ametrics\x18\t \x03(\v2<.vrooli.system_monitor.v1.health.HealthResponse.MetricsEntryR\ametrics\x1aU\n" +
+	"\ametrics\x18\t \x03(\v2<.vrooli.system_monitor.v1.health.HealthResponse.MetricsEntryR\ametrics\x12)\n" +
+	"\x10processor_active\x18\n" +
+	" \x01(\bR\x0fprocessorActive\x12+\n" +
+	"\x11maintenance_state\x18\v \x01(\tR\x10maintenanceState\x1aU\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.common.v1.JsonValueR\x05value:\x028\x01\x1aP\n" +

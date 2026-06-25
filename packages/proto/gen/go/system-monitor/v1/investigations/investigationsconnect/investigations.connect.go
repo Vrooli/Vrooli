@@ -60,6 +60,12 @@ const (
 	// InvestigationsServiceGetCooldownStatusProcedure is the fully-qualified name of the
 	// InvestigationsService's GetCooldownStatus RPC.
 	InvestigationsServiceGetCooldownStatusProcedure = "/vrooli.system_monitor.v1.investigations.InvestigationsService/GetCooldownStatus"
+	// InvestigationsServiceResetCooldownProcedure is the fully-qualified name of the
+	// InvestigationsService's ResetCooldown RPC.
+	InvestigationsServiceResetCooldownProcedure = "/vrooli.system_monitor.v1.investigations.InvestigationsService/ResetCooldown"
+	// InvestigationsServiceUpdateCooldownPeriodProcedure is the fully-qualified name of the
+	// InvestigationsService's UpdateCooldownPeriod RPC.
+	InvestigationsServiceUpdateCooldownPeriodProcedure = "/vrooli.system_monitor.v1.investigations.InvestigationsService/UpdateCooldownPeriod"
 	// InvestigationsServiceGetTriggersProcedure is the fully-qualified name of the
 	// InvestigationsService's GetTriggers RPC.
 	InvestigationsServiceGetTriggersProcedure = "/vrooli.system_monitor.v1.investigations.InvestigationsService/GetTriggers"
@@ -89,6 +95,10 @@ type InvestigationsServiceClient interface {
 	AddInvestigationStep(context.Context, *connect.Request[investigations.AddInvestigationStepRequest]) (*connect.Response[investigations.AddInvestigationStepResponse], error)
 	// GetCooldownStatus returns the current investigation cooldown.
 	GetCooldownStatus(context.Context, *connect.Request[investigations.GetCooldownStatusRequest]) (*connect.Response[investigations.GetCooldownStatusResponse], error)
+	// ResetCooldown resets the investigation cooldown.
+	ResetCooldown(context.Context, *connect.Request[investigations.ResetCooldownRequest]) (*connect.Response[investigations.ResetCooldownResponse], error)
+	// UpdateCooldownPeriod updates the investigation cooldown duration.
+	UpdateCooldownPeriod(context.Context, *connect.Request[investigations.UpdateCooldownPeriodRequest]) (*connect.Response[investigations.UpdateCooldownPeriodResponse], error)
 	// GetTriggers returns all trigger configurations.
 	GetTriggers(context.Context, *connect.Request[investigations.GetTriggersRequest]) (*connect.Response[investigations.GetTriggersResponse], error)
 	// UpdateTrigger updates a trigger configuration.
@@ -161,6 +171,18 @@ func NewInvestigationsServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(investigationsServiceMethods.ByName("GetCooldownStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		resetCooldown: connect.NewClient[investigations.ResetCooldownRequest, investigations.ResetCooldownResponse](
+			httpClient,
+			baseURL+InvestigationsServiceResetCooldownProcedure,
+			connect.WithSchema(investigationsServiceMethods.ByName("ResetCooldown")),
+			connect.WithClientOptions(opts...),
+		),
+		updateCooldownPeriod: connect.NewClient[investigations.UpdateCooldownPeriodRequest, investigations.UpdateCooldownPeriodResponse](
+			httpClient,
+			baseURL+InvestigationsServiceUpdateCooldownPeriodProcedure,
+			connect.WithSchema(investigationsServiceMethods.ByName("UpdateCooldownPeriod")),
+			connect.WithClientOptions(opts...),
+		),
 		getTriggers: connect.NewClient[investigations.GetTriggersRequest, investigations.GetTriggersResponse](
 			httpClient,
 			baseURL+InvestigationsServiceGetTriggersProcedure,
@@ -187,6 +209,8 @@ type investigationsServiceClient struct {
 	updateInvestigationProgress *connect.Client[investigations.UpdateInvestigationProgressRequest, investigations.UpdateInvestigationProgressResponse]
 	addInvestigationStep        *connect.Client[investigations.AddInvestigationStepRequest, investigations.AddInvestigationStepResponse]
 	getCooldownStatus           *connect.Client[investigations.GetCooldownStatusRequest, investigations.GetCooldownStatusResponse]
+	resetCooldown               *connect.Client[investigations.ResetCooldownRequest, investigations.ResetCooldownResponse]
+	updateCooldownPeriod        *connect.Client[investigations.UpdateCooldownPeriodRequest, investigations.UpdateCooldownPeriodResponse]
 	getTriggers                 *connect.Client[investigations.GetTriggersRequest, investigations.GetTriggersResponse]
 	updateTrigger               *connect.Client[investigations.UpdateTriggerRequest, investigations.UpdateTriggerResponse]
 }
@@ -245,6 +269,17 @@ func (c *investigationsServiceClient) GetCooldownStatus(ctx context.Context, req
 	return c.getCooldownStatus.CallUnary(ctx, req)
 }
 
+// ResetCooldown calls vrooli.system_monitor.v1.investigations.InvestigationsService.ResetCooldown.
+func (c *investigationsServiceClient) ResetCooldown(ctx context.Context, req *connect.Request[investigations.ResetCooldownRequest]) (*connect.Response[investigations.ResetCooldownResponse], error) {
+	return c.resetCooldown.CallUnary(ctx, req)
+}
+
+// UpdateCooldownPeriod calls
+// vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateCooldownPeriod.
+func (c *investigationsServiceClient) UpdateCooldownPeriod(ctx context.Context, req *connect.Request[investigations.UpdateCooldownPeriodRequest]) (*connect.Response[investigations.UpdateCooldownPeriodResponse], error) {
+	return c.updateCooldownPeriod.CallUnary(ctx, req)
+}
+
 // GetTriggers calls vrooli.system_monitor.v1.investigations.InvestigationsService.GetTriggers.
 func (c *investigationsServiceClient) GetTriggers(ctx context.Context, req *connect.Request[investigations.GetTriggersRequest]) (*connect.Response[investigations.GetTriggersResponse], error) {
 	return c.getTriggers.CallUnary(ctx, req)
@@ -276,6 +311,10 @@ type InvestigationsServiceHandler interface {
 	AddInvestigationStep(context.Context, *connect.Request[investigations.AddInvestigationStepRequest]) (*connect.Response[investigations.AddInvestigationStepResponse], error)
 	// GetCooldownStatus returns the current investigation cooldown.
 	GetCooldownStatus(context.Context, *connect.Request[investigations.GetCooldownStatusRequest]) (*connect.Response[investigations.GetCooldownStatusResponse], error)
+	// ResetCooldown resets the investigation cooldown.
+	ResetCooldown(context.Context, *connect.Request[investigations.ResetCooldownRequest]) (*connect.Response[investigations.ResetCooldownResponse], error)
+	// UpdateCooldownPeriod updates the investigation cooldown duration.
+	UpdateCooldownPeriod(context.Context, *connect.Request[investigations.UpdateCooldownPeriodRequest]) (*connect.Response[investigations.UpdateCooldownPeriodResponse], error)
 	// GetTriggers returns all trigger configurations.
 	GetTriggers(context.Context, *connect.Request[investigations.GetTriggersRequest]) (*connect.Response[investigations.GetTriggersResponse], error)
 	// UpdateTrigger updates a trigger configuration.
@@ -343,6 +382,18 @@ func NewInvestigationsServiceHandler(svc InvestigationsServiceHandler, opts ...c
 		connect.WithSchema(investigationsServiceMethods.ByName("GetCooldownStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	investigationsServiceResetCooldownHandler := connect.NewUnaryHandler(
+		InvestigationsServiceResetCooldownProcedure,
+		svc.ResetCooldown,
+		connect.WithSchema(investigationsServiceMethods.ByName("ResetCooldown")),
+		connect.WithHandlerOptions(opts...),
+	)
+	investigationsServiceUpdateCooldownPeriodHandler := connect.NewUnaryHandler(
+		InvestigationsServiceUpdateCooldownPeriodProcedure,
+		svc.UpdateCooldownPeriod,
+		connect.WithSchema(investigationsServiceMethods.ByName("UpdateCooldownPeriod")),
+		connect.WithHandlerOptions(opts...),
+	)
 	investigationsServiceGetTriggersHandler := connect.NewUnaryHandler(
 		InvestigationsServiceGetTriggersProcedure,
 		svc.GetTriggers,
@@ -375,6 +426,10 @@ func NewInvestigationsServiceHandler(svc InvestigationsServiceHandler, opts ...c
 			investigationsServiceAddInvestigationStepHandler.ServeHTTP(w, r)
 		case InvestigationsServiceGetCooldownStatusProcedure:
 			investigationsServiceGetCooldownStatusHandler.ServeHTTP(w, r)
+		case InvestigationsServiceResetCooldownProcedure:
+			investigationsServiceResetCooldownHandler.ServeHTTP(w, r)
+		case InvestigationsServiceUpdateCooldownPeriodProcedure:
+			investigationsServiceUpdateCooldownPeriodHandler.ServeHTTP(w, r)
 		case InvestigationsServiceGetTriggersProcedure:
 			investigationsServiceGetTriggersHandler.ServeHTTP(w, r)
 		case InvestigationsServiceUpdateTriggerProcedure:
@@ -422,6 +477,14 @@ func (UnimplementedInvestigationsServiceHandler) AddInvestigationStep(context.Co
 
 func (UnimplementedInvestigationsServiceHandler) GetCooldownStatus(context.Context, *connect.Request[investigations.GetCooldownStatusRequest]) (*connect.Response[investigations.GetCooldownStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.investigations.InvestigationsService.GetCooldownStatus is not implemented"))
+}
+
+func (UnimplementedInvestigationsServiceHandler) ResetCooldown(context.Context, *connect.Request[investigations.ResetCooldownRequest]) (*connect.Response[investigations.ResetCooldownResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.investigations.InvestigationsService.ResetCooldown is not implemented"))
+}
+
+func (UnimplementedInvestigationsServiceHandler) UpdateCooldownPeriod(context.Context, *connect.Request[investigations.UpdateCooldownPeriodRequest]) (*connect.Response[investigations.UpdateCooldownPeriodResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateCooldownPeriod is not implemented"))
 }
 
 func (UnimplementedInvestigationsServiceHandler) GetTriggers(context.Context, *connect.Request[investigations.GetTriggersRequest]) (*connect.Response[investigations.GetTriggersResponse], error) {

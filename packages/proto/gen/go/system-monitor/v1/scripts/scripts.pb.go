@@ -623,7 +623,7 @@ var File_system_monitor_v1_scripts_scripts_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_scripts_scripts_proto_rawDesc = "" +
 	"\n" +
-	"'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\x9f\x02\n" +
+	"'system-monitor/v1/scripts/scripts.proto\x12 vrooli.system_monitor.v1.scripts\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x02\n" +
 	"\x13InvestigationScript\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +

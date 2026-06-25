@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "search-hub",
-  "input_digest": "sha256:119ab2b3f2985ec3f2c81aea92b533f5e202527359a582813eafc7488cbc6812",
+  "input_digest": "sha256:f40c837d764ce40ab437e1e5a14b2c44e413fd8b9559b19f73c4e96af45d94ac",
   "input_files": [
     "schemas/search-hub/v1/control/control.proto",
     "schemas/search-hub/v1/errors/errors.proto",

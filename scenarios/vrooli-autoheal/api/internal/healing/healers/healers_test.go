@@ -16,9 +16,13 @@ type mockExecutor struct {
 	outputResult         []byte
 	outputErr            error
 	runErr               error
+	lastCommand          string
+	lastArgs             []string
 }
 
 func (m *mockExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
+	m.lastCommand = name
+	m.lastArgs = append([]string(nil), args...)
 	return m.combinedOutputResult, m.combinedOutputErr
 }
 
@@ -90,6 +94,22 @@ func TestResourceHealer_Actions(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("companion down result", func(t *testing.T) {
+		result := &checks.Result{
+			Status: checks.StatusCritical,
+			Details: map[string]interface{}{
+				"statusText": "running; activity-edge companion down (port 8090) - STT unavailable, capacity reporting blind",
+			},
+		}
+		actions := h.Actions(result)
+		if len(actions) == 0 || actions[0].ID != "respawn-companion" {
+			t.Fatalf("first action = %#v, want respawn-companion", actions)
+		}
+		if actions[0].Dangerous {
+			t.Fatal("respawn-companion must be safe for autoheal")
+		}
+	})
 }
 
 func TestResourceHealer_Execute(t *testing.T) {
@@ -120,6 +140,19 @@ func TestResourceHealer_Execute(t *testing.T) {
 		result := h.Execute(context.Background(), "restart", nil)
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
+		}
+	})
+
+	t.Run("respawn companion", func(t *testing.T) {
+		result := h.Execute(context.Background(), "respawn-companion", nil)
+		if !result.Success {
+			t.Errorf("expected success, got error: %s", result.Error)
+		}
+		if result.ActionID != "respawn-companion" {
+			t.Errorf("ActionID = %q, want respawn-companion", result.ActionID)
+		}
+		if exec.lastCommand != "vrooli" || len(exec.lastArgs) < 3 || exec.lastArgs[0] != "resource" || exec.lastArgs[1] != "start" || exec.lastArgs[2] != "postgres" {
+			t.Errorf("expected 'vrooli resource start postgres', got %s %v", exec.lastCommand, exec.lastArgs)
 		}
 	})
 

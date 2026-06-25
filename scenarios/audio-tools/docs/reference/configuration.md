@@ -391,12 +391,14 @@ The local summarize provider uses Ollama. Model selection is centralized in
 
 Current policy:
 
-- Default fallback: `llama3.2:3b`.
-- Recommended non-reasoning candidates: `gemma3:4b`, `gemma3n:e2b`,
-  `llama3.2:3b`, `llama3.2:1b`, `qwen2.5:3b`, `phi4-mini:3.8b`.
-- Reasoning models such as `qwen3:*` and `deepseek-r1:*` are marked
-  non-default because they are slower and often spend output budget on
-  internal reasoning.
+- Default fallback: a small general chat model (currently `llama3.2:3b`).
+- The selector recommends **small, non-reasoning** local models (roughly ≤4B,
+  instruct/chat-tuned) — they summarize quickly without spending the output
+  budget on internal reasoning. The concrete picks track whatever such models
+  are installed; see `resource-ollama policy roles` for the current
+  small/general role targets.
+- Reasoning-tuned models are marked non-default because they are slower and
+  often spend the output budget on internal reasoning instead of the summary.
 - `/api/tags` is the installed-model source. Missing recommended models are
   returned with `ollama pull <model>` commands; audio-tools does not pull
   models automatically.

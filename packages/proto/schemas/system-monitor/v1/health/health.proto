@@ -31,6 +31,10 @@ message HealthResponse {
   map<string, common.v1.JsonValue> dependencies = 8;
   // Additional health metrics for monitoring.
   map<string, common.v1.JsonValue> metrics = 9;
+  // Whether monitoring processors are currently active.
+  bool processor_active = 10;
+  // Current maintenance state.
+  string maintenance_state = 11;
 }
 
 // HealthService provides the health RPC surface.
@@ -38,6 +42,5 @@ service HealthService {
   // Health returns the service health status.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {get: "/health"};
-
   }
 }

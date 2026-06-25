@@ -1,12 +1,17 @@
 package activityproxy
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -130,6 +135,61 @@ func TestProxyFailOpenOnCapacityError(t *testing.T) {
 	}
 }
 
+func TestRunLogsSignalExit(t *testing.T) {
+	sigCh := make(chan os.Signal, 1)
+	sigCh <- syscall.SIGTERM
+	var stderr bytes.Buffer
+	h := &Handlers{
+		Stdout:   io.Discard,
+		Stderr:   &stderr,
+		GetEnv:   func(string) string { return "" },
+		Exec:     func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+		SignalCh: sigCh,
+	}
+	if err := h.Run([]string{"--listen", "127.0.0.1:0", "--upstream", "127.0.0.1:1"}); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	got := stderr.String()
+	if !strings.Contains(got, "activity-edge exit: reason=signal") || !strings.Contains(got, "sig=terminated") {
+		t.Fatalf("signal exit log = %q", got)
+	}
+}
+
+func TestRunLogsServeError(t *testing.T) {
+	var stderr bytes.Buffer
+	h := &Handlers{
+		Stdout: io.Discard,
+		Stderr: &stderr,
+		GetEnv: func(string) string { return "" },
+		Exec:   func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+		Listen: func(string, string) (net.Listener, error) {
+			return failingListener{err: errors.New("accept boom")}, nil
+		},
+		SignalCh: make(chan os.Signal),
+	}
+	if err := h.Run([]string{"--listen", "127.0.0.1:0", "--upstream", "127.0.0.1:1"}); err == nil {
+		t.Fatal("Run should return the serve error")
+	}
+	got := stderr.String()
+	if !strings.Contains(got, "activity-edge exit: reason=serve-error") || !strings.Contains(got, "accept boom") {
+		t.Fatalf("serve-error log = %q", got)
+	}
+}
+
+func TestHeartbeatFormatting(t *testing.T) {
+	var stdout bytes.Buffer
+	h := &Handlers{Stdout: &stdout}
+	tr := &tracker{requests: 3, active: true}
+	since := time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)
+
+	h.logHeartbeat(tr, since)
+
+	want := "activity-edge alive: requests=3 active=true since=2026-06-24T12:00:00Z\n"
+	if got := stdout.String(); got != want {
+		t.Fatalf("heartbeat = %q, want %q", got, want)
+	}
+}
+
 func snapshot(mu *sync.Mutex, states *[]string) []string {
 	mu.Lock()
 	defer mu.Unlock()
@@ -148,3 +208,16 @@ func waitForState(mu *sync.Mutex, states *[]string, want string, timeout time.Du
 	}
 	return false
 }
+
+type failingListener struct {
+	err error
+}
+
+func (l failingListener) Accept() (net.Conn, error) { return nil, l.err }
+func (l failingListener) Close() error              { return nil }
+func (l failingListener) Addr() net.Addr            { return testAddr("127.0.0.1:0") }
+
+type testAddr string
+
+func (a testAddr) Network() string { return "tcp" }
+func (a testAddr) String() string  { return string(a) }

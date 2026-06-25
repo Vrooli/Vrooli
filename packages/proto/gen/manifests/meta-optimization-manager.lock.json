@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "meta-optimization-manager",
-  "input_digest": "sha256:7ade4c3cfb9973847aed850fb90c967f62be05db6324bd37aa016f85b1e536c2",
+  "input_digest": "sha256:83174dc4c250d9c9ee9f4f4b0fae8506eaf276ff6226506e014b1f8cb6cfa875",
   "input_files": [
     "schemas/meta-optimization-manager/v1/convergence/convergence.proto",
     "schemas/meta-optimization-manager/v1/coverage/coverage.proto",

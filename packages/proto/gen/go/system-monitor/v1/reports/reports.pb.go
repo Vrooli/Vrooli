@@ -1186,7 +1186,7 @@ var File_system_monitor_v1_reports_reports_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_reports_reports_proto_rawDesc = "" +
 	"\n" +
-	"'system-monitor/v1/reports/reports.proto\x12 vrooli.system_monitor.v1.reports\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\xf2\x03\n" +
+	"'system-monitor/v1/reports/reports.proto\x12 vrooli.system_monitor.v1.reports\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x03\n" +
 	"\fSystemReport\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12=\n" +

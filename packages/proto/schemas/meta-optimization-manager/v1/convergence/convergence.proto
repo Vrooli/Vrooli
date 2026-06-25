@@ -57,10 +57,10 @@ enum ReferenceEligibility {
 // TemplateFitness is the four-lens fitness of one template.
 message TemplateFitness {
   string template = 1;
-  int32 per_replica_cost = 2;            // lens 1: lines/files each replica must carry
-  int32 drift_surface_count = 3;         // lens 2: surfaces where replicas drift
+  int32 per_replica_cost = 2; // lens 1: lines/files each replica must carry
+  int32 drift_surface_count = 3; // lens 2: surfaces where replicas drift
   int32 comment_only_contract_count = 4; // lens 3: contracts expressed in comments, not code
-  int32 coordinated_edit_count = 5;      // lens 4: edits that must change N files together
+  int32 coordinated_edit_count = 5; // lens 4: edits that must change N files together
   FitnessTier tier = 6;
 }
 
@@ -71,7 +71,7 @@ message ReferenceHealth {
   google.protobuf.Timestamp last_template_sync = 3;
   bool clean_on_all_tools = 4;
   int32 stability_days = 5; // >= 60 for eligibility
-  int32 breadth = 6;        // number of patterns it demonstrates
+  int32 breadth = 6; // number of patterns it demonstrates
   ReferenceEligibility eligibility = 7;
 }
 

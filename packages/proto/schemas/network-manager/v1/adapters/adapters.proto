@@ -27,8 +27,7 @@ message PlatformSummary {
   repeated string notes = 4;
 }
 
-message ListCapabilitiesRequest {
-}
+message ListCapabilitiesRequest {}
 
 message ListCapabilitiesResponse {
   repeated Capability capabilities = 1;
@@ -43,8 +42,7 @@ message ExplainUnsupportedActionResponse {
   repeated string manual_steps = 2;
 }
 
-message GetPlatformSummaryRequest {
-}
+message GetPlatformSummaryRequest {}
 
 message GetPlatformSummaryResponse {
   PlatformSummary summary = 1;

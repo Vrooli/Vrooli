@@ -2386,6 +2386,181 @@ func (x *GetCooldownStatusResponse) GetCooldown() *CooldownStatus {
 	return nil
 }
 
+// ResetCooldownRequest resets the investigation cooldown.
+type ResetCooldownRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResetCooldownRequest) Reset() {
+	*x = ResetCooldownRequest{}
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetCooldownRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetCooldownRequest) ProtoMessage() {}
+
+func (x *ResetCooldownRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetCooldownRequest.ProtoReflect.Descriptor instead.
+func (*ResetCooldownRequest) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{29}
+}
+
+// ResetCooldownResponse confirms the cooldown reset.
+type ResetCooldownResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Confirmation.
+	Status        string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResetCooldownResponse) Reset() {
+	*x = ResetCooldownResponse{}
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResetCooldownResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResetCooldownResponse) ProtoMessage() {}
+
+func (x *ResetCooldownResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResetCooldownResponse.ProtoReflect.Descriptor instead.
+func (*ResetCooldownResponse) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ResetCooldownResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+// UpdateCooldownPeriodRequest updates the investigation cooldown duration.
+type UpdateCooldownPeriodRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// New cooldown period in seconds.
+	CooldownPeriodSeconds int32 `protobuf:"varint,1,opt,name=cooldown_period_seconds,json=cooldownPeriodSeconds,proto3" json:"cooldown_period_seconds,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *UpdateCooldownPeriodRequest) Reset() {
+	*x = UpdateCooldownPeriodRequest{}
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateCooldownPeriodRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateCooldownPeriodRequest) ProtoMessage() {}
+
+func (x *UpdateCooldownPeriodRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateCooldownPeriodRequest.ProtoReflect.Descriptor instead.
+func (*UpdateCooldownPeriodRequest) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *UpdateCooldownPeriodRequest) GetCooldownPeriodSeconds() int32 {
+	if x != nil {
+		return x.CooldownPeriodSeconds
+	}
+	return 0
+}
+
+// UpdateCooldownPeriodResponse confirms the cooldown period update.
+type UpdateCooldownPeriodResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Confirmation.
+	Status        string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateCooldownPeriodResponse) Reset() {
+	*x = UpdateCooldownPeriodResponse{}
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateCooldownPeriodResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateCooldownPeriodResponse) ProtoMessage() {}
+
+func (x *UpdateCooldownPeriodResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateCooldownPeriodResponse.ProtoReflect.Descriptor instead.
+func (*UpdateCooldownPeriodResponse) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *UpdateCooldownPeriodResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 // GetTriggersRequest is empty - no parameters needed.
 type GetTriggersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2395,7 +2570,7 @@ type GetTriggersRequest struct {
 
 func (x *GetTriggersRequest) Reset() {
 	*x = GetTriggersRequest{}
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[29]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2407,7 +2582,7 @@ func (x *GetTriggersRequest) String() string {
 func (*GetTriggersRequest) ProtoMessage() {}
 
 func (x *GetTriggersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[29]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2420,7 +2595,7 @@ func (x *GetTriggersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTriggersRequest.ProtoReflect.Descriptor instead.
 func (*GetTriggersRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{29}
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{33}
 }
 
 // GetTriggersResponse returns trigger configurations.
@@ -2434,7 +2609,7 @@ type GetTriggersResponse struct {
 
 func (x *GetTriggersResponse) Reset() {
 	*x = GetTriggersResponse{}
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[30]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2446,7 +2621,7 @@ func (x *GetTriggersResponse) String() string {
 func (*GetTriggersResponse) ProtoMessage() {}
 
 func (x *GetTriggersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[30]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2459,7 +2634,7 @@ func (x *GetTriggersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTriggersResponse.ProtoReflect.Descriptor instead.
 func (*GetTriggersResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{30}
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetTriggersResponse) GetTriggers() map[string]*TriggerConfig {
@@ -2486,7 +2661,7 @@ type UpdateTriggerRequest struct {
 
 func (x *UpdateTriggerRequest) Reset() {
 	*x = UpdateTriggerRequest{}
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[31]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2498,7 +2673,7 @@ func (x *UpdateTriggerRequest) String() string {
 func (*UpdateTriggerRequest) ProtoMessage() {}
 
 func (x *UpdateTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[31]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2511,7 +2686,7 @@ func (x *UpdateTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTriggerRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{31}
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *UpdateTriggerRequest) GetId() string {
@@ -2553,7 +2728,7 @@ type UpdateTriggerResponse struct {
 
 func (x *UpdateTriggerResponse) Reset() {
 	*x = UpdateTriggerResponse{}
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[32]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2565,7 +2740,7 @@ func (x *UpdateTriggerResponse) String() string {
 func (*UpdateTriggerResponse) ProtoMessage() {}
 
 func (x *UpdateTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[32]
+	mi := &file_system_monitor_v1_investigations_investigations_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2578,7 +2753,7 @@ func (x *UpdateTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTriggerResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{32}
+	return file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *UpdateTriggerResponse) GetStatus() string {
@@ -2592,7 +2767,7 @@ var File_system_monitor_v1_investigations_investigations_proto protoreflect.File
 
 const file_system_monitor_v1_investigations_investigations_proto_rawDesc = "" +
 	"\n" +
-	"5system-monitor/v1/investigations/investigations.proto\x12'vrooli.system_monitor.v1.investigations\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\"\x86\x05\n" +
+	"5system-monitor/v1/investigations/investigations.proto\x12'vrooli.system_monitor.v1.investigations\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\x05\n" +
 	"\rInvestigation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12T\n" +
 	"\x06status\x18\x02 \x01(\x0e2<.vrooli.system_monitor.v1.investigations.InvestigationStatusR\x06status\x12\x1d\n" +
@@ -2736,7 +2911,14 @@ const file_system_monitor_v1_investigations_investigations_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\tR\x06status\"\x1a\n" +
 	"\x18GetCooldownStatusRequest\"p\n" +
 	"\x19GetCooldownStatusResponse\x12S\n" +
-	"\bcooldown\x18\x01 \x01(\v27.vrooli.system_monitor.v1.investigations.CooldownStatusR\bcooldown\"\x14\n" +
+	"\bcooldown\x18\x01 \x01(\v27.vrooli.system_monitor.v1.investigations.CooldownStatusR\bcooldown\"\x16\n" +
+	"\x14ResetCooldownRequest\"/\n" +
+	"\x15ResetCooldownResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"U\n" +
+	"\x1bUpdateCooldownPeriodRequest\x126\n" +
+	"\x17cooldown_period_seconds\x18\x01 \x01(\x05R\x15cooldownPeriodSeconds\"6\n" +
+	"\x1cUpdateCooldownPeriodResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"\x14\n" +
 	"\x12GetTriggersRequest\"\xf2\x01\n" +
 	"\x13GetTriggersResponse\x12f\n" +
 	"\btriggers\x18\x01 \x03(\v2J.vrooli.system_monitor.v1.investigations.GetTriggersResponse.TriggersEntryR\btriggers\x1as\n" +
@@ -2796,7 +2978,7 @@ const file_system_monitor_v1_investigations_investigations_proto_rawDesc = "" +
 	"\x0eRISK_LEVEL_LOW\x10\x01\x12\x15\n" +
 	"\x11RISK_LEVEL_MEDIUM\x10\x02\x12\x13\n" +
 	"\x0fRISK_LEVEL_HIGH\x10\x03\x12\x17\n" +
-	"\x13RISK_LEVEL_CRITICAL\x10\x042\x85\x12\n" +
+	"\x13RISK_LEVEL_CRITICAL\x10\x042\xa1\x15\n" +
 	"\x15InvestigationsService\x12\xce\x01\n" +
 	"\x14TriggerInvestigation\x12D.vrooli.system_monitor.v1.investigations.TriggerInvestigationRequest\x1aE.vrooli.system_monitor.v1.investigations.TriggerInvestigationResponse\")\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/api/v1/investigations/trigger\x12\xbc\x01\n" +
 	"\x10GetInvestigation\x12@.vrooli.system_monitor.v1.investigations.GetInvestigationRequest\x1aA.vrooli.system_monitor.v1.investigations.GetInvestigationResponse\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/investigations/{id}\x12\xd0\x01\n" +
@@ -2806,7 +2988,9 @@ const file_system_monitor_v1_investigations_investigations_proto_rawDesc = "" +
 	"\x1bUpdateInvestigationFindings\x12K.vrooli.system_monitor.v1.investigations.UpdateInvestigationFindingsRequest\x1aL.vrooli.system_monitor.v1.investigations.UpdateInvestigationFindingsResponse\"/\x82\xd3\xe4\x93\x02):\x01*\x1a$/api/v1/investigations/{id}/findings\x12\xe9\x01\n" +
 	"\x1bUpdateInvestigationProgress\x12K.vrooli.system_monitor.v1.investigations.UpdateInvestigationProgressRequest\x1aL.vrooli.system_monitor.v1.investigations.UpdateInvestigationProgressResponse\"/\x82\xd3\xe4\x93\x02):\x01*\x1a$/api/v1/investigations/{id}/progress\x12\xd0\x01\n" +
 	"\x14AddInvestigationStep\x12D.vrooli.system_monitor.v1.investigations.AddInvestigationStepRequest\x1aE.vrooli.system_monitor.v1.investigations.AddInvestigationStepResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /api/v1/investigations/{id}/step\x12\xc3\x01\n" +
-	"\x11GetCooldownStatus\x12A.vrooli.system_monitor.v1.investigations.GetCooldownStatusRequest\x1aB.vrooli.system_monitor.v1.investigations.GetCooldownStatusResponse\"'\x82\xd3\xe4\x93\x02!\x12\x1f/api/v1/investigations/cooldown\x12\xb1\x01\n" +
+	"\x11GetCooldownStatus\x12A.vrooli.system_monitor.v1.investigations.GetCooldownStatusRequest\x1aB.vrooli.system_monitor.v1.investigations.GetCooldownStatusResponse\"'\x82\xd3\xe4\x93\x02!\x12\x1f/api/v1/investigations/cooldown\x12\xc0\x01\n" +
+	"\rResetCooldown\x12=.vrooli.system_monitor.v1.investigations.ResetCooldownRequest\x1a>.vrooli.system_monitor.v1.investigations.ResetCooldownResponse\"0\x82\xd3\xe4\x93\x02*:\x01*\"%/api/v1/investigations/cooldown/reset\x12\xd6\x01\n" +
+	"\x14UpdateCooldownPeriod\x12D.vrooli.system_monitor.v1.investigations.UpdateCooldownPeriodRequest\x1aE.vrooli.system_monitor.v1.investigations.UpdateCooldownPeriodResponse\"1\x82\xd3\xe4\x93\x02+:\x01*\x1a&/api/v1/investigations/cooldown/period\x12\xb1\x01\n" +
 	"\vGetTriggers\x12;.vrooli.system_monitor.v1.investigations.GetTriggersRequest\x1a<.vrooli.system_monitor.v1.investigations.GetTriggersResponse\"'\x82\xd3\xe4\x93\x02!\x12\x1f/api/v1/investigations/triggers\x12\xbf\x01\n" +
 	"\rUpdateTrigger\x12=.vrooli.system_monitor.v1.investigations.UpdateTriggerRequest\x1a>.vrooli.system_monitor.v1.investigations.UpdateTriggerResponse\"/\x82\xd3\xe4\x93\x02):\x01*\x1a$/api/v1/investigations/triggers/{id}B`Z^github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/investigations;investigationsb\x06proto3"
 
@@ -2823,7 +3007,7 @@ func file_system_monitor_v1_investigations_investigations_proto_rawDescGZIP() []
 }
 
 var file_system_monitor_v1_investigations_investigations_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_system_monitor_v1_investigations_investigations_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_system_monitor_v1_investigations_investigations_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_system_monitor_v1_investigations_investigations_proto_goTypes = []any{
 	(InvestigationStatus)(0),                    // 0: vrooli.system_monitor.v1.investigations.InvestigationStatus
 	(InvestigationStepStatus)(0),                // 1: vrooli.system_monitor.v1.investigations.InvestigationStepStatus
@@ -2861,47 +3045,51 @@ var file_system_monitor_v1_investigations_investigations_proto_goTypes = []any{
 	(*AddInvestigationStepResponse)(nil),        // 33: vrooli.system_monitor.v1.investigations.AddInvestigationStepResponse
 	(*GetCooldownStatusRequest)(nil),            // 34: vrooli.system_monitor.v1.investigations.GetCooldownStatusRequest
 	(*GetCooldownStatusResponse)(nil),           // 35: vrooli.system_monitor.v1.investigations.GetCooldownStatusResponse
-	(*GetTriggersRequest)(nil),                  // 36: vrooli.system_monitor.v1.investigations.GetTriggersRequest
-	(*GetTriggersResponse)(nil),                 // 37: vrooli.system_monitor.v1.investigations.GetTriggersResponse
-	(*UpdateTriggerRequest)(nil),                // 38: vrooli.system_monitor.v1.investigations.UpdateTriggerRequest
-	(*UpdateTriggerResponse)(nil),               // 39: vrooli.system_monitor.v1.investigations.UpdateTriggerResponse
-	nil,                                         // 40: vrooli.system_monitor.v1.investigations.GetTriggersResponse.TriggersEntry
-	(*timestamppb.Timestamp)(nil),               // 41: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                     // 42: google.protobuf.Struct
+	(*ResetCooldownRequest)(nil),                // 36: vrooli.system_monitor.v1.investigations.ResetCooldownRequest
+	(*ResetCooldownResponse)(nil),               // 37: vrooli.system_monitor.v1.investigations.ResetCooldownResponse
+	(*UpdateCooldownPeriodRequest)(nil),         // 38: vrooli.system_monitor.v1.investigations.UpdateCooldownPeriodRequest
+	(*UpdateCooldownPeriodResponse)(nil),        // 39: vrooli.system_monitor.v1.investigations.UpdateCooldownPeriodResponse
+	(*GetTriggersRequest)(nil),                  // 40: vrooli.system_monitor.v1.investigations.GetTriggersRequest
+	(*GetTriggersResponse)(nil),                 // 41: vrooli.system_monitor.v1.investigations.GetTriggersResponse
+	(*UpdateTriggerRequest)(nil),                // 42: vrooli.system_monitor.v1.investigations.UpdateTriggerRequest
+	(*UpdateTriggerResponse)(nil),               // 43: vrooli.system_monitor.v1.investigations.UpdateTriggerResponse
+	nil,                                         // 44: vrooli.system_monitor.v1.investigations.GetTriggersResponse.TriggersEntry
+	(*timestamppb.Timestamp)(nil),               // 45: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                     // 46: google.protobuf.Struct
 }
 var file_system_monitor_v1_investigations_investigations_proto_depIdxs = []int32{
 	0,  // 0: vrooli.system_monitor.v1.investigations.Investigation.status:type_name -> vrooli.system_monitor.v1.investigations.InvestigationStatus
-	41, // 1: vrooli.system_monitor.v1.investigations.Investigation.start_time:type_name -> google.protobuf.Timestamp
-	41, // 2: vrooli.system_monitor.v1.investigations.Investigation.end_time:type_name -> google.protobuf.Timestamp
-	42, // 3: vrooli.system_monitor.v1.investigations.Investigation.details:type_name -> google.protobuf.Struct
+	45, // 1: vrooli.system_monitor.v1.investigations.Investigation.start_time:type_name -> google.protobuf.Timestamp
+	45, // 2: vrooli.system_monitor.v1.investigations.Investigation.end_time:type_name -> google.protobuf.Timestamp
+	46, // 3: vrooli.system_monitor.v1.investigations.Investigation.details:type_name -> google.protobuf.Struct
 	8,  // 4: vrooli.system_monitor.v1.investigations.Investigation.steps:type_name -> vrooli.system_monitor.v1.investigations.InvestigationStep
 	1,  // 5: vrooli.system_monitor.v1.investigations.InvestigationStep.status:type_name -> vrooli.system_monitor.v1.investigations.InvestigationStepStatus
-	41, // 6: vrooli.system_monitor.v1.investigations.InvestigationStep.start_time:type_name -> google.protobuf.Timestamp
-	41, // 7: vrooli.system_monitor.v1.investigations.InvestigationStep.end_time:type_name -> google.protobuf.Timestamp
+	45, // 6: vrooli.system_monitor.v1.investigations.InvestigationStep.start_time:type_name -> google.protobuf.Timestamp
+	45, // 7: vrooli.system_monitor.v1.investigations.InvestigationStep.end_time:type_name -> google.protobuf.Timestamp
 	2,  // 8: vrooli.system_monitor.v1.investigations.InvestigationFinding.type:type_name -> vrooli.system_monitor.v1.investigations.FindingType
-	41, // 9: vrooli.system_monitor.v1.investigations.InvestigationFinding.timestamp:type_name -> google.protobuf.Timestamp
+	45, // 9: vrooli.system_monitor.v1.investigations.InvestigationFinding.timestamp:type_name -> google.protobuf.Timestamp
 	3,  // 10: vrooli.system_monitor.v1.investigations.InvestigationFinding.impact:type_name -> vrooli.system_monitor.v1.investigations.Severity
 	11, // 11: vrooli.system_monitor.v1.investigations.RootCause.timeline:type_name -> vrooli.system_monitor.v1.investigations.TimelineEvent
-	41, // 12: vrooli.system_monitor.v1.investigations.TimelineEvent.timestamp:type_name -> google.protobuf.Timestamp
+	45, // 12: vrooli.system_monitor.v1.investigations.TimelineEvent.timestamp:type_name -> google.protobuf.Timestamp
 	4,  // 13: vrooli.system_monitor.v1.investigations.TimelineEvent.relevance:type_name -> vrooli.system_monitor.v1.investigations.Relevance
 	3,  // 14: vrooli.system_monitor.v1.investigations.ImpactAssessment.severity:type_name -> vrooli.system_monitor.v1.investigations.Severity
 	14, // 15: vrooli.system_monitor.v1.investigations.ResolutionPlan.steps:type_name -> vrooli.system_monitor.v1.investigations.ResolutionStep
 	6,  // 16: vrooli.system_monitor.v1.investigations.ResolutionPlan.risk_level:type_name -> vrooli.system_monitor.v1.investigations.RiskLevel
 	5,  // 17: vrooli.system_monitor.v1.investigations.TriggerConfig.condition:type_name -> vrooli.system_monitor.v1.investigations.TriggerCondition
-	41, // 18: vrooli.system_monitor.v1.investigations.CooldownStatus.last_trigger_time:type_name -> google.protobuf.Timestamp
+	45, // 18: vrooli.system_monitor.v1.investigations.CooldownStatus.last_trigger_time:type_name -> google.protobuf.Timestamp
 	3,  // 19: vrooli.system_monitor.v1.investigations.Anomaly.severity:type_name -> vrooli.system_monitor.v1.investigations.Severity
-	42, // 20: vrooli.system_monitor.v1.investigations.Anomaly.metric_data:type_name -> google.protobuf.Struct
-	41, // 21: vrooli.system_monitor.v1.investigations.Anomaly.detected_at:type_name -> google.protobuf.Timestamp
-	41, // 22: vrooli.system_monitor.v1.investigations.Anomaly.resolved_at:type_name -> google.protobuf.Timestamp
+	46, // 20: vrooli.system_monitor.v1.investigations.Anomaly.metric_data:type_name -> google.protobuf.Struct
+	45, // 21: vrooli.system_monitor.v1.investigations.Anomaly.detected_at:type_name -> google.protobuf.Timestamp
+	45, // 22: vrooli.system_monitor.v1.investigations.Anomaly.resolved_at:type_name -> google.protobuf.Timestamp
 	0,  // 23: vrooli.system_monitor.v1.investigations.Anomaly.status:type_name -> vrooli.system_monitor.v1.investigations.InvestigationStatus
 	7,  // 24: vrooli.system_monitor.v1.investigations.GetInvestigationResponse.investigation:type_name -> vrooli.system_monitor.v1.investigations.Investigation
 	7,  // 25: vrooli.system_monitor.v1.investigations.GetLatestInvestigationResponse.investigation:type_name -> vrooli.system_monitor.v1.investigations.Investigation
 	7,  // 26: vrooli.system_monitor.v1.investigations.ListInvestigationsResponse.investigations:type_name -> vrooli.system_monitor.v1.investigations.Investigation
 	0,  // 27: vrooli.system_monitor.v1.investigations.UpdateInvestigationStatusRequest.status:type_name -> vrooli.system_monitor.v1.investigations.InvestigationStatus
-	42, // 28: vrooli.system_monitor.v1.investigations.UpdateInvestigationFindingsRequest.details:type_name -> google.protobuf.Struct
+	46, // 28: vrooli.system_monitor.v1.investigations.UpdateInvestigationFindingsRequest.details:type_name -> google.protobuf.Struct
 	8,  // 29: vrooli.system_monitor.v1.investigations.AddInvestigationStepRequest.step:type_name -> vrooli.system_monitor.v1.investigations.InvestigationStep
 	16, // 30: vrooli.system_monitor.v1.investigations.GetCooldownStatusResponse.cooldown:type_name -> vrooli.system_monitor.v1.investigations.CooldownStatus
-	40, // 31: vrooli.system_monitor.v1.investigations.GetTriggersResponse.triggers:type_name -> vrooli.system_monitor.v1.investigations.GetTriggersResponse.TriggersEntry
+	44, // 31: vrooli.system_monitor.v1.investigations.GetTriggersResponse.triggers:type_name -> vrooli.system_monitor.v1.investigations.GetTriggersResponse.TriggersEntry
 	15, // 32: vrooli.system_monitor.v1.investigations.GetTriggersResponse.TriggersEntry.value:type_name -> vrooli.system_monitor.v1.investigations.TriggerConfig
 	18, // 33: vrooli.system_monitor.v1.investigations.InvestigationsService.TriggerInvestigation:input_type -> vrooli.system_monitor.v1.investigations.TriggerInvestigationRequest
 	20, // 34: vrooli.system_monitor.v1.investigations.InvestigationsService.GetInvestigation:input_type -> vrooli.system_monitor.v1.investigations.GetInvestigationRequest
@@ -2912,21 +3100,25 @@ var file_system_monitor_v1_investigations_investigations_proto_depIdxs = []int32
 	30, // 39: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateInvestigationProgress:input_type -> vrooli.system_monitor.v1.investigations.UpdateInvestigationProgressRequest
 	32, // 40: vrooli.system_monitor.v1.investigations.InvestigationsService.AddInvestigationStep:input_type -> vrooli.system_monitor.v1.investigations.AddInvestigationStepRequest
 	34, // 41: vrooli.system_monitor.v1.investigations.InvestigationsService.GetCooldownStatus:input_type -> vrooli.system_monitor.v1.investigations.GetCooldownStatusRequest
-	36, // 42: vrooli.system_monitor.v1.investigations.InvestigationsService.GetTriggers:input_type -> vrooli.system_monitor.v1.investigations.GetTriggersRequest
-	38, // 43: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateTrigger:input_type -> vrooli.system_monitor.v1.investigations.UpdateTriggerRequest
-	19, // 44: vrooli.system_monitor.v1.investigations.InvestigationsService.TriggerInvestigation:output_type -> vrooli.system_monitor.v1.investigations.TriggerInvestigationResponse
-	21, // 45: vrooli.system_monitor.v1.investigations.InvestigationsService.GetInvestigation:output_type -> vrooli.system_monitor.v1.investigations.GetInvestigationResponse
-	23, // 46: vrooli.system_monitor.v1.investigations.InvestigationsService.GetLatestInvestigation:output_type -> vrooli.system_monitor.v1.investigations.GetLatestInvestigationResponse
-	25, // 47: vrooli.system_monitor.v1.investigations.InvestigationsService.ListInvestigations:output_type -> vrooli.system_monitor.v1.investigations.ListInvestigationsResponse
-	27, // 48: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateInvestigationStatus:output_type -> vrooli.system_monitor.v1.investigations.UpdateInvestigationStatusResponse
-	29, // 49: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateInvestigationFindings:output_type -> vrooli.system_monitor.v1.investigations.UpdateInvestigationFindingsResponse
-	31, // 50: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateInvestigationProgress:output_type -> vrooli.system_monitor.v1.investigations.UpdateInvestigationProgressResponse
-	33, // 51: vrooli.system_monitor.v1.investigations.InvestigationsService.AddInvestigationStep:output_type -> vrooli.system_monitor.v1.investigations.AddInvestigationStepResponse
-	35, // 52: vrooli.system_monitor.v1.investigations.InvestigationsService.GetCooldownStatus:output_type -> vrooli.system_monitor.v1.investigations.GetCooldownStatusResponse
-	37, // 53: vrooli.system_monitor.v1.investigations.InvestigationsService.GetTriggers:output_type -> vrooli.system_monitor.v1.investigations.GetTriggersResponse
-	39, // 54: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateTrigger:output_type -> vrooli.system_monitor.v1.investigations.UpdateTriggerResponse
-	44, // [44:55] is the sub-list for method output_type
-	33, // [33:44] is the sub-list for method input_type
+	36, // 42: vrooli.system_monitor.v1.investigations.InvestigationsService.ResetCooldown:input_type -> vrooli.system_monitor.v1.investigations.ResetCooldownRequest
+	38, // 43: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateCooldownPeriod:input_type -> vrooli.system_monitor.v1.investigations.UpdateCooldownPeriodRequest
+	40, // 44: vrooli.system_monitor.v1.investigations.InvestigationsService.GetTriggers:input_type -> vrooli.system_monitor.v1.investigations.GetTriggersRequest
+	42, // 45: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateTrigger:input_type -> vrooli.system_monitor.v1.investigations.UpdateTriggerRequest
+	19, // 46: vrooli.system_monitor.v1.investigations.InvestigationsService.TriggerInvestigation:output_type -> vrooli.system_monitor.v1.investigations.TriggerInvestigationResponse
+	21, // 47: vrooli.system_monitor.v1.investigations.InvestigationsService.GetInvestigation:output_type -> vrooli.system_monitor.v1.investigations.GetInvestigationResponse
+	23, // 48: vrooli.system_monitor.v1.investigations.InvestigationsService.GetLatestInvestigation:output_type -> vrooli.system_monitor.v1.investigations.GetLatestInvestigationResponse
+	25, // 49: vrooli.system_monitor.v1.investigations.InvestigationsService.ListInvestigations:output_type -> vrooli.system_monitor.v1.investigations.ListInvestigationsResponse
+	27, // 50: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateInvestigationStatus:output_type -> vrooli.system_monitor.v1.investigations.UpdateInvestigationStatusResponse
+	29, // 51: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateInvestigationFindings:output_type -> vrooli.system_monitor.v1.investigations.UpdateInvestigationFindingsResponse
+	31, // 52: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateInvestigationProgress:output_type -> vrooli.system_monitor.v1.investigations.UpdateInvestigationProgressResponse
+	33, // 53: vrooli.system_monitor.v1.investigations.InvestigationsService.AddInvestigationStep:output_type -> vrooli.system_monitor.v1.investigations.AddInvestigationStepResponse
+	35, // 54: vrooli.system_monitor.v1.investigations.InvestigationsService.GetCooldownStatus:output_type -> vrooli.system_monitor.v1.investigations.GetCooldownStatusResponse
+	37, // 55: vrooli.system_monitor.v1.investigations.InvestigationsService.ResetCooldown:output_type -> vrooli.system_monitor.v1.investigations.ResetCooldownResponse
+	39, // 56: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateCooldownPeriod:output_type -> vrooli.system_monitor.v1.investigations.UpdateCooldownPeriodResponse
+	41, // 57: vrooli.system_monitor.v1.investigations.InvestigationsService.GetTriggers:output_type -> vrooli.system_monitor.v1.investigations.GetTriggersResponse
+	43, // 58: vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateTrigger:output_type -> vrooli.system_monitor.v1.investigations.UpdateTriggerResponse
+	46, // [46:59] is the sub-list for method output_type
+	33, // [33:46] is the sub-list for method input_type
 	33, // [33:33] is the sub-list for extension type_name
 	33, // [33:33] is the sub-list for extension extendee
 	0,  // [0:33] is the sub-list for field type_name
@@ -2941,14 +3133,14 @@ func file_system_monitor_v1_investigations_investigations_proto_init() {
 	file_system_monitor_v1_investigations_investigations_proto_msgTypes[1].OneofWrappers = []any{}
 	file_system_monitor_v1_investigations_investigations_proto_msgTypes[10].OneofWrappers = []any{}
 	file_system_monitor_v1_investigations_investigations_proto_msgTypes[17].OneofWrappers = []any{}
-	file_system_monitor_v1_investigations_investigations_proto_msgTypes[31].OneofWrappers = []any{}
+	file_system_monitor_v1_investigations_investigations_proto_msgTypes[35].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_monitor_v1_investigations_investigations_proto_rawDesc), len(file_system_monitor_v1_investigations_investigations_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   34,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

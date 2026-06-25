@@ -53,7 +53,7 @@ func TestRunConfigPreviewJSON(t *testing.T) {
 	defer server.Close()
 
 	var out bytes.Buffer
-	err := runConfigPreview([]string{"--base-url", server.URL, "--upstream", "9.9.9.9", "--json"}, &out)
+	err := runConfigPreview([]string{"--base-url", server.URL, "--password", "secret", "--upstream", "9.9.9.9", "--json"}, &out)
 	if err != nil {
 		t.Fatalf("runConfigPreview() error = %v", err)
 	}
@@ -90,7 +90,7 @@ func TestRunClientsListJSONDoesNotIncludeQueries(t *testing.T) {
 	defer server.Close()
 
 	var out bytes.Buffer
-	err := runClientsList([]string{"--base-url", server.URL, "--json"}, &out)
+	err := runClientsList([]string{"--base-url", server.URL, "--password", "secret", "--json"}, &out)
 	if err != nil {
 		t.Fatalf("runClientsList() error = %v", err)
 	}
@@ -120,7 +120,7 @@ func TestRunQueryLogPrivacyWarnsWhenEnabled(t *testing.T) {
 	defer server.Close()
 
 	var out bytes.Buffer
-	err := runQueryLogPrivacy([]string{"--base-url", server.URL, "--json"}, &out)
+	err := runQueryLogPrivacy([]string{"--base-url", server.URL, "--password", "secret", "--json"}, &out)
 	if err != nil {
 		t.Fatalf("runQueryLogPrivacy() error = %v", err)
 	}

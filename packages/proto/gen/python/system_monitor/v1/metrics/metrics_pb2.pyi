@@ -1,7 +1,7 @@
 import datetime
 
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.api import annotations_pb2 as _annotations_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -424,6 +424,42 @@ class ProcessMonitorData(_message.Message):
     timestamp: _timestamp_pb2.Timestamp
     def __init__(self, process_health: _Optional[_Union[ProcessHealthInfo, _Mapping]] = ..., resource_matrix: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class ProcessTimelineEntry(_message.Message):
+    __slots__ = ("owner", "comm", "pid", "aggregated", "cpu_pct", "rss_kb", "sample_count", "first_seen", "last_seen")
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    COMM_FIELD_NUMBER: _ClassVar[int]
+    PID_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATED_FIELD_NUMBER: _ClassVar[int]
+    CPU_PCT_FIELD_NUMBER: _ClassVar[int]
+    RSS_KB_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    FIRST_SEEN_FIELD_NUMBER: _ClassVar[int]
+    LAST_SEEN_FIELD_NUMBER: _ClassVar[int]
+    owner: str
+    comm: str
+    pid: int
+    aggregated: bool
+    cpu_pct: float
+    rss_kb: int
+    sample_count: int
+    first_seen: _timestamp_pb2.Timestamp
+    last_seen: _timestamp_pb2.Timestamp
+    def __init__(self, owner: _Optional[str] = ..., comm: _Optional[str] = ..., pid: _Optional[int] = ..., aggregated: _Optional[bool] = ..., cpu_pct: _Optional[float] = ..., rss_kb: _Optional[int] = ..., sample_count: _Optional[int] = ..., first_seen: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_seen: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ProcessTimelineResponse(_message.Message):
+    __slots__ = ("window_seconds", "owner", "top", "count", "entries")
+    WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    TOP_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    window_seconds: int
+    owner: str
+    top: int
+    count: int
+    entries: _containers.RepeatedCompositeFieldContainer[ProcessTimelineEntry]
+    def __init__(self, window_seconds: _Optional[int] = ..., owner: _Optional[str] = ..., top: _Optional[int] = ..., count: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[ProcessTimelineEntry, _Mapping]]] = ...) -> None: ...
+
 class ProcessHealthInfo(_message.Message):
     __slots__ = ("total_processes", "zombie_processes", "high_thread_count", "leak_candidates")
     TOTAL_PROCESSES_FIELD_NUMBER: _ClassVar[int]
@@ -489,8 +525,10 @@ class StorageIOInfo(_message.Message):
     def __init__(self, disk_queue_depth: _Optional[float] = ..., io_wait_percent: _Optional[float] = ..., read_mb_per_sec: _Optional[float] = ..., write_mb_per_sec: _Optional[float] = ...) -> None: ...
 
 class GetCurrentMetricsRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("fresh",)
+    FRESH_FIELD_NUMBER: _ClassVar[int]
+    fresh: bool
+    def __init__(self, fresh: _Optional[bool] = ...) -> None: ...
 
 class GetCurrentMetricsResponse(_message.Message):
     __slots__ = ("metrics",)
@@ -517,6 +555,22 @@ class GetProcessMonitorResponse(_message.Message):
     DATA_FIELD_NUMBER: _ClassVar[int]
     data: ProcessMonitorData
     def __init__(self, data: _Optional[_Union[ProcessMonitorData, _Mapping]] = ...) -> None: ...
+
+class GetProcessTimelineRequest(_message.Message):
+    __slots__ = ("window_seconds", "owner", "top")
+    WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    TOP_FIELD_NUMBER: _ClassVar[int]
+    window_seconds: int
+    owner: str
+    top: int
+    def __init__(self, window_seconds: _Optional[int] = ..., owner: _Optional[str] = ..., top: _Optional[int] = ...) -> None: ...
+
+class GetProcessTimelineResponse(_message.Message):
+    __slots__ = ("timeline",)
+    TIMELINE_FIELD_NUMBER: _ClassVar[int]
+    timeline: ProcessTimelineResponse
+    def __init__(self, timeline: _Optional[_Union[ProcessTimelineResponse, _Mapping]] = ...) -> None: ...
 
 class GetInfrastructureMonitorRequest(_message.Message):
     __slots__ = ()
