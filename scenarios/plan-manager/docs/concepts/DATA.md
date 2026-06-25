@@ -11,11 +11,25 @@ scenario-private database.
 ## Storage Overview
 
 - **Engine:** SQLite via `api-core/storage`.
-- **Root:** the shared `~/.vrooli` home store (the same durable location the
-  existing `vrooli plans` CLI uses), **not** a per-scenario DB directory.
+- **Canonical root:** the scenario-scoped `api-core/storage` location under the
+  `~/.vrooli` home store (`ClassData`, resolved by `storage.NewResolver` +
+  `storage.ScenarioNamespace("plan-manager")` in `api/main.go`), **not** a
+  per-scenario repo `data/` directory and **not** the flat `~/.vrooli/plans` dir.
+  The store is process-independent (readable with the server down) and
+  variant-aware (shadow engagements get their own namespaced DB for free).
+- **Plan-source resolver (compatibility mechanism):** the `plans` domain owns a
+  resolver (`internal/plans/resolver.go`) that treats the hygiene-blessed
+  **fallback** locations — `~/.vrooli/plans`, the project `plans/` dir, and
+  `docs/plans/` — as valid read/import locations. `ImportPlan` adopts a markdown
+  plan from a fallback source into the structured model; `MigratePlan` ensures a
+  resolved plan resides in the canonical store. The fallback sources are **never
+  mutated destructively** without an explicit step. This resolver — not a shared
+  raw directory — is how plan-manager coexists with the legacy `vrooli plans`
+  data and how the future consumer-inversion (OT-P2-002) delegates plan-location
+  logic here.
 - **Why:** plans must stay readable when the plan-manager server is down, and the
-  `vrooli plans` CLI must be able to read them as a thin client. plan-manager owns
-  the schema, validation, and logic; the home store is the persistence substrate.
+  thin `vrooli plans` CLI must be able to read them. plan-manager owns the schema,
+  validation, and logic; the home store is the persistence substrate.
 - **Consequence:** reads do not require the API process; writes go through
   plan-manager (the schema/lifecycle authority), but the on-disk store is
   process-independent and concurrency-safe for multiple readers.
@@ -38,20 +52,31 @@ test-genie / scenario-validation).
 ## Schema Map
 
 Tables are domain-owned (`api/internal/<domain>/schema.sql`), all rooted at the
-home store:
+home store. As built:
 
-- `plans` — plan records (id, slug, title, status, content_hash, timestamps, global sections).
-- `phases` — phase records FK→plan (order, intent, acceptance, status, baseline_scope).
-- `plan_references` — `[CODE:]`/`[REQ:]` locators FK→plan/phase, with resolution + staleness state.
-- `plan_edges` — supersession/dependency edges between plans.
-- `executions` — run↔plan linkage and execution state.
-- `handoffs` — canonical structured handoff records FK→execution.
-- `findings` — candidate (unvalidated) findings FK→execution, with triage state.
-- `velocity_points` — per-plan/run time/tokens/iterations series.
-- `validation_results` — validation/baseline outcomes FK→plan/phase.
+- `plans` (owned by `plans`) — plan records: first-class queryable columns
+  (id, slug, title, status, content_hash, created_at, updated_at) alongside a
+  `document` JSON column carrying the rest of the structured record — purpose/
+  scope/constraints/non_goals/definition_of_done plus the ordered **phases[]**,
+  **references[]**, and the regression anchor. Phases and references persist
+  inside the document (they always load with their plan and are never queried
+  across plans), which keeps round-trips deterministic and avoids the SQLite
+  pool=1 nested-query deadlock. The ownership contract is unchanged.
+- `plan_edges` (owned by `plans`) — supersession/dependency edges between plans
+  (queried across plans by `GetGraph`, so a first-class table).
+- `authoring_sessions` (owned by `authoring`) — transient guided-wizard session
+  state (sections[] + current pointer + finalized + produced plan_id), as a JSON
+  document; the produced plan is owned by `plans`.
+- `executions`, `handoffs`, `findings`, `velocity_points` (owned by `execution`)
+  — run↔plan linkage, canonical handoff records, candidate (unvalidated)
+  findings with triage state, and the per-plan/run velocity series.
+- `validation` persists **no** tables in v1: reference resolution, staleness, and
+  baseline outcomes are computed on demand and returned (execution calls
+  `RunValidation`/`ComputeStaleness` when it needs the just-in-time signal).
+  A `validation_results` table is a future caching concern, not v1.
 
-Exact columns are defined alongside the domain code when implemented; this map is
-the ownership contract.
+Exact columns live alongside the domain code (`api/internal/<domain>/schema.sql`);
+this map is the ownership contract.
 
 ## Migrations And Compatibility
 

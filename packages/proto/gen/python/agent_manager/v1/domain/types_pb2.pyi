@@ -78,6 +78,7 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_COMPLETE: _ClassVar[RunStatus]
     RUN_STATUS_FAILED: _ClassVar[RunStatus]
     RUN_STATUS_CANCELLED: _ClassVar[RunStatus]
+    RUN_STATUS_PARKED: _ClassVar[RunStatus]
 
 class RunFinalizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -213,6 +214,7 @@ RUN_STATUS_NEEDS_REVIEW: RunStatus
 RUN_STATUS_COMPLETE: RunStatus
 RUN_STATUS_FAILED: RunStatus
 RUN_STATUS_CANCELLED: RunStatus
+RUN_STATUS_PARKED: RunStatus
 RUN_FINALIZATION_STATUS_UNSPECIFIED: RunFinalizationStatus
 RUN_FINALIZATION_STATUS_NONE: RunFinalizationStatus
 RUN_FINALIZATION_STATUS_PENDING: RunFinalizationStatus

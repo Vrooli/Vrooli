@@ -2,6 +2,7 @@ package modeltest_test
 
 import (
 	"testing"
+
 	"plan-manager/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

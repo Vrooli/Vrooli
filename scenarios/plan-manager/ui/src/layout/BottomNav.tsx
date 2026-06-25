@@ -17,7 +17,7 @@ export function BottomNav() {
     <nav
       data-testid={selectors.layout.bottomNav}
       aria-label={t(strings.layout.bottomNavLabel)}
-      className="flex shrink-0 items-stretch justify-around border-t border-app-border bg-app-surface md:hidden"
+      className="flex shrink-0 items-stretch overflow-x-auto border-t border-app-border bg-app-surface md:hidden"
     >
       {NAV_ITEMS.map((item) => (
         <NavLink
@@ -27,7 +27,7 @@ export function BottomNav() {
           data-testid={selectors.layout.bottomNavLink({ key: item.key })}
           className={({ isActive }) =>
             [
-              "flex flex-1 items-center justify-center px-2 py-3 text-xs font-medium",
+              "flex min-w-[4.5rem] flex-1 items-center justify-center whitespace-nowrap px-3 py-3 text-xs font-medium",
               isActive ? "text-app-primary" : "text-app-muted-foreground",
             ].join(" ")
           }

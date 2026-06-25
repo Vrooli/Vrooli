@@ -302,6 +302,13 @@ enum RunStatus {
 
   // Run was cancelled.
   RUN_STATUS_CANCELLED = 7;
+
+  // Run is parked: suspended waiting on externally-owned async work (a
+  // test-genie run, a git-control-tower baseline diff). The agent process has
+  // exited (zero tokens) but the run is NOT terminal — its sandbox is preserved
+  // and agent-manager wakes it (resumes the conversation with the awaited
+  // result injected) once the work resolves. Non-terminal, non-active.
+  RUN_STATUS_PARKED = 8;
 }
 
 // RunFinalizationStatus represents post-run sandbox apply/checkpoint state.

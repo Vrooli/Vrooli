@@ -3,6 +3,14 @@ import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
+// Static map so the `strings/no-unused-keys` lint rule sees each leaf key
+// referenced (a dynamic `strings.theme.choice[c]` access is invisible to its
+// static scan). The tuple still drives rendering order.
+const THEME_CHOICE_LABELS = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+} satisfies Record<ThemeChoice, string>;
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
 /**
@@ -64,7 +72,7 @@ export function TopBar() {
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(THEME_CHOICE_LABELS[c])}
               </option>
             ))}
           </select>

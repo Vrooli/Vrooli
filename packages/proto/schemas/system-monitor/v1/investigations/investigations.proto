@@ -641,6 +641,21 @@ message UpdateTriggerResponse {
   string status = 1;
 }
 
+// StopAgentRequest stops a running investigation agent.
+message StopAgentRequest {
+  // Investigation or agent ID.
+  string id = 1;
+}
+
+// StopAgentResponse confirms that the agent stop was requested.
+message StopAgentResponse {
+  // Confirmation status.
+  string status = 1;
+
+  // Investigation or agent ID.
+  string id = 2;
+}
+
 // InvestigationsService provides the investigations RPC surface.
 service InvestigationsService {
   // TriggerInvestigation starts a new anomaly investigation.
@@ -728,6 +743,14 @@ service InvestigationsService {
   rpc UpdateTrigger(UpdateTriggerRequest) returns (UpdateTriggerResponse) {
     option (google.api.http) = {
       put: "/api/v1/investigations/triggers/{id}"
+      body: "*"
+    };
+  }
+
+  // StopAgent stops a running investigation agent.
+  rpc StopAgent(StopAgentRequest) returns (StopAgentResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/investigations/agent/{id}/stop"
       body: "*"
     };
   }

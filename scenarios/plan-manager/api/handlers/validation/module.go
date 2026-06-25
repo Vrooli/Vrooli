@@ -1,0 +1,113 @@
+// Package validation is the API handler for the ValidationService — the
+// plan-health domain. It is the proto translation edge over internal/validation;
+// all business logic lives there behind seams.
+package validation
+
+import (
+	"context"
+	"log"
+	"os"
+	"path/filepath"
+
+	"plan-manager/internal/clock"
+	"plan-manager/internal/module"
+	internalplans "plan-manager/internal/plans"
+	internalvalidation "plan-manager/internal/validation"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/database"
+
+	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation/validation_v1connect"
+)
+
+// Module returns the validation domain's contribution to the API: the generated
+// ValidationService Connect-RPC handler, backed by the plans SSOT (read seam),
+// the filesystem reference resolver / existence staleness floor (code-facts +
+// the freshness engine are the soft-dep upgrades), and the LookPath-guarded
+// command runner (the git-control-tower baseline-diff oracle). All wired here at
+// the production edge; never imported into internal/validation.
+func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+	plansSvc := internalplans.NewService(internalplans.Deps{
+		Repo:  internalplans.NewSQLiteRepository(db, clk),
+		Clock: clk,
+	})
+	resolver := internalvalidation.NewFileResolver(repoRoot())
+	svc := internalvalidation.NewService(internalvalidation.Deps{
+		Plans:     planAdapter{svc: plansSvc},
+		Resolver:  resolver,
+		Staleness: internalvalidation.NewExistenceStaleness(resolver),
+		Runner:    internalvalidation.DefaultRunner(),
+		Clock:     clk,
+	})
+	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
+		Service: svc,
+		Logger:  logger,
+	}))
+	return module.Module{
+		Name: "validation",
+		Mount: func(r *mux.Router) {
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+		},
+		Endpoints: Endpoints,
+	}
+}
+
+// Schema is empty: the validation domain computes on demand and persists no
+// tables in v1 (validation results are returned, not stored — execution calls
+// RunValidation when it needs last_validation). EnsureSchemas skips empty
+// providers. Kept so the modules registry's per-domain shape stays uniform.
+func Schema() string { return "" }
+
+// planAdapter adapts the plans domain Service to validation's PlanSource read
+// seam (the method names differ; the types are the shared plans model).
+type planAdapter struct{ svc internalplans.Service }
+
+func (a planAdapter) GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error) {
+	return a.svc.Get(ctx, idOrSlug)
+}
+
+// repoRoot resolves the repository root so filesystem reference resolution
+// treats `[CODE: scenarios/foo/...]` as repo-relative. Order: VROOLI_REPO_ROOT
+// env, then a walk up from the working directory for a `.git` marker, then the
+// working directory as a last resort (references then resolve relative to it).
+func repoRoot() string {
+	if root := os.Getenv("VROOLI_REPO_ROOT"); root != "" {
+		return root
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// Endpoints is the machine-readable description of the validation module's
+// public surface; one entry per RPC (the global parity test enforces this).
+var Endpoints = []module.EndpointDescriptor{
+	endpoint("validation_resolve_references", validationconnect.ValidationServiceResolveReferencesProcedure, "Resolve code references", "Resolves a plan/phase's [CODE:]/[REQ:] references against code-facts (OT-P0-004). Degrades to unresolved when code-facts is down."),
+	endpoint("validation_compute_staleness", validationconnect.ValidationServiceComputeStalenessProcedure, "Compute staleness tiers", "Computes staleness tiers for a plan/phase's references (OT-P0-004)."),
+	endpoint("validation_derive_baseline_scope", validationconnect.ValidationServiceDeriveBaselineScopeProcedure, "Derive baseline scope", "Derives the exact baseline/validation command set across all affected locations (OT-P0-005)."),
+	endpoint("validation_run", validationconnect.ValidationServiceRunValidationProcedure, "Run validation", "Runs the derived baseline/check set on request and returns the result + staleness (OT-P0-005). Degrades to unknown rather than fabricating a pass."),
+	endpoint("validation_verify_dod", validationconnect.ValidationServiceVerifyDefinitionOfDoneProcedure, "Verify Definition of Done", "Verifies a plan's DoD against the regression anchor as an oracle (OT-P0-005)."),
+}
+
+func endpoint(id, path, summary, description string) module.EndpointDescriptor {
+	return module.EndpointDescriptor{
+		ID:          id,
+		Path:        path,
+		Method:      "POST",
+		Summary:     summary,
+		Description: description,
+		Category:    "validation",
+	}
+}

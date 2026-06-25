@@ -6,9 +6,15 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { AuthoringPage } from "../pages/AuthoringPage";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
+import { ExecutionPage } from "../pages/ExecutionPage";
+import { PlanDetailPage } from "../pages/PlanDetailPage";
+import { PlansPage } from "../pages/PlansPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { TriagePage } from "../pages/TriagePage";
+import { ValidationPage } from "../pages/ValidationPage";
+import { VelocityPage } from "../pages/VelocityPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -22,7 +28,13 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+      { path: "plans", element: <PlansPage /> },
+      { path: "plans/:planId", element: <PlanDetailPage /> },
+      { path: "authoring", element: <AuthoringPage /> },
+      { path: "execution", element: <ExecutionPage /> },
+      { path: "validation", element: <ValidationPage /> },
+      { path: "triage", element: <TriagePage /> },
+      { path: "velocity", element: <VelocityPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -36,8 +48,10 @@ export const routes: RouteObject[] = [
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes);
-  return <RouterProvider router={router} />;
+  const router = createBrowserRouter(routes, {
+    future: { v7_relativeSplatPath: true },
+  });
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }
 
 /**
@@ -45,6 +59,9 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries });
-  return <RouterProvider router={router} />;
+  const router = createMemoryRouter(routes, {
+    initialEntries,
+    future: { v7_relativeSplatPath: true },
+  });
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }

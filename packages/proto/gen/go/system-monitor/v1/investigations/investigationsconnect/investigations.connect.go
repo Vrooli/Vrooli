@@ -72,6 +72,9 @@ const (
 	// InvestigationsServiceUpdateTriggerProcedure is the fully-qualified name of the
 	// InvestigationsService's UpdateTrigger RPC.
 	InvestigationsServiceUpdateTriggerProcedure = "/vrooli.system_monitor.v1.investigations.InvestigationsService/UpdateTrigger"
+	// InvestigationsServiceStopAgentProcedure is the fully-qualified name of the
+	// InvestigationsService's StopAgent RPC.
+	InvestigationsServiceStopAgentProcedure = "/vrooli.system_monitor.v1.investigations.InvestigationsService/StopAgent"
 )
 
 // InvestigationsServiceClient is a client for the
@@ -103,6 +106,8 @@ type InvestigationsServiceClient interface {
 	GetTriggers(context.Context, *connect.Request[investigations.GetTriggersRequest]) (*connect.Response[investigations.GetTriggersResponse], error)
 	// UpdateTrigger updates a trigger configuration.
 	UpdateTrigger(context.Context, *connect.Request[investigations.UpdateTriggerRequest]) (*connect.Response[investigations.UpdateTriggerResponse], error)
+	// StopAgent stops a running investigation agent.
+	StopAgent(context.Context, *connect.Request[investigations.StopAgentRequest]) (*connect.Response[investigations.StopAgentResponse], error)
 }
 
 // NewInvestigationsServiceClient constructs a client for the
@@ -195,6 +200,12 @@ func NewInvestigationsServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(investigationsServiceMethods.ByName("UpdateTrigger")),
 			connect.WithClientOptions(opts...),
 		),
+		stopAgent: connect.NewClient[investigations.StopAgentRequest, investigations.StopAgentResponse](
+			httpClient,
+			baseURL+InvestigationsServiceStopAgentProcedure,
+			connect.WithSchema(investigationsServiceMethods.ByName("StopAgent")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -213,6 +224,7 @@ type investigationsServiceClient struct {
 	updateCooldownPeriod        *connect.Client[investigations.UpdateCooldownPeriodRequest, investigations.UpdateCooldownPeriodResponse]
 	getTriggers                 *connect.Client[investigations.GetTriggersRequest, investigations.GetTriggersResponse]
 	updateTrigger               *connect.Client[investigations.UpdateTriggerRequest, investigations.UpdateTriggerResponse]
+	stopAgent                   *connect.Client[investigations.StopAgentRequest, investigations.StopAgentResponse]
 }
 
 // TriggerInvestigation calls
@@ -290,6 +302,11 @@ func (c *investigationsServiceClient) UpdateTrigger(ctx context.Context, req *co
 	return c.updateTrigger.CallUnary(ctx, req)
 }
 
+// StopAgent calls vrooli.system_monitor.v1.investigations.InvestigationsService.StopAgent.
+func (c *investigationsServiceClient) StopAgent(ctx context.Context, req *connect.Request[investigations.StopAgentRequest]) (*connect.Response[investigations.StopAgentResponse], error) {
+	return c.stopAgent.CallUnary(ctx, req)
+}
+
 // InvestigationsServiceHandler is an implementation of the
 // vrooli.system_monitor.v1.investigations.InvestigationsService service.
 type InvestigationsServiceHandler interface {
@@ -319,6 +336,8 @@ type InvestigationsServiceHandler interface {
 	GetTriggers(context.Context, *connect.Request[investigations.GetTriggersRequest]) (*connect.Response[investigations.GetTriggersResponse], error)
 	// UpdateTrigger updates a trigger configuration.
 	UpdateTrigger(context.Context, *connect.Request[investigations.UpdateTriggerRequest]) (*connect.Response[investigations.UpdateTriggerResponse], error)
+	// StopAgent stops a running investigation agent.
+	StopAgent(context.Context, *connect.Request[investigations.StopAgentRequest]) (*connect.Response[investigations.StopAgentResponse], error)
 }
 
 // NewInvestigationsServiceHandler builds an HTTP handler from the service implementation. It
@@ -406,6 +425,12 @@ func NewInvestigationsServiceHandler(svc InvestigationsServiceHandler, opts ...c
 		connect.WithSchema(investigationsServiceMethods.ByName("UpdateTrigger")),
 		connect.WithHandlerOptions(opts...),
 	)
+	investigationsServiceStopAgentHandler := connect.NewUnaryHandler(
+		InvestigationsServiceStopAgentProcedure,
+		svc.StopAgent,
+		connect.WithSchema(investigationsServiceMethods.ByName("StopAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.system_monitor.v1.investigations.InvestigationsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InvestigationsServiceTriggerInvestigationProcedure:
@@ -434,6 +459,8 @@ func NewInvestigationsServiceHandler(svc InvestigationsServiceHandler, opts ...c
 			investigationsServiceGetTriggersHandler.ServeHTTP(w, r)
 		case InvestigationsServiceUpdateTriggerProcedure:
 			investigationsServiceUpdateTriggerHandler.ServeHTTP(w, r)
+		case InvestigationsServiceStopAgentProcedure:
+			investigationsServiceStopAgentHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -493,4 +520,8 @@ func (UnimplementedInvestigationsServiceHandler) GetTriggers(context.Context, *c
 
 func (UnimplementedInvestigationsServiceHandler) UpdateTrigger(context.Context, *connect.Request[investigations.UpdateTriggerRequest]) (*connect.Response[investigations.UpdateTriggerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.investigations.InvestigationsService.UpdateTrigger is not implemented"))
+}
+
+func (UnimplementedInvestigationsServiceHandler) StopAgent(context.Context, *connect.Request[investigations.StopAgentRequest]) (*connect.Response[investigations.StopAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.system_monitor.v1.investigations.InvestigationsService.StopAgent is not implemented"))
 }

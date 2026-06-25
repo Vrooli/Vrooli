@@ -465,3 +465,17 @@ class UpdateTriggerResponse(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     status: str
     def __init__(self, status: _Optional[str] = ...) -> None: ...
+
+class StopAgentRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class StopAgentResponse(_message.Message):
+    __slots__ = ("status", "id")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    id: str
+    def __init__(self, status: _Optional[str] = ..., id: _Optional[str] = ...) -> None: ...

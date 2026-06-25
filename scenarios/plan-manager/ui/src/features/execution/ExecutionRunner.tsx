@@ -1,0 +1,483 @@
+import { useState } from "react";
+import { Flag, Play } from "lucide-react";
+
+import {
+  completeExecution,
+  getStatus,
+  recordDecision,
+  recordFinding,
+  startExecution,
+  transitionPhase,
+} from "../../api/execution";
+import { PlanSelect } from "../../components/PlanSelect";
+import { StatusBadge } from "../../components/StatusBadge";
+import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
+import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
+import { type StringKey } from "../../consts/stringKey";
+import { errorMessage } from "../../lib/errorMessage";
+import { phaseStatusDescriptor, stalenessDescriptor, verdictDescriptor } from "../../lib/planStatus";
+import { useTranslation } from "../../i18n";
+import {
+  Completeness,
+  PhaseStatus,
+  type Decision,
+  type Finding,
+  type Handoff,
+} from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import type {
+  CompletionNudge,
+  Execution,
+  PhaseContext,
+} from "@vrooli/proto-types/plan-manager/v1/execution/execution_pb";
+
+interface RunnerState {
+  execution?: Execution;
+  context?: PhaseContext;
+  decisions: Decision[];
+  findings: Finding[];
+  handoff?: Handoff;
+  nudges: CompletionNudge[];
+}
+
+const TRANSITION_TARGETS: { value: PhaseStatus; labelKey: StringKey }[] = [
+  { value: PhaseStatus.ACTIVE, labelKey: strings.phaseStatus.active },
+  { value: PhaseStatus.DONE, labelKey: strings.phaseStatus.done },
+  { value: PhaseStatus.BLOCKED, labelKey: strings.phaseStatus.blocked },
+  { value: PhaseStatus.TODO, labelKey: strings.phaseStatus.todo },
+];
+
+const COMPLETENESS_LABELS: Record<Completeness, StringKey> = {
+  [Completeness.UNSPECIFIED]: strings.pages.execution.completenessUnspecified,
+  [Completeness.FULL]: strings.pages.execution.completenessFull,
+  [Completeness.PARTIAL]: strings.pages.execution.completenessPartial,
+};
+
+function StringList({ items, empty }: { items: readonly string[]; empty: string }) {
+  if (items.length === 0) return <p className="text-xs text-app-muted-foreground">{empty}</p>;
+  return (
+    <ul className="flex flex-col gap-1">
+      {items.map((item, i) => (
+        <li key={`${item}-${i}`} className="break-words font-mono text-xs text-app-foreground">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * ExecutionRunner — the guided runner. Start a run for a plan, read the
+ * just-in-time context for the current phase, transition phases, capture
+ * decisions and candidate findings in-flow, then complete and read the
+ * canonical structured handoff (plus any completion nudges).
+ */
+export function ExecutionRunner() {
+  const { t } = useTranslation();
+  const [planId, setPlanId] = useState("");
+  const [runId, setRunId] = useState("");
+  const [state, setState] = useState<RunnerState>({ decisions: [], findings: [], nudges: [] });
+  const [toStatus, setToStatus] = useState<PhaseStatus>(PhaseStatus.DONE);
+  const [decisionSummary, setDecisionSummary] = useState("");
+  const [decisionDetail, setDecisionDetail] = useState("");
+  const [findingTitle, setFindingTitle] = useState("");
+  const [findingDetail, setFindingDetail] = useState("");
+  const [error, setError] = useState<unknown>(null);
+  const [busy, setBusy] = useState(false);
+
+  const execution = state.execution;
+  const context = state.context;
+  const currentPhaseId = context?.currentPhase?.id ?? execution?.currentPhaseId ?? "";
+
+  const run = (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    void (async () => {
+      try {
+        await fn();
+      } catch (e) {
+        setError(e);
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  const refreshStatus = async (executionId: string) => {
+    const res = await getStatus(executionId);
+    setState((prev) => ({ ...prev, execution: res.execution, context: res.context }));
+  };
+
+  const handleStart = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (planId.length === 0) return;
+    run(async () => {
+      const exec = await startExecution(planId, runId.trim());
+      if (exec) {
+        setState({ execution: exec, decisions: [], findings: [], nudges: [] });
+        await refreshStatus(exec.id);
+      }
+    });
+  };
+
+  const handleTransition = () => {
+    if (!execution || currentPhaseId.length === 0) return;
+    run(async () => {
+      await transitionPhase(execution.id, currentPhaseId, toStatus);
+      await refreshStatus(execution.id);
+    });
+  };
+
+  const handleRecordDecision = () => {
+    if (!execution || decisionSummary.trim().length === 0) return;
+    run(async () => {
+      const dec = await recordDecision(
+        execution.id,
+        currentPhaseId,
+        decisionSummary.trim(),
+        decisionDetail.trim(),
+      );
+      if (dec) {
+        setState((prev) => ({ ...prev, decisions: [...prev.decisions, dec] }));
+        setDecisionSummary("");
+        setDecisionDetail("");
+      }
+    });
+  };
+
+  const handleRecordFinding = () => {
+    if (!execution || findingTitle.trim().length === 0) return;
+    run(async () => {
+      const finding = await recordFinding(
+        execution.id,
+        currentPhaseId,
+        findingTitle.trim(),
+        findingDetail.trim(),
+      );
+      if (finding) {
+        setState((prev) => ({ ...prev, findings: [...prev.findings, finding] }));
+        setFindingTitle("");
+        setFindingDetail("");
+      }
+    });
+  };
+
+  const handleComplete = () => {
+    if (!execution) return;
+    run(async () => {
+      const res = await completeExecution(execution.id);
+      setState((prev) => ({ ...prev, handoff: res.handoff, nudges: res.nudges }));
+      await refreshStatus(execution.id);
+    });
+  };
+
+  if (!execution) {
+    return (
+      <SectionPanel title={t(strings.pages.execution.startHeading)} headingId="execution-start-heading">
+        <form
+          data-testid={selectors.execution.startForm}
+          onSubmit={handleStart}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <div className="flex-1">
+            <PlanSelect
+              value={planId}
+              onChange={setPlanId}
+              label={t(strings.pages.execution.planLabel)}
+              testId={selectors.execution.planSelect}
+            />
+          </div>
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            <span className="text-xs font-medium text-app-muted-foreground">
+              {t(strings.pages.execution.runIdLabel)}
+            </span>
+            <Input
+              data-testid={selectors.execution.runIdInput}
+              value={runId}
+              onChange={(e) => setRunId(e.target.value)}
+            />
+          </label>
+          <Button
+            type="submit"
+            data-testid={selectors.execution.startButton}
+            disabled={busy || planId.length === 0}
+            className="shrink-0"
+          >
+            <Play aria-hidden="true" className="me-2 h-4 w-4" />
+            {t(strings.pages.execution.start)}
+          </Button>
+        </form>
+        {error ? (
+          <p role="alert" className="text-sm text-app-danger">
+            {errorMessage(error, t)}
+          </p>
+        ) : null}
+      </SectionPanel>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {error ? (
+        <p role="alert" className="rounded-control bg-app-danger/10 px-3 py-2 text-sm text-app-danger">
+          {errorMessage(error, t)}
+        </p>
+      ) : null}
+
+      <SectionPanel
+        title={t(strings.pages.execution.contextHeading)}
+        headingId="execution-context-heading"
+      >
+        <div data-testid={selectors.execution.context} className="grid gap-4 lg:grid-cols-2">
+          <Card className="bg-app-surface-muted">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold">{t(strings.pages.execution.currentPhaseHeading)}</h4>
+              {context?.currentPhase ? (
+                <StatusBadge descriptor={phaseStatusDescriptor(context.currentPhase.status)} />
+              ) : null}
+            </div>
+            {context?.currentPhase ? (
+              <div className="mt-2 flex flex-col gap-1">
+                <p className="text-sm font-medium text-app-foreground">
+                  {context.currentPhase.order}. {context.currentPhase.title}
+                </p>
+                {context.currentPhase.intent ? (
+                  <p className="text-sm text-app-muted-foreground">{context.currentPhase.intent}</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-app-muted-foreground">
+                {t(strings.pages.execution.noCurrentPhase)}
+              </p>
+            )}
+          </Card>
+
+          <Card className="bg-app-surface-muted">
+            <h4 className="text-sm font-semibold">{t(strings.pages.execution.nextPhaseHeading)}</h4>
+            {context?.nextPhase ? (
+              <p className="mt-2 text-sm text-app-foreground">
+                {context.nextPhase.order}. {context.nextPhase.title}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-app-muted-foreground">
+                {t(strings.pages.execution.noNextPhase)}
+              </p>
+            )}
+          </Card>
+
+          <Card className="bg-app-surface-muted">
+            <h4 className="text-sm font-semibold">{t(strings.pages.execution.requiredReadingHeading)}</h4>
+            <div className="mt-2">
+              <StringList items={context?.requiredReading ?? []} empty={t(strings.common.none)} />
+            </div>
+          </Card>
+
+          <Card className="bg-app-surface-muted">
+            <h4 className="text-sm font-semibold">{t(strings.pages.execution.remindersHeading)}</h4>
+            <div className="mt-2">
+              <StringList items={context?.reminders ?? []} empty={t(strings.common.none)} />
+            </div>
+          </Card>
+
+          <Card className="bg-app-surface-muted">
+            <dl className="flex flex-col gap-2">
+              <MetaRow term={t(strings.pages.execution.stalenessHeading)}>
+                {context ? <StatusBadge descriptor={stalenessDescriptor(context.staleness)} /> : "—"}
+              </MetaRow>
+              <MetaRow term={t(strings.pages.execution.lastValidationHeading)}>
+                {context?.lastValidation ? (
+                  <StatusBadge descriptor={verdictDescriptor(context.lastValidation.verdict)} />
+                ) : (
+                  t(strings.common.none)
+                )}
+              </MetaRow>
+            </dl>
+          </Card>
+
+          <Card className="bg-app-surface-muted">
+            <h4 className="text-sm font-semibold">{t(strings.pages.execution.transitionHeading)}</h4>
+            <div className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-xs text-app-muted-foreground">
+                  {t(strings.pages.execution.transitionTo)}
+                </span>
+                <select
+                  data-testid={selectors.execution.transitionSelect}
+                  value={String(toStatus)}
+                  onChange={(e) => setToStatus(Number(e.target.value))}
+                  className="h-10 rounded-control border border-app-border bg-app-surface px-3 text-app-foreground"
+                >
+                  {TRANSITION_TARGETS.map((target) => (
+                    <option key={target.value} value={String(target.value)}>
+                      {t(target.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                data-testid={selectors.execution.transitionButton}
+                disabled={busy || currentPhaseId.length === 0}
+                onClick={handleTransition}
+              >
+                {t(strings.pages.execution.transition)}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </SectionPanel>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SectionPanel title={t(strings.pages.execution.decisionsHeading)} headingId="execution-decisions-heading">
+          <div className="flex flex-col gap-2">
+            <Input
+              data-testid={selectors.execution.decisionSummary}
+              value={decisionSummary}
+              onChange={(e) => setDecisionSummary(e.target.value)}
+              placeholder={t(strings.pages.execution.decisionSummaryPlaceholder)}
+              aria-label={t(strings.pages.execution.decisionSummaryLabel)}
+            />
+            <Textarea
+              data-testid={selectors.execution.decisionDetail}
+              value={decisionDetail}
+              onChange={(e) => setDecisionDetail(e.target.value)}
+              rows={2}
+              aria-label={t(strings.pages.execution.decisionDetailLabel)}
+            />
+            <Button
+              type="button"
+              size="sm"
+              data-testid={selectors.execution.recordDecisionButton}
+              disabled={busy || decisionSummary.trim().length === 0}
+              onClick={handleRecordDecision}
+              className="w-fit"
+            >
+              {t(strings.pages.execution.recordDecision)}
+            </Button>
+          </div>
+          {state.decisions.length === 0 ? (
+            <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.noDecisions)}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {state.decisions.map((dec) => (
+                <li
+                  key={dec.id}
+                  className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm"
+                >
+                  <p className="font-medium text-app-foreground">{dec.summary}</p>
+                  {dec.detail ? <p className="text-app-muted-foreground">{dec.detail}</p> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionPanel>
+
+        <SectionPanel title={t(strings.pages.execution.findingsHeading)} headingId="execution-findings-heading">
+          <div className="flex flex-col gap-2">
+            <Input
+              data-testid={selectors.execution.findingTitle}
+              value={findingTitle}
+              onChange={(e) => setFindingTitle(e.target.value)}
+              placeholder={t(strings.pages.execution.findingTitlePlaceholder)}
+              aria-label={t(strings.pages.execution.findingTitleLabel)}
+            />
+            <Textarea
+              data-testid={selectors.execution.findingDetail}
+              value={findingDetail}
+              onChange={(e) => setFindingDetail(e.target.value)}
+              rows={2}
+              aria-label={t(strings.pages.execution.findingDetailLabel)}
+            />
+            <Button
+              type="button"
+              size="sm"
+              data-testid={selectors.execution.recordFindingButton}
+              disabled={busy || findingTitle.trim().length === 0}
+              onClick={handleRecordFinding}
+              className="w-fit"
+            >
+              {t(strings.pages.execution.recordFinding)}
+            </Button>
+          </div>
+          {state.findings.length === 0 ? (
+            <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.noFindings)}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {state.findings.map((finding) => (
+                <li
+                  key={finding.id}
+                  className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm"
+                >
+                  <p className="font-medium text-app-foreground">{finding.title}</p>
+                  {finding.detail ? <p className="text-app-muted-foreground">{finding.detail}</p> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionPanel>
+      </div>
+
+      <SectionPanel
+        title={t(strings.pages.execution.completeHeading)}
+        headingId="execution-complete-heading"
+        actions={
+          <Button
+            type="button"
+            size="sm"
+            data-testid={selectors.execution.completeButton}
+            disabled={busy}
+            onClick={handleComplete}
+          >
+            <Flag aria-hidden="true" className="me-2 h-4 w-4" />
+            {t(strings.pages.execution.complete)}
+          </Button>
+        }
+      >
+        {state.nudges.length > 0 ? (
+          <div className="mb-3">
+            <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+              {t(strings.pages.execution.nudgesHeading)}
+            </p>
+            <ul className="mt-1 flex flex-col gap-1">
+              {state.nudges.map((nudge, i) => (
+                <li
+                  key={`${nudge.kind}-${i}`}
+                  className="rounded-control bg-app-warning/10 px-3 py-1.5 text-sm text-app-warning"
+                >
+                  {nudge.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {state.handoff ? (
+          <dl data-testid={selectors.execution.handoff} className="flex flex-col gap-2 text-sm">
+            <MetaRow term={t(strings.pages.execution.handoffCompleteness)}>
+              {t(COMPLETENESS_LABELS[state.handoff.completeness])}
+            </MetaRow>
+            <MetaRow term={t(strings.pages.execution.handoffStaleness)}>
+              <StatusBadge descriptor={stalenessDescriptor(state.handoff.staleness)} />
+            </MetaRow>
+            {state.handoff.resumePhaseId ? (
+              <MetaRow term={t(strings.pages.execution.handoffResume)}>
+                <span className="font-mono text-xs">{state.handoff.resumePhaseId}</span>
+              </MetaRow>
+            ) : null}
+            {state.handoff.proseHandoffRef ? (
+              <MetaRow term={t(strings.pages.execution.handoffProseRef)}>
+                <span className="break-all font-mono text-xs">{state.handoff.proseHandoffRef}</span>
+              </MetaRow>
+            ) : null}
+          </dl>
+        ) : (
+          <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.handoffNone)}</p>
+        )}
+      </SectionPanel>
+    </div>
+  );
+}

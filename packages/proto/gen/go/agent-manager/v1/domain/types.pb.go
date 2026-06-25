@@ -505,6 +505,12 @@ const (
 	RunStatus_RUN_STATUS_FAILED RunStatus = 6
 	// Run was cancelled.
 	RunStatus_RUN_STATUS_CANCELLED RunStatus = 7
+	// Run is parked: suspended waiting on externally-owned async work (a
+	// test-genie run, a git-control-tower baseline diff). The agent process has
+	// exited (zero tokens) but the run is NOT terminal — its sandbox is preserved
+	// and agent-manager wakes it (resumes the conversation with the awaited
+	// result injected) once the work resolves. Non-terminal, non-active.
+	RunStatus_RUN_STATUS_PARKED RunStatus = 8
 )
 
 // Enum value maps for RunStatus.
@@ -518,6 +524,7 @@ var (
 		5: "RUN_STATUS_COMPLETE",
 		6: "RUN_STATUS_FAILED",
 		7: "RUN_STATUS_CANCELLED",
+		8: "RUN_STATUS_PARKED",
 	}
 	RunStatus_value = map[string]int32{
 		"RUN_STATUS_UNSPECIFIED":  0,
@@ -528,6 +535,7 @@ var (
 		"RUN_STATUS_COMPLETE":     5,
 		"RUN_STATUS_FAILED":       6,
 		"RUN_STATUS_CANCELLED":    7,
+		"RUN_STATUS_PARKED":       8,
 	}
 )
 
@@ -1727,7 +1735,7 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x14TASK_STATUS_APPROVED\x10\x04\x12\x18\n" +
 	"\x14TASK_STATUS_REJECTED\x10\x05\x12\x16\n" +
 	"\x12TASK_STATUS_FAILED\x10\x06\x12\x19\n" +
-	"\x15TASK_STATUS_CANCELLED\x10\a*\xd7\x01\n" +
+	"\x15TASK_STATUS_CANCELLED\x10\a*\xee\x01\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_STATUS_PENDING\x10\x01\x12\x17\n" +
@@ -1736,7 +1744,8 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x17RUN_STATUS_NEEDS_REVIEW\x10\x04\x12\x17\n" +
 	"\x13RUN_STATUS_COMPLETE\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_FAILED\x10\x06\x12\x18\n" +
-	"\x14RUN_STATUS_CANCELLED\x10\a*\x9c\x02\n" +
+	"\x14RUN_STATUS_CANCELLED\x10\a\x12\x15\n" +
+	"\x11RUN_STATUS_PARKED\x10\b*\x9c\x02\n" +
 	"\x15RunFinalizationStatus\x12'\n" +
 	"#RUN_FINALIZATION_STATUS_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cRUN_FINALIZATION_STATUS_NONE\x10\x01\x12#\n" +

@@ -22,11 +22,17 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	authoringH "plan-manager/handlers/authoring"
+	executionH "plan-manager/handlers/execution"
 	healthH "plan-manager/handlers/health"
-	notesH "plan-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
+	plansH "plan-manager/handlers/plans"
+	validationH "plan-manager/handlers/validation"
 	localdb "plan-manager/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/notes" // EXAMPLE-DOMAIN:notes
+	authoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring"
+	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
+	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +42,10 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, plansH.Endpoints...)
+	out = append(out, validationH.Endpoints...)
+	out = append(out, authoringH.Endpoints...)
+	out = append(out, executionH.Endpoints...)
 	return out
 }
 
@@ -63,7 +72,10 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_plan_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "plans", File: plansv1.File_plan_manager_v1_plans_plans_proto},
+		{Module: "validation", File: validationv1.File_plan_manager_v1_validation_validation_proto},
+		{Module: "authoring", File: authoringv1.File_plan_manager_v1_authoring_authoring_proto},
+		{Module: "execution", File: executionv1.File_plan_manager_v1_execution_execution_proto},
 	}
 }
 
@@ -78,6 +90,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(plansH.Schema),
+		apidb.SchemaProviderFunc(validationH.Schema),
+		apidb.SchemaProviderFunc(authoringH.Schema),
+		apidb.SchemaProviderFunc(executionH.Schema),
 	}
 }

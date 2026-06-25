@@ -26,6 +26,11 @@ service ConfigService {
   // GetCredentialStatus returns Cloudflare credential presence/source metadata.
   // It never returns credential values.
   rpc GetCredentialStatus(GetCredentialStatusRequest) returns (GetCredentialStatusResponse);
+  // VerifyCredentials performs LIVE read-only Cloudflare probes (token verify,
+  // account/tunnel read, apex zone lookup + DNS-records read) and returns a
+  // per-check verdict with remediation. It is the opt-in counterpart to the
+  // presence-only GetCredentialStatus and never returns credential values.
+  rpc VerifyCredentials(VerifyCredentialsRequest) returns (VerifyCredentialsResponse);
   // SetCloudflareCredentials stores write-only Cloudflare credential values in
   // the configured operator secret store. Secret values are never echoed back.
   rpc SetCloudflareCredentials(SetCloudflareCredentialsRequest) returns (SetCloudflareCredentialsResponse);
@@ -184,6 +189,43 @@ message GetCredentialStatusRequest {}
 
 message GetCredentialStatusResponse {
   CredentialStatus status = 1;
+}
+
+// CheckState is the verdict of one live credential check. It never carries a
+// secret value — only a coarse machine-readable outcome.
+enum CheckState {
+  CHECK_STATE_UNSPECIFIED = 0;
+  // The check passed against the live Cloudflare account.
+  CHECK_STATE_OK = 1;
+  // The required input is absent (e.g. no token).
+  CHECK_STATE_MISSING = 2;
+  // The input is present but rejected (bad/expired token, unknown
+  // account/tunnel, zone not found).
+  CHECK_STATE_INVALID = 3;
+  // The token authenticates but lacks the permission this check needs
+  // (e.g. no Zone:DNS:Edit).
+  CHECK_STATE_INSUFFICIENT_SCOPE = 4;
+}
+
+// CredentialCheck is one live verification result. Browser/CLI safe: a verdict
+// plus a one-line remediation, never a secret value.
+message CredentialCheck {
+  // Stable check identifier, e.g. cloudflare.zone_dns_edit.
+  string name = 1;
+  CheckState state = 2;
+  // Short non-secret explanation (e.g. the apex it resolved).
+  string detail = 3;
+  // One-line operator next-step when state != OK.
+  string remediation = 4;
+}
+
+message VerifyCredentialsRequest {}
+
+message VerifyCredentialsResponse {
+  // Per-check live verification results, in a stable order.
+  repeated CredentialCheck checks = 1;
+  // True only when every check is OK.
+  bool ready = 2;
 }
 
 message SetCloudflareCredentialsRequest {

@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "execution.phase-lifecycle.api",
+  "domain": "execution",
+  "description": "Guided-runner phase lifecycle: a first-class phase the runner walks moves todo -> active -> done (or is blocked and later unblocked), and the runner advances its resume pointer accordingly. done is terminal for the phase; blocked is recoverable back to active.",
+  "model": {
+    "module": "ApiPhaseLifecycleWorkflow",
+    "seed": "2026062501",
+    "maxSteps": 6,
+    "traceCount": 8,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState",
+        "CompletionRequiresActive"
+      ]
+    }
+  },
+  "states": [
+    { "id": "todo", "quint": "Todo", "initial": true },
+    { "id": "active", "quint": "Active" },
+    { "id": "blocked", "quint": "Blocked" },
+    { "id": "done", "quint": "Done", "terminal": true }
+  ],
+  "events": [
+    { "id": "begin", "quint": "Begin" },
+    { "id": "block", "quint": "Block" },
+    { "id": "unblock", "quint": "Unblock" },
+    { "id": "complete", "quint": "Complete" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
+  "transitions": [
+    { "from": "todo", "event": "begin", "to": "active" },
+    { "from": "todo", "event": "block", "to": "blocked" },
+    { "from": "active", "event": "complete", "to": "done" },
+    { "from": "active", "event": "block", "to": "blocked" },
+    { "from": "blocked", "event": "unblock", "to": "active" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "Terminal states cannot transition to another status." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
+    {
+      "id": "completion_requires_active",
+      "quint": "CompletionRequiresActive",
+      "description": "A phase can only complete from the active state — never directly from todo or blocked.",
+      "expression": "not(isValid(status, Complete)) or status == Active"
+    }
+  ],
+  "traces": [
+    {
+      "name": "straight_through",
+      "initial": "todo",
+      "steps": [
+        { "event": "begin", "want": "active", "wantError": false },
+        { "event": "complete", "want": "done", "wantError": false }
+      ]
+    },
+    {
+      "name": "block_then_recover",
+      "initial": "todo",
+      "steps": [
+        { "event": "begin", "want": "active", "wantError": false },
+        { "event": "block", "want": "blocked", "wantError": false },
+        { "event": "unblock", "want": "active", "wantError": false },
+        { "event": "complete", "want": "done", "wantError": false }
+      ]
+    },
+    {
+      "name": "blocked_cannot_complete",
+      "initial": "todo",
+      "steps": [
+        { "event": "block", "want": "blocked", "wantError": false },
+        { "event": "complete", "want": "blocked", "wantError": true }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "PhaseLifecycleStatus",
+      "eventType": "PhaseLifecycleEvent",
+      "constantPrefix": "PhaseLifecycle"
+    },
+    "sideEffects": [
+      "begin advances the runner's current-phase pointer onto this phase.",
+      "complete advances the runner's resume pointer to the next non-done phase and may mark the execution complete.",
+      "block leaves the phase recoverable; the resume point still selects it as the earliest non-done phase."
+    ]
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionPhaseLifecycle",
+      "stateType": "PhaseLifecycleState",
+      "statusField": "Status"
+    }
+  }
+}

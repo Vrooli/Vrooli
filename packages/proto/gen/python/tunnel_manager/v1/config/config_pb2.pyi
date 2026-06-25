@@ -28,6 +28,14 @@ class Mode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     MODE_UNSPECIFIED: _ClassVar[Mode]
     MODE_REMOTE: _ClassVar[Mode]
     MODE_LOCAL: _ClassVar[Mode]
+
+class CheckState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CHECK_STATE_UNSPECIFIED: _ClassVar[CheckState]
+    CHECK_STATE_OK: _ClassVar[CheckState]
+    CHECK_STATE_MISSING: _ClassVar[CheckState]
+    CHECK_STATE_INVALID: _ClassVar[CheckState]
+    CHECK_STATE_INSUFFICIENT_SCOPE: _ClassVar[CheckState]
 OWNERSHIP_STATE_UNSPECIFIED: OwnershipState
 OWNERSHIP_STATE_MANAGED: OwnershipState
 OWNERSHIP_STATE_MISSING: OwnershipState
@@ -41,6 +49,11 @@ INGRESS_SOURCE_EXTERNAL: IngressSource
 MODE_UNSPECIFIED: Mode
 MODE_REMOTE: Mode
 MODE_LOCAL: Mode
+CHECK_STATE_UNSPECIFIED: CheckState
+CHECK_STATE_OK: CheckState
+CHECK_STATE_MISSING: CheckState
+CHECK_STATE_INVALID: CheckState
+CHECK_STATE_INSUFFICIENT_SCOPE: CheckState
 
 class IngressEntry(_message.Message):
     __slots__ = ("hostname", "service_target", "state", "source", "scenario", "lease_id", "note")
@@ -161,6 +174,30 @@ class GetCredentialStatusResponse(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     status: CredentialStatus
     def __init__(self, status: _Optional[_Union[CredentialStatus, _Mapping]] = ...) -> None: ...
+
+class CredentialCheck(_message.Message):
+    __slots__ = ("name", "state", "detail", "remediation")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    state: CheckState
+    detail: str
+    remediation: str
+    def __init__(self, name: _Optional[str] = ..., state: _Optional[_Union[CheckState, str]] = ..., detail: _Optional[str] = ..., remediation: _Optional[str] = ...) -> None: ...
+
+class VerifyCredentialsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class VerifyCredentialsResponse(_message.Message):
+    __slots__ = ("checks", "ready")
+    CHECKS_FIELD_NUMBER: _ClassVar[int]
+    READY_FIELD_NUMBER: _ClassVar[int]
+    checks: _containers.RepeatedCompositeFieldContainer[CredentialCheck]
+    ready: bool
+    def __init__(self, checks: _Optional[_Iterable[_Union[CredentialCheck, _Mapping]]] = ..., ready: _Optional[bool] = ...) -> None: ...
 
 class SetCloudflareCredentialsRequest(_message.Message):
     __slots__ = ("account_id", "tunnel_id", "api_token")

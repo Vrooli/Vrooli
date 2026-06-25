@@ -261,7 +261,5 @@
       }
     }
   },
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/plan-manager.db"
-  }
+  "environment": {}
 }
