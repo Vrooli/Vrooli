@@ -1,0 +1,53 @@
+# Product Requirements Document (PRD)
+
+> **Template Version**: 2.0
+> **Canonical Reference**: `/scenarios/prd-control-tower/docs/CANONICAL_PRD_TEMPLATE.md`
+> **Validation**: Enforced by `prd-control-tower` + `scenario-auditor`
+> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
+
+## 🎯 Overview
+- **Purpose**: Be the single authority ("plan-logic SSOT") for implementation plans in Vrooli, exposed as a guided wizard runtime. Today plan logic is scattered and trapped — `swarm-manager` `phased-plan-drain` only works inside swarm-manager, the 13-section skeleton lives in a prose skill, plan hygiene lives in project `internal/`, and storage is a thin `vrooli plans` CLI. plan-manager re-homes that logic so authoring **and** executing a plan are cheap enough in tokens + intelligence for a **local** model. The mechanism is a deterministic section wizard + validators that move judgment into code, plus just-in-time context injection during execution that holds the procedural knowledge agents currently carry in their heads.
+- **Primary users/verticals**: (1) AI coding agents — especially small/local models — authoring a plan and then executing it phase by phase, hand-held by the wizard so the work does not need a large cloud model; (2) operators/teams who view, manage, validate, and triage plans and their handoffs; (3) other scenarios (`swarm-manager`, project hygiene, the `vrooli plans` CLI) that later **delegate** plan logic here instead of re-implementing it.
+- **Deployment surfaces**: CLI (primary; agent- and operator-facing; typed proto-JSON), API (Connect-RPC), UI (operator console for plans, phase progress, staleness, handoffs, velocity).
+- **Value promise**: Drives the most common token-heavy + intelligence-heavy task — creating and executing plans — down toward local-model feasibility. The deterministic wizard + validators are the primary lever; just-in-time status/context injection during execution is the multiplier. Plans become first-class structured records with computed status + staleness, instead of prose files that a tired, max-context agent reverse-engineers at the end of a run.
+
+## 🎯 Operational Targets
+
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Structured plan store | A plan is a first-class structured record (meta + global sections + ordered first-class phases; each phase carries its own required-reading, reminders, baseline scope, acceptance, and **computed** status), persisted to the scenario-independent home store (`~/.vrooli`, file/SQLite) so plans stay readable with the server down; CRUD + a rendered markdown view; phase status is a runtime transition, never agent-edited markdown.
+- [ ] OT-P0-002 | Guided authoring wizard | A section-by-section flow validates structure as it goes and **auto-fills** the mechanical sections (regression anchor via `git-control-tower baseline`, required-reading via `plan-skill-discovery`, code references via `code-facts`) so a small model only supplies genuine prose; a structure-validation gate rejects empty mandatory sections.
+- [ ] OT-P0-003 | Guided execution + context injection | `status`/`next` act as a context server — returning the current phase, what is next, phase-scoped required-reading + reminders, last validation results, and staleness — just-in-time, so the agent does not carry it. Full-vs-partial completion and the resume point are computed from phase status, not narrated.
+- [ ] OT-P0-004 | Code-reference tracking + staleness | Every referenced location (existing **and** proposed code) is recorded via the machine-readable grammar (`[CODE:]`, `[REQ:]`) + `code-facts`; the scenario computes staleness tiers (fresh / lightly-stale on small diffs / definitely-stale when referenced locations moved or were deleted) so a plan that has sat around has a known validity.
+- [ ] OT-P0-005 | Baseline-aware validation orchestration | Given a plan's connected code, compute the **exact** baseline/validation command set across all affected locations (not just scenarios) and run it on request with the agent in the loop, returning results + staleness; Definition-of-Done is verified against the regression anchor as an oracle, not narrated.
+
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Structured handoff finalizer | A `complete` flow runs a thin guided completion process (nudges: record a finding, file any bugs, confirm phase status) and assembles the **canonical** handoff record from state captured in-flow during the run — full/partial + resume point computed. Findings are filed as **candidate (unvalidated)** entries an operator triages before they become real bugs; reconciled against run-id attribution (`VROOLI_AGENT_MANAGER_RUN_ID`) to avoid double-filing. plan-manager owns only the structured handoff; the prose final-message catch-all is captured by the orchestration layer, not here.
+- [ ] OT-P1-002 | Velocity & plan graph | Track per-plan velocity (wall-time + tokens + iterations to complete; full vs partial) and emit it as a signal to `meta-optimization-manager` trials; maintain a plan supersession/dependency graph (the store carries a content hash) and per-surface plan templates (CLI/proto/UI plans start pre-scaffolded).
+
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Operator UI console | A React/Vite surface to view/manage plans, phase progress, staleness tiers, handoff records (canonical + linked prose), candidate-finding triage, and velocity trends.
+- [ ] OT-P2-002 | Consumer inversion | Re-point existing consumers — `swarm-manager` `phased-plan-drain`, project hygiene plan-location checks, and the `vrooli plans` CLI — to **delegate** to plan-manager as the plan-logic SSOT. Build standalone first and prove it; invert consumers in follow-on phases.
+
+## 🧱 Tech Direction Snapshot
+- Preferred stacks / frameworks: Go (api + cli), React + Vite + Tailwind (ui), Connect-RPC over proto contracts (`packages/proto/schemas/plan-manager`), typed proto-JSON CLI output, cli-core `ScenarioApp`, api-core/storage.
+- Data + storage expectations: SQLite via api-core/storage, rooted at the scenario-**independent** `~/.vrooli` home store (NOT a scenario-private DB) so plans survive the server being down and the `vrooli plans` CLI can read them as a thin client. plan-manager owns the schema + validation + logic; the durable file/SQLite store is the persistence substrate.
+- Integration strategy: **compose** substrate it should not own — `code-facts` (code references), the freshness engine (content-hash staleness mechanism), `git-control-tower baseline` (regression anchor + diff), `test-genie` / `scenario-validation` (validation results it consumes). Emit velocity to `meta-optimization-manager` trials. Prefer typed CLI/RPC reads; degrade gracefully when an owner is down.
+- Non-goals / guardrails: does NOT own project-level validation of resources/packages/whole-project (belongs with `test-genie` / `scenario-validation` / MoM's Validate projection — plan-manager consumes results); does NOT read agent transcripts or spawn agents (the prose-handoff catch-all is an orchestration-layer concern owned by `agent-manager`/`swarm-manager`); does NOT promote candidate findings to real bugs itself (operator triages); does NOT hard-depend on the not-yet-built unified code identifier (uses today's `[CODE:]`/`code-facts`, upgrades later); the agent never hand-edits plan markdown (status is a typed transition).
+
+## 🤝 Dependencies & Launch Plan
+- Required resources: SQLite (default storage). No heavy resources.
+- Scenario dependencies (all soft / degrade gracefully): `code-facts` (references + staleness inputs), `git-control-tower` (baseline snapshot/diff), `test-genie` / `scenario-validation` (validation results consumed), `prompt-manager` (`plan-skill-discovery` for required-reading autofill), `meta-optimization-manager` (velocity sink), `agent-manager` (run-id attribution contract; prose-handoff capture lives there). Future consumers to invert: `swarm-manager`, project hygiene, the `vrooli plans` CLI.
+- Operational risks: small/local models will not bucket everything into commands (the prose catch-all is inevitable and is an orchestration-layer concern, not solved here); staleness accuracy depends on reference completeness (mitigate by making references mandatory in the wizard); the unified code identifier is still being designed elsewhere (soft-depend, upgrade later); the consumer inversion touches `swarm-manager` which is mid-refactor (do it after standalone proof).
+- Launch sequencing: P0 (structured plan store → guided authoring wizard → guided execution + context injection → reference/staleness → baseline-aware validation) standalone and proven → P1 (structured handoff finalizer, velocity + plan graph) → P2 (operator UI, then consumer inversion). The canonical `docs/concepts/PLAN-MODEL.md` (the structured plan + phase schema) must exist before the domains ship since they cross-reference it.
+
+## 🎨 UX & Branding
+- Look & feel: vrooli-default operational console; light + dark; dense data — plan lists, phase progress, staleness/validation status, handoff records, candidate-finding triage, velocity trends. Status-color semantics for phase status (todo / active / done / blocked) and staleness (fresh / lightly-stale / definitely-stale).
+- Accessibility: WCAG AA; full keyboard navigation; axe-clean; preserve the template's i18n + accessibility seams.
+- Voice & messaging: hand-holding and procedural on the agent surface (the wizard guides; it does not assume expertise); honest about staleness and unvalidated findings (a candidate finding is never presented as a confirmed bug).
+- Branding hooks: vrooli-default operational console; keep the seeded PWA manifest + icons valid until real product branding exists.
+
+## 📎 Appendix
+- Converged design origin: idea-workshop session 2026-06-25 (this scenario's founding brainstorm) — four shape decisions (storage = scenario-owned logic over a durable home store; artifact = structured phases as first-class records; autonomy = compute + run with the agent in the loop; sequencing = standalone first, invert consumers later) and the handoff ownership split.
+- Reference grammar: `docs/reference/machine-readable-references.md` (`[CODE:]`, `[REQ:]`, `[DOC:]`).
+- Existing substrate reused: `internal/app/plans` (`vrooli plans` store), `swarm-manager` `phased-plan-drain` (prior guided-execution art), the freshness engine (`vrooli scenario freshness`), `docs/agent-system/RUNTIME_ATTRIBUTION.md`.
+- Canonical model: `docs/concepts/PLAN-MODEL.md`.

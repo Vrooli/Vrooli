@@ -1,0 +1,35 @@
+{
+  "_metadata": {
+    "module": "velocity-graph",
+    "description": "OT-P1-002 — per-plan velocity emitted as a signal, plus the plan supersession/dependency graph.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-VEL-001",
+      "title": "Track per-plan velocity and emit it to meta-optimization trials",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "analytics",
+      "description": "Capture per-plan velocity (wall-time + tokens + iterations to complete; full vs partial) as a historical signal and emit it to meta-optimization-manager trials, so plan throughput becomes a measurable local-model-readiness input.",
+      "tags": ["velocity", "analytics", "meta-optimization"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Velocity aggregation per plan/run; emit behind a seam that degrades when the sink is down; target api/internal/execution." }
+      ]
+    },
+    {
+      "id": "PM-GRAPH-001",
+      "title": "Maintain a plan supersession/dependency graph and per-surface templates",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "plans",
+      "description": "Track supersession/dependency edges between plans (using the stored content hash) and provide per-surface plan templates (CLI/proto/UI) so a new plan starts pre-scaffolded for its surface.",
+      "tags": ["plans", "graph", "templates"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Supersession edges resolve; templates seed the correct sections per surface; target api/internal/plans." }
+      ]
+    }
+  ]
+}

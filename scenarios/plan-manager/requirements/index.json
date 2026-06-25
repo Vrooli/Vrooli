@@ -1,0 +1,18 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking plan-manager operational targets to technical requirements.",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-plan-store/module.json",
+    "02-authoring-wizard/module.json",
+    "03-execution-context/module.json",
+    "04-reference-staleness/module.json",
+    "05-validation-orchestration/module.json",
+    "06-handoff-finalizer/module.json",
+    "07-velocity-graph/module.json",
+    "08-ui-console/module.json",
+    "09-consumer-inversion/module.json"
+  ]
+}

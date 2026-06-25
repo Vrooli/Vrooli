@@ -1,0 +1,37 @@
+{
+  "_metadata": {
+    "module": "authoring-wizard",
+    "description": "OT-P0-002 — guided section-by-section authoring with autofill and a structure-validation gate.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-AUTHOR-001",
+      "title": "Guided section-by-section authoring with a structure-validation gate",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "authoring",
+      "description": "The wizard walks the plan's sections in order, validates structure as it goes, and refuses to finalize while a mandatory section (or a phase's acceptance) is empty. The flow is followable by a small model with minimal context.",
+      "tags": ["authoring", "wizard", "validation"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Structure-validation gate rejects empty mandatory sections and surfaces the next prompt; target api/internal/authoring." },
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: author/new step flow returns the next section + guidance; target cli/domains/authoring." }
+      ]
+    },
+    {
+      "id": "PM-AUTHOR-002",
+      "title": "Auto-fill the mechanical sections so the model only supplies prose",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "authoring",
+      "description": "The wizard auto-fills the deterministic sections — regression anchor (via git-control-tower baseline), required-reading (via prompt-manager plan-skill-discovery), and code references (via code-facts) — degrading gracefully when a source is unavailable, so genuine prose is the only thing left for the agent.",
+      "tags": ["authoring", "autofill", "integration"],
+      "validation": [
+        { "type": "test", "phase": "unit", "status": "planned", "notes": "Autofill providers behind seams; missing source degrades to a marked gap, never a hard fail; target api/internal/authoring." },
+        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: authoring a plan auto-populates anchor + required-reading + refs from live sources." }
+      ]
+    }
+  ]
+}
