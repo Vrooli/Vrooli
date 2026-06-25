@@ -123,6 +123,21 @@ type RunRepository interface {
 	// single-column update closes that race at the SQL layer (no TOCTOU).
 	TouchHeartbeat(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
 
+	// UpdateRunnerStreamState atomically persists ONLY the runner streaming
+	// columns (session id, runner pid/pgid, transcript path/cursor/seq) from the
+	// supplied run, and ONLY while it is still actively executing (running or
+	// starting). It returns true when a row was updated.
+	//
+	// Same race class as TouchHeartbeat: the executor's OnAdvance/OnProcessStart/
+	// OnSessionID transcript callbacks fire on every agent output chunk and hold
+	// an in-memory *Run whose Status is the stale "running" value. A full-row
+	// Update from that pointer during the park turn-end grace window would rewrite
+	// a just-persisted running→parked transition back to running (clobbering the
+	// park before detectParked ever reads it). The status-guarded targeted update
+	// closes that race at the SQL layer (no TOCTOU): once the run is parked/
+	// terminal, the streaming write no-ops instead of resurrecting it.
+	UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error)
+
 	// Delete removes a run by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 

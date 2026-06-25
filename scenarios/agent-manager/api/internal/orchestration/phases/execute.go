@@ -424,7 +424,8 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 				return err
 			}
 			if in.Deps.Runs != nil {
-				return in.Deps.Runs.Update(context.Background(), in.Run)
+				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.Background(), in.Run)
+				return err
 			}
 			return nil
 		},
@@ -441,7 +442,8 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 				return err
 			}
 			if in.Deps.Runs != nil {
-				return in.Deps.Runs.Update(context.Background(), in.Run)
+				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.Background(), in.Run)
+				return err
 			}
 			return nil
 		},
@@ -461,7 +463,8 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 				return err
 			}
 			if in.Deps.Runs != nil {
-				return in.Deps.Runs.Update(context.Background(), in.Run)
+				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.Background(), in.Run)
+				return err
 			}
 			return nil
 		},

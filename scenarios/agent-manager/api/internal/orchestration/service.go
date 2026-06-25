@@ -85,6 +85,7 @@ type Service interface {
 	QuiesceScenario(ctx context.Context, opts QuiesceOptions) (*QuiesceResult, error)
 	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
 	ParkRunFromAgent(ctx context.Context, req ParkRunFromAgentRequest) (*ParkRunResult, error)
+	GetAwaitResult(ctx context.Context, runID uuid.UUID) (*AwaitResult, error)
 	WakeRun(ctx context.Context, in WakeRunInput) (*domain.Run, error)
 	RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error)
 	DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error)

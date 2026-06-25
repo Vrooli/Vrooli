@@ -49,6 +49,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runPark(args[1:])
 	case "wake":
 		return a.runWake(args[1:])
+	case "await-result":
+		return a.runAwaitResult(args[1:])
 	case "recover":
 		return a.runRecover(args[1:])
 	case "investigate":
@@ -92,6 +94,7 @@ Subcommands:
   continue <id>               Continue a run with a follow-up message
   park <id>                   Park a run on externally-owned async work (durable park/resume)
   wake <id>                   Wake a parked run with a result (ops/manual recovery)
+  await-result <id>           Re-fetch a run's last awaited result (non-blocking; no re-run)
   recover <id>                Drain transcript and reconcile a run
   investigate                 Create an investigation run from existing runs
   apply-investigation <id>    Apply investigation recommendations
@@ -1082,6 +1085,48 @@ func (a *App) runWake(args []string) error {
 	} else {
 		fmt.Println("Wake requested")
 	}
+	return nil
+}
+
+// runAwaitResult re-fetches a run's most recently resolved await result without
+// re-running the blocking producer. This is the deterministic retrieval path a
+// woken agent uses if it did not receive — or wants to re-read — the result.
+func (a *App) runAwaitResult(args []string) error {
+	fs := flag.NewFlagSet("run await-result", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run await-result <id>")
+	}
+
+	body, resp, err := a.services.Runs.AwaitResult(id)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if !resp.Found {
+		fmt.Println("No awaited result recorded for this run.")
+		return nil
+	}
+	if resp.Key != "" {
+		fmt.Printf("Awaited: %s\n", resp.Key)
+	}
+	if resp.ResolvedAt != "" {
+		fmt.Printf("Resolved at: %s\n", resp.ResolvedAt)
+	}
+	fmt.Printf("\nResult:\n%s\n", resp.Result)
 	return nil
 }
 

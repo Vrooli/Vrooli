@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
@@ -21,6 +22,15 @@ var parkFromAgentSecret = []byte("phase4-park-from-agent-secret-0123456789")
 // newParkFromAgentSvc builds an orchestrator wired with a claude-code runner and
 // the shared identity secret, plus a running run, for ParkRunFromAgent auth tests.
 func newParkFromAgentSvc(t *testing.T) (*orchestration.Orchestrator, *domain.Run) {
+	svc, run, _ := newParkFromAgentSvcWithRepos(t)
+	return svc, run
+}
+
+// newParkFromAgentSvcWithRepos is newParkFromAgentSvc but also returns the
+// repositories, so tests that need to seed run state directly (e.g. the re-park
+// guard's persisted streak / last-await fields) can do so without driving the
+// racy wake-continuation goroutine.
+func newParkFromAgentSvcWithRepos(t *testing.T) (*orchestration.Orchestrator, *domain.Run, *database.Repositories) {
 	t.Helper()
 	ctx := context.Background()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
@@ -46,7 +56,7 @@ func newParkFromAgentSvc(t *testing.T) (*orchestration.Orchestrator, *domain.Run
 	)
 
 	run := newParkableRun(t, ctx, svc, repos)
-	return svc, run
+	return svc, run, repos
 }
 
 // mintToken mints a valid identity token binding to runID with a 24h TTL.

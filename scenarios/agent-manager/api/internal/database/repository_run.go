@@ -81,6 +81,12 @@ type runRow struct {
 	CustomEnv sql.NullString `db:"custom_env"`
 	// Await-handle (JSON object) for a parked run; NULL for non-parked runs
 	AwaitHandle sql.NullString `db:"await_handle"`
+	// Last-resolved await (re-fetch SSOT) + re-park guard bookkeeping
+	LastAwaitKey        sql.NullString `db:"last_await_key"`
+	LastAwaitResult     sql.NullString `db:"last_await_result"`
+	LastAwaitResolvedAt NullableTime   `db:"last_await_resolved_at"`
+	LastWakeSeq         int64          `db:"last_wake_seq"`
+	SameKeyParkStreak   int            `db:"same_key_park_streak"`
 	// Model provenance
 	RequestedModel sql.NullString `db:"requested_model"`
 	ActualModel    sql.NullString `db:"actual_model"`
@@ -140,6 +146,11 @@ func (row *runRow) toDomain() *domain.Run {
 		IdentityTokenRevokedAt: row.IdentityTokenRevokedAt.ToPtr(),
 		CustomEnv:              parseStringMapJSON(row.CustomEnv),
 		AwaitHandle:            parseAwaitHandleJSON(row.AwaitHandle),
+		LastAwaitKey:           row.LastAwaitKey.String,
+		LastAwaitResult:        row.LastAwaitResult.String,
+		LastAwaitResolvedAt:    row.LastAwaitResolvedAt.ToPtr(),
+		LastWakeSeq:            row.LastWakeSeq,
+		SameKeyParkStreak:      row.SameKeyParkStreak,
 		// Model provenance
 		RequestedModel: row.RequestedModel.String,
 		ActualModel:    row.ActualModel.String,
@@ -209,6 +220,11 @@ func runFromDomain(r *domain.Run) *runRow {
 		IdentityTokenRevokedAt: NewNullableTime(r.IdentityTokenRevokedAt),
 		CustomEnv:              marshalStringMapJSON(r.CustomEnv),
 		AwaitHandle:            marshalAwaitHandleJSON(r.AwaitHandle),
+		LastAwaitKey:           sql.NullString{String: r.LastAwaitKey, Valid: r.LastAwaitKey != ""},
+		LastAwaitResult:        sql.NullString{String: r.LastAwaitResult, Valid: r.LastAwaitResult != ""},
+		LastAwaitResolvedAt:    NewNullableTime(r.LastAwaitResolvedAt),
+		LastWakeSeq:            r.LastWakeSeq,
+		SameKeyParkStreak:      r.SameKeyParkStreak,
 		// Model provenance
 		RequestedModel: sql.NullString{String: r.RequestedModel, Valid: r.RequestedModel != ""},
 		ActualModel:    sql.NullString{String: r.ActualModel, Valid: r.ActualModel != ""},
@@ -321,6 +337,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 	identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
+	last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 	requested_model, actual_model,
 	created_at, updated_at`
 
@@ -446,6 +463,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 			identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
+			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model,
 			created_at, updated_at)
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
@@ -457,6 +475,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
 			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
 			:identity_token_hash, :identity_token_revoked_at, :custom_env, :await_handle,
+			:last_await_key, :last_await_result, :last_await_resolved_at, :last_wake_seq, :same_key_park_streak,
 			:requested_model, :actual_model,
 			:created_at, :updated_at)`
 
@@ -587,6 +606,9 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		recommendation_queued_at = :recommendation_queued_at,
 		identity_token_hash = :identity_token_hash, identity_token_revoked_at = :identity_token_revoked_at,
 		custom_env = :custom_env, await_handle = :await_handle,
+		last_await_key = :last_await_key, last_await_result = :last_await_result,
+		last_await_resolved_at = :last_await_resolved_at, last_wake_seq = :last_wake_seq,
+		same_key_park_streak = :same_key_park_streak,
 		requested_model = :requested_model, actual_model = :actual_model,
 		updated_at = :updated_at
 		WHERE id = :id`
@@ -622,6 +644,35 @@ func (r *runRepository) TouchHeartbeat(ctx context.Context, id uuid.UUID, at tim
 	affected, err := res.RowsAffected()
 	if err != nil {
 		return false, wrapDBError("touch_heartbeat", "Run", id.String(), err)
+	}
+	return affected > 0, nil
+}
+
+// UpdateRunnerStreamState persists ONLY the runner streaming columns (session
+// id, runner pid/pgid, transcript path/cursor/seq) and ONLY while the run is
+// still actively executing (running or starting). The status guard means an
+// in-flight transcript callback (OnAdvance/OnProcessStart/OnSessionID) that
+// races a park/stop/terminal transition is a no-op rather than a clobber: it
+// can never rewrite a parked/terminal status back to running. Returns true when
+// a row matched. The status literals mirror domain.RunStatus{Running,Starting}
+// (the status column is free-text).
+func (r *runRepository) UpdateRunnerStreamState(ctx context.Context, run *domain.Run) (bool, error) {
+	run.UpdatedAt = time.Now()
+	row := runFromDomain(run)
+	const query = `UPDATE runs SET
+		session_id = ?, runner_pid = ?, runner_pgid = ?,
+		transcript_path = ?, transcript_cursor = ?, transcript_last_seq = ?, updated_at = ?
+		WHERE id = ? AND status IN (?, ?)`
+	res, err := r.db.ExecContext(ctx, query,
+		row.SessionID, row.RunnerPID, row.RunnerPGID,
+		row.TranscriptPath, row.TranscriptCursor, row.TranscriptLastSeq, row.UpdatedAt,
+		run.ID, string(domain.RunStatusRunning), string(domain.RunStatusStarting))
+	if err != nil {
+		return false, wrapDBError("update_runner_stream_state", "Run", run.ID.String(), err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return false, wrapDBError("update_runner_stream_state", "Run", run.ID.String(), err)
 	}
 	return affected > 0, nil
 }

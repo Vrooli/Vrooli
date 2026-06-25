@@ -951,6 +951,153 @@ func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
 	}
 }
 
+// TestUpdateRunnerStreamState_StatusGuarded pins the park-clobber fix: the
+// runner's transcript callbacks (OnAdvance/OnProcessStart/OnSessionID) persist
+// streaming columns on every agent output chunk from an in-memory run whose
+// Status is the stale "running". During the park turn-end grace the agent keeps
+// emitting output; a full-row write would rewrite a just-persisted
+// running→parked transition back to running (clobbering the park before
+// detectParked reads it). UpdateRunnerStreamState must be status-guarded so a
+// parked/terminal run is never resurrected. (Found by the local-inference
+// park/resume e2e; the prior detectParked-only guard was structurally too late.)
+func TestUpdateRunnerStreamState_StatusGuarded(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Stream Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	mk := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{
+			ID:            uuid.New(),
+			TaskID:        task.ID,
+			RunMode:       domain.RunModeSandboxed,
+			Status:        status,
+			Phase:         domain.RunPhaseExecuting,
+			ApprovalState: domain.ApprovalStateNone,
+		}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+
+	// running → streaming write applies (cursor persists, status unchanged).
+	running := mk(domain.RunStatusRunning)
+	running.TranscriptCursor = 42
+	running.SessionID = "sess-running"
+	updated, err := repos.Runs.UpdateRunnerStreamState(ctx, running)
+	if err != nil {
+		t.Fatalf("UpdateRunnerStreamState(running): %v", err)
+	}
+	if !updated {
+		t.Fatal("running run streaming state should have been updated")
+	}
+	got, _ := repos.Runs.Get(ctx, running.ID)
+	if got.TranscriptCursor != 42 || got.SessionID != "sess-running" {
+		t.Errorf("running streaming state not persisted: cursor=%d session=%q", got.TranscriptCursor, got.SessionID)
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("running status changed unexpectedly: %s", got.Status)
+	}
+
+	// parked → NO-OP (the critical anti-clobber guarantee). An in-flight
+	// transcript callback must not resurrect the park. Status stays parked and
+	// the streaming columns are NOT written.
+	parked := mk(domain.RunStatusParked)
+	parked.TranscriptCursor = 99
+	parked.SessionID = "should-not-persist"
+	updated, err = repos.Runs.UpdateRunnerStreamState(ctx, parked)
+	if err != nil {
+		t.Fatalf("UpdateRunnerStreamState(parked): %v", err)
+	}
+	if updated {
+		t.Fatal("parked run streaming state must NOT be updated (would clobber the park)")
+	}
+	got, _ = repos.Runs.Get(ctx, parked.ID)
+	if got.Status != domain.RunStatusParked {
+		t.Errorf("parked status was clobbered to %s (the bug)", got.Status)
+	}
+	if got.TranscriptCursor == 99 || got.SessionID == "should-not-persist" {
+		t.Errorf("parked streaming columns were written: cursor=%d session=%q", got.TranscriptCursor, got.SessionID)
+	}
+
+	// terminal (failed) → NO-OP.
+	failed := mk(domain.RunStatusFailed)
+	if updated, err := repos.Runs.UpdateRunnerStreamState(ctx, failed); err != nil || updated {
+		t.Fatalf("UpdateRunnerStreamState(failed): updated=%v err=%v (want false,nil)", updated, err)
+	}
+}
+
+// TestRunLastAwaitFieldsRoundTrip verifies the durable re-fetch SSOT + re-park
+// guard bookkeeping (last_await_key/result/resolved_at, last_wake_seq,
+// same_key_park_streak) persist and reload through Create/Update/Get.
+func TestRunLastAwaitFieldsRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{ID: uuid.New(), Title: "Await Task", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	resolved := time.Now().UTC().Truncate(time.Second)
+	run := &domain.Run{
+		ID:                  uuid.New(),
+		TaskID:              task.ID,
+		RunMode:             domain.RunModeSandboxed,
+		Status:              domain.RunStatusRunning,
+		Phase:               domain.RunPhaseExecuting,
+		ApprovalState:       domain.ApprovalStateNone,
+		LastAwaitKey:        "git-control-tower:agent-manager/am-park-resume",
+		LastAwaitResult:     `{"status":"ready"}`,
+		LastAwaitResolvedAt: &resolved,
+		LastWakeSeq:         12,
+		SameKeyParkStreak:   1,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.LastAwaitKey != run.LastAwaitKey || got.LastAwaitResult != run.LastAwaitResult {
+		t.Errorf("await key/result not persisted: key=%q result=%q", got.LastAwaitKey, got.LastAwaitResult)
+	}
+	if got.LastWakeSeq != 12 || got.SameKeyParkStreak != 1 {
+		t.Errorf("guard counters not persisted: wakeSeq=%d streak=%d", got.LastWakeSeq, got.SameKeyParkStreak)
+	}
+	if got.LastAwaitResolvedAt == nil || !got.LastAwaitResolvedAt.Equal(resolved) {
+		t.Errorf("resolved_at not persisted: %v want %v", got.LastAwaitResolvedAt, resolved)
+	}
+
+	// Update mutates the fields (next await resolves) — reload reflects it.
+	got.SameKeyParkStreak = 0
+	got.LastAwaitResult = `{"status":"done"}`
+	if err := repos.Runs.Update(ctx, got); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	reloaded, _ := repos.Runs.Get(ctx, run.ID)
+	if reloaded.SameKeyParkStreak != 0 || reloaded.LastAwaitResult != `{"status":"done"}` {
+		t.Errorf("update did not persist: streak=%d result=%q", reloaded.SameKeyParkStreak, reloaded.LastAwaitResult)
+	}
+}
+
 func TestRunListFilters(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()

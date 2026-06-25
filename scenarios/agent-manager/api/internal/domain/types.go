@@ -655,6 +655,31 @@ type Run struct {
 	// rejected). Nil for every non-parked run.
 	AwaitHandle *AwaitHandle `json:"awaitHandle,omitempty" db:"await_handle"`
 
+	// LastAwaitKey / LastAwaitResult / LastAwaitResolvedAt record the most
+	// recently RESOLVED await: the producer:key, the full result string that was
+	// injected into the woken turn, and when it resolved. They are the durable
+	// SSOT behind the re-fetch path (GET /runs/{id}/await-result): a woken agent
+	// that did not see — or wants to re-read — the result can retrieve it cheaply
+	// without re-running the blocking producer. Set on wake (parked→running),
+	// retained across subsequent turns until the next await resolves.
+	LastAwaitKey        string     `json:"lastAwaitKey,omitempty" db:"last_await_key"`
+	LastAwaitResult     string     `json:"lastAwaitResult,omitempty" db:"last_await_result"`
+	LastAwaitResolvedAt *time.Time `json:"lastAwaitResolvedAt,omitempty" db:"last_await_resolved_at"`
+
+	// LastWakeSeq snapshots TranscriptLastSeq at the moment of the last wake. The
+	// no-progress re-park guard compares it against the live TranscriptLastSeq to
+	// best-effort detect whether the agent did any work since being woken before
+	// it tries to park again.
+	LastWakeSeq int64 `json:"lastWakeSeq,omitempty" db:"last_wake_seq"`
+
+	// SameKeyParkStreak counts how many times in a row this run has tried to park
+	// on the SAME await key without forward progress in between. It is the
+	// timing-independent backstop the re-park guard uses to refuse a degenerate
+	// "wake → immediately re-run the same blocking command → re-park" loop (the
+	// coding-agent limitation park exists to absorb). Reset to 0 on a different-key
+	// park or on detected progress.
+	SameKeyParkStreak int `json:"sameKeyParkStreak,omitempty" db:"same_key_park_streak"`
+
 	// First ~120 chars of the associated task description (computed, not persisted).
 	PromptPreview string `json:"promptPreview,omitempty"`
 

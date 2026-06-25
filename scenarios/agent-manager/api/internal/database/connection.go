@@ -493,6 +493,37 @@ func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
 		}
 	}
 
+	// last_await_* + the re-park guard counters persist what a run most recently
+	// awaited (so a woken agent can re-fetch the result without re-running the
+	// blocking producer) and the bookkeeping the no-progress re-park guard needs.
+	// All nullable / default so existing rows decode unchanged. Added by the
+	// park/resume re-park-guard work.
+	if !hasColumn["last_await_key"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_await_key TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
+		}
+	}
+	if !hasColumn["last_await_result"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_await_result TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
+		}
+	}
+	if !hasColumn["last_await_resolved_at"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_await_resolved_at TEXT"); err != nil {
+			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
+		}
+	}
+	if !hasColumn["last_wake_seq"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN last_wake_seq INTEGER DEFAULT 0"); err != nil {
+			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
+		}
+	}
+	if !hasColumn["same_key_park_streak"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN same_key_park_streak INTEGER DEFAULT 0"); err != nil {
+			return &domain.DatabaseError{Operation: "schema_preflight", EntityType: "Schema", Cause: err}
+		}
+	}
+
 	return nil
 }
 

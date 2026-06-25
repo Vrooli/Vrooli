@@ -139,6 +139,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/recover", h.RecoverRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/park", h.ParkRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/await-result", h.GetAwaitResult).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/wake", h.WakeRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/messages/{event_id}/delete", h.DeleteRunMessage).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
@@ -1993,11 +1994,42 @@ func (h *Handler) ParkRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := &domainpb.ParkRunResponse{
-		Success: true,
+		Success: !result.Refused,
 		Message: result.Message,
+		Refused: result.Refused,
+		Result:  result.Result,
 	}
 	if result.Run != nil {
 		resp.Run = protoconv.RunToProto(result.Run)
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
+}
+
+// GetAwaitResult returns a run's most recently resolved await result — the
+// non-blocking re-fetch path that lets a woken agent re-read what it parked on
+// without re-running the blocking producer. Pure read.
+// GET /api/v1/runs/{id}/await-result
+func (h *Handler) GetAwaitResult(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	res, err := h.svc.GetAwaitResult(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	resp := &domainpb.GetAwaitResultResponse{
+		Found:  res.Found,
+		Key:    res.Key,
+		Result: res.Result,
+	}
+	if res.ResolvedAt != nil {
+		resp.ResolvedAt = res.ResolvedAt.Format(time.RFC3339)
 	}
 	writeProtoJSON(w, http.StatusOK, resp)
 }

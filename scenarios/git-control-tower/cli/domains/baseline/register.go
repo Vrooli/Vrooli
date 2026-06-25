@@ -26,6 +26,7 @@ import (
 	"git-control-tower/cli/internal/callerheader"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines/baselines_v1connect"
@@ -207,9 +208,30 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
-	// --wait, or a reused run (already terminal): resolve the verdict inline.
-	// Otherwise return fast with the re-attach banner (no client polling).
-	if wait || start.Msg.GetReusedRun() {
+	// A reused run is already terminal — resolve its verdict inline regardless of
+	// caller (nothing to wait on, so nothing to park).
+	if start.Msg.GetReusedRun() {
+		return resolveDiff(core, c, surface, start.Msg.GetRunId(), wait)
+	}
+
+	// Inside an agent-manager run, park instead of blocking on the verdict:
+	// agent-manager performs the wait on the agent's behalf (re-running the
+	// blocking diff from its own non-agent context) and wakes the run with the
+	// result. The await-handle key is "<scenario>/<name>" — the gct Waiter
+	// resolves it via `baseline diff --scenario --name --wait`. Outside an AM run
+	// this is a no-op and we fall through to today's behaviour.
+	if park, parked, perr := parkForDiff(c.scenario, c.name); parked {
+		if perr == nil {
+			fmt.Println(park.Message)
+			return nil
+		}
+		fmt.Fprintf(os.Stderr, "agent-manager park unavailable (%v) — resolving inline instead\n", perr)
+		return resolveDiff(core, c, surface, start.Msg.GetRunId(), true)
+	}
+
+	// --wait: resolve the verdict inline. Otherwise return fast with the
+	// re-attach banner (no client polling).
+	if wait {
 		return resolveDiff(core, c, surface, start.Msg.GetRunId(), wait)
 	}
 	if c.json {
@@ -217,6 +239,17 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 	}
 	printDiffStart(start.Msg)
 	return nil
+}
+
+// parkForDiff asks agent-manager to park the current run on this baseline diff
+// when the diff is invoked inside an agent-manager run. It is a thin wrapper over
+// cliutil.ParkForAwait fixing the producer + key encoding; see that primitive for
+// the (result, parked, err) contract.
+func parkForDiff(scenario, name string) (*cliutil.ParkResult, bool, error) {
+	return cliutil.ParkForAwait(cliutil.ParkRequest{
+		Producer: cliutil.ParkProducerGCT,
+		Key:      scenario + "/" + name,
+	})
 }
 
 // runDiffStatus resolves a started diff's cached verdict. It exits 0/1/2 by

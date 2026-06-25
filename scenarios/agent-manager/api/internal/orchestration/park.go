@@ -36,6 +36,39 @@ const DefaultParkTurnEndGrace = 2 * time.Second
 // surface and the in-run turn-ending mechanism land in Phase 4. ParkRun/WakeRun
 // are written so those layers are thin callers over this core.
 
+// parkSameKeyStreakLimit bounds how many times in a row a run may re-park on the
+// SAME await key without forward progress before agent-manager refuses the park.
+//
+// This is the structural protection against a coding-agent limitation: a woken
+// agent that is handed an awaited result sometimes (especially weaker local
+// models) re-runs the very command it just awaited instead of using the result —
+// which would park again, wake again, and loop forever burning the wake budget.
+// Park exists precisely to absorb agents that cannot reliably wait; this guard
+// absorbs agents that cannot reliably *stop* waiting.
+//
+// The limit is 1 (not 0) deliberately: TranscriptLastSeq — the progress signal —
+// is advanced by the asynchronous transcript scanner and can lag the live turn,
+// so a single legitimate "edit, then re-run the same check" can momentarily look
+// like no-progress. Tolerating one same-key re-park gives that case the benefit
+// of the doubt; the second consecutive no-progress re-park is unambiguously the
+// degenerate loop and is refused. Refusal never withholds data — the agent is
+// handed the cached result and the cheap re-fetch command — it only declines to
+// re-run the blocking work. Tunable.
+const parkSameKeyStreakLimit = 1
+
+// awaitKeyString renders the stable "producer:key" identity used to compare a new
+// park request against the most recently resolved await (Run.LastAwaitKey). It
+// mirrors the provenance string formatWakeMessage / formatParkMessage print so
+// the guard, the wake message, and the steer message all speak the same key.
+func awaitKeyString(producer, key string) string {
+	producer = strings.TrimSpace(producer)
+	key = strings.TrimSpace(key)
+	if producer == "" && key == "" {
+		return ""
+	}
+	return producer + ":" + key
+}
+
 const (
 	// DefaultParkTTL bounds how long a parked run waits on its await-handle
 	// before agent-manager wakes it with a typed timeout result rather than
@@ -58,6 +91,10 @@ type ParkRunInput struct {
 	Key string
 	// Deadline optionally overrides the wait bound. Nil ⇒ now + DefaultParkTTL.
 	Deadline *time.Time
+	// SameKeyParkStreak is the consecutive-same-key-park count to persist on this
+	// park (computed by the re-park guard in ParkRunFromAgent). It is carried on
+	// ParkRunInput so it is written atomically with the park transition.
+	SameKeyParkStreak int
 }
 
 // ParkRun suspends a running run on externally-owned async work: it records the
@@ -105,6 +142,8 @@ func (o *Orchestrator) ParkRun(ctx context.Context, in ParkRunInput) (*domain.Ru
 		RegisteredAt: now,
 	}
 	run.AwaitHandle = handle
+	// Persist the re-park guard's streak decision atomically with the transition.
+	run.SameKeyParkStreak = in.SameKeyParkStreak
 
 	updated, err := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:       run,
@@ -168,7 +207,21 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Ru
 		o.awaitRegistry.Cancel(in.RunID)
 	}
 
-	message := formatWakeMessage(run.AwaitHandle, in.Result, in.TimedOut)
+	message := formatWakeMessage(run.ID, run.AwaitHandle, in.Result, in.TimedOut)
+
+	// Record the resolved await as the re-fetch SSOT BEFORE clearing the handle:
+	// a woken agent that did not see — or wants to re-read — the result can
+	// retrieve it via GET /runs/{id}/await-result (CLI: `run await-result`)
+	// without re-running the blocking producer. Also snapshot the transcript
+	// position so the no-progress re-park guard can tell whether the agent did
+	// any work after this wake before it tries to park again.
+	if run.AwaitHandle != nil {
+		run.LastAwaitKey = awaitKeyString(run.AwaitHandle.Producer, run.AwaitHandle.Key)
+	}
+	run.LastAwaitResult = in.Result
+	resolvedAt := time.Now()
+	run.LastAwaitResolvedAt = &resolvedAt
+	run.LastWakeSeq = run.TranscriptLastSeq
 
 	// Clear the handle before resuming so a crash mid-wake does not leave a
 	// resolved handle that restart recovery would re-spawn a waiter for.
@@ -211,11 +264,20 @@ type ParkRunFromAgentRequest struct {
 
 // ParkRunResult is the outcome of an agent-initiated park.
 type ParkRunResult struct {
-	// Run is the parked run.
+	// Run is the parked run (on a refusal, the still-running run, unchanged).
 	Run *domain.Run
-	// Message is the clean tool-result text the in-run command should print
-	// before agent-manager ends the turn.
+	// Message is the tool-result text the in-run command should print. On a
+	// successful park it is the clean "parked, resuming later" message; on a
+	// refusal it is the steer message (which embeds the cached result).
 	Message string
+	// Refused is true when agent-manager declined to park because this is a
+	// no-progress re-park on the same await key (the degenerate wake→re-run loop).
+	// The run is NOT parked and the turn is NOT ended — the agent keeps running so
+	// it can use the cached result the steer message carries.
+	Refused bool
+	// Result is the cached awaited result echoed back on a refusal so the agent
+	// has the data inline even if it never saw the original wake injection.
+	Result string
 }
 
 // ParkRunFromAgent is the agent-facing park entry point behind the park
@@ -246,11 +308,34 @@ func (o *Orchestrator) ParkRunFromAgent(ctx context.Context, req ParkRunFromAgen
 		return nil, parkAuthError("identity token does not own this run")
 	}
 
+	// No-progress re-park guard. Decide BEFORE parking whether this is the
+	// degenerate "woke with a result → re-ran the same blocking command → re-park"
+	// loop. The decision needs the run's current state (last resolved await +
+	// transcript progress since the last wake), so fetch it here; ParkRun re-reads
+	// the run, so this read is purely for the guard.
+	current, err := o.GetRun(ctx, req.RunID)
+	if err != nil {
+		return nil, err
+	}
+	streak, refuse := o.evaluateReparkGuard(current, req.Producer, req.Key)
+	if refuse {
+		// Refuse: do not transition, do not end the turn. Hand back the cached
+		// result + an explicit steer so the agent uses the result it already has
+		// instead of re-running the blocking work.
+		return &ParkRunResult{
+			Run:     o.attachRunActions(ctx, current),
+			Message: formatReparkSteerMessage(current),
+			Refused: true,
+			Result:  current.LastAwaitResult,
+		}, nil
+	}
+
 	run, err := o.ParkRun(ctx, ParkRunInput{
-		RunID:    req.RunID,
-		Producer: req.Producer,
-		Key:      req.Key,
-		Deadline: req.Deadline,
+		RunID:             req.RunID,
+		Producer:          req.Producer,
+		Key:               req.Key,
+		Deadline:          req.Deadline,
+		SameKeyParkStreak: streak,
 	})
 	if err != nil {
 		return nil, err
@@ -264,6 +349,42 @@ func (o *Orchestrator) ParkRunFromAgent(ctx context.Context, req ParkRunFromAgen
 		Run:     run,
 		Message: formatParkMessage(run.AwaitHandle),
 	}, nil
+}
+
+// evaluateReparkGuard decides whether an agent-initiated park should be refused
+// as a no-progress re-park, and returns the same-key-park streak value to persist
+// if the park proceeds.
+//
+// The loop it guards: a woken agent re-runs the exact command it just awaited
+// (same producer:key) without doing any work in between, which would park again
+// and wake again forever. We detect "same key" via Run.LastAwaitKey (set on the
+// last wake) and "no work in between" via the transcript advancing past the
+// snapshot taken at that wake (best-effort — the scanner can lag, which is why
+// the streak limit tolerates one re-park rather than refusing immediately).
+//
+// A park with forward progress, or on a different key, is never a loop: it resets
+// the streak and proceeds.
+func (o *Orchestrator) evaluateReparkGuard(run *domain.Run, producer, key string) (streak int, refuse bool) {
+	if run == nil {
+		return 0, false
+	}
+	incomingKey := awaitKeyString(producer, key)
+	sameKey := run.LastAwaitKey != "" && incomingKey == run.LastAwaitKey
+	progressed := run.TranscriptLastSeq > run.LastWakeSeq
+
+	if progressed || !sameKey {
+		// Genuine forward progress or a different await — not a loop. Reset.
+		return 0, false
+	}
+
+	// Same key, no detected progress since the wake that delivered this key.
+	if run.SameKeyParkStreak >= parkSameKeyStreakLimit {
+		// Already tolerated the limit — this is the degenerate loop. Refuse; the
+		// streak is left as-is (the run does not transition).
+		return run.SameKeyParkStreak, true
+	}
+	// Benefit of the doubt (scanner lag): admit, but count it.
+	return run.SameKeyParkStreak + 1, false
 }
 
 // endParkedTurn terminates the agent process group of a just-parked run after a
@@ -297,6 +418,38 @@ func (o *Orchestrator) endParkedTurn(run *domain.Run) {
 				obs.KeyRunID, runID.String(), obs.KeyError, err.Error())
 		}
 	}()
+}
+
+// AwaitResult is the most recently resolved await for a run — the durable result
+// behind the re-fetch path. It lets a woken agent re-read the result of the work
+// it parked on without re-running the blocking producer.
+type AwaitResult struct {
+	// Found is true when the run has a recorded resolved await.
+	Found bool
+	// Key is the "producer:key" identity of the resolved await.
+	Key string
+	// Result is the full result string that was injected into the woken turn.
+	Result string
+	// ResolvedAt records when the await resolved (nil when none recorded).
+	ResolvedAt *time.Time
+}
+
+// GetAwaitResult returns the run's most recently resolved await result. It is a
+// pure read — it never parks, blocks, or mutates the run — so a woken agent can
+// retrieve the result cheaply and repeatedly. Powers GET
+// /api/v1/runs/{id}/await-result and the `agent-manager run await-result` CLI.
+func (o *Orchestrator) GetAwaitResult(ctx context.Context, runID uuid.UUID) (*AwaitResult, error) {
+	run, err := o.GetRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	res := &AwaitResult{
+		Key:        run.LastAwaitKey,
+		Result:     run.LastAwaitResult,
+		ResolvedAt: run.LastAwaitResolvedAt,
+	}
+	res.Found = run.LastAwaitResolvedAt != nil || strings.TrimSpace(run.LastAwaitResult) != ""
+	return res, nil
 }
 
 // isRunParked reports whether the run's currently-persisted status is parked.
@@ -350,8 +503,11 @@ func formatParkMessage(handle *domain.AwaitHandle) string {
 // formatWakeMessage renders the user-turn message injected when a parked run is
 // woken. It is deliberately explicit about provenance (which handle resolved)
 // and, on timeout, about the result being unknown — so the agent reasons about
-// the outcome rather than assuming success.
-func formatWakeMessage(handle *domain.AwaitHandle, result string, timedOut bool) string {
+// the outcome rather than assuming success. It also carries an explicit, cheap
+// re-fetch command so that even if the agent somehow did not receive the result
+// inline, it has a non-blocking way to retrieve it rather than re-running the
+// blocking producer (which would just make it wait again).
+func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result string, timedOut bool) string {
 	work := "the async work you were waiting on"
 	if handle != nil && strings.TrimSpace(handle.Producer) != "" {
 		work = fmt.Sprintf("the async work you parked on (%s:%s)", handle.Producer, handle.Key)
@@ -373,7 +529,40 @@ func formatWakeMessage(handle *domain.AwaitHandle, result string, timedOut bool)
 	}
 
 	return fmt.Sprintf(
-		"[awaited result available] %s has completed. Result:\n\n%s\n\nContinue from here with this result.",
-		work, strings.TrimSpace(result),
+		"[awaited result available] %s has completed. Result:\n\n%s\n\nContinue from here with this result. Do NOT re-run the command you parked on — it has already completed and re-running it will only make you wait again. %s",
+		work, strings.TrimSpace(result), reFetchHint(runID),
 	)
+}
+
+// reFetchHint renders the one-line instruction pointing at the non-blocking
+// re-fetch command. Included in both the wake message and the re-park steer so
+// the agent always has a cheap, idempotent way to re-read the awaited result
+// without re-running the producer.
+func reFetchHint(runID uuid.UUID) string {
+	return fmt.Sprintf(
+		"If you did not receive the result above or need it again, run `agent-manager run await-result %s` — it returns the result immediately without re-running the work.",
+		runID.String(),
+	)
+}
+
+// formatReparkSteerMessage renders the tool-result returned when agent-manager
+// REFUSES a no-progress re-park. It does not withhold data: it echoes the cached
+// result and points at the re-fetch command, while telling the agent to stop
+// re-running the blocking producer and continue from the result it already has.
+func formatReparkSteerMessage(run *domain.Run) string {
+	work := "the work you just awaited"
+	if run != nil && strings.TrimSpace(run.LastAwaitKey) != "" {
+		work = fmt.Sprintf("the work you just awaited (%s)", run.LastAwaitKey)
+	}
+	msg := fmt.Sprintf(
+		"NOT PARKED — agent-manager declined to wait again on %s because it already completed and you have not made progress since. Re-running it would just loop. Use the result below and continue; do not re-run that command.",
+		work,
+	)
+	if run != nil {
+		if strings.TrimSpace(run.LastAwaitResult) != "" {
+			msg += "\n\nResult:\n\n" + strings.TrimSpace(run.LastAwaitResult)
+		}
+		msg += "\n\n" + reFetchHint(run.ID)
+	}
+	return msg
 }

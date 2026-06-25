@@ -540,6 +540,21 @@ func (s *RunService) Wake(id string, req *domainpb.WakeRunRequest) ([]byte, *dom
 	return body, &resp, nil
 }
 
+// AwaitResult fetches a run's most recently resolved await result (the
+// non-blocking re-fetch path). Pure read; never parks.
+func (s *RunService) AwaitResult(id string) ([]byte, *domainpb.GetAwaitResultResponse, error) {
+	body, err := s.api.Request("GET", "/api/v1/runs/"+id+"/await-result", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.GetAwaitResultResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 func (s *RunService) Recover(id string) ([]byte, *apipb.RecoverRunResponse, error) {
 	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/recover", nil, nil)
 	if err != nil {
