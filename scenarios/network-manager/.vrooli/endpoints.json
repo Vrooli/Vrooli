@@ -657,6 +657,23 @@
       }
     },
     {
+      "id": "resolver_adguard_rollout",
+      "path": "/vrooli.network_manager.v1.resolver.ResolverService/GetAdGuardRollout",
+      "method": "POST",
+      "summary": "Get AdGuard household rollout status",
+      "description": "",
+      "category": "resolver",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "proto response"
+        }
+      }
+    },
+    {
       "id": "snapshot_run",
       "path": "/vrooli.network_manager.v1.snapshot.SnapshotService/RunSnapshot",
       "method": "POST",

@@ -94,12 +94,26 @@ resource and credential reference are configured.
 The canonical AdGuard credential shape is:
 
 ```bash
-resource-vault content set --path secret/resources/adguard-home/admin --key username --value admin
-resource-vault content set --path secret/resources/adguard-home/admin --key password --value '<generated-password>'
+resource-adguard-home bootstrap --base-url http://localhost:3000 --json
+```
+
+The bootstrap command stores `username` and `password` at
+`secret/resources/adguard-home/admin` through `resource-vault content` and does
+not print the generated password. Configure Network Manager with the reference
+only:
+
+```bash
+network-manager resolver configure-adguard \
+  --base-url http://localhost:3000 \
+  --username admin \
+  --token-ref secret/resources/adguard-home/admin \
+  --json
 ```
 
 Only the `secret/resources/adguard-home/admin` reference is stored in Network
-Manager's SQLite database.
+Manager's SQLite database. Live status should then report AdGuard resolver
+health as `healthy` when the resource is authenticated, protection is enabled,
+and query logging is disabled.
 
 ## Schema bootstrap
 

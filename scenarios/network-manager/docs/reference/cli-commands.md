@@ -43,6 +43,7 @@ Implemented command groups:
 | `network-manager resolver configure-adguard` | Configure the first resolver backend. | `NM-P0-002` |
 | `network-manager resolver upstreams` | Preview or update resolver upstreams. | `NM-P0-002` |
 | `network-manager resolver health` | Run resolver health checks. | `NM-P0-002` |
+| `network-manager resolver rollout` | Show AdGuard household rollout status, router settings, and next steps. | `NM-P0-002` |
 | `network-manager policy preview` | Preview filtering changes. | `NM-P0-003` |
 | `network-manager policy apply` | Apply an approved policy change. | `NM-P0-003` |
 | `network-manager policy rollback <id>` | Roll back a policy change. | `NM-P0-003` |
@@ -78,6 +79,12 @@ Implemented command groups:
 
 Current behavior is mixed implementation state. Snapshot, adapters, resolver,
 policy, inventory, privacy, optimization, and Home Automation commands call service-backed APIs with persisted state.
+`network-manager resolver rollout` is the operator-facing AdGuard rollout
+checklist. It separates AdGuard resource protection, this host's DNS
+configuration, observed AdGuard client metadata, router DHCP DNS assignment,
+and IPv6 RDNSS/DHCPv6 DNS handling. Household-wide enforcement remains
+`manual_required` until router DHCP/RDNSS evidence verifies that clients are
+being assigned the AdGuard DNS listener.
 Policy live resolver writes still fail closed through the conservative adapter
 until a governed AdGuard Home policy client confirms support. Inventory
 production discovery reports unsupported until a governed resolver client can
@@ -94,10 +101,12 @@ Checks are operator-triggered/advisory in this slice; autonomous background
 scheduling is deferred to a lifecycle-aware scheduler.
 Optimization can create baseline-backed experiment ledgers, run read-only
 candidate snapshots, score reliability-first evidence, require approval, and
-record apply/rollback outcomes. Production persistent optimization apply returns
-`manual_required` until a real adapter can prove rollback support. Home
-Automation write actions require approval and return `manual_required` when no
-supported publisher/adapter path can safely mutate network state.
+record apply/rollback outcomes. The supported AdGuard global DNS filtering
+candidate applies through the policy rollback adapter after approval; other
+router/client-specific candidates return `manual_required` until their adapters
+prove rollback support. Home Automation write actions require approval and
+return `manual_required` when no supported publisher/adapter path can safely
+mutate network state.
 
 ## Output contracts
 

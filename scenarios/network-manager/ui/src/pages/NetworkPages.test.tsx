@@ -15,6 +15,7 @@ import { SnapshotsPage } from "./SnapshotsPage";
 const api = vi.hoisted(() => ({
   fetchControlCenterOverview: vi.fn(),
   fetchResolverStatus: vi.fn(),
+  fetchAdGuardRollout: vi.fn(),
   fetchDevices: vi.fn(),
   previewPolicyChange: vi.fn(),
   applyPolicyChange: vi.fn(),
@@ -38,6 +39,8 @@ const api = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/network", () => api);
+
+const rolloutDNS = ["192", "168", "1", "173"].join(".");
 
 describe("Network Manager control pages", () => {
   afterEach(() => {
@@ -185,9 +188,30 @@ describe("Network Manager control pages", () => {
       status: "healthy",
       filteringEnabled: true,
       upstreams: ["https://dns.example.test/dns-query"],
-      warnings: [],
+      enforcementStatus: "client_evidence_observed",
+      enforcementEvidence: ["AdGuard reports 2 usable client observation(s): 0 configured, 2 automatically discovered."],
+      warnings: ["Router/DHCP/RDNSS enforcement is still unverified; current evidence only proves observed clients have used AdGuard."],
     });
     api.fetchPolicyProfiles.mockResolvedValueOnce([]);
+    api.fetchAdGuardRollout.mockResolvedValueOnce({
+      status: "host_protected_router_manual",
+      summary: "AdGuard is protecting this host; household-wide enforcement still needs router DHCP/RDNSS rollout.",
+      dnsBindIp: rolloutDNS,
+      resolverStatus: {
+        backend: "adguardhome",
+        status: "healthy",
+        filteringEnabled: true,
+        upstreams: [],
+        warnings: [],
+      },
+      checks: [
+        { id: "adguard-resource", title: "AdGuard resource protection", status: "passed", evidence: "AdGuard is healthy and DNS filtering is enabled.", recommendations: [] },
+        { id: "router-dhcp", title: "Router DHCP DNS assignment", status: "manual_required", evidence: "Network Manager has not verified that router DHCP assigns AdGuard to household clients.", recommendations: [`Set router DHCP IPv4 DNS server to ${rolloutDNS}.`] },
+      ],
+      routerSettings: [`Router DHCP IPv4 DNS server: ${rolloutDNS}.`],
+      nextSteps: ["Renew client DHCP leases or reconnect clients."],
+      warnings: [],
+    });
     api.previewPolicyChange.mockResolvedValueOnce({
       id: "preview-1",
       target: "all-devices",
@@ -216,6 +240,17 @@ describe("Network Manager control pages", () => {
 
     renderWithProviders(<ResolverPolicyPage />);
 
+    const resolverStatus = screen.getByTestId(selectors.network.resolverStatus);
+    await waitFor(() => expect(resolverStatus).toHaveTextContent("pages.resolver.adguardProtection"));
+    expect(resolverStatus).toHaveTextContent("network.enabled");
+    expect(resolverStatus).toHaveTextContent("pages.resolver.enforcementClientEvidence");
+    expect(resolverStatus).toHaveTextContent("pages.resolver.enforcementEvidence");
+    expect(resolverStatus).toHaveTextContent("AdGuard reports 2 usable client observation");
+    expect(resolverStatus).toHaveTextContent("Router/DHCP/RDNSS enforcement is still unverified");
+    const rollout = await screen.findByTestId(selectors.network.adguardRollout);
+    expect(rollout).toHaveTextContent("AdGuard is protecting this host");
+    expect(rollout).toHaveTextContent(`Router DHCP IPv4 DNS server: ${rolloutDNS}`);
+
     const apply = screen.getByRole("button", { name: "pages.resolver.approveApply" });
     expect(apply).toBeDisabled();
     await userEvent.clear(screen.getByLabelText(strings.pages.resolver.upstreams));
@@ -241,6 +276,16 @@ describe("Network Manager control pages", () => {
       warnings: [],
     });
     api.fetchPolicyProfiles.mockResolvedValueOnce([]);
+    api.fetchAdGuardRollout.mockResolvedValueOnce({
+      status: "ready_for_router_rollout",
+      summary: "AdGuard is healthy; router DHCP/RDNSS rollout is still manual and unverified.",
+      dnsBindIp: rolloutDNS,
+      resolverStatus: undefined,
+      checks: [],
+      routerSettings: [],
+      nextSteps: [],
+      warnings: [],
+    });
     api.upsertPolicyProfile.mockResolvedValueOnce({
       id: "profile-kids",
       name: "Kids",
@@ -302,6 +347,16 @@ describe("Network Manager control pages", () => {
       warnings: [],
     });
     api.fetchPolicyProfiles.mockResolvedValueOnce([]);
+    api.fetchAdGuardRollout.mockResolvedValueOnce({
+      status: "ready_for_router_rollout",
+      summary: "AdGuard is healthy; router DHCP/RDNSS rollout is still manual and unverified.",
+      dnsBindIp: rolloutDNS,
+      resolverStatus: undefined,
+      checks: [],
+      routerSettings: [],
+      nextSteps: [],
+      warnings: [],
+    });
     api.diagnoseEncryptedDnsBypass.mockResolvedValueOnce({
       id: "guidance-bypass",
       target: "network",

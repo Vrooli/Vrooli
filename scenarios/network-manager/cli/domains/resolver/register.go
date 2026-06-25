@@ -15,6 +15,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ResolverService.ConfigureAdGuardHome": h.configureAdGuard,
 		"ResolverService.UpdateUpstreams":      h.upstreams,
 		"ResolverService.CheckResolverHealth":  h.health,
+		"ResolverService.GetAdGuardRollout":    h.rollout,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("resolver: load from manifest: %w", err)

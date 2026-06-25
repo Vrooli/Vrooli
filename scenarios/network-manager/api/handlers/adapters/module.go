@@ -9,6 +9,7 @@ import (
 
 	domainadapters "network-manager/internal/adapters"
 	"network-manager/internal/module"
+	domainresolver "network-manager/internal/resolver"
 
 	adaptersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/adapters"
 	adaptersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/adapters/adapters_v1connect"
@@ -20,8 +21,11 @@ type handler struct {
 
 func Module(db domainadapters.SQLExecutor) module.Module {
 	service := domainadapters.NewService(domainadapters.Config{
-		Repo:     domainadapters.NewSQLiteRepository(db),
-		Registry: domainadapters.NewStaticRegistry(),
+		Repo: domainadapters.NewSQLiteRepository(db),
+		Registry: domainadapters.ResolverAwareRegistry{
+			Base:             domainadapters.NewStaticRegistry(),
+			ResolverBackends: domainresolver.NewSQLiteRepository(db),
+		},
 	})
 	path, h := adaptersconnect.NewAdapterServiceHandler(&handler{service: service})
 	return module.Module{Name: "adapters", Mount: func(r *mux.Router) {

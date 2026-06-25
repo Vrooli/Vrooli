@@ -3,6 +3,7 @@ package resolver
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,6 +14,14 @@ type fakeAdGuardClient struct {
 	checkErr     error
 	updateStatus ClientStatus
 	updateErr    error
+}
+
+type fakeDNSInspector struct {
+	inspection DNSInspection
+}
+
+func (f fakeDNSInspector) InspectHostDNS(context.Context, string) DNSInspection {
+	return f.inspection
 }
 
 func (f fakeAdGuardClient) Check(context.Context, BackendConfig) (ClientStatus, error) {
@@ -190,4 +199,56 @@ func TestStatusReturnsClientError(t *testing.T) {
 
 	_, err = svc.Status(context.Background())
 	require.ErrorContains(t, err, "boom")
+}
+
+func TestAdGuardRolloutKeepsRouterManualWhenOnlyClientEvidenceExists(t *testing.T) {
+	// [REQ:NM-P0-002] Client evidence must not be promoted to household-wide router enforcement.
+	repo := newFakeRepo()
+	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", TokenRef: "secret://adguard/token"})
+	require.NoError(t, err)
+	svc := NewService(Config{
+		Repo: repo,
+		Client: fakeAdGuardClient{checkStatus: ClientStatus{
+			Status:              "healthy",
+			FilteringEnabled:    true,
+			Checks:              []string{"reachable"},
+			EnforcementStatus:   "client_evidence_observed",
+			EnforcementEvidence: []string{"AdGuard reports 2 usable client observation(s): 0 configured, 2 automatically discovered."},
+		}},
+		DNSInspector: fakeDNSInspector{inspection: DNSInspection{Servers: []string{defaultAdGuardDNSBindIP()}, Evidence: []string{"host protected"}}},
+	})
+
+	report, err := svc.AdGuardRollout(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "host_protected_router_manual", report.Status)
+	require.Equal(t, "manual_required", rolloutCheckStatus(report, "router-dhcp"))
+	require.Equal(t, "review_required", rolloutCheckStatus(report, "client-evidence"))
+	require.Contains(t, strings.Join(report.NextSteps, "\n"), "Set router DHCP IPv4 DNS")
+}
+
+func TestAdGuardRolloutBlocksRouterInstructionsWhenAdGuardUnhealthy(t *testing.T) {
+	// [REQ:NM-P0-002] Router rollout guidance stays blocked until AdGuard is healthy and filtering.
+	repo := newFakeRepo()
+	_, err := repo.SaveBackend(context.Background(), BackendConfig{Backend: AdGuardHomeBackend, BaseURL: "http://adguard.local", TokenRef: "secret://adguard/token"})
+	require.NoError(t, err)
+	svc := NewService(Config{
+		Repo:         repo,
+		Client:       fakeAdGuardClient{checkStatus: ClientStatus{Status: "degraded", FilteringEnabled: false}},
+		DNSInspector: fakeDNSInspector{inspection: DNSInspection{Servers: []string{"192.168.1.1"}}},
+	})
+
+	report, err := svc.AdGuardRollout(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "blocked", report.Status)
+	require.Equal(t, "blocked", rolloutCheckStatus(report, "adguard-resource"))
+	require.Contains(t, report.Summary, "not ready")
+}
+
+func rolloutCheckStatus(report RolloutReport, id string) string {
+	for _, check := range report.Checks {
+		if check.ID == id {
+			return check.Status
+		}
+	}
+	return ""
 }

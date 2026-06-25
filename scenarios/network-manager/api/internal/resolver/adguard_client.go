@@ -16,6 +16,7 @@ const (
 	adGuardDNSInfoEndpoint        = "/control/dns_info"
 	adGuardQueryLogConfigEndpoint = "/control/querylog/config"
 	adGuardLegacyQueryLogEndpoint = "/control/querylog_info"
+	adGuardClientsEndpoint        = "/control/clients"
 )
 
 type ResourceBackedAdGuardClient struct {
@@ -99,6 +100,8 @@ func (c ResourceBackedAdGuardClient) Check(ctx context.Context, cfg BackendConfi
 	} else {
 		out.Warnings = append(out.Warnings, fmt.Sprintf("Query log posture returned HTTP %d.", queryCode))
 	}
+
+	c.applyClientEvidence(ctx, client, &out)
 
 	return out, nil
 }
@@ -243,6 +246,50 @@ type adGuardQueryLogConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+type adGuardClientsPayload struct {
+	Clients     []adGuardClientEntry `json:"clients"`
+	AutoClients []adGuardClientEntry `json:"auto_clients"`
+}
+
+type adGuardClientEntry struct {
+	Name string   `json:"name,omitempty"`
+	IDs  []string `json:"ids,omitempty"`
+	IP   string   `json:"ip,omitempty"`
+}
+
+func (c ResourceBackedAdGuardClient) applyClientEvidence(ctx context.Context, client *adGuardClient, out *ClientStatus) {
+	payload, code, err := getAdGuardJSON[adGuardClientsPayload](ctx, client, adGuardClientsEndpoint)
+	if err != nil {
+		out.EnforcementStatus = "unverified"
+		out.Warnings = append(out.Warnings, "Router/client DNS evidence could not be checked from AdGuard client metadata.")
+		return
+	}
+	if code == http.StatusUnauthorized || code == http.StatusForbidden {
+		out.EnforcementStatus = "unverified"
+		out.Warnings = append(out.Warnings, "AdGuard client evidence could not be checked because credentials were rejected.")
+		return
+	}
+	if code < 200 || code >= 300 {
+		out.EnforcementStatus = "unverified"
+		out.Warnings = append(out.Warnings, fmt.Sprintf("AdGuard client evidence returned HTTP %d.", code))
+		return
+	}
+
+	configured := countUsefulConfiguredClients(payload.Clients)
+	auto := countUsefulAutoClients(payload.AutoClients)
+	total := configured + auto
+	if total == 0 {
+		out.EnforcementStatus = "unverified"
+		out.Warnings = append(out.Warnings, "Router/client DNS evidence has not confirmed network-wide use of AdGuard.")
+		out.EnforcementEvidence = append(out.EnforcementEvidence, "AdGuard clients endpoint returned no configured or automatically discovered household clients.")
+		return
+	}
+
+	out.EnforcementStatus = "client_evidence_observed"
+	out.EnforcementEvidence = append(out.EnforcementEvidence, fmt.Sprintf("AdGuard reports %d usable client observation(s): %d configured, %d automatically discovered.", total, configured, auto))
+	out.Warnings = append(out.Warnings, "Router/DHCP/RDNSS enforcement is still unverified; current evidence only proves observed clients have used AdGuard.")
+}
+
 func protectionEnabled(status adGuardServerStatus) bool {
 	if status.ProtectionStatus != nil {
 		return *status.ProtectionStatus
@@ -254,6 +301,44 @@ func protectionEnabled(status adGuardServerStatus) bool {
 		return *status.Running
 	}
 	return false
+}
+
+func countUsefulConfiguredClients(clients []adGuardClientEntry) int {
+	count := 0
+	for _, client := range clients {
+		if !usefulAdGuardClientName(client.Name) {
+			continue
+		}
+		if len(cleanUniqueStrings(client.IDs)) > 0 || strings.TrimSpace(client.IP) != "" || strings.TrimSpace(client.Name) != "" {
+			count++
+		}
+	}
+	return count
+}
+
+func countUsefulAutoClients(clients []adGuardClientEntry) int {
+	count := 0
+	for _, client := range clients {
+		if strings.TrimSpace(client.IP) != "" && usefulAdGuardClientName(client.Name) {
+			count++
+			continue
+		}
+		if len(cleanUniqueStrings(client.IDs)) > 0 && usefulAdGuardClientName(client.Name) {
+			count++
+		}
+	}
+	return count
+}
+
+func usefulAdGuardClientName(name string) bool {
+	name = strings.TrimSpace(strings.ToLower(name))
+	if name == "" {
+		return true
+	}
+	if name == "localhost" || strings.HasPrefix(name, "ip6-") {
+		return false
+	}
+	return true
 }
 
 func cleanUniqueStrings(values []string) []string {

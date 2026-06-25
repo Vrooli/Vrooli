@@ -336,6 +336,7 @@ const literalSelectors = {
     empty: "network-empty",
     latestSnapshot: "network-latest-snapshot",
     resolverStatus: "network-resolver-status",
+    adguardRollout: "network-adguard-rollout",
     capabilitySummary: "network-capability-summary",
     policyPreview: "network-policy-preview",
     policyProfiles: "network-policy-profiles",

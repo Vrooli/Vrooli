@@ -30,14 +30,34 @@ AdGuard Home is now modeled as the first managed resolver resource:
 The scenario must not hand-run package managers or raw Docker commands for
 resolver installation. Resource setup follows Vrooli resource governance, and
 Network Manager stores only the AdGuard credential reference. Live filtering is
-claimed only after AdGuard confirms protection/filtering state; network-wide
-enforcement additionally requires client/router DNS evidence.
+claimed only after AdGuard confirms protection/filtering state. The resolver
+contract also reports client metadata evidence from AdGuard `/control/clients`,
+but network-wide enforcement remains unverified until router DHCP/RDNSS evidence
+proves clients are being assigned the AdGuard DNS listener.
+The rollout contract (`network-manager resolver rollout`) presents those same
+facts as an operator checklist: AdGuard resource health, this host's DNS path,
+observed client evidence, router DHCP DNS assignment, IPv6 DNS/RDNSS handling,
+copyable router settings, and post-change validation commands.
+
+Current local state on this host: AdGuard Home is bootstrapped through
+`resource-adguard-home bootstrap`, credentials are stored at
+`secret/resources/adguard-home/admin`, resource API health is `healthy`,
+protection is enabled, query logging is disabled, and Network Manager resolver
+health reports `healthy` through the resource-backed client. Persistent
+global user-rule mutations and global protection pause/resume are now gated by
+policy approval and rollback ledgers. Resolver health and AdGuard client
+inventory import now read configured and automatically discovered client evidence
+from `/control/clients` without exposing query-level DNS logs; IP-only evidence
+remains low confidence. Client/group-specific policy mapping, router-wide DNS
+assignment evidence, and
+router/client-specific optimization remain future adapter slices. The supported
+global DNS filtering optimization candidate now applies through the same
+AdGuard policy rollback adapter after approval.
 
 Network Manager resolves the referenced AdGuard credential through
 `resource-vault content get` when checking resolver health or previewing
-upstreams. Persistent resolver/policy writes still require the approval and
-rollback-backed policy adapter; the resolver client returns fail-closed instead
-of applying direct upstream changes.
+upstreams. Direct resolver upstream writes still return fail-closed; persistent
+policy changes go through PolicyService approval and rollback handling.
 
 The resource binds DNS to the server LAN IP rather than `0.0.0.0:53`, preserving
 the host's `systemd-resolved` loopback stub while exposing AdGuard to LAN

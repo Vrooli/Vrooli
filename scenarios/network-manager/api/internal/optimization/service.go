@@ -288,7 +288,7 @@ func candidatesFromCapabilities(run Run, caps []adapters.Capability) []Candidate
 				status = "manual_required"
 			}
 			out = append(out, Candidate{
-				ID:                 candidateID(cap, "dns-filtering-stability"),
+				ID:                 candidateID(run, cap, "dns-filtering-stability"),
 				RunID:              run.ID,
 				Description:        "Evaluate DNS filtering stability against the stored baseline.",
 				Status:             status,
@@ -301,7 +301,7 @@ func candidatesFromCapabilities(run Run, caps []adapters.Capability) []Candidate
 			})
 		case "resolver_status":
 			out = append(out, Candidate{
-				ID:                 candidateID(cap, "resolver-health-check"),
+				ID:                 candidateID(run, cap, "resolver-health-check"),
 				RunID:              run.ID,
 				Description:        "Compare resolver health and DNS latency without persistent changes.",
 				Status:             "not_run",
@@ -314,7 +314,7 @@ func candidatesFromCapabilities(run Run, caps []adapters.Capability) []Candidate
 			})
 		case "read_network_status":
 			out = append(out, Candidate{
-				ID:                 candidateID(cap, "read-only-baseline-compare"),
+				ID:                 candidateID(run, cap, "read-only-baseline-compare"),
 				RunID:              run.ID,
 				Description:        "Run a read-only comparison snapshot and report reliability deltas.",
 				Status:             "not_run",
@@ -334,12 +334,19 @@ func manualCandidate(run Run, id, reason string) Candidate {
 	return Candidate{ID: id, RunID: run.ID, Description: "Manual optimization review", Status: "manual_required", Evidence: []string{reason}, BaselineSnapshotID: run.BaselineSnapshotID, CreatedAt: run.CreatedAt, UpdatedAt: run.UpdatedAt}
 }
 
-func candidateID(cap adapters.Capability, suffix string) string {
+func candidateID(run Run, cap adapters.Capability, suffix string) string {
 	adapter := strings.NewReplacer(" ", "-", "_", "-", "/", "-").Replace(strings.ToLower(strings.TrimSpace(cap.Adapter)))
 	if adapter == "" {
 		adapter = "adapter"
 	}
-	return adapter + "-" + suffix
+	prefix := strings.TrimSpace(run.ID)
+	if len(prefix) > 8 {
+		prefix = prefix[:8]
+	}
+	if prefix == "" {
+		prefix = "run"
+	}
+	return prefix + "-" + adapter + "-" + suffix
 }
 
 func (s *Service) loadRunCandidate(ctx context.Context, runID, candidateID string) (Run, Candidate, error) {

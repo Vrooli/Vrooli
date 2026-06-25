@@ -11,6 +11,7 @@ import (
 
 	"network-manager/internal/module"
 	domainpolicy "network-manager/internal/policy"
+	domainresolver "network-manager/internal/resolver"
 
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy"
 	policyconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/policy/policy_v1connect"
@@ -21,9 +22,10 @@ type handler struct {
 }
 
 func Module(db domainpolicy.SQLExecutor) module.Module {
+	resolverRepo := domainresolver.NewSQLiteRepository(db)
 	service := domainpolicy.NewService(domainpolicy.Config{
 		Repo:    domainpolicy.NewSQLiteRepository(db),
-		Adapter: domainpolicy.ConservativeResolverPolicyAdapter{},
+		Adapter: domainpolicy.NewAdGuardResolverPolicyAdapter(resolverRepo, domainresolver.NewVaultSecretResolver()),
 	})
 	path, h := policyconnect.NewPolicyServiceHandler(&handler{service: service})
 	return module.Module{Name: "policy", Mount: func(r *mux.Router) {

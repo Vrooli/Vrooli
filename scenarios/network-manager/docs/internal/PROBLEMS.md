@@ -20,11 +20,35 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ## Entries
 
-### 2026-06-24 — AdGuard Home DNS is bound but bootstrap and live adapters are pending
+### 2026-06-24 — AdGuard rollout affordance suite hit known embedded validator EOFs
 
-- Signal: `adguard-home` is now a first-class Vrooli resource with pinned Docker image, resource exports, optional Network Manager dependency, and `resource-adguard-home api-health --json`. The resource starts locally with DNS published at `192.168.1.173:53/tcp` and `192.168.1.173:53/udp`, while `systemd-resolved` keeps `127.0.0.53/54:53`. Current local API health is `setup_required`, which means the container is reachable but AdGuard first-run setup is incomplete.
-- Impact: The original host port 53 conflict is resolved without disabling local resolver services. Network Manager can default resolver configuration from resource exports, store only the credential reference, and report verified AdGuard health once available. It still must not claim network-wide ad blocking, apply live policy changes, import AdGuard clients, or apply optimization candidates until the resource is bootstrapped, authenticated, has protection enabled, has client/router DNS evidence where needed, and the mutation adapters have rollback support.
-- Next action: Reserve `192.168.1.173` in the router, complete or automate AdGuard bootstrap, store the admin credential at `secret/resources/adguard-home/admin`, verify `api-health` is healthy with protection enabled and minimal query logging, then connect router DNS rollout, rollback-backed policy mutation, device inventory, and optimization adapters.
+- Signal: `vrooli scenario test network-manager` completed 15/17 after the AdGuard rollout checklist slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Impact: Direct API/CLI/UI/resource tests and builds, proto lint, resource validation, direct `cli-health`, `ui-health`, SDA, Structure Health, Security Health, requirements validation, Unit Health execution, live AdGuard resource health, live `network-manager resolver rollout`, and DNS smoke all passed. The full-suite failure matches the existing embedded validator EOF class rather than the rollout implementation.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
+
+### 2026-06-24 — AdGuard UI parity suite hit known embedded validator EOFs
+
+- Signal: `vrooli scenario test network-manager` completed 15/17 after the AdGuard UI parity and live-validation slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Impact: Direct `cli-health validate scenario network-manager`, `ui-health validate scenario network-manager`, SDA health, requirements validation, resource validation, resource schema validation, API/CLI/resource tests and builds, UI tests/lint/build, Unit Health execution, live AdGuard resolver health, live inventory refresh, inert global policy apply/rollback, and post-rollback snapshot validation all passed. The comprehensive suite failure matches the existing embedded validator EOF class.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
+
+### 2026-06-24 — AdGuard optimization slice suite hit known embedded validator EOFs
+
+- Signal: `vrooli scenario test network-manager` run `20260624-190327-12273dd9` completed 15/17 after the AdGuard optimization slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Impact: Direct `cli-health validate scenario network-manager`, SDA health, requirements validation, resource validation, API tests/build, CLI tests/build, Unit Health execution, live AdGuard resolver health, and live optimization apply/rollback all passed. The full-suite failure matches the existing embedded validator EOF class rather than the AdGuard optimization code path.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
+
+### 2026-06-24 — storage-health deadline during AdGuard inventory slice
+
+- Signal: After AdGuard client inventory import, direct `storage-health validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers.
+- Impact: API/CLI tests and builds, `cli-health`, SDA health, requirements validation, Unit Health execution, resource validation, live resolver health, and live device refresh passed. Static storage validation remains blocked by the previously filed external validator timeout class.
+- Next action: Track under existing storage-health EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the validator is responsive.
+
+### 2026-06-24 — AdGuard Home is healthy but household enforcement is still gated
+
+- Signal: The `adguard-home` resource is running with DNS published at `192.168.1.173:53/tcp` and `192.168.1.173:53/udp`, first-run setup completed through `resource-adguard-home bootstrap`, credentials stored at `secret/resources/adguard-home/admin`, resource health `healthy`, protection enabled, and query logging disabled. Network Manager resolver health now reports `healthy` through the resource-backed client, global policy mutations are rollback-backed, and device inventory can import AdGuard client evidence without query-level DNS logs. Resolver status also exposes `enforcement_status` and `enforcement_evidence` from AdGuard client metadata.
+- Impact: Network Manager can truthfully report AdGuard resolver protection as active for the resource, can apply global AdGuard user-rule/protection changes through approval and rollback ledgers, can refresh inventory from configured/auto AdGuard clients, and can apply/rollback the supported global DNS filtering optimization candidate through the same AdGuard policy adapter. It can now distinguish no client evidence from observed AdGuard client evidence, but it still must not claim router-wide enforcement until router DHCP/RDNSS evidence verifies clients are being assigned `192.168.1.173`; client/group-specific policies remain gated.
+- Next action: Reserve or confirm `192.168.1.173` in router DHCP, point router DNS/RDNSS at that address when ready, then add client/group-specific policy mapping after identity semantics are explicit.
 
 ### 2026-06-24 — Continuous monitoring is operator-triggered
 
@@ -80,11 +104,11 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 - Impact: P0 privacy defaults are fail-closed and storage-backed before broad UI exposure. Query-log retention is recorded as disabled/no-op until a governed query-log source exists.
 - Next action: Extend retention sweeps to optimization ledgers if experiments begin accumulating long-lived before/after evidence.
 
-### 2026-06-23 — Optimization apply is conservative by default
+### 2026-06-23 — Optimization apply is conservative outside AdGuard global DNS filtering
 
-- Signal: Optimization now persists runs/candidates/approval/rollback ledgers, requires a baseline snapshot, captures read-only candidate and after snapshots, and scores reliability-first evidence. The production applier returns `manual_required` until a real resolver/router adapter can prove safe apply and rollback.
-- Impact: Operators can compare candidates without unsafe automation, and tests prove successful/failed apply and rollback behavior through a deterministic fake seam. Network Manager still does not claim live DNS/router optimization was applied in production.
-- Next action: Connect a governed AdGuard/router optimization adapter after adapter capability and rollback semantics are proven.
+- Signal: Optimization now persists runs/candidates/approval/rollback ledgers, requires a baseline snapshot, captures read-only candidate and after snapshots, scores reliability-first evidence, and can apply/rollback the supported AdGuard global DNS filtering candidate through the policy adapter. Other candidates return `manual_required` until a resolver/router adapter can prove safe apply and rollback.
+- Impact: Operators can compare candidates without unsafe automation and can exercise AdGuard-backed rollback for the supported DNS filtering candidate. Network Manager still does not claim router-wide or client-specific optimization until router/client adapters are proven.
+- Next action: Add router/client-specific optimization only after those adapters report safe mutation, identity mapping, and rollback support.
 
 ### 2026-06-23 — storage-health validator returns unexpected EOF
 
@@ -124,9 +148,9 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ### 2026-06-23 — Inventory discovery source is conservative
 
-- Signal: Device inventory now has persisted device/group records and identity reconciliation, but production discovery returns an explicit unsupported finding until resolver-derived client evidence is available.
-- Impact: Operators can safely store and explain device records produced by future resolver/router/host sources without fake LAN scan data. Live refresh will not invent devices.
-- Next action: Connect AdGuard Home or another governed resolver client source that can provide client IDs, hostnames, IPs, MAC/stable IDs, and last-seen timestamps.
+- Signal: Device inventory has persisted device/group records and identity reconciliation. As of 2026-06-24, production discovery can import AdGuard Home configured and auto clients when the governed resolver backend and secret reference are configured.
+- Impact: Operators can refresh device inventory from AdGuard evidence without fake LAN scan data or query-level DNS logs. IP-only auto clients remain low-confidence observations, and absent/unreachable AdGuard still returns persisted inventory with explicit findings.
+- Next action: Add router/client usage evidence and client/group policy mapping only after identity confidence and rollback semantics are explicit.
 
 ### 2026-06-23 — Snapshot throughput and gateway probes are capability gaps
 
@@ -140,11 +164,11 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 - Impact: P0 can record backend and policy intent safely, but cannot claim filtering is active or apply persistent upstream/filter changes until a governed resource-backed client confirms them.
 - Next action: Decide whether AdGuard Home is a first-class Vrooli resource or resource-backed adapter, then connect the client through secret/resource governance.
 
-### 2026-06-23 — Policy writes are ledger-backed but live adapter support is conservative
+### 2026-06-23 — Client-specific policy adapter support is still gated
 
-- Signal: Policy preview, approval, apply, pause/resume, and rollback now persist change plans and audit records, but the production policy adapter returns `unsupported` for live resolver writes.
-- Impact: Operators can inspect and approve intended DNS filtering changes without fake success claims. Actual AdGuard allowlist/denylist/blocklist mutation still needs a governed adapter client.
-- Next action: Implement the AdGuard Home policy adapter after the resource/secret governance decision is resolved.
+- Signal: Policy preview, approval, apply, pause/resume, and rollback persist change plans and audit records. The production AdGuard adapter now supports global user-defined rules and global protection pause/resume with rollback handles, but returns `unsupported` for client/group targets until AdGuard client identity mapping is implemented.
+- Impact: Operators can safely test global inert rules such as `example.invalid` through rollback-backed policy flows, but household/group policy enforcement should remain advisory until devices are mapped to AdGuard clients.
+- Next action: Implement AdGuard client inventory import, then translate client/group profile intents only after identity confidence and rollback behavior are explicit.
 
 ### 2026-06-23 — First router adapter not selected
 

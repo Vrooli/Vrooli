@@ -13,7 +13,7 @@ Lifecycle health endpoint for API readiness. This remains an operational REST ex
 | Service | Planned operations | Requirements |
 |---|---|---|
 | `SnapshotService` | `RunSnapshot`, `GetSnapshot`, `ListSnapshots`, `ExportSnapshotReport` | `NM-P0-001` |
-| `ResolverService` | `GetResolverStatus`, `ConfigureAdGuardHome`, `UpdateUpstreams`, `CheckResolverHealth` | `NM-P0-002` |
+| `ResolverService` | `GetResolverStatus`, `ConfigureAdGuardHome`, `UpdateUpstreams`, `CheckResolverHealth`, `GetAdGuardRollout` | `NM-P0-002` |
 | `PolicyService` | `PreviewPolicyChange`, `ApplyPolicyChange`, `RollbackPolicyChange`, `PauseFiltering`, `ResumeFiltering`, `ListPolicyProfiles`, `UpsertPolicyProfile`, `EvaluatePolicySchedule`, `DiagnoseEncryptedDnsBypass`, `GetEndpointDohGuidance` | `NM-P0-003`, `NM-P1-001`, `NM-P1-002`, `NM-P1-004`, `NM-P1-008` |
 | `InventoryService` | `RefreshInventory`, `ListDevices`, `UpdateDeviceGroup`, `ExplainDeviceIdentity` | `NM-P0-004` |
 | `MonitoringService` | `ListMonitoringSchedules`, `UpsertMonitoringSchedule`, `RunMonitoringCheck`, `ListMonitoringAlerts` | `NM-P1-007` |
@@ -28,7 +28,7 @@ Snapshot endpoints must return partial results with confidence flags when a prob
 
 ## Resolver API
 
-Resolver endpoints must hide backend-specific details behind capability reports. AdGuard Home is the first backend; Pi-hole and Technitium are deferred adapters.
+Resolver endpoints must hide backend-specific details behind capability reports. AdGuard Home is the first backend; Pi-hole and Technitium are deferred adapters. `GetAdGuardRollout` is the operator checklist surface for AdGuard household rollout; it reports healthy resource protection and local/client evidence without claiming household-wide enforcement until router DHCP/RDNSS assignment is verified.
 
 ## Policy API
 

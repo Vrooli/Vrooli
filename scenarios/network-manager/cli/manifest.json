@@ -77,6 +77,12 @@
           "description": "Run resolver health checks",
           "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "CheckResolverHealth" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "rollout",
+          "description": "Show AdGuard household rollout status and router next steps",
+          "binding": { "kind": "connect-rpc", "service": "ResolverService", "method": "GetAdGuardRollout" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

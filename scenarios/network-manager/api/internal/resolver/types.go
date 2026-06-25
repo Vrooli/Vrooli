@@ -20,20 +20,53 @@ type BackendConfig struct {
 }
 
 type Status struct {
-	Backend          string
-	Status           string
-	BaseURL          string
-	Upstreams        []string
-	FilteringEnabled bool
-	Warnings         []string
+	Backend             string
+	Status              string
+	BaseURL             string
+	Upstreams           []string
+	FilteringEnabled    bool
+	Warnings            []string
+	EnforcementStatus   string
+	EnforcementEvidence []string
+}
+
+type RolloutCheck struct {
+	ID              string
+	Title           string
+	Status          string
+	Evidence        string
+	Recommendations []string
+}
+
+type RolloutReport struct {
+	Status         string
+	Summary        string
+	DNSBindIP      string
+	ResolverStatus Status
+	Checks         []RolloutCheck
+	RouterSettings []string
+	NextSteps      []string
+	Warnings       []string
+}
+
+type DNSInspection struct {
+	Servers  []string
+	Evidence []string
+	Warnings []string
+}
+
+type HostDNSInspector interface {
+	InspectHostDNS(ctx context.Context, targetDNS string) DNSInspection
 }
 
 type ClientStatus struct {
-	Status           string
-	Upstreams        []string
-	FilteringEnabled bool
-	Warnings         []string
-	Checks           []string
+	Status              string
+	Upstreams           []string
+	FilteringEnabled    bool
+	Warnings            []string
+	Checks              []string
+	EnforcementStatus   string
+	EnforcementEvidence []string
 }
 
 type Repository interface {

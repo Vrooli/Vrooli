@@ -88,7 +88,7 @@ Add new capabilities by extending the owning domain first:
 
 Current maturity: P0 core domains are service-backed for snapshots, adapter capabilities, resolver configuration, policy ledgers, inventory, privacy, optimization, and Home Automation actions/events. The operator UI now consumes those domains through generated Connect clients and exposes the P0 control center surfaces.
 
-Persistent live network changes remain conservative by design: resolver/router writes and optimization apply paths require capability support, approval, and rollback/manual recovery state before claiming success. The default production adapters still return unsupported or manual-required for live mutation until governed AdGuard/router clients are connected.
+Persistent live network changes remain conservative by design: resolver/router writes and optimization apply paths require capability support, approval, and rollback/manual recovery state before claiming success. The production AdGuard adapter now supports verified resolver health, global policy apply/rollback, device client import, and the global DNS filtering optimization candidate. Router-wide and client/group-specific mutations still return unsupported or manual-required until governed adapters prove identity mapping and rollback.
 
 ## Intentional Deviations
 

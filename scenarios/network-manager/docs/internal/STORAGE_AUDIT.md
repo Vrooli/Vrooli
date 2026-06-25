@@ -15,7 +15,7 @@
 
 - [x] Greenfield: idempotent `Schema()` providers only
 - [ ] Brownfield: versioned migrations
-- Current data state: dev-only/local baseline snapshots plus local adapter/resolver configuration, policy profile intent, policy preview/approval/rollback evidence, device inventory/group labels, privacy retention/visibility defaults, optimization experiment ledgers, Home Automation action/event audit records, and monitoring schedule/run/alert evidence
+- Current data state: dev-only/local baseline snapshots plus local adapter/resolver configuration, policy profile intent, policy preview/approval/rollback evidence for approved AdGuard global rule/protection changes, AdGuard-derived device inventory/group labels, privacy retention/visibility defaults, optimization experiment ledgers, Home Automation action/event audit records, and monitoring schedule/run/alert evidence
 
 ## Architecture Status
 
@@ -34,9 +34,9 @@
 
 ## Issues Found
 
-1. Inventory production discovery is conservative: the resolver-derived source reports unsupported until a governed resolver client can provide client evidence. The service/repository path is implemented and covered by deterministic fakes.
-2. Policy live resolver writes intentionally fail closed through the conservative adapter until an AdGuard Home policy client is governed and connected. Household profile storage and schedule evaluation are implemented as advisory intent; automatic enforcement is still capability-gated.
-3. Optimization persistent applies intentionally return `manual_required` through the default applier until a real resolver/router optimization adapter can apply and roll back live changes. Service tests cover capable fake apply/rollback paths without claiming production live mutation support.
+1. Inventory production discovery can import AdGuard Home configured and auto client evidence from `/control/clients` through the governed resolver backend and Vault-backed credential seam. It intentionally does not persist query-level DNS logs and keeps IP-only evidence low confidence.
+2. Policy live resolver writes are supported only for global AdGuard user-defined rules and global protection pause/resume after approval and rollback-handle capture. Client/group-specific household profile enforcement remains advisory until AdGuard client identity mapping is explicitly approved for policy mutation semantics.
+3. Optimization persistent applies use the AdGuard policy rollback adapter for the supported global DNS filtering candidate and store optimization approval/rollback evidence in the optimization ledger. Non-AdGuard/router/client-specific candidates still return `manual_required` until their adapters prove safe mutation and rollback.
 4. Home Automation write actions intentionally return `approval_required` or `manual_required` until a governed Home Automation publisher and network adapter path can safely mutate resolver/router state.
 5. Privacy retention sweep currently prunes expired non-baseline snapshots and records no-op notes for query logs and optimization ledgers until query log tables exist.
 6. Monitoring is storage-backed and operator-triggered; autonomous background scheduling is deferred to a future scheduler that can consume `monitoring_schedules`.

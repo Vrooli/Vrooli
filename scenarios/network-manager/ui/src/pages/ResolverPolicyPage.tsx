@@ -1,10 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import type { AdGuardRollout } from "@vrooli/proto-types/network-manager/v1/resolver/resolver_pb";
 import { useState } from "react";
 
 import {
   applyPolicyChange,
   diagnoseEncryptedDnsBypass,
   evaluatePolicySchedule,
+  fetchAdGuardRollout,
   fetchEndpointDohGuidance,
   fetchPolicyProfiles,
   fetchResolverStatus,
@@ -57,6 +59,10 @@ export function ResolverPolicyPage() {
     queryKey: ["network", "resolver"],
     queryFn: fetchResolverStatus,
   });
+  const rollout = useQuery({
+    queryKey: ["network", "resolver", "adguard-rollout"],
+    queryFn: fetchAdGuardRollout,
+  });
   const profiles = useQuery({
     queryKey: ["network", "policy-profiles"],
     queryFn: () => fetchPolicyProfiles(),
@@ -106,6 +112,8 @@ export function ResolverPolicyPage() {
     }),
     onSuccess: setGuidanceReport,
   });
+  const resolverWarnings = data?.warnings ?? [];
+  const enforcementEvidence = data?.enforcementEvidence ?? [];
 
   return (
     <section data-testid={selectors.pages.resolver} aria-labelledby="resolver-heading" className="flex flex-col gap-4">
@@ -139,7 +147,43 @@ export function ResolverPolicyPage() {
                 {data?.filteringEnabled ? t(strings.network.enabled) : t(strings.network.disabled)}
               </dd>
             </div>
+            {isAdGuardBackend(data?.backend) && (
+              <>
+                <div>
+                  <dt className="text-app-muted-foreground">{t(strings.pages.resolver.adguardProtection)}</dt>
+                  <dd className="font-semibold">
+                    {data?.filteringEnabled ? t(strings.network.enabled) : t(strings.network.disabled)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-app-muted-foreground">{t(strings.pages.resolver.networkWideEnforcement)}</dt>
+                  <dd className="font-semibold">
+                    {data?.filteringEnabled ? t(enforcementLabelKey(data.enforcementStatus)) : t(strings.network.disabled)}
+                  </dd>
+                </div>
+              </>
+            )}
           </dl>
+          {enforcementEvidence.length ? (
+            <div className="mt-4 rounded-control bg-app-surface-muted p-3 text-sm">
+              <p className="font-semibold">{t(strings.pages.resolver.enforcementEvidence)}</p>
+              <ul className="mt-2 list-disc space-y-1 ps-5">
+                {enforcementEvidence.map((evidence) => (
+                  <li key={evidence}>{evidence}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {resolverWarnings.length > 0 ? (
+            <div className="mt-4 rounded-control bg-app-surface-muted p-3 text-sm">
+              <p className="font-semibold">{t(strings.pages.resolver.warnings)}</p>
+              <ul className="mt-2 list-disc space-y-1 ps-5">
+                {resolverWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <h4 className="mt-5 text-sm font-semibold uppercase text-app-muted-foreground">
             {t(strings.pages.resolver.upstreams)}
           </h4>
@@ -150,6 +194,10 @@ export function ResolverPolicyPage() {
           </ul>
         </section>
 
+        <AdGuardRolloutPanel rollout={rollout.data} isLoading={rollout.isLoading} />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
         <section className={panelClass}>
           <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
             {t(strings.pages.resolver.previewUpstreams)}
@@ -342,6 +390,97 @@ export function ResolverPolicyPage() {
   );
 }
 
+function AdGuardRolloutPanel({ rollout, isLoading }: { rollout?: AdGuardRollout; isLoading: boolean }) {
+  const { t } = useTranslation();
+  const checks = rollout?.checks ?? [];
+  return (
+    <section data-testid={selectors.network.adguardRollout} className={panelClass}>
+      <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+        {t(strings.pages.resolver.adguardRollout)}
+      </h3>
+      {isLoading && <p className="mt-3 text-sm text-app-muted-foreground">{t(strings.network.loading)}</p>}
+      <p className="mt-3 text-sm font-semibold">
+        {rollout?.summary ?? t(strings.pages.resolver.rolloutUnavailable)}
+      </p>
+      {rollout?.dnsBindIp ? (
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-app-muted-foreground">{t(strings.pages.resolver.dnsBindIp)}</dt>
+            <dd className="font-semibold">{rollout.dnsBindIp}</dd>
+          </div>
+          <div>
+            <dt className="text-app-muted-foreground">{t(strings.network.status)}</dt>
+            <dd className="font-semibold">{rollout.status}</dd>
+          </div>
+        </dl>
+      ) : null}
+      {checks.length ? (
+        <ol className="mt-4 space-y-3 text-sm">
+          {checks.map((check) => (
+            <li key={check.id} className="rounded-control border border-app-border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">{check.title}</p>
+                <span className="rounded-control bg-app-surface-muted px-2 py-1 text-xs font-semibold">
+                  {check.status}
+                </span>
+              </div>
+              <p className="mt-2 text-app-muted-foreground">{check.evidence}</p>
+              {check.recommendations.length ? (
+                <ul className="mt-2 list-disc space-y-1 ps-5">
+                  {check.recommendations.map((recommendation) => (
+                    <li key={recommendation}>{recommendation}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      {rollout?.routerSettings.length ? (
+        <div className="mt-4 rounded-control bg-app-surface-muted p-3 text-sm">
+          <p className="font-semibold">{t(strings.pages.resolver.routerSettings)}</p>
+          <ul className="mt-2 list-disc space-y-1 ps-5">
+            {rollout.routerSettings.map((setting) => (
+              <li key={setting}>{setting}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {rollout?.nextSteps.length ? (
+        <div className="mt-4 rounded-control bg-app-surface-muted p-3 text-sm">
+          <p className="font-semibold">{t(strings.pages.resolver.nextSteps)}</p>
+          <ol className="mt-2 list-decimal space-y-1 ps-5">
+            {rollout.nextSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function splitValues(value: string): string[] {
   return value.split(",").map((entry) => entry.trim()).filter(Boolean);
+}
+
+function isAdGuardBackend(backend?: string): boolean {
+  const normalizedBackend = (backend ?? "").toLowerCase().split("_").join("-");
+  return normalizedBackend.includes("adguard");
+}
+
+type EnforcementLabelKey =
+  | typeof strings.pages.resolver.enforcementClientEvidence
+  | typeof strings.pages.resolver.enforcementVerified
+  | typeof strings.pages.resolver.enforcementUnverified;
+
+function enforcementLabelKey(status: string | undefined): EnforcementLabelKey {
+  switch (status) {
+    case "client_evidence_observed":
+      return strings.pages.resolver.enforcementClientEvidence;
+    case "verified":
+      return strings.pages.resolver.enforcementVerified;
+    default:
+      return strings.pages.resolver.enforcementUnverified;
+  }
 }

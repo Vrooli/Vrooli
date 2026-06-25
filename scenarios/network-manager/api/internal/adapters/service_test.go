@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"network-manager/internal/resolver"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,6 +21,15 @@ func (f fakeRegistry) Report(context.Context) (Report, error) {
 
 type fakeRepo struct {
 	reports []Report
+}
+
+type fakeResolverBackends struct {
+	cfg resolver.BackendConfig
+	err error
+}
+
+func (f fakeResolverBackends) GetBackend(context.Context, string) (resolver.BackendConfig, error) {
+	return f.cfg, f.err
 }
 
 func (r *fakeRepo) SaveReport(_ context.Context, report Report) error {
@@ -102,4 +113,43 @@ func TestStaticRegistryPlatformCombinations(t *testing.T) {
 			require.NotEmpty(t, report.Capabilities)
 		})
 	}
+}
+
+func TestResolverAwareRegistryReportsConfiguredAdGuardResolver(t *testing.T) {
+	// [REQ:NM-P0-006] Adapter capability reports reflect governed resolver configuration and rollback-gated mutations.
+	registry := ResolverAwareRegistry{
+		Base: StaticRegistry{OS: "linux", Arch: "amd64", Now: func() time.Time {
+			return time.Date(2026, 6, 24, 18, 0, 0, 0, time.UTC)
+		}},
+		ResolverBackends: fakeResolverBackends{cfg: resolver.BackendConfig{
+			Backend:  resolver.AdGuardHomeBackend,
+			BaseURL:  "http://localhost:3000",
+			TokenRef: "secret/resources/adguard-home/admin",
+		}},
+	}
+
+	report, err := registry.Report(context.Background())
+	require.NoError(t, err)
+
+	var resolverCap Capability
+	var inventoryCap Capability
+	var filteringCap Capability
+	for _, cap := range report.Capabilities {
+		if cap.Adapter == "adguard-home" && cap.Action == "resolver_status" {
+			resolverCap = cap
+		}
+		if cap.Adapter == "adguard-home" && cap.Action == "resolver_client_inventory" {
+			inventoryCap = cap
+		}
+		if cap.Adapter == "adguard-home" && cap.Action == "manage_dns_filtering" {
+			filteringCap = cap
+		}
+	}
+	require.True(t, resolverCap.Supported)
+	require.Contains(t, resolverCap.Reason, "configured")
+	require.True(t, inventoryCap.Supported)
+	require.Contains(t, inventoryCap.Reason, "client evidence")
+	require.True(t, filteringCap.Supported)
+	require.True(t, filteringCap.RollbackSupported)
+	require.Contains(t, filteringCap.Reason, "rollback")
 }

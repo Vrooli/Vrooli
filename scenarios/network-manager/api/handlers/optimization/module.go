@@ -11,6 +11,8 @@ import (
 	domainadapters "network-manager/internal/adapters"
 	"network-manager/internal/module"
 	domainoptimization "network-manager/internal/optimization"
+	domainpolicy "network-manager/internal/policy"
+	domainresolver "network-manager/internal/resolver"
 	domainsnapshot "network-manager/internal/snapshot"
 
 	optimizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/optimization"
@@ -22,20 +24,32 @@ type handler struct {
 }
 
 func Module(db domainoptimization.SQLExecutor) module.Module {
-	snapshotRepo := domainsnapshot.NewSQLiteRepository(db)
-	snapshotService := domainsnapshot.NewService(domainsnapshot.Config{Repo: snapshotRepo})
-	adapterService := domainadapters.NewService(domainadapters.Config{Repo: domainadapters.NewSQLiteRepository(db)})
-	service := domainoptimization.NewService(domainoptimization.Config{
-		Repo:         domainoptimization.NewSQLiteRepository(db),
-		Capabilities: adapterService,
-		Snapshots:    snapshotRepo,
-		Runner:       snapshotService,
-		Applier:      domainoptimization.ManualApplier{},
-	})
+	service := newService(db)
 	path, h := optimizationconnect.NewOptimizationServiceHandler(&handler{service: service})
 	return module.Module{Name: "optimization", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
+}
+
+func newService(db domainoptimization.SQLExecutor) *domainoptimization.Service {
+	snapshotRepo := domainsnapshot.NewSQLiteRepository(db)
+	snapshotService := domainsnapshot.NewService(domainsnapshot.Config{Repo: snapshotRepo})
+	resolverRepo := domainresolver.NewSQLiteRepository(db)
+	adapterService := domainadapters.NewService(domainadapters.Config{
+		Repo: domainadapters.NewSQLiteRepository(db),
+		Registry: domainadapters.ResolverAwareRegistry{
+			Base:             domainadapters.NewStaticRegistry(),
+			ResolverBackends: resolverRepo,
+		},
+	})
+	policyAdapter := domainpolicy.NewAdGuardResolverPolicyAdapter(resolverRepo, domainresolver.NewVaultSecretResolver())
+	return domainoptimization.NewService(domainoptimization.Config{
+		Repo:         domainoptimization.NewSQLiteRepository(db),
+		Capabilities: adapterService,
+		Snapshots:    snapshotRepo,
+		Runner:       snapshotService,
+		Applier:      domainoptimization.AdGuardPolicyApplier{Adapter: policyAdapter},
+	})
 }
 
 func Schema() string { return domainoptimization.Schema() }

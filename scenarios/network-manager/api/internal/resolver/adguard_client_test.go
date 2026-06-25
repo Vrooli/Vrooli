@@ -42,6 +42,40 @@ func TestResourceBackedAdGuardClientHealthy(t *testing.T) {
 	require.Equal(t, []string{"https://dns.example/dns-query"}, status.Upstreams)
 	require.Contains(t, status.Checks, "Control status endpoint returned successfully.")
 	require.Contains(t, status.Checks, "Query log is disabled according to /control/querylog/config.")
+	require.Equal(t, "unverified", status.EnforcementStatus)
+	require.Contains(t, status.Warnings, "Router/client DNS evidence has not confirmed network-wide use of AdGuard.")
+	require.Contains(t, status.EnforcementEvidence, "AdGuard clients endpoint returned no configured or automatically discovered household clients.")
+}
+
+func TestResourceBackedAdGuardClientReportsClientEvidence(t *testing.T) {
+	// [REQ:NM-P0-002] Resolver health can surface AdGuard client metadata as evidence without reading query logs.
+	server := newAdGuardFake(t, adGuardFakeConfig{
+		requireUser:     "admin",
+		requirePassword: "secret",
+		protection:      boolPtr(true),
+		queryLogEnabled: boolPtr(false),
+		configuredClients: []map[string]any{
+			{"name": "Laptop", "ids": []string{"192.0.2.10"}},
+			{"name": "localhost", "ids": []string{"127.0.0.1"}},
+		},
+		autoClients: []map[string]any{
+			{"name": "Phone", "ip": "192.0.2.11"},
+			{"name": "ip6-localhost", "ip": "::1"},
+		},
+	})
+	defer server.Close()
+
+	client := ResourceBackedAdGuardClient{
+		Secrets: fakeSecretResolver{creds: Credentials{Username: "admin", Password: "secret"}},
+		HTTP:    server.Client().Transport,
+	}
+
+	status, err := client.Check(context.Background(), BackendConfig{BaseURL: server.URL, TokenRef: "secret/resources/adguard-home/admin"})
+	require.NoError(t, err)
+	require.Equal(t, "healthy", status.Status)
+	require.Equal(t, "client_evidence_observed", status.EnforcementStatus)
+	require.Contains(t, status.EnforcementEvidence, "AdGuard reports 2 usable client observation(s): 1 configured, 1 automatically discovered.")
+	require.Contains(t, status.Warnings, "Router/DHCP/RDNSS enforcement is still unverified; current evidence only proves observed clients have used AdGuard.")
 }
 
 func TestResourceBackedAdGuardClientMapsAuthFailure(t *testing.T) {
@@ -148,11 +182,13 @@ func TestServiceUsesResourceBackedClientWithSecretResolver(t *testing.T) {
 }
 
 type adGuardFakeConfig struct {
-	requireUser     string
-	requirePassword string
-	protection      *bool
-	upstreams       []string
-	queryLogEnabled *bool
+	requireUser       string
+	requirePassword   string
+	protection        *bool
+	upstreams         []string
+	queryLogEnabled   *bool
+	configuredClients []map[string]any
+	autoClients       []map[string]any
 }
 
 func newAdGuardFake(t *testing.T, cfg adGuardFakeConfig) *httptest.Server {
@@ -193,6 +229,12 @@ func newAdGuardFake(t *testing.T, cfg adGuardFakeConfig) *httptest.Server {
 			return
 		}
 		writeJSON(t, w, map[string]any{"enabled": false})
+	})
+	mux.HandleFunc(adGuardClientsEndpoint, func(w http.ResponseWriter, r *http.Request) {
+		if !requireAuth(w, r) {
+			return
+		}
+		writeJSON(t, w, map[string]any{"clients": cfg.configuredClients, "auto_clients": cfg.autoClients})
 	})
 	return httptest.NewServer(mux)
 }

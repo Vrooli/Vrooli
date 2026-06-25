@@ -68,14 +68,47 @@ func (h *handler) CheckResolverHealth(ctx context.Context, _ *connect.Request[re
 	return connect.NewResponse(&resolverv1.CheckResolverHealthResponse{Status: toProtoStatus(status), Checks: checks}), nil
 }
 
+func (h *handler) GetAdGuardRollout(ctx context.Context, _ *connect.Request[resolverv1.GetAdGuardRolloutRequest]) (*connect.Response[resolverv1.GetAdGuardRolloutResponse], error) {
+	rollout, err := h.service.AdGuardRollout(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&resolverv1.GetAdGuardRolloutResponse{Rollout: toProtoRollout(rollout)}), nil
+}
+
 func toProtoStatus(status domainresolver.Status) *resolverv1.ResolverStatus {
 	return &resolverv1.ResolverStatus{
-		Backend:          status.Backend,
-		Status:           status.Status,
-		BaseUrl:          status.BaseURL,
-		Upstreams:        status.Upstreams,
-		FilteringEnabled: status.FilteringEnabled,
-		Warnings:         status.Warnings,
+		Backend:             status.Backend,
+		Status:              status.Status,
+		BaseUrl:             status.BaseURL,
+		Upstreams:           status.Upstreams,
+		FilteringEnabled:    status.FilteringEnabled,
+		Warnings:            status.Warnings,
+		EnforcementStatus:   status.EnforcementStatus,
+		EnforcementEvidence: status.EnforcementEvidence,
+	}
+}
+
+func toProtoRollout(rollout domainresolver.RolloutReport) *resolverv1.AdGuardRollout {
+	checks := make([]*resolverv1.RolloutCheck, 0, len(rollout.Checks))
+	for _, check := range rollout.Checks {
+		checks = append(checks, &resolverv1.RolloutCheck{
+			Id:              check.ID,
+			Title:           check.Title,
+			Status:          check.Status,
+			Evidence:        check.Evidence,
+			Recommendations: check.Recommendations,
+		})
+	}
+	return &resolverv1.AdGuardRollout{
+		Status:         rollout.Status,
+		Summary:        rollout.Summary,
+		DnsBindIp:      rollout.DNSBindIP,
+		ResolverStatus: toProtoStatus(rollout.ResolverStatus),
+		Checks:         checks,
+		RouterSettings: rollout.RouterSettings,
+		NextSteps:      rollout.NextSteps,
+		Warnings:       rollout.Warnings,
 	}
 }
 
@@ -84,6 +117,7 @@ var Endpoints = []module.EndpointDescriptor{
 	connectEndpoint("resolver_configure_adguard", resolverconnect.ResolverServiceConfigureAdGuardHomeProcedure, "Configure AdGuard Home"),
 	connectEndpoint("resolver_update_upstreams", resolverconnect.ResolverServiceUpdateUpstreamsProcedure, "Update resolver upstreams"),
 	connectEndpoint("resolver_health", resolverconnect.ResolverServiceCheckResolverHealthProcedure, "Check resolver health"),
+	connectEndpoint("resolver_adguard_rollout", resolverconnect.ResolverServiceGetAdGuardRolloutProcedure, "Get AdGuard household rollout status"),
 }
 
 func connectEndpoint(id, path, summary string) module.EndpointDescriptor {

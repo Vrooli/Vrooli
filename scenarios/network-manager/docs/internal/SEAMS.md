@@ -13,9 +13,10 @@ Optimization and policy transitions are modeled in [`../concepts/FLOWS.md`](../c
 | Seam | Production role | Test fake | Requirements |
 |---|---|---|---|
 | `SnapshotProbeRunner` | Runs DNS, gateway, WAN, loss, jitter, throughput, and host probes. | Deterministic fake probes. | `NM-P0-001`, `NM-P0-005` |
-| `ResolverAdapter` | Talks to AdGuard Home first, later Pi-hole/Technitium. Production currently verifies AdGuard health and previews upstreams through the resource-backed control API, while persistent writes remain fail-closed until rollback support lands. | Fake resolver with capability and failure knobs. | `NM-P0-002`, `NM-P0-003` |
+| `ResolverAdapter` | Talks to AdGuard Home first, later Pi-hole/Technitium. Production verifies AdGuard health and previews upstreams through the resource-backed control API; direct upstream writes still fail closed. | Fake resolver with capability and failure knobs. | `NM-P0-002`, `NM-P0-003` |
+| `ResolverPolicyAdapter` | Applies approved global AdGuard user rules and global protection pause/resume only after capturing rollback handles. Client/group targets remain unsupported until AdGuard client identity mapping exists. | Fake policy adapter plus fake AdGuard control API. | `NM-P0-003` |
 | `SecretResolver` | Resolves AdGuard credentials from `resource-vault content get` using the stored `token_ref`; never reads Vault HTTP APIs or plaintext request payloads. | Fake secret resolver returning credentials or missing-secret failures. | `NM-P0-002`, `NM-P0-008` |
-| `DeviceDiscoverySource` | Reads client evidence from resolver/router/host sources. | Fake inventory sources with ambiguous identity cases. | `NM-P0-004` |
+| `DeviceDiscoverySource` | Imports AdGuard Home configured/auto client evidence through the governed resolver backend and secret reference; future router/host sources can plug into the same seam. | Fake inventory sources with ambiguous identity cases plus fake AdGuard clients API. | `NM-P0-004` |
 | `AdapterRegistry` | Selects host, resolver, router, and manual adapters. | Fake registry for Linux/macOS/Windows/manual capabilities. | `NM-P0-006` |
 | `OptimizationScorer` | Scores candidate configs by reliability-first metrics. | Fixed-score scorer for workflow tests. | `NM-P0-005` |
 | `ApprovalStore` | Persists approvals and rollback handles. | In-memory store. | `NM-P0-003`, `NM-P0-005`, `NM-P0-008` |

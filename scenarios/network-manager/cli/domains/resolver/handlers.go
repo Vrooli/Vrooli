@@ -67,15 +67,39 @@ func (h handlers) health(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{formatStatus(resp.Msg.GetStatus())}, ResultsHeading: "Checks", Results: resp.Msg.GetChecks()})
 }
 
+func (h handlers) rollout(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetAdGuardRollout(context.Background(), connect.NewRequest(&resolverv1.GetAdGuardRolloutRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get AdGuard rollout", err, nil)
+	}
+	rollout := resp.Msg.GetRollout()
+	summary := []string{
+		fmt.Sprintf("status=%s dns_bind_ip=%s", rollout.GetStatus(), rollout.GetDnsBindIp()),
+		rollout.GetSummary(),
+	}
+	results := rolloutLines(rollout)
+	hints := []string{
+		"`resolver health --json` — inspect AdGuard resource health",
+		"`devices refresh --json` — refresh AdGuard client evidence after router changes",
+		"`snapshot run --profile home --json` — capture post-rollout network health",
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: summary, ResultsHeading: "Rollout Checks", Results: results, RetrievalHints: hints})
+}
+
 func renderStatus(ctx cliapp.RunContext, resp *resolverv1.GetResolverStatusResponse) error {
-	return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{Summary: []string{formatStatus(resp.GetStatus())}, ResultsHeading: "Warnings", Results: resp.GetStatus().GetWarnings(), RetrievalHints: []string{"`resolver configure-adguard --dry-run` — preview backend setup"}})
+	status := resp.GetStatus()
+	results := append([]string{}, status.GetWarnings()...)
+	if evidence := status.GetEnforcementEvidence(); len(evidence) > 0 {
+		results = append(results, "Evidence: "+strings.Join(evidence, " "))
+	}
+	return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{Summary: []string{formatStatus(status)}, ResultsHeading: "Status Details", Results: results, RetrievalHints: []string{"`resolver rollout` — show household rollout checklist", "`resolver configure-adguard --dry-run` — preview backend setup"}})
 }
 
 func formatStatus(s *resolverv1.ResolverStatus) string {
 	if s == nil {
 		return "Resolver status unavailable."
 	}
-	return fmt.Sprintf("backend=%s status=%s filtering=%t", s.GetBackend(), s.GetStatus(), s.GetFilteringEnabled())
+	return fmt.Sprintf("backend=%s status=%s filtering=%t enforcement=%s", s.GetBackend(), s.GetStatus(), s.GetFilteringEnabled(), s.GetEnforcementStatus())
 }
 
 func firstNonEmpty(values ...string) string {
@@ -85,4 +109,36 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func rolloutLines(rollout *resolverv1.AdGuardRollout) []string {
+	if rollout == nil {
+		return []string{"AdGuard rollout status unavailable."}
+	}
+	var lines []string
+	for _, check := range rollout.GetChecks() {
+		lines = append(lines, fmt.Sprintf("%s: %s — %s", check.GetTitle(), check.GetStatus(), check.GetEvidence()))
+		for _, recommendation := range check.GetRecommendations() {
+			lines = append(lines, "  next: "+recommendation)
+		}
+	}
+	if settings := rollout.GetRouterSettings(); len(settings) > 0 {
+		lines = append(lines, "Router settings to apply:")
+		for _, setting := range settings {
+			lines = append(lines, "  "+setting)
+		}
+	}
+	if steps := rollout.GetNextSteps(); len(steps) > 0 {
+		lines = append(lines, "Next steps:")
+		for _, step := range steps {
+			lines = append(lines, "  "+step)
+		}
+	}
+	if warnings := rollout.GetWarnings(); len(warnings) > 0 {
+		lines = append(lines, "Warnings:")
+		for _, warning := range warnings {
+			lines = append(lines, "  "+warning)
+		}
+	}
+	return lines
 }

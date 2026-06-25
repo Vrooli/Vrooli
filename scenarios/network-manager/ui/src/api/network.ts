@@ -13,7 +13,7 @@ import type { PolicyChange, PolicyGuidanceReport, PolicyProfile, PolicyScheduleE
 import { PrivacyService } from "@vrooli/proto-types/network-manager/v1/privacy/privacy_pb";
 import type { RetentionSettings, VisibilitySettings } from "@vrooli/proto-types/network-manager/v1/privacy/privacy_pb";
 import { ResolverService } from "@vrooli/proto-types/network-manager/v1/resolver/resolver_pb";
-import type { ResolverStatus } from "@vrooli/proto-types/network-manager/v1/resolver/resolver_pb";
+import type { AdGuardRollout, ResolverStatus } from "@vrooli/proto-types/network-manager/v1/resolver/resolver_pb";
 import { SnapshotService } from "@vrooli/proto-types/network-manager/v1/snapshot/snapshot_pb";
 import type { Snapshot } from "@vrooli/proto-types/network-manager/v1/snapshot/snapshot_pb";
 
@@ -132,6 +132,11 @@ export async function exportSnapshotReport(id: string): Promise<string> {
 export async function fetchResolverStatus(): Promise<ResolverStatus | undefined> {
   const resp = await resolverClient.getResolverStatus({});
   return resp.status;
+}
+
+export async function fetchAdGuardRollout(): Promise<AdGuardRollout | undefined> {
+  const resp = await resolverClient.getAdGuardRollout({});
+  return resp.rollout;
 }
 
 export async function previewUpstreams(upstreams: string[]): Promise<string[]> {

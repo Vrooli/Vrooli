@@ -10,6 +10,7 @@ import (
 
 	domaininventory "network-manager/internal/inventory"
 	"network-manager/internal/module"
+	domainresolver "network-manager/internal/resolver"
 
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/inventory"
 	inventoryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/network-manager/v1/inventory/inventory_v1connect"
@@ -20,9 +21,10 @@ type handler struct {
 }
 
 func Module(db domaininventory.SQLExecutor) module.Module {
+	resolverRepo := domainresolver.NewSQLiteRepository(db)
 	service := domaininventory.NewService(domaininventory.Config{
 		Repo:   domaininventory.NewSQLiteRepository(db),
-		Source: domaininventory.ConservativeResolverSource{},
+		Source: domaininventory.NewAdGuardClientDiscoverySource(resolverRepo, nil),
 	})
 	path, h := inventoryconnect.NewInventoryServiceHandler(&handler{service: service})
 	return module.Module{Name: "inventory", Mount: func(r *mux.Router) {
