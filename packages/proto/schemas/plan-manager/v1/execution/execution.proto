@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.execution;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution;execution_v1";
+
+// =============================================================================
+// EXECUTION DOMAIN — the guided runner + canonical handoff
+// =============================================================================
+//
+// @stability draft
+//
+// ExecutionService is the guided runner: it links a run to a plan, walks the
+// phases via typed status transitions, and acts as a just-in-time context server
+// (GetStatus / GetNext return the current phase, what is next, phase-scoped
+// required-reading + reminders, the last validation and staleness) so the agent
+// does not carry that knowledge (OT-P0-003). It captures decisions/findings
+// in-flow, runs a thin guided completion process (nudges), and assembles the
+// canonical structured handoff from captured state — full/partial + resume point
+// COMPUTED from the phase-status set (OT-P1-001). Findings are filed as CANDIDATE
+// (unvalidated); an operator triages them. Velocity is captured LOCAL ONLY; the
+// meta-optimization-manager emit seam is stubbed/deferred (OT-P1-002).
+//
+// plan-manager owns only the structured handoff; the prose final-message
+// catch-all is owned by the orchestration layer and linked by reference.
+// =============================================================================
+
+service ExecutionService {
+  // Start links a run to a plan and returns the execution (OT-P0-003).
+  rpc Start(StartRequest) returns (StartResponse);
+  // GetStatus returns the just-in-time context for the current phase.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  // GetNext advances the runner's pointer to the next actionable phase and
+  // returns its injected context.
+  rpc GetNext(GetNextRequest) returns (GetNextResponse);
+  // TransitionPhase performs a typed phase-status transition; plan status is
+  // recomputed from the phase-status set.
+  rpc TransitionPhase(TransitionPhaseRequest) returns (TransitionPhaseResponse);
+  // RecordDecision captures an in-flow design decision (feeds the handoff).
+  rpc RecordDecision(RecordDecisionRequest) returns (RecordDecisionResponse);
+  // RecordFinding captures an in-flow CANDIDATE finding (never auto-promoted).
+  rpc RecordFinding(RecordFindingRequest) returns (RecordFindingResponse);
+  // Complete runs the thin guided completion process and assembles the canonical
+  // handoff, capturing a velocity point (OT-P1-001/002).
+  rpc Complete(CompleteRequest) returns (CompleteResponse);
+  // GetHandoff returns the assembled canonical handoff for an execution.
+  rpc GetHandoff(GetHandoffRequest) returns (GetHandoffResponse);
+  // ListCandidateFindings returns candidate findings awaiting operator triage.
+  rpc ListCandidateFindings(ListCandidateFindingsRequest) returns (ListCandidateFindingsResponse);
+  // TriageFinding promotes or dismisses a candidate finding (operator action).
+  rpc TriageFinding(TriageFindingRequest) returns (TriageFindingResponse);
+  // GetVelocity returns the per-plan velocity series.
+  rpc GetVelocity(GetVelocityRequest) returns (GetVelocityResponse);
+}
+
+// Execution is a run↔plan linkage with the runner's current pointer.
+message Execution {
+  string id = 1;
+  string plan_id = 2;
+  // VROOLI_AGENT_MANAGER_RUN_ID when present (best-effort when absent).
+  string run_id = 3;
+  string current_phase_id = 4;
+  bool complete = 5;
+  string started_at = 6;
+  string updated_at = 7;
+}
+
+// PhaseContext is the just-in-time context injected for a phase: everything an
+// agent would otherwise carry in its head. COMPUTED at request time.
+message PhaseContext {
+  shared.Phase current_phase = 1;
+  shared.Phase next_phase = 2;
+  repeated string required_reading = 3;
+  repeated string reminders = 4;
+  shared.ValidationResult last_validation = 5;
+  shared.StalenessTier staleness = 6;
+  // The earliest non-done phase (the resume point).
+  string resume_phase_id = 7;
+  shared.Completeness completeness = 8;
+}
+
+// CompletionNudge is one item in the thin guided completion process.
+message CompletionNudge {
+  // "record_finding" | "file_bugs" | "confirm_phase_status".
+  string kind = 1;
+  string message = 2;
+  // True when the captured state already satisfies the nudge.
+  bool satisfied = 3;
+}
+
+message StartRequest {
+  string plan_id = 1;
+  // Optional attribution run id; falls back to VROOLI_AGENT_MANAGER_RUN_ID
+  // server-side when empty.
+  string run_id = 2;
+}
+
+message StartResponse {
+  Execution execution = 1;
+}
+
+message GetStatusRequest {
+  string execution_id = 1;
+}
+
+message GetStatusResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+}
+
+message GetNextRequest {
+  string execution_id = 1;
+}
+
+message GetNextResponse {
+  PhaseContext context = 1;
+  // True when no actionable phase remains.
+  bool complete = 2;
+}
+
+message TransitionPhaseRequest {
+  string execution_id = 1;
+  string phase_id = 2;
+  shared.PhaseStatus to_status = 3;
+}
+
+message TransitionPhaseResponse {
+  Execution execution = 1;
+  shared.Plan plan = 2;
+}
+
+message RecordDecisionRequest {
+  string execution_id = 1;
+  string phase_id = 2;
+  string summary = 3;
+  string detail = 4;
+}
+
+message RecordDecisionResponse {
+  shared.Decision decision = 1;
+}
+
+message RecordFindingRequest {
+  string execution_id = 1;
+  string phase_id = 2;
+  string title = 3;
+  string detail = 4;
+}
+
+message RecordFindingResponse {
+  shared.Finding finding = 1;
+}
+
+message CompleteRequest {
+  string execution_id = 1;
+  // Optional velocity inputs the agent supplies; wall-time is computed.
+  int64 tokens = 2;
+  int32 iterations = 3;
+}
+
+message CompleteResponse {
+  shared.Handoff handoff = 1;
+  // Unsatisfied nudges the agent should address; an empty list means the
+  // completion process is clean.
+  repeated CompletionNudge nudges = 2;
+}
+
+message GetHandoffRequest {
+  string execution_id = 1;
+}
+
+message GetHandoffResponse {
+  shared.Handoff handoff = 1;
+}
+
+message ListCandidateFindingsRequest {
+  // Optional execution scope; empty lists candidate findings across executions.
+  string execution_id = 1;
+}
+
+message ListCandidateFindingsResponse {
+  repeated shared.Finding findings = 1;
+}
+
+message TriageFindingRequest {
+  string finding_id = 1;
+  shared.FindingTriage triage = 2;
+}
+
+message TriageFindingResponse {
+  shared.Finding finding = 1;
+}
+
+message GetVelocityRequest {
+  string plan_id = 1;
+}
+
+message GetVelocityResponse {
+  repeated shared.VelocityPoint points = 1;
+}

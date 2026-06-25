@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.validation;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/validation;validation_v1";
+
+// =============================================================================
+// VALIDATION DOMAIN — plan health (refs / staleness / baseline-scope / DoD)
+// =============================================================================
+//
+// @stability draft
+//
+// ValidationService is the verification surface: it resolves code references
+// against code-facts, computes staleness tiers from referenced-code change,
+// derives each phase's exact baseline/validation command set across all affected
+// locations, runs those baselines on request (compute + run, the agent in the
+// loop), and verifies Definition-of-Done against the regression anchor as an
+// oracle (baseline diff exit-0). Every cross-scenario call is behind a seam and
+// degrades to a marked gap (UNKNOWN), never a false PASS. See
+// docs/concepts/DOMAINS.md (validation) and docs/internal/SEAMS.md.
+//
+// This service does NOT own project-level validation of resources/packages —
+// that is consumed from test-genie / scenario-validation. It composes
+// git-control-tower (baseline) and code-facts + the freshness engine (staleness)
+// rather than re-implementing them.
+// =============================================================================
+
+service ValidationService {
+  // ResolveReferences resolves a plan/phase's [CODE:]/[REQ:] references against
+  // code-facts (OT-P0-004, PM-REF-001). Degrades to UNRESOLVED when code-facts
+  // is down.
+  rpc ResolveReferences(ResolveReferencesRequest) returns (ResolveReferencesResponse);
+  // ComputeStaleness computes staleness tiers for a plan/phase's references
+  // (OT-P0-004, PM-STALE-001).
+  rpc ComputeStaleness(ComputeStalenessRequest) returns (ComputeStalenessResponse);
+  // DeriveBaselineScope derives the exact baseline/validation command set across
+  // all affected locations for a phase (OT-P0-005).
+  rpc DeriveBaselineScope(DeriveBaselineScopeRequest) returns (DeriveBaselineScopeResponse);
+  // RunValidation runs the derived baseline/check set on request and returns the
+  // result + staleness (OT-P0-005, PM-VALID-001). Never fabricates results on
+  // exec failure — degrades to UNKNOWN.
+  rpc RunValidation(RunValidationRequest) returns (RunValidationResponse);
+  // VerifyDefinitionOfDone verifies a plan's DoD against the regression anchor as
+  // an oracle (baseline diff exit-0), not a narrated claim (OT-P0-005,
+  // PM-VALID-002).
+  rpc VerifyDefinitionOfDone(VerifyDefinitionOfDoneRequest) returns (VerifyDefinitionOfDoneResponse);
+}
+
+message ResolveReferencesRequest {
+  string plan_id = 1;
+  // Optional phase scope; empty resolves the plan-level references.
+  string phase_id = 2;
+}
+
+message ResolveReferencesResponse {
+  repeated shared.Reference references = 1;
+  // True when code-facts was unavailable and references are best-effort.
+  bool degraded = 2;
+}
+
+message ComputeStalenessRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+}
+
+message ComputeStalenessResponse {
+  // The worst tier across the scoped references.
+  shared.StalenessTier overall = 1;
+  repeated shared.Reference references = 2;
+  bool degraded = 3;
+}
+
+message DeriveBaselineScopeRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+}
+
+message DeriveBaselineScopeResponse {
+  // The exact baseline/diff command set across all affected locations.
+  repeated string commands = 1;
+  // The distinct affected locations the commands cover (scenarios + paths).
+  repeated string locations = 2;
+}
+
+message RunValidationRequest {
+  string plan_id = 1;
+  string phase_id = 2;
+}
+
+message RunValidationResponse {
+  shared.ValidationResult result = 1;
+}
+
+message VerifyDefinitionOfDoneRequest {
+  string plan_id = 1;
+}
+
+message VerifyDefinitionOfDoneResponse {
+  shared.ValidationResult result = 1;
+  // True only when the regression-anchor oracle returned exit-0; false on FAIL;
+  // unset semantics carried by result.verdict == UNKNOWN when degraded.
+  bool dod_met = 2;
+}

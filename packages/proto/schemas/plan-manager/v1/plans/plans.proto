@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.plans;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans;plans_v1";
+
+// =============================================================================
+// PLANS DOMAIN — the structured plan + phase record (SSOT)
+// =============================================================================
+//
+// @stability draft
+//
+// PlansService owns the structured plan record as the single source of truth:
+// CRUD, the rendered markdown *view* (never parsed back), lifecycle status
+// transitions (phase status drives plan status), the supersession/dependency
+// graph (via content_hash), per-surface templates, and the plan-source resolver
+// (canonical write under the ~/.vrooli home store + import/migrate from the
+// hygiene-blessed fallback locations). See docs/concepts/DOMAINS.md (plans) and
+// docs/concepts/PLAN-MODEL.md.
+//
+// Authoring/execution/validation operate *on* plans but live in their own
+// services; this service never owns their logic.
+// =============================================================================
+
+service PlansService {
+  // ListPlans returns plans, optionally filtered by status (OT-P0-001).
+  rpc ListPlans(ListPlansRequest) returns (ListPlansResponse);
+  // GetPlan returns one plan by id or slug.
+  rpc GetPlan(GetPlanRequest) returns (GetPlanResponse);
+  // CreatePlan persists a new structured plan; the server assigns id, content
+  // hash, status and timestamps (the computed fields).
+  rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
+  // UpdatePlan replaces the authored fields of an existing plan; computed fields
+  // are recomputed server-side.
+  rpc UpdatePlan(UpdatePlanRequest) returns (UpdatePlanResponse);
+  // ArchivePlan soft-archives a plan (kept, hidden by default).
+  rpc ArchivePlan(ArchivePlanRequest) returns (ArchivePlanResponse);
+  // RenderMarkdown renders the structured record to its human-readable markdown
+  // projection. Deterministic; the view is never parsed back into truth.
+  rpc RenderMarkdown(RenderMarkdownRequest) returns (RenderMarkdownResponse);
+
+  // AddPhase appends a first-class phase to a plan.
+  rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
+  // UpdatePhase replaces the authored fields of a phase. Status is a typed
+  // transition — see ExecutionService.TransitionPhase for runtime transitions.
+  rpc UpdatePhase(UpdatePhaseRequest) returns (UpdatePhaseResponse);
+
+  // GetGraph returns the supersession/dependency edges, optionally scoped to one
+  // plan's neighborhood (OT-P1-002).
+  rpc GetGraph(GetGraphRequest) returns (GetGraphResponse);
+  // LinkSupersession records that one plan supersedes another (PM-GRAPH-001).
+  rpc LinkSupersession(LinkSupersessionRequest) returns (LinkSupersessionResponse);
+
+  // ImportPlan adopts a markdown plan from a fallback read location into the
+  // structured model (references parsed from the [CODE:]/[REQ:] grammar).
+  rpc ImportPlan(ImportPlanRequest) returns (ImportPlanResponse);
+  // MigratePlan moves a fallback-resolved plan into the canonical home store
+  // (non-destructive to the source unless explicitly requested).
+  rpc MigratePlan(MigratePlanRequest) returns (MigratePlanResponse);
+
+  // ListTemplates returns the per-surface plan templates (CLI/proto/UI).
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  // CreateFromTemplate pre-scaffolds a plan from a template.
+  rpc CreateFromTemplate(CreateFromTemplateRequest) returns (CreateFromTemplateResponse);
+}
+
+message ListPlansRequest {
+  // Optional status filter; UNSPECIFIED returns all non-archived plans.
+  shared.PlanStatus status = 1;
+  // When true, archived plans are included in the result.
+  bool include_archived = 2;
+}
+
+message ListPlansResponse {
+  repeated shared.Plan plans = 1;
+}
+
+message GetPlanRequest {
+  // A plan id or slug; both resolve to the same plan.
+  string id = 1;
+}
+
+message GetPlanResponse {
+  shared.Plan plan = 1;
+}
+
+message CreatePlanRequest {
+  // The draft plan to persist. Only authored fields are read; the server
+  // assigns id/status/content_hash/timestamps.
+  shared.Plan plan = 1;
+}
+
+message CreatePlanResponse {
+  shared.Plan plan = 1;
+}
+
+message UpdatePlanRequest {
+  shared.Plan plan = 1;
+}
+
+message UpdatePlanResponse {
+  shared.Plan plan = 1;
+}
+
+message ArchivePlanRequest {
+  string id = 1;
+}
+
+message ArchivePlanResponse {
+  shared.Plan plan = 1;
+}
+
+message RenderMarkdownRequest {
+  string id = 1;
+}
+
+message RenderMarkdownResponse {
+  string markdown = 1;
+}
+
+message AddPhaseRequest {
+  string plan_id = 1;
+  shared.Phase phase = 2;
+}
+
+message AddPhaseResponse {
+  shared.Plan plan = 1;
+}
+
+message UpdatePhaseRequest {
+  string plan_id = 1;
+  shared.Phase phase = 2;
+}
+
+message UpdatePhaseResponse {
+  shared.Plan plan = 1;
+}
+
+message GetGraphRequest {
+  // Optional: scope the graph to one plan's neighborhood. Empty returns all.
+  string plan_id = 1;
+}
+
+message GetGraphResponse {
+  repeated shared.PlanEdge edges = 1;
+}
+
+message LinkSupersessionRequest {
+  string superseding_plan_id = 1;
+  string superseded_plan_id = 2;
+}
+
+message LinkSupersessionResponse {
+  shared.Plan plan = 1;
+}
+
+message ImportPlanRequest {
+  // Path the markdown was read from (one of the fallback read locations).
+  string source_path = 1;
+  // Raw markdown to import; when empty the server reads source_path.
+  string markdown = 2;
+}
+
+message ImportPlanResponse {
+  shared.Plan plan = 1;
+}
+
+message MigratePlanRequest {
+  string id = 1;
+}
+
+message MigratePlanResponse {
+  shared.Plan plan = 1;
+}
+
+message ListTemplatesRequest {}
+
+message ListTemplatesResponse {
+  repeated PlanTemplate templates = 1;
+}
+
+// PlanTemplate is a per-surface starter plan (CLI/proto/UI) that pre-scaffolds
+// the structured record so a plan starts with the right phase skeleton.
+message PlanTemplate {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  // The surface this template targets: "cli" | "proto" | "ui" | "generic".
+  string surface = 4;
+}
+
+message CreateFromTemplateRequest {
+  string template_id = 1;
+  string title = 2;
+  string slug = 3;
+}
+
+message CreateFromTemplateResponse {
+  shared.Plan plan = 1;
+}

@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.authoring;
+
+import "plan-manager/v1/shared/model.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring;authoring_v1";
+
+// =============================================================================
+// AUTHORING DOMAIN — the guided composer wizard
+// =============================================================================
+//
+// @stability draft
+//
+// AuthoringService walks a plan's sections in order, validates structure as it
+// goes (a structure-validation gate rejects empty mandatory sections), and
+// auto-fills the mechanical sections — the regression anchor (via
+// git-control-tower, delegated through the validation domain), required-reading
+// (via prompt-manager plan-skill-discovery) and code references (via code-facts)
+// — so a small model supplies only genuine prose (OT-P0-002). The produced plan
+// is written through the plans domain; this service does not own the record.
+// Every autofill source is behind a seam and degrades gracefully. See
+// docs/concepts/DOMAINS.md (authoring) and docs/concepts/FLOWS.md.
+// =============================================================================
+
+service AuthoringService {
+  // StartSession begins a new authoring session for a plan title/slug
+  // (PM-AUTHOR-001).
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+  // GetSection returns one section's current state.
+  rpc GetSection(GetSectionRequest) returns (GetSectionResponse);
+  // SubmitSection records authored content for a section and re-validates it.
+  rpc SubmitSection(SubmitSectionRequest) returns (SubmitSectionResponse);
+  // Next returns the next section that still needs author input (or signals the
+  // session is structurally complete).
+  rpc Next(NextRequest) returns (NextResponse);
+  // ValidateStructure runs the structure-validation gate over the whole session
+  // (PM-AUTHOR-002).
+  rpc ValidateStructure(ValidateStructureRequest) returns (ValidateStructureResponse);
+  // Autofill orchestrates the mechanical-section autofill behind seams.
+  rpc Autofill(AutofillRequest) returns (AutofillResponse);
+  // Finalize validates structure then writes the produced plan through the plans
+  // domain, returning the persisted plan.
+  rpc Finalize(FinalizeRequest) returns (FinalizeResponse);
+}
+
+// Section is one authored or auto-filled section of a plan-in-progress.
+message Section {
+  // Stable key, e.g. "purpose", "scope", "regression_anchor", "phases".
+  string key = 1;
+  string label = 2;
+  string content = 3;
+  // Mandatory sections must be non-empty for the structure gate to pass.
+  bool mandatory = 4;
+  bool filled = 5;
+  // True when the section was produced by autofill rather than the author.
+  bool autofilled = 6;
+}
+
+// AuthoringSession is the transient state of a guided authoring flow. The plan
+// it produces is owned by the plans domain (plan_id set after Finalize).
+message AuthoringSession {
+  string id = 1;
+  string title = 2;
+  string plan_slug = 3;
+  repeated Section sections = 4;
+  // The key of the section the wizard is currently pointing at.
+  string current_section_key = 5;
+  bool finalized = 6;
+  // Set after Finalize: the id of the persisted plan in the plans domain.
+  string plan_id = 7;
+}
+
+// StructureViolation is one structure-gate failure (e.g. empty mandatory section
+// or an empty regression anchor).
+message StructureViolation {
+  string section_key = 1;
+  string message = 2;
+}
+
+// AutofillResult reports the outcome of one autofill source.
+message AutofillResult {
+  // "regression_anchor" | "required_reading" | "references".
+  string source = 1;
+  string section_key = 2;
+  bool filled = 3;
+  // True when the backing dependency was down and the section was left for the
+  // author (never a false "filled").
+  bool degraded = 4;
+  string detail = 5;
+}
+
+message StartSessionRequest {
+  string title = 1;
+  string slug = 2;
+  // Optional template to pre-scaffold the section skeleton.
+  string template_id = 3;
+}
+
+message StartSessionResponse {
+  AuthoringSession session = 1;
+}
+
+message GetSectionRequest {
+  string session_id = 1;
+  string section_key = 2;
+}
+
+message GetSectionResponse {
+  Section section = 1;
+}
+
+message SubmitSectionRequest {
+  string session_id = 1;
+  string section_key = 2;
+  string content = 3;
+}
+
+message SubmitSectionResponse {
+  AuthoringSession session = 1;
+  // Violations specific to the submitted section (empty when it passes).
+  repeated StructureViolation violations = 2;
+}
+
+message NextRequest {
+  string session_id = 1;
+}
+
+message NextResponse {
+  Section section = 1;
+  // True when no section still needs author input.
+  bool complete = 2;
+}
+
+message ValidateStructureRequest {
+  string session_id = 1;
+}
+
+message ValidateStructureResponse {
+  bool valid = 1;
+  repeated StructureViolation violations = 2;
+}
+
+message AutofillRequest {
+  string session_id = 1;
+  // Which sources to run; empty runs all available autofill sources.
+  repeated string sources = 2;
+}
+
+message AutofillResponse {
+  AuthoringSession session = 1;
+  repeated AutofillResult results = 2;
+}
+
+message FinalizeRequest {
+  string session_id = 1;
+}
+
+message FinalizeResponse {
+  shared.Plan plan = 1;
+}

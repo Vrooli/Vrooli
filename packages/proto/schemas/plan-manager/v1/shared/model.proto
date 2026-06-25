@@ -1,0 +1,263 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared;shared_v1";
+
+// =============================================================================
+// PLAN MODEL — the structured plan + phase record (cross-domain vocabulary)
+// =============================================================================
+//
+// @stability draft
+//
+// The canonical wire encoding of the structured plan model. The prose
+// definition of every field — what is *authored* by an agent versus *computed*
+// by the runtime — lives in docs/concepts/PLAN-MODEL.md; these messages are the
+// machine encoding of that document. Keep them in lockstep.
+//
+// Defined once here and shared by the plans / authoring / execution / validation
+// services because the record is the contract every domain operates on: `plans`
+// owns persistence, `authoring` produces it, `execution` walks its phases, and
+// `validation` annotates its references/staleness. The structured record is the
+// source of truth; the human-readable markdown view is always *rendered* from it
+// and never parsed back (see PlansService.RenderMarkdown).
+//
+// Computed-vs-authored is a load-bearing distinction: status, content_hash,
+// baseline_scope, staleness, resume point and handoff assembly are COMPUTED;
+// prose sections, references, acceptance and reminders are AUTHORED. The agent
+// never hand-edits the markdown view.
+// =============================================================================
+
+// PlanStatus is the lifecycle state of a plan. COMPUTED: derived from phase
+// status plus lifecycle actions, never free-text edited.
+enum PlanStatus {
+  PLAN_STATUS_UNSPECIFIED = 0;
+  PLAN_STATUS_DRAFT = 1;     // being authored; not yet executable
+  PLAN_STATUS_ACTIVE = 2;    // at least one phase has left todo
+  PLAN_STATUS_COMPLETE = 3;  // every phase done
+  PLAN_STATUS_ARCHIVED = 4;  // soft-hidden; retained
+}
+
+// PhaseStatus is the state of a single first-class phase. COMPUTED via a typed
+// transition or inferred from acceptance + validation passing.
+enum PhaseStatus {
+  PHASE_STATUS_UNSPECIFIED = 0;
+  PHASE_STATUS_TODO = 1;
+  PHASE_STATUS_ACTIVE = 2;
+  PHASE_STATUS_DONE = 3;
+  PHASE_STATUS_BLOCKED = 4;
+}
+
+// StalenessTier is the computed validity of referenced code since authoring.
+enum StalenessTier {
+  STALENESS_TIER_UNSPECIFIED = 0;
+  STALENESS_TIER_FRESH = 1;             // no relevant change
+  STALENESS_TIER_LIGHTLY_STALE = 2;     // small diffs in referenced code
+  STALENESS_TIER_DEFINITELY_STALE = 3;  // referenced locations moved or deleted
+}
+
+// ReferenceKind is the machine-readable locator family from
+// docs/reference/machine-readable-references.md.
+enum ReferenceKind {
+  REFERENCE_KIND_UNSPECIFIED = 0;
+  REFERENCE_KIND_CODE = 1;  // [CODE: path/to/file.go]
+  REFERENCE_KIND_REQ = 2;   // [REQ: OT-...]
+  REFERENCE_KIND_DOC = 3;   // [DOC: path/to/doc.md]
+}
+
+// ReferenceResolution is whether a reference resolves against code-facts.
+enum ReferenceResolution {
+  REFERENCE_RESOLUTION_UNSPECIFIED = 0;
+  REFERENCE_RESOLUTION_RESOLVED = 1;    // located in code today
+  REFERENCE_RESOLUTION_UNRESOLVED = 2;  // recorded but code-facts could not resolve (degraded)
+  REFERENCE_RESOLUTION_FUTURE = 3;      // proposed not-yet-existing location (not flagged as deleted)
+  REFERENCE_RESOLUTION_MISSING = 4;     // resolved before but the location moved or was deleted
+}
+
+// FindingTriage is the operator-triage state of a candidate finding. Findings
+// are filed as CANDIDATE (unvalidated) and never auto-promoted to real bugs.
+enum FindingTriage {
+  FINDING_TRIAGE_UNSPECIFIED = 0;
+  FINDING_TRIAGE_CANDIDATE = 1;  // unvalidated; awaiting operator triage
+  FINDING_TRIAGE_PROMOTED = 2;   // operator promoted to a real bug
+  FINDING_TRIAGE_DISMISSED = 3;  // operator dismissed
+}
+
+// Completeness distinguishes a full run from a partial one. COMPUTED from the
+// phase-status set (full iff every phase is done), never narrated.
+enum Completeness {
+  COMPLETENESS_UNSPECIFIED = 0;
+  COMPLETENESS_FULL = 1;
+  COMPLETENESS_PARTIAL = 2;
+}
+
+// ValidationVerdict is the outcome of a validation/DoD check. UNKNOWN is the
+// honest degraded result when a composed dependency (code-facts /
+// git-control-tower) is unavailable — never a false PASS.
+enum ValidationVerdict {
+  VALIDATION_VERDICT_UNSPECIFIED = 0;
+  VALIDATION_VERDICT_PASS = 1;
+  VALIDATION_VERDICT_FAIL = 2;
+  VALIDATION_VERDICT_UNKNOWN = 3;
+}
+
+// Reference is one connected-code locator on a plan or phase. AUTHORED (kind +
+// target + future) and then RESOLVED (resolution + staleness + change_factor)
+// by the validation domain against code-facts.
+message Reference {
+  string id = 1;
+  ReferenceKind kind = 2;
+  // The raw locator value as authored, e.g. "scenarios/foo/api/main.go" or
+  // "OT-P0-001". The bracketed grammar ([CODE: ...]) is the rendered form.
+  string target = 3;
+  // True when the reference points at proposed, not-yet-existing code so
+  // staleness does not flag it as deleted.
+  bool future = 4;
+  ReferenceResolution resolution = 5;
+  StalenessTier staleness = 6;
+  // Magnitude of change in the referenced location since authoring (0 = none).
+  double change_factor = 7;
+  // Human-readable resolution detail (e.g. "moved to bar.go", "code-facts down").
+  string note = 8;
+}
+
+// RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
+// by the authoring wizard (delegating to git-control-tower) and stored on the
+// plan. Two strategies: a scenario baseline snapshot, or a HEAD sha + file
+// allowlist for outside-scenario work.
+message RegressionAnchor {
+  // "scenario_baseline" or "head_sha_allowlist".
+  string strategy = 1;
+  string scenario = 2;        // scenario-baseline strategy: the scenario name
+  string baseline_name = 3;   // scenario-baseline strategy: the named snapshot
+  string head_sha = 4;        // head-sha strategy: the recorded commit
+  repeated string allowlist_paths = 5;  // head-sha strategy: paths allowed to change
+  // The exact baseline/diff command set this anchor implies.
+  repeated string commands = 6;
+  string captured_at = 7;     // RFC3339; empty when autofill was skipped/degraded
+  // True when anchor autofill was attempted but the dependency was down.
+  bool unavailable = 8;
+}
+
+// Decision is an in-flow recorded design decision (captured during execution via
+// a runner command), feeding the handoff.
+message Decision {
+  string id = 1;
+  string summary = 2;
+  string detail = 3;
+  string phase_id = 4;
+  string recorded_at = 5;
+}
+
+// Finding is an in-flow recorded candidate finding (possible bug). Always filed
+// as CANDIDATE; an operator triages it before it becomes a real bug.
+message Finding {
+  string id = 1;
+  string title = 2;
+  string detail = 3;
+  FindingTriage triage = 4;
+  string phase_id = 5;
+  string recorded_at = 6;
+  // VROOLI_AGENT_MANAGER_RUN_ID when present; powers attribution-keyed dedup.
+  string attribution_run_id = 7;
+}
+
+// ValidationResult is the most recent validation/baseline outcome for a plan or
+// phase. COMPUTED by the validation domain (verdict from baseline diff exit-0 as
+// oracle); never the source of truth for code itself.
+message ValidationResult {
+  string id = 1;
+  string plan_id = 2;
+  string phase_id = 3;
+  ValidationVerdict verdict = 4;
+  StalenessTier staleness = 5;
+  repeated string commands_run = 6;
+  string detail = 7;
+  string ran_at = 8;
+}
+
+// Phase is a first-class phase — the unit the runner walks and context is scoped
+// to. order/title/intent/required_reading/reminders/acceptance are AUTHORED;
+// baseline_scope/status/last_validation are COMPUTED; decisions/findings are
+// captured in-flow.
+message Phase {
+  string id = 1;
+  int32 order = 2;
+  string title = 3;
+  string intent = 4;
+  repeated string required_reading = 5;
+  repeated string reminders = 6;
+  // COMPUTED: the baseline/validation command set this phase touches, derived
+  // from its references across all affected locations.
+  repeated string baseline_scope = 7;
+  string acceptance = 8;
+  PhaseStatus status = 9;
+  ValidationResult last_validation = 10;
+  repeated Decision decisions = 11;
+  repeated Finding findings = 12;
+  repeated Reference references = 13;
+}
+
+// Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
+// the authored/computed split per field.
+message Plan {
+  string id = 1;
+  string slug = 2;
+  string title = 3;
+  PlanStatus status = 4;        // COMPUTED
+  string content_hash = 5;      // COMPUTED; powers supersession/dependency edges
+  string created_at = 6;
+  string updated_at = 7;
+  string purpose = 8;
+  string scope = 9;
+  string constraints = 10;
+  string non_goals = 11;
+  repeated Reference references = 12;
+  RegressionAnchor regression_anchor = 13;  // AUTO-FILLED
+  string definition_of_done = 14;
+  repeated Phase phases = 15;
+  repeated string supersedes = 16;     // plan-graph edges
+  repeated string superseded_by = 17;  // plan-graph edges
+}
+
+// PlanEdge is one supersession/dependency edge between two plans (the plan
+// graph). Derived from supersedes/superseded_by + content_hash.
+message PlanEdge {
+  string from_plan_id = 1;
+  string to_plan_id = 2;
+  string kind = 3;  // "supersedes" | "depends_on"
+}
+
+// VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
+// the meta-optimization-manager emit seam is stubbed/deferred (see
+// docs/concepts/INTEGRATIONS.md).
+message VelocityPoint {
+  string id = 1;
+  string plan_id = 2;
+  string run_id = 3;
+  int64 wall_time_seconds = 4;
+  int64 tokens = 5;
+  int32 iterations = 6;
+  Completeness completeness = 7;
+  string recorded_at = 8;
+}
+
+// Handoff is the canonical, structured handoff assembled from state captured
+// in-flow during a run. plan-manager owns ONLY this structured layer; the prose
+// final-message catch-all is owned by the orchestration layer and linked here by
+// reference (prose_handoff_ref).
+message Handoff {
+  string id = 1;
+  string execution_id = 2;
+  string plan_id = 3;
+  Completeness completeness = 4;     // COMPUTED from the phase-status set
+  string resume_phase_id = 5;        // COMPUTED: earliest non-done phase
+  repeated Decision decisions = 6;
+  repeated Finding candidate_findings = 7;
+  ValidationResult last_validation = 8;
+  StalenessTier staleness = 9;
+  // Reference (URL/id) to the orchestration-layer prose handoff; plan-manager
+  // never reads transcripts, it only links.
+  string prose_handoff_ref = 10;
+  string assembled_at = 11;
+}
