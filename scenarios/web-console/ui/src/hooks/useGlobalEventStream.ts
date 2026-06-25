@@ -172,9 +172,13 @@ export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}):
       "session_status",
     ] as const;
     for (const kind of kinds) source.addEventListener(kind, handle as EventListener);
+    source.onerror = (event) => {
+      console.warn("[web-console] global event stream error", { url, event });
+    };
 
     return () => {
       for (const kind of kinds) source.removeEventListener(kind, handle as EventListener);
+      source.onerror = null;
       source.close();
     };
   }, [createEventSource]);

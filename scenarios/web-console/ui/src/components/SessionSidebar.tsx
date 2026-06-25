@@ -28,6 +28,7 @@ interface SessionSidebarProps {
   onClosePane: (sessionId: string) => void;
   onNewTerminal: () => void;
   onOpenLauncher: () => void;
+  onNewSessionInGroup: (groupId: string) => void;
   onOpenSettings: () => void;
 }
 
@@ -46,6 +47,7 @@ export default function SessionSidebar({
   onClosePane,
   onNewTerminal,
   onOpenLauncher,
+  onNewSessionInGroup,
   onOpenSettings,
 }: SessionSidebarProps) {
   const { t } = useTranslation();
@@ -90,9 +92,19 @@ export default function SessionSidebar({
     storageKey: "web-console.sidebar.width.v1",
   });
 
+  const handleSidebarNewTerminal = useCallback(() => {
+    onNewTerminal();
+    if (isMobile) onCloseMobile();
+  }, [isMobile, onCloseMobile, onNewTerminal]);
+
+  const handleSidebarOpenLauncher = useCallback(() => {
+    if (isMobile) onCloseMobile();
+    onOpenLauncher();
+  }, [isMobile, onCloseMobile, onOpenLauncher]);
+
   const plusHandlers = useLongPress({
-    onPress: plusButtonBehavior === "launcher" ? onOpenLauncher : onNewTerminal,
-    onLongPress: plusButtonBehavior === "launcher" ? onNewTerminal : onOpenLauncher,
+    onPress: plusButtonBehavior === "launcher" ? handleSidebarOpenLauncher : handleSidebarNewTerminal,
+    onLongPress: plusButtonBehavior === "launcher" ? handleSidebarNewTerminal : handleSidebarOpenLauncher,
   });
 
   const paneItems = items.filter((item) => item.kind === "pane");
@@ -322,7 +334,12 @@ export default function SessionSidebar({
             return (
               <div
                 key={`group-${group.id}`}
-                className="mb-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-wc-text-secondary hover:bg-wc-surface-raised"
+                data-testid={`sidebar-group-header-${group.id}`}
+                className={cn(
+                  "mt-1 flex w-full items-center gap-2 border border-wc-default border-b-0 bg-wc-surface-base/70 px-2 py-1.5 text-xs text-wc-text-secondary hover:bg-wc-surface-raised",
+                  group.isCollapsed ? "mb-1 rounded" : "rounded-t",
+                )}
+                style={{ borderLeftColor: group.color }}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   openGroupMenu(group.id, event.clientX, event.clientY);
@@ -367,7 +384,7 @@ export default function SessionSidebar({
             );
           }
 
-          const { pane, activityLabel, previewText, unreadCount, viewMode, isActive, group, globalIndex } = item;
+          const { pane, activityLabel, previewText, unreadCount, viewMode, isActive, group, groupPosition, globalIndex } = item;
           const isBeingDragged = dragState?.paneId === pane.sessionId;
           const isDropTarget = dragState !== null && !isBeingDragged && dragState.dropIndex === globalIndex;
           // Pane color wins; fall back to the group color when the pane is transparent.
@@ -429,14 +446,21 @@ export default function SessionSidebar({
             <div
               key={pane.sessionId}
               data-pane-index={globalIndex}
+              data-group-id={group?.id}
               className={cn(
                 "group relative mb-1 flex w-full items-start rounded border text-start transition-colors",
+                group && "border-s bg-wc-surface-base/45",
+                groupPosition === "first" && "rounded-t-none",
+                groupPosition === "middle" && "rounded-none border-y-transparent",
+                groupPosition === "last" && "mb-2 rounded-t-none",
+                groupPosition === "single" && "mb-2 rounded-t-none",
                 isActive
                   ? "border-wc-accent bg-wc-surface-raised text-wc-text-primary"
                   : "border-transparent text-wc-text-secondary hover:border-wc-default hover:bg-wc-surface-raised",
                 isBeingDragged && "opacity-40",
                 isDropTarget && "ring-2 ring-wc-accent ring-inset",
               )}
+              style={group?.color ? { borderLeftColor: group.color } : undefined}
               onContextMenu={(event) => {
                 event.preventDefault();
                 setTabContextMenu({ sessionId: pane.sessionId, position: { x: event.clientX, y: event.clientY } });
@@ -618,6 +642,7 @@ export default function SessionSidebar({
               updateGroup(group.id, { color });
               syncUpdateGroup(group.id, { color });
             }}
+            onNewSession={() => onNewSessionInGroup(group.id)}
             onToggleCollapse={() => toggleGroupCollapsed(group.id)}
             onUngroupAll={() => ungroupAllMembers(group.id)}
             onDelete={() => deleteGroup(group.id)}

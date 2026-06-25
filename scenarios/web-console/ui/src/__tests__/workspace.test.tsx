@@ -52,8 +52,9 @@ let mockFocusActiveTerminal: ReturnType<typeof vi.fn>;
 let mockHandleTerminalReady: ReturnType<typeof vi.fn>;
 let mockHandleExit: ReturnType<typeof vi.fn>;
 let mockRegisterTerminalRef: ReturnType<typeof vi.fn>;
-const { mockSyncPaneUpdate } = vi.hoisted(() => ({
+const { mockSyncPaneUpdate, mockSyncPaneOrder } = vi.hoisted(() => ({
   mockSyncPaneUpdate: vi.fn(),
+  mockSyncPaneOrder: vi.fn(),
 }));
 
 // Shared mutable state to let tests control the hook's return
@@ -88,7 +89,7 @@ vi.mock("../hooks/useSessionManager", () => ({
 vi.mock("../hooks/useWorkspaceSync", () => ({
   useWorkspaceSync: () => ({
     syncActivePane: vi.fn(),
-    syncPaneOrder: vi.fn(),
+    syncPaneOrder: mockSyncPaneOrder,
     syncPaneUpdate: mockSyncPaneUpdate,
     syncCreateGroup: vi.fn(),
     syncUpdateGroup: vi.fn(),
@@ -129,6 +130,7 @@ const mockStoreState = {
 
 const mockStoreActions = {
   addPane: vi.fn(),
+  addPaneToGroup: vi.fn(),
   removePane: vi.fn(),
   renamePaneById: vi.fn(),
   setPaneColor: vi.fn(),
@@ -147,12 +149,14 @@ const mockStoreActions = {
   resetLayout: vi.fn(),
 };
 
-vi.mock("../stores/useWorkspaceStore", () => ({
-  useWorkspaceStore: (selector?: (state: Record<string, unknown>) => unknown) => {
+vi.mock("../stores/useWorkspaceStore", () => {
+  const useWorkspaceStoreMock = (selector?: (state: Record<string, unknown>) => unknown) => {
     const fullState = { ...mockStoreState, ...mockStoreActions };
     return selector ? selector(fullState) : fullState;
-  },
-}));
+  };
+  useWorkspaceStoreMock.getState = () => ({ ...mockStoreState, ...mockStoreActions });
+  return { useWorkspaceStore: useWorkspaceStoreMock };
+});
 
 // Mock child components to isolate Workspace layout logic
 vi.mock("../components/TerminalPane", () => ({

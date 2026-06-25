@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronRight, ClipboardCopy, FolderPlus, FolderMinus, Palette, Pencil, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
+import { useFloatingPosition } from "../hooks/useFloatingPosition";
 
 interface TabContextMenuProps {
   /** Viewport coordinates where the menu should appear. */
@@ -48,11 +49,31 @@ export default function TabContextMenu({
 }: TabContextMenuProps) {
   const { t } = useTranslation();
   const [showGroupSubmenu, setShowGroupSubmenu] = useState(false);
+  const addToGroupButtonRef = useRef<HTMLButtonElement>(null);
+  const groupSubmenuRef = useRef<HTMLDivElement>(null);
+  const [groupSubmenuPosition, setGroupSubmenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const { computeAnchoredPosition } = useFloatingPosition();
 
   const handleAction = (action: () => void) => {
     action();
     onDismiss();
   };
+
+  useLayoutEffect(() => {
+    if (!showGroupSubmenu) {
+      setGroupSubmenuPosition(null);
+      return;
+    }
+    const anchor = addToGroupButtonRef.current;
+    const submenu = groupSubmenuRef.current;
+    if (!anchor || !submenu) return;
+    const position = computeAnchoredPosition({
+      anchor: anchor.getBoundingClientRect(),
+      size: { width: submenu.offsetWidth, height: submenu.offsetHeight },
+      placements: ["right-start", "left-start", "bottom-start", "top-start"],
+    });
+    setGroupSubmenuPosition({ x: position.x, y: position.y });
+  }, [computeAnchoredPosition, groups.length, showGroupSubmenu]);
 
   return (
     <ContextMenuBase position={position} onClose={onDismiss}>
@@ -90,12 +111,15 @@ export default function TabContextMenu({
           {t(strings.tabContextMenu.removeFromGroup)}
         </button>
       ) : (
-        <div className="relative">
+        <div
+          className="relative"
+          onPointerEnter={() => setShowGroupSubmenu(true)}
+          onPointerLeave={() => setShowGroupSubmenu(false)}
+        >
           <button
+            ref={addToGroupButtonRef}
             data-testid="tab-ctx-add-to-group"
             className={contextMenuItemClass}
-            onPointerEnter={() => setShowGroupSubmenu(true)}
-            onPointerLeave={() => setShowGroupSubmenu(false)}
             onClick={() => setShowGroupSubmenu((prev) => !prev)}
           >
             <FolderPlus className="h-4 w-4 shrink-0" />
@@ -105,10 +129,14 @@ export default function TabContextMenu({
 
           {showGroupSubmenu && (
             <div
+              ref={groupSubmenuRef}
               data-testid="tab-ctx-group-submenu"
-              className="absolute left-full top-0 ms-1 min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
-              onPointerEnter={() => setShowGroupSubmenu(true)}
-              onPointerLeave={() => setShowGroupSubmenu(false)}
+              className="fixed z-[60] min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
+              style={
+                groupSubmenuPosition
+                  ? { left: groupSubmenuPosition.x, top: groupSubmenuPosition.y }
+                  : { left: position.x, top: position.y, opacity: 0, pointerEvents: "none" as const }
+              }
             >
               {groups.map((group) => (
                 <button

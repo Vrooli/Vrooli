@@ -1,4 +1,4 @@
-// features.ts — canonical capability / feature identifiers for audio-tools.
+// features.ts — capability / feature identifiers for the audio-tools dependency.
 //
 // Mirror of clients/go/audiotools/features.go. Consumer scenarios
 // register a dependency-capability under AUDIO_TOOLS_CAPABILITY_SLUG and
@@ -7,24 +7,29 @@
 // `repeated string features` surface; they must agree byte-for-byte
 // across the API registry and every UI consumer.
 //
-// Drift safety: the slug map is keyed by the generated AudioToolsFeature
-// proto enum. Adding a new value to the enum without updating the map
-// triggers a runtime throw at module load (see assertCoverage below) so
-// the bug is caught before any UI render path uses a stale slug.
+// The web-console UI must not import foreign-scenario audio-tools proto
+// types. The dependency-capability surface carries feature slugs as strings,
+// so this local enum gives UI call sites stable names without crossing the
+// scenario API boundary.
 //
-// Adding a new feature: add the enum value in
-// packages/proto/schemas/audio-tools/v1/common/common.proto, run
-// `make generate`, then add the slug entry below AND in
-// clients/go/audiotools/features.go.
+// Adding a new feature: add the source value in audio-tools, update the
+// server-side capability registration, then add the slug entry below.
 //
-// IMPORTANT: this file lives verbatim in audio-tools/ui (canonical) and
-// is copied into each consumer scenario. Update the source here, then
-// copy to web-console/ui and swarm-manager/ui.
-
-import { AudioToolsFeature } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
-
 /** Scenario-level capability id used when registering audio-tools as a dependency-capability. Matches the scenario slug. */
 export const AUDIO_TOOLS_CAPABILITY_SLUG = "audio-tools";
+
+export enum AudioToolsFeature {
+  UNSPECIFIED = 0,
+  VOICE_INPUT = 1,
+  VOICE_STREAMING = 2,
+  VOICE_SPEAKER_VERIFICATION = 3,
+  VOICE_ENROLLMENT = 4,
+  VOICE_OUTPUT = 5,
+  TTS_SUMMARIZATION = 6,
+  TTS_CACHE = 7,
+  TTS_PARAGRAPH_SPLIT = 8,
+  AUDIO_PROVIDER_ROUTING = 9,
+}
 
 const FEATURE_SLUGS: Record<AudioToolsFeature, string> = {
   [AudioToolsFeature.UNSPECIFIED]: "",
@@ -62,5 +67,3 @@ export function featureSlug(f: AudioToolsFeature): string {
 export function allFeatureSlugs(): string[] {
   return Object.values(FEATURE_SLUGS).filter((s) => s !== "").sort();
 }
-
-export { AudioToolsFeature };

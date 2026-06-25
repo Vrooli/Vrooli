@@ -102,13 +102,14 @@ describe("buildWorkspaceNavigationItems", () => {
     expect(items[1]).toMatchObject({
       kind: "pane",
       globalIndex: 0,
+      groupPosition: "first",
       isActive: true,
       unreadCount: 1,
       viewMode: "messages",
       activityLabel: "3m",
       previewText: "Hello from event",
     });
-    expect(items[2]).toMatchObject({ kind: "pane", globalIndex: 1, isActive: false });
+    expect(items[2]).toMatchObject({ kind: "pane", globalIndex: 1, groupPosition: "last", isActive: false });
   });
 
   it("hides panes in collapsed groups and falls back to visited activity", () => {

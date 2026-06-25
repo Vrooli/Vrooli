@@ -717,6 +717,7 @@ export const strings = {
   groupContextMenu: {
     rename: "groupContextMenu.rename",
     recolor: "groupContextMenu.recolor",
+    newSession: "groupContextMenu.newSession",
     collapse: "groupContextMenu.collapse",
     expand: "groupContextMenu.expand",
     ungroupAll: "groupContextMenu.ungroupAll",

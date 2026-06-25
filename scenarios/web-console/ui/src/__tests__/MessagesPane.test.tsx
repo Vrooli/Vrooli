@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import MessagesPane from "../components/MessagesPane";
 import { strings } from "../consts/strings";
 import { useConversationStore } from "../stores/useConversationStore";
@@ -800,6 +800,53 @@ describe("MessagesPane", () => {
       fireEvent.click(btn);
 
       expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ top: 5000 }));
+    });
+
+    it("does not re-pin to bottom after a user scroll event moves away from bottom", () => {
+      const originalRaf = window.requestAnimationFrame;
+      window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      }) as typeof window.requestAnimationFrame;
+      let currentScrollTop = 0;
+      let currentScrollHeight = 5000;
+      const scrollToMock = vi.fn((options?: ScrollToOptions | number) => {
+        if (typeof options === "object" && options?.top != null) {
+          currentScrollTop = options.top;
+        }
+      });
+      Element.prototype.scrollTo = scrollToMock;
+      Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get() { return currentScrollHeight; } });
+      Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get() { return 500; } });
+      Object.defineProperty(HTMLElement.prototype, "scrollTop", {
+        configurable: true,
+        get() { return currentScrollTop; },
+        set(v: number) { currentScrollTop = v; },
+      });
+
+      try {
+        sessionStorage.setItem(
+          "wc.messagesScroll.sess-1",
+          JSON.stringify({ atBottom: true, topEventId: null }),
+        );
+        seedManyEvents(80);
+        render(<MessagesPane {...defaultProps} />);
+        expect(scrollToMock).toHaveBeenCalledWith(expect.objectContaining({ top: 5000 }));
+
+        scrollToMock.mockClear();
+        currentScrollTop = 100;
+        const container = document.querySelector(".relative.min-h-0.flex-1.overflow-auto") as Element;
+        fireEvent.scroll(container);
+
+        currentScrollHeight = 7000;
+        act(() => {
+          seedManyEvents(100);
+        });
+
+        expect(scrollToMock).not.toHaveBeenCalledWith(expect.objectContaining({ top: 7000 }));
+      } finally {
+        window.requestAnimationFrame = originalRaf;
+      }
     });
   });
 });

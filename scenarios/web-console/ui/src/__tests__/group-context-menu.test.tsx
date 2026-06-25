@@ -17,6 +17,7 @@ function renderMenu(overrides: Partial<React.ComponentProps<typeof GroupContextM
     group,
     onRename: vi.fn(),
     onRecolor: vi.fn(),
+    onNewSession: vi.fn(),
     onToggleCollapse: vi.fn(),
     onUngroupAll: vi.fn(),
     onDelete: vi.fn(),
@@ -52,6 +53,13 @@ describe("GroupContextMenu", () => {
     expect(props.onUngroupAll).toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("group-ctx-toggle-collapse"));
     expect(props.onToggleCollapse).toHaveBeenCalled();
+  });
+
+  it("fires new-session-in-group and dismisses", () => {
+    const props = renderMenu();
+    fireEvent.click(screen.getByTestId("group-ctx-new-session"));
+    expect(props.onNewSession).toHaveBeenCalled();
+    expect(props.onDismiss).toHaveBeenCalled();
   });
 
   it("fires delete", () => {

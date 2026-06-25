@@ -137,6 +137,7 @@ export default function Workspace() {
     defaultThemeId: state.defaultThemeId,
     defaultFontSize: state.defaultFontSize,
     addPane: state.addPane,
+    addPaneToGroup: state.addPaneToGroup,
     removePane: state.removePane,
     setActivePane: state.setActivePane,
     movePaneToIndex: state.movePaneToIndex,
@@ -150,10 +151,11 @@ export default function Workspace() {
   const workspacePanes = workspace.panes;
   const activeWorkspacePane = workspace.activePane;
   const addWorkspacePane = workspace.addPane;
+  const addWorkspacePaneToGroup = workspace.addPaneToGroup;
   const removeWorkspacePane = workspace.removePane;
   const setActiveWorkspacePane = workspace.setActivePane;
   const vadAutoStop = workspace.vadAutoStop;
-  const { syncActivePane, syncPaneUpdate } = useWorkspaceSync();
+  const { syncActivePane, syncPaneUpdate, syncPaneOrder } = useWorkspaceSync();
   const conversationState = useConversationStore(useShallow((state) => ({
     sessions: state.sessions,
     viewModes: state.viewModes,
@@ -212,6 +214,8 @@ export default function Workspace() {
     if (launcherOpen) fetchDefaults();
   }, [launcherOpen, fetchDefaults]);
   const pendingActivePaneRef = useRef<string | null>(null);
+  const pendingGroupBySessionRef = useRef<Map<string, string>>(new Map());
+  const pendingLauncherGroupRef = useRef<string | null>(null);
   const [pendingClose, setPendingClose] = useState<string | null>(null);
   const exitedSessionsRef = useRef<Set<string>>(new Set());
 
@@ -293,7 +297,12 @@ export default function Workspace() {
       if (!storeIds.has(sp.session.id)) {
         const shouldActivate = pendingActivePaneRef.current === sp.session.id;
         if (shouldActivate) pendingActivePaneRef.current = null;
+        const pendingGroupId = pendingGroupBySessionRef.current.get(sp.session.id) ?? null;
+        if (pendingGroupId) pendingGroupBySessionRef.current.delete(sp.session.id);
         addWorkspacePane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
+        if (pendingGroupId) {
+          addWorkspacePaneToGroup(sp.session.id, pendingGroupId);
+        }
         // Persist new pane metadata (including supportsMessagesView) to the backend
         syncPaneUpdate(sp.session.id, {
           name: sp.session.shell?.split("/").pop() ?? "terminal",
@@ -301,7 +310,12 @@ export default function Workspace() {
           theme_id: workspace.defaultThemeId,
           font_size: workspace.defaultFontSize,
           supports_messages_view: sp.supportsMessagesView,
+          ...(pendingGroupId ? { group_id: pendingGroupId } : {}),
         });
+        if (pendingGroupId) {
+          const { panes: updated, activePane: active } = useWorkspaceStore.getState();
+          syncPaneOrder(updated.map((pane) => pane.sessionId), active);
+        }
       }
     }
     // Remove deleted sessions from store (only after hydration)
@@ -314,9 +328,11 @@ export default function Workspace() {
     }
   }, [
     addWorkspacePane,
+    addWorkspacePaneToGroup,
     isHydrated,
     removeWorkspacePane,
     sessionPanes,
+    syncPaneOrder,
     syncPaneUpdate,
     workspace.defaultFontSize,
     workspace.defaultHeaderColor,
@@ -335,21 +351,42 @@ export default function Workspace() {
   }, [workspace.activePane, workspacePanes, activatePane]);
 
   const openLauncher = useCallback(() => setLauncherOpen(true), []);
-  const closeLauncher = useCallback(() => setLauncherOpen(false), []);
+  const closeLauncher = useCallback(() => {
+    pendingLauncherGroupRef.current = null;
+    setLauncherOpen(false);
+  }, []);
 
   const handleLaunch = useCallback(
     async (opts?: LaunchOptions) => {
-      const session = await launchSession(opts);
-      if (session) {
-        setLauncherOpen(false);
-        // Mark session for auto-activation. The reconciliation effect
-        // will add the pane and activate it atomically in a single
-        // zustand set(), avoiding cross-system state races.
-        pendingActivePaneRef.current = session.id;
+      try {
+        const session = await launchSession(opts);
+        if (session) {
+          setLauncherOpen(false);
+          // Mark session for auto-activation. The reconciliation effect
+          // will add the pane and activate it atomically in a single
+          // zustand set(), avoiding cross-system state races.
+          pendingActivePaneRef.current = session.id;
+          const pendingGroupId = pendingLauncherGroupRef.current;
+          if (pendingGroupId) {
+            pendingGroupBySessionRef.current.set(session.id, pendingGroupId);
+            pendingLauncherGroupRef.current = null;
+          }
+        } else {
+          pendingLauncherGroupRef.current = null;
+        }
+      } catch (error) {
+        pendingLauncherGroupRef.current = null;
+        throw error;
       }
     },
     [launchSession],
   );
+
+  const handleNewSessionInGroup = useCallback((groupId: string) => {
+    pendingLauncherGroupRef.current = groupId;
+    setMobileSidebarOpen(false);
+    setLauncherOpen(true);
+  }, []);
 
   const handleRetry = useCallback(() => {
     clearError();
@@ -1349,6 +1386,7 @@ export default function Workspace() {
               onClosePane={handleRequestClose}
               onNewTerminal={() => handleLaunch()}
               onOpenLauncher={openLauncher}
+              onNewSessionInGroup={handleNewSessionInGroup}
               onOpenSettings={() => workspace.setSettingsModalOpen(true)}
             />
           )}

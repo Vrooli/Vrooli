@@ -705,6 +705,7 @@
   "groupContextMenu": {
     "rename": "Rename",
     "recolor": "Recolor",
+    "newSession": "New Session in Group",
     "collapse": "Collapse",
     "expand": "Expand",
     "ungroupAll": "Ungroup all",

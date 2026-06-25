@@ -15,6 +15,7 @@ vi.mock("../hooks/useConversationSession", () => ({
 class FakeEventSource {
   listeners: Record<string, ((e: MessageEvent) => void)[]> = {};
   closed = false;
+  onerror: ((event: Event) => void) | null = null;
   constructor(public url: string) {}
   addEventListener(type: string, cb: EventListener) {
     (this.listeners[type] ||= []).push(cb as (e: MessageEvent) => void);
@@ -47,6 +48,7 @@ function conversationEnvelope(id: number, sessionId: string, sequence: number, r
 beforeEach(() => {
   useConversationStore.setState({ sessions: {}, viewModes: {} });
   mockRefresh.mockClear();
+  vi.restoreAllMocks();
 });
 
 describe("dispatchGlobalEvent (Layer 1)", () => {
@@ -130,5 +132,25 @@ describe("useGlobalEventStream idempotency (Layer 1)", () => {
     expect(es?.closed).toBe(false);
     unmount();
     expect(es?.closed).toBe(true);
+  });
+
+  it("logs stream errors without closing the EventSource", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const sources: FakeEventSource[] = [];
+    renderHook(() => useGlobalEventStream({ createEventSource: (url) => {
+      const s = new FakeEventSource(url);
+      sources.push(s);
+      return s as unknown as EventSource;
+    } }));
+    const es = sources[0];
+    expect(es?.onerror).toBeTypeOf("function");
+
+    act(() => es?.onerror?.(new Event("error")));
+
+    expect(warn).toHaveBeenCalled();
+    const [message, details] = warn.mock.calls[0] as [string, { url: string }];
+    expect(message).toBe("[web-console] global event stream error");
+    expect(details.url).toContain("/events/stream");
+    expect(es?.closed).toBe(false);
   });
 });

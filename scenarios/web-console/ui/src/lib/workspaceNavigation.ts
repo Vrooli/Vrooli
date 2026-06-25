@@ -15,6 +15,7 @@ export type WorkspaceNavigationItem =
       pane: PaneMetadata;
       globalIndex: number;
       group?: TabGroupMeta;
+      groupPosition?: "single" | "first" | "middle" | "last";
       isActive: boolean;
       unreadCount: number;
       viewMode: PaneViewMode;
@@ -168,6 +169,10 @@ export function buildWorkspaceNavigationItems({
   orderedPanes.forEach((pane, idx) => {
     const groupId = pane.groupId;
     const group = groupId ? groupMap.get(groupId) : undefined;
+    const previousPane = idx > 0 ? orderedPanes[idx - 1] : undefined;
+    const nextPane = idx < orderedPanes.length - 1 ? orderedPanes[idx + 1] : undefined;
+    const previousInSameGroup = !!group && previousPane?.groupId === groupId;
+    const nextInSameGroup = !!group && nextPane?.groupId === groupId;
 
     if (groupId && groupId !== lastGroupId && group) {
       const tabCount = panes.filter((candidate) => candidate.groupId === groupId).length;
@@ -195,6 +200,15 @@ export function buildWorkspaceNavigationItems({
       pane,
       globalIndex: idx,
       group,
+      groupPosition: group
+        ? previousInSameGroup && nextInSameGroup
+          ? "middle"
+          : previousInSameGroup
+            ? "last"
+            : nextInSameGroup
+              ? "first"
+              : "single"
+        : undefined,
       isActive: pane.sessionId === activePane,
       unreadCount,
       viewMode: pane.supportsMessagesView ? (viewModes[pane.sessionId] ?? "terminal") : "terminal",

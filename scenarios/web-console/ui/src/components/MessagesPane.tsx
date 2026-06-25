@@ -522,7 +522,16 @@ export default function MessagesPane({
   // the row's measured size is stable. Cleared after restore completes or the
   // user manually scrolls.
   const pinToEventIdRef = useRef<string | null>(null);
+  const programmaticScrollRef = useRef(false);
   const restoreAppliedRef = useRef(false);
+
+  const runProgrammaticScroll = useCallback((scroll: () => void) => {
+    programmaticScrollRef.current = true;
+    scroll();
+    requestAnimationFrame(() => {
+      programmaticScrollRef.current = false;
+    });
+  }, []);
 
   // --- Refresh: on mount, on browser tab focus, and via manual button ---
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -565,6 +574,10 @@ export default function MessagesPane({
       isNearBottomRef.current = nearBottom;
       setIsNearBottom(nearBottom);
       if (nearBottom) setNewMessageCount(0);
+      if (!nearBottom && !programmaticScrollRef.current) {
+        pinToBottomRef.current = false;
+        pinToEventIdRef.current = null;
+      }
     };
 
     updateNearBottom();
@@ -601,25 +614,29 @@ export default function MessagesPane({
 
     if (isNearBottomRef.current) {
       requestAnimationFrame(() => {
-        scrollContainerRef.current?.scrollTo({
-          top: scrollContainerRef.current.scrollHeight,
-          behavior: "smooth",
+        runProgrammaticScroll(() => {
+          scrollContainerRef.current?.scrollTo({
+            top: scrollContainerRef.current.scrollHeight,
+            behavior: "auto",
+          });
         });
       });
     } else {
       setNewMessageCount((prev) => prev + newCount);
     }
-  }, [events.length]);
+  }, [events.length, runProgrammaticScroll]);
 
   const scrollToBottom = useCallback(() => {
     pinToBottomRef.current = true;
     pinToEventIdRef.current = null;
-    scrollContainerRef.current?.scrollTo({
-      top: scrollContainerRef.current.scrollHeight,
-      behavior: "smooth",
+    runProgrammaticScroll(() => {
+      scrollContainerRef.current?.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     });
     setNewMessageCount(0);
-  }, []);
+  }, [runProgrammaticScroll]);
 
   // Search match IDs
   const searchMatchIds = useMemo(() => {
@@ -675,8 +692,10 @@ export default function MessagesPane({
   const scrollToEvent = useCallback((eventId: string) => {
     const index = eventIndexById.get(eventId);
     if (index == null) return;
-    scrollToIndex(index, "smooth", "center");
-  }, [eventIndexById, scrollToIndex]);
+    pinToBottomRef.current = false;
+    pinToEventIdRef.current = null;
+    runProgrammaticScroll(() => scrollToIndex(index, "smooth", "center"));
+  }, [eventIndexById, runProgrammaticScroll, scrollToIndex]);
 
   // Restore scroll position on mount: read the snapshot saved when the pane
   // last unmounted and pin to the appropriate target. The pin is held until
@@ -702,12 +721,12 @@ export default function MessagesPane({
     const el = scrollContainerRef.current;
     if (!el) return;
     if (pinToBottomRef.current) {
-      el.scrollTo({ top: el.scrollHeight });
+      runProgrammaticScroll(() => el.scrollTo({ top: el.scrollHeight }));
     } else if (pinToEventIdRef.current) {
       const index = eventIndexById.get(pinToEventIdRef.current);
-      if (index != null) scrollToIndex(index, "auto", "start");
+      if (index != null) runProgrammaticScroll(() => scrollToIndex(index, "auto", "start"));
     }
-  }, [events.length, sessionId, eventIndexById, scrollToIndex]);
+  }, [events.length, sessionId, eventIndexById, runProgrammaticScroll, scrollToIndex]);
 
   // Re-apply the active pin whenever the virtualizer's totalSize changes.
   // This is what fixes the "lands in the middle" bug: estimated sizes are
@@ -717,12 +736,12 @@ export default function MessagesPane({
     const el = scrollContainerRef.current;
     if (!el) return;
     if (pinToBottomRef.current) {
-      el.scrollTo({ top: el.scrollHeight });
+      runProgrammaticScroll(() => el.scrollTo({ top: el.scrollHeight }));
     } else if (pinToEventIdRef.current) {
       const index = eventIndexById.get(pinToEventIdRef.current);
-      if (index != null) scrollToIndex(index, "auto", "start");
+      if (index != null) runProgrammaticScroll(() => scrollToIndex(index, "auto", "start"));
     }
-  }, [totalSize, eventIndexById, scrollToIndex]);
+  }, [totalSize, eventIndexById, runProgrammaticScroll, scrollToIndex]);
 
   // Save snapshot on unmount and whenever sessionId changes. We compute
   // `atBottom` directly from the live DOM instead of trusting

@@ -34,11 +34,13 @@ const baseProps = {
   onClosePane: vi.fn(),
   onNewTerminal: vi.fn(),
   onOpenLauncher: vi.fn(),
+  onNewSessionInGroup: vi.fn(),
   onOpenSettings: vi.fn(),
 };
 
 beforeEach(() => {
-  useWorkspaceStore.setState({ groups: [], sidebarSortMode: "manual", panes: [] });
+  useWorkspaceStore.setState({ groups: [], sidebarSortMode: "manual", plusButtonBehavior: "launcher", panes: [] });
+  vi.clearAllMocks();
 });
 
 describe("SessionSidebar", () => {
@@ -69,5 +71,49 @@ describe("SessionSidebar", () => {
     act(() => useWorkspaceStore.setState({ sidebarSortMode: "name" }));
     rerender(<SessionSidebar {...baseProps} items={items} />);
     expect(screen.queryByTestId("sidebar-drag-handle-a")).not.toBeInTheDocument();
+  });
+
+  it("closes the mobile drawer when the plus button starts a terminal", () => {
+    useWorkspaceStore.setState({ plusButtonBehavior: "new-terminal" });
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    render(<SessionSidebar {...baseProps} items={items} isMobile mobileOpen />);
+
+    fireEvent.pointerDown(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
+    fireEvent.pointerUp(screen.getByTestId("workspace-sidebar-new"), { pointerType: "mouse", button: 0 });
+
+    expect(baseProps.onNewTerminal).toHaveBeenCalledOnce();
+    expect(baseProps.onCloseMobile).toHaveBeenCalledOnce();
+  });
+
+  it("renders grouped panes with explicit boundary rows", () => {
+    const group = { id: "g1", name: "Work", color: "#123456", isCollapsed: false };
+    const panes = [
+      { ...pane("a", "transparent"), groupId: "g1" },
+      { ...pane("b", "transparent"), groupId: "g1" },
+      pane("c", "transparent"),
+    ];
+    const items = buildWorkspaceNavigationItems({ panes, groups: [group], activePane: "a" });
+    render(<SessionSidebar {...baseProps} items={items} />);
+
+    expect(screen.getByTestId("sidebar-group-header-g1")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-session-a").closest("[data-group-id]")).toHaveAttribute("data-group-id", "g1");
+    expect(screen.getByTestId("sidebar-session-b").closest("[data-group-id]")).toHaveAttribute("data-group-id", "g1");
+    expect(screen.getByTestId("sidebar-session-c").closest("[data-group-id]")).toBeNull();
+  });
+
+  it("exposes new-session-in-group from the group context menu", () => {
+    const group = { id: "g1", name: "Work", color: "#123456", isCollapsed: false };
+    const items = buildWorkspaceNavigationItems({
+      panes: [{ ...pane("a", "transparent"), groupId: "g1" }],
+      groups: [group],
+      activePane: "a",
+    });
+    useWorkspaceStore.setState({ groups: [group] });
+    render(<SessionSidebar {...baseProps} items={items} />);
+
+    fireEvent.contextMenu(screen.getByTestId("sidebar-group-header-g1"), { clientX: 20, clientY: 40 });
+    fireEvent.click(screen.getByTestId("group-ctx-new-session"));
+
+    expect(baseProps.onNewSessionInGroup).toHaveBeenCalledWith("g1");
   });
 });

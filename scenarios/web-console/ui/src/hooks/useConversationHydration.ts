@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { getConversationSession } from "../api/conversation";
 import { useConversationStore } from "../stores/useConversationStore";
 
+const HYDRATION_RETRY_DELAYS_MS = [1000, 3000, 10000];
+
 /**
  * useConversationHydration ensures every known session has its conversation
  * history loaded into the store ONCE, independent of whether its terminal pane
@@ -25,19 +27,29 @@ export function useConversationHydration(sessionIds: string[]): void {
 
   useEffect(() => {
     let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
     const ids = key ? key.split("|") : [];
-    for (const id of ids) {
-      if (!id) continue;
-      if (useConversationStore.getState().sessions[id]?.hydrated) continue;
+    const hydrate = (id: string, attempt: number) => {
+      if (!id) return;
+      if (useConversationStore.getState().sessions[id]?.hydrated) return;
       void (async () => {
         try {
           const data = await getConversationSession(id);
           if (!cancelled) hydrateSession(id, data.events, data.cursor);
-        } catch {
-          if (!cancelled) hydrateSession(id, [], { lastSeenSequence: 0, lastListenedSequence: 0 });
+        } catch (error) {
+          if (cancelled) return;
+          console.warn("[web-console] conversation hydration failed", { sessionId: id, error });
+          const delay = HYDRATION_RETRY_DELAYS_MS[Math.min(attempt, HYDRATION_RETRY_DELAYS_MS.length - 1)];
+          timers.push(setTimeout(() => hydrate(id, attempt + 1), delay));
         }
       })();
+    };
+    for (const id of ids) {
+      hydrate(id, 0);
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      for (const timer of timers) clearTimeout(timer);
+    };
   }, [key, hydrateSession]);
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FolderMinus, Palette, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderMinus, Palette, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
@@ -12,6 +12,7 @@ interface GroupContextMenuProps {
   group: TabGroupMeta;
   onRename: () => void;
   onRecolor: (color: string) => void;
+  onNewSession?: () => void;
   onToggleCollapse: () => void;
   onUngroupAll: () => void;
   onDelete: () => void;
@@ -23,6 +24,7 @@ export default function GroupContextMenu({
   group,
   onRename,
   onRecolor,
+  onNewSession,
   onToggleCollapse,
   onUngroupAll,
   onDelete,
@@ -72,6 +74,17 @@ export default function GroupContextMenu({
             />
           ))}
         </div>
+      )}
+
+      {onNewSession && (
+        <button
+          data-testid="group-ctx-new-session"
+          className={contextMenuItemClass}
+          onClick={() => handleAction(onNewSession)}
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          {t(strings.groupContextMenu.newSession)}
+        </button>
       )}
 
       {/* Collapse / Expand */}
