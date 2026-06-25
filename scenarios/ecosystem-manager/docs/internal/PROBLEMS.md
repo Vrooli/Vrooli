@@ -64,6 +64,14 @@ Use this shape so entries are scannable. Append newest at the bottom.
 > **proceed-cap-flag** degraded-gate policy (DTV-down or all-red ⇒ proceed with
 > the least-bad skill, halve the remaining budget once, flag the iteration). The
 > rest of this entry is historical.
+>
+> **Update (2026-06-24):** the v1 effectiveness ledger, bandit selection, DTV
+> priors/gate, and the Layer-2 thrashing defense were subsequently **removed** in
+> the greedy-controller simplification (see
+> [`../concepts/CONTROL-MODEL.md`](../concepts/CONTROL-MODEL.md) *Design History*
+> and [`DECISIONS.md`](DECISIONS.md)). The open-loop problem stays resolved by the
+> greedy closed loop: diagnose → greedily select the heaviest open dimension's
+> skill → execute → measure → terminate.
 
 **Symptom:** When ecosystem-manager auto-steers a target toward a maturity
 profile, it does not adapt to the target's actual failing dimensions. The
@@ -100,7 +108,8 @@ max-iterations backstop). This is the **motivating next phase** after the
 
 **Owner:** unassigned
 
-**Refs:** `api/pkg/autosteer/phase_coordinator.go`,
+**Refs:** `api/pkg/autosteer/selector.go`,
+`api/pkg/autosteer/terminator.go`,
 `api/pkg/autosteer/execution_state_manager.go`,
 `api/pkg/autosteer/profile_repository_fs.go`,
 [`../concepts/CONTROL-MODEL.md`](../concepts/CONTROL-MODEL.md)
@@ -126,7 +135,7 @@ verdicts).
 **Owner:** unassigned
 
 **Refs:** `api/pkg/queue/execution_manager.go`,
-`api/pkg/autosteer/phase_coordinator.go`
+`api/pkg/autosteer/execution_orchestrator.go`
 
 ### 2026-05-30 — No external metrics/tracing export; alerting is manual
 

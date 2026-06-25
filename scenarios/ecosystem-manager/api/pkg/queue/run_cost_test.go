@@ -7,7 +7,7 @@ import (
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-func TestTokensFromRun(t *testing.T) { // [REQ:EM-P1-001]
+func TestTokensFromRun(t *testing.T) {
 	tests := []struct {
 		name string
 		run  *domainpb.Run

@@ -21,7 +21,7 @@ func testResolver() *skillmap.Resolver {
 	}}, func(string, ...any) {})
 }
 
-func TestSelector_PicksHeaviestDimensionWithEligibleSkill(t *testing.T) {
+func TestSelector_PicksHeaviestDimensionWithEligibleSkill(t *testing.T) { // [REQ:EM-CTRL-003]
 	sel := NewSelector(testResolver())
 	state := findings.BuildState([]findings.Finding{
 		finding("a", "standards", architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING), // weight 2

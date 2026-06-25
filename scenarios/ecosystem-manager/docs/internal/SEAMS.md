@@ -36,9 +36,10 @@ The core domain is **auto-steer** — the autonomous improvement loop,
 modeled as a closed-loop controller in
 [../concepts/CONTROL-MODEL.md](../concepts/CONTROL-MODEL.md). Almost all
 seams below exist to make that loop deterministically testable without
-running real agents. The single highest-value seam is **MetricsProvider**:
-it is the controller's *sensor*, and faking it is what turns
-non-deterministic loop behavior into table-driven unit tests.
+running real agents. The single highest-value seam is the completeness
+**`Provider`** (and the test-genie **`AuditRunner`**): together they are the
+controller's *sensors*, and faking them is what turns non-deterministic loop
+behavior into table-driven unit tests.
 
 ## Current seams
 
@@ -56,11 +57,11 @@ non-deterministic loop behavior into table-driven unit tests.
 
 | | |
 |---|---|
-| **Seam** | Persistence + state manipulation for `ProfileExecutionState` (iteration counters, current phase, metrics snapshot) |
-| **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`ExecutionStateRepository` (`Get`, `Save`, `Delete`, plus state helpers `InitializeState`, `IncrementIteration`, `AdvanceToNextPhase`, `RecordPhaseCompletion`, `FinalizeExecution`) |
+| **Seam** | Persistence + lifecycle for `ProfileExecutionState` (iteration counter, completeness score, decision trace) |
+| **Interface** | [CODE: api/pkg/autosteer/repositories.go]::`ExecutionStateRepository` (`Get`, `Save`, `Delete`, `InitializeState`, `FinalizeExecution`) |
 | **Production wiring** | `ExecutionStateManager` over SQLite ([CODE: api/pkg/autosteer/execution_state_manager.go], table `profile_execution_state` from [CODE: api/pkg/autosteer/schema.sql]). Asserted with `var _ ExecutionStateRepository = (*ExecutionStateManager)(nil)`. |
 | **Test fake** | `MockExecutionStateRepository` (in-memory) in [CODE: api/pkg/autosteer/repositories_mock.go]. |
-| **Why it exists** | The loop's controller state (where are we in the phase, how many iterations) is the thing the orchestrator reads and mutates every tick. Faking it in-memory lets `execution_orchestrator_unit_test.go` drive phase advancement, requeue-vs-stop, and finalization without a database. |
+| **Why it exists** | The loop's controller state (how many iterations, the latest score, the decision trace) is the thing the orchestrator reads and mutates every tick. Faking it in-memory lets `execution_orchestrator_test.go` drive iteration progression, requeue-vs-stop, and finalization without a database. |
 
 ### ExecutionHistoryRepository (completed-run analytics)
 
@@ -82,15 +83,15 @@ non-deterministic loop behavior into table-driven unit tests.
 | **Test fake** | A caller-supplied `Provider` returning a synthetic `Score`; the contract test points the client at an in-process handler. |
 | **Why it exists** | Real measurement is a cross-scenario RPC — slow, non-deterministic, side-effecting. Injecting a synthetic `Score` drives the loop's termination (objective-met / diminishing-returns / budget) deterministically in unit tests. |
 
-### ConditionEvaluatorAPI / PhaseCoordinatorAPI / IterationEvaluatorAPI / PromptEnhancerAPI (pure-logic components)
+### PromptEnhancerAPI (prompt assembly) + the concrete control law
 
 | | |
 |---|---|
-| **Seam** | The control-loop's pure-logic stages — decompose the controller so each is testable in isolation |
-| **Interface** | [CODE: api/pkg/autosteer/interfaces.go]::`ConditionEvaluatorAPI`, `PhaseCoordinatorAPI`, `IterationEvaluatorAPI`, `PromptEnhancerAPI` |
-| **Production wiring** | Concrete `ConditionEvaluator` ([CODE: api/pkg/autosteer/evaluator.go (19-78)]), `PhaseCoordinator` ([CODE: api/pkg/autosteer/phase_coordinator.go (32-71)]), `IterationEvaluator`, `PromptEnhancer`. Each carries a `var _ <API> = (*impl)(nil)` assertion. |
-| **Test fake** | `MockConditionEvaluator` ([CODE: api/pkg/autosteer/phase_coordinator_unit_test.go]) substitutes the evaluator so phase-coordination tests don't depend on real metric comparison; the other three are exercised directly (stateless, no I/O) with synthetic snapshots. |
-| **Why it exists** | These stages are stateless and I/O-free by contract, so the orchestrator can be tested by stubbing one stage at a time (e.g., force `ShouldStop` via `MockConditionEvaluator` while pinning the coordinator's max-iterations branch). Keeping the boundaries as interfaces is what lets the orchestrator depend on behavior, not concrete decision code. |
+| **Seam** | The prompt-assembly stage — rendered out of the orchestrator so it is substitutable without filesystem access |
+| **Interface** | [CODE: api/pkg/autosteer/interfaces.go]::`PromptEnhancerAPI` (`GenerateSkillSetSection`, `GenerateControllerSection`) |
+| **Production wiring** | Concrete `PromptEnhancer` ([CODE: api/pkg/autosteer/prompt_enhancement.go]) over the prompt loader, asserted with `var _ PromptEnhancerAPI = (*PromptEnhancer)(nil)`. |
+| **Test fake** | `MockPromptEnhancerAPI` ([CODE: api/pkg/autosteer/repositories_mock.go]) returns canned sections so orchestrator tests don't touch the prompt catalog on disk. |
+| **Why it exists** | Prompt assembly reads skill templates from the filesystem; faking it keeps `execution_orchestrator_test.go` off disk. The rest of the control law — the greedy `Selector` ([CODE: api/pkg/autosteer/selector.go]), the `Terminator` ([CODE: api/pkg/autosteer/terminator.go]), and skill `eligibility` ([CODE: api/pkg/autosteer/eligibility.go]) — is concrete, stateless, and I/O-free, so it is **not** a seam: tests construct it real and call it directly with synthetic findings/state. |
 
 ### Agent-manager client (the execution boundary)
 
@@ -107,7 +108,7 @@ non-deterministic loop behavior into table-driven unit tests.
 | | |
 |---|---|
 | **Seam** | Queue task persistence and in-flight run tracking |
-| **Interface** | `tasks.StorageAPI` (consumed across [CODE: api/pkg/queue/processor.go], `execution_manager.go`, `insight_manager.go`); run tracking via `ExecutionRegistry` ([CODE: api/pkg/queue/execution_registry.go]) |
+| **Interface** | `tasks.StorageAPI` (consumed across [CODE: api/pkg/queue/processor.go], `execution_manager.go`); run tracking via `ExecutionRegistry` ([CODE: api/pkg/queue/execution_registry.go]) |
 | **Production wiring** | Filesystem YAML store under `queue/<status>/` plus the SQLite execution state; `NewExecutionRegistry()` holds the live `taskID → runID` map. |
 | **Test fake** | In-memory storage substituted through `tasks.StorageAPI`; `ExecutionRegistry` is constructed real (it is pure in-memory state) in [CODE: api/pkg/queue/autosteer_integration_test.go]. |
 | **Why it exists** | The requeue-vs-stop decision ([CODE: api/pkg/queue/autosteer_integration.go (180-227)]) is queue policy that reads task flags (`ProcessorAutoRequeue`, `AutoSteerProfileID`). Faking storage lets the integration test seed exact task shapes and assert the recycle decision without a real queue on disk. |
@@ -142,8 +143,8 @@ mechanical:
    `repositories.go` / `interfaces.go`.
 4. **Add an in-tree fake.** For auto-steer, add it to
    [CODE: api/pkg/autosteer/repositories_mock.go] (cross-component
-   mocks) or beside the test (component-local mocks like
-   `MockConditionEvaluator`). For agent-manager, extend
+   mocks like `MockCompletenessProvider`) or beside the test
+   (component-local fakes). For agent-manager, extend
    [CODE: api/pkg/agentmanager/mock.go]. Use per-method error knobs and
    call counters.
 5. **Update this document** with a row using the same five columns. A
@@ -151,14 +152,15 @@ mechanical:
 
 ## What is NOT a seam
 
-- **Pure-function helpers** — `compareValues` / `GetMetricValue` on the
-  evaluator ([CODE: api/pkg/autosteer/evaluator.go (19-78)]),
-  `DetermineStopReason` on the coordinator. They have no injected
-  dependencies; tests call them directly. The *interface* around the
-  evaluator exists so callers can stub the whole component, not because
-  the helpers need a seam.
-- **Domain value types** — `Score` (`pkg/completeness`), `StopCondition`,
-  `ProfileExecutionState`, `PhaseAdvanceDecision`. These are data
+- **The control law** — the greedy `Selector` ([CODE: api/pkg/autosteer/selector.go]),
+  the `Terminator`'s `ShouldStop` ([CODE: api/pkg/autosteer/terminator.go]),
+  and skill `eligibility` ([CODE: api/pkg/autosteer/eligibility.go]). They are
+  stateless and have no injected dependencies; tests construct them real and
+  call them directly with synthetic findings/state. They depend on the sensor
+  seams (`Provider`, `AuditRunner`) for their inputs, not on being seams
+  themselves.
+- **Domain value types** — `Score` (`pkg/completeness`), `Selection`,
+  `ProfileExecutionState`, `DecisionTraceEntry`. These are data
   contracts passed through seams, not boundaries themselves.
 - **`gorilla/mux` routing** — route registration in
   [CODE: api/pkg/server/server.go] is composition, not a substitutable
@@ -172,7 +174,7 @@ mechanical:
 | Area | Drift | Decision | Follow-up |
 |---|---|---|---|
 | Transport | Newer scenarios use proto + Connect-RPC; ecosystem-manager predates that and is REST/JSON over mux. | Documented deviation, not drift to fix opportunistically. New endpoints stay REST/JSON for internal consistency until a deliberate migration. | See [../internal/DECISIONS.md](../internal/DECISIONS.md) and [ERROR-HANDLING.md](ERROR-HANDLING.md). |
-| Loop = controller | The auto-steer loop was historically described procedurally (start → iterate → advance). | Reframed as a closed-loop controller: `MetricsProvider` is the sensor, agent-manager is the actuator, `PhaseCoordinator`/`ConditionEvaluator` are the control law, `ExecutionStateRepository` holds controller state. | Mental model lives in [../concepts/CONTROL-MODEL.md](../concepts/CONTROL-MODEL.md); keep seam responsibilities mapped to controller roles. |
+| Loop = controller | The auto-steer loop was historically described procedurally (start → iterate → advance). | Reframed as a closed-loop controller: the completeness `Provider` + test-genie `AuditRunner` are the sensors, agent-manager is the actuator, the greedy `Selector` + `Terminator` are the control law, `ExecutionStateRepository` holds controller state. | Mental model lives in [../concepts/CONTROL-MODEL.md](../concepts/CONTROL-MODEL.md); keep seam responsibilities mapped to controller roles. |
 | Mixed persistence | Profiles on filesystem YAML, execution state/history in SQLite. | Intentional: profiles are human-editable templates; loop state is transactional. Both sit behind their own repository seam so the split is invisible to the orchestrator. | If a store moves, change only the production impl + its round-trip test; the interface and fakes stay. |
 
 ### DiscoveryService (discovery domain — Connect-RPC reference)
@@ -192,5 +194,5 @@ mechanical:
 - [COHERENCE-NOTES.md](COHERENCE-NOTES.md) — REST↔Connect transport coexistence during migration
 - [../concepts/ARCHITECTURE.md](../concepts/ARCHITECTURE.md) — overall scenario architecture
 - [../internal/DECISIONS.md](../internal/DECISIONS.md) — REST/JSON-over-Connect deviation rationale
-- [TESTING.md](TESTING.md) — control-loop testing pattern using `MockMetricsProvider`
+- [TESTING.md](TESTING.md) — control-loop testing pattern using `MockCompletenessProvider`
 - [ERROR-HANDLING.md](ERROR-HANDLING.md) — REST error envelope and upstream failure mapping

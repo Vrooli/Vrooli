@@ -59,12 +59,13 @@ and `dependencies.scenarios`.
 | prompt-manager | required for steering | Steering prompts/skills for Auto Steer. | Skills sync API |
 | visited-tracker | optional | Tracks visited resources/scenarios for campaign management; proxied via API. | Visited-tracking API |
 
-> **Note on completeness scoring.** PRD completion is consumed today by
-> parsing each scenario's `PRD.md` locally (`GetScenarioPRDStatus` in
-> `api/pkg/discovery/scenarios.go`). Maturity ladder policy is shared through
-> `packages/maturity-go`; scenario-completeness-scoring uses the same package
-> over cached artifacts, but remains a reader, not an Ecosystem Manager
-> runtime dependency.
+> **Note on completeness scoring.** The control loop reads PRD/operational-target
+> completion from `scenario-completeness-scoring` via the wired `pkg/completeness`
+> `GetScore` client — a load-bearing runtime dependency that does not fail open
+> (see the controller-inputs table above). The discovery domain separately parses
+> each scenario's `PRD.md` locally (`GetScenarioPRDStatus` in
+> `api/pkg/discovery/scenarios.go`) for its scenario listing. Maturity ladder
+> policy is shared through `packages/maturity-go`.
 
 ## Third-Party Services
 

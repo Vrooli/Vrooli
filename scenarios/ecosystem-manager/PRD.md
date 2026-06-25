@@ -7,8 +7,8 @@
 ## 🎯 Overview
 - **Purpose**: Provide the unified control plane that generates and improves Vrooli resources and scenarios — the self-improvement kernel that turns open findings into agent-driven work and learns which interventions pay off. It also serves as the reference scenario whose own migration (R0/R1 conformance + Connect-RPC) other old-template scenarios copy.
 - **Primary users/verticals**: Vrooli platform engineers, the autosteer control loop itself (programmatic consumer), and operators monitoring ecosystem development across the fleet.
-- **Deployment surfaces**: API (Go, transitioning gorilla/mux REST → Connect-RPC), CLI (`ecosystem-manager` via cli-core), UI (React + Vite kanban + insights), and the WebSocket live-update channel.
-- **Value promise**: Consolidates four legacy tools (resource/scenario × generator/improver) into one intelligent platform; drives a measurable improvement loop (effectiveness-weighted skill selection, maturity ladder) instead of ad-hoc tool-switching.
+- **Deployment surfaces**: API (Go, transitioning gorilla/mux REST → Connect-RPC), CLI (`ecosystem-manager` via cli-core), UI (React + Vite kanban), and the WebSocket live-update channel.
+- **Value promise**: Consolidates four legacy tools (resource/scenario × generator/improver) into one intelligent platform; drives a measurable improvement loop (greedy, findings-driven skill selection against an objective profile) instead of ad-hoc tool-switching.
 
 ## 🎯 Operational Targets
 
@@ -23,9 +23,8 @@
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Connect-RPC transport | Migrate domains off hand-rolled REST/Zod onto proto-first Connect-RPC, one domain at a time (discovery is the reference).
 - [ ] OT-P1-002 | Cross-type intelligence | Dependency analysis flags affected scenarios/resources and feeds smart prioritization.
-- [ ] OT-P1-003 | Effectiveness transparency | Per-(skill, dimension) ledger + decision trace exposed via API/CLI/UI as a glass box.
+- [ ] OT-P1-003 | Decision-trace transparency | Per-iteration decision trace (heaviest dimension, chosen skill, score before/after, realized delta, halt reason) exposed via API/CLI/UI as a glass box.
 - [ ] OT-P1-004 | Temporal-flow verification | Model the queue/task state machine with `flow-verifier` (Quint) and gate transitions.
-- [ ] OT-P1-005 | Toolchain trust/cost priors | development-toolchain-validator fitness snapshots seed selection priors and a Layer-1 eligibility gate vetoes red skills, failing open when DTV is degraded.
 - [ ] OT-P1-006 | Fleet autosteer | Point EM's loop at other old-template scenarios and have it steer them to maturity unattended, with importance-aware scheduling across the fleet.
 
 ### 🟢 P2 – Future / expansion
@@ -33,7 +32,7 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (`api-core`/`cli-core`/`connectrpc.com/connect`), React + Vite + Tailwind UI, proto-first contracts under `packages/proto`.
-- Data + storage expectations: all runtime state resolves through `api-core/storage` classes under `<data-root>/vrooli/<namespace>/` — filesystem-backed queue (`queue/{pending,...}` under `ClassData`), `settings.json` under `ClassConfig`, and an embedded SQLite DB (`ClassData`) for findings/effectiveness/history. No Postgres.
+- Data + storage expectations: all runtime state resolves through `api-core/storage` classes under `<data-root>/vrooli/<namespace>/` — filesystem-backed queue (`queue/{pending,...}` under `ClassData`), `settings.json` under `ClassConfig`, and an embedded SQLite DB (`ClassData`) for execution state / decision trace / history. No Postgres.
 - Integration strategy: proto-typed Connect-RPC clients consumed by UI + CLI; agent-manager for agent execution; shared workflows > resource CLI > direct API.
 - Non-goals / guardrails: no big-bang multi-domain transport migration (one reference domain per plan); no compatibility shims within a migrated domain; no disabling lint/security rules to pass gates.
 
@@ -41,10 +40,10 @@
 - Required resources: `agent-manager` (agent execution), `scenario-auditor` (standards), `test-genie` (finding producers), `flow-verifier` (temporal verification), `git-control-tower` (regression baselines).
 - Scenario dependencies: consumes the broader Vrooli fleet as both targets (scenarios it improves) and producers (test-genie phases feeding the ladder).
 - Operational risks: external-agent availability (Claude Code), transport-migration state-tracking drift, pre-existing UI type-safety backlog under strict lint.
-- Launch sequencing: (1) R0/R1 + standards/docs conformance; (2) Connect-RPC foundation; (3) discovery reference domain (settings proved too entangled to lead); (4) temporal-flow reference; (5) incremental per-domain migration of the remaining seven domains.
+- Launch sequencing: (1) R0/R1 + standards/docs conformance; (2) Connect-RPC foundation; (3) discovery reference domain (settings proved too entangled to lead); (4) temporal-flow reference; (5) incremental per-domain migration of the remaining REST domains.
 
 ## 🎨 UX & Branding
-- Look & feel: dense operator dashboard — kanban task board (Pending/In Progress/Review/Completed/Failed), insights panels, light/dark/system theme.
+- Look & feel: dense operator dashboard — kanban task board (Pending/In Progress/Review/Completed/Failed), decision-trace panel, light/dark/system theme.
 - Accessibility: focus-visible styling on interactive elements, keyboard navigation via the iframe-bridge spatial nav, WCAG-aligned color contrast.
 - Voice & messaging: precise, engineering-operator tone; status is color-coded and quantitative (counts, timers, token costs).
 - Branding hooks: consistent Vrooli iconography (lucide-react), monospace for IDs/paths, the kanban board as the signature surface.
@@ -91,8 +90,8 @@ The Ecosystem Manager consolidates four separate management tools (resource-gene
 - **Security**: input validation, XSS prevention, CORS restrictions, process isolation, no secrets in logs/client.
 - **Scalability**: 10,000+ tasks; up to 10 concurrent agent executions; linear memory growth.
 
-### Auto-Steer Controller (v1, effectiveness-weighted)
-Drives a target scenario toward an objective profile: diagnose open findings → select the skill most likely to close the heaviest dimension → execute via agent-manager → re-measure → terminate on objective-met / diminishing returns / runtime thrashing / budget cap. Conceptual spec: [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md); targets tracked in [`requirements/index.json`](requirements/index.json). Includes token-cost capture, a per-(skill, dimension) effectiveness ledger, credit assignment, effectiveness-weighted selection (shrinkage prior + epsilon-greedy), Layer-2 thrashing defense, and a decision-trace glass box. Development-toolchain-validator trust/cost priors and the Layer-1 eligibility gate are wired (fail open on DTV degradation).
+### Auto-Steer Controller (greedy)
+Drives a target scenario toward an objective profile: diagnose open test-genie findings → greedily select the first eligible skill targeting the heaviest open dimension (profile weight × severity) → execute via agent-manager → re-measure (re-audit + completeness score) → terminate on objective-met / diminishing returns / budget cap. Conceptual spec: [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md); targets tracked in [`requirements/index.json`](requirements/index.json). Selection is deterministic and fully explainable via a durable decision-trace glass box. An anti-gaming promote-safety gate (gameguard) blocks a faked-green run from shadow→live promotion.
 
 ### Risk Assessment
 - **High** — external AI-service dependency (mitigation: robust error handling, fallback, monitoring).

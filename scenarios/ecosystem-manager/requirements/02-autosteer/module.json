@@ -1,149 +1,13 @@
 {
   "_metadata": {
-    "description": "Closed-loop autosteer controller: cost capture, effectiveness ledger, credit assignment, bandit selection, thrashing defense, termination gates, transparency surfaces, and DTV priors/gate (OT-P0-002, OT-P1-003, OT-P1-005).",
-    "last_validated_at": "2026-06-17T16:13:39-04:00",
+    "description": "Closed-loop greedy autosteer controller: diagnose test-genie findings, greedily select the heaviest open dimension's skill, execute via agent-manager, re-measure, and terminate on objective / diminishing-returns / budget — with decision-trace transparency and an anti-gaming promote-safety gate (OT-P0-002, OT-P1-003).",
+    "last_validated_at": "2026-06-24T00:00:00-04:00",
     "module": "autosteer",
     "prd_ref": "OT-P0-002",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
   "requirements": [
-    {
-      "id": "EM-P1-001",
-      "title": "Capture per-iteration agent token cost",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-002",
-      "category": "auto-steer",
-      "description": "The controller captures each agent run's token cost from agent-manager's run summary (RunCost) and threads it into credit assignment; an unreported cost is recorded as an explicit unknown, never treated as free.",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "learning"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/queue/run_cost_test.go::TestTokensFromRun",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/run_cost_test.go::TestOrchestratorRunCostStash",
-          "phase": "unit",
-          "status": "failing"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-002",
-      "title": "Per-(skill, dimension) effectiveness ledger",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-002",
-      "category": "auto-steer",
-      "description": "A SQLite-backed effectiveness ledger (skill_dimension_effectiveness) tracks lifetime closed/introduced findings, runs, and token cost per (skill, dimension), with a derived shrinkage-blended efficacy computed on read.",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "learning",
-        "storage"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/effectiveness/effectiveness_test.go::TestExpectedEfficacyShrinksTowardPrior",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/effectiveness/sqlite_store_test.go::TestSQLiteStoreRoundTrip",
-          "phase": "unit",
-          "status": "failing"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-003",
-      "title": "Credit assignment closes the learn loop",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-002",
-      "category": "auto-steer",
-      "description": "After each iteration the controller diffs the open-findings set by stable ID, buckets closed/introduced by dimension (collateral included), and records a credit event to the effectiveness ledger and the decision trace.",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "learning"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/findings/diff_test.go::TestDiffStates_ClosedIntroducedByDimension",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/credit_assignment_test.go::TestCreditAssignment_ClosedAndCollateral",
-          "phase": "unit",
-          "status": "failing"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-004",
-      "title": "Effectiveness-weighted skill selection (bandit)",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-002",
-      "category": "auto-steer",
-      "description": "Within the heaviest open dimension, eligible skills are ranked by expected reduction-per-token (shrinkage toward a uniform prior, n=0 reproduces v0 greedy order) with deterministic epsilon-greedy exploration seeded by (task, iteration).",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "selection"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/selector_bandit_test.go::TestBandit_ColdStartEqualsGreedy",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/selector_bandit_test.go::TestBandit_HighEfficacyWins",
-          "phase": "unit",
-          "status": "failing"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-005",
-      "title": "Layer-2 runtime thrashing defense",
-      "status": "in_progress",
-      "prd_ref": "OT-P0-002",
-      "category": "auto-steer",
-      "description": "The controller halts on a recurring open-findings fingerprint (thrashing_cycle) or a zero net-progress window (no_net_progress), applies a hysteresis cooldown to skills that regressed their own target dimension, and flags/vetoes regressing iterations.",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "thrashing"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/thrashing_test.go::TestThrashing_FingerprintCycleHalts",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/thrashing_test.go::TestThrashing_RegressionFlagAndVeto",
-          "phase": "unit",
-          "status": "failing"
-        }
-      ]
-    },
     {
       "id": "EM-CTRL-001",
       "title": "Termination gates: objective, diminishing returns, budget",
@@ -203,91 +67,66 @@
       ]
     },
     {
+      "id": "EM-CTRL-003",
+      "title": "Greedy skill selection by heaviest open dimension",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "auto-steer",
+      "description": "Within the heaviest open dimension (profile weight × open severity), the controller runs the first eligible skill that targets it, resolved deterministically from the skill→dimension map; selection is fully explainable and stalls on no eligible skill rather than looping.",
+      "tags": [
+        "auto-steer",
+        "selection"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/autosteer/selector_test.go::TestSelector_PicksHeaviestDimensionWithEligibleSkill",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "EM-CTRL-004",
+      "title": "Anti-gaming promote-safety gate",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "auto-steer",
+      "description": "The gameguard classifier inspects each run's code-level diff and stamps a gaming_cause on the decision trace; a run with any gamed iteration is blocked from shadow→live promotion (RunGamed). Gameguard never alters selection.",
+      "tags": [
+        "auto-steer",
+        "safety"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/autosteer/gaming_test.go::TestRunGamed",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
       "id": "EM-P1-006",
-      "title": "Surface the new control signals (API/CLI/UI)",
+      "title": "Surface the decision trace (API/CLI/UI)",
       "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "auto-steer",
-      "description": "The decision trace exposes per-iteration token cost, per-dimension findings flow, and regression/veto/halt; a GET /api/auto-steer/effectiveness endpoint, 'steer effectiveness'/'steer trace' CLI commands, and a UI effectiveness table render the learned efficacy.",
+      "description": "The per-iteration decision trace (chosen skill, heaviest dimension, score before/after, realized delta, gaming_cause, halt reason) is durably persisted and exposed via the GET /auto-steer/execution/{taskId}/trace API, the 'steer trace' CLI command, and the UI decision-trace panel; skill→dimension coverage gaps are surfaced to operators.",
       "tags": [
         "auto-steer",
-        "v1",
         "transparency"
       ],
       "validation": [
         {
           "type": "test",
-          "ref": "api/pkg/autosteer/handlers_error_shape_test.go::TestGetEffectiveness_ReturnsLedgerWithDerivedEfficacy",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/decision_trace_test.go::TestTraceStore_PersistsCreditSplit",
+          "ref": "api/pkg/autosteer/decision_trace_test.go::TestTraceStore_PersistsSlimTrace",
           "phase": "unit",
           "status": "failing"
         },
         {
           "type": "test",
           "ref": "cli/steer/commands_test.go::TestGapLinesIncludesKnownUncoveredTracking",
-          "phase": "unit",
-          "status": "failing"
-        }
-      ]
-    },
-    {
-      "id": "EM-P2-001",
-      "title": "DTV-primed trust/cost selection priors",
-      "status": "in_progress",
-      "prd_ref": "OT-P1-005",
-      "category": "auto-steer",
-      "description": "Replace the uniform cold-start prior with development-toolchain-validator-derived trust/cost priors via the injected prior seam in the selector.",
-      "tags": [
-        "auto-steer",
-        "dtv"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/dtv_selection_test.go::TestDTVPriorProvider_MappingTable",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/dtv_selection_test.go::TestSelector_DTVPriorReordersColdStart",
-          "phase": "unit",
-          "status": "failing"
-        }
-      ]
-    },
-    {
-      "id": "EM-P2-002",
-      "title": "DTV Layer-1 eligibility gate",
-      "status": "in_progress",
-      "prd_ref": "OT-P1-005",
-      "category": "auto-steer",
-      "description": "A development-toolchain-validator-backed EligibilityFilter hard-gates skills that cannot run in the target toolchain out of selection (Layer-1 thrashing prevention), failing open when DTV is degraded so the loop never stalls.",
-      "tags": [
-        "auto-steer",
-        "dtv"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/dtv_selection_test.go::TestDTVEligibilityFilter_DeniesOnlyRed",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/dtv_selection_test.go::TestSelector_AllRedDoesNotStall",
-          "phase": "unit",
-          "status": "failing"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/dtv/client_test.go::TestClientFitness_FailsOpenOnRPCError",
           "phase": "unit",
           "status": "failing"
         }

@@ -117,7 +117,7 @@
       "status": "planned",
       "prd_ref": "OT-P1-001",
       "category": "transport",
-      "description": "The seven REST domains (tasks, queue, autosteer, settings, prompts, insights, skills/importance) gain proto service definitions and Connect handlers/clients, one domain at a time per docs/internal/MIGRATION-GUIDE.md, with no REST/Connect coexistence within a migrated domain.",
+      "description": "The remaining REST domains (tasks, queue, autosteer, settings, prompts, skills/importance) gain proto service definitions and Connect handlers/clients, one domain at a time per docs/internal/MIGRATION-GUIDE.md, with no REST/Connect coexistence within a migrated domain.",
       "tags": [
         "transport",
         "connect-rpc"

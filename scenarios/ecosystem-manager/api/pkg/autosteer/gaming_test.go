@@ -47,7 +47,7 @@ func TestRecordRealized_CleanNoCause(t *testing.T) {
 
 // RunGamed is the promote-safety gate: a gamed iteration anywhere in a run's
 // durable trace blocks the shadow→live promote; a clean run is promotable.
-func TestRunGamed(t *testing.T) {
+func TestRunGamed(t *testing.T) { // [REQ:EM-CTRL-004]
 	pg, cleanup := SetupTestDatabase(t)
 	defer cleanup()
 	store := NewTraceStore(pg.db)

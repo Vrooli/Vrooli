@@ -68,8 +68,8 @@ in [`DATA.md`](DATA.md).
   the [control model](CONTROL-MODEL.md) describes.
 - Owns: objective profiles (`profiles/*.json` + `metadata.json`),
   execution state (`profile_execution_state`), decision trace
-  (`decision_trace`), execution history (`profile_executions`), the gap
-  metrics collectors, and history/analytics services.
+  (`decision_trace`), execution history (`profile_executions`), the
+  completeness sensor (`pkg/completeness`), and history/analytics services.
 - Internal structure: controller orchestrator (`execution_orchestrator.go`),
   greedy `Selector` (`selector.go`), gradient `Terminator` (`terminator.go`),
   findings ingestion (`pkg/findings`), skill→dimension resolver

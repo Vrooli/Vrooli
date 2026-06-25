@@ -11,7 +11,7 @@ func f(id string, dim dimensions.Dimension) Finding {
 	return Finding{ID: id, Dimension: dim, Severity: architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR}
 }
 
-func TestDiffStates_ClosedIntroducedByDimension(t *testing.T) { // [REQ:EM-P1-003]
+func TestDiffStates_ClosedIntroducedByDimension(t *testing.T) { // [REQ:EM-CTRL-002]
 	before := BuildState([]Finding{
 		f("a", "standards"),
 		f("b", "standards"),

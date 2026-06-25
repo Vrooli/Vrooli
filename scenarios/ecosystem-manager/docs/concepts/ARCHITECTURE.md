@@ -84,11 +84,13 @@ The scenario does not own:
 - the steer skills it applies (owned by `prompt-manager`),
 - shared package implementations under `packages/`.
 
-PRD completion percentage — a key control-loop metric — is computed
-today by parsing each target's `PRD.md` locally
-(`api/pkg/discovery/scenarios.go`), not by a wired
-`scenario-completeness-scoring` call. Maturity ladder policy is shared
-with cached status readers through `packages/maturity-go`. See
+PRD completion percentage — a key control-loop metric — is read by the
+controller from `scenario-completeness-scoring` via the wired
+`pkg/completeness` `GetScore` client (load-bearing for termination; it does
+not fail open). The discovery domain separately parses each target's
+`PRD.md` locally (`api/pkg/discovery/scenarios.go`) for its scenario
+listing. Maturity ladder policy is shared with cached status readers
+through `packages/maturity-go`. See
 [`INTEGRATIONS.md`](INTEGRATIONS.md) for the full, honest dependency
 inventory.
 
@@ -151,8 +153,8 @@ For a new HTTP capability today:
    [`../reference/cli-commands.md`](../reference/cli-commands.md), and the
    docs contract in `docs/manifest.json`.
 
-For changes to the improvement loop itself (selection, state, metrics,
-termination, thrashing), the design authority is
+For changes to the improvement loop itself (selection, state, measurement,
+termination), the design authority is
 [`CONTROL-MODEL.md`](CONTROL-MODEL.md) — update it first, then the
 auto-steer code under `api/pkg/autosteer/`.
 

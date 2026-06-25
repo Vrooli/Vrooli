@@ -56,20 +56,20 @@ read `message` for display.
 | Internal | `500` | Persistence/IO failure, profile create/update/delete, history load | `Failed to <op>: <err>` |
 | Upstream — agent-manager | `500` (surfaced) | Outbound run start/stop fails via `AgentServiceAPI` ([CODE: api/pkg/agentmanager/api.go]); errors wrap with context (`failed to evaluate iteration: …`) | `Failed to start execution: <upstream err>` |
 
-### `MetricUnavailableError` is non-fatal (not an HTTP error)
+### Measurement unavailability halts the loop (not an HTTP error)
 
-A special case worth calling out: when a stop condition references a
-metric that is unsupported or not yet collected, the evaluator returns a
-typed `*MetricUnavailableError`
-([CODE: api/pkg/autosteer/metrics_registry.go], surfaced from
-`ConditionEvaluator.GetMetricValue` in
-[CODE: api/pkg/autosteer/evaluator.go (19-78)]). The phase coordinator
-**does not** turn this into an HTTP error — it `errors.As`-detects it,
-logs, and continues evaluating the next condition
-([CODE: api/pkg/autosteer/phase_coordinator.go (32-71)]). The loop is
-intentionally tolerant of a missing sensor reading: a single
-uncollected metric must not halt or fail the whole iteration. So this
-error class shapes control-flow, not the HTTP response.
+A special case worth calling out: the completeness `Provider` is
+**load-bearing and does not fail open**. When the
+scenario-completeness-scoring `GetScore` call fails, the controller does
+not turn it into an HTTP error mid-run — it halts the iteration with the
+`measurement_unavailable` stop reason and records it on the decision trace
+([CODE: api/pkg/completeness/score.go], consumed in
+[CODE: api/pkg/autosteer/execution_orchestrator.go]). This is deliberate:
+steering on a stale or guessed score is worse than stopping, so an
+unavailable sensor stops the loop cleanly rather than silently degrading
+(plan decision D2). Test-genie audit hiccups are retried before they
+surface (see `pkg/findings`). So this error class shapes control-flow, not
+the HTTP response.
 
 ## UI error mapping
 

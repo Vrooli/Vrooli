@@ -200,8 +200,7 @@
           "canonicalFor": [
             "control-model",
             "improvement-loop",
-            "skill-selection",
-            "thrashing-defense"
+            "skill-selection"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -211,20 +210,13 @@
           "completion": "required",
           "validation": {
             "requiredHeadings": [
-              "Purpose Of This Document",
-              "The Core Reframe",
-              "The Control Loop",
-              "State: The Findings Vector",
-              "The Skill \u2192 Dimension Capability Map",
-              "Selection Policy",
-              "The Effectiveness Table",
+              "The Core Idea",
               "Profiles Are Objective Functions",
-              "Development Toolchain Validator As Gate And Prior",
-              "Thrashing Defense",
               "Termination",
+              "Baseline-Safe Improvement (apply / revert)",
+              "Anti-Gaming Promote-Safety Gate",
               "Transparency",
-              "Staged Rollout",
-              "Current Implementation Status",
+              "Design History",
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
@@ -813,7 +805,7 @@
               "System",
               "Tasks & Queue",
               "Auto-Steer",
-              "Settings, Discovery & Insights",
+              "Settings & Discovery",
               "Adding a new endpoint",
               "Cross-references"
             ],

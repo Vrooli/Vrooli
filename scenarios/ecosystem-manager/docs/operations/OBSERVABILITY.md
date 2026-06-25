@@ -22,7 +22,7 @@ Use this document to answer:
 | `GET /api/queue/status` | operational | queue processor | Processor running, depth, backoff state | processor running, no stuck backoff |
 | Task throughput & success rate | product | `profile_executions` (run records, aggregated on read) | Work completed per operation type | success rate trending up per operation |
 | PRD completion | product | scenario-completeness-scoring `GetScore` (read live per iteration; not persisted) | Operational-target completion the controller steers toward | operational-targets % rising across iterations |
-| Auto-steer convergence | product | `profile_executions.phase_breakdown` + `decision_trace` | Loops converging, not thrashing | phases progressing, weighted score improving |
+| Auto-steer convergence | product | `profile_executions.phase_breakdown` + `decision_trace` | Loops converging, not thrashing | weighted score improving, findings closing |
 | Live task/queue updates | operational | WebSocket `/ws` | Real-time UI state of tasks/queue | pushes events while processor runs |
 
 ## Logs
@@ -31,7 +31,7 @@ Use this document to answer:
 |---|---|---|---|
 | System audit log | `api/pkg/systemlog` | UI log view, or `GET /api/logs` | Structured audit of system actions. |
 | Scenario logs | lifecycle-managed processes | `make logs` | Date-stamped files in the scenario `logs/` dir. |
-| Per-task execution history | SQLite `profile_executions` | UI task views / DB query | Includes timings (`total_duration_ms`), start/end metrics, iteration counts. |
+| Per-task execution history | SQLite `profile_executions` | UI task views / DB query | Includes timings (`total_duration_ms`), completeness score, iteration counts, and the decision trace. |
 | Agent run output | agent-manager | agent-manager logs / `logs/task-runs/` | Runs execute in agent-manager; correlate from there. |
 
 ## Metrics
@@ -43,7 +43,7 @@ via the API/UI; there is **no external metrics backend**.
 |---|---|---|---|
 | Operation throughput / success rate | active | `profile_executions` | Aggregated on read from run records. |
 | PRD completion | active | scenario-completeness-scoring `GetScore` | Read live per iteration for termination; not persisted as a per-run delta. |
-| Auto-steer convergence | active | `profile_executions.phase_breakdown`, `decision_trace` | Phase progression + weighted-score gradient. |
+| Auto-steer convergence | active | `profile_executions.phase_breakdown`, `decision_trace` | Per-iteration breakdown + weighted-score gradient. |
 | Queue depth / backoff | active | `GET /api/queue/status`, `steering_queue_state` | Live operational state. |
 
 ## Alerts / Health
@@ -66,11 +66,11 @@ rate-limit, terminate stuck processes, maintenance mode).
 | No external metrics/tracing export (Prometheus/OTel) | No central dashboards or cross-scenario correlation; all metrics are DB-local. | Add when fleet-wide observability is prioritized. |
 | File-based logs only | No log aggregation/search beyond `GET /api/logs` and on-disk files. | Add when centralized logging lands. |
 | Manual alerting | Failures (stuck queue, unhealthy DB) require human watching. | Add when an alerting substrate exists. |
-| No per-iteration decision trace | Cannot see *why* a given skill was selected during an auto-steer loop, nor detect thrashing early. | Address as Ecosystem Manager is reframed as a closed-loop controller (see [`../concepts/CONTROL-MODEL.md`](../concepts/CONTROL-MODEL.md)). |
+| No convergence alerting | The per-iteration decision trace exists and is surfaced (API/CLI/UI), but nothing automatically flags a non-converging or diminishing-returns run. | Add when an alerting substrate exists. |
 
-Future observability should surface the per-iteration decision trace and
-auto-steer convergence/thrashing signals, aligned with the closed-loop
-controller direction.
+Future observability should add automated alerting on the auto-steer
+convergence signals (weighted-score gradient, diminishing returns) that the
+decision trace already exposes.
 
 ## Cross-References
 
