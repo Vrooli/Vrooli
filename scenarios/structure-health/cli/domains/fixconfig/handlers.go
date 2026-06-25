@@ -26,6 +26,64 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	return h.fix(ctx, apply)
 }
 
+// assignFixed switches a scenario's port from a range to a free in-band fixed
+// port (previews unless --apply). Thin over ValidationService.AssignFixedPort.
+func (h *handlers) assignFixed(ctx cliapp.RunContext) error {
+	apply := ctx.FlagDeclared("apply") && ctx.BoolFlag("apply")
+	scenario := ctx.Positional("scenario")
+	resp, err := h.client.AssignFixedPort(context.Background(), connect.NewRequest(&validationv1.PortSwitchRequest{
+		Scenario: scenario,
+		Path:     firstFlag(ctx.FlagValues("path")),
+		PortName: firstFlag(ctx.FlagValues("port-name")),
+		Apply:    apply,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("assign fixed port for %q", scenario), err, nil)
+	}
+	return renderPortSwitch(ctx, resp.Msg, apply)
+}
+
+// releaseFixed reverts a scenario's fixed port back to its canonical range
+// (previews unless --apply). Thin over ValidationService.ReleaseFixedPort.
+func (h *handlers) releaseFixed(ctx cliapp.RunContext) error {
+	apply := ctx.FlagDeclared("apply") && ctx.BoolFlag("apply")
+	scenario := ctx.Positional("scenario")
+	resp, err := h.client.ReleaseFixedPort(context.Background(), connect.NewRequest(&validationv1.PortSwitchRequest{
+		Scenario: scenario,
+		Path:     firstFlag(ctx.FlagValues("path")),
+		PortName: firstFlag(ctx.FlagValues("port-name")),
+		Apply:    apply,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("release fixed port for %q", scenario), err, nil)
+	}
+	return renderPortSwitch(ctx, resp.Msg, apply)
+}
+
+func renderPortSwitch(ctx cliapp.RunContext, msg *validationv1.PortSwitchResponse, apply bool) error {
+	if msg == nil {
+		return fmt.Errorf("server returned no port-switch response")
+	}
+	result := msg.Message
+	if result == "" {
+		result = fmt.Sprintf("%s %s port", msg.Scenario, msg.PortName)
+	}
+	var changes []string
+	if msg.Changed {
+		state := "preview"
+		if apply {
+			state = "applied"
+		}
+		changes = append(changes, fmt.Sprintf("%s: previous_port=%d assigned_port=%d", state, msg.PreviousPort, msg.AssignedPort))
+	} else {
+		changes = append(changes, "no change (already in target state)")
+	}
+	return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
+		Result:  []string{result},
+		Changes: changes,
+	})
+}
+
 // apply always applies fixes.
 func (h *handlers) apply(ctx cliapp.RunContext) error {
 	return h.fix(ctx, true)

@@ -15,6 +15,7 @@ import (
 	"structure-health/internal/intent"
 	"structure-health/internal/packs"
 	"structure-health/internal/packs/scan"
+	"structure-health/internal/portswitch"
 	"structure-health/internal/profile"
 	"structure-health/internal/reconcile"
 	"structure-health/internal/rules"
@@ -193,6 +194,28 @@ func (s *Service) ApplyFix(ctx context.Context, scenario, path string, ruleIDs [
 	}
 	candidates, err := autofix.Apply(root, ruleIDs)
 	return resolved, candidates, err
+}
+
+// AssignFixedPort resolves the scenario root and switches the named port
+// (default "ui") from a canonical range to a free in-band fixed port via the
+// portswitch primitive. apply=false previews. It is conflict-aware (avoids
+// other scenarios' fixed ports and live listeners) and idempotent.
+func (s *Service) AssignFixedPort(ctx context.Context, scenario, path, portName string, apply bool) (portswitch.Result, error) {
+	root, _, err := s.resolveRoot(ctx, scenario, path)
+	if err != nil {
+		return portswitch.Result{}, err
+	}
+	return portswitch.AssignFixed(root, portName, apply, portswitch.DialListening)
+}
+
+// ReleaseFixedPort resolves the scenario root and reverts the named port back to
+// the canonical range. apply=false previews; idempotent.
+func (s *Service) ReleaseFixedPort(ctx context.Context, scenario, path, portName string, apply bool) (portswitch.Result, error) {
+	root, _, err := s.resolveRoot(ctx, scenario, path)
+	if err != nil {
+		return portswitch.Result{}, err
+	}
+	return portswitch.ReleaseFixed(root, portName, apply)
 }
 
 // resolveRoot resolves the scenario's on-disk root via the code-facts seam,

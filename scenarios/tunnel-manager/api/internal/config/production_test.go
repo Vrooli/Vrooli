@@ -38,8 +38,13 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 	require.NoError(t, err)
 
 	doer := &mocks.FakeDoer{}
-	doer.AddResponse(200, []byte(`{"success":true,"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}`))
-	doer.AddResponse(200, []byte(`{"success":true,"result":{}}`))
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"config":{"ingress":[{"service":"http_status:404"}]}}}`)) // 1: read ingress
+	doer.AddResponse(200, []byte(`{"success":true,"result":{}}`))                                                     // 2: push ingress
+	// DNS automation now runs on the same remote reconcile path: resolve the
+	// apex zone, look up an existing record, then create the proxied CNAME.
+	doer.AddResponse(200, []byte(`{"success":true,"result":[{"id":"zone1"}]}`)) // 3: zone lookup
+	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))               // 4: find record (none)
+	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"rec1"}}`))    // 5: create CNAME
 
 	svc := config.NewProductionService(d, clk, config.ProductionOptions{
 		Doer:    doer,
@@ -63,7 +68,7 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, config.ModeRemote, res.Mode)
 	require.Equal(t, []string{"web-console.itsagitime.com"}, res.Added)
-	require.Equal(t, int64(2), doer.Calls.Load(), "remote sync reads and pushes Cloudflare ingress")
+	require.Equal(t, int64(5), doer.Calls.Load(), "remote sync reads+pushes ingress, then resolves zone, looks up, and creates the CNAME")
 	require.Equal(t, "GET", doer.Requests[0].Method)
 	require.Equal(t, "PUT", doer.Requests[1].Method)
 	require.Contains(t, doer.Requests[1].Header.Get("Authorization"), "tok")
@@ -71,4 +76,12 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(body), "web-console.itsagitime.com")
 	require.Contains(t, string(body), "http://localhost:21240")
+
+	// The CNAME create targets the tunnel and is proxied.
+	require.Equal(t, "POST", doer.Requests[4].Method)
+	dnsBody, err := io.ReadAll(doer.Requests[4].Body)
+	require.NoError(t, err)
+	require.Contains(t, string(dnsBody), "web-console.itsagitime.com")
+	require.Contains(t, string(dnsBody), "tun.cfargotunnel.com")
+	require.Contains(t, string(dnsBody), "\"proxied\":true")
 }

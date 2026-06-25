@@ -15,6 +15,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ValidationService.PreviewFixConfig": h.run,
 		"ValidationService.ApplyFixConfig":   h.apply,
+		"ValidationService.AssignFixedPort":  h.assignFixed,
+		"ValidationService.ReleaseFixedPort": h.releaseFixed,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("fix-config: load from manifest: %w", err)

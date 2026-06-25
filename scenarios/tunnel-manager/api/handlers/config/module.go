@@ -175,6 +175,29 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "config_verify_credentials",
+		Path:        configconnect.ConfigServiceVerifyCredentialsProcedure,
+		Method:      "POST",
+		Summary:     "Verify Cloudflare credentials live",
+		Description: "Performs read-only Cloudflare probes (token verify, account/tunnel read, apex zone lookup + DNS-records read) and returns a per-check verdict with remediation. Never returns secret values.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"checks": "CredentialCheck[]", "ready": "bool"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 412, Code: "failed_precondition", Description: "Live credential verification is not configured"},
+			{Status: 500, Code: "internal", Description: "Credential resolve failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Verify credentials", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/VerifyCredentials -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
 		ID:          "config_credentials_set",
 		Path:        configconnect.ConfigServiceSetCloudflareCredentialsProcedure,
 		Method:      "POST",

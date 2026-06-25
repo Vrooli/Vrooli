@@ -179,9 +179,27 @@ tunnel-manager routes create --external --subdomain api --target http://127.0.0.
 ```
 
 External routes reconcile as `external` (EXTERNAL_OK) once live and are
-full-CRUD across CLI and UI alongside scenario routes. TM still touches
-only tunnel *ingress configurations* — never DNS records or Cloudflare
-Access.
+full-CRUD across CLI and UI alongside scenario routes.
+
+### DNS automation (CNAME on expose/revoke)
+
+TM now manages the **DNS records** an exposed hostname needs to be publicly
+resolvable, not just the tunnel ingress rule. When the credential token carries
+`Zone:Read` + `Zone:DNS:Edit`, a remote-mode reconcile (expose, `config sync`,
+`routes create`) ensures a proxied CNAME `<sub>.<apex> → <tunnel-id>.cfargotunnel.com`
+for every managed hostname; revoke / `sync --prune` removes the CNAMEs TM
+created. This reverses the previous non-goal — without it a freshly-exposed
+hostname returned **NXDOMAIN** even though ingress was live.
+
+Ownership is ledgered (`dns_ownership` table, mirroring the ingress ledger): TM
+only ever deletes records **it created** — a CNAME set out-of-band is left
+untouched (`EnsureRecord` never clobbers an existing record). DNS automation is
+remote-mode only; local (`config.yml`) mode manages its own resolver. TM still
+never touches Cloudflare **Access**.
+
+Run `config credentials-status --verify` to confirm the token has the DNS scope
+before relying on automation; a present-but-unscoped token surfaces as
+`insufficient_scope` rather than producing a dead URL.
 
 Privileged mutation RPCs are local/operator-open by default and can be
 fail-closed with `TUNNEL_MANAGER_AUTHZ_ENFORCED=1`. When enabled, the

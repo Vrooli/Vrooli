@@ -51,25 +51,65 @@ type Service interface {
 	Expose(ctx context.Context, in ExposeInput) (Lease, string, error)
 	ExtendLease(ctx context.Context, leaseID string, ttl time.Duration) (Lease, error)
 	RevokeLease(ctx context.Context, leaseID string) (retracted bool, err error)
+	Unexpose(ctx context.Context, scenario string) (retracted bool, leaseID string, err error)
 	ListLeases(ctx context.Context, status LeaseStatus) ([]Lease, error)
 	ListExposures(ctx context.Context) ([]Exposure, error)
 	IsExposed(ctx context.Context, scenario string) (bool, string, error)
 	Reconcile(ctx context.Context) (coreEnsured int, leasesReaped int, err error)
 }
 
+// PortAssigner makes a ranged scenario exposable by ensuring it has a fixed UI
+// port (assigning a free in-band one via structure-health) and releasing
+// TM-assigned ports on revoke. Optional: when nil, Expose only works for
+// scenarios that already declare a fixed UI port (the pre-Phase-4 behaviour).
+type PortAssigner interface {
+	// EnsureFixed ensures the scenario has a fixed UI port. assignedByTM is true
+	// only when TM switched a previously-ranged scenario this call (so revoke
+	// knows it is safe to release; a hand-pinned port returns false).
+	EnsureFixed(ctx context.Context, scenario string) (assignedByTM bool, err error)
+	// Release reverts a fixed port back to a range. The service calls it only for
+	// scenarios its ownership store attributes to TM.
+	Release(ctx context.Context, scenario string) error
+}
+
+// PortOwnership persists which scenarios TM assigned a fixed port to, so revoke
+// releases only those (never a hand-pinned fixed port). Optional: nil disables
+// release (ports are assigned but never auto-reverted — the safe direction).
+type PortOwnership interface {
+	Record(ctx context.Context, scenario string) error
+	Owned(ctx context.Context, scenario string) (bool, error)
+	Clear(ctx context.Context, scenario string) error
+}
+
 type service struct {
-	repo     Repository
-	manifest Manifest
-	ingress  Ingress
-	runner   Runner
-	ports    PortResolver
-	coreSet  CoreSetProvider
-	clock    clock.Clock
+	repo      Repository
+	manifest  Manifest
+	ingress   Ingress
+	runner    Runner
+	ports     PortResolver
+	coreSet   CoreSetProvider
+	clock     clock.Clock
+	assigner  PortAssigner
+	portOwner PortOwnership
+}
+
+// Option configures optional service collaborators without breaking the
+// positional constructor used across the codebase and tests.
+type Option func(*service)
+
+// WithPortAssigner wires the structure-health-backed fixed-port assigner +
+// ownership store so Expose can auto-fix ranged scenarios and revoke can
+// release TM-assigned ports.
+func WithPortAssigner(assigner PortAssigner, owner PortOwnership) Option {
+	return func(s *service) {
+		s.assigner = assigner
+		s.portOwner = owner
+	}
 }
 
 // NewService constructs the production exposure broker.
-func NewService(repo Repository, manifest Manifest, ingress Ingress, runner Runner, ports PortResolver, coreSet CoreSetProvider, clk clock.Clock) Service {
-	return &service{
+func NewService(repo Repository, manifest Manifest, ingress Ingress, runner Runner, ports PortResolver, coreSet CoreSetProvider, clk clock.Clock, opts ...Option) Service {
+	s := &service{
 		repo:     repo,
 		manifest: manifest,
 		ingress:  ingress,
@@ -78,6 +118,10 @@ func NewService(repo Repository, manifest Manifest, ingress Ingress, runner Runn
 		coreSet:  coreSet,
 		clock:    clk,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 var _ Service = (*service)(nil)
@@ -91,6 +135,13 @@ func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, er
 	if ttl <= 0 {
 		ttl = DefaultTTL
 	}
+
+	// Make a ranged scenario exposable: ensure it has a fixed UI port (the
+	// tunnel forwards to a concrete localhost:<port>). Best-effort — if the
+	// assigner is down but the scenario already has a fixed port, ensureRoute
+	// still resolves it; only a genuinely-ranged-and-unassignable scenario fails
+	// (with the existing ErrPortUnresolved from the resolver).
+	s.ensureFixedPort(ctx, scenario)
 
 	// Ensure a route exists for the scenario (idempotent — reuse any
 	// existing route, only create a LEASED one when absent). Creating the
@@ -182,7 +233,30 @@ func (s *service) RevokeLease(ctx context.Context, leaseID string) (bool, error)
 	if err := s.ingress.Reconcile(ctx); err != nil {
 		return false, err
 	}
+	// Release a TM-assigned fixed port back to its range now the scenario is no
+	// longer exposed (no-op for hand-pinned ports or when no assigner is wired).
+	s.releaseAssignedPort(ctx, lease.Scenario)
 	return true, nil
+}
+
+// Unexpose revokes a scenario's active lease by name — the thin primitive
+// behind the `unexpose` CLI alias. It reuses RevokeLease so ingress + DNS
+// retraction and the CORE guard stay in one place. ErrLeaseNotFound surfaces
+// when the scenario has no active lease.
+func (s *service) Unexpose(ctx context.Context, scenario string) (bool, string, error) {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return false, "", ErrInvalidExposure{Field: "scenario", Reason: "required"}
+	}
+	lease, err := s.repo.ActiveForScenario(ctx, scenario)
+	if err != nil {
+		return false, "", err
+	}
+	retracted, err := s.RevokeLease(ctx, lease.ID)
+	if err != nil {
+		return false, "", err
+	}
+	return retracted, lease.ID, nil
 }
 
 func (s *service) ListLeases(ctx context.Context, status LeaseStatus) ([]Lease, error) {
@@ -303,6 +377,7 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 			if err := s.retractRoute(ctx, lease.Scenario); err != nil {
 				return coreEnsured, reaped, err
 			}
+			s.releaseAssignedPort(ctx, lease.Scenario)
 			changed = true
 		}
 	}
@@ -313,6 +388,42 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 		}
 	}
 	return coreEnsured, reaped, nil
+}
+
+// ensureFixedPort asks the assigner to give a ranged scenario a free in-band
+// fixed port and records TM ownership when it does. It is best-effort: a failure
+// (assigner down, structure-health unreachable) is swallowed so an
+// already-fixed scenario still exposes; a genuinely-ranged scenario then fails
+// downstream at the port resolver with a clear ErrPortUnresolved.
+func (s *service) ensureFixedPort(ctx context.Context, scenario string) {
+	if s.assigner == nil {
+		return
+	}
+	assignedByTM, err := s.assigner.EnsureFixed(ctx, scenario)
+	if err != nil || !assignedByTM {
+		return
+	}
+	if s.portOwner != nil {
+		_ = s.portOwner.Record(ctx, scenario)
+	}
+}
+
+// releaseAssignedPort reverts a fixed port back to a range, but only for
+// scenarios TM assigned (the ownership store gates this so a hand-pinned fixed
+// port is never reverted). Best-effort: a release failure leaves the ownership
+// row so a later revoke/reap retries.
+func (s *service) releaseAssignedPort(ctx context.Context, scenario string) {
+	if s.assigner == nil || s.portOwner == nil {
+		return
+	}
+	owned, err := s.portOwner.Owned(ctx, scenario)
+	if err != nil || !owned {
+		return
+	}
+	if err := s.assigner.Release(ctx, scenario); err != nil {
+		return
+	}
+	_ = s.portOwner.Clear(ctx, scenario)
 }
 
 // ensureRoute returns the existing route for a scenario or creates a

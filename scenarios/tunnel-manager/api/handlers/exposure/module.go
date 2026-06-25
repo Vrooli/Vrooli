@@ -48,14 +48,23 @@ func NewProductionService(db *database.RoutedDB, clk clock.Clock, manifestReader
 	// never owns Cloudflare calls or local cloudflared restart behavior.
 
 	scenariosRoot := resolveScenariosRoot()
+	ports := internalexposure.NewFilePortResolver(scenariosRoot)
 	return internalexposure.NewService(
 		repo,
 		manifestReader,
 		ingressAdapter{cfg: configSvc},
-		internalexposure.NewCLIRunner(cmdrunner.Default),
-		internalexposure.NewFilePortResolver(scenariosRoot),
+		// The runner shares the port resolver so it can skip the slow
+		// `vrooli scenario start` shell when the scenario is already serving.
+		internalexposure.NewCLIRunner(cmdrunner.Default, ports),
+		ports,
 		coreset.CoreSeedScenarios,
 		clk,
+		// Auto-fix ranged scenarios into a free in-band fixed UI port via
+		// structure-health on expose, and release TM-assigned ports on revoke.
+		internalexposure.WithPortAssigner(
+			&internalexposure.StructureHealthPortAssigner{},
+			internalexposure.NewSQLitePortOwnership(db, clk),
+		),
 	)
 }
 

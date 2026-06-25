@@ -19,3 +19,15 @@ CREATE TABLE IF NOT EXISTS leases (
 
 CREATE INDEX IF NOT EXISTS idx_leases_scenario ON leases(scenario);
 CREATE INDEX IF NOT EXISTS idx_leases_status ON leases(status);
+
+-- TM fixed-port ownership ledger — owned by internal/exposure/. One row per
+-- scenario whose UI port Tunnel Manager switched from a range to a fixed port
+-- (via structure-health) so it could be exposed as a scenario route. Revoke
+-- releases the fixed port back to a range ONLY for scenarios recorded here, so
+-- a hand-pinned fixed port is never reverted. Absence of a row means TM did not
+-- assign the port (the safe default: never release it). CREATE TABLE IF NOT
+-- EXISTS so re-runs are no-ops.
+CREATE TABLE IF NOT EXISTS tm_port_assignments (
+  scenario    TEXT PRIMARY KEY,
+  assigned_at TEXT NOT NULL DEFAULT ''
+);

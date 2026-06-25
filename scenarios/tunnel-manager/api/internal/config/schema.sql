@@ -31,3 +31,19 @@ CREATE TABLE IF NOT EXISTS ingress_ownership (
   note        TEXT NOT NULL DEFAULT '',
   adopted_at  TEXT NOT NULL DEFAULT ''
 );
+
+-- DNS ownership ledger — owned by internal/config/. The DNS analogue of
+-- ingress_ownership: the authoritative record of which proxied CNAMEs Tunnel
+-- Manager itself created (<sub>.<apex> CNAME <tunnel-id>.cfargotunnel.com), so
+-- revoke/prune deletes ONLY records TM created and never a CNAME an operator
+-- set out-of-band. Absence of a row means "TM did not create this hostname's
+-- DNS record" (the safe default: never delete it). record_id is the Cloudflare
+-- record id (kept for audit; RemoveRecord re-resolves by name). Times are
+-- RFC3339Nano strings matching the round-trip in dns_ledger_sqlite.go. Use
+-- CREATE TABLE IF NOT EXISTS so re-runs are no-ops; add columns with
+-- ALTER TABLE ... ADD COLUMN (migrate, never recreate).
+CREATE TABLE IF NOT EXISTS dns_ownership (
+  hostname    TEXT PRIMARY KEY,
+  record_id   TEXT NOT NULL DEFAULT '',
+  created_at  TEXT NOT NULL DEFAULT ''
+);

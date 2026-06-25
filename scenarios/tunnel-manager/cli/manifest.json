@@ -256,7 +256,13 @@
         },
         {
           "name": "credentials-status",
-          "description": "Show Cloudflare credential readiness without printing secret values",
+          "description": "Show Cloudflare credential readiness without printing secret values (use --verify for LIVE scope checks)",
+          "flags": [
+            {
+              "name": "verify",
+              "description": "Run LIVE read-only Cloudflare probes (token verify, account/tunnel read, apex zone lookup + DNS:Edit) instead of the presence-only fast path"
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ConfigService",
@@ -266,7 +272,8 @@
             "effect": "read",
             "run_eligible": true,
             "permissions": [
-              "network:internal"
+              "network:internal",
+              "network:external"
             ]
           }
         },
@@ -472,8 +479,12 @@
           ],
           "flags": [
             {
+              "name": "ttl",
+              "description": "Lease duration as a human duration (e.g. 30m, 2h, 168h). Wins over --ttl-seconds."
+            },
+            {
               "name": "ttl-seconds",
-              "description": "Lease duration in seconds (default ~1 week)"
+              "description": "Lease duration in seconds (default ~1 week). Legacy; prefer --ttl."
             },
             {
               "name": "requested-by",
@@ -537,6 +548,29 @@
             "kind": "connect-rpc",
             "service": "ExposureService",
             "method": "RevokeLease"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "unexpose",
+          "description": "Unexpose a scenario by name (revokes its active lease; retracts ingress + DNS unless also CORE)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to unexpose"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "Unexpose"
           },
           "governance": {
             "effect": "write",
@@ -825,5 +859,11 @@
   "measures": {
     "domains": []
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "ConfigService",
+      "method": "VerifyCredentials",
+      "reason": "Surfaced through `config credentials-status --verify` (the same command's live path) rather than its own verb, so the presence-only fast path and the live scope probe share one ergonomic surface."
+    }
+  ]
 }

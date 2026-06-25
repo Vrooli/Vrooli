@@ -210,6 +210,36 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### CredentialVerifier (live Cloudflare credential/scope probe)
+
+| | |
+|---|---|
+| **Seam** | Live read-only Cloudflare credential + scope verification |
+| **Interface** | `internal/config/types.go::CredentialVerifier` (`Verify(ctx, CFConfig, apexes) (CredentialVerification, error)`) |
+| **Production wiring** | `internal/config.NewCFVerifier(doer)` over `httpc.Doer`, wired in `NewProductionService` and backing `ConfigService.VerifyCredentials` / `config credentials-status --verify`. Performs read-only calls (`/user/tokens/verify`, account/tunnel read, `GET /zones?name=<apex>`, DNS-records read) and maps each to `ok\|missing\|invalid\|insufficient_scope` with remediation. Never writes account state; never returns a secret value. |
+| **Test fake** | `mocks.FakeDoer` (white-box `verifier_test.go` constructs `cfVerifier{doer:fake}`); each canned response asserts the verdict mapping. |
+| **Why it exists** | Presence-only readiness reported `ready:true` for a token that authenticated but lacked `Zone:DNS:Edit`, then produced a dead URL. The probe makes "authenticated" vs "authorized for what TM needs" visible, and gates expose. |
+
+### DNSClient (proxied CNAME automation)
+
+| | |
+|---|---|
+| **Seam** | Cloudflare DNS-records boundary — the CNAMEs that make an exposed hostname publicly resolvable |
+| **Interface** | `internal/config/types.go::DNSClient` (`EnsureRecord(ctx, hostname) (DNSResult, error)`, `RemoveRecord(ctx, hostname) (bool, error)`) |
+| **Production wiring** | `internal/config.NewCFDNSClient(doer, cfg)` over `httpc.Doer` (nil when creds absent), wrapped by `resolvingDNSClient` in `NewProductionService` so the config API and exposure's reconcile share one credential path. `EnsureRecord` is additive/idempotent (`<sub>.<apex> CNAME <tunnel-id>.cfargotunnel.com`, proxied); it never clobbers an out-of-band record. Removal is gated by the `DNSLedger` (`dns_ownership` table) so TM only deletes records it created. Remote-mode only. |
+| **Test fake** | `mocks.FakeDoer` (`dns_test.go` asserts request shapes/idempotency); `fakeDNS`/`fakeDNSLedger` (`dns_service_test.go`) for service-level ownership-guard tests. |
+| **Why it exists** | Without DNS automation a freshly-exposed hostname returned NXDOMAIN (ingress live, no CNAME). The ledger mirror of the ingress-ownership pattern keeps prune/revoke from ever deleting a record TM did not create. |
+
+### PortAssigner (ranged→fixed UI port via structure-health)
+
+| | |
+|---|---|
+| **Seam** | Cross-scenario port assignment so a ranged scenario becomes exposable as a scenario route |
+| **Interface** | `internal/exposure/service.go::PortAssigner` (`EnsureFixed(ctx, scenario) (assignedByTM bool, error)`, `Release(ctx, scenario) error`) + `PortOwnership` (`Record/Owned/Clear`) |
+| **Production wiring** | `exposure.StructureHealthPortAssigner` resolves structure-health's API via `api-core/discovery` and drives its `ValidationService.AssignFixedPort`/`ReleaseFixedPort` RPCs; `exposure.NewSQLitePortOwnership` over the `tm_port_assignments` table. Wired via `WithPortAssigner` in `handlers/exposure/module.go`. Best-effort on expose (an already-fixed scenario still exposes if structure-health is down); revoke releases only TM-assigned ports (ownership-gated, never a hand-pinned port). |
+| **Test fake** | `fakeAssigner`/`memOwnership` in `internal/exposure/portassign_test.go`. |
+| **Why it exists** | The tunnel forwards to a concrete `localhost:<port>`, so a scenario needs a fixed UI port to be a scenario route; structure-health owns the port-band SSOT and the assign/release primitive, so TM calls it rather than re-implementing band logic. |
+
 ### CloudflaredUnitPresence (recovery self-gate)
 
 | | |

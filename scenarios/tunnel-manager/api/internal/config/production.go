@@ -84,6 +84,9 @@ func NewProductionService(db ProductionDB, clk clock.Clock, opts ProductionOptio
 		Ingress:         resolvingIngressClient{store: store, doer: opts.Doer},
 		Ledger:          ledger,
 		CredentialStore: store,
+		Verifier:        NewCFVerifier(opts.Doer),
+		DNS:             resolvingDNSClient{store: store, doer: opts.Doer},
+		DNSLedger:       NewSQLiteDNSLedger(db, clk),
 		Runner:          opts.Runner,
 		Clock:           clk,
 		LocalConfigPath: opts.LocalConfigPath,
@@ -174,6 +177,43 @@ func (c resolvingIngressClient) client(ctx context.Context) (IngressClient, erro
 		return nil, fmt.Errorf("resolve Cloudflare credentials: %w", err)
 	}
 	client := NewCFClient(c.doer, cfg)
+	if client == nil {
+		return nil, ErrRemoteUnavailable{}
+	}
+	return client, nil
+}
+
+// resolvingDNSClient resolves Cloudflare credentials per call and builds a
+// cfDNSClient over them, mirroring resolvingIngressClient so the config API and
+// exposure's reconcile share one credential-resolution path. It returns nil-ish
+// behaviour (no-op via ErrRemoteUnavailable) when credentials are absent.
+type resolvingDNSClient struct {
+	store CredentialStore
+	doer  httpDoer
+}
+
+func (c resolvingDNSClient) EnsureRecord(ctx context.Context, hostname string) (DNSResult, error) {
+	client, err := c.client(ctx)
+	if err != nil {
+		return DNSResult{}, err
+	}
+	return client.EnsureRecord(ctx, hostname)
+}
+
+func (c resolvingDNSClient) RemoveRecord(ctx context.Context, hostname string) (bool, error) {
+	client, err := c.client(ctx)
+	if err != nil {
+		return false, err
+	}
+	return client.RemoveRecord(ctx, hostname)
+}
+
+func (c resolvingDNSClient) client(ctx context.Context) (DNSClient, error) {
+	cfg, err := c.store.Resolve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+	}
+	client := NewCFDNSClient(c.doer, cfg)
 	if client == nil {
 		return nil, ErrRemoteUnavailable{}
 	}

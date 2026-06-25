@@ -245,6 +245,32 @@ func TestRevoke_NonCoreRetracts_CoreStays(t *testing.T) {
 	require.True(t, ok, "core route preserved")
 }
 
+func TestUnexpose_RevokesActiveLeaseByScenario(t *testing.T) {
+	leasedRoute := internalroutes.Route{ID: "r1", Subdomain: "leasedsvc", Scenario: "leasedsvc", Domain: internalroutes.DefaultDomain, LocalPort: 1000, Tier: internalroutes.TierLeased, Enabled: true}
+	m := newFakeManifest(leasedRoute)
+	repo := newFakeRepo()
+	ing := &fakeIngress{}
+	svc, clk := newSvc(t, m, repo, ing, &fakeRunner{}, &fakePorts{}, nil)
+
+	lease, _ := repo.Create(context.Background(), exposure.Lease{ID: "la", Scenario: "leasedsvc", ExpiresAt: clk.Now().Add(time.Hour), Status: exposure.LeaseActive})
+
+	retracted, leaseID, err := svc.Unexpose(context.Background(), "leasedsvc")
+	require.NoError(t, err)
+	require.True(t, retracted, "non-core scenario retracts ingress")
+	require.Equal(t, lease.ID, leaseID, "returns the revoked lease id")
+	_, ok := m.routes["r1"]
+	require.False(t, ok, "leased route deleted")
+}
+
+func TestUnexpose_NoActiveLeaseErrors(t *testing.T) {
+	m := newFakeManifest()
+	repo := newFakeRepo()
+	svc, _ := newSvc(t, m, repo, &fakeIngress{}, &fakeRunner{}, &fakePorts{}, nil)
+
+	_, _, err := svc.Unexpose(context.Background(), "never-exposed")
+	require.Error(t, err, "no active lease for the scenario surfaces an error")
+}
+
 func TestReconcile_EnsuresCoreAndReapsExpired(t *testing.T) {
 	// An expired leased route + lease, and a missing core scenario.
 	leasedRoute := internalroutes.Route{ID: "r1", Subdomain: "old", Scenario: "old", Domain: internalroutes.DefaultDomain, LocalPort: 1000, Tier: internalroutes.TierLeased, Enabled: true}

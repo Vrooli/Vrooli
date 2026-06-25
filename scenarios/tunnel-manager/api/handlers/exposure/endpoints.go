@@ -86,6 +86,29 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "exposure_unexpose",
+		Path:        exposureconnect.ExposureServiceUnexposeProcedure,
+		Method:      "POST",
+		Summary:     "Unexpose a scenario",
+		Description: "Revokes a scenario's active lease by name, retracting ingress and the TM-created DNS record unless the scenario is also CORE.",
+		Category:    "exposure",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"scenario": "string (required)"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"retracted": "bool (false when scenario is also CORE)", "lease_id": "string"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No active lease for that scenario"},
+			{Status: 500, Code: "internal", Description: "Repository or ingress failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Unexpose", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.exposure.ExposureService/Unexpose -H 'Content-Type: application/json' -d '{\"scenario\":\"react-component-library\"}'"},
+		},
+	},
+	{
 		ID:          "exposure_list_leases",
 		Path:        exposureconnect.ExposureServiceListLeasesProcedure,
 		Method:      "POST",

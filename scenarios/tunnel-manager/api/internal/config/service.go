@@ -31,6 +31,14 @@ type Service interface {
 	// presence/source metadata. It never returns the API token value.
 	GetCredentialStatus(ctx context.Context) (CredentialStatus, error)
 
+	// VerifyCredentials performs LIVE read-only Cloudflare probes and returns a
+	// per-check verdict (token authenticates? account/tunnel reachable? apex
+	// zone resolvable + DNS-edit scope?). It is the opt-in counterpart to the
+	// presence-only GetCredentialStatus and never returns secret values. The
+	// same probe gates expose so a present-but-unscoped token fails fast with a
+	// remediation instead of producing a dead public URL.
+	VerifyCredentials(ctx context.Context) (CredentialVerification, error)
+
 	// SetCloudflareCredentials stores write-only Cloudflare credentials in the
 	// configured credential store and returns redacted status metadata.
 	SetCloudflareCredentials(ctx context.Context, values CredentialUpdate) (CredentialStatus, error)
@@ -81,13 +89,25 @@ type Service interface {
 // when Cloudflare credentials are absent — remote operations then return
 // ErrRemoteUnavailable instead of touching the network.
 type Deps struct {
-	Repo             ConfigRepository
-	Routes           RoutesReader
-	RoutesWriter     RoutesManager
-	Scenarios        ScenarioResolver
-	Ingress          IngressClient
-	Ledger           OwnershipLedger
-	CredentialStore  CredentialStore
+	Repo            ConfigRepository
+	Routes          RoutesReader
+	RoutesWriter    RoutesManager
+	Scenarios       ScenarioResolver
+	Ingress         IngressClient
+	Ledger          OwnershipLedger
+	CredentialStore CredentialStore
+	// Verifier performs live read-only credential/scope probes for
+	// VerifyCredentials. Nil disables live verification (the RPC returns a
+	// failed-precondition).
+	Verifier CredentialVerifier
+	// DNS creates/removes the proxied CNAMEs that make exposed hostnames
+	// publicly resolvable. Nil disables DNS automation (ingress-only, the old
+	// behaviour) so local mode and credential-less installs are unaffected.
+	DNS DNSClient
+	// DNSLedger tracks which DNS records TM created so prune/revoke only ever
+	// deletes TM-created CNAMEs. Nil disables DNS removal (records are still
+	// created, but never auto-deleted — the safe direction).
+	DNSLedger        DNSLedger
 	CF               CFConfig
 	CredentialStatus CredentialStatus
 	Runner           cmdrunner.Runner
@@ -139,6 +159,53 @@ func (s *service) GetConfigState(ctx context.Context) (ConfigState, error) {
 
 func (s *service) GetCredentialStatus(ctx context.Context) (CredentialStatus, error) {
 	return s.credentialStatus(ctx)
+}
+
+func (s *service) VerifyCredentials(ctx context.Context) (CredentialVerification, error) {
+	if s.deps.Verifier == nil {
+		return CredentialVerification{}, ErrRemoteUnavailable{Reason: "live credential verification is not configured"}
+	}
+	cfg, err := s.resolveCFConfig(ctx)
+	if err != nil {
+		return CredentialVerification{}, err
+	}
+	return s.deps.Verifier.Verify(ctx, cfg, s.routeApexes(ctx))
+}
+
+// resolveCFConfig returns the resolvable Cloudflare credentials (token in
+// memory) from the credential store, falling back to the statically-injected
+// CFConfig when no store is wired (test paths).
+func (s *service) resolveCFConfig(ctx context.Context) (CFConfig, error) {
+	if s.deps.CredentialStore != nil {
+		cfg, err := s.deps.CredentialStore.Resolve(ctx)
+		if err != nil {
+			return CFConfig{}, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+		}
+		return cfg, nil
+	}
+	return s.deps.CF, nil
+}
+
+// routeApexes returns the distinct apex domains across the routes manifest so
+// the verifier probes Zone:DNS:Edit for every zone TM actually publishes into.
+// Falls back to the canonical default apex when no routes carry a domain (so a
+// fresh install still verifies the zone scope it will need on first expose).
+func (s *service) routeApexes(ctx context.Context) []string {
+	apexes := make([]string, 0, 2)
+	if s.deps.Routes != nil {
+		if routes, err := s.deps.Routes.List(ctx, manifest.Tier("")); err == nil {
+			for _, r := range routes {
+				if d := strings.TrimSpace(r.Domain); d != "" {
+					apexes = append(apexes, d)
+				}
+			}
+		}
+	}
+	apexes = dedupeNonEmpty(apexes)
+	if len(apexes) == 0 {
+		apexes = []string{manifest.DefaultDomain}
+	}
+	return apexes
 }
 
 func (s *service) SetCloudflareCredentials(ctx context.Context, values CredentialUpdate) (CredentialStatus, error) {
@@ -207,12 +274,34 @@ func (s *service) Sync(ctx context.Context, dryRun, prune bool) (SyncResult, err
 	}
 	result.Message = syncMessage(cfg.Mode, dryRun, result)
 
-	if dryRun || result.NoChanges {
+	if dryRun {
 		return result, nil
 	}
 
-	if err := s.applyAdditive(ctx, cfg, desired, live, ledger, pruneSet); err != nil {
-		return SyncResult{}, err
+	if !result.NoChanges {
+		if err := s.applyAdditive(ctx, cfg, desired, live, ledger, pruneSet); err != nil {
+			return SyncResult{}, err
+		}
+		return result, nil
+	}
+
+	// NoChanges means the ingress manifest already matches — but DNS is a
+	// separate surface from ingress. A hostname whose ingress rule was pushed
+	// before DNS automation existed (or whose CNAME was deleted out of band)
+	// still resolves to NXDOMAIN, and the ingress-diff short-circuit would skip
+	// it forever. Run an independent, additive DNS pass on the remote path so an
+	// already-published host still gets its proxied CNAME. reconcileDNS is
+	// idempotent and ledger-guarded, so this never clobbers an out-of-band record.
+	if cfg.Mode != ModeLocal {
+		ignored := make(map[string]bool)
+		for _, l := range ledger {
+			if l.Owner == OwnerIgnored {
+				ignored[l.Hostname] = true
+			}
+		}
+		if err := s.reconcileDNS(ctx, desired, ignored, nil); err != nil {
+			return SyncResult{}, err
+		}
 	}
 	return result, nil
 }
@@ -499,10 +588,65 @@ func (s *service) applyAdditive(ctx context.Context, cfg TunnelConfig, desired [
 		if err := ingress.PushIngress(ctx, merged); err != nil {
 			return fmt.Errorf("push ingress: %w", err)
 		}
+		// DNS automation lives only on the remote/Cloudflare path: a pushed
+		// ingress rule is reachable only once <host> CNAMEs to the tunnel.
+		// Local mode manages its own resolver, so it is intentionally skipped.
+		if err := s.reconcileDNS(ctx, desired, ignored, pruneByHost); err != nil {
+			return err
+		}
 	}
 
 	s.recordOwnership(ctx, desired, ignored, pruneByHost)
 	return nil
+}
+
+// reconcileDNS ensures a proxied CNAME for every desired managed hostname and
+// removes the CNAMEs for pruned hostnames TM created. It is additive and
+// ownership-guarded: a record TM did not create is never deleted (the DNS
+// ledger gates removal), and EnsureRecord never clobbers an out-of-band record.
+// A nil DNS client makes this a no-op (DNS automation disabled). EnsureRecord
+// failures propagate so a present-but-unscoped token surfaces as an error here
+// (the regression guard) rather than silently producing a dead URL.
+func (s *service) reconcileDNS(ctx context.Context, desired []DesiredEntry, ignored, prune map[string]bool) error {
+	if s.deps.DNS == nil {
+		return nil
+	}
+	for _, d := range desired {
+		if d.Hostname == "" || ignored[d.Hostname] || prune[d.Hostname] {
+			continue
+		}
+		res, err := s.deps.DNS.EnsureRecord(ctx, d.Hostname)
+		if err != nil {
+			return fmt.Errorf("ensure DNS for %q: %w", d.Hostname, err)
+		}
+		if res.Created && s.deps.DNSLedger != nil {
+			// Best-effort: tracking failure must not fail an applied DNS record.
+			_ = s.deps.DNSLedger.Put(ctx, DNSRecordEntry{Hostname: d.Hostname, RecordID: res.RecordID})
+		}
+	}
+	for host := range prune {
+		s.removeManagedDNS(ctx, host)
+	}
+	return nil
+}
+
+// removeManagedDNS deletes the CNAME for a pruned hostname only when the DNS
+// ledger attributes it to TM, then clears the ledger row. With no ledger wired
+// it is a no-op (removal disabled — the safe direction). Removal is best-effort:
+// a transient Cloudflare failure must not fail the whole reconcile (the record
+// becomes an orphan a later prune retries).
+func (s *service) removeManagedDNS(ctx context.Context, hostname string) {
+	if s.deps.DNSLedger == nil {
+		return
+	}
+	_, found, err := s.deps.DNSLedger.Get(ctx, hostname)
+	if err != nil || !found {
+		return
+	}
+	if _, err := s.deps.DNS.RemoveRecord(ctx, hostname); err != nil {
+		return // leave the ledger row so a later prune retries the delete.
+	}
+	_, _ = s.deps.DNSLedger.Delete(ctx, hostname)
 }
 
 // mergeIngress computes the additive union to publish: start from current live

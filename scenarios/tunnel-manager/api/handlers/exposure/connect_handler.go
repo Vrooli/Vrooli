@@ -83,6 +83,21 @@ func (h *connectHandler) RevokeLease(ctx context.Context, req *connect.Request[e
 	return connect.NewResponse(&exposurev1.RevokeLeaseResponse{Retracted: retracted}), nil
 }
 
+func (h *connectHandler) Unexpose(ctx context.Context, req *connect.Request[exposurev1.UnexposeRequest]) (*connect.Response[exposurev1.UnexposeResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationExposureRevoke, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	retracted, leaseID, err := h.deps.Service.Unexpose(ctx, req.Msg.Scenario)
+	if err != nil {
+		connectErr := exposure.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("exposure.Unexpose(%q): %v", req.Msg.Scenario, err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&exposurev1.UnexposeResponse{Retracted: retracted, LeaseId: leaseID}), nil
+}
+
 func (h *connectHandler) ListLeases(ctx context.Context, req *connect.Request[exposurev1.ListLeasesRequest]) (*connect.Response[exposurev1.ListLeasesResponse], error) {
 	leases, err := h.deps.Service.ListLeases(ctx, leaseStatusFromProto(req.Msg.Status))
 	if err != nil {

@@ -25,6 +25,8 @@ type fakeService struct {
 	getErr     error
 	credOut    internalconfig.CredentialStatus
 	credErr    error
+	verifyOut  internalconfig.CredentialVerification
+	verifyErr  error
 	setIn      internalconfig.CredentialUpdate
 	setCalls   int
 	clearIn    []string
@@ -72,6 +74,10 @@ func (f *fakeService) GetConfigState(context.Context) (internalconfig.ConfigStat
 
 func (f *fakeService) GetCredentialStatus(context.Context) (internalconfig.CredentialStatus, error) {
 	return f.credOut, f.credErr
+}
+
+func (f *fakeService) VerifyCredentials(context.Context) (internalconfig.CredentialVerification, error) {
+	return f.verifyOut, f.verifyErr
 }
 
 func (f *fakeService) SetCloudflareCredentials(_ context.Context, values internalconfig.CredentialUpdate) (internalconfig.CredentialStatus, error) {

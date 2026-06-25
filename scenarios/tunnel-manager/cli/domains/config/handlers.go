@@ -107,6 +107,9 @@ func (h *handlers) sync(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) credentialsStatus(ctx cliapp.RunContext) error {
+	if verify, _ := strconv.ParseBool(strings.TrimSpace(ctx.Flag("verify"))); verify {
+		return h.credentialsVerify(ctx)
+	}
 	resp, err := h.client.GetCredentialStatus(context.Background(), connect.NewRequest(&configv1.GetCredentialStatusRequest{}))
 	if err != nil {
 		return cliapp.WrapAPIError("get credential status", err, nil)
@@ -119,8 +122,34 @@ func (h *handlers) credentialsStatus(ctx cliapp.RunContext) error {
 		ResultsHeading: "Credential fields",
 		Results:        formatCredentialFields(resp.Msg.Status.Fields),
 		RetrievalHints: []string{
+			"`config credentials-status --verify` — run LIVE Cloudflare scope checks (token, account, tunnel, DNS:Edit)",
 			"`config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>` — save missing credentials",
 			"`config sync --dry-run` — preview ingress reconciliation after credentials are ready",
+		},
+	})
+}
+
+// credentialsVerify runs the live VerifyCredentials probe and renders the
+// per-check verdict. Distinct from the presence-only default path so the
+// readiness fast-path never makes a network call.
+func (h *handlers) credentialsVerify(ctx cliapp.RunContext) error {
+	resp, err := h.client.VerifyCredentials(context.Background(), connect.NewRequest(&configv1.VerifyCredentialsRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("verify credentials", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no verification response")
+	}
+	summary := "Live Cloudflare credential checks: all OK — DNS automation is unblocked."
+	if !resp.Msg.Ready {
+		summary = "Live Cloudflare credential checks found issues (see remediation below)."
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{summary},
+		ResultsHeading: "Credential checks",
+		Results:        formatCredentialChecks(resp.Msg.Checks),
+		RetrievalHints: []string{
+			"`config credentials-set --api-token <token>` — store a re-issued token with the missing scope",
 		},
 	})
 }
@@ -244,6 +273,45 @@ func credentialStatusSummary(status *configv1.CredentialStatus) string {
 		return fmt.Sprintf("Cloudflare credentials are incomplete (source=%s).", status.Source)
 	}
 	return fmt.Sprintf("Cloudflare credentials are incomplete; missing %s.", strings.Join(status.MissingFields, ", "))
+}
+
+// formatCredentialChecks renders each live verification result as a one-line
+// "name: STATE — detail (remediation)" string. The state is upper-cased so an
+// OK run reads at a glance and any non-OK verdict stands out.
+func formatCredentialChecks(checks []*configv1.CredentialCheck) []string {
+	if len(checks) == 0 {
+		return []string{"checks=(none)"}
+	}
+	out := make([]string, 0, len(checks))
+	for _, c := range checks {
+		if c == nil {
+			continue
+		}
+		line := fmt.Sprintf("%s: %s", c.Name, checkStateLabel(c.State))
+		if c.Detail != "" {
+			line += " — " + c.Detail
+		}
+		if c.State != configv1.CheckState_CHECK_STATE_OK && c.Remediation != "" {
+			line += " → " + c.Remediation
+		}
+		out = append(out, line)
+	}
+	return out
+}
+
+func checkStateLabel(s configv1.CheckState) string {
+	switch s {
+	case configv1.CheckState_CHECK_STATE_OK:
+		return "OK"
+	case configv1.CheckState_CHECK_STATE_MISSING:
+		return "MISSING"
+	case configv1.CheckState_CHECK_STATE_INVALID:
+		return "INVALID"
+	case configv1.CheckState_CHECK_STATE_INSUFFICIENT_SCOPE:
+		return "INSUFFICIENT_SCOPE"
+	default:
+		return "UNSPECIFIED"
+	}
 }
 
 func formatCredentialFields(fields []*configv1.CredentialFieldStatus) []string {

@@ -41,6 +41,10 @@ func (s *schedulerService) RevokeLease(context.Context, string) (bool, error) {
 	panic("unused")
 }
 
+func (s *schedulerService) Unexpose(context.Context, string) (bool, string, error) {
+	panic("unused")
+}
+
 func (s *schedulerService) ListLeases(context.Context, exposure.LeaseStatus) ([]exposure.Lease, error) {
 	panic("unused")
 }

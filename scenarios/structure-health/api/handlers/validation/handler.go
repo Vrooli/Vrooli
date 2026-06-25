@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	"structure-health/internal/autofix"
+	"structure-health/internal/portswitch"
 	internalvalidation "structure-health/internal/validation"
 
 	"github.com/vrooli/api-core/metrics"
@@ -99,6 +100,45 @@ func (h *Handler) ApplyFixConfig(ctx context.Context, req *connect.Request[valid
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(fixResponseToProto(scenario, true, candidates)), nil
+}
+
+// AssignFixedPort switches a scenario's port from a canonical range to a free
+// in-band fixed port so it can be exposed as a scenario route.
+func (h *Handler) AssignFixedPort(ctx context.Context, req *connect.Request[validationv1.PortSwitchRequest]) (*connect.Response[validationv1.PortSwitchResponse], error) {
+	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
+	}
+	res, err := h.svc.AssignFixedPort(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetPortName(), req.Msg.GetApply())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(portSwitchToProto(res)), nil
+}
+
+// ReleaseFixedPort reverts a scenario's port back to the canonical range.
+func (h *Handler) ReleaseFixedPort(ctx context.Context, req *connect.Request[validationv1.PortSwitchRequest]) (*connect.Response[validationv1.PortSwitchResponse], error) {
+	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
+	}
+	res, err := h.svc.ReleaseFixedPort(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetPortName(), req.Msg.GetApply())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(portSwitchToProto(res)), nil
+}
+
+func portSwitchToProto(r portswitch.Result) *validationv1.PortSwitchResponse {
+	return &validationv1.PortSwitchResponse{
+		Scenario:     r.Scenario,
+		PortName:     r.PortName,
+		PreviousPort: int32(r.PreviousPort),
+		AssignedPort: int32(r.AssignedPort),
+		Changed:      r.Changed,
+		Applied:      r.Applied,
+		Before:       r.Before,
+		After:        r.After,
+		Message:      r.Message,
+	}
 }
 
 func fixResponseToProto(scenario string, applied bool, candidates []autofix.Candidate) *validationv1.FixConfigResponse {

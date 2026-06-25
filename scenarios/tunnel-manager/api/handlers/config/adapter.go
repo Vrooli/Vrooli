@@ -33,6 +33,37 @@ func readinessToProto(r internalconfig.ConfigReadiness) *configv1.ConfigReadines
 	}
 }
 
+// verificationToProto converts a live CredentialVerification into the wire
+// shape. Secret values never appear in CredentialCheck, so the mapping is a
+// straight field copy.
+func verificationToProto(v internalconfig.CredentialVerification) *configv1.VerifyCredentialsResponse {
+	checks := make([]*configv1.CredentialCheck, 0, len(v.Checks))
+	for _, c := range v.Checks {
+		checks = append(checks, &configv1.CredentialCheck{
+			Name:        c.Name,
+			State:       checkStateToProto(c.State),
+			Detail:      c.Detail,
+			Remediation: c.Remediation,
+		})
+	}
+	return &configv1.VerifyCredentialsResponse{Checks: checks, Ready: v.Ready}
+}
+
+func checkStateToProto(s internalconfig.CheckState) configv1.CheckState {
+	switch s {
+	case internalconfig.CheckOK:
+		return configv1.CheckState_CHECK_STATE_OK
+	case internalconfig.CheckMissing:
+		return configv1.CheckState_CHECK_STATE_MISSING
+	case internalconfig.CheckInvalid:
+		return configv1.CheckState_CHECK_STATE_INVALID
+	case internalconfig.CheckInsufficientScope:
+		return configv1.CheckState_CHECK_STATE_INSUFFICIENT_SCOPE
+	default:
+		return configv1.CheckState_CHECK_STATE_UNSPECIFIED
+	}
+}
+
 func credentialStatusToProto(status internalconfig.CredentialStatus) *configv1.CredentialStatus {
 	return &configv1.CredentialStatus{
 		Fields:        credentialFieldsToProto(status.Fields),

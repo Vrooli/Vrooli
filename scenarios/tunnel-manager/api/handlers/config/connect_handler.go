@@ -56,6 +56,18 @@ func (h *connectHandler) GetCredentialStatus(ctx context.Context, _ *connect.Req
 	}), nil
 }
 
+func (h *connectHandler) VerifyCredentials(ctx context.Context, _ *connect.Request[configv1.VerifyCredentialsRequest]) (*connect.Response[configv1.VerifyCredentialsResponse], error) {
+	verification, err := h.deps.Service.VerifyCredentials(ctx)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.VerifyCredentials: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(verificationToProto(verification)), nil
+}
+
 func (h *connectHandler) SetCloudflareCredentials(ctx context.Context, req *connect.Request[configv1.SetCloudflareCredentialsRequest]) (*connect.Response[configv1.SetCloudflareCredentialsResponse], error) {
 	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigCredentials, req.Header()); err != nil {
 		return nil, authz.ToConnectError(err)

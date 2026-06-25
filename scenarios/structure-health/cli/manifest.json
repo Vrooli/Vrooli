@@ -11,17 +11,34 @@
           "name": "scenario",
           "description": "Validate a scenario's skeleton and lifecycle wiring by reconciling code-facts ground truth against declared service.json intent",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to validate" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
           ],
           "flags": [
-            { "name": "path", "description": "Filesystem path to validate instead of a scenario slug" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ValidateScenario" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ValidateScenario"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["filesystem:read", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
           }
         }
       ]
@@ -34,14 +51,27 @@
           "name": "scan",
           "description": "Roll up structure conformance across every discovered scenario (or a requested subset): per-scenario rollups, profile distribution, per-rule conformance, and auto-fixable coverage",
           "flags": [
-            { "name": "scenario", "description": "Restrict the scan to one or more scenario slugs (repeatable / comma-separated); default scans every discovered scenario" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "scenario",
+              "description": "Restrict the scan to one or more scenario slugs (repeatable / comma-separated); default scans every discovered scenario"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "FleetService", "method": "ScanFleet" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "ScanFleet"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["filesystem:read", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
           }
         }
       ]
@@ -54,37 +84,168 @@
           "name": "run",
           "description": "Preview (or, with --apply, apply) deterministic structure/service.json fixes for a scenario's auto-fixable findings",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
           ],
           "flags": [
-            { "name": "rule", "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)" },
-            { "name": "path", "description": "Filesystem path to repair instead of a scenario slug" },
-            { "name": "apply", "description": "Apply the fixes (default is a dry-run preview)" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the fixes (default is a dry-run preview)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "PreviewFixConfig" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "PreviewFixConfig"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
           }
         },
         {
           "name": "apply",
           "description": "Apply deterministic structure/service.json fixes for a scenario's auto-fixable findings",
           "positionals": [
-            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to repair"
+            }
           ],
           "flags": [
-            { "name": "rule", "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)" },
-            { "name": "path", "description": "Filesystem path to repair instead of a scenario slug" },
-            { "name": "json", "description": "Emit JSON output" }
+            {
+              "name": "rule",
+              "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to repair instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ApplyFixConfig" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ApplyFixConfig"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "assign-fixed",
+          "description": "Assign a free in-band fixed port to a scenario (range to fixed) so it can be exposed as a scenario route; previews unless --apply",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to switch"
+            }
+          ],
+          "flags": [
+            {
+              "name": "port-name",
+              "description": "Listener port to switch (default ui; only api/ui/websocket have bands)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path instead of a scenario slug"
+            },
+            {
+              "name": "apply",
+              "description": "Write the edit (default previews the format-preserving diff)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "AssignFixedPort"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "release-fixed",
+          "description": "Release a scenario fixed port back to its canonical range (fixed to range); previews unless --apply",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to switch"
+            }
+          ],
+          "flags": [
+            {
+              "name": "port-name",
+              "description": "Listener port to switch (default ui; only api/ui/websocket have bands)"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path instead of a scenario slug"
+            },
+            {
+              "name": "apply",
+              "description": "Write the edit (default previews the format-preserving diff)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ValidationService",
+            "method": "ReleaseFixedPort"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
           }
         }
       ]

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	"tunnel-manager/internal/cmdrunner"
 )
@@ -51,22 +53,72 @@ func (r *FilePortResolver) UIPort(_ context.Context, scenario string) (int, erro
 
 // CLIRunner ensures a scenario is running by shelling `vrooli scenario
 // start <scenario>` through the cmdrunner seam. It is the production
-// Runner; tests use a fake. The lifecycle system makes start idempotent
-// (a running scenario is a no-op), so re-exposing is safe.
+// Runner; tests use a fake.
+//
+// Latency fast-path: `vrooli scenario start` is idempotent but SLOW (the live
+// test saw 22–35s because it ran on EVERY expose call, even for an
+// already-running scenario, which blew past the client deadline and surfaced a
+// confusing `unexpected EOF`). When a Ports resolver is wired, EnsureRunning
+// first does a cheap TCP dial to the scenario's fixed UI port; a successful
+// dial means the process is already serving, so it skips the start shell
+// entirely and returns immediately. Only a cold scenario pays the start cost.
 type CLIRunner struct {
 	Runner cmdrunner.Runner
+	// Ports resolves the scenario's fixed UI port for the already-running
+	// probe. Optional: when nil, EnsureRunning always shells start (old
+	// behaviour) — correctness is preserved, only the fast-path is disabled.
+	Ports PortResolver
+	// Dial probes whether the UI port is already accepting connections.
+	// Optional: defaults to a 300ms TCP dial. Injected in tests.
+	Dial func(ctx context.Context, port int) bool
 }
 
-// NewCLIRunner constructs the production Runner.
-func NewCLIRunner(runner cmdrunner.Runner) *CLIRunner {
-	return &CLIRunner{Runner: runner}
+// NewCLIRunner constructs the production Runner with the already-running
+// fast-path enabled via the supplied PortResolver.
+func NewCLIRunner(runner cmdrunner.Runner, ports PortResolver) *CLIRunner {
+	return &CLIRunner{Runner: runner, Ports: ports}
 }
 
 var _ Runner = (*CLIRunner)(nil)
 
 func (r *CLIRunner) EnsureRunning(ctx context.Context, scenario string) error {
+	if r.alreadyRunning(ctx, scenario) {
+		return nil
+	}
 	if _, err := r.Runner(ctx, "vrooli", "scenario", "start", scenario); err != nil {
 		return fmt.Errorf("ensure %q running: %w", scenario, err)
 	}
 	return nil
+}
+
+// alreadyRunning reports whether the scenario's fixed UI port is already
+// accepting connections, so EnsureRunning can skip the slow start shell. It is
+// best-effort: a ranged scenario (no fixed port) or an unwired resolver returns
+// false, falling back to the (idempotent) start.
+func (r *CLIRunner) alreadyRunning(ctx context.Context, scenario string) bool {
+	if r.Ports == nil {
+		return false
+	}
+	port, err := r.Ports.UIPort(ctx, scenario)
+	if err != nil || port <= 0 {
+		return false
+	}
+	dial := r.Dial
+	if dial == nil {
+		dial = dialPort
+	}
+	return dial(ctx, port)
+}
+
+// dialPort is the production probe: a short TCP dial to localhost:<port>.
+func dialPort(ctx context.Context, port int) bool {
+	d := net.Dialer{Timeout: 300 * time.Millisecond}
+	dctx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
+	defer cancel()
+	conn, err := d.DialContext(dctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
 }

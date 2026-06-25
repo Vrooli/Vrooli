@@ -23,6 +23,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ExposureService.Expose":        h.expose,
 		"ExposureService.ExtendLease":   h.extend,
 		"ExposureService.RevokeLease":   h.revoke,
+		"ExposureService.Unexpose":      h.unexpose,
 		"ExposureService.ListLeases":    h.leases,
 		"ExposureService.ListExposures": h.list,
 		"ExposureService.IsExposed":     h.check,

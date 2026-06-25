@@ -34,6 +34,10 @@ type fakeService struct {
 	lastInput      internalexposure.ExposeInput
 	exposeCalls    int
 	reconcileCalls int
+
+	unexposeScenario string
+	unexposeLeaseID  string
+	unexposeErr      error
 }
 
 func (f *fakeService) Expose(_ context.Context, in internalexposure.ExposeInput) (internalexposure.Lease, string, error) {
@@ -48,6 +52,11 @@ func (f *fakeService) ExtendLease(_ context.Context, _ string, _ time.Duration) 
 
 func (f *fakeService) RevokeLease(context.Context, string) (bool, error) {
 	return f.revoked, nil
+}
+
+func (f *fakeService) Unexpose(_ context.Context, scenario string) (bool, string, error) {
+	f.unexposeScenario = scenario
+	return f.revoked, f.unexposeLeaseID, f.unexposeErr
 }
 
 func (f *fakeService) ListLeases(context.Context, internalexposure.LeaseStatus) ([]internalexposure.Lease, error) {
