@@ -15,48 +15,10 @@ import (
 // RemoteSummarizeConfigAdmin implements SummarizeConfigAdmin against
 // audio-tools' SummarizeService.
 type RemoteSummarizeConfigAdmin struct {
-	Client      *audiotools.Client
-	Credentials func(ctx context.Context) audiotools.Credentials
+	remoteBase
 }
 
 var _ SummarizeConfigAdmin = (*RemoteSummarizeConfigAdmin)(nil)
-
-func (r *RemoteSummarizeConfigAdmin) ensure() error {
-	if r == nil || r.Client == nil {
-		return audiotools.ErrUnavailable
-	}
-	if err := r.Client.Ensure(); err != nil {
-		return audiotools.ErrUnavailable
-	}
-	return nil
-}
-
-func (r *RemoteSummarizeConfigAdmin) handleErr(err error) error {
-	if err == nil {
-		return nil
-	}
-	if isTransportFailure(err) {
-		r.Client.HandleTransportFailure()
-	}
-	return audiotools.NormalizeError(err)
-}
-
-func (r *RemoteSummarizeConfigAdmin) attach(ctx context.Context, req connect.AnyRequest) {
-	if r.Credentials == nil || req == nil {
-		return
-	}
-	creds := r.Credentials(ctx)
-	if creds.BYOKKey != "" {
-		req.Header().Set("X-Audio-BYOK-Key", creds.BYOKKey)
-		req.Header().Set("X-Audio-BYOK-Provider", creds.BYOKProvider)
-	}
-	if creds.LPBSToken != "" {
-		req.Header().Set("X-Audio-LPBS-Token", creds.LPBSToken)
-	}
-	if creds.UserIdentity != "" {
-		req.Header().Set("X-Audio-User-Identity", creds.UserIdentity)
-	}
-}
 
 func (r *RemoteSummarizeConfigAdmin) GetSummarizeConfig(ctx context.Context) (SummarizeConfig, error) {
 	if err := r.ensure(); err != nil {

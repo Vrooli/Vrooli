@@ -22,36 +22,9 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	policy, err := s.policyProvider.LoadPolicy()
+	mode, item, preflight, err := s.validateAndLoadQueueRequest(req)
 	if err != nil {
 		return Record{}, err
-	}
-
-	if strings.TrimSpace(req.BacklogKind) == "" {
-		return Record{}, apierr.BadRequest("backlog_kind is required")
-	}
-	if strings.TrimSpace(req.BacklogName) == "" {
-		return Record{}, apierr.BadRequest("backlog_name is required")
-	}
-	mode := normalizeMode(req.Mode)
-	if mode == "" {
-		mode = policy.DefaultMode
-	}
-	if mode == "" {
-		return Record{}, apierr.BadRequest("mode must be manual or yolo")
-	}
-
-	item, err := s.loadBacklogItem(req.BacklogKind, req.BacklogName)
-	if err != nil {
-		return Record{}, apierr.NotFound("backlog item not found: %s/%s", req.BacklogKind, req.BacklogName)
-	}
-	isArchived := item.ArchivedAt != nil
-	if !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
-		return Record{}, apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status)
-	}
-	preflight := s.processPreflightForItem(item, true)
-	if !preflight.Ready && (!req.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
-		return Record{}, apierr.BadRequest("process preflight failed: %s", strings.Join(allBlockingReasons(preflight), "; "))
 	}
 
 	// Load governance settings for enforcement checks.
@@ -86,6 +59,70 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return Record{}, err
 	}
 
+	record := buildNewQueueRecord(ctx, req, item, mode, preflight)
+
+	if err := s.updateBacklogStatus(item, backlogStatusQueued); err != nil {
+		return Record{}, err
+	}
+
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
+		return Record{}, err
+	}
+	s.logExecutionEvent(record, "")
+
+	if mode == ModeYOLO {
+		return s.startQueuedYOLO(ctx, record, item, itemKey)
+	}
+
+	s.dispatchStatusUpdate(record)
+	return record, nil
+}
+
+// validateAndLoadQueueRequest validates the create request, resolves the effective
+// mode, loads the backlog item, and runs preflight checks. Returns the resolved
+// mode, loaded item, preflight result, and any validation error.
+func (s *Service) validateAndLoadQueueRequest(req CreateRequest) (Mode, backlogItem, ProcessPreflight, error) {
+	if strings.TrimSpace(req.BacklogKind) == "" {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog_kind is required")
+	}
+	if strings.TrimSpace(req.BacklogName) == "" {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog_name is required")
+	}
+
+	mode := normalizeMode(req.Mode)
+	if mode == "" {
+		policy, err := s.policyProvider.LoadPolicy()
+		if err != nil {
+			return "", backlogItem{}, ProcessPreflight{}, err
+		}
+		mode = policy.DefaultMode
+	}
+	if mode == "" {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("mode must be manual or yolo")
+	}
+
+	item, err := s.loadBacklogItem(req.BacklogKind, req.BacklogName)
+	if err != nil {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.NotFound("backlog item not found: %s/%s", req.BacklogKind, req.BacklogName)
+	}
+	isArchived := item.ArchivedAt != nil
+	if !isQueueableStatus(item.Kind, item.Status) && !(isArchived && strings.ToLower(strings.TrimSpace(item.Kind)) == "idea") {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("backlog item cannot be queued from current status: %s", item.Status)
+	}
+
+	preflight := s.processPreflightForItem(item, true)
+	if !preflight.Ready && (!req.Force || hasNonForceableExecutionReasons(preflight.BlockingReasons)) {
+		return "", backlogItem{}, ProcessPreflight{}, apierr.BadRequest("process preflight failed: %s", strings.Join(allBlockingReasons(preflight), "; "))
+	}
+
+	return mode, item, preflight, nil
+}
+
+// buildNewQueueRecord constructs a pending Record from the validated request,
+// resolved item, and mode. It resolves StartedBy from the context when not
+// provided and defaults Operation to "generator".
+func buildNewQueueRecord(ctx context.Context, req CreateRequest, item backlogItem, mode Mode, _ ProcessPreflight) Record {
 	now := nowRFC3339()
 	record := Record{
 		ExecutionID:    idgen.Generate(),
@@ -111,23 +148,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if record.Operation == "" {
 		record.Operation = "generator"
 	}
-
-	if err := s.updateBacklogStatus(item, backlogStatusQueued); err != nil {
-		return Record{}, err
-	}
-
-	records = append(records, record)
-	if err := s.store.Save(records); err != nil {
-		return Record{}, err
-	}
-	s.logExecutionEvent(record, "")
-
-	if mode == ModeYOLO {
-		return s.startQueuedYOLO(ctx, record, item, itemKey)
-	}
-
-	s.dispatchStatusUpdate(record)
-	return record, nil
+	return record
 }
 
 // enforceQueueGovernance applies queue-depth and cost-cap limits before a

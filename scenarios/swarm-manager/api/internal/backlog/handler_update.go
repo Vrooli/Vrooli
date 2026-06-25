@@ -21,26 +21,38 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	updated, apiErr := h.doUpdate(r.Context(), kind, name, r)
+	if apiErr != nil {
+		apierr.MapError(w, "[backlog] update", apiErr)
+		return
+	}
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(updated)}
+	h.invalidateAllGraphLenses()
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to encode response"))
+	}
+}
 
+// doUpdate performs all mutation logic for Update, returning the saved item or
+// a typed API error. Extracting this helper collapses many scattered
+// apierr.MapError+return pairs into a single error-return path at the call
+// site, which is the dominant source of cyclomatic complexity in Update.
+func (h *Handler) doUpdate(ctx context.Context, kind BacklogKind, name string, r *http.Request) (BacklogItem, *apierr.DomainError) {
 	existing, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			apierr.MapError(w, "[backlog] update", apierr.NotFound("backlog item not found"))
-			return
+			return BacklogItem{}, apierr.NotFound("backlog item not found")
 		}
 		slog.Error("failed to load item for update", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] update", apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240)))
-		return
+		return BacklogItem{}, apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240))
 	}
 
 	update, fields, err := decodeUpdateBacklogPatch(r)
 	if err != nil {
-		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-		return
+		return BacklogItem{}, apierr.BadRequest("%s", err.Error())
 	}
 	if validationErr := validateUpdateBacklogItemRequest(update, fields, existing.Kind, existing.Status); validationErr != "" {
-		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", validationErr))
-		return
+		return BacklogItem{}, apierr.BadRequest("%s", validationErr)
 	}
 
 	oldStatus := existing.Status
@@ -52,8 +64,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if fields.Has(updateFieldEffort) {
 		normalized, err := validateEffort(update.GetEffort())
 		if err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
+			return BacklogItem{}, apierr.BadRequest("%s", err.Error())
 		}
 		update.Effort = &normalized
 	}
@@ -63,29 +74,41 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	if fields.Has(updateFieldInitiative) {
 		if err := h.validateInitiativeReference(existing.Initiative); err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
+			return BacklogItem{}, apierr.BadRequest("%s", err.Error())
 		}
 	}
 
 	if fields.Has(updateFieldDependsOn) && len(existing.DependsOn) > 0 {
 		if err := h.store.ValidateDependencies(existing.DependsOn); err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
+			return BacklogItem{}, apierr.BadRequest("%s", err.Error())
 		}
 		if err := h.checkDependencyCycles(existing); err != nil {
-			apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
-			return
+			return BacklogItem{}, apierr.BadRequest("%s", err.Error())
 		}
 	}
 
+	if apiErr := h.saveWithInitiativeUpdate(existing, kind, name, oldInitiative, fields); apiErr != nil {
+		return BacklogItem{}, apiErr
+	}
+
+	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
+	h.maybeManuallyAcceptExecution(ctx, kind, name, oldStatus, existing.Status)
+	h.maybeCascadeWorkshop(oldStatus, existing)
+	return existing, nil
+}
+
+// saveWithInitiativeUpdate detaches the item from the old initiative (when
+// changed), saves the item, rolls back on save failure, and attaches to the
+// new initiative. Consolidating these three dependent operations eliminates
+// duplicate error-path branches in doUpdate.
+func (h *Handler) saveWithInitiativeUpdate(existing BacklogItem, kind BacklogKind, name, oldInitiative string, fields backlogUpdateFieldSet) *apierr.DomainError {
 	ref := string(kind) + "/" + name
 	initiativeChanged := fields.Has(updateFieldInitiative) && oldInitiative != existing.Initiative
+
 	if initiativeChanged && h.initiativeAssigner != nil && oldInitiative != "" {
 		if err := h.initiativeAssigner.ForgetItem(oldInitiative, ref); err != nil {
 			slog.Error("failed to detach item from old initiative", "ref", ref, "initiative", oldInitiative, "err", err)
-			apierr.MapError(w, "[backlog] update", apierr.Internal("failed to update old initiative membership"))
-			return
+			return apierr.Internal("failed to update old initiative membership")
 		}
 	}
 
@@ -96,27 +119,16 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		slog.Error("failed to save item", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to save backlog item"))
-		return
+		return apierr.Internal("failed to save backlog item")
 	}
 
 	if initiativeChanged && h.initiativeAssigner != nil && existing.Initiative != "" {
 		if err := h.initiativeAssigner.RememberItem(existing.Initiative, ref); err != nil {
 			slog.Error("failed to attach item to new initiative", "ref", ref, "initiative", existing.Initiative, "err", err)
-			apierr.MapError(w, "[backlog] update", apierr.Internal("failed to update new initiative membership"))
-			return
+			return apierr.Internal("failed to update new initiative membership")
 		}
 	}
-
-	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
-	h.maybeManuallyAcceptExecution(r.Context(), kind, name, oldStatus, existing.Status)
-	h.maybeCascadeWorkshop(oldStatus, existing)
-
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}
-	h.invalidateAllGraphLenses()
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to encode response"))
-	}
+	return nil
 }
 
 // logAndEmitUpdate logs the update and emits analytics events for changed fields.

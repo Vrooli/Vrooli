@@ -70,39 +70,11 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Parse kind filters.
-	var kinds []BacklogKind
-	for _, raw := range req.GetKinds() {
-		k, err := ParseBacklogKind(raw)
-		if err != nil {
-			apierr.MapError(w, "[backlog] export", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-		kinds = append(kinds, k)
-	}
-
-	// Load all items matching kind filter.
-	items, err := h.store.LoadAll(kinds)
-	if err != nil {
-		apierr.MapError(w, "[backlog] export", apierr.Internal("failed to load backlog items"))
+	// Parse kind/status/name/tag filters and load matching items.
+	items, statusFilter, nameFilter, tagFilter, ok := h.loadExportItems(w, &req)
+	if !ok {
 		return
 	}
-
-	// Build status filter set.
-	statusFilter := defaultExportStatuses()
-	if len(req.GetStatuses()) > 0 {
-		statusFilter = make(map[BacklogStatus]bool, len(req.GetStatuses()))
-		for _, s := range req.GetStatuses() {
-			if !validateBacklogStatus(s) {
-				apierr.MapError(w, "[backlog] export", apierr.BadRequest("invalid status: %s", s))
-				return
-			}
-			statusFilter[BacklogStatus(s)] = true
-		}
-	}
-
-	nameFilter := stringSetFilter(req.GetNames())
-	tagFilter := stringSetFilter(req.GetTags())
 
 	// Apply filters.
 	var filtered []BacklogItem
@@ -158,6 +130,42 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"backlog-export.md\"")
 	_, _ = w.Write([]byte(b.String()))
+}
+
+// loadExportItems parses kind filters, validates status filters, and loads
+// all matching backlog items. Returns the loaded items and the three filter
+// maps on success, or writes an error response and returns ok=false. Extracting
+// this removes five branches (kind parse loop, LoadAll err, status loop with
+// validate, name/tag set builds) from Export.
+func (h *Handler) loadExportItems(w http.ResponseWriter, req *apipb.ExportBacklogRequest) ([]BacklogItem, map[BacklogStatus]bool, map[string]bool, map[string]bool, bool) {
+	var kinds []BacklogKind
+	for _, raw := range req.GetKinds() {
+		k, err := ParseBacklogKind(raw)
+		if err != nil {
+			apierr.MapError(w, "[backlog] export", apierr.BadRequest("%s", err.Error()))
+			return nil, nil, nil, nil, false
+		}
+		kinds = append(kinds, k)
+	}
+	items, err := h.store.LoadAll(kinds)
+	if err != nil {
+		apierr.MapError(w, "[backlog] export", apierr.Internal("failed to load backlog items"))
+		return nil, nil, nil, nil, false
+	}
+	statusFilter := defaultExportStatuses()
+	if len(req.GetStatuses()) > 0 {
+		statusFilter = make(map[BacklogStatus]bool, len(req.GetStatuses()))
+		for _, s := range req.GetStatuses() {
+			if !validateBacklogStatus(s) {
+				apierr.MapError(w, "[backlog] export", apierr.BadRequest("invalid status: %s", s))
+				return nil, nil, nil, nil, false
+			}
+			statusFilter[BacklogStatus(s)] = true
+		}
+	}
+	nameFilter := stringSetFilter(req.GetNames())
+	tagFilter := stringSetFilter(req.GetTags())
+	return items, statusFilter, nameFilter, tagFilter, true
 }
 
 // writeExportFrontmatter writes the YAML frontmatter block, including any

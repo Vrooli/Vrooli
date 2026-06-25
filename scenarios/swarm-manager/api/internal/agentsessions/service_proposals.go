@@ -46,14 +46,8 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 	if strings.TrimSpace(session.RunID) == "" {
 		return Session{}, nil, apierr.Conflict("agent session proposal apply requires an attributed agent run")
 	}
-	switch proposal.Kind {
-	case ProposalBacklogBatchImport, ProposalOperatingModeImplementationPlan:
-		if s.backlogBatchApplier == nil {
-			return Session{}, nil, apierr.Unavailable("backlog batch proposal apply is unavailable")
-		}
-	case ProposalOperatingModeDraft:
-	default:
-		return Session{}, nil, apierr.Wrapf(apierr.ErrNotImplemented, http.StatusNotImplemented, "agent session proposal kind %q apply is not implemented yet", string(proposal.Kind))
+	if err := s.checkProposalApplyCapability(proposal); err != nil {
+		return Session{}, nil, err
 	}
 
 	session.Status = StatusApplying
@@ -62,40 +56,10 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 		return Session{}, nil, err
 	}
 
-	var artifacts []Artifact
 	prov := proposalApplyProvenance(session, proposal)
-	switch proposal.Kind {
-	case ProposalBacklogBatchImport:
-		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), proposal.PayloadJSON, prov)
-		if err != nil {
-			return Session{}, nil, s.failProposalApply(&session, &proposal, err)
-		}
-	case ProposalOperatingModeImplementationPlan:
-		payloadJSON, err := backlogBatchPayloadForOperatingModePlan(proposal.PayloadJSON)
-		if err != nil {
-			return Session{}, nil, s.failProposalApply(&session, &proposal, err)
-		}
-		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), payloadJSON, prov)
-		if err != nil {
-			return Session{}, nil, s.failProposalApply(&session, &proposal, err)
-		}
-	case ProposalOperatingModeDraft:
-		attr := AttributionFromProvenance(prov)
-		artifact, err := s.AttachArtifact(ctx, Artifact{
-			SessionID:      session.ID,
-			ArtifactType:   ArtifactOperatingModeProposal,
-			Action:         ArtifactActionProposed,
-			EntityRef:      operatingModeProposalRef(proposal),
-			Title:          proposal.Summary,
-			ProposalID:     proposal.ID,
-			RunID:          prov.RunID,
-			MutationSource: "agent_sessions.apply.operating_mode_draft",
-			Attribution:    &attr,
-		})
-		if err != nil {
-			return Session{}, nil, s.failProposalApply(&session, &proposal, err)
-		}
-		artifacts = append(artifacts, artifact)
+	artifacts, err := s.executeProposalApplyWork(ctx, &session, &proposal, prov)
+	if err != nil {
+		return Session{}, nil, err
 	}
 
 	proposal.Status = ProposalStatusApplied
@@ -115,6 +79,65 @@ func (s *Service) ApplyProposal(ctx context.Context, sessionID, proposalID strin
 		return Session{}, nil, err
 	}
 	return applied, artifacts, nil
+}
+
+// checkProposalApplyCapability verifies that the service has the dependencies
+// needed to apply this proposal kind. Returns an error if the kind is unknown
+// or if a required service is unavailable.
+func (s *Service) checkProposalApplyCapability(proposal Proposal) error {
+	switch proposal.Kind {
+	case ProposalBacklogBatchImport, ProposalOperatingModeImplementationPlan:
+		if s.backlogBatchApplier == nil {
+			return apierr.Unavailable("backlog batch proposal apply is unavailable")
+		}
+	case ProposalOperatingModeDraft:
+		// no extra dependency needed
+	default:
+		return apierr.Wrapf(apierr.ErrNotImplemented, http.StatusNotImplemented, "agent session proposal kind %q apply is not implemented yet", string(proposal.Kind))
+	}
+	return nil
+}
+
+// executeProposalApplyWork dispatches to the kind-specific apply logic and
+// returns the produced artifacts. On error it rolls the session and proposal
+// back via failProposalApply and returns the original error unchanged.
+func (s *Service) executeProposalApplyWork(ctx context.Context, session *Session, proposal *Proposal, prov identity.Provenance) ([]Artifact, error) {
+	var artifacts []Artifact
+	var err error
+	switch proposal.Kind {
+	case ProposalBacklogBatchImport:
+		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), proposal.PayloadJSON, prov)
+		if err != nil {
+			return nil, s.failProposalApply(session, proposal, err)
+		}
+	case ProposalOperatingModeImplementationPlan:
+		payloadJSON, extractErr := backlogBatchPayloadForOperatingModePlan(proposal.PayloadJSON)
+		if extractErr != nil {
+			return nil, s.failProposalApply(session, proposal, extractErr)
+		}
+		artifacts, err = s.backlogBatchApplier.ApplyAgentSessionBacklogBatchImport(identity.NewContext(ctx, prov), payloadJSON, prov)
+		if err != nil {
+			return nil, s.failProposalApply(session, proposal, err)
+		}
+	case ProposalOperatingModeDraft:
+		attr := AttributionFromProvenance(prov)
+		artifact, attachErr := s.AttachArtifact(ctx, Artifact{
+			SessionID:      session.ID,
+			ArtifactType:   ArtifactOperatingModeProposal,
+			Action:         ArtifactActionProposed,
+			EntityRef:      operatingModeProposalRef(*proposal),
+			Title:          proposal.Summary,
+			ProposalID:     proposal.ID,
+			RunID:          prov.RunID,
+			MutationSource: "agent_sessions.apply.operating_mode_draft",
+			Attribution:    &attr,
+		})
+		if attachErr != nil {
+			return nil, s.failProposalApply(session, proposal, attachErr)
+		}
+		artifacts = append(artifacts, artifact)
+	}
+	return artifacts, nil
 }
 
 // failProposalApply rolls the proposal back to failed and the session back to

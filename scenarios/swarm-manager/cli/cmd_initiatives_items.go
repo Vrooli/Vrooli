@@ -10,51 +10,18 @@ import (
 )
 
 func (a *App) cmdInitiativesAddItems(args []string) error {
-	fs := flag.NewFlagSet("initiatives add-items", flag.ContinueOnError)
-	nameFlag := fs.String("name", "", "Initiative name")
-	itemsFlag := fs.String("items", "", "Comma-separated item references (kind/name)")
-	jsonOut := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	if err := requireFlags("name", *nameFlag, "items", *itemsFlag); err != nil {
-		return fmt.Errorf("usage: initiatives add-items --name NAME --items kind/name,kind/name [--json]\n\n%s", err)
-	}
-	name := strings.TrimSpace(*nameFlag)
-	items := parseCommaSeparated(*itemsFlag)
-	if len(items) == 0 {
-		return fmt.Errorf("at least one item reference is required")
-	}
-
-	payload, err := json.Marshal(map[string]any{"items": items})
-	if err != nil {
-		return err
-	}
-
-	body, err := a.core.Request("POST", "/initiatives/"+name+"/items", nil, payload)
-	if err != nil {
-		return err
-	}
-	if printJSONIfRequested(*jsonOut, body) {
-		return nil
-	}
-
-	response, err := decodeResponse[InitiativeResponse](body)
-	if err != nil {
-		return err
-	}
-
-	printSection("Items Added")
-	fmt.Printf("  Initiative: %s\n", response.Initiative.Name)
-	fmt.Printf("  Total items: %d\n", len(response.Initiative.Items))
-	for _, item := range response.Initiative.Items {
-		fmt.Printf("  - %s\n", item)
-	}
-	return nil
+	return a.runInitiativesItemsCommand(args, "add-items", "POST", "Items Added", "Total items")
 }
 
 func (a *App) cmdInitiativesRemoveItems(args []string) error {
-	fs := flag.NewFlagSet("initiatives remove-items", flag.ContinueOnError)
+	return a.runInitiativesItemsCommand(args, "remove-items", "DELETE", "Items Removed", "Remaining items")
+}
+
+// runInitiativesItemsCommand is shared logic for add-items and remove-items.
+// verb is the CLI sub-command name (e.g. "add-items"), method is the HTTP verb,
+// sectionTitle is the human-readable header, and countLabel is the item-count label.
+func (a *App) runInitiativesItemsCommand(args []string, verb, method, sectionTitle, countLabel string) error {
+	fs := flag.NewFlagSet("initiatives "+verb, flag.ContinueOnError)
 	nameFlag := fs.String("name", "", "Initiative name")
 	itemsFlag := fs.String("items", "", "Comma-separated item references (kind/name)")
 	jsonOut := cliutil.JSONFlag(fs)
@@ -62,7 +29,7 @@ func (a *App) cmdInitiativesRemoveItems(args []string) error {
 		return err
 	}
 	if err := requireFlags("name", *nameFlag, "items", *itemsFlag); err != nil {
-		return fmt.Errorf("usage: initiatives remove-items --name NAME --items kind/name,kind/name [--json]\n\n%s", err)
+		return fmt.Errorf("usage: initiatives %s --name NAME --items kind/name,kind/name [--json]\n\n%s", verb, err)
 	}
 	name := strings.TrimSpace(*nameFlag)
 	items := parseCommaSeparated(*itemsFlag)
@@ -75,7 +42,7 @@ func (a *App) cmdInitiativesRemoveItems(args []string) error {
 		return err
 	}
 
-	body, err := a.core.Request("DELETE", "/initiatives/"+name+"/items", nil, payload)
+	body, err := a.core.Request(method, "/initiatives/"+name+"/items", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -88,9 +55,9 @@ func (a *App) cmdInitiativesRemoveItems(args []string) error {
 		return err
 	}
 
-	printSection("Items Removed")
+	printSection(sectionTitle)
 	fmt.Printf("  Initiative: %s\n", response.Initiative.Name)
-	fmt.Printf("  Remaining items: %d\n", len(response.Initiative.Items))
+	fmt.Printf("  %s: %d\n", countLabel, len(response.Initiative.Items))
 	for _, item := range response.Initiative.Items {
 		fmt.Printf("  - %s\n", item)
 	}

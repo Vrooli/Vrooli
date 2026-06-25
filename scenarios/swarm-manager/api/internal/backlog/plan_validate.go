@@ -119,34 +119,7 @@ func ValidatePlanCompleteness(planContent string, kind BacklogKind) PlanValidati
 		}
 	}
 
-	var warnings []string
-	lowerContent := strings.ToLower(planContent)
-
-	// Check for prompt-manager skill read command
-	if !strings.Contains(lowerContent, "prompt-manager skill read") {
-		warnings = append(warnings, "No `prompt-manager skill read` command found in Required Reading")
-	}
-
-	// Check for greenfield declaration
-	if !strings.Contains(lowerContent, "greenfield") {
-		warnings = append(warnings, "No greenfield declaration found")
-	}
-
-	// Check for vrooli scenario restart
-	if !strings.Contains(lowerContent, "vrooli scenario restart") {
-		warnings = append(warnings, "No `vrooli scenario restart` final cleanup step found")
-	}
-
-	// Idea-specific checks
-	if kind == KindIdea {
-		if !strings.Contains(lowerContent, "scenario-generation") && !strings.Contains(lowerContent, "vrooli scenario create") {
-			warnings = append(warnings, "Idea item missing `scenario-generation` skill reference or `vrooli scenario create` template usage")
-		}
-		if !strings.Contains(lowerContent, " ui") && !strings.Contains(lowerContent, " ui ") &&
-			!strings.Contains(lowerContent, "template") {
-			warnings = append(warnings, "Idea item missing UI section or UI template mention")
-		}
-	}
+	warnings := collectPlanWarnings(planContent, kind)
 
 	// Determine pass/fail: no missing sections AND no critical warnings
 	// Critical warnings: prompt-manager and greenfield
@@ -179,6 +152,42 @@ func ValidateSuggestedSkills(planContent string, suggestedSkills []string) []str
 	for _, skill := range suggestedSkills {
 		if !strings.Contains(lower, strings.ToLower(skill)) {
 			warnings = append(warnings, fmt.Sprintf("Suggested skill %q not found in plan Required Reading", skill))
+		}
+	}
+	return warnings
+}
+
+// collectPlanWarnings checks the plan content for required elements and
+// returns a list of advisory or critical warnings. Extracting this keeps
+// ValidatePlanCompleteness focused on section-presence logic while these
+// content-pattern checks are independently testable.
+func collectPlanWarnings(planContent string, kind BacklogKind) []string {
+	lowerContent := strings.ToLower(planContent)
+	var warnings []string
+
+	// Check for prompt-manager skill read command
+	if !strings.Contains(lowerContent, "prompt-manager skill read") {
+		warnings = append(warnings, "No `prompt-manager skill read` command found in Required Reading")
+	}
+
+	// Check for greenfield declaration
+	if !strings.Contains(lowerContent, "greenfield") {
+		warnings = append(warnings, "No greenfield declaration found")
+	}
+
+	// Check for vrooli scenario restart
+	if !strings.Contains(lowerContent, "vrooli scenario restart") {
+		warnings = append(warnings, "No `vrooli scenario restart` final cleanup step found")
+	}
+
+	// Idea-specific checks
+	if kind == KindIdea {
+		if !strings.Contains(lowerContent, "scenario-generation") && !strings.Contains(lowerContent, "vrooli scenario create") {
+			warnings = append(warnings, "Idea item missing `scenario-generation` skill reference or `vrooli scenario create` template usage")
+		}
+		if !strings.Contains(lowerContent, " ui") && !strings.Contains(lowerContent, " ui ") &&
+			!strings.Contains(lowerContent, "template") {
+			warnings = append(warnings, "Idea item missing UI section or UI template mention")
 		}
 	}
 	return warnings

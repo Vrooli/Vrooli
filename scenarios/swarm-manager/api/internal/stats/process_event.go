@@ -46,33 +46,19 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 	case eventlog.EventInitiativeModeChanged:
 		s.handleInitiativeModeChanged(e)
 	case eventlog.EventOperatingModePhaseStarted:
-		var p eventlog.OperatingModePhasePayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.recordModePhaseStarted(p)
-		}
+		s.handleOperatingModePhaseStarted(e)
 	case eventlog.EventOperatingModePhaseCompleted:
-		var p eventlog.OperatingModePhasePayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.recordModePhaseTerminal(p, "completed")
-		}
+		s.handleOperatingModePhaseTerminal(e, "completed")
 	case eventlog.EventOperatingModePhaseFailed:
-		var p eventlog.OperatingModePhasePayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.recordModePhaseTerminal(p, "failed")
-		}
+		s.handleOperatingModePhaseTerminal(e, "failed")
 	case eventlog.EventOperatingModePhaseCanceled:
-		var p eventlog.OperatingModePhasePayload
-		if unmarshalMeta(e.Metadata, &p) {
-			s.recordModePhaseTerminal(p, "canceled")
-		}
+		s.handleOperatingModePhaseTerminal(e, "canceled")
 	case eventlog.EventOperatingModeBacklogSynced:
 		s.handleOperatingModeBacklogSynced(e)
 
 	// --- Execution ---
 	case eventlog.EventExecutionCreated:
 		s.execTotal++
-		var p eventlog.ExecutionCreatedPayload
-		_ = unmarshalMeta(e.Metadata, &p)
 	case eventlog.EventExecutionCompleted:
 		s.handleExecutionCompleted(e)
 	case eventlog.EventExecutionFailed:
@@ -262,6 +248,20 @@ func (s *aggregateState) handleInitiativeModeChanged(e *eventlog.Event) {
 	s.modeSwitchCount++
 	if p.To != "" {
 		s.initiativeMode[e.EntityID] = p.To
+	}
+}
+
+func (s *aggregateState) handleOperatingModePhaseStarted(e *eventlog.Event) {
+	var p eventlog.OperatingModePhasePayload
+	if unmarshalMeta(e.Metadata, &p) {
+		s.recordModePhaseStarted(p)
+	}
+}
+
+func (s *aggregateState) handleOperatingModePhaseTerminal(e *eventlog.Event, status string) {
+	var p eventlog.OperatingModePhasePayload
+	if unmarshalMeta(e.Metadata, &p) {
+		s.recordModePhaseTerminal(p, status)
 	}
 }
 

@@ -161,41 +161,8 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 		return "title is required"
 	}
 	if fields.Has(updateFieldStatus) {
-		status := req.GetStatus()
-		if !validateBacklogStatus(status) {
-			return "status must be a valid backlog status"
-		}
-		// Whitelist: only backlog, researching, ready are user-settable via
-		// PATCH. Everything else is owned by execution, the review agent,
-		// the review gate, or review-decide. New statuses added to the enum
-		// default to NOT user-settable (enforced by backlogstatus.IsUserSettable).
-		if !backlogstatus.IsUserSettable(status) {
-			switch status {
-			case string(StatusQueued), string(StatusInProgress):
-				return "status 'queued' and 'in_progress' can only be set by the execution system"
-			case string(StatusInReview):
-				return "status 'in_review' is set by the execution/review system; use the review-decide endpoint to complete review"
-			case string(StatusReviewPending):
-				return "status 'review_pending' is set by the review system; use the review-decide endpoint to accept or reject the review"
-			case string(StatusCompleted), string(StatusFailed), string(StatusNeedsFollowup):
-				return fmt.Sprintf("status %q is a terminal state; set it via the review-decide endpoint so the decision is audited", status)
-			}
-			return fmt.Sprintf("status %q is not user-settable via PATCH", status)
-		}
-		// Force review-gated items through the review-decide endpoint. PATCH
-		// cannot short-circuit the review flow because review-decide is the
-		// audit trail for the terminal decision (records rationale, decider,
-		// and fires the itemTerminalHandler for downstream work).
-		if IsReviewStatus(existingStatus) && BacklogStatus(status) != existingStatus {
-			return fmt.Sprintf("item is in status %q; use the review-decide endpoint to change status", existingStatus)
-		}
-		// Defense-in-depth: reject transitions the state machine considers
-		// nonsensical regardless of caller (terminal → anything, etc.).
-		// The whitelist above handles most cases, but IsValidTransition
-		// catches the rare edge (e.g., if a terminal were ever added to
-		// IsUserSettable by mistake).
-		if !IsValidTransition(existingStatus, BacklogStatus(status)) {
-			return fmt.Sprintf("status transition %q → %q is not allowed", existingStatus, status)
+		if msg := validateStatusField(req.GetStatus(), existingStatus); msg != "" {
+			return msg
 		}
 	}
 	if fields.Has(updateFieldPriority) {
@@ -230,6 +197,50 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 		}
 	}
 
+	return ""
+}
+
+// validateStatusField checks that the requested status value is syntactically
+// valid, is user-settable via PATCH (not owned by execution/review systems),
+// does not bypass the review-decide endpoint when the item is review-gated,
+// and represents a permitted state-machine transition. Extracting this keeps
+// the parent validator focused on field presence rather than status semantics.
+func validateStatusField(status string, existingStatus BacklogStatus) string {
+	if !validateBacklogStatus(status) {
+		return "status must be a valid backlog status"
+	}
+	// Whitelist: only backlog, researching, ready are user-settable via
+	// PATCH. Everything else is owned by execution, the review agent,
+	// the review gate, or review-decide. New statuses added to the enum
+	// default to NOT user-settable (enforced by backlogstatus.IsUserSettable).
+	if !backlogstatus.IsUserSettable(status) {
+		switch status {
+		case string(StatusQueued), string(StatusInProgress):
+			return "status 'queued' and 'in_progress' can only be set by the execution system"
+		case string(StatusInReview):
+			return "status 'in_review' is set by the execution/review system; use the review-decide endpoint to complete review"
+		case string(StatusReviewPending):
+			return "status 'review_pending' is set by the review system; use the review-decide endpoint to accept or reject the review"
+		case string(StatusCompleted), string(StatusFailed), string(StatusNeedsFollowup):
+			return fmt.Sprintf("status %q is a terminal state; set it via the review-decide endpoint so the decision is audited", status)
+		}
+		return fmt.Sprintf("status %q is not user-settable via PATCH", status)
+	}
+	// Force review-gated items through the review-decide endpoint. PATCH
+	// cannot short-circuit the review flow because review-decide is the
+	// audit trail for the terminal decision (records rationale, decider,
+	// and fires the itemTerminalHandler for downstream work).
+	if IsReviewStatus(existingStatus) && BacklogStatus(status) != existingStatus {
+		return fmt.Sprintf("item is in status %q; use the review-decide endpoint to change status", existingStatus)
+	}
+	// Defense-in-depth: reject transitions the state machine considers
+	// nonsensical regardless of caller (terminal → anything, etc.).
+	// The whitelist above handles most cases, but IsValidTransition
+	// catches the rare edge (e.g., if a terminal were ever added to
+	// IsUserSettable by mistake).
+	if !IsValidTransition(existingStatus, BacklogStatus(status)) {
+		return fmt.Sprintf("status transition %q → %q is not allowed", existingStatus, status)
+	}
 	return ""
 }
 

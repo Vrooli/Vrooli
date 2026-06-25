@@ -63,37 +63,72 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse and validate the round content.
-	var round workshop.Round
-	if err := json.Unmarshal([]byte(req.Content), &round); err != nil {
-		apierr.MapError(w, "[backlog] workshop-save", apierr.BadRequest("content is not valid workshop round JSON"))
-		return
-	}
-	round.PendingSynthesis = workshop.NeedsSynthesis(&round)
-	content, err := json.MarshalIndent(round, "", "  ")
-	if err != nil {
-		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to encode round content"))
+	itemDir := h.store.ItemDir(kind, name)
+	round, roundFile, apiErr := h.writeWorkshopRoundFile(kind, name, itemDir, &req)
+	if apiErr != nil {
+		apierr.MapError(w, "[backlog] workshop-save", apiErr)
 		return
 	}
 
-	// Write the round file.
-	itemDir := h.store.ItemDir(kind, name)
+	roundPath := filepath.Join(itemDir, "workshop", roundFile)
+	fSize := fileSize(roundPath)
+	fileNode := fileserve.FileNodeToProto(fileops.FileNode{
+		Name: roundFile,
+		Path: filepath.Join("workshop", roundFile),
+		Type: "file",
+		Size: fSize,
+	})
+
+	if apiErr := checkAcceptanceValidation(item, itemDir, round); apiErr != nil {
+		apierr.MapError(w, "[backlog] workshop-save", apiErr)
+		return
+	}
+
+	// Post-finalization validation: write validation-report.json when a finalize round is saved.
+	if round.Mode == "finalize" && kind != KindResearch {
+		runPostFinalizationValidation(kind, name, itemDir)
+	}
+
+	autoAdvance := h.computeAutoAdvance(item, &round, kind, name, itemDir)
+
+	resp := &apipb.WorkshopSaveResponse{
+		File:        fileNode,
+		AutoAdvance: autoAdvance,
+	}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to encode response"))
+	}
+}
+
+// writeWorkshopRoundFile parses the round JSON from the request, redacts paths,
+// writes the round file, logs analytics, and returns the workshop.Round, the
+// round file name, and any error. Extracting file-write operations into this
+// helper removes six branches from WorkshopSave.
+func (h *Handler) writeWorkshopRoundFile(kind BacklogKind, name, itemDir string, req *apipb.WorkshopSaveRequest) (workshop.Round, string, *apierr.DomainError) {
+	var round workshop.Round
+	if err := json.Unmarshal([]byte(req.Content), &round); err != nil {
+		return workshop.Round{}, "", apierr.BadRequest("content is not valid workshop round JSON")
+	}
+	round.PendingSynthesis = workshop.NeedsSynthesis(&round)
+	encoded, err := json.MarshalIndent(round, "", "  ")
+	if err != nil {
+		return workshop.Round{}, "", apierr.Internal("failed to encode round content")
+	}
+
 	workshopDir := filepath.Join(itemDir, "workshop")
 	if err := os.MkdirAll(workshopDir, 0o750); err != nil {
 		slog.Error("failed to create workshop dir", "err", err)
-		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to create workshop directory"))
-		return
+		return workshop.Round{}, "", apierr.Internal("failed to create workshop directory")
 	}
 
 	roundFile := fmt.Sprintf("round-%03d.json", req.RoundNumber)
 	roundPath := filepath.Join(workshopDir, roundFile)
-	if redacted, changed := pathredact.NewForArtifactPath(roundPath).RedactBytes(roundPath, content); changed {
-		content = redacted
+	if redacted, changed := pathredact.NewForArtifactPath(roundPath).RedactBytes(roundPath, encoded); changed {
+		encoded = redacted
 	}
-	if err := os.WriteFile(roundPath, content, 0o600); err != nil {
+	if err := os.WriteFile(roundPath, encoded, 0o600); err != nil {
 		slog.Error("failed to write round file", "path", roundPath, "err", err)
-		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to save round file"))
-		return
+		return workshop.Round{}, "", apierr.Internal("failed to save round file")
 	}
 
 	if h.eventLogger != nil {
@@ -108,57 +143,51 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	info, _ := os.Stat(roundPath)
-	var fileSize int64
-	if info != nil {
-		fileSize = info.Size()
+	slog.Info("workshop round saved", "kind", kind, "name", name, "file", roundFile, "bytes", fileSize(roundPath))
+	return round, roundFile, nil
+}
+
+// fileSize returns the file size in bytes, or 0 if the file cannot be stat'd.
+func fileSize(path string) int64 {
+	info, _ := os.Stat(path)
+	if info == nil {
+		return 0
 	}
-	fileNode := fileserve.FileNodeToProto(fileops.FileNode{
-		Name: roundFile,
-		Path: filepath.Join("workshop", roundFile),
-		Type: "file",
-		Size: fileSize,
-	})
+	return info.Size()
+}
 
-	slog.Info("workshop round saved", "kind", kind, "name", name, "file", roundFile, "bytes", fileSize)
-
-	// Acceptance validation runs after every round so the agent and operator
-	// see structured per-glob problems on the next round. At finalization,
-	// remaining problems block the save: a stale plan must not be allowed
-	// to finalize silently.
-	if accReport, accErr := runAcceptanceValidation(item, itemDir); accErr != nil {
-		slog.Warn("acceptance validation could not run", "kind", kind, "name", name, "err", accErr)
-	} else if accReport != nil && !accReport.Clean() && round.Mode == "finalize" {
-		apierr.MapError(w, "[backlog] workshop-save", apierr.PlanStale(
+// checkAcceptanceValidation runs the acceptance validator and returns a
+// PlanStale error when the round is a finalize and acceptance globs are
+// broken. Returns nil (no blocker) otherwise.
+func checkAcceptanceValidation(item BacklogItem, itemDir string, round workshop.Round) *apierr.DomainError {
+	accReport, accErr := runAcceptanceValidation(item, itemDir)
+	if accErr != nil {
+		slog.Warn("acceptance validation could not run", "kind", item.Kind, "name", item.Name, "err", accErr)
+		return nil
+	}
+	if accReport != nil && !accReport.Clean() && round.Mode == "finalize" {
+		return apierr.PlanStale(
 			"finalization blocked: plan references paths that do not exist and are not declared in `creates`",
 			map[string]any{
 				"missingPaths": accReport.Problems,
 			},
-		))
-		return
+		)
 	}
+	return nil
+}
 
-	// Post-finalization validation: write validation-report.json when a finalize round is saved.
-	if round.Mode == "finalize" && kind != KindResearch {
-		deliverable := DeliverableForKind(kind)
-		planContent := LoadPlanContentByName(itemDir, deliverable)
-		valResult := ValidatePlanCompleteness(planContent, kind)
-		if writeErr := WriteValidationReport(itemDir, valResult); writeErr != nil {
-			slog.Error("failed to write validation report", "kind", kind, "name", name, "err", writeErr)
-		} else {
-			slog.Info("post-finalization validation", "kind", kind, "name", name, "passed", valResult.Passed,
-				"missing", len(valResult.SectionsMissing), "warnings", len(valResult.Warnings))
-		}
-	}
-
-	autoAdvance := h.computeAutoAdvance(item, &round, kind, name, itemDir)
-
-	resp := &apipb.WorkshopSaveResponse{
-		File:        fileNode,
-		AutoAdvance: autoAdvance,
-	}
-	if err := httputil.ProtoJSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to encode response"))
+// runPostFinalizationValidation writes validation-report.json after a
+// finalize round is saved. Errors are logged but not fatal — the round was
+// already committed to disk.
+func runPostFinalizationValidation(kind BacklogKind, name, itemDir string) {
+	deliverable := DeliverableForKind(kind)
+	planContent := LoadPlanContentByName(itemDir, deliverable)
+	valResult := ValidatePlanCompleteness(planContent, kind)
+	if writeErr := WriteValidationReport(itemDir, valResult); writeErr != nil {
+		slog.Error("failed to write validation report", "kind", kind, "name", name, "err", writeErr)
+	} else {
+		slog.Info("post-finalization validation", "kind", kind, "name", name, "passed", valResult.Passed,
+			"missing", len(valResult.SectionsMissing), "warnings", len(valResult.Warnings))
 	}
 }
 

@@ -211,11 +211,11 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 			srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
 			srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
 			srv.summarizer = &audioports.RemoteSummarizer{Client: atClient}
-			srv.streamConfigAdmin = &audioports.RemoteStreamConfigAdmin{Client: atClient}
-			srv.wakeWordAdmin = &audioports.RemoteWakeWordAdmin{Client: atClient}
-			srv.speakerAdmin = &audioports.RemoteSpeakerAdmin{Client: atClient}
-			srv.ttsConfigAdmin = &audioports.RemoteTTSConfigAdmin{Client: atClient}
-			srv.summarizeConfigAdmin = &audioports.RemoteSummarizeConfigAdmin{Client: atClient}
+			srv.streamConfigAdmin = audioports.NewRemoteStreamConfigAdmin(atClient)
+			srv.wakeWordAdmin = audioports.NewRemoteWakeWordAdmin(atClient)
+			srv.speakerAdmin = audioports.NewRemoteSpeakerAdmin(atClient)
+			srv.ttsConfigAdmin = audioports.NewRemoteTTSConfigAdmin(atClient)
+			srv.summarizeConfigAdmin = audioports.NewRemoteSummarizeConfigAdmin(atClient)
 			srv.playbackRecorder = &audioports.RemotePlaybackEventRecorder{Client: atClient}
 		}
 	}

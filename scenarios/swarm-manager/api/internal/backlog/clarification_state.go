@@ -7,6 +7,7 @@
 package backlog
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -52,61 +53,70 @@ func (h *Handler) GetClarification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If thread is active and last message is from user, check agent completion.
-	if thread.Status == "active" && len(thread.Messages) > 0 &&
-		thread.Messages[len(thread.Messages)-1].Role == "user" &&
-		thread.RunID != "" && h.agentService.IsEnabled() {
-
-		state, err := h.agentService.GetRunState(r.Context(), thread.RunID)
-		if err == nil && isTerminalStatus(state.Status) {
-			// Agent finished — check for response in the run output.
-			// The agent should have written output that we can read from the run.
-			// For now, we rely on the agent writing to the thread file directly,
-			// or we synthesize a response from the run state.
-			if state.Status == "complete" || state.Status == "completed" || state.Status == "success" {
-				// Check if the agent wrote directly to the thread file.
-				refreshed, _ := workshop.LoadClarificationByID(itemDir, threadID)
-				if refreshed != nil && len(refreshed.Messages) > len(thread.Messages) {
-					thread = refreshed
-				} else if state.Summary != "" {
-					// Agent didn't write to thread file — use the run summary as the response.
-					thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
-						Role:      "assistant",
-						Content:   state.Summary,
-						CreatedAt: time.Now().UTC().Format(time.RFC3339),
-					})
-					thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-					_ = workshop.SaveClarification(itemDir, thread)
-				}
-			} else if state.Status == "failed" || state.Status == "error" {
-				// Agent failed — add an error message.
-				errMsg := "The clarification agent encountered an error. Please try again."
-				if state.ErrorMsg != "" {
-					errMsg = fmt.Sprintf("The clarification agent failed: %s", state.ErrorMsg)
-				}
-				thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
-					Role:      "assistant",
-					Content:   errMsg,
-					CreatedAt: time.Now().UTC().Format(time.RFC3339),
-				})
-				thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-				_ = workshop.SaveClarification(itemDir, thread)
-			}
-
-			// Parse impact from the latest assistant message.
-			if latest := lastAssistantMessage(thread); latest != nil {
-				if impact := workshop.ParseImpactXML(latest.Content); impact != nil {
-					thread.LatestImpact = impact
-					thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-					_ = workshop.SaveClarification(itemDir, thread)
-				}
-			}
-		}
-	}
+	h.pollClarificationAgentCompletion(r.Context(), itemDir, threadID, thread)
 
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, &apipb.GetClarificationResponse{
 		Thread: clarificationThreadToProto(thread),
 	}); err != nil {
 		slog.Error("failed to write clarification-get response", "err", err)
+	}
+}
+
+// pollClarificationAgentCompletion checks whether the research agent has
+// finished and, when it has, records its response (or error) in the thread
+// file and parses any impact XML. Extracting this collapses ten branches out
+// of GetClarification into a single call, making the handler read as a simple
+// load → poll → respond sequence.
+func (h *Handler) pollClarificationAgentCompletion(ctx context.Context, itemDir, threadID string, thread *workshop.ClarificationThread) {
+	if thread.Status != "active" || len(thread.Messages) == 0 ||
+		thread.Messages[len(thread.Messages)-1].Role != "user" ||
+		thread.RunID == "" || !h.agentService.IsEnabled() {
+		return
+	}
+
+	state, err := h.agentService.GetRunState(ctx, thread.RunID)
+	if err != nil || !isTerminalStatus(state.Status) {
+		return
+	}
+
+	// Agent finished — record its response.
+	if state.Status == "complete" || state.Status == "completed" || state.Status == "success" {
+		// Check if the agent wrote directly to the thread file.
+		refreshed, _ := workshop.LoadClarificationByID(itemDir, threadID)
+		if refreshed != nil && len(refreshed.Messages) > len(thread.Messages) {
+			*thread = *refreshed
+		} else if state.Summary != "" {
+			// Agent didn't write to thread file — use the run summary as the response.
+			thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
+				Role:      "assistant",
+				Content:   state.Summary,
+				CreatedAt: time.Now().UTC().Format(time.RFC3339),
+			})
+			thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+			_ = workshop.SaveClarification(itemDir, thread)
+		}
+	} else if state.Status == "failed" || state.Status == "error" {
+		// Agent failed — add an error message.
+		errMsg := "The clarification agent encountered an error. Please try again."
+		if state.ErrorMsg != "" {
+			errMsg = fmt.Sprintf("The clarification agent failed: %s", state.ErrorMsg)
+		}
+		thread.Messages = append(thread.Messages, workshop.ClarificationMessage{
+			Role:      "assistant",
+			Content:   errMsg,
+			CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		})
+		thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		_ = workshop.SaveClarification(itemDir, thread)
+	}
+
+	// Parse impact from the latest assistant message.
+	if latest := lastAssistantMessage(thread); latest != nil {
+		if impact := workshop.ParseImpactXML(latest.Content); impact != nil {
+			thread.LatestImpact = impact
+			thread.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+			_ = workshop.SaveClarification(itemDir, thread)
+		}
 	}
 }
 
@@ -119,50 +129,14 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	threadID := mux.Vars(r)["threadId"]
-	if strings.TrimSpace(threadID) == "" {
-		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("threadId is required"))
-		return
-	}
-
-	var req apipb.ClarificationActionRequest
-	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("invalid request body"))
-		return
-	}
-	if !httputil.ValidateProtoRequest(w, "[backlog] clarification-action", "invalid request body", &req) {
-		return
-	}
-
 	itemDir := h.store.ItemDir(kind, name)
-	thread, err := workshop.LoadClarificationByID(itemDir, threadID)
-	if err != nil {
-		apierr.MapError(w, "[backlog] clarification-action", apierr.Internal("failed to load clarification"))
+	req, thread, targetRound, ok2 := h.loadClarificationForAction(w, r, itemDir)
+	if !ok2 {
 		return
 	}
-	if thread == nil {
-		apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("clarification thread not found"))
-		return
-	}
-
 	resp := &apipb.ClarificationActionResponse{
 		Action:  req.Action,
 		Success: true,
-	}
-
-	// Load the target round for item manipulation.
-	rounds, err := workshop.LoadRounds(itemDir)
-	if err != nil {
-		apierr.MapError(w, "[backlog] clarification-action", apierr.Internal("failed to load rounds"))
-		return
-	}
-
-	var targetRound *workshop.Round
-	for i := range rounds {
-		if rounds[i].RoundNum == thread.RoundNumber {
-			targetRound = &rounds[i]
-			break
-		}
 	}
 
 	switch req.Action {
@@ -170,7 +144,7 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 		h.clarificationActionGotIt(itemDir, thread, targetRound, resp)
 
 	case "update_decision":
-		if !h.clarificationActionUpdateDecision(w, itemDir, thread, targetRound, &req, resp) {
+		if !h.clarificationActionUpdateDecision(w, itemDir, thread, targetRound, req, resp) {
 			return
 		}
 
@@ -209,6 +183,54 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
 		slog.Error("failed to write clarification-action response", "err", err)
 	}
+}
+
+// loadClarificationForAction parses the action request, loads the
+// clarification thread and round, and returns them along with the loaded round.
+// Extracting this removes eight branches from ClarificationAction (threadID
+// empty check, decode, validate, two LoadClarificationByID errors, LoadRounds
+// error, loop, and loop body comparison) leaving ClarificationAction to focus
+// on dispatch and post-action bookkeeping.
+func (h *Handler) loadClarificationForAction(w http.ResponseWriter, r *http.Request, itemDir string) (*apipb.ClarificationActionRequest, *workshop.ClarificationThread, *workshop.Round, bool) {
+	threadID := mux.Vars(r)["threadId"]
+	if strings.TrimSpace(threadID) == "" {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("threadId is required"))
+		return nil, nil, nil, false
+	}
+
+	req := &apipb.ClarificationActionRequest{}
+	if err := httputil.DecodeProtoJSON(r, req); err != nil {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("invalid request body"))
+		return nil, nil, nil, false
+	}
+	if !httputil.ValidateProtoRequest(w, "[backlog] clarification-action", "invalid request body", req) {
+		return nil, nil, nil, false
+	}
+
+	thread, err := workshop.LoadClarificationByID(itemDir, threadID)
+	if err != nil {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.Internal("failed to load clarification"))
+		return nil, nil, nil, false
+	}
+	if thread == nil {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("clarification thread not found"))
+		return nil, nil, nil, false
+	}
+
+	rounds, err := workshop.LoadRounds(itemDir)
+	if err != nil {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.Internal("failed to load rounds"))
+		return nil, nil, nil, false
+	}
+
+	var targetRound *workshop.Round
+	for i := range rounds {
+		if rounds[i].RoundNum == thread.RoundNumber {
+			targetRound = &rounds[i]
+			break
+		}
+	}
+	return req, thread, targetRound, true
 }
 
 // clarificationActionGotIt dismisses the clarification, attaching the impact

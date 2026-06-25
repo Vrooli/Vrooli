@@ -199,32 +199,70 @@ func redactFile(path string, data []byte, redactor pathredact.Redactor) ([]byte,
 	return out, nil
 }
 
+// generatedSuffixes are path suffixes whose presence alone marks a file as
+// generated state (checked before the base-name rules below).
+var generatedSuffixes = []string{
+	"/.swarm/last-research-prompt-trace.json",
+}
+
+// generatedBaseNames are file names that are generated state regardless of
+// their containing directory.
+var generatedBaseNames = map[string]bool{
+	"acceptance-validation.json": true,
+}
+
+// roundJSONDirs are directory segments that contain "round-NNN.json" files
+// that are generated state.
+var roundJSONDirs = []string{
+	"/workshop/",
+	"/review/",
+	"/operating-mode/",
+}
+
+// isRoundJSON reports whether base looks like a generated round file.
+func isRoundJSON(base string) bool {
+	return strings.HasPrefix(base, "round-") && strings.HasSuffix(base, ".json")
+}
+
+// handoffBases are the file names inside /handoff/ that are generated state.
+var handoffBases = map[string]bool{
+	"manifest.json":     true,
+	"source-index.json": true,
+	"brief.md":          true,
+}
+
 func isGeneratedSurface(rel string) bool {
 	base := filepath.Base(rel)
-	switch {
-	case strings.HasSuffix(rel, "/.swarm/last-research-prompt-trace.json"):
-		return true
-	case base == "acceptance-validation.json":
-		return true
-	case strings.Contains(rel, "/workshop/") && strings.HasPrefix(base, "round-") && strings.HasSuffix(base, ".json"):
-		return true
-	case strings.Contains(rel, "/review/") && strings.HasPrefix(base, "round-") && strings.HasSuffix(base, ".json"):
-		return true
-	case strings.Contains(rel, "/review/captures/"):
-		return true
-	case strings.Contains(rel, "/review/decisions/") && strings.HasSuffix(base, ".json"):
-		return true
-	case strings.Contains(rel, "/evidence/"):
-		return true
-	case strings.Contains(rel, "/handoff/") && (base == "manifest.json" || base == "source-index.json" || base == "brief.md"):
-		return true
-	case strings.Contains(rel, "/feedback/") && base == "feedback.json":
-		return true
-	case strings.Contains(rel, "/operating-mode/") && strings.HasPrefix(base, "round-") && strings.HasSuffix(base, ".json"):
-		return true
-	default:
-		return false
+
+	for _, suffix := range generatedSuffixes {
+		if strings.HasSuffix(rel, suffix) {
+			return true
+		}
 	}
+	if generatedBaseNames[base] {
+		return true
+	}
+	for _, dir := range roundJSONDirs {
+		if strings.Contains(rel, dir) && isRoundJSON(base) {
+			return true
+		}
+	}
+	if strings.Contains(rel, "/review/captures/") {
+		return true
+	}
+	if strings.Contains(rel, "/review/decisions/") && strings.HasSuffix(base, ".json") {
+		return true
+	}
+	if strings.Contains(rel, "/evidence/") {
+		return true
+	}
+	if strings.Contains(rel, "/handoff/") && handoffBases[base] {
+		return true
+	}
+	if strings.Contains(rel, "/feedback/") && base == "feedback.json" {
+		return true
+	}
+	return false
 }
 
 func printSummary(result summary) {

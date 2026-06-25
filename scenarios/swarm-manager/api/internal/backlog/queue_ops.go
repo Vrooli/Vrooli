@@ -105,46 +105,8 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		protoReasons[i] = &apipb.BlockingReason{Message: r.Message, Forceable: r.Forceable}
 	}
 
-	buildQueueResponse := func(dryRun, queued bool, message string, taskID, runID, created string) *apipb.QueueBacklogItemResponse {
-		return &apipb.QueueBacklogItemResponse{
-			Item:                backlogToProto(item),
-			TaskId:              taskID,
-			RunId:               runID,
-			BaseUrl:             "",
-			Created:             created,
-			DryRun:              dryRun,
-			Queued:              queued,
-			Message:             message,
-			BlockingReasons:     protoReasons,
-			UnansweredQuestions: 0,
-			PendingSuggestions:  int32(pendingDecisions),
-			Advisories:          preflight.Advisories,
-		}
-	}
-
-	if !confirm || httputil.IsDryRun(r) {
-		message := "Queue request validated. No changes applied."
-		if !confirm {
-			message = "Preview only. Re-run with confirm=true (CLI: --execute) to queue."
-		}
-		if len(blockingReasons) > 0 {
-			message = "Queue blocked by readiness checks. Resolve blockers or use force=true (CLI: --force) for feedback-gate overrides."
-		}
-		resp := buildQueueResponse(true, false, message, "dry-run-task", "", time.Now().UTC().Format(time.RFC3339))
-		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
-			apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode dry-run response"))
-		}
+	if done := h.handleQueuePreflightResponse(w, item, protoReasons, preflight.Advisories, pendingDecisions, confirm, force, blockingReasons, r); done {
 		return
-	}
-
-	if len(blockingReasons) > 0 {
-		if !force || HasNonForceableReasons(blockingReasons) {
-			resp := buildQueueResponse(true, false, "Queue blocked by readiness checks.", "", "", time.Now().UTC().Format(time.RFC3339))
-			if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
-				apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode blocked response"))
-			}
-			return
-		}
 	}
 	record, err := executionService.QueueBacklog(r.Context(), execution.CreateRequest{
 		BacklogKind: string(kind),
@@ -235,6 +197,63 @@ func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestPara
 		params.startedBy = "swarm-manager"
 	}
 	return params, true
+}
+
+// handleQueuePreflightResponse writes a dry-run, preview, or blocked response
+// when the queue operation should not proceed, returning true (done). Returns
+// false when the caller should continue to actually queue the item. Extracting
+// this eliminates the buildQueueResponse closure and four conditional branches
+// from Queue, making the handler's happy-path flow linear.
+func (h *Handler) handleQueuePreflightResponse(
+	w http.ResponseWriter,
+	item BacklogItem,
+	protoReasons []*apipb.BlockingReason,
+	advisories []string,
+	pendingDecisions int,
+	confirm, force bool,
+	blockingReasons []BlockingReason,
+	r *http.Request,
+) bool {
+	buildResp := func(dryRun, queued bool, message, taskID, runID, created string) *apipb.QueueBacklogItemResponse {
+		return &apipb.QueueBacklogItemResponse{
+			Item:                backlogToProto(item),
+			TaskId:              taskID,
+			RunId:               runID,
+			BaseUrl:             "",
+			Created:             created,
+			DryRun:              dryRun,
+			Queued:              queued,
+			Message:             message,
+			BlockingReasons:     protoReasons,
+			UnansweredQuestions: 0,
+			PendingSuggestions:  int32(pendingDecisions),
+			Advisories:          advisories,
+		}
+	}
+
+	if !confirm || httputil.IsDryRun(r) {
+		message := "Queue request validated. No changes applied."
+		if !confirm {
+			message = "Preview only. Re-run with confirm=true (CLI: --execute) to queue."
+		}
+		if len(blockingReasons) > 0 {
+			message = "Queue blocked by readiness checks. Resolve blockers or use force=true (CLI: --force) for feedback-gate overrides."
+		}
+		resp := buildResp(true, false, message, "dry-run-task", "", time.Now().UTC().Format(time.RFC3339))
+		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+			apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode dry-run response"))
+		}
+		return true
+	}
+
+	if len(blockingReasons) > 0 && (!force || HasNonForceableReasons(blockingReasons)) {
+		resp := buildResp(true, false, "Queue blocked by readiness checks.", "", "", time.Now().UTC().Format(time.RFC3339))
+		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+			apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode blocked response"))
+		}
+		return true
+	}
+	return false
 }
 
 // mapQueueBacklogError classifies an error from executionService.QueueBacklog

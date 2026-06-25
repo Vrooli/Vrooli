@@ -178,86 +178,13 @@ func (s *Service) spawnInitiativeTracked(
 	if s.agentService == nil || !s.agentService.IsEnabled() {
 		return agentmanager.RunResult{}, agentmanager.ErrNotAvailable
 	}
-
-	s.mu.Lock()
-	records, err := s.store.Load()
-	if err != nil {
-		s.mu.Unlock()
-		return agentmanager.RunResult{}, err
-	}
-
 	// Lane gate. Initiative-scoped phase runs declare PhaseKind explicitly
 	// (the phase runner reads it from PhaseDefinition.Kind), so saturation
 	// here surfaces ErrLaneSaturated to the operating-mode round refresher,
 	// which defers via the pending_auto_start sidecar (P4) on retry.
-	if err := s.checkLaneCapacityLocked(spec, records); err != nil {
-		s.mu.Unlock()
-		return agentmanager.RunResult{}, err
-	}
-
-	now := nowRFC3339()
-	record := Record{
-		ActivityID:      idgen.Generate(),
-		OwnerType:       spec.OwnerType,
-		OwnerKind:       spec.OwnerKind,
-		OwnerName:       spec.OwnerName,
-		OwnerTitle:      spec.OwnerTitle,
-		ExecutionID:     spec.ExecutionID,
-		PhaseKind:       spec.PhaseKind,
-		Purpose:         spec.Purpose,
-		InteractionType: InteractionSpawn,
-		Status:          StatusPending,
-		RequestedAt:     now,
-		RequestedBy:     spec.RequestedBy,
-		Metadata:        metadataWithProfileKey(spec.Metadata, req.ProfileKey),
-		UpdatedAt:       now,
-	}
-	records = append(records, record)
-	if err := s.store.Save(records); err != nil {
-		s.mu.Unlock()
-		return agentmanager.RunResult{}, err
-	}
-	s.dispatchStatusUpdate(record)
-	s.mu.Unlock()
-
-	runResult, spawnErr := s.initiativeSpawner.SpawnInitiative(ctx, req)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, err = s.store.Load()
-	if err != nil {
-		return agentmanager.RunResult{}, err
-	}
-	idx := indexByID(records, record.ActivityID)
-	if idx < 0 {
-		return agentmanager.RunResult{}, fmt.Errorf("agent activity disappeared during spawn")
-	}
-
-	updated := records[idx]
-	updated.UpdatedAt = nowRFC3339()
-	if spawnErr != nil {
-		updated.Status = StatusFailed
-		updated.FailureReason = spawnErr.Error()
-		updated.FinishedAt = updated.UpdatedAt
-		records[idx] = updated
-		if err := s.store.Save(records); err != nil {
-			return agentmanager.RunResult{}, err
-		}
-		s.dispatchStatusUpdate(updated)
-		return agentmanager.RunResult{}, spawnErr
-	}
-
-	updated.TaskID = strings.TrimSpace(runResult.TaskID)
-	updated.RunID = strings.TrimSpace(runResult.RunID)
-	updated.Status = StatusStarting
-	updated.StartedAt = updated.UpdatedAt
-	records[idx] = updated
-	if err := s.store.Save(records); err != nil {
-		return agentmanager.RunResult{}, err
-	}
-	s.dispatchStatusUpdate(updated)
-	return runResult, nil
+	return s.spawnWithCallback(spec, req.ProfileKey, func() (agentmanager.RunResult, error) {
+		return s.initiativeSpawner.SpawnInitiative(ctx, req)
+	})
 }
 
 func (s *Service) spawnSessionTracked(
@@ -271,7 +198,25 @@ func (s *Service) spawnSessionTracked(
 	if s.agentService == nil || !s.agentService.IsEnabled() {
 		return agentmanager.RunResult{}, agentmanager.ErrNotAvailable
 	}
+	// Lane gate. Session-scoped spawns (interactive operator sessions)
+	// honor the same lanes — without phaseKind they fall back to the
+	// per-Purpose default; saturation returns ErrLaneSaturated to the
+	// caller (no enqueue path).
+	return s.spawnWithCallback(spec, req.ProfileKey, func() (agentmanager.RunResult, error) {
+		return s.sessionSpawner.SpawnSession(ctx, req)
+	})
+}
 
+// spawnWithCallback handles the shared record lifecycle for initiative and
+// session spawns: acquire the lock, check lane capacity, write a pending
+// record, release the lock, call spawnFn, then reacquire the lock to
+// record the outcome. spawnTracked is not folded in because it adds the
+// backlog-exclusivity guard between the lane check and record creation.
+func (s *Service) spawnWithCallback(
+	spec Spec,
+	profileKey string,
+	spawnFn func() (agentmanager.RunResult, error),
+) (agentmanager.RunResult, error) {
 	s.mu.Lock()
 	records, err := s.store.Load()
 	if err != nil {
@@ -279,10 +224,6 @@ func (s *Service) spawnSessionTracked(
 		return agentmanager.RunResult{}, err
 	}
 
-	// Lane gate. Session-scoped spawns (interactive operator sessions)
-	// honor the same lanes — without phaseKind they fall back to the
-	// per-Purpose default; saturation returns ErrLaneSaturated to the
-	// caller (no enqueue path).
 	if err := s.checkLaneCapacityLocked(spec, records); err != nil {
 		s.mu.Unlock()
 		return agentmanager.RunResult{}, err
@@ -302,7 +243,7 @@ func (s *Service) spawnSessionTracked(
 		Status:          StatusPending,
 		RequestedAt:     now,
 		RequestedBy:     spec.RequestedBy,
-		Metadata:        metadataWithProfileKey(spec.Metadata, req.ProfileKey),
+		Metadata:        metadataWithProfileKey(spec.Metadata, profileKey),
 		UpdatedAt:       now,
 	}
 	records = append(records, record)
@@ -313,7 +254,7 @@ func (s *Service) spawnSessionTracked(
 	s.dispatchStatusUpdate(record)
 	s.mu.Unlock()
 
-	runResult, spawnErr := s.sessionSpawner.SpawnSession(ctx, req)
+	runResult, spawnErr := spawnFn()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

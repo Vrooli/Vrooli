@@ -158,6 +158,53 @@ func (h *Handler) fetchResearchPrompt(ctx context.Context, item BacklogItem, mod
 	}, nil
 }
 
+// parseResearchRequestBody decodes and validates the research request body,
+// parses the research mode, and validates mode/kind compatibility. Returns
+// the parsed request, resolved mode, and ok=true on success. On failure it
+// writes the appropriate error response and returns ok=false. Extracting this
+// collapses five branches (body decode, normalize, validate, mode parse,
+// mode/kind check) into one branch in Research.
+func (h *Handler) parseResearchRequestBody(w http.ResponseWriter, r *http.Request, kind BacklogKind) (*apipb.BacklogResearchRequest, ResearchMode, bool) {
+	req := &apipb.BacklogResearchRequest{}
+	if r.Body != nil && r.ContentLength != 0 {
+		if err := httputil.DecodeProtoJSON(r, req); err != nil {
+			apierr.MapError(w, "[backlog] research", apierr.BadRequest("invalid request body"))
+			return nil, "", false
+		}
+		normalizeResearchRequest(req)
+		if !httputil.ValidateProtoRequest(w, "[backlog] research", "invalid request body", req) {
+			return nil, "", false
+		}
+	}
+	mode, modeErr := parseResearchMode(readOptionalString(req.Mode))
+	if modeErr != nil {
+		apierr.MapError(w, "[backlog] research", apierr.BadRequest("%s", modeErr.Error()))
+		return nil, "", false
+	}
+	if err := validateResearchModeForKind(kind, mode); err != nil {
+		apierr.MapError(w, "[backlog] research", apierr.BadRequest("%s", err.Error()))
+		return nil, "", false
+	}
+	return req, mode, true
+}
+
+// cancelPendingAdvanceIfNeeded cancels any deferred auto-advance registered
+// for this item when the user explicitly triggers a workshop or finalize run.
+// Extracted from Research to remove two branches (mode check + ticker nil
+// check) from the handler body.
+func (h *Handler) cancelPendingAdvanceIfNeeded(kind BacklogKind, name, itemName string, mode ResearchMode) {
+	if mode != ResearchModeWorkshop && mode != ResearchModeFinalize {
+		return
+	}
+	itemDir := h.store.ItemDir(kind, itemName)
+	if deletePendingAdvance(itemDir) {
+		slog.Info("research: cancelled pending auto-advance", "kind", kind, "name", name, "mode", mode)
+	}
+	if h.workshopTicker != nil {
+		h.workshopTicker.Unregister(string(kind), name)
+	}
+}
+
 // buildVariableMap creates the template variable map for prompt-manager skill rendering.
 func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 	deliverable := DeliverableForKind(item.Kind)
@@ -454,25 +501,8 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req apipb.BacklogResearchRequest
-	if r.Body != nil && r.ContentLength != 0 {
-		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-			apierr.MapError(w, "[backlog] research", apierr.BadRequest("invalid request body"))
-			return
-		}
-		normalizeResearchRequest(&req)
-		if !httputil.ValidateProtoRequest(w, "[backlog] research", "invalid request body", &req) {
-			return
-		}
-	}
-
-	mode, modeErr := parseResearchMode(readOptionalString(req.Mode))
-	if modeErr != nil {
-		apierr.MapError(w, "[backlog] research", apierr.BadRequest("%s", modeErr.Error()))
-		return
-	}
-	if err := validateResearchModeForKind(kind, mode); err != nil {
-		apierr.MapError(w, "[backlog] research", apierr.BadRequest("%s", err.Error()))
+	req, mode, ok2 := h.parseResearchRequestBody(w, r, kind)
+	if !ok2 {
 		return
 	}
 
@@ -515,21 +545,13 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prompt, trace := h.buildResearchPromptAndTrace(r.Context(), item, kind, mode, &req, preFinalizeGapReport)
+	prompt, trace := h.buildResearchPromptAndTrace(r.Context(), item, kind, mode, req, preFinalizeGapReport)
 
 	// Cancel any pending auto-advance for workshop/finalize modes. This
 	// prevents a deferred auto-advance from racing with the user's manual
 	// "Next Round" click. The centralized guard in agentactivity.spawnTracked
 	// is the authoritative backstop against double-spawns.
-	if mode == ResearchModeWorkshop || mode == ResearchModeFinalize {
-		itemDir := h.store.ItemDir(kind, item.Name)
-		if deletePendingAdvance(itemDir) {
-			slog.Info("research: cancelled pending auto-advance", "kind", kind, "name", name, "mode", mode)
-		}
-		if h.workshopTicker != nil {
-			h.workshopTicker.Unregister(string(kind), name)
-		}
-	}
+	h.cancelPendingAdvanceIfNeeded(kind, name, item.Name, mode)
 
 	if httputil.IsDryRun(r) {
 		writeResearchDryRun(w)

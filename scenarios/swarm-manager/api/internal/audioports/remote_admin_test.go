@@ -33,7 +33,7 @@ func TestRemoteStreamConfigAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{getStreamConfig: func() (*sttv1.GetStreamConfigResponse, error) {
 			return &sttv1.GetStreamConfigResponse{Config: &sttv1.StreamConfig{FlushIntervalMs: 77}}, nil
 		}}
-		r := &RemoteStreamConfigAdmin{Client: c}
+		r := &RemoteStreamConfigAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.GetStreamConfig(ctx)
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -46,7 +46,7 @@ func TestRemoteStreamConfigAdmin(t *testing.T) {
 	t.Run("get empty response", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{getStreamConfig: func() (*sttv1.GetStreamConfigResponse, error) { return nil, nil }}
-		r := &RemoteStreamConfigAdmin{Client: c}
+		r := &RemoteStreamConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.GetStreamConfig(ctx); err == nil || err.Error() != "audiotools: empty get_stream_config response" {
 			t.Fatalf("want empty err, got %v", err)
 		}
@@ -55,7 +55,7 @@ func TestRemoteStreamConfigAdmin(t *testing.T) {
 	t.Run("get transport failure", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{getStreamConfig: func() (*sttv1.GetStreamConfigResponse, error) { return nil, unavailableErr() }}
-		r := &RemoteStreamConfigAdmin{Client: c}
+		r := &RemoteStreamConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.GetStreamConfig(ctx); !errors.Is(err, audiotools.ErrUnavailable) {
 			t.Fatalf("want ErrUnavailable, got %v", err)
 		}
@@ -70,7 +70,7 @@ func TestRemoteStreamConfigAdmin(t *testing.T) {
 			t.Fatal("RPC must not be called with empty mask")
 			return nil, nil
 		}}
-		r := &RemoteStreamConfigAdmin{Client: c}
+		r := &RemoteStreamConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.UpdateStreamConfig(ctx, FieldMask{}, StreamConfig{}); !errors.Is(err, audiotools.ErrInvalidArgument) {
 			t.Fatalf("want ErrInvalidArgument, got %v", err)
 		}
@@ -81,7 +81,7 @@ func TestRemoteStreamConfigAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{updateStreamConfig: func() (*sttv1.UpdateStreamConfigResponse, error) {
 			return &sttv1.UpdateStreamConfigResponse{Config: &sttv1.StreamConfig{MinDeltaBytes: 5}}, nil
 		}}
-		r := &RemoteStreamConfigAdmin{Client: c}
+		r := &RemoteStreamConfigAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.UpdateStreamConfig(ctx, FieldMask{Paths: []string{"min_delta_bytes"}}, StreamConfig{MinDeltaBytes: 5})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -111,7 +111,7 @@ func TestRemoteWakeWordAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{getWakeWordConfig: func() (*sttv1.GetWakeWordConfigResponse, error) {
 			return &sttv1.GetWakeWordConfigResponse{Config: &sttv1.WakeWordConfig{Configured: true}}, nil
 		}}
-		r := &RemoteWakeWordAdmin{Client: c}
+		r := &RemoteWakeWordAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.GetWakeWordConfig(ctx)
 		if err != nil || !got.Configured {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -123,7 +123,7 @@ func TestRemoteWakeWordAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{updateWakeWord: func() (*sttv1.UpdateWakeWordTemplateResponse, error) {
 			return &sttv1.UpdateWakeWordTemplateResponse{Config: &sttv1.WakeWordConfig{Configured: true}}, nil
 		}}
-		r := &RemoteWakeWordAdmin{Client: c}
+		r := &RemoteWakeWordAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.UpdateWakeWordTemplate(ctx, WakeWordTemplate{Label: "hi"})
 		if err != nil || !got.Configured {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -133,7 +133,7 @@ func TestRemoteWakeWordAdmin(t *testing.T) {
 	t.Run("delete empty response", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{deleteWakeWord: func() (*sttv1.DeleteWakeWordTemplateResponse, error) { return nil, nil }}
-		r := &RemoteWakeWordAdmin{Client: c}
+		r := &RemoteWakeWordAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.DeleteWakeWordTemplate(ctx); err == nil ||
 			err.Error() != "audiotools: empty delete_wake_word_template response" {
 			t.Fatalf("want empty err, got %v", err)
@@ -143,7 +143,7 @@ func TestRemoteWakeWordAdmin(t *testing.T) {
 	t.Run("delete transport failure", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{deleteWakeWord: func() (*sttv1.DeleteWakeWordTemplateResponse, error) { return nil, unavailableErr() }}
-		r := &RemoteWakeWordAdmin{Client: c}
+		r := &RemoteWakeWordAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.DeleteWakeWordTemplate(ctx); !errors.Is(err, audiotools.ErrUnavailable) {
 			t.Fatalf("want ErrUnavailable, got %v", err)
 		}
@@ -172,7 +172,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{getSpeakerConfig: func() (*sttv1.GetSpeakerConfigResponse, error) {
 			return &sttv1.GetSpeakerConfigResponse{Config: &sttv1.SpeakerConfig{Enabled: true, Threshold: 0.5}}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.GetSpeakerConfig(ctx)
 		if err != nil || !got.Enabled || got.Threshold != 0.5 {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -182,7 +182,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 	t.Run("update config empty mask", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.UpdateSpeakerConfig(ctx, FieldMask{}, SpeakerConfig{}); !errors.Is(err, audiotools.ErrInvalidArgument) {
 			t.Fatalf("want ErrInvalidArgument, got %v", err)
 		}
@@ -193,7 +193,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{updateSpeakerConfig: func() (*sttv1.UpdateSpeakerConfigResponse, error) {
 			return &sttv1.UpdateSpeakerConfigResponse{Config: &sttv1.SpeakerConfig{Enabled: true}}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.UpdateSpeakerConfig(ctx, FieldMask{Paths: []string{"enabled"}}, SpeakerConfig{Enabled: true})
 		if err != nil || !got.Enabled {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -205,7 +205,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{getSpeakerStatus: func() (*sttv1.GetSpeakerStatusResponse, error) {
 			return &sttv1.GetSpeakerStatusResponse{Status: &sttv1.SpeakerStatus{Capability: "available", ProfileCount: 1}}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.GetSpeakerStatus(ctx)
 		if err != nil || got.Capability != SpeakerCapabilityAvailable || got.ProfileCount != 1 {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -217,7 +217,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{listSpeakerProfiles: func() (*sttv1.ListSpeakerProfilesResponse, error) {
 			return &sttv1.ListSpeakerProfilesResponse{Profiles: []*sttv1.SpeakerProfile{{Id: "a"}, {Id: "b"}}}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.ListSpeakerProfiles(ctx)
 		if err != nil || len(got) != 2 || got[0].ID != "a" || got[1].ID != "b" {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -227,7 +227,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 	t.Run("list profiles nil response -> nil slice", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{listSpeakerProfiles: func() (*sttv1.ListSpeakerProfilesResponse, error) { return nil, nil }}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.ListSpeakerProfiles(ctx)
 		if err != nil || got != nil {
 			t.Fatalf("want nil,nil got %v,%v", got, err)
@@ -245,7 +245,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 				Config:     &sttv1.SpeakerConfig{Enabled: true},
 			}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.EnrollSpeakerProfile(ctx, EnrollSpeakerInput{
 			ProfileID: "p9", Format: AudioFormatWAV, AddToActive: &yes, Enable: &yes,
 		})
@@ -263,7 +263,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 	t.Run("unbind empty id rejected", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.UnbindSpeakerProfile(ctx, ""); !errors.Is(err, audiotools.ErrInvalidArgument) {
 			t.Fatalf("want ErrInvalidArgument, got %v", err)
 		}
@@ -274,7 +274,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{unbindSpeaker: func() (*sttv1.UnbindSpeakerProfileResponse, error) {
 			return &sttv1.UnbindSpeakerProfileResponse{Config: &sttv1.SpeakerConfig{}}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.UnbindSpeakerProfile(ctx, "p1"); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -283,7 +283,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 	t.Run("delete empty id rejected", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.DeleteSpeakerProfile(ctx, ""); !errors.Is(err, audiotools.ErrInvalidArgument) {
 			t.Fatalf("want ErrInvalidArgument, got %v", err)
 		}
@@ -294,7 +294,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{deleteSpeaker: func() (*sttv1.DeleteSpeakerProfileResponse, error) {
 			return &sttv1.DeleteSpeakerProfileResponse{Config: &sttv1.SpeakerConfig{}}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.DeleteSpeakerProfile(ctx, "p1"); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -305,7 +305,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 		c.STTAdmin = &fakeSTTAdmin{clearSpeakerBinding: func() (*sttv1.ClearSpeakerProfileBindingResponse, error) {
 			return &sttv1.ClearSpeakerProfileBindingResponse{Config: &sttv1.SpeakerConfig{}}, nil
 		}}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.ClearSpeakerProfileBinding(ctx); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -314,7 +314,7 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 	t.Run("clear binding transport failure", func(t *testing.T) {
 		c := newTestClient(t)
 		c.STTAdmin = &fakeSTTAdmin{clearSpeakerBinding: func() (*sttv1.ClearSpeakerProfileBindingResponse, error) { return nil, unavailableErr() }}
-		r := &RemoteSpeakerAdmin{Client: c}
+		r := &RemoteSpeakerAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.ClearSpeakerProfileBinding(ctx); !errors.Is(err, audiotools.ErrUnavailable) {
 			t.Fatalf("want ErrUnavailable, got %v", err)
 		}
@@ -335,9 +335,11 @@ func TestRemoteSpeakerAdmin(t *testing.T) {
 			config: &sttv1.SpeakerConfig{},
 		}
 		r := &RemoteSpeakerAdmin{
-			Client: c,
-			Credentials: func(context.Context) audiotools.Credentials {
-				return audiotools.Credentials{BYOKKey: "secret", BYOKProvider: "openai"}
+			remoteBase: remoteBase{
+				Client: c,
+				Credentials: func(context.Context) audiotools.Credentials {
+					return audiotools.Credentials{BYOKKey: "secret", BYOKProvider: "openai"}
+				},
 			},
 		}
 		if _, err := r.GetSpeakerConfig(ctx); err != nil {
@@ -381,7 +383,7 @@ func TestRemoteSummarizeConfigAdmin(t *testing.T) {
 		c.Summarize = &fakeSummarize{getConfig: func() (*summv1.GetSummarizeConfigResponse, error) {
 			return &summv1.GetSummarizeConfigResponse{Config: &summv1.SummarizeConfig{Enabled: true, CharThreshold: 500}}, nil
 		}}
-		r := &RemoteSummarizeConfigAdmin{Client: c}
+		r := &RemoteSummarizeConfigAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.GetSummarizeConfig(ctx)
 		if err != nil || !got.Enabled || got.CharThreshold != 500 {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -391,7 +393,7 @@ func TestRemoteSummarizeConfigAdmin(t *testing.T) {
 	t.Run("update empty mask", func(t *testing.T) {
 		c := newTestClient(t)
 		c.Summarize = &fakeSummarize{}
-		r := &RemoteSummarizeConfigAdmin{Client: c}
+		r := &RemoteSummarizeConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.UpdateSummarizeConfig(ctx, FieldMask{}, SummarizeConfig{}); !errors.Is(err, audiotools.ErrInvalidArgument) {
 			t.Fatalf("want ErrInvalidArgument, got %v", err)
 		}
@@ -402,7 +404,7 @@ func TestRemoteSummarizeConfigAdmin(t *testing.T) {
 		c.Summarize = &fakeSummarize{updateConfig: func() (*summv1.UpdateSummarizeConfigResponse, error) {
 			return &summv1.UpdateSummarizeConfigResponse{Config: &summv1.SummarizeConfig{Model: "gemma"}}, nil
 		}}
-		r := &RemoteSummarizeConfigAdmin{Client: c}
+		r := &RemoteSummarizeConfigAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.UpdateSummarizeConfig(ctx, FieldMask{Paths: []string{"model"}}, SummarizeConfig{Model: "gemma"})
 		if err != nil || got.Model != "gemma" {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -414,7 +416,7 @@ func TestRemoteSummarizeConfigAdmin(t *testing.T) {
 		c.Summarize = &fakeSummarize{listModels: func() (*summv1.ListSummarizeModelsResponse, error) {
 			return &summv1.ListSummarizeModelsResponse{Models: []*summv1.SummarizeModel{{Id: "m1"}, {Id: "m2"}}}, nil
 		}}
-		r := &RemoteSummarizeConfigAdmin{Client: c}
+		r := &RemoteSummarizeConfigAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.ListSummarizeModels(ctx)
 		if err != nil || len(got) != 2 || got[0].ID != "m1" {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -424,7 +426,7 @@ func TestRemoteSummarizeConfigAdmin(t *testing.T) {
 	t.Run("list models empty response is an error", func(t *testing.T) {
 		c := newTestClient(t)
 		c.Summarize = &fakeSummarize{listModels: func() (*summv1.ListSummarizeModelsResponse, error) { return nil, nil }}
-		r := &RemoteSummarizeConfigAdmin{Client: c}
+		r := &RemoteSummarizeConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.ListSummarizeModels(ctx); err == nil ||
 			err.Error() != "audiotools: empty list_summarize_models response" {
 			t.Fatalf("want empty err, got %v", err)
@@ -434,7 +436,7 @@ func TestRemoteSummarizeConfigAdmin(t *testing.T) {
 	t.Run("list models transport failure", func(t *testing.T) {
 		c := newTestClient(t)
 		c.Summarize = &fakeSummarize{listModels: func() (*summv1.ListSummarizeModelsResponse, error) { return nil, unavailableErr() }}
-		r := &RemoteSummarizeConfigAdmin{Client: c}
+		r := &RemoteSummarizeConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.ListSummarizeModels(ctx); !errors.Is(err, audiotools.ErrUnavailable) {
 			t.Fatalf("want ErrUnavailable, got %v", err)
 		}
@@ -463,7 +465,7 @@ func TestRemoteTTSConfigAdmin(t *testing.T) {
 		c.TTS = &fakeTTS{getConfig: func() (*ttsv1.GetConfigResponse, error) {
 			return &ttsv1.GetConfigResponse{Config: &ttsv1.Config{AutoEnabled: true, DefaultVoice: "af_heart"}}, nil
 		}}
-		r := &RemoteTTSConfigAdmin{Client: c}
+		r := &RemoteTTSConfigAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.GetTTSConfig(ctx)
 		if err != nil || !got.AutoEnabled || got.DefaultVoice != "af_heart" {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -473,7 +475,7 @@ func TestRemoteTTSConfigAdmin(t *testing.T) {
 	t.Run("update empty mask", func(t *testing.T) {
 		c := newTestClient(t)
 		c.TTS = &fakeTTS{}
-		r := &RemoteTTSConfigAdmin{Client: c}
+		r := &RemoteTTSConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.UpdateTTSConfig(ctx, FieldMask{}, TTSConfig{}); !errors.Is(err, audiotools.ErrInvalidArgument) {
 			t.Fatalf("want ErrInvalidArgument, got %v", err)
 		}
@@ -484,7 +486,7 @@ func TestRemoteTTSConfigAdmin(t *testing.T) {
 		c.TTS = &fakeTTS{updateConfig: func() (*ttsv1.UpdateConfigResponse, error) {
 			return &ttsv1.UpdateConfigResponse{Config: &ttsv1.Config{DefaultVoice: "x"}}, nil
 		}}
-		r := &RemoteTTSConfigAdmin{Client: c}
+		r := &RemoteTTSConfigAdmin{remoteBase: remoteBase{Client: c}}
 		got, err := r.UpdateTTSConfig(ctx, FieldMask{Paths: []string{"default_voice"}}, TTSConfig{DefaultVoice: "x"})
 		if err != nil || got.DefaultVoice != "x" {
 			t.Fatalf("got=%+v err=%v", got, err)
@@ -494,7 +496,7 @@ func TestRemoteTTSConfigAdmin(t *testing.T) {
 	t.Run("update empty response", func(t *testing.T) {
 		c := newTestClient(t)
 		c.TTS = &fakeTTS{updateConfig: func() (*ttsv1.UpdateConfigResponse, error) { return nil, nil }}
-		r := &RemoteTTSConfigAdmin{Client: c}
+		r := &RemoteTTSConfigAdmin{remoteBase: remoteBase{Client: c}}
 		if _, err := r.UpdateTTSConfig(ctx, FieldMask{Paths: []string{"x"}}, TTSConfig{}); err == nil ||
 			err.Error() != "audiotools: empty update_tts_config response" {
 			t.Fatalf("want empty err, got %v", err)

@@ -108,103 +108,11 @@ func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []st
 
 	changed := false
 	changedRecords := make(map[string]Record)
-	finalizationCandidates = make([]string, 0)
-	holdCandidates = make([]string, 0)
 
-	for i := range records {
-		record := &records[i]
-		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-			if migrateLegacyFinalizationState(record, item) {
-				changed = true
-				changedRecords[record.ExecutionID] = *record
-			}
-		}
-	}
-
-	for i := range records {
-		record := &records[i]
-		if record.Status == StatusValidating && effectiveFinalization(*record) != nil {
-			if _, exists := s.processingFinalizations[record.ExecutionID]; !exists {
-				finalizationCandidates = append(finalizationCandidates, record.ExecutionID)
-			}
-		}
-	}
-
-	// Handle running/starting/needs_review records.
-	if s.inspector != nil {
-		for i := range records {
-			record := &records[i]
-			if !isInspectableStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
-				continue
-			}
-
-			tracker := s.ensureRunTracker(record.RunID)
-
-			// Max-age staleness check.
-			if time.Since(tracker.FirstSeen) > s.maxRunAge {
-				s.markRunFailed(record, "run exceeded maximum age timeout",
-					"run exceeded max age, marking failed", "failed to set backlog status to in_review after max-age timeout",
-					slog.Duration("age", time.Since(tracker.FirstSeen)))
-				changed = true
-				changedRecords[record.ExecutionID] = *record
-				continue
-			}
-
-			runState, err := s.inspector.GetRunState(ctx, record.RunID)
-			if err != nil {
-				tracker.ConsecutiveErrors++
-				if tracker.ConsecutiveErrors >= s.maxConsecutiveErrors {
-					s.markRunFailed(record, "lost contact with agent-manager run",
-						"run hit max consecutive errors, marking failed", "failed to set backlog status to in_review after consecutive-errors timeout",
-						slog.Int("errors", tracker.ConsecutiveErrors))
-					changed = true
-					changedRecords[record.ExecutionID] = *record
-				} else {
-					slog.Warn("GetRunState error",
-						"execution_id", record.ExecutionID,
-						"run_id", record.RunID,
-						"err", err,
-						"consecutive", tracker.ConsecutiveErrors)
-				}
-				continue
-			}
-			tracker.ConsecutiveErrors = 0
-
-			nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg, tracker, s.maxConsecutiveUnknown)
-			if nextStatus == record.Status {
-				continue
-			}
-			prevStatus := record.Status
-			record.Status = nextStatus
-			record.FailureReason = reason
-			record.UpdatedAt = nowRFC3339()
-			// Only set FinishedAt for terminal statuses
-			if isTerminalStatus(nextStatus) {
-				s.applyTerminalTransition(ctx, record, runState, nextStatus, &finalizationCandidates)
-			}
-			changed = true
-			changedRecords[record.ExecutionID] = *record
-			s.logExecutionEvent(*record, prevStatus)
-		}
-	}
-
-	// Collect pre-merge engagement-hold candidates: runs parked at needs_review
-	// whose hold hasn't been processed yet and that aren't already in flight.
-	// Done after the inspector pass so a same-cycle transition into needs_review
-	// is caught immediately. Dormant unless the engagement machinery is active.
-	if s.engagementHoldActive() {
-		for i := range records {
-			record := &records[i]
-			if record.Status != StatusNeedsReview || strings.TrimSpace(record.EngagementHoldAt) != "" {
-				continue
-			}
-			if _, exists := s.processingHolds[record.ExecutionID]; exists {
-				continue
-			}
-			holdCandidates = append(holdCandidates, record.ExecutionID)
-		}
-		holdCandidates = pathutil.UniqueSortedStrings(holdCandidates)
-	}
+	s.migrateLegacyFinalizationLocked(records, &changed, changedRecords)
+	finalizationCandidates = s.collectValidatingCandidatesLocked(records)
+	s.inspectRunningRecordsLocked(ctx, records, &changed, changedRecords, &finalizationCandidates)
+	holdCandidates = s.collectHoldCandidatesLocked(records)
 
 	if changed {
 		if err := s.store.Save(records); err != nil {
@@ -215,6 +123,118 @@ func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []st
 		}
 	}
 	return holdCandidates, pathutil.UniqueSortedStrings(finalizationCandidates), nil
+}
+
+// migrateLegacyFinalizationLocked applies legacy finalization state migrations to all records.
+func (s *Service) migrateLegacyFinalizationLocked(records []Record, changed *bool, changedRecords map[string]Record) {
+	for i := range records {
+		record := &records[i]
+		if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
+			if migrateLegacyFinalizationState(record, item) {
+				*changed = true
+				changedRecords[record.ExecutionID] = *record
+			}
+		}
+	}
+}
+
+// collectValidatingCandidatesLocked returns IDs of records in StatusValidating
+// that have finalization state and are not already being processed.
+func (s *Service) collectValidatingCandidatesLocked(records []Record) []string {
+	candidates := make([]string, 0)
+	for i := range records {
+		record := &records[i]
+		if record.Status == StatusValidating && effectiveFinalization(*record) != nil {
+			if _, exists := s.processingFinalizations[record.ExecutionID]; !exists {
+				candidates = append(candidates, record.ExecutionID)
+			}
+		}
+	}
+	return candidates
+}
+
+// inspectRunningRecordsLocked polls agent-manager for all inspectable records,
+// updating their status and collecting terminal transitions. Runs only when
+// s.inspector is non-nil; all mutations go through changed/changedRecords.
+func (s *Service) inspectRunningRecordsLocked(ctx context.Context, records []Record, changed *bool, changedRecords map[string]Record, finalizationCandidates *[]string) {
+	if s.inspector == nil {
+		return
+	}
+	for i := range records {
+		record := &records[i]
+		if !isInspectableStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
+			continue
+		}
+
+		tracker := s.ensureRunTracker(record.RunID)
+
+		// Max-age staleness check.
+		if time.Since(tracker.FirstSeen) > s.maxRunAge {
+			s.markRunFailed(record, "run exceeded maximum age timeout",
+				"run exceeded max age, marking failed", "failed to set backlog status to in_review after max-age timeout",
+				slog.Duration("age", time.Since(tracker.FirstSeen)))
+			*changed = true
+			changedRecords[record.ExecutionID] = *record
+			continue
+		}
+
+		runState, err := s.inspector.GetRunState(ctx, record.RunID)
+		if err != nil {
+			tracker.ConsecutiveErrors++
+			if tracker.ConsecutiveErrors >= s.maxConsecutiveErrors {
+				s.markRunFailed(record, "lost contact with agent-manager run",
+					"run hit max consecutive errors, marking failed", "failed to set backlog status to in_review after consecutive-errors timeout",
+					slog.Int("errors", tracker.ConsecutiveErrors))
+				*changed = true
+				changedRecords[record.ExecutionID] = *record
+			} else {
+				slog.Warn("GetRunState error",
+					"execution_id", record.ExecutionID,
+					"run_id", record.RunID,
+					"err", err,
+					"consecutive", tracker.ConsecutiveErrors)
+			}
+			continue
+		}
+		tracker.ConsecutiveErrors = 0
+
+		nextStatus, reason := mapRunStatus(runState.Status, runState.ErrorMsg, tracker, s.maxConsecutiveUnknown)
+		if nextStatus == record.Status {
+			continue
+		}
+		prevStatus := record.Status
+		record.Status = nextStatus
+		record.FailureReason = reason
+		record.UpdatedAt = nowRFC3339()
+		// Only set FinishedAt for terminal statuses
+		if isTerminalStatus(nextStatus) {
+			s.applyTerminalTransition(ctx, record, runState, nextStatus, finalizationCandidates)
+		}
+		*changed = true
+		changedRecords[record.ExecutionID] = *record
+		s.logExecutionEvent(*record, prevStatus)
+	}
+}
+
+// collectHoldCandidatesLocked returns IDs of needs_review records that are
+// eligible for pre-merge engagement-hold processing this cycle. Returns an
+// empty slice (not nil) when the engagement machinery is inactive.
+func (s *Service) collectHoldCandidatesLocked(records []Record) []string {
+	if !s.engagementHoldActive() {
+		return []string{}
+	}
+	var candidates []string
+	for i := range records {
+		record := &records[i]
+		if record.Status != StatusNeedsReview || strings.TrimSpace(record.EngagementHoldAt) != "" {
+			continue
+		}
+		if _, exists := s.processingHolds[record.ExecutionID]; exists {
+			continue
+		}
+		candidates = append(candidates, record.ExecutionID)
+	}
+	return pathutil.UniqueSortedStrings(candidates)
 }
 
 // markRunFailed transitions a record to failed (max-age / lost-contact paths),

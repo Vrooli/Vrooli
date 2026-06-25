@@ -13,46 +13,41 @@ type EventLogger interface {
 	EmitAgentSessionArtifactLinked(sessionID string, payload any)
 }
 
-func (s *Service) emitCreated(session Session) {
+// emitSessionEvent dispatches a session lifecycle event via the nil-guarded
+// eventLogger. All seven session-state emitters share this path so the
+// nil check and payload construction live in exactly one place.
+func (s *Service) emitSessionEvent(session Session, emit func(EventLogger, string, any)) {
 	if s.eventLogger != nil {
-		s.eventLogger.EmitAgentSessionCreated(session.ID, eventPayload(session))
+		emit(s.eventLogger, session.ID, eventPayload(session))
 	}
+}
+
+func (s *Service) emitCreated(session Session) {
+	s.emitSessionEvent(session, EventLogger.EmitAgentSessionCreated)
 }
 
 func (s *Service) emitStarted(session Session) {
-	if s.eventLogger != nil {
-		s.eventLogger.EmitAgentSessionStarted(session.ID, eventPayload(session))
-	}
+	s.emitSessionEvent(session, EventLogger.EmitAgentSessionStarted)
 }
 
 func (s *Service) emitContinued(session Session) {
-	if s.eventLogger != nil {
-		s.eventLogger.EmitAgentSessionContinued(session.ID, eventPayload(session))
-	}
+	s.emitSessionEvent(session, EventLogger.EmitAgentSessionContinued)
 }
 
 func (s *Service) emitFailed(session Session) {
-	if s.eventLogger != nil {
-		s.eventLogger.EmitAgentSessionFailed(session.ID, eventPayload(session))
-	}
+	s.emitSessionEvent(session, EventLogger.EmitAgentSessionFailed)
 }
 
 func (s *Service) emitCanceled(session Session) {
-	if s.eventLogger != nil {
-		s.eventLogger.EmitAgentSessionCanceled(session.ID, eventPayload(session))
-	}
+	s.emitSessionEvent(session, EventLogger.EmitAgentSessionCanceled)
 }
 
 func (s *Service) emitCompleted(session Session) {
-	if s.eventLogger != nil {
-		s.eventLogger.EmitAgentSessionCompleted(session.ID, eventPayload(session))
-	}
+	s.emitSessionEvent(session, EventLogger.EmitAgentSessionCompleted)
 }
 
 func (s *Service) emitDeleted(session Session) {
-	if s.eventLogger != nil {
-		s.eventLogger.EmitAgentSessionDeleted(session.ID, eventPayload(session))
-	}
+	s.emitSessionEvent(session, EventLogger.EmitAgentSessionDeleted)
 }
 
 func (s *Service) emitArtifactLinked(artifact Artifact) {
