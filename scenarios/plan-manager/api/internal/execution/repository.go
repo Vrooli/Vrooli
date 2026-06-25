@@ -37,4 +37,9 @@ type Repository interface {
 	SaveVelocity(ctx context.Context, v VelocityPoint) error
 	// ListVelocity returns a plan's velocity series oldest-first.
 	ListVelocity(ctx context.Context, planID string) ([]VelocityPoint, error)
+
+	// WithTx runs fn against a repository bound to a single transaction so a
+	// multi-write operation (Complete: handoff + velocity + execution state)
+	// commits atomically or rolls back as a unit.
+	WithTx(ctx context.Context, fn func(Repository) error) error
 }

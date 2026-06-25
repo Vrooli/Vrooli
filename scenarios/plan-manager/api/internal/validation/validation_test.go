@@ -94,6 +94,61 @@ func TestComputeStalenessTiering(t *testing.T) {
 	require.InDelta(t, 0.3, report.References[0].ChangeFactor, 0.001)
 }
 
+// TestStalenessRefinesFreshToLightlyStaleViaGit pins the lightly-stale tier: a
+// reference the existence floor calls FRESH (still present) is upgraded to
+// LIGHTLY_STALE when git shows its code changed since the anchor HeadSha — with a
+// non-zero change factor — while no change leaves it FRESH.
+func TestStalenessRefinesFreshToLightlyStaleViaGit(t *testing.T) {
+	plan := internalplans.Plan{
+		ID: "p1", Slug: "p1", Title: "P",
+		References:       []internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "a.go"}},
+		RegressionAnchor: internalplans.RegressionAnchor{HeadSha: "abc123"},
+	}
+
+	t.Run("changed code => lightly stale", func(t *testing.T) {
+		svc := validation.NewService(validation.Deps{
+			Plans:     fakePlans{plan: plan},
+			Resolver:  fakeResolver{resolution: internalplans.ResolutionResolved},
+			Staleness: fakeStaleness{tier: internalplans.StalenessFresh}, // floor: present
+			Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+				return []byte("12\t3\ta.go\n"), nil // numstat: 12 added, 3 deleted
+			},
+		})
+		report, err := svc.ComputeStaleness(context.Background(), "p1", "")
+		require.NoError(t, err)
+		require.Equal(t, internalplans.StalenessLightlyStale, report.Overall)
+		require.Greater(t, report.References[0].ChangeFactor, 0.0)
+	})
+
+	t.Run("no change => stays fresh", func(t *testing.T) {
+		svc := validation.NewService(validation.Deps{
+			Plans:     fakePlans{plan: plan},
+			Resolver:  fakeResolver{resolution: internalplans.ResolutionResolved},
+			Staleness: fakeStaleness{tier: internalplans.StalenessFresh},
+			Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+				return []byte(""), nil // numstat empty => unchanged
+			},
+		})
+		report, err := svc.ComputeStaleness(context.Background(), "p1", "")
+		require.NoError(t, err)
+		require.Equal(t, internalplans.StalenessFresh, report.Overall)
+	})
+
+	t.Run("tool absent => floor fresh stands", func(t *testing.T) {
+		svc := validation.NewService(validation.Deps{
+			Plans:     fakePlans{plan: plan},
+			Resolver:  fakeResolver{resolution: internalplans.ResolutionResolved},
+			Staleness: fakeStaleness{tier: internalplans.StalenessFresh},
+			Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+				return nil, validation.ErrToolNotFound
+			},
+		})
+		report, err := svc.ComputeStaleness(context.Background(), "p1", "")
+		require.NoError(t, err)
+		require.Equal(t, internalplans.StalenessFresh, report.Overall)
+	})
+}
+
 func TestComputeStalenessUnknownWhenComputerDown(t *testing.T) {
 	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "a.go"}}, nil)
 	svc := validation.NewService(validation.Deps{
@@ -167,6 +222,91 @@ func TestRunValidationVerdicts(t *testing.T) {
 	res, err = unknown.RunValidation(context.Background(), "p1", "")
 	require.NoError(t, err)
 	require.Equal(t, validation.VerdictUnknown, res.Verdict)
+}
+
+// TestVerdictHonestyByExitClass pins the corrected verdict model: a missing tool
+// is UNKNOWN (not FAIL — git-control-tower being absent must not look like a
+// regression), a baseline-diff exit 2 ("not comparable") is UNKNOWN, an exit 1 is
+// FAIL, and an informational-only command set (a bare repo-level diff with no
+// oracle) is UNKNOWN even when the command exits 0 — never a false PASS.
+func TestVerdictHonestyByExitClass(t *testing.T) {
+	scenarioPlan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)
+	repoOnlyPlan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "packages/api-core/x.go"}}, nil)
+
+	cases := []struct {
+		name   string
+		plan   internalplans.Plan
+		runner validation.CommandRunner
+		want   validation.Verdict
+	}{
+		{
+			name:   "tool absent => UNKNOWN not FAIL",
+			plan:   scenarioPlan,
+			runner: func(context.Context, string, ...string) ([]byte, error) { return nil, validation.ErrToolNotFound },
+			want:   validation.VerdictUnknown,
+		},
+		{
+			name: "baseline exit 2 (not comparable) => UNKNOWN",
+			plan: scenarioPlan,
+			runner: func(context.Context, string, ...string) ([]byte, error) {
+				return nil, validation.CommandExitError{Code: 2}
+			},
+			want: validation.VerdictUnknown,
+		},
+		{
+			name: "baseline exit 1 (regression) => FAIL",
+			plan: scenarioPlan,
+			runner: func(context.Context, string, ...string) ([]byte, error) {
+				return nil, validation.CommandExitError{Code: 1}
+			},
+			want: validation.VerdictFail,
+		},
+		{
+			name:   "informational-only repo diff (exit 0, no oracle) => UNKNOWN",
+			plan:   repoOnlyPlan,
+			runner: func(context.Context, string, ...string) ([]byte, error) { return []byte("M x.go"), nil },
+			want:   validation.VerdictUnknown,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: tc.plan}, Runner: tc.runner})
+			res, err := svc.RunValidation(context.Background(), "p1", "")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, res.Verdict)
+		})
+	}
+}
+
+// TestVerifyDoDDerivesFromReferences pins the authoring→DoD fix: a wizard-authored
+// plan carries the anchor as captured prose with NO explicit commands, yet DoD
+// must still verify against a real oracle derived from the plan's connected code
+// (it used to always degrade to UNKNOWN/not-met).
+func TestVerifyDoDDerivesFromReferences(t *testing.T) {
+	wizardPlan := internalplans.Plan{
+		ID:    "p1",
+		Slug:  "p1",
+		Title: "Wizard plan",
+		References: []internalplans.Reference{
+			{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/api/main.go"},
+		},
+		// Captured prose anchor, NO commands — exactly what the authoring wizard writes.
+		RegressionAnchor: internalplans.RegressionAnchor{Strategy: "captured", BaselineName: "before edits"},
+	}
+	var ran []string
+	svc := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: wizardPlan},
+		Runner: func(_ context.Context, name string, args ...string) ([]byte, error) {
+			ran = append(ran, name)
+			return nil, nil // oracle exits 0 => DoD met
+		},
+	})
+	res, ok, err := svc.VerifyDefinitionOfDone(context.Background(), "p1")
+	require.NoError(t, err)
+	require.True(t, ok, "DoD derives an oracle from references when the anchor has no commands")
+	require.Equal(t, validation.VerdictPass, res.Verdict)
+	require.NotEmpty(t, ran, "a baseline command was actually derived and run")
+	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo")
 }
 
 func TestVerifyDefinitionOfDone(t *testing.T) {

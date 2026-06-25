@@ -43,21 +43,20 @@ func (f *fakePlanStore) UpdatePhase(_ context.Context, _ string, phase internalp
 	return f.plan, nil
 }
 
-// fakeValidator is the Validator seam. A nil pointer (passed as the interface)
-// degrades; a present one returns the canned result.
+// fakeValidator is the Validator seam — the cheap read of the LAST STORED
+// validation result. A zero value returns "no result yet" (ok=false); set
+// hasResult to surface the canned result.
 type fakeValidator struct {
-	staleness    internalplans.StalenessTier
-	stalenessErr error
-	result       execution.ValidationResult
-	resultErr    error
+	result    execution.ValidationResult
+	hasResult bool
+	err       error
 }
 
-func (f fakeValidator) ComputeStaleness(_ context.Context, _, _ string) (internalplans.StalenessTier, error) {
-	return f.staleness, f.stalenessErr
-}
-
-func (f fakeValidator) RunValidation(_ context.Context, _, _ string) (execution.ValidationResult, error) {
-	return f.result, f.resultErr
+func (f fakeValidator) LastValidation(_ context.Context, _, _ string) (execution.ValidationResult, bool, error) {
+	if f.err != nil {
+		return execution.ValidationResult{}, false, f.err
+	}
+	return f.result, f.hasResult, nil
 }
 
 // recordingSink is the VelocitySink seam, capturing emitted points.
@@ -277,7 +276,7 @@ func TestCompletenessFullVsPartial(t *testing.T) {
 
 func TestCompleteAssemblesHandoffAndCapturesVelocity(t *testing.T) {
 	validator := fakeValidator{
-		staleness: internalplans.StalenessFresh,
+		hasResult: true,
 		result:    execution.ValidationResult{Verdict: "pass", Detail: "ok", Staleness: internalplans.StalenessFresh},
 	}
 	plan := threePhasePlan()

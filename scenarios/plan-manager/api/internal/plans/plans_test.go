@@ -191,6 +191,32 @@ func TestStatusTransitionLegality(t *testing.T) {
 	require.Equal(t, plans.PlanStatusArchived, p.Status, "archived is sticky")
 }
 
+// TestUpdatePreservesPhaseIdentityOnReKey pins the orphan guard: an Update whose
+// incoming phases dropped their IDs (a caller round-tripping through a surface
+// that doesn't echo IDs) must NOT re-key the phases — they're matched back to the
+// existing phases by title so executions/decisions/findings that reference those
+// phase ids are not orphaned.
+func TestUpdatePreservesPhaseIdentityOnReKey(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	p, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+	require.Len(t, p.Phases, 2)
+	anchorID, implementID := p.Phases[0].ID, p.Phases[1].ID
+	require.NotEmpty(t, anchorID)
+
+	updated := p
+	updated.Phases = append([]plans.Phase(nil), p.Phases...)
+	for i := range updated.Phases {
+		updated.Phases[i].ID = "" // simulate a round-trip that dropped phase IDs
+	}
+	got, err := svc.Update(ctx, updated)
+	require.NoError(t, err)
+	require.Len(t, got.Phases, 2)
+	require.Equal(t, anchorID, got.Phases[0].ID, "phase identity preserved by title match, not re-keyed")
+	require.Equal(t, implementID, got.Phases[1].ID)
+}
+
 func TestAddPhaseAppendsAndOrders(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()

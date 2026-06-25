@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -32,12 +32,12 @@
             "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.plan_manager.v1.health.Response",
+            "proto_full_name": "vrooli.plan_manager.v1.shared.Response",
             "transport": "json",
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.plan_manager.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.plan_manager.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -45,209 +45,300 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.plan_manager.v1.notes.NotesService/ListNotes",
+      "id": "plans_list",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ListPlans",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.plan_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
+      "summary": "List plans",
+      "description": "Returns plans, optionally filtered by status (OT-P0-001).",
+      "category": "plans"
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.plan_manager.v1.notes.NotesService/CreateNote",
+      "id": "plans_get",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/GetPlan",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.plan_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
+      "summary": "Get a plan",
+      "description": "Returns one plan by id or slug.",
+      "category": "plans"
     },
     {
-      "id": "notes_get",
-      "path": "/vrooli.plan_manager.v1.notes.NotesService/GetNote",
+      "id": "plans_create",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/CreatePlan",
       "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.plan_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
+      "summary": "Create a plan",
+      "description": "Persists a new structured plan; server assigns id/content-hash/status/timestamps.",
+      "category": "plans"
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.plan_manager.v1.notes.NotesService/CountNotes",
+      "id": "plans_update",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/UpdatePlan",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.plan_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
+      "summary": "Update a plan",
+      "description": "Replaces authored fields; computed fields are recomputed server-side.",
+      "category": "plans"
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "plans_archive",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ArchivePlan",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.plan_manager.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.plan_manager.v1.errors.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
-      }
+      "summary": "Archive a plan",
+      "description": "Soft-archives a plan (kept, hidden by default).",
+      "category": "plans"
+    },
+    {
+      "id": "plans_render",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/RenderMarkdown",
+      "method": "POST",
+      "summary": "Render a plan to markdown",
+      "description": "Deterministically renders the structured record to its markdown projection.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_add_phase",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/AddPhase",
+      "method": "POST",
+      "summary": "Add a phase",
+      "description": "Appends a first-class phase to a plan.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_update_phase",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/UpdatePhase",
+      "method": "POST",
+      "summary": "Update a phase",
+      "description": "Replaces a phase's authored fields.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_get_graph",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/GetGraph",
+      "method": "POST",
+      "summary": "Get the plan graph",
+      "description": "Returns supersession/dependency edges, optionally scoped to one plan (OT-P1-002).",
+      "category": "plans"
+    },
+    {
+      "id": "plans_link_supersession",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/LinkSupersession",
+      "method": "POST",
+      "summary": "Link supersession",
+      "description": "Records that one plan supersedes another (PM-GRAPH-001).",
+      "category": "plans"
+    },
+    {
+      "id": "plans_import",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ImportPlan",
+      "method": "POST",
+      "summary": "Import a markdown plan",
+      "description": "Adopts a markdown plan from a fallback read location into the structured model.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_migrate",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/MigratePlan",
+      "method": "POST",
+      "summary": "Migrate a plan to canonical",
+      "description": "Ensures a fallback-resolved plan resides in the canonical home store.",
+      "category": "plans"
+    },
+    {
+      "id": "plans_list_templates",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/ListTemplates",
+      "method": "POST",
+      "summary": "List plan templates",
+      "description": "Returns the per-surface plan templates (CLI/proto/UI).",
+      "category": "plans"
+    },
+    {
+      "id": "plans_create_from_template",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/CreateFromTemplate",
+      "method": "POST",
+      "summary": "Create from template",
+      "description": "Pre-scaffolds a plan from a template.",
+      "category": "plans"
+    },
+    {
+      "id": "validation_resolve_references",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/ResolveReferences",
+      "method": "POST",
+      "summary": "Resolve code references",
+      "description": "Resolves a plan/phase's [CODE:]/[REQ:] references against code-facts (OT-P0-004). Degrades to unresolved when code-facts is down.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_compute_staleness",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/ComputeStaleness",
+      "method": "POST",
+      "summary": "Compute staleness tiers",
+      "description": "Computes staleness tiers for a plan/phase's references (OT-P0-004).",
+      "category": "validation"
+    },
+    {
+      "id": "validation_derive_baseline_scope",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/DeriveBaselineScope",
+      "method": "POST",
+      "summary": "Derive baseline scope",
+      "description": "Derives the exact baseline/validation command set across all affected locations (OT-P0-005).",
+      "category": "validation"
+    },
+    {
+      "id": "validation_run",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/RunValidation",
+      "method": "POST",
+      "summary": "Run validation",
+      "description": "Runs the derived baseline/check set on request and returns the result + staleness (OT-P0-005). Degrades to unknown rather than fabricating a pass.",
+      "category": "validation"
+    },
+    {
+      "id": "validation_verify_dod",
+      "path": "/vrooli.plan_manager.v1.validation.ValidationService/VerifyDefinitionOfDone",
+      "method": "POST",
+      "summary": "Verify Definition of Done",
+      "description": "Verifies a plan's DoD against the regression anchor as an oracle (OT-P0-005).",
+      "category": "validation"
+    },
+    {
+      "id": "authoring_start_session",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/StartSession",
+      "method": "POST",
+      "summary": "Start an authoring session",
+      "description": "Begins a guided authoring session for a plan title/slug, seeding the section skeleton (PM-AUTHOR-001).",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_get_section",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/GetSection",
+      "method": "POST",
+      "summary": "Get a section",
+      "description": "Returns one section's current state.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_submit_section",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitSection",
+      "method": "POST",
+      "summary": "Submit a section",
+      "description": "Records authored content for a section and re-validates it (PM-AUTHOR-002).",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_next",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/Next",
+      "method": "POST",
+      "summary": "Next section",
+      "description": "Returns the next section that still needs author input, or signals the session is structurally complete.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_validate_structure",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/ValidateStructure",
+      "method": "POST",
+      "summary": "Validate structure",
+      "description": "Runs the structure-validation gate over the whole session — rejects empty mandatory sections + an empty regression anchor (PM-AUTHOR-002).",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_autofill",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/Autofill",
+      "method": "POST",
+      "summary": "Autofill mechanical sections",
+      "description": "Orchestrates the mechanical-section autofill behind seams (regression anchor / required reading / references). Degrades gracefully, never a false fill (OT-P0-002).",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_finalize",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/Finalize",
+      "method": "POST",
+      "summary": "Finalize the plan",
+      "description": "Runs the structure gate then writes the produced plan through the plans domain, returning the persisted plan.",
+      "category": "authoring"
+    },
+    {
+      "id": "execution_start",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/Start",
+      "method": "POST",
+      "summary": "Start a guided run",
+      "description": "Links a run to a plan and returns the execution (OT-P0-003).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_get_status",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetStatus",
+      "method": "POST",
+      "summary": "Get current context",
+      "description": "Returns the just-in-time context for the runner's current phase (OT-P0-003).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_get_next",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetNext",
+      "method": "POST",
+      "summary": "Advance to next phase",
+      "description": "Advances the runner's pointer to the next actionable phase and returns its injected context.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_transition_phase",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/TransitionPhase",
+      "method": "POST",
+      "summary": "Transition phase status",
+      "description": "Performs a typed phase-status transition; plan status is recomputed from the phase-status set.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_record_decision",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/RecordDecision",
+      "method": "POST",
+      "summary": "Record a decision",
+      "description": "Captures an in-flow design decision (feeds the handoff).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_record_finding",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/RecordFinding",
+      "method": "POST",
+      "summary": "Record a candidate finding",
+      "description": "Captures an in-flow CANDIDATE finding (never auto-promoted; attribution-keyed dedup).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_complete",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/Complete",
+      "method": "POST",
+      "summary": "Complete the run",
+      "description": "Runs the thin guided completion process, assembles the canonical handoff, and captures a velocity point (OT-P1-001/002).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_get_handoff",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetHandoff",
+      "method": "POST",
+      "summary": "Get the handoff",
+      "description": "Returns the assembled canonical handoff for an execution.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_list_candidate_findings",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/ListCandidateFindings",
+      "method": "POST",
+      "summary": "List candidate findings",
+      "description": "Returns candidate findings awaiting operator triage.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_triage_finding",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/TriageFinding",
+      "method": "POST",
+      "summary": "Triage a finding",
+      "description": "Promotes or dismisses a candidate finding (operator action).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_get_velocity",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetVelocity",
+      "method": "POST",
+      "summary": "Get velocity series",
+      "description": "Returns the per-plan velocity series (LOCAL ONLY).",
+      "category": "execution"
     }
   ]
 }

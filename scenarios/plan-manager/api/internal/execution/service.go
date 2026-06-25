@@ -226,9 +226,45 @@ func (s *service) RecordFinding(ctx context.Context, executionID, phaseID, title
 		RecordedAt:       s.now(),
 	}
 	if err := s.repo.SaveFinding(ctx, f); err != nil {
+		// The unique dedup index is the cross-process backstop: if a concurrent
+		// process recorded the same (run id, title) between our read above and this
+		// write, return that winner instead of failing the agent's record call.
+		if isUniqueViolation(err) && e.RunID != "" {
+			if winner, ok := s.findByRunAndTitle(ctx, e.ID, e.RunID, title); ok {
+				return winner, nil
+			}
+		}
 		return Finding{}, err
 	}
 	return f, nil
+}
+
+// findByRunAndTitle re-reads the execution's findings to return the one matching
+// (run id, title) — used to recover the concurrent winner after a unique-index
+// race on the dedup key.
+func (s *service) findByRunAndTitle(ctx context.Context, executionID, runID, title string) (Finding, bool) {
+	existing, err := s.repo.ListFindings(ctx, executionID, "")
+	if err != nil {
+		return Finding{}, false
+	}
+	for _, f := range existing {
+		if f.AttributionRunID == runID && strings.EqualFold(strings.TrimSpace(f.Title), strings.TrimSpace(title)) {
+			return f, true
+		}
+	}
+	return Finding{}, false
+}
+
+// isUniqueViolation reports whether err is a SQLite UNIQUE-constraint failure
+// (the modernc.org/sqlite driver surfaces it in the error text). Matched
+// defensively by substring so a driver-version message tweak does not silently
+// turn the dedup race back into a hard error.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") || strings.Contains(msg, "constraint failed")
 }
 
 func (s *service) Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, error) {
@@ -271,12 +307,8 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		ProseHandoffRef:   "", // pass-through; the orchestration layer fills this by reference
 		AssembledAt:       now,
 	}
-	if err := s.repo.SaveHandoff(ctx, handoff); err != nil {
-		return Handoff{}, nil, err
-	}
-
 	// Capture the velocity point LOCAL ONLY — persisted regardless, then offered
-	// to the (stubbed) MoM emit seam.
+	// to the (stubbed) MoM emit seam after the durable write commits.
 	point := VelocityPoint{
 		ID:              uuid.NewString(),
 		PlanID:          plan.ID,
@@ -287,17 +319,25 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		Completeness:    completeness,
 		RecordedAt:      now,
 	}
-	if err := s.repo.SaveVelocity(ctx, point); err != nil {
+	e.Complete = true
+	e.UpdatedAt = now
+
+	// Persist the handoff, the velocity point, and the completed-execution state as
+	// ONE transaction so a mid-sequence failure cannot leave a half-written
+	// completion (a handoff with no velocity, or an execution marked complete with
+	// no handoff).
+	if err := s.repo.WithTx(ctx, func(repo Repository) error {
+		if err := repo.SaveHandoff(ctx, handoff); err != nil {
+			return err
+		}
+		if err := repo.SaveVelocity(ctx, point); err != nil {
+			return err
+		}
+		return repo.SaveExecution(ctx, e)
+	}); err != nil {
 		return Handoff{}, nil, err
 	}
 	_ = s.velocity.Emit(ctx, point) // best-effort; the no-op default never errors
-
-	// Mark the execution complete and persist the runner-pointer state.
-	e.Complete = true
-	e.UpdatedAt = now
-	if err := s.repo.SaveExecution(ctx, e); err != nil {
-		return Handoff{}, nil, err
-	}
 
 	nudges := s.completionNudges(plan, candidates)
 	return handoff, nudges, nil
@@ -391,23 +431,21 @@ func (s *service) buildContext(ctx context.Context, plan internalplans.Plan, pha
 	return pctx
 }
 
-// lastValidation reads the validation seam for the phase's last validation +
-// staleness, degrading to UNKNOWN (never a false pass) when the validator is nil
-// or errors.
+// lastValidation reads the validation seam for the phase's LAST STORED validation
+// result + the staleness captured with it. This is a cheap store read — it never
+// shells a subprocess — so status/next stay cheap. Degrades to UNKNOWN/absent
+// (never a false pass) when the validator is nil, errors, or has no result yet.
 func (s *service) lastValidation(ctx context.Context, plan internalplans.Plan, phaseID string) (ValidationResult, bool, internalplans.StalenessTier) {
 	if s.validator == nil {
 		return ValidationResult{}, false, internalplans.StalenessUnknown
 	}
-	staleness := internalplans.StalenessUnknown
-	if tier, err := s.validator.ComputeStaleness(ctx, plan.ID, phaseID); err == nil {
-		staleness = tier
+	res, ok, err := s.validator.LastValidation(ctx, plan.ID, phaseID)
+	if err != nil || !ok {
+		return ValidationResult{}, false, internalplans.StalenessUnknown
 	}
-	res, err := s.validator.RunValidation(ctx, plan.ID, phaseID)
-	if err != nil {
-		return ValidationResult{}, false, staleness
-	}
-	if res.Staleness == internalplans.StalenessUnknown {
-		res.Staleness = staleness
+	staleness := res.Staleness
+	if staleness == "" {
+		staleness = internalplans.StalenessUnknown
 	}
 	return res, true, staleness
 }

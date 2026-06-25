@@ -1,0 +1,511 @@
+package execution
+
+import (
+	"context"
+	"net/http"
+	"sync"
+	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+
+	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
+	executionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution/execution_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+
+	"github.com/vrooli/cli-core/cliapp"
+	clitest "plan-manager/cli/internal/testutil"
+)
+
+// execRecorder is a fake ExecutionService capturing the request the handler
+// built and returning a canned response message (or error).
+type execRecorder struct {
+	executionconnect.UnimplementedExecutionServiceHandler
+	mu   sync.Mutex
+	req  proto.Message
+	resp proto.Message
+	err  error
+}
+
+func (r *execRecorder) record(req proto.Message) {
+	r.mu.Lock()
+	r.req = req
+	r.mu.Unlock()
+}
+
+func (r *execRecorder) lastRequest() proto.Message {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.req
+}
+
+func (r *execRecorder) Start(_ context.Context, req *connect.Request[executionv1.StartRequest]) (*connect.Response[executionv1.StartResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.StartResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.StartResponse{Execution: &executionv1.Execution{Id: "exec-1", PlanId: req.Msg.GetPlanId()}}), nil
+}
+
+func (r *execRecorder) GetStatus(_ context.Context, req *connect.Request[executionv1.GetStatusRequest]) (*connect.Response[executionv1.GetStatusResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.GetStatusResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.GetStatusResponse{Execution: &executionv1.Execution{Id: req.Msg.GetExecutionId()}, Context: &executionv1.PhaseContext{}}), nil
+}
+
+func (r *execRecorder) GetNext(_ context.Context, req *connect.Request[executionv1.GetNextRequest]) (*connect.Response[executionv1.GetNextResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.GetNextResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.GetNextResponse{Context: &executionv1.PhaseContext{}}), nil
+}
+
+func (r *execRecorder) TransitionPhase(_ context.Context, req *connect.Request[executionv1.TransitionPhaseRequest]) (*connect.Response[executionv1.TransitionPhaseResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	return connect.NewResponse(&executionv1.TransitionPhaseResponse{
+		Execution: &executionv1.Execution{Id: req.Msg.GetExecutionId()},
+		Plan:      &sharedv1.Plan{Status: sharedv1.PlanStatus_PLAN_STATUS_ACTIVE},
+	}), nil
+}
+
+func (r *execRecorder) RecordDecision(_ context.Context, req *connect.Request[executionv1.RecordDecisionRequest]) (*connect.Response[executionv1.RecordDecisionResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	return connect.NewResponse(&executionv1.RecordDecisionResponse{Decision: &sharedv1.Decision{Id: "dec-1", Summary: req.Msg.GetSummary()}}), nil
+}
+
+func (r *execRecorder) RecordFinding(_ context.Context, req *connect.Request[executionv1.RecordFindingRequest]) (*connect.Response[executionv1.RecordFindingResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	return connect.NewResponse(&executionv1.RecordFindingResponse{Finding: &sharedv1.Finding{Id: "find-1", Title: req.Msg.GetTitle(), Triage: sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE}}), nil
+}
+
+func (r *execRecorder) Complete(_ context.Context, req *connect.Request[executionv1.CompleteRequest]) (*connect.Response[executionv1.CompleteResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.CompleteResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.CompleteResponse{Handoff: &sharedv1.Handoff{ExecutionId: req.Msg.GetExecutionId(), Completeness: sharedv1.Completeness_COMPLETENESS_FULL}}), nil
+}
+
+func (r *execRecorder) GetHandoff(_ context.Context, req *connect.Request[executionv1.GetHandoffRequest]) (*connect.Response[executionv1.GetHandoffResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.GetHandoffResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.GetHandoffResponse{Handoff: &sharedv1.Handoff{ExecutionId: req.Msg.GetExecutionId()}}), nil
+}
+
+func (r *execRecorder) ListCandidateFindings(_ context.Context, req *connect.Request[executionv1.ListCandidateFindingsRequest]) (*connect.Response[executionv1.ListCandidateFindingsResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.ListCandidateFindingsResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.ListCandidateFindingsResponse{}), nil
+}
+
+func (r *execRecorder) TriageFinding(_ context.Context, req *connect.Request[executionv1.TriageFindingRequest]) (*connect.Response[executionv1.TriageFindingResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	return connect.NewResponse(&executionv1.TriageFindingResponse{Finding: &sharedv1.Finding{Id: req.Msg.GetFindingId(), Triage: req.Msg.GetTriage()}}), nil
+}
+
+func (r *execRecorder) GetVelocity(_ context.Context, req *connect.Request[executionv1.GetVelocityRequest]) (*connect.Response[executionv1.GetVelocityResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.GetVelocityResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.GetVelocityResponse{}), nil
+}
+
+func newExecFixture(t *testing.T, rec *execRecorder) (*cliapp.ScenarioApp, []cliapp.SubcommandGroup) {
+	t.Helper()
+	mux := http.NewServeMux()
+	path, handler := executionconnect.NewExecutionServiceHandler(rec)
+	mux.Handle(path, handler)
+	app := clitest.NewTestApp(t, mux)
+	group, err := Register(app, clitest.ReadManifest(t))
+	require.NoError(t, err, "register exec group against manifest")
+	return app, []cliapp.SubcommandGroup{group}
+}
+
+// TestExecRequestMapping drives every covered exec verb end-to-end. The
+// transition/triage status-enum rows and the complete int-parsing rows are the
+// silent-failure-prone surfaces.
+func TestExecRequestMapping(t *testing.T) {
+	tests := []struct {
+		name   string
+		cmd    string
+		argv   []string
+		assert func(t *testing.T, req proto.Message)
+	}{
+		{
+			name: "start maps plan positional + run-id flag", cmd: "start",
+			argv: []string{"plan-1", "--run-id", "run-42"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.StartRequest)
+				require.Equal(t, "plan-1", m.GetPlanId())
+				require.Equal(t, "run-42", m.GetRunId())
+			},
+		},
+		{
+			name: "status maps execution positional", cmd: "status",
+			argv: []string{"exec-9"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, "exec-9", req.(*executionv1.GetStatusRequest).GetExecutionId())
+			},
+		},
+		{
+			name: "next maps execution positional", cmd: "next",
+			argv: []string{"exec-9"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, "exec-9", req.(*executionv1.GetNextRequest).GetExecutionId())
+			},
+		},
+		{
+			name: "transition maps status flag to DONE enum", cmd: "transition",
+			argv: []string{"exec-1", "phase-3", "--status", "done"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.TransitionPhaseRequest)
+				require.Equal(t, "exec-1", m.GetExecutionId())
+				require.Equal(t, "phase-3", m.GetPhaseId())
+				require.Equal(t, sharedv1.PhaseStatus_PHASE_STATUS_DONE, m.GetToStatus())
+			},
+		},
+		{
+			name: "transition maps status flag to ACTIVE enum", cmd: "transition",
+			argv: []string{"exec-1", "phase-3", "--status", "active"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE, req.(*executionv1.TransitionPhaseRequest).GetToStatus())
+			},
+		},
+		{
+			name: "decision-add maps execution positional + flags", cmd: "decision-add",
+			argv: []string{"exec-1", "--phase", "phase-2", "--summary", "chose X", "--detail", "because Y"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.RecordDecisionRequest)
+				require.Equal(t, "exec-1", m.GetExecutionId())
+				require.Equal(t, "phase-2", m.GetPhaseId())
+				require.Equal(t, "chose X", m.GetSummary())
+				require.Equal(t, "because Y", m.GetDetail())
+			},
+		},
+		{
+			name: "finding-add maps execution positional + flags", cmd: "finding-add",
+			argv: []string{"exec-1", "--phase", "phase-2", "--title", "leak", "--detail", "in foo.go"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.RecordFindingRequest)
+				require.Equal(t, "exec-1", m.GetExecutionId())
+				require.Equal(t, "phase-2", m.GetPhaseId())
+				require.Equal(t, "leak", m.GetTitle())
+				require.Equal(t, "in foo.go", m.GetDetail())
+			},
+		},
+		{
+			name: "complete parses tokens+iterations ints", cmd: "complete",
+			argv: []string{"exec-1", "--tokens", "12345", "--iterations", "7"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.CompleteRequest)
+				require.Equal(t, "exec-1", m.GetExecutionId())
+				require.Equal(t, int64(12345), m.GetTokens())
+				require.Equal(t, int32(7), m.GetIterations())
+			},
+		},
+		{
+			name: "complete with no velocity flags sends zeros", cmd: "complete",
+			argv: []string{"exec-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.CompleteRequest)
+				require.Equal(t, int64(0), m.GetTokens())
+				require.Equal(t, int32(0), m.GetIterations())
+			},
+		},
+		{
+			name: "handoff maps execution positional", cmd: "handoff",
+			argv: []string{"exec-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, "exec-1", req.(*executionv1.GetHandoffRequest).GetExecutionId())
+			},
+		},
+		{
+			name: "findings maps exec flag to execution_id", cmd: "findings",
+			argv: []string{"--exec", "exec-7"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, "exec-7", req.(*executionv1.ListCandidateFindingsRequest).GetExecutionId())
+			},
+		},
+		{
+			name: "triage maps finding positional + status promoted", cmd: "triage",
+			argv: []string{"find-5", "--status", "promoted"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.TriageFindingRequest)
+				require.Equal(t, "find-5", m.GetFindingId())
+				require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED, m.GetTriage())
+			},
+		},
+		{
+			name: "triage maps status dismissed", cmd: "triage",
+			argv: []string{"find-5", "--status", "dismissed"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED, req.(*executionv1.TriageFindingRequest).GetTriage())
+			},
+		},
+		{
+			name: "velocity maps plan positional", cmd: "velocity",
+			argv: []string{"plan-v"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, "plan-v", req.(*executionv1.GetVelocityRequest).GetPlanId())
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := &execRecorder{}
+			app, groups := newExecFixture(t, rec)
+			cmd := clitest.FindCommand(t, groups, "exec", tc.cmd)
+			_, err := clitest.RunCommand(t, cmd, app, tc.argv...)
+			require.NoError(t, err)
+			req := rec.lastRequest()
+			require.NotNil(t, req, "handler must have issued a request")
+			tc.assert(t, req)
+		})
+	}
+}
+
+// TestExecOutputRendering pins the human render for the data + mutation verbs.
+func TestExecOutputRendering(t *testing.T) {
+	t.Run("start renders execution summary", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.StartResponse{Execution: &executionv1.Execution{Id: "exec-1", PlanId: "plan-1", RunId: "run-9"}}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "start"), app, "plan-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "Started execution exec-1 on plan plan-1.")
+		require.Contains(t, out, "run id: run-9")
+	})
+
+	t.Run("status renders context summary", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.GetStatusResponse{
+			Execution: &executionv1.Execution{Id: "exec-1", PlanId: "plan-1"},
+			Context: &executionv1.PhaseContext{
+				Completeness:    sharedv1.Completeness_COMPLETENESS_PARTIAL,
+				Staleness:       sharedv1.StalenessTier_STALENESS_TIER_FRESH,
+				ResumePhaseId:   "phase-2",
+				CurrentPhase:    &sharedv1.Phase{Title: "Build", Status: sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE},
+				RequiredReading: []string{"docs/X.md"},
+			},
+		}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "status"), app, "exec-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "Execution exec-1 on plan plan-1 (completeness partial).")
+		require.Contains(t, out, "Resume point: phase-2; staleness: fresh.")
+		require.Contains(t, out, "Current phase: Build (active).")
+		require.Contains(t, out, "read: docs/X.md")
+	})
+
+	t.Run("transition renders mutation", func(t *testing.T) {
+		rec := &execRecorder{}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "transition"), app, "exec-1", "phase-3", "--status", "done")
+		require.NoError(t, err)
+		require.Contains(t, out, "Transitioned phase phase-3 to done.")
+		require.Contains(t, out, "plan status: active")
+	})
+
+	t.Run("complete renders completeness + nudges", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.CompleteResponse{
+			Handoff: &sharedv1.Handoff{ExecutionId: "exec-1", Completeness: sharedv1.Completeness_COMPLETENESS_FULL, ResumePhaseId: ""},
+			Nudges:  []*executionv1.CompletionNudge{{Kind: "file_bugs", Message: "open items", Satisfied: false}},
+		}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "complete"), app, "exec-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "Completed execution exec-1 (completeness full).")
+		require.Contains(t, out, "Resume point: (none).")
+		require.Contains(t, out, "[file_bugs] needs attention — open items")
+	})
+
+	t.Run("triage renders mutation", func(t *testing.T) {
+		rec := &execRecorder{}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "triage"), app, "find-5", "--status", "promoted")
+		require.NoError(t, err)
+		require.Contains(t, out, "Finding find-5 triaged to promoted.")
+	})
+
+	t.Run("findings renders awaiting-triage count", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.ListCandidateFindingsResponse{Findings: []*sharedv1.Finding{
+			{Id: "f1", Title: "leak", Triage: sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE},
+		}}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "findings"), app)
+		require.NoError(t, err)
+		require.Contains(t, out, "1 candidate finding(s) awaiting triage.")
+		require.Contains(t, out, "f1 — leak (triage candidate)")
+	})
+
+	t.Run("velocity renders points", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.GetVelocityResponse{Points: []*sharedv1.VelocityPoint{
+			{RecordedAt: "2026-01-01", WallTimeSeconds: 30, Tokens: 100, Iterations: 2, Completeness: sharedv1.Completeness_COMPLETENESS_FULL},
+		}}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "velocity"), app, "plan-v")
+		require.NoError(t, err)
+		require.Contains(t, out, "1 velocity point(s) for plan plan-v.")
+		require.Contains(t, out, "30s wall, 100 tokens, 2 iterations (full)")
+	})
+}
+
+// TestExecErrorHandling covers int-parse rejection (pre-RPC) and server errors.
+func TestExecErrorHandling(t *testing.T) {
+	t.Run("complete rejects non-numeric tokens before RPC", func(t *testing.T) {
+		rec := &execRecorder{}
+		app, groups := newExecFixture(t, rec)
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "complete"), app, "exec-1", "--tokens", "abc")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid --tokens")
+		require.Nil(t, rec.lastRequest(), "RPC must not be issued when --tokens is invalid")
+	})
+
+	t.Run("complete rejects non-numeric iterations before RPC", func(t *testing.T) {
+		rec := &execRecorder{}
+		app, groups := newExecFixture(t, rec)
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "complete"), app, "exec-1", "--iterations", "x")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid --iterations")
+		require.Nil(t, rec.lastRequest())
+	})
+
+	t.Run("server error is wrapped", func(t *testing.T) {
+		rec := &execRecorder{err: connect.NewError(connect.CodeUnavailable, errBoom())}
+		app, groups := newExecFixture(t, rec)
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "status"), app, "exec-1")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "get status")
+	})
+
+	t.Run("missing required positional is a parser error", func(t *testing.T) {
+		rec := &execRecorder{}
+		app, groups := newExecFixture(t, rec)
+		_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "status"), app)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "execution")
+		require.Nil(t, rec.lastRequest())
+	})
+}
+
+// --- direct unit tests of the flag->enum + enum->label + int helpers ---
+
+func TestExecPhaseStatusFlag(t *testing.T) {
+	cases := map[string]sharedv1.PhaseStatus{
+		"todo":    sharedv1.PhaseStatus_PHASE_STATUS_TODO,
+		"active":  sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE,
+		"done":    sharedv1.PhaseStatus_PHASE_STATUS_DONE,
+		"blocked": sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED,
+		" DONE ":  sharedv1.PhaseStatus_PHASE_STATUS_DONE,
+		"":        sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED,
+		"weird":   sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED,
+	}
+	for in, want := range cases {
+		require.Equalf(t, want, phaseStatusFlag(in), "phaseStatusFlag(%q)", in)
+	}
+}
+
+func TestTriageFlag(t *testing.T) {
+	cases := map[string]sharedv1.FindingTriage{
+		"candidate": sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE,
+		"promoted":  sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED,
+		"promote":   sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED,
+		"dismissed": sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED,
+		"dismiss":   sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED,
+		" Promoted": sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED,
+		"":          sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED,
+		"nope":      sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED,
+	}
+	for in, want := range cases {
+		require.Equalf(t, want, triageFlag(in), "triageFlag(%q)", in)
+	}
+}
+
+func TestExecLabels(t *testing.T) {
+	require.Equal(t, "active", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE))
+	require.Equal(t, "unspecified", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED))
+	require.Equal(t, "complete", planStatusLabel(sharedv1.PlanStatus_PLAN_STATUS_COMPLETE))
+	require.Equal(t, "full", completenessLabel(sharedv1.Completeness_COMPLETENESS_FULL))
+	require.Equal(t, "partial", completenessLabel(sharedv1.Completeness_COMPLETENESS_PARTIAL))
+	require.Equal(t, "unspecified", completenessLabel(sharedv1.Completeness_COMPLETENESS_UNSPECIFIED))
+	require.Equal(t, "promoted", triageLabel(sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED))
+	require.Equal(t, "dismissed", triageLabel(sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED))
+	require.Equal(t, "unspecified", triageLabel(sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED))
+	require.Equal(t, "fresh", stalenessLabel(sharedv1.StalenessTier_STALENESS_TIER_FRESH))
+	require.Equal(t, "lightly_stale", stalenessLabel(sharedv1.StalenessTier_STALENESS_TIER_LIGHTLY_STALE))
+	require.Equal(t, "definitely_stale", stalenessLabel(sharedv1.StalenessTier_STALENESS_TIER_DEFINITELY_STALE))
+	require.Equal(t, "unknown", stalenessLabel(sharedv1.StalenessTier_STALENESS_TIER_UNSPECIFIED))
+}
+
+func TestParseIntFlags(t *testing.T) {
+	v64, err := parseInt64Flag("")
+	require.NoError(t, err)
+	require.Equal(t, int64(0), v64)
+	v64, err = parseInt64Flag("  42 ")
+	require.NoError(t, err)
+	require.Equal(t, int64(42), v64)
+	_, err = parseInt64Flag("nope")
+	require.Error(t, err)
+
+	v32, err := parseInt32Flag("")
+	require.NoError(t, err)
+	require.Equal(t, int32(0), v32)
+	v32, err = parseInt32Flag("9")
+	require.NoError(t, err)
+	require.Equal(t, int32(9), v32)
+	_, err = parseInt32Flag("x")
+	require.Error(t, err)
+}
+
+func TestOrNone(t *testing.T) {
+	require.Equal(t, "(none)", orNone(""))
+	require.Equal(t, "(none)", orNone("   "))
+	require.Equal(t, "abc", orNone("abc"))
+}
+
+func errBoom() error { return &boomError{} }
+
+type boomError struct{}
+
+func (*boomError) Error() string { return "boom" }

@@ -21,4 +21,8 @@ type Repository interface {
 	ListEdges(ctx context.Context, planID string) ([]PlanEdge, error)
 	// SaveEdge inserts a graph edge (idempotent on the (from,to,kind) key).
 	SaveEdge(ctx context.Context, e PlanEdge) error
+	// WithTx runs fn against a repository bound to a single transaction so a
+	// multi-write operation (LinkSupersession: one edge + both plans' edge lists)
+	// commits atomically or rolls back as a unit.
+	WithTx(ctx context.Context, fn func(Repository) error) error
 }

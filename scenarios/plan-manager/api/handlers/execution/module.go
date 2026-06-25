@@ -46,7 +46,10 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Resolver:  resolver,
 		Staleness: internalvalidation.NewExistenceStaleness(resolver),
 		Runner:    internalvalidation.DefaultRunner(),
-		Clock:     clk,
+		// Same result store the validation module writes to — execution READS the
+		// last stored result here (cheap), never triggering a live run on status/next.
+		Results: internalvalidation.NewSQLiteResultStore(db, clk),
+		Clock:   clk,
 	})
 
 	svc := internalexecution.NewService(internalexecution.Deps{
@@ -97,23 +100,14 @@ func (a planSourceAdapter) GetPlan(ctx context.Context, idOrSlug string) (intern
 }
 
 // validatorAdapter adapts the validation domain Service to execution's Validator
-// seam. It surfaces only the read signals execution injects into context — the
-// overall staleness and the most-recent validation result — translating the
-// validation domain's vocabulary into the execution domain's ValidationResult.
+// seam. It surfaces the LAST STORED validation result (a cheap store read) into
+// the just-in-time context — never triggering a live baseline run on status/next.
 type validatorAdapter struct{ svc internalvalidation.Service }
 
-func (a validatorAdapter) ComputeStaleness(ctx context.Context, planID, phaseID string) (internalplans.StalenessTier, error) {
-	report, err := a.svc.ComputeStaleness(ctx, planID, phaseID)
-	if err != nil {
-		return internalplans.StalenessUnknown, err
-	}
-	return report.Overall, nil
-}
-
-func (a validatorAdapter) RunValidation(ctx context.Context, planID, phaseID string) (internalexecution.ValidationResult, error) {
-	res, err := a.svc.RunValidation(ctx, planID, phaseID)
-	if err != nil {
-		return internalexecution.ValidationResult{}, err
+func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID string) (internalexecution.ValidationResult, bool, error) {
+	res, ok, err := a.svc.LastValidation(ctx, planID, phaseID)
+	if err != nil || !ok {
+		return internalexecution.ValidationResult{}, false, err
 	}
 	return internalexecution.ValidationResult{
 		ID:          res.ID,
@@ -124,7 +118,7 @@ func (a validatorAdapter) RunValidation(ctx context.Context, planID, phaseID str
 		CommandsRun: res.CommandsRun,
 		Detail:      res.Detail,
 		RanAt:       res.RanAt,
-	}, nil
+	}, true, nil
 }
 
 // repoRoot resolves the repository root so the validation Service's filesystem

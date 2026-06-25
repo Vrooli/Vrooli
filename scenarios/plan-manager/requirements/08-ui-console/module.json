@@ -10,7 +10,7 @@
     {
       "id": "PM-UI-001",
       "title": "Operator console renders plans, phase progress, staleness, handoffs, and velocity",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "ui",
       "description": "A React/Vite console lets operators view and manage plans, phase progress, staleness tiers, handoff records (canonical + linked prose), candidate-finding triage, and velocity trends, using the vrooli-default design with status-color semantics and the template's i18n + accessibility seams.",

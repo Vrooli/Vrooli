@@ -60,6 +60,15 @@ CREATE TABLE IF NOT EXISTS findings (
 CREATE INDEX IF NOT EXISTS idx_findings_execution ON findings(execution_id);
 CREATE INDEX IF NOT EXISTS idx_findings_triage ON findings(triage);
 
+-- The (execution_id, attribution_run_id, title) dedup key, now authoritative at
+-- the store. PARTIAL (only rows that carry an attribution run id) so two
+-- concurrent CLI processes recording the same finding cannot both insert, while
+-- attribution-less findings still dedup best-effort by title in the service
+-- without a hard constraint. This is the index the comment above promised.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_dedup
+  ON findings(execution_id, attribution_run_id, title)
+  WHERE attribution_run_id <> '';
+
 -- handoffs — canonical structured handoff records, FK→execution. The assembled
 -- decisions/candidate-findings snapshot and the last-validation result live in
 -- the `document` JSON column; the queryable columns power lookup by execution.

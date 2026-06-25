@@ -10,7 +10,7 @@
     {
       "id": "PM-STORE-001",
       "title": "A plan is a first-class structured record with ordered first-class phases",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "plans",
       "description": "A plan is stored as a structured record (meta + global sections + ordered phases; each phase owns its required-reading, reminders, baseline scope, acceptance, and status) and exposes CRUD plus a rendered markdown view. Persistence is rooted at the scenario-independent ~/.vrooli home store so plans remain readable when the plan-manager server is down.",
@@ -24,7 +24,7 @@
     {
       "id": "PM-STORE-002",
       "title": "Phase status is a computed runtime transition, never agent-edited markdown",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "plans",
       "description": "Phase status (todo / active / done / blocked) changes only through a typed state transition (or inference from acceptance/validation passing). The rendered markdown view reflects status but is never the source of truth, so an agent cannot corrupt plan state by editing prose.",

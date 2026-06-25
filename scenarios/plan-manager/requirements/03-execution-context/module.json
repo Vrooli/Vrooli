@@ -10,7 +10,7 @@
     {
       "id": "PM-EXEC-001",
       "title": "status/next inject phase-scoped context just-in-time",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "description": "The status/next commands return the current phase, what is next, phase-scoped required-reading + reminders, the last validation results, and current staleness — so the agent does not carry that procedural knowledge in context.",
@@ -23,7 +23,7 @@
     {
       "id": "PM-EXEC-002",
       "title": "Full vs partial completion and resume point are computed",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "description": "Whether a run completed the whole plan or part of it, and where to resume, are derived from phase status — not narrated by the agent. A partial run yields a deterministic resume point.",

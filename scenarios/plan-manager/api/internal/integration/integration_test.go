@@ -58,24 +58,16 @@ func (a planStore) UpdatePhase(ctx context.Context, planID string, phase interna
 
 type validatorAdapter struct{ svc internalvalidation.Service }
 
-func (a validatorAdapter) ComputeStaleness(ctx context.Context, planID, phaseID string) (internalplans.StalenessTier, error) {
-	report, err := a.svc.ComputeStaleness(ctx, planID, phaseID)
-	if err != nil {
-		return internalplans.StalenessUnknown, err
-	}
-	return report.Overall, nil
-}
-
-func (a validatorAdapter) RunValidation(ctx context.Context, planID, phaseID string) (internalexecution.ValidationResult, error) {
-	res, err := a.svc.RunValidation(ctx, planID, phaseID)
-	if err != nil {
-		return internalexecution.ValidationResult{}, err
+func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID string) (internalexecution.ValidationResult, bool, error) {
+	res, ok, err := a.svc.LastValidation(ctx, planID, phaseID)
+	if err != nil || !ok {
+		return internalexecution.ValidationResult{}, false, err
 	}
 	return internalexecution.ValidationResult{
 		ID: res.ID, PlanID: res.PlanID, PhaseID: res.PhaseID,
 		Verdict: string(res.Verdict), Staleness: res.Staleness,
 		CommandsRun: res.CommandsRun, Detail: res.Detail, RanAt: res.RanAt,
-	}, nil
+	}, true, nil
 }
 
 func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.Service, internalauthoring.Service, internalexecution.Service) {
@@ -84,6 +76,7 @@ func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalplans.Schema),
+		apidb.SchemaProviderFunc(internalvalidation.Schema),
 		apidb.SchemaProviderFunc(internalauthoring.Schema),
 		apidb.SchemaProviderFunc(internalexecution.Schema),
 	))
@@ -99,7 +92,8 @@ func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.
 		Staleness: internalvalidation.NewExistenceStaleness(resolver),
 		// Runner intentionally nil: RunValidation degrades to UNKNOWN (no live
 		// git-control-tower in a unit test) — never a fabricated pass.
-		Clock: clk,
+		Results: internalvalidation.NewSQLiteResultStore(d, clk),
+		Clock:   clk,
 	})
 	authoringSvc := internalauthoring.NewService(internalauthoring.Deps{
 		Store:  internalauthoring.NewSQLiteStore(d, clk),
@@ -129,6 +123,46 @@ func contentFor(key string) string {
 	default:
 		return "Authored content for the " + key + " section."
 	}
+}
+
+// TestValidationResultPersistsForCheapContextRead pins the context-server fix:
+// status/next must NOT shell a live validation run on every poll. They inject the
+// LAST STORED result — so before any explicit RunValidation there is no validation
+// in context, and after one the stored result is read back cheaply.
+func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
+	ctx := context.Background()
+	_, plansSvc, validationSvc, _, executionSvc := newStack(t)
+
+	plan, err := plansSvc.Create(ctx, internalplans.Plan{
+		Title:  "Cheap context",
+		Phases: []internalplans.Phase{{Title: "Phase one", Acceptance: "done"}},
+		References: []internalplans.Reference{
+			{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/api/main.go"},
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, plan.Phases)
+	phaseID := plan.Phases[0].ID
+
+	exec, err := executionSvc.Start(ctx, plan.ID, "run-cheap")
+	require.NoError(t, err)
+
+	// Before any explicit validation run: NO validation in the injected context.
+	// status answered the poll without triggering a live baseline.
+	_, before, err := executionSvc.GetStatus(ctx, exec.ID)
+	require.NoError(t, err)
+	require.False(t, before.HasValidation, "status must not trigger a live validation run")
+
+	// The agent runs validation explicitly; the result is persisted for cheap reads.
+	res, err := validationSvc.RunValidation(ctx, plan.ID, phaseID)
+	require.NoError(t, err)
+	require.Equal(t, internalvalidation.VerdictUnknown, res.Verdict)
+
+	// Now status reads the STORED result (a cheap store read, no subprocess).
+	_, after, err := executionSvc.GetStatus(ctx, exec.ID)
+	require.NoError(t, err)
+	require.True(t, after.HasValidation, "status injects the last STORED validation result")
+	require.Equal(t, "unknown", after.LastValidation.Verdict)
 }
 
 func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {

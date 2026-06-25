@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -32,6 +33,16 @@ type StalenessComputer interface {
 	Compute(ctx context.Context, ref internalplans.Reference) (internalplans.StalenessTier, float64, error)
 }
 
+// ResultStore persists validation results and reads back the last-known result
+// per plan/phase. RunValidation (the explicit, agent-in-the-loop check) writes;
+// the execution context server reads the LAST STORED result so status/next never
+// shell a subprocess. A nil store means "no persistence" — RunValidation still
+// returns its live result, but nothing is cached for later cheap reads.
+type ResultStore interface {
+	SaveResult(ctx context.Context, r Result) error
+	LastResult(ctx context.Context, planID, phaseID string) (Result, bool, error)
+}
+
 // CommandRunner is the exec seam for running baseline/check commands (the live
 // dispatch path to git-control-tower / the diff oracle). Production wires
 // execRunner (LookPath-guarded, timeout-bounded); tests inject a fake. A nil
@@ -48,18 +59,46 @@ func DefaultRunner() CommandRunner { return execRunner }
 // block forever.
 const validationTimeout = 10 * time.Minute
 
+// ErrToolNotFound is returned by a CommandRunner when the command is not on PATH.
+// The caller treats this as UNKNOWN (the check could not be performed) rather
+// than FAIL (the check ran and reported a problem) — a host without
+// git-control-tower installed must not make every plan look like it regressed.
+var ErrToolNotFound = errors.New("command not found on PATH")
+
+// CommandExitError reports that a command ran to completion but exited non-zero.
+// Code carries the process exit code so the caller can distinguish a real
+// regression (git-control-tower baseline diff exit 1) from a "not comparable"
+// result (exit 2, which is actionable but not a regression → UNKNOWN).
+type CommandExitError struct {
+	Code   int
+	Output []byte
+	Err    error
+}
+
+func (e CommandExitError) Error() string {
+	return fmt.Sprintf("command exited %d: %v", e.Code, e.Err)
+}
+
+func (e CommandExitError) Unwrap() error { return e.Err }
+
 // execRunner is the production CommandRunner. It guards against running an
 // arbitrary binary by requiring the command to be on PATH, bounds the call with
-// a timeout, and returns combined output. Never fabricates results: a failure is
-// a real error the caller turns into UNKNOWN/FAIL honestly.
+// a timeout, and returns combined output. Never fabricates results: a tool-absent
+// miss yields ErrToolNotFound (→ UNKNOWN) and a non-zero exit yields a
+// CommandExitError carrying the code (→ FAIL/UNKNOWN by exit code), so the caller
+// degrades honestly instead of conflating "not installed" with "regressed".
 func execRunner(ctx context.Context, name string, args ...string) ([]byte, error) {
 	if _, err := exec.LookPath(name); err != nil {
-		return nil, fmt.Errorf("command %q not found on PATH: %w", name, err)
+		return nil, fmt.Errorf("command %q: %w", name, ErrToolNotFound)
 	}
 	ctx, cancel := context.WithTimeout(ctx, validationTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return out, CommandExitError{Code: exitErr.ExitCode(), Output: out, Err: err}
+		}
 		return out, fmt.Errorf("run %s %s: %w", name, strings.Join(args, " "), err)
 	}
 	return out, nil

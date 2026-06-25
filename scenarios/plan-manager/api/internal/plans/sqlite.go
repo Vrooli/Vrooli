@@ -36,6 +36,33 @@ func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 
 var _ Repository = (*sqliteRepository)(nil)
 
+// txBeginner is the optional transaction capability of the underlying DB. Both
+// *sql.DB (tests) and *database.RoutedDB (production) satisfy it; *sql.Tx does
+// not, so a WithTx already inside a transaction safely runs inline.
+type txBeginner interface {
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
+// WithTx runs fn against a repository bound to one transaction so a multi-write
+// operation commits atomically or rolls back as a unit. When the underlying DB
+// does not expose BeginTx, fn runs against this repository directly — a safe,
+// non-atomic fallback that never blocks the operation.
+func (r *sqliteRepository) WithTx(ctx context.Context, fn func(Repository) error) error {
+	beginner, ok := r.db.(txBeginner)
+	if !ok {
+		return fn(r)
+	}
+	tx, err := beginner.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	if err := fn(&sqliteRepository{db: tx, clock: r.clock}); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
 // planDocument is the JSON payload stored in plans.document — every structured
 // field that isn't a first-class queryable column. Phases and references live
 // here because they round-trip with the plan and are never queried across plans.

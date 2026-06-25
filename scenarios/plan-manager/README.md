@@ -1,129 +1,119 @@
 # Plan Manager
 
-Planning runtime and single authority for plan logic: a guided wizard that makes authoring and executing implementation plans cheap enough for local models, with first-class phases, computed staleness, and baseline-aware validation.
+Plan Manager is the planning runtime and single authority for plan logic in
+Vrooli: a guided wizard that makes **authoring** and **executing** implementation
+plans cheap enough — in tokens and intelligence — for a local model. Plans become
+first-class structured records with ordered phases, computed status and staleness,
+and baseline-aware validation, instead of prose files a tired, max-context agent
+has to reverse-engineer at the end of a run.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+The mechanism is a deterministic section wizard plus validators that move judgment
+into code, combined with just-in-time context injection during execution that holds
+the procedural knowledge agents would otherwise carry in their heads.
 
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
+See [`PRD.md`](PRD.md) for the full product framing and
+[`docs/concepts/PLAN-MODEL.md`](docs/concepts/PLAN-MODEL.md) for the canonical
+structured-plan + phase schema.
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+## Domains
 
-## What's In This Scenario
+Plan Manager is organized into four product domains, each a Connect-RPC service
+with a matching CLI group:
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
+- **plans** — the structured-plan SSOT. Create / read / update / archive plans,
+  render the markdown view, manage first-class phases, instantiate per-surface
+  templates (generic / cli / proto / ui), and track the supersession/dependency
+  graph. Plans persist to the scenario-**independent** `~/.vrooli` home store so
+  they stay readable with the server down.
+- **authoring** — the guided composer wizard. Walk a plan's sections in order,
+  validate structure as you go, and **autofill** the mechanical sections (regression
+  anchor, required-reading, code references) behind seams so a small model only
+  supplies genuine prose, then finalize into a structured plan.
+- **execution** — the guided runner. `status`/`next` act as a just-in-time context
+  server (current phase, what's next, phase-scoped reading + reminders, last
+  validation results, staleness); transition phases; capture decisions and candidate
+  findings in-flow; `complete` assembles the **canonical** handoff; read per-plan
+  velocity.
+- **validation** — plan health. Resolve code references against `code-facts`,
+  compute staleness tiers (fresh / lightly-stale / definitely-stale), derive the
+  exact baseline/validation command set for a plan's connected code, run it with the
+  agent in the loop, and verify the Definition of Done against the regression anchor.
 
-## Placeholders vs. Durable Scaffolding
+## Surfaces
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+- **CLI (`cli/`)** — the primary, agent- and operator-facing surface. Typed
+  proto-JSON output; groups `plans`, `phase`, `template`, `author`, `exec`, and
+  `validate`. This is the guided surface agents drive when authoring and executing a
+  plan; the command list is the contract in [`cli/manifest.json`](cli/manifest.json).
+- **API (`api/`)** — Go + Connect-RPC over the proto contracts in
+  `packages/proto/schemas/plan-manager`. Storage is SQLite via api-core/storage,
+  rooted at the durable home store.
+- **UI (`ui/`)** — React + Vite operator console for viewing and managing plans,
+  phase progress, staleness tiers, handoff records, candidate-finding triage, and
+  velocity trends.
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
-
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
-
-## Running The Scenario
+## Running
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
+# Build API + UI, install pnpm deps, install the scenario CLI
 make setup   # wraps `vrooli scenario setup`
 
 # Start API + UI in the background
 make start   # wraps `vrooli scenario start`
 ```
 
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full flow. Run tests with
+`make test` (which wraps `vrooli scenario test`), or invoke
+`test-genie execute plan-manager --preset comprehensive` directly for finer-grained
+presets.
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute plan-manager --preset comprehensive` directly for
-finer-grained presets.
+## Integration posture
+
+Plan Manager **composes** substrate it should not own and degrades gracefully when an
+owner is down: `code-facts` (code references), the freshness engine (content-hash
+staleness), `git-control-tower baseline` (regression anchor + diff), `test-genie` /
+`scenario-validation` (validation results it consumes), `prompt-manager`
+(`plan-skill-discovery` for required-reading autofill), and `meta-optimization-manager`
+(velocity sink). It does **not** own project-level validation, read agent transcripts,
+spawn agents, or promote candidate findings to real bugs — an operator triages those.
 
 ## Documentation Map
 
 | Need | Start Here |
 |---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at this scenario's root |
+| The structured plan + phase model | [`docs/concepts/PLAN-MODEL.md`](docs/concepts/PLAN-MODEL.md) |
+| Product framing and operational targets | [`PRD.md`](PRD.md) |
+| Architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Workflows, data, integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| UI design language | `DESIGN.md` at this scenario's root, [`docs/concepts/UI-ARCHITECTURE.md`](docs/concepts/UI-ARCHITECTURE.md) |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
-| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
-| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
-| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
+| Deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
 | Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
-| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
-| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Seams and fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
 ## Working Rules
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within this scenario's directory.
+1. **Connect-RPC is the default transport.** Every domain endpoint goes through a
+   proto service and generated Connect handlers/clients. Do not write literal
+   `Path: "/api/v1/..."` strings in an `EndpointDescriptor`; codegen rejects literal
+   Paths that lack an explicit `RESTException` tag.
+2. **Update [`PRD.md`](PRD.md) and `requirements/`** before feature work; operational
+   targets drive code + tests. Requirement status is auto-synced by Test Genie — tag
+   tests with `[REQ:ID]` rather than hand-editing status.
+3. **Update [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md)** before adding
+   product code, and keep [`docs/manifest.json`](docs/manifest.json) accurate.
+4. **Read the root `DESIGN.md` before UI work.** Tokens, motion, and status semantics
+   are binding; preserve the i18n + accessibility seams.
+5. **The agent never hand-edits plan markdown** — phase status is a typed transition,
+   and the rendered markdown view reflects state but is never the source of truth.
+6. **Append progress entries** to [`docs/internal/PROGRESS.md`](docs/internal/PROGRESS.md)
+   when you land work, and keep edits within this scenario's directory.
 
 ## pnpm Everywhere
 
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+This scenario assumes pnpm. Scripts use `pnpm` directly (no `npm` fallbacks) to
+reduce drift; convert lockfiles yourself if you use another package manager.

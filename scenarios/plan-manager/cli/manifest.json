@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "plan-manager",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Plan Manager CLI — the agent- and operator-facing surface for the planning runtime: author (guided composer wizard), exec (guided runner with just-in-time context + canonical handoff), plans/phase/template (the structured-plan SSOT), and validate (references, staleness, baseline-aware validation, Definition-of-Done). Schema-validated against cli-manifest/v1 and cross-validated against the PlansService/AuthoringService/ExecutionService/ValidationService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
       "name": "plans",
@@ -17,7 +17,8 @@
             },
             {
               "name": "include-archived",
-              "description": "Include archived plans"
+              "description": "Include archived plans",
+              "bool": true
             }
           ],
           "binding": {
@@ -326,6 +327,18 @@
             {
               "name": "acceptance",
               "description": "Objective pass/fail"
+            },
+            {
+              "name": "required-reading",
+              "description": "Phase-scoped required reading, comma-separated"
+            },
+            {
+              "name": "reminders",
+              "description": "Phase-scoped reminders, comma-separated"
+            },
+            {
+              "name": "baseline-scope",
+              "description": "Explicit baseline/validation commands for this phase, comma-separated"
             }
           ],
           "binding": {
@@ -372,6 +385,18 @@
             {
               "name": "status",
               "description": "Phase status (todo|active|done|blocked)"
+            },
+            {
+              "name": "required-reading",
+              "description": "Phase-scoped required reading, comma-separated"
+            },
+            {
+              "name": "reminders",
+              "description": "Phase-scoped reminders, comma-separated"
+            },
+            {
+              "name": "baseline-scope",
+              "description": "Explicit baseline/validation commands for this phase, comma-separated"
             }
           ],
           "binding": {

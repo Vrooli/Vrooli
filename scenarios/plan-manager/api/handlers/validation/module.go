@@ -38,6 +38,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Resolver:  resolver,
 		Staleness: internalvalidation.NewExistenceStaleness(resolver),
 		Runner:    internalvalidation.DefaultRunner(),
+		Results:   internalvalidation.NewSQLiteResultStore(db, clk),
 		Clock:     clk,
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
@@ -53,11 +54,12 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	}
 }
 
-// Schema is empty: the validation domain computes on demand and persists no
-// tables in v1 (validation results are returned, not stored — execution calls
-// RunValidation when it needs last_validation). EnsureSchemas skips empty
-// providers. Kept so the modules registry's per-domain shape stays uniform.
-func Schema() string { return "" }
+// Schema returns the validation domain's SQL contribution (the validation_results
+// table — the last-known result per plan/phase that the execution context server
+// reads, so status/next never shell a subprocess). Re-exports
+// internalvalidation.Schema() so the modules registry's per-domain shape stays
+// uniform.
+func Schema() string { return internalvalidation.Schema() }
 
 // planAdapter adapts the plans domain Service to validation's PlanSource read
 // seam (the method names differ; the types are the shared plans model).

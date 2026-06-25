@@ -32,7 +32,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{
 		Status:          planStatusFlag(ctx.Flag("status")),
-		IncludeArchived: ctx.Flag("include-archived") != "",
+		IncludeArchived: ctx.BoolFlag("include-archived"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list plans", err, nil)
@@ -173,13 +173,34 @@ func (h *handlers) migrate(ctx cliapp.RunContext) error {
 	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Migrated")
 }
 
+// splitCSV splits a comma-separated flag value into a trimmed, non-empty list.
+// An empty/whitespace value yields nil so an unset list flag leaves the field
+// empty rather than carrying a single blank entry.
+func splitCSV(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
 func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&plansv1.AddPhaseRequest{
 		PlanId: ctx.Positional("plan"),
 		Phase: &sharedv1.Phase{
-			Title:      ctx.Flag("title"),
-			Intent:     ctx.Flag("intent"),
-			Acceptance: ctx.Flag("acceptance"),
+			Title:           ctx.Flag("title"),
+			Intent:          ctx.Flag("intent"),
+			Acceptance:      ctx.Flag("acceptance"),
+			RequiredReading: splitCSV(ctx.Flag("required-reading")),
+			Reminders:       splitCSV(ctx.Flag("reminders")),
+			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
 		},
 	}))
 	if err != nil {
@@ -192,11 +213,14 @@ func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
 	resp, err := h.client.UpdatePhase(context.Background(), connect.NewRequest(&plansv1.UpdatePhaseRequest{
 		PlanId: ctx.Positional("plan"),
 		Phase: &sharedv1.Phase{
-			Id:         ctx.Positional("phase"),
-			Title:      ctx.Flag("title"),
-			Intent:     ctx.Flag("intent"),
-			Acceptance: ctx.Flag("acceptance"),
-			Status:     phaseStatusFlag(ctx.Flag("status")),
+			Id:              ctx.Positional("phase"),
+			Title:           ctx.Flag("title"),
+			Intent:          ctx.Flag("intent"),
+			Acceptance:      ctx.Flag("acceptance"),
+			Status:          phaseStatusFlag(ctx.Flag("status")),
+			RequiredReading: splitCSV(ctx.Flag("required-reading")),
+			Reminders:       splitCSV(ctx.Flag("reminders")),
+			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
 		},
 	}))
 	if err != nil {

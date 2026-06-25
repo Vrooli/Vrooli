@@ -102,7 +102,7 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	if strings.TrimSpace(p.Title) == "" {
 		p.Title = existing.Title
 	}
-	p.Phases = normalizePhases(p.Phases)
+	p.Phases = normalizePhases(reconcilePhaseIDs(existing.Phases, p.Phases))
 	if existing.Status == PlanStatusArchived {
 		p.Status = PlanStatusArchived
 	} else {
@@ -203,21 +203,27 @@ func (s *service) LinkSupersession(ctx context.Context, supersedingID, supersede
 	if err != nil {
 		return Plan{}, err
 	}
-	if err := s.repo.SaveEdge(ctx, PlanEdge{
-		FromPlanID: superseding.ID,
-		ToPlanID:   superseded.ID,
-		Kind:       "supersedes",
-	}); err != nil {
-		return Plan{}, err
-	}
 	superseding.Supersedes = appendUnique(superseding.Supersedes, superseded.ID)
 	superseding.UpdatedAt = s.now()
-	if err := s.repo.Save(ctx, superseding); err != nil {
-		return Plan{}, err
-	}
 	superseded.SupersededBy = appendUnique(superseded.SupersededBy, superseding.ID)
 	superseded.UpdatedAt = s.now()
-	if err := s.repo.Save(ctx, superseded); err != nil {
+
+	// The edge and both plans' updated edge-lists are one logical change — commit
+	// them atomically so a mid-sequence failure can't leave a dangling edge or a
+	// one-sided supersession link.
+	if err := s.repo.WithTx(ctx, func(repo Repository) error {
+		if err := repo.SaveEdge(ctx, PlanEdge{
+			FromPlanID: superseding.ID,
+			ToPlanID:   superseded.ID,
+			Kind:       "supersedes",
+		}); err != nil {
+			return err
+		}
+		if err := repo.Save(ctx, superseding); err != nil {
+			return err
+		}
+		return repo.Save(ctx, superseded)
+	}); err != nil {
 		return Plan{}, err
 	}
 	return superseding, nil
@@ -318,6 +324,41 @@ func defaultPhaseStatus(s PhaseStatus) PhaseStatus {
 		return PhaseStatusTodo
 	}
 	return s
+}
+
+// reconcilePhaseIDs preserves existing phase identity across an Update that may
+// have dropped phase IDs (e.g. a caller round-tripping a plan through a surface
+// that does not echo IDs). An incoming phase with no ID is matched to an existing
+// phase by Title (first unused match) and inherits its ID, so the executions,
+// decisions, and findings that reference that phase id are not orphaned by a
+// silent re-key. A phase with no title match is genuinely new and gets a fresh id
+// from normalizePhases.
+func reconcilePhaseIDs(existing, incoming []Phase) []Phase {
+	byTitle := make(map[string][]string, len(existing))
+	for _, ex := range existing {
+		if strings.TrimSpace(ex.ID) == "" {
+			continue
+		}
+		key := strings.TrimSpace(ex.Title)
+		byTitle[key] = append(byTitle[key], ex.ID)
+	}
+	used := make(map[string]bool, len(existing))
+	out := make([]Phase, len(incoming))
+	copy(out, incoming)
+	for i := range out {
+		if id := strings.TrimSpace(out[i].ID); id != "" {
+			used[id] = true
+			continue
+		}
+		for _, id := range byTitle[strings.TrimSpace(out[i].Title)] {
+			if !used[id] {
+				out[i].ID = id
+				used[id] = true
+				break
+			}
+		}
+	}
+	return out
 }
 
 func normalizePhases(phases []Phase) []Phase {

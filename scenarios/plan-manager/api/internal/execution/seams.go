@@ -22,11 +22,17 @@ type PlanStore interface {
 // context (last validation + staleness). Production wraps the validation Service;
 // tests inject a fake. A nil Validator (or one returning an error) degrades the
 // injected context to UNKNOWN — never a false PASS or fabricated freshness.
+//
+// The context server reads the LAST STORED validation result here — it does NOT
+// trigger a live run. status/next are poll-style verbs; shelling git-control-tower
+// on every poll would defeat the whole "cheap context for a local model" point.
+// The agent runs validation explicitly (ValidationService.RunValidation), which
+// persists the result this seam reads back.
 type Validator interface {
-	// ComputeStaleness returns the overall staleness for a plan/phase's references.
-	ComputeStaleness(ctx context.Context, planID, phaseID string) (internalplans.StalenessTier, error)
-	// RunValidation returns the most recent validation outcome for a plan/phase.
-	RunValidation(ctx context.Context, planID, phaseID string) (ValidationResult, error)
+	// LastValidation returns the most recent STORED validation result + its
+	// staleness for a plan/phase. ok=false when none has been recorded yet (the
+	// agent has not run validation) — an honest "not yet validated", never a guess.
+	LastValidation(ctx context.Context, planID, phaseID string) (ValidationResult, bool, error)
 }
 
 // VelocitySink is the future meta-optimization-manager emit seam. v1 captures

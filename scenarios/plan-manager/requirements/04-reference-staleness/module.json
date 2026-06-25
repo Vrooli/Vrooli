@@ -10,7 +10,7 @@
     {
       "id": "PM-REF-001",
       "title": "Record code references for existing and proposed code",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "validation",
       "description": "Every referenced location (existing and proposed code) is captured via the machine-readable grammar ([CODE:], [REQ:]) and resolved against code-facts, so a plan declares its connected code explicitly.",
@@ -22,7 +22,7 @@
     {
       "id": "PM-STALE-001",
       "title": "Compute staleness tiers from referenced-code change",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "validation",
       "description": "Given a plan's references, compute a staleness tier — fresh, lightly-stale (small diffs in referenced code), or definitely-stale (referenced locations moved or deleted) — reusing the freshness engine's content-hash mechanism, so a plan that has sat around has a known validity.",

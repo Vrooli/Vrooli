@@ -10,7 +10,7 @@
     {
       "id": "PM-VALID-001",
       "title": "Compute the exact baseline/validation command set from connected code",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "validation",
       "description": "From a plan's connected code, derive the precise set of baseline/validation commands needed across all affected locations (not just scenarios) — so the agent does not have to reason about which scenarios to baseline.",
@@ -22,7 +22,7 @@
     {
       "id": "PM-VALID-002",
       "title": "Run validation on request and verify DoD against the regression anchor",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "validation",
       "description": "On request (agent in the loop) the scenario runs the computed checks and returns results + staleness, and verifies Definition-of-Done against the regression anchor as an oracle rather than relying on a narrated claim. Agents may run baselines; they never commit.",

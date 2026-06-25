@@ -10,7 +10,7 @@
     {
       "id": "PM-VEL-001",
       "title": "Track per-plan velocity and emit it to meta-optimization trials",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "analytics",
       "description": "Capture per-plan velocity (wall-time + tokens + iterations to complete; full vs partial) as a historical signal and emit it to meta-optimization-manager trials, so plan throughput becomes a measurable local-model-readiness input.",
@@ -22,7 +22,7 @@
     {
       "id": "PM-GRAPH-001",
       "title": "Maintain a plan supersession/dependency graph and per-surface templates",
-      "status": "planned",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "plans",
       "description": "Track supersession/dependency edges between plans (using the stored content hash) and provide per-surface plan templates (CLI/proto/UI) so a new plan starts pre-scaffolded for its surface.",
