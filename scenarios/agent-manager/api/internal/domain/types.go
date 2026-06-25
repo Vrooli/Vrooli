@@ -125,7 +125,7 @@ type NetworkAccess string
 
 const (
 	// NetworkAccessNone blocks all network access.
-	// Codex: maps to --full-auto.
+	// Codex: maps to --sandbox workspace-write.
 	NetworkAccessNone NetworkAccess = "none"
 
 	// NetworkAccessLocalhost allows access to localhost only (local scenario APIs).
@@ -639,6 +639,22 @@ type Run struct {
 	IdentityTokenHash      string     `json:"identityTokenHash,omitempty" db:"identity_token_hash"`
 	IdentityTokenRevokedAt *time.Time `json:"identityTokenRevokedAt,omitempty" db:"identity_token_revoked_at"`
 
+	// CustomEnv holds the caller-supplied VROOLI_-prefixed environment
+	// variables passed at run creation (CreateRunRequest.Environment).
+	// Persisted so the continue/wake path can re-inject them: a continued
+	// turn that bypassed this would silently drop scenario-injected custom
+	// env (the latent bug Phase 0 of the park/resume work fixes). Values are
+	// VROOLI_*-validated at the API boundary (≤20 entries / ≤4096 bytes).
+	CustomEnv map[string]string `json:"customEnv,omitempty" db:"custom_env"`
+
+	// AwaitHandle describes the externally-owned async work a parked run is
+	// waiting on. It is set when the run transitions running→parked and cleared
+	// on wake (parked→running) or cancel (parked→cancelled). Persisted (JSON
+	// column) so an agent-manager restart can re-spawn the waiter for every
+	// parked run (one open handle per run — a second park while parked is
+	// rejected). Nil for every non-parked run.
+	AwaitHandle *AwaitHandle `json:"awaitHandle,omitempty" db:"await_handle"`
+
 	// First ~120 chars of the associated task description (computed, not persisted).
 	PromptPreview string `json:"promptPreview,omitempty"`
 
@@ -716,7 +732,42 @@ const (
 	RunStatusComplete    RunStatus = "complete"
 	RunStatusFailed      RunStatus = "failed"
 	RunStatusCancelled   RunStatus = "cancelled"
+	// RunStatusParked: the run is suspended waiting on externally-owned async
+	// work (a test-genie run, a git-control-tower baseline diff). The agent
+	// process has exited (zero tokens burned) but the run is NOT terminal — its
+	// sandbox is preserved and agent-manager re-spawns ("wakes") the conversation
+	// with the awaited result injected once it resolves. Modeled on needs_review
+	// (process-exited, non-terminal, resume-with-injected-message) but for
+	// infrastructure-driven waiting rather than operator review. See
+	// scenarios/agent-manager/docs/internal/SEAMS.md (park/wake) and the
+	// LivenessPolicy table in decisions.go (parked is scanned but never
+	// heartbeat-reaped).
+	RunStatusParked RunStatus = "parked"
 )
+
+// AwaitHandle identifies the externally-owned async work a parked run is
+// blocked on. agent-manager (which owns the agent process) performs the
+// blocking wait on the agent's behalf via a per-producer Waiter seam and wakes
+// the run when the handle resolves. The handle is the unit persisted for
+// restart recovery and the key the waiter de-duplicates on so wake is
+// idempotent (a double-resolve must not double-wake).
+type AwaitHandle struct {
+	// Producer identifies which Waiter resolves this handle (e.g. "test-genie",
+	// "git-control-tower"). The await-handle registry (Phase 3) maps it to a
+	// concrete Waiter implementation.
+	Producer string `json:"producer"`
+	// Key is the producer-scoped identifier of the awaited work (e.g. a
+	// test-genie run ID, a baseline diff request key). Producer+Key together
+	// uniquely identify the work being awaited.
+	Key string `json:"key"`
+	// Deadline bounds the wait. When it elapses agent-manager wakes the run with
+	// a typed "timed-out / unknown" result rather than hanging forever. Nil ⇒
+	// the orchestrator default ParkTTL is applied at park time, so a persisted
+	// handle always carries a concrete deadline.
+	Deadline *time.Time `json:"deadline,omitempty"`
+	// RegisteredAt records when the park happened (for observability / ETA).
+	RegisteredAt time.Time `json:"registeredAt"`
+}
 
 // RunFinalizationStatus represents post-run sandbox apply/checkpoint state.
 type RunFinalizationStatus string

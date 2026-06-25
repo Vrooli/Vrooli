@@ -144,16 +144,55 @@ func CanDeleteRun(run *Run) (bool, string) {
 }
 
 // CanStopRun returns whether a run can be stopped.
+//
+// parked is stoppable: a parked run has no live process, but stopping it must
+// still cancel the await-handle's waiter and move the run to a terminal state
+// (cancelled) rather than leaving it suspended forever. The orchestrator's
+// StopRun special-cases parked (no process to terminate).
 func CanStopRun(run *Run) (bool, string) {
 	if run == nil {
 		return false, "run not found"
 	}
 	switch run.Status {
-	case RunStatusRunning, RunStatusStarting:
+	case RunStatusRunning, RunStatusStarting, RunStatusParked:
 		return true, ""
 	default:
-		return false, "can only stop running or starting runs"
+		return false, "can only stop running, starting, or parked runs"
 	}
+}
+
+// CanParkRun returns whether a run can be parked (suspended waiting on
+// externally-owned async work). Only a live, running run can be parked, and
+// only one open await-handle is permitted per run — a second park while already
+// parked is rejected. Park requires a SessionID so the run can later be woken
+// via session resume.
+func CanParkRun(run *Run) (bool, string) {
+	if run == nil {
+		return false, "run not found"
+	}
+	if run.Status == RunStatusParked {
+		return false, "run is already parked"
+	}
+	if run.Status != RunStatusRunning {
+		return false, "only a running run can be parked"
+	}
+	if strings.TrimSpace(run.SessionID) == "" {
+		return false, "run has no session ID - cannot be woken after parking"
+	}
+	return true, ""
+}
+
+// CanWakeRun returns whether a parked run can be woken (resumed with the awaited
+// result injected). Wake is idempotent at the orchestrator layer: a run that is
+// not parked is treated as already-woken rather than an error.
+func CanWakeRun(run *Run) (bool, string) {
+	if run == nil {
+		return false, "run not found"
+	}
+	if run.Status != RunStatusParked {
+		return false, "run is not parked"
+	}
+	return true, ""
 }
 
 // CanRetryRun returns whether a run can be retried.
@@ -181,6 +220,11 @@ func CanContinueRun(run *Run) (bool, string) {
 	switch run.Status {
 	case RunStatusRunning, RunStatusStarting, RunStatusPending:
 		return false, "cannot continue a run that is still in progress"
+	case RunStatusParked:
+		// A parked run is owned by its waiter and resumes via wake (with the
+		// awaited result injected). An operator-driven continue would race the
+		// waiter, so it is disallowed — stop the run first to take it over.
+		return false, "run is parked waiting on async work - it will resume automatically (or stop it first)"
 	default:
 		return true, ""
 	}

@@ -560,6 +560,61 @@ type RunStatusTransitionInput struct {
 
 ---
 
+### 3e. Durable Park/Wait — Waiter seam + Await-handle registry (`orchestration`)
+
+**Purpose:** Let an agent-manager run *wait* on externally-owned async work (a test-genie suite, a git-control-tower baseline diff) without burning tokens or relying on agent-loop discipline. The run *parks* (process exits, non-terminal `RunStatusParked`, sandbox preserved), agent-manager performs the blocking wait on the agent's behalf, then *wakes* the run by resuming the conversation with the result injected as the next turn.
+
+**Interface (the per-producer seam):**
+```go
+type Waiter interface {
+    Producer() string                                  // matched against AwaitHandle.Producer
+    Wait(ctx context.Context, key string) (string, error) // blocks until resolved; honours ctx
+}
+```
+
+**Why it's a seam:**
+- Adding a parkable async source is a one-Waiter change — the registry, transitions, persistence, and restart recovery are producer-agnostic.
+- Production Waiters shell the producer's *own* blocking-wait CLI (`test-genie runs wait --json <scenario> <run-id>`, `git-control-tower baseline diff --scenario <s> --name <n> --json`) through the `CommandRunner` seam, mirroring `CommandWorkspaceSandboxEnsurer`'s "delegate, never re-implement" discipline. agent-manager's process is *not* an agent-controlled context, so those commands block normally rather than re-parking.
+- Tests inject a fake `CommandRunner` (no real binaries) and `mocks.FakeWaiter` drives the registry's resolve/error/deadline/cancel paths deterministically.
+
+**Production implementations:** `testGenieWaiter` (`ProducerTestGenie`), `gctBaselineWaiter` (`ProducerGCT`). Both parse an await key of the form `"<scenario>/<work-id>"` (`splitProducerKey`). The producer-side park trigger (Phase 5) writes the same key.
+
+**Await-handle registry (`AwaitRegistry`):** owns one background watcher goroutine per parked run. Per watcher:
+- resolve → `WakeRun(result)`; producer error → `WakeRun("[wait error] …")`; deadline elapsed → `WakeRun(result, timedOut=true)`; `Cancel`/`Stop` → exit **without** waking (the stop/external-wake path owns that transition).
+- `WakeRun` is idempotent (a non-parked run is a no-op), so a double-resolve never double-wakes; `Cancel` is wired into `WakeRun`/`StopRun` for defence in depth.
+- **Restart recovery:** `RecoverParkedRuns` re-spawns a watcher for every persisted parked run on boot (`ListParkedRuns` reloads each by ID because the pruned list-columns omit the heavy `await_handle`). Handles are persisted on the run row, so a restart never strands a parked run.
+
+**Construction:** built after the orchestrator (it is the registry's waker) and wired back via `SetAwaitRegistry`, mirroring `SetReconciler`. `ParkRun` registers the watcher; `RecoverParkedRuns` runs in `startServer` alongside reconciler recovery; `Stop` drains all watchers on shutdown.
+
+**Producer-side park trigger (cross-package seam, `packages/cli-core/cliutil`):** a producer command opts in by calling `cliutil.ParkForAwait(ParkRequest{Producer, Key, Deadline})` *before* its blocking wait. `ParkForAwait` gates on identity-token presence (`DetectIdentity().IsIdentityPresent()` — the strict AM-run signal), recovers the run id via `VerifyIdentity()` claims, and POSTs `/api/v1/runs/{id}/park`. Its three-valued contract keeps non-AM callers unchanged:
+- `parked=false, err=nil` → not an AM run (human/CI/another agent's shell). The caller blocks normally — *zero behavioural change outside agent-manager*.
+- `parked=true, result` → parked successfully; the caller prints the clean tool-result and exits 0 (agent-manager ends the turn and wakes later).
+- `parked=true, err` → in an AM run but park failed; the caller degrades gracefully to blocking.
+
+Adopters today: `test-genie runs wait` and `git-control-tower baseline diff`. The producer-key constants (`ParkProducerTestGenie`, `ParkProducerGCT`) must match the AM `Waiter` `Producer()` strings — the same `"<scenario>/<work-id>"` key the `Waiter` parses with `splitProducerKey`. Adding a parkable producer is therefore symmetric: one `Waiter` in agent-manager + one `ParkForAwait` call in the producer.
+
+**Observability:** the `running→parked` transition emits a durable `run_status` event whose reason names the handle and ETA (`Parked waiting on <producer>:<key> (ETA …)`); the handle is also carried on the run DTO (`Run.await_handle`, populated only while parked) so the UI shows *what* a parked run waits on and *when* it resumes — a parked run reads as suspended, not hung. See `TEMPORAL-FLOWS.md` (park/wake flow).
+
+---
+
+### 3f. Run env + identity assembler (`orchestration/phases`)
+
+**Purpose:** Guarantee a run's full environment — caller-supplied custom `VROOLI_*` vars, sandbox routing vars, and a fresh identity token — is assembled the *same way* on every code path that launches or relaunches an agent process. Before this seam the fresh-run path (`RunExecutor`) and the continue/wake path diverged: continue left `ContinueRequest.Environment = nil`, silently dropping custom env, `VROOLI_SANDBOX_*`, and `VROOLI_AGENT_IDENTITY_TOKEN` (the latent bug Phase 0 of the park/resume work fixed).
+
+**Interface (single assembler):**
+```go
+func AssembleRunEnv(in AssembleRunEnvInput) map[string]string
+// in: {Custom, RunMode, SandboxID, WorkDir, ScopePath, IdentityToken}
+// merge order: custom → sandbox → identity  (system vars override custom)
+```
+
+**Why it's a seam:**
+- Both `RunExecutor.MergedEnvVars` (fresh run) and the continue/wake path (`assembleContinuationEnv` → `resumeConversation`) call it, so the two can never diverge again.
+- Custom env is persisted on the run row (`Run.CustomEnv`, JSON column) precisely so wake can re-inject it; the identity token is **regenerated per wake** (`GenerateIdentityToken` re-persists the hash — plaintext is never stored), and sandbox vars are re-derived from the still-alive sandbox. A woken turn therefore has a verifiable identity and intact sandbox routing.
+- Covered by `phases/env_test` (`TestAssembleRunEnv_*`) and the `orchestration` continue/wake env+identity regression tests.
+
+---
+
 ### 4. Policy Evaluator (`policy`)
 
 **Purpose:** Centralize and abstract policy decisions.
@@ -686,6 +741,8 @@ Each seam enables specific testing patterns:
 | Events | In-memory store; verify event sequences |
 | Policy | Test policy rules in isolation; mock for orchestration tests |
 | Repository | In-memory implementations; test persistence logic |
+| Waiter / Await-registry | `mocks.FakeWaiter` + fake `CommandRunner`; drive resolve/error/deadline/cancel/restart-recovery without real producer CLIs |
+| Env + identity assembler | `phases/env_test` asserts the custom→sandbox→identity merge + precedence; `orchestration` continue/wake tests assert a woken turn carries verifiable identity + sandbox + custom env |
 
 **Unit tests:** Test domain logic and policy rules without external dependencies.
 

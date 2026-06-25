@@ -372,6 +372,8 @@ function runStatusLabel(status: RunStatus): string {
       return "failed";
     case RunStatus.CANCELLED:
       return "cancelled";
+    case RunStatus.PARKED:
+      return "parked";
     default:
       return "pending";
   }

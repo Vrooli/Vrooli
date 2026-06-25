@@ -504,6 +504,42 @@ func (s *RunService) Continue(id string, req *domainpb.ContinueRunRequest) ([]by
 	return body, resp.Run, nil
 }
 
+// Park parks a run on externally-owned async work (durable park/resume).
+func (s *RunService) Park(id string, req *domainpb.ParkRunRequest) ([]byte, *domainpb.ParkRunResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/park", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.ParkRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
+// Wake wakes a parked run with a result (ops/manual recovery).
+func (s *RunService) Wake(id string, req *domainpb.WakeRunRequest) ([]byte, *domainpb.WakeRunResponse, error) {
+	payload, err := marshalProtoRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/wake", nil, payload)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp domainpb.WakeRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 func (s *RunService) Recover(id string) ([]byte, *apipb.RecoverRunResponse, error) {
 	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/recover", nil, nil)
 	if err != nil {

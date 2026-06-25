@@ -267,7 +267,9 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	// layer; this codec only sees the resolved RunConfig.
 	switch cfg.NetworkAccess.Effective() {
 	case domain.NetworkAccessNone:
-		args = append(args, "--full-auto")
+		// `--full-auto` is deprecated on codex ≥0.135.0; the supported
+		// equivalent for non-interactive exec is an explicit sandbox policy.
+		args = append(args, "--sandbox", "workspace-write")
 	default:
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
 	}
@@ -303,7 +305,9 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 		"exec", "resume",
 		"--json",
 		"--skip-git-repo-check",
-		"--full-auto",
+		// `--full-auto` is deprecated on codex ≥0.135.0; use the explicit
+		// sandbox policy instead (see BuildArgs).
+		"--sandbox", "workspace-write",
 	}
 	if _, isOllama := splitOllamaModel(model); isOllama {
 		args = append(args, "--oss", "--local-provider", "ollama")

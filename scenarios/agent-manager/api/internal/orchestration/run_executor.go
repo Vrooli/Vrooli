@@ -118,6 +118,12 @@ type RunExecutor struct {
 	// finalized guards the deferred phases.Finalize seam against re-entry.
 	finalized bool
 
+	// parked is set when the agent parked mid-turn (the run's persisted status
+	// became RunStatusParked while this executor's process was running). It makes
+	// the deferred finalize a no-op so the park's preserved sandbox is not torn
+	// down — the park owns the run lifecycle from that point.
+	parked bool
+
 	// Caller-provided env vars
 	customEnv map[string]string
 
@@ -376,6 +382,15 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		}()
 	}
 
+	// Park coordination (durable park/resume): if the agent parked mid-turn,
+	// ParkRunFromAgent transitioned the run running→parked and terminated this
+	// process — which is why execution returned. The park owns the lifecycle from
+	// here, so skip result-handling and suppress finalize (do NOT tear down the
+	// sandbox the wake will re-acquire, do NOT clobber the parked status).
+	if e.detectParked(ctx) {
+		return
+	}
+
 	if err := execCtx.Err(); err != nil {
 		e.handleContextError(ctx, err)
 		return
@@ -419,15 +434,13 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 	if e.task != nil {
 		scope = e.task.ScopePath
 	}
-	return phases.MergeEnvVars(phases.MergeEnvInput{
-		Custom: e.customEnv,
-		Sandbox: phases.SandboxEnvVars(phases.SandboxEnvInput{
-			RunMode:   e.run.RunMode,
-			SandboxID: e.sandboxID,
-			WorkDir:   e.workDir,
-			ScopePath: scope,
-		}),
-		Identity: phases.IdentityEnvVars(e.identityToken),
+	return phases.AssembleRunEnv(phases.AssembleRunEnvInput{
+		Custom:        e.customEnv,
+		RunMode:       e.run.RunMode,
+		SandboxID:     e.sandboxID,
+		WorkDir:       e.workDir,
+		ScopePath:     scope,
+		IdentityToken: e.identityToken,
 	})
 }
 
@@ -551,9 +564,29 @@ func (e *RunExecutor) createEventSink() runner.EventSink {
 	return e.gate
 }
 
-// finalize delegates to phases.Finalize with idempotency-flag protection.
+// detectParked reports whether the run was parked mid-turn by re-reading its
+// persisted status. On a positive detection it sets e.parked so the deferred
+// finalize becomes a no-op (preserving the sandbox the wake re-acquires).
+// Best-effort: a read error returns false so normal terminal handling proceeds.
+func (e *RunExecutor) detectParked(ctx context.Context) bool {
+	if e.runs == nil {
+		return false
+	}
+	cur, err := e.runs.Get(ctx, e.run.ID)
+	if err != nil || cur == nil {
+		return false
+	}
+	if cur.Status == domain.RunStatusParked {
+		e.parked = true
+		return true
+	}
+	return false
+}
+
+// finalize delegates to phases.Finalize with idempotency-flag protection. It is
+// a no-op for a parked run (the park preserves the sandbox and owns lifecycle).
 func (e *RunExecutor) finalize() {
-	if e.finalized {
+	if e.finalized || e.parked {
 		return
 	}
 	e.finalized = true

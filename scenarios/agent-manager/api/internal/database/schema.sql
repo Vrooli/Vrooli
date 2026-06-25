@@ -107,6 +107,8 @@ CREATE TABLE IF NOT EXISTS runs (
     recommendation_queued_at TEXT,
     identity_token_hash TEXT,
     identity_token_revoked_at TEXT,
+    custom_env TEXT,
+    await_handle TEXT,
     requested_model TEXT DEFAULT '',
     actual_model TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),

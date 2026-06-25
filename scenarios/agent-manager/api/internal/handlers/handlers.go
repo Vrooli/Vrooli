@@ -138,6 +138,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/recover", h.RecoverRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/park", h.ParkRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/wake", h.WakeRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/messages/{event_id}/delete", h.DeleteRunMessage).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
@@ -374,6 +376,7 @@ func parseRunStatus(raw string) (domain.RunStatus, bool) {
 		domain.RunStatusStarting,
 		domain.RunStatusRunning,
 		domain.RunStatusNeedsReview,
+		domain.RunStatusParked,
 		domain.RunStatusComplete,
 		domain.RunStatusFailed,
 		domain.RunStatusCancelled:
@@ -1936,6 +1939,124 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	resp := &domainpb.ContinueRunResponse{
 		Success: true,
 		Run:     protoconv.RunToProto(run),
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
+}
+
+// ParkRun suspends a running run on externally-owned async work (durable
+// park/resume). Called from inside an agent-manager-controlled run; the caller
+// authenticates with its VROOLI_AGENT_IDENTITY_TOKEN and may only park itself.
+// On success the run transitions running→parked, agent-manager begins waiting on
+// the producer, and the agent process group is terminated after a short grace so
+// the suspended run burns zero tokens. The response carries the clean
+// tool-result text the in-run command prints before its turn ends.
+// POST /api/v1/runs/{id}/park
+func (h *Handler) ParkRun(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req domainpb.ParkRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	req.RunId = idStr
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	parkReq := orchestration.ParkRunFromAgentRequest{
+		RunID:         id,
+		Producer:      req.Producer,
+		Key:           req.Key,
+		IdentityToken: req.IdentityToken,
+	}
+	if req.DeadlineUnix > 0 {
+		d := time.Unix(req.DeadlineUnix, 0)
+		parkReq.Deadline = &d
+	}
+
+	result, err := h.svc.ParkRunFromAgent(r.Context(), parkReq)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	resp := &domainpb.ParkRunResponse{
+		Success: true,
+		Message: result.Message,
+	}
+	if result.Run != nil {
+		resp.Run = protoconv.RunToProto(result.Run)
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
+}
+
+// WakeRun resumes a parked run with the awaited result injected as the next
+// turn. Wake is normally orchestrator-internal (the waiter goroutine drives it);
+// this endpoint is for manual/ops recovery. It is idempotent: a run that is no
+// longer parked is returned unchanged with success=false (not an error).
+// POST /api/v1/runs/{id}/wake
+func (h *Handler) WakeRun(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req domainpb.WakeRunRequest
+	if len(body) > 0 {
+		if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+			writeSimpleError(w, r, "body", "invalid JSON request body")
+			return
+		}
+	}
+	req.RunId = idStr
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	// Capture the pre-wake status so we can report whether this call actually
+	// woke the run (parked→running) or was an idempotent no-op.
+	before, err := h.svc.GetRun(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	wasParked := before != nil && before.Status == domain.RunStatusParked
+
+	run, err := h.svc.WakeRun(r.Context(), orchestration.WakeRunInput{
+		RunID:    id,
+		Result:   req.Result,
+		TimedOut: req.TimedOut,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	resp := &domainpb.WakeRunResponse{
+		Success: wasParked,
+	}
+	if run != nil {
+		resp.Run = protoconv.RunToProto(run)
 	}
 	writeProtoJSON(w, http.StatusOK, resp)
 }

@@ -57,7 +57,7 @@ func (s TaskStatus) IsTerminal() bool {
 func (s RunStatus) IsValid() bool {
 	switch s {
 	case RunStatusPending, RunStatusStarting, RunStatusRunning,
-		RunStatusNeedsReview, RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+		RunStatusNeedsReview, RunStatusParked, RunStatusComplete, RunStatusFailed, RunStatusCancelled:
 		return true
 	default:
 		return false
@@ -65,6 +65,8 @@ func (s RunStatus) IsValid() bool {
 }
 
 // IsTerminal returns whether this is a terminal status (no further transitions allowed).
+// parked is intentionally NOT terminal: a parked run resumes (wake) or is
+// cancelled; it is a resting-but-resumable state like needs_review.
 func (s RunStatus) IsTerminal() bool {
 	switch s {
 	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:

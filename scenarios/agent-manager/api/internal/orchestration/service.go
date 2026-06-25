@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/adapters/artifact"
@@ -83,6 +84,8 @@ type Service interface {
 	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
 	QuiesceScenario(ctx context.Context, opts QuiesceOptions) (*QuiesceResult, error)
 	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
+	ParkRunFromAgent(ctx context.Context, req ParkRunFromAgentRequest) (*ParkRunResult, error)
+	WakeRun(ctx context.Context, in WakeRunInput) (*domain.Run, error)
 	RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error)
 	DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error)
 
@@ -568,6 +571,14 @@ type Orchestrator struct {
 	// All run-spawn paths (CreateRun, ResumeRun) MUST go through it —
 	// see contract decision 2 in scenarios/agent-manager/docs/internal/SEAMS.md.
 	dispatcher *spawn.Dispatcher
+
+	// awaitRegistry drives durable park/wait (Phase 3): it owns a background
+	// waiter per parked run's await-handle, wakes the run on resolve/deadline,
+	// and re-spawns waiters for persisted parked runs after a restart. Nil
+	// disables the auto-waiter (park/wake transitions still work; nothing drives
+	// them) — wired post-construction via SetAwaitRegistry to break the
+	// registry↔orchestrator construction cycle (mirrors SetReconciler).
+	awaitRegistry *AwaitRegistry
 }
 
 // OrchestratorConfig holds service configuration.
@@ -765,6 +776,13 @@ func WithSpawnDispatcher(d *spawn.Dispatcher) Option {
 // This is called after construction because the reconciler depends on the orchestrator.
 func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
+}
+
+// SetAwaitRegistry wires the durable park/wait registry after construction. The
+// registry takes the orchestrator as its waker (WakeRun/ListParkedRuns), so it
+// must be built once the orchestrator exists — mirroring SetReconciler.
+func (o *Orchestrator) SetAwaitRegistry(r *AwaitRegistry) {
+	o.awaitRegistry = r
 }
 
 // SpawnStats returns the current spawn-dispatcher state. Safe to call
@@ -1315,6 +1333,9 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		SandboxConfig:            sandboxConfig,
 		ConversationID:           req.ConversationID,
 		ParentRunID:              req.ParentRunID,
+		// Persist caller-supplied custom env so the continue/wake path can
+		// re-inject it. Already VROOLI_*-validated at the API boundary.
+		CustomEnv: req.Environment,
 		// Provenance: requested is the primary model the preset expanded to at creation.
 		// Actual is blank until the executor records the model that actually ran.
 		RequestedModel: resolvedConfig.Model,
@@ -1948,6 +1969,30 @@ func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*do
 	return o.attachRunActionsList(ctx, runs), nil
 }
 
+// ListParkedRuns returns all parked runs with their await-handle populated. The
+// pruned list-columns omit the heavy await_handle field, so each parked run is
+// reloaded by ID to recover its handle. Used by the await-handle registry's
+// restart recovery (re-spawning waiters on boot).
+func (o *Orchestrator) ListParkedRuns(ctx context.Context) ([]*domain.Run, error) {
+	parked := domain.RunStatusParked
+	rows, err := o.runs.List(ctx, repository.RunListFilter{Status: &parked})
+	if err != nil {
+		return nil, err
+	}
+	full := make([]*domain.Run, 0, len(rows))
+	for _, row := range rows {
+		loaded, err := o.runs.Get(ctx, row.ID)
+		if err != nil {
+			return nil, err
+		}
+		if loaded == nil {
+			continue
+		}
+		full = append(full, loaded)
+	}
+	return full, nil
+}
+
 func (o *Orchestrator) DeleteRun(ctx context.Context, id uuid.UUID) error {
 	run, err := o.GetRun(ctx, id)
 	if err != nil {
@@ -2047,6 +2092,27 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		return domain.NewStateError("Run", string(run.Status), "stop", reason)
 	}
 
+	// A parked run has no live process to terminate — stopping it cancels the
+	// await (clears the handle) and moves the run to cancelled. The waiter that
+	// owns the handle observes the terminal status and deregisters (Phase 3).
+	if run.Status == domain.RunStatusParked {
+		// Cancel the background watcher first so it observes the cancellation and
+		// exits without waking the now-cancelled run.
+		if o.awaitRegistry != nil {
+			o.awaitRegistry.Cancel(id)
+		}
+		run.AwaitHandle = nil
+		endedAt := time.Now()
+		_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+			Run:       run,
+			NewStatus: domain.RunStatusCancelled,
+			Phase:     domain.RunPhaseCompleted,
+			Reason:    "Parked run stopped by request",
+			EndedAt:   &endedAt,
+		})
+		return err
+	}
+
 	if o.terminator != nil {
 		result, err := o.terminator.Terminate(ctx, id)
 		if err != nil {
@@ -2122,6 +2188,20 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
 	}
 
+	return o.resumeConversation(ctx, run, req.Message, req.AttachmentIDs, "Continuation requested")
+}
+
+// resumeConversation drives a single session-resume turn shared by both
+// operator-driven continuation (ContinueRun) and waiter-driven wake (WakeRun):
+// it resolves the runner, re-acquires the checkpointed sandbox, transitions the
+// run back to running (resetting the heartbeat in the same transition — the
+// faefb9cb54 invariant), re-assembles the full process env + a freshly
+// regenerated identity token (Phase 0 assembler), and spawns executeContinuation
+// with `message` injected as the next user turn. Centralising it keeps continue
+// and wake from ever diverging on env/identity/heartbeat handling. Callers are
+// responsible for the precondition gate (CanContinueRun for continue, the parked
+// guard for wake) before calling this.
+func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, message string, attachmentIDs []string, reason string) (*domain.Run, error) {
 	// Get the runner type from resolved config
 	var runnerType domain.RunnerType
 	if run.ResolvedConfig != nil {
@@ -2158,6 +2238,15 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, err
 	}
 
+	// Profile is best-effort: it only supplies ProfileKey to the regenerated
+	// identity token (a continuation can still run without it).
+	var profile *domain.AgentProfile
+	if run.AgentProfileID != nil {
+		if p, perr := o.GetProfile(ctx, *run.AgentProfileID); perr == nil {
+			profile = p
+		}
+	}
+
 	workDir, err := o.prepareContinuationSandbox(ctx, run, task)
 	if err != nil {
 		return nil, err
@@ -2168,7 +2257,7 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		Run:           run,
 		NewStatus:     domain.RunStatusRunning,
 		Phase:         domain.RunPhaseExecuting,
-		Reason:        "Continuation requested",
+		Reason:        reason,
 		LastHeartbeat: &now,
 	})
 	if err != nil {
@@ -2197,9 +2286,9 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		}
 		var userEvent *domain.RunEvent
 		if len(attInfo) > 0 {
-			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", req.Message, attInfo)
+			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", message, attInfo)
 		} else {
-			userEvent = domain.NewMessageEvent(run.ID, "user", req.Message)
+			userEvent = domain.NewMessageEvent(run.ID, "user", message)
 		}
 		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
 			_ = err
@@ -2210,8 +2299,8 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 
 	// Resolve attachments
 	var attachments []runner.Attachment
-	if len(req.AttachmentIDs) > 0 && o.storage != nil {
-		metas, err := o.storage.GetMultiple(ctx, req.AttachmentIDs)
+	if len(attachmentIDs) > 0 && o.storage != nil {
+		metas, err := o.storage.GetMultiple(ctx, attachmentIDs)
 		if err != nil {
 			// Log but continue without attachments
 			_ = err
@@ -2234,10 +2323,67 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		return nil, err
 	}
 
+	// Re-assemble the full process env for this turn synchronously (before the
+	// background goroutine spawns) so the run mutation from identity
+	// regeneration happens on this goroutine — the same one that returns
+	// attachRunActions(run) below — and never races the executeContinuation
+	// goroutine. The original Execute call injected custom env + sandbox routing
+	// + an identity token; a continuation that left ContinueRequest.Environment
+	// nil silently dropped all three (the latent bug this fixes). We:
+	//   1. regenerate the identity token (the plaintext is never stored, only
+	//      the hash, so the original is unrecoverable — and a long-parked run
+	//      could otherwise outlive its 24h TTL). GenerateIdentityToken
+	//      re-persists the hash so /identity/verify keeps working.
+	//   2. re-derive VROOLI_SANDBOX_* from the live (resumed) sandbox.
+	//   3. re-inject the persisted custom env.
+	// Both Execute and this path build env through phases.AssembleRunEnv so they
+	// can never diverge again.
+	continueEnv := o.assembleContinuationEnv(ctx, run, task, profile, workDir)
+
+	// Hand the background turn its OWN *Run value. executeContinuation mutates
+	// the run in place (status via applyRunStatusTransition, SessionID,
+	// heartbeat) on a separate goroutine, while this goroutine returns
+	// attachRunActions(run) below — sharing the same pointer is a data race
+	// (the deferred -race failure in
+	// TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents).
+	// A shallow copy is sufficient: the racing fields are scalars / freshly
+	// reassigned pointers, and the persisted DB row remains the single source of
+	// truth, so the background copy and the returned snapshot converge on reload.
+	runForExec := *run
+
 	// Execute continuation asynchronously
-	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir, attachments, transcriptCfg, cleanupTranscript)
+	go o.executeContinuation(context.Background(), &runForExec, r, eventSink, message, workDir, attachments, continueEnv, transcriptCfg, cleanupTranscript)
 
 	return o.attachRunActions(ctx, run), nil
+}
+
+// assembleContinuationEnv regenerates the run's identity token and builds the
+// full process env (custom + sandbox + identity) for a continuation/wake turn.
+// Called synchronously on the request goroutine so the identity-hash persist
+// does not race the background executeContinuation goroutine.
+func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, workDir string) map[string]string {
+	scopePath := ""
+	if task != nil {
+		scopePath = task.ScopePath
+	}
+	identityToken := ""
+	if len(o.identitySecret) > 0 {
+		identityToken = phases.GenerateIdentityToken(ctx, phases.GenerateIdentityTokenInput{
+			Deps:    phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster},
+			Run:     run,
+			Profile: profile,
+			Task:    task,
+			Secret:  o.identitySecret,
+		})
+	}
+	return phases.AssembleRunEnv(phases.AssembleRunEnvInput{
+		Custom:        run.CustomEnv,
+		RunMode:       run.RunMode,
+		SandboxID:     run.SandboxID,
+		WorkDir:       workDir,
+		ScopePath:     scopePath,
+		IdentityToken: identityToken,
+	})
 }
 
 func (o *Orchestrator) prepareContinuationSandbox(ctx context.Context, run *domain.Run, task *domain.Task) (string, error) {
@@ -2409,7 +2555,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 // executeContinuation handles the actual continuation execution (runs in background).
 // Each continuation turn gets its own timeout from RunTimeoutMinutes, so a timed-out
 // run can be continued indefinitely — each "continue" message resets the clock.
-func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment, transcript *runner.TranscriptConfig, cleanupTranscript func()) {
+func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment, continueEnv map[string]string, transcript *runner.TranscriptConfig, cleanupTranscript func()) {
 	if cleanupTranscript != nil {
 		defer cleanupTranscript()
 	}
@@ -2435,10 +2581,19 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		Stop:   heartbeatStop,
 		Done:   heartbeatDone,
 	})
-	defer func() {
-		close(heartbeatStop)
-		<-heartbeatDone
-	}()
+	// stopHeartbeat is idempotent (sync.Once): it must run BEFORE the terminal
+	// status transition below, because the heartbeat loop mutates the same *run
+	// (LastHeartbeat) that applyRunStatusTransition writes — concurrent writes to
+	// the shared run are a data race (the deferred -race failure). The defer is a
+	// safety net for the early-return paths.
+	var stopOnce sync.Once
+	stopHeartbeat := func() {
+		stopOnce.Do(func() {
+			close(heartbeatStop)
+			<-heartbeatDone
+		})
+	}
+	defer stopHeartbeat()
 
 	// Build continue request — pass the run's ResolvedConfig and SandboxID
 	// so launcherSelector.PickFor routes the continuation through the same
@@ -2450,6 +2605,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		Prompt:         message,
 		WorkingDir:     workDir,
 		EventSink:      eventSink,
+		Environment:    continueEnv,
 		Attachments:    attachments,
 		Transcript:     transcript,
 		ResolvedConfig: run.ResolvedConfig,
@@ -2458,6 +2614,22 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 
 	// Execute continuation with per-turn timeout
 	result, err := r.Continue(execCtx, continueReq)
+
+	// Stop the heartbeat loop before the terminal transition so its run writes
+	// cannot race the transition's run writes (see stopHeartbeat above).
+	stopHeartbeat()
+
+	// Park coordination (durable park/resume): if the agent parked mid-turn,
+	// ParkRunFromAgent transitioned the run running→parked and terminated this
+	// process — which is why r.Continue returned. The park owns the lifecycle
+	// from here; applying a terminal transition would clobber the park
+	// (parked→failed is an allowed edge for waiter errors) and the continuation
+	// checkpoint would tear down the sandbox the wake needs. Skip both.
+	if o.isRunParked(ctx, run.ID) {
+		obs.Component("continuation").Info("continuation ended on a parked run; leaving park intact",
+			obs.KeyRunID, run.ID.String())
+		return
+	}
 
 	now := time.Now()
 	transition := RunStatusTransitionInput{

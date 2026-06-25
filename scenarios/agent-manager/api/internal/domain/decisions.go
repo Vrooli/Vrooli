@@ -74,6 +74,15 @@ func (r RunStatus) CanTransitionTo(target RunStatus) (bool, string) {
 }
 
 // runTransitions defines the valid state machine for runs.
+//
+// The "→ running" edges out of needs_review/complete/failed/cancelled model
+// CONTINUATION (ContinueRun → applyRunStatusTransition): a finished run with a
+// preserved SessionID can be reactivated to process an injected follow-up turn
+// (see CanContinueRun). These edges have always been exercised at runtime; they
+// are declared here so that enforcing CanTransitionTo in applyRunStatusTransition
+// does not reject a legitimate continuation. IsTerminal() still reports
+// complete/failed/cancelled as terminal for scanning/GC purposes — terminality
+// describes the resting state, not "can never be explicitly reactivated".
 var runTransitions = map[RunStatus][]RunStatus{
 	RunStatusPending: {
 		RunStatusStarting,
@@ -87,6 +96,7 @@ var runTransitions = map[RunStatus][]RunStatus{
 	},
 	RunStatusRunning: {
 		RunStatusNeedsReview,
+		RunStatusParked, // Suspended waiting on externally-owned async work
 		RunStatusComplete,
 		RunStatusFailed,
 		RunStatusCancelled,
@@ -94,17 +104,30 @@ var runTransitions = map[RunStatus][]RunStatus{
 	RunStatusNeedsReview: {
 		RunStatusComplete, // After approval
 		RunStatusFailed,   // Rejection or error
+		RunStatusRunning,  // Continuation (operator follow-up turn)
 	},
-	// Terminal states
-	RunStatusComplete:  {},
-	RunStatusFailed:    {},
-	RunStatusCancelled: {},
+	// parked: waiting on an external await-handle. Wake resumes it (→running);
+	// the park deadline elapsing also wakes it (→running with a typed timeout
+	// result). Abort/stop while parked cancels the waiter (→cancelled); an
+	// unrecoverable waiter error fails it (→failed). No direct →complete edge:
+	// a parked run always wakes back to running to process its result first.
+	RunStatusParked: {
+		RunStatusRunning,
+		RunStatusFailed,
+		RunStatusCancelled,
+	},
+	// "Terminal" resting states. The only outgoing edge is explicit
+	// continuation back to running (session resume); no normal lifecycle
+	// progression leaves these states.
+	RunStatusComplete:  {RunStatusRunning},
+	RunStatusFailed:    {RunStatusRunning},
+	RunStatusCancelled: {RunStatusRunning},
 }
 
 func runTransitionDenialReason(from, to RunStatus) string {
 	switch from {
 	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
-		return "run is in terminal state"
+		return "run is in terminal state (only continuation back to running is permitted)"
 	default:
 		return "transition not allowed from " + string(from) + " to " + string(to)
 	}
@@ -546,4 +569,98 @@ func DecideStaleRunAction(
 		Action:         StaleRunActionAlert,
 		Reason:         "run is stale and cannot be resumed automatically",
 	}
+}
+
+// =============================================================================
+// LIVENESS POLICY (reconciler dispatch table)
+// =============================================================================
+// The reconciler used to hard-code which statuses it scanned (running|starting),
+// inline the heartbeat-staleness branches, and build the orphan-protection tag
+// set from that same ad-hoc list. Three past production bugs shared that
+// hand-coupled root cause. LivenessPolicy makes the per-status liveness contract
+// an explicit, pure, unit-testable table so new statuses (e.g. parked) declare
+// their behaviour in one place instead of being bolted on by exemption.
+//
+// This table is a PURE function of RunStatus — it takes no clock and reads no
+// run fields. Staleness/age comparisons stay in the reconciler (which owns the
+// clock and thresholds); the policy only says WHETHER a status participates.
+
+// LivenessPolicy declares how the reconciler treats runs in a given RunStatus.
+type LivenessPolicy struct {
+	// Scanned: the reconciler lists and inspects runs in this status each cycle.
+	// Terminal resting states and the brief pre-start pending state are not
+	// scanned for liveness.
+	Scanned bool
+	// ExpectsHeartbeat: a live executor should be emitting heartbeats, so an
+	// absent/old heartbeat means the run is stale and gets stale-handling.
+	ExpectsHeartbeat bool
+	// ExpectsProcess: a live OS process is expected for this status, so its tag
+	// must protect any matching process from being reaped as an orphan.
+	ExpectsProcess bool
+	// StaleAction: what stale-handling to apply when ExpectsHeartbeat && stale.
+	// StaleRunActionNone means "do nothing"; any other value routes the run
+	// through the reconciler's recover-or-kill path.
+	StaleAction StaleRunAction
+}
+
+// runLivenessPolicies is the single source of truth for per-status reconciler
+// behaviour. Statuses absent from the map fall back to the zero value
+// (not scanned, no expectations, no action) — a safe default for any
+// unrecognised/free-text status.
+var runLivenessPolicies = map[RunStatus]LivenessPolicy{
+	// pending: queued but not yet launched — no executor, no process, nothing
+	// to keep alive. Not scanned (matches pre-refactor behaviour).
+	RunStatusPending: {Scanned: false, StaleAction: StaleRunActionNone},
+	// starting/running: a live executor + process is expected; heartbeat
+	// staleness triggers recover-or-kill.
+	RunStatusStarting: {Scanned: true, ExpectsHeartbeat: true, ExpectsProcess: true, StaleAction: StaleRunActionResume},
+	RunStatusRunning:  {Scanned: true, ExpectsHeartbeat: true, ExpectsProcess: true, StaleAction: StaleRunActionResume},
+	// needs_review: process has exited and the run is intentionally waiting for
+	// an operator decision. Liveness does not apply (it is reconciled against
+	// sandbox approval state on a separate path, not by heartbeat).
+	RunStatusNeedsReview: {Scanned: false, StaleAction: StaleRunActionNone},
+	// parked: process has exited and the run is intentionally waiting on an
+	// external await-handle. It IS scanned so restart recovery can re-spawn the
+	// waiter and an optional ParkTTL can alert — but it has NO live process and
+	// emits NO heartbeat, so it is never heartbeat-reaped or orphan-killed. This
+	// is exactly why LivenessPolicy splits Scanned from ExpectsHeartbeat/
+	// ExpectsProcess: parked could not be expressed by the old hard-coded
+	// running|starting scan without an ad-hoc exemption (the fourth-bug trap).
+	RunStatusParked: {Scanned: true, ExpectsHeartbeat: false, ExpectsProcess: false, StaleAction: StaleRunActionNone},
+	// Terminal resting states: never scanned for liveness.
+	RunStatusComplete:  {Scanned: false, StaleAction: StaleRunActionNone},
+	RunStatusFailed:    {Scanned: false, StaleAction: StaleRunActionNone},
+	RunStatusCancelled: {Scanned: false, StaleAction: StaleRunActionNone},
+}
+
+// LivenessPolicy returns the reconciler liveness contract for this status.
+func (s RunStatus) LivenessPolicy() LivenessPolicy {
+	return runLivenessPolicies[s]
+}
+
+// orderedRunStatuses is the canonical ordering used when the reconciler needs a
+// deterministic status iteration order (map iteration is randomised in Go).
+var orderedRunStatuses = []RunStatus{
+	RunStatusRunning,
+	RunStatusStarting,
+	RunStatusPending,
+	RunStatusNeedsReview,
+	RunStatusParked,
+	RunStatusComplete,
+	RunStatusFailed,
+	RunStatusCancelled,
+}
+
+// LivenessScannedStatuses returns, in deterministic order, the statuses whose
+// LivenessPolicy marks them for reconciler scanning. The reconciler lists runs
+// for exactly these statuses each cycle. Ordering is stable so orphan-protection
+// tag-map construction is reproducible.
+func LivenessScannedStatuses() []RunStatus {
+	scanned := make([]RunStatus, 0, len(orderedRunStatuses))
+	for _, s := range orderedRunStatuses {
+		if s.LivenessPolicy().Scanned {
+			scanned = append(scanned, s)
+		}
+	}
+	return scanned
 }

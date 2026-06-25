@@ -489,7 +489,11 @@ func (r *Run) GetLifecycleState() LifecycleState {
 		return LifecycleStateNew
 	case RunStatusStarting, RunStatusRunning:
 		return LifecycleStateActive
-	case RunStatusNeedsReview:
+	case RunStatusNeedsReview, RunStatusParked:
+		// Both are paused-but-resumable: the process has exited yet the run is
+		// non-terminal and awaiting an external signal (operator review / async
+		// result). They can receive events (the resume message) but emit no
+		// heartbeat, which is exactly LifecycleStateReviewable's contract.
 		return LifecycleStateReviewable
 	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
 		return LifecycleStateFinished

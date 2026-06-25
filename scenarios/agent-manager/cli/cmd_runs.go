@@ -45,6 +45,10 @@ func (a *App) cmdRun(args []string) error {
 		return a.runQuiesce(args[1:])
 	case "continue":
 		return a.runContinue(args[1:])
+	case "park":
+		return a.runPark(args[1:])
+	case "wake":
+		return a.runWake(args[1:])
 	case "recover":
 		return a.runRecover(args[1:])
 	case "investigate":
@@ -86,6 +90,8 @@ Subcommands:
   stop-all                    Stop all running runs
   quiesce --scenario <s>      Drain in-flight runs targeting a scenario (promote)
   continue <id>               Continue a run with a follow-up message
+  park <id>                   Park a run on externally-owned async work (durable park/resume)
+  wake <id>                   Wake a parked run with a result (ops/manual recovery)
   recover <id>                Drain transcript and reconcile a run
   investigate                 Create an investigation run from existing runs
   apply-investigation <id>    Apply investigation recommendations
@@ -972,6 +978,110 @@ func (a *App) runContinue(args []string) error {
 	}
 
 	fmt.Printf("Continued run: %s (status: %s)\n", run.Id, formatEnumValue(run.Status, "RUN_STATUS_", "_"))
+	return nil
+}
+
+// runPark parks a run on externally-owned async work. Invoked from inside an
+// agent-manager-controlled run; it authenticates with the run's identity token
+// (VROOLI_AGENT_IDENTITY_TOKEN by default) so the server can confirm the caller
+// owns the run it is parking.
+func (a *App) runPark(args []string) error {
+	fs := flag.NewFlagSet("run park", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	producer := fs.String("producer", "", "Producer that resolves the await (e.g. test-genie, git-control-tower) (required)")
+	key := fs.String("key", "", "Producer-scoped identifier of the awaited work (required)")
+	deadlineUnix := fs.Int64("deadline-unix", 0, "Optional wait deadline as a Unix timestamp (seconds); 0 = default TTL")
+	identityToken := fs.String("identity-token", "", "Owning run's identity token (defaults to $"+cliutil.EnvIdentityToken+")")
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run park <id> --producer <p> --key <k>")
+	}
+	if *producer == "" || *key == "" {
+		return fmt.Errorf("--producer and --key are required")
+	}
+
+	token := *identityToken
+	if token == "" {
+		token = os.Getenv(cliutil.EnvIdentityToken)
+	}
+	if token == "" {
+		return fmt.Errorf("no identity token: set --identity-token or run inside an agent-manager run ($%s)", cliutil.EnvIdentityToken)
+	}
+
+	req := &domainpb.ParkRunRequest{
+		RunId:         id,
+		Producer:      *producer,
+		Key:           *key,
+		DeadlineUnix:  *deadlineUnix,
+		IdentityToken: token,
+	}
+
+	body, resp, err := a.services.Runs.Park(id, req)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	// The message is the clean turn-ending tool-result the agent should see.
+	fmt.Println(resp.Message)
+	return nil
+}
+
+// runWake wakes a parked run with a result injected as its next turn. This is an
+// ops/manual-recovery verb; normal wake is driven by agent-manager's waiter.
+func (a *App) runWake(args []string) error {
+	fs := flag.NewFlagSet("run wake", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	result := fs.String("result", "", "Awaited result injected as the next turn")
+	timedOut := fs.Bool("timed-out", false, "Frame the result as a park-deadline timeout")
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run wake <id> [--result <r>] [--timed-out]")
+	}
+
+	req := &domainpb.WakeRunRequest{
+		RunId:    id,
+		Result:   *result,
+		TimedOut: *timedOut,
+	}
+
+	body, resp, err := a.services.Runs.Wake(id, req)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if !resp.Success {
+		fmt.Println("Run was not parked (no-op); wake is idempotent")
+		return nil
+	}
+	if resp.Run != nil {
+		fmt.Printf("Woke run: %s (status: %s)\n", resp.Run.Id, formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_"))
+	} else {
+		fmt.Println("Wake requested")
+	}
 	return nil
 }
 

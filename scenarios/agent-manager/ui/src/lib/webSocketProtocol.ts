@@ -23,6 +23,7 @@ const RUN_STATUS_VALUES: Record<string, number> = {
   RUN_STATUS_COMPLETE: 5,
   RUN_STATUS_FAILED: 6,
   RUN_STATUS_CANCELLED: 7,
+  RUN_STATUS_PARKED: 8,
 };
 
 const TASK_STATUS_VALUES: Record<string, number> = {

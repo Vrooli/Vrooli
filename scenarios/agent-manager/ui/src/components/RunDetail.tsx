@@ -16,6 +16,7 @@ import {
   Info,
   Link2,
   MoreVertical,
+  PauseCircle,
   PlayCircle,
   RotateCcw,
   Search,
@@ -1001,6 +1002,8 @@ function runStatusLabel(status: RunStatus, approvalState?: ApprovalState): strin
       return "failed";
     case RunStatus.CANCELLED:
       return "cancelled";
+    case RunStatus.PARKED:
+      return "parked";
     default:
       return "pending";
   }
@@ -1264,6 +1267,28 @@ function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals
                 <p className="font-medium">Failure reason</p>
                 <p className="break-words text-xs text-destructive/90">
                   {run.errorMsg}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {run.status === RunStatus.PARKED && run.awaitHandle && (
+          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-400">
+            <div className="flex items-start gap-2">
+              <PauseCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="font-medium">Parked — waiting, not hung</p>
+                <p className="break-words text-xs">
+                  Suspended (zero tokens) while agent-manager waits on{" "}
+                  <code className="font-mono">
+                    {run.awaitHandle.producer}
+                    {run.awaitHandle.key ? `:${run.awaitHandle.key}` : ""}
+                  </code>
+                  . It resumes automatically with the result.
+                  {run.awaitHandle.deadline
+                    ? ` Resumes by ${new Date(timestampMs(run.awaitHandle.deadline)).toLocaleString()} at the latest.`
+                    : ""}
                 </p>
               </div>
             </div>

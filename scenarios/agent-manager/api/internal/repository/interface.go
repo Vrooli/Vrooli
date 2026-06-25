@@ -111,6 +111,18 @@ type RunRepository interface {
 	// Update modifies an existing run.
 	Update(ctx context.Context, run *domain.Run) error
 
+	// TouchHeartbeat atomically updates ONLY a run's last_heartbeat (and
+	// updated_at), and ONLY while it is still in an actively-executing status
+	// (running or starting). It returns true when a row was updated.
+	//
+	// This exists so a heartbeat tick can never resurrect a run that has moved
+	// on. The heartbeat loop holds an in-memory *Run whose Status is whatever it
+	// was when the loop started; a full-row Update from that stale pointer would
+	// clobber a concurrent park/stop transition (e.g. running→parked written by
+	// another goroutine), rewriting status back to running. The status-guarded,
+	// single-column update closes that race at the SQL layer (no TOCTOU).
+	TouchHeartbeat(ctx context.Context, id uuid.UUID, at time.Time) (bool, error)
+
 	// Delete removes a run by ID.
 	Delete(ctx context.Context, id uuid.UUID) error
 

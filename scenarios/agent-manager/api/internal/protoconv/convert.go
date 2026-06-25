@@ -458,6 +458,8 @@ func RunStatusToProto(s domain.RunStatus) pb.RunStatus {
 		return pb.RunStatus_RUN_STATUS_FAILED
 	case domain.RunStatusCancelled:
 		return pb.RunStatus_RUN_STATUS_CANCELLED
+	case domain.RunStatusParked:
+		return pb.RunStatus_RUN_STATUS_PARKED
 	default:
 		return pb.RunStatus_RUN_STATUS_UNSPECIFIED
 	}
@@ -480,6 +482,8 @@ func RunStatusFromProto(s pb.RunStatus) domain.RunStatus {
 		return domain.RunStatusFailed
 	case pb.RunStatus_RUN_STATUS_CANCELLED:
 		return domain.RunStatusCancelled
+	case pb.RunStatus_RUN_STATUS_PARKED:
+		return domain.RunStatusParked
 	default:
 		return domain.RunStatus("")
 	}

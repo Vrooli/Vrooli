@@ -106,6 +106,7 @@ func TestRunStatusRoundTrip(t *testing.T) {
 		domain.RunStatusComplete,
 		domain.RunStatusFailed,
 		domain.RunStatusCancelled,
+		domain.RunStatusParked,
 	}
 
 	for _, status := range statuses {
@@ -410,6 +411,49 @@ func TestRunRoundTrip(t *testing.T) {
 	}
 	if result.Actions == nil || result.Actions.CanDelete != original.Actions.CanDelete {
 		t.Errorf("Actions.CanDelete: expected %v, got %v", original.Actions.CanDelete, result.Actions)
+	}
+}
+
+func TestRunAwaitHandleRoundTrip(t *testing.T) {
+	registeredAt := time.Now().Add(-5 * time.Minute).Truncate(time.Second)
+	deadline := time.Now().Add(25 * time.Minute).Truncate(time.Second)
+
+	original := &domain.Run{
+		ID:        uuid.New(),
+		TaskID:    uuid.New(),
+		Status:    domain.RunStatusParked,
+		Phase:     domain.RunPhaseExecuting,
+		CreatedAt: time.Now().Truncate(time.Second),
+		UpdatedAt: time.Now().Truncate(time.Second),
+		AwaitHandle: &domain.AwaitHandle{
+			Producer:     "test-genie",
+			Key:          "agent-manager/20260625-1",
+			Deadline:     &deadline,
+			RegisteredAt: registeredAt,
+		},
+	}
+
+	result := RunFromProto(RunToProto(original))
+
+	if result.AwaitHandle == nil {
+		t.Fatalf("AwaitHandle: expected non-nil after round-trip")
+	}
+	if result.AwaitHandle.Producer != original.AwaitHandle.Producer {
+		t.Errorf("Producer: expected %q, got %q", original.AwaitHandle.Producer, result.AwaitHandle.Producer)
+	}
+	if result.AwaitHandle.Key != original.AwaitHandle.Key {
+		t.Errorf("Key: expected %q, got %q", original.AwaitHandle.Key, result.AwaitHandle.Key)
+	}
+	if result.AwaitHandle.Deadline == nil || !result.AwaitHandle.Deadline.Equal(*original.AwaitHandle.Deadline) {
+		t.Errorf("Deadline: expected %v, got %v", original.AwaitHandle.Deadline, result.AwaitHandle.Deadline)
+	}
+	if !result.AwaitHandle.RegisteredAt.Equal(original.AwaitHandle.RegisteredAt) {
+		t.Errorf("RegisteredAt: expected %v, got %v", original.AwaitHandle.RegisteredAt, result.AwaitHandle.RegisteredAt)
+	}
+
+	// A non-parked run carries no handle.
+	if RunToProto(&domain.Run{ID: uuid.New()}).AwaitHandle != nil {
+		t.Errorf("expected nil await_handle for a handle-less run")
 	}
 }
 

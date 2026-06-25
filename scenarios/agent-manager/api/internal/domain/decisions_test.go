@@ -71,11 +71,20 @@ func TestRunStatus_CanTransitionTo(t *testing.T) {
 		{"needs_review to complete", RunStatusNeedsReview, RunStatusComplete, true},
 		{"needs_review to failed", RunStatusNeedsReview, RunStatusFailed, true},
 
+		// Continuation reactivation: a finished run with a preserved SessionID
+		// can be continued back to running (see CanContinueRun / ContinueRun).
+		// These edges have always been exercised at runtime and are now declared
+		// in runTransitions so CanTransitionTo enforcement does not reject them.
+		{"needs_review to running", RunStatusNeedsReview, RunStatusRunning, true},
+		{"complete to running", RunStatusComplete, RunStatusRunning, true},
+		{"failed to running", RunStatusFailed, RunStatusRunning, true},
+		{"cancelled to running", RunStatusCancelled, RunStatusRunning, true},
+
 		// Invalid transitions
 		{"pending to complete", RunStatusPending, RunStatusComplete, false},
-		{"complete to running", RunStatusComplete, RunStatusRunning, false},
-		{"failed to running", RunStatusFailed, RunStatusRunning, false},
-		{"cancelled to running", RunStatusCancelled, RunStatusRunning, false},
+		{"complete to needs_review", RunStatusComplete, RunStatusNeedsReview, false},
+		{"failed to complete", RunStatusFailed, RunStatusComplete, false},
+		{"running to pending", RunStatusRunning, RunStatusPending, false},
 	}
 
 	for _, tt := range tests {
@@ -685,6 +694,82 @@ func TestDecideStaleRunAction(t *testing.T) {
 			t.Errorf("Action = %v, want %v", decision.Action, StaleRunActionAlert)
 		}
 	})
+}
+
+// =============================================================================
+// LIVENESS POLICY TESTS
+// =============================================================================
+
+func TestRunStatus_LivenessPolicy(t *testing.T) {
+	tests := []struct {
+		status           RunStatus
+		scanned          bool
+		expectsHeartbeat bool
+		expectsProcess   bool
+		staleAction      StaleRunAction
+	}{
+		// Pre-start and resting/terminal states are not scanned for liveness.
+		{RunStatusPending, false, false, false, StaleRunActionNone},
+		{RunStatusNeedsReview, false, false, false, StaleRunActionNone},
+		{RunStatusComplete, false, false, false, StaleRunActionNone},
+		{RunStatusFailed, false, false, false, StaleRunActionNone},
+		{RunStatusCancelled, false, false, false, StaleRunActionNone},
+		// Active states expect a live executor + process and get recover-or-kill.
+		{RunStatusStarting, true, true, true, StaleRunActionResume},
+		{RunStatusRunning, true, true, true, StaleRunActionResume},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.status), func(t *testing.T) {
+			p := tt.status.LivenessPolicy()
+			if p.Scanned != tt.scanned {
+				t.Errorf("Scanned = %v, want %v", p.Scanned, tt.scanned)
+			}
+			if p.ExpectsHeartbeat != tt.expectsHeartbeat {
+				t.Errorf("ExpectsHeartbeat = %v, want %v", p.ExpectsHeartbeat, tt.expectsHeartbeat)
+			}
+			if p.ExpectsProcess != tt.expectsProcess {
+				t.Errorf("ExpectsProcess = %v, want %v", p.ExpectsProcess, tt.expectsProcess)
+			}
+			if p.StaleAction != tt.staleAction {
+				t.Errorf("StaleAction = %v, want %v", p.StaleAction, tt.staleAction)
+			}
+		})
+	}
+}
+
+// TestRunStatus_LivenessPolicy_UnknownStatusSafeDefault verifies an
+// unrecognised/free-text status gets the inert zero-value policy (not scanned),
+// so the reconciler never accidentally acts on a status it does not understand.
+func TestRunStatus_LivenessPolicy_UnknownStatusSafeDefault(t *testing.T) {
+	p := RunStatus("some-future-status").LivenessPolicy()
+	if p.Scanned || p.ExpectsHeartbeat || p.ExpectsProcess || p.StaleAction != "" {
+		t.Errorf("unknown status should map to inert zero-value policy, got %+v", p)
+	}
+}
+
+// TestLivenessScannedStatuses pins the exact set + order the reconciler lists
+// each cycle. The reconciler refactor (Phase 1) preserved running then starting;
+// Phase 2 added parked, which is scanned (for restart recovery / TTL) but — by
+// its LivenessPolicy — never heartbeat-reaped or orphan-killed. Order follows
+// orderedRunStatuses: running, starting, then parked.
+func TestLivenessScannedStatuses(t *testing.T) {
+	got := LivenessScannedStatuses()
+	want := []RunStatus{RunStatusRunning, RunStatusStarting, RunStatusParked}
+	if len(got) != len(want) {
+		t.Fatalf("scanned statuses = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("scanned[%d] = %v, want %v", i, got[i], want[i])
+		}
+	}
+	// Every scanned status must actually be marked Scanned in the table.
+	for _, s := range got {
+		if !s.LivenessPolicy().Scanned {
+			t.Errorf("%v returned by LivenessScannedStatuses but Scanned=false", s)
+		}
+	}
 }
 
 // =============================================================================

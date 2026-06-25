@@ -326,36 +326,46 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	start := time.Now()
 	stats := ReconcileStats{Timestamp: start}
 
-	// Step 1: Get all runs marked as "running" in the database
-	runningStatus := domain.RunStatusRunning
-	dbRuns, err := r.runs.List(ctx, repository.RunListFilter{
-		Status: &runningStatus,
-	})
-	if err != nil {
-		stats.Errors = append(stats.Errors, "failed to list runs: "+err.Error())
-		stats.Duration = time.Since(start)
-		return stats
+	// Step 1: List every run whose LivenessPolicy marks it for scanning. The
+	// per-status policy table (domain.LivenessPolicy) is the single source of
+	// truth for which statuses the reconciler inspects — replacing the old
+	// hard-coded running|starting list. New statuses (e.g. parked) opt in by
+	// declaring Scanned in the table rather than by ad-hoc exemption here.
+	var dbRuns []*domain.Run
+	for _, status := range domain.LivenessScannedStatuses() {
+		statusFilter := status
+		runs, err := r.runs.List(ctx, repository.RunListFilter{
+			Status: &statusFilter,
+		})
+		if err != nil {
+			// An infra error listing one status should not abort the whole
+			// cycle (orphan/review sweeps below are still useful); record it
+			// and continue.
+			stats.Errors = append(stats.Errors, "failed to list "+string(status)+" runs: "+err.Error())
+			continue
+		}
+		dbRuns = append(dbRuns, runs...)
 	}
 	stats.RunsChecked = len(dbRuns)
 
-	// Also check "starting" status runs
-	startingStatus := domain.RunStatusStarting
-	startingRuns, err := r.runs.List(ctx, repository.RunListFilter{
-		Status: &startingStatus,
-	})
-	if err == nil {
-		dbRuns = append(dbRuns, startingRuns...)
-		stats.RunsChecked = len(dbRuns)
-	}
-
-	// Build a map of known run tags for orphan detection
+	// Build a map of known run tags for orphan detection. Only statuses whose
+	// policy expects a live process protect a matching process from being
+	// reaped as an orphan.
 	knownTags := make(map[string]*domain.Run)
 	for _, run := range dbRuns {
-		knownTags[run.GetTag()] = run
+		if run.Status.LivenessPolicy().ExpectsProcess {
+			knownTags[run.GetTag()] = run
+		}
 	}
 
-	// Step 2: Check each run for staleness
+	// Step 2: Check each run for staleness, dispatching on its liveness policy.
+	// Only statuses that expect a heartbeat are stale-checked; only those with
+	// a non-none stale action get recover-or-kill handling.
 	for _, run := range dbRuns {
+		policy := run.Status.LivenessPolicy()
+		if !policy.ExpectsHeartbeat || policy.StaleAction == domain.StaleRunActionNone {
+			continue
+		}
 		if run.IsStale(r.config.StaleThreshold) {
 			stats.StaleRuns++
 			r.handleStaleRun(ctx, run, &stats)

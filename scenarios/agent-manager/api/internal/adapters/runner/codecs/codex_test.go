@@ -92,11 +92,15 @@ func TestCodex_BuildArgs_DefaultsAndStdinSentinel(t *testing.T) {
 	if args[len(args)-1] != "-" {
 		t.Errorf("expected stdin sentinel '-' as last arg, got %q", args[len(args)-1])
 	}
-	hasFullAuto, hasModel, hasC := false, false, false
+	hasSandbox, hasModel, hasC := false, false, false
 	for i, a := range args {
 		switch a {
+		case "--sandbox":
+			if i+1 < len(args) && args[i+1] == "workspace-write" {
+				hasSandbox = true
+			}
 		case "--full-auto":
-			hasFullAuto = true
+			t.Errorf("did not expect deprecated --full-auto, got %v", args)
 		case "-m":
 			if i+1 < len(args) && args[i+1] == "gpt-5.1-codex-mini" {
 				hasModel = true
@@ -107,8 +111,8 @@ func TestCodex_BuildArgs_DefaultsAndStdinSentinel(t *testing.T) {
 			}
 		}
 	}
-	if !hasFullAuto {
-		t.Errorf("expected --full-auto for NetworkAccessNone, got %v", args)
+	if !hasSandbox {
+		t.Errorf("expected --sandbox workspace-write for NetworkAccessNone, got %v", args)
 	}
 	if !hasModel {
 		t.Error("expected -m gpt-5.1-codex-mini")
@@ -131,17 +135,17 @@ func TestCodex_BuildArgs_NetworkAccessLocalhost(t *testing.T) {
 			NetworkAccess: domain.NetworkAccessLocalhost,
 		},
 	})
-	hasBypass, hasFullAuto := false, false
+	hasBypass, hasSandbox := false, false
 	for _, a := range args {
 		switch a {
 		case "--dangerously-bypass-approvals-and-sandbox":
 			hasBypass = true
-		case "--full-auto":
-			hasFullAuto = true
+		case "--sandbox":
+			hasSandbox = true
 		}
 	}
-	if !hasBypass || hasFullAuto {
-		t.Errorf("expected --dangerously-bypass-approvals-and-sandbox without --full-auto for localhost, got %v", args)
+	if !hasBypass || hasSandbox {
+		t.Errorf("expected --dangerously-bypass-approvals-and-sandbox without --sandbox for localhost, got %v", args)
 	}
 }
 
@@ -152,7 +156,7 @@ func TestCodex_BuildContinueArgs_IncludesSessionAndPrompt(t *testing.T) {
 		SessionID: "thread-abc",
 		Prompt:    "follow up message",
 	})
-	want := []string{"exec", "resume", "--json", "--skip-git-repo-check", "--full-auto", "thread-abc", "follow up message"}
+	want := []string{"exec", "resume", "--json", "--skip-git-repo-check", "--sandbox", "workspace-write", "thread-abc", "follow up message"}
 	if len(args) != len(want) {
 		t.Fatalf("len=%d want=%d args=%v", len(args), len(want), args)
 	}

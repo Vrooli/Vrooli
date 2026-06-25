@@ -279,6 +279,10 @@ func RunToProto(r *domain.Run) *pb.Run {
 		run.FinalizedAt = TimestampToProto(*r.FinalizedAt)
 	}
 
+	if r.AwaitHandle != nil {
+		run.AwaitHandle = AwaitHandleToProto(r.AwaitHandle)
+	}
+
 	if r.Summary != nil {
 		run.Summary = &pb.RunSummary{
 			Description:   r.Summary.Description,
@@ -317,6 +321,41 @@ func RunToProto(r *domain.Run) *pb.Run {
 	}
 
 	return run
+}
+
+// AwaitHandleToProto converts a domain AwaitHandle to proto. Returns nil for a
+// nil handle so a non-parked run carries no await_handle.
+func AwaitHandleToProto(h *domain.AwaitHandle) *pb.AwaitHandle {
+	if h == nil {
+		return nil
+	}
+	out := &pb.AwaitHandle{
+		Producer:     h.Producer,
+		Key:          h.Key,
+		RegisteredAt: TimestampToProto(h.RegisteredAt),
+	}
+	if h.Deadline != nil {
+		out.Deadline = TimestampToProto(*h.Deadline)
+	}
+	return out
+}
+
+// AwaitHandleFromProto converts a proto AwaitHandle to domain. Returns nil for a
+// nil handle.
+func AwaitHandleFromProto(h *pb.AwaitHandle) *domain.AwaitHandle {
+	if h == nil {
+		return nil
+	}
+	out := &domain.AwaitHandle{
+		Producer:     h.Producer,
+		Key:          h.Key,
+		RegisteredAt: TimestampFromProto(h.RegisteredAt),
+	}
+	if h.Deadline != nil {
+		t := TimestampFromProto(h.Deadline)
+		out.Deadline = &t
+	}
+	return out
 }
 
 // RunFromProto converts a proto Run to domain Run.
@@ -368,6 +407,10 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	if r.FinalizedAt != nil {
 		t := TimestampFromProto(r.FinalizedAt)
 		run.FinalizedAt = &t
+	}
+
+	if r.AwaitHandle != nil {
+		run.AwaitHandle = AwaitHandleFromProto(r.AwaitHandle)
 	}
 
 	run.AgentProfileID = OptionalStringToUUID(r.AgentProfileId)

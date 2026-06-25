@@ -65,6 +65,7 @@ type Server struct {
 	pricingService       pricing.Service
 	wsHub                *handlers.WebSocketHub
 	reconciler           *orchestration.Reconciler
+	awaitRegistry        *orchestration.AwaitRegistry
 	recommendationWorker *orchestration.RecommendationWorker
 	modelHealthProbe     *healthstore.Probe
 	toolRegistry         *toolregistry.Registry
@@ -142,6 +143,7 @@ func NewServer() (*Server, error) {
 		modelHealthProbe:     deps.modelHealthProbe,
 		wsHub:                wsHub,
 		reconciler:           deps.reconciler,
+		awaitRegistry:        deps.awaitRegistry,
 		recommendationWorker: deps.recommendationWorker,
 		toolRegistry:         toolReg,
 		storage:              uploadStorage,
@@ -157,6 +159,16 @@ func NewServer() (*Server, error) {
 		}
 		if err := srv.reconciler.Start(context.Background()); err != nil {
 			obs.Logger().Warn("reconciler start failed", obs.KeyError, err.Error())
+		}
+	}
+
+	// Re-spawn waiters for any runs that were parked when agent-manager last
+	// stopped (durable park/resume restart recovery).
+	if srv.awaitRegistry != nil {
+		if n, err := srv.awaitRegistry.RecoverParkedRuns(context.Background()); err != nil {
+			obs.Logger().Warn("parked-run waiter recovery failed", obs.KeyError, err.Error())
+		} else if n > 0 {
+			obs.Logger().Info("re-spawned waiters for parked runs", "count", n)
 		}
 	}
 
@@ -193,6 +205,7 @@ type orchestratorDeps struct {
 	statsRepo            repository.StatsRepository
 	pricingService       pricing.Service
 	reconciler           *orchestration.Reconciler
+	awaitRegistry        *orchestration.AwaitRegistry
 	recommendationWorker *orchestration.RecommendationWorker
 	modelHealthProbe     *healthstore.Probe
 	statsEngine          *stats.Engine
@@ -488,6 +501,18 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	// Wire reconciler back to orchestrator for hot-reload propagation.
 	orch.SetReconciler(reconciler)
 
+	// Durable park/wait registry (Phase 3): one background waiter per parked
+	// run's await-handle, driven by the per-producer Waiter seam. Built after the
+	// orchestrator (it is the registry's waker) and wired back via setter,
+	// mirroring the reconciler. Restart recovery (re-spawning waiters for
+	// persisted parked runs) runs in startServer alongside reconciler recovery.
+	awaitRegistry := orchestration.NewAwaitRegistry(
+		orch,
+		orchestration.NewTestGenieWaiter(nil),
+		orchestration.NewGCTBaselineWaiter(nil),
+	)
+	orch.SetAwaitRegistry(awaitRegistry)
+
 	// Create recommendation worker for passive extraction from investigation runs
 	// Uses the investigation settings repository for tag allowlist filtering
 	allowlistProvider := orchestration.NewSettingsAllowlistProvider(investigationSettingsRepo)
@@ -555,6 +580,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		statsRepo:            statsRepo,
 		pricingService:       pricingSvc,
 		reconciler:           reconciler,
+		awaitRegistry:        awaitRegistry,
 		recommendationWorker: recommendationWorker,
 		modelHealthProbe:     modelHealthProbe,
 		statsEngine:          statsEngine,
@@ -708,6 +734,12 @@ func (s *Server) Cleanup() error {
 		if err := s.reconciler.Stop(); err != nil {
 			shutdownLog.Warn("reconciler shutdown failed", obs.KeyError, err.Error())
 		}
+	}
+
+	// Stop the durable park/wait waiters (parked runs stay durable; their
+	// handles are persisted and re-spawned on the next boot).
+	if s.awaitRegistry != nil {
+		s.awaitRegistry.Stop()
 	}
 
 	// Stop the recommendation worker

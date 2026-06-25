@@ -30,6 +30,17 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 
 	previousStatus := run.Status
+
+	// Enforce the run state machine in the single status-mutation helper so no
+	// status can be set ad-hoc. A same-status write is a no-op update (heartbeat/
+	// progress refresh), not a transition, and is always permitted.
+	if previousStatus != input.NewStatus {
+		if allowed, reason := previousStatus.CanTransitionTo(input.NewStatus); !allowed {
+			return nil, domain.NewStateError(
+				"Run", string(previousStatus), "transition to "+string(input.NewStatus), reason)
+		}
+	}
+
 	now := time.Now()
 
 	run.Status = input.NewStatus

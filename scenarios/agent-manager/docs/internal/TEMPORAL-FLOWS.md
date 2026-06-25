@@ -139,6 +139,41 @@ turn checkpoint/finalization: finalization_status=succeeded|failed|skipped
 - `internal/domain/run_actions_test.go::TestRunActionsFor_ContinueReason` pins that failed finalization does not block continuation after the runner turn completed.
 - `internal/orchestration/phases/finalize_test.go::TestApplyAtRunEnd_FailurePreservesSandbox` pins that finalization failure is recorded without changing completed runner status back to an active state.
 
+## Park/wake (durable wait suspension)
+
+Park/wake is a third launch-related flow, distinct from initial execution and continuation: a *running* run that issues an externally-owned async request (a test-genie suite, a git-control-tower baseline diff) is **parked** — its agent process exits (zero tokens), the run enters the non-terminal `RunStatusParked` with an `AwaitHandle` recorded, and agent-manager performs the blocking wait on the agent's behalf, then **wakes** the run by resuming the conversation with the result injected as the next turn. Park reuses the continuation primitives (`resumeConversation`) for the wake leg, so the env + identity re-injection and heartbeat-reset semantics are shared with `ContinueRun`.
+
+Why a separate flow: a parked run is intentionally process-less and silent, so it must be exempt from the reconciler's heartbeat/process liveness checks (its `LivenessPolicy` is `scanned, no heartbeat/process expectation` — it is listed but never reaped). The park deadline (`DefaultParkTTL`, 30m) is the only bound: when it elapses agent-manager wakes the run with a typed timeout result rather than hanging.
+
+```
+runner turn (running) — in-run CLI calls POST /runs/{id}/park (identity-auth: caller must own the run)
+   ↓
+ParkRunFromAgent → ParkRun: record AwaitHandle, status transition running → parked
+   ├─ emit run_status event: "Parked waiting on <producer>:<key> (ETA …)"
+   ├─ AwaitRegistry.Register → one background watcher goroutine blocks on the producer's Waiter
+   └─ endParkedTurn: after a short grace, terminate the agent process group (turn ends, zero tokens)
+        └─ the still-alive executeRun/executeContinuation goroutine re-reads status==parked and
+           declines any terminal transition (park owns the lifecycle; sandbox preserved)
+   ↓ … parked (durable; survives agent-manager restart via RecoverParkedRuns re-spawning the watcher) …
+   ↓
+watcher resolves: producer result | producer error | deadline elapsed (timedOut)
+   ↓
+WakeRun (idempotent — a non-parked run is a no-op): clear AwaitHandle, build typed wake message
+   ↓
+resumeConversation: status transition parked → running, reset LastHeartbeat=now,
+   re-inject custom+sandbox+identity env (fresh identity token), runner.Continue with the result
+   ↓
+status transition: running → complete|failed (or parked again on the next async request)
+```
+
+**Levers:** `DefaultParkTTL` (park deadline, 30m), `DefaultParkTurnEndGrace` (delay before process-group kill, 2s). `Execution.DefaultTimeout`/`Heartbeat.RunHeartbeatInterval` apply to the woken turn (it is a continuation).
+
+**Tests:**
+- `internal/orchestration/park_test.go` — `running→parked→running` round-trip preserves identity/env + resets heartbeat; timeout typed result; stop-while-parked → cancelled + handle cleared; wake idempotent; double-park rejected.
+- `internal/orchestration/park_from_agent_test.go` — identity-auth (owning token parks; foreign token → 403; invalid token; already-parked rejected).
+- `internal/orchestration/await_registry_test.go` — resolve/producer-error/deadline-timeout/cancel-no-wake/restart-recovery/idempotent-register.
+- `internal/database` `TestTouchHeartbeat_StatusGuarded` — a heartbeat tick during the park window cannot resurrect `parked→running` (atomic status-guarded update).
+
 ## Post-run sandbox finalization
 
 Runner turn status and sandbox finalization are separate temporal flows. A runner can finish and emit several assistant messages before process exit; assistant messages are not terminal. The terminal signal is the runner result/process completion path. After that, sandbox apply/checkpoint runs as post-turn finalization and records one of:

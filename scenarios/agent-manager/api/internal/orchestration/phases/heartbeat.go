@@ -98,7 +98,14 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 	)
 
 	if in.Deps.Runs != nil {
-		if err := in.Deps.Runs.Update(ctx, in.Run); err != nil {
+		// Status-guarded, single-column update: never resurrect a run that has
+		// moved off running/starting (e.g. parked mid-turn by another goroutine,
+		// or already terminal). A full-row Update from the stale in-memory run
+		// would clobber a concurrent park/stop transition; TouchHeartbeat closes
+		// that race at the SQL layer (updated=false ⇒ no row matched, not an error).
+		updated, err := in.Deps.Runs.TouchHeartbeat(ctx, runID, now)
+		switch {
+		case err != nil:
 			hbLog.Error("heartbeat update failed", obs.KeyError, err.Error())
 			EmitHeartbeatMiss(ctx, in.Deps, runID, eventlog.HeartbeatMissPayload{
 				Target:        eventlog.HeartbeatTargetRun,
@@ -106,7 +113,9 @@ func SendHeartbeat(ctx context.Context, in HeartbeatLoopInput) {
 				LastSuccessAt: previousHeartbeat,
 				Message:       err.Error(),
 			})
-		} else {
+		case !updated:
+			hbLog.Debug("heartbeat skipped; run no longer running/starting")
+		default:
 			hbLog.Debug("heartbeat updated", "at", now.Format(time.RFC3339))
 		}
 	}

@@ -729,6 +729,228 @@ func TestRunCRUD(t *testing.T) {
 	}
 }
 
+// TestRunCustomEnvRoundTrip proves Run.CustomEnv persists through the JSON
+// column so the continue/wake path can re-inject it. Before Phase 0 there was
+// no column at all, so a continued turn could never recover custom env.
+func TestRunCustomEnvRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Parent Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		RunMode:       domain.RunModeSandboxed,
+		Status:        domain.RunStatusPending,
+		Phase:         domain.RunPhaseQueued,
+		ApprovalState: domain.ApprovalStateNone,
+		CustomEnv: map[string]string{
+			"VROOLI_SHADOW_SCENARIOS":         "agent-manager",
+			"VROOLI_SWARM_MANAGER_SESSION_ID": "sess-42",
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.CustomEnv) != 2 {
+		t.Fatalf("expected 2 custom env entries, got %v", got.CustomEnv)
+	}
+	if got.CustomEnv["VROOLI_SHADOW_SCENARIOS"] != "agent-manager" ||
+		got.CustomEnv["VROOLI_SWARM_MANAGER_SESSION_ID"] != "sess-42" {
+		t.Errorf("custom env did not round-trip: %v", got.CustomEnv)
+	}
+
+	// Empty/nil custom env must decode as nil (not an empty map) so existing
+	// rows and env-free runs behave identically.
+	run.CustomEnv = nil
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.CustomEnv != nil {
+		t.Errorf("expected nil custom env after clearing, got %v", got.CustomEnv)
+	}
+}
+
+func TestRunAwaitHandleRoundTrip(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "Await Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	deadline := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)
+	registered := time.Now().UTC().Truncate(time.Second)
+	run := &domain.Run{
+		ID:            uuid.New(),
+		TaskID:        task.ID,
+		RunMode:       domain.RunModeSandboxed,
+		Status:        domain.RunStatusParked,
+		Phase:         domain.RunPhaseExecuting,
+		ApprovalState: domain.ApprovalStateNone,
+		AwaitHandle: &domain.AwaitHandle{
+			Producer:     "test-genie",
+			Key:          "run-xyz",
+			Deadline:     &deadline,
+			RegisteredAt: registered,
+		},
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Status != domain.RunStatusParked {
+		t.Errorf("status did not round-trip: %s", got.Status)
+	}
+	if got.AwaitHandle == nil {
+		t.Fatal("await handle did not round-trip (nil)")
+	}
+	if got.AwaitHandle.Producer != "test-genie" || got.AwaitHandle.Key != "run-xyz" {
+		t.Errorf("await handle producer/key did not round-trip: %+v", got.AwaitHandle)
+	}
+	if got.AwaitHandle.Deadline == nil || !got.AwaitHandle.Deadline.Equal(deadline) {
+		t.Errorf("await handle deadline did not round-trip: %v want %v", got.AwaitHandle.Deadline, deadline)
+	}
+
+	// Clearing the handle (wake/cancel) must persist as NULL → nil, exactly like
+	// a non-parked run, so existing rows and woken runs behave identically.
+	run.AwaitHandle = nil
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	got, err = repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("Get after update: %v", err)
+	}
+	if got.AwaitHandle != nil {
+		t.Errorf("expected nil await handle after clearing, got %+v", got.AwaitHandle)
+	}
+}
+
+// TestTouchHeartbeat_StatusGuarded verifies the status-guarded heartbeat update:
+// it bumps last_heartbeat for running/starting runs, but is a no-op (no clobber)
+// for a parked or terminal run — so a heartbeat racing a park/stop transition
+// can never resurrect the run.
+func TestTouchHeartbeat_StatusGuarded(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+
+	task := &domain.Task{
+		ID:        uuid.New(),
+		Title:     "HB Task",
+		ScopePath: "/test",
+		Status:    domain.TaskStatusQueued,
+	}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatalf("Create task: %v", err)
+	}
+
+	old := time.Now().Add(-time.Hour)
+	mk := func(status domain.RunStatus) *domain.Run {
+		run := &domain.Run{
+			ID:            uuid.New(),
+			TaskID:        task.ID,
+			RunMode:       domain.RunModeInPlace,
+			Status:        status,
+			Phase:         domain.RunPhaseExecuting,
+			ApprovalState: domain.ApprovalStateNone,
+			LastHeartbeat: &old,
+		}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("Create run (%s): %v", status, err)
+		}
+		return run
+	}
+
+	// running → updated, last_heartbeat advances.
+	running := mk(domain.RunStatusRunning)
+	now := time.Now()
+	updated, err := repos.Runs.TouchHeartbeat(ctx, running.ID, now)
+	if err != nil {
+		t.Fatalf("TouchHeartbeat(running): %v", err)
+	}
+	if !updated {
+		t.Fatal("running run heartbeat should have been updated")
+	}
+	got, _ := repos.Runs.Get(ctx, running.ID)
+	if got.LastHeartbeat == nil || got.LastHeartbeat.Before(now.Add(-2*time.Second)) {
+		t.Errorf("running heartbeat not advanced: %v", got.LastHeartbeat)
+	}
+	if got.Status != domain.RunStatusRunning {
+		t.Errorf("running status changed unexpectedly: %s", got.Status)
+	}
+
+	// starting → updated.
+	starting := mk(domain.RunStatusStarting)
+	if updated, err := repos.Runs.TouchHeartbeat(ctx, starting.ID, time.Now()); err != nil || !updated {
+		t.Fatalf("TouchHeartbeat(starting): updated=%v err=%v (want true,nil)", updated, err)
+	}
+
+	// parked → NO-OP (the critical anti-clobber guarantee). Status stays parked,
+	// heartbeat unchanged.
+	parked := mk(domain.RunStatusParked)
+	updated, err = repos.Runs.TouchHeartbeat(ctx, parked.ID, time.Now())
+	if err != nil {
+		t.Fatalf("TouchHeartbeat(parked): %v", err)
+	}
+	if updated {
+		t.Fatal("parked run heartbeat must NOT be updated (would clobber the park)")
+	}
+	got, _ = repos.Runs.Get(ctx, parked.ID)
+	if got.Status != domain.RunStatusParked {
+		t.Errorf("parked status changed: %s", got.Status)
+	}
+	if got.LastHeartbeat == nil || !got.LastHeartbeat.Equal(old.UTC().Truncate(time.Nanosecond)) {
+		// Heartbeat should be untouched (still ~old). Allow for storage truncation.
+		if got.LastHeartbeat != nil && got.LastHeartbeat.After(old.Add(time.Minute)) {
+			t.Errorf("parked heartbeat was advanced: %v", got.LastHeartbeat)
+		}
+	}
+
+	// terminal (complete) → NO-OP.
+	complete := mk(domain.RunStatusComplete)
+	if updated, err := repos.Runs.TouchHeartbeat(ctx, complete.ID, time.Now()); err != nil || updated {
+		t.Fatalf("TouchHeartbeat(complete): updated=%v err=%v (want false,nil)", updated, err)
+	}
+}
+
 func TestRunListFilters(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()

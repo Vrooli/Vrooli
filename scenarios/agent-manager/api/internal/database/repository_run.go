@@ -77,6 +77,10 @@ type runRow struct {
 	// Identity token fields
 	IdentityTokenHash      sql.NullString `db:"identity_token_hash"`
 	IdentityTokenRevokedAt NullableTime   `db:"identity_token_revoked_at"`
+	// Caller-supplied custom env (JSON object), re-injected on continue/wake
+	CustomEnv sql.NullString `db:"custom_env"`
+	// Await-handle (JSON object) for a parked run; NULL for non-parked runs
+	AwaitHandle sql.NullString `db:"await_handle"`
 	// Model provenance
 	RequestedModel sql.NullString `db:"requested_model"`
 	ActualModel    sql.NullString `db:"actual_model"`
@@ -134,6 +138,8 @@ func (row *runRow) toDomain() *domain.Run {
 		// Identity token fields
 		IdentityTokenHash:      row.IdentityTokenHash.String,
 		IdentityTokenRevokedAt: row.IdentityTokenRevokedAt.ToPtr(),
+		CustomEnv:              parseStringMapJSON(row.CustomEnv),
+		AwaitHandle:            parseAwaitHandleJSON(row.AwaitHandle),
 		// Model provenance
 		RequestedModel: row.RequestedModel.String,
 		ActualModel:    row.ActualModel.String,
@@ -201,6 +207,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		// Identity token fields
 		IdentityTokenHash:      sql.NullString{String: r.IdentityTokenHash, Valid: r.IdentityTokenHash != ""},
 		IdentityTokenRevokedAt: NewNullableTime(r.IdentityTokenRevokedAt),
+		CustomEnv:              marshalStringMapJSON(r.CustomEnv),
+		AwaitHandle:            marshalAwaitHandleJSON(r.AwaitHandle),
 		// Model provenance
 		RequestedModel: sql.NullString{String: r.RequestedModel, Valid: r.RequestedModel != ""},
 		ActualModel:    sql.NullString{String: r.ActualModel, Valid: r.ActualModel != ""},
@@ -232,6 +240,63 @@ func parseUUIDSliceJSON(raw sql.NullString) []uuid.UUID {
 	return out
 }
 
+// parseStringMapJSON decodes a JSON object column into a string map, returning
+// nil for NULL / empty / malformed values so callers can merge unconditionally.
+func parseStringMapJSON(raw sql.NullString) map[string]string {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return nil
+	}
+	var m map[string]string
+	if err := json.Unmarshal([]byte(raw.String), &m); err != nil {
+		return nil
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
+}
+
+// marshalStringMapJSON encodes a string map as a JSON object column, storing
+// NULL (Valid=false) for empty maps so existing rows decode unchanged.
+func marshalStringMapJSON(m map[string]string) sql.NullString {
+	if len(m) == 0 {
+		return sql.NullString{}
+	}
+	data, err := json.Marshal(m)
+	if err != nil {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: string(data), Valid: true}
+}
+
+// parseAwaitHandleJSON decodes the await_handle JSON column into a domain
+// AwaitHandle, returning nil for NULL / empty / malformed values so non-parked
+// runs (and rows written before this column existed) decode to a nil handle.
+func parseAwaitHandleJSON(raw sql.NullString) *domain.AwaitHandle {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return nil
+	}
+	var h domain.AwaitHandle
+	if err := json.Unmarshal([]byte(raw.String), &h); err != nil {
+		return nil
+	}
+	return &h
+}
+
+// marshalAwaitHandleJSON encodes a domain AwaitHandle as the await_handle JSON
+// column, storing NULL (Valid=false) for a nil handle so non-parked runs leave
+// the column empty.
+func marshalAwaitHandleJSON(h *domain.AwaitHandle) sql.NullString {
+	if h == nil {
+		return sql.NullString{}
+	}
+	data, err := json.Marshal(h)
+	if err != nil {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: string(data), Valid: true}
+}
+
 func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	if len(ids) == 0 {
 		return "[]"
@@ -255,7 +320,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
-	identity_token_hash, identity_token_revoked_at,
+	identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 	requested_model, actual_model,
 	created_at, updated_at`
 
@@ -380,7 +445,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
-			identity_token_hash, identity_token_revoked_at,
+			identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 			requested_model, actual_model,
 			created_at, updated_at)
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
@@ -391,7 +456,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
 			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
-			:identity_token_hash, :identity_token_revoked_at,
+			:identity_token_hash, :identity_token_revoked_at, :custom_env, :await_handle,
 			:requested_model, :actual_model,
 			:created_at, :updated_at)`
 
@@ -521,6 +586,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,
 		recommendation_queued_at = :recommendation_queued_at,
 		identity_token_hash = :identity_token_hash, identity_token_revoked_at = :identity_token_revoked_at,
+		custom_env = :custom_env, await_handle = :await_handle,
 		requested_model = :requested_model, actual_model = :actual_model,
 		updated_at = :updated_at
 		WHERE id = :id`
@@ -530,6 +596,34 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		return wrapDBError("update", "Run", run.ID.String(), err)
 	}
 	return nil
+}
+
+// TouchHeartbeat atomically updates only last_heartbeat (and updated_at) and
+// only while the run is still actively executing (running or starting). The
+// status guard in the WHERE clause means a heartbeat that races a park/stop
+// transition is a no-op (0 rows) rather than a clobber: it can never rewrite a
+// parked/terminal status back to running. Returns true when a row matched.
+func (r *runRepository) TouchHeartbeat(ctx context.Context, id uuid.UUID, at time.Time) (bool, error) {
+	const query = `UPDATE runs SET last_heartbeat = ?, updated_at = ?
+		WHERE id = ? AND status IN (?, ?)`
+	hb, err := NullableTime{Time: at, Valid: true}.Value()
+	if err != nil {
+		return false, wrapDBError("touch_heartbeat", "Run", id.String(), err)
+	}
+	now, err := NullableTime{Time: time.Now(), Valid: true}.Value()
+	if err != nil {
+		return false, wrapDBError("touch_heartbeat", "Run", id.String(), err)
+	}
+	res, err := r.db.ExecContext(ctx, query, hb, now, id,
+		string(domain.RunStatusRunning), string(domain.RunStatusStarting))
+	if err != nil {
+		return false, wrapDBError("touch_heartbeat", "Run", id.String(), err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return false, wrapDBError("touch_heartbeat", "Run", id.String(), err)
+	}
+	return affected > 0, nil
 }
 
 func (r *runRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error) {

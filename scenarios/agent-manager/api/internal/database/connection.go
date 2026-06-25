@@ -465,6 +465,34 @@ func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
 		}
 	}
 
+	// custom_env persists the caller-supplied VROOLI_-prefixed env (JSON
+	// object) so the continue/wake path can re-inject it. Nullable so
+	// existing rows decode unchanged. Added by the park/resume Phase 0 work
+	// (the latent "continue drops custom env + identity" fix).
+	if !hasColumn["custom_env"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN custom_env TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	// await_handle persists the externally-owned async work a parked run is
+	// waiting on ({producer, key, deadline} as JSON) so an agent-manager restart
+	// can re-spawn the waiter for every parked run. Nullable so existing rows
+	// decode unchanged. Added by the park/resume Phase 2 work (parked state).
+	if !hasColumn["await_handle"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN await_handle TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
 	return nil
 }
 

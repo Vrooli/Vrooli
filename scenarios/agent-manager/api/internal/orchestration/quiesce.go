@@ -91,10 +91,13 @@ type QuiesceResult struct {
 
 // quiesceActiveStatuses are the run states that hold a live OS process executing
 // in the scenario's working tree — the states a promote restart must not
-// interrupt. pending (queued, no process yet) and needs_review (paused, process
-// already exited) are intentionally excluded: neither is actively writing, so
-// neither blocks a safe re-point + restart. This matches CanStopRun, so every
-// run we enumerate for Force is also stoppable.
+// interrupt. pending (queued, no process yet), needs_review (paused, process
+// already exited), and parked (suspended on external async work, process exited)
+// are intentionally excluded: none is actively writing, so none blocks a safe
+// re-point + restart. A parked run will simply wake later against the promoted
+// tree. CanStopRun additionally permits stopping parked runs (no process), so if
+// a future policy wants to wake-to-cancel parked runs during a drain it can,
+// without changing this active-set definition.
 var quiesceActiveStatuses = []domain.RunStatus{
 	domain.RunStatusRunning,
 	domain.RunStatusStarting,

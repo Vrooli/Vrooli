@@ -84,6 +84,45 @@ type MergeEnvInput struct {
 	Identity map[string]string
 }
 
+// AssembleRunEnvInput is the explicit input to AssembleRunEnv — the single
+// place the three env sources (custom, sandbox, identity) are combined for a
+// runner process. Both the fresh-run path (RunExecutor.MergedEnvVars) and the
+// continue/wake path build their process env through this helper so they can
+// never diverge: a continued turn must carry the same custom env, sandbox
+// routing, and identity token as the original Execute call.
+type AssembleRunEnvInput struct {
+	// Custom is the caller-supplied (VROOLI_*-validated) env, persisted on
+	// the run record as Run.CustomEnv.
+	Custom map[string]string
+
+	// Sandbox-routing inputs (ignored unless RunMode is sandboxed and a
+	// SandboxID + WorkDir are present).
+	RunMode   domain.RunMode
+	SandboxID *uuid.UUID
+	WorkDir   string
+	ScopePath string
+
+	// IdentityToken is the plaintext identity token for this turn. Empty when
+	// identity is disabled; the continue/wake path must regenerate it first.
+	IdentityToken string
+}
+
+// AssembleRunEnv merges custom, sandbox, and identity env with system vars
+// (sandbox + identity) taking precedence over caller-supplied custom env.
+// Returns nil when nothing was supplied so callers can short-circuit.
+func AssembleRunEnv(in AssembleRunEnvInput) map[string]string {
+	return MergeEnvVars(MergeEnvInput{
+		Custom: in.Custom,
+		Sandbox: SandboxEnvVars(SandboxEnvInput{
+			RunMode:   in.RunMode,
+			SandboxID: in.SandboxID,
+			WorkDir:   in.WorkDir,
+			ScopePath: in.ScopePath,
+		}),
+		Identity: IdentityEnvVars(in.IdentityToken),
+	})
+}
+
 // MergeEnvVars combines the three env-var sources with sandbox + identity
 // taking precedence on key conflicts. Returns nil when nothing was supplied
 // so callers can short-circuit.
