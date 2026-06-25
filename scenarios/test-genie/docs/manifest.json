@@ -137,10 +137,19 @@
         { "path": "SEAMS.md", "title": "Seams", "description": "Integration points and boundaries" },
         { "path": "RESEARCH.md", "title": "Research", "description": "Research notes and findings" }
       ]
+    },
+    {
+      "id": "spaces",
+      "title": "Coverage Spaces",
+      "icon": "grid",
+      "description": "Coverage-space definitions (denominators) for federated answer projections",
+      "documents": [
+        { "path": "spaces/validate-space.md", "title": "Validate Space — Validation Concern Coverage", "description": "The Validate projection's denominator: validation concerns the project should check, mapped to phases, owning health scenarios, and autofix intent. Live coverage comes from test-genie health." }
+      ]
     }
   ],
   "navigation": {
     "primary": ["getting-started", "configuration", "safety", "phases", "guides", "reference"],
-    "secondary": ["requirements", "concepts", "plans", "standard"]
+    "secondary": ["requirements", "concepts", "plans", "standard", "spaces"]
   }
 }

@@ -37,7 +37,7 @@ var curatedPresets = map[Preset][]Name{
 	PresetSmoke: {Structure, Standards, Quality, Docs, Business, Proto},
 	// architecture-audit is the per-surface conformance battery plus the
 	// structural cohesion axis — the single command the screaming-
-	// architecture skill points at. Excludes runtime phases (unit, smoke,
+	// architecture skill points at. Excludes runtime phases (unit,
 	// performance). The architecture phase remains advisory
 	// for low-confidence authority, but high-confidence blocker findings
 	// gate by default.

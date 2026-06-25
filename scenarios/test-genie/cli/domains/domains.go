@@ -5,6 +5,8 @@ import (
 	"test-genie/cli/domains/suites"
 	"test-genie/cli/internal/deps"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -15,5 +17,9 @@ func CommandGroups(runtime deps.Runtime) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		suites.Register(runtime),
 		local.Register(runtime),
+		// test-genie owns the Validate projection denominator
+		// (docs/spaces/validate-space.md); `space` is the cross-scenario read
+		// contract meta-optimization-manager consumes.
+		spacecli.CommandGroup(spacecli.Config{Owner: "test-genie", Projection: spacedoc.ProjectionValidate}),
 	}
 }

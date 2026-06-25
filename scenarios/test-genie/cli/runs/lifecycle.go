@@ -101,6 +101,25 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+
+	// Inside an agent-manager run, park instead of blocking: agent-manager owns
+	// the agent process and performs the wait on its behalf, waking the run with
+	// the result injected as the next turn (zero tokens while parked). Outside an
+	// AM run this is a no-op (parked=false) and we fall through to the normal
+	// blocking wait — human / CI / raw-terminal behaviour is unchanged.
+	if park, parked, perr := cliutil.ParkForAwait(cliutil.ParkRequest{
+		Producer: cliutil.ParkProducerTestGenie,
+		Key:      scenario + "/" + runID,
+	}); parked {
+		if perr == nil {
+			fmt.Fprintln(w, park.Message)
+			return nil
+		}
+		// We are in an AM run but park failed — degrade gracefully to the inline
+		// wait (no worse than before park existed).
+		fmt.Fprintf(stderrOut, "agent-manager park unavailable (%v) — waiting inline instead\n", perr)
+	}
+
 	cl, err := client(apiClient)
 	if err != nil {
 		return err
