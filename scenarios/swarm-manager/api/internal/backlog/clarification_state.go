@@ -167,117 +167,22 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 
 	switch req.Action {
 	case "got_it":
-		thread.Status = "resolved"
-		// Attach context note to the decision item if available.
-		if thread.LatestImpact != nil && thread.LatestImpact.ContextNote != "" && targetRound != nil {
-			for i := range targetRound.Items {
-				if targetRound.Items[i].ID == thread.ItemID {
-					note := thread.LatestImpact.ContextNote
-					targetRound.Items[i].ContextNote = &note
-					h.saveRound(itemDir, targetRound)
-					break
-				}
-			}
-		}
-		resp.Message = "Clarification dismissed. Context note attached."
+		h.clarificationActionGotIt(itemDir, thread, targetRound, resp)
 
 	case "update_decision":
-		if targetRound == nil {
-			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
+		if !h.clarificationActionUpdateDecision(w, itemDir, thread, targetRound, &req, resp) {
 			return
 		}
-		updated := false
-		for i := range targetRound.Items {
-			if targetRound.Items[i].ID == thread.ItemID {
-				// Apply suggested update or manual JSON.
-				if req.UpdatedItemJson != nil && *req.UpdatedItemJson != "" {
-					var patch workshop.Item
-					if err := json.Unmarshal([]byte(*req.UpdatedItemJson), &patch); err == nil {
-						if patch.Topic != "" {
-							targetRound.Items[i].Topic = patch.Topic
-						}
-						if patch.Context != "" {
-							targetRound.Items[i].Context = patch.Context
-						}
-						if len(patch.Options) > 0 {
-							targetRound.Items[i].Options = patch.Options
-						}
-					}
-				} else if thread.LatestImpact != nil && thread.LatestImpact.SuggestedUpdate != "" {
-					targetRound.Items[i].Context = thread.LatestImpact.SuggestedUpdate
-				}
-				// Attach context note.
-				if thread.LatestImpact != nil && thread.LatestImpact.ContextNote != "" {
-					note := thread.LatestImpact.ContextNote
-					targetRound.Items[i].ContextNote = &note
-				}
-				// Clear selection so user re-answers with updated framing.
-				targetRound.Items[i].Selected = nil
-				targetRound.Items[i].Freeform = nil
-				updated = true
-				break
-			}
-		}
-		if !updated {
-			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("decision item not found in round"))
-			return
-		}
-		h.saveRound(itemDir, targetRound)
-		thread.Status = "resolved"
-		resp.Message = "Decision updated."
 
 	case "remove_decision":
-		if targetRound == nil {
-			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
+		if !h.clarificationActionRemoveDecision(w, itemDir, thread, targetRound, resp) {
 			return
 		}
-		filtered := make([]workshop.Item, 0, len(targetRound.Items))
-		for _, item := range targetRound.Items {
-			if item.ID != thread.ItemID {
-				filtered = append(filtered, item)
-			}
-		}
-		targetRound.Items = filtered
-		h.saveRound(itemDir, targetRound)
-		thread.Status = "resolved"
-		resp.Message = "Decision removed from round."
 
 	case "invalidate_round":
-		if targetRound == nil {
-			apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
+		if !h.clarificationActionInvalidateRound(w, r, kind, name, itemDir, thread, targetRound, resp) {
 			return
 		}
-		// Delete clarification files for this round.
-		_ = workshop.DeleteClarificationsForRound(itemDir, thread.RoundNumber)
-		// Delete the round and renumber using the existing workshop function.
-		if _, delErr := workshop.DeleteRoundAndRenumber(itemDir, thread.RoundNumber); delErr != nil {
-			slog.Error("clarification-action delete round failed", "err", delErr)
-		}
-		// Spawn a new workshop round.
-		item, loadErr := h.store.LoadItem(kind, name)
-		if loadErr == nil {
-			actionCtx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
-				OwnerType:   agentactivity.OwnerBacklog,
-				OwnerKind:   string(kind),
-				OwnerName:   item.Name,
-				OwnerTitle:  item.Title,
-				Purpose:     agentactivity.PurposeResearch,
-				PhaseKind:   string(agentactivity.LaneInvestigate),
-				RequestedBy: "swarm-manager",
-				Metadata: map[string]string{
-					"entrypoint": "backlog.clarification.invalidate_round",
-				},
-			})
-			runResult, spawnErr := h.spawnWorkshopForClarification(actionCtx, kind, item, itemDir)
-			if spawnErr == nil {
-				resp.RunId = &runResult.RunID
-				resp.TaskId = &runResult.TaskID
-			} else {
-				slog.Error("clarification-action spawn workshop failed", "err", spawnErr)
-			}
-		}
-		thread.Status = "resolved"
-		resp.Message = "Round invalidated and new workshop round triggered."
 
 	default:
 		apierr.MapError(w, "[backlog] clarification-action", apierr.BadRequest("unknown action: %s", req.Action))
@@ -304,4 +209,141 @@ func (h *Handler) ClarificationAction(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
 		slog.Error("failed to write clarification-action response", "err", err)
 	}
+}
+
+// clarificationActionGotIt dismisses the clarification, attaching the impact
+// context note to the matching decision item when available.
+func (h *Handler) clarificationActionGotIt(itemDir string, thread *workshop.ClarificationThread, targetRound *workshop.Round, resp *apipb.ClarificationActionResponse) {
+	thread.Status = "resolved"
+	// Attach context note to the decision item if available.
+	if thread.LatestImpact != nil && thread.LatestImpact.ContextNote != "" && targetRound != nil {
+		for i := range targetRound.Items {
+			if targetRound.Items[i].ID == thread.ItemID {
+				note := thread.LatestImpact.ContextNote
+				targetRound.Items[i].ContextNote = &note
+				h.saveRound(itemDir, targetRound)
+				break
+			}
+		}
+	}
+	resp.Message = "Clarification dismissed. Context note attached."
+}
+
+// clarificationActionUpdateDecision applies a suggested or manual update to the
+// decision item and clears its selection. Returns false when an error response
+// has been written.
+func (h *Handler) clarificationActionUpdateDecision(w http.ResponseWriter, itemDir string, thread *workshop.ClarificationThread, targetRound *workshop.Round, req *apipb.ClarificationActionRequest, resp *apipb.ClarificationActionResponse) bool {
+	if targetRound == nil {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
+		return false
+	}
+	updated := false
+	for i := range targetRound.Items {
+		if targetRound.Items[i].ID == thread.ItemID {
+			applyClarificationItemUpdate(&targetRound.Items[i], thread, req)
+			// Clear selection so user re-answers with updated framing.
+			targetRound.Items[i].Selected = nil
+			targetRound.Items[i].Freeform = nil
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("decision item not found in round"))
+		return false
+	}
+	h.saveRound(itemDir, targetRound)
+	thread.Status = "resolved"
+	resp.Message = "Decision updated."
+	return true
+}
+
+// applyClarificationItemUpdate mutates a single round item in place using either
+// the manual JSON patch or the clarification's suggested update, then attaches
+// the impact context note if present.
+func applyClarificationItemUpdate(item *workshop.Item, thread *workshop.ClarificationThread, req *apipb.ClarificationActionRequest) {
+	// Apply suggested update or manual JSON.
+	if req.UpdatedItemJson != nil && *req.UpdatedItemJson != "" {
+		var patch workshop.Item
+		if err := json.Unmarshal([]byte(*req.UpdatedItemJson), &patch); err == nil {
+			if patch.Topic != "" {
+				item.Topic = patch.Topic
+			}
+			if patch.Context != "" {
+				item.Context = patch.Context
+			}
+			if len(patch.Options) > 0 {
+				item.Options = patch.Options
+			}
+		}
+	} else if thread.LatestImpact != nil && thread.LatestImpact.SuggestedUpdate != "" {
+		item.Context = thread.LatestImpact.SuggestedUpdate
+	}
+	// Attach context note.
+	if thread.LatestImpact != nil && thread.LatestImpact.ContextNote != "" {
+		note := thread.LatestImpact.ContextNote
+		item.ContextNote = &note
+	}
+}
+
+// clarificationActionRemoveDecision removes the decision item from the round.
+// Returns false when an error response has been written.
+func (h *Handler) clarificationActionRemoveDecision(w http.ResponseWriter, itemDir string, thread *workshop.ClarificationThread, targetRound *workshop.Round, resp *apipb.ClarificationActionResponse) bool {
+	if targetRound == nil {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
+		return false
+	}
+	filtered := make([]workshop.Item, 0, len(targetRound.Items))
+	for _, item := range targetRound.Items {
+		if item.ID != thread.ItemID {
+			filtered = append(filtered, item)
+		}
+	}
+	targetRound.Items = filtered
+	h.saveRound(itemDir, targetRound)
+	thread.Status = "resolved"
+	resp.Message = "Decision removed from round."
+	return true
+}
+
+// clarificationActionInvalidateRound deletes the round and clarifications, then
+// spawns a fresh workshop round. Returns false when an error response has been
+// written.
+func (h *Handler) clarificationActionInvalidateRound(w http.ResponseWriter, r *http.Request, kind BacklogKind, name, itemDir string, thread *workshop.ClarificationThread, targetRound *workshop.Round, resp *apipb.ClarificationActionResponse) bool {
+	if targetRound == nil {
+		apierr.MapError(w, "[backlog] clarification-action", apierr.NotFound("target round not found"))
+		return false
+	}
+	// Delete clarification files for this round.
+	_ = workshop.DeleteClarificationsForRound(itemDir, thread.RoundNumber)
+	// Delete the round and renumber using the existing workshop function.
+	if _, delErr := workshop.DeleteRoundAndRenumber(itemDir, thread.RoundNumber); delErr != nil {
+		slog.Error("clarification-action delete round failed", "err", delErr)
+	}
+	// Spawn a new workshop round.
+	item, loadErr := h.store.LoadItem(kind, name)
+	if loadErr == nil {
+		actionCtx := agentactivity.WithSpec(r.Context(), agentactivity.Spec{
+			OwnerType:   agentactivity.OwnerBacklog,
+			OwnerKind:   string(kind),
+			OwnerName:   item.Name,
+			OwnerTitle:  item.Title,
+			Purpose:     agentactivity.PurposeResearch,
+			PhaseKind:   string(agentactivity.LaneInvestigate),
+			RequestedBy: "swarm-manager",
+			Metadata: map[string]string{
+				"entrypoint": "backlog.clarification.invalidate_round",
+			},
+		})
+		runResult, spawnErr := h.spawnWorkshopForClarification(actionCtx, kind, item, itemDir)
+		if spawnErr == nil {
+			resp.RunId = &runResult.RunID
+			resp.TaskId = &runResult.TaskID
+		} else {
+			slog.Error("clarification-action spawn workshop failed", "err", spawnErr)
+		}
+	}
+	thread.Status = "resolved"
+	resp.Message = "Round invalidated and new workshop round triggered."
+	return true
 }

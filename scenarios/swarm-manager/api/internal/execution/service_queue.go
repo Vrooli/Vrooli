@@ -82,24 +82,8 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		records = filtered
 	}
 
-	// Queue depth enforcement.
-	if gov.MaxQueueDepth > 0 {
-		queued := countQueuedExecutions(records)
-		if queued >= gov.MaxQueueDepth {
-			return Record{}, apierr.Conflict("queue depth limit exceeded (%d/%d)", queued, gov.MaxQueueDepth)
-		}
-	}
-
-	// Cost cap enforcement.
-	if gov.ExecutionCostCapPerRun > 0 && gov.CostPerTurnEstimate > 0 {
-		agentMaxTurns := gov.AgentMaxTurns
-		if agentMaxTurns <= 0 {
-			agentMaxTurns = 600
-		}
-		estimatedCost := gov.CostPerTurnEstimate * float64(agentMaxTurns)
-		if estimatedCost > gov.ExecutionCostCapPerRun && !req.Force {
-			return Record{}, apierr.Conflict("estimated cost $%.2f exceeds cap $%.2f (use force to override)", estimatedCost, gov.ExecutionCostCapPerRun)
-		}
+	if err := enforceQueueGovernance(records, gov, req.Force); err != nil {
+		return Record{}, err
 	}
 
 	now := nowRFC3339()
@@ -139,35 +123,66 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	s.logExecutionEvent(record, "")
 
 	if mode == ModeYOLO {
-		started, startErr := s.startLocked(ctx, record.ExecutionID)
-		if startErr == nil {
-			return started, nil
-		}
-
-		// At capacity: leave as pending for the poller to drain later.
-		if errors.Is(startErr, errAtCapacity) {
-			slog.Info("at capacity, leaving as pending", "execution_id", record.ExecutionID, "item_key", itemKey)
-			s.dispatchStatusUpdate(record)
-			return record, nil
-		}
-
-		// Roll back queue side-effects when immediate start fails.
-		rolledBack, rbErr := s.store.Load()
-		if rbErr == nil {
-			filtered := make([]Record, 0, len(rolledBack))
-			for _, candidate := range rolledBack {
-				if candidate.ExecutionID != record.ExecutionID {
-					filtered = append(filtered, candidate)
-				}
-			}
-			_ = s.store.Save(filtered)
-		}
-		_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
-		return Record{}, startErr
+		return s.startQueuedYOLO(ctx, record, item, itemKey)
 	}
 
 	s.dispatchStatusUpdate(record)
 	return record, nil
+}
+
+// enforceQueueGovernance applies queue-depth and cost-cap limits before a
+// record is admitted to the queue.
+func enforceQueueGovernance(records []Record, gov GovernanceSettings, force bool) error {
+	// Queue depth enforcement.
+	if gov.MaxQueueDepth > 0 {
+		queued := countQueuedExecutions(records)
+		if queued >= gov.MaxQueueDepth {
+			return apierr.Conflict("queue depth limit exceeded (%d/%d)", queued, gov.MaxQueueDepth)
+		}
+	}
+
+	// Cost cap enforcement.
+	if gov.ExecutionCostCapPerRun > 0 && gov.CostPerTurnEstimate > 0 {
+		agentMaxTurns := gov.AgentMaxTurns
+		if agentMaxTurns <= 0 {
+			agentMaxTurns = 600
+		}
+		estimatedCost := gov.CostPerTurnEstimate * float64(agentMaxTurns)
+		if estimatedCost > gov.ExecutionCostCapPerRun && !force {
+			return apierr.Conflict("estimated cost $%.2f exceeds cap $%.2f (use force to override)", estimatedCost, gov.ExecutionCostCapPerRun)
+		}
+	}
+	return nil
+}
+
+// startQueuedYOLO attempts an immediate start for a YOLO-mode record, leaving
+// it pending at capacity and rolling back queue side-effects on other failures.
+func (s *Service) startQueuedYOLO(ctx context.Context, record Record, item backlogItem, itemKey string) (Record, error) {
+	started, startErr := s.startLocked(ctx, record.ExecutionID)
+	if startErr == nil {
+		return started, nil
+	}
+
+	// At capacity: leave as pending for the poller to drain later.
+	if errors.Is(startErr, errAtCapacity) {
+		slog.Info("at capacity, leaving as pending", "execution_id", record.ExecutionID, "item_key", itemKey)
+		s.dispatchStatusUpdate(record)
+		return record, nil
+	}
+
+	// Roll back queue side-effects when immediate start fails.
+	rolledBack, rbErr := s.store.Load()
+	if rbErr == nil {
+		filtered := make([]Record, 0, len(rolledBack))
+		for _, candidate := range rolledBack {
+			if candidate.ExecutionID != record.ExecutionID {
+				filtered = append(filtered, candidate)
+			}
+		}
+		_ = s.store.Save(filtered)
+	}
+	_ = s.updateBacklogStatus(item, restoreBacklogStatus(record))
+	return Record{}, startErr
 }
 
 // QueueSpecSyncArchive creates an execution that runs spec-sync, then archives on completion.

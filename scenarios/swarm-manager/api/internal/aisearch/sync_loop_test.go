@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 )
 
 // makeSyncLoop wires a SyncLoop over the test fakes, with RunOnce defaulting
@@ -92,7 +92,7 @@ func TestSyncLoop_RunOnce_SwallowsBusyError(t *testing.T) {
 		t.Errorf("expected ErrReconcileBusy to be swallowed, got %v", err)
 	}
 	// Drain the slow first call so the test doesn't leak a goroutine.
-	assertx.Eventually(t, 2*time.Second, "first runonce drains", func() bool {
+	testutil.Eventually(t, 2*time.Second, "first runonce drains", func() bool {
 		return loop.Reconciler.Status().Running == false
 	})
 }
@@ -107,7 +107,7 @@ func TestSyncLoop_Start_TickerCallsRunOnce(t *testing.T) {
 	defer cancel()
 	go loop.Start(ctx)
 
-	assertx.Eventually(t, 500*time.Millisecond, "ticker fires twice (LoadAll calls)", func() bool {
+	testutil.Eventually(t, 500*time.Millisecond, "ticker fires twice (LoadAll calls)", func() bool {
 		return atomic.LoadInt32(&br.loaded) >= 2
 	})
 }
@@ -122,7 +122,7 @@ func TestSyncLoop_Start_CancelStopsGoroutine(t *testing.T) {
 		atomic.StoreInt32(&done, 1)
 	}()
 	cancel()
-	assertx.Eventually(t, 500*time.Millisecond, "loop goroutine exits", func() bool {
+	testutil.Eventually(t, 500*time.Millisecond, "loop goroutine exits", func() bool {
 		return atomic.LoadInt32(&done) == 1
 	})
 }
@@ -173,7 +173,7 @@ func TestSyncLoop_Start_PanicRecovered(t *testing.T) {
 	defer cancel()
 	go loop.Start(ctx)
 
-	assertx.Eventually(t, time.Second, "loop keeps ticking through panics", func() bool {
+	testutil.Eventually(t, time.Second, "loop keeps ticking through panics", func() bool {
 		return atomic.LoadInt32(&pe.calls) >= 3
 	})
 }

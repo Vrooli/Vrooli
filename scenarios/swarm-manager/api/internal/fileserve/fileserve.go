@@ -122,7 +122,7 @@ func Upload(w http.ResponseWriter, r *http.Request, rootDir, protectedFile, ctx 
 		return
 	}
 
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
 		slog.Error("failed to create upload directory", "path", fullPath, "err", err)
 		apierr.MapError(w, ctx+" upload file", apierr.Internal("failed to create directory"))
 		return
@@ -261,7 +261,7 @@ func operateDestination(
 		return false
 	}
 
-	if err := os.MkdirAll(filepath.Dir(destinationFullPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destinationFullPath), 0o750); err != nil {
 		apierr.MapError(w, ctx+" file operation", apierr.Internal("failed to create destination directory"))
 		return false
 	}

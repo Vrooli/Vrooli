@@ -191,7 +191,7 @@ func WriteValidationReport(itemDir string, result PlanValidationResult) error {
 	if err != nil {
 		return fmt.Errorf("marshal validation report: %w", err)
 	}
-	return os.WriteFile(filepath.Join(itemDir, "validation-report.json"), data, 0o644)
+	return os.WriteFile(filepath.Join(itemDir, "validation-report.json"), data, 0o600)
 }
 
 // LoadValidationReport reads validation-report.json from the item directory.

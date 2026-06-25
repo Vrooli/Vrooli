@@ -154,10 +154,10 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 	if err != nil {
 		log.Fatalf("resolve runtime cache root: %v", err)
 	}
-	if err := os.MkdirAll(dataRoot, 0o755); err != nil {
+	if err := os.MkdirAll(dataRoot, 0o750); err != nil {
 		log.Fatalf("create runtime data root %q: %v", dataRoot, err)
 	}
-	if err := os.MkdirAll(cacheRoot, 0o755); err != nil {
+	if err := os.MkdirAll(cacheRoot, 0o750); err != nil {
 		log.Fatalf("create runtime cache root %q: %v", cacheRoot, err)
 	}
 
@@ -447,11 +447,6 @@ func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 	settingsHandler := settings.NewHandler(settingsPath)
 	settingsHandler.RegisterRoutes(s.router)
 	s.settingsStore = settingsHandler.GetStore()
-
-	// Wire settings into agent service for runtime profile config resolution.
-	if s.agentSvc != nil {
-		s.agentSvc.SetSettingsReader(settings.NewAgentAdapter(s.settingsStore))
-	}
 }
 
 func (s *Server) registerAgentActivityRoutes(_ string) {
@@ -579,7 +574,7 @@ func main() {
 
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		if err := srv.agentSvc.Initialize(initCtx, nil); err != nil {
+		if err := srv.agentSvc.Initialize(initCtx); err != nil {
 			cancel()
 			log.Fatalf("failed to initialize agent-manager profiles: %v", err)
 		}

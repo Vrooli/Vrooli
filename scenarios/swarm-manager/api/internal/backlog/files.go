@@ -113,7 +113,10 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 		// Roll back the finalize round file: a stale plan must not be
 		// recorded as finalized.
 		if uploadedPath != "" {
-			_ = os.Remove(filepath.Join(itemDir, filepath.FromSlash(filepath.Clean(uploadedPath))))
+			rollbackPath := filepath.Join(itemDir, filepath.FromSlash(filepath.Clean(uploadedPath)))
+			if rmErr := os.Remove(rollbackPath); rmErr != nil && !os.IsNotExist(rmErr) {
+				slog.Debug("backlog: rollback uploaded file failed", "err", rmErr, "path", rollbackPath)
+			}
 		}
 		apierr.MapError(w, "[backlog] upload-file", apierr.PlanStale(
 			"finalization blocked: plan references paths that do not exist and are not declared in `creates`",

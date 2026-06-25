@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -223,7 +224,7 @@ func (l *Lock) isStale(h Holder) bool {
 
 func (l *Lock) write(initiativeName string, h Holder) error {
 	dir := l.Dir(initiativeName)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create lock dir: %w", err)
 	}
 	data, err := json.MarshalIndent(h, "", "  ")
@@ -231,11 +232,13 @@ func (l *Lock) write(initiativeName string, h Holder) error {
 		return fmt.Errorf("marshal lock: %w", err)
 	}
 	tmp := l.path(initiativeName) + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("write lock: %w", err)
 	}
 	if err := os.Rename(tmp, l.path(initiativeName)); err != nil {
-		_ = os.Remove(tmp)
+		if rmErr := os.Remove(tmp); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("initiativelock: remove temp lock failed", "err", rmErr, "path", tmp)
+		}
 		return fmt.Errorf("rename lock: %w", err)
 	}
 	return nil

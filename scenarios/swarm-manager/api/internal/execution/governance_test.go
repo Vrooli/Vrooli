@@ -100,7 +100,7 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 
 	agent := &stubAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    storePath,
 		AgentService: agent,
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -163,7 +163,7 @@ func TestQueueDepthEnforcement(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    storePath,
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -202,7 +202,7 @@ func TestCostCapEnforcement(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "expensive")
 
 	service := NewService(ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -269,7 +269,7 @@ func TestYoloAtCapacity_LeavesPending(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    storePath,
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -316,7 +316,7 @@ func TestCircuitBreakerBlocksQueue(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: &stubAgentService{},
 		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
@@ -356,7 +356,7 @@ func TestGovernanceStatus(t *testing.T) {
 	}
 
 	service := NewService(ServiceConfig{
-		DataRoot:   root,
+		DataRoot:  root,
 		StorePath: storePath,
 		GovernanceProvider: &stubGovernanceProvider{settings: GovernanceSettings{
 			LaneLimits:                    laneLimits(3),

@@ -66,7 +66,9 @@ func (h *Handler) Classify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove stale classification file if present.
-	_ = os.Remove(h.classificationPath(id))
+	if rmErr := os.Remove(h.classificationPath(id)); rmErr != nil && !os.IsNotExist(rmErr) {
+		slog.Debug("captures: remove stale classification failed", "err", rmErr, "id", id)
+	}
 
 	runResult, err := h.spawnClassifyAgent(r, cap)
 	if err != nil {

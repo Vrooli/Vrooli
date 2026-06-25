@@ -102,7 +102,7 @@
       ]
     },
     {
-      "name": "agent_session",
+      "name": "agent-session",
       "description": "Native agent-session measures.",
       "commands": [
         {
@@ -127,6 +127,35 @@
         }
       ]
     }
+  ],
+  "omitted": [
+    { "service": "AudioAdminService", "method": "ClearSpeakerProfileBinding", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin, mounted in main.go); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "DeleteSpeakerProfile", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "DeleteWakeWordTemplate", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "EnrollSpeakerProfile", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "GetSpeakerConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "GetSpeakerStatus", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "GetStreamConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "GetSummarizeConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "GetTTSConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "GetWakeWordConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "ListSpeakerProfiles", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "ListSummarizeModels", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "UnbindSpeakerProfile", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "UpdateSpeakerConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "UpdateStreamConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "UpdateSummarizeConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "UpdateTTSConfig", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioAdminService", "method": "UpdateWakeWordTemplate", "reason": "Audio admin RPC served only to the web-console UI via the Connect handler (api/handlers/audio_admin); not an operator CLI surface." },
+    { "service": "AudioRuntimeService", "method": "GetTTSCache", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
+    { "service": "AudioRuntimeService", "method": "ListVoices", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
+    { "service": "AudioRuntimeService", "method": "RecordPlaybackEvent", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
+    { "service": "AudioRuntimeService", "method": "Summarize", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
+    { "service": "AudioRuntimeService", "method": "Synthesize", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
+    { "service": "AudioRuntimeService", "method": "Transcribe", "reason": "Per-utterance audio runtime RPC served same-origin to the web-console UI (api/handlers/audio_runtime); not a CLI command." },
+    { "service": "BacklogService", "method": "CreateItem", "reason": "Cross-scenario backlog contract RPC consumed by other scenarios' Connect clients (api/internal/backlog/connect_service.go); item creation is offered to operators via the hand-registered 'backlog create' command, not this raw contract method." },
+    { "service": "BacklogService", "method": "GetItem", "reason": "Cross-scenario backlog contract RPC consumed by other scenarios' Connect clients (api/internal/backlog/connect_service.go); item retrieval is offered to operators via the hand-registered 'backlog get' command, not this raw contract method." },
+    { "service": "DiscoveryService", "method": "GetAudioToolsEndpoint", "reason": "Service-discovery RPC the web-console UI and integrations use to locate the audio-tools scenario (api/handlers/discovery); not an operator CLI command." }
   ],
   "measures": {
     "omitted": [

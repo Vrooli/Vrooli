@@ -24,11 +24,6 @@ func ValidateLens(l Lens) bool {
 	}
 }
 
-// AllLenses returns the supported graph lenses in stable order.
-func AllLenses() []Lens {
-	return []Lens{LensTopology, LensOperations}
-}
-
 // GraphBacklogNodeData describes a backlog item node payload.
 type GraphBacklogNodeData struct {
 	Kind                  string `json:"kind"`
@@ -174,28 +169,6 @@ func NewGraphResponse(lens Lens, nodes []Node, edges []Edge) GraphResponse {
 			EdgeCount:   len(edges),
 			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		},
-	}
-}
-
-// NodeDataToProtoKind identifies the proto oneof variant for node data.
-func NodeDataToProtoKind(data any) string {
-	switch data.(type) {
-	case GraphBacklogNodeData, *GraphBacklogNodeData:
-		return "backlog"
-	case GraphInitiativeNodeData, *GraphInitiativeNodeData:
-		return "initiative"
-	case GraphCaptureNodeData, *GraphCaptureNodeData:
-		return "capture"
-	case GraphScenarioNodeData, *GraphScenarioNodeData:
-		return "scenario"
-	case GraphExecutionNodeData, *GraphExecutionNodeData:
-		return "execution"
-	case GraphAgentActivityNodeData, *GraphAgentActivityNodeData:
-		return "activity"
-	case GraphRunNodeData, *GraphRunNodeData:
-		return "run"
-	default:
-		return ""
 	}
 }
 

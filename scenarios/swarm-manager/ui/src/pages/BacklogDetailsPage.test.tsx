@@ -100,6 +100,8 @@ vi.mock("../lib/api-client", () => {
     delete: vi.fn().mockResolvedValue({}),
   };
   return {
+    API_BASE: "http://localhost",
+    DEFAULT_API_BASE: "http://localhost",
     defaultApiClient: noopClient,
     createApiClient: vi.fn(() => noopClient),
     ApiClient: vi.fn(() => noopClient),

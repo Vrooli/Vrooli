@@ -218,25 +218,42 @@ func (a *App) cmdScenariosFixes(args []string) error {
 	}
 
 	if *jsonOut {
-		out := map[string]any{"scenario_name": name, "scope": scope, "search": *search}
-		switch scope {
-		case "active":
-			out["fixes"] = ScenarioFixHistory{Active: active, Archived: []ScenarioFix{}}
-		case "archived":
-			out["fixes"] = ScenarioFixHistory{Active: []ScenarioFix{}, Archived: archived}
-		default:
-			out["fixes"] = ScenarioFixHistory{Active: active, Archived: archived}
-		}
-		buf, _ := json.MarshalIndent(out, "", "  ")
-		fmt.Println(string(buf))
+		printScenariosFixesJSON(name, scope, *search, active, archived)
 		return nil
 	}
 
+	printScenariosFixesText(name, scope, *search, active, archived)
+
+	printCommandListSection("Next Steps", []string{
+		cliCommand("scenarios", "fixes", "--name", name, "--archived"),
+		cliCommand("aisearch", "search", "--query", "<symptom>", "--kind", "fix", "--include-archived"),
+	})
+	return nil
+}
+
+// printScenariosFixesJSON emits the JSON form of the fixes listing, scoped to
+// the requested active/archived/all partition.
+func printScenariosFixesJSON(name, scope, search string, active, archived []ScenarioFix) {
+	out := map[string]any{"scenario_name": name, "scope": scope, "search": search}
+	switch scope {
+	case "active":
+		out["fixes"] = ScenarioFixHistory{Active: active, Archived: []ScenarioFix{}}
+	case "archived":
+		out["fixes"] = ScenarioFixHistory{Active: []ScenarioFix{}, Archived: archived}
+	default:
+		out["fixes"] = ScenarioFixHistory{Active: active, Archived: archived}
+	}
+	buf, _ := json.MarshalIndent(out, "", "  ")
+	fmt.Println(string(buf))
+}
+
+// printScenariosFixesText emits the human-readable fixes listing.
+func printScenariosFixesText(name, scope, search string, active, archived []ScenarioFix) {
 	printSection("Summary")
 	fmt.Printf("  Scenario: %s\n", name)
 	fmt.Printf("  Scope: %s", scope)
-	if strings.TrimSpace(*search) != "" {
-		fmt.Printf(" · search=%q", *search)
+	if strings.TrimSpace(search) != "" {
+		fmt.Printf(" · search=%q", search)
 	}
 	fmt.Println()
 
@@ -256,12 +273,6 @@ func (a *App) cmdScenariosFixes(args []string) error {
 			printFixTable(archived)
 		}
 	}
-
-	printCommandListSection("Next Steps", []string{
-		cliCommand("scenarios", "fixes", "--name", name, "--archived"),
-		cliCommand("aisearch", "search", "--query", "<symptom>", "--kind", "fix", "--include-archived"),
-	})
-	return nil
 }
 
 func boolCount(bs ...bool) int {

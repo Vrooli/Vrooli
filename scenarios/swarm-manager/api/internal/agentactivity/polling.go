@@ -39,30 +39,10 @@ func (s *Service) refreshActiveLocked(ctx context.Context) error {
 			stateByRunID[runID] = state
 		}
 
-		nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
-		if nextStatus == record.Status &&
-			record.StartedAt == strings.TrimSpace(state.StartedAt) &&
-			record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
-			record.FailureReason == strings.TrimSpace(reason) {
-			continue
+		if applyRunStateToRecord(record, state) {
+			changed = true
+			changedRecords[record.ActivityID] = *record
 		}
-
-		record.Status = nextStatus
-		record.FailureReason = strings.TrimSpace(reason)
-		record.UpdatedAt = nowRFC3339()
-		if record.TaskID == "" {
-			record.TaskID = strings.TrimSpace(state.TaskID)
-		}
-		if strings.TrimSpace(state.StartedAt) != "" {
-			record.StartedAt = strings.TrimSpace(state.StartedAt)
-		}
-		if strings.TrimSpace(state.FinishedAt) != "" {
-			record.FinishedAt = strings.TrimSpace(state.FinishedAt)
-		} else if !isActiveStatus(nextStatus) {
-			record.FinishedAt = record.UpdatedAt
-		}
-		changed = true
-		changedRecords[record.ActivityID] = *record
 	}
 
 	if !changed {
@@ -110,30 +90,10 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 			stateByRunID[runID] = state
 		}
 
-		nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
-		if nextStatus == record.Status &&
-			record.StartedAt == strings.TrimSpace(state.StartedAt) &&
-			record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
-			record.FailureReason == strings.TrimSpace(reason) {
-			continue
+		if applyRunStateToRecord(record, state) {
+			changed = true
+			changedRecords[record.ActivityID] = *record
 		}
-
-		record.Status = nextStatus
-		record.FailureReason = strings.TrimSpace(reason)
-		record.UpdatedAt = nowRFC3339()
-		if record.TaskID == "" {
-			record.TaskID = strings.TrimSpace(state.TaskID)
-		}
-		if strings.TrimSpace(state.StartedAt) != "" {
-			record.StartedAt = strings.TrimSpace(state.StartedAt)
-		}
-		if strings.TrimSpace(state.FinishedAt) != "" {
-			record.FinishedAt = strings.TrimSpace(state.FinishedAt)
-		} else if !isActiveStatus(nextStatus) {
-			record.FinishedAt = record.UpdatedAt
-		}
-		changed = true
-		changedRecords[record.ActivityID] = *record
 	}
 
 	if !changed {
@@ -199,6 +159,35 @@ func recordWithinWindow(record Record, since time.Time) bool {
 		return true
 	}
 	return !t.Before(since)
+}
+
+// applyRunStateToRecord reconciles a record against a freshly fetched run state,
+// mutating it in place. It returns true when the record changed (and therefore
+// needs to be persisted/dispatched); a no-op state returns false.
+func applyRunStateToRecord(record *Record, state agentmanager.RunState) bool {
+	nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
+	if nextStatus == record.Status &&
+		record.StartedAt == strings.TrimSpace(state.StartedAt) &&
+		record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
+		record.FailureReason == strings.TrimSpace(reason) {
+		return false
+	}
+
+	record.Status = nextStatus
+	record.FailureReason = strings.TrimSpace(reason)
+	record.UpdatedAt = nowRFC3339()
+	if record.TaskID == "" {
+		record.TaskID = strings.TrimSpace(state.TaskID)
+	}
+	if strings.TrimSpace(state.StartedAt) != "" {
+		record.StartedAt = strings.TrimSpace(state.StartedAt)
+	}
+	if strings.TrimSpace(state.FinishedAt) != "" {
+		record.FinishedAt = strings.TrimSpace(state.FinishedAt)
+	} else if !isActiveStatus(nextStatus) {
+		record.FinishedAt = record.UpdatedAt
+	}
+	return true
 }
 
 func indexByID(records []Record, activityID string) int {

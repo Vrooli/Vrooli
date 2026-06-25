@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,10 +13,10 @@ import (
 	"sync"
 )
 
-// DOC: Overlay seam — keeps the in-code mode registry pure while allowing
+// DOC: docs/internal/SEAMS.md
+// Overlay seam — keeps the in-code mode registry pure while allowing
 // operators to override user-visible fields (label, description) without
-// recompiling. Persisted to disk so edits survive API restarts. See
-// scenarios/swarm-manager/docs/internal/SEAMS.md.
+// recompiling. Persisted to disk so edits survive API restarts.
 
 // Override holds the user-editable subset of a mode definition. Pointer fields
 // distinguish "absent" (use registry default) from "present" (apply this
@@ -110,7 +111,7 @@ func (s *OverlayStore) Save(mode Mode, override Override) error {
 }
 
 func (s *OverlayStore) writeLocked(overrides map[Mode]Override) error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o750); err != nil {
 		return fmt.Errorf("operating-mode overlay: mkdir: %w", err)
 	}
 	keys := make([]string, 0, len(overrides))
@@ -132,16 +133,15 @@ func (s *OverlayStore) writeLocked(overrides map[Mode]Override) error {
 	}
 	tmpName := tmp.Name()
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
+		closeAndRemoveTemp(tmp, tmpName)
 		return fmt.Errorf("operating-mode overlay: write: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		os.Remove(tmpName)
+		removeTemp(tmpName)
 		return fmt.Errorf("operating-mode overlay: close: %w", err)
 	}
 	if err := os.Rename(tmpName, s.path); err != nil {
-		os.Remove(tmpName)
+		removeTemp(tmpName)
 		return fmt.Errorf("operating-mode overlay: rename: %w", err)
 	}
 	return nil
@@ -159,4 +159,17 @@ func applyOverlay(def Definition, override Override) Definition {
 		def.Description = strings.TrimSpace(*override.Description)
 	}
 	return def
+}
+
+func closeAndRemoveTemp(f *os.File, name string) {
+	if closeErr := f.Close(); closeErr != nil {
+		slog.Debug("operatingmode: close temp overlay failed", "err", closeErr)
+	}
+	removeTemp(name)
+}
+
+func removeTemp(name string) {
+	if rmErr := os.Remove(name); rmErr != nil && !os.IsNotExist(rmErr) {
+		slog.Debug("operatingmode: remove temp overlay failed", "err", rmErr, "path", name)
+	}
 }

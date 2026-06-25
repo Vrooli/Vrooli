@@ -38,14 +38,22 @@ func (a *App) cmdPromptsCatalog(args []string) error {
 		return nil
 	}
 
+	printPromptCatalogSummary(response.Items)
+	printPromptCatalogResults(response.Items)
+	printCommandListSection("Next Steps", promptCatalogNextSteps(response.Items))
+	return nil
+}
+
+// printPromptCatalogSummary prints aggregate counts by group and usage type.
+func printPromptCatalogSummary(items []PromptCatalogEntry) {
 	groupCounts := map[string]int{}
 	usageCounts := map[string]int{}
-	for _, item := range response.Items {
+	for _, item := range items {
 		groupCounts[item.Group]++
 		usageCounts[item.UsageType]++
 	}
 	printSection("Summary")
-	fmt.Printf("  Found %d prompt catalog entries\n", len(response.Items))
+	fmt.Printf("  Found %d prompt catalog entries\n", len(items))
 	keys := make([]string, 0, len(groupCounts))
 	for key := range groupCounts {
 		keys = append(keys, key)
@@ -62,9 +70,12 @@ func (a *App) cmdPromptsCatalog(args []string) error {
 	for _, key := range usageKeys {
 		fmt.Printf("  Usage %s: %d\n", key, usageCounts[key])
 	}
+}
 
+// printPromptCatalogResults prints the detail block for each catalog entry.
+func printPromptCatalogResults(items []PromptCatalogEntry) {
 	printSection("Results")
-	for _, item := range response.Items {
+	for _, item := range items {
 		fmt.Printf("  %s\n", item.Title)
 		fmt.Printf("    Group: %s\n", item.Group)
 		fmt.Printf("    Usage: %s (%s)\n", item.UsageType, item.SourceType)
@@ -88,9 +99,13 @@ func (a *App) cmdPromptsCatalog(args []string) error {
 		}
 		fmt.Println()
 	}
+}
 
+// promptCatalogNextSteps builds the suggested follow-up commands, seeded from
+// the first entry that exposes a skill ID.
+func promptCatalogNextSteps(items []PromptCatalogEntry) []string {
 	nextSteps := []string{cliCommand("prompts", "skills")}
-	for _, item := range response.Items {
+	for _, item := range items {
 		if strings.TrimSpace(item.SkillID) != "" {
 			nextSteps = append(nextSteps,
 				cliCommand("prompts", "skill-get", "--id", item.SkillID),
@@ -104,8 +119,7 @@ func (a *App) cmdPromptsCatalog(args []string) error {
 			break
 		}
 	}
-	printCommandListSection("Next Steps", nextSteps)
-	return nil
+	return nextSteps
 }
 
 func (a *App) cmdPromptsSkills(args []string) error {

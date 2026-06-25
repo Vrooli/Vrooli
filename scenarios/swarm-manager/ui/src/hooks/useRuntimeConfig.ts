@@ -6,6 +6,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import { uiBehaviorConfig } from "../config";
 import { defaultQueryOptions } from "../lib";
 import { settingsService } from "../services";
@@ -31,10 +32,22 @@ export function useRuntimeConfig(): RuntimeConfig {
 
   const dc = settings?.deleteConfirmation ?? DEFAULT_SETTINGS.deleteConfirmation;
 
-  return {
-    searchDebounceMs: settings?.searchDebounceMs ?? uiBehaviorConfig.searchDebounceMs,
-    toastDurationMs: settings?.toastDurationMs ?? uiBehaviorConfig.toastDurationMs,
-    getDeleteConfirmLevel: (entityType: DeletableEntityType) =>
-      dc[entityType] ?? defaultLevelFor(entityType),
-  };
+  // Stabilize the returned callback and object across renders. Without this,
+  // every render produces a fresh getDeleteConfirmLevel identity, which
+  // propagates through consumers that list it (and objects derived from it) as
+  // effect/callback dependencies — turning a single state change into an
+  // unbounded re-render loop (e.g. the file-browser header-slot effect).
+  const getDeleteConfirmLevel = useCallback(
+    (entityType: DeletableEntityType) => dc[entityType] ?? defaultLevelFor(entityType),
+    [dc],
+  );
+
+  return useMemo(
+    () => ({
+      searchDebounceMs: settings?.searchDebounceMs ?? uiBehaviorConfig.searchDebounceMs,
+      toastDurationMs: settings?.toastDurationMs ?? uiBehaviorConfig.toastDurationMs,
+      getDeleteConfirmLevel,
+    }),
+    [settings?.searchDebounceMs, settings?.toastDurationMs, getDeleteConfirmLevel],
+  );
 }

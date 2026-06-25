@@ -40,28 +40,28 @@
       "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "ui",
-      "description": "Backlog agent dialog with mode selection (clarify/suggest/enhance/research), clarify Q\u0026A panel, suggestions panel with accept/reject",
+      "description": "Backlog agent dialog with agent-mode selection (workshop / initialize) plus a multi-turn clarification Q&A panel for refining workshop decisions. The standalone suggestions accept/reject panel was removed in the 2026-03 research backlog rework in favor of the workshop-based refinement flow (see OT-P1-004 'Implemented (workshop-based refinement flow)').",
       "validation": [
         {
           "type": "test",
           "ref": "ui/src/components/backlog/backlog-agent-dialog.tsx",
           "phase": "unit",
           "status": "failing",
-          "notes": "backlog-agent-dialog renders mode selector with context input"
+          "notes": "backlog-agent-dialog renders the agent-mode selector with context input"
         },
         {
           "type": "test",
-          "ref": "ui/src/components/backlog/idea-clarify-panel.tsx",
+          "ref": "ui/src/components/backlog/clarification-panel.test.tsx::renders thread messages after successful fetch",
           "phase": "unit",
-          "status": "failing",
-          "notes": "idea-clarify-panel displays and collects Q\u0026A responses"
+          "status": "implemented",
+          "notes": "clarification-panel displays the multi-turn Q&A thread"
         },
         {
           "type": "test",
-          "ref": "ui/src/components/backlog/idea-suggestions-panel.tsx",
+          "ref": "ui/src/components/backlog/clarification-panel.test.tsx::textarea is disabled while isLoading is true",
           "phase": "unit",
-          "status": "failing",
-          "notes": "idea-suggestions-panel shows suggestions with accept/reject controls"
+          "status": "implemented",
+          "notes": "clarification-panel collects operator responses via its input textarea"
         }
       ]
     }

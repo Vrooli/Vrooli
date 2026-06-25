@@ -179,11 +179,6 @@ func NewStore(path string) *Store {
 	return &Store{path: path}
 }
 
-// StoreForPath creates a settings store at the given path (for use by other packages).
-func StoreForPath(path string) *Store {
-	return &Store{path: path}
-}
-
 // DefaultSettings returns the baseline settings.
 func DefaultSettings() Settings {
 	return Settings{
@@ -197,7 +192,8 @@ func DefaultSettings() Settings {
 		AutoAdvanceWorkshop:     true,
 		AutoCascadeWorkshop:     true,
 		AutoAdvanceDelaySeconds: 10,
-		// Keep in sync with agentmanager.DefaultAgentMaxTurns (600).
+		// Per-run turn budget mirrored by the swarm-manager agent profile
+		// in .vrooli/agent-profiles (the canonical source for spawns).
 		AgentMaxTurns:            600,
 		AgentTimeoutSeconds:      3600,
 		SearchDebounceMs:         300,
@@ -441,6 +437,17 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.Theme != nil {
 		current.Theme = strings.TrimSpace(*patch.Theme)
 	}
+	applyExecutionPatch(&current, patch)
+	applyWorkshopPatch(&current, patch)
+	applyAgentPatch(&current, patch)
+	applyUIPatch(&current, patch)
+	applyReviewPatch(&current, patch)
+	applyGovernancePatch(&current, patch)
+	return current
+}
+
+// applyExecutionPatch overlays the execution-default fields.
+func applyExecutionPatch(current *Settings, patch SettingsPatch) {
 	if patch.DefaultMode != nil {
 		current.DefaultMode = strings.TrimSpace(*patch.DefaultMode)
 	}
@@ -453,6 +460,10 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ReviewAgentEnabled != nil {
 		current.ReviewAgentEnabled = *patch.ReviewAgentEnabled
 	}
+}
+
+// applyWorkshopPatch overlays the workshop fields.
+func applyWorkshopPatch(current *Settings, patch SettingsPatch) {
 	if patch.MaxAutoRounds != nil {
 		current.MaxAutoRounds = *patch.MaxAutoRounds
 	}
@@ -468,12 +479,21 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.AutoAdvanceDelaySeconds != nil {
 		current.AutoAdvanceDelaySeconds = *patch.AutoAdvanceDelaySeconds
 	}
+}
+
+// applyAgentPatch overlays the agent-behavior fields.
+func applyAgentPatch(current *Settings, patch SettingsPatch) {
 	if patch.AgentMaxTurns != nil {
 		current.AgentMaxTurns = *patch.AgentMaxTurns
 	}
 	if patch.AgentTimeoutSeconds != nil {
 		current.AgentTimeoutSeconds = *patch.AgentTimeoutSeconds
 	}
+}
+
+// applyUIPatch overlays the UI-preference fields, including the
+// delete-confirmation map merge.
+func applyUIPatch(current *Settings, patch SettingsPatch) {
 	if patch.SearchDebounceMs != nil {
 		current.SearchDebounceMs = *patch.SearchDebounceMs
 	}
@@ -490,6 +510,10 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 			current.DeleteConfirmationLevels[k] = v
 		}
 	}
+}
+
+// applyReviewPatch overlays the review-threshold fields.
+func applyReviewPatch(current *Settings, patch SettingsPatch) {
 	if patch.ReviewCodeQualityMinScore != nil {
 		current.ReviewCodeQualityMinScore = *patch.ReviewCodeQualityMinScore
 	}
@@ -508,6 +532,11 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.ReviewRequireTests != nil {
 		current.ReviewRequireTests = *patch.ReviewRequireTests
 	}
+}
+
+// applyGovernancePatch overlays the concurrency/governance and
+// fix-before-feature fields, including the lane-cap map replacement.
+func applyGovernancePatch(current *Settings, patch SettingsPatch) {
 	if patch.LaneConcurrencyLimits != nil {
 		// Non-nil patch replaces wholesale (after normalize fills any
 		// missing canonical keys from defaults). Empty map → reset to
@@ -539,5 +568,4 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	if patch.FixBeforeFeatureDiscovery != nil {
 		current.FixBeforeFeatureDiscovery = *patch.FixBeforeFeatureDiscovery
 	}
-	return current
 }

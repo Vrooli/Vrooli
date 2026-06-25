@@ -3,6 +3,7 @@ package operatingmode
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -159,7 +160,7 @@ func artifactDeclaration(def Definition, path string) ArtifactDefinition {
 
 func writeFileAtomic(path string, content []byte) error {
 	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+	if err := os.MkdirAll(parentDir, 0o750); err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(parentDir, "tmp-*")
@@ -168,20 +169,26 @@ func writeFileAtomic(path string, content []byte) error {
 	}
 	tmpName := tmp.Name()
 	defer func() {
-		_ = os.Remove(tmpName)
+		if rmErr := os.Remove(tmpName); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("operatingmode: remove temp artifact failed", "err", rmErr, "path", tmpName)
+		}
 	}()
 	if _, err := tmp.Write(content); err != nil {
-		_ = tmp.Close()
+		if closeErr := tmp.Close(); closeErr != nil {
+			slog.Debug("operatingmode: close temp artifact failed", "err", closeErr)
+		}
 		return err
 	}
 	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
+		if closeErr := tmp.Close(); closeErr != nil {
+			slog.Debug("operatingmode: close temp artifact failed", "err", closeErr)
+		}
 		return err
 	}
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Chmod(tmpName, 0o644); err != nil {
+	if err := os.Chmod(tmpName, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmpName, path)

@@ -41,7 +41,7 @@ func (r *RemoteStreamConfigAdmin) handleErr(err error) error {
 	return audiotools.NormalizeError(err)
 }
 
-func (r *RemoteStreamConfigAdmin) attach(req connect.AnyRequest, ctx context.Context) {
+func (r *RemoteStreamConfigAdmin) attach(ctx context.Context, req connect.AnyRequest) {
 	if r.Credentials == nil || req == nil {
 		return
 	}
@@ -63,7 +63,7 @@ func (r *RemoteStreamConfigAdmin) GetStreamConfig(ctx context.Context) (StreamCo
 		return StreamConfig{}, err
 	}
 	req := connect.NewRequest(&sttv1.GetStreamConfigRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.GetStreamConfig(ctx, req)
 	if err != nil {
 		return StreamConfig{}, r.handleErr(err)
@@ -85,7 +85,7 @@ func (r *RemoteStreamConfigAdmin) UpdateStreamConfig(ctx context.Context, mask F
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: mask.Paths},
 		Config:     streamConfigToProto(cfg),
 	})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.UpdateStreamConfig(ctx, req)
 	if err != nil {
 		return StreamConfig{}, r.handleErr(err)

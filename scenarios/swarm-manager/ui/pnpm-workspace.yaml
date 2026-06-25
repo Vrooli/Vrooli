@@ -12,3 +12,8 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Supply-chain hardening: refuse to resolve a dependency version published less
+# than 7 days ago, so a freshly-compromised release is not adopted on day zero.
+# Matches the fleet convention (10080 minutes = 7 days).
+minimumReleaseAge: 10080

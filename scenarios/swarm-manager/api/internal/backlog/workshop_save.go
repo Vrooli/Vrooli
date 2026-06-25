@@ -79,7 +79,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	// Write the round file.
 	itemDir := h.store.ItemDir(kind, name)
 	workshopDir := filepath.Join(itemDir, "workshop")
-	if err := os.MkdirAll(workshopDir, 0o755); err != nil {
+	if err := os.MkdirAll(workshopDir, 0o750); err != nil {
 		slog.Error("failed to create workshop dir", "err", err)
 		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to create workshop directory"))
 		return
@@ -90,7 +90,7 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	if redacted, changed := pathredact.NewForArtifactPath(roundPath).RedactBytes(roundPath, content); changed {
 		content = redacted
 	}
-	if err := os.WriteFile(roundPath, content, 0o644); err != nil {
+	if err := os.WriteFile(roundPath, content, 0o600); err != nil {
 		slog.Error("failed to write round file", "path", roundPath, "err", err)
 		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to save round file"))
 		return
@@ -565,7 +565,9 @@ func runAcceptanceValidation(item BacklogItem, itemDir string) (*projectroot.Acc
 	}
 	data, marshalErr := json.MarshalIndent(redactedArtifact, "", "  ")
 	if marshalErr == nil {
-		_ = os.WriteFile(artifactPath, data, 0o644)
+		if writeErr := os.WriteFile(artifactPath, data, 0o600); writeErr != nil {
+			slog.Warn("backlog: persist redacted workshop artifact failed", "err", writeErr, "path", artifactPath)
+		}
 	}
 	if valErr != nil && !errors.Is(valErr, projectroot.ErrAcceptanceMismatch) {
 		return report, valErr

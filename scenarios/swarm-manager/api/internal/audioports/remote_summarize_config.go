@@ -41,7 +41,7 @@ func (r *RemoteSummarizeConfigAdmin) handleErr(err error) error {
 	return audiotools.NormalizeError(err)
 }
 
-func (r *RemoteSummarizeConfigAdmin) attach(req connect.AnyRequest, ctx context.Context) {
+func (r *RemoteSummarizeConfigAdmin) attach(ctx context.Context, req connect.AnyRequest) {
 	if r.Credentials == nil || req == nil {
 		return
 	}
@@ -63,7 +63,7 @@ func (r *RemoteSummarizeConfigAdmin) GetSummarizeConfig(ctx context.Context) (Su
 		return SummarizeConfig{}, err
 	}
 	req := connect.NewRequest(&summv1.GetSummarizeConfigRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.Summarize.GetSummarizeConfig(ctx, req)
 	if err != nil {
 		return SummarizeConfig{}, r.handleErr(err)
@@ -85,7 +85,7 @@ func (r *RemoteSummarizeConfigAdmin) UpdateSummarizeConfig(ctx context.Context, 
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: mask.Paths},
 		Config:     summarizeConfigToProto(cfg),
 	})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.Summarize.UpdateSummarizeConfig(ctx, req)
 	if err != nil {
 		return SummarizeConfig{}, r.handleErr(err)
@@ -101,7 +101,7 @@ func (r *RemoteSummarizeConfigAdmin) ListSummarizeModels(ctx context.Context) ([
 		return nil, err
 	}
 	req := connect.NewRequest(&summv1.ListSummarizeModelsRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.Summarize.ListSummarizeModels(ctx, req)
 	if err != nil {
 		return nil, r.handleErr(err)

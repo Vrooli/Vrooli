@@ -349,71 +349,26 @@ func (a *App) cmdInitiativesFeedbackDecide(args []string) error {
 		return fmt.Errorf("--round must be a positive integer")
 	}
 
-	flagsSet := 0
-	if *acceptFlag {
-		flagsSet++
-	}
-	if *rejectFlag {
-		flagsSet++
-	}
-	if *dismissFlag {
-		flagsSet++
-	}
-	if flagsSet != 1 {
+	if countTrue(*acceptFlag, *rejectFlag, *dismissFlag) != 1 {
 		return fmt.Errorf("exactly one of --accept, --reject, --dismiss must be provided")
 	}
 
 	mutations := parseCommaSeparated(*mutationsFlag)
-	kind := ""
-	switch {
-	case *acceptFlag:
-		if len(mutations) > 0 {
-			kind = "partial_accept"
-		} else {
-			kind = "accept"
-		}
-	case *rejectFlag:
-		if len(mutations) > 0 {
-			return fmt.Errorf("--mutations is only valid with --accept")
-		}
-		kind = "reject"
-	case *dismissFlag:
-		if len(mutations) > 0 {
-			return fmt.Errorf("--mutations is only valid with --accept")
-		}
-		kind = "dismiss"
+	kind, err := feedbackDecisionKind(*acceptFlag, *rejectFlag, *dismissFlag, mutations)
+	if err != nil {
+		return err
 	}
 
 	name := strings.TrimSpace(*nameFlag)
-	payloadMap := map[string]any{
-		"kind":       kind,
-		"rationale":  strings.TrimSpace(*rationaleFlag),
-		"decided_by": strings.TrimSpace(*decidedByFlag),
-	}
-	if len(mutations) > 0 {
-		payloadMap["accepted_mutation_ids"] = mutations
-	}
-	payload, err := json.Marshal(payloadMap)
-	if err != nil {
-		return fmt.Errorf("encode request: %w", err)
-	}
+	rationale := strings.TrimSpace(*rationaleFlag)
+	decidedBy := strings.TrimSpace(*decidedByFlag)
 
-	endpoint := fmt.Sprintf("/initiatives/%s/feedback/%d/decide", name, *roundFlag)
-	if *dismissFlag && strings.TrimSpace(*mutationsFlag) == "" {
-		// /dismiss is the ergonomic sibling endpoint; both paths reach the
-		// same Decide code with kind=dismiss, but /dismiss accepts a
-		// smaller body (no kind required) so we use it for the dismiss
-		// flow here for parity with the UI and to keep parity with the
-		// plan's wire shape.
-		endpoint = fmt.Sprintf("/initiatives/%s/feedback/%d/dismiss", name, *roundFlag)
-		dismissPayload, err := json.Marshal(map[string]any{
-			"rationale":  strings.TrimSpace(*rationaleFlag),
-			"decided_by": strings.TrimSpace(*decidedByFlag),
-		})
-		if err != nil {
-			return fmt.Errorf("encode request: %w", err)
-		}
-		payload = dismissPayload
+	endpoint, payload, err := buildFeedbackDecideRequest(
+		name, *roundFlag, kind, rationale, decidedBy, mutations,
+		*dismissFlag && strings.TrimSpace(*mutationsFlag) == "",
+	)
+	if err != nil {
+		return err
 	}
 
 	body, err := a.core.Request("POST", endpoint, nil, json.RawMessage(payload))
@@ -469,23 +424,100 @@ func (a *App) cmdInitiativesFeedbackDecide(args []string) error {
 		fmt.Printf("  Failed:     %d\n", wrap.ApplyResult.Failed)
 		fmt.Printf("  Skipped:    %d\n", wrap.ApplyResult.Skipped)
 		for _, o := range wrap.ApplyResult.Outcomes {
-			badge := "applied"
-			if o.Skipped {
-				badge = "skipped"
-			} else if !o.Applied {
-				badge = "failed"
-			}
-			line := fmt.Sprintf("  - %s [%s] %s", o.MutationID, badge, o.Op)
-			if o.Target != "" {
-				line += " " + o.Target
-			}
-			if o.Error != "" {
-				line += " — " + o.Error
-			}
-			fmt.Println(line)
+			fmt.Println(formatApplyOutcome(o.MutationID, o.Op, o.Target, o.Error, o.Applied, o.Skipped))
 		}
 	}
 	return nil
+}
+
+// countTrue returns how many of the given booleans are true.
+func countTrue(flags ...bool) int {
+	n := 0
+	for _, f := range flags {
+		if f {
+			n++
+		}
+	}
+	return n
+}
+
+// buildFeedbackDecideRequest builds the endpoint path and JSON request body for
+// a feedback decision. When useDismissEndpoint is set, it targets the ergonomic
+// /dismiss sibling endpoint (which accepts a smaller body without a kind);
+// otherwise it targets /decide with the full decision payload.
+func buildFeedbackDecideRequest(name string, round int, kind, rationale, decidedBy string, mutations []string, useDismissEndpoint bool) (string, []byte, error) {
+	if useDismissEndpoint {
+		// /dismiss is the ergonomic sibling endpoint; both paths reach the
+		// same Decide code with kind=dismiss, but /dismiss accepts a
+		// smaller body (no kind required) so we use it for the dismiss
+		// flow here for parity with the UI and to keep parity with the
+		// plan's wire shape.
+		endpoint := fmt.Sprintf("/initiatives/%s/feedback/%d/dismiss", name, round)
+		payload, err := json.Marshal(map[string]any{
+			"rationale":  rationale,
+			"decided_by": decidedBy,
+		})
+		if err != nil {
+			return "", nil, fmt.Errorf("encode request: %w", err)
+		}
+		return endpoint, payload, nil
+	}
+
+	endpoint := fmt.Sprintf("/initiatives/%s/feedback/%d/decide", name, round)
+	payloadMap := map[string]any{
+		"kind":       kind,
+		"rationale":  rationale,
+		"decided_by": decidedBy,
+	}
+	if len(mutations) > 0 {
+		payloadMap["accepted_mutation_ids"] = mutations
+	}
+	payload, err := json.Marshal(payloadMap)
+	if err != nil {
+		return "", nil, fmt.Errorf("encode request: %w", err)
+	}
+	return endpoint, payload, nil
+}
+
+// feedbackDecisionKind validates the mutually-exclusive accept/reject/dismiss
+// flags against any provided mutation IDs and returns the wire "kind" value.
+func feedbackDecisionKind(accept, reject, dismiss bool, mutations []string) (string, error) {
+	switch {
+	case accept:
+		if len(mutations) > 0 {
+			return "partial_accept", nil
+		}
+		return "accept", nil
+	case reject:
+		if len(mutations) > 0 {
+			return "", fmt.Errorf("--mutations is only valid with --accept")
+		}
+		return "reject", nil
+	case dismiss:
+		if len(mutations) > 0 {
+			return "", fmt.Errorf("--mutations is only valid with --accept")
+		}
+		return "dismiss", nil
+	}
+	return "", nil
+}
+
+// formatApplyOutcome renders a single mutation apply outcome as a display line.
+func formatApplyOutcome(mutationID, op, target, errMsg string, applied, skipped bool) string {
+	badge := "applied"
+	if skipped {
+		badge = "skipped"
+	} else if !applied {
+		badge = "failed"
+	}
+	line := fmt.Sprintf("  - %s [%s] %s", mutationID, badge, op)
+	if target != "" {
+		line += " " + target
+	}
+	if errMsg != "" {
+		line += " — " + errMsg
+	}
+	return line
 }
 
 // --- feedback-cancel ---------------------------------------------------

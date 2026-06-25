@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -71,7 +72,7 @@ func (s *FileStore) CreateSession(session Session) error {
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(dir, proposalsDirName), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, proposalsDirName), 0o750); err != nil {
 		return err
 	}
 	return storage.WriteJSONAtomic(filepath.Join(dir, sessionFileName), session)
@@ -303,7 +304,7 @@ func (s *FileStore) SaveAttachment(sessionID string, attachment Attachment, read
 		}
 	}
 	dir := filepath.Join(s.sessionDir(session.ID), attachmentsDirName, attachment.ID)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	path := filepath.Join(dir, sanitizeAttachmentFilename(attachment.Filename))
@@ -312,7 +313,9 @@ func (s *FileStore) SaveAttachment(sessionID string, attachment Attachment, read
 		return err
 	}
 	if _, err := io.Copy(file, reader); err != nil {
-		_ = file.Close()
+		if closeErr := file.Close(); closeErr != nil {
+			slog.Debug("agentsessions: close attachment file failed", "err", closeErr)
+		}
 		return err
 	}
 	if err := file.Close(); err != nil {
@@ -504,14 +507,14 @@ func isActiveSessionStatus(status Status) bool {
 }
 
 func appendJSONL(path string, value any) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return err
 	}
@@ -524,7 +527,7 @@ func appendJSONL(path string, value any) error {
 
 func writeJSONLAtomic[T any](path string, values []T) error {
 	parentDir := filepath.Dir(path)
-	if err := os.MkdirAll(parentDir, 0o755); err != nil {
+	if err := os.MkdirAll(parentDir, 0o750); err != nil {
 		return err
 	}
 	tempFile, err := os.CreateTemp(parentDir, "tmp-*.jsonl")
@@ -533,27 +536,35 @@ func writeJSONLAtomic[T any](path string, values []T) error {
 	}
 	tempName := tempFile.Name()
 	defer func() {
-		_ = os.Remove(tempName)
+		if rmErr := os.Remove(tempName); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("agentsessions: remove temp jsonl failed", "err", rmErr, "path", tempName)
+		}
 	}()
 	for _, value := range values {
 		data, err := json.Marshal(value)
 		if err != nil {
-			_ = tempFile.Close()
+			if closeErr := tempFile.Close(); closeErr != nil {
+				slog.Debug("agentsessions: close temp jsonl failed", "err", closeErr)
+			}
 			return err
 		}
 		if _, err := tempFile.Write(append(data, '\n')); err != nil {
-			_ = tempFile.Close()
+			if closeErr := tempFile.Close(); closeErr != nil {
+				slog.Debug("agentsessions: close temp jsonl failed", "err", closeErr)
+			}
 			return err
 		}
 	}
 	if err := tempFile.Sync(); err != nil {
-		_ = tempFile.Close()
+		if closeErr := tempFile.Close(); closeErr != nil {
+			slog.Debug("agentsessions: close temp jsonl failed", "err", closeErr)
+		}
 		return err
 	}
 	if err := tempFile.Close(); err != nil {
 		return err
 	}
-	if err := os.Chmod(tempName, 0o644); err != nil {
+	if err := os.Chmod(tempName, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tempName, path)

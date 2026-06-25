@@ -107,117 +107,137 @@ func printOverviewMarkdown(resp OverviewResponse) {
 	fmt.Println("## Swarm Manager Overview")
 	fmt.Println()
 
-	// Governance section.
-	if resp.Governance != nil {
-		gov := resp.Governance
-		printSection("Governance")
-		fmt.Printf("  Active total: %d | Queue: %d/%d\n",
-			gov.ActiveExecutions, gov.QueueDepth, gov.MaxQueueDepth)
-		// Per-lane breakdown — mirrors the four-lane Operations Center
-		// header on the UI.
-		for _, lane := range gov.Lanes {
-			fmt.Printf("  %-12s %d/%d active", lane.Lane, lane.Active, lane.Capacity)
-			if lane.Queue > 0 {
-				fmt.Printf(" | queue %d", lane.Queue)
-			}
-			fmt.Println()
-		}
-		if gov.EstimatedQueuedCost > 0 {
-			fmt.Printf("  Estimated queued cost: $%.2f\n", gov.EstimatedQueuedCost)
-		}
-		if len(gov.CircuitBrokenItems) > 0 {
-			fmt.Printf("  Circuit-broken: %s\n", strings.Join(gov.CircuitBrokenItems, ", "))
-		}
-		fmt.Println()
-	}
-
-	// Summary section.
-	printSection("Summary")
-	statusParts := formatMapCounts(resp.Summary.ItemsByStatus)
-	fmt.Printf("  Total items: %d | By status: %s\n", resp.Summary.TotalItems, statusParts)
-	kindParts := formatMapCounts(resp.Summary.ItemsByKind)
-	fmt.Printf("  By kind: %s\n", kindParts)
-	fmt.Printf("  Active initiatives: %d\n", resp.Summary.ActiveInitiatives)
-	fmt.Println()
-
-	// Initiatives section.
-	if len(resp.Initiatives) > 0 {
-		printSection("Initiatives")
-		for _, item := range resp.Initiatives {
-			init := item.Initiative
-			rollup := item.Rollup
-			fmt.Printf("  %s -- %d/%d completed -- %s\n",
-				init.Title, rollup.Completed, rollup.Total, init.Status)
-			if len(init.Items) > 0 {
-				fmt.Printf("    Items: %s\n", strings.Join(init.Items, ", "))
-			}
-		}
-		fmt.Println()
-	}
-
-	// Ready to execute (unblocked).
-	if len(resp.DependencyGraph.Unblocked) > 0 {
-		printSection("Ready to Execute (unblocked)")
-		// Build a lookup for quick access to item details.
-		itemMap := make(map[string]BacklogItem, len(resp.Items))
-		for _, item := range resp.Items {
-			itemMap[item.Kind+"/"+item.Name] = item
-		}
-		for _, key := range resp.DependencyGraph.Unblocked {
-			if item, ok := itemMap[key]; ok {
-				fmt.Printf("  - %s -- %s (priority: %d)\n", key, item.Title, item.Priority)
-			} else {
-				fmt.Printf("  - %s\n", key)
-			}
-		}
-		fmt.Println()
-	}
-
-	// Blocked items.
-	if len(resp.DependencyGraph.Blocked) > 0 {
-		printSection("Blocked")
-		// Build a reverse lookup: which deps block each item.
-		blockers := make(map[string][]string)
-		for _, edge := range resp.DependencyGraph.Edges {
-			from, to := edge[0], edge[1]
-			blockers[from] = append(blockers[from], to)
-		}
-		for _, key := range resp.DependencyGraph.Blocked {
-			deps := blockers[key]
-			sort.Strings(deps)
-			fmt.Printf("  - %s -- blocked by: %s\n", key, strings.Join(deps, ", "))
-		}
-		fmt.Println()
-	}
-
-	// Dependency graph edges.
-	if len(resp.DependencyGraph.Edges) > 0 {
-		printSection("Dependency Graph")
-		for _, edge := range resp.DependencyGraph.Edges {
-			fmt.Printf("  %s -> %s\n", edge[0], edge[1])
-		}
-		fmt.Println()
-	}
-
-	// Initiative edge consistency suggestions.
-	if len(resp.Consistency.InitiativeEdgeSuggestions) > 0 {
-		printSection("Initiative Edge Suggestions")
-		fmt.Println("  Drift between explicit initiative deps and edges implied by child items.")
-		fmt.Println("  Review before accepting — never auto-applied.")
-		for _, s := range resp.Consistency.InitiativeEdgeSuggestions {
-			fmt.Printf("  - [%s] %s -> %s: %s\n", s.Direction, s.From, s.To, s.Reason)
-			if len(s.InferredFromItems) > 0 {
-				fmt.Printf("      via: %s\n", strings.Join(s.InferredFromItems, ", "))
-			}
-		}
-		fmt.Println()
-	}
+	printOverviewGovernance(resp.Governance)
+	printOverviewSummary(resp.Summary)
+	printOverviewInitiatives(resp.Initiatives)
+	printOverviewUnblocked(resp)
+	printOverviewBlocked(resp.DependencyGraph)
+	printOverviewEdges(resp.DependencyGraph)
+	printOverviewEdgeSuggestions(resp.Consistency.InitiativeEdgeSuggestions)
 
 	// Next steps.
 	printCommandListSection("Next Steps", []string{
 		cliCommand("backlog", "list"),
 		cliCommand("initiatives", "list"),
 	})
+}
+
+func printOverviewGovernance(gov *GovernanceStatus) {
+	if gov == nil {
+		return
+	}
+	printSection("Governance")
+	fmt.Printf("  Active total: %d | Queue: %d/%d\n",
+		gov.ActiveExecutions, gov.QueueDepth, gov.MaxQueueDepth)
+	// Per-lane breakdown — mirrors the four-lane Operations Center
+	// header on the UI.
+	for _, lane := range gov.Lanes {
+		fmt.Printf("  %-12s %d/%d active", lane.Lane, lane.Active, lane.Capacity)
+		if lane.Queue > 0 {
+			fmt.Printf(" | queue %d", lane.Queue)
+		}
+		fmt.Println()
+	}
+	if gov.EstimatedQueuedCost > 0 {
+		fmt.Printf("  Estimated queued cost: $%.2f\n", gov.EstimatedQueuedCost)
+	}
+	if len(gov.CircuitBrokenItems) > 0 {
+		fmt.Printf("  Circuit-broken: %s\n", strings.Join(gov.CircuitBrokenItems, ", "))
+	}
+	fmt.Println()
+}
+
+func printOverviewSummary(summary OverviewSummary) {
+	printSection("Summary")
+	statusParts := formatMapCounts(summary.ItemsByStatus)
+	fmt.Printf("  Total items: %d | By status: %s\n", summary.TotalItems, statusParts)
+	kindParts := formatMapCounts(summary.ItemsByKind)
+	fmt.Printf("  By kind: %s\n", kindParts)
+	fmt.Printf("  Active initiatives: %d\n", summary.ActiveInitiatives)
+	fmt.Println()
+}
+
+func printOverviewInitiatives(initiatives []OverviewInitiative) {
+	if len(initiatives) == 0 {
+		return
+	}
+	printSection("Initiatives")
+	for _, item := range initiatives {
+		init := item.Initiative
+		rollup := item.Rollup
+		fmt.Printf("  %s -- %d/%d completed -- %s\n",
+			init.Title, rollup.Completed, rollup.Total, init.Status)
+		if len(init.Items) > 0 {
+			fmt.Printf("    Items: %s\n", strings.Join(init.Items, ", "))
+		}
+	}
+	fmt.Println()
+}
+
+func printOverviewUnblocked(resp OverviewResponse) {
+	if len(resp.DependencyGraph.Unblocked) == 0 {
+		return
+	}
+	printSection("Ready to Execute (unblocked)")
+	// Build a lookup for quick access to item details.
+	itemMap := make(map[string]BacklogItem, len(resp.Items))
+	for _, item := range resp.Items {
+		itemMap[item.Kind+"/"+item.Name] = item
+	}
+	for _, key := range resp.DependencyGraph.Unblocked {
+		if item, ok := itemMap[key]; ok {
+			fmt.Printf("  - %s -- %s (priority: %d)\n", key, item.Title, item.Priority)
+		} else {
+			fmt.Printf("  - %s\n", key)
+		}
+	}
+	fmt.Println()
+}
+
+func printOverviewBlocked(graph OverviewDepGraph) {
+	if len(graph.Blocked) == 0 {
+		return
+	}
+	printSection("Blocked")
+	// Build a reverse lookup: which deps block each item.
+	blockers := make(map[string][]string)
+	for _, edge := range graph.Edges {
+		from, to := edge[0], edge[1]
+		blockers[from] = append(blockers[from], to)
+	}
+	for _, key := range graph.Blocked {
+		deps := blockers[key]
+		sort.Strings(deps)
+		fmt.Printf("  - %s -- blocked by: %s\n", key, strings.Join(deps, ", "))
+	}
+	fmt.Println()
+}
+
+func printOverviewEdges(graph OverviewDepGraph) {
+	if len(graph.Edges) == 0 {
+		return
+	}
+	printSection("Dependency Graph")
+	for _, edge := range graph.Edges {
+		fmt.Printf("  %s -> %s\n", edge[0], edge[1])
+	}
+	fmt.Println()
+}
+
+func printOverviewEdgeSuggestions(suggestions []InitiativeEdgeSuggestion) {
+	if len(suggestions) == 0 {
+		return
+	}
+	printSection("Initiative Edge Suggestions")
+	fmt.Println("  Drift between explicit initiative deps and edges implied by child items.")
+	fmt.Println("  Review before accepting — never auto-applied.")
+	for _, s := range suggestions {
+		fmt.Printf("  - [%s] %s -> %s: %s\n", s.Direction, s.From, s.To, s.Reason)
+		if len(s.InferredFromItems) > 0 {
+			fmt.Printf("      via: %s\n", strings.Join(s.InferredFromItems, ", "))
+		}
+	}
+	fmt.Println()
 }
 
 // formatMapCounts renders a map as "key1(N) key2(M) ..." in sorted key order.

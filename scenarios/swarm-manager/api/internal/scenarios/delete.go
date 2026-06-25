@@ -90,32 +90,9 @@ func normalizePreserveFilesRequest(req *apipb.PreserveFilesRequest) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	name := vars["name"]
-	trimmedName := strings.TrimSpace(name)
 
-	source, found, err := h.findScenarioSource(r.Context(), name)
-	if err != nil {
-		apierr.MapError(w, "[scenarios] delete", apierr.Internal("failed to load scenarios from CLI"))
-		return
-	}
-	if !found {
-		apierr.MapError(w, "", apierr.NotFound("scenario not found"))
-		return
-	}
-	scenarioPath := strings.TrimSpace(source.Path)
-	if scenarioPath == "" {
-		apierr.MapError(w, "[scenarios] delete", apierr.Internal("scenario path missing from CLI output"))
-		return
-	}
-	if strings.EqualFold(trimmedName, "swarm-manager") {
-		apierr.MapError(w, "[scenarios] delete", apierr.BadRequest("%s", errProtectedScenarioDelete.Error()))
-		return
-	}
-	if _, err := os.Stat(scenarioPath); err != nil {
-		if os.IsNotExist(err) {
-			apierr.MapError(w, "", apierr.NotFound("scenario not found"))
-			return
-		}
-		apierr.MapError(w, "[scenarios] delete", apierr.Internal("failed to access scenario directory"))
+	source, scenarioPath, ok := h.resolveDeletableScenario(w, r, name)
+	if !ok {
 		return
 	}
 
@@ -123,20 +100,9 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	archive := r.URL.Query().Get("archive") == "true"
 
 	// Parse optional request body for preserve_files
-	var preserveFiles *apipb.PreserveFilesRequest
-	if r.Body != nil && r.ContentLength > 0 {
-		var req apipb.DeleteScenarioRequest
-		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-			apierr.MapError(w, "[scenarios] delete", apierr.BadRequest("invalid request body"))
-			return
-		}
-		if req.PreserveFiles != nil {
-			normalizePreserveFilesRequest(req.PreserveFiles)
-		}
-		if !httputil.ValidateProtoRequest(w, "[scenarios] delete", "invalid request body", &req) {
-			return
-		}
-		preserveFiles = req.PreserveFiles
+	preserveFiles, ok := parseDeletePreserveFiles(w, r)
+	if !ok {
+		return
 	}
 
 	// Load scenario data before deletion (for archive or logging)
@@ -183,17 +149,10 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("scenario deleted", "scenario", name, "archived", archive)
 
-	message := "Scenario permanently deleted"
-	if archive {
-		message = "Scenario archived to backlog (idea) and deleted"
-		if len(preservedFiles) > 0 {
-			message = fmt.Sprintf("Scenario archived to backlog (idea) with %d preserved files and deleted", len(preservedFiles))
-		}
-	}
 	response := &apipb.DeleteScenarioResponse{
 		Name:           name,
 		Archived:       archive,
-		Message:        message,
+		Message:        deleteResponseMessage(archive, preservedFiles),
 		PreservedFiles: preservedFiles,
 	}
 	if backlogIdeaName != "" {
@@ -202,6 +161,73 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, response); err != nil {
 		apierr.MapError(w, "[scenarios] delete", apierr.Internal("failed to encode response"))
 	}
+}
+
+// resolveDeletableScenario locates the named scenario and validates it may be
+// deleted (exists on disk, has a path, is not the protected swarm-manager).
+// On any failure it writes the appropriate error response and returns ok=false.
+func (h *Handler) resolveDeletableScenario(w http.ResponseWriter, r *http.Request, name string) (source ScenarioSource, scenarioPath string, ok bool) {
+	trimmedName := strings.TrimSpace(name)
+
+	source, found, err := h.findScenarioSource(r.Context(), name)
+	if err != nil {
+		apierr.MapError(w, "[scenarios] delete", apierr.Internal("failed to load scenarios from CLI"))
+		return source, "", false
+	}
+	if !found {
+		apierr.MapError(w, "", apierr.NotFound("scenario not found"))
+		return source, "", false
+	}
+	scenarioPath = strings.TrimSpace(source.Path)
+	if scenarioPath == "" {
+		apierr.MapError(w, "[scenarios] delete", apierr.Internal("scenario path missing from CLI output"))
+		return source, "", false
+	}
+	if strings.EqualFold(trimmedName, "swarm-manager") {
+		apierr.MapError(w, "[scenarios] delete", apierr.BadRequest("%s", errProtectedScenarioDelete.Error()))
+		return source, "", false
+	}
+	if _, err := os.Stat(scenarioPath); err != nil {
+		if os.IsNotExist(err) {
+			apierr.MapError(w, "", apierr.NotFound("scenario not found"))
+			return source, "", false
+		}
+		apierr.MapError(w, "[scenarios] delete", apierr.Internal("failed to access scenario directory"))
+		return source, "", false
+	}
+	return source, scenarioPath, true
+}
+
+// parseDeletePreserveFiles decodes and validates the optional request body.
+// A nil body is valid (returns nil, true). On a malformed/invalid body it
+// writes the error response and returns ok=false.
+func parseDeletePreserveFiles(w http.ResponseWriter, r *http.Request) (preserveFiles *apipb.PreserveFilesRequest, ok bool) {
+	if r.Body == nil || r.ContentLength <= 0 {
+		return nil, true
+	}
+	var req apipb.DeleteScenarioRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+		apierr.MapError(w, "[scenarios] delete", apierr.BadRequest("invalid request body"))
+		return nil, false
+	}
+	if req.PreserveFiles != nil {
+		normalizePreserveFilesRequest(req.PreserveFiles)
+	}
+	if !httputil.ValidateProtoRequest(w, "[scenarios] delete", "invalid request body", &req) {
+		return nil, false
+	}
+	return req.PreserveFiles, true
+}
+
+// deleteResponseMessage builds the human-readable result message.
+func deleteResponseMessage(archive bool, preservedFiles []string) string {
+	if !archive {
+		return "Scenario permanently deleted"
+	}
+	if len(preservedFiles) > 0 {
+		return fmt.Sprintf("Scenario archived to backlog (idea) with %d preserved files and deleted", len(preservedFiles))
+	}
+	return "Scenario archived to backlog (idea) and deleted"
 }
 
 // SpecSyncArchive triggers a spec-sync agent, then archives on completion.
@@ -299,7 +325,7 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 		return "", "", nil, fmt.Errorf("%w: %s", errArchiveTargetExists, ideaName)
 	}
 	stagingRoot := filepath.Join(filepath.Dir(strings.TrimSpace(scenarioPath)), ".swarm-manager-archive-staging")
-	if err := os.MkdirAll(stagingRoot, 0o755); err != nil {
+	if err := os.MkdirAll(stagingRoot, 0o750); err != nil {
 		return "", "", nil, err
 	}
 	stagingDir, err := os.MkdirTemp(stagingRoot, ideaName+"-")
@@ -307,10 +333,12 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 		return "", "", nil, err
 	}
 	defer func() {
-		_ = os.RemoveAll(stagingDir)
+		if rmErr := os.RemoveAll(stagingDir); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("scenarios: cleanup staging dir failed", "err", rmErr, "dir", stagingDir)
+		}
 	}()
 
-	if err := os.MkdirAll(stagingDir, 0o755); err != nil {
+	if err := os.MkdirAll(stagingDir, 0o750); err != nil {
 		return "", "", nil, err
 	}
 
@@ -353,11 +381,11 @@ func (h *Handler) archiveToBacklogIdea(scenario Scenario, scenarioPath string, p
 	}
 
 	specPath := filepath.Join(stagingDir, "spec.json")
-	if err := os.WriteFile(specPath, data, 0o644); err != nil {
+	if err := os.WriteFile(specPath, data, 0o600); err != nil {
 		return "", "", nil, err
 	}
 
-	if err := os.MkdirAll(ideaRoot, 0o755); err != nil {
+	if err := os.MkdirAll(ideaRoot, 0o750); err != nil {
 		return "", "", nil, err
 	}
 	if err := os.Rename(stagingDir, ideaDir); err != nil {

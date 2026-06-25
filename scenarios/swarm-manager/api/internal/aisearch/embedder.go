@@ -63,6 +63,9 @@ func newEmbedderWithRunner(role string, run embedderRunner) Embedder {
 }
 
 func defaultRunner(ctx context.Context, args []string, stdin []byte) ([]byte, error) {
+	// #nosec G702 -- no shell; args[0] is the fixed "resource-ollama" binary and
+	// the remaining argv are internal flags. The text to embed is passed via
+	// stdin, never as a command argument, so injection is not possible.
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	if len(stdin) > 0 {
 		cmd.Stdin = bytes.NewReader(stdin)

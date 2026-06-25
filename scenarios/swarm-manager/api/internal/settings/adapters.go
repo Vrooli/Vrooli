@@ -5,24 +5,6 @@ import (
 	"swarm-manager/internal/execution"
 )
 
-// agentAdapter bridges Store to agentmanager.SettingsReader.
-type agentAdapter struct {
-	store *Store
-}
-
-// NewAgentAdapter creates a SettingsReader backed by the given Store.
-func NewAgentAdapter(store *Store) *agentAdapter {
-	return &agentAdapter{store: store}
-}
-
-func (a *agentAdapter) LoadAgentSettings() (maxTurns, timeoutSeconds int32, err error) {
-	s, err := a.store.Load()
-	if err != nil {
-		return 0, 0, err
-	}
-	return int32(s.AgentMaxTurns), int32(s.AgentTimeoutSeconds), nil
-}
-
 // policyAdapter bridges Store to execution.PolicyProvider.
 type policyAdapter struct {
 	store *Store

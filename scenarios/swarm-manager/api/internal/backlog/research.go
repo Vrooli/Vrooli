@@ -198,6 +198,245 @@ func buildVariableMap(item BacklogItem, itemFolder string) map[string]string {
 	return vars
 }
 
+// researchHandleDependencyBlocking evaluates dependency blocking for a research
+// request and, when the request must not proceed, writes the appropriate
+// (blocked or dry-run) response and returns true. It returns false when the
+// caller may continue spawning the research agent.
+func (h *Handler) researchHandleDependencyBlocking(w http.ResponseWriter, item BacklogItem, kind BacklogKind, name string, confirm, force bool) bool {
+	depReasons, depErr := EvaluateDependencyBlocking(item, h.store)
+	if depErr != nil {
+		slog.Error("research dependency check failed", "kind", kind, "name", name, "err", depErr)
+		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to check dependencies"))
+		return true
+	}
+	if len(depReasons) == 0 {
+		return false
+	}
+
+	protoReasons := make([]*apipb.BlockingReason, len(depReasons))
+	for i, r := range depReasons {
+		protoReasons[i] = &apipb.BlockingReason{Message: r.Message, Forceable: r.Forceable}
+	}
+
+	writeBlocked := func(message string) bool {
+		resp := &apipb.BacklogResearchResponse{
+			DryRun:          true,
+			Started:         false,
+			Message:         message,
+			BlockingReasons: protoReasons,
+		}
+		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode blocked response"))
+		}
+		return true
+	}
+
+	if !confirm {
+		return writeBlocked("Research blocked by dependencies. Use confirm=true and force=true (CLI: --execute --force) to override.")
+	}
+	if !force || HasNonForceableReasons(depReasons) {
+		return writeBlocked("Research blocked by dependencies.")
+	}
+	// force=true and all reasons are forceable — proceed.
+	return false
+}
+
+// researchFinalizePrecheck enforces the finalize-mode preconditions and returns
+// the advisory pre-finalization gap report. The bool is false when a
+// precondition failed and an error response has already been written.
+func (h *Handler) researchFinalizePrecheck(w http.ResponseWriter, item BacklogItem, kind BacklogKind, name string) (string, bool) {
+	itemDir := h.store.ItemDir(kind, item.Name)
+	latestRound, roundCount, loadErr := LoadLatestRound(itemDir)
+	if loadErr != nil {
+		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to load workshop rounds for finalize"))
+		return "", false
+	}
+	if latestRound == nil {
+		apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize requires at least one workshop round"))
+		return "", false
+	}
+	if CountPendingDecisions(latestRound) > 0 {
+		apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available after answering all workshop decisions"))
+		return "", false
+	}
+	effective := ComputeEffectiveScores(latestRound.Readiness, roundCount, kind)
+	if !IsReady(effective) {
+		apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available when the latest workshop round is ready"))
+		return "", false
+	}
+	if !NeedsSynthesis(latestRound) {
+		apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available when the latest workshop answers have not been synthesized yet"))
+		return "", false
+	}
+
+	// Pre-finalization validation: check plan.md for gaps and pass to agent.
+	if kind == KindResearch {
+		return "", true
+	}
+	deliverable := DeliverableForKind(kind)
+	planContent := LoadPlanContentByName(itemDir, deliverable)
+	var preFinalizeGapReport string
+	if planContent == "" {
+		preFinalizeGapReport = "## Plan Validation Gaps\nplan.md does not exist yet — create all 13 mandatory sections.\n"
+	} else {
+		valResult := ValidatePlanCompleteness(planContent, kind)
+		preFinalizeGapReport = FormatGapReport(valResult)
+	}
+	if preFinalizeGapReport != "" {
+		slog.Info("pre-finalization validation gaps found", "kind", kind, "name", name)
+	}
+	return preFinalizeGapReport, true
+}
+
+// appendResearchContextSections appends the request-supplied context blocks
+// (attached file paths, operational targets, and requirements) to the prompt.
+func appendResearchContextSections(prompt string, req *apipb.BacklogResearchRequest, archiveDir string) string {
+	prompt = appendResearchContextPaths(prompt, req.ContextPaths)
+	prompt = appendResearchContextTargets(prompt, req.ContextTargetIds, archiveDir)
+	prompt = appendResearchContextRequirements(prompt, req.ContextRequirementIds, archiveDir)
+	return prompt
+}
+
+// appendResearchContextPaths lists request-supplied file paths that exist on disk.
+func appendResearchContextPaths(prompt string, paths []string) string {
+	if len(paths) == 0 {
+		return prompt
+	}
+	prompt += "\n\nAttached files for reference:\n"
+	for _, p := range paths {
+		if _, statErr := os.Stat(p); statErr != nil {
+			slog.Warn("research context path does not exist, skipping", "path", p)
+			continue
+		}
+		prompt += "- " + p + "\n"
+	}
+	return prompt
+}
+
+// appendResearchContextTargets lists archive operational targets selected by ID.
+func appendResearchContextTargets(prompt string, targetIDs []string, archiveDir string) string {
+	if len(targetIDs) == 0 {
+		return prompt
+	}
+	targets, parseErr := ParseArchiveTargets(archiveDir)
+	if parseErr != nil || len(targets) == 0 {
+		return prompt
+	}
+	idSet := make(map[string]bool, len(targetIDs))
+	for _, id := range targetIDs {
+		idSet[id] = true
+	}
+	prompt += "\n\nAttached operational targets:\n"
+	for _, t := range targets {
+		if idSet[t.ID] {
+			prompt += fmt.Sprintf("- [%s] %s | %s | %s (status: %s)\n", t.Criticality, t.ID, t.Title, t.Notes, t.Status)
+		}
+	}
+	return prompt
+}
+
+// appendResearchContextRequirements lists archive requirements selected by ID.
+func appendResearchContextRequirements(prompt string, requirementIDs []string, archiveDir string) string {
+	if len(requirementIDs) == 0 {
+		return prompt
+	}
+	groups, parseErr := ParseArchiveRequirements(archiveDir)
+	if parseErr != nil || len(groups) == 0 {
+		return prompt
+	}
+	idSet := make(map[string]bool, len(requirementIDs))
+	for _, id := range requirementIDs {
+		idSet[id] = true
+	}
+	var flatReqs []ArchiveRequirement
+	var walkGroups func([]ArchiveRequirementGroup)
+	walkGroups = func(gs []ArchiveRequirementGroup) {
+		for _, g := range gs {
+			for _, r := range g.Requirements {
+				if idSet[r.ID] {
+					flatReqs = append(flatReqs, r)
+				}
+			}
+			walkGroups(g.Children)
+		}
+	}
+	walkGroups(groups)
+	if len(flatReqs) == 0 {
+		return prompt
+	}
+	prompt += "\n\nAttached requirements:\n"
+	for _, r := range flatReqs {
+		prompt += fmt.Sprintf("- [%s] %s: %s (status: %s)\n", r.ID, r.Title, r.Description, r.Status)
+	}
+	return prompt
+}
+
+// buildResearchPromptAndTrace fetches the research prompt (falling back to a
+// generic instruction on failure), appends user-supplied context, the
+// pre-finalization gap report, and request-attached context sections, and
+// returns the assembled prompt together with its prompt trace.
+func (h *Handler) buildResearchPromptAndTrace(ctx context.Context, item BacklogItem, kind BacklogKind, mode ResearchMode, req *apipb.BacklogResearchRequest, preFinalizeGapReport string) (string, prompttrace.Trace) {
+	selection, promptErr := h.fetchResearchPrompt(ctx, item, mode)
+	prompt := selection.Prompt
+	if promptErr != nil {
+		slog.Warn("research prompt fetch failed, using fallback", "err", promptErr)
+		prompt = "Use the backlog item folder as context and perform the requested research."
+	}
+	trace := prompttrace.Trace{
+		SkillID:      selection.SkillID,
+		Purpose:      "research",
+		Variables:    selection.Variables,
+		Prompt:       prompt,
+		UsedFallback: promptErr != nil,
+		CapturedAt:   prompttrace.NowRFC3339(),
+		ExperimentID: selection.ExperimentID,
+		VariantID:    selection.VariantID,
+	}
+	if strings.TrimSpace(readOptionalString(req.Prompt)) != "" {
+		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(readOptionalString(req.Prompt))
+		trace.Prompt = prompt
+	}
+	if preFinalizeGapReport != "" {
+		prompt = prompt + "\n\n" + preFinalizeGapReport
+		trace.Prompt = prompt
+	}
+
+	// Append attached context sections from request.
+	archiveDir := filepath.Join(h.store.ItemDir(kind, item.Name), "archive")
+	prompt = appendResearchContextSections(prompt, req, archiveDir)
+	trace.Prompt = prompt
+	return prompt, trace
+}
+
+// writeResearchDryRun writes the dry-run research response (no agent spawned).
+func writeResearchDryRun(w http.ResponseWriter) {
+	resp := &apipb.BacklogResearchResponse{
+		TaskId:  "dry-run-task",
+		RunId:   "dry-run-run",
+		BaseUrl: "",
+		Created: time.Now().UTC().Format(time.RFC3339),
+		DryRun:  true,
+		Started: false,
+		Message: "Dry run. No agent spawned.",
+	}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
+		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode dry-run response"))
+	}
+}
+
+// mapResearchSpawnError classifies an error from SpawnBacklog into the
+// appropriate API error response.
+func mapResearchSpawnError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, agentmanager.ErrNotAvailable):
+		apierr.MapError(w, "[backlog] research", apierr.Unavailable("agent-manager is not available"))
+	case errors.Is(err, agentactivity.ErrBacklogItemBusy):
+		apierr.MapError(w, "[backlog] research", apierr.Conflict("an agent is already active for this backlog item"))
+	default:
+		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to spawn research agent"))
+	}
+}
+
 // Research spawns a research agent via agent-manager for the specified backlog item.
 func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "research")
@@ -245,42 +484,8 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	// workshop has started or is being refined, it should complete
 	// regardless of dependency state.
 	if mode == ResearchModeInitialize || mode == ResearchModeWorkshop {
-		depReasons, depErr := EvaluateDependencyBlocking(item, h.store)
-		if depErr != nil {
-			slog.Error("research dependency check failed", "kind", kind, "name", name, "err", depErr)
-			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to check dependencies"))
+		if handled := h.researchHandleDependencyBlocking(w, item, kind, name, confirm, force); handled {
 			return
-		}
-		if len(depReasons) > 0 {
-			protoReasons := make([]*apipb.BlockingReason, len(depReasons))
-			for i, r := range depReasons {
-				protoReasons[i] = &apipb.BlockingReason{Message: r.Message, Forceable: r.Forceable}
-			}
-			if !confirm {
-				resp := &apipb.BacklogResearchResponse{
-					DryRun:          true,
-					Started:         false,
-					Message:         "Research blocked by dependencies. Use confirm=true and force=true (CLI: --execute --force) to override.",
-					BlockingReasons: protoReasons,
-				}
-				if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
-					apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode blocked response"))
-				}
-				return
-			}
-			if !force || HasNonForceableReasons(depReasons) {
-				resp := &apipb.BacklogResearchResponse{
-					DryRun:          true,
-					Started:         false,
-					Message:         "Research blocked by dependencies.",
-					BlockingReasons: protoReasons,
-				}
-				if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
-					apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode blocked response"))
-				}
-				return
-			}
-			// force=true and all reasons are forceable — proceed.
 		}
 	}
 
@@ -291,44 +496,11 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	// Pre-finalization gap report — advisory context injected into the finalize prompt.
 	var preFinalizeGapReport string
 	if mode == ResearchModeFinalize {
-		itemDir := h.store.ItemDir(kind, item.Name)
-		latestRound, roundCount, loadErr := LoadLatestRound(itemDir)
-		if loadErr != nil {
-			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to load workshop rounds for finalize"))
+		report, ok := h.researchFinalizePrecheck(w, item, kind, name)
+		if !ok {
 			return
 		}
-		if latestRound == nil {
-			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize requires at least one workshop round"))
-			return
-		}
-		if CountPendingDecisions(latestRound) > 0 {
-			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available after answering all workshop decisions"))
-			return
-		}
-		effective := ComputeEffectiveScores(latestRound.Readiness, roundCount, kind)
-		if !IsReady(effective) {
-			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available when the latest workshop round is ready"))
-			return
-		}
-		if !NeedsSynthesis(latestRound) {
-			apierr.MapError(w, "[backlog] research", apierr.Conflict("finalize is only available when the latest workshop answers have not been synthesized yet"))
-			return
-		}
-
-		// Pre-finalization validation: check plan.md for gaps and pass to agent.
-		if kind != KindResearch {
-			deliverable := DeliverableForKind(kind)
-			planContent := LoadPlanContentByName(itemDir, deliverable)
-			if planContent == "" {
-				preFinalizeGapReport = "## Plan Validation Gaps\nplan.md does not exist yet — create all 13 mandatory sections.\n"
-			} else {
-				valResult := ValidatePlanCompleteness(planContent, kind)
-				preFinalizeGapReport = FormatGapReport(valResult)
-			}
-			if preFinalizeGapReport != "" {
-				slog.Info("pre-finalization validation gaps found", "kind", kind, "name", name)
-			}
-		}
+		preFinalizeGapReport = report
 	}
 
 	scopePath := "." // Always use project root for sandbox overlay.
@@ -343,89 +515,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	selection, promptErr := h.fetchResearchPrompt(r.Context(), item, mode)
-	prompt := selection.Prompt
-	if promptErr != nil {
-		slog.Warn("research prompt fetch failed, using fallback", "err", promptErr)
-		prompt = "Use the backlog item folder as context and perform the requested research."
-	}
-	trace := prompttrace.Trace{
-		SkillID:      selection.SkillID,
-		Purpose:      "research",
-		Variables:    selection.Variables,
-		Prompt:       prompt,
-		UsedFallback: promptErr != nil,
-		CapturedAt:   prompttrace.NowRFC3339(),
-		ExperimentID: selection.ExperimentID,
-		VariantID:    selection.VariantID,
-	}
-	if strings.TrimSpace(readOptionalString(req.Prompt)) != "" {
-		prompt = prompt + "\n\nAdditional context from user:\n" + strings.TrimSpace(readOptionalString(req.Prompt))
-		trace.Prompt = prompt
-	}
-	if preFinalizeGapReport != "" {
-		prompt = prompt + "\n\n" + preFinalizeGapReport
-		trace.Prompt = prompt
-	}
-
-	// Append attached context sections from request.
-	if len(req.ContextPaths) > 0 {
-		prompt += "\n\nAttached files for reference:\n"
-		for _, p := range req.ContextPaths {
-			if _, statErr := os.Stat(p); statErr != nil {
-				slog.Warn("research context path does not exist, skipping", "path", p)
-				continue
-			}
-			prompt += "- " + p + "\n"
-		}
-		trace.Prompt = prompt
-	}
-	archiveDir := filepath.Join(h.store.ItemDir(kind, item.Name), "archive")
-	if len(req.ContextTargetIds) > 0 {
-		targets, parseErr := ParseArchiveTargets(archiveDir)
-		if parseErr == nil && len(targets) > 0 {
-			idSet := make(map[string]bool, len(req.ContextTargetIds))
-			for _, id := range req.ContextTargetIds {
-				idSet[id] = true
-			}
-			prompt += "\n\nAttached operational targets:\n"
-			for _, t := range targets {
-				if idSet[t.ID] {
-					prompt += fmt.Sprintf("- [%s] %s | %s | %s (status: %s)\n", t.Criticality, t.ID, t.Title, t.Notes, t.Status)
-				}
-			}
-			trace.Prompt = prompt
-		}
-	}
-	if len(req.ContextRequirementIds) > 0 {
-		groups, parseErr := ParseArchiveRequirements(archiveDir)
-		if parseErr == nil && len(groups) > 0 {
-			idSet := make(map[string]bool, len(req.ContextRequirementIds))
-			for _, id := range req.ContextRequirementIds {
-				idSet[id] = true
-			}
-			var flatReqs []ArchiveRequirement
-			var walkGroups func([]ArchiveRequirementGroup)
-			walkGroups = func(gs []ArchiveRequirementGroup) {
-				for _, g := range gs {
-					for _, r := range g.Requirements {
-						if idSet[r.ID] {
-							flatReqs = append(flatReqs, r)
-						}
-					}
-					walkGroups(g.Children)
-				}
-			}
-			walkGroups(groups)
-			if len(flatReqs) > 0 {
-				prompt += "\n\nAttached requirements:\n"
-				for _, r := range flatReqs {
-					prompt += fmt.Sprintf("- [%s] %s: %s (status: %s)\n", r.ID, r.Title, r.Description, r.Status)
-				}
-				trace.Prompt = prompt
-			}
-		}
-	}
+	prompt, trace := h.buildResearchPromptAndTrace(r.Context(), item, kind, mode, &req, preFinalizeGapReport)
 
 	// Cancel any pending auto-advance for workshop/finalize modes. This
 	// prevents a deferred auto-advance from racing with the user's manual
@@ -442,18 +532,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if httputil.IsDryRun(r) {
-		resp := &apipb.BacklogResearchResponse{
-			TaskId:  "dry-run-task",
-			RunId:   "dry-run-run",
-			BaseUrl: "",
-			Created: time.Now().UTC().Format(time.RFC3339),
-			DryRun:  true,
-			Started: false,
-			Message: "Dry run. No agent spawned.",
-		}
-		if err := httputil.ProtoJSONWithStatus(w, http.StatusOK, resp); err != nil {
-			apierr.MapError(w, "[backlog] research", apierr.Internal("failed to encode dry-run response"))
-		}
+		writeResearchDryRun(w)
 		return
 	}
 
@@ -468,7 +547,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		Metadata: map[string]string{
 			"entrypoint": "backlog.research",
 			"mode":       string(mode),
-			"skill_id":   selection.SkillID,
+			"skill_id":   trace.SkillID,
 		},
 	})
 
@@ -485,15 +564,7 @@ func (h *Handler) Research(w http.ResponseWriter, r *http.Request) {
 		Environment: map[string]string{"VROOLI_SPAWN_SOURCE": string(kind) + "/" + item.Name},
 	})
 	if err != nil {
-		if errors.Is(err, agentmanager.ErrNotAvailable) {
-			apierr.MapError(w, "[backlog] research", apierr.Unavailable("agent-manager is not available"))
-			return
-		}
-		if errors.Is(err, agentactivity.ErrBacklogItemBusy) {
-			apierr.MapError(w, "[backlog] research", apierr.Conflict("an agent is already active for this backlog item"))
-			return
-		}
-		apierr.MapError(w, "[backlog] research", apierr.Internal("failed to spawn research agent"))
+		mapResearchSpawnError(w, err)
 		return
 	}
 

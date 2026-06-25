@@ -170,6 +170,120 @@ func addActivityNodesAndEdges(
 	return nodes, edges
 }
 
+// appendOperationsExecutionNodes appends execution nodes and executes edges for
+// executions whose parent backlog item is in the actionable selection.
+func appendOperationsExecutionNodes(
+	nodes []Node,
+	edges []Edge,
+	allRecords []execution.Record,
+	selectedKeys map[string]struct{},
+) ([]Node, []Edge) {
+	for _, rec := range allRecords {
+		targetKey := backlogItemKey(rec.BacklogKind, rec.BacklogName)
+		if _, ok := selectedKeys[targetKey]; !ok {
+			continue
+		}
+		nodes = append(nodes, buildExecutionNode(rec))
+		edges = append(edges, Edge{
+			ID:     fmt.Sprintf("executes:%s->%s", rec.ExecutionID, targetKey),
+			Source: "execution-record/" + rec.ExecutionID,
+			Target: backlogItemNodeIDFromKey(targetKey),
+			Type:   "executes",
+		})
+	}
+	return nodes, edges
+}
+
+// appendOperationsInitiativeNodes appends non-archived initiative nodes for the
+// operations lens (grouping context).
+func (p *ProjectionService) appendOperationsInitiativeNodes(
+	ctx context.Context,
+	nodes []Node,
+	itemByKey map[string]backlog.BacklogItem,
+) []Node {
+	if p.initiative == nil {
+		return nodes
+	}
+	inits, err := p.initiative.List()
+	if err != nil {
+		slog.Error("operations: initiatives error", "error", err)
+		return nodes
+	}
+	activeRounds := p.loadActiveRounds(ctx)
+	for _, init := range inits {
+		if init.ArchivedAt != nil {
+			continue
+		}
+		rollup := computeInitiativeRollup(init.Items, itemByKey)
+		data := GraphInitiativeNodeData{
+			Name:   init.Name,
+			Title:  init.Title,
+			Status: init.Status,
+			Rollup: GraphInitiativeRollup{
+				Total:      int32(rollup.Total),
+				Completed:  int32(rollup.Completed),
+				InProgress: int32(rollup.InProgress),
+				Failed:     int32(rollup.Failed),
+				Pending:    int32(rollup.Pending),
+			},
+		}
+		if round, ok := activeRounds[init.Name]; ok {
+			data.OperatingMode = round.Mode
+			data.ActiveRound = &GraphInitiativeActiveRound{
+				Mode:   round.Mode,
+				Phase:  round.Phase,
+				Round:  round.Round,
+				Status: round.Status,
+			}
+		}
+		nodes = append(nodes, Node{
+			ID:   "initiative/" + init.Name,
+			Type: "Initiative",
+			Data: data,
+		})
+	}
+	return nodes
+}
+
+// appendOperationsActivityNodes loads active agent activities whose owner is
+// already present in the graph, then appends the corresponding activity/run
+// nodes and edges.
+func (p *ProjectionService) appendOperationsActivityNodes(
+	ctx context.Context,
+	nodes []Node,
+	edges []Edge,
+) ([]Node, []Edge) {
+	if p.activity == nil {
+		return nodes, edges
+	}
+	allActivities, err := p.activity.List(ctx, agentactivity.ListFilters{ActiveOnly: true})
+	if err != nil {
+		slog.Error("operations: activity list error", "error", err)
+		return nodes, edges
+	}
+
+	// Build owner and execution ID sets from nodes already in the graph.
+	ownerNodeIDs := make(map[string]struct{}, len(nodes))
+	executionIDs := make(map[string]struct{})
+	for _, n := range nodes {
+		ownerNodeIDs[n.ID] = struct{}{}
+		if n.Type == "ExecutionRecord" {
+			executionIDs[n.ID[len("execution-record/"):]] = struct{}{}
+		}
+	}
+
+	// Filter to activities whose owner is in the graph.
+	var ownedActivities []agentactivity.Record
+	for _, a := range allActivities {
+		targetID := ownerNodeID(a)
+		if _, ok := ownerNodeIDs[targetID]; targetID != "" && ok {
+			ownedActivities = append(ownedActivities, a)
+		}
+	}
+
+	return addActivityNodesAndEdges(nodes, edges, ownedActivities, executionIDs, ownerNodeIDs)
+}
+
 // buildOperations builds the operations lens projection.
 // The operations lens shows actionable entities: backlog items that need
 // attention, their active executions, initiatives (for grouping context),
@@ -215,65 +329,14 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 	}
 
 	// Build execution nodes only for executions whose parent backlog is actionable.
-	for _, rec := range allRecords {
-		targetKey := backlogItemKey(rec.BacklogKind, rec.BacklogName)
-		if _, ok := selectedBacklog.keys[targetKey]; !ok {
-			continue
-		}
-		nodes = append(nodes, buildExecutionNode(rec))
-		edges = append(edges, Edge{
-			ID:     fmt.Sprintf("executes:%s->%s", rec.ExecutionID, targetKey),
-			Source: "execution-record/" + rec.ExecutionID,
-			Target: backlogItemNodeIDFromKey(targetKey),
-			Type:   "executes",
-		})
-	}
+	nodes, edges = appendOperationsExecutionNodes(nodes, edges, allRecords, selectedBacklog.keys)
 
 	// Initiative nodes and member_of edges (placeholder for future actions).
 	itemByKey := make(map[string]backlog.BacklogItem, len(items))
 	for _, item := range items {
 		itemByKey[backlogItemKey(string(item.Kind), item.Name)] = item
 	}
-	if p.initiative != nil {
-		inits, err := p.initiative.List()
-		if err != nil {
-			slog.Error("operations: initiatives error", "error", err)
-		} else {
-			activeRounds := p.loadActiveRounds(ctx)
-			for _, init := range inits {
-				if init.ArchivedAt != nil {
-					continue
-				}
-				rollup := computeInitiativeRollup(init.Items, itemByKey)
-				data := GraphInitiativeNodeData{
-					Name:   init.Name,
-					Title:  init.Title,
-					Status: init.Status,
-					Rollup: GraphInitiativeRollup{
-						Total:      int32(rollup.Total),
-						Completed:  int32(rollup.Completed),
-						InProgress: int32(rollup.InProgress),
-						Failed:     int32(rollup.Failed),
-						Pending:    int32(rollup.Pending),
-					},
-				}
-				if round, ok := activeRounds[init.Name]; ok {
-					data.OperatingMode = round.Mode
-					data.ActiveRound = &GraphInitiativeActiveRound{
-						Mode:   round.Mode,
-						Phase:  round.Phase,
-						Round:  round.Round,
-						Status: round.Status,
-					}
-				}
-				nodes = append(nodes, Node{
-					ID:   "initiative/" + init.Name,
-					Type: "Initiative",
-					Data: data,
-				})
-			}
-		}
-	}
+	nodes = p.appendOperationsInitiativeNodes(ctx, nodes, itemByKey)
 	for _, item := range selectedBacklog.items {
 		if item.Initiative == "" {
 			continue
@@ -288,33 +351,7 @@ func (p *ProjectionService) buildOperations(ctx context.Context, focusNodeID str
 	}
 
 	// Load active agent activities whose owner is already in the graph.
-	if p.activity != nil {
-		allActivities, err := p.activity.List(ctx, agentactivity.ListFilters{ActiveOnly: true})
-		if err != nil {
-			slog.Error("operations: activity list error", "error", err)
-		} else {
-			// Build owner and execution ID sets from nodes already in the graph.
-			ownerNodeIDs := make(map[string]struct{}, len(nodes))
-			executionIDs := make(map[string]struct{})
-			for _, n := range nodes {
-				ownerNodeIDs[n.ID] = struct{}{}
-				if n.Type == "ExecutionRecord" {
-					executionIDs[n.ID[len("execution-record/"):]] = struct{}{}
-				}
-			}
-
-			// Filter to activities whose owner is in the graph.
-			var ownedActivities []agentactivity.Record
-			for _, a := range allActivities {
-				targetID := ownerNodeID(a)
-				if _, ok := ownerNodeIDs[targetID]; targetID != "" && ok {
-					ownedActivities = append(ownedActivities, a)
-				}
-			}
-
-			nodes, edges = addActivityNodesAndEdges(nodes, edges, ownedActivities, executionIDs, ownerNodeIDs)
-		}
-	}
+	nodes, edges = p.appendOperationsActivityNodes(ctx, nodes, edges)
 
 	resp := NewGraphResponse(LensOperations, nodes, edges)
 	resp.Meta.AgentManagerAvailable = &agentAvailable

@@ -111,7 +111,30 @@ func computeReviewQueue(
 
 	entries := make(map[string]*scenarioQueueEntry)
 
-	// Pass 1: Count pending backlog items per scenario and detect exclusions.
+	tallyPendingItems(entries, items, excludeTag)
+	tallyExecutionActivity(entries, records, now)
+
+	totalScenarios = len(entries)
+	results, excludedCount = scoreReviewQueueEntries(entries, now, existingScenarios)
+
+	// Sort descending by score, then alphabetically for stability.
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].compositeScore != results[j].compositeScore {
+			return results[i].compositeScore > results[j].compositeScore
+		}
+		return results[i].scenarioName < results[j].scenarioName
+	})
+
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	return results, totalScenarios, excludedCount
+}
+
+// tallyPendingItems counts pending backlog items per scenario and records
+// exclusion / maintenance flags (Pass 1).
+func tallyPendingItems(entries map[string]*scenarioQueueEntry, items []backlog.BacklogItem, excludeTag string) {
 	for _, item := range items {
 		if item.ArchivedAt != nil {
 			continue
@@ -138,8 +161,11 @@ func computeReviewQueue(
 			}
 		}
 	}
+}
 
-	// Pass 2: Walk execution records for recent activity and last review.
+// tallyExecutionActivity walks execution records to record last-review state
+// and recent execution counts per scenario (Pass 2).
+func tallyExecutionActivity(entries map[string]*scenarioQueueEntry, records []execution.Record, now time.Time) {
 	reviewSummaries := ComputeReviewSummaries(records)
 	for name, summary := range reviewSummaries {
 		entry := getOrCreate(entries, name)
@@ -164,9 +190,11 @@ func computeReviewQueue(
 			entry.recentExecutionCount++
 		}
 	}
+}
 
-	// Pass 3: Score and rank.
-	totalScenarios = len(entries)
+// scoreReviewQueueEntries scores and ranks the accumulated entries, applying
+// exclusion filters (Pass 3). Returns the unsorted results and excluded count.
+func scoreReviewQueueEntries(entries map[string]*scenarioQueueEntry, now time.Time, existingScenarios map[string]bool) (results []reviewQueueResult, excludedCount int) {
 	for name, entry := range entries {
 		if entry.excluded {
 			excludedCount++
@@ -181,38 +209,11 @@ func computeReviewQueue(
 
 		workloadScore := float64(entry.pendingCount) * workloadWeight
 		activityScore := float64(entry.recentExecutionCount) * activityWeight
-
-		var stalenessScore float64
-		if entry.lastReviewAt.IsZero() {
-			stalenessScore = stalenessWeight // max staleness if never reviewed
-		} else {
-			hours := now.Sub(entry.lastReviewAt).Hours()
-			if hours > maxStalenessHours {
-				hours = maxStalenessHours
-			}
-			stalenessScore = (hours / maxStalenessHours) * stalenessWeight
-		}
+		stalenessScore := computeStalenessScore(entry.lastReviewAt, now)
 
 		composite := workloadScore + activityScore + stalenessScore
-
-		// Determine primary signal.
-		primary := "staleness"
-		maxComponent := stalenessScore
-		if workloadScore > maxComponent {
-			primary = "workload"
-			maxComponent = workloadScore
-		}
-		if activityScore > maxComponent {
-			primary = "recent_activity"
-		}
-
-		var cooldown time.Time
-		if !entry.lastReviewAt.IsZero() {
-			cd := entry.lastReviewAt.Add(defaultCooldownHours * time.Hour)
-			if cd.After(now) {
-				cooldown = cd
-			}
-		}
+		primary := primarySignalFor(workloadScore, activityScore, stalenessScore)
+		cooldown := computeCooldown(entry.lastReviewAt, now)
 
 		results = append(results, reviewQueueResult{
 			scenarioName:         name,
@@ -225,20 +226,46 @@ func computeReviewQueue(
 			cooldownUntil:        cooldown,
 		})
 	}
+	return results, excludedCount
+}
 
-	// Sort descending by score, then alphabetically for stability.
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].compositeScore != results[j].compositeScore {
-			return results[i].compositeScore > results[j].compositeScore
-		}
-		return results[i].scenarioName < results[j].scenarioName
-	})
-
-	if len(results) > limit {
-		results = results[:limit]
+// computeStalenessScore returns the staleness component of the composite score.
+func computeStalenessScore(lastReviewAt, now time.Time) float64 {
+	if lastReviewAt.IsZero() {
+		return stalenessWeight // max staleness if never reviewed
 	}
+	hours := now.Sub(lastReviewAt).Hours()
+	if hours > maxStalenessHours {
+		hours = maxStalenessHours
+	}
+	return (hours / maxStalenessHours) * stalenessWeight
+}
 
-	return results, totalScenarios, excludedCount
+// primarySignalFor reports which scoring component dominates.
+func primarySignalFor(workloadScore, activityScore, stalenessScore float64) string {
+	primary := "staleness"
+	maxComponent := stalenessScore
+	if workloadScore > maxComponent {
+		primary = "workload"
+		maxComponent = workloadScore
+	}
+	if activityScore > maxComponent {
+		primary = "recent_activity"
+	}
+	return primary
+}
+
+// computeCooldown returns the cooldown expiry, or the zero time when no
+// cooldown is active.
+func computeCooldown(lastReviewAt, now time.Time) time.Time {
+	if lastReviewAt.IsZero() {
+		return time.Time{}
+	}
+	cd := lastReviewAt.Add(defaultCooldownHours * time.Hour)
+	if cd.After(now) {
+		return cd
+	}
+	return time.Time{}
 }
 
 func getOrCreate(m map[string]*scenarioQueueEntry, name string) *scenarioQueueEntry {

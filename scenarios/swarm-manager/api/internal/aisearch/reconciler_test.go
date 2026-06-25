@@ -11,7 +11,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 )
 
 // ---- shared test fakes ----
@@ -664,7 +664,7 @@ func TestReconciler_RunOnce_SingletonWhileRunning(t *testing.T) {
 		_, _, _ = r.RunOnce(context.Background())
 	}()
 	// Wait for the first goroutine to enter RunOnce and acquire the singleton.
-	assertx.Eventually(t, time.Second, "first runonce started", func() bool {
+	testutil.Eventually(t, time.Second, "first runonce started", func() bool {
 		return atomic.LoadInt32(&firstStarted) == 1
 	})
 	// Second RunOnce must immediately bounce off ErrReconcileBusy.
@@ -680,7 +680,7 @@ func TestReconciler_RunOnce_SingletonWhileRunning(t *testing.T) {
 		}
 	}
 	// Drain the slow first call.
-	assertx.Eventually(t, 2*time.Second, "first runonce completes", func() bool {
+	testutil.Eventually(t, 2*time.Second, "first runonce completes", func() bool {
 		return r.Status().Running == false
 	})
 }

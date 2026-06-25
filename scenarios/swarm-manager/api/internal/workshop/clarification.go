@@ -9,6 +9,7 @@ package workshop
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -95,7 +96,7 @@ func LoadClarificationByID(itemDir string, threadID string) (*ClarificationThrea
 // SaveClarification writes a clarification thread to disk.
 func SaveClarification(itemDir string, thread *ClarificationThread) error {
 	dir := filepath.Join(itemDir, "workshop", clarificationsDir)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create clarifications dir: %w", err)
 	}
 	data, err := json.MarshalIndent(thread, "", "  ")
@@ -103,7 +104,7 @@ func SaveClarification(itemDir string, thread *ClarificationThread) error {
 		return fmt.Errorf("marshal clarification: %w", err)
 	}
 	path := clarificationPath(itemDir, thread.RoundNumber, thread.ItemID)
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write clarification: %w", err)
 	}
 	return nil
@@ -169,7 +170,10 @@ func DeleteClarificationsForRound(itemDir string, roundNum int) error {
 	prefix := fmt.Sprintf("round-%03d-", roundNum)
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), prefix) && strings.HasSuffix(entry.Name(), ".json") {
-			_ = os.Remove(filepath.Join(dir, entry.Name()))
+			p := filepath.Join(dir, entry.Name())
+			if rmErr := os.Remove(p); rmErr != nil && !os.IsNotExist(rmErr) {
+				slog.Debug("workshop: remove clarification file failed", "err", rmErr, "path", p)
+			}
 		}
 	}
 	return nil
@@ -208,10 +212,12 @@ func RenumberClarifications(itemDir string, oldNum, newNum int) error {
 					data = updated
 				}
 			}
-			if err := os.WriteFile(newPath, data, 0o644); err != nil {
+			if err := os.WriteFile(newPath, data, 0o600); err != nil {
 				continue
 			}
-			_ = os.Remove(oldPath)
+			if rmErr := os.Remove(oldPath); rmErr != nil && !os.IsNotExist(rmErr) {
+				slog.Debug("workshop: remove renumbered clarification failed", "err", rmErr, "path", oldPath)
+			}
 		}
 	}
 	return nil

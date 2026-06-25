@@ -44,10 +44,17 @@
         },
         {
           "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.tsx",
-          "phase": "business",
-          "status": "failing",
-          "notes": "Theme changes applied via applyTheme() with system theme watching"
+          "ref": "ui/src/lib/theme-utils.test.ts::applies an explicit dark theme to the document root",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "applyTheme() writes data-theme/colorScheme to the document root (theme-utils.ts)"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/theme-utils.test.ts::subscribes to prefers-color-scheme changes and reports the resolved theme",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "watchSystemTheme() subscribes to system theme changes when theme is 'system'"
         }
       ]
     }

@@ -26,10 +26,10 @@ if (typeof Promise.allSettled !== "function") {
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { resolveApiBase } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { API_BASE } from "./lib/api-client";
 import { AudioToolsProvider, createAudioToolsClient, useHydrateVoiceConfig } from "./audio-integration";
 import { fetchAudioToolsDiscovery } from "./api/discovery";
 import "./styles.css";
@@ -104,7 +104,7 @@ ensureSEO();
 // consumer hooks render typed errors and the Audio settings tab can surface a
 // banner.
 function sameOriginAudioBaseUrl(): string {
-  return resolveApiBase();
+  return API_BASE;
 }
 
 async function bootstrapAudioTools(): Promise<{ baseUrl: string; unavailableReason: string }> {

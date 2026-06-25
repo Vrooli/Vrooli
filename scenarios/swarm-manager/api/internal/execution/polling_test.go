@@ -106,7 +106,7 @@ func newTestPollingService(t *testing.T, inspector RunInspector, opts ...func(*S
 	t.Helper()
 	root := t.TempDir()
 	cfg := ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: &stubAgentService{},
 	}
@@ -123,7 +123,7 @@ func TestNewService_DifferWired(t *testing.T) {
 
 	agent := &fullAgentService{}
 	svc := NewService(ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 	})

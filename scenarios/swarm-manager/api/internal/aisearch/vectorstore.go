@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,6 +15,18 @@ import (
 
 	sharedsearch "github.com/vrooli/ai-go/search"
 )
+
+// closeBody closes an HTTP response body on a best-effort basis. The body is
+// always fully read/drained before this is called, so a close error is not
+// actionable; we log it at debug for diagnostics rather than discard it.
+func closeBody(resp *http.Response) {
+	if resp == nil || resp.Body == nil {
+		return
+	}
+	if err := resp.Body.Close(); err != nil {
+		slog.Debug("aisearch: close response body failed", "err", err)
+	}
+}
 
 // Default values applied by NewVectorStore when callers pass empty/zero. Kept
 // as exported constants so behavior tests (which exercise the constructor via
@@ -117,6 +130,9 @@ func (v *qdrantVectorStore) do(req *http.Request) (*http.Response, error) {
 	if key := strings.TrimSpace(v.APIKey); key != "" {
 		req.Header.Set("api-key", key)
 	}
+	// #nosec G704 -- not SSRF: the request target derives solely from the
+	// operator-configured Qdrant endpoint (QDRANT_URL, validated to be an
+	// http(s) URL with a host in baseURL()), never from request/user data.
 	resp, err := v.client().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("qdrant request failed: %w", err)
@@ -128,6 +144,20 @@ func (v *qdrantVectorStore) baseURL() (string, error) {
 	base := strings.TrimRight(strings.TrimSpace(v.BaseURL), "/")
 	if base == "" {
 		return "", fmt.Errorf("qdrant base url is required")
+	}
+	// Defense-in-depth: the endpoint comes from operator configuration
+	// (QDRANT_URL), never from request data, but reject anything that is not a
+	// well-formed http(s) URL with a host so a misconfiguration cannot send
+	// requests to an unexpected scheme (e.g. file://) or a relative target.
+	parsed, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("qdrant base url is invalid: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("qdrant base url must be http or https, got %q", parsed.Scheme)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("qdrant base url must include a host")
 	}
 	return base, nil
 }
@@ -167,7 +197,7 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	_ = getResp.Body.Close()
+	closeBody(getResp)
 	if getResp.StatusCode == http.StatusOK {
 		return nil
 	}
@@ -360,6 +390,8 @@ func (v *qdrantVectorStore) Search(ctx context.Context, vector []float64, limit 
 		return nil, fmt.Errorf("failed to marshal search request: %w", err)
 	}
 
+	// #nosec G704 -- u derives from the operator-configured Qdrant endpoint
+	// (validated in baseURL()), not from request data; this is not SSRF.
 	req, err := http.NewRequestWithContext(ctx, "POST", u.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -418,6 +450,8 @@ func (v *qdrantVectorStore) CountPoints(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal count request: %w", err)
 	}
+	// #nosec G704 -- u derives from the operator-configured Qdrant endpoint
+	// (validated in baseURL()), not from request data; this is not SSRF.
 	req, err := http.NewRequestWithContext(ctx, "POST", u.String(), bytes.NewReader(body))
 	if err != nil {
 		return 0, fmt.Errorf("failed to create count request: %w", err)
@@ -461,6 +495,8 @@ func (v *qdrantVectorStore) Available(ctx context.Context) bool {
 	}
 	u.Path = fmt.Sprintf("%s/collections", strings.TrimRight(u.Path, "/"))
 
+	// #nosec G704 -- u derives from the operator-configured Qdrant endpoint
+	// (validated in baseURL()), not from request data; this is not SSRF.
 	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 	if err != nil {
 		return false
@@ -544,6 +580,8 @@ func (v *qdrantVectorStore) ScrollIDs(ctx context.Context) (map[string]ScrollIte
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal scroll request: %w", err)
 		}
+		// #nosec G704 -- u derives from the operator-configured Qdrant endpoint
+		// (validated in baseURL()), not from request data; this is not SSRF.
 		req, err := http.NewRequestWithContext(ctx, "POST", u.String(), bytes.NewReader(body))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create scroll request: %w", err)
@@ -556,21 +594,21 @@ func (v *qdrantVectorStore) ScrollIDs(ctx context.Context) (map[string]ScrollIte
 		}
 		// Per page: read fully, decode, then close before the next iteration.
 		if resp.StatusCode == http.StatusNotFound {
-			_ = resp.Body.Close()
+			closeBody(resp)
 			return out, nil
 		}
 		if resp.StatusCode != http.StatusOK {
 			raw, _ := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
+			closeBody(resp)
 			return nil, fmt.Errorf("qdrant scroll returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(raw)))
 		}
 
 		var decoded scrollResponse
 		if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
-			_ = resp.Body.Close()
+			closeBody(resp)
 			return nil, fmt.Errorf("failed to decode scroll response: %w", err)
 		}
-		_ = resp.Body.Close()
+		closeBody(resp)
 
 		for _, p := range decoded.Result.Points {
 			id := stringifyID(p.ID)
@@ -648,11 +686,11 @@ func (v *qdrantVectorStore) BatchDelete(ctx context.Context, ids []string) error
 		}
 		if resp.StatusCode != http.StatusOK {
 			raw, _ := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
+			closeBody(resp)
 			errs = append(errs, fmt.Errorf("delete chunk [%d:%d] returned status %d: %s", start, end, resp.StatusCode, strings.TrimSpace(string(raw))))
 			continue
 		}
-		_ = resp.Body.Close()
+		closeBody(resp)
 	}
 	return errors.Join(errs...)
 }

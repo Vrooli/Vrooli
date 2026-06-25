@@ -42,16 +42,8 @@ func NeedsSynthesis(round *WorkshopRound) bool {
 	return workshop.NeedsSynthesis(round)
 }
 
-func HasPlan(itemDir string) bool {
-	return workshop.HasPlan(itemDir)
-}
-
 func HasPlanByName(itemDir, filename string) bool {
 	return workshop.HasPlanByName(itemDir, filename)
-}
-
-func LoadPlanContent(itemDir string) string {
-	return workshop.LoadPlanContent(itemDir)
 }
 
 func LoadPlanContentByName(itemDir, filename string) string {

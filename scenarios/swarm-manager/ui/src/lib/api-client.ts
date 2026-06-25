@@ -323,9 +323,15 @@ export function createApiClient(baseUrl: string, timeoutMs?: number): IApiClient
 }
 
 /**
- * Default API base URL - resolved from VITE_API_BASE_URL or window.location.
- * This is computed once at module load.
+ * Single in-app source of truth for the resolved API base URL.
+ *
+ * `resolveApiBase()` (from @vrooli/api-base) is called in exactly ONE place in
+ * the app — here — and every other module consumes these exported constants so
+ * the whole UI agrees on one resolved base. `API_BASE` is the plain resolved
+ * base (no suffix); `DEFAULT_API_BASE` is the suffixed variant used by the
+ * default HTTP client. Both are computed once at module load.
  */
+export const API_BASE = resolveApiBase();
 export const DEFAULT_API_BASE = resolveApiBase({ appendSuffix: true });
 
 /**

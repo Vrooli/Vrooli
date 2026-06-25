@@ -45,7 +45,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/graph"
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 )
 
 // postJSON posts a JSON body and returns (status, response body). Unlike
@@ -310,7 +310,7 @@ func TestE2EInitiativeFeedback_FullHTTPFlow(t *testing.T) {
 	//    this assertion tolerant of the same fire-and-forget invalidation
 	//    path used by graph regeneration.
 	var postAlpha, postBeta, postGamma int
-	assertx.Eventually(t, 2*time.Second, "accepted feedback mutations to persist priorities", func() bool {
+	testutil.Eventually(t, 2*time.Second, "accepted feedback mutations to persist priorities", func() bool {
 		postAlpha = readBacklogPriority(t, rootDir, "execute", "alpha")
 		postBeta = readBacklogPriority(t, rootDir, "execute", "beta")
 		postGamma = readBacklogPriority(t, rootDir, "execute", "gamma")

@@ -182,18 +182,9 @@ func migrateItem(itemDir string, kind string, dryRun bool) (bool, error) {
 		return false, nil
 	}
 
-	// If none of the old dirs exist and no plan needed, skip.
+	// Workshop already exists but no plan and no old dirs — create plan stub.
 	if !hasClarify && !hasSuggest && !hasEnhance && workshopExists && !planExists {
-		// Workshop exists but no plan — create plan stub from spec.
-		if !dryRun {
-			spec, err := readSpec(itemDir)
-			if err == nil {
-				planContent := fmt.Sprintf("# Implementation Plan: %s\n\n## Purpose\n%s\n", spec.Title, spec.Description)
-				_ = os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte(planContent), 0o644)
-			}
-		}
-		fmt.Printf("  [complete] %s: created plan.md stub\n", filepath.Base(itemDir))
-		return true, nil
+		return migrateWorkshopOnlyStub(itemDir, dryRun)
 	}
 
 	if !hasClarify && !hasSuggest && !hasEnhance {
@@ -208,75 +199,130 @@ func migrateItem(itemDir string, kind string, dryRun bool) (bool, error) {
 	prefix := modePrefix(dryRun)
 	fmt.Printf("%s migrating %s/%s\n", prefix, kind, itemName)
 
-	// --- Step 1: plan.md from enhance/summary.md (skip if already exists) ---
-	if hasEnhance && !planExists {
+	if err := migratePlan(itemDir, enhancePath, prefix, hasEnhance, planExists, dryRun); err != nil {
+		return false, err
+	}
+
+	if err := migrateWorkshopRounds(itemDir, clarifyPath, suggestPath, prefix, hasClarify, hasSuggest, hasEnhance, workshopExists, dryRun); err != nil {
+		return false, err
+	}
+
+	if err := backupOldDirs(itemDir, prefix, dryRun); err != nil {
+		return false, err
+	}
+
+	if err := removeOldDirs(itemDir, prefix, dryRun); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// migrateWorkshopOnlyStub creates a plan.md stub from spec.json for an item
+// that already has a workshop/ directory but no plan and no legacy data.
+func migrateWorkshopOnlyStub(itemDir string, dryRun bool) (bool, error) {
+	if !dryRun {
+		spec, err := readSpec(itemDir)
+		if err == nil {
+			planContent := fmt.Sprintf("# Implementation Plan: %s\n\n## Purpose\n%s\n", spec.Title, spec.Description)
+			_ = os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte(planContent), 0o644)
+		}
+	}
+	fmt.Printf("  [complete] %s: created plan.md stub\n", filepath.Base(itemDir))
+	return true, nil
+}
+
+// migratePlan performs Step 1: create plan.md from enhance/summary.md when
+// present, otherwise a stub from spec.json. No-op when plan.md already exists.
+func migratePlan(itemDir, enhancePath, prefix string, hasEnhance, planExists, dryRun bool) error {
+	if planExists {
+		return nil
+	}
+	if hasEnhance {
 		planDst := filepath.Join(itemDir, "plan.md")
 		fmt.Printf("  %s copy enhance/summary.md → plan.md\n", prefix)
 		if !dryRun {
 			data, err := os.ReadFile(enhancePath)
 			if err != nil {
-				return false, fmt.Errorf("read enhance/summary.md: %w", err)
+				return fmt.Errorf("read enhance/summary.md: %w", err)
 			}
 			if err := os.WriteFile(planDst, data, 0o644); err != nil {
-				return false, fmt.Errorf("write plan.md: %w", err)
+				return fmt.Errorf("write plan.md: %w", err)
 			}
 		}
-	} else if !planExists {
-		// No enhance but old data exists — create plan stub from spec.
-		spec, specErr := readSpec(itemDir)
-		if specErr == nil {
-			fmt.Printf("  %s create plan.md stub from spec.json\n", prefix)
-			if !dryRun {
-				planContent := fmt.Sprintf("# Implementation Plan: %s\n\n## Purpose\n%s\n", spec.Title, spec.Description)
-				_ = os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte(planContent), 0o644)
-			}
+		return nil
+	}
+	// No enhance but old data exists — create plan stub from spec.
+	spec, specErr := readSpec(itemDir)
+	if specErr == nil {
+		fmt.Printf("  %s create plan.md stub from spec.json\n", prefix)
+		if !dryRun {
+			planContent := fmt.Sprintf("# Implementation Plan: %s\n\n## Purpose\n%s\n", spec.Title, spec.Description)
+			_ = os.WriteFile(filepath.Join(itemDir, "plan.md"), []byte(planContent), 0o644)
 		}
 	}
+	return nil
+}
 
-	// --- Step 2: workshop rounds (skip if already exist) ---
+// migrateWorkshopRounds performs Step 2: convert clarify/suggest data into
+// workshop round files, or create an empty workshop/ directory. No-op when a
+// workshop/ directory already exists.
+func migrateWorkshopRounds(itemDir, clarifyPath, suggestPath, prefix string, hasClarify, hasSuggest, hasEnhance, workshopExists, dryRun bool) error {
+	if workshopExists {
+		return nil
+	}
+
 	roundNum := 1
 
-	if hasClarify && !workshopExists {
+	if hasClarify {
 		round, err := clarifyToRound(clarifyPath, roundNum, hasSuggest, hasEnhance)
 		if err != nil {
-			return false, fmt.Errorf("convert clarify: %w", err)
+			return fmt.Errorf("convert clarify: %w", err)
 		}
-		roundFile := fmt.Sprintf("round-%03d.json", roundNum)
-		fmt.Printf("  %s create workshop/%s from clarify/questions.json (%d items)\n", prefix, roundFile, len(round.Items))
-		if !dryRun {
-			if err := writeWorkshopRound(itemDir, roundFile, round); err != nil {
-				return false, err
-			}
+		if err := writeRound(itemDir, prefix, roundNum, "clarify/questions.json", round, dryRun); err != nil {
+			return err
 		}
 		roundNum++
 	}
 
-	if hasSuggest && !workshopExists {
+	if hasSuggest {
 		round, err := suggestToRound(suggestPath, roundNum, hasClarify, hasEnhance)
 		if err != nil {
-			return false, fmt.Errorf("convert suggest: %w", err)
+			return fmt.Errorf("convert suggest: %w", err)
 		}
-		roundFile := fmt.Sprintf("round-%03d.json", roundNum)
-		fmt.Printf("  %s create workshop/%s from suggest/suggestions.json (%d items)\n", prefix, roundFile, len(round.Items))
-		if !dryRun {
-			if err := writeWorkshopRound(itemDir, roundFile, round); err != nil {
-				return false, err
-			}
+		if err := writeRound(itemDir, prefix, roundNum, "suggest/suggestions.json", round, dryRun); err != nil {
+			return err
 		}
 	}
 
 	// If neither clarify nor suggest but enhance exists, still create the
 	// workshop directory (empty).
-	if !hasClarify && !hasSuggest && !workshopExists {
+	if !hasClarify && !hasSuggest {
 		fmt.Printf("  %s create workshop/ (empty)\n", prefix)
 		if !dryRun {
 			if err := os.MkdirAll(filepath.Join(itemDir, "workshop"), 0o755); err != nil {
-				return false, fmt.Errorf("mkdir workshop: %w", err)
+				return fmt.Errorf("mkdir workshop: %w", err)
 			}
 		}
 	}
+	return nil
+}
 
-	// --- Step 3: backup old dirs ---
+// writeRound logs and (unless dry-run) writes a single workshop round file.
+func writeRound(itemDir, prefix string, roundNum int, sourceLabel string, round *workshopRound, dryRun bool) error {
+	roundFile := fmt.Sprintf("round-%03d.json", roundNum)
+	fmt.Printf("  %s create workshop/%s from %s (%d items)\n", prefix, roundFile, sourceLabel, len(round.Items))
+	if !dryRun {
+		if err := writeWorkshopRound(itemDir, roundFile, round); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// backupOldDirs performs Step 3: copy each existing legacy dir into
+// .swarm/pre-workshop-migration/.
+func backupOldDirs(itemDir, prefix string, dryRun bool) error {
 	backupBase := filepath.Join(itemDir, ".swarm", "pre-workshop-migration")
 	for _, dir := range []string{"clarify", "suggest", "enhance"} {
 		src := filepath.Join(itemDir, dir)
@@ -287,15 +333,18 @@ func migrateItem(itemDir string, kind string, dryRun bool) (bool, error) {
 		fmt.Printf("  %s backup %s/ → .swarm/pre-workshop-migration/%s/\n", prefix, dir, dir)
 		if !dryRun {
 			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-				return false, fmt.Errorf("mkdir backup: %w", err)
+				return fmt.Errorf("mkdir backup: %w", err)
 			}
 			if err := copyDir(src, dst); err != nil {
-				return false, fmt.Errorf("backup %s: %w", dir, err)
+				return fmt.Errorf("backup %s: %w", dir, err)
 			}
 		}
 	}
+	return nil
+}
 
-	// --- Step 4: delete old dirs ---
+// removeOldDirs performs Step 4: delete each existing legacy dir.
+func removeOldDirs(itemDir, prefix string, dryRun bool) error {
 	for _, dir := range []string{"clarify", "suggest", "enhance"} {
 		src := filepath.Join(itemDir, dir)
 		if !dirExists(src) {
@@ -304,12 +353,11 @@ func migrateItem(itemDir string, kind string, dryRun bool) (bool, error) {
 		fmt.Printf("  %s remove %s/\n", prefix, dir)
 		if !dryRun {
 			if err := os.RemoveAll(src); err != nil {
-				return false, fmt.Errorf("remove %s: %w", dir, err)
+				return fmt.Errorf("remove %s: %w", dir, err)
 			}
 		}
 	}
-
-	return true, nil
+	return nil
 }
 
 // migrateNonIdeaStub creates a plan.md stub for non-idea items that have no

@@ -145,7 +145,9 @@ func (m *Materializer) MaterializeInitiative(ctx context.Context, initName strin
 		// Initiative was deleted; remove any stale graph.json.
 		path := m.graphPath(initName)
 		if _, statErr := os.Stat(path); statErr == nil {
-			_ = os.Remove(path)
+			if rmErr := os.Remove(path); rmErr != nil {
+				slog.Debug("graph: remove stale graph.json failed", "err", rmErr, "path", path)
+			}
 		}
 		return nil
 	}
@@ -281,7 +283,7 @@ func (m *Materializer) writeGraph(initName string, g MaterializedGraph) error {
 			return nil
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return err
 	}
 	return storage.WriteJSONAtomic(path, g)

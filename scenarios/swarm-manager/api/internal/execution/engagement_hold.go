@@ -103,23 +103,9 @@ func (s *Service) processEngagementHold(ctx context.Context, executionID string)
 	// 2. Decide which to open: skip self, skip scenarios already engaged under
 	// this owner (a fixup re-touching the same scenario), and enforce exclusivity
 	// against OTHER owners (diff-level defense behind the start-time gate).
-	toOpen := make([]string, 0, len(touched))
-	for _, scenario := range touched {
-		if s.selfScenarioName != "" && scenario == s.selfScenarioName {
-			continue
-		}
-		holder, _, held, holderErr := s.engagementStore.HolderOf(scenario)
-		if holderErr != nil {
-			return fmt.Errorf("engagement hold: exclusivity lookup for %q: %w", scenario, holderErr)
-		}
-		if held {
-			if holder == owner {
-				continue // already ours — fixup inheritance, nothing to open
-			}
-			return fmt.Errorf("engagement hold: scenario %q is engaged under a different owner %q; "+
-				"cannot merge run %s safely (run left held for operator)", scenario, holder, executionID)
-		}
-		toOpen = append(toOpen, scenario)
+	toOpen, err := s.engagementsToOpen(touched, owner, executionID)
+	if err != nil {
+		return err
 	}
 
 	// 3. Open shadow restore points (capture the clean working tree) BEFORE merge.
@@ -155,6 +141,31 @@ func (s *Service) processEngagementHold(ctx context.Context, executionID string)
 	slog.Info("baseline engagement: pre-merge hold processed",
 		"execution_id", executionID, "owner", owner, "engaged", toOpen)
 	return nil
+}
+
+// engagementsToOpen filters touched scenarios down to those needing a fresh
+// shadow engagement under owner: it skips self and scenarios already held by
+// this owner, and fails closed when a scenario is engaged under a different owner.
+func (s *Service) engagementsToOpen(touched []string, owner, executionID string) ([]string, error) {
+	toOpen := make([]string, 0, len(touched))
+	for _, scenario := range touched {
+		if s.selfScenarioName != "" && scenario == s.selfScenarioName {
+			continue
+		}
+		holder, _, held, holderErr := s.engagementStore.HolderOf(scenario)
+		if holderErr != nil {
+			return nil, fmt.Errorf("engagement hold: exclusivity lookup for %q: %w", scenario, holderErr)
+		}
+		if held {
+			if holder == owner {
+				continue // already ours — fixup inheritance, nothing to open
+			}
+			return nil, fmt.Errorf("engagement hold: scenario %q is engaged under a different owner %q; "+
+				"cannot merge run %s safely (run left held for operator)", scenario, holder, executionID)
+		}
+		toOpen = append(toOpen, scenario)
+	}
+	return toOpen, nil
 }
 
 // checkExclusivityAtStart enforces the block-at-start exclusivity policy: an

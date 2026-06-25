@@ -42,22 +42,6 @@ func testStore(t *testing.T) *Store {
 	return store
 }
 
-func TestAgentAdapter(t *testing.T) {
-	store := testStore(t)
-	adapter := NewAgentAdapter(store)
-
-	maxTurns, timeout, err := adapter.LoadAgentSettings()
-	if err != nil {
-		t.Fatalf("LoadAgentSettings: %v", err)
-	}
-	if maxTurns != 42 {
-		t.Errorf("maxTurns = %d, want 42", maxTurns)
-	}
-	if timeout != 300 {
-		t.Errorf("timeout = %d, want 300", timeout)
-	}
-}
-
 func TestPolicyAdapter(t *testing.T) {
 	store := testStore(t)
 	adapter := NewPolicyAdapter(store)

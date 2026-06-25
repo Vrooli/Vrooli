@@ -6,11 +6,11 @@
 
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { resolveApiBase } from "@vrooli/api-base";
 import { DiscoveryService } from "@vrooli/proto-types/swarm-manager/v1/discovery/discovery_pb";
+import { API_BASE } from "../lib/api-client";
 
 const transport = createConnectTransport({
-  baseUrl: resolveApiBase(),
+  baseUrl: API_BASE,
 });
 
 export const discoveryClient = createClient(DiscoveryService, transport);

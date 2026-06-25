@@ -41,7 +41,7 @@ func (r *RemoteTTSConfigAdmin) handleErr(err error) error {
 	return audiotools.NormalizeError(err)
 }
 
-func (r *RemoteTTSConfigAdmin) attach(req connect.AnyRequest, ctx context.Context) {
+func (r *RemoteTTSConfigAdmin) attach(ctx context.Context, req connect.AnyRequest) {
 	if r.Credentials == nil || req == nil {
 		return
 	}
@@ -63,7 +63,7 @@ func (r *RemoteTTSConfigAdmin) GetTTSConfig(ctx context.Context) (TTSConfig, err
 		return TTSConfig{}, err
 	}
 	req := connect.NewRequest(&ttsv1.GetConfigRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.TTS.GetConfig(ctx, req)
 	if err != nil {
 		return TTSConfig{}, r.handleErr(err)
@@ -85,7 +85,7 @@ func (r *RemoteTTSConfigAdmin) UpdateTTSConfig(ctx context.Context, mask FieldMa
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: mask.Paths},
 		Config:     ttsConfigToProto(cfg),
 	})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.TTS.UpdateConfig(ctx, req)
 	if err != nil {
 		return TTSConfig{}, r.handleErr(err)

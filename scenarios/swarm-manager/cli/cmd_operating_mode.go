@@ -236,68 +236,7 @@ func printOperatingModeDetail(resp operatingModeDetailResponse) {
 	if len(resp.Entry.Phases) > 0 {
 		fmt.Println("  Phases:")
 		for _, phase := range resp.Entry.Phases {
-			markers := ""
-			if phase.IsStart {
-				markers += " [start]"
-			}
-			if phase.IsTerminal {
-				markers += " [terminal]"
-			}
-			title := phase.Title
-			if title == "" {
-				title = phase.Phase
-			}
-			fmt.Printf("    - %s  (%s)%s\n", title, phase.Phase, markers)
-			if phase.Purpose != "" {
-				fmt.Printf("      Purpose: %s\n", phase.Purpose)
-			}
-			writeAccess := "no"
-			if phase.WritesRepo {
-				writeAccess = "yes"
-			}
-			fmt.Printf("      Profile: %s    Writes repo: %s", phase.ProfileKey, writeAccess)
-			if phase.RequiresCriteria {
-				fmt.Print("    Requires criteria: yes")
-			}
-			fmt.Println()
-			if chips := contractChips(phase.OutputContract); len(chips) > 0 {
-				fmt.Printf("      Contract: %s\n", strings.Join(chips, "  "))
-			}
-			if len(phase.OutputArtifacts) > 0 {
-				fmt.Println("      Output artifacts:")
-				for _, artifact := range phase.OutputArtifacts {
-					marker := " "
-					if artifact.Required {
-						marker = "*"
-					}
-					fmt.Printf("        %s %s", marker, artifact.Path)
-					if artifact.ContentType != "" {
-						fmt.Printf("  (%s)", artifact.ContentType)
-					}
-					if artifact.Required {
-						fmt.Print("  required")
-					}
-					fmt.Println()
-				}
-			}
-			if phase.CatalogID != "" || phase.SkillID != "" || phase.ActivityPurpose != "" || phase.LockPurpose != "" {
-				fmt.Println("      Internals:")
-				if phase.CatalogID != "" {
-					fmt.Printf("        Catalog ID:       %s\n", phase.CatalogID)
-				}
-				if phase.SkillID != "" {
-					fmt.Printf("        Skill ID:         %s\n", phase.SkillID)
-				}
-				if phase.ActivityPurpose != "" {
-					fmt.Printf("        Activity purpose: %s\n", phase.ActivityPurpose)
-				}
-				if phase.LockPurpose != "" {
-					fmt.Printf("        Lock purpose:     %s\n", phase.LockPurpose)
-				}
-				if phase.Trigger != "" {
-					fmt.Printf("        Trigger:          %s\n", phase.Trigger)
-				}
-			}
+			printOperatingModePhase(phase)
 		}
 	}
 	if resp.Entry.PhaseGraph != nil {
@@ -318,6 +257,86 @@ func printOperatingModeDetail(resp operatingModeDetailResponse) {
 			statusSuffix = " [" + init.Status + "]"
 		}
 		fmt.Printf("  - %s — %s%s\n", init.Name, title, statusSuffix)
+	}
+}
+
+// printOperatingModePhase renders a single operating-mode phase block,
+// including its profile/contract summary and optional artifacts/internals.
+func printOperatingModePhase(phase operatingModeCatalogPhase) {
+	markers := ""
+	if phase.IsStart {
+		markers += " [start]"
+	}
+	if phase.IsTerminal {
+		markers += " [terminal]"
+	}
+	title := phase.Title
+	if title == "" {
+		title = phase.Phase
+	}
+	fmt.Printf("    - %s  (%s)%s\n", title, phase.Phase, markers)
+	if phase.Purpose != "" {
+		fmt.Printf("      Purpose: %s\n", phase.Purpose)
+	}
+	writeAccess := "no"
+	if phase.WritesRepo {
+		writeAccess = "yes"
+	}
+	fmt.Printf("      Profile: %s    Writes repo: %s", phase.ProfileKey, writeAccess)
+	if phase.RequiresCriteria {
+		fmt.Print("    Requires criteria: yes")
+	}
+	fmt.Println()
+	if chips := contractChips(phase.OutputContract); len(chips) > 0 {
+		fmt.Printf("      Contract: %s\n", strings.Join(chips, "  "))
+	}
+	printOperatingModePhaseArtifacts(phase.OutputArtifacts)
+	printOperatingModePhaseInternals(phase)
+}
+
+// printOperatingModePhaseArtifacts renders a phase's output artifacts list.
+func printOperatingModePhaseArtifacts(artifacts []operatingModeArtifactDef) {
+	if len(artifacts) == 0 {
+		return
+	}
+	fmt.Println("      Output artifacts:")
+	for _, artifact := range artifacts {
+		marker := " "
+		if artifact.Required {
+			marker = "*"
+		}
+		fmt.Printf("        %s %s", marker, artifact.Path)
+		if artifact.ContentType != "" {
+			fmt.Printf("  (%s)", artifact.ContentType)
+		}
+		if artifact.Required {
+			fmt.Print("  required")
+		}
+		fmt.Println()
+	}
+}
+
+// printOperatingModePhaseInternals renders the optional "Internals" block for a
+// phase when any internal identifier is populated.
+func printOperatingModePhaseInternals(phase operatingModeCatalogPhase) {
+	if phase.CatalogID == "" && phase.SkillID == "" && phase.ActivityPurpose == "" && phase.LockPurpose == "" {
+		return
+	}
+	fmt.Println("      Internals:")
+	if phase.CatalogID != "" {
+		fmt.Printf("        Catalog ID:       %s\n", phase.CatalogID)
+	}
+	if phase.SkillID != "" {
+		fmt.Printf("        Skill ID:         %s\n", phase.SkillID)
+	}
+	if phase.ActivityPurpose != "" {
+		fmt.Printf("        Activity purpose: %s\n", phase.ActivityPurpose)
+	}
+	if phase.LockPurpose != "" {
+		fmt.Printf("        Lock purpose:     %s\n", phase.LockPurpose)
+	}
+	if phase.Trigger != "" {
+		fmt.Printf("        Trigger:          %s\n", phase.Trigger)
 	}
 }
 

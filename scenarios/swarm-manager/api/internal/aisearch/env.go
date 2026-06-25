@@ -18,7 +18,7 @@ const (
 	EnvQdrantURL              = "QDRANT_URL"
 	EnvQdrantBaseURL          = "QDRANT_BASE_URL"
 	EnvQdrantPort             = "QDRANT_PORT"
-	EnvQdrantAPIKey           = "QDRANT_API_KEY"
+	EnvQdrantAPIKey           = "QDRANT_API_KEY" // #nosec G101 -- this is the NAME of an environment variable, not a credential value.
 	EnvAISearchThreshold      = "AI_SEARCH_THRESHOLD"
 	EnvAISearchBacklogColl    = "AI_SEARCH_BACKLOG_COLLECTION"
 	EnvAISearchInitiativeColl = "AI_SEARCH_INITIATIVE_COLLECTION"

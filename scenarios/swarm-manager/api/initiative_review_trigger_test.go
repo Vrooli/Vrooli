@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 )
 
 // TestInitiativeReviewTrigger_E2E covers the end-to-end trigger chain:
@@ -90,7 +90,7 @@ func TestInitiativeReviewTrigger_E2E(t *testing.T) {
 	//    goroutine (see routes_initiative_review.go:47), so we don't need
 	//    to poll — but we give a tiny budget in case the service spawns
 	//    async work downstream.
-	assertx.Eventually(t, 2*time.Second, "initiative review trigger to set status in_review", func() bool {
+	testutil.Eventually(t, 2*time.Second, "initiative review trigger to set status in_review", func() bool {
 		return initiativeStatusFromDisk(t, rootDir, "rev-trigger") == "in_review"
 	})
 }
@@ -323,7 +323,7 @@ func TestInitiativeReviewTrigger_FeedbackLockBlocks(t *testing.T) {
 
 func assertInitiativeStatusEventually(t *testing.T, rootDir, name, want string) {
 	t.Helper()
-	assertx.Eventually(t, 2*time.Second, "initiative "+name+" status "+want, func() bool {
+	testutil.Eventually(t, 2*time.Second, "initiative "+name+" status "+want, func() bool {
 		return initiativeStatusFromDisk(t, rootDir, name) == want
 	})
 }

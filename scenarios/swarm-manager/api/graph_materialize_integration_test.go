@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/graph"
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 )
 
 // TestGraphMaterialization_ExercisesRealWriters drives mutations through the
@@ -140,7 +140,7 @@ func TestGraphMaterialization_ExercisesRealWriters(t *testing.T) {
 // 100ms, but we allow up to ~2s so flaky CI schedulers don't fail the test.
 func waitForGraph(t *testing.T, path string, pred func(graph.MaterializedGraph) bool, reason string) {
 	t.Helper()
-	assertx.Eventually(t, 2*time.Second, reason, func() bool {
+	testutil.Eventually(t, 2*time.Second, reason, func() bool {
 		data, err := os.ReadFile(path)
 		if err == nil {
 			var g graph.MaterializedGraph

@@ -55,37 +55,11 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var pbReq apipb.QueueBacklogItemRequest
-	if r.Body != nil {
-		if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
-			// Tolerate empty bodies (all fields optional).
-			if !errors.Is(err, io.EOF) && r.ContentLength != 0 {
-				apierr.MapError(w, "[backlog] queue", apierr.BadRequest("invalid request body"))
-				return
-			}
-		}
-		if !httputil.ValidateProtoRequest(w, "[backlog] queue", "invalid queue request", &pbReq) {
-			return
-		}
+	params, ok := parseQueueRequest(w, r)
+	if !ok {
+		return
 	}
-	operation := "generator"
-	if pbReq.GetOperation() != "" {
-		operation = strings.ToLower(strings.TrimSpace(pbReq.GetOperation()))
-	}
-	confirm := pbReq.GetConfirm()
-	force := pbReq.GetForce()
-	mode := execution.ModeYOLO
-	if pbReq.GetMode() != "" {
-		mode = execution.Mode(strings.ToLower(strings.TrimSpace(pbReq.GetMode())))
-		if !execution.ValidateMode(mode) {
-			apierr.MapError(w, "[backlog] queue", apierr.BadRequest("invalid execution mode %q: must be manual or yolo", mode))
-			return
-		}
-	}
-	startedBy := strings.TrimSpace(pbReq.GetStartedBy())
-	if startedBy == "" {
-		startedBy = "swarm-manager"
-	}
+	operation, confirm, force, mode, startedBy := params.operation, params.confirm, params.force, params.mode, params.startedBy
 
 	var executionService ExecutionQueuer
 	if h.executionQueuer != nil {
@@ -119,60 +93,11 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	latestRound, _, _ := LoadLatestRound(itemDir)
 	pendingDecisions := CountPendingDecisions(latestRound)
 
-	// Convert preflight reasons to structured BlockingReasons.
-	// Preflight reasons from the execution service (readiness dimensions,
-	// missing deliverables) are non-forceable structural blockers.
-	var blockingReasons []BlockingReason
-	for _, reason := range preflight.BlockingReasons {
-		blockingReasons = append(blockingReasons, BlockingReason{
-			Message:   reason,
-			Forceable: false,
-		})
-	}
-	// Forceable preflight reasons (e.g. the fix-before-feature gate in "block"
-	// mode) block the queue but can be overridden with force=true.
-	for _, reason := range preflight.ForceableBlockingReasons {
-		blockingReasons = append(blockingReasons, BlockingReason{
-			Message:   reason,
-			Forceable: true,
-		})
-	}
-	if pendingDecisions > 0 {
-		blockingReasons = append(blockingReasons, BlockingReason{
-			Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
-			Forceable: true,
-		})
-	}
-
-	// Check dependency readiness: all depends_on items must be completed.
-	depReasons, depErr := EvaluateDependencyBlocking(item, h.store)
-	if depErr != nil {
-		slog.Error("dependency check failed", "kind", kind, "name", name, "err", depErr)
+	blockingReasons, blockErr := h.collectQueueBlockingReasons(item, kind, name, itemDir, preflight, pendingDecisions)
+	if blockErr != nil {
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to check dependencies"))
 		return
 	}
-	blockingReasons = append(blockingReasons, depReasons...)
-
-	// Check plan validation: failed validation produces a forceable blocker.
-	valReport, valErr := LoadValidationReport(itemDir)
-	if valErr != nil {
-		slog.Warn("failed to load validation report for queue check", "kind", kind, "name", name, "err", valErr)
-	}
-	if valReport != nil && !valReport.Passed {
-		missingStr := strings.Join(valReport.SectionsMissing, ", ")
-		msg := "plan validation failed"
-		if missingStr != "" {
-			msg += ": missing sections: " + missingStr
-		}
-		if len(valReport.Warnings) > 0 {
-			msg += "; warnings: " + strings.Join(valReport.Warnings, "; ")
-		}
-		blockingReasons = append(blockingReasons, BlockingReason{
-			Message:   msg,
-			Forceable: true,
-		})
-	}
-	blockingReasons = DedupeReasons(blockingReasons)
 
 	// Convert to proto representation.
 	protoReasons := make([]*apipb.BlockingReason, len(blockingReasons))
@@ -230,19 +155,7 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 		Force:       force,
 	})
 	if err != nil {
-		if errors.Is(err, agentmanager.ErrNotAvailable) {
-			apierr.MapError(w, "[backlog] queue", apierr.Unavailable("agent-manager is not available"))
-			return
-		}
-		if os.IsNotExist(err) {
-			apierr.MapError(w, "[backlog] queue", apierr.NotFound("backlog item not found"))
-			return
-		}
-		if strings.Contains(err.Error(), "cannot be queued") || strings.Contains(err.Error(), "process preflight failed") {
-			apierr.MapError(w, "[backlog] queue", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-		apierr.MapError(w, "[backlog] queue", apierr.Internal("%s", "failed to queue execution: "+httputil.TruncateErrorMessage(err, 240)))
+		mapQueueBacklogError(w, err)
 		return
 	}
 
@@ -272,6 +185,138 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, resp); err != nil {
 		apierr.MapError(w, "[backlog] queue", apierr.Internal("failed to encode response"))
 	}
+}
+
+// queueRequestParams holds the normalized inputs parsed from a queue request.
+type queueRequestParams struct {
+	operation string
+	confirm   bool
+	force     bool
+	mode      execution.Mode
+	startedBy string
+}
+
+// parseQueueRequest decodes and normalizes the queue request body, applying
+// defaults. It returns false (after writing an error response) when the body is
+// malformed or the execution mode is invalid.
+func parseQueueRequest(w http.ResponseWriter, r *http.Request) (queueRequestParams, bool) {
+	var pbReq apipb.QueueBacklogItemRequest
+	if r.Body != nil {
+		if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
+			// Tolerate empty bodies (all fields optional).
+			if !errors.Is(err, io.EOF) && r.ContentLength != 0 {
+				apierr.MapError(w, "[backlog] queue", apierr.BadRequest("invalid request body"))
+				return queueRequestParams{}, false
+			}
+		}
+		if !httputil.ValidateProtoRequest(w, "[backlog] queue", "invalid queue request", &pbReq) {
+			return queueRequestParams{}, false
+		}
+	}
+
+	params := queueRequestParams{
+		operation: "generator",
+		confirm:   pbReq.GetConfirm(),
+		force:     pbReq.GetForce(),
+		mode:      execution.ModeYOLO,
+		startedBy: strings.TrimSpace(pbReq.GetStartedBy()),
+	}
+	if pbReq.GetOperation() != "" {
+		params.operation = strings.ToLower(strings.TrimSpace(pbReq.GetOperation()))
+	}
+	if pbReq.GetMode() != "" {
+		params.mode = execution.Mode(strings.ToLower(strings.TrimSpace(pbReq.GetMode())))
+		if !execution.ValidateMode(params.mode) {
+			apierr.MapError(w, "[backlog] queue", apierr.BadRequest("invalid execution mode %q: must be manual or yolo", params.mode))
+			return queueRequestParams{}, false
+		}
+	}
+	if params.startedBy == "" {
+		params.startedBy = "swarm-manager"
+	}
+	return params, true
+}
+
+// mapQueueBacklogError classifies an error from executionService.QueueBacklog
+// into the appropriate API error response.
+func mapQueueBacklogError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, agentmanager.ErrNotAvailable):
+		apierr.MapError(w, "[backlog] queue", apierr.Unavailable("agent-manager is not available"))
+	case os.IsNotExist(err):
+		apierr.MapError(w, "[backlog] queue", apierr.NotFound("backlog item not found"))
+	case strings.Contains(err.Error(), "cannot be queued") || strings.Contains(err.Error(), "process preflight failed"):
+		apierr.MapError(w, "[backlog] queue", apierr.BadRequest("%s", err.Error()))
+	default:
+		apierr.MapError(w, "[backlog] queue", apierr.Internal("%s", "failed to queue execution: "+httputil.TruncateErrorMessage(err, 240)))
+	}
+}
+
+// collectQueueBlockingReasons gathers all blocking reasons for a queue request:
+// preflight structural/forceable reasons, pending workshop decisions, dependency
+// readiness, and plan validation. The returned slice is deduplicated. A non-nil
+// error indicates the dependency check itself failed and the queue must abort.
+func (h *Handler) collectQueueBlockingReasons(item BacklogItem, kind BacklogKind, name, itemDir string, preflight execution.ProcessPreflight, pendingDecisions int) ([]BlockingReason, error) {
+	// Convert preflight reasons to structured BlockingReasons.
+	// Preflight reasons from the execution service (readiness dimensions,
+	// missing deliverables) are non-forceable structural blockers.
+	var blockingReasons []BlockingReason
+	for _, reason := range preflight.BlockingReasons {
+		blockingReasons = append(blockingReasons, BlockingReason{
+			Message:   reason,
+			Forceable: false,
+		})
+	}
+	// Forceable preflight reasons (e.g. the fix-before-feature gate in "block"
+	// mode) block the queue but can be overridden with force=true.
+	for _, reason := range preflight.ForceableBlockingReasons {
+		blockingReasons = append(blockingReasons, BlockingReason{
+			Message:   reason,
+			Forceable: true,
+		})
+	}
+	if pendingDecisions > 0 {
+		blockingReasons = append(blockingReasons, BlockingReason{
+			Message:   fmt.Sprintf("%d workshop decision(s) still pending", pendingDecisions),
+			Forceable: true,
+		})
+	}
+
+	// Check dependency readiness: all depends_on items must be completed.
+	depReasons, depErr := EvaluateDependencyBlocking(item, h.store)
+	if depErr != nil {
+		slog.Error("dependency check failed", "kind", kind, "name", name, "err", depErr)
+		return nil, depErr
+	}
+	blockingReasons = append(blockingReasons, depReasons...)
+
+	// Check plan validation: failed validation produces a forceable blocker.
+	if reason, ok := h.planValidationBlockingReason(itemDir, kind, name); ok {
+		blockingReasons = append(blockingReasons, reason)
+	}
+	return DedupeReasons(blockingReasons), nil
+}
+
+// planValidationBlockingReason returns a forceable blocking reason when the
+// item's plan validation report failed. The bool is false when there is no
+// blocker (report missing or passed).
+func (h *Handler) planValidationBlockingReason(itemDir string, kind BacklogKind, name string) (BlockingReason, bool) {
+	valReport, valErr := LoadValidationReport(itemDir)
+	if valErr != nil {
+		slog.Warn("failed to load validation report for queue check", "kind", kind, "name", name, "err", valErr)
+	}
+	if valReport == nil || valReport.Passed {
+		return BlockingReason{}, false
+	}
+	missingStr := strings.Join(valReport.SectionsMissing, ", ")
+	msg := "plan validation failed"
+	if missingStr != "" {
+		msg += ": missing sections: " + missingStr
+	}
+	if len(valReport.Warnings) > 0 {
+		msg += "; warnings: " + strings.Join(valReport.Warnings, "; ")
+	}
+	return BlockingReason{Message: msg, Forceable: true}, true
 }
 
 // ProcessPreflight evaluates whether a backlog item is ready for processing.

@@ -91,13 +91,7 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 		return nil, fmt.Errorf("invalid entity %q: must be backlog, initiative, or both", req.Entity)
 	}
 
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
+	limit := normalizeLimit(req.Limit)
 	threshold := req.Threshold
 	if threshold <= 0 {
 		threshold = s.threshold
@@ -112,43 +106,7 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 		return s.fallback(ctx, req, entity, limit, start), nil
 	}
 
-	// Initialized non-nil so zero-match searches serialize to `"results":[]`, not
-	// `"results":null`. The JSON contract is "always an array" — a nil slice here
-	// becomes JSON null and crashes clients that do `results.length`.
-	results := make([]AISearchResult, 0)
-	var searchErr error
-
-	if entity == EntityBacklog || entity == EntityBoth {
-		if s.backlogStore != nil {
-			r, err := s.searchStore(ctx, s.backlogStore, EntityBacklog, vector, limit, threshold)
-			if err != nil {
-				searchErr = err
-			} else {
-				results = append(results, r...)
-			}
-		}
-	}
-	if entity == EntityInitiative || entity == EntityBoth {
-		if s.initiativeStore != nil {
-			r, err := s.searchStore(ctx, s.initiativeStore, EntityInitiative, vector, limit, threshold)
-			if err != nil {
-				searchErr = err
-			} else {
-				results = append(results, r...)
-			}
-		}
-	}
-	if entity == EntityRecord || entity == EntityBoth {
-		if s.recordStore != nil {
-			r, err := s.searchStore(ctx, s.recordStore, EntityRecord, vector, limit, threshold)
-			if err != nil {
-				searchErr = err
-			} else {
-				results = append(results, r...)
-			}
-		}
-	}
-
+	results, searchErr := s.searchStores(ctx, entity, vector, limit, threshold)
 	if searchErr != nil && len(results) == 0 {
 		slog.Warn("[aisearch] vector search failed, falling back", "err", searchErr)
 		return s.fallback(ctx, req, entity, limit, start), nil
@@ -168,6 +126,54 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 		Fallback:  FallbackNone,
 		LatencyMs: time.Since(start).Milliseconds(),
 	}, nil
+}
+
+// normalizeLimit clamps a requested result limit into the supported range,
+// applying the default of 20 when unset and capping at 100.
+func normalizeLimit(limit int) int {
+	if limit <= 0 {
+		return 20
+	}
+	if limit > 100 {
+		return 100
+	}
+	return limit
+}
+
+// searchStores fans the embedded query out to every store wired for the
+// requested entity, concatenating their results. It returns the last
+// per-store error encountered (if any); callers decide whether to fall back
+// based on whether any results were produced.
+func (s *Service) searchStores(ctx context.Context, entity EntityType, vector []float64, limit int, threshold float64) ([]AISearchResult, error) {
+	// Initialized non-nil so zero-match searches serialize to `"results":[]`, not
+	// `"results":null`. The JSON contract is "always an array" — a nil slice here
+	// becomes JSON null and crashes clients that do `results.length`.
+	results := make([]AISearchResult, 0)
+	var searchErr error
+
+	stores := []struct {
+		entity EntityType
+		store  VectorStore
+	}{
+		{EntityBacklog, s.backlogStore},
+		{EntityInitiative, s.initiativeStore},
+		{EntityRecord, s.recordStore},
+	}
+	for _, st := range stores {
+		if entity != st.entity && entity != EntityBoth {
+			continue
+		}
+		if st.store == nil {
+			continue
+		}
+		r, err := s.searchStore(ctx, st.store, st.entity, vector, limit, threshold)
+		if err != nil {
+			searchErr = err
+		} else {
+			results = append(results, r...)
+		}
+	}
+	return results, searchErr
 }
 
 func (s *Service) searchStore(ctx context.Context, store VectorStore, entity EntityType, vector []float64, limit int, threshold float64) ([]AISearchResult, error) {
@@ -251,51 +257,70 @@ func applyFilters(results []AISearchResult, f SearchFilters) []AISearchResult {
 
 	out := results[:0]
 	for _, r := range results {
-		if r.Payload != nil {
-			archived, _ := r.Payload["archived"].(bool)
-			if archived && !f.IncludeArchived {
-				continue
-			}
-			// Records don't have a status; skip the status check for them.
-			if len(statusSet) > 0 && r.Entity != EntityRecord {
-				status, _ := r.Payload["status"].(string)
-				if !statusSet[status] {
-					continue
-				}
-			}
-			// Kind applies to both backlog items and records (same enum).
-			if len(kindSet) > 0 && (r.Entity == EntityBacklog || r.Entity == EntityRecord) {
-				kind, _ := r.Payload["kind"].(string)
-				if !kindSet[kind] {
-					continue
-				}
-			}
-			if initiative != "" && r.Entity == EntityBacklog {
-				rInit, _ := r.Payload["initiative"].(string)
-				if rInit != initiative {
-					continue
-				}
-			}
-			if target != "" {
-				switch r.Entity {
-				case EntityBacklog:
-					if !payloadTargetsScenario(r.Payload, target) {
-						continue
-					}
-				case EntityRecord:
-					// Records carry a single "scenario" field instead of a
-					// target_scenarios array; the same --target-scenario CLI
-					// flag should narrow records by it.
-					rs, _ := r.Payload["scenario"].(string)
-					if rs != target {
-						continue
-					}
-				}
-			}
+		if r.Payload == nil || resultMatchesFilters(r, f, statusSet, kindSet, initiative, target) {
+			out = append(out, r)
 		}
-		out = append(out, r)
 	}
 	return out
+}
+
+// resultMatchesFilters reports whether a result with a non-nil payload passes
+// every active filter predicate. Empty/zero filter fields match everything.
+func resultMatchesFilters(r AISearchResult, f SearchFilters, statusSet, kindSet map[string]bool, initiative, target string) bool {
+	archived, _ := r.Payload["archived"].(bool)
+	if archived && !f.IncludeArchived {
+		return false
+	}
+	return matchesStatusFilter(r, statusSet) &&
+		matchesKindFilter(r, kindSet) &&
+		matchesInitiativeFilter(r, initiative) &&
+		matchesTargetFilter(r, target)
+}
+
+// matchesStatusFilter applies the status filter. Records don't have a status,
+// so the check is skipped for them.
+func matchesStatusFilter(r AISearchResult, statusSet map[string]bool) bool {
+	if len(statusSet) == 0 || r.Entity == EntityRecord {
+		return true
+	}
+	status, _ := r.Payload["status"].(string)
+	return statusSet[status]
+}
+
+// matchesKindFilter applies the kind filter, which covers both backlog items
+// and records (same enum).
+func matchesKindFilter(r AISearchResult, kindSet map[string]bool) bool {
+	if len(kindSet) == 0 || (r.Entity != EntityBacklog && r.Entity != EntityRecord) {
+		return true
+	}
+	kind, _ := r.Payload["kind"].(string)
+	return kindSet[kind]
+}
+
+// matchesInitiativeFilter narrows backlog items by their initiative.
+func matchesInitiativeFilter(r AISearchResult, initiative string) bool {
+	if initiative == "" || r.Entity != EntityBacklog {
+		return true
+	}
+	rInit, _ := r.Payload["initiative"].(string)
+	return rInit == initiative
+}
+
+// matchesTargetFilter narrows results by target scenario. Backlog items carry
+// a target_scenarios array; records carry a single "scenario" field, but the
+// same --target-scenario CLI flag should narrow both.
+func matchesTargetFilter(r AISearchResult, target string) bool {
+	if target == "" {
+		return true
+	}
+	switch r.Entity {
+	case EntityBacklog:
+		return payloadTargetsScenario(r.Payload, target)
+	case EntityRecord:
+		rs, _ := r.Payload["scenario"].(string)
+		return rs == target
+	}
+	return true
 }
 
 // payloadTargetsScenario reports whether the indexed target_scenarios array

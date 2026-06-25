@@ -164,7 +164,7 @@ func sanitizeFile(root, rel, path string, redactor pathredact.Redactor, write bo
 		result.ChangedFiles++
 		result.Changes = append(result.Changes, fileChange{Path: rel, BytesIn: len(data), BytesOut: len(redacted)})
 		if write {
-			if err := os.WriteFile(path, redacted, 0o644); err != nil {
+			if err := os.WriteFile(path, redacted, 0o600); err != nil {
 				return err
 			}
 		}

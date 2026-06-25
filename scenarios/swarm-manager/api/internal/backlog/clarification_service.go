@@ -48,7 +48,7 @@ func (h *Handler) saveClarificationAttachments(itemDir string, r *http.Request) 
 	}
 
 	attDir := filepath.Join(itemDir, "workshop", "attachments")
-	if err := os.MkdirAll(attDir, 0o755); err != nil {
+	if err := os.MkdirAll(attDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create attachment dir: %w", err)
 	}
 
@@ -70,12 +70,12 @@ func (h *Handler) saveClarificationAttachments(itemDir string, r *http.Request) 
 		}
 		dst, err := os.Create(destPath)
 		if err != nil {
-			src.Close()
+			closeClarificationFile(src, "backlog: close clarification source")
 			return nil, fmt.Errorf("create attachment file: %w", err)
 		}
 		_, copyErr := io.Copy(dst, src)
-		src.Close()
-		dst.Close()
+		closeClarificationFile(src, "backlog: close clarification source")
+		closeClarificationFile(dst, "backlog: close clarification dest")
 		if copyErr != nil {
 			return nil, fmt.Errorf("write attachment file: %w", copyErr)
 		}
@@ -121,7 +121,7 @@ func (h *Handler) saveRound(itemDir string, round *workshop.Round) {
 		return
 	}
 	path := filepath.Join(itemDir, "workshop", fmt.Sprintf("round-%03d.json", round.RoundNum))
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		slog.Error("saveRound write error", "err", err)
 	}
 }
@@ -231,4 +231,10 @@ func clarificationThreadToProto(t *workshop.ClarificationThread) *domainpb.Clari
 		}
 	}
 	return pb
+}
+
+func closeClarificationFile(c io.Closer, msg string) {
+	if err := c.Close(); err != nil {
+		slog.Debug(msg, "err", err)
+	}
 }

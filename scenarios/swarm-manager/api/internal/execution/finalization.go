@@ -48,26 +48,7 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 	}
 
 	// Filter out self to avoid restarting our own process mid-finalization.
-	if s.selfScenarioName != "" {
-		filtered := make([]string, 0, len(scope.affectedScenarios))
-		for _, name := range scope.affectedScenarios {
-			if name == s.selfScenarioName {
-				slog.Warn("skipping self-restart during finalization",
-					"execution_id", executionID,
-					"scenario", s.selfScenarioName,
-				)
-				_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
-					finalizationWarningSelfRestartSkipped,
-					s.selfScenarioName,
-					fmt.Sprintf("Scenario %q was in scope but skipped because restarting it would kill this running process. If changes to %s require a restart, restart it manually after finalization completes.", s.selfScenarioName, s.selfScenarioName),
-					false,
-				))
-				continue
-			}
-			filtered = append(filtered, name)
-		}
-		scope.affectedScenarios = filtered
-	}
+	scope.affectedScenarios = s.filterSelfScenario(executionID, scope.affectedScenarios)
 
 	if err := s.markFinalizationPhase(executionID, FinalizationPhaseRestarting); err != nil {
 		return err
@@ -108,28 +89,9 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 	// in `review_pending` so the user can still decide a terminal state via
 	// review-decide instead of being stranded in an `in_review` with no
 	// review round behind it (the orphaned-in_review dead-end).
-	reviewStarted := false
-	reviewSkipReason := ""
-	switch enabled, reason := s.checkReviewAgentEnabled(); {
-	case enabled:
-		if err := s.markFinalizationPhase(executionID, FinalizationPhaseEvidenceGathering); err != nil {
-			return err
-		}
-		if err := s.triggerReviewAgent(ctx, executionID, scope, item); err != nil {
-			slog.Warn("review agent spawn failed", "execution_id", executionID, "err", err)
-			reviewSkipReason = "review agent spawn failed: " + err.Error()
-			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
-				finalizationWarningReviewAgentFailed, "", err.Error(), false,
-			))
-		} else {
-			reviewStarted = true
-		}
-	default:
-		slog.Info("evidence gathering skipped", "execution_id", executionID, "reason", reason)
-		reviewSkipReason = s.evidenceSkipMessage(reason)
-		_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
-			reason, "", s.evidenceSkipMessage(reason), false,
-		))
+	reviewStarted, reviewSkipReason, err := s.runEvidenceGathering(ctx, executionID, scope, item)
+	if err != nil {
+		return err
 	}
 
 	// Pre-exec baselines have served their purpose (the diff results are
@@ -138,6 +100,57 @@ func (s *Service) processFinalization(ctx context.Context, executionID string) e
 	s.cleanupPreExecBaselines(ctx, record.PreExecBaselines)
 
 	return s.finishFinalization(executionID, reviewStarted, reviewSkipReason)
+}
+
+// filterSelfScenario drops the running scenario from the affected set so
+// finalization never restarts its own process, recording a warning when it does.
+func (s *Service) filterSelfScenario(executionID string, affected []string) []string {
+	if s.selfScenarioName == "" {
+		return affected
+	}
+	filtered := make([]string, 0, len(affected))
+	for _, name := range affected {
+		if name == s.selfScenarioName {
+			slog.Warn("skipping self-restart during finalization",
+				"execution_id", executionID,
+				"scenario", s.selfScenarioName,
+			)
+			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
+				finalizationWarningSelfRestartSkipped,
+				s.selfScenarioName,
+				fmt.Sprintf("Scenario %q was in scope but skipped because restarting it would kill this running process. If changes to %s require a restart, restart it manually after finalization completes.", s.selfScenarioName, s.selfScenarioName),
+				false,
+			))
+			continue
+		}
+		filtered = append(filtered, name)
+	}
+	return filtered
+}
+
+// runEvidenceGathering spawns the (policy-gated) review agent and reports
+// whether a review round actually started plus a skip reason when it did not.
+func (s *Service) runEvidenceGathering(ctx context.Context, executionID string, scope finalizationScope, item backlogItem) (reviewStarted bool, reviewSkipReason string, err error) {
+	switch enabled, reason := s.checkReviewAgentEnabled(); {
+	case enabled:
+		if err := s.markFinalizationPhase(executionID, FinalizationPhaseEvidenceGathering); err != nil {
+			return false, "", err
+		}
+		if err := s.triggerReviewAgent(ctx, executionID, scope, item); err != nil {
+			slog.Warn("review agent spawn failed", "execution_id", executionID, "err", err)
+			_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
+				finalizationWarningReviewAgentFailed, "", err.Error(), false,
+			))
+			return false, "review agent spawn failed: " + err.Error(), nil
+		}
+		return true, "", nil
+	default:
+		slog.Info("evidence gathering skipped", "execution_id", executionID, "reason", reason)
+		_ = s.appendFinalizationWarning(executionID, newFinalizationWarning(
+			reason, "", s.evidenceSkipMessage(reason), false,
+		))
+		return false, s.evidenceSkipMessage(reason), nil
+	}
 }
 
 func (s *Service) runScenarioReview(ctx context.Context, executionID, scenarioName, sandboxID string, acceptanceAllow []string) error {

@@ -10,7 +10,6 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
-	"swarm-manager/internal/testutil/mocks"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
@@ -28,9 +27,9 @@ func TestCreate_ReturnsBadGatewayForAgentManagerRequestFailure(t *testing.T) {
 	mustWriteDeliverableFile(t, root, "idea", "request-fail-idea")
 
 	service := NewService(ServiceConfig{
-		DataRoot:   root,
+		DataRoot:  root,
 		StorePath: filepath.Join(root, ".vrooli", "execution-runs.json"),
-		AgentService: &mocks.AgentSpawner{
+		AgentService: &testutil.AgentSpawner{
 			Enabled:  true,
 			SpawnErr: fmt.Errorf("%w: status 500", agentmanager.ErrRequestFailed),
 		},
@@ -55,7 +54,7 @@ func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
 	root := t.TempDir()
 	agent := &snapshotAgentService{}
 	service := NewService(ServiceConfig{
-		DataRoot:      root,
+		DataRoot:     root,
 		StorePath:    filepath.Join(root, ".vrooli", "execution-runs.json"),
 		AgentService: agent,
 	})

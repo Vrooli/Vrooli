@@ -87,7 +87,7 @@ func LoadRound(itemDir string, roundNum int) (*Round, error) {
 // if it does not exist.
 func SaveRound(itemDir string, round Round) error {
 	reviewDir := filepath.Join(itemDir, "review")
-	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
+	if err := os.MkdirAll(reviewDir, 0o750); err != nil {
 		return fmt.Errorf("create review dir: %w", err)
 	}
 	value := any(round)
@@ -101,7 +101,7 @@ func SaveRound(itemDir string, round Round) error {
 	if err != nil {
 		return fmt.Errorf("marshal round %d: %w", round.RoundNum, err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write round %d: %w", round.RoundNum, err)
 	}
 	return nil
@@ -128,7 +128,7 @@ func RoundFilename(n int) string {
 // and returns its path.
 func EnsureCapturesDir(itemDir string) (string, error) {
 	capturesDir := filepath.Join(itemDir, "review", "captures")
-	if err := os.MkdirAll(capturesDir, 0o755); err != nil {
+	if err := os.MkdirAll(capturesDir, 0o750); err != nil {
 		return "", fmt.Errorf("create captures dir: %w", err)
 	}
 	return capturesDir, nil
@@ -150,7 +150,7 @@ func SaveCapture(itemDir, filename string, data []byte) (string, error) {
 	if redacted, changed := pathredact.NewForArtifactPath(fullPath).RedactBytes(fullPath, data); changed {
 		data = redacted
 	}
-	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
+	if err := os.WriteFile(fullPath, data, 0o600); err != nil {
 		return "", fmt.Errorf("write capture %s: %w", filename, err)
 	}
 	return filepath.Join("captures", clean), nil

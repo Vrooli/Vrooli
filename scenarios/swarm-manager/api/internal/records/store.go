@@ -26,12 +26,12 @@ type Store interface {
 
 // ListFilter is the read-side filter passed to Store.List.
 type ListFilter struct {
-	Scenario   string
-	Kind       RecordKind
-	BacklogRef string
+	Scenario     string
+	Kind         RecordKind
+	BacklogRef   string
 	IncludeStubs bool
-	Limit      int
-	Offset     int
+	Limit        int
+	Offset       int
 }
 
 // Narrative is the payload used to fill a stub record once.
@@ -48,7 +48,8 @@ type Narrative struct {
 var ErrNotFound = errors.New("record not found")
 
 // FileStore persists records as JSON under
-//   <dataRoot>/records/<scenario>/<kind>/<id>.json
+//
+//	<dataRoot>/records/<scenario>/<kind>/<id>.json
 type FileStore struct {
 	dataRoot string
 	mu       sync.Mutex
@@ -137,7 +138,7 @@ func (s *FileStore) Create(r Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	dir := s.kindDir(r.Scenario, r.Kind)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create records dir: %w", err)
 	}
 	path := s.recordPath(r.Scenario, r.Kind, r.ID)
@@ -289,7 +290,7 @@ func writeRecord(path string, r *Record) error {
 		return fmt.Errorf("marshal record: %w", err)
 	}
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return fmt.Errorf("write record: %w", err)
 	}
 	return os.Rename(tmp, path)

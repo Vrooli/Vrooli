@@ -187,7 +187,7 @@ func (s *Store) Migrate() error {
 		newDir := s.InitDir(name)
 		newPath := filepath.Join(newDir, initiativeFileName)
 
-		if err := os.MkdirAll(newDir, 0o755); err != nil {
+		if err := os.MkdirAll(newDir, 0o750); err != nil {
 			slog.Warn("migrate: failed to create directory", "initiative", name, "error", err)
 			continue
 		}

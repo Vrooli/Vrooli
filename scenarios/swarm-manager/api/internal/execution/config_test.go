@@ -29,7 +29,7 @@ func TestDefaultFinalizationConfig(t *testing.T) {
 
 func TestNewServiceAppliesDefaultFinalizationConfig(t *testing.T) {
 	svc := NewService(ServiceConfig{
-		DataRoot:   t.TempDir(),
+		DataRoot:  t.TempDir(),
 		StorePath: t.TempDir() + "/exec.json",
 	})
 
@@ -51,7 +51,7 @@ func TestNewServiceRespectsCustomFinalizationConfig(t *testing.T) {
 	}
 
 	svc := NewService(ServiceConfig{
-		DataRoot:      t.TempDir(),
+		DataRoot:     t.TempDir(),
 		StorePath:    t.TempDir() + "/exec.json",
 		Finalization: custom,
 	})

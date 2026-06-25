@@ -202,12 +202,12 @@ func (s *Service) discoveryMarkerFresh(scenario string) bool {
 }
 
 func (s *Service) writeDiscoveryMarker(scenario string) error {
-	if err := os.MkdirAll(s.discoveryMarkerDir(), 0o755); err != nil {
+	if err := os.MkdirAll(s.discoveryMarkerDir(), 0o750); err != nil {
 		return err
 	}
 	data, err := json.Marshal(discoveryMarker{RanAt: nowRFC3339()})
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.discoveryMarkerPath(scenario), data, 0o644)
+	return os.WriteFile(s.discoveryMarkerPath(scenario), data, 0o600)
 }

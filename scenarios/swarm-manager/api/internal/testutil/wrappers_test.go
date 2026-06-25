@@ -12,7 +12,7 @@ func TestAssertStatusWrappers(t *testing.T) {
 	cases := []struct {
 		name     string
 		status   int
-		assertFn func(*testing.T, *httptest.ResponseRecorder)
+		assertFn func(testing.TB, *httptest.ResponseRecorder)
 	}{
 		{name: "ok", status: http.StatusOK, assertFn: AssertStatusOK},
 		{name: "created", status: http.StatusCreated, assertFn: AssertStatusCreated},

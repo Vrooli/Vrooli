@@ -3,6 +3,7 @@ package feedback
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -42,7 +43,7 @@ func (s *Store) SaveAttachmentsToDir(roundDir string, r *http.Request) ([]string
 	}
 
 	attDir := filepath.Join(roundDir, "attachments")
-	if err := os.MkdirAll(attDir, 0o755); err != nil {
+	if err := os.MkdirAll(attDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create attachments dir: %w", err)
 	}
 
@@ -84,7 +85,9 @@ func (s *Store) saveSingleAttachment(attDir string, fh *multipart.FileHeader) (s
 	defer dst.Close()
 
 	if _, err := io.Copy(dst, src); err != nil {
-		_ = os.Remove(destPath)
+		if rmErr := os.Remove(destPath); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("feedback: remove partial attachment failed", "err", rmErr, "path", destPath)
+		}
 		return "", fmt.Errorf("write attachment file: %w", err)
 	}
 	return destName, nil

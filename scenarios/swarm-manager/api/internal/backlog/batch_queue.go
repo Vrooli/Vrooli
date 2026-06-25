@@ -4,6 +4,7 @@ package backlog
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -113,7 +114,9 @@ func groupItemRefsByInitiative(items []BacklogItem) map[string][]string {
 
 func rollbackBatchCreate(createdDirs []string, appliedInitiatives []resolvedInitiativePlan, assigner InitiativeAssigner) {
 	for _, dir := range createdDirs {
-		_ = os.RemoveAll(dir)
+		if rmErr := os.RemoveAll(dir); rmErr != nil {
+			slog.Debug("backlog: rollback batch-created dir failed", "err", rmErr, "dir", dir)
+		}
 	}
 	if assigner == nil {
 		return

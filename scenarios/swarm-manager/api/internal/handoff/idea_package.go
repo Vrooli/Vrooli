@@ -142,7 +142,7 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 	locked, open := summarizeDecisions(rounds)
 
 	handoffDir := filepath.Join(itemFolder, handoffDirName)
-	if err := os.MkdirAll(handoffDir, 0o755); err != nil {
+	if err := os.MkdirAll(handoffDir, 0o750); err != nil {
 		return nil, fmt.Errorf("create handoff dir: %w", err)
 	}
 
@@ -198,7 +198,7 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 	if err := writeJSONFile(manifestPath, manifest); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(briefPath, []byte(brief), 0o644); err != nil {
+	if err := os.WriteFile(briefPath, []byte(brief), 0o600); err != nil {
 		return nil, fmt.Errorf("write brief: %w", err)
 	}
 
@@ -219,6 +219,19 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 	b.WriteString("# Idea Execution Handoff\n\n")
 	b.WriteString("This package captures the finalized swarm-manager idea context for downstream ecosystem-manager execution. It is regenerated from the latest finalized backlog state when idea execution begins so downstream work starts from a stable contract rather than scattered workshop artifacts.\n\n")
 
+	writeBriefExecutionContract(&b, manifest, sourceIndex)
+	writeBriefDownstreamRequirements(&b)
+	writeBriefProductIntent(&b, manifest)
+	writeBriefLockedDecisions(&b, manifest)
+	writeBriefOpenDecisions(&b, manifest)
+	writeBriefExecutionBoundaries(&b, manifest)
+	writeBriefValidation(&b, manifest)
+	writeBriefSupportingSources(&b, sourceIndex)
+
+	return b.String()
+}
+
+func writeBriefExecutionContract(b *strings.Builder, manifest Manifest, sourceIndex SourceIndex) {
 	b.WriteString("## Execution Contract\n\n")
 	b.WriteString(fmt.Sprintf("- Backlog item: `%s/%s`\n", manifest.BacklogKind, manifest.BacklogName))
 	if manifest.BacklogTitle != "" {
@@ -238,54 +251,64 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 	b.WriteString(fmt.Sprintf("- Manifest: `%s`\n", manifest.ManifestPath))
 	b.WriteString(fmt.Sprintf("- Source index: `%s`\n", manifest.SourceIndexPath))
 	b.WriteString("\n")
+}
 
+func writeBriefDownstreamRequirements(b *strings.Builder) {
 	b.WriteString("## Downstream Requirements\n\n")
 	b.WriteString("- Read `plan.md` and `manifest.json` before creating the ecosystem-manager task.\n")
 	b.WriteString("- Use this `brief.md` file as the ecosystem-manager task notes.\n")
 	b.WriteString("- Preserve the origin metadata so later ecosystem-manager loops can trace back to the swarm-manager source artifacts.\n\n")
+}
 
+func writeBriefProductIntent(b *strings.Builder, manifest Manifest) {
 	if manifest.BacklogDescription != "" {
 		b.WriteString("## Product Intent\n\n")
 		b.WriteString(manifest.BacklogDescription)
 		b.WriteString("\n\n")
 	}
+}
 
+func writeBriefLockedDecisions(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Locked Decisions\n\n")
 	if len(manifest.LockedDecisions) == 0 {
 		b.WriteString("- None captured in workshop state.\n\n")
-	} else {
-		for _, decision := range manifest.LockedDecisions {
-			line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
-			if decision.SelectedLabel != "" {
-				line += fmt.Sprintf(" -> %s", decision.SelectedLabel)
-			} else if decision.SelectedKey != "" {
-				line += fmt.Sprintf(" -> option %s", decision.SelectedKey)
-			}
-			b.WriteString(line + "\n")
-			if decision.Freeform != "" {
-				b.WriteString(fmt.Sprintf("  Freeform: %s\n", decision.Freeform))
-			}
-			if decision.Notes != "" {
-				b.WriteString(fmt.Sprintf("  Notes: %s\n", decision.Notes))
-			}
-		}
-		b.WriteString("\n")
+		return
 	}
+	for _, decision := range manifest.LockedDecisions {
+		line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
+		if decision.SelectedLabel != "" {
+			line += fmt.Sprintf(" -> %s", decision.SelectedLabel)
+		} else if decision.SelectedKey != "" {
+			line += fmt.Sprintf(" -> option %s", decision.SelectedKey)
+		}
+		b.WriteString(line + "\n")
+		if decision.Freeform != "" {
+			b.WriteString(fmt.Sprintf("  Freeform: %s\n", decision.Freeform))
+		}
+		if decision.Notes != "" {
+			b.WriteString(fmt.Sprintf("  Notes: %s\n", decision.Notes))
+		}
+	}
+	b.WriteString("\n")
+}
 
+func writeBriefOpenDecisions(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Remaining Open Decisions\n\n")
 	if len(manifest.OpenDecisions) == 0 {
 		b.WriteString("- None.\n\n")
-	} else {
-		for _, decision := range manifest.OpenDecisions {
-			line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
-			if decision.Context != "" {
-				line += fmt.Sprintf(" — %s", decision.Context)
-			}
-			b.WriteString(line + "\n")
-		}
-		b.WriteString("\n")
+		return
 	}
+	for _, decision := range manifest.OpenDecisions {
+		line := fmt.Sprintf("- Round %03d `%s`: %s", decision.Round, decision.ID, decision.Topic)
+		if decision.Context != "" {
+			line += fmt.Sprintf(" — %s", decision.Context)
+		}
+		b.WriteString(line + "\n")
+	}
+	b.WriteString("\n")
+}
 
+func writeBriefExecutionBoundaries(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Execution Boundaries\n\n")
 	if len(manifest.AcceptanceAllow) == 0 {
 		b.WriteString("- acceptance_allow: none recorded\n")
@@ -304,13 +327,17 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 		}
 	}
 	b.WriteString("\n")
+}
 
+func writeBriefValidation(b *strings.Builder, manifest Manifest) {
 	b.WriteString("## Validation Starting Point\n\n")
 	for _, command := range manifest.ValidationCommands {
 		b.WriteString(fmt.Sprintf("- `%s`\n", command))
 	}
 	b.WriteString("\n")
+}
 
+func writeBriefSupportingSources(b *strings.Builder, sourceIndex SourceIndex) {
 	b.WriteString("## Supporting Sources\n\n")
 	b.WriteString(fmt.Sprintf("- Spec: `%s`\n", sourceIndex.SpecPath))
 	if sourceIndex.NotesPath != "" {
@@ -329,8 +356,6 @@ func renderBrief(manifest Manifest, sourceIndex SourceIndex) string {
 		}
 	}
 	b.WriteString("\n")
-
-	return b.String()
 }
 
 func validationCommands(target string) []string {

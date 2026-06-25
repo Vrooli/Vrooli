@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 )
 
 // stubBacklogStore lets tests supply items without spinning up a FileStore.
@@ -352,7 +352,7 @@ func TestMaterializer_ScheduleAllCoalesces(t *testing.T) {
 	}
 
 	// Wait for materialization to drain. Both graph.json files must exist.
-	assertx.Eventually(t, 2*time.Second, "both materialized graph files after burst", func() bool {
+	testutil.Eventually(t, 2*time.Second, "both materialized graph files after burst", func() bool {
 		_, err1 := os.Stat(filepath.Join(rootDir, "initiatives", "one", "graph.json"))
 		_, err2 := os.Stat(filepath.Join(rootDir, "initiatives", "two", "graph.json"))
 		return err1 == nil && err2 == nil
@@ -422,7 +422,7 @@ func TestMaterializer_DispatchHookWiring(t *testing.T) {
 
 	// Topology invalidation must trigger a rebuild.
 	dispatch.DispatchInvalidate(string(LensTopology))
-	assertx.Eventually(t, 2*time.Second, "topology invalidation to materialize graph", func() bool {
+	testutil.Eventually(t, 2*time.Second, "topology invalidation to materialize graph", func() bool {
 		if _, err := os.Stat(filepath.Join(rootDir, "initiatives", "wired", "graph.json")); err == nil {
 			return true
 		}

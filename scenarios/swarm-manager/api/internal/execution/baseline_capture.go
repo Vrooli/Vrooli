@@ -68,6 +68,9 @@ func (s *Service) capturePreExecBaselinesLocked(ctx context.Context, item backlo
 	// use a background context bounded by the baseline client's own timeout.
 	// A cache hit (state unchanged since a prior run) returns immediately.
 	client := s.baselineClient
+	// #nosec G118 -- intentional: per the comment above, this detached capture
+	// must outlive the request context (canceled when Start returns); it is
+	// bounded by the baseline client's own timeout.
 	go func() {
 		bgCtx := context.Background()
 		for _, job := range jobs {

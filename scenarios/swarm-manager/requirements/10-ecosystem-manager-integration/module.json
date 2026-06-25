@@ -5,74 +5,32 @@
   "requirements": [
     {
       "id": "REQ-P0-011-API",
-      "title": "Ecosystem Manager API Client",
+      "title": "Ecosystem Manager Handoff Package",
       "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "api",
-      "description": "Implement ecosystem client and API integration for creating tasks in ecosystem-manager",
+      "description": "Build an ecosystem-manager handoff package (brief.md, manifest.json, source-index) from a finalized backlog idea, carrying the target scenario, the resolved operation (generator vs improver), and locked/open workshop decisions, so ecosystem-manager can initialize or improve the scenario. Replaces the former direct ecosystem HTTP client / numeric-priority mapping, which was removed when the handoff moved to a package-on-disk contract.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
+          "ref": "api/internal/handoff/idea_package.go::BuildIdeaPackage",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Test ecosystem client creates tasks successfully"
+          "status": "implemented",
+          "notes": "BuildIdeaPackage assembles the ecosystem-manager handoff artifacts"
         },
         {
           "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
+          "ref": "api/internal/handoff/idea_package_test.go::TestBuildIdeaPackage",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Test ecosystem client handles port resolution failure"
+          "status": "implemented",
+          "notes": "Handoff manifest carries target scenario, operation (generator), and locked/open decisions for ecosystem-manager"
         },
         {
           "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString",
+          "ref": "api/internal/handoff/idea_package_test.go::TestBuildIdeaPackage_RejectsNonIdeaItems",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Test priority mapping from numeric to string format"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString_Boundaries",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Test priority mapping boundary values"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_ResponseDecodeError",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Test response decode error handling"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_RequestConstruction",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Test request construction verification"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestNewHTTPClient",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Test default HTTP client creation"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/ecosystem/client.go::Client",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Ecosystem Client interface defined for seam pattern"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/ecosystem/client.go::Client",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Ecosystem client seam implementation"
+          "status": "implemented",
+          "notes": "Handoff package construction rejects non-idea backlog items"
         }
       ]
     },
@@ -82,28 +40,21 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "integration",
-      "description": "Ecosystem task integration available for backlog-driven scenario initialization",
+      "description": "Ecosystem-manager integration available for backlog-driven scenario initialization: the execution preflight resolves whether a backlog idea targets a new scenario (operation 'generator') or an existing one (operation 'improver'), and the handoff package records that operation plus the target scenario for ecosystem-manager to act on.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask",
+          "ref": "api/internal/execution/preflight.go::processPreflightForItem",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Ecosystem client creates tasks for scenario initialization"
+          "status": "implemented",
+          "notes": "Preflight derives generator/improver operation from whether the target scenario already exists"
         },
         {
           "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestMapPriorityToString",
+          "ref": "api/internal/handoff/idea_package_test.go::TestBuildIdeaPackage",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Priority mapping supports initializer/improver semantics"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/ecosystem/client_test.go::TestHTTPClient_CreateTask_ResponseDecodeError",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Ecosystem client handles errors gracefully"
+          "status": "implemented",
+          "notes": "Handoff package records the operation and target scenario for backlog-driven scenario initialization"
         }
       ]
     }

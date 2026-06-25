@@ -28,13 +28,13 @@ type StatsResponse struct {
 // regression-rate signal computed from supersede chains. Folded from
 // EventRecordCreated and EventRecordSuperseded.
 type RecordStats struct {
-	TotalRecords       int            `json:"total_records"`
-	CreatedLast7Days   int            `json:"created_last_7_days"`
-	CreatedLast30Days  int            `json:"created_last_30_days"`
-	ByKind             map[string]int `json:"by_kind"`
-	ByScenario         map[string]int `json:"by_scenario"`
-	WithBacklogRef     int            `json:"with_backlog_ref"`
-	WithoutBacklogRef  int            `json:"without_backlog_ref"`
+	TotalRecords      int            `json:"total_records"`
+	CreatedLast7Days  int            `json:"created_last_7_days"`
+	CreatedLast30Days int            `json:"created_last_30_days"`
+	ByKind            map[string]int `json:"by_kind"`
+	ByScenario        map[string]int `json:"by_scenario"`
+	WithBacklogRef    int            `json:"with_backlog_ref"`
+	WithoutBacklogRef int            `json:"without_backlog_ref"`
 	// Stubs counts EventRecordCreated events with stub=true. There is no
 	// stub-fill event today, so "current stub count" is not derivable from the
 	// event log alone — Stubs is therefore a created-as-stub flow counter, not

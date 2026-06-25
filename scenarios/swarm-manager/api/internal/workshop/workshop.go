@@ -9,6 +9,7 @@ package workshop
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -341,13 +342,15 @@ func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err er
 			return 0, fmt.Errorf("marshal round %d: %w", r.RoundNum, err)
 		}
 		newFile := filepath.Join(workshopDir, RoundFilename(newNum))
-		if err := os.WriteFile(newFile, data, 0o644); err != nil {
+		if err := os.WriteFile(newFile, data, 0o600); err != nil {
 			return 0, fmt.Errorf("write round %d: %w", newNum, err)
 		}
 		// Only remove old file if it differs from the new path (i.e., not the
 		// round immediately after the deleted one when there's a gap).
 		if oldFile != newFile {
-			_ = os.Remove(oldFile)
+			if rmErr := os.Remove(oldFile); rmErr != nil && !os.IsNotExist(rmErr) {
+				slog.Debug("workshop: remove old round file failed", "err", rmErr, "path", oldFile)
+			}
 		}
 	}
 
@@ -371,7 +374,10 @@ func ResetWorkshop(itemDir string, deliverableFile string) (deletedRounds int, e
 
 	// Remove deliverable file at item root (ignore if absent).
 	if deliverableFile != "" {
-		_ = os.Remove(filepath.Join(itemDir, deliverableFile))
+		deliverablePath := filepath.Join(itemDir, deliverableFile)
+		if rmErr := os.Remove(deliverablePath); rmErr != nil && !os.IsNotExist(rmErr) {
+			slog.Debug("workshop: remove deliverable failed", "err", rmErr, "path", deliverablePath)
+		}
 	}
 
 	return len(rounds), nil

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -264,7 +265,9 @@ func (c *HTTPReviewClient) Ping(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("GCT unreachable: %w", err)
 	}
-	resp.Body.Close()
+	if closeErr := resp.Body.Close(); closeErr != nil {
+		slog.Debug("execution: close GCT ping body failed", "err", closeErr)
+	}
 	if resp.StatusCode >= 500 {
 		return fmt.Errorf("GCT returned status %d", resp.StatusCode)
 	}

@@ -1,7 +1,6 @@
 package backlogrank
 
 import (
-	"sort"
 	"time"
 )
 
@@ -157,12 +156,6 @@ func Less(a, b Item, depthMap, unblockingMap map[string]int) bool {
 		return a.Kind < b.Kind
 	}
 	return a.Name < b.Name
-}
-
-func Sort(items []Item, depthMap, unblockingMap map[string]int) {
-	sort.SliceStable(items, func(i, j int) bool {
-		return Less(items[i], items[j], depthMap, unblockingMap)
-	})
 }
 
 func isResolved(item Item) bool {

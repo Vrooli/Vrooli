@@ -59,7 +59,7 @@ func (s *Service) Workspace(ctx context.Context, initiativeName string) (Workspa
 	}, nil
 }
 
-// DOC: Catalog returns the user-visible mode list. Registry definitions are
+// Catalog returns the user-visible mode list. Registry definitions are
 // merged with persisted overrides (label/description) and annotated with the
 // current per-mode initiative usage count. Sidebar and CLI both consume this.
 func (s *Service) Catalog() (ModeCatalog, error) {
@@ -87,7 +87,7 @@ func (s *Service) Catalog() (ModeCatalog, error) {
 	return ModeCatalog{Modes: entries}, nil
 }
 
-// DOC: GetMode returns a single mode's catalog entry plus the initiatives
+// GetMode returns a single mode's catalog entry plus the initiatives
 // currently using it. Backs GET /api/v1/operating-modes/{mode}.
 func (s *Service) GetMode(mode Mode) (ModeDetail, error) {
 	if err := ValidateRegistry(); err != nil {
@@ -110,7 +110,7 @@ func (s *Service) GetMode(mode Mode) (ModeDetail, error) {
 	return ModeDetail{Entry: entry, LinkedInitiatives: linked}, nil
 }
 
-// DOC: UpdateMode persists user-editable overrides (label, description) for a
+// UpdateMode persists user-editable overrides (label, description) for a
 // mode via the overlay store. Returns the merged detail. Empty-string label
 // is rejected; nil pointers leave the field unchanged; an explicit empty
 // override clears the row (restoring defaults).
@@ -131,7 +131,7 @@ func (s *Service) UpdateMode(mode Mode, override Override) (ModeDetail, error) {
 	return s.GetMode(def.Mode)
 }
 
-// DOC: InitiativesUsingMode walks the initiatives list and returns the
+// InitiativesUsingMode walks the initiatives list and returns the
 // compact references for those currently bound to the given mode. Used by
 // catalog usage counts and the details page linked-initiative list.
 func (s *Service) InitiativesUsingMode(mode Mode) ([]InitiativeRef, error) {

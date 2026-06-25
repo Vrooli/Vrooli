@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -33,6 +34,106 @@ import (
 // CreateClarification starts a new clarification thread for a workshop decision.
 //
 // POST /api/v1/backlog/{kind}/{name}/workshop/clarification
+// clarificationInput is the parsed CreateClarification payload, normalized
+// across the JSON and multipart/form-data request shapes.
+type clarificationInput struct {
+	roundNumber   int32
+	itemID        string
+	message       string
+	attachmentIDs []string
+}
+
+// parseClarificationInput decodes a CreateClarification request from either a
+// multipart/form-data body (the file-upload UI path, which also persists
+// attachments) or a protojson body. On any malformed input it writes the
+// appropriate error response and returns ok=false.
+func (h *Handler) parseClarificationInput(w http.ResponseWriter, r *http.Request, kind BacklogKind, name string) (clarificationInput, bool) {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("invalid multipart form"))
+			return clarificationInput{}, false
+		}
+		rn, convErr := strconv.Atoi(r.FormValue("round_number"))
+		if convErr != nil || rn < 1 || rn > math.MaxInt32 {
+			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("round_number is required and must be between 1 and 2147483647"))
+			return clarificationInput{}, false
+		}
+		itemID := strings.TrimSpace(r.FormValue("item_id"))
+		if itemID == "" {
+			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("item_id is required"))
+			return clarificationInput{}, false
+		}
+		// Save attached files and collect attachment IDs.
+		savedIDs, saveErr := h.saveClarificationAttachments(h.store.ItemDir(kind, name), r)
+		if saveErr != nil {
+			apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to save attachments"))
+			return clarificationInput{}, false
+		}
+		return clarificationInput{
+			roundNumber:   int32(rn), // #nosec G109 -- rn is bounded to [1, math.MaxInt32] above; the int32 conversion cannot overflow.
+			itemID:        itemID,
+			message:       strings.TrimSpace(r.FormValue("message")),
+			attachmentIDs: savedIDs,
+		}, true
+	}
+
+	var req apipb.CreateClarificationRequest
+	if err := httputil.DecodeProtoJSON(r, &req); err != nil {
+		apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("invalid request body"))
+		return clarificationInput{}, false
+	}
+	if !httputil.ValidateProtoRequest(w, "[backlog] clarification-create", "invalid request body", &req) {
+		return clarificationInput{}, false
+	}
+	return clarificationInput{
+		roundNumber:   req.RoundNumber,
+		itemID:        req.ItemId,
+		message:       req.Message,
+		attachmentIDs: req.AttachmentIds,
+	}, true
+}
+
+// resolveClarificationDecision loads the workshop rounds for itemDir and
+// returns the decision item identified by (roundNumber, itemID). It writes the
+// appropriate error response and returns ok=false when the round or item is
+// missing, or when the item is not a decision (clarification is decision-only).
+func (h *Handler) resolveClarificationDecision(w http.ResponseWriter, itemDir string, roundNumber int32, itemID string) (*workshop.Round, *workshop.Item, bool) {
+	rounds, err := workshop.LoadRounds(itemDir)
+	if err != nil {
+		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to load workshop rounds"))
+		return nil, nil, false
+	}
+
+	var targetRound *workshop.Round
+	for i := range rounds {
+		if rounds[i].RoundNum == int(roundNumber) {
+			targetRound = &rounds[i]
+			break
+		}
+	}
+	if targetRound == nil {
+		apierr.MapError(w, "[backlog] clarification-create", apierr.NotFound("round %d not found", roundNumber))
+		return nil, nil, false
+	}
+
+	var targetItem *workshop.Item
+	for i := range targetRound.Items {
+		if targetRound.Items[i].ID == itemID {
+			targetItem = &targetRound.Items[i]
+			break
+		}
+	}
+	if targetItem == nil {
+		apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("item %q not found in round %d", itemID, roundNumber))
+		return nil, nil, false
+	}
+	if targetItem.Type != "decision" {
+		apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("clarification is only supported for decision items"))
+		return nil, nil, false
+	}
+	return targetRound, targetItem, true
+}
+
 func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "clarification-create")
 	if !ok {
@@ -50,85 +151,16 @@ func (h *Handler) CreateClarification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse request — supports both JSON and multipart/form-data (for file attachments).
-	var roundNumber int32
-	var itemID, message string
-	var attachmentIDs []string
-
-	ct := r.Header.Get("Content-Type")
-	if strings.HasPrefix(ct, "multipart/form-data") {
-		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("invalid multipart form"))
-			return
-		}
-		rn, convErr := strconv.Atoi(r.FormValue("round_number"))
-		if convErr != nil || rn < 1 {
-			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("round_number is required and must be >= 1"))
-			return
-		}
-		roundNumber = int32(rn)
-		itemID = strings.TrimSpace(r.FormValue("item_id"))
-		if itemID == "" {
-			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("item_id is required"))
-			return
-		}
-		message = strings.TrimSpace(r.FormValue("message"))
-
-		// Save attached files and collect attachment IDs.
-		itemDir := h.store.ItemDir(kind, name)
-		savedIDs, saveErr := h.saveClarificationAttachments(itemDir, r)
-		if saveErr != nil {
-			apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to save attachments"))
-			return
-		}
-		attachmentIDs = savedIDs
-	} else {
-		var req apipb.CreateClarificationRequest
-		if err := httputil.DecodeProtoJSON(r, &req); err != nil {
-			apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("invalid request body"))
-			return
-		}
-		if !httputil.ValidateProtoRequest(w, "[backlog] clarification-create", "invalid request body", &req) {
-			return
-		}
-		roundNumber = req.RoundNumber
-		itemID = req.ItemId
-		message = req.Message
-		attachmentIDs = req.AttachmentIds
+	in, ok := h.parseClarificationInput(w, r, kind, name)
+	if !ok {
+		return
 	}
+	roundNumber, itemID, message, attachmentIDs := in.roundNumber, in.itemID, in.message, in.attachmentIDs
 
 	// Verify round and item exist.
 	itemDir := h.store.ItemDir(kind, name)
-	rounds, err := workshop.LoadRounds(itemDir)
-	if err != nil {
-		apierr.MapError(w, "[backlog] clarification-create", apierr.Internal("failed to load workshop rounds"))
-		return
-	}
-
-	var targetRound *workshop.Round
-	for i := range rounds {
-		if rounds[i].RoundNum == int(roundNumber) {
-			targetRound = &rounds[i]
-			break
-		}
-	}
-	if targetRound == nil {
-		apierr.MapError(w, "[backlog] clarification-create", apierr.NotFound("round %d not found", roundNumber))
-		return
-	}
-
-	var targetItem *workshop.Item
-	for i := range targetRound.Items {
-		if targetRound.Items[i].ID == itemID {
-			targetItem = &targetRound.Items[i]
-			break
-		}
-	}
-	if targetItem == nil {
-		apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("item %q not found in round %d", itemID, roundNumber))
-		return
-	}
-	if targetItem.Type != "decision" {
-		apierr.MapError(w, "[backlog] clarification-create", apierr.BadRequest("clarification is only supported for decision items"))
+	targetRound, targetItem, ok := h.resolveClarificationDecision(w, itemDir, roundNumber, itemID)
+	if !ok {
 		return
 	}
 

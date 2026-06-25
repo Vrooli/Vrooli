@@ -144,8 +144,24 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 		fmt.Printf("  Created %d backlog item(s)\n", response.Count)
 	}
 
+	printBatchCreateItems(response.Items)
+	printBatchCreateInitiatives(response.Initiatives)
+
+	if len(response.Items) > 0 {
+		first := response.Items[0]
+		printCommandListSection("Next Steps", []string{
+			cliCommand("backlog", "get", "--kind", first.Kind, "--name", first.Name),
+			cliCommand("backlog", "list"),
+		})
+	}
+
+	return nil
+}
+
+// printBatchCreateItems renders the "Items" section for a batch-create result.
+func printBatchCreateItems(items []BacklogItem) {
 	printSection("Items")
-	for _, item := range response.Items {
+	for _, item := range items {
 		effortStr := ""
 		if item.Effort != "" {
 			effortStr = fmt.Sprintf(", effort: %s", item.Effort)
@@ -158,33 +174,28 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 			fmt.Printf("    Initiative: %s\n", item.Initiative)
 		}
 	}
+}
 
-	if len(response.Initiatives) > 0 {
-		printSection("Initiatives")
-		for _, initiative := range response.Initiatives {
-			fmt.Printf("  [%s] %s (%s)\n", strings.ToUpper(initiative.Action), initiative.Name, initiative.Status)
-			fmt.Printf("    Title: %s\n", initiative.Title)
-			if initiative.Description != "" {
-				fmt.Printf("    Description: %s\n", initiative.Description)
-			}
-			if initiative.Priority > 0 {
-				fmt.Printf("    Priority: %d\n", initiative.Priority)
-			}
-			if len(initiative.DependsOn) > 0 {
-				fmt.Printf("    Depends on: %s\n", strings.Join(initiative.DependsOn, ", "))
-			}
+// printBatchCreateInitiatives renders the "Initiatives" section when any
+// initiatives were created or updated by the batch.
+func printBatchCreateInitiatives(initiatives []BatchCreateInitiativeResult) {
+	if len(initiatives) == 0 {
+		return
+	}
+	printSection("Initiatives")
+	for _, initiative := range initiatives {
+		fmt.Printf("  [%s] %s (%s)\n", strings.ToUpper(initiative.Action), initiative.Name, initiative.Status)
+		fmt.Printf("    Title: %s\n", initiative.Title)
+		if initiative.Description != "" {
+			fmt.Printf("    Description: %s\n", initiative.Description)
+		}
+		if initiative.Priority > 0 {
+			fmt.Printf("    Priority: %d\n", initiative.Priority)
+		}
+		if len(initiative.DependsOn) > 0 {
+			fmt.Printf("    Depends on: %s\n", strings.Join(initiative.DependsOn, ", "))
 		}
 	}
-
-	if len(response.Items) > 0 {
-		first := response.Items[0]
-		printCommandListSection("Next Steps", []string{
-			cliCommand("backlog", "get", "--kind", first.Kind, "--name", first.Name),
-			cliCommand("backlog", "list"),
-		})
-	}
-
-	return nil
 }
 
 func (a *App) cmdBacklogBatchQueue(args []string) error {

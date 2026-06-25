@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -127,7 +128,7 @@ func (s *Store) CreateRound(round RoundEnvelope) (RoundEnvelope, error) {
 	if err != nil {
 		return RoundEnvelope{}, err
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return RoundEnvelope{}, fmt.Errorf("create rounds dir: %w", err)
 	}
 
@@ -312,12 +313,14 @@ func writeJSONExclusive(path string, data any) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = f.Close()
+		if closeErr := f.Close(); closeErr != nil {
+			slog.Debug("operatingmode: close round file failed", "err", closeErr)
+		}
 	}()
 	if _, err := f.Write(bytes); err != nil {
 		return err

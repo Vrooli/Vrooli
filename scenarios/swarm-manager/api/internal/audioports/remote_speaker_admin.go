@@ -21,7 +21,7 @@ type RemoteSpeakerAdmin struct {
 
 var _ SpeakerAdmin = (*RemoteSpeakerAdmin)(nil)
 
-func (r *RemoteSpeakerAdmin) attach(req connect.AnyRequest, ctx context.Context) {
+func (r *RemoteSpeakerAdmin) attach(ctx context.Context, req connect.AnyRequest) {
 	if r.Credentials == nil || req == nil {
 		return
 	}
@@ -63,7 +63,7 @@ func (r *RemoteSpeakerAdmin) GetSpeakerConfig(ctx context.Context) (SpeakerConfi
 		return SpeakerConfig{}, err
 	}
 	req := connect.NewRequest(&sttv1.GetSpeakerConfigRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.GetSpeakerConfig(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
@@ -85,7 +85,7 @@ func (r *RemoteSpeakerAdmin) UpdateSpeakerConfig(ctx context.Context, mask Field
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: mask.Paths},
 		Config:     speakerConfigToProto(cfg),
 	})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.UpdateSpeakerConfig(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
@@ -101,7 +101,7 @@ func (r *RemoteSpeakerAdmin) GetSpeakerStatus(ctx context.Context) (SpeakerStatu
 		return SpeakerStatus{}, err
 	}
 	req := connect.NewRequest(&sttv1.GetSpeakerStatusRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.GetSpeakerStatus(ctx, req)
 	if err != nil {
 		return SpeakerStatus{}, r.handleErr(err)
@@ -117,7 +117,7 @@ func (r *RemoteSpeakerAdmin) ListSpeakerProfiles(ctx context.Context) ([]Speaker
 		return nil, err
 	}
 	req := connect.NewRequest(&sttv1.ListSpeakerProfilesRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.ListSpeakerProfiles(ctx, req)
 	if err != nil {
 		return nil, r.handleErr(err)
@@ -152,7 +152,7 @@ func (r *RemoteSpeakerAdmin) EnrollSpeakerProfile(ctx context.Context, in Enroll
 		pbReq.Enable = &v
 	}
 	req := connect.NewRequest(pbReq)
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.EnrollSpeakerProfile(ctx, req)
 	if err != nil {
 		return SpeakerEnrollResult{}, r.handleErr(err)
@@ -171,7 +171,7 @@ func (r *RemoteSpeakerAdmin) ClearSpeakerProfileBinding(ctx context.Context) (Sp
 		return SpeakerConfig{}, err
 	}
 	req := connect.NewRequest(&sttv1.ClearSpeakerProfileBindingRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.ClearSpeakerProfileBinding(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
@@ -190,7 +190,7 @@ func (r *RemoteSpeakerAdmin) UnbindSpeakerProfile(ctx context.Context, profileID
 		return SpeakerConfig{}, audiotools.ErrInvalidArgument
 	}
 	req := connect.NewRequest(&sttv1.UnbindSpeakerProfileRequest{ProfileId: profileID})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.UnbindSpeakerProfile(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
@@ -209,7 +209,7 @@ func (r *RemoteSpeakerAdmin) DeleteSpeakerProfile(ctx context.Context, profileID
 		return SpeakerConfig{}, audiotools.ErrInvalidArgument
 	}
 	req := connect.NewRequest(&sttv1.DeleteSpeakerProfileRequest{ProfileId: profileID})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.DeleteSpeakerProfile(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)

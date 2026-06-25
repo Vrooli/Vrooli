@@ -127,6 +127,17 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.Theme != nil {
 		patch.Theme = req.Theme
 	}
+	executionPatchFromProto(req, &patch)
+	workshopPatchFromProto(req, &patch)
+	agentPatchFromProto(req, &patch)
+	uiPatchFromProto(req, &patch)
+	reviewPatchFromProto(req, &patch)
+	governancePatchFromProto(req, &patch)
+	return patch
+}
+
+// executionPatchFromProto copies the execution-default request fields.
+func executionPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.DefaultMode != nil {
 		s := *req.DefaultMode
 		patch.DefaultMode = &s
@@ -143,6 +154,11 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.ReviewAgentEnabled
 		patch.ReviewAgentEnabled = &v
 	}
+}
+
+// workshopPatchFromProto copies the workshop request fields. The proto request
+// has no AutoAdvanceDelaySeconds field, so it is intentionally absent here.
+func workshopPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.MaxAutoRounds != nil {
 		v := int(*req.MaxAutoRounds)
 		patch.MaxAutoRounds = &v
@@ -159,6 +175,10 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.AutoCascadeWorkshop
 		patch.AutoCascadeWorkshop = &v
 	}
+}
+
+// agentPatchFromProto copies the agent-behavior request fields.
+func agentPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.AgentMaxTurns != nil {
 		v := int(*req.AgentMaxTurns)
 		patch.AgentMaxTurns = &v
@@ -167,6 +187,10 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := int(*req.AgentTimeoutSeconds)
 		patch.AgentTimeoutSeconds = &v
 	}
+}
+
+// uiPatchFromProto copies the UI-preference request fields.
+func uiPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.SearchDebounceMs != nil {
 		v := int(*req.SearchDebounceMs)
 		patch.SearchDebounceMs = &v
@@ -178,6 +202,10 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.DeleteConfirmationLevels != nil {
 		patch.DeleteConfirmationLevels = deleteConfirmationLevelsFromProto(req.DeleteConfirmationLevels)
 	}
+}
+
+// reviewPatchFromProto copies the review-threshold request fields.
+func reviewPatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.ReviewCodeQualityMinScore != nil {
 		v := *req.ReviewCodeQualityMinScore
 		patch.ReviewCodeQualityMinScore = &v
@@ -202,6 +230,11 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.ReviewRequireTests
 		patch.ReviewRequireTests = &v
 	}
+}
+
+// governancePatchFromProto copies the concurrency/governance and
+// fix-before-feature request fields.
+func governancePatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsPatch) {
 	if req.LaneConcurrencyLimits != nil {
 		patch.LaneConcurrencyLimits = laneLimitsFromProto(req.LaneConcurrencyLimits)
 	}
@@ -233,7 +266,6 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 		v := *req.FixBeforeFeatureDiscovery
 		patch.FixBeforeFeatureDiscovery = &v
 	}
-	return patch
 }
 
 func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
@@ -241,26 +273,57 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		return true
 	}
 	return req.Theme == nil &&
-		req.DefaultMode == nil &&
+		isEmptyExecutionRequest(req) &&
+		isEmptyWorkshopRequest(req) &&
+		isEmptyAgentRequest(req) &&
+		isEmptyUIRequest(req) &&
+		isEmptyReviewRequest(req) &&
+		isEmptyGovernanceRequest(req)
+}
+
+// isEmptyExecutionRequest reports whether no execution-default field is set.
+func isEmptyExecutionRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.DefaultMode == nil &&
 		req.AutoFixup == nil &&
 		req.MaxFixupAttempts == nil &&
-		req.ReviewAgentEnabled == nil &&
-		req.MaxAutoRounds == nil &&
+		req.ReviewAgentEnabled == nil
+}
+
+// isEmptyWorkshopRequest reports whether no workshop field is set.
+func isEmptyWorkshopRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.MaxAutoRounds == nil &&
 		req.AutoInitializeWorkshop == nil &&
 		req.AutoAdvanceWorkshop == nil &&
-		req.AutoCascadeWorkshop == nil &&
-		req.AgentMaxTurns == nil &&
-		req.AgentTimeoutSeconds == nil &&
-		req.SearchDebounceMs == nil &&
+		req.AutoCascadeWorkshop == nil
+}
+
+// isEmptyAgentRequest reports whether no agent-behavior field is set.
+func isEmptyAgentRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.AgentMaxTurns == nil &&
+		req.AgentTimeoutSeconds == nil
+}
+
+// isEmptyUIRequest reports whether no UI-preference field is set.
+func isEmptyUIRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.SearchDebounceMs == nil &&
 		req.ToastDurationMs == nil &&
-		req.DeleteConfirmationLevels == nil &&
-		req.ReviewCodeQualityMinScore == nil &&
+		req.DeleteConfirmationLevels == nil
+}
+
+// isEmptyReviewRequest reports whether no review-threshold field is set.
+func isEmptyReviewRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.ReviewCodeQualityMinScore == nil &&
 		req.ReviewTestMinPassRate == nil &&
 		req.ReviewMaxBlockingViolations == nil &&
 		req.ReviewMaxWarnings == nil &&
 		req.ReviewRequireScreenshots == nil &&
-		req.ReviewRequireTests == nil &&
-		req.LaneConcurrencyLimits == nil &&
+		req.ReviewRequireTests == nil
+}
+
+// isEmptyGovernanceRequest reports whether no concurrency/governance or
+// fix-before-feature field is set.
+func isEmptyGovernanceRequest(req *apipb.UpdateSettingsRequest) bool {
+	return req.LaneConcurrencyLimits == nil &&
 		req.MaxQueueDepth == nil &&
 		req.CircuitBreakerThreshold == nil &&
 		req.CircuitBreakerCooldownMinutes == nil &&

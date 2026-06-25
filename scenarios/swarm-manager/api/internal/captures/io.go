@@ -123,10 +123,10 @@ func (h *Handler) writeCapture(cap *capture) error {
 	if err != nil {
 		return fmt.Errorf("marshal capture: %w", err)
 	}
-	return os.WriteFile(h.captureSpecPath(cap.ID), data, 0o644)
+	return os.WriteFile(h.captureSpecPath(cap.ID), data, 0o600)
 }
 
 // EnsureCapturesDir creates the captures directory if it doesn't exist.
 func (h *Handler) EnsureCapturesDir() error {
-	return os.MkdirAll(h.capturesDir(), 0o755)
+	return os.MkdirAll(h.capturesDir(), 0o750)
 }

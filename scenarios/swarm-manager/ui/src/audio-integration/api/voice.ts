@@ -8,13 +8,14 @@ import { create } from "@bufbuild/protobuf";
 import { createClient as createConnectClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
-import { resolveApiBase } from "@vrooli/api-base";
+import { API_BASE } from "../../lib/api-client";
 
 // Same-origin Connect-Web transport. Swarm-manager's AudioAdminService +
 // AudioRuntimeService live at /vrooli.swarm_manager.v1.audio_*. The UI never
 // resolves audio-tools on its own; the server owns the inter-scenario hop
-// server-to-server via internal/audioports.
-export const API_BASE = resolveApiBase();
+// server-to-server via internal/audioports. API_BASE is re-exported from the
+// app's single resolveApiBase SSOT (lib/api-client) for existing consumers.
+export { API_BASE };
 export const transport = createConnectTransport({ baseUrl: API_BASE });
 import {
   audioFormatFromString,

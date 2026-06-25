@@ -1,0 +1,180 @@
+package backlog
+
+import (
+	"errors"
+	"log/slog"
+	"net/http"
+	"strings"
+	"time"
+
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+)
+
+// Delete deletes a backlog item and cascades referential integrity:
+//   - Removes the item's "kind/name" ref from every other item's depends_on.
+//   - Removes the ref from its enclosing initiative's items[] list.
+//
+// Cascade runs before the item file is deleted so that a partial failure
+// leaves a consistent "item still exists, references intact" state. After
+// the item file is removed, the depends_on sweep is run as a best-effort
+// cleanup of refs that now point at a non-existent item.
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "delete")
+	if !ok {
+		return
+	}
+
+	existing, err := h.store.LoadItem(kind, name)
+	if errors.Is(err, ErrNotFound) {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if err != nil {
+		slog.Error("failed to load item for delete", "name", name, "err", err)
+		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to load backlog item"))
+		return
+	}
+
+	ref := string(kind) + "/" + name
+	if strings.TrimSpace(existing.Initiative) != "" && h.initiativeAssigner != nil {
+		if err := h.initiativeAssigner.ForgetItem(existing.Initiative, ref); err != nil {
+			slog.Error("failed to forget item from initiative", "ref", ref, "initiative", existing.Initiative, "err", err)
+			apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to update initiative membership"))
+			return
+		}
+	}
+
+	if err := h.store.DeleteItem(kind, name); err != nil {
+		if existing.Initiative != "" && h.initiativeAssigner != nil {
+			if rollbackErr := h.initiativeAssigner.RememberItem(existing.Initiative, ref); rollbackErr != nil {
+				slog.Error("failed to roll back initiative membership after delete failure", "ref", ref, "err", rollbackErr)
+			}
+		}
+		slog.Error("failed to delete item", "name", name, "err", err)
+		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to delete backlog item"))
+		return
+	}
+
+	if n, err := h.store.RemoveDependencyRef(ref); err != nil {
+		slog.Error("failed to clean up dependency references", "ref", ref, "err", err)
+	} else if n > 0 {
+		slog.Info("cleaned up dependency references", "ref", ref, "updated_items", n)
+	}
+
+	slog.Info("item deleted", "name", name, "kind", kind)
+	if h.eventLogger != nil {
+		h.eventLogger.EmitBacklogDeleted(ref)
+	}
+	h.invalidateAllGraphLenses()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Archive sets archived_at on a backlog item. When the item is still in an
+// active review status (in_review / review_pending), the archive button
+// doubles as a review-acceptance: we transition to completed and fire the
+// normal terminal-handler path before stamping archived_at. The status change
+// is emitted so listeners see the transition.
+func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "archive")
+	if !ok {
+		return
+	}
+
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
+			return
+		}
+		apierr.MapError(w, "[backlog] archive", apierr.Internal("%s", err.Error()))
+		return
+	}
+
+	if item.ArchivedAt != nil {
+		resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+		if err := httputil.ProtoJSON(w, resp); err != nil {
+			apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	priorStatus := item.Status
+	statusChanged := false
+	if IsReviewStatus(priorStatus) {
+		item.Status = StatusCompleted
+		statusChanged = true
+	}
+	item.ArchivedAt = &now
+	item.Updated = now
+
+	if err := h.store.SaveItem(item); err != nil {
+		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to save item"))
+		return
+	}
+
+	entityID := string(kind) + "/" + name
+	if h.eventLogger != nil {
+		if statusChanged {
+			h.eventLogger.EmitBacklogStatusChanged(entityID, string(priorStatus), string(item.Status))
+		}
+		h.eventLogger.EmitBacklogArchived(entityID, string(item.Status), now)
+	}
+	if statusChanged && h.itemTerminalHandler != nil {
+		h.itemTerminalHandler(r.Context(), string(kind), name, item.Status)
+	}
+	h.invalidateAllGraphLenses()
+
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] archive", apierr.Internal("failed to encode response"))
+	}
+}
+
+// Unarchive clears archived_at on a backlog item.
+func (h *Handler) Unarchive(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "unarchive")
+	if !ok {
+		return
+	}
+
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			apierr.MapError(w, "", apierr.NotFound("backlog item not found"))
+			return
+		}
+		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("%s", err.Error()))
+		return
+	}
+
+	if item.ArchivedAt == nil {
+		resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+		if err := httputil.ProtoJSON(w, resp); err != nil {
+			apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
+
+	prevArchivedAt := *item.ArchivedAt
+	item.ArchivedAt = nil
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+
+	if err := h.store.SaveItem(item); err != nil {
+		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to save item"))
+		return
+	}
+
+	if h.eventLogger != nil {
+		h.eventLogger.EmitBacklogUnarchived(string(kind)+"/"+name, prevArchivedAt)
+	}
+	h.invalidateAllGraphLenses()
+
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] unarchive", apierr.Internal("failed to encode response"))
+	}
+}

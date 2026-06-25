@@ -9,28 +9,21 @@
       "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "api",
-      "description": "Implement execution policy backend with default mode and default delay persistence",
+      "description": "Implement execution policy backend with default-mode persistence (default mode, auto-fixup, review-agent toggle). Policy is persisted in the unified settings store and applied to new execution runs via the PolicyProvider seam; the legacy GET/PUT /api/v1/execution/policy endpoint and the scheduled-delay field were removed when policy moved into settings.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/execution/handler.go",
+          "ref": "api/internal/settings/adapters_test.go::TestPolicyAdapter",
           "phase": "unit",
-          "status": "failing",
-          "notes": "GET /api/v1/execution/policy returns policy defaults"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/execution/policy_store.go",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "PUT /api/v1/execution/policy persists mode and delay"
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/execution/handler.go",
-          "phase": "integration",
           "status": "implemented",
-          "notes": "Policy defaults applied to new execution runs"
+          "notes": "Execution policy (default mode, auto-fixup, review-agent) is persisted via the settings store and loaded through the policy adapter"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/service_test.go::TestQueueBacklog_UsesPolicyDefaultsWhenModeMissing",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Policy default mode is applied to new execution runs when the caller omits a mode"
         }
       ]
     },

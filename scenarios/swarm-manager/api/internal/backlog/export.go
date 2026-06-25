@@ -101,65 +101,15 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build names filter set (kind/name format).
-	var nameFilter map[string]bool
-	if len(req.GetNames()) > 0 {
-		nameFilter = make(map[string]bool, len(req.GetNames()))
-		for _, n := range req.GetNames() {
-			nameFilter[n] = true
-		}
-	}
-
-	// Build tags filter set.
-	var tagFilter map[string]bool
-	if len(req.GetTags()) > 0 {
-		tagFilter = make(map[string]bool, len(req.GetTags()))
-		for _, t := range req.GetTags() {
-			tagFilter[t] = true
-		}
-	}
+	nameFilter := stringSetFilter(req.GetNames())
+	tagFilter := stringSetFilter(req.GetTags())
 
 	// Apply filters.
 	var filtered []BacklogItem
 	for _, item := range items {
-		// Exclude archived items by default.
-		if item.ArchivedAt != nil {
-			continue
+		if exportItemPassesFilters(item, statusFilter, nameFilter, tagFilter, req.PriorityMax) {
+			filtered = append(filtered, item)
 		}
-
-		// Status filter.
-		if !statusFilter[item.Status] {
-			continue
-		}
-
-		// Names filter (kind/name format).
-		if nameFilter != nil {
-			key := string(item.Kind) + "/" + item.Name
-			if !nameFilter[key] {
-				continue
-			}
-		}
-
-		// Priority max filter.
-		if req.PriorityMax != nil && int32(item.Priority) > *req.PriorityMax {
-			continue
-		}
-
-		// Tags filter: item must have at least one matching tag.
-		if tagFilter != nil {
-			found := false
-			for _, t := range item.Tags {
-				if tagFilter[t] {
-					found = true
-					break
-				}
-			}
-			if !found {
-				continue
-			}
-		}
-
-		filtered = append(filtered, item)
 	}
 
 	// Sort by priority (ascending) then by updated (descending).
@@ -192,26 +142,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	var b strings.Builder
 
 	// YAML frontmatter.
-	b.WriteString("---\n")
-	b.WriteString("version: 1\n")
-	fmt.Fprintf(&b, "exported_at: %q\n", now)
-	if len(req.GetKinds()) > 0 {
-		fmt.Fprintf(&b, "filter_kinds: [%s]\n", strings.Join(req.GetKinds(), ", "))
-	}
-	if len(req.GetStatuses()) > 0 {
-		fmt.Fprintf(&b, "filter_statuses: [%s]\n", strings.Join(req.GetStatuses(), ", "))
-	}
-	if len(req.GetNames()) > 0 {
-		fmt.Fprintf(&b, "filter_names: [%s]\n", strings.Join(req.GetNames(), ", "))
-	}
-	if req.PriorityMax != nil {
-		fmt.Fprintf(&b, "filter_priority_max: %d\n", *req.PriorityMax)
-	}
-	if len(req.GetTags()) > 0 {
-		fmt.Fprintf(&b, "filter_tags: [%s]\n", strings.Join(req.GetTags(), ", "))
-	}
-	fmt.Fprintf(&b, "items_count: %d\n", len(filtered))
-	b.WriteString("---\n\n")
+	writeExportFrontmatter(&b, &req, now, len(filtered))
 
 	// Render each item.
 	for _, item := range filtered {
@@ -227,6 +158,81 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", "attachment; filename=\"backlog-export.md\"")
 	_, _ = w.Write([]byte(b.String()))
+}
+
+// writeExportFrontmatter writes the YAML frontmatter block, including any
+// applied filters and the resulting item count.
+func writeExportFrontmatter(b *strings.Builder, req *apipb.ExportBacklogRequest, exportedAt string, itemCount int) {
+	b.WriteString("---\n")
+	b.WriteString("version: 1\n")
+	fmt.Fprintf(b, "exported_at: %q\n", exportedAt)
+	if len(req.GetKinds()) > 0 {
+		fmt.Fprintf(b, "filter_kinds: [%s]\n", strings.Join(req.GetKinds(), ", "))
+	}
+	if len(req.GetStatuses()) > 0 {
+		fmt.Fprintf(b, "filter_statuses: [%s]\n", strings.Join(req.GetStatuses(), ", "))
+	}
+	if len(req.GetNames()) > 0 {
+		fmt.Fprintf(b, "filter_names: [%s]\n", strings.Join(req.GetNames(), ", "))
+	}
+	if req.PriorityMax != nil {
+		fmt.Fprintf(b, "filter_priority_max: %d\n", *req.PriorityMax)
+	}
+	if len(req.GetTags()) > 0 {
+		fmt.Fprintf(b, "filter_tags: [%s]\n", strings.Join(req.GetTags(), ", "))
+	}
+	fmt.Fprintf(b, "items_count: %d\n", itemCount)
+	b.WriteString("---\n\n")
+}
+
+// stringSetFilter builds a lookup set from the given values, returning nil when
+// the input is empty (meaning "no filter").
+func stringSetFilter(values []string) map[string]bool {
+	if len(values) == 0 {
+		return nil
+	}
+	set := make(map[string]bool, len(values))
+	for _, v := range values {
+		set[v] = true
+	}
+	return set
+}
+
+// exportItemPassesFilters reports whether an item satisfies all export filters.
+// Archived items are always excluded. A nil nameFilter / tagFilter means that
+// dimension is unfiltered.
+func exportItemPassesFilters(item BacklogItem, statusFilter map[BacklogStatus]bool, nameFilter, tagFilter map[string]bool, priorityMax *int32) bool {
+	// Exclude archived items by default.
+	if item.ArchivedAt != nil {
+		return false
+	}
+	// Status filter.
+	if !statusFilter[item.Status] {
+		return false
+	}
+	// Names filter (kind/name format).
+	if nameFilter != nil && !nameFilter[string(item.Kind)+"/"+item.Name] {
+		return false
+	}
+	// Priority max filter.
+	if priorityMax != nil && int32(item.Priority) > *priorityMax {
+		return false
+	}
+	// Tags filter: item must have at least one matching tag.
+	if tagFilter != nil && !hasMatchingTag(item.Tags, tagFilter) {
+		return false
+	}
+	return true
+}
+
+// hasMatchingTag reports whether any of the item's tags is present in the filter.
+func hasMatchingTag(tags []string, tagFilter map[string]bool) bool {
+	for _, t := range tags {
+		if tagFilter[t] {
+			return true
+		}
+	}
+	return false
 }
 
 // renderItem writes a single backlog item as a markdown section.

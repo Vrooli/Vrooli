@@ -5,70 +5,42 @@
   "requirements": [
     {
       "id": "REQ-P0-009-DESKTOP",
-      "title": "Desktop Tab Navigation",
+      "title": "Sidebar Tab Navigation",
       "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "ui",
-      "description": "Implement desktop header navigation with tabbed layout containing Backlog, Scenarios, Execution, and Settings tabs",
+      "description": "Provide tabbed navigation between the app's sections via a collapsible left sidebar (src/surfaces/graph/components/sidebar/), with a tab bar (activity, backlog, captures, initiatives, operatingModes, executions, sessions) and a header showing the 'Swarm Manager' app title. Supersedes the original desktop header tab bar (Backlog/Scenarios/Execution/Settings), which was replaced by the sidebar in the UI reorganization.",
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::renders desktop tabs with all navigation items",
+          "ref": "ui/src/surfaces/graph/components/sidebar/SidebarTabs.test.tsx::shows actionable entity badges for backlog, captures, executions, and sessions",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Test desktop tab rendering with all 4 navigation items"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::navigates when clicking desktop tabs",
-          "phase": "integration",
           "status": "implemented",
-          "notes": "Validate desktop tab click navigation"
+          "notes": "Sidebar tab bar renders the navigable section tabs (backlog/captures/executions/sessions)"
         },
         {
           "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::highlights Backlog tab when on /backlog route",
+          "ref": "ui/src/surfaces/graph/components/sidebar/SidebarHeader.test.tsx::renders home button and app title",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Verify active tab highlighting on Backlog page"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::displays Swarm Manager header",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Header displays app name"
+          "status": "implemented",
+          "notes": "Sidebar header renders the 'Swarm Manager' app title and home navigation"
         }
       ]
     },
     {
       "id": "REQ-P0-009-MOBILE",
       "title": "Mobile Bottom Navigation",
-      "status": "in_progress",
+      "status": "not_implemented",
       "prd_ref": "OT-P0-008",
       "category": "ui",
-      "description": "Implement mobile bottom navigation with tab icons for Backlog, Scenarios, Execution, and Settings",
+      "description": "RETIRED: the separate mobile bottom navigation bar described here was never shipped. The reorganized UI uses a single collapsible sidebar (REQ-P0-009-DESKTOP) on every breakpoint rather than a distinct mobile bottom-nav. OT-P0-008's mobile-bottom-nav clause is unsatisfied by design; re-scoping it to the responsive sidebar is a prd-control-tower decision, not a registry edit.",
       "validation": [
         {
-          "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::renders mobile navigation with all tabs",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Test mobile navigation renders with all tabs"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::navigates when clicking mobile tabs",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Validate mobile tab click navigation"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/layout/MainLayout.test.tsx::highlights Scenarios tab when on /scenarios route",
-          "phase": "unit",
-          "status": "failing",
-          "notes": "Verify active tab highlighting on Scenarios page"
+          "type": "manual",
+          "ref": "Mobile bottom navigation was not implemented; the collapsible sidebar (REQ-P0-009-DESKTOP) serves all breakpoints. See requirements/08-tabbed-navigation-ui/module.json description.",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Documented removal: no distinct mobile bottom-nav exists in the reorganized UI."
         }
       ]
     }

@@ -57,9 +57,15 @@ into production builds.
 - **Ownership rule**: Shared fakes belong here only when they model stable
   seams used by multiple packages. Package-specific failure modes should stay
   local to the package test that needs them.
-- **Growth path**: Expand this package into focused subpackages such as
-  `assertx`, `fixtures`, `fsx`, `httpx`, `mocks`, and `services` as duplicate
-  helpers are migrated. CLI tests should use `cli/internal/testutil` for
+- **Structure**: Helpers live in a single flat `testutil` package, split by
+  concern into focused files — `helpers.go` (assertions, `Eventually`, status
+  checks), `decode.go` (JSON/protojson decode), `files.go` (filesystem
+  fixtures), and `mocks.go` (shared fakes). An earlier plan to split these into
+  per-concern subpackages (`assertx`, `fsx`, `httpx`, `mocks`) was reverted: the
+  flat package keeps one import path for callers and avoids cyclic-import churn,
+  and file-level separation already gives the organization that subpackages
+  would. Add new helper files in the same vein rather than reintroducing
+  subpackages. CLI tests should use `cli/internal/testutil` for
   `httptest.Server` setup, `SWARM_MANAGER_API_BASE` isolation, request capture,
   and command execution helpers.
 

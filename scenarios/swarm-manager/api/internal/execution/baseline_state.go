@@ -32,6 +32,9 @@ func baselineNameFor(scenario, stateHash string) string {
 // gitRepoRoot resolves the enclosing git repository root for an anchor path
 // inside it. Used so working-tree hashing runs from the repo top level.
 func gitRepoRoot(ctx context.Context, anchor string) (string, error) {
+	// #nosec G702 -- no shell is involved (exec runs "git" directly), so argv
+	// values cannot be shell-injected; the binary is a literal and anchor is an
+	// internal repo path, not user-controlled command text.
 	cmd := exec.CommandContext(ctx, "git", "-C", anchor, "rev-parse", "--show-toplevel")
 	out, err := cmd.Output()
 	if err != nil {
@@ -53,11 +56,14 @@ func workingTreeStateHash(ctx context.Context, gitRoot, scenario string) (string
 	// Committed subtree object hash. Missing in HEAD (brand-new scenario) is
 	// not an error — an empty tree hash still combines into a stable digest.
 	treeHash := ""
+	// #nosec G702 -- no shell; "git" is a literal binary and gitRoot/rel are
+	// internal repo paths passed as discrete argv elements, not shell text.
 	if out, err := exec.CommandContext(ctx, "git", "-C", gitRoot, "rev-parse", "HEAD:"+rel).Output(); err == nil {
 		treeHash = strings.TrimSpace(string(out))
 	}
 
 	// Uncommitted changes scoped to the scenario subtree.
+	// #nosec G702 -- no shell; see the rationale on the rev-parse call above.
 	statusOut, err := exec.CommandContext(ctx, "git", "-C", gitRoot, "status", "--porcelain", "--", rel).Output()
 	if err != nil {
 		return "", fmt.Errorf("git status for %s: %w", rel, err)

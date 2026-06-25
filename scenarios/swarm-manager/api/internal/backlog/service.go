@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -229,7 +230,9 @@ func (s *Service) CreateWithFiles(item BacklogItem, files []PendingBacklogFile, 
 	return s.create(item, files, cc)
 }
 
-func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc CreationContext) error {
+// validateCreateRequest enforces required fields, kind validity, the duplicate
+// check, and dependency/cycle validation before an item is persisted.
+func (s *Service) validateCreateRequest(item BacklogItem, cc CreationContext) error {
 	if cc.Source == "" {
 		return errors.New("backlog.Service.Create: CreationContext.Source is required")
 	}
@@ -261,41 +264,42 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 			}
 		}
 	}
+	return nil
+}
+
+func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc CreationContext) error {
+	if err := s.validateCreateRequest(item, cc); err != nil {
+		return err
+	}
 
 	itemDir := s.store.ItemDir(item.Kind, item.Name)
-	if err := os.MkdirAll(itemDir, 0o755); err != nil {
+	if err := os.MkdirAll(itemDir, 0o750); err != nil {
 		return fmt.Errorf("create item dir: %w", err)
 	}
 
 	if len(files) > 0 {
 		if err := writePendingFiles(itemDir, files); err != nil {
-			_ = os.RemoveAll(itemDir)
+			rollbackItemDir(itemDir)
 			return fmt.Errorf("write files: %w", err)
 		}
 	}
 
 	if err := s.store.SaveItem(item); err != nil {
-		_ = os.RemoveAll(itemDir)
+		rollbackItemDir(itemDir)
 		return fmt.Errorf("save item: %w", err)
 	}
 
 	if attachName := strings.TrimSpace(item.Initiative); attachName != "" && s.assigner != nil && !cc.SkipInitiativeAttach {
 		ref := string(item.Kind) + "/" + item.Name
 		if err := s.assigner.RememberItem(attachName, ref); err != nil {
-			_ = os.RemoveAll(itemDir)
+			rollbackItemDir(itemDir)
 			return fmt.Errorf("attach %s to initiative %s: %w", ref, attachName, err)
 		}
 	}
 
 	if err := s.recordBacklogCreatedArtifact(cc, item); err != nil {
-		if attachName := strings.TrimSpace(item.Initiative); attachName != "" && s.assigner != nil && !cc.SkipInitiativeAttach {
-			if detacher, ok := s.assigner.(interface {
-				ForgetItem(initiativeName, ref string) error
-			}); ok {
-				_ = detacher.ForgetItem(attachName, string(item.Kind)+"/"+item.Name)
-			}
-		}
-		_ = os.RemoveAll(itemDir)
+		s.rollbackInitiativeAttach(item, cc)
+		rollbackItemDir(itemDir)
 		return fmt.Errorf("record session artifact: %w", err)
 	}
 
@@ -324,6 +328,24 @@ func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc Creati
 	}
 
 	return nil
+}
+
+// rollbackInitiativeAttach best-effort detaches an item from its initiative,
+// undoing a prior RememberItem when a later creation step fails.
+func (s *Service) rollbackInitiativeAttach(item BacklogItem, cc CreationContext) {
+	attachName := strings.TrimSpace(item.Initiative)
+	if attachName == "" || s.assigner == nil || cc.SkipInitiativeAttach {
+		return
+	}
+	detacher, ok := s.assigner.(interface {
+		ForgetItem(initiativeName, ref string) error
+	})
+	if !ok {
+		return
+	}
+	if fErr := detacher.ForgetItem(attachName, string(item.Kind)+"/"+item.Name); fErr != nil {
+		slog.Debug("backlog: rollback detach item failed", "err", fErr, "initiative", attachName)
+	}
 }
 
 func (s *Service) recordBacklogCreatedArtifact(cc CreationContext, item BacklogItem) error {
@@ -375,10 +397,10 @@ func writePendingFiles(itemDir string, files []PendingBacklogFile) error {
 		} else if err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
 			return err
 		}
-		if err := os.WriteFile(fullPath, file.Content, 0o644); err != nil {
+		if err := os.WriteFile(fullPath, file.Content, 0o600); err != nil {
 			return err
 		}
 	}
@@ -404,3 +426,9 @@ func actorForSource(cc CreationContext) (string, string) {
 // transport's conflict response (HTTP 409 for handlers, an Outcome
 // failure for proposals.Applier).
 var ErrItemExists = errors.New("backlog item already exists")
+
+func rollbackItemDir(itemDir string) {
+	if err := os.RemoveAll(itemDir); err != nil {
+		slog.Debug("backlog: rollback item dir failed", "err", err, "dir", itemDir)
+	}
+}

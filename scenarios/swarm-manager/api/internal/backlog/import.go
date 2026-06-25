@@ -142,7 +142,7 @@ func (h *Handler) applyCreate(change *importChange) error {
 		return fmt.Errorf("item already exists: %s/%s", cd.kind, cd.name)
 	}
 
-	if err := os.MkdirAll(itemDir, 0o755); err != nil {
+	if err := os.MkdirAll(itemDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -165,7 +165,9 @@ func (h *Handler) applyCreate(change *importChange) error {
 	}
 
 	if err := h.store.SaveItem(item); err != nil {
-		_ = os.RemoveAll(itemDir)
+		if rmErr := os.RemoveAll(itemDir); rmErr != nil {
+			slog.Debug("backlog: rollback imported item dir failed", "err", rmErr, "dir", itemDir)
+		}
 		return fmt.Errorf("failed to save item: %w", err)
 	}
 
@@ -229,7 +231,7 @@ func (h *Handler) applyUpdate(change *importChange) error {
 	// Apply notes changes.
 	if ud.notes != "" {
 		notesPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "notes.md")
-		if err := os.WriteFile(notesPath, []byte(ud.notes+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(notesPath, []byte(ud.notes+"\n"), 0o600); err != nil {
 			slog.Warn("import failed to write notes", "kind", ud.kind, "name", ud.name, "err", err)
 		}
 	}
@@ -271,7 +273,7 @@ func (h *Handler) applyClarifyChanges(questionsPath string, answers map[int]stri
 	if err != nil {
 		return fmt.Errorf("failed to marshal questions: %w", err)
 	}
-	return os.WriteFile(questionsPath, data, 0o644)
+	return os.WriteFile(questionsPath, data, 0o600)
 }
 
 // applySuggestChanges updates suggestions.json with acceptance and rejection data.
@@ -308,5 +310,5 @@ func (h *Handler) applySuggestChanges(suggestionsPath string, accepted map[int]b
 	if err != nil {
 		return fmt.Errorf("failed to marshal suggestions: %w", err)
 	}
-	return os.WriteFile(suggestionsPath, data, 0o644)
+	return os.WriteFile(suggestionsPath, data, 0o600)
 }

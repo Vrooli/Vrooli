@@ -12,7 +12,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 )
 
 // saveBacklogItem mkdirs the item directory before calling SaveItem, matching
@@ -74,7 +74,7 @@ func TestIntegration_BacklogSave_FiresIndexUpsert(t *testing.T) {
 		Title: "Alpha",
 		Kind:  backlog.KindExecute,
 	})
-	assertx.Eventually(t, 2*time.Second, "backlog save index upsert", func() bool {
+	testutil.Eventually(t, 2*time.Second, "backlog save index upsert", func() bool {
 		return atomic.LoadInt32(&qStub.upsertCalls) >= 1
 	})
 }
@@ -92,14 +92,14 @@ func TestIntegration_BacklogDelete_FiresIndexDelete(t *testing.T) {
 		Kind:  backlog.KindExecute,
 	})
 	// Wait for the initial upsert to land so we don't race it.
-	assertx.Eventually(t, 2*time.Second, "initial backlog save index upsert", func() bool {
+	testutil.Eventually(t, 2*time.Second, "initial backlog save index upsert", func() bool {
 		return atomic.LoadInt32(&qStub.upsertCalls) >= 1
 	})
 
 	if err := bStore.DeleteItem(backlog.KindExecute, "alpha"); err != nil {
 		t.Fatalf("DeleteItem: %v", err)
 	}
-	assertx.Eventually(t, 2*time.Second, "backlog delete index cleanup", func() bool {
+	testutil.Eventually(t, 2*time.Second, "backlog delete index cleanup", func() bool {
 		return atomic.LoadInt32(&qStub.deleteCalls) >= 1
 	})
 }
@@ -115,7 +115,7 @@ func TestIntegration_InitiativeSave_FiresIndexUpsert(t *testing.T) {
 	if err := iStore.Save(init); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
-	assertx.Eventually(t, 2*time.Second, "initiative save index upsert", func() bool {
+	testutil.Eventually(t, 2*time.Second, "initiative save index upsert", func() bool {
 		return atomic.LoadInt32(&qStub.upsertCalls) >= 1
 	})
 }

@@ -123,59 +123,55 @@ func buildFinalizationFeedback(finalization *Finalization) string {
 		b.WriteString(finalization.AggregateSummary)
 	}
 	for _, warning := range finalization.Warnings {
-		if b.Len() > 0 {
-			b.WriteString("\n")
-		}
 		if warning.ScenarioName != "" {
-			b.WriteString(fmt.Sprintf("- warning [%s] %s: %s", warning.Code, warning.ScenarioName, warning.Message))
+			appendFeedbackLine(&b, fmt.Sprintf("- warning [%s] %s: %s", warning.Code, warning.ScenarioName, warning.Message))
 		} else {
-			b.WriteString(fmt.Sprintf("- warning [%s]: %s", warning.Code, warning.Message))
+			appendFeedbackLine(&b, fmt.Sprintf("- warning [%s]: %s", warning.Code, warning.Message))
 		}
 	}
 	for _, scenario := range finalization.Scenarios {
-		if scenario.Restart.Status != "" && scenario.Restart.Status != FinalizationStatusCompleted {
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(fmt.Sprintf("- %s restart: %s", scenario.ScenarioName, scenario.Restart.LastError))
-		}
-		if scenario.Health.Status != "" && scenario.Health.Status != FinalizationStatusCompleted {
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(fmt.Sprintf("- %s health: %s", scenario.ScenarioName, scenario.Health.Details))
-		}
-		if scenario.Review.Result == nil {
-			if scenario.Review.SkipReason == "" {
-				continue
-			}
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(fmt.Sprintf("- %s review: %s", scenario.ScenarioName, scenario.Review.SkipReason))
-			continue
-		}
-		if strings.TrimSpace(scenario.Review.Result.Summary) != "" {
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(fmt.Sprintf("- %s review summary: %s", scenario.ScenarioName, scenario.Review.Result.Summary))
-		}
-		for _, dim := range scenario.Review.Result.Dimensions {
-			if dim.Status == "green" || dim.Status == "skipped" {
-				continue
-			}
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			if dim.Details != "" {
-				b.WriteString(fmt.Sprintf("- %s %s (%s): %s", scenario.ScenarioName, dim.Name, dim.Status, dim.Details))
-			} else {
-				b.WriteString(fmt.Sprintf("- %s %s (%s)", scenario.ScenarioName, dim.Name, dim.Status))
-			}
-		}
+		appendScenarioFeedback(&b, scenario)
 	}
 	return b.String()
+}
+
+// appendFeedbackLine writes line to b, prefixing a newline when b already has
+// content so the joined output stays line-separated.
+func appendFeedbackLine(b *strings.Builder, line string) {
+	if b.Len() > 0 {
+		b.WriteString("\n")
+	}
+	b.WriteString(line)
+}
+
+// appendScenarioFeedback formats the restart/health/review lines for a single
+// scenario into the shared feedback builder.
+func appendScenarioFeedback(b *strings.Builder, scenario ScenarioFinalization) {
+	if scenario.Restart.Status != "" && scenario.Restart.Status != FinalizationStatusCompleted {
+		appendFeedbackLine(b, fmt.Sprintf("- %s restart: %s", scenario.ScenarioName, scenario.Restart.LastError))
+	}
+	if scenario.Health.Status != "" && scenario.Health.Status != FinalizationStatusCompleted {
+		appendFeedbackLine(b, fmt.Sprintf("- %s health: %s", scenario.ScenarioName, scenario.Health.Details))
+	}
+	if scenario.Review.Result == nil {
+		if scenario.Review.SkipReason != "" {
+			appendFeedbackLine(b, fmt.Sprintf("- %s review: %s", scenario.ScenarioName, scenario.Review.SkipReason))
+		}
+		return
+	}
+	if strings.TrimSpace(scenario.Review.Result.Summary) != "" {
+		appendFeedbackLine(b, fmt.Sprintf("- %s review summary: %s", scenario.ScenarioName, scenario.Review.Result.Summary))
+	}
+	for _, dim := range scenario.Review.Result.Dimensions {
+		if dim.Status == "green" || dim.Status == "skipped" {
+			continue
+		}
+		if dim.Details != "" {
+			appendFeedbackLine(b, fmt.Sprintf("- %s %s (%s): %s", scenario.ScenarioName, dim.Name, dim.Status, dim.Details))
+		} else {
+			appendFeedbackLine(b, fmt.Sprintf("- %s %s (%s)", scenario.ScenarioName, dim.Name, dim.Status))
+		}
+	}
 }
 
 func deliverableForKind(kind string) string {

@@ -169,7 +169,7 @@ func writeRetryReopenRecord(rootDir string, kind BacklogKind, name string, rec r
 		return fmt.Errorf("unknown kind: %s", kind)
 	}
 	decisionsDir := filepath.Join(rootDir, kindDir, name, "review", "decisions")
-	if err := os.MkdirAll(decisionsDir, 0o755); err != nil {
+	if err := os.MkdirAll(decisionsDir, 0o750); err != nil {
 		return err
 	}
 	safeTS := strings.ReplaceAll(strings.ReplaceAll(rec.DecidedAt, ":", ""), "-", "")

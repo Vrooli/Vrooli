@@ -11,7 +11,6 @@ import (
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
-	"swarm-manager/internal/testutil/mocks"
 )
 
 // fakeAttacher records RememberItem calls so tests can assert
@@ -124,7 +123,7 @@ type serviceTestEnv struct {
 	att       *fakeAttacher
 	events    *fakeEvents
 	workshop  *fakeWorkshop
-	inv       *mocks.RecordingScheduler
+	inv       *testutil.RecordingScheduler
 	artifacts *fakeSessionArtifacts
 	svc       *Service
 }
@@ -142,7 +141,7 @@ func newServiceTestEnv(t *testing.T) *serviceTestEnv {
 		att:       &fakeAttacher{},
 		events:    &fakeEvents{},
 		workshop:  &fakeWorkshop{},
-		inv:       &mocks.RecordingScheduler{},
+		inv:       &testutil.RecordingScheduler{},
 		artifacts: &fakeSessionArtifacts{},
 	}
 	svc, err := NewService(ServiceConfig{

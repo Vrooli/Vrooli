@@ -110,6 +110,9 @@ func (r *GCTBaselineEngagementRunner) binary() string {
 func (r *GCTBaselineEngagementRunner) run(ctx context.Context, timeout time.Duration, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	// #nosec G702 -- no shell is involved; r.binary() resolves to the fixed
+	// "git-control-tower" CLI (operator-overridable via env, not request data)
+	// and args are internal sub-commands, so shell injection is not possible.
 	cmd := exec.CommandContext(ctx, r.binary(), args...)
 	if strings.TrimSpace(r.ProjectRoot) != "" {
 		cmd.Dir = r.ProjectRoot

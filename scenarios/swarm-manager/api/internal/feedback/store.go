@@ -132,7 +132,7 @@ func (s *Store) NextRoundNumber(initiativeName string) (int, error) {
 // spin forever — a healthy contention burst settles in <10 attempts.
 func (s *Store) ReserveRound(initiativeName, slug string) (number int, dir string, err error) {
 	feedbackDir := s.FeedbackDir(initiativeName)
-	if err := os.MkdirAll(feedbackDir, 0o755); err != nil {
+	if err := os.MkdirAll(feedbackDir, 0o750); err != nil {
 		return 0, "", fmt.Errorf("create feedback dir: %w", err)
 	}
 	const maxAttempts = 50
@@ -142,7 +142,7 @@ func (s *Store) ReserveRound(initiativeName, slug string) (number int, dir strin
 			return 0, "", err
 		}
 		candidate := s.RoundDir(initiativeName, n, slug)
-		switch mkErr := os.Mkdir(candidate, 0o755); {
+		switch mkErr := os.Mkdir(candidate, 0o750); {
 		case mkErr == nil:
 			return n, candidate, nil
 		case os.IsExist(mkErr):
@@ -242,7 +242,7 @@ func (s *Store) SaveRound(round Round) error {
 		return fmt.Errorf("round.Number must be >= 1, got %d", round.Number)
 	}
 	dir := s.RoundDir(round.InitiativeName, round.Number, round.Slug)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("create round dir: %w", err)
 	}
 	path := filepath.Join(dir, feedbackJSONName)

@@ -337,7 +337,7 @@ Remaining consolidation candidates:
 
 ## API Test Timing Utilities (2026-05-01)
 
-`api/internal/testutil/assertx.Eventually` is now the canonical helper for tests that observe asynchronous fire-and-forget work. The root `api/internal/testutil.Eventually` wrapper is available for older tests that import the aggregate package.
+`api/internal/testutil.Eventually` (defined in `helpers.go`) is the canonical helper for tests that observe asynchronous fire-and-forget work. (An earlier `assertx` subpackage was consolidated back into the flat `testutil` package — see the Test Utility Boundary seam in `SEAMS.md` — so import `testutil.Eventually` directly.)
 
 Use it for positive eventual conditions such as index notifications, graph materialization drains, background reindex completion, and dispatch hook rebuilds. Do not use it to hide absence checks; tests that intentionally validate "nothing happened after a short window" should keep a narrow fixed sleep with a comment naming that real-time contract.
 

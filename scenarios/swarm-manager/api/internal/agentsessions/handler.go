@@ -1,6 +1,7 @@
 package agentsessions
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -166,7 +167,9 @@ func (h *Handler) UploadAttachments(w http.ResponseWriter, r *http.Request) {
 		file, err := fileHeader.Open()
 		if err != nil {
 			for _, closeable := range opened {
-				_ = closeable.Close()
+				if closeErr := closeable.Close(); closeErr != nil {
+					slog.Debug("agentsessions: close uploaded file failed", "err", closeErr)
+				}
 			}
 			apierr.MapError(w, "[agent-sessions] upload-attachments", apierr.Internal("failed to read uploaded file"))
 			return
@@ -181,7 +184,9 @@ func (h *Handler) UploadAttachments(w http.ResponseWriter, r *http.Request) {
 	}
 	attachments, err := h.service.UploadAttachments(r.Context(), mux.Vars(r)["session_id"], uploads)
 	for _, closeable := range opened {
-		_ = closeable.Close()
+		if closeErr := closeable.Close(); closeErr != nil {
+			slog.Debug("agentsessions: close uploaded file failed", "err", closeErr)
+		}
 	}
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] upload-attachments", err)
@@ -354,7 +359,7 @@ func listEventsRequestFromQuery(r *http.Request) (ListEventsRequest, error) {
 		if err != nil || parsed < 1 || parsed > 1000 {
 			return ListEventsRequest{}, apierr.BadRequest("limit must be between 1 and 1000")
 		}
-		req.Limit = int32(parsed)
+		req.Limit = int32(parsed) // #nosec G109 -- parsed is bounded to [1,1000] immediately above; the int32 conversion cannot overflow.
 	}
 	return req, nil
 }

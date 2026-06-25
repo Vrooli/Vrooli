@@ -2,6 +2,7 @@ package captures
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -26,10 +27,10 @@ func (a *backlogItemCreatorAdapter) ItemDir(kind, name string) string {
 func (a *backlogItemCreatorAdapter) SaveItem(kind, name, title, description string, tags []string) error {
 	bk := backlog.BacklogKind(kind)
 	itemDir := a.store.ItemDir(bk, name)
-	if err := os.MkdirAll(filepath.Dir(itemDir), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(itemDir), 0o750); err != nil {
 		return fmt.Errorf("create parent dir: %w", err)
 	}
-	if err := os.Mkdir(itemDir, 0o755); err != nil {
+	if err := os.Mkdir(itemDir, 0o750); err != nil {
 		if os.IsExist(err) {
 			return fmt.Errorf("already exists")
 		}
@@ -48,7 +49,9 @@ func (a *backlogItemCreatorAdapter) SaveItem(kind, name, title, description stri
 		Kind:        bk,
 	}
 	if err := a.store.SaveItem(item); err != nil {
-		_ = os.RemoveAll(itemDir)
+		if rmErr := os.RemoveAll(itemDir); rmErr != nil {
+			slog.Debug("captures: rollback item dir failed", "err", rmErr, "dir", itemDir)
+		}
 		return fmt.Errorf("save item: %w", err)
 	}
 	return nil

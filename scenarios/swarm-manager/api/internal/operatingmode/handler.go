@@ -62,7 +62,15 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/operating-mode/rounds/{round:[0-9]+}/apply-backlog-sync", h.ApplyBacklogSync).Methods("POST")
 }
 
-// DOC: GET /api/v1/operating-modes — list all registered modes with overlay
+// writeOperatingModeJSON encodes payload as the success response, mapping an
+// encode failure to a consistent Internal error under the given log label.
+func writeOperatingModeJSON(w http.ResponseWriter, label string, payload any) {
+	if err := httputil.JSON(w, payload); err != nil {
+		apierr.MapError(w, label, apierr.Internal("failed to encode response"))
+	}
+}
+
+// GET /api/v1/operating-modes — list all registered modes with overlay
 // merged in and current usage counts. Backs the sidebar Operating Modes tab.
 func (h *Handler) Catalog(w http.ResponseWriter, _ *http.Request) {
 	catalog, err := h.service.Catalog()
@@ -70,12 +78,10 @@ func (h *Handler) Catalog(w http.ResponseWriter, _ *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] catalog", err)
 		return
 	}
-	if err := httputil.JSON(w, catalog); err != nil {
-		apierr.MapError(w, "[operating-mode] catalog", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] catalog", catalog)
 }
 
-// DOC: GET /api/v1/operating-modes/{mode} — single mode detail including the
+// GET /api/v1/operating-modes/{mode} — single mode detail including the
 // list of initiatives currently bound to it. Backs the operating-mode
 // details page.
 func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
@@ -93,9 +99,7 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] get mode", err)
 		return
 	}
-	if err := httputil.JSON(w, detail); err != nil {
-		apierr.MapError(w, "[operating-mode] get mode", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] get mode", detail)
 }
 
 type updateModeBody struct {
@@ -103,7 +107,7 @@ type updateModeBody struct {
 	Description *string `json:"description,omitempty"`
 }
 
-// DOC: PATCH /api/v1/operating-modes/{mode} — persist user-editable overlay
+// PATCH /api/v1/operating-modes/{mode} — persist user-editable overlay
 // fields (label, description). Pointer semantics: nil leaves field unchanged,
 // "" rejected for label, present-but-empty description allowed (clears the
 // description override).
@@ -136,9 +140,7 @@ func (h *Handler) UpdateMode(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] update mode", err)
 		return
 	}
-	if err := httputil.JSON(w, detail); err != nil {
-		apierr.MapError(w, "[operating-mode] update mode", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] update mode", detail)
 }
 
 func (h *Handler) Workspace(w http.ResponseWriter, r *http.Request) {
@@ -152,9 +154,7 @@ func (h *Handler) Workspace(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] workspace", err)
 		return
 	}
-	if err := httputil.JSON(w, workspace); err != nil {
-		apierr.MapError(w, "[operating-mode] workspace", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] workspace", workspace)
 }
 
 func (h *Handler) SwitchMode(w http.ResponseWriter, r *http.Request) {
@@ -178,9 +178,7 @@ func (h *Handler) SwitchMode(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] switch mode", err)
 		return
 	}
-	if err := httputil.JSON(w, result); err != nil {
-		apierr.MapError(w, "[operating-mode] switch mode", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] switch mode", result)
 }
 
 func (h *Handler) StartPhase(w http.ResponseWriter, r *http.Request) {
@@ -228,9 +226,7 @@ func (h *Handler) RefreshRound(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] refresh round", err)
 		return
 	}
-	if err := httputil.JSON(w, round); err != nil {
-		apierr.MapError(w, "[operating-mode] refresh round", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] refresh round", round)
 }
 
 func (h *Handler) CancelRound(w http.ResponseWriter, r *http.Request) {
@@ -247,9 +243,7 @@ func (h *Handler) CancelRound(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] cancel round", err)
 		return
 	}
-	if err := httputil.JSON(w, round); err != nil {
-		apierr.MapError(w, "[operating-mode] cancel round", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] cancel round", round)
 }
 
 func (h *Handler) CompleteItems(w http.ResponseWriter, r *http.Request) {
@@ -282,9 +276,7 @@ func (h *Handler) CompleteItems(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] complete items", err)
 		return
 	}
-	if err := httputil.JSON(w, result); err != nil {
-		apierr.MapError(w, "[operating-mode] complete items", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] complete items", result)
 }
 
 func (h *Handler) ApplyBacklogSync(w http.ResponseWriter, r *http.Request) {
@@ -317,9 +309,7 @@ func (h *Handler) ApplyBacklogSync(w http.ResponseWriter, r *http.Request) {
 		mapOperatingModeError(w, "[operating-mode] apply backlog sync", err)
 		return
 	}
-	if err := httputil.JSON(w, result); err != nil {
-		apierr.MapError(w, "[operating-mode] apply backlog sync", apierr.Internal("failed to encode response"))
-	}
+	writeOperatingModeJSON(w, "[operating-mode] apply backlog sync", result)
 }
 
 func parseRoundRoute(w http.ResponseWriter, r *http.Request, ctx string) (string, int, bool) {

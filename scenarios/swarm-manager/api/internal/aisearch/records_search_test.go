@@ -18,13 +18,13 @@ type recordSearchStore struct {
 	results []SearchResult
 }
 
-func (s *recordSearchStore) EnsureCollection(_ context.Context) error  { return nil }
+func (s *recordSearchStore) EnsureCollection(_ context.Context) error { return nil }
 func (s *recordSearchStore) Upsert(_ context.Context, _ string, _ []float64, _ map[string]interface{}) error {
 	return nil
 }
-func (s *recordSearchStore) Delete(_ context.Context, _ string) error                { return nil }
-func (s *recordSearchStore) BatchDelete(_ context.Context, _ []string) error         { return nil }
-func (s *recordSearchStore) CountPoints(_ context.Context) (int, error)              { return len(s.results), nil }
+func (s *recordSearchStore) Delete(_ context.Context, _ string) error        { return nil }
+func (s *recordSearchStore) BatchDelete(_ context.Context, _ []string) error { return nil }
+func (s *recordSearchStore) CountPoints(_ context.Context) (int, error)      { return len(s.results), nil }
 func (s *recordSearchStore) ScrollIDs(_ context.Context) (map[string]ScrollItem, error) {
 	return nil, nil
 }
@@ -51,12 +51,14 @@ func (s *inMemoryRecordStore) Create(r records.Record) error {
 	s.items[r.ID] = r
 	return nil
 }
+
 func (s *inMemoryRecordStore) Get(id string) (records.Record, error) {
 	if r, ok := s.items[id]; ok {
 		return r, nil
 	}
 	return records.Record{}, records.ErrNotFound
 }
+
 func (s *inMemoryRecordStore) List(_ records.ListFilter) ([]records.Record, error) {
 	out := make([]records.Record, 0, len(s.items))
 	for _, r := range s.items {
@@ -64,9 +66,11 @@ func (s *inMemoryRecordStore) List(_ records.ListFilter) ([]records.Record, erro
 	}
 	return out, nil
 }
+
 func (s *inMemoryRecordStore) UpdateNarrative(id string, _ records.Narrative, _ time.Time) (records.Record, error) {
 	return records.Record{}, errors.New("not implemented")
 }
+
 func (s *inMemoryRecordStore) SetSupersededBy(id, _ string) (records.Record, error) {
 	return records.Record{}, errors.New("not implemented")
 }

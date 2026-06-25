@@ -40,7 +40,7 @@ func (r *RemoteWakeWordAdmin) handleErr(err error) error {
 	return audiotools.NormalizeError(err)
 }
 
-func (r *RemoteWakeWordAdmin) attach(req connect.AnyRequest, ctx context.Context) {
+func (r *RemoteWakeWordAdmin) attach(ctx context.Context, req connect.AnyRequest) {
 	if r.Credentials == nil || req == nil {
 		return
 	}
@@ -62,7 +62,7 @@ func (r *RemoteWakeWordAdmin) GetWakeWordConfig(ctx context.Context) (WakeWordCo
 		return WakeWordConfig{}, err
 	}
 	req := connect.NewRequest(&sttv1.GetWakeWordConfigRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.GetWakeWordConfig(ctx, req)
 	if err != nil {
 		return WakeWordConfig{}, r.handleErr(err)
@@ -80,7 +80,7 @@ func (r *RemoteWakeWordAdmin) UpdateWakeWordTemplate(ctx context.Context, t Wake
 	req := connect.NewRequest(&sttv1.UpdateWakeWordTemplateRequest{
 		Template: wakeWordTemplateToProto(&t),
 	})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.UpdateWakeWordTemplate(ctx, req)
 	if err != nil {
 		return WakeWordConfig{}, r.handleErr(err)
@@ -96,7 +96,7 @@ func (r *RemoteWakeWordAdmin) DeleteWakeWordTemplate(ctx context.Context) (WakeW
 		return WakeWordConfig{}, err
 	}
 	req := connect.NewRequest(&sttv1.DeleteWakeWordTemplateRequest{})
-	r.attach(req, ctx)
+	r.attach(ctx, req)
 	resp, err := r.Client.STTAdmin.DeleteWakeWordTemplate(ctx, req)
 	if err != nil {
 		return WakeWordConfig{}, r.handleErr(err)

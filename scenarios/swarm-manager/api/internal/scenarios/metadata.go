@@ -44,7 +44,7 @@ func (h *Handler) saveMetadata(scenarioPath string, metadata ScenarioMetadata) e
 
 	// Ensure .vrooli directory exists
 	dir := filepath.Dir(metaPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 
@@ -53,7 +53,7 @@ func (h *Handler) saveMetadata(scenarioPath string, metadata ScenarioMetadata) e
 		return err
 	}
 
-	return os.WriteFile(metaPath, data, 0o644)
+	return os.WriteFile(metaPath, data, 0o600)
 }
 
 // loadScenarioFromSource maps CLI metadata into a Scenario enriched with local data.

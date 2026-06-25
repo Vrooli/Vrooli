@@ -19,6 +19,57 @@ if (typeof (globalThis as { AudioContext?: unknown }).AudioContext === "undefine
   (globalThis as { AudioContext?: unknown }).AudioContext = StubAudioContext;
 }
 
+// jsdom's WebSocket opens REAL network connections. The voice stack
+// (useVoiceCore mounts → VoiceStreamProvider.preConnect) constructs a
+// WebSocket whenever the default capability check reports Whisper healthy,
+// which is the hardcoded default. Any test that renders the message composer
+// (directly or via a page) therefore opened a real socket to the voice-stream
+// URL; the pending connections held the event loop open and hung the whole
+// run at process exit. Stub a minimal no-op socket: it never touches the
+// network, stays CONNECTING, and close() flips it to CLOSED so provider
+// cleanup (dispose → ws.close()) behaves. Tests that genuinely exercise a
+// WebSocket install their own fake in beforeEach, overriding this.
+class StubWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSING = 2;
+  readonly CLOSED = 3;
+  readyState = StubWebSocket.CONNECTING;
+  url: string;
+  onopen: ((ev: unknown) => void) | null = null;
+  onclose: ((ev: unknown) => void) | null = null;
+  onerror: ((ev: unknown) => void) | null = null;
+  onmessage: ((ev: unknown) => void) | null = null;
+  constructor(url: string | URL) {
+    this.url = String(url);
+  }
+  send() {}
+  close() {
+    this.readyState = StubWebSocket.CLOSED;
+    this.onclose?.({});
+  }
+  addEventListener() {}
+  removeEventListener() {}
+}
+(globalThis as { WebSocket?: unknown }).WebSocket = StubWebSocket;
+
+// jsdom does not implement HTMLMediaElement playback. The TTS stack
+// (KokoroProvider) creates a reusable HTMLAudioElement and calls
+// play()/pause()/load() during unlock and on dispose; jsdom throws
+// "Not implemented", which surfaced (once the WebSocket hang was removed) as
+// an unhandled error that crashed the test worker. Stub them as no-ops.
+if (typeof window !== "undefined" && typeof window.HTMLMediaElement !== "undefined") {
+  window.HTMLMediaElement.prototype.play = function play() {
+    return Promise.resolve();
+  };
+  window.HTMLMediaElement.prototype.pause = function pause() {};
+  window.HTMLMediaElement.prototype.load = function load() {};
+}
+
 const originalConsoleLog = console.log.bind(console);
 console.log = (...args: unknown[]) => {
   if (typeof args[0] === "string" && args[0].startsWith("[api-base]")) {

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/testutil/assertx"
+	"swarm-manager/internal/testutil"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/cli-core/cliutil"
@@ -148,13 +148,13 @@ func TestHandler_Reconcile_Live_AcceptedAndAppliesPlan(t *testing.T) {
 	}
 
 	// The goroutine completes asynchronously; wait for the upsert.
-	assertx.Eventually(t, time.Second, "live reconcile applied", func() bool {
+	testutil.Eventually(t, time.Second, "live reconcile applied", func() bool {
 		bs.mu.Lock()
 		defer bs.mu.Unlock()
 		return bs.upsertCalls >= 1
 	})
 	// And the in-flight singleton clears once done.
-	assertx.Eventually(t, time.Second, "reconciler idle after run", func() bool {
+	testutil.Eventually(t, time.Second, "reconciler idle after run", func() bool {
 		return !reconciler.Status().Running
 	})
 }
@@ -172,7 +172,7 @@ func TestHandler_Reconcile_Conflict_WhenAlreadyRunning(t *testing.T) {
 		t.Fatalf("expected 202, got %d", w.Code)
 	}
 	// Wait for the singleton to actually be acquired before firing the second call.
-	assertx.Eventually(t, time.Second, "first run acquires singleton", func() bool {
+	testutil.Eventually(t, time.Second, "first run acquires singleton", func() bool {
 		return reconciler.Status().Running
 	})
 
@@ -185,7 +185,7 @@ func TestHandler_Reconcile_Conflict_WhenAlreadyRunning(t *testing.T) {
 	}
 
 	// Drain.
-	assertx.Eventually(t, 2*time.Second, "first run drains", func() bool {
+	testutil.Eventually(t, 2*time.Second, "first run drains", func() bool {
 		return !reconciler.Status().Running
 	})
 }
@@ -221,7 +221,7 @@ func TestHandler_ReconcileCancel_StopsRunning(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/search/ai/reconcile", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	assertx.Eventually(t, time.Second, "run starts", func() bool {
+	testutil.Eventually(t, time.Second, "run starts", func() bool {
 		return reconciler.Status().Running
 	})
 
@@ -233,7 +233,7 @@ func TestHandler_ReconcileCancel_StopsRunning(t *testing.T) {
 		t.Errorf("expected 200, got %d", cancelW.Code)
 	}
 
-	assertx.Eventually(t, 2*time.Second, "run stops after cancel", func() bool {
+	testutil.Eventually(t, 2*time.Second, "run stops after cancel", func() bool {
 		st := reconciler.Status()
 		return !st.Running && st.Canceled
 	})

@@ -106,4 +106,3 @@ func classifyResolveError(err error) string {
 		return "discovery_failed"
 	}
 }
-

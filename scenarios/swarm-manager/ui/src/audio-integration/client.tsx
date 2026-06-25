@@ -10,11 +10,12 @@
 
 import { createClient, type Client, type Transport } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { resolveApiBase } from "@vrooli/api-base";
 import { createContext, createElement, useContext, type ReactNode } from "react";
 
 import { AudioAdminService } from "@vrooli/proto-types/swarm-manager/v1/audio_admin/audio_admin_pb";
 import { AudioRuntimeService } from "@vrooli/proto-types/swarm-manager/v1/audio_runtime/audio_runtime_pb";
+
+import { API_BASE } from "../lib/api-client";
 
 export interface AudioToolsClient {
   audioAdmin: Client<typeof AudioAdminService>;
@@ -30,7 +31,7 @@ export interface CreateAudioToolsClientOptions {
 }
 
 export function createAudioToolsClient(options: CreateAudioToolsClientOptions = {}): AudioToolsClient {
-  const baseUrl = options.baseUrl ?? resolveApiBase();
+  const baseUrl = options.baseUrl ?? API_BASE;
   const transport = options.transport ?? createConnectTransport({ baseUrl });
   return {
     audioAdmin: createClient(AudioAdminService, transport),

@@ -8,7 +8,6 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/dispatch"
-	"swarm-manager/internal/pathutil"
 )
 
 // ErrValidation wraps user-correctable validation failures from Create/Update
@@ -305,23 +304,9 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 		init.Description = strings.TrimSpace(*req.Description)
 	}
 	if req.Status != nil {
-		status := strings.TrimSpace(*req.Status)
-		if !ValidateStatus(status) {
-			return nil, validationErr("invalid status %q: must be %s", *req.Status, UserSettableInitiativeStatusList())
-		}
-		// Same-status no-ops are allowed so callers (e.g. the backlog
-		// batch adapter's full-field replace) don't fail when an
-		// existing initiative is already in a review/terminal status.
-		if status != init.Status {
-			if !IsUserSettableInitiativeStatus(status) {
-				return nil, validationErr("status %q is owned by the review pipeline; use the initiatives review-decide endpoint so the decision is audited", status)
-			}
-			if IsReviewInitiativeStatus(init.Status) {
-				return nil, validationErr("initiative is in status %q; use the review-decide endpoint to change status", init.Status)
-			}
-			if IsTerminalInitiativeStatus(init.Status) {
-				return nil, validationErr("initiative is in terminal status %q; cannot revert via PATCH", init.Status)
-			}
+		status, err := validateStatusTransition(init.Status, *req.Status)
+		if err != nil {
+			return nil, err
 		}
 		init.Status = status
 	}
@@ -359,6 +344,29 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	return init, nil
 }
 
+// validateStatusTransition validates a requested status change against the
+// current status, returning the trimmed target status. Same-status no-ops are
+// allowed so callers (e.g. the backlog batch adapter's full-field replace)
+// don't fail when an existing initiative is already in a review/terminal status.
+func validateStatusTransition(currentStatus, requestedStatus string) (string, error) {
+	status := strings.TrimSpace(requestedStatus)
+	if !ValidateStatus(status) {
+		return "", validationErr("invalid status %q: must be %s", requestedStatus, UserSettableInitiativeStatusList())
+	}
+	if status != currentStatus {
+		if !IsUserSettableInitiativeStatus(status) {
+			return "", validationErr("status %q is owned by the review pipeline; use the initiatives review-decide endpoint so the decision is audited", status)
+		}
+		if IsReviewInitiativeStatus(currentStatus) {
+			return "", validationErr("initiative is in status %q; use the review-decide endpoint to change status", currentStatus)
+		}
+		if IsTerminalInitiativeStatus(currentStatus) {
+			return "", validationErr("initiative is in terminal status %q; cannot revert via PATCH", currentStatus)
+		}
+	}
+	return status, nil
+}
+
 // SetModeLifecycle is the single initiative-mode mutation path. It is intended
 // for the operating-mode lifecycle service only; public initiative create/update
 // APIs always create item-level initiatives and reject mode mutation.
@@ -385,437 +393,4 @@ func (s *Service) SetModeLifecycle(name, mode string) (*Initiative, error) {
 	}
 	s.invalidateTopologyGraph()
 	return init, nil
-}
-
-// Delete removes an initiative and cascades referential integrity:
-//   - Every member item has its `initiative` field cleared (orphaned, not deleted).
-//   - Every other initiative that referenced this one via `depends_on` has the
-//     reference removed.
-//
-// The cascade is best-effort atomic: side effects are captured up front so a
-// failure mid-cascade can be rolled back. If the final store.Delete fails,
-// prior cascades are reverted.
-func (s *Service) Delete(name string) error {
-	if !s.store.Exists(name) {
-		return nil // idempotent
-	}
-	init, err := s.store.Load(name)
-	if err != nil {
-		return fmt.Errorf("load initiative before delete: %w", err)
-	}
-
-	type itemRef struct {
-		kind      backlog.BacklogKind
-		localName string
-		ref       string
-	}
-	refs := make([]itemRef, 0, len(init.Items))
-	for _, raw := range init.Items {
-		parts := strings.SplitN(raw, "/", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		kind, err := backlog.ParseBacklogKind(parts[0])
-		if err != nil {
-			continue
-		}
-		refs = append(refs, itemRef{kind: kind, localName: parts[1], ref: raw})
-	}
-
-	cleared := make([]itemRef, 0, len(refs))
-	if s.backlogLoader != nil {
-		for _, r := range refs {
-			_, changed, err := s.backlogLoader.ClearItemInitiative(r.kind, r.localName, name)
-			if err != nil {
-				for _, done := range cleared {
-					if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
-						// Log via slog through service's nil-safe logger; keep rollback best-effort.
-						_ = setErr
-					}
-				}
-				return fmt.Errorf("cascade: clear initiative on %s: %w", r.ref, err)
-			}
-			if changed {
-				cleared = append(cleared, r)
-			}
-		}
-	}
-
-	all, err := s.store.LoadAll()
-	if err != nil {
-		for _, done := range cleared {
-			if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
-				_ = setErr
-			}
-		}
-		return fmt.Errorf("cascade: load initiatives for depends_on scrub: %w", err)
-	}
-	type depScrub struct {
-		initName string
-		oldDeps  []string
-	}
-	scrubbed := make([]depScrub, 0)
-	for i := range all {
-		other := &all[i]
-		if other.Name == name {
-			continue
-		}
-		if !stringSliceContains(other.DependsOn, name) {
-			continue
-		}
-		oldDeps := append([]string(nil), other.DependsOn...)
-		filtered := make([]string, 0, len(other.DependsOn))
-		for _, d := range other.DependsOn {
-			if d != name {
-				filtered = append(filtered, d)
-			}
-		}
-		other.DependsOn = filtered
-		other.Updated = time.Now().UTC().Format(time.RFC3339)
-		if saveErr := s.store.Save(other); saveErr != nil {
-			for _, sc := range scrubbed {
-				if rolled, rErr := s.store.Load(sc.initName); rErr == nil {
-					rolled.DependsOn = sc.oldDeps
-					_ = s.store.Save(rolled)
-				}
-			}
-			for _, done := range cleared {
-				if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
-					_ = setErr
-				}
-			}
-			return fmt.Errorf("cascade: scrub depends_on from %q: %w", other.Name, saveErr)
-		}
-		scrubbed = append(scrubbed, depScrub{initName: other.Name, oldDeps: oldDeps})
-	}
-
-	if err := s.store.Delete(name); err != nil {
-		for _, sc := range scrubbed {
-			if rolled, rErr := s.store.Load(sc.initName); rErr == nil {
-				rolled.DependsOn = sc.oldDeps
-				_ = s.store.Save(rolled)
-			}
-		}
-		for _, done := range cleared {
-			if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
-				_ = setErr
-			}
-		}
-		return err
-	}
-	if s.eventLogger != nil {
-		s.eventLogger.EmitInitiativeArchived(name, init.Status, "")
-	}
-	s.invalidateTopologyGraph()
-	return nil
-}
-
-func stringSliceContains(xs []string, target string) bool {
-	for _, x := range xs {
-		if x == target {
-			return true
-		}
-	}
-	return false
-}
-
-// Replace writes a full initiative snapshot, used for internal rollback flows.
-func (s *Service) Replace(init Initiative) error {
-	if strings.TrimSpace(init.Name) == "" {
-		return fmt.Errorf("name is required")
-	}
-	if strings.TrimSpace(init.Title) == "" {
-		return fmt.Errorf("title is required")
-	}
-	if !ValidateStatus(strings.TrimSpace(init.Status)) {
-		return fmt.Errorf("invalid status %q: must be active or completed", init.Status)
-	}
-	if !ValidatePriority(init.Priority) {
-		return fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", init.Priority)
-	}
-	init.Name = strings.TrimSpace(init.Name)
-	init.Title = strings.TrimSpace(init.Title)
-	init.Description = strings.TrimSpace(init.Description)
-	init.Status = strings.TrimSpace(init.Status)
-	init.Mode = NormalizeMode(init.Mode)
-	if !ValidateMode(init.Mode) {
-		return fmt.Errorf("invalid operating mode %q: must be one of %s", init.Mode, OperatingModeList())
-	}
-	init.DependsOn = normalizeDependsOn(init.DependsOn)
-	init.AcceptanceCriteria = normalizeStringList(init.AcceptanceCriteria)
-	if err := s.validateDependsOn(init.Name, init.DependsOn); err != nil {
-		return err
-	}
-	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	if err := s.store.Save(&init); err != nil {
-		return err
-	}
-	s.invalidateTopologyGraph()
-	return nil
-}
-
-// ComputeRollup loads each referenced backlog item and aggregates status
-// counts. Items that fail to load are counted as pending.
-func (s *Service) ComputeRollup(init *Initiative) (*RollupStatus, error) {
-	rollup, _ := s.aggregateInitiativeData(init)
-	return rollup, nil
-}
-
-// aggregateInitiativeData loads each referenced backlog item once and returns
-// both the rollup and the deduped list of scenarios targeted by the item's
-// acceptance_allow globs. Items that fail to load are counted as pending and
-// contribute no scenarios.
-func (s *Service) aggregateInitiativeData(init *Initiative) (*RollupStatus, []string) {
-	rollup := &RollupStatus{
-		Total: len(init.Items),
-	}
-	seen := make(map[string]struct{})
-	var scenarios []string
-	for _, ref := range init.Items {
-		parts := strings.SplitN(ref, "/", 2)
-		if len(parts) != 2 {
-			rollup.Pending++
-			continue
-		}
-		kind, err := backlog.ParseBacklogKind(parts[0])
-		if err != nil {
-			rollup.Pending++
-			continue
-		}
-		item, loadErr := s.backlogLoader.LoadItem(kind, parts[1])
-		if loadErr != nil {
-			rollup.Pending++
-			continue
-		}
-		if backlog.IsArchived(item) {
-			rollup.Archived++
-			if item.Status == backlog.StatusCompleted {
-				rollup.Completed++
-			}
-			continue
-		}
-		switch item.Status {
-		case backlog.StatusCompleted:
-			rollup.Completed++
-		case backlog.StatusFailed:
-			rollup.Failed++
-		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching:
-			rollup.InProgress++
-		default:
-			rollup.Pending++
-		}
-		for _, name := range pathutil.ScenariosFromGlobs(item.AcceptanceAllow) {
-			if _, ok := seen[name]; !ok {
-				seen[name] = struct{}{}
-				scenarios = append(scenarios, name)
-			}
-		}
-	}
-	return rollup, scenarios
-}
-
-// AddItems appends items to an initiative, deduplicating. Each item must be
-// in "kind/name" format (e.g., "idea/my-feature"). Maintains symmetry with
-// the item side: items already attached to a different initiative are
-// rejected; orphan items (with an empty initiative field) have their
-// initiative field set to this name so the two references stay in sync.
-func (s *Service) AddItems(name string, items []string) error {
-	type parsedItem struct {
-		kind      backlog.BacklogKind
-		localName string
-		ref       string
-	}
-	parsed := make([]parsedItem, 0, len(items))
-	for _, item := range items {
-		parts := strings.SplitN(item, "/", 2)
-		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-			return fmt.Errorf("invalid item reference %q: expected format kind/name", item)
-		}
-		kind, err := backlog.ParseBacklogKind(parts[0])
-		if err != nil {
-			return fmt.Errorf("invalid item reference %q: %w", item, err)
-		}
-		parsed = append(parsed, parsedItem{kind: kind, localName: parts[1], ref: item})
-	}
-
-	if s.backlogLoader != nil {
-		for _, p := range parsed {
-			item, err := s.backlogLoader.LoadItem(p.kind, p.localName)
-			if err != nil {
-				continue
-			}
-			current := strings.TrimSpace(item.Initiative)
-			if current != "" && current != name {
-				return fmt.Errorf("item %q already belongs to initiative %q; use PATCH on the item to move it", p.ref, current)
-			}
-		}
-	}
-
-	init, err := s.store.Load(name)
-	if err != nil {
-		return err
-	}
-	existing := make(map[string]bool, len(init.Items))
-	for _, item := range init.Items {
-		existing[item] = true
-	}
-	added := make([]parsedItem, 0, len(parsed))
-	for _, p := range parsed {
-		if existing[p.ref] {
-			continue
-		}
-		init.Items = append(init.Items, p.ref)
-		existing[p.ref] = true
-		added = append(added, p)
-	}
-	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	if err := s.store.Save(init); err != nil {
-		return err
-	}
-
-	if s.backlogLoader != nil {
-		for _, p := range added {
-			if _, err := s.backlogLoader.SetItemInitiative(p.kind, p.localName, name); err != nil {
-				// Item may not exist yet (e.g., batch create writes items
-				// separately); not-found is not an error here.
-				continue
-			}
-		}
-	}
-
-	if s.eventLogger != nil {
-		for _, p := range added {
-			s.eventLogger.EmitInitiativeItemAdded(name, p.ref)
-		}
-	}
-	s.invalidateTopologyGraph()
-	return nil
-}
-
-// RemoveItems removes items from an initiative and clears the item's
-// initiative field if it currently equals this initiative, maintaining
-// two-way referential integrity.
-func (s *Service) RemoveItems(name string, items []string) error {
-	type parsedItem struct {
-		kind      backlog.BacklogKind
-		localName string
-		ref       string
-	}
-	parsed := make([]parsedItem, 0, len(items))
-	for _, item := range items {
-		parts := strings.SplitN(item, "/", 2)
-		if len(parts) != 2 {
-			parsed = append(parsed, parsedItem{ref: item})
-			continue
-		}
-		kind, err := backlog.ParseBacklogKind(parts[0])
-		if err != nil {
-			parsed = append(parsed, parsedItem{ref: item})
-			continue
-		}
-		parsed = append(parsed, parsedItem{kind: kind, localName: parts[1], ref: item})
-	}
-
-	init, err := s.store.Load(name)
-	if err != nil {
-		return err
-	}
-	remove := make(map[string]bool, len(parsed))
-	for _, p := range parsed {
-		remove[p.ref] = true
-	}
-	filtered := make([]string, 0, len(init.Items))
-	for _, item := range init.Items {
-		if !remove[item] {
-			filtered = append(filtered, item)
-		}
-	}
-	init.Items = filtered
-	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	if err := s.store.Save(init); err != nil {
-		return err
-	}
-
-	if s.backlogLoader != nil {
-		for _, p := range parsed {
-			if p.localName == "" || p.kind == "" {
-				continue
-			}
-			if _, _, err := s.backlogLoader.ClearItemInitiative(p.kind, p.localName, name); err != nil {
-				continue
-			}
-		}
-	}
-
-	if s.eventLogger != nil {
-		for _, p := range parsed {
-			if remove[p.ref] {
-				s.eventLogger.EmitInitiativeItemRemoved(name, p.ref)
-			}
-		}
-	}
-	s.invalidateTopologyGraph()
-	return nil
-}
-
-// RememberItem appends a single ref to the initiative's items[] list if not
-// already present. This is a one-way helper: it does not modify the item's
-// initiative field. Used by single-item create/patch cascade, which writes
-// the item's initiative field itself via SaveItem.
-func (s *Service) RememberItem(initiativeName, ref string) error {
-	init, err := s.store.Load(initiativeName)
-	if err != nil {
-		return err
-	}
-	for _, existing := range init.Items {
-		if existing == ref {
-			return nil
-		}
-	}
-	init.Items = append(init.Items, ref)
-	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	if err := s.store.Save(init); err != nil {
-		return err
-	}
-	if s.eventLogger != nil {
-		s.eventLogger.EmitInitiativeItemAdded(initiativeName, ref)
-	}
-	s.invalidateTopologyGraph()
-	return nil
-}
-
-// ForgetItem removes a single ref from the initiative's items[] list. This
-// is a one-way helper: it does not modify the item's initiative field. Used
-// by single-item delete/patch cascade, where the item file is already gone
-// or its initiative field is written separately.
-func (s *Service) ForgetItem(initiativeName, ref string) error {
-	if !s.store.Exists(initiativeName) {
-		return nil
-	}
-	init, err := s.store.Load(initiativeName)
-	if err != nil {
-		return err
-	}
-	filtered := make([]string, 0, len(init.Items))
-	removed := false
-	for _, existing := range init.Items {
-		if existing == ref {
-			removed = true
-			continue
-		}
-		filtered = append(filtered, existing)
-	}
-	if !removed {
-		return nil
-	}
-	init.Items = filtered
-	init.Updated = time.Now().UTC().Format(time.RFC3339)
-	if err := s.store.Save(init); err != nil {
-		return err
-	}
-	if s.eventLogger != nil {
-		s.eventLogger.EmitInitiativeItemRemoved(initiativeName, ref)
-	}
-	s.invalidateTopologyGraph()
-	return nil
 }
