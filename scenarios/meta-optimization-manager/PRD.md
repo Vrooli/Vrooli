@@ -20,12 +20,12 @@
 - [ ] OT-P0-004 | Base-document integrity | Validate the three space-definition documents themselves — every referenced skill/provider/phase exists (no stale/broken refs) and Guide rows are flagged when they do not map to exactly one skill.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Empirical readiness trials | `trials run` exercises a local model on real SWE tasks (add-feature/research/comprehend/bugfix + negative cases) via agent-manager (opencode + local model) in workspace-sandbox, recording success-rate + tokens + wall-time as a historical trend; tracks "% of Guide tasks with a live gate".
+- [ ] OT-P1-001 | Empirical readiness trials | `trials run` exercises a local model on fixture SWE tasks (add-feature/research/comprehend/bugfix + negative cases) via agent-manager's sandboxed runner (opencode + local model), evaluates the produced diff against the fixture oracle in MoM, and records success-rate + tokens + wall-time as a historical trend; tracks "% of Guide tasks with a live gate".
 - [ ] OT-P1-002 | Template & reference convergence | Measure the upstream generators: per-template fitness counts, gold-star reference health/staleness, and the convergence trend — surfacing numbers and flagging candidates only (substrate/nomination decisions stay agentic), feeding focus.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Operator UI dashboard | A React/Vite console rendering the readiness scoreboard, focus list, gaps registry, and trials/convergence trends.
-- [ ] OT-P2-002 | Attested readiness as a search answer | Register the coverage/focus/readiness answers as attested answers so "how ready are we / where should I work" is answerable via search-hub.
+- [x] OT-P2-002 | Readiness answerable via search | "how ready are we / where should I work" is answerable through search-hub today via cli-health command federation (a query surfaces MoM's `status`/`focus`/`validate-docs` commands). A dedicated MoM provider emitting the inline `AttestedAnswer` envelope is **descoped** as redundant — see `docs/internal/DECISIONS.md` (2026-06-24).
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go (api + cli), React + Vite + Tailwind (ui), Connect-RPC over proto contracts (`packages/proto/schemas/meta-optimization-manager`), typed proto-JSON CLI output, cli-core `ScenarioApp`, api-core/storage.
@@ -35,9 +35,9 @@
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: SQLite (default storage). No heavy resources (no Ollama/Qdrant — this aggregates typed JSON, it does not embed or search).
-- Scenario dependencies (all soft / degrade gracefully): `search-hub`, `test-genie`, `prompt-manager`, `completeness-scoring`, `code-facts`, `architecture-cartographer`, `scenario-auditor` (reads); `agent-manager` + `workspace-sandbox` (trials). Each space-owner must expose a `space --projection <p> --json` verb (a shared contract dependency).
+- Scenario dependencies (all soft / degrade gracefully): `search-hub`, `test-genie`, `prompt-manager`, `completeness-scoring`, `code-facts`, `architecture-cartographer`, `scenario-auditor` (reads); `agent-manager` (trials sandboxed spawn). Each space-owner must expose a `space --projection <p> --json` verb (a shared contract dependency).
 - Operational risks: denominator honesty (mandatory recursive denominator-confidence); fan-out latency / partial availability (must degrade, never false-fail); trials cost (gate strictly behind explicit `trials run`, sandboxed); the convergence coordinated-edit walkthrough is new mechanization (mark lower-confidence until proven); readiness is ultimately empirical (the board measures infrastructure-readiness; the trials trend is the real proof).
-- Launch sequencing: P0 (coverage/focus/gaps/base-doc — readable from existing RPCs + the new `space` verb) → P1 (trials, convergence) → P2 (UI, attested-readiness search). The canonical `docs/concepts/COVERAGE-MODEL.md` must exist before the space docs ship, since they cross-reference it.
+- Launch sequencing: P0 (coverage/focus/gaps/base-doc — readable from existing RPCs + the new `space` verb) → P1 (trials, convergence) → P2 (UI; readiness-via-search is already covered by cli-health command federation, so no dedicated provider is built). The canonical `docs/concepts/COVERAGE-MODEL.md` must exist before the space docs ship, since they cross-reference it.
 
 ## 🎨 UX & Branding
 - Look & feel: an operational console (vrooli-default "Vrooli Operational Console" kit), light + dark, dense data tables and scoreboards; status-color semantics for coverage (now / in-reach / missing) and confidence (authoritative / partial / sketch).

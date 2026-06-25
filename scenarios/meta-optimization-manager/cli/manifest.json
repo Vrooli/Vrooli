@@ -154,10 +154,11 @@
         },
         {
           "name": "run",
-          "description": "Dispatch a task or suite through agent-manager + workspace-sandbox (explicit invocation; expensive; never auto-runs)",
+          "description": "Dispatch a single trial (default) through agent-manager's sandboxed runner and evaluate it (explicit invocation; expensive; never auto-runs). Requires --task, --suite, or --all.",
           "flags": [
-            { "name": "suite", "description": "Run a whole suite (add-feature|research|comprehend|bugfix|negative)" },
-            { "name": "task", "description": "Run a single task by id" },
+            { "name": "task", "description": "Run a single task by id (the default scope; takes precedence)" },
+            { "name": "suite", "description": "Run a whole suite family (add-feature|research|comprehend|bugfix|negative)" },
+            { "name": "all", "bool": true, "description": "Run the full generated suite (every family). Opt-in — guards against accidental cost." },
             { "name": "model", "description": "Local-model id (default from config)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "TrialsService", "method": "RunTrials" },

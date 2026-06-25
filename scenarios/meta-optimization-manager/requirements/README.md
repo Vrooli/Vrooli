@@ -13,7 +13,7 @@ Requirement modules for **meta-optimization-manager**, organized one folder per 
 | OT-P1-001 Empirical readiness trials | P1 | `05-trials/` |
 | OT-P1-002 Template & reference convergence | P1 | `06-convergence/` |
 | OT-P2-001 Operator UI dashboard | P2 | `07-ui-dashboard/` |
-| OT-P2-002 Attested readiness as a search answer | P2 | `08-attested-search/` |
+| OT-P2-002 Readiness answerable via search (cli-health federation; dedicated provider descoped) | P2 | `08-attested-search/` |
 
 Each requirement sets `prd_ref` to its `OT-P[012]-NNN` id; criticality is derived from the id.
 

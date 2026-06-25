@@ -30,12 +30,17 @@ The workflow and state-transition map for **meta-optimization-manager**. Most fl
 
 **Trial run lifecycle:**
 ```
-queued → dispatched (agent-manager, runner=opencode + local model)
-       → running   (inside workspace-sandbox; changed files attributed to the run)
-       → evaluated (deterministic checks where possible, else agent-judge)
-       → recorded  (success + tokens + wall-time appended to trials_runs)
-       → [failed]  at any step → recorded as a failed trial, never blocks the suite
+resolve  → fixture for the task family (defines success + supplies the idempotency rev)
+reuse?   → a recent identical (task, model, fixture-rev) run is returned as-is (no double spend)
+dispatch → agent-manager: profile ensure → task create (scope = fixture target/) → run create --run-mode sandboxed
+running  → agent-manager owns the sandbox; MoM polls run get until terminal
+collect  → run diff + run get metrics = EVIDENCE (diff, tokens, wall-time, changed-files); NO verdict yet
+evaluated→ MoM Evaluator: deterministic fixture oracle (copy target/ + apply diff + run check), else agent-judge
+recorded → verdict + tokens + wall-time + fixture-rev appended to trials_runs
+[failed] → any step degrades that one run to VerdictError (recorded), never blocks the suite, never fabricates a pass
 ```
+agent-manager is ONLY the sandboxed-agent spawner (it returns evidence); deciding
+whether the task was solved is MoM's job (the Evaluator).
 
 **Gap lifecycle:**
 ```

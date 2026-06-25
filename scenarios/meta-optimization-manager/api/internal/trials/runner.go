@@ -3,50 +3,99 @@ package trials
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
+	"time"
 )
 
-// RunResult is the outcome of a single dispatched trial: the metrics the runner
-// observed. The service stamps ID/At/TaskID/Suite/GuideTaskID around it.
+// RunResult is the EVIDENCE a single dispatched trial produced — never a
+// verdict. agent-manager is only the sandboxed-agent spawner; deciding PASS/FAIL
+// is the Evaluator's job (Service calls it next). The one verdict the Runner may
+// set is VerdictError, when the spawn/collection itself failed — an honest
+// degradation that fails one run, never a fabricated pass and never the suite.
 type RunResult struct {
-	Verdict        Verdict
-	Tokens         int64
-	DurationMs     int64
-	SandboxDiffRef string
+	Verdict        Verdict // VerdictError on a dispatch/collection failure; else VerdictUnspecified
+	Tokens         int64   // summary.tokens_used
+	DurationMs     int64   // ended_at - started_at
+	ChangedFiles   int     // run.changed_files — the abstention signal for negative cases
+	SandboxDiffRef string  // sandbox id / diff path — an attribution pointer
+	Diff           string  // the unified diff the agent produced (empty when it abstained)
 	Model          string
+	RunID          string // agent-manager run id (evidence pointer)
 	Detail         string // human note (e.g. why a run errored); not persisted to the wire
 }
 
-// Runner dispatches one trial task through agent-manager (runner=opencode + a
-// local model) inside workspace-sandbox and reports the result. It NEVER returns
-// an error — a failed dispatch is an honest VerdictError, so a broken sandbox
-// degrades one run rather than failing the whole suite.
+// Runner dispatches one trial task through agent-manager's real sandboxed
+// primitive (runner=opencode + a local model) and reports the EVIDENCE. It NEVER
+// returns an error — a failed dispatch is an honest VerdictError, so a broken
+// sandbox degrades one run rather than failing the whole suite.
 type Runner interface {
-	RunTask(ctx context.Context, task TrialTask, model string) RunResult
+	RunTask(ctx context.Context, task TrialTask, fixture Fixture, model string) RunResult
 }
 
 // defaultModel is the local-model id used when the caller passes none. The
 // concrete model is configured operator-side; this is a sane fallback label.
 const defaultModel = "ollama/qwen2.5-coder"
 
-// execTrialRunner is the production Runner. It dispatches via agent-manager and
-// parses the run's metrics. The exact agent-manager dispatch contract is the
-// integration seam — wired operator-side for live runs; CI never dispatches a
-// live model (the fake Runner is used in tests). Any failure degrades to
-// VerdictError with a detail, never a fabricated pass.
+// trialProfileKey is the idempotent agent-manager profile the trials gate binds
+// its runner+model to. `profile ensure` is keyed on it, so repeated trials reuse
+// one profile rather than accumulating them.
+const trialProfileKey = "mom-trial-opencode"
+
+// defaultPollInterval bounds how often the Runner polls a sandboxed run for
+// terminal status. Trials are long and operator-invoked; a few seconds keeps the
+// poll cheap without hammering agent-manager.
+const defaultPollInterval = 5 * time.Second
+
+// agent-manager terminal run statuses (proto enum names; the API marshals enums
+// by name with UseProtoNames). COMPLETE/NEEDS_REVIEW carry a usable diff (trials
+// read the diff but never apply it, so a pending review does not block evidence
+// collection); FAILED/CANCELLED mean the run itself errored.
+const (
+	statusComplete    = "RUN_STATUS_COMPLETE"
+	statusNeedsReview = "RUN_STATUS_NEEDS_REVIEW"
+	statusFailed      = "RUN_STATUS_FAILED"
+	statusCancelled   = "RUN_STATUS_CANCELLED"
+)
+
+// execTrialRunner is the production Runner. It drives agent-manager's
+// profile ensure → task create → run create --run-mode sandboxed → poll run get
+// → run diff sequence through the CommandRunner seam and parses each response
+// JSON (tolerant of extra/unknown fields, pinned to agent-manager's snake_case
+// API shape). Any step failure degrades to VerdictError with a detail — never a
+// fabricated pass.
 type execTrialRunner struct {
-	run CommandRunner
+	run          CommandRunner
+	pollInterval time.Duration
 }
 
 // NewRunner returns the production Runner.
-func NewRunner() Runner { return &execTrialRunner{run: execRunner} }
+func NewRunner() Runner { return &execTrialRunner{run: execRunner, pollInterval: defaultPollInterval} }
 
 // NewRunnerWithCommand returns a Runner using the given CommandRunner (tests).
-func NewRunnerWithCommand(run CommandRunner) Runner { return &execTrialRunner{run: run} }
+func NewRunnerWithCommand(run CommandRunner) Runner {
+	return &execTrialRunner{run: run, pollInterval: defaultPollInterval}
+}
+
+// newRunnerForTest returns a Runner with a custom poll interval so a
+// non-terminal→terminal poll sequence can be exercised without a real sleep.
+func newRunnerForTest(run CommandRunner, pollInterval time.Duration) *execTrialRunner {
+	return &execTrialRunner{run: run, pollInterval: pollInterval}
+}
 
 var _ Runner = (*execTrialRunner)(nil)
 
-func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, model string) RunResult {
+func isTerminalStatus(s string) bool {
+	switch s {
+	case statusComplete, statusNeedsReview, statusFailed, statusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, fixture Fixture, model string) RunResult {
 	if model == "" {
 		model = defaultModel
 	}
@@ -55,61 +104,248 @@ func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, model str
 		res.Detail = "no dispatch runner configured"
 		return res
 	}
-	// Dispatch through agent-manager with the local-model runner, sandboxed. The
-	// flags are the documented integration contract; agent-manager attributes the
-	// changed files to the returned sandbox diff ref.
-	out, err := r.run(ctx, "agent-manager", "trials", "dispatch",
-		"--task", task.ID,
-		"--suite", task.Suite,
-		"--runner", "opencode",
-		"--model", model,
-		"--sandboxed",
-		"--json",
-	)
+
+	// Bound the whole spawn+poll sequence; each individual command additionally
+	// carries its own LookPath guard + timeout inside execRunner.
+	ctx, cancel := context.WithTimeout(ctx, dispatchTimeout)
+	defer cancel()
+
+	// 1. profile ensure — idempotent runner+model binding.
+	profileID, err := r.ensureProfile(ctx, model)
 	if err != nil {
-		res.Detail = "agent-manager dispatch failed: " + err.Error()
+		res.Detail = "profile ensure failed: " + err.Error()
 		return res
 	}
-	return parseDispatch(out, model)
-}
 
-// dispatchPayload is the subset of agent-manager's dispatch JSON the trials
-// domain consumes. Tolerant of extra fields.
-type dispatchPayload struct {
-	Verdict        string `json:"verdict"`
-	Tokens         int64  `json:"tokens"`
-	DurationMs     int64  `json:"duration_ms"`
-	SandboxDiffRef string `json:"sandbox_diff_ref"`
-	Model          string `json:"model"`
-}
+	// 2. task create — the agent works on the fixture's target/ (its scope).
+	taskID, err := r.createTask(ctx, task, fixture)
+	if err != nil {
+		res.Detail = "task create failed: " + err.Error()
+		return res
+	}
 
-// parseDispatch maps agent-manager's dispatch JSON to a RunResult. An
-// unparseable payload is an honest VerdictError.
-func parseDispatch(out []byte, model string) RunResult {
-	var p dispatchPayload
-	if err := json.Unmarshal(out, &p); err != nil {
-		return RunResult{Verdict: VerdictError, Model: model, Detail: "unparseable dispatch result"}
+	// 3. run create — sandboxed, auto-clean on terminal so trial sandboxes don't
+	//    accumulate.
+	runID, err := r.createRun(ctx, taskID, profileID)
+	if err != nil {
+		res.Detail = "run create failed: " + err.Error()
+		return res
 	}
-	res := RunResult{
-		Verdict:        verdictFromString(p.Verdict),
-		Tokens:         p.Tokens,
-		DurationMs:     p.DurationMs,
-		SandboxDiffRef: p.SandboxDiffRef,
-		Model:          model,
+	res.RunID = runID
+
+	// 4. poll run get → terminal.
+	run, err := r.pollRun(ctx, runID)
+	if err != nil {
+		res.Detail = "run get failed: " + err.Error()
+		return res
 	}
-	if p.Model != "" {
-		res.Model = p.Model
+	res.SandboxDiffRef = run.sandboxRef()
+	res.Tokens = run.tokens()
+	res.DurationMs = run.durationMs()
+	res.ChangedFiles = run.ChangedFiles
+
+	if run.Status == statusFailed || run.Status == statusCancelled {
+		res.Detail = "sandboxed run did not complete: status=" + enumShort(run.Status) + " " + run.ErrorMsg
+		return res // VerdictError — the run itself errored
 	}
+
+	// 5. run diff — capture the agent's produced changes (only if it changed
+	//    anything; an empty change set is the abstention signal for negatives).
+	if res.ChangedFiles > 0 {
+		diff, derr := r.runDiff(ctx, runID)
+		if derr != nil {
+			res.Detail = "run diff failed: " + derr.Error()
+			return res // VerdictError — we can't evaluate without the evidence
+		}
+		res.Diff = diff
+	}
+
+	// Evidence collected — the verdict is the Evaluator's call.
+	res.Verdict = VerdictUnspecified
+	res.Detail = ""
 	return res
 }
 
-func verdictFromString(s string) Verdict {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "pass", "passed", "success", "ok":
-		return VerdictPass
-	case "fail", "failed", "wrong", "insufficient":
-		return VerdictFail
-	default:
-		return VerdictError
+// =============================================================================
+// agent-manager response shapes (the narrow subset trials consumes). Pinned to
+// agent-manager's snake_case API marshaler (protoconv UseProtoNames=true);
+// json.Decode ignores unknown fields, so extra response fields never break us.
+// =============================================================================
+
+type amProfile struct {
+	ID string `json:"id"`
+}
+
+type amTask struct {
+	ID string `json:"id"`
+}
+
+type amRunSummary struct {
+	TokensUsed int64 `json:"tokens_used"`
+}
+
+type amRun struct {
+	ID           string        `json:"id"`
+	Status       string        `json:"status"`
+	SandboxID    string        `json:"sandbox_id"`
+	DiffPath     string        `json:"diff_path"`
+	ChangedFiles int           `json:"changed_files"`
+	StartedAt    string        `json:"started_at"`
+	EndedAt      string        `json:"ended_at"`
+	ErrorMsg     string        `json:"error_msg"`
+	Summary      *amRunSummary `json:"summary"`
+}
+
+func (run amRun) tokens() int64 {
+	if run.Summary == nil {
+		return 0
 	}
+	return run.Summary.TokensUsed
+}
+
+func (run amRun) sandboxRef() string {
+	if id := strings.TrimSpace(run.SandboxID); id != "" {
+		return id
+	}
+	if p := strings.TrimSpace(run.DiffPath); p != "" {
+		return p
+	}
+	return run.ID
+}
+
+func (run amRun) durationMs() int64 {
+	start, serr := time.Parse(time.RFC3339, run.StartedAt)
+	end, eerr := time.Parse(time.RFC3339, run.EndedAt)
+	if serr != nil || eerr != nil {
+		return 0
+	}
+	d := end.Sub(start)
+	if d < 0 {
+		return 0
+	}
+	return d.Milliseconds()
+}
+
+// ensureProfile resolves the idempotent trials profile (opencode + model).
+func (r *execTrialRunner) ensureProfile(ctx context.Context, model string) (string, error) {
+	out, err := r.run(ctx, "agent-manager", "profile", "ensure",
+		"--key", trialProfileKey,
+		"--name", "MoM trials (opencode)",
+		"--runner-type", "opencode",
+		"--model", model,
+		"--json",
+	)
+	if err != nil {
+		return "", err
+	}
+	var env struct {
+		Profile *amProfile `json:"profile"`
+	}
+	if err := json.Unmarshal(out, &env); err != nil {
+		return "", fmt.Errorf("decode profile ensure: %w", err)
+	}
+	if env.Profile == nil || env.Profile.ID == "" {
+		return "", errors.New("profile ensure returned no profile id")
+	}
+	return env.Profile.ID, nil
+}
+
+// createTask creates the agent task scoped to the fixture's target codebase.
+func (r *execTrialRunner) createTask(ctx context.Context, task TrialTask, fixture Fixture) (string, error) {
+	title := fmt.Sprintf("trial %s: %s", fixture.Family, task.ID)
+	out, err := r.run(ctx, "agent-manager", "task", "create",
+		"--title", title,
+		"--description", fixture.Prompt,
+		"--scope-path", fixture.TargetDir,
+		"--json",
+	)
+	if err != nil {
+		return "", err
+	}
+	var env struct {
+		Task *amTask `json:"task"`
+	}
+	if err := json.Unmarshal(out, &env); err != nil {
+		return "", fmt.Errorf("decode task create: %w", err)
+	}
+	if env.Task == nil || env.Task.ID == "" {
+		return "", errors.New("task create returned no task id")
+	}
+	return env.Task.ID, nil
+}
+
+// createRun starts a sandboxed run that auto-cleans on terminal.
+func (r *execTrialRunner) createRun(ctx context.Context, taskID, profileID string) (string, error) {
+	out, err := r.run(ctx, "agent-manager", "run", "create",
+		"--task-id", taskID,
+		"--profile-id", profileID,
+		"--run-mode", "sandboxed",
+		"--sandbox-retention-mode", "delete_on_terminal",
+		"--json",
+	)
+	if err != nil {
+		return "", err
+	}
+	run, err := decodeRunEnvelope(out)
+	if err != nil {
+		return "", fmt.Errorf("decode run create: %w", err)
+	}
+	if run.ID == "" {
+		return "", errors.New("run create returned no run id")
+	}
+	return run.ID, nil
+}
+
+// pollRun polls run get until the run reaches a terminal status or the context
+// deadline elapses (treated by the caller as VerdictError).
+func (r *execTrialRunner) pollRun(ctx context.Context, runID string) (*amRun, error) {
+	for {
+		out, err := r.run(ctx, "agent-manager", "run", "get", runID, "--json")
+		if err != nil {
+			return nil, err
+		}
+		run, derr := decodeRunEnvelope(out)
+		if derr != nil {
+			return nil, fmt.Errorf("decode run get: %w", derr)
+		}
+		if isTerminalStatus(run.Status) {
+			return run, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("run %s did not reach a terminal status before timeout (last=%s)",
+				runID, enumShort(run.Status))
+		case <-time.After(r.pollInterval):
+		}
+	}
+}
+
+// runDiff captures the agent's unified diff as raw text (run diff prints the
+// diff, not JSON).
+func (r *execTrialRunner) runDiff(ctx context.Context, runID string) (string, error) {
+	out, err := r.run(ctx, "agent-manager", "run", "diff", runID)
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+// decodeRunEnvelope unwraps {"run": {...}} and decodes the run. The wrapper key
+// is a single word, identical under either agent-manager field-name convention.
+func decodeRunEnvelope(out []byte) (*amRun, error) {
+	var env struct {
+		Run *amRun `json:"run"`
+	}
+	if err := json.Unmarshal(out, &env); err != nil {
+		return nil, err
+	}
+	if env.Run == nil {
+		return nil, errors.New("response has no run object")
+	}
+	return env.Run, nil
+}
+
+// enumShort trims the RUN_STATUS_ prefix for human detail strings.
+func enumShort(s string) string {
+	return strings.ToLower(strings.TrimPrefix(s, "RUN_STATUS_"))
 }

@@ -50,9 +50,22 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) run(ctx cliapp.RunContext) error {
+	task := strings.TrimSpace(ctx.Flag("task"))
+	suite := strings.TrimSpace(ctx.Flag("suite"))
+	all := ctx.BoolFlag("all")
+
+	// Single-task by default: trials are expensive, so require an explicit scope
+	// rather than silently dispatching the whole suite.
+	if task == "" && suite == "" && !all {
+		return fmt.Errorf("trials run needs a scope: pass --task <id> for one task, --suite <family> for a family, or --all for the full suite")
+	}
+	// --all means the whole generated suite: send neither task nor suite (the
+	// service runs everything when both are empty). An explicit --task/--suite
+	// takes precedence over --all, so no remapping is needed here.
+
 	resp, err := h.client.RunTrials(context.Background(), connect.NewRequest(&trialsv1.RunTrialsRequest{
-		Suite:  strings.TrimSpace(ctx.Flag("suite")),
-		TaskId: strings.TrimSpace(ctx.Flag("task")),
+		Suite:  suite,
+		TaskId: task,
 		Model:  strings.TrimSpace(ctx.Flag("model")),
 	}))
 	if err != nil {
@@ -66,7 +79,7 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		results = append(results, formatRun(r))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Dispatched %d run(s).", len(resp.Msg.Runs))},
+		Summary:        []string{fmt.Sprintf("Dispatched/recorded %d run(s). Identical recent runs are reused (idempotent by task+model+fixture-rev).", len(resp.Msg.Runs))},
 		ResultsHeading: "Runs",
 		Results:        results,
 		RetrievalHints: []string{"`trials show <run-id>` — full run detail", "`trials history` — the trend"},

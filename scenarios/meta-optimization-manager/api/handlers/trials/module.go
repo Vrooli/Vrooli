@@ -20,13 +20,17 @@ import (
 
 // Module returns the trials domain's contribution to the API: the generated
 // TrialsService Connect-RPC handler, backed by the Guide-space task generator
-// (sharing the coverage domain's space reader), the agent-manager dispatch
-// runner, and the SQLite trials history + gate registry.
+// (sharing the coverage domain's space reader), the committed fixture corpus,
+// the agent-manager sandboxed-spawn runner, the MoM-owned Evaluator, and the
+// SQLite trials history + gate registry.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	svc := internaltrials.NewService(internaltrials.Deps{
-		Tasks: internaltrials.NewTaskGenerator(internalcoverage.NewSpaceReader()),
-		Repo:  internaltrials.NewSQLiteRepository(db, clk),
-		Clock: clk,
+		Tasks:     internaltrials.NewTaskGenerator(internalcoverage.NewSpaceReader()),
+		Fixtures:  internaltrials.NewFixtureResolver(),
+		Runner:    internaltrials.NewRunner(),
+		Evaluator: internaltrials.NewEvaluator(logger),
+		Repo:      internaltrials.NewSQLiteRepository(db, clk),
+		Clock:     clk,
 	})
 	connectPath, connectHandler := trialsconnect.NewTrialsServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
@@ -67,7 +71,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        trialsconnect.TrialsServiceRunTrialsProcedure,
 		Method:      "POST",
 		Summary:     "Run trials (explicit invocation)",
-		Description: "Dispatches a task or suite through agent-manager (runner=opencode + a local model) inside workspace-sandbox and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
+		Description: "Dispatches a task or suite through agent-manager's sandboxed runner (run create --run-mode sandboxed, runner=opencode + a local model), evaluates the produced diff against the fixture oracle, and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
 		Category:    "trials",
 		Response: &module.Schema{
 			Type:       "object",

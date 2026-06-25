@@ -215,7 +215,7 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Owns the Answer projection denominator (`search-hub space --projection answer`) and the live numerator (`providers list`). Also the registration target for the meta-optimization-manager search provider.",
+        "description": "Owns the Answer projection denominator (`search-hub space --projection answer`) and the live numerator (`providers list`). MoM does not self-register a provider here — readiness is discoverable via cli-health command federation (see docs/internal/DECISIONS.md, 2026-06-24).",
         "degraded_behavior": "Answer-projection coverage is reported unavailable (available=false) with an honest reason; the other projections still compute."
       },
       "test-genie": {
@@ -271,16 +271,8 @@
         "enabled": true,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Dispatches local-model trial runs (runner=opencode) for the empirical trials gate. Explicit-invocation only.",
-        "degraded_behavior": "`trials run` returns an explicit unavailable error; recorded history still serves."
-      },
-      "workspace-sandbox": {
-        "type": "scenario",
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Isolates each trial run and attributes its diff (sandbox_diff_ref) for the empirical gate.",
-        "degraded_behavior": "`trials run` returns an explicit unavailable error; recorded history still serves."
+        "description": "The sandboxed-agent spawner for the empirical trials gate (profile ensure / task create / run create --run-mode sandboxed / run get / run diff, runner=opencode + local model). Owns sandboxing + diff attribution internally; MoM never talks to a sandbox directly. Explicit-invocation only.",
+        "degraded_behavior": "Each `trials run` degrades to a recorded VerdictError with a clear reason; recorded history still serves and the suite never blocks."
       }
     }
   },

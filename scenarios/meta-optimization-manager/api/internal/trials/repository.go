@@ -18,6 +18,9 @@ type Repository interface {
 	RecordRun(ctx context.Context, run TrialRun) error
 	// GetRun returns one run by id; ok=false when absent.
 	GetRun(ctx context.Context, id string) (TrialRun, bool, error)
+	// LatestRun returns the most recent run for an exact (task, model,
+	// fixture-rev) triple; ok=false when none exists. Drives idempotency reuse.
+	LatestRun(ctx context.Context, taskID, model, fixtureRev string) (TrialRun, bool, error)
 	// Runs returns runs matching the filter. limit<=0 returns all; desc orders
 	// newest-first (for recent-runs), else oldest-first (for trend aggregation).
 	Runs(ctx context.Context, filter RunFilter, limit int, desc bool) ([]TrialRun, error)

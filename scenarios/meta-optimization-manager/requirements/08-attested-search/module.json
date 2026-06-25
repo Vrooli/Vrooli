@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "module": "attested-search",
-    "description": "OT-P2-002 — attested readiness as a search answer.",
+    "description": "OT-P2-002 — readiness answerable via search. Satisfied by cli-health command federation; dedicated attested-answer provider descoped.",
     "prd_ref": "PRD.md",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -9,15 +9,14 @@
   "requirements": [
     {
       "id": "MOM-SEARCH-001",
-      "title": "register coverage/focus answers as attested answers in search-hub",
-      "status": "planned",
+      "title": "readiness answers discoverable via search-hub (cli-health command federation)",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "category": "coverage",
-      "description": "Coverage/focus/readiness answers register with search-hub as attested answers so 'how ready are we / where should I work' is answerable via search, with the attestation envelope carrying confidence + citations.",
-      "tags": ["search-hub", "attestation"],
+      "description": "The user need — 'how ready are we / where should I work' answerable through search — is already satisfied by cli-health's command federation: a federated search-hub query surfaces meta-optimization-manager's coverage/focus commands (e.g. `status`, `validate-docs`, `list-cells`) with their descriptions, routing the agent to the right command. A dedicated MoM search provider that emits the AttestedAnswer envelope (confidence + citations inline in the search result) is DESCOPED as redundant for this need — see docs/internal/DECISIONS.md (2026-06-24). The additive `AttestedAnswer` carrier on search-hub `SearchHit` stays available for any future provider that wants inline attestation, but MoM does not self-register one.",
+      "tags": ["search-hub", "cli-health", "descoped"],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: provider registration descriptor + attestation mapping; target api/internal/search." },
-        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: query routes to the attested readiness answer." }
+        { "type": "manual", "phase": "integration", "status": "implemented", "notes": "Verified live 2026-06-24: `search-hub query \"how ready are we to self-optimize\"` returns MoM's coverage commands (status/validate-docs/list-cells) via the cli-health.commands provider." }
       ]
     }
   ]

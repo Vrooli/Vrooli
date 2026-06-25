@@ -25,8 +25,8 @@ The system map for **meta-optimization-manager**: its shape, boundaries, contrac
 ## Contracts And Data Flow
 
 - **Upstream read contract — `space --projection <p> --json`**: every denominator owner (search-hub → Answer, test-genie → Validate, prompt-manager → Guide) exposes this verb; `coverage` reads it as the denominator. This is the scenario's primary shared-contract dependency.
-- **Consumed — the attestation contract** (`AttestedAnswer` on search-hub `SearchHit`): answers carry basis × sufficiency; this scenario consumes attested answers and re-exposes its own (P2).
-- **Read clients (typed CLI/RPC, never re-run):** `test-genie health` + `fleet status`, `prompt-manager graph health`, `completeness-scoring GetScore`, `search-hub providers list`, `code-facts` + `architecture-cartographer` (convergence structure), `scenario-auditor` (clean scans), `agent-manager` + `workspace-sandbox` (trials).
+- **Consumed — the attestation contract** (`AttestedAnswer` on search-hub `SearchHit`): answers carry basis × sufficiency; this scenario consumes attested answers. It does **not** self-register a provider that re-exposes its own readiness as an attested answer — that was descoped (2026-06-24) because readiness is already discoverable through search-hub via cli-health command federation. See `docs/internal/DECISIONS.md`.
+- **Read clients (typed CLI/RPC, never re-run):** `test-genie health` + `fleet status`, `prompt-manager graph health`, `completeness-scoring GetScore`, `search-hub providers list`, `code-facts` + `architecture-cartographer` (convergence structure), `scenario-auditor` (clean scans), `agent-manager` (trials sandboxed spawn).
 - **Data flow (status):** read each projection's denominator (space verb) → read the live numerator (registries) → join → compute coverage + denominator-confidence → attach latest trial trend → return one scoreboard. Every read degrades gracefully; a down source yields "unavailable", never a failed snapshot.
 
 See [DATA.md](DATA.md) for the persisted shapes and [FLOWS.md](FLOWS.md) for the step-by-step flows.

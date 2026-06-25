@@ -33,15 +33,22 @@ func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 
 var _ Repository = (*sqliteRepo)(nil)
 
+// runColumns is the canonical column list, shared by every SELECT so scanRun
+// stays in lockstep with the projection.
+const runColumns = `id, task_id, suite, model, guide_task_id, fixture_rev, verdict, tokens, duration_ms, sandbox_diff_ref, created_at`
+
 const (
 	insertRunSQL = `INSERT INTO trials_runs
-(id, task_id, suite, model, guide_task_id, verdict, tokens, duration_ms, sandbox_diff_ref, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+(id, task_id, suite, model, guide_task_id, fixture_rev, verdict, tokens, duration_ms, sandbox_diff_ref, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	bumpGateSQL = `INSERT INTO trial_gates (task_key, gate_count, updated_at)
 VALUES (?, 1, ?)
 ON CONFLICT(task_key) DO UPDATE SET gate_count = gate_count + 1, updated_at = excluded.updated_at`
-	getRunSQL = `SELECT id, task_id, suite, model, guide_task_id, verdict, tokens, duration_ms, sandbox_diff_ref, created_at
+	getRunSQL = `SELECT ` + runColumns + `
 FROM trials_runs WHERE id = ?`
+	latestRunSQL = `SELECT ` + runColumns + `
+FROM trials_runs WHERE task_id = ? AND model = ? AND fixture_rev = ?
+ORDER BY created_at DESC, id DESC LIMIT 1`
 	gatedCountSQL = `SELECT COUNT(*) FROM trial_gates WHERE gate_count > 0`
 )
 
@@ -51,7 +58,7 @@ func (r *sqliteRepo) RecordRun(ctx context.Context, run TrialRun) error {
 		at = r.clock.Now().UTC()
 	}
 	if _, err := r.db.ExecContext(ctx, insertRunSQL,
-		run.ID, run.TaskID, run.Suite, run.Model, run.GuideTaskID, int(run.Verdict),
+		run.ID, run.TaskID, run.Suite, run.Model, run.GuideTaskID, run.FixtureRev, int(run.Verdict),
 		run.Tokens, run.DurationMs, run.SandboxDiffRef, at.Format(runTimeFormat),
 	); err != nil {
 		return fmt.Errorf("insert run %q: %w", run.ID, err)
@@ -75,8 +82,19 @@ func (r *sqliteRepo) GetRun(ctx context.Context, id string) (TrialRun, bool, err
 	return run, true, nil
 }
 
+func (r *sqliteRepo) LatestRun(ctx context.Context, taskID, model, fixtureRev string) (TrialRun, bool, error) {
+	run, err := scanRun(r.db.QueryRowContext(ctx, latestRunSQL, taskID, model, fixtureRev))
+	if errors.Is(err, sql.ErrNoRows) {
+		return TrialRun{}, false, nil
+	}
+	if err != nil {
+		return TrialRun{}, false, fmt.Errorf("latest run %q/%q/%q: %w", taskID, model, fixtureRev, err)
+	}
+	return run, true, nil
+}
+
 func (r *sqliteRepo) Runs(ctx context.Context, filter RunFilter, limit int, desc bool) ([]TrialRun, error) {
-	q := `SELECT id, task_id, suite, model, guide_task_id, verdict, tokens, duration_ms, sandbox_diff_ref, created_at
+	q := `SELECT ` + runColumns + `
 FROM trials_runs`
 	var (
 		where []string
@@ -142,7 +160,7 @@ func scanRun(s rowScanner) (TrialRun, error) {
 		verdict int
 		atRaw   string
 	)
-	if err := s.Scan(&run.ID, &run.TaskID, &run.Suite, &run.Model, &run.GuideTaskID,
+	if err := s.Scan(&run.ID, &run.TaskID, &run.Suite, &run.Model, &run.GuideTaskID, &run.FixtureRev,
 		&verdict, &run.Tokens, &run.DurationMs, &run.SandboxDiffRef, &atRaw); err != nil {
 		return TrialRun{}, err
 	}

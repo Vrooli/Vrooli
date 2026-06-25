@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"meta-optimization-manager/internal/clock"
 	"meta-optimization-manager/internal/testutil/mocks"
 )
 
@@ -35,7 +36,7 @@ type fakeRunner struct {
 	calls  int
 }
 
-func (f *fakeRunner) RunTask(_ context.Context, _ TrialTask, model string) RunResult {
+func (f *fakeRunner) RunTask(_ context.Context, _ TrialTask, _ Fixture, model string) RunResult {
 	f.calls++
 	r := f.result
 	if r.Model == "" {
@@ -44,10 +45,63 @@ func (f *fakeRunner) RunTask(_ context.Context, _ TrialTask, model string) RunRe
 	return r
 }
 
+// fakeFixtures returns a fixed fixture for every task (or a per-task map). ok is
+// false for tasks listed in `missing`.
+type fakeFixtures struct {
+	fixture Fixture
+	byTask  map[string]Fixture
+	missing map[string]bool
+	err     error
+}
+
+func (f *fakeFixtures) Resolve(_ context.Context, task TrialTask) (Fixture, bool, error) {
+	if f.err != nil {
+		return Fixture{}, false, f.err
+	}
+	if f.missing[task.ID] {
+		return Fixture{}, false, nil
+	}
+	if fx, ok := f.byTask[task.ID]; ok {
+		return fx, true, nil
+	}
+	fx := f.fixture
+	fx.Negative = task.Negative || task.Suite == SuiteNegative
+	return fx, true, nil
+}
+
+// fakeEvaluator returns a configured verdict, or echoes the evidence verdict
+// when passthrough is set (so negative/abstention logic can be exercised via a
+// real evaluator elsewhere).
+type fakeEvaluator struct {
+	verdict Verdict
+	calls   int
+	lastRes RunResult
+}
+
+func (e *fakeEvaluator) Judge(_ context.Context, _ TrialTask, _ Fixture, res RunResult) Verdict {
+	e.calls++
+	e.lastRes = res
+	return e.verdict
+}
+
 type fakeRepo struct {
 	runs      []TrialRun
 	gated     int
 	recordErr error
+}
+
+func (r *fakeRepo) LatestRun(_ context.Context, taskID, model, fixtureRev string) (TrialRun, bool, error) {
+	var latest TrialRun
+	found := false
+	for _, run := range r.runs {
+		if run.TaskID == taskID && run.Model == model && run.FixtureRev == fixtureRev {
+			if !found || run.At.After(latest.At) {
+				latest = run
+				found = true
+			}
+		}
+	}
+	return latest, found, nil
 }
 
 func (r *fakeRepo) RecordRun(_ context.Context, run TrialRun) error {
@@ -99,8 +153,18 @@ func tasksFixture() []TrialTask {
 	}
 }
 
+// newSvc wires a service with passthrough fixtures (a fixture for every task,
+// rev "rev1") and an evaluator that always passes — the default for tests that
+// exercise orchestration rather than evaluation/idempotency.
 func newSvc(gen TaskGenerator, runner Runner, repo Repository) Service {
-	return NewService(Deps{Tasks: gen, Runner: runner, Repo: repo, Clock: mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))})
+	return newSvcFull(gen, runner, repo,
+		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1", TargetDir: "/t"}},
+		&fakeEvaluator{verdict: VerdictPass},
+		mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)))
+}
+
+func newSvcFull(gen TaskGenerator, runner Runner, repo Repository, fx FixtureResolver, ev Evaluator, clk clock.Clock) Service {
+	return NewService(Deps{Tasks: gen, Fixtures: fx, Runner: runner, Evaluator: ev, Repo: repo, Clock: clk})
 }
 
 func TestListTrialTasksFilters(t *testing.T) {
@@ -209,21 +273,145 @@ func TestHistoryAggregation(t *testing.T) {
 	}
 }
 
-func TestRunResultErrorVerdictOnNilRunner(t *testing.T) {
-	r := NewRunnerWithCommand(nil)
-	res := r.RunTask(context.Background(), TrialTask{ID: "x"}, "")
-	if res.Verdict != VerdictError {
-		t.Fatalf("nil runner should yield VerdictError, got %v", res.Verdict)
+func TestRunTrialsEvaluatorDecidesVerdict(t *testing.T) {
+	// The runner returns EVIDENCE (no verdict); the evaluator decides.
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Tokens: 900, DurationMs: 3000, SandboxDiffRef: "sbx"}}
+	ev := &fakeEvaluator{verdict: VerdictFail}
+	repo := &fakeRepo{}
+	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo,
+		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, ev,
+		mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC)))
+
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x")
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(runs) != 1 || runs[0].Verdict != VerdictFail {
+		t.Fatalf("evaluator verdict not applied: %+v", runs)
+	}
+	if ev.calls != 1 || ev.lastRes.Tokens != 900 {
+		t.Fatalf("evaluator not called with evidence: calls=%d res=%+v", ev.calls, ev.lastRes)
+	}
+	if runs[0].FixtureRev != "rev1" {
+		t.Fatalf("fixture rev not recorded: %+v", runs[0])
 	}
 }
 
-func TestParseDispatch(t *testing.T) {
-	res := parseDispatch([]byte(`{"verdict":"pass","tokens":1234,"duration_ms":4567,"sandbox_diff_ref":"sbx-9","model":"ollama/z"}`), "fallback")
-	if res.Verdict != VerdictPass || res.Tokens != 1234 || res.SandboxDiffRef != "sbx-9" || res.Model != "ollama/z" {
-		t.Fatalf("parse dispatch wrong: %+v", res)
+func TestRunTrialsRunnerErrorSkipsEvaluator(t *testing.T) {
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictError, Detail: "spawn failed"}}
+	ev := &fakeEvaluator{verdict: VerdictPass}
+	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, &fakeRepo{},
+		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, ev,
+		mocks.NewFakeClock(time.Now()))
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "m")
+	if err != nil {
+		t.Fatalf("run: %v", err)
 	}
-	bad := parseDispatch([]byte("not json"), "fallback")
-	if bad.Verdict != VerdictError || bad.Model != "fallback" {
-		t.Fatalf("bad parse should error: %+v", bad)
+	if runs[0].Verdict != VerdictError {
+		t.Fatalf("runner error must NOT be overridden to a pass: %+v", runs[0])
+	}
+	if ev.calls != 0 {
+		t.Fatalf("evaluator must be skipped on a runner error, calls=%d", ev.calls)
+	}
+}
+
+func TestRunTrialsMissingFixtureRecordsError(t *testing.T) {
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified}}
+	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, &fakeRepo{},
+		&fakeFixtures{missing: map[string]bool{"trial/g1": true}}, &fakeEvaluator{verdict: VerdictPass},
+		mocks.NewFakeClock(time.Now()))
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "m")
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if runs[0].Verdict != VerdictError {
+		t.Fatalf("missing fixture must record VerdictError, got %+v", runs[0])
+	}
+	if runner.calls != 0 {
+		t.Fatalf("runner must not dispatch when no fixture exists, calls=%d", runner.calls)
+	}
+}
+
+func TestRunTrialsIdempotencyReuse(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Tokens: 100}}
+	ev := &fakeEvaluator{verdict: VerdictPass}
+	repo := &fakeRepo{}
+	fx := &fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}
+	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo, fx, ev, clk)
+
+	// First run dispatches and records.
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x"); err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 1 || len(repo.runs) != 1 {
+		t.Fatalf("first run should dispatch+record: calls=%d recorded=%d", runner.calls, len(repo.runs))
+	}
+
+	// Immediate identical re-run (same task, model, fixture-rev) REUSES — no new
+	// dispatch, no new record.
+	runs, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 1 {
+		t.Fatalf("identical re-run must not dispatch again, calls=%d", runner.calls)
+	}
+	if len(repo.runs) != 1 || runs[0].ID != repo.runs[0].ID {
+		t.Fatalf("re-run should reuse the prior run, got %+v", runs[0])
+	}
+
+	// A different model is a different key → dispatches.
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/other"); err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 2 {
+		t.Fatalf("different model must dispatch, calls=%d", runner.calls)
+	}
+}
+
+func TestRunTrialsIdempotencyWindowExpiry(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified}}
+	// Seed a prior run OLDER than the idempotency window.
+	repo := &fakeRepo{runs: []TrialRun{{
+		ID: "old", TaskID: "trial/g1", Model: "ollama/x", FixtureRev: "rev1",
+		Verdict: VerdictPass, At: clk.Now().Add(-idempotencyWindow - time.Minute),
+	}}}
+	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo,
+		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, &fakeEvaluator{verdict: VerdictPass}, clk)
+
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x"); err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 1 {
+		t.Fatalf("a stale prior run must NOT be reused, calls=%d", runner.calls)
+	}
+}
+
+func TestRunTrialsIdempotencyIgnoresPriorError(t *testing.T) {
+	clk := mocks.NewFakeClock(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified}}
+	// A recent prior run that ERRORED must not be reused (retry is reasonable).
+	repo := &fakeRepo{runs: []TrialRun{{
+		ID: "errd", TaskID: "trial/g1", Model: "ollama/x", FixtureRev: "rev1",
+		Verdict: VerdictError, At: clk.Now(),
+	}}}
+	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo,
+		&fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}, &fakeEvaluator{verdict: VerdictPass}, clk)
+
+	if _, err := svc.RunTrials(context.Background(), "", "trial/g1", "ollama/x"); err != nil {
+		t.Fatal(err)
+	}
+	if runner.calls != 1 {
+		t.Fatalf("a prior errored run must not block a retry, calls=%d", runner.calls)
+	}
+}
+
+func TestRunResultErrorVerdictOnNilRunner(t *testing.T) {
+	r := NewRunnerWithCommand(nil)
+	res := r.RunTask(context.Background(), TrialTask{ID: "x"}, Fixture{Family: "f"}, "")
+	if res.Verdict != VerdictError {
+		t.Fatalf("nil runner should yield VerdictError, got %v", res.Verdict)
 	}
 }

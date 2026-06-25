@@ -248,7 +248,7 @@
       "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/RunTrials",
       "method": "POST",
       "summary": "Run trials (explicit invocation)",
-      "description": "Dispatches a task or suite through agent-manager (runner=opencode + a local model) inside workspace-sandbox and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
+      "description": "Dispatches a task or suite through agent-manager's sandboxed runner (run create --run-mode sandboxed, runner=opencode + a local model), evaluates the produced diff against the fixture oracle, and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
       "category": "trials",
       "response": {
         "type": "object",

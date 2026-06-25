@@ -13,7 +13,7 @@ The cross-cutting model these domains share — the attestation contract, the en
 | **coverage** | Read each projection's denominator (via the owner's `space --projection` verb) joined against the live registries; compute per-projection coverage + denominator-confidence; validate base-document integrity; synthesize the readiness scoreboard. | OT-P0-001, OT-P0-004, OT-P2-002 |
 | **convergence** | Measure the upstream generators: per-template fitness counts, gold-star reference health/staleness, and the convergence trend. Surfaces numbers + candidates only. | OT-P1-002 |
 | **focus** | Maintain the gaps registry (qualitative notes/approaches) and rank gaps by impact × importance across all projections + convergence. | OT-P0-002, OT-P0-003 |
-| **trials** | Run the empirical local-model gate via agent-manager + workspace-sandbox; record success/tokens/time history; track Guide-gate coverage. | OT-P1-001 |
+| **trials** | Run the empirical local-model gate via agent-manager's sandboxed runner, evaluate the diff against a fixture oracle, record success/tokens/time history; track Guide-gate coverage. | OT-P1-001 |
 
 ## Domain Details
 
@@ -45,10 +45,11 @@ The cross-cutting model these domains share — the attestation contract, the en
 - **Test evidence**: MOM-FOCUS-001, MOM-GAPS-001/002.
 
 ### trials
-- **Owns**: the trials history time-series (success-rate + tokens + wall-time per run) and the per-task gate registry.
-- **Proto operations**: `ListTrialTasks` (the suite, generated from the Guide space), `RunTrials` (dispatch a task/suite via agent-manager + workspace-sandbox), `GetTrialHistory` (success/tokens/time trend), `GetTrialRun` (one run: verdict, sandbox diff, tokens, time), `GetGateCoverage` (% of Guide tasks with a live gate).
-- **API behavior**: dispatch SWE tasks (add-feature/research/comprehend/bugfix + negative cases) through agent-manager (runner=opencode + local-model config) inside workspace-sandbox; evaluate by deterministic checks where possible and an agent-judge otherwise; append metrics to history.
-- **CLI**: `trials list [--suite] [--json]`, `trials run [--suite|--task] [--model] [--json]`, `trials history [--json]`, `trials show <run-id> [--json]`, `trials coverage [--json]`.
+- **Owns**: the trials history time-series (success-rate + tokens + wall-time + fixture-rev per run) and the per-task gate registry. Also the committed fixture corpus (`trials/fixtures/<family>/`) that defines "solved".
+- **Seams**: `TaskGenerator` (Guide space → suite), `FixtureResolver` (family → committed fixture + oracle), `Runner` (agent-manager sandboxed spawn → evidence), `Evaluator` (evidence → verdict), `Repository` (history + gates). All faked in tests.
+- **Proto operations**: `ListTrialTasks` (the suite, generated from the Guide space), `RunTrials` (dispatch a task/suite via agent-manager's sandboxed runner and evaluate it), `GetTrialHistory` (success/tokens/time trend), `GetTrialRun` (one run: verdict, sandbox diff, tokens, time), `GetGateCoverage` (% of Guide tasks with a live gate).
+- **API behavior**: per task — resolve the fixture, reuse a recent identical run if any, dispatch the SWE task (add-feature/research/comprehend/bugfix + negative cases) through agent-manager's `run create --run-mode sandboxed` (runner=opencode + local-model), collect the diff + metrics, then **evaluate in MoM** (deterministic fixture oracle, else agent-judge; negatives pass on correct abstention) and append metrics to history. agent-manager is the spawner only; the verdict is MoM's.
+- **CLI**: `trials list [--suite] [--json]`, `trials run [--task|--suite|--all] [--model] [--json]` (single-task default; `--all` for the full suite), `trials history [--json]`, `trials show <run-id> [--json]`, `trials coverage [--json]`.
 - **UI**: the trials-trend panel (P2).
 - **Storage**: SQLite trials history + gate registry.
 - **Test evidence**: MOM-TRIALS-001/002/003.
@@ -68,7 +69,7 @@ The cross-cutting model these domains share — the attestation contract, the en
 
 ## Non-Domains
 
-Shared substrate, not bounded contexts: the composition root + HTTP server (`api/internal/server`), the space-reader client and the per-scenario read clients (test-genie / graph-health / completeness-scoring / providers / code-facts / cartographer / agent-manager / workspace-sandbox), storage plumbing (`api-core/storage`), and the CLI/UI translation layers. These have no business vocabulary; they serve every domain.
+Shared substrate, not bounded contexts: the composition root + HTTP server (`api/internal/server`), the space-reader client and the per-scenario read clients (test-genie / graph-health / completeness-scoring / providers / code-facts / cartographer / agent-manager), storage plumbing (`api-core/storage`), and the CLI/UI translation layers. These have no business vocabulary; they serve every domain.
 
 ## Cross-References
 

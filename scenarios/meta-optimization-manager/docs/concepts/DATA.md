@@ -51,7 +51,7 @@ Per-domain `schema.sql` + `schema.go` registered through `api-core/storage`. Gre
 
 ## Privacy Notes
 
-No end-user PII. Trial runs execute on the project's own code inside `workspace-sandbox`; any code diffs or model outputs from a run remain owned by `agent-manager` / `workspace-sandbox`, not copied here — only the run's metrics (success/tokens/time + a run id) are recorded.
+No end-user PII. Trial runs execute against committed fixture targets inside an agent-manager sandbox; any code diffs or model outputs from a run remain owned by `agent-manager` (which owns sandboxing), not copied here — only the run's metrics (success/tokens/time + fixture-rev + a run id + a sandbox diff ref) are recorded.
 
 ## Cross-References
 

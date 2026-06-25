@@ -11,7 +11,7 @@ The dependency contract for **meta-optimization-manager**: the resources, scenar
 | Resource | SQLite (`api-core/storage`) | Owned state (gaps, trials history, fitness index, snapshots). |
 | Scenario (denominator owner) | `search-hub`, `test-genie`, `prompt-manager` | The `space --projection` verb (denominators) + their registries (numerators). |
 | Scenario (read) | `completeness-scoring`, `code-facts`, `architecture-cartographer`, `scenario-auditor` | Maturity score; structural counts + clean scans for convergence. |
-| Scenario (trials) | `agent-manager`, `workspace-sandbox` | Run local-model SWE tasks with diff attribution + isolation. |
+| Scenario (trials) | `agent-manager` | Spawn sandboxed local-model SWE runs (`run create --run-mode sandboxed`) and return the diff + metrics. agent-manager owns sandboxing internally. |
 
 ## Vrooli Resources
 
@@ -26,7 +26,7 @@ All **soft / degrade gracefully**:
 - **completeness-scoring** — `GetScore` for the maturity dimension.
 - **code-facts / architecture-cartographer** — structural data for convergence fitness counts (read, not re-run).
 - **scenario-auditor / test-genie** — clean-on-all-tools status for reference health (read, not re-run).
-- **agent-manager / workspace-sandbox** — `trials` dispatch (runner selection + local-model config) and sandboxed diff attribution.
+- **agent-manager** — `trials` dispatch: the sandboxed-agent spawner (`profile ensure` / `task create` / `run create --run-mode sandboxed` / `run get` / `run diff`). It owns sandboxing + diff attribution internally; MoM never talks to a sandbox directly.
 
 ## Third-Party Services
 
@@ -36,7 +36,7 @@ None directly. The local model exercised by `trials` is reached through `agent-m
 
 - **A read source is down** → that projection/section reports "unavailable"; the rest of the snapshot still computes. Never a false-fail.
 - **An owner lacks the `space` verb** → that projection is "uncomputable"; surfaced as an explicit integrity finding, not a crash.
-- **agent-manager / workspace-sandbox unavailable** → `trials run` is skipped with a clear reason; the historical trend is unaffected.
+- **agent-manager unavailable** → each `trials run` degrades to a recorded `VerdictError` with a clear reason; the historical trend is unaffected and the suite never blocks.
 - **Stale upstream registry** → coverage is computed against whatever the registry reports, always paired with denominator-confidence.
 
 ## Cross-References

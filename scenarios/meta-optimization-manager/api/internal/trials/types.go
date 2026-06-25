@@ -1,21 +1,31 @@
 // Package trials is the empirical local-model gate: it generates a task suite
-// from the Guide space, dispatches each task through agent-manager
-// (runner=opencode + a local model) inside workspace-sandbox, evaluates by
-// deterministic checks where possible (else an agent-judge), and records
-// success-rate + tokens + wall-time as a historical trend. Readiness is
+// from the Guide space, dispatches each task through agent-manager's real
+// sandboxed-agent primitive (profile ensure → task create → run create
+// --run-mode sandboxed → poll run get → run diff, runner=opencode + a local
+// model), then EVALUATES the produced evidence against a fixture oracle it owns
+// — deterministic checks where possible, an agent-judge fallback otherwise — and
+// records success-rate + tokens + wall-time as a historical trend. Readiness is
 // ultimately PROVEN here, not declared from coverage. It also reports the
 // recursive Guide-gate-coverage metric (% of Guide tasks with a live gate).
 //
+// The split of responsibility is deliberate: agent-manager is ONLY the
+// sandboxed-agent spawner — it returns evidence (a sandbox diff + token/time
+// metrics). Deciding whether the SWE task was actually solved is MoM's job and
+// lives in the Evaluator. The Runner never returns a PASS/FAIL; it returns
+// evidence (or an honest VerdictError if the spawn/collection itself failed).
+//
 // Layering mirrors the canonical domain pattern:
 //
-//	handler → Service → {TaskGenerator, Runner, Repository}
-//	             ↑            ↑ (faked in tests)      ↑
-//	          (proto edge)  Guide space / sandbox   trials history + gate registry
+//	handler → Service → {TaskGenerator, FixtureResolver, Runner, Evaluator, Repository}
+//	             ↑            ↑              ↑              ↑          ↑           ↑
+//	        (proto edge)  Guide space   fixture corpus  agent-mgr  oracle/judge  history+gates
+//	                                                  (all faked in tests)
 //
 // Trials are EXPLICIT-INVOCATION ONLY — RunTrials never runs on a hot path, is
-// always sandboxed, and CI never dispatches a live model. The proto wire types
-// live one floor up and never import this package (api-steer §7). See
-// docs/concepts/DOMAINS.md (trials) and docs/concepts/FLOWS.md (trial lifecycle).
+// always sandboxed, and CI never dispatches a live model (the Runner + Evaluator
+// seams are faked). The proto wire types live one floor up and never import this
+// package (api-steer §7). See docs/concepts/DOMAINS.md (trials) and
+// docs/concepts/FLOWS.md (trial lifecycle).
 package trials
 
 import "time"
@@ -49,15 +59,17 @@ type TrialTask struct {
 	Negative    bool // a negative / honesty case
 }
 
-// TrialRun is one local-model run, dispatched via agent-manager inside
-// workspace-sandbox. GuideTaskID is carried for gate-coverage accounting (it is
-// not on the proto wire form).
+// TrialRun is one local-model run, dispatched via agent-manager's sandboxed
+// primitive and judged by the Evaluator. GuideTaskID is carried for
+// gate-coverage accounting and FixtureRev for idempotency (neither is on the
+// proto wire form — both are owned-state columns).
 type TrialRun struct {
 	ID             string
 	TaskID         string
 	Suite          string
 	Model          string
 	GuideTaskID    string
+	FixtureRev     string // content revision of the fixture this run exercised
 	Verdict        Verdict
 	Tokens         int64
 	DurationMs     int64
