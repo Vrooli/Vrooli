@@ -623,10 +623,36 @@
           }
         }
       ]
+    },
+    {
+      "id": "spaces",
+      "title": "Coverage Spaces",
+      "icon": "grid",
+      "description": "Machine-derivable coverage-space definitions (denominators) for federated answer projections",
+      "visibility": "developers-only",
+      "purpose": "Define the bounded space of questions this scenario's federation is meant to answer, so completeness (the numerator) can be computed against the live provider registry and gaps tracked with attribution.",
+      "extensionPolicy": "Add a <projection>-space.md when this scenario owns the denominator for a federated answer projection. The grid is the curated intended space; live coverage (the numerator) is computed by the meta-optimization-manager against this scenario's provider registry. Do not store computed coverage percentages here.",
+      "documents": [
+        {
+          "path": "spaces/answer-space.md",
+          "docType": "coverage-space",
+          "title": "Answer Space — Architectural Question Coverage",
+          "aliases": ["answer-space", "architectural-question-space", "coverage-space", "attested-answer-denominator"],
+          "description": "The Answer projection's denominator: the bounded space of architectural questions (entity x archetype x aspect), each mapped to its owning provider, status, and confidence basis. The numerator (live coverage) is computed against the search-hub provider registry, not stored here.",
+          "audience": ["developers", "agents", "tools"],
+          "canonicalFor": ["answer-space", "architectural-question-coverage", "attested-answer-denominator"],
+          "maturity": "draft",
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": ["Purpose", "This Space", "Coverage Grid", "Known Gaps & Approaches", "Sources Of Truth", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        }
+      ]
     }
   ],
   "navigation": {
     "primary": ["getting-started", "concepts", "business", "operations", "guides", "reference"],
-    "secondary": ["internal"]
+    "secondary": ["internal", "spaces"]
   }
 }

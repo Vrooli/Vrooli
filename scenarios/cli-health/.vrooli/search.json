@@ -34,10 +34,10 @@
       "result_mapping": {
         "results_path": "results",
         "id_field": "name",
-        "title_field": "name",
+        "title_field": "fullPath",
         "score_field": "score",
         "snippet_field": "description",
-        "path_field": "name",
+        "path_field": "fullPath",
         "score_scale": "SCORE_SCALE_COSINE_0_1"
       },
       "reindex_endpoint": {

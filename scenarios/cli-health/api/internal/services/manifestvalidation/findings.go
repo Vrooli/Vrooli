@@ -35,6 +35,16 @@ const (
 	CodeMeasureUnknownType  = "measure.unknown_param_type" // manifest param `type` annotation is not a known canonical convention
 	CodeMeasureSchemaUnread = "measure.schema_unread"      // proto param schema could not be resolved (descriptor unavailable)
 	CodeMeasureTier         = "measure.tier"               // info: the graded adoption tier for a well-formed measure
+
+	// Runtime CLI-probe codes. Emitted only when the caller requests execution
+	// (include_execution) and the scenario declares a CLI surface; the probe
+	// resolves and execs the scenario's binary rather than reading the manifest
+	// statically. Degrades to a warning when the binary is simply absent in the
+	// run context (see the runtimeprobe seam) — never hard-fails a scenario whose
+	// CLI is not installed here.
+	CodeCLIBinaryUnrunnable  = "cli.binary_unrunnable"  // declared CLI surface but binary cannot be resolved in this run context
+	CodeCLIHelpFailed        = "cli.help_failed"        // binary resolves but `--help` errors / produces nothing
+	CodeCLICommandUndeclared = "cli.command_undeclared" // runtime command surface diverges from the manifest
 )
 
 // Finding is a single validation result.

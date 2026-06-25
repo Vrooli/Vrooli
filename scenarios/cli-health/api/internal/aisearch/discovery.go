@@ -1,7 +1,6 @@
 package aisearch
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -14,16 +13,20 @@ import (
 
 	"github.com/vrooli/measures-go/manifestscan"
 
+	"cli-health/internal/cliruntime"
+
 	"github.com/vrooli/cli-core/cliapp"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // CommandSource enumerates record provenance. Match the values in
-// CommandRecord.Source so payload-hash inputs stay consistent.
+// CommandRecord.Source so payload-hash inputs stay consistent. The help-tree
+// values are owned by cliruntime (the shared resolve/exec/parse primitives);
+// the manifest value is aisearch's own (the manifest path lives here).
 const (
 	SourceManifest   = "manifest"
-	SourceHelp       = "help"
-	SourceHelpFailed = "help-failed"
+	SourceHelp       = cliruntime.SourceHelp
+	SourceHelpFailed = cliruntime.SourceHelpFailed
 )
 
 // DiscoverySource produces the canonical command set for indexing. Tests
@@ -280,7 +283,7 @@ func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) 
 			// Fold the group's prose into the leaf (same rule as the --help
 			// path: dropped when empty or a pure repeat of the leaf desc) so
 			// manifest-discovered commands carry the same query vocabulary.
-			rec.GroupDescription = groupContext(groupDesc, rec.Description)
+			rec.GroupDescription = cliruntime.GroupContext(groupDesc, rec.Description)
 			rec.FullPath = canonicalFullPath(scenario, groupName, rec.Name)
 
 			for _, f := range cmd.Flags {
@@ -364,7 +367,12 @@ func (d *FilesystemDiscoverySource) parseHelpTreeCached(ctx context.Context, bin
 		}
 	}
 
-	records := ParseHelpTree(ctx, d.helpRunner(), bin, HelpTreeOptions{Origin: origin, MaxDepth: defaultHelpMaxDepth})
+	records := commandRecordsFromRuntime(cliruntime.ParseHelpTree(
+		ctx,
+		cliruntime.ExecRunner(d.HelpTimeout),
+		bin,
+		cliruntime.HelpTreeOptions{Origin: origin, MaxDepth: cliruntime.DefaultHelpMaxDepth},
+	))
 
 	if ok {
 		d.mu.Lock()
@@ -391,47 +399,27 @@ func cloneRecords(in []CommandRecord) []CommandRecord {
 	return out
 }
 
-// helpRunner returns the production helpRunner that shells out to the
-// binary, applying HelpTimeout per invocation.
-func (d *FilesystemDiscoverySource) helpRunner() helpRunner {
-	timeout := d.HelpTimeout
-	if timeout <= 0 {
-		timeout = 5 * time.Second
-	}
-	return func(ctx context.Context, bin string, args []string) ([]byte, error) {
-		cctx, cancel := context.WithTimeout(ctx, timeout)
-		defer cancel()
-		argv := append(append([]string{}, args...), "--help")
-		cmd := exec.CommandContext(cctx, bin, argv...)
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			msg := strings.TrimSpace(stderr.String())
-			if msg != "" {
-				return nil, fmt.Errorf("%s: %w", msg, err)
-			}
-			return nil, err
+// commandRecordsFromRuntime projects the shared cliruntime.Command leaves
+// (binary resolution + help-tree walk live in internal/cliruntime, shared with
+// the manifest-validation runtime probe) onto aisearch's richer CommandRecord.
+// The help path sets only these fields; flags/positionals/tags/measures are
+// manifest-only and layered elsewhere.
+func commandRecordsFromRuntime(cmds []cliruntime.Command) []CommandRecord {
+	out := make([]CommandRecord, len(cmds))
+	for i, c := range cmds {
+		out[i] = CommandRecord{
+			Origin:           c.Origin,
+			Group:            c.Group,
+			Name:             c.Name,
+			FullPath:         c.FullPath,
+			Description:      c.Description,
+			GroupDescription: c.GroupDescription,
+			Source:           c.Source,
 		}
-		return stdout.Bytes(), nil
 	}
+	return out
 }
 
 func (d *FilesystemDiscoverySource) resolveBinary(scenario string) string {
-	if d.HelpBinaryEnv != "" {
-		if p := strings.TrimSpace(os.Getenv(d.HelpBinaryEnv)); p != "" {
-			return p
-		}
-	}
-	if p, err := exec.LookPath(scenario); err == nil {
-		return p
-	}
-	return ""
-}
-
-func truncateForEmbedding(s string, max int) string {
-	if max <= 0 || len(s) <= max {
-		return s
-	}
-	return s[:max] + "…"
+	return cliruntime.ResolveBinary(scenario, d.HelpBinaryEnv)
 }

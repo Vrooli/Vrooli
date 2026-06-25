@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"path/filepath"
+	"time"
 
 	"cli-health/internal/module"
 	"cli-health/internal/services/manifestvalidation"
@@ -29,11 +30,12 @@ var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_prot
 // with the default filesystem/buf/JSONSchema seams rooted at repoRoot.
 func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.Module {
 	validator := manifestvalidation.New(manifestvalidation.Deps{
-		Manifests: manifestvalidation.NewFilesystemManifestLoader(repoRoot),
-		Schema:    manifestvalidation.NewJSONSchemaValidator(repoRoot),
-		Protos:    manifestvalidation.NewBufProtoLoader(repoRoot),
-		Measures:  manifestscan.NewDescriptorSchemaReader(repoRoot),
-		Logger:    logger,
+		Manifests:    manifestvalidation.NewFilesystemManifestLoader(repoRoot),
+		Schema:       manifestvalidation.NewJSONSchemaValidator(repoRoot),
+		Protos:       manifestvalidation.NewBufProtoLoader(repoRoot),
+		Measures:     manifestscan.NewDescriptorSchemaReader(repoRoot),
+		RuntimeProbe: manifestvalidation.NewCLIRuntimeProbe(5 * time.Second),
+		Logger:       logger,
 	})
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "cli-health"))
 	if err != nil && logger != nil {
@@ -100,6 +102,32 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"},
+		},
+	},
+	{
+		ID:          "validation_preview_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServicePreviewFixProcedure,
+		Method:      "POST",
+		Summary:     "Preview deterministic remediations for a scenario (unimplemented)",
+		Description: "cli-health ships no deterministic autofixer; PreviewFix returns Unimplemented so the test-genie deterministic-fix aggregate records this provider as no_fixer and skips it.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string"}},
+		Response:    &module.Schema{Type: "object"},
+		Errors: []module.ErrorDesc{
+			{Status: 501, Code: "unimplemented", Description: "cli-health has no deterministic fixer"},
+		},
+	},
+	{
+		ID:          "validation_apply_fix",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceApplyFixProcedure,
+		Method:      "POST",
+		Summary:     "Apply deterministic remediations for a scenario (unimplemented)",
+		Description: "cli-health ships no deterministic autofixer; ApplyFix returns Unimplemented so the test-genie deterministic-fix aggregate records this provider as no_fixer and skips it.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string"}},
+		Response:    &module.Schema{Type: "object"},
+		Errors: []module.ErrorDesc{
+			{Status: 501, Code: "unimplemented", Description: "cli-health has no deterministic fixer"},
 		},
 	},
 }

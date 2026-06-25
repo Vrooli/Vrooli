@@ -29,3 +29,24 @@ func scenarioPathFrom(ctx context.Context) string {
 	path, _ := ctx.Value(scenarioPathCtxKey{}).(string)
 	return path
 }
+
+// includeExecutionCtxKey carries the request's include_execution switch through
+// the validation call. It mirrors the scenario-path threading above: the connect
+// handler attaches the request field here so the runtime CLI probe stays opt-in
+// without widening the Validator interface (and its many test mocks). When
+// absent the default static-only path runs — the probe never executes.
+type includeExecutionCtxKey struct{}
+
+// WithIncludeExecution records the caller's execution request on ctx. The
+// connect handler threads ValidateScenarioRequest.include_execution here;
+// providers that only inspect leave it unset and keep the static path.
+func WithIncludeExecution(ctx context.Context, include bool) context.Context {
+	return context.WithValue(ctx, includeExecutionCtxKey{}, include)
+}
+
+// includeExecutionFrom reports whether the caller requested execution. Absent
+// (the default) means static-only.
+func includeExecutionFrom(ctx context.Context) bool {
+	include, _ := ctx.Value(includeExecutionCtxKey{}).(bool)
+	return include
+}

@@ -7,6 +7,8 @@ import (
 	"search-hub/cli/domains/providers"
 	"search-hub/cli/domains/query"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -18,7 +20,11 @@ import (
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
-	return nil
+	// search-hub owns the Answer projection denominator (docs/spaces/answer-space.md);
+	// `space` is the cross-scenario read contract meta-optimization-manager consumes.
+	return []cliapp.CommandGroup{
+		spacecli.CommandGroup(spacecli.Config{Owner: "search-hub", Projection: spacedoc.ProjectionAnswer}),
+	}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

@@ -231,6 +231,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
+		// Test Genie gives the contracts provider a 90s budget when
+		// include_execution=true. The runtime CLI probe can legitimately run
+		// longer than api-core's default 30s write timeout while walking a large
+		// command tree, so keep the server-side ceiling above the client budget.
+		WriteTimeout: 2 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			cancelSync()
 			return db.Close()

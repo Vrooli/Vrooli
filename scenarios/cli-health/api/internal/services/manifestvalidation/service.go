@@ -16,11 +16,12 @@ import (
 // Service runs validation for one scenario at a time. All side effects flow
 // through the injected seams; the service itself is pure orchestration.
 type Service struct {
-	manifests ManifestLoader
-	schema    SchemaValidator
-	protos    ProtoLoader
-	measures  MeasureSchemaReader
-	logger    *log.Logger
+	manifests    ManifestLoader
+	schema       SchemaValidator
+	protos       ProtoLoader
+	measures     MeasureSchemaReader
+	runtimeProbe RuntimeProbe
+	logger       *log.Logger
 }
 
 // Deps holds the seams the service needs. Loaders can be nil to use the
@@ -32,7 +33,12 @@ type Deps struct {
 	// Measures resolves proto param schemas for measure blocks. Optional: nil
 	// disables measure validation (a no-op for manifests without measures).
 	Measures MeasureSchemaReader
-	Logger   *log.Logger
+	// RuntimeProbe execs the scenario CLI to observe its runtime command surface.
+	// Optional: nil disables runtime probing (the default static-only path). Even
+	// when wired, the probe runs only when the caller requests execution
+	// (include_execution) and the scenario declares a CLI surface.
+	RuntimeProbe RuntimeProbe
+	Logger       *log.Logger
 }
 
 // New returns a service bound to the given dependencies. Callers pass nil
@@ -42,11 +48,12 @@ func New(d Deps) *Service {
 		d.Logger = log.Default()
 	}
 	return &Service{
-		manifests: d.Manifests,
-		schema:    d.Schema,
-		protos:    d.Protos,
-		measures:  d.Measures,
-		logger:    d.Logger,
+		manifests:    d.Manifests,
+		schema:       d.Schema,
+		protos:       d.Protos,
+		measures:     d.Measures,
+		runtimeProbe: d.RuntimeProbe,
+		logger:       d.Logger,
 	}
 }
 
@@ -131,6 +138,31 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, s.measureCheck(raw, path)...)
 	cross.Gauge("findings", float64(len(findings)))
 	cross.End()
+
+	// Runtime CLI probe — static-by-default. Runs only when the caller requested
+	// execution (include_execution), a probe seam is wired, and the scenario
+	// declares a CLI surface to exercise. This is the static→runtime extension of
+	// cli-health: the probe execs the binary and reconciles its observed command
+	// surface against the manifest. Degrades (warning, not error) when the binary
+	// is simply absent in this run context.
+	if s.runtimeProbe != nil && includeExecutionFrom(ctx) && hasCLISurface(m) {
+		probe := collector.Stage("runtime-probe")
+		obs, probeErr := s.runtimeProbe.Probe(ctx, scenario)
+		if probeErr != nil {
+			s.logger.Printf("validation: runtime probe for %q degraded: %v", scenario, probeErr)
+			findings = append(findings, Finding{
+				Severity:   SeverityWarning,
+				Code:       CodeCLIBinaryUnrunnable,
+				Location:   path,
+				Message:    fmt.Sprintf("runtime CLI probe could not complete: %v", probeErr),
+				Suggestion: "this is a probe-infrastructure degradation, not necessarily a scenario defect",
+			})
+		} else {
+			findings = append(findings, runtimeFindings(obs, m, path)...)
+		}
+		probe.Gauge("findings", float64(len(findings)))
+		probe.End()
+	}
 
 	return finalize(scenario, findings), nil
 }

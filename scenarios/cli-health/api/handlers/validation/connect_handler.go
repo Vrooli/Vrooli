@@ -68,6 +68,9 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	// deep template validation against a temp scenario outside the repo
 	// scenarios/ tree), thread it so the manifest loader reads from that dir.
 	validateCtx := manifestvalidation.WithScenarioPath(ctx, req.Msg.GetPath())
+	// Opt into the runtime CLI probe when the caller requested execution. The
+	// default (false) keeps the static-only contract path unchanged.
+	validateCtx = manifestvalidation.WithIncludeExecution(validateCtx, req.Msg.GetIncludeExecution())
 	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
 	report, err := h.deps.Validator.ValidateScenario(manifestvalidation.WithMetrics(validateCtx, collector), scenario)
 	if err != nil {

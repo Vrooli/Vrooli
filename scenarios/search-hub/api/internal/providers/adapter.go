@@ -61,6 +61,7 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 	filterField := strings.TrimSpace(m.GetFilterField())
 	presenceField := strings.TrimSpace(m.GetPresenceField())
 	measureField := strings.TrimSpace(m.GetMeasureField())
+	attestationField := strings.TrimSpace(m.GetAttestationField())
 	hits := make([]*routingv1.SearchHit, 0, len(items))
 	for _, raw := range items {
 		item, ok := raw.(map[string]any)
@@ -87,6 +88,11 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 			// Measure carrier: nil for every retrieval provider (measure_field
 			// unset); populated only for the measures provider, generically.
 			Measure: decodeMeasureHit(item, measureField),
+			// Attestation carrier: nil for ordinary retrieval providers
+			// (attestation_field unset); populated only by architectural
+			// providers, generically. A non-conformant attested answer (e.g.
+			// DERIVED with no citations) is dropped, not trusted.
+			Attestation: decodeAttestation(item, attestationField),
 		})
 	}
 	return hits, nil
