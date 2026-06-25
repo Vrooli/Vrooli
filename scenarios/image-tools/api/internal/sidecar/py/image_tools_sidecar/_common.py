@@ -36,8 +36,9 @@ def require_deps() -> Tuple["object", "object", "object"]:
         from PIL import Image  # noqa: WPS433
     except ImportError as exc:  # pragma: no cover - exercised on un-provisioned hosts
         fail(
-            f"missing Python dependency ({exc}). Provision the sidecar runtime: "
-            "pip install onnxruntime pillow numpy  (see docs/reference/backends.md)",
+            f"missing Python dependency ({exc}); the Python venv is not provisioned. "
+            "Ensure `vrooli host install uv`, then restart image-tools to build/repair "
+            "the lock-pinned venv (see docs/reference/backends.md).",
             code=3,
         )
         raise

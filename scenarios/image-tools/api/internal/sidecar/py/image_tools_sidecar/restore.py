@@ -22,8 +22,11 @@ def _require_restore_deps() -> None:
         import torch  # noqa: F401,WPS433
     except ImportError as exc:  # pragma: no cover - exercised on un-provisioned hosts
         _common.fail(
-            f"missing RestoreFormer++ dependency ({exc}). Provision through "
-            "Scenario Dependency Analyzer: torch, basicsr, facexlib, pillow, numpy",
+            f"missing RestoreFormer++ dependency ({exc}). This face/old-photo restore "
+            "path is NOT yet promoted: its extra stack (torch, basicsr, facexlib) is "
+            "deliberately excluded from internal/pydeps/requirements.lock, so the "
+            "isolated venv does not carry it. The op stays gated until the Phase 2 "
+            "restoration golden path lands (see docs/internal/DECISIONS.md).",
             code=3,
         )
 

@@ -69,12 +69,12 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 <!-- BEGIN GENERATED: host-tool-matrix (regenerate with `make backends-doc`) -->
 | Backend (provider) | Host tool | Operations | Install / remediation |
 |---|---|---|---|
-| `diffusers` | `python` | `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install python` + pip: diffusers, torch, transformers, accelerate, torchvision, huggingface_hub, Pillow |
+| `diffusers` | `uv` | `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install uv` |
 | `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
 | `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
-| `onnxruntime` | `python` | `denoise`, `deblur`, `background_removal`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install python` + pip: onnxruntime, Pillow, numpy |
-| `python-sidecar` | `python` | `colorize` | `vrooli host install python` + pip: onnxruntime, Pillow, numpy |
-| `python-sidecar` | `python` | `face_restore`, `old_photo_restore` | `vrooli host install python` + pip: torch, basicsr, facexlib, Pillow, numpy |
+| `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install uv` |
+| `python-sidecar` | `uv` | `colorize` | `vrooli host install uv` |
+| `python-sidecar` | `uv` | `face_restore`, `old_photo_restore` | `vrooli host install uv` |
 | `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | `vrooli host install realesrgan-ncnn-vulkan` |
 | `rembg` | `rembg` | `background_removal`, `background_replace` | `vrooli host install rembg` |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | `vrooli host install sd` |
@@ -89,28 +89,28 @@ or backend reassignment.
 
 | Operation | Default model | Backend | Tier | Host requirement |
 |---|---|---|---|---|
-| `background_removal` | `isnet-general-use` | `onnxruntime` | `default` | `python3` with `onnxruntime`, Pillow, and numpy; CPU-capable. |
+| `background_removal` | `isnet-general-use` | `onnxruntime` | `default` | Isolated uv venv ONNX sidecar (onnxruntime/Pillow/numpy from the lock); CPU-capable. |
 | `background_replace` | `birefnet-general` | `rembg` | `quality` | `rembg` CLI; CPU-capable but GPU preferred for throughput. |
 | `caption` | `moondream2` | `llama.cpp` | `default` | `llama-mtmd-cli` or compatible multimodal `llama-cli`; CPU-capable GGUF path. |
-| `colorize` | `ddcolor-tiny` | `python-sidecar` | `default` | Embedded sidecar plus ONNX/Pillow/numpy runtime; CPU-capable. |
+| `colorize` | `ddcolor-tiny` | `python-sidecar` | `default` | Isolated uv venv ONNX sidecar (onnxruntime/Pillow/numpy from the lock); CPU-capable. |
 | `deblur` | `nafnet` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable, GPU preferred for large images. |
 | `denoise` | `dncnn` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
 | `depth_map` | `depth-anything-v2-small` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
 | `duplicate_detect` | `goimagehash` | `library-go` | `default` | In-process pure Go; no host provisioning. |
-| `edit_instruct` | `instruct-pix2pix` | `diffusers` | `default` | `python3` with diffusers/torch/Pillow; GPU recommended, CPU-capable but slow. |
+| `edit_instruct` | `instruct-pix2pix` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); GPU recommended, CPU-capable but slow. |
 | `embedding` | `nomic-embed-vision-v1.5` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
 | `face_detection` | `yunet` | `library-cgo` | `default` | `python3` with OpenCV (`cv2`) and numpy; CPU-capable. |
-| `face_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | RestoreFormer++ Python stack (`torch`, `basicsr`, `facexlib`, Pillow, numpy); GPU-oriented, CPU slow. |
+| `face_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | **Gated (not yet promoted)** — its stack (`torch`, `basicsr`, `facexlib`) is deliberately excluded from the lock; the op fails loud until the Phase 2 restore path lands (DECISIONS.md). |
 | `image_to_image` | `sd-1.5` | `stable-diffusion.cpp` | `default` | `sd` binary; CPU-capable, GPU recommended. |
-| `inpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | `python3` with diffusers/torch/Pillow; GPU recommended, CPU-capable but slow. |
+| `inpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); GPU recommended, CPU-capable but slow. |
 | `naturalize` | `naturalize-detail-v1` | `builtin` | `default` | In-process Go; no weights or host provisioning. |
 | `normal_map` | `normals-from-depth` | `computed` | `default` | In-process Go math; no weights or host provisioning. |
 | `nsfw_classify` | `adamcodd-vit-nsfw` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
 | `object_detection` | `yolox-tiny` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
 | `object_removal` | `mi-gan` | `iopaint` | `default` | `iopaint` CLI; CPU-capable, GPU recommended. |
 | `ocr` | `tesseract` | `library-cgo` | `default` | Tesseract binary and language data; CPU-capable. |
-| `old_photo_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | RestoreFormer++ Python stack plus composed restoration pipeline; GPU-oriented, CPU slow. |
-| `outpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | `python3` with diffusers/torch/Pillow; GPU recommended, CPU-capable but slow. |
+| `old_photo_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | **Gated (not yet promoted)** — same excluded-from-lock stack as `face_restore`; fails loud until the Phase 2 restore path lands (DECISIONS.md). |
+| `outpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | Isolated uv venv (diffusers/torch from `internal/pydeps/requirements.lock`); GPU recommended, CPU-capable but slow. |
 | `qr_barcode_read` | `gozxing` | `library-go` | `default` | In-process pure Go; no host provisioning. |
 | `quality_assessment` | `laplacian-blur` | `computed` | `default` | In-process Go analysis; no weights or host provisioning. |
 | `segment` | `mobilesam` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
@@ -233,31 +233,64 @@ or backend reassignment.
 > without OpenCV Python/native libraries, `backends doctor` reports the row red
 > with SDA provisioning guidance instead of "no runtime provider."
 
+## Python isolation (isolated uv venv)
+
+Every Python backend (`diffusers`, `onnxruntime`, `python-sidecar`) runs from a
+**private, lock-pinned virtualenv** that is fully isolated from the host's
+`python3` and site-packages. This is deliberate: a single shared interpreter is a
+shared mutable namespace, and an unrelated `pip` upgrade on the box once pulled
+`transformers` 5.x and broke `edit_instruct`. The venv closes that class of bug.
+
+How it works (`api/internal/pyenv`, wired in `main.go`):
+
+1. `uv` (a host tool — `vrooli host install uv`) builds the venv at
+   `<data-dir>/pyenv/` and syncs it from the embedded, fully-pinned + hashed
+   `api/internal/pydeps/requirements.lock` (the single version source of truth).
+   The first build downloads torch (multi-GB) in the background.
+2. The Go providers invoke the venv interpreter by **absolute path**
+   (`<data-dir>/pyenv/bin/python`) — never a bare `python3` off `PATH`. There is
+   **no host-interpreter fallback**: until the venv is built, the Python backends
+   report *unavailable* (surfaced before use via `models doctor`, `/health`, and
+   `ListOperationModels` ready_state), rather than silently running unisolated.
+3. The venv is rebuilt automatically only when the lock's content hash changes
+   (a sentinel file records the synced hash), so steady-state starts are instant.
+
+Consequence: poisoning the host's `transformers` (or any other package) cannot
+affect image-tools, and the proven dependency set is reproducible from the lock.
+To change a version, edit `internal/pydeps/requirements.in` and regenerate the
+lock (`internal/pydeps/README.md`) — never edit the lock or `pip install` by hand.
+
 ## The in-repo Python sidecar (`image_tools_sidecar`)
 
 The CPU-tractable backend is a small Python package shipped **inside the Go
 binary** (`api/internal/sidecar/py/image_tools_sidecar`). At boot the server
 materializes it under `<data-dir>/sidecar/` and prepends that directory to
-`PYTHONPATH`, so `python3 -m image_tools_sidecar.<op>` resolves regardless of the
-working directory. You do **not** install the sidecar code separately.
+`PYTHONPATH`, so the venv interpreter's `python -m image_tools_sidecar.<op>`
+resolves regardless of the working directory. You do **not** install the sidecar
+code separately.
 
-For ONNX Runtime operations, the Go provider starts
-`python3 -m image_tools_sidecar.worker` and sends one JSON request per line. The
-worker invokes the same module entrypoints as the one-shot path but keeps the
-process alive, allowing ONNX sessions to be cached per model path. If the worker
-crashes or a request context is cancelled, the provider restarts on the next
-request and falls back to the one-shot command for the failed request.
+For ONNX Runtime operations, the Go provider starts the **venv interpreter**
+`<data>/pyenv/bin/python -m image_tools_sidecar.worker` and sends one JSON
+request per line. The worker invokes the same module entrypoints as the one-shot
+path but keeps the process alive, allowing ONNX sessions to be cached per model
+path. If the worker crashes or a request context is cancelled, the provider
+restarts on the next request and falls back to the one-shot command for the
+failed request.
 
-What you *do* provision is the Python runtime it imports. Use Scenario
-Dependency Analyzer rather than a raw package manager; the package names below
-are the runtime requirements the SDA action should install/approve for this
-scenario surface:
+You do **not** install the Python stack by hand. Every Python backend runs from a
+private, lock-pinned uv venv that image-tools builds on start (see
+[Python isolation](#python-isolation-isolated-uv-venv) below). The single thing
+to provision is `uv` itself:
 
 ```bash
-scenario-dependency-analyzer deps install pip/onnxruntime --scenario image-tools --surface api --apply
-scenario-dependency-analyzer deps install pip/pillow --scenario image-tools --surface api --apply
-scenario-dependency-analyzer deps install pip/numpy --scenario image-tools --surface api --apply
+vrooli host install uv   # then (re)start image-tools; it builds the venv from the lock
 ```
+
+The exact, fully-pinned + hashed dependency set lives in
+`api/internal/pydeps/requirements.lock` (governed in SDA, regenerated with the
+`uv pip compile` command in `internal/pydeps/README.md`) — it is the single
+version source of truth. There is no separate `pip install` / per-package SDA
+`deps install` step, and the host's own `python3`/site-packages are never used.
 
 `bg_removal.py` runs a U^2-Net / IS-Net family ONNX model on
 `CPUExecutionProvider` and writes an RGBA PNG (subject over transparency).

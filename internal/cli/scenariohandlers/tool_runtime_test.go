@@ -8,16 +8,6 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 )
 
-func TestBuildUISmokeArgsAppendsPassthroughFlags(t *testing.T) {
-	args := BuildUISmokeArgs(rootcli.GlobalOptions{JSON: true}, []string{"alpha"})
-	if len(args) != 3 {
-		t.Fatalf("args = %#v", args)
-	}
-	if args[0] != "ui-smoke" || args[1] != "alpha" || args[2] != "--json" {
-		t.Fatalf("args = %#v", args)
-	}
-}
-
 func TestBuildScenarioCompletenessArgsAddsJSONWhenFormatMissing(t *testing.T) {
 	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{JSON: true}, []string{"alpha"})
 	if len(args) != 2 || args[0] != "alpha" || args[1] != "--json" {

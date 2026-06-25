@@ -52,3 +52,39 @@ func TestBuildDockerRunArgsOmitsMemoryLimitWhenUnset(t *testing.T) {
 		t.Fatalf("expected no --memory flag, got %v", args)
 	}
 }
+
+func TestBuildDockerRunArgsSupportsHostIPAndProtocol(t *testing.T) {
+	controller := NewController(t.TempDir(), t.TempDir())
+	manifest := ResourceManifest{
+		Name:   "adguard-home",
+		Driver: "docker-service",
+		Ports: []ResourcePort{
+			{Name: "dns-tcp", HostIP: "192.168.1.173", Container: 53, Host: 53, Protocol: "tcp"},
+			{Name: "dns-udp", HostIP: "192.168.1.173", Container: 53, Host: 53, Protocol: "udp"},
+		},
+		Runtime: ResourceRuntime{
+			Image: "adguard/adguardhome:v0.107.77",
+		},
+	}
+
+	args, err := buildDockerRunArgs(controller, manifest, "adguard-home")
+	if err != nil {
+		t.Fatalf("buildDockerRunArgs: %v", err)
+	}
+
+	if !containsSubsequence(args, "-p", "192.168.1.173:53:53") {
+		t.Fatalf("expected tcp bind mapping, got %v", args)
+	}
+	if !containsSubsequence(args, "-p", "192.168.1.173:53:53/udp") {
+		t.Fatalf("expected udp bind mapping, got %v", args)
+	}
+}
+
+func containsSubsequence(values []string, want ...string) bool {
+	for i := 0; i+len(want) <= len(values); i++ {
+		if slices.Equal(values[i:i+len(want)], want) {
+			return true
+		}
+	}
+	return false
+}

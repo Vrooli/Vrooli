@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
@@ -519,28 +521,49 @@ func preflightPortConflict(manifest ResourceManifest) error {
 		if hostPort <= 0 {
 			continue
 		}
-		if hostPortInUse(hostPort) {
+		hostIP := strings.TrimSpace(port.HostIP)
+		protocol := dockerPortProtocol(port)
+		if hostPortInUse(hostIP, hostPort, protocol) {
+			hostLabel := net.JoinHostPort(hostIP, strconv.Itoa(hostPort))
+			if hostIP == "" {
+				hostLabel = ":" + strconv.Itoa(hostPort)
+			}
 			return fmt.Errorf(
-				"resource %q cannot start: host port %d is already in use by a non-container process. "+
+				"resource %q cannot start: host port %s/%s is already in use by a non-container process. "+
 					"This resource runs %s as a Docker container, but a host service (e.g. a legacy host-systemd %s) is holding the port. "+
 					"Stop and remove the host process — e.g. `sudo systemctl disable --now %s` or terminate whatever is listening on :%d — then retry.",
-				manifest.Name, hostPort, manifest.Name, manifest.Name, manifest.Name, hostPort)
+				manifest.Name, hostLabel, protocol, manifest.Name, manifest.Name, manifest.Name, hostPort)
 		}
 	}
 	return nil
 }
 
-// hostPortInUse returns true when the given TCP port cannot be bound on the host,
+// hostPortInUse returns true when the given port cannot be bound on the host,
 // which indicates another process is already listening on it. We probe by binding
 // and immediately releasing rather than shelling out to lsof/ss so the check stays
 // dependency-free and cross-platform.
-func hostPortInUse(port int) bool {
-	listener, err := net.Listen("tcp", net.JoinHostPort("", strconv.Itoa(port)))
-	if err != nil {
-		return true
+func hostPortInUse(hostIP string, port int, protocol string) bool {
+	address := net.JoinHostPort(strings.TrimSpace(hostIP), strconv.Itoa(port))
+	switch strings.ToLower(strings.TrimSpace(protocol)) {
+	case "udp":
+		packetConn, err := net.ListenPacket("udp", address)
+		if err != nil {
+			return isAddressInUse(err)
+		}
+		_ = packetConn.Close()
+		return false
+	default:
+		listener, err := net.Listen("tcp", address)
+		if err != nil {
+			return isAddressInUse(err)
+		}
+		_ = listener.Close()
+		return false
 	}
-	_ = listener.Close()
-	return false
+}
+
+func isAddressInUse(err error) bool {
+	return errors.Is(err, syscall.EADDRINUSE)
 }
 
 // buildDockerRunArgs assembles the `docker run` argument list for a docker-service
@@ -557,7 +580,7 @@ func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name 
 		if hostPort <= 0 {
 			hostPort = port.Container
 		}
-		args = append(args, "-p", strconv.Itoa(hostPort)+":"+strconv.Itoa(port.Container))
+		args = append(args, "-p", dockerPublishPort(port, hostPort))
 	}
 	for key, value := range manifest.Runtime.Env {
 		args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, manifest, value))
@@ -598,6 +621,26 @@ func buildDockerRunArgs(controller *Controller, manifest ResourceManifest, name 
 		args = append(args, expandResourceRuntimeValue(controller, manifest, part))
 	}
 	return args, nil
+}
+
+func dockerPublishPort(port ResourcePort, hostPort int) string {
+	container := strconv.Itoa(port.Container)
+	if protocol := dockerPortProtocol(port); protocol != "" && protocol != "tcp" {
+		container += "/" + protocol
+	}
+	published := strconv.Itoa(hostPort) + ":" + container
+	if hostIP := strings.TrimSpace(port.HostIP); hostIP != "" {
+		published = hostIP + ":" + published
+	}
+	return published
+}
+
+func dockerPortProtocol(port ResourcePort) string {
+	protocol := strings.ToLower(strings.TrimSpace(port.Protocol))
+	if protocol == "" {
+		return "tcp"
+	}
+	return protocol
 }
 
 func probeExternalDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest) (bool, error) {

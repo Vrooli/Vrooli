@@ -259,12 +259,11 @@
       "notes": "Backs the llama.cpp provider's caption op (llama-mtmd-cli/llama-cli)."
     },
     {
-      "name": "python",
+      "name": "uv",
       "required": false,
-      "manual": true,
-      "reason": "Optional Python runtime for the embedded ONNX/diffusers sidecars (diffusers, onnxruntime, python-sidecar providers). The pip stacks (torch/onnxruntime/etc.) are surfaced, not auto-fetched.",
+      "reason": "Astral uv builds the private, lock-pinned Python venv that isolates every Python AI backend (diffusers, onnxruntime, python-sidecar). Its absolute interpreter — never the host python3 — runs the sidecars, so torch/diffusers/transformers come from internal/pydeps/requirements.lock and cannot be perturbed by other Python on the box.",
       "when": ["develop"],
-      "notes": "Python itself is usually present; the sidecar pip dependencies remain a manual/pip concern (out of scope for binary fetch). Backs the python-based AI providers."
+      "notes": "Data-declared release host tool (internal/tools/uv) fetched no-sudo into ~/.vrooli/bin. On the next start image-tools builds/repairs the venv from the embedded lock; until uv is installed the Python backends report unavailable (surfaced before use), never falling back to the shared interpreter. The single Python-dependency source of truth is the lock — there is no separate pip step."
     }
   ],
   "dependencies": {

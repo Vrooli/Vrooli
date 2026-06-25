@@ -46,9 +46,10 @@ func TestRegisterProviders_SatisfiesBootInvariant(t *testing.T) {
 }
 
 // TestProgramName_PythonUsesVenvInterpreter proves the isolation seam: a Python
-// backend invokes the scenario's absolute venv interpreter when one is set, falls
-// back to bare "python3" when it is not, and a non-Python backend is never
-// rewritten to the interpreter (its alias/PATH resolution is untouched).
+// backend invokes the scenario's absolute venv interpreter when one is set,
+// resolves to NO program (empty — never a bare host "python3") when it is not,
+// and a non-Python backend is never rewritten to the interpreter (its alias/PATH
+// resolution is untouched).
 func TestProgramName_PythonUsesVenvInterpreter(t *testing.T) {
 	const venv = "/data/image-tools/pyenv/bin/python"
 
@@ -57,9 +58,12 @@ func TestProgramName_PythonUsesVenvInterpreter(t *testing.T) {
 		t.Errorf("python backend with venv: programName() = %q, want %q", got, venv)
 	}
 
+	// No venv → no fallback to the shared host python3 (that is the contamination
+	// the isolation seam exists to prevent). programName() is empty; Availability/
+	// Execute then report the backend unavailable.
 	pyNoVenv := &execProvider{name: "diffusers", program: "python3"}
-	if got := pyNoVenv.programName(); got != "python3" {
-		t.Errorf("python backend without venv must fall back to PATH python3, got %q", got)
+	if got := pyNoVenv.programName(); got != "" {
+		t.Errorf("python backend without venv must NOT fall back to PATH python3, got %q", got)
 	}
 
 	// A non-python backend must ignore the interpreter entirely.
@@ -80,6 +84,44 @@ func TestProgramName_PythonUsesVenvInterpreter(t *testing.T) {
 	}
 	if got := sdGPU.programName(); got != "sd-gpu" {
 		t.Errorf("alias resolution broken by seam: got %q, want sd-gpu", got)
+	}
+}
+
+// TestPythonBackendUnavailableWithoutVenv proves the isolation contract end to
+// end: with no provisioned interpreter a Python backend is reported UNAVAILABLE
+// (with remediation) and refuses to Execute — it never probes or runs a bare host
+// python3. The lookPath is wired to "succeed" for any program so a regression that
+// reintroduced a PATH fallback would wrongly flip the backend available and fail.
+func TestPythonBackendUnavailableWithoutVenv(t *testing.T) {
+	p := &execProvider{
+		name:      "diffusers",
+		program:   "python3",
+		imports:   []string{"diffusers", "torch", "PIL"},
+		provision: deriveProvision("uv"),
+		lookPath:  func(string) (string, error) { return "/usr/bin/python3", nil },
+		checkPy:   func(context.Context, string, []string) error { return nil },
+	}
+
+	a := p.Availability(context.Background())
+	if a.Available {
+		t.Fatalf("python backend must be unavailable without a provisioned venv: %+v", a)
+	}
+	if !strings.Contains(a.Detail, "not provisioned") {
+		t.Errorf("detail should explain the venv is not provisioned: %q", a.Detail)
+	}
+	if !strings.Contains(a.Provision, "vrooli host install uv") {
+		t.Errorf("provision should point at uv: %q", a.Provision)
+	}
+
+	req := backends.Request{
+		Operation: "edit_instruct",
+		Model:     models.Model{ID: "m1"},
+		ModelDir:  "/models/m1",
+		InputKeys: []string{"/in.png"},
+		Output:    storage.OutputTarget{LocalPath: "/out.png"},
+	}
+	if _, err := p.Execute(context.Background(), req); err == nil || !strings.Contains(err.Error(), "not provisioned") {
+		t.Fatalf("Execute must refuse when the venv is unprovisioned, got %v", err)
 	}
 }
 
@@ -127,9 +169,10 @@ func TestExecProvider_Availability(t *testing.T) {
 
 func TestExecProvider_AvailabilityChecksPythonImports(t *testing.T) {
 	p := &execProvider{
-		name:    "onnxruntime",
-		program: "python3",
-		imports: []string{"onnxruntime", "PIL", "numpy"},
+		name:              "onnxruntime",
+		program:           "python3",
+		pythonInterpreter: "/data/pyenv/bin/python",
+		imports:           []string{"onnxruntime", "PIL", "numpy"},
 		lookPath: func(string) (string, error) {
 			return "/usr/bin/python3", nil
 		},
@@ -152,9 +195,10 @@ func TestExecProvider_AvailabilityChecksPythonImports(t *testing.T) {
 
 func TestExecProvider_ONNXRuntimeAvailabilityReportsExecutionProviders(t *testing.T) {
 	p := &execProvider{
-		name:    "onnxruntime",
-		program: "python3",
-		imports: []string{"onnxruntime", "PIL", "numpy"},
+		name:              "onnxruntime",
+		program:           "python3",
+		pythonInterpreter: "/data/pyenv/bin/python",
+		imports:           []string{"onnxruntime", "PIL", "numpy"},
 		lookPath: func(string) (string, error) {
 			return "/usr/bin/python3", nil
 		},
@@ -178,9 +222,10 @@ func TestExecProvider_ONNXRuntimeAvailabilityReportsExecutionProviders(t *testin
 
 func TestExecProvider_ONNXRuntimeAvailabilityRequiresCPUProvider(t *testing.T) {
 	p := &execProvider{
-		name:    "onnxruntime",
-		program: "python3",
-		imports: []string{"onnxruntime", "PIL", "numpy"},
+		name:              "onnxruntime",
+		program:           "python3",
+		pythonInterpreter: "/data/pyenv/bin/python",
+		imports:           []string{"onnxruntime", "PIL", "numpy"},
 		lookPath: func(string) (string, error) {
 			return "/usr/bin/python3", nil
 		},
@@ -201,9 +246,10 @@ func TestExecProvider_ONNXRuntimeAvailabilityRequiresCPUProvider(t *testing.T) {
 
 func TestExecProvider_ONNXRuntimeAvailabilityReportsProviderProbeFailure(t *testing.T) {
 	p := &execProvider{
-		name:    "onnxruntime",
-		program: "python3",
-		imports: []string{"onnxruntime", "PIL", "numpy"},
+		name:              "onnxruntime",
+		program:           "python3",
+		pythonInterpreter: "/data/pyenv/bin/python",
+		imports:           []string{"onnxruntime", "PIL", "numpy"},
 		lookPath: func(string) (string, error) {
 			return "/usr/bin/python3", nil
 		},
@@ -267,10 +313,11 @@ func TestExecProvider_UsesWarmRunnerBeforeOneShot(t *testing.T) {
 	warm := &fakeWarmRunner{}
 	var oneShotCalls int
 	p := &execProvider{
-		name:    "onnxruntime",
-		program: "python3",
-		build:   buildOnnxSidecar,
-		warm:    warm,
+		name:              "onnxruntime",
+		program:           "python3",
+		pythonInterpreter: "/data/pyenv/bin/python",
+		build:             buildOnnxSidecar,
+		warm:              warm,
 		run: func(context.Context, string, []string) error {
 			oneShotCalls++
 			return nil
@@ -299,10 +346,11 @@ func TestExecProvider_FallsBackWhenWarmRunnerFails(t *testing.T) {
 	warm := &fakeWarmRunner{err: errors.New("worker exited")}
 	var oneShotCalls int
 	p := &execProvider{
-		name:    "onnxruntime",
-		program: "python3",
-		build:   buildOnnxSidecar,
-		warm:    warm,
+		name:              "onnxruntime",
+		program:           "python3",
+		pythonInterpreter: "/data/pyenv/bin/python",
+		build:             buildOnnxSidecar,
+		warm:              warm,
 		run: func(context.Context, string, []string) error {
 			oneShotCalls++
 			return nil
@@ -334,7 +382,7 @@ func TestExecProvider_ExecutionErrors(t *testing.T) {
 		InputKeys: []string{"/in.png"},
 		Output:    storage.OutputTarget{LocalPath: "/out.png"},
 	}
-	p := &execProvider{name: "onnxruntime", program: "python3", build: buildOnnxSidecar}
+	p := &execProvider{name: "onnxruntime", program: "python3", pythonInterpreter: "/data/pyenv/bin/python", build: buildOnnxSidecar}
 	if _, err := p.Execute(context.Background(), backends.Request{Operation: "depth_map", Model: models.Model{ID: "m1"}, InputKeys: []string{"/in.png"}}); err == nil {
 		t.Fatal("expected missing output path error")
 	}

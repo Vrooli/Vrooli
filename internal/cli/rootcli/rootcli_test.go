@@ -284,7 +284,7 @@ func TestRunResolvesRootEvenForHelpOnlyCommands(t *testing.T) {
 			topcli.CommandScenario: func(ctx *runnerCtx, args []string) error { return nil },
 		},
 		map[scenariocli.CommandID]Handler[*runnerCtx]{
-			scenariocli.CommandUISmoke: func(ctx *runnerCtx, args []string) error {
+			scenariocli.CommandRequirements: func(ctx *runnerCtx, args []string) error {
 				if ctx.root == "" {
 					t.Errorf("handler received empty root; args=%v", args)
 				}
@@ -312,7 +312,7 @@ func TestRunResolvesRootEvenForHelpOnlyCommands(t *testing.T) {
 	})
 
 	var stdout, stderr bytes.Buffer
-	code := runner.Run([]string{"scenario", "ui-smoke", "--help"}, &stdout, &stderr)
+	code := runner.Run([]string{"scenario", "requirements", "--help"}, &stdout, &stderr)
 	if code != 0 {
 		t.Fatalf("exit code = %d, stderr=%q", code, stderr.String())
 	}
@@ -335,7 +335,7 @@ func TestRunHelpOnlyTolerantOfResolveRootError(t *testing.T) {
 			topcli.CommandScenario: func(*runnerCtx, []string) error { return nil },
 		},
 		map[scenariocli.CommandID]Handler[*runnerCtx]{
-			scenariocli.CommandUISmoke: func(*runnerCtx, []string) error { return nil },
+			scenariocli.CommandRequirements: func(*runnerCtx, []string) error { return nil },
 		},
 	)
 
@@ -354,7 +354,7 @@ func TestRunHelpOnlyTolerantOfResolveRootError(t *testing.T) {
 	})
 
 	var stdout, stderr bytes.Buffer
-	if code := runner.Run([]string{"scenario", "ui-smoke", "--help"}, &stdout, &stderr); code != 0 {
+	if code := runner.Run([]string{"scenario", "requirements", "--help"}, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit code = %d, stderr=%q", code, stderr.String())
 	}
 	if captured.root != "" {

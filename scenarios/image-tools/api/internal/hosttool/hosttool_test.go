@@ -66,7 +66,7 @@ func TestToolForOperation(t *testing.T) {
 }
 
 func TestKnownTool(t *testing.T) {
-	for _, tool := range []string{"sd", "realesrgan-ncnn-vulkan", "iopaint", "rembg", "llama-cpp", "python"} {
+	for _, tool := range []string{"sd", "realesrgan-ncnn-vulkan", "iopaint", "rembg", "llama-cpp", "uv"} {
 		if !KnownTool(tool) {
 			t.Errorf("KnownTool(%q) = false, want true", tool)
 		}

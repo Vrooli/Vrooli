@@ -23,6 +23,10 @@ type (
 	ValidateRequest struct {
 		Name string
 	}
+	UpstreamCheckRequest struct {
+		Name string // empty means all coding-agent resources
+		All  bool
+	}
 	BlueprintSearchRequest struct {
 		Query string
 	}
@@ -74,6 +78,22 @@ func ParseStatusRequest(args []string) (StatusRequest, error) {
 	}
 	if parsed.HasFlag("--fast") {
 		req.Fast = true
+	}
+	return req, nil
+}
+
+func ParseUpstreamCheckRequest(args []string) (UpstreamCheckRequest, error) {
+	spec := commandSpec(CommandUpstreamCheck)
+	parsed, err := commandtree.ParseArgs("resource upstream-check", CommandHelpText(CommandUpstreamCheck), spec.Args, args)
+	if err != nil {
+		return UpstreamCheckRequest{}, err
+	}
+	req := UpstreamCheckRequest{}
+	if len(parsed.Positionals) == 1 {
+		req.Name = parsed.Positionals[0]
+	}
+	if parsed.HasFlag("--all") {
+		req.All = true
 	}
 	return req, nil
 }

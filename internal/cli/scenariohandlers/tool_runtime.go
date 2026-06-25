@@ -15,31 +15,6 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 )
 
-func UISmokeHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
-	return func(ctx C, args []string) error {
-		cliPath, err := deps.LocateTestGenieCLI(ctx)
-		if err != nil {
-			return err
-		}
-		emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), extractUISmokeScenario(args), deps.Globals(ctx))
-		commandArgs := BuildUISmokeArgs(deps.Globals(ctx), args)
-		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
-			Name:   cliPath,
-			Args:   commandArgs,
-			Dir:    deps.Root(ctx),
-			Env:    deps.CommandEnv(ctx),
-			Stdout: deps.Stdout(ctx),
-			Stderr: deps.Stderr(ctx),
-		})
-	}
-}
-
-func BuildUISmokeArgs(globals rootcli.GlobalOptions, args []string) []string {
-	commandArgs := []string{"ui-smoke"}
-	commandArgs = append(commandArgs, args...)
-	return append(commandArgs, rootcli.PassthroughFlags(globals, commandArgs)...)
-}
-
 func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 	return func(ctx C, args []string) error {
 		cliPath, err := deps.LocateCompleteCLI(ctx)

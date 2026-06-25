@@ -18,7 +18,11 @@ def main() -> None:
     try:
         from PIL import Image, ImageFilter
     except ImportError as exc:  # pragma: no cover
-        _common.fail(f"missing Pillow ({exc}); pip install pillow", code=3)
+        _common.fail(
+            f"missing Pillow ({exc}); the Python venv is not provisioned. Ensure "
+            "`vrooli host install uv`, then restart image-tools to build the venv.",
+            code=3,
+        )
         raise
 
     try:

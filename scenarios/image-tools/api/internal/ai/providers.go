@@ -42,6 +42,12 @@ type onnxProviderChecker func(ctx context.Context, python string) ([]string, err
 // function of its inputs so it can be unit-tested without executing anything.
 type argBuilder func(req backends.Request, modelDir string) ([]string, error)
 
+// pythonProgram is the sentinel program string that marks a backend as Python-
+// served. Such backends run ONLY through the scenario's private uv venv
+// interpreter (execProvider.pythonInterpreter); they never resolve a bare
+// "python3" off the host PATH.
+const pythonProgram = "python3"
+
 // execProvider is a backends.Provider backed by an external CLI/sidecar program.
 // One configured instance exists per standalone backend (stable-diffusion.cpp,
 // diffusers, iopaint, realesrgan-ncnn-vulkan, rembg, onnxruntime). Availability
@@ -53,10 +59,13 @@ type execProvider struct {
 	program string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
 	// pythonInterpreter, when set, is the ABSOLUTE path to this scenario's private
 	// uv-built venv interpreter (<scenario-data>/pyenv/bin/python). Python backends
-	// (program=="python3") invoke it directly instead of resolving a bare "python3"
-	// off the host PATH, so their heavy deps (torch/diffusers/transformers/
-	// onnxruntime) come from the lock-pinned venv and cannot be perturbed by other
-	// Python on the box. Empty ⇒ fall back to PATH "python3" (uv/venv absent).
+	// (program==pythonProgram) invoke it directly, so their heavy deps (torch/
+	// diffusers/transformers/onnxruntime) come from the lock-pinned venv and cannot
+	// be perturbed by other Python on the box. There is deliberately NO bare-
+	// "python3" PATH fallback: running AI ops against the shared host interpreter is
+	// exactly the cross-contamination this isolation seam exists to prevent. Empty ⇒
+	// the venv is not provisioned yet and the backend reports unavailable (surfaced
+	// before use via doctor/health/ready_state), never silently runs unisolated.
 	pythonInterpreter string
 	// programAliases are preferred program names tried (in order) on PATH before
 	// program. They let an optional GPU build install under a distinct command
@@ -110,8 +119,12 @@ func (p *execProvider) IsCloud() bool        { return false }
 // installing a GPU build at runtime is picked up without a restart.
 func (p *execProvider) programName() string {
 	// Python backends invoke the scenario's private venv interpreter by absolute
-	// path when one is provisioned — never a bare "python3" off the host PATH.
-	if p.program == "python3" && p.pythonInterpreter != "" {
+	// path — and ONLY that. There is no bare-"python3" PATH fallback: that would
+	// reintroduce the host-Python contamination this isolation seam prevents. An
+	// empty interpreter means the venv is not provisioned yet, and Availability/
+	// Execute report the backend unavailable (with remediation) rather than
+	// silently running unisolated.
+	if p.program == pythonProgram {
 		return p.pythonInterpreter
 	}
 	lookPath := p.lookPath
@@ -161,6 +174,17 @@ func (p *execProvider) Availability(ctx context.Context) backends.Availability {
 		lookPath = exec.LookPath
 	}
 	program := p.programName()
+	// A Python backend with no resolved interpreter means its isolated venv is not
+	// provisioned yet (uv missing, or the background build hasn't finished). Report
+	// unavailable with the provisioning remediation instead of probing a bare PATH
+	// python3 — the isolation contract has no host-interpreter fallback.
+	if p.program == pythonProgram && program == "" {
+		return backends.Availability{
+			Available: false,
+			Detail:    "image-tools Python venv not provisioned yet (the isolated uv interpreter is unavailable); AI ops never run against the host python3",
+			Provision: p.provision,
+		}
+	}
 	resolved, err := lookPath(program)
 	if err == nil {
 		if len(p.imports) > 0 {
@@ -272,11 +296,17 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	if modelDir == "" {
 		modelDir = modelDirFor(req.Model.ID)
 	}
+	// Resolve the program and reject an unprovisioned Python backend before building
+	// args or running anything — a Python backend with no venv interpreter must not
+	// fall through to the host python3 (the isolation contract).
+	program := p.programName()
+	if p.program == pythonProgram && program == "" {
+		return backends.Result{}, fmt.Errorf("ai: backend %q unavailable: image-tools Python venv not provisioned — %s", p.name, p.provision)
+	}
 	args, err := p.build(req, modelDir)
 	if err != nil {
 		return backends.Result{}, fmt.Errorf("ai: backend %q build args: %w", p.name, err)
 	}
-	program := p.programName()
 	if p.warm != nil {
 		if err := p.warm.Run(ctx, program, args); err == nil {
 			return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name, "runner": "warm"}}, nil
@@ -859,35 +889,30 @@ type providerSpec struct {
 	// `provision` message and docs/reference/backends.md are DERIVED from it, so
 	// there is one source of truth and no free-text drift.
 	hostTool string
-	// pipDeps are the Python packages a python-backed provider also needs beyond
-	// the host `python` tool itself (surfaced honestly; not auto-fetched).
-	pipDeps []string
-	imports []string
+	imports  []string
 }
 
 // provision returns the derived remediation message for this provider: the exact
-// `vrooli host install <tool>` command plus any pip dependencies. Never
-// hand-written — see deriveProvision.
-func (s providerSpec) provision() string { return deriveProvision(s.hostTool, s.pipDeps) }
+// `vrooli host install <tool>` command. Never hand-written — see deriveProvision.
+func (s providerSpec) provision() string { return deriveProvision(s.hostTool) }
 
 // isPython reports whether this backend is served by the Python interpreter (and
 // therefore runs from the scenario's private uv venv when one is provisioned).
-func (s providerSpec) isPython() bool { return s.program == "python3" }
+func (s providerSpec) isPython() bool { return s.program == pythonProgram }
 
 // deriveProvision builds the single canonical provisioning message from a host
-// tool name (+ optional pip deps). This is the one place the remediation command
-// is spelled, so the runtime error, doctor output, and backends.md cannot drift.
-func deriveProvision(hostTool string, pipDeps []string) string {
-	msg := fmt.Sprintf("install the %q host tool — run `vrooli host install %s` (see docs/reference/backends.md)", hostTool, hostTool)
-	if len(pipDeps) > 0 {
-		msg += fmt.Sprintf("; this Python backend also needs pip packages: %s", strings.Join(pipDeps, ", "))
-	}
-	return msg
+// tool name. This is the one place the remediation command is spelled, so the
+// runtime error, doctor output, and backends.md cannot drift. Python backends
+// bind to the `uv` host tool: installing uv lets image-tools build its private,
+// lock-pinned venv (internal/pydeps/requirements.lock) on the next start — there
+// is no separate "pip install …" step, so no parallel dependency list to drift.
+func deriveProvision(hostTool string) string {
+	return fmt.Sprintf("install the %q host tool — run `vrooli host install %s` (see docs/reference/backends.md)", hostTool, hostTool)
 }
 
 const llamaCppHostTool = "llama-cpp"
 
-var llamaCppProvision = deriveProvision(llamaCppHostTool, nil)
+var llamaCppProvision = deriveProvision(llamaCppHostTool)
 
 // HostToolBinding records which platform host tool (and pip deps) a backend
 // provider needs. It is the structured contract the conformance tests and the
@@ -897,7 +922,6 @@ type HostToolBinding struct {
 	Provider string
 	HostTool string
 	Ops      []string
-	PipDeps  []string
 }
 
 // HostToolForProvider returns the host tool a backend provider depends on,
@@ -933,7 +957,7 @@ func HostToolBindings() []HostToolBinding {
 	specs := providerSpecs()
 	out := make([]HostToolBinding, 0, len(specs)+1)
 	for _, s := range specs {
-		out = append(out, HostToolBinding{Provider: s.name, HostTool: s.hostTool, Ops: append([]string(nil), s.ops...), PipDeps: append([]string(nil), s.pipDeps...)})
+		out = append(out, HostToolBinding{Provider: s.name, HostTool: s.hostTool, Ops: append([]string(nil), s.ops...)})
 	}
 	out = append(out, HostToolBinding{Provider: "llama.cpp", HostTool: llamaCppHostTool, Ops: []string{"caption"}})
 	return out
@@ -1027,13 +1051,13 @@ func (p *llamaCppProvider) resolveProgram() (string, error) {
 func providerSpecs() []providerSpec {
 	return []providerSpec{
 		{name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true, hostTool: "sd"},
-		{name: "diffusers", program: "python3", ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, hostTool: "python", pipDeps: []string{"diffusers", "torch", "transformers", "accelerate", "torchvision", "huggingface_hub", "Pillow"}, imports: []string{"diffusers", "torch", "PIL"}},
+		{name: "diffusers", program: pythonProgram, ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, hostTool: "uv", imports: []string{"diffusers", "torch", "PIL"}},
 		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true, hostTool: "iopaint"},
 		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale", "denoise"}, build: buildRealesrgan, gpuCapable: true, hostTool: "realesrgan-ncnn-vulkan"},
 		{name: "rembg", program: "rembg", ops: []string{"background_removal", "background_replace"}, build: buildRembg, gpuCapable: false, hostTool: "rembg"},
-		{name: "onnxruntime", program: "python3", ops: []string{"denoise", "deblur", "background_removal", "colorize", "depth_map", "object_detection", "segment", "tagging", "nsfw_classify", "embedding"}, build: buildOnnxSidecar, gpuCapable: false, hostTool: "python", pipDeps: []string{"onnxruntime", "Pillow", "numpy"}, imports: []string{"onnxruntime", "PIL", "numpy"}},
-		{name: "python-sidecar", program: "python3", ops: []string{"colorize"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "python", pipDeps: []string{"onnxruntime", "Pillow", "numpy"}, imports: []string{"onnxruntime", "PIL", "numpy"}},
-		{name: "python-sidecar", program: "python3", ops: []string{"face_restore", "old_photo_restore"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "python", pipDeps: []string{"torch", "basicsr", "facexlib", "Pillow", "numpy"}, imports: []string{"torch", "basicsr", "facexlib", "PIL", "numpy"}},
+		{name: "onnxruntime", program: pythonProgram, ops: []string{"denoise", "deblur", "background_removal", "colorize", "depth_map", "object_detection", "segment", "tagging", "nsfw_classify", "embedding"}, build: buildOnnxSidecar, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"}},
+		{name: "python-sidecar", program: pythonProgram, ops: []string{"colorize"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"}},
+		{name: "python-sidecar", program: pythonProgram, ops: []string{"face_restore", "old_photo_restore"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "uv", imports: []string{"torch", "basicsr", "facexlib", "PIL", "numpy"}},
 	}
 }
 
@@ -1041,10 +1065,11 @@ func providerSpecs() []providerSpec {
 // lookPath/run to use the real os/exec implementations.
 //
 // pythonInterpreter is the absolute path to the scenario's private uv venv
-// interpreter; when non-empty, every Python backend invokes it directly instead
-// of a bare "python3" off the host PATH (the isolation seam — see internal/pyenv
-// and main.go boot wiring). Pass "" to fall back to PATH "python3" (venv/uv
-// absent), which preserves the pre-isolation behaviour.
+// interpreter; every Python backend invokes it directly (the isolation seam —
+// see internal/pyenv and main.go boot wiring). Pass "" when the venv is not
+// provisioned (uv absent or the background build is still running): Python
+// backends then report unavailable (no bare-"python3" PATH fallback), surfaced
+// before use via doctor/health/ready_state.
 func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner, pythonInterpreter string) error {
 	for _, s := range providerSpecs() {
 		p := &execProvider{name: s.name, program: s.program, programAliases: s.programAliases, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}

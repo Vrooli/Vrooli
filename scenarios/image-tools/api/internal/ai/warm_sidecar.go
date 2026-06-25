@@ -67,11 +67,11 @@ func (r *warmSidecarRunner) Run(ctx context.Context, program string, args []stri
 
 	select {
 	case <-ctx.Done():
-		r.stopLocked()
+		_ = r.stopLocked() // best-effort teardown; we are already returning the cancel error
 		return ctx.Err()
 	case err := <-done:
 		if err != nil {
-			r.stopLocked()
+			_ = r.stopLocked() // best-effort teardown; we are already returning the worker error
 			return err
 		}
 		return nil

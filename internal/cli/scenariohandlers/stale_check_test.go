@@ -40,28 +40,6 @@ func TestExtractCompletenessScenarioHandlesScoreSubcommands(t *testing.T) {
 	}
 }
 
-func TestExtractUISmokeScenarioConsumesValuedFlags(t *testing.T) {
-	cases := []struct {
-		args []string
-		want string
-	}{
-		{[]string{"test-genie"}, "test-genie"},
-		{[]string{"--json", "test-genie"}, "test-genie"},
-		{[]string{"--url", "http://x", "test-genie"}, "test-genie"},
-		{[]string{"--browserless", "http://b", "test-genie", "--json"}, "test-genie"},
-		{[]string{"--timeout", "90000", "test-genie"}, "test-genie"},
-		{[]string{"--url=http://x", "test-genie"}, "test-genie"},
-		{[]string{"--no-recovery", "--shared-mode", "test-genie"}, "test-genie"},
-		{[]string{"--url", "http://x"}, ""},
-		{[]string{}, ""},
-	}
-	for _, c := range cases {
-		if got := extractUISmokeScenario(c.args); got != c.want {
-			t.Errorf("extractUISmokeScenario(%v) = %q, want %q", c.args, got, c.want)
-		}
-	}
-}
-
 func TestFirstPositionalArgSkipsFlags(t *testing.T) {
 	cases := []struct {
 		args []string

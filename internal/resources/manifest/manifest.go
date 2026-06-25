@@ -159,6 +159,7 @@ type ResourcePlatforms struct {
 
 type ResourcePort struct {
 	Name      string `json:"name,omitempty"`
+	HostIP    string `json:"host_ip,omitempty"`
 	Container int    `json:"container,omitempty"`
 	Host      int    `json:"host,omitempty"`
 	Protocol  string `json:"protocol,omitempty"`

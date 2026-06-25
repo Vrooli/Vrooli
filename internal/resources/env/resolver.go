@@ -240,7 +240,7 @@ func resolveRequestedEnvValues(
 func ValidateResourceManifest(root string, resourceManifest manifestpkg.ResourceManifest) []string {
 	issues := []string{}
 	portNames := map[string]struct{}{}
-	hostPorts := map[int]string{}
+	hostPorts := map[string]string{}
 	for _, port := range resourceManifest.Ports {
 		if name := strings.TrimSpace(port.Name); name != "" {
 			if _, exists := portNames[name]; exists {
@@ -249,10 +249,11 @@ func ValidateResourceManifest(root string, resourceManifest manifestpkg.Resource
 			portNames[name] = struct{}{}
 		}
 		if port.Host > 0 {
-			if prior, exists := hostPorts[port.Host]; exists {
-				issues = append(issues, fmt.Sprintf("duplicate host port %d for %s and %s", port.Host, prior, defaultPortLabel(port)))
+			key := hostPortProtocolKey(port)
+			if prior, exists := hostPorts[key]; exists {
+				issues = append(issues, fmt.Sprintf("duplicate host port %s for %s and %s", key, prior, defaultPortLabel(port)))
 			}
-			hostPorts[port.Host] = defaultPortLabel(port)
+			hostPorts[key] = defaultPortLabel(port)
 		}
 	}
 
@@ -311,6 +312,22 @@ func ValidateResourceManifest(root string, resourceManifest manifestpkg.Resource
 	}
 	issues = append(issues, validateResourceStorageSources(root, resourceManifest)...)
 	return issues
+}
+
+func hostPortProtocolKey(port manifestpkg.ResourcePort) string {
+	hostIP := strings.TrimSpace(port.HostIP)
+	if hostIP == "" {
+		hostIP = "*"
+	}
+	return fmt.Sprintf("%s:%d/%s", hostIP, port.Host, portProtocol(port))
+}
+
+func portProtocol(port manifestpkg.ResourcePort) string {
+	protocol := strings.ToLower(strings.TrimSpace(port.Protocol))
+	if protocol == "" {
+		return "tcp"
+	}
+	return protocol
 }
 
 func validateResourceStorageSources(root string, resourceManifest manifestpkg.ResourceManifest) []string {

@@ -321,14 +321,18 @@ func main() {
 	//     build syncs torch (multi-GB) so it runs in the BACKGROUND; until it
 	//     completes the Python backends report "not yet provisioned" (honest),
 	//     then become available. Steady-state boots are instant (sentinel match).
-	//   * uv absent  → fall back to PATH python3 (pre-isolation behaviour) with a
-	//     precise `vrooli host install uv` hint. Never blocks or crashes boot.
+	//   * uv absent / lock unavailable → pythonInterpreter stays empty, so the
+	//     Python backends report UNAVAILABLE (with a `vrooli host install uv`
+	//     remediation, surfaced before use via doctor/health/ready_state). There is
+	//     deliberately no fallback to the shared host python3 — that would defeat
+	//     the isolation. Boot never blocks or crashes; non-Python backends are
+	//     unaffected.
 	var pythonInterpreter string
 	venvDir := filepath.Join(modelsRoot, "pyenv")
 	if _, uvErr := exec.LookPath("uv"); uvErr != nil {
-		log.Printf("WARNING: uv not found on PATH; Python backends use the shared host PATH python3 (unisolated). Run `vrooli host install uv` and restart to isolate them.")
+		log.Printf("WARNING: uv not found on PATH; the isolated Python venv cannot be built, so Python AI backends stay UNAVAILABLE (never run against the host python3). Run `vrooli host install uv` and restart to enable them.")
 	} else if lockPath, lpErr := pydeps.Materialize(modelsRoot); lpErr != nil {
-		log.Printf("WARNING: materialize python lock failed (%v); Python backends fall back to PATH python3", lpErr)
+		log.Printf("WARNING: materialize python lock failed (%v); Python AI backends stay unavailable until it succeeds (no host-python3 fallback)", lpErr)
 	} else {
 		pythonInterpreter = pyenv.InterpreterPath(venvDir)
 		venvSpec := pyenv.Spec{VenvDir: venvDir, LockFile: lockPath}

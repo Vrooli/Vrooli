@@ -29,6 +29,7 @@ const (
 	CommandEnable                CommandID = "enable"
 	CommandDisable               CommandID = "disable"
 	CommandInfo                  CommandID = "info"
+	CommandUpstreamCheck         CommandID = "upstream-check"
 	CommandDeprecate             CommandID = "deprecate"
 	CommandListDeprecated        CommandID = "list-deprecated"
 	CommandArchiveToBlueprint    CommandID = "archive-to-blueprint"
@@ -100,6 +101,18 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandEnable), Summary: "Enable a resource in configuration", Args: nameArgSchema("name"), Handler: CommandEnable},
 		{Name: string(CommandDisable), Summary: "Disable a resource in configuration", Args: nameArgSchema("name"), Handler: CommandDisable},
 		{Name: string(CommandInfo), Summary: "Show resource metadata", Args: nameArgSchema("name"), Handler: CommandInfo},
+		{
+			Name:    string(CommandUpstreamCheck),
+			Summary: "Compare installed coding-agent CLIs against upstream latest (read-only)",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "name"}},
+				Options: []commandtree.OptionArg{
+					{Name: "--all", Description: "Check every coding-agent resource (default when no name is given)"},
+					commandtree.JSONOption(),
+				},
+			},
+			Handler: CommandUpstreamCheck,
+		},
 		{Name: string(CommandDeprecate), Summary: "Deprecate a resource", Args: nameArgSchema("name"), Handler: CommandDeprecate},
 		{Name: string(CommandListDeprecated), Summary: "List deprecated resources", Handler: CommandListDeprecated},
 		{Name: string(CommandArchiveToBlueprint), Summary: "Archive a resource into blueprint-only state", Args: nameArgSchema("name"), Handler: CommandArchiveToBlueprint},

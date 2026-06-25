@@ -280,11 +280,10 @@ def run(*, family: str, model_dir: str, image_paths, out_path: str, params: "Par
         from PIL import Image  # noqa: WPS433
     except ImportError as exc:  # pragma: no cover - exercised on un-provisioned hosts
         _common.fail(
-            f"missing diffusers backend ({exc}). Provision it (governed, never raw pip): "
-            "scenario-dependency-analyzer deps install --scenario image-tools "
-            "torch torchvision diffusers 'transformers>=4.49,<5' accelerate huggingface_hub pillow "
-            "(transformers MUST stay <5 — 5.x breaks SD/IP2P CLIP loading; "
-            "GPU strongly recommended; see docs/reference/backends.md)",
+            f"missing diffusers backend ({exc}); the Python venv is not provisioned. "
+            "Ensure `vrooli host install uv`, then restart image-tools to build/repair "
+            "the lock-pinned venv (versions come from internal/pydeps/requirements.lock; "
+            "GPU strongly recommended — see docs/reference/backends.md).",
             code=3,
         )
         raise

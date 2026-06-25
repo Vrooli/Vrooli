@@ -37,9 +37,6 @@ func RenderHostToolMatrix() string {
 			ops = append(ops, "`"+op+"`")
 		}
 		install := fmt.Sprintf("`vrooli host install %s`", bd.HostTool)
-		if len(bd.PipDeps) > 0 {
-			install += fmt.Sprintf(" + pip: %s", strings.Join(bd.PipDeps, ", "))
-		}
 		fmt.Fprintf(&b, "| `%s` | `%s` | %s | %s |\n", bd.Provider, bd.HostTool, strings.Join(ops, ", "), install)
 	}
 	return b.String()

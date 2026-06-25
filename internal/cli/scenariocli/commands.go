@@ -54,7 +54,6 @@ const (
 	CommandLogs            CommandID = "logs"
 	CommandOpen            CommandID = "open"
 	CommandPort            CommandID = "port"
-	CommandUISmoke         CommandID = "ui-smoke"
 	CommandRequirements    CommandID = "requirements"
 	CommandDesign          CommandID = "design"
 	CommandTemplate        CommandID = "template"
@@ -137,7 +136,6 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options:     []commandtree.OptionArg{commandtree.JSONOption(), instanceOption()},
 			},
 		},
-		{Name: string(CommandUISmoke), Group: "Lifecycle and Utility Commands", Summary: "Run the Browserless UI smoke harness", Handler: CommandUISmoke, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandRequirements), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario requirements", Handler: CommandRequirements, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandDesign), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario design kits", Handler: CommandDesign, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandTemplate), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario templates", Handler: CommandTemplate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},

@@ -53,7 +53,7 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 	}
 	report.Count = len(items)
 
-	portOwners := map[int]string{}
+	portOwners := map[string]string{}
 	for _, item := range items {
 		if strings.TrimSpace(item.ManifestPath) == "" {
 			continue
@@ -95,12 +95,13 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 			if hostPort <= 0 {
 				continue
 			}
-			if owner, exists := portOwners[hostPort]; exists && owner != item.Name {
-				message := fmt.Sprintf("host port %d overlaps with resource %s", hostPort, owner)
+			key := resourcePortOwnerKey(port, hostPort)
+			if owner, exists := portOwners[key]; exists && owner != item.Name {
+				message := fmt.Sprintf("host port %s overlaps with resource %s", key, owner)
 				entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: message})
 				report.Issues = append(report.Issues, ValidationIssue{Severity: "error", Message: fmt.Sprintf("%s: %s", item.Name, message)})
 			} else {
-				portOwners[hostPort] = item.Name
+				portOwners[key] = item.Name
 			}
 		}
 		if len(entry.Issues) > 0 {
@@ -115,6 +116,18 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 		return ResourceValidationReport{}, fmt.Errorf("resource %s not found", name)
 	}
 	return report, nil
+}
+
+func resourcePortOwnerKey(port manifestpkg.ResourcePort, hostPort int) string {
+	hostIP := strings.TrimSpace(port.HostIP)
+	if hostIP == "" {
+		hostIP = "*"
+	}
+	protocol := strings.ToLower(strings.TrimSpace(port.Protocol))
+	if protocol == "" {
+		protocol = "tcp"
+	}
+	return fmt.Sprintf("%s:%d/%s", hostIP, hostPort, protocol)
 }
 
 func usesSingleManifestContract(manifest ResourceManifest) bool {
