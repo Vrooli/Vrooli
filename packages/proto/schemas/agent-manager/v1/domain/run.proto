@@ -162,6 +162,36 @@ message Run {
 
   // When post-run sandbox finalization reached a terminal state.
   optional google.protobuf.Timestamp finalized_at = 35;
+
+  // Externally-owned async work this run is parked on (set only while
+  // status == RUN_STATUS_PARKED; nil otherwise). Surfaced so operators see
+  // what a parked run is waiting on and its ETA — a parked run is suspended,
+  // not hung.
+  optional AwaitHandle await_handle = 36;
+}
+
+// AwaitHandle identifies the externally-owned async work a parked run is
+// blocked on. agent-manager (which owns the agent process) performs the
+// blocking wait on the agent's behalf via a per-producer Waiter and wakes the
+// run when the handle resolves (or its deadline elapses). Present only on a
+// parked run; observability for "parked != hung".
+//
+// @usage Run.await_handle
+message AwaitHandle {
+  // Producer that resolves this handle (e.g. "test-genie", "git-control-tower").
+  string producer = 1;
+
+  // Producer-scoped identifier of the awaited work (e.g. "<scenario>/<run-id>").
+  string key = 2;
+
+  // Wait deadline. When it elapses agent-manager wakes the run with a typed
+  // timeout result rather than hanging. Always populated on a persisted handle
+  // (the orchestrator default ParkTTL is applied at park time when no explicit
+  // deadline is supplied).
+  optional google.protobuf.Timestamp deadline = 3;
+
+  // When the run was parked (for observability / ETA display).
+  google.protobuf.Timestamp registered_at = 4;
 }
 
 // RunActions captures which operations are currently allowed for a run.
@@ -623,4 +653,88 @@ message DeleteRunMessageRequest {
 message DeleteRunMessageResponse {
   // Whether the delete event was created.
   bool success = 1;
+}
+
+// =============================================================================
+// PARK / WAKE REQUEST/RESPONSE (durable park/resume)
+// =============================================================================
+
+// ParkRunRequest suspends a running run on externally-owned async work.
+//
+// Called from inside an agent-manager-controlled run (the in-run CLI carries
+// VROOLI_AGENT_IDENTITY_TOKEN) when the agent issues an async request whose
+// result agent-manager can wait for on its behalf — e.g. a test-genie run or a
+// git-control-tower baseline diff. The run transitions running→parked (process
+// exits, zero tokens) and is woken with the resolved result injected as the next
+// turn once the producer completes (or the park deadline elapses). The caller
+// must be the owning, live run: the identity token's run_id must match the path.
+//
+// @usage POST /api/v1/runs/{id}/park
+message ParkRunRequest {
+  // Run ID to park.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Producer that will resolve the await-handle (e.g. "test-genie",
+  // "git-control-tower"). Identifies the Waiter agent-manager drives.
+  string producer = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Producer-scoped identifier of the awaited work (e.g. "<scenario>/<run-id>").
+  string key = 3 [(buf.validate.field).string.min_len = 1];
+
+  // Optional wait deadline as a Unix timestamp (seconds). 0 ⇒ now + default
+  // park TTL. A handle that never resolves is woken with a typed timeout result
+  // at this deadline rather than hanging forever.
+  int64 deadline_unix = 4;
+
+  // The owning run's VROOLI_AGENT_IDENTITY_TOKEN. Authenticates the caller as
+  // the run being parked; the server rejects a token whose run_id differs from
+  // the path or that fails verification.
+  string identity_token = 5;
+}
+
+// ParkRunResponse confirms a park and carries the clean turn-ending message.
+//
+// @usage POST /api/v1/runs/{id}/park response
+message ParkRunResponse {
+  // Whether the run was parked.
+  bool success = 1;
+
+  // The parked run.
+  Run run = 2;
+
+  // Clean tool-result text the in-run command prints before agent-manager ends
+  // the turn (so the agent sees an explicit "parked, resuming later" outcome
+  // rather than an abrupt kill).
+  string message = 3;
+}
+
+// WakeRunRequest resumes a parked run with the awaited result injected as the
+// next user turn. Primarily orchestrator-internal (the waiter goroutine drives
+// wake on resolve/timeout); the endpoint exists for manual/ops recovery.
+//
+// @usage POST /api/v1/runs/{id}/wake
+message WakeRunRequest {
+  // Run ID to wake.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // The resolved awaited result, injected as the next user turn.
+  string result = 2;
+
+  // Whether the park deadline elapsed without resolution. When true the injected
+  // message is framed as a typed timeout so the agent stays in control.
+  bool timed_out = 3;
+}
+
+// WakeRunResponse confirms a wake.
+//
+// @usage POST /api/v1/runs/{id}/wake response
+message WakeRunResponse {
+  // Whether the wake started (false when the run was no longer parked — wake is
+  // idempotent, so a no-op is reported as success=false without an error).
+  bool success = 1;
+
+  // The woken (or unchanged) run.
+  Run run = 2;
 }

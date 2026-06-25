@@ -41,6 +41,12 @@ service ExposureService {
   // scenario is also CORE.
   rpc RevokeLease(RevokeLeaseRequest) returns (RevokeLeaseResponse);
 
+  // Unexpose revokes a scenario's active lease BY SCENARIO NAME (a friendlier
+  // surface than looking up a lease id), retracting ingress and the TM-created
+  // DNS record unless the scenario is also CORE. NotFound when no active lease
+  // exists. It is the thin server-side primitive behind the `unexpose` alias.
+  rpc Unexpose(UnexposeRequest) returns (UnexposeResponse);
+
   // ListLeases returns leases, optionally filtered by status.
   rpc ListLeases(ListLeasesRequest) returns (ListLeasesResponse);
 
@@ -123,6 +129,19 @@ message RevokeLeaseResponse {
   // True when ingress was retracted; false when the scenario is also CORE and
   // stays exposed.
   bool retracted = 1;
+}
+
+message UnexposeRequest {
+  // Scenario whose active lease should be revoked.
+  string scenario = 1;
+}
+
+message UnexposeResponse {
+  // True when ingress (and the TM-created DNS record) was retracted; false when
+  // the scenario is also CORE and stays exposed.
+  bool retracted = 1;
+  // The revoked lease id, for operator confirmation.
+  string lease_id = 2;
 }
 
 message ListLeasesRequest {

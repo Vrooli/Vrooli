@@ -34,6 +34,45 @@ service ValidationService {
   // ApplyFixConfig applies the deterministic fixes (format-preserving
   // service.json edits / skeleton file creation) and reports what changed.
   rpc ApplyFixConfig(FixConfigRequest) returns (FixConfigResponse);
+  // AssignFixedPort switches a scenario's port (default "ui") from a canonical
+  // range to a free, conflict-free fixed port inside the canonical band, so it
+  // can be exposed as a scenario route. Idempotent; apply=false previews.
+  rpc AssignFixedPort(PortSwitchRequest) returns (PortSwitchResponse);
+  // ReleaseFixedPort reverts a scenario's port back to the canonical range.
+  // Idempotent; apply=false previews.
+  rpc ReleaseFixedPort(PortSwitchRequest) returns (PortSwitchResponse);
+}
+
+// PortSwitchRequest selects the scenario + port to switch between fixed and
+// ranged. It mirrors FixConfigRequest's preview/apply split via `apply`.
+message PortSwitchRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Listener port to switch (default "ui"). Only api/ui/websocket have bands.
+  string port_name = 3;
+  // When true, write the edit; false previews (dry-run, the default).
+  bool apply = 4;
+}
+
+// PortSwitchResponse reports the assign/release outcome, including a before/after
+// so preview and apply share one shape.
+message PortSwitchResponse {
+  string scenario = 1;
+  string port_name = 2;
+  // The fixed port before the op (0 when it was ranged).
+  int32 previous_port = 3;
+  // The fixed port after assign (0 after release).
+  int32 assigned_port = 4;
+  // False when the scenario was already in the target state (idempotent no-op).
+  bool changed = 5;
+  // True when the edit was written to disk (apply).
+  bool applied = 6;
+  // service.json before/after the (format-preserving) edit.
+  string before = 7;
+  string after = 8;
+  string message = 9;
 }
 
 message ValidateScenarioRequest {

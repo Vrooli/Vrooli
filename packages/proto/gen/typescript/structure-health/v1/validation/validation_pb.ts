@@ -12,7 +12,120 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file structure-health/v1/validation/validation.proto.
  */
 export const file_structure_health_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("Ci9zdHJ1Y3R1cmUtaGVhbHRoL3YxL3ZhbGlkYXRpb24vdmFsaWRhdGlvbi5wcm90bxIldnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbiJUChdWYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhkKEWluY2x1ZGVfZXhlY3V0aW9uGAMgASgIIrEDChhWYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhAKCHNjZW5hcmlvGAQgASgJEhMKC3RhcmdldF9wYXRoGAUgASgJEhcKD2RlZ3JhZGVkX3JlYXNvbhgGIAEoCRJHCgdwcm9maWxlGAcgASgLMjYudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5EZXRlY3RlZFByb2ZpbGUSSQoIc3VyZmFjZXMYCCADKAsyNy52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1cmZhY2VSZWNvbmNpbGUSSQoIZmluZGluZ3MYCSADKAsyNy52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLlN0cnVjdHVyZUZpbmRpbmcSMQoKYXNzZXNzbWVudBgKIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQSEgoKbmV4dF9zdGVwcxgLIAMoCSJzCg9EZXRlY3RlZFByb2ZpbGUSCgoCaWQYASABKAkSGAoQYmFja2VuZF9sYW5ndWFnZRgCIAEoCRIUCgx1aV9mcmFtZXdvcmsYAyABKAkSEgoKcmVjb2duaXplZBgEIAEoCBIQCghldmlkZW5jZRgFIAMoCSKDAQoQU3VyZmFjZVJlY29uY2lsZRIPCgdzdXJmYWNlGAEgASgJEgwKBGtpbmQYAiABKAkSEAoIZGVjbGFyZWQYAyABKAgSDgoGYWN0dWFsGAQgASgIEhcKD2RlY2xhcmVkX2RldGFpbBgFIAEoCRIVCg1hY3R1YWxfZGV0YWlsGAYgASgJIrgBChBTdHJ1Y3R1cmVGaW5kaW5nEgwKBGNvZGUYASABKAkSEAoIc2V2ZXJpdHkYAiABKAkSDQoFdGl0bGUYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRITCgtyZW1lZGlhdGlvbhgGIAEoCRIPCgdzdXJmYWNlGAcgASgJEhkKEWF1dG9maXhfYXZhaWxhYmxlGAggASgIEhEKCWZpeF9jbGFzcxgJIAEoCSJTChBGaXhDb25maWdSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSEAoIcnVsZV9pZHMYAyADKAkSDQoFYXBwbHkYBCABKAgilQEKEUZpeENvbmZpZ1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEg8KB2FwcGxpZWQYAiABKAgSSwoKY2FuZGlkYXRlcxgDIAMoCzI3LnZyb29saS5zdHJ1Y3R1cmVfaGVhbHRoLnYxLnZhbGlkYXRpb24uQXV0b2ZpeENhbmRpZGF0ZRIQCghtZXNzYWdlcxgEIAMoCSJ7ChBBdXRvZml4Q2FuZGlkYXRlEg8KB3J1bGVfaWQYASABKAkSEQoJZmlsZV9wYXRoGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBmJlZm9yZRgEIAEoCRINCgVhZnRlchgFIAEoCRIPCgdhcHBsaWVkGAYgASgIMrcDChFWYWxpZGF0aW9uU2VydmljZRKTAQoQVmFsaWRhdGVTY2VuYXJpbxI+LnZyb29saS5zdHJ1Y3R1cmVfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QaPy52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRKFAQoQUHJldmlld0ZpeENvbmZpZxI3LnZyb29saS5zdHJ1Y3R1cmVfaGVhbHRoLnYxLnZhbGlkYXRpb24uRml4Q29uZmlnUmVxdWVzdBo4LnZyb29saS5zdHJ1Y3R1cmVfaGVhbHRoLnYxLnZhbGlkYXRpb24uRml4Q29uZmlnUmVzcG9uc2USgwEKDkFwcGx5Rml4Q29uZmlnEjcudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5GaXhDb25maWdSZXF1ZXN0GjgudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5GaXhDb25maWdSZXNwb25zZUJdWltnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N0cnVjdHVyZS1oZWFsdGgvdjEvdmFsaWRhdGlvbjt2YWxpZGF0aW9uX3YxYgZwcm90bzM", [file_common_v1_maturity]);
+  fileDesc("Ci9zdHJ1Y3R1cmUtaGVhbHRoL3YxL3ZhbGlkYXRpb24vdmFsaWRhdGlvbi5wcm90bxIldnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbiJVChFQb3J0U3dpdGNoUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIMCgRwYXRoGAIgASgJEhEKCXBvcnRfbmFtZRgDIAEoCRINCgVhcHBseRgEIAEoCCK5AQoSUG9ydFN3aXRjaFJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhEKCXBvcnRfbmFtZRgCIAEoCRIVCg1wcmV2aW91c19wb3J0GAMgASgFEhUKDWFzc2lnbmVkX3BvcnQYBCABKAUSDwoHY2hhbmdlZBgFIAEoCBIPCgdhcHBsaWVkGAYgASgIEg4KBmJlZm9yZRgHIAEoCRINCgVhZnRlchgIIAEoCRIPCgdtZXNzYWdlGAkgASgJIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgisQMKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSEAoIc2NlbmFyaW8YBCABKAkSEwoLdGFyZ2V0X3BhdGgYBSABKAkSFwoPZGVncmFkZWRfcmVhc29uGAYgASgJEkcKB3Byb2ZpbGUYByABKAsyNi52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLkRldGVjdGVkUHJvZmlsZRJJCghzdXJmYWNlcxgIIAMoCzI3LnZyb29saS5zdHJ1Y3R1cmVfaGVhbHRoLnYxLnZhbGlkYXRpb24uU3VyZmFjZVJlY29uY2lsZRJJCghmaW5kaW5ncxgJIAMoCzI3LnZyb29saS5zdHJ1Y3R1cmVfaGVhbHRoLnYxLnZhbGlkYXRpb24uU3RydWN0dXJlRmluZGluZxIxCgphc3Nlc3NtZW50GAogASgLMh0uY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudBISCgpuZXh0X3N0ZXBzGAsgAygJInMKD0RldGVjdGVkUHJvZmlsZRIKCgJpZBgBIAEoCRIYChBiYWNrZW5kX2xhbmd1YWdlGAIgASgJEhQKDHVpX2ZyYW1ld29yaxgDIAEoCRISCgpyZWNvZ25pemVkGAQgASgIEhAKCGV2aWRlbmNlGAUgAygJIoMBChBTdXJmYWNlUmVjb25jaWxlEg8KB3N1cmZhY2UYASABKAkSDAoEa2luZBgCIAEoCRIQCghkZWNsYXJlZBgDIAEoCBIOCgZhY3R1YWwYBCABKAgSFwoPZGVjbGFyZWRfZGV0YWlsGAUgASgJEhUKDWFjdHVhbF9kZXRhaWwYBiABKAkiuAEKEFN0cnVjdHVyZUZpbmRpbmcSDAoEY29kZRgBIAEoCRIQCghzZXZlcml0eRgCIAEoCRINCgV0aXRsZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhAKCGxvY2F0aW9uGAUgASgJEhMKC3JlbWVkaWF0aW9uGAYgASgJEg8KB3N1cmZhY2UYByABKAkSGQoRYXV0b2ZpeF9hdmFpbGFibGUYCCABKAgSEQoJZml4X2NsYXNzGAkgASgJIlMKEEZpeENvbmZpZ1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDAoEcGF0aBgCIAEoCRIQCghydWxlX2lkcxgDIAMoCRINCgVhcHBseRgEIAEoCCKVAQoRRml4Q29uZmlnUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDwoHYXBwbGllZBgCIAEoCBJLCgpjYW5kaWRhdGVzGAMgAygLMjcudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5BdXRvZml4Q2FuZGlkYXRlEhAKCG1lc3NhZ2VzGAQgAygJInsKEEF1dG9maXhDYW5kaWRhdGUSDwoHcnVsZV9pZBgBIAEoCRIRCglmaWxlX3BhdGgYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDgoGYmVmb3JlGAQgASgJEg0KBWFmdGVyGAUgASgJEg8KB2FwcGxpZWQYBiABKAgyygUKEVZhbGlkYXRpb25TZXJ2aWNlEpMBChBWYWxpZGF0ZVNjZW5hcmlvEj4udnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo/LnZyb29saS5zdHJ1Y3R1cmVfaGVhbHRoLnYxLnZhbGlkYXRpb24uVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlEoUBChBQcmV2aWV3Rml4Q29uZmlnEjcudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5GaXhDb25maWdSZXF1ZXN0GjgudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5GaXhDb25maWdSZXNwb25zZRKDAQoOQXBwbHlGaXhDb25maWcSNy52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLkZpeENvbmZpZ1JlcXVlc3QaOC52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLkZpeENvbmZpZ1Jlc3BvbnNlEoYBCg9Bc3NpZ25GaXhlZFBvcnQSOC52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLlBvcnRTd2l0Y2hSZXF1ZXN0GjkudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5Qb3J0U3dpdGNoUmVzcG9uc2UShwEKEFJlbGVhc2VGaXhlZFBvcnQSOC52cm9vbGkuc3RydWN0dXJlX2hlYWx0aC52MS52YWxpZGF0aW9uLlBvcnRTd2l0Y2hSZXF1ZXN0GjkudnJvb2xpLnN0cnVjdHVyZV9oZWFsdGgudjEudmFsaWRhdGlvbi5Qb3J0U3dpdGNoUmVzcG9uc2VCXVpbZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zdHJ1Y3R1cmUtaGVhbHRoL3YxL3ZhbGlkYXRpb247dmFsaWRhdGlvbl92MWIGcHJvdG8z", [file_common_v1_maturity]);
+
+/**
+ * PortSwitchRequest selects the scenario + port to switch between fixed and
+ * ranged. It mirrors FixConfigRequest's preview/apply split via `apply`.
+ *
+ * @generated from message vrooli.structure_health.v1.validation.PortSwitchRequest
+ */
+export type PortSwitchRequest = Message<"vrooli.structure_health.v1.validation.PortSwitchRequest"> & {
+  /**
+   * Scenario slug, normally the directory name under scenarios/.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Optional explicit scenario path for callers that already resolved it.
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * Listener port to switch (default "ui"). Only api/ui/websocket have bands.
+   *
+   * @generated from field: string port_name = 3;
+   */
+  portName: string;
+
+  /**
+   * When true, write the edit; false previews (dry-run, the default).
+   *
+   * @generated from field: bool apply = 4;
+   */
+  apply: boolean;
+};
+
+/**
+ * Describes the message vrooli.structure_health.v1.validation.PortSwitchRequest.
+ * Use `create(PortSwitchRequestSchema)` to create a new message.
+ */
+export const PortSwitchRequestSchema: GenMessage<PortSwitchRequest> = /*@__PURE__*/
+  messageDesc(file_structure_health_v1_validation_validation, 0);
+
+/**
+ * PortSwitchResponse reports the assign/release outcome, including a before/after
+ * so preview and apply share one shape.
+ *
+ * @generated from message vrooli.structure_health.v1.validation.PortSwitchResponse
+ */
+export type PortSwitchResponse = Message<"vrooli.structure_health.v1.validation.PortSwitchResponse"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string port_name = 2;
+   */
+  portName: string;
+
+  /**
+   * The fixed port before the op (0 when it was ranged).
+   *
+   * @generated from field: int32 previous_port = 3;
+   */
+  previousPort: number;
+
+  /**
+   * The fixed port after assign (0 after release).
+   *
+   * @generated from field: int32 assigned_port = 4;
+   */
+  assignedPort: number;
+
+  /**
+   * False when the scenario was already in the target state (idempotent no-op).
+   *
+   * @generated from field: bool changed = 5;
+   */
+  changed: boolean;
+
+  /**
+   * True when the edit was written to disk (apply).
+   *
+   * @generated from field: bool applied = 6;
+   */
+  applied: boolean;
+
+  /**
+   * service.json before/after the (format-preserving) edit.
+   *
+   * @generated from field: string before = 7;
+   */
+  before: string;
+
+  /**
+   * @generated from field: string after = 8;
+   */
+  after: string;
+
+  /**
+   * @generated from field: string message = 9;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.structure_health.v1.validation.PortSwitchResponse.
+ * Use `create(PortSwitchResponseSchema)` to create a new message.
+ */
+export const PortSwitchResponseSchema: GenMessage<PortSwitchResponse> = /*@__PURE__*/
+  messageDesc(file_structure_health_v1_validation_validation, 1);
 
 /**
  * @generated from message vrooli.structure_health.v1.validation.ValidateScenarioRequest
@@ -46,7 +159,7 @@ export type ValidateScenarioRequest = Message<"vrooli.structure_health.v1.valida
  * Use `create(ValidateScenarioRequestSchema)` to create a new message.
  */
 export const ValidateScenarioRequestSchema: GenMessage<ValidateScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 0);
+  messageDesc(file_structure_health_v1_validation_validation, 2);
 
 /**
  * @generated from message vrooli.structure_health.v1.validation.ValidateScenarioResponse
@@ -126,7 +239,7 @@ export type ValidateScenarioResponse = Message<"vrooli.structure_health.v1.valid
  * Use `create(ValidateScenarioResponseSchema)` to create a new message.
  */
 export const ValidateScenarioResponseSchema: GenMessage<ValidateScenarioResponse> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 1);
+  messageDesc(file_structure_health_v1_validation_validation, 3);
 
 /**
  * DetectedProfile is the language/framework shape structure-health detected from
@@ -176,7 +289,7 @@ export type DetectedProfile = Message<"vrooli.structure_health.v1.validation.Det
  * Use `create(DetectedProfileSchema)` to create a new message.
  */
 export const DetectedProfileSchema: GenMessage<DetectedProfile> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 2);
+  messageDesc(file_structure_health_v1_validation_validation, 4);
 
 /**
  * SurfaceReconcile pairs a surface's declared intent with its detected actual
@@ -229,7 +342,7 @@ export type SurfaceReconcile = Message<"vrooli.structure_health.v1.validation.Su
  * Use `create(SurfaceReconcileSchema)` to create a new message.
  */
 export const SurfaceReconcileSchema: GenMessage<SurfaceReconcile> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 3);
+  messageDesc(file_structure_health_v1_validation_validation, 5);
 
 /**
  * StructureFinding is structure-health's native finding shape.
@@ -294,7 +407,7 @@ export type StructureFinding = Message<"vrooli.structure_health.v1.validation.St
  * Use `create(StructureFindingSchema)` to create a new message.
  */
 export const StructureFindingSchema: GenMessage<StructureFinding> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 4);
+  messageDesc(file_structure_health_v1_validation_validation, 6);
 
 /**
  * FixConfigRequest selects the scenario and (optionally) a subset of rule ids to
@@ -337,7 +450,7 @@ export type FixConfigRequest = Message<"vrooli.structure_health.v1.validation.Fi
  * Use `create(FixConfigRequestSchema)` to create a new message.
  */
 export const FixConfigRequestSchema: GenMessage<FixConfigRequest> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 5);
+  messageDesc(file_structure_health_v1_validation_validation, 7);
 
 /**
  * FixConfigResponse lists the proposed (or applied) fix candidates.
@@ -373,7 +486,7 @@ export type FixConfigResponse = Message<"vrooli.structure_health.v1.validation.F
  * Use `create(FixConfigResponseSchema)` to create a new message.
  */
 export const FixConfigResponseSchema: GenMessage<FixConfigResponse> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 6);
+  messageDesc(file_structure_health_v1_validation_validation, 8);
 
 /**
  * AutofixCandidate is one deterministic edit structure-health can make.
@@ -427,7 +540,7 @@ export type AutofixCandidate = Message<"vrooli.structure_health.v1.validation.Au
  * Use `create(AutofixCandidateSchema)` to create a new message.
  */
 export const AutofixCandidateSchema: GenMessage<AutofixCandidate> = /*@__PURE__*/
-  messageDesc(file_structure_health_v1_validation_validation, 7);
+  messageDesc(file_structure_health_v1_validation_validation, 9);
 
 /**
  * @generated from service vrooli.structure_health.v1.validation.ValidationService
@@ -462,6 +575,29 @@ export const ValidationService: GenService<{
     methodKind: "unary";
     input: typeof FixConfigRequestSchema;
     output: typeof FixConfigResponseSchema;
+  },
+  /**
+   * AssignFixedPort switches a scenario's port (default "ui") from a canonical
+   * range to a free, conflict-free fixed port inside the canonical band, so it
+   * can be exposed as a scenario route. Idempotent; apply=false previews.
+   *
+   * @generated from rpc vrooli.structure_health.v1.validation.ValidationService.AssignFixedPort
+   */
+  assignFixedPort: {
+    methodKind: "unary";
+    input: typeof PortSwitchRequestSchema;
+    output: typeof PortSwitchResponseSchema;
+  },
+  /**
+   * ReleaseFixedPort reverts a scenario's port back to the canonical range.
+   * Idempotent; apply=false previews.
+   *
+   * @generated from rpc vrooli.structure_health.v1.validation.ValidationService.ReleaseFixedPort
+   */
+  releaseFixedPort: {
+    methodKind: "unary";
+    input: typeof PortSwitchRequestSchema;
+    output: typeof PortSwitchResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_structure_health_v1_validation_validation, 0);

@@ -567,6 +567,106 @@ func (x *RevokeLeaseResponse) GetRetracted() bool {
 	return false
 }
 
+type UnexposeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario whose active lease should be revoked.
+	Scenario      string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnexposeRequest) Reset() {
+	*x = UnexposeRequest{}
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnexposeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnexposeRequest) ProtoMessage() {}
+
+func (x *UnexposeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnexposeRequest.ProtoReflect.Descriptor instead.
+func (*UnexposeRequest) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UnexposeRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+type UnexposeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True when ingress (and the TM-created DNS record) was retracted; false when
+	// the scenario is also CORE and stays exposed.
+	Retracted bool `protobuf:"varint,1,opt,name=retracted,proto3" json:"retracted,omitempty"`
+	// The revoked lease id, for operator confirmation.
+	LeaseId       string `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnexposeResponse) Reset() {
+	*x = UnexposeResponse{}
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnexposeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnexposeResponse) ProtoMessage() {}
+
+func (x *UnexposeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnexposeResponse.ProtoReflect.Descriptor instead.
+func (*UnexposeResponse) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *UnexposeResponse) GetRetracted() bool {
+	if x != nil {
+		return x.Retracted
+	}
+	return false
+}
+
+func (x *UnexposeResponse) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
 type ListLeasesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional status filter; LEASE_STATUS_UNSPECIFIED returns all.
@@ -577,7 +677,7 @@ type ListLeasesRequest struct {
 
 func (x *ListLeasesRequest) Reset() {
 	*x = ListLeasesRequest{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[8]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -589,7 +689,7 @@ func (x *ListLeasesRequest) String() string {
 func (*ListLeasesRequest) ProtoMessage() {}
 
 func (x *ListLeasesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[8]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -602,7 +702,7 @@ func (x *ListLeasesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLeasesRequest.ProtoReflect.Descriptor instead.
 func (*ListLeasesRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{8}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListLeasesRequest) GetStatus() LeaseStatus {
@@ -621,7 +721,7 @@ type ListLeasesResponse struct {
 
 func (x *ListLeasesResponse) Reset() {
 	*x = ListLeasesResponse{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[9]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -633,7 +733,7 @@ func (x *ListLeasesResponse) String() string {
 func (*ListLeasesResponse) ProtoMessage() {}
 
 func (x *ListLeasesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[9]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -646,7 +746,7 @@ func (x *ListLeasesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLeasesResponse.ProtoReflect.Descriptor instead.
 func (*ListLeasesResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{9}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListLeasesResponse) GetLeases() []*Lease {
@@ -664,7 +764,7 @@ type ListExposuresRequest struct {
 
 func (x *ListExposuresRequest) Reset() {
 	*x = ListExposuresRequest{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[10]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -676,7 +776,7 @@ func (x *ListExposuresRequest) String() string {
 func (*ListExposuresRequest) ProtoMessage() {}
 
 func (x *ListExposuresRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[10]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +789,7 @@ func (x *ListExposuresRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExposuresRequest.ProtoReflect.Descriptor instead.
 func (*ListExposuresRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{10}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{12}
 }
 
 type ListExposuresResponse struct {
@@ -701,7 +801,7 @@ type ListExposuresResponse struct {
 
 func (x *ListExposuresResponse) Reset() {
 	*x = ListExposuresResponse{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[11]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -713,7 +813,7 @@ func (x *ListExposuresResponse) String() string {
 func (*ListExposuresResponse) ProtoMessage() {}
 
 func (x *ListExposuresResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[11]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -726,7 +826,7 @@ func (x *ListExposuresResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListExposuresResponse.ProtoReflect.Descriptor instead.
 func (*ListExposuresResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{11}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListExposuresResponse) GetExposures() []*Exposure {
@@ -745,7 +845,7 @@ type IsExposedRequest struct {
 
 func (x *IsExposedRequest) Reset() {
 	*x = IsExposedRequest{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[12]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -757,7 +857,7 @@ func (x *IsExposedRequest) String() string {
 func (*IsExposedRequest) ProtoMessage() {}
 
 func (x *IsExposedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[12]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -770,7 +870,7 @@ func (x *IsExposedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsExposedRequest.ProtoReflect.Descriptor instead.
 func (*IsExposedRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{12}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *IsExposedRequest) GetScenario() string {
@@ -790,7 +890,7 @@ type IsExposedResponse struct {
 
 func (x *IsExposedResponse) Reset() {
 	*x = IsExposedResponse{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[13]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -802,7 +902,7 @@ func (x *IsExposedResponse) String() string {
 func (*IsExposedResponse) ProtoMessage() {}
 
 func (x *IsExposedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[13]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -815,7 +915,7 @@ func (x *IsExposedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsExposedResponse.ProtoReflect.Descriptor instead.
 func (*IsExposedResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{13}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *IsExposedResponse) GetExposed() bool {
@@ -840,7 +940,7 @@ type ReconcileRequest struct {
 
 func (x *ReconcileRequest) Reset() {
 	*x = ReconcileRequest{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[14]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -852,7 +952,7 @@ func (x *ReconcileRequest) String() string {
 func (*ReconcileRequest) ProtoMessage() {}
 
 func (x *ReconcileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[14]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -865,7 +965,7 @@ func (x *ReconcileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileRequest.ProtoReflect.Descriptor instead.
 func (*ReconcileRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{14}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{16}
 }
 
 type ReconcileResponse struct {
@@ -880,7 +980,7 @@ type ReconcileResponse struct {
 
 func (x *ReconcileResponse) Reset() {
 	*x = ReconcileResponse{}
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[15]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +992,7 @@ func (x *ReconcileResponse) String() string {
 func (*ReconcileResponse) ProtoMessage() {}
 
 func (x *ReconcileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[15]
+	mi := &file_tunnel_manager_v1_exposure_exposure_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +1005,7 @@ func (x *ReconcileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconcileResponse.ProtoReflect.Descriptor instead.
 func (*ReconcileResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{15}
+	return file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ReconcileResponse) GetCoreEnsured() int32 {
@@ -965,7 +1065,12 @@ const file_tunnel_manager_v1_exposure_exposure_proto_rawDesc = "" +
 	"\x12RevokeLeaseRequest\x12\x19\n" +
 	"\blease_id\x18\x01 \x01(\tR\aleaseId\"3\n" +
 	"\x13RevokeLeaseResponse\x12\x1c\n" +
-	"\tretracted\x18\x01 \x01(\bR\tretracted\"[\n" +
+	"\tretracted\x18\x01 \x01(\bR\tretracted\"-\n" +
+	"\x0fUnexposeRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"K\n" +
+	"\x10UnexposeResponse\x12\x1c\n" +
+	"\tretracted\x18\x01 \x01(\bR\tretracted\x12\x19\n" +
+	"\blease_id\x18\x02 \x01(\tR\aleaseId\"[\n" +
 	"\x11ListLeasesRequest\x12F\n" +
 	"\x06status\x18\x01 \x01(\x0e2..vrooli.tunnel_manager.v1.exposure.LeaseStatusR\x06status\"V\n" +
 	"\x12ListLeasesResponse\x12@\n" +
@@ -987,11 +1092,12 @@ const file_tunnel_manager_v1_exposure_exposure_proto_rawDesc = "" +
 	"\x18LEASE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13LEASE_STATUS_ACTIVE\x10\x01\x12\x18\n" +
 	"\x14LEASE_STATUS_EXPIRED\x10\x02\x12\x18\n" +
-	"\x14LEASE_STATUS_REVOKED\x10\x032\xec\x06\n" +
+	"\x14LEASE_STATUS_REVOKED\x10\x032\xe1\a\n" +
 	"\x0fExposureService\x12m\n" +
 	"\x06Expose\x120.vrooli.tunnel_manager.v1.exposure.ExposeRequest\x1a1.vrooli.tunnel_manager.v1.exposure.ExposeResponse\x12|\n" +
 	"\vExtendLease\x125.vrooli.tunnel_manager.v1.exposure.ExtendLeaseRequest\x1a6.vrooli.tunnel_manager.v1.exposure.ExtendLeaseResponse\x12|\n" +
-	"\vRevokeLease\x125.vrooli.tunnel_manager.v1.exposure.RevokeLeaseRequest\x1a6.vrooli.tunnel_manager.v1.exposure.RevokeLeaseResponse\x12y\n" +
+	"\vRevokeLease\x125.vrooli.tunnel_manager.v1.exposure.RevokeLeaseRequest\x1a6.vrooli.tunnel_manager.v1.exposure.RevokeLeaseResponse\x12s\n" +
+	"\bUnexpose\x122.vrooli.tunnel_manager.v1.exposure.UnexposeRequest\x1a3.vrooli.tunnel_manager.v1.exposure.UnexposeResponse\x12y\n" +
 	"\n" +
 	"ListLeases\x124.vrooli.tunnel_manager.v1.exposure.ListLeasesRequest\x1a5.vrooli.tunnel_manager.v1.exposure.ListLeasesResponse\x12\x82\x01\n" +
 	"\rListExposures\x127.vrooli.tunnel_manager.v1.exposure.ListExposuresRequest\x1a8.vrooli.tunnel_manager.v1.exposure.ListExposuresResponse\x12v\n" +
@@ -1011,7 +1117,7 @@ func file_tunnel_manager_v1_exposure_exposure_proto_rawDescGZIP() []byte {
 }
 
 var file_tunnel_manager_v1_exposure_exposure_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tunnel_manager_v1_exposure_exposure_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_tunnel_manager_v1_exposure_exposure_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_tunnel_manager_v1_exposure_exposure_proto_goTypes = []any{
 	(LeaseStatus)(0),              // 0: vrooli.tunnel_manager.v1.exposure.LeaseStatus
 	(*Lease)(nil),                 // 1: vrooli.tunnel_manager.v1.exposure.Lease
@@ -1022,19 +1128,21 @@ var file_tunnel_manager_v1_exposure_exposure_proto_goTypes = []any{
 	(*ExtendLeaseResponse)(nil),   // 6: vrooli.tunnel_manager.v1.exposure.ExtendLeaseResponse
 	(*RevokeLeaseRequest)(nil),    // 7: vrooli.tunnel_manager.v1.exposure.RevokeLeaseRequest
 	(*RevokeLeaseResponse)(nil),   // 8: vrooli.tunnel_manager.v1.exposure.RevokeLeaseResponse
-	(*ListLeasesRequest)(nil),     // 9: vrooli.tunnel_manager.v1.exposure.ListLeasesRequest
-	(*ListLeasesResponse)(nil),    // 10: vrooli.tunnel_manager.v1.exposure.ListLeasesResponse
-	(*ListExposuresRequest)(nil),  // 11: vrooli.tunnel_manager.v1.exposure.ListExposuresRequest
-	(*ListExposuresResponse)(nil), // 12: vrooli.tunnel_manager.v1.exposure.ListExposuresResponse
-	(*IsExposedRequest)(nil),      // 13: vrooli.tunnel_manager.v1.exposure.IsExposedRequest
-	(*IsExposedResponse)(nil),     // 14: vrooli.tunnel_manager.v1.exposure.IsExposedResponse
-	(*ReconcileRequest)(nil),      // 15: vrooli.tunnel_manager.v1.exposure.ReconcileRequest
-	(*ReconcileResponse)(nil),     // 16: vrooli.tunnel_manager.v1.exposure.ReconcileResponse
-	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(*UnexposeRequest)(nil),       // 9: vrooli.tunnel_manager.v1.exposure.UnexposeRequest
+	(*UnexposeResponse)(nil),      // 10: vrooli.tunnel_manager.v1.exposure.UnexposeResponse
+	(*ListLeasesRequest)(nil),     // 11: vrooli.tunnel_manager.v1.exposure.ListLeasesRequest
+	(*ListLeasesResponse)(nil),    // 12: vrooli.tunnel_manager.v1.exposure.ListLeasesResponse
+	(*ListExposuresRequest)(nil),  // 13: vrooli.tunnel_manager.v1.exposure.ListExposuresRequest
+	(*ListExposuresResponse)(nil), // 14: vrooli.tunnel_manager.v1.exposure.ListExposuresResponse
+	(*IsExposedRequest)(nil),      // 15: vrooli.tunnel_manager.v1.exposure.IsExposedRequest
+	(*IsExposedResponse)(nil),     // 16: vrooli.tunnel_manager.v1.exposure.IsExposedResponse
+	(*ReconcileRequest)(nil),      // 17: vrooli.tunnel_manager.v1.exposure.ReconcileRequest
+	(*ReconcileResponse)(nil),     // 18: vrooli.tunnel_manager.v1.exposure.ReconcileResponse
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
 }
 var file_tunnel_manager_v1_exposure_exposure_proto_depIdxs = []int32{
-	17, // 0: vrooli.tunnel_manager.v1.exposure.Lease.created_at:type_name -> google.protobuf.Timestamp
-	17, // 1: vrooli.tunnel_manager.v1.exposure.Lease.expires_at:type_name -> google.protobuf.Timestamp
+	19, // 0: vrooli.tunnel_manager.v1.exposure.Lease.created_at:type_name -> google.protobuf.Timestamp
+	19, // 1: vrooli.tunnel_manager.v1.exposure.Lease.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.tunnel_manager.v1.exposure.Lease.status:type_name -> vrooli.tunnel_manager.v1.exposure.LeaseStatus
 	1,  // 3: vrooli.tunnel_manager.v1.exposure.Exposure.lease:type_name -> vrooli.tunnel_manager.v1.exposure.Lease
 	1,  // 4: vrooli.tunnel_manager.v1.exposure.ExposeResponse.lease:type_name -> vrooli.tunnel_manager.v1.exposure.Lease
@@ -1045,19 +1153,21 @@ var file_tunnel_manager_v1_exposure_exposure_proto_depIdxs = []int32{
 	3,  // 9: vrooli.tunnel_manager.v1.exposure.ExposureService.Expose:input_type -> vrooli.tunnel_manager.v1.exposure.ExposeRequest
 	5,  // 10: vrooli.tunnel_manager.v1.exposure.ExposureService.ExtendLease:input_type -> vrooli.tunnel_manager.v1.exposure.ExtendLeaseRequest
 	7,  // 11: vrooli.tunnel_manager.v1.exposure.ExposureService.RevokeLease:input_type -> vrooli.tunnel_manager.v1.exposure.RevokeLeaseRequest
-	9,  // 12: vrooli.tunnel_manager.v1.exposure.ExposureService.ListLeases:input_type -> vrooli.tunnel_manager.v1.exposure.ListLeasesRequest
-	11, // 13: vrooli.tunnel_manager.v1.exposure.ExposureService.ListExposures:input_type -> vrooli.tunnel_manager.v1.exposure.ListExposuresRequest
-	13, // 14: vrooli.tunnel_manager.v1.exposure.ExposureService.IsExposed:input_type -> vrooli.tunnel_manager.v1.exposure.IsExposedRequest
-	15, // 15: vrooli.tunnel_manager.v1.exposure.ExposureService.Reconcile:input_type -> vrooli.tunnel_manager.v1.exposure.ReconcileRequest
-	4,  // 16: vrooli.tunnel_manager.v1.exposure.ExposureService.Expose:output_type -> vrooli.tunnel_manager.v1.exposure.ExposeResponse
-	6,  // 17: vrooli.tunnel_manager.v1.exposure.ExposureService.ExtendLease:output_type -> vrooli.tunnel_manager.v1.exposure.ExtendLeaseResponse
-	8,  // 18: vrooli.tunnel_manager.v1.exposure.ExposureService.RevokeLease:output_type -> vrooli.tunnel_manager.v1.exposure.RevokeLeaseResponse
-	10, // 19: vrooli.tunnel_manager.v1.exposure.ExposureService.ListLeases:output_type -> vrooli.tunnel_manager.v1.exposure.ListLeasesResponse
-	12, // 20: vrooli.tunnel_manager.v1.exposure.ExposureService.ListExposures:output_type -> vrooli.tunnel_manager.v1.exposure.ListExposuresResponse
-	14, // 21: vrooli.tunnel_manager.v1.exposure.ExposureService.IsExposed:output_type -> vrooli.tunnel_manager.v1.exposure.IsExposedResponse
-	16, // 22: vrooli.tunnel_manager.v1.exposure.ExposureService.Reconcile:output_type -> vrooli.tunnel_manager.v1.exposure.ReconcileResponse
-	16, // [16:23] is the sub-list for method output_type
-	9,  // [9:16] is the sub-list for method input_type
+	9,  // 12: vrooli.tunnel_manager.v1.exposure.ExposureService.Unexpose:input_type -> vrooli.tunnel_manager.v1.exposure.UnexposeRequest
+	11, // 13: vrooli.tunnel_manager.v1.exposure.ExposureService.ListLeases:input_type -> vrooli.tunnel_manager.v1.exposure.ListLeasesRequest
+	13, // 14: vrooli.tunnel_manager.v1.exposure.ExposureService.ListExposures:input_type -> vrooli.tunnel_manager.v1.exposure.ListExposuresRequest
+	15, // 15: vrooli.tunnel_manager.v1.exposure.ExposureService.IsExposed:input_type -> vrooli.tunnel_manager.v1.exposure.IsExposedRequest
+	17, // 16: vrooli.tunnel_manager.v1.exposure.ExposureService.Reconcile:input_type -> vrooli.tunnel_manager.v1.exposure.ReconcileRequest
+	4,  // 17: vrooli.tunnel_manager.v1.exposure.ExposureService.Expose:output_type -> vrooli.tunnel_manager.v1.exposure.ExposeResponse
+	6,  // 18: vrooli.tunnel_manager.v1.exposure.ExposureService.ExtendLease:output_type -> vrooli.tunnel_manager.v1.exposure.ExtendLeaseResponse
+	8,  // 19: vrooli.tunnel_manager.v1.exposure.ExposureService.RevokeLease:output_type -> vrooli.tunnel_manager.v1.exposure.RevokeLeaseResponse
+	10, // 20: vrooli.tunnel_manager.v1.exposure.ExposureService.Unexpose:output_type -> vrooli.tunnel_manager.v1.exposure.UnexposeResponse
+	12, // 21: vrooli.tunnel_manager.v1.exposure.ExposureService.ListLeases:output_type -> vrooli.tunnel_manager.v1.exposure.ListLeasesResponse
+	14, // 22: vrooli.tunnel_manager.v1.exposure.ExposureService.ListExposures:output_type -> vrooli.tunnel_manager.v1.exposure.ListExposuresResponse
+	16, // 23: vrooli.tunnel_manager.v1.exposure.ExposureService.IsExposed:output_type -> vrooli.tunnel_manager.v1.exposure.IsExposedResponse
+	18, // 24: vrooli.tunnel_manager.v1.exposure.ExposureService.Reconcile:output_type -> vrooli.tunnel_manager.v1.exposure.ReconcileResponse
+	17, // [17:25] is the sub-list for method output_type
+	9,  // [9:17] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
 	9,  // [9:9] is the sub-list for extension extendee
 	0,  // [0:9] is the sub-list for field type_name
@@ -1074,7 +1184,7 @@ func file_tunnel_manager_v1_exposure_exposure_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tunnel_manager_v1_exposure_exposure_proto_rawDesc), len(file_tunnel_manager_v1_exposure_exposure_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

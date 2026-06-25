@@ -41,6 +41,9 @@ const (
 	// ExposureServiceRevokeLeaseProcedure is the fully-qualified name of the ExposureService's
 	// RevokeLease RPC.
 	ExposureServiceRevokeLeaseProcedure = "/vrooli.tunnel_manager.v1.exposure.ExposureService/RevokeLease"
+	// ExposureServiceUnexposeProcedure is the fully-qualified name of the ExposureService's Unexpose
+	// RPC.
+	ExposureServiceUnexposeProcedure = "/vrooli.tunnel_manager.v1.exposure.ExposureService/Unexpose"
 	// ExposureServiceListLeasesProcedure is the fully-qualified name of the ExposureService's
 	// ListLeases RPC.
 	ExposureServiceListLeasesProcedure = "/vrooli.tunnel_manager.v1.exposure.ExposureService/ListLeases"
@@ -68,6 +71,11 @@ type ExposureServiceClient interface {
 	// RevokeLease ends a lease immediately and retracts ingress unless the
 	// scenario is also CORE.
 	RevokeLease(context.Context, *connect.Request[exposure.RevokeLeaseRequest]) (*connect.Response[exposure.RevokeLeaseResponse], error)
+	// Unexpose revokes a scenario's active lease BY SCENARIO NAME (a friendlier
+	// surface than looking up a lease id), retracting ingress and the TM-created
+	// DNS record unless the scenario is also CORE. NotFound when no active lease
+	// exists. It is the thin server-side primitive behind the `unexpose` alias.
+	Unexpose(context.Context, *connect.Request[exposure.UnexposeRequest]) (*connect.Response[exposure.UnexposeResponse], error)
 	// ListLeases returns leases, optionally filtered by status.
 	ListLeases(context.Context, *connect.Request[exposure.ListLeasesRequest]) (*connect.Response[exposure.ListLeasesResponse], error)
 	// ListExposures returns the reconciled exposure state per scenario (tier,
@@ -111,6 +119,12 @@ func NewExposureServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(exposureServiceMethods.ByName("RevokeLease")),
 			connect.WithClientOptions(opts...),
 		),
+		unexpose: connect.NewClient[exposure.UnexposeRequest, exposure.UnexposeResponse](
+			httpClient,
+			baseURL+ExposureServiceUnexposeProcedure,
+			connect.WithSchema(exposureServiceMethods.ByName("Unexpose")),
+			connect.WithClientOptions(opts...),
+		),
 		listLeases: connect.NewClient[exposure.ListLeasesRequest, exposure.ListLeasesResponse](
 			httpClient,
 			baseURL+ExposureServiceListLeasesProcedure,
@@ -143,6 +157,7 @@ type exposureServiceClient struct {
 	expose        *connect.Client[exposure.ExposeRequest, exposure.ExposeResponse]
 	extendLease   *connect.Client[exposure.ExtendLeaseRequest, exposure.ExtendLeaseResponse]
 	revokeLease   *connect.Client[exposure.RevokeLeaseRequest, exposure.RevokeLeaseResponse]
+	unexpose      *connect.Client[exposure.UnexposeRequest, exposure.UnexposeResponse]
 	listLeases    *connect.Client[exposure.ListLeasesRequest, exposure.ListLeasesResponse]
 	listExposures *connect.Client[exposure.ListExposuresRequest, exposure.ListExposuresResponse]
 	isExposed     *connect.Client[exposure.IsExposedRequest, exposure.IsExposedResponse]
@@ -162,6 +177,11 @@ func (c *exposureServiceClient) ExtendLease(ctx context.Context, req *connect.Re
 // RevokeLease calls vrooli.tunnel_manager.v1.exposure.ExposureService.RevokeLease.
 func (c *exposureServiceClient) RevokeLease(ctx context.Context, req *connect.Request[exposure.RevokeLeaseRequest]) (*connect.Response[exposure.RevokeLeaseResponse], error) {
 	return c.revokeLease.CallUnary(ctx, req)
+}
+
+// Unexpose calls vrooli.tunnel_manager.v1.exposure.ExposureService.Unexpose.
+func (c *exposureServiceClient) Unexpose(ctx context.Context, req *connect.Request[exposure.UnexposeRequest]) (*connect.Response[exposure.UnexposeResponse], error) {
+	return c.unexpose.CallUnary(ctx, req)
 }
 
 // ListLeases calls vrooli.tunnel_manager.v1.exposure.ExposureService.ListLeases.
@@ -197,6 +217,11 @@ type ExposureServiceHandler interface {
 	// RevokeLease ends a lease immediately and retracts ingress unless the
 	// scenario is also CORE.
 	RevokeLease(context.Context, *connect.Request[exposure.RevokeLeaseRequest]) (*connect.Response[exposure.RevokeLeaseResponse], error)
+	// Unexpose revokes a scenario's active lease BY SCENARIO NAME (a friendlier
+	// surface than looking up a lease id), retracting ingress and the TM-created
+	// DNS record unless the scenario is also CORE. NotFound when no active lease
+	// exists. It is the thin server-side primitive behind the `unexpose` alias.
+	Unexpose(context.Context, *connect.Request[exposure.UnexposeRequest]) (*connect.Response[exposure.UnexposeResponse], error)
 	// ListLeases returns leases, optionally filtered by status.
 	ListLeases(context.Context, *connect.Request[exposure.ListLeasesRequest]) (*connect.Response[exposure.ListLeasesResponse], error)
 	// ListExposures returns the reconciled exposure state per scenario (tier,
@@ -235,6 +260,12 @@ func NewExposureServiceHandler(svc ExposureServiceHandler, opts ...connect.Handl
 		connect.WithSchema(exposureServiceMethods.ByName("RevokeLease")),
 		connect.WithHandlerOptions(opts...),
 	)
+	exposureServiceUnexposeHandler := connect.NewUnaryHandler(
+		ExposureServiceUnexposeProcedure,
+		svc.Unexpose,
+		connect.WithSchema(exposureServiceMethods.ByName("Unexpose")),
+		connect.WithHandlerOptions(opts...),
+	)
 	exposureServiceListLeasesHandler := connect.NewUnaryHandler(
 		ExposureServiceListLeasesProcedure,
 		svc.ListLeases,
@@ -267,6 +298,8 @@ func NewExposureServiceHandler(svc ExposureServiceHandler, opts ...connect.Handl
 			exposureServiceExtendLeaseHandler.ServeHTTP(w, r)
 		case ExposureServiceRevokeLeaseProcedure:
 			exposureServiceRevokeLeaseHandler.ServeHTTP(w, r)
+		case ExposureServiceUnexposeProcedure:
+			exposureServiceUnexposeHandler.ServeHTTP(w, r)
 		case ExposureServiceListLeasesProcedure:
 			exposureServiceListLeasesHandler.ServeHTTP(w, r)
 		case ExposureServiceListExposuresProcedure:
@@ -294,6 +327,10 @@ func (UnimplementedExposureServiceHandler) ExtendLease(context.Context, *connect
 
 func (UnimplementedExposureServiceHandler) RevokeLease(context.Context, *connect.Request[exposure.RevokeLeaseRequest]) (*connect.Response[exposure.RevokeLeaseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.exposure.ExposureService.RevokeLease is not implemented"))
+}
+
+func (UnimplementedExposureServiceHandler) Unexpose(context.Context, *connect.Request[exposure.UnexposeRequest]) (*connect.Response[exposure.UnexposeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.exposure.ExposureService.Unexpose is not implemented"))
 }
 
 func (UnimplementedExposureServiceHandler) ListLeases(context.Context, *connect.Request[exposure.ListLeasesRequest]) (*connect.Response[exposure.ListLeasesResponse], error) {

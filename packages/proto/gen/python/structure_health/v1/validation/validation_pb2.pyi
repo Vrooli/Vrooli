@@ -7,6 +7,40 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class PortSwitchRequest(_message.Message):
+    __slots__ = ("scenario", "path", "port_name", "apply")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    PORT_NAME_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    path: str
+    port_name: str
+    apply: bool
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., port_name: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class PortSwitchResponse(_message.Message):
+    __slots__ = ("scenario", "port_name", "previous_port", "assigned_port", "changed", "applied", "before", "after", "message")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PORT_NAME_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_PORT_FIELD_NUMBER: _ClassVar[int]
+    ASSIGNED_PORT_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_FIELD_NUMBER: _ClassVar[int]
+    AFTER_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    port_name: str
+    previous_port: int
+    assigned_port: int
+    changed: bool
+    applied: bool
+    before: str
+    after: str
+    message: str
+    def __init__(self, scenario: _Optional[str] = ..., port_name: _Optional[str] = ..., previous_port: _Optional[int] = ..., assigned_port: _Optional[int] = ..., changed: _Optional[bool] = ..., applied: _Optional[bool] = ..., before: _Optional[str] = ..., after: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
 class ValidateScenarioRequest(_message.Message):
     __slots__ = ("scenario", "path", "include_execution")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

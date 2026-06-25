@@ -42,6 +42,12 @@ const (
 	// ValidationServiceApplyFixConfigProcedure is the fully-qualified name of the ValidationService's
 	// ApplyFixConfig RPC.
 	ValidationServiceApplyFixConfigProcedure = "/vrooli.structure_health.v1.validation.ValidationService/ApplyFixConfig"
+	// ValidationServiceAssignFixedPortProcedure is the fully-qualified name of the ValidationService's
+	// AssignFixedPort RPC.
+	ValidationServiceAssignFixedPortProcedure = "/vrooli.structure_health.v1.validation.ValidationService/AssignFixedPort"
+	// ValidationServiceReleaseFixedPortProcedure is the fully-qualified name of the ValidationService's
+	// ReleaseFixedPort RPC.
+	ValidationServiceReleaseFixedPortProcedure = "/vrooli.structure_health.v1.validation.ValidationService/ReleaseFixedPort"
 )
 
 // ValidationServiceClient is a client for the
@@ -54,6 +60,13 @@ type ValidationServiceClient interface {
 	// ApplyFixConfig applies the deterministic fixes (format-preserving
 	// service.json edits / skeleton file creation) and reports what changed.
 	ApplyFixConfig(context.Context, *connect.Request[validation.FixConfigRequest]) (*connect.Response[validation.FixConfigResponse], error)
+	// AssignFixedPort switches a scenario's port (default "ui") from a canonical
+	// range to a free, conflict-free fixed port inside the canonical band, so it
+	// can be exposed as a scenario route. Idempotent; apply=false previews.
+	AssignFixedPort(context.Context, *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error)
+	// ReleaseFixedPort reverts a scenario's port back to the canonical range.
+	// Idempotent; apply=false previews.
+	ReleaseFixedPort(context.Context, *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error)
 }
 
 // NewValidationServiceClient constructs a client for the
@@ -86,6 +99,18 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(validationServiceMethods.ByName("ApplyFixConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		assignFixedPort: connect.NewClient[validation.PortSwitchRequest, validation.PortSwitchResponse](
+			httpClient,
+			baseURL+ValidationServiceAssignFixedPortProcedure,
+			connect.WithSchema(validationServiceMethods.ByName("AssignFixedPort")),
+			connect.WithClientOptions(opts...),
+		),
+		releaseFixedPort: connect.NewClient[validation.PortSwitchRequest, validation.PortSwitchResponse](
+			httpClient,
+			baseURL+ValidationServiceReleaseFixedPortProcedure,
+			connect.WithSchema(validationServiceMethods.ByName("ReleaseFixedPort")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -94,6 +119,8 @@ type validationServiceClient struct {
 	validateScenario *connect.Client[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse]
 	previewFixConfig *connect.Client[validation.FixConfigRequest, validation.FixConfigResponse]
 	applyFixConfig   *connect.Client[validation.FixConfigRequest, validation.FixConfigResponse]
+	assignFixedPort  *connect.Client[validation.PortSwitchRequest, validation.PortSwitchResponse]
+	releaseFixedPort *connect.Client[validation.PortSwitchRequest, validation.PortSwitchResponse]
 }
 
 // ValidateScenario calls vrooli.structure_health.v1.validation.ValidationService.ValidateScenario.
@@ -111,6 +138,16 @@ func (c *validationServiceClient) ApplyFixConfig(ctx context.Context, req *conne
 	return c.applyFixConfig.CallUnary(ctx, req)
 }
 
+// AssignFixedPort calls vrooli.structure_health.v1.validation.ValidationService.AssignFixedPort.
+func (c *validationServiceClient) AssignFixedPort(ctx context.Context, req *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error) {
+	return c.assignFixedPort.CallUnary(ctx, req)
+}
+
+// ReleaseFixedPort calls vrooli.structure_health.v1.validation.ValidationService.ReleaseFixedPort.
+func (c *validationServiceClient) ReleaseFixedPort(ctx context.Context, req *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error) {
+	return c.releaseFixedPort.CallUnary(ctx, req)
+}
+
 // ValidationServiceHandler is an implementation of the
 // vrooli.structure_health.v1.validation.ValidationService service.
 type ValidationServiceHandler interface {
@@ -121,6 +158,13 @@ type ValidationServiceHandler interface {
 	// ApplyFixConfig applies the deterministic fixes (format-preserving
 	// service.json edits / skeleton file creation) and reports what changed.
 	ApplyFixConfig(context.Context, *connect.Request[validation.FixConfigRequest]) (*connect.Response[validation.FixConfigResponse], error)
+	// AssignFixedPort switches a scenario's port (default "ui") from a canonical
+	// range to a free, conflict-free fixed port inside the canonical band, so it
+	// can be exposed as a scenario route. Idempotent; apply=false previews.
+	AssignFixedPort(context.Context, *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error)
+	// ReleaseFixedPort reverts a scenario's port back to the canonical range.
+	// Idempotent; apply=false previews.
+	ReleaseFixedPort(context.Context, *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error)
 }
 
 // NewValidationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -148,6 +192,18 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 		connect.WithSchema(validationServiceMethods.ByName("ApplyFixConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	validationServiceAssignFixedPortHandler := connect.NewUnaryHandler(
+		ValidationServiceAssignFixedPortProcedure,
+		svc.AssignFixedPort,
+		connect.WithSchema(validationServiceMethods.ByName("AssignFixedPort")),
+		connect.WithHandlerOptions(opts...),
+	)
+	validationServiceReleaseFixedPortHandler := connect.NewUnaryHandler(
+		ValidationServiceReleaseFixedPortProcedure,
+		svc.ReleaseFixedPort,
+		connect.WithSchema(validationServiceMethods.ByName("ReleaseFixedPort")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.structure_health.v1.validation.ValidationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ValidationServiceValidateScenarioProcedure:
@@ -156,6 +212,10 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 			validationServicePreviewFixConfigHandler.ServeHTTP(w, r)
 		case ValidationServiceApplyFixConfigProcedure:
 			validationServiceApplyFixConfigHandler.ServeHTTP(w, r)
+		case ValidationServiceAssignFixedPortProcedure:
+			validationServiceAssignFixedPortHandler.ServeHTTP(w, r)
+		case ValidationServiceReleaseFixedPortProcedure:
+			validationServiceReleaseFixedPortHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -175,4 +235,12 @@ func (UnimplementedValidationServiceHandler) PreviewFixConfig(context.Context, *
 
 func (UnimplementedValidationServiceHandler) ApplyFixConfig(context.Context, *connect.Request[validation.FixConfigRequest]) (*connect.Response[validation.FixConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.structure_health.v1.validation.ValidationService.ApplyFixConfig is not implemented"))
+}
+
+func (UnimplementedValidationServiceHandler) AssignFixedPort(context.Context, *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.structure_health.v1.validation.ValidationService.AssignFixedPort is not implemented"))
+}
+
+func (UnimplementedValidationServiceHandler) ReleaseFixedPort(context.Context, *connect.Request[validation.PortSwitchRequest]) (*connect.Response[validation.PortSwitchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.structure_health.v1.validation.ValidationService.ReleaseFixedPort is not implemented"))
 }

@@ -101,6 +101,20 @@ class RevokeLeaseResponse(_message.Message):
     retracted: bool
     def __init__(self, retracted: _Optional[bool] = ...) -> None: ...
 
+class UnexposeRequest(_message.Message):
+    __slots__ = ("scenario",)
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    def __init__(self, scenario: _Optional[str] = ...) -> None: ...
+
+class UnexposeResponse(_message.Message):
+    __slots__ = ("retracted", "lease_id")
+    RETRACTED_FIELD_NUMBER: _ClassVar[int]
+    LEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    retracted: bool
+    lease_id: str
+    def __init__(self, retracted: _Optional[bool] = ..., lease_id: _Optional[str] = ...) -> None: ...
+
 class ListLeasesRequest(_message.Message):
     __slots__ = ("status",)
     STATUS_FIELD_NUMBER: _ClassVar[int]

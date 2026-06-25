@@ -120,7 +120,12 @@ type Run struct {
 	// Error from post-run sandbox finalization, when finalization failed.
 	FinalizationError string `protobuf:"bytes,34,opt,name=finalization_error,json=finalizationError,proto3" json:"finalization_error,omitempty"`
 	// When post-run sandbox finalization reached a terminal state.
-	FinalizedAt   *timestamppb.Timestamp `protobuf:"bytes,35,opt,name=finalized_at,json=finalizedAt,proto3,oneof" json:"finalized_at,omitempty"`
+	FinalizedAt *timestamppb.Timestamp `protobuf:"bytes,35,opt,name=finalized_at,json=finalizedAt,proto3,oneof" json:"finalized_at,omitempty"`
+	// Externally-owned async work this run is parked on (set only while
+	// status == RUN_STATUS_PARKED; nil otherwise). Surfaced so operators see
+	// what a parked run is waiting on and its ETA — a parked run is suspended,
+	// not hung.
+	AwaitHandle   *AwaitHandle `protobuf:"bytes,36,opt,name=await_handle,json=awaitHandle,proto3,oneof" json:"await_handle,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -400,6 +405,95 @@ func (x *Run) GetFinalizedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Run) GetAwaitHandle() *AwaitHandle {
+	if x != nil {
+		return x.AwaitHandle
+	}
+	return nil
+}
+
+// AwaitHandle identifies the externally-owned async work a parked run is
+// blocked on. agent-manager (which owns the agent process) performs the
+// blocking wait on the agent's behalf via a per-producer Waiter and wakes the
+// run when the handle resolves (or its deadline elapses). Present only on a
+// parked run; observability for "parked != hung".
+//
+// @usage Run.await_handle
+type AwaitHandle struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Producer that resolves this handle (e.g. "test-genie", "git-control-tower").
+	Producer string `protobuf:"bytes,1,opt,name=producer,proto3" json:"producer,omitempty"`
+	// Producer-scoped identifier of the awaited work (e.g. "<scenario>/<run-id>").
+	Key string `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	// Wait deadline. When it elapses agent-manager wakes the run with a typed
+	// timeout result rather than hanging. Always populated on a persisted handle
+	// (the orchestrator default ParkTTL is applied at park time when no explicit
+	// deadline is supplied).
+	Deadline *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=deadline,proto3,oneof" json:"deadline,omitempty"`
+	// When the run was parked (for observability / ETA display).
+	RegisteredAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=registered_at,json=registeredAt,proto3" json:"registered_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AwaitHandle) Reset() {
+	*x = AwaitHandle{}
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AwaitHandle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AwaitHandle) ProtoMessage() {}
+
+func (x *AwaitHandle) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AwaitHandle.ProtoReflect.Descriptor instead.
+func (*AwaitHandle) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AwaitHandle) GetProducer() string {
+	if x != nil {
+		return x.Producer
+	}
+	return ""
+}
+
+func (x *AwaitHandle) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AwaitHandle) GetDeadline() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Deadline
+	}
+	return nil
+}
+
+func (x *AwaitHandle) GetRegisteredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RegisteredAt
+	}
+	return nil
+}
+
 // RunActions captures which operations are currently allowed for a run.
 //
 // @usage Run.actions
@@ -434,7 +528,7 @@ type RunActions struct {
 
 func (x *RunActions) Reset() {
 	*x = RunActions{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[1]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +540,7 @@ func (x *RunActions) String() string {
 func (*RunActions) ProtoMessage() {}
 
 func (x *RunActions) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[1]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +553,7 @@ func (x *RunActions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunActions.ProtoReflect.Descriptor instead.
 func (*RunActions) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{1}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RunActions) GetCanInvestigate() bool {
@@ -604,7 +698,7 @@ type RunSummary struct {
 
 func (x *RunSummary) Reset() {
 	*x = RunSummary{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -616,7 +710,7 @@ func (x *RunSummary) String() string {
 func (*RunSummary) ProtoMessage() {}
 
 func (x *RunSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[2]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -629,7 +723,7 @@ func (x *RunSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunSummary.ProtoReflect.Descriptor instead.
 func (*RunSummary) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{2}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RunSummary) GetDescription() string {
@@ -727,7 +821,7 @@ type RunCheckpoint struct {
 
 func (x *RunCheckpoint) Reset() {
 	*x = RunCheckpoint{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -739,7 +833,7 @@ func (x *RunCheckpoint) String() string {
 func (*RunCheckpoint) ProtoMessage() {}
 
 func (x *RunCheckpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[3]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -752,7 +846,7 @@ func (x *RunCheckpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunCheckpoint.ProtoReflect.Descriptor instead.
 func (*RunCheckpoint) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{3}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RunCheckpoint) GetRunId() string {
@@ -859,7 +953,7 @@ type RunProgress struct {
 
 func (x *RunProgress) Reset() {
 	*x = RunProgress{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -871,7 +965,7 @@ func (x *RunProgress) String() string {
 func (*RunProgress) ProtoMessage() {}
 
 func (x *RunProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[4]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -884,7 +978,7 @@ func (x *RunProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunProgress.ProtoReflect.Descriptor instead.
 func (*RunProgress) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{4}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RunProgress) GetPhase() RunPhase {
@@ -966,7 +1060,7 @@ type IdempotencyRecord struct {
 
 func (x *IdempotencyRecord) Reset() {
 	*x = IdempotencyRecord{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +1072,7 @@ func (x *IdempotencyRecord) String() string {
 func (*IdempotencyRecord) ProtoMessage() {}
 
 func (x *IdempotencyRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[5]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +1085,7 @@ func (x *IdempotencyRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IdempotencyRecord.ProtoReflect.Descriptor instead.
 func (*IdempotencyRecord) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{5}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *IdempotencyRecord) GetKey() string {
@@ -1068,7 +1162,7 @@ type RunnerStatus struct {
 
 func (x *RunnerStatus) Reset() {
 	*x = RunnerStatus{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1080,7 +1174,7 @@ func (x *RunnerStatus) String() string {
 func (*RunnerStatus) ProtoMessage() {}
 
 func (x *RunnerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1093,7 +1187,7 @@ func (x *RunnerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunnerStatus.ProtoReflect.Descriptor instead.
 func (*RunnerStatus) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RunnerStatus) GetRunnerType() RunnerType {
@@ -1167,7 +1261,7 @@ type RunnerCapabilities struct {
 
 func (x *RunnerCapabilities) Reset() {
 	*x = RunnerCapabilities{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1179,7 +1273,7 @@ func (x *RunnerCapabilities) String() string {
 func (*RunnerCapabilities) ProtoMessage() {}
 
 func (x *RunnerCapabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1192,7 +1286,7 @@ func (x *RunnerCapabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunnerCapabilities.ProtoReflect.Descriptor instead.
 func (*RunnerCapabilities) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RunnerCapabilities) GetSupportsStreaming() bool {
@@ -1277,7 +1371,7 @@ type ProbeResult struct {
 
 func (x *ProbeResult) Reset() {
 	*x = ProbeResult{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1383,7 @@ func (x *ProbeResult) String() string {
 func (*ProbeResult) ProtoMessage() {}
 
 func (x *ProbeResult) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1396,7 @@ func (x *ProbeResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbeResult.ProtoReflect.Descriptor instead.
 func (*ProbeResult) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{8}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ProbeResult) GetSuccess() bool {
@@ -1348,7 +1442,7 @@ type StopAllResult struct {
 
 func (x *StopAllResult) Reset() {
 	*x = StopAllResult{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1360,7 +1454,7 @@ func (x *StopAllResult) String() string {
 func (*StopAllResult) ProtoMessage() {}
 
 func (x *StopAllResult) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1373,7 +1467,7 @@ func (x *StopAllResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopAllResult.ProtoReflect.Descriptor instead.
 func (*StopAllResult) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StopAllResult) GetStoppedCount() int32 {
@@ -1404,7 +1498,7 @@ type StopFailure struct {
 
 func (x *StopFailure) Reset() {
 	*x = StopFailure{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1416,7 +1510,7 @@ func (x *StopFailure) String() string {
 func (*StopFailure) ProtoMessage() {}
 
 func (x *StopFailure) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1429,7 +1523,7 @@ func (x *StopFailure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopFailure.ProtoReflect.Descriptor instead.
 func (*StopFailure) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{10}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StopFailure) GetRunId() string {
@@ -1469,7 +1563,7 @@ type ApproveResult struct {
 
 func (x *ApproveResult) Reset() {
 	*x = ApproveResult{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1481,7 +1575,7 @@ func (x *ApproveResult) String() string {
 func (*ApproveResult) ProtoMessage() {}
 
 func (x *ApproveResult) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1494,7 +1588,7 @@ func (x *ApproveResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveResult.ProtoReflect.Descriptor instead.
 func (*ApproveResult) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ApproveResult) GetSuccess() bool {
@@ -1559,7 +1653,7 @@ type RunDiff struct {
 
 func (x *RunDiff) Reset() {
 	*x = RunDiff{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1571,7 +1665,7 @@ func (x *RunDiff) String() string {
 func (*RunDiff) ProtoMessage() {}
 
 func (x *RunDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1584,7 +1678,7 @@ func (x *RunDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunDiff.ProtoReflect.Descriptor instead.
 func (*RunDiff) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RunDiff) GetRunId() string {
@@ -1639,7 +1733,7 @@ type FileDiff struct {
 
 func (x *FileDiff) Reset() {
 	*x = FileDiff{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1651,7 +1745,7 @@ func (x *FileDiff) String() string {
 func (*FileDiff) ProtoMessage() {}
 
 func (x *FileDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[13]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1664,7 +1758,7 @@ func (x *FileDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileDiff.ProtoReflect.Descriptor instead.
 func (*FileDiff) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{13}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FileDiff) GetPath() string {
@@ -1740,7 +1834,7 @@ type Attachment struct {
 
 func (x *Attachment) Reset() {
 	*x = Attachment{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1752,7 +1846,7 @@ func (x *Attachment) String() string {
 func (*Attachment) ProtoMessage() {}
 
 func (x *Attachment) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[14]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1765,7 +1859,7 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
 func (*Attachment) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{14}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Attachment) GetId() string {
@@ -1831,7 +1925,7 @@ type ContinueRunRequest struct {
 
 func (x *ContinueRunRequest) Reset() {
 	*x = ContinueRunRequest{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1843,7 +1937,7 @@ func (x *ContinueRunRequest) String() string {
 func (*ContinueRunRequest) ProtoMessage() {}
 
 func (x *ContinueRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[15]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1856,7 +1950,7 @@ func (x *ContinueRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContinueRunRequest.ProtoReflect.Descriptor instead.
 func (*ContinueRunRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{15}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ContinueRunRequest) GetRunId() string {
@@ -1900,7 +1994,7 @@ type ContinueRunResponse struct {
 
 func (x *ContinueRunResponse) Reset() {
 	*x = ContinueRunResponse{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1912,7 +2006,7 @@ func (x *ContinueRunResponse) String() string {
 func (*ContinueRunResponse) ProtoMessage() {}
 
 func (x *ContinueRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[16]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1925,7 +2019,7 @@ func (x *ContinueRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContinueRunResponse.ProtoReflect.Descriptor instead.
 func (*ContinueRunResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{16}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ContinueRunResponse) GetSuccess() bool {
@@ -1975,7 +2069,7 @@ type DeleteRunMessageRequest struct {
 
 func (x *DeleteRunMessageRequest) Reset() {
 	*x = DeleteRunMessageRequest{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1987,7 +2081,7 @@ func (x *DeleteRunMessageRequest) String() string {
 func (*DeleteRunMessageRequest) ProtoMessage() {}
 
 func (x *DeleteRunMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[17]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2000,7 +2094,7 @@ func (x *DeleteRunMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRunMessageRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRunMessageRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{17}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeleteRunMessageRequest) GetRunId() string {
@@ -2030,7 +2124,7 @@ type DeleteRunMessageResponse struct {
 
 func (x *DeleteRunMessageResponse) Reset() {
 	*x = DeleteRunMessageResponse{}
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2042,7 +2136,7 @@ func (x *DeleteRunMessageResponse) String() string {
 func (*DeleteRunMessageResponse) ProtoMessage() {}
 
 func (x *DeleteRunMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[18]
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2055,7 +2149,7 @@ func (x *DeleteRunMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRunMessageResponse.ProtoReflect.Descriptor instead.
 func (*DeleteRunMessageResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{18}
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteRunMessageResponse) GetSuccess() bool {
@@ -2065,11 +2159,305 @@ func (x *DeleteRunMessageResponse) GetSuccess() bool {
 	return false
 }
 
+// ParkRunRequest suspends a running run on externally-owned async work.
+//
+// Called from inside an agent-manager-controlled run (the in-run CLI carries
+// VROOLI_AGENT_IDENTITY_TOKEN) when the agent issues an async request whose
+// result agent-manager can wait for on its behalf — e.g. a test-genie run or a
+// git-control-tower baseline diff. The run transitions running→parked (process
+// exits, zero tokens) and is woken with the resolved result injected as the next
+// turn once the producer completes (or the park deadline elapses). The caller
+// must be the owning, live run: the identity token's run_id must match the path.
+//
+// @usage POST /api/v1/runs/{id}/park
+type ParkRunRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Run ID to park.
+	// @format uuid
+	RunId string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// Producer that will resolve the await-handle (e.g. "test-genie",
+	// "git-control-tower"). Identifies the Waiter agent-manager drives.
+	Producer string `protobuf:"bytes,2,opt,name=producer,proto3" json:"producer,omitempty"`
+	// Producer-scoped identifier of the awaited work (e.g. "<scenario>/<run-id>").
+	Key string `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	// Optional wait deadline as a Unix timestamp (seconds). 0 ⇒ now + default
+	// park TTL. A handle that never resolves is woken with a typed timeout result
+	// at this deadline rather than hanging forever.
+	DeadlineUnix int64 `protobuf:"varint,4,opt,name=deadline_unix,json=deadlineUnix,proto3" json:"deadline_unix,omitempty"`
+	// The owning run's VROOLI_AGENT_IDENTITY_TOKEN. Authenticates the caller as
+	// the run being parked; the server rejects a token whose run_id differs from
+	// the path or that fails verification.
+	IdentityToken string `protobuf:"bytes,5,opt,name=identity_token,json=identityToken,proto3" json:"identity_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ParkRunRequest) Reset() {
+	*x = ParkRunRequest{}
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ParkRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ParkRunRequest) ProtoMessage() {}
+
+func (x *ParkRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ParkRunRequest.ProtoReflect.Descriptor instead.
+func (*ParkRunRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ParkRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *ParkRunRequest) GetProducer() string {
+	if x != nil {
+		return x.Producer
+	}
+	return ""
+}
+
+func (x *ParkRunRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ParkRunRequest) GetDeadlineUnix() int64 {
+	if x != nil {
+		return x.DeadlineUnix
+	}
+	return 0
+}
+
+func (x *ParkRunRequest) GetIdentityToken() string {
+	if x != nil {
+		return x.IdentityToken
+	}
+	return ""
+}
+
+// ParkRunResponse confirms a park and carries the clean turn-ending message.
+//
+// @usage POST /api/v1/runs/{id}/park response
+type ParkRunResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the run was parked.
+	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	// The parked run.
+	Run *Run `protobuf:"bytes,2,opt,name=run,proto3" json:"run,omitempty"`
+	// Clean tool-result text the in-run command prints before agent-manager ends
+	// the turn (so the agent sees an explicit "parked, resuming later" outcome
+	// rather than an abrupt kill).
+	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ParkRunResponse) Reset() {
+	*x = ParkRunResponse{}
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ParkRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ParkRunResponse) ProtoMessage() {}
+
+func (x *ParkRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ParkRunResponse.ProtoReflect.Descriptor instead.
+func (*ParkRunResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ParkRunResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *ParkRunResponse) GetRun() *Run {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *ParkRunResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+// WakeRunRequest resumes a parked run with the awaited result injected as the
+// next user turn. Primarily orchestrator-internal (the waiter goroutine drives
+// wake on resolve/timeout); the endpoint exists for manual/ops recovery.
+//
+// @usage POST /api/v1/runs/{id}/wake
+type WakeRunRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Run ID to wake.
+	// @format uuid
+	RunId string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// The resolved awaited result, injected as the next user turn.
+	Result string `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
+	// Whether the park deadline elapsed without resolution. When true the injected
+	// message is framed as a typed timeout so the agent stays in control.
+	TimedOut      bool `protobuf:"varint,3,opt,name=timed_out,json=timedOut,proto3" json:"timed_out,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WakeRunRequest) Reset() {
+	*x = WakeRunRequest{}
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WakeRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WakeRunRequest) ProtoMessage() {}
+
+func (x *WakeRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WakeRunRequest.ProtoReflect.Descriptor instead.
+func (*WakeRunRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *WakeRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *WakeRunRequest) GetResult() string {
+	if x != nil {
+		return x.Result
+	}
+	return ""
+}
+
+func (x *WakeRunRequest) GetTimedOut() bool {
+	if x != nil {
+		return x.TimedOut
+	}
+	return false
+}
+
+// WakeRunResponse confirms a wake.
+//
+// @usage POST /api/v1/runs/{id}/wake response
+type WakeRunResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the wake started (false when the run was no longer parked — wake is
+	// idempotent, so a no-op is reported as success=false without an error).
+	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	// The woken (or unchanged) run.
+	Run           *Run `protobuf:"bytes,2,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WakeRunResponse) Reset() {
+	*x = WakeRunResponse{}
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WakeRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WakeRunResponse) ProtoMessage() {}
+
+func (x *WakeRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_run_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WakeRunResponse.ProtoReflect.Descriptor instead.
+func (*WakeRunResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_run_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *WakeRunResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *WakeRunResponse) GetRun() *Run {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
 var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x0e\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x0f\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -2114,7 +2502,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x13finalization_status\x18! \x01(\x0e2'.agent_manager.v1.RunFinalizationStatusR\x12finalizationStatus\x12-\n" +
 	"\x12finalization_error\x18\" \x01(\tR\x11finalizationError\x12B\n" +
 	"\ffinalized_at\x18# \x01(\v2\x1a.google.protobuf.TimestampH\n" +
-	"R\vfinalizedAt\x88\x01\x01B\x13\n" +
+	"R\vfinalizedAt\x88\x01\x01\x12E\n" +
+	"\fawait_handle\x18$ \x01(\v2\x1d.agent_manager.v1.AwaitHandleH\vR\vawaitHandle\x88\x01\x01B\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -2127,7 +2516,14 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"_exit_codeB\x0e\n" +
 	"\f_approved_atB\x12\n" +
 	"\x10_resolved_configB\x0f\n" +
-	"\r_finalized_at\"\xe0\x05\n" +
+	"\r_finalized_atB\x0f\n" +
+	"\r_await_handle\"\xc6\x01\n" +
+	"\vAwaitHandle\x12\x1a\n" +
+	"\bproducer\x18\x01 \x01(\tR\bproducer\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12;\n" +
+	"\bdeadline\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bdeadline\x88\x01\x01\x12?\n" +
+	"\rregistered_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\fregisteredAtB\v\n" +
+	"\t_deadline\"\xe0\x05\n" +
 	"\n" +
 	"RunActions\x12'\n" +
 	"\x0fcan_investigate\x18\x01 \x01(\bR\x0ecanInvestigate\x126\n" +
@@ -2285,7 +2681,24 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12#\n" +
 	"\bevent_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\aeventId\"4\n" +
 	"\x18DeleteRunMessageResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccessBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3"
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xbd\x01\n" +
+	"\x0eParkRunRequest\x12\x1f\n" +
+	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12#\n" +
+	"\bproducer\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bproducer\x12\x19\n" +
+	"\x03key\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03key\x12#\n" +
+	"\rdeadline_unix\x18\x04 \x01(\x03R\fdeadlineUnix\x12%\n" +
+	"\x0eidentity_token\x18\x05 \x01(\tR\ridentityToken\"n\n" +
+	"\x0fParkRunResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12'\n" +
+	"\x03run\x18\x02 \x01(\v2\x15.agent_manager.v1.RunR\x03run\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"f\n" +
+	"\x0eWakeRunRequest\x12\x1f\n" +
+	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12\x16\n" +
+	"\x06result\x18\x02 \x01(\tR\x06result\x12\x1b\n" +
+	"\ttimed_out\x18\x03 \x01(\bR\btimedOut\"T\n" +
+	"\x0fWakeRunResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12'\n" +
+	"\x03run\x18\x02 \x01(\v2\x15.agent_manager.v1.RunR\x03runBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3"
 
 var (
 	file_agent_manager_v1_domain_run_proto_rawDescOnce sync.Once
@@ -2299,79 +2712,89 @@ func file_agent_manager_v1_domain_run_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_run_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_run_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_agent_manager_v1_domain_run_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_agent_manager_v1_domain_run_proto_goTypes = []any{
 	(*Run)(nil),                      // 0: agent_manager.v1.Run
-	(*RunActions)(nil),               // 1: agent_manager.v1.RunActions
-	(*RunSummary)(nil),               // 2: agent_manager.v1.RunSummary
-	(*RunCheckpoint)(nil),            // 3: agent_manager.v1.RunCheckpoint
-	(*RunProgress)(nil),              // 4: agent_manager.v1.RunProgress
-	(*IdempotencyRecord)(nil),        // 5: agent_manager.v1.IdempotencyRecord
-	(*RunnerStatus)(nil),             // 6: agent_manager.v1.RunnerStatus
-	(*RunnerCapabilities)(nil),       // 7: agent_manager.v1.RunnerCapabilities
-	(*ProbeResult)(nil),              // 8: agent_manager.v1.ProbeResult
-	(*StopAllResult)(nil),            // 9: agent_manager.v1.StopAllResult
-	(*StopFailure)(nil),              // 10: agent_manager.v1.StopFailure
-	(*ApproveResult)(nil),            // 11: agent_manager.v1.ApproveResult
-	(*RunDiff)(nil),                  // 12: agent_manager.v1.RunDiff
-	(*FileDiff)(nil),                 // 13: agent_manager.v1.FileDiff
-	(*Attachment)(nil),               // 14: agent_manager.v1.Attachment
-	(*ContinueRunRequest)(nil),       // 15: agent_manager.v1.ContinueRunRequest
-	(*ContinueRunResponse)(nil),      // 16: agent_manager.v1.ContinueRunResponse
-	(*DeleteRunMessageRequest)(nil),  // 17: agent_manager.v1.DeleteRunMessageRequest
-	(*DeleteRunMessageResponse)(nil), // 18: agent_manager.v1.DeleteRunMessageResponse
-	nil,                              // 19: agent_manager.v1.RunCheckpoint.MetadataEntry
-	nil,                              // 20: agent_manager.v1.ProbeResult.DetailsEntry
-	(RunMode)(0),                     // 21: agent_manager.v1.RunMode
-	(RunStatus)(0),                   // 22: agent_manager.v1.RunStatus
-	(*timestamppb.Timestamp)(nil),    // 23: google.protobuf.Timestamp
-	(RunPhase)(0),                    // 24: agent_manager.v1.RunPhase
-	(ApprovalState)(0),               // 25: agent_manager.v1.ApprovalState
-	(*RunConfig)(nil),                // 26: agent_manager.v1.RunConfig
-	(RunFinalizationStatus)(0),       // 27: agent_manager.v1.RunFinalizationStatus
-	(*durationpb.Duration)(nil),      // 28: google.protobuf.Duration
-	(IdempotencyStatus)(0),           // 29: agent_manager.v1.IdempotencyStatus
-	(RunnerType)(0),                  // 30: agent_manager.v1.RunnerType
+	(*AwaitHandle)(nil),              // 1: agent_manager.v1.AwaitHandle
+	(*RunActions)(nil),               // 2: agent_manager.v1.RunActions
+	(*RunSummary)(nil),               // 3: agent_manager.v1.RunSummary
+	(*RunCheckpoint)(nil),            // 4: agent_manager.v1.RunCheckpoint
+	(*RunProgress)(nil),              // 5: agent_manager.v1.RunProgress
+	(*IdempotencyRecord)(nil),        // 6: agent_manager.v1.IdempotencyRecord
+	(*RunnerStatus)(nil),             // 7: agent_manager.v1.RunnerStatus
+	(*RunnerCapabilities)(nil),       // 8: agent_manager.v1.RunnerCapabilities
+	(*ProbeResult)(nil),              // 9: agent_manager.v1.ProbeResult
+	(*StopAllResult)(nil),            // 10: agent_manager.v1.StopAllResult
+	(*StopFailure)(nil),              // 11: agent_manager.v1.StopFailure
+	(*ApproveResult)(nil),            // 12: agent_manager.v1.ApproveResult
+	(*RunDiff)(nil),                  // 13: agent_manager.v1.RunDiff
+	(*FileDiff)(nil),                 // 14: agent_manager.v1.FileDiff
+	(*Attachment)(nil),               // 15: agent_manager.v1.Attachment
+	(*ContinueRunRequest)(nil),       // 16: agent_manager.v1.ContinueRunRequest
+	(*ContinueRunResponse)(nil),      // 17: agent_manager.v1.ContinueRunResponse
+	(*DeleteRunMessageRequest)(nil),  // 18: agent_manager.v1.DeleteRunMessageRequest
+	(*DeleteRunMessageResponse)(nil), // 19: agent_manager.v1.DeleteRunMessageResponse
+	(*ParkRunRequest)(nil),           // 20: agent_manager.v1.ParkRunRequest
+	(*ParkRunResponse)(nil),          // 21: agent_manager.v1.ParkRunResponse
+	(*WakeRunRequest)(nil),           // 22: agent_manager.v1.WakeRunRequest
+	(*WakeRunResponse)(nil),          // 23: agent_manager.v1.WakeRunResponse
+	nil,                              // 24: agent_manager.v1.RunCheckpoint.MetadataEntry
+	nil,                              // 25: agent_manager.v1.ProbeResult.DetailsEntry
+	(RunMode)(0),                     // 26: agent_manager.v1.RunMode
+	(RunStatus)(0),                   // 27: agent_manager.v1.RunStatus
+	(*timestamppb.Timestamp)(nil),    // 28: google.protobuf.Timestamp
+	(RunPhase)(0),                    // 29: agent_manager.v1.RunPhase
+	(ApprovalState)(0),               // 30: agent_manager.v1.ApprovalState
+	(*RunConfig)(nil),                // 31: agent_manager.v1.RunConfig
+	(RunFinalizationStatus)(0),       // 32: agent_manager.v1.RunFinalizationStatus
+	(*durationpb.Duration)(nil),      // 33: google.protobuf.Duration
+	(IdempotencyStatus)(0),           // 34: agent_manager.v1.IdempotencyStatus
+	(RunnerType)(0),                  // 35: agent_manager.v1.RunnerType
 }
 var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
-	21, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
-	22, // 1: agent_manager.v1.Run.status:type_name -> agent_manager.v1.RunStatus
-	23, // 2: agent_manager.v1.Run.started_at:type_name -> google.protobuf.Timestamp
-	23, // 3: agent_manager.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
-	24, // 4: agent_manager.v1.Run.phase:type_name -> agent_manager.v1.RunPhase
-	23, // 5: agent_manager.v1.Run.last_heartbeat:type_name -> google.protobuf.Timestamp
-	2,  // 6: agent_manager.v1.Run.summary:type_name -> agent_manager.v1.RunSummary
-	25, // 7: agent_manager.v1.Run.approval_state:type_name -> agent_manager.v1.ApprovalState
-	23, // 8: agent_manager.v1.Run.approved_at:type_name -> google.protobuf.Timestamp
-	26, // 9: agent_manager.v1.Run.resolved_config:type_name -> agent_manager.v1.RunConfig
-	23, // 10: agent_manager.v1.Run.created_at:type_name -> google.protobuf.Timestamp
-	23, // 11: agent_manager.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
-	1,  // 12: agent_manager.v1.Run.actions:type_name -> agent_manager.v1.RunActions
-	27, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
-	23, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
-	24, // 15: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
-	23, // 16: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
-	23, // 17: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
-	19, // 18: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
-	24, // 19: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
-	28, // 20: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
-	28, // 21: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
-	23, // 22: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
-	29, // 23: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
-	23, // 24: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
-	23, // 25: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
-	30, // 26: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
-	7,  // 27: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
-	20, // 28: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
-	10, // 29: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
-	13, // 30: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
-	23, // 31: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
-	0,  // 32: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
-	33, // [33:33] is the sub-list for method output_type
-	33, // [33:33] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	26, // 0: agent_manager.v1.Run.run_mode:type_name -> agent_manager.v1.RunMode
+	27, // 1: agent_manager.v1.Run.status:type_name -> agent_manager.v1.RunStatus
+	28, // 2: agent_manager.v1.Run.started_at:type_name -> google.protobuf.Timestamp
+	28, // 3: agent_manager.v1.Run.ended_at:type_name -> google.protobuf.Timestamp
+	29, // 4: agent_manager.v1.Run.phase:type_name -> agent_manager.v1.RunPhase
+	28, // 5: agent_manager.v1.Run.last_heartbeat:type_name -> google.protobuf.Timestamp
+	3,  // 6: agent_manager.v1.Run.summary:type_name -> agent_manager.v1.RunSummary
+	30, // 7: agent_manager.v1.Run.approval_state:type_name -> agent_manager.v1.ApprovalState
+	28, // 8: agent_manager.v1.Run.approved_at:type_name -> google.protobuf.Timestamp
+	31, // 9: agent_manager.v1.Run.resolved_config:type_name -> agent_manager.v1.RunConfig
+	28, // 10: agent_manager.v1.Run.created_at:type_name -> google.protobuf.Timestamp
+	28, // 11: agent_manager.v1.Run.updated_at:type_name -> google.protobuf.Timestamp
+	2,  // 12: agent_manager.v1.Run.actions:type_name -> agent_manager.v1.RunActions
+	32, // 13: agent_manager.v1.Run.finalization_status:type_name -> agent_manager.v1.RunFinalizationStatus
+	28, // 14: agent_manager.v1.Run.finalized_at:type_name -> google.protobuf.Timestamp
+	1,  // 15: agent_manager.v1.Run.await_handle:type_name -> agent_manager.v1.AwaitHandle
+	28, // 16: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
+	28, // 17: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
+	29, // 18: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
+	28, // 19: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
+	28, // 20: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
+	24, // 21: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
+	29, // 22: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
+	33, // 23: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
+	33, // 24: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
+	28, // 25: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
+	34, // 26: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
+	28, // 27: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
+	28, // 28: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
+	35, // 29: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
+	8,  // 30: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
+	25, // 31: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
+	11, // 32: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
+	14, // 33: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
+	28, // 34: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
+	0,  // 35: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
+	0,  // 36: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
+	0,  // 37: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
+	38, // [38:38] is the sub-list for method output_type
+	38, // [38:38] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_run_proto_init() }
@@ -2382,16 +2805,17 @@ func file_agent_manager_v1_domain_run_proto_init() {
 	file_agent_manager_v1_domain_profile_proto_init()
 	file_agent_manager_v1_domain_types_proto_init()
 	file_agent_manager_v1_domain_run_proto_msgTypes[0].OneofWrappers = []any{}
-	file_agent_manager_v1_domain_run_proto_msgTypes[3].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_run_proto_msgTypes[1].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_run_proto_msgTypes[4].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_run_proto_msgTypes[5].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_run_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_run_proto_rawDesc), len(file_agent_manager_v1_domain_run_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

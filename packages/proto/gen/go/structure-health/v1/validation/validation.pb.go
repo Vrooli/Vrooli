@@ -22,6 +22,195 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// PortSwitchRequest selects the scenario + port to switch between fixed and
+// ranged. It mirrors FixConfigRequest's preview/apply split via `apply`.
+type PortSwitchRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario slug, normally the directory name under scenarios/.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Optional explicit scenario path for callers that already resolved it.
+	Path string `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	// Listener port to switch (default "ui"). Only api/ui/websocket have bands.
+	PortName string `protobuf:"bytes,3,opt,name=port_name,json=portName,proto3" json:"port_name,omitempty"`
+	// When true, write the edit; false previews (dry-run, the default).
+	Apply         bool `protobuf:"varint,4,opt,name=apply,proto3" json:"apply,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PortSwitchRequest) Reset() {
+	*x = PortSwitchRequest{}
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PortSwitchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PortSwitchRequest) ProtoMessage() {}
+
+func (x *PortSwitchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PortSwitchRequest.ProtoReflect.Descriptor instead.
+func (*PortSwitchRequest) Descriptor() ([]byte, []int) {
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *PortSwitchRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *PortSwitchRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *PortSwitchRequest) GetPortName() string {
+	if x != nil {
+		return x.PortName
+	}
+	return ""
+}
+
+func (x *PortSwitchRequest) GetApply() bool {
+	if x != nil {
+		return x.Apply
+	}
+	return false
+}
+
+// PortSwitchResponse reports the assign/release outcome, including a before/after
+// so preview and apply share one shape.
+type PortSwitchResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	PortName string                 `protobuf:"bytes,2,opt,name=port_name,json=portName,proto3" json:"port_name,omitempty"`
+	// The fixed port before the op (0 when it was ranged).
+	PreviousPort int32 `protobuf:"varint,3,opt,name=previous_port,json=previousPort,proto3" json:"previous_port,omitempty"`
+	// The fixed port after assign (0 after release).
+	AssignedPort int32 `protobuf:"varint,4,opt,name=assigned_port,json=assignedPort,proto3" json:"assigned_port,omitempty"`
+	// False when the scenario was already in the target state (idempotent no-op).
+	Changed bool `protobuf:"varint,5,opt,name=changed,proto3" json:"changed,omitempty"`
+	// True when the edit was written to disk (apply).
+	Applied bool `protobuf:"varint,6,opt,name=applied,proto3" json:"applied,omitempty"`
+	// service.json before/after the (format-preserving) edit.
+	Before        string `protobuf:"bytes,7,opt,name=before,proto3" json:"before,omitempty"`
+	After         string `protobuf:"bytes,8,opt,name=after,proto3" json:"after,omitempty"`
+	Message       string `protobuf:"bytes,9,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PortSwitchResponse) Reset() {
+	*x = PortSwitchResponse{}
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PortSwitchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PortSwitchResponse) ProtoMessage() {}
+
+func (x *PortSwitchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PortSwitchResponse.ProtoReflect.Descriptor instead.
+func (*PortSwitchResponse) Descriptor() ([]byte, []int) {
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PortSwitchResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *PortSwitchResponse) GetPortName() string {
+	if x != nil {
+		return x.PortName
+	}
+	return ""
+}
+
+func (x *PortSwitchResponse) GetPreviousPort() int32 {
+	if x != nil {
+		return x.PreviousPort
+	}
+	return 0
+}
+
+func (x *PortSwitchResponse) GetAssignedPort() int32 {
+	if x != nil {
+		return x.AssignedPort
+	}
+	return 0
+}
+
+func (x *PortSwitchResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+func (x *PortSwitchResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
+func (x *PortSwitchResponse) GetBefore() string {
+	if x != nil {
+		return x.Before
+	}
+	return ""
+}
+
+func (x *PortSwitchResponse) GetAfter() string {
+	if x != nil {
+		return x.After
+	}
+	return ""
+}
+
+func (x *PortSwitchResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type ValidateScenarioRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Scenario slug, normally the directory name under scenarios/.
@@ -37,7 +226,7 @@ type ValidateScenarioRequest struct {
 
 func (x *ValidateScenarioRequest) Reset() {
 	*x = ValidateScenarioRequest{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[0]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -49,7 +238,7 @@ func (x *ValidateScenarioRequest) String() string {
 func (*ValidateScenarioRequest) ProtoMessage() {}
 
 func (x *ValidateScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[0]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -62,7 +251,7 @@ func (x *ValidateScenarioRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateScenarioRequest.ProtoReflect.Descriptor instead.
 func (*ValidateScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{0}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ValidateScenarioRequest) GetScenario() string {
@@ -112,7 +301,7 @@ type ValidateScenarioResponse struct {
 
 func (x *ValidateScenarioResponse) Reset() {
 	*x = ValidateScenarioResponse{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[1]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -124,7 +313,7 @@ func (x *ValidateScenarioResponse) String() string {
 func (*ValidateScenarioResponse) ProtoMessage() {}
 
 func (x *ValidateScenarioResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[1]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -137,7 +326,7 @@ func (x *ValidateScenarioResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateScenarioResponse.ProtoReflect.Descriptor instead.
 func (*ValidateScenarioResponse) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{1}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ValidateScenarioResponse) GetRunId() string {
@@ -237,7 +426,7 @@ type DetectedProfile struct {
 
 func (x *DetectedProfile) Reset() {
 	*x = DetectedProfile{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[2]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -249,7 +438,7 @@ func (x *DetectedProfile) String() string {
 func (*DetectedProfile) ProtoMessage() {}
 
 func (x *DetectedProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[2]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -262,7 +451,7 @@ func (x *DetectedProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DetectedProfile.ProtoReflect.Descriptor instead.
 func (*DetectedProfile) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{2}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DetectedProfile) GetId() string {
@@ -320,7 +509,7 @@ type SurfaceReconcile struct {
 
 func (x *SurfaceReconcile) Reset() {
 	*x = SurfaceReconcile{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[3]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -332,7 +521,7 @@ func (x *SurfaceReconcile) String() string {
 func (*SurfaceReconcile) ProtoMessage() {}
 
 func (x *SurfaceReconcile) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[3]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -345,7 +534,7 @@ func (x *SurfaceReconcile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurfaceReconcile.ProtoReflect.Descriptor instead.
 func (*SurfaceReconcile) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{3}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SurfaceReconcile) GetSurface() string {
@@ -411,7 +600,7 @@ type StructureFinding struct {
 
 func (x *StructureFinding) Reset() {
 	*x = StructureFinding{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -423,7 +612,7 @@ func (x *StructureFinding) String() string {
 func (*StructureFinding) ProtoMessage() {}
 
 func (x *StructureFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -436,7 +625,7 @@ func (x *StructureFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StructureFinding.ProtoReflect.Descriptor instead.
 func (*StructureFinding) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StructureFinding) GetCode() string {
@@ -520,7 +709,7 @@ type FixConfigRequest struct {
 
 func (x *FixConfigRequest) Reset() {
 	*x = FixConfigRequest{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -532,7 +721,7 @@ func (x *FixConfigRequest) String() string {
 func (*FixConfigRequest) ProtoMessage() {}
 
 func (x *FixConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -545,7 +734,7 @@ func (x *FixConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixConfigRequest.ProtoReflect.Descriptor instead.
 func (*FixConfigRequest) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{5}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *FixConfigRequest) GetScenario() string {
@@ -590,7 +779,7 @@ type FixConfigResponse struct {
 
 func (x *FixConfigResponse) Reset() {
 	*x = FixConfigResponse{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +791,7 @@ func (x *FixConfigResponse) String() string {
 func (*FixConfigResponse) ProtoMessage() {}
 
 func (x *FixConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +804,7 @@ func (x *FixConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FixConfigResponse.ProtoReflect.Descriptor instead.
 func (*FixConfigResponse) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *FixConfigResponse) GetScenario() string {
@@ -666,7 +855,7 @@ type AutofixCandidate struct {
 
 func (x *AutofixCandidate) Reset() {
 	*x = AutofixCandidate{}
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -678,7 +867,7 @@ func (x *AutofixCandidate) String() string {
 func (*AutofixCandidate) ProtoMessage() {}
 
 func (x *AutofixCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_structure_health_v1_validation_validation_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -691,7 +880,7 @@ func (x *AutofixCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofixCandidate.ProtoReflect.Descriptor instead.
 func (*AutofixCandidate) Descriptor() ([]byte, []int) {
-	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
+	return file_structure_health_v1_validation_validation_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AutofixCandidate) GetRuleId() string {
@@ -741,6 +930,21 @@ var File_structure_health_v1_validation_validation_proto protoreflect.FileDescri
 const file_structure_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
 	"/structure-health/v1/validation/validation.proto\x12%vrooli.structure_health.v1.validation\x1a\x18common/v1/maturity.proto\"v\n" +
+	"\x11PortSwitchRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1b\n" +
+	"\tport_name\x18\x03 \x01(\tR\bportName\x12\x14\n" +
+	"\x05apply\x18\x04 \x01(\bR\x05apply\"\x93\x02\n" +
+	"\x12PortSwitchResponse\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1b\n" +
+	"\tport_name\x18\x02 \x01(\tR\bportName\x12#\n" +
+	"\rprevious_port\x18\x03 \x01(\x05R\fpreviousPort\x12#\n" +
+	"\rassigned_port\x18\x04 \x01(\x05R\fassignedPort\x12\x18\n" +
+	"\achanged\x18\x05 \x01(\bR\achanged\x12\x18\n" +
+	"\aapplied\x18\x06 \x01(\bR\aapplied\x12\x16\n" +
+	"\x06before\x18\a \x01(\tR\x06before\x12\x14\n" +
+	"\x05after\x18\b \x01(\tR\x05after\x12\x18\n" +
+	"\amessage\x18\t \x01(\tR\amessage\"v\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12+\n" +
@@ -805,11 +1009,13 @@ const file_structure_health_v1_validation_validation_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x16\n" +
 	"\x06before\x18\x04 \x01(\tR\x06before\x12\x14\n" +
 	"\x05after\x18\x05 \x01(\tR\x05after\x12\x18\n" +
-	"\aapplied\x18\x06 \x01(\bR\aapplied2\xb7\x03\n" +
+	"\aapplied\x18\x06 \x01(\bR\aapplied2\xca\x05\n" +
 	"\x11ValidationService\x12\x93\x01\n" +
 	"\x10ValidateScenario\x12>.vrooli.structure_health.v1.validation.ValidateScenarioRequest\x1a?.vrooli.structure_health.v1.validation.ValidateScenarioResponse\x12\x85\x01\n" +
 	"\x10PreviewFixConfig\x127.vrooli.structure_health.v1.validation.FixConfigRequest\x1a8.vrooli.structure_health.v1.validation.FixConfigResponse\x12\x83\x01\n" +
-	"\x0eApplyFixConfig\x127.vrooli.structure_health.v1.validation.FixConfigRequest\x1a8.vrooli.structure_health.v1.validation.FixConfigResponseB]Z[github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation;validation_v1b\x06proto3"
+	"\x0eApplyFixConfig\x127.vrooli.structure_health.v1.validation.FixConfigRequest\x1a8.vrooli.structure_health.v1.validation.FixConfigResponse\x12\x86\x01\n" +
+	"\x0fAssignFixedPort\x128.vrooli.structure_health.v1.validation.PortSwitchRequest\x1a9.vrooli.structure_health.v1.validation.PortSwitchResponse\x12\x87\x01\n" +
+	"\x10ReleaseFixedPort\x128.vrooli.structure_health.v1.validation.PortSwitchRequest\x1a9.vrooli.structure_health.v1.validation.PortSwitchResponseB]Z[github.com/vrooli/vrooli/packages/proto/gen/go/structure-health/v1/validation;validation_v1b\x06proto3"
 
 var (
 	file_structure_health_v1_validation_validation_proto_rawDescOnce sync.Once
@@ -823,35 +1029,41 @@ func file_structure_health_v1_validation_validation_proto_rawDescGZIP() []byte {
 	return file_structure_health_v1_validation_validation_proto_rawDescData
 }
 
-var file_structure_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_structure_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_structure_health_v1_validation_validation_proto_goTypes = []any{
-	(*ValidateScenarioRequest)(nil),  // 0: vrooli.structure_health.v1.validation.ValidateScenarioRequest
-	(*ValidateScenarioResponse)(nil), // 1: vrooli.structure_health.v1.validation.ValidateScenarioResponse
-	(*DetectedProfile)(nil),          // 2: vrooli.structure_health.v1.validation.DetectedProfile
-	(*SurfaceReconcile)(nil),         // 3: vrooli.structure_health.v1.validation.SurfaceReconcile
-	(*StructureFinding)(nil),         // 4: vrooli.structure_health.v1.validation.StructureFinding
-	(*FixConfigRequest)(nil),         // 5: vrooli.structure_health.v1.validation.FixConfigRequest
-	(*FixConfigResponse)(nil),        // 6: vrooli.structure_health.v1.validation.FixConfigResponse
-	(*AutofixCandidate)(nil),         // 7: vrooli.structure_health.v1.validation.AutofixCandidate
-	(*v1.MaturityAssessment)(nil),    // 8: common.v1.MaturityAssessment
+	(*PortSwitchRequest)(nil),        // 0: vrooli.structure_health.v1.validation.PortSwitchRequest
+	(*PortSwitchResponse)(nil),       // 1: vrooli.structure_health.v1.validation.PortSwitchResponse
+	(*ValidateScenarioRequest)(nil),  // 2: vrooli.structure_health.v1.validation.ValidateScenarioRequest
+	(*ValidateScenarioResponse)(nil), // 3: vrooli.structure_health.v1.validation.ValidateScenarioResponse
+	(*DetectedProfile)(nil),          // 4: vrooli.structure_health.v1.validation.DetectedProfile
+	(*SurfaceReconcile)(nil),         // 5: vrooli.structure_health.v1.validation.SurfaceReconcile
+	(*StructureFinding)(nil),         // 6: vrooli.structure_health.v1.validation.StructureFinding
+	(*FixConfigRequest)(nil),         // 7: vrooli.structure_health.v1.validation.FixConfigRequest
+	(*FixConfigResponse)(nil),        // 8: vrooli.structure_health.v1.validation.FixConfigResponse
+	(*AutofixCandidate)(nil),         // 9: vrooli.structure_health.v1.validation.AutofixCandidate
+	(*v1.MaturityAssessment)(nil),    // 10: common.v1.MaturityAssessment
 }
 var file_structure_health_v1_validation_validation_proto_depIdxs = []int32{
-	2, // 0: vrooli.structure_health.v1.validation.ValidateScenarioResponse.profile:type_name -> vrooli.structure_health.v1.validation.DetectedProfile
-	3, // 1: vrooli.structure_health.v1.validation.ValidateScenarioResponse.surfaces:type_name -> vrooli.structure_health.v1.validation.SurfaceReconcile
-	4, // 2: vrooli.structure_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.structure_health.v1.validation.StructureFinding
-	8, // 3: vrooli.structure_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
-	7, // 4: vrooli.structure_health.v1.validation.FixConfigResponse.candidates:type_name -> vrooli.structure_health.v1.validation.AutofixCandidate
-	0, // 5: vrooli.structure_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.structure_health.v1.validation.ValidateScenarioRequest
-	5, // 6: vrooli.structure_health.v1.validation.ValidationService.PreviewFixConfig:input_type -> vrooli.structure_health.v1.validation.FixConfigRequest
-	5, // 7: vrooli.structure_health.v1.validation.ValidationService.ApplyFixConfig:input_type -> vrooli.structure_health.v1.validation.FixConfigRequest
-	1, // 8: vrooli.structure_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.structure_health.v1.validation.ValidateScenarioResponse
-	6, // 9: vrooli.structure_health.v1.validation.ValidationService.PreviewFixConfig:output_type -> vrooli.structure_health.v1.validation.FixConfigResponse
-	6, // 10: vrooli.structure_health.v1.validation.ValidationService.ApplyFixConfig:output_type -> vrooli.structure_health.v1.validation.FixConfigResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	4,  // 0: vrooli.structure_health.v1.validation.ValidateScenarioResponse.profile:type_name -> vrooli.structure_health.v1.validation.DetectedProfile
+	5,  // 1: vrooli.structure_health.v1.validation.ValidateScenarioResponse.surfaces:type_name -> vrooli.structure_health.v1.validation.SurfaceReconcile
+	6,  // 2: vrooli.structure_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.structure_health.v1.validation.StructureFinding
+	10, // 3: vrooli.structure_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	9,  // 4: vrooli.structure_health.v1.validation.FixConfigResponse.candidates:type_name -> vrooli.structure_health.v1.validation.AutofixCandidate
+	2,  // 5: vrooli.structure_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.structure_health.v1.validation.ValidateScenarioRequest
+	7,  // 6: vrooli.structure_health.v1.validation.ValidationService.PreviewFixConfig:input_type -> vrooli.structure_health.v1.validation.FixConfigRequest
+	7,  // 7: vrooli.structure_health.v1.validation.ValidationService.ApplyFixConfig:input_type -> vrooli.structure_health.v1.validation.FixConfigRequest
+	0,  // 8: vrooli.structure_health.v1.validation.ValidationService.AssignFixedPort:input_type -> vrooli.structure_health.v1.validation.PortSwitchRequest
+	0,  // 9: vrooli.structure_health.v1.validation.ValidationService.ReleaseFixedPort:input_type -> vrooli.structure_health.v1.validation.PortSwitchRequest
+	3,  // 10: vrooli.structure_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.structure_health.v1.validation.ValidateScenarioResponse
+	8,  // 11: vrooli.structure_health.v1.validation.ValidationService.PreviewFixConfig:output_type -> vrooli.structure_health.v1.validation.FixConfigResponse
+	8,  // 12: vrooli.structure_health.v1.validation.ValidationService.ApplyFixConfig:output_type -> vrooli.structure_health.v1.validation.FixConfigResponse
+	1,  // 13: vrooli.structure_health.v1.validation.ValidationService.AssignFixedPort:output_type -> vrooli.structure_health.v1.validation.PortSwitchResponse
+	1,  // 14: vrooli.structure_health.v1.validation.ValidationService.ReleaseFixedPort:output_type -> vrooli.structure_health.v1.validation.PortSwitchResponse
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_structure_health_v1_validation_validation_proto_init() }
@@ -865,7 +1077,7 @@ func file_structure_health_v1_validation_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_structure_health_v1_validation_validation_proto_rawDesc), len(file_structure_health_v1_validation_validation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
