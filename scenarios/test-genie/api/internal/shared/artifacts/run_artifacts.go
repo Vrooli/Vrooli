@@ -83,7 +83,7 @@ func ListRunVideos(scenarioDir, runID string) ([]RunVideo, error) {
 	return out, nil
 }
 
-// RunVisual describes one page's UI smoke visual capture (screenshot + optional
+// RunVisual describes one page's baseline visual capture (screenshot + optional
 // video), addressable by paths relative to the run's artifact root. It is the
 // structured page-set listing git-control-tower diffs at the metadata level
 // between two baselines (page set + screenshot count).
@@ -95,8 +95,8 @@ type RunVisual struct {
 	ScreenshotSizeBytes int64  `json:"screenshot_size_bytes,omitempty"`
 }
 
-// visualPageFile is the per-page metadata file the smoke runner writes alongside
-// each page's screenshot/video so enumeration reports the route + label.
+// visualPageFile is the per-page metadata file written alongside each page's
+// screenshot/video so enumeration reports the route + label.
 const visualPageFile = "page.json"
 
 // visualScreenshotFile / visualVideoFile are the per-page artifact filenames.
@@ -111,10 +111,11 @@ type visualPageMeta struct {
 	Label string `json:"label,omitempty"`
 }
 
-// ListRunVisuals enumerates the per-page UI smoke visual captures under a run's
-// ui-smoke/pages tree. Returns an empty slice (no error) when the run captured
-// no all-pages visuals (i.e. ran at default capture depth), so callers can
-// render an empty state. Pages are sorted by route for stable output.
+// ListRunVisuals enumerates the per-page visual captures under a run's
+// historical ui-smoke/pages tree. Returns an empty slice (no error) when the
+// run captured no all-pages visuals (i.e. ran at default capture depth), so
+// callers can render an empty state. Pages are sorted by route for stable
+// output.
 func ListRunVisuals(scenarioDir, runID string) ([]RunVisual, error) {
 	pagesDir := RunUISmokePagesDir(scenarioDir, runID)
 	entries, err := os.ReadDir(pagesDir)

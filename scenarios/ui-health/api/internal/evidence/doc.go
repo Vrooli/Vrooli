@@ -9,9 +9,8 @@
 // significant failure message + the console/network/page-error counts).
 //
 // The model is deliberately free of any browser-engine transport detail so the
-// same analysis serves every producer. The smoke phase produces [Evidence] from
-// a Browser Automation Studio (BAS) workflow timeline; future producers (e.g.
-// the playbooks phase) map their own BAS timelines onto the same type. There is
-// exactly one home for the blank/console/network/handshake verdict rules — this
-// package — so the rules cannot drift between phases.
+// same analysis serves every producer. The ui-health runtime group produces
+// [Evidence] from a Browser Automation Studio (BAS) workflow timeline, while
+// generic screenshot/DOM/layout findings are produced by the visual-health
+// analyzer.
 package evidence

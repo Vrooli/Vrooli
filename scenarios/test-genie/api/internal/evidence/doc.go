@@ -8,10 +8,8 @@
 // [Analyze] turns one [Evidence] into a [Verdict] (pass/fail + the single most
 // significant failure message + the console/network/page-error counts).
 //
-// The model is deliberately free of any browser-engine transport detail so the
-// same analysis serves every producer. The smoke phase produces [Evidence] from
-// a Browser Automation Studio (BAS) workflow timeline; future producers (e.g.
-// the playbooks phase) map their own BAS timelines onto the same type. There is
-// exactly one home for the blank/console/network/handshake verdict rules — this
-// package — so the rules cannot drift between phases.
+// The model is deliberately free of any browser-engine transport detail. The
+// playbooks phase maps Browser Automation Studio (BAS) timelines onto this type
+// for browser execution observations, while generic visual artifact judgment is
+// delegated to ui-health.
 package evidence

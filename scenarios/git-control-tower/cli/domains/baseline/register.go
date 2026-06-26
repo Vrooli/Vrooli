@@ -331,7 +331,7 @@ func renderRunBusy(err error, scenario string) (bool, int) {
 			continue
 		}
 		fmt.Fprintf(os.Stderr, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), busyPreset(bi.GetPreset()))
-		fmt.Fprintf(os.Stderr, "  wait:  test-genie runs wait --json %s %s\n", bi.GetScenario(), bi.GetRunId())
+		fmt.Fprint(os.Stderr, agentWaitBlock(bi.GetScenario(), bi.GetRunId(), 0, false))
 		fmt.Fprintf(os.Stderr, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
 		return true, exitNotComparable
 	}

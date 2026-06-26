@@ -15,7 +15,7 @@ func TestPhaseResultsPath(t *testing.T) {
 		want        string
 	}{
 		{
-			name:        "smoke phase",
+			name:        "legacy browser-render phase",
 			scenarioDir: "/scenarios/test-scenario",
 			filename:    "smoke.json",
 			want:        "/scenarios/test-scenario/coverage/runs/" + testRunID + "/phase-results/smoke.json",

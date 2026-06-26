@@ -27,6 +27,7 @@ import (
 	reindexH "ui-health/handlers/reindex"
 	searchH "ui-health/handlers/search"
 	validationH "ui-health/handlers/validation"
+	visualhealthH "ui-health/handlers/visualhealth"
 )
 
 func sqliteDSN() (string, error) {
@@ -151,6 +152,7 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "ui-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot),
+		visualhealthH.Module(logger),
 		searchH.Module(logger, aiService),
 		reindexH.Module(logger, reindexH.ServiceAdapter{Service: aiService}),
 	)

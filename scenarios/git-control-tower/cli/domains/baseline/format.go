@@ -3,11 +3,53 @@ package baseline
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 )
+
+const (
+	waitTimeoutBufferPercent  = 75
+	minRecommendedWaitSeconds = 120
+	unknownETAWaitSeconds     = 900
+)
+
+func recommendedWaitSeconds(eta int32, etaKnown bool) int {
+	if !etaKnown || eta <= 0 {
+		return unknownETAWaitSeconds
+	}
+	withBuffer := int(eta) + (int(eta)*waitTimeoutBufferPercent)/100
+	if withBuffer < minRecommendedWaitSeconds {
+		return minRecommendedWaitSeconds
+	}
+	return withBuffer
+}
+
+func waitCommand(scenario, run string, seconds int) string {
+	if seconds <= 0 {
+		return "test-genie runs wait --json " + scenario + " " + run
+	}
+	return "test-genie runs wait --json --timeout=" + strconv.Itoa(seconds) + " " + scenario + " " + run
+}
+
+func agentWaitBlock(scenario, run string, eta int32, etaKnown bool) string {
+	waitSeconds := recommendedWaitSeconds(eta, etaKnown)
+	etaStr := "unknown"
+	if etaKnown {
+		etaStr = (time.Duration(eta) * time.Second).String()
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "  Agent wait protocol:\n")
+	fmt.Fprintf(&b, "    Run exactly once:\n      %s\n", waitCommand(scenario, run, waitSeconds))
+	fmt.Fprintf(&b, "    Expected duration: ~%s; recommended wait timeout: %s.\n", etaStr, (time.Duration(waitSeconds) * time.Second).String())
+	fmt.Fprintf(&b, "    In coding-agent tool execution, give the command at least this timeout and do not poll with short output checks.\n")
+	fmt.Fprintf(&b, "    If a wait process was already started and then interrupted:\n")
+	fmt.Fprintf(&b, "      pgrep -af 'test-genie runs wait --json .* %s %s'\n", scenario, run)
+	fmt.Fprintf(&b, "      tail --pid=<pid> -f /dev/null\n")
+	return b.String()
+}
 
 // verdictMark returns a glyph for a surface/overall verdict.
 func verdictMark(verdict string) string {
@@ -68,8 +110,8 @@ func snapshotBanner(resp *baselinesv1.SnapshotForBaselineResponse) string {
 		fmt.Fprintf(&b, "▶ Baseline %q for %s — comprehensive run %s started\n", resp.GetName(), resp.GetScenario(), resp.GetRunId())
 	}
 	fmt.Fprintf(&b, "  estimated %s — the run is durable server-side; the baseline pins automatically when it completes.\n", eta)
-	fmt.Fprintf(&b, "  block on it:   test-genie runs wait --json %s %s\n", resp.GetScenario(), resp.GetRunId())
-	fmt.Fprintf(&b, "  (watch live:   test-genie runs follow %s %s)\n", resp.GetScenario(), resp.GetRunId())
+	b.WriteString(agentWaitBlock(resp.GetScenario(), resp.GetRunId(), resp.GetEstimatedTotalSeconds(), resp.GetEtaKnown()))
+	fmt.Fprintf(&b, "  watch live:    test-genie runs follow %s %s\n", resp.GetScenario(), resp.GetRunId())
 	fmt.Fprintf(&b, "  then inspect:  git-control-tower baseline show --scenario %s --name %s\n", resp.GetScenario(), resp.GetName())
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Fprintf(&b, "⚠ %s\n", w)
@@ -104,8 +146,8 @@ func diffStartBanner(resp *baselinesv1.StartDiffResponse) string {
 		fmt.Fprintf(&b, "▶ Diff of baseline %q for %s — comprehensive run %s started (estimated %s)\n", name, scenario, run, eta)
 	}
 	fmt.Fprintf(&b, "  the run is durable server-side; the diff verdict is computed and cached when it completes.\n")
-	fmt.Fprintf(&b, "  block on it:   test-genie runs wait --json %s %s\n", scenario, run)
-	fmt.Fprintf(&b, "  (watch live:   test-genie runs follow %s %s)\n", scenario, run)
+	b.WriteString(agentWaitBlock(scenario, run, resp.GetEstimatedTotalSeconds(), resp.GetEtaKnown()))
+	fmt.Fprintf(&b, "  watch live:    test-genie runs follow %s %s\n", scenario, run)
 	fmt.Fprintf(&b, "  then resolve:  git-control-tower baseline diff status --scenario %s --name %s --run %s\n", scenario, name, run)
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Fprintf(&b, "⚠ %s\n", w)

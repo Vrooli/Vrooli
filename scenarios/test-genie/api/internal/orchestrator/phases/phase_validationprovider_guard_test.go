@@ -69,10 +69,9 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		// on the result. Unit executes the suite, Measures runs its checks,
 		// Performance benchmarks the Go + UI build and runs Lighthouse-if-UI,
 		// Contracts asks cli-health to run its runtime CLI probe on top of the
-		// static manifest↔proto cross-check, and UIHealth (which absorbed the
-		// retired smoke phase) drives the BAS render + iframe-bridge handshake
-		// runtime group on top of its static UI checks. Every other delegate is
-		// inspection-only.
+		// static manifest↔proto cross-check, and UIHealth drives the BAS render +
+		// iframe-bridge handshake runtime group on top of its static UI checks.
+		// Every other delegate is inspection-only.
 		executionPhases := map[Name]bool{Unit: true, Measures: true, Performance: true, Contracts: true, UIHealth: true}
 		if provider.IncludeExecution != executionPhases[phase] {
 			t.Fatalf("%s provider IncludeExecution = %v, want %v", phase, provider.IncludeExecution, executionPhases[phase])

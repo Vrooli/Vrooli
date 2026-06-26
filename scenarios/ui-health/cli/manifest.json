@@ -261,6 +261,74 @@
           }
         }
       ]
+    },
+    {
+      "name": "visual",
+      "description": "Analyze and compare generic browser visual-health artifacts",
+      "commands": [
+        {
+          "name": "analyze-artifacts",
+          "description": "Analyze a JSON VisualHealthService.AnalyzeArtifacts request file",
+          "flags": [
+            {
+              "name": "request",
+              "description": "Path to an AnalyzeArtifactsRequest JSON file"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisualHealthService",
+            "method": "AnalyzeArtifacts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compare-artifacts",
+          "description": "Compare a JSON VisualHealthService.CompareArtifacts request file",
+          "flags": [
+            {
+              "name": "request",
+              "description": "Path to a CompareArtifactsRequest JSON file"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisualHealthService",
+            "method": "CompareArtifacts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "rules",
+          "description": "List the ui-health visual-health rule registry",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "VisualHealthService",
+            "method": "ListRules"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "omitted": [

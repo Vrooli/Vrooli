@@ -40,11 +40,11 @@ finish. The pin + manifest write happen server-side when the run completes
 queryable via `baseline show`/`baseline diff`. The CLI's short start ceiling is
 `snapshotStartCeiling` (2m) — it bounds only the fast start call, not the run.
 
-The **visuals** surface of `baseline diff` is **advisory**. test-genie owns the
-pixel comparison (`CompareRunVisuals`, tuned by the `TEST_GENIE_VISUAL_*` levers
-documented in test-genie's configuration reference); git-control-tower renders the
-per-page deltas as the neutral **`changed`** tier ("changed — review
-before/after", with the change magnitude). A visual difference is never a
+The **visuals** surface of `baseline diff` is **advisory**. test-genie delegates
+pixel comparison through `CompareRunVisuals` to ui-health, where the
+`UI_HEALTH_VISUAL_*` levers live; git-control-tower renders the per-page deltas
+as the neutral **`changed`** tier ("changed — review before/after", with the
+change magnitude). A visual difference is never a
 failure here and never affects the diff exit code (regression → 1,
 not-comparable → 2, everything else incl. `changed` → 0). A clearly-broken render
 is caught earlier — it fails its phase at smoke time and shows on the test

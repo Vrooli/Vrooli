@@ -33,6 +33,45 @@ func TestReattachCommandIsQuietWait(t *testing.T) {
 	}
 }
 
+func TestRecommendedWaitCommandIncludesBufferedTimeout(t *testing.T) {
+	if got := recommendedWaitSeconds(600, true); got != 1050 {
+		t.Fatalf("recommendedWaitSeconds known = %d, want 1050", got)
+	}
+	if got := recommendedWaitSeconds(10, true); got != minRecommendedWaitSeconds {
+		t.Fatalf("recommendedWaitSeconds floor = %d, want %d", got, minRecommendedWaitSeconds)
+	}
+	if got := recommendedWaitSeconds(0, false); got != unknownETAWaitSeconds {
+		t.Fatalf("recommendedWaitSeconds unknown = %d, want %d", got, unknownETAWaitSeconds)
+	}
+	cmd := reattachCommandWithTimeout("demo", "R1", 1050)
+	if cmd != "test-genie runs wait --json --timeout=1050 demo R1" {
+		t.Fatalf("reattachCommandWithTimeout = %q", cmd)
+	}
+}
+
+func TestAgentWaitBlockIsProviderAgnosticAndActionable(t *testing.T) {
+	var buf strings.Builder
+	printAgentWaitBlock(&buf, "demo", "R1", 600, true, 1050)
+	out := buf.String()
+	for _, want := range []string{
+		"Agent wait protocol",
+		"Run exactly once",
+		"test-genie runs wait --json --timeout=1050 demo R1",
+		"recommended wait timeout: 17m30s",
+		"coding-agent tool execution",
+		"tail --pid=<pid> -f /dev/null",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("agent wait block missing %q:\n%s", want, out)
+		}
+	}
+	for _, forbidden := range []string{"Codex", "Claude"} {
+		if strings.Contains(out, forbidden) {
+			t.Fatalf("agent wait block must stay provider-agnostic; found %q in:\n%s", forbidden, out)
+		}
+	}
+}
+
 func TestAutoBackgroundThreshold(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "")

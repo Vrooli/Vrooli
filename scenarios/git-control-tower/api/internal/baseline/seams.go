@@ -181,10 +181,10 @@ type RunsClient interface {
 	// ListRunVisuals enumerates the per-page visual artifacts a run captured.
 	ListRunVisuals(ctx context.Context, scenario, runID string) ([]RunVisual, error)
 	// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
-	// captures. test-genie owns the visual analyzer (and its thresholds lever);
-	// GCT consumes the neutral per-page deltas and renders them as the advisory
+	// captures. Test Genie delegates the visual analyzer to ui-health; GCT
+	// consumes the neutral per-page deltas and renders them as the advisory
 	// "changed" tier. The result is advisory by contract — a difference is never
-	// a failure here (a clearly-broken render fails earlier, at smoke time).
+	// a failure here.
 	CompareRunVisuals(ctx context.Context, scenario, baseRunID, curRunID string) ([]VisualDelta, error)
 }
 

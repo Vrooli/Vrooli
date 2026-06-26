@@ -1,8 +1,8 @@
 # Validate Space — Validation Concern Coverage
 
 > **Model & terminology** — the projection model, status legend, and how coverage (the numerator)
-> is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`
-> _(planned)_. This document is the *Validate* denominator only.
+> is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`.
+> This document is the *Validate* denominator only.
 
 ## Purpose
 
@@ -71,5 +71,5 @@ the Validate-denominator work deferred to the swarm-manager initiative.
 
 ## Cross-References
 
-- `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` — canonical model + legend _(planned)_.
+- `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` — canonical model + legend.
 - `search-hub/docs/spaces/answer-space.md`, `prompt-manager/docs/spaces/guide-space.md` — sibling denominators.

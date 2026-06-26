@@ -25,6 +25,9 @@ func isStdoutTTY() bool {
 const (
 	defaultAutoBackgroundSeconds = 60
 	minAutoBackgroundSeconds     = 10
+	waitTimeoutBufferPercent     = 75
+	minRecommendedWaitSeconds    = 120
+	unknownETAWaitSeconds        = 900
 )
 
 // autoBackgroundThreshold resolves the auto-background ETA threshold.
@@ -79,6 +82,28 @@ func newRunsClient(baseURL string) runs_v1connect.RunsServiceClient {
 // not. Use followCommand for the human/TUI live-watch verb.
 func reattachCommand(scenario, runID string) string {
 	return "test-genie runs wait --json " + scenario + " " + runID
+}
+
+// recommendedWaitSeconds is the bounded one-shot wait window agents and scripts
+// should give the quiet wait command. It is deliberately larger than the ETA so
+// the normal path still blocks once until terminal, while retaining a finite
+// escape hatch if a provider wedges.
+func recommendedWaitSeconds(eta int, etaKnown bool) int {
+	if !etaKnown || eta <= 0 {
+		return unknownETAWaitSeconds
+	}
+	withBuffer := eta + (eta*waitTimeoutBufferPercent)/100
+	if withBuffer < minRecommendedWaitSeconds {
+		return minRecommendedWaitSeconds
+	}
+	return withBuffer
+}
+
+func reattachCommandWithTimeout(scenario, runID string, seconds int) string {
+	if seconds <= 0 {
+		return reattachCommand(scenario, runID)
+	}
+	return "test-genie runs wait --json --timeout=" + strconv.Itoa(seconds) + " " + scenario + " " + runID
 }
 
 // followCommand is the human/TUI live-watch verb: a continuous event stream with

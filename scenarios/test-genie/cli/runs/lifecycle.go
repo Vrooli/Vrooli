@@ -2,10 +2,13 @@ package runs
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -26,6 +29,13 @@ const exitWaitTimeout = 124
 // stays pure JSON for parsers. Overridable in tests.
 var stderrOut io.Writer = os.Stderr
 
+const eagerWaitWindow = 30 * time.Second
+
+var (
+	waitNow       = time.Now
+	waitStatePath = defaultWaitStatePath
+)
+
 // printTimeoutHint emits the cadence governor + the exact re-invoke command after
 // a --timeout wait returned before the run was terminal. nextCheck is the
 // server's recommended_next_check_seconds (0 → the cadence line is omitted). The
@@ -37,6 +47,71 @@ func printTimeoutHint(w io.Writer, scenario, runID string, timeout, nextCheck in
 		fmt.Fprintf(w, "still running — re-attach with:\n")
 	}
 	fmt.Fprintf(w, "  test-genie runs wait --json --timeout=%d %s %s\n", timeout, scenario, runID)
+}
+
+func defaultWaitStatePath() string {
+	base, err := os.UserCacheDir()
+	if err != nil || strings.TrimSpace(base) == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "vrooli", "test-genie", "wait-attempts.json")
+}
+
+func waitKey(scenario, runID string) string {
+	return strings.TrimSpace(scenario) + "/" + strings.TrimSpace(runID)
+}
+
+func readWaitAttempts(path string) map[string]int64 {
+	attempts := map[string]int64{}
+	if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
+		_ = json.Unmarshal(data, &attempts)
+	}
+	return attempts
+}
+
+func writeWaitAttempts(path string, attempts map[string]int64) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(attempts, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return err
+	}
+	return nil
+}
+
+func recordWaitAttempt(scenario, runID string) error {
+	path := waitStatePath()
+	attempts := readWaitAttempts(path)
+	attempts[waitKey(scenario, runID)] = waitNow().Unix()
+	return writeWaitAttempts(path, attempts)
+}
+
+func clearWaitAttempt(scenario, runID string) {
+	path := waitStatePath()
+	attempts := readWaitAttempts(path)
+	delete(attempts, waitKey(scenario, runID))
+	_ = writeWaitAttempts(path, attempts)
+}
+
+func warnIfEagerWait(w io.Writer, scenario, runID string) {
+	attempts := readWaitAttempts(waitStatePath())
+	prevUnix, hadPrev := attempts[waitKey(scenario, runID)]
+	if !hadPrev {
+		return
+	}
+	prev := time.Unix(prevUnix, 0)
+	elapsed := waitNow().Sub(prev)
+	if elapsed < 0 || elapsed > eagerWaitWindow {
+		return
+	}
+	fmt.Fprintf(w, "recent wait detected for %s/%s (%s ago). Do not poll with short output checks.\n", scenario, runID, elapsed.Round(time.Second))
+	fmt.Fprintf(w, "If a previous wait process is still running, attach to it instead:\n")
+	fmt.Fprintf(w, "  pgrep -af 'test-genie runs wait --json .* %s %s'\n", scenario, runID)
+	fmt.Fprintf(w, "  tail --pid=<pid> -f /dev/null\n")
 }
 
 // fetchNextCheck best-effort reads the server's recommended backoff for a run
@@ -128,6 +203,9 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if *jsonOut {
 		return waitSnapshot(cl, w, scenario, runID, *timeout)
 	}
+	if *timeout > 0 {
+		warnIfEagerWait(w, scenario, runID)
+	}
 
 	// Human mode: stream to terminal (optionally bounded by --timeout).
 	ctx := context.Background()
@@ -138,16 +216,21 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	}
 	terminal, streamErr := streamRunEvents(ctx, cl, w, scenario, runID, suppressHeartbeatsFor(w, false))
 	if ctx.Err() == context.DeadlineExceeded {
+		_ = recordWaitAttempt(scenario, runID)
 		fmt.Fprintln(w)
 		printTimeoutHint(w, scenario, runID, *timeout, fetchNextCheck(cl, scenario, runID))
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
+	clearWaitAttempt(scenario, runID)
 	return terminalExit(runID, terminal, streamErr)
 }
 
 // waitSnapshot is the scripted `--json` path: one WaitRun call, one structured
 // status, the suite exit code.
 func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, timeout int) error {
+	if timeout > 0 {
+		warnIfEagerWait(stderrOut, scenario, runID)
+	}
 	resp, err := cl.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{
 		Scenario: scenario, RunId: runID, TimeoutSeconds: int32(timeout),
 	}))
@@ -159,12 +242,14 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 		return err
 	}
 	if resp.Msg.GetTimedOut() {
+		_ = recordWaitAttempt(scenario, runID)
 		// stdout stays pure JSON (the snapshot already carries
 		// recommended_next_check_seconds); the human-readable cadence + re-invoke
 		// line goes to stderr.
 		printTimeoutHint(stderrOut, scenario, runID, timeout, int(st.GetRecommendedNextCheckSeconds()))
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
+	clearWaitAttempt(scenario, runID)
 	if st.GetStatus() == "passed" {
 		return nil
 	}

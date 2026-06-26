@@ -7,9 +7,10 @@ package runs
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -21,9 +22,11 @@ import (
 	"test-genie/internal/selfhealthsnapshots"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
-	"test-genie/internal/visualcheck"
 
+	"github.com/vrooli/api-core/discovery"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
+	visualconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth/visualhealth_v1connect"
 )
 
 // executionPlanner previews a run plan to derive its ETA and surface validation
@@ -47,6 +50,7 @@ type Service struct {
 	// the latest snapshot and (on include_trend) the windowed series. nil keeps
 	// the compute-on-read path unchanged (no trend fields).
 	snapshotReader snapshotReader
+	visualHealth   visualHealthComparer
 	// fleetSource feeds GetFleetHealth's fleet ledger (compute-on-read
 	// aggregation over the stored runs of EVERY scenario). nil → GetFleetHealth
 	// is Unimplemented. fleetRoster, when set, supplies the full fleet roster so
@@ -96,7 +100,31 @@ func (s *Service) SetFleetSource(src fleetLedgerSource, roster func(ctx context.
 // and planner power the durable run-lifecycle RPCs. ledgerSource feeds the
 // GetSelfHealth reliability ledger.
 func NewService(scenariosRoot string, runManager *runmanager.Manager, planner executionPlanner, ledgerSource ledgerSource) *Service {
-	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner, ledgerSource: ledgerSource}
+	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner, ledgerSource: ledgerSource, visualHealth: defaultVisualHealthComparer{}}
+}
+
+func (s *Service) SetVisualHealthComparer(comparer visualHealthComparer) *Service {
+	s.visualHealth = comparer
+	return s
+}
+
+type visualHealthComparer interface {
+	CompareArtifacts(context.Context, *visualpb.CompareArtifactsRequest) (*visualpb.CompareArtifactsResponse, error)
+}
+
+type defaultVisualHealthComparer struct{}
+
+func (defaultVisualHealthComparer) CompareArtifacts(ctx context.Context, req *visualpb.CompareArtifactsRequest) (*visualpb.CompareArtifactsResponse, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "ui-health")
+	if err != nil {
+		return nil, err
+	}
+	client := visualconnect.NewVisualHealthServiceClient(&http.Client{Timeout: 60 * time.Second}, baseURL)
+	resp, err := client.CompareArtifacts(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
 }
 
 func (s *Service) scenarioDir(scenario string) (string, error) {
@@ -322,7 +350,7 @@ func (s *Service) ListRunVideos(ctx context.Context, req *connect.Request[runspb
 	return connect.NewResponse(&runspb.ListRunVideosResponse{Videos: out}), nil
 }
 
-// ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot +
+// ListRunVisuals enumerates the per-page UI visual artifacts (screenshot +
 // optional video) a run captured under the baseline capture profile. The binary
 // content is served by the REST artifact route; this returns the structured
 // page set + rel-path handles git-control-tower diffs at the metadata level.
@@ -352,13 +380,9 @@ func (s *Service) ListRunVisuals(ctx context.Context, req *connect.Request[runsp
 	return connect.NewResponse(&runspb.ListRunVisualsResponse{Visuals: out}), nil
 }
 
-// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
-// captures. test-genie owns the visual analyzer (internal/visualcheck), so a
-// consumer like git-control-tower gets neutral per-page deltas instead of
-// re-deriving pixel math. A page captured in both runs is decoded and compared;
-// a page captured in only one run is reported as added/removed. Every delta is
-// advisory — a difference is never a verdict here (a clearly-broken render fails
-// earlier, at smoke time).
+// CompareRunVisuals delegates visual delta analysis to ui-health. Test Genie
+// only enumerates run artifacts and supplies inline screenshot bytes; ui-health
+// owns the pixel math and verdict taxonomy.
 func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[runspb.CompareRunVisualsRequest]) (*connect.Response[runspb.CompareRunVisualsResponse], error) {
 	dir, err := s.scenarioDir(req.Msg.GetScenario())
 	if err != nil {
@@ -379,59 +403,54 @@ func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[ru
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	baseByPage := indexVisualsByPage(baseVisuals)
-	curByPage := indexVisualsByPage(curVisuals)
-	thresholds := visualcheck.ThresholdsFromEnv()
-
-	pages := sortedUnion(baseByPage, curByPage)
-	deltas := make([]*runspb.VisualDelta, 0, len(pages))
-	for _, page := range pages {
-		base, inBase := baseByPage[page]
-		cur, inCur := curByPage[page]
-		label := cur.Label
-		if !inCur {
-			label = base.Label
-		}
-		delta := &runspb.VisualDelta{Page: page, Label: label}
-		switch {
-		case inBase && inCur:
-			status, fraction := s.comparePageVisual(dir, baseRunID, base, curRunID, cur, thresholds)
-			delta.Status = status
-			delta.ChangedFraction = fraction
-		case inCur:
-			delta.Status = "added"
-		default:
-			delta.Status = "removed"
-		}
-		deltas = append(deltas, delta)
+	comparer := s.visualHealth
+	if comparer == nil {
+		comparer = defaultVisualHealthComparer{}
+	}
+	visualResp, err := comparer.CompareArtifacts(ctx, &visualpb.CompareArtifactsRequest{
+		Scenario:     req.Msg.GetScenario(),
+		BaseRunId:    baseRunID,
+		CurrentRunId: curRunID,
+		Base:         s.visualCompareArtifacts(dir, baseRunID, baseVisuals),
+		Current:      s.visualCompareArtifacts(dir, curRunID, curVisuals),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("ui-health visual comparison unavailable: %w", err))
+	}
+	deltas := make([]*runspb.VisualDelta, 0, len(visualResp.GetDeltas()))
+	for _, d := range visualResp.GetDeltas() {
+		deltas = append(deltas, &runspb.VisualDelta{
+			Page:            d.GetPage(),
+			Label:           d.GetLabel(),
+			Status:          d.GetStatus(),
+			ChangedFraction: d.GetChangedFraction(),
+		})
 	}
 	return connect.NewResponse(&runspb.CompareRunVisualsResponse{Deltas: deltas}), nil
 }
 
-// comparePageVisual decodes and compares one page's screenshot across two runs.
-// An unreadable or undecodable capture degrades to "changed" so the page is
-// surfaced for review rather than silently dropped — never a hard failure, since
-// the visuals surface is advisory.
-func (s *Service) comparePageVisual(dir, baseRunID string, base sharedartifacts.RunVisual, curRunID string, cur sharedartifacts.RunVisual, thresholds visualcheck.Thresholds) (status string, fraction float64) {
-	if base.ScreenshotRelPath == "" || cur.ScreenshotRelPath == "" {
-		return "changed", 0
+func (s *Service) visualCompareArtifacts(dir, runID string, visuals []sharedartifacts.RunVisual) []*visualpb.CompareArtifact {
+	out := make([]*visualpb.CompareArtifact, 0, len(visuals))
+	for _, v := range visuals {
+		var screenshot []byte
+		if v.ScreenshotRelPath != "" {
+			if b, err := readRunArtifact(dir, runID, v.ScreenshotRelPath); err == nil {
+				screenshot = b
+			}
+		}
+		out = append(out, &visualpb.CompareArtifact{
+			Page:          v.Page,
+			Label:         v.Label,
+			ScreenshotPng: screenshot,
+			ScreenshotRef: &visualpb.ArtifactRef{
+				Scenario:  filepath.Base(dir),
+				RunId:     runID,
+				RelPath:   v.ScreenshotRelPath,
+				MediaType: "image/png",
+			},
+		})
 	}
-	baseBytes, err := readRunArtifact(dir, baseRunID, base.ScreenshotRelPath)
-	if err != nil {
-		return "changed", 0
-	}
-	curBytes, err := readRunArtifact(dir, curRunID, cur.ScreenshotRelPath)
-	if err != nil {
-		return "changed", 0
-	}
-	result, err := visualcheck.Compare(baseBytes, curBytes, thresholds)
-	if err != nil {
-		return "changed", 0
-	}
-	if result.Identical {
-		return "identical", 0
-	}
-	return "changed", result.ChangedFraction
+	return out
 }
 
 // readRunArtifact resolves and reads a run-relative artifact's bytes.
@@ -441,32 +460,6 @@ func readRunArtifact(dir, runID, relPath string) ([]byte, error) {
 		return nil, err
 	}
 	return os.ReadFile(abs)
-}
-
-// indexVisualsByPage keys a run's visuals by page path.
-func indexVisualsByPage(visuals []sharedartifacts.RunVisual) map[string]sharedartifacts.RunVisual {
-	out := make(map[string]sharedartifacts.RunVisual, len(visuals))
-	for _, v := range visuals {
-		out[v.Page] = v
-	}
-	return out
-}
-
-// sortedUnion returns the sorted union of two maps' keys.
-func sortedUnion(a, b map[string]sharedartifacts.RunVisual) []string {
-	seen := make(map[string]struct{}, len(a)+len(b))
-	for k := range a {
-		seen[k] = struct{}{}
-	}
-	for k := range b {
-		seen[k] = struct{}{}
-	}
-	out := make([]string, 0, len(seen))
-	for k := range seen {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }
 
 // ResolveArtifact maps a (scenario, runID, run-relative path) to an absolute

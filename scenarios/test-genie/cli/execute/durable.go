@@ -292,14 +292,29 @@ func printRunBanner(w io.Writer, scenario, runID string, eta int, etaKnown bool)
 	if etaKnown {
 		etaStr = humanDuration(eta)
 	}
+	waitSeconds := recommendedWaitSeconds(eta, etaKnown)
 	fmt.Fprintf(w, "▶ run %s started (estimated %s)\n", runID, etaStr)
 	fmt.Fprintf(w, "  The test-genie server owns this run — if your shell or tool times out, the run keeps going.\n")
-	fmt.Fprintf(w, "  Block on the result (quiet, exits with the verdict) with:\n    %s\n", reattachCommand(scenario, runID))
-	fmt.Fprintf(w, "  Or watch live progress with:\n    %s\n\n", followCommand(scenario, runID))
+	printAgentWaitBlock(w, scenario, runID, eta, etaKnown, waitSeconds)
+	fmt.Fprintf(w, "  Watch live progress with:\n    %s\n\n", followCommand(scenario, runID))
 }
 
 func printDetached(w io.Writer, scenario, runID string) {
 	fmt.Fprintf(w, "\n⏸ Detached from run %s (still running).\n   Re-attach with:\n     %s\n   (or watch live: %s)\n", runID, reattachCommand(scenario, runID), followCommand(scenario, runID))
+}
+
+func printAgentWaitBlock(w io.Writer, scenario, runID string, eta int, etaKnown bool, waitSeconds int) {
+	etaStr := "unknown"
+	if etaKnown {
+		etaStr = humanDuration(eta)
+	}
+	fmt.Fprintf(w, "  Agent wait protocol:\n")
+	fmt.Fprintf(w, "    Run exactly once:\n      %s\n", reattachCommandWithTimeout(scenario, runID, waitSeconds))
+	fmt.Fprintf(w, "    Expected duration: ~%s; recommended wait timeout: %s.\n", etaStr, humanDuration(waitSeconds))
+	fmt.Fprintf(w, "    In coding-agent tool execution, give the command at least this timeout and do not poll with short output checks.\n")
+	fmt.Fprintf(w, "    If a wait process was already started and then interrupted:\n")
+	fmt.Fprintf(w, "      pgrep -af 'test-genie runs wait --json .* %s %s'\n", scenario, runID)
+	fmt.Fprintf(w, "      tail --pid=<pid> -f /dev/null\n")
 }
 
 // runBusyGuidance extracts the one-run-per-scenario rejection (a divergent run
@@ -325,7 +340,7 @@ func runBusyGuidance(err error) (string, bool) {
 		}
 		var b strings.Builder
 		fmt.Fprintf(&b, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), preset)
-		fmt.Fprintf(&b, "  wait:  %s\n", reattachCommand(bi.GetScenario(), bi.GetRunId()))
+		printAgentWaitBlock(&b, bi.GetScenario(), bi.GetRunId(), 0, false, recommendedWaitSeconds(0, false))
 		fmt.Fprintf(&b, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
 		return b.String(), true
 	}

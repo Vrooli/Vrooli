@@ -33,10 +33,10 @@ flowchart LR
   test-genie owns run history; GCT *pins* the run once (`gct:baseline:<name>`)
   so retention GC can't reclaim it while the baseline references it, and unpins
   it once on delete.
-- The **visuals** surface points at the same run's UI-smoke visual artifacts
-  (screenshots captured by the smoke phase under the `baseline` profile),
-  enumerated via test-genie's `ListRunVisuals`. There is no GCT-local visual
-  storage for baselines.
+- The **visuals** surface points at the same run's baseline visual artifacts
+  (screenshots captured under the `baseline` profile), enumerated via
+  test-genie's `ListRunVisuals`. There is no GCT-local visual storage for
+  baselines.
 
 The `{surface → phase-set}` grouping is the SSOT in
 `internal/baseline/views.go`. Because the manifest only holds pointers into one
@@ -78,9 +78,12 @@ over the two runs' `ListRunVisuals` results — no pixel diffing.
 
 **Diff is durable and return-fast (mirrors snapshot).** `StartDiff` resolves the
 current run and returns **immediately** with its run id + ETA + a re-attach
-command — it never silently blocks. The verdict is computed and **cached
-server-side** when the run completes (keyed `(repoID, scenario, branch, name,
-runID)`), surviving client disconnect; `GetDiffResult` returns it instantly.
+command — it never silently blocks. Snapshot/diff start banners include an
+agent wait protocol with a bounded `test-genie runs wait --json --timeout=...`
+command, ETA, recommended timeout, and interrupted-wait recovery via
+`pgrep` + `tail --pid`. The verdict is computed and **cached server-side** when
+the run completes (keyed `(repoID, scenario, branch, name, runID)`), surviving
+client disconnect; `GetDiffResult` returns it instantly.
 The CLI:
 
 ```

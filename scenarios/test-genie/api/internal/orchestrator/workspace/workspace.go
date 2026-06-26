@@ -30,10 +30,9 @@ type Environment struct {
 	// control.
 	DiagnosticsPreset string
 
-	// CaptureProfile is the capture-depth dial threaded to the smoke phase. ""
-	// (default) keeps smoke single-page on the workflow engine (unchanged cost);
-	// "baseline" requests all-pages visual capture + video. See
-	// internal/captureprofile.
+	// CaptureProfile is the capture-depth dial. "" (default) keeps routine runs
+	// at default visual-artifact depth; "baseline" requests all-pages visual
+	// capture + video. See internal/captureprofile.
 	CaptureProfile string
 
 	ScenarioName string

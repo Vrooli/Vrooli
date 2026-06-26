@@ -336,10 +336,9 @@ func TestServiceDiffVisualsAdvisory(t *testing.T) {
 }
 
 func TestServicePartialBaselineDoesNotMasqueradeAsComplete(t *testing.T) {
-	// The comprehensive run skips the smoke phase (browser unavailable). The
-	// tests surface (unit+integration+smoke) still buckets from the phases that
-	// did run; a surface whose phases all went missing in the compare is
-	// not-comparable, not silently clean.
+	// The comprehensive run skips browser-dependent validation. The tests
+	// surface still buckets from the phases that did run; a surface whose phases
+	// all went missing in the compare is not-comparable, not silently clean.
 	exec := &fakeExecutor{result: ExecResult{Phases: []PhaseStatus{{"unit", "passed"}}}}
 	runs := &fakeRuns{compare: CompareResult{Phases: []PhaseDiff{
 		{Phase: "unit", Verdict: "clean"},

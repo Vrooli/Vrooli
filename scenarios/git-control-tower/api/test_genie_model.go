@@ -10,7 +10,7 @@ type TestExecutionRequest struct {
 	DiagnosticsPreset string   `json:"diagnosticsPreset,omitempty"` // none | light | full
 	// CaptureProfile is the capture-depth dial (orthogonal to the phase set). ""
 	// is the default depth; "baseline" enables all-pages visual capture + video +
-	// full diagnostics on the smoke phase (used by baseline snapshots).
+	// full diagnostics for baseline snapshots.
 	CaptureProfile string `json:"captureProfile,omitempty"`
 }
 

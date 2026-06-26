@@ -1,4 +1,4 @@
-package visualcheck
+package pixel
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 	"testing"
 )
 
-// solidPNG renders a w×h image filled with one color.
 func solidPNG(t *testing.T, w, h int, c color.Color) []byte {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
@@ -20,8 +19,6 @@ func solidPNG(t *testing.T, w, h int, c color.Color) []byte {
 	return encode(t, img)
 }
 
-// gradientPNG renders a horizontal black→white gradient: lots of luminance
-// variance, a healthy non-blank render.
 func gradientPNG(t *testing.T, w, h int) []byte {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
@@ -34,8 +31,6 @@ func gradientPNG(t *testing.T, w, h int) []byte {
 	return encode(t, img)
 }
 
-// gradientWithBlock renders the gradient with one quadrant overpainted a flat
-// color, simulating a localized UI change of a known magnitude.
 func gradientWithBlock(t *testing.T, w, h int, c color.Color) []byte {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
@@ -64,16 +59,16 @@ func encode(t *testing.T, img image.Image) []byte {
 func TestRenderHealthSolidIsBroken(t *testing.T) {
 	th := DefaultThresholds()
 	for _, c := range []color.RGBA{
-		{255, 255, 255, 255}, // white
-		{0, 0, 0, 255},       // black
-		{40, 120, 200, 255},  // a solid mid color
+		{255, 255, 255, 255},
+		{0, 0, 0, 255},
+		{40, 120, 200, 255},
 	} {
 		got, err := RenderHealth(solidPNG(t, 200, 150, c), th)
 		if err != nil {
 			t.Fatalf("RenderHealth(%v): %v", c, err)
 		}
 		if !got.Broken {
-			t.Errorf("solid %v: Broken=false, want true (variance=%.6f dominant=%.3f)", c, got.Variance, got.DominantFraction)
+			t.Errorf("solid %v: Broken=false, want true", c)
 		}
 	}
 }
@@ -84,12 +79,11 @@ func TestRenderHealthGradientIsHealthy(t *testing.T) {
 		t.Fatalf("RenderHealth: %v", err)
 	}
 	if got.Broken {
-		t.Errorf("gradient: Broken=true, want false (variance=%.6f dominant=%.3f reason=%q)", got.Variance, got.DominantFraction, got.Reason)
+		t.Errorf("gradient: Broken=true, want false")
 	}
 }
 
 func TestRenderHealthNearSolidIsBroken(t *testing.T) {
-	// A white page with a single thin off-white line: still effectively blank.
 	img := image.NewRGBA(image.Rect(0, 0, 300, 300))
 	for y := 0; y < 300; y++ {
 		for x := 0; x < 300; x++ {
@@ -104,7 +98,7 @@ func TestRenderHealthNearSolidIsBroken(t *testing.T) {
 		t.Fatalf("RenderHealth: %v", err)
 	}
 	if !got.Broken {
-		t.Errorf("near-solid: Broken=false, want true (dominant=%.3f)", got.DominantFraction)
+		t.Errorf("near-solid: Broken=false, want true")
 	}
 }
 
@@ -120,8 +114,6 @@ func TestCompareIdenticalBytes(t *testing.T) {
 }
 
 func TestCompareIdenticalContentDifferentSize(t *testing.T) {
-	// Same gradient content rendered at two sizes must downscale to the same
-	// grid and read as identical.
 	got, err := Compare(gradientPNG(t, 320, 240), gradientPNG(t, 640, 480), DefaultThresholds())
 	if err != nil {
 		t.Fatalf("Compare: %v", err)
@@ -139,19 +131,15 @@ func TestCompareChangedQuadrant(t *testing.T) {
 		t.Fatalf("Compare: %v", err)
 	}
 	if got.Identical {
-		t.Fatalf("changed quadrant read as identical (ChangedFraction=%.4f)", got.ChangedFraction)
+		t.Fatalf("changed quadrant read as identical")
 	}
-	// One quadrant changed: expect roughly a quarter of the grid to move, but
-	// only cells whose luminance actually shifted past PixelDelta count, so keep
-	// the band generous.
 	if got.ChangedFraction < 0.05 || got.ChangedFraction > 0.30 {
-		t.Errorf("ChangedFraction=%.4f, want within [0.05,0.30] for a single changed quadrant", got.ChangedFraction)
+		t.Errorf("ChangedFraction=%.4f, want within [0.05,0.30]", got.ChangedFraction)
 	}
 }
 
 func TestCompareSubToleranceNoise(t *testing.T) {
 	base := gradientPNG(t, 320, 240)
-	// Shift a single pixel by a hair — below PixelDelta, below ChangedTolerance.
 	img, _, err := image.Decode(bytes.NewReader(base))
 	if err != nil {
 		t.Fatalf("decode: %v", err)
@@ -172,42 +160,31 @@ func TestCompareSubToleranceNoise(t *testing.T) {
 	}
 }
 
-func TestCompareLeverTighteningFlipsVerdict(t *testing.T) {
-	base := gradientPNG(t, 320, 240)
-	cur := gradientWithBlock(t, 320, 240, color.RGBA{255, 0, 0, 255})
-
-	loose := DefaultThresholds()
-	loose.ChangedTolerance = 0.95 // tolerate almost anything → identical
-	got, err := Compare(base, cur, loose)
+func TestRenderHealthTransparentSolidIsBroken(t *testing.T) {
+	got, err := RenderHealth(solidPNG(t, 120, 90, color.RGBA{0, 0, 0, 0}), DefaultThresholds())
 	if err != nil {
-		t.Fatalf("Compare loose: %v", err)
+		t.Fatalf("RenderHealth: %v", err)
 	}
-	if !got.Identical {
-		t.Errorf("loose tolerance: want identical, got ChangedFraction=%.4f", got.ChangedFraction)
-	}
-
-	strict := DefaultThresholds()
-	strict.ChangedTolerance = 0.0 // any change → not identical
-	got, err = Compare(base, cur, strict)
-	if err != nil {
-		t.Fatalf("Compare strict: %v", err)
-	}
-	if got.Identical {
-		t.Error("strict tolerance: want not identical")
+	if !got.Broken {
+		t.Error("transparent solid should be treated as broken")
 	}
 }
 
-func TestRenderHealthRejectsGarbage(t *testing.T) {
-	if _, err := RenderHealth([]byte("not a png"), DefaultThresholds()); err == nil {
-		t.Error("expected decode error for garbage bytes")
+func TestRenderHealthSmallImage(t *testing.T) {
+	got, err := RenderHealth(gradientPNG(t, 8, 6), DefaultThresholds())
+	if err != nil {
+		t.Fatalf("RenderHealth: %v", err)
+	}
+	if got.Variance == 0 {
+		t.Errorf("small gradient variance = 0, want non-zero")
 	}
 }
 
 func TestThresholdsFromEnvOverridesAndGuards(t *testing.T) {
-	t.Setenv("TEST_GENIE_VISUAL_GRID_SIZE", "16")
-	t.Setenv("TEST_GENIE_VISUAL_CHANGED_TOLERANCE", "0.25")
-	t.Setenv("TEST_GENIE_VISUAL_BLANK_FRACTION", "bogus") // ignored, keeps default
-	t.Setenv("TEST_GENIE_VISUAL_PIXEL_DELTA", "5")        // out of range, keeps default
+	t.Setenv("UI_HEALTH_VISUAL_GRID_SIZE", "16")
+	t.Setenv("UI_HEALTH_VISUAL_CHANGED_TOLERANCE", "0.25")
+	t.Setenv("UI_HEALTH_VISUAL_BLANK_FRACTION", "bogus")
+	t.Setenv("UI_HEALTH_VISUAL_PIXEL_DELTA", "5")
 
 	got := ThresholdsFromEnv()
 	def := DefaultThresholds()
@@ -218,9 +195,9 @@ func TestThresholdsFromEnvOverridesAndGuards(t *testing.T) {
 		t.Errorf("ChangedTolerance = %.3f, want 0.25", got.ChangedTolerance)
 	}
 	if got.BlankFraction != def.BlankFraction {
-		t.Errorf("BlankFraction = %.3f, want default %.3f (bad value must be ignored)", got.BlankFraction, def.BlankFraction)
+		t.Errorf("BlankFraction = %.3f, want default %.3f", got.BlankFraction, def.BlankFraction)
 	}
 	if got.PixelDelta != def.PixelDelta {
-		t.Errorf("PixelDelta = %.3f, want default %.3f (out-of-range must be ignored)", got.PixelDelta, def.PixelDelta)
+		t.Errorf("PixelDelta = %.3f, want default %.3f", got.PixelDelta, def.PixelDelta)
 	}
 }

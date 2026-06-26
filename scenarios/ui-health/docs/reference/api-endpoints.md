@@ -52,6 +52,75 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
+## Visual Health
+
+The visual-health domain is the canonical generic browser/UI artifact
+judgment surface. BAS owns execution and capture; ui-health analyzes
+captured screenshots, DOM, layout, viewport, console/network, and page
+error evidence into normalized findings and metrics.
+
+### `POST /vrooli.ui_health.v1.visualhealth.VisualHealthService/AnalyzeArtifacts`
+
+Analyze one or more browser step artifacts through the generated
+Connect-RPC service.
+
+| | |
+|---|---|
+| **Auth** | None (template default; deployments may add auth at the gateway) |
+| **Request** | `AnalyzeArtifactsRequest { scenario, run_id, steps[] }` |
+| **Response** | `AnalyzeArtifactsResponse { scenario, run_id, verdict, steps[], findings[] }` |
+| **Errors** | Connect transport errors only; missing optional artifacts produce skipped/absent rule output rather than API failure |
+| **CLI** | `ui-health visual analyze-artifacts --request <path>` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.ui_health.v1.visualhealth.VisualHealthService/AnalyzeArtifacts" \
+  -H 'Content-Type: application/json' \
+  -d '{"scenario":"demo","steps":[{"step_id":"load","dom_html":"<main>Hello</main>"}]}'
+```
+
+### `POST /vrooli.ui_health.v1.visualhealth.VisualHealthService/CompareArtifacts`
+
+Compare baseline/current screenshot artifacts through ui-health's
+pixel comparison engine. Test Genie can delegate run artifact
+enumeration here, but it does not own the visual delta logic.
+
+| | |
+|---|---|
+| **Auth** | None (template default; deployments may add auth at the gateway) |
+| **Request** | `CompareArtifactsRequest { scenario, base_run_id, current_run_id, base[], current[] }` |
+| **Response** | `CompareArtifactsResponse { deltas[] }` |
+| **Errors** | Connect transport errors only; unreadable or missing inline screenshots are treated as changed deltas |
+| **CLI** | `ui-health visual compare-artifacts --request <path>` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.ui_health.v1.visualhealth.VisualHealthService/CompareArtifacts" \
+  -H 'Content-Type: application/json' \
+  -d '{"scenario":"demo","base_run_id":"base","current_run_id":"current"}'
+```
+
+### `POST /vrooli.ui_health.v1.visualhealth.VisualHealthService/ListRules`
+
+List the deterministic visual-health rule registry.
+
+| | |
+|---|---|
+| **Auth** | None (template default; deployments may add auth at the gateway) |
+| **Request** | `ListRulesRequest {}` |
+| **Response** | `ListRulesResponse { rules[] }` |
+| **Errors** | Connect transport errors only |
+| **CLI** | `ui-health visual rules` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.ui_health.v1.visualhealth.VisualHealthService/ListRules" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+Wire shapes live in
+`packages/proto/schemas/ui-health/v1/visualhealth/visualhealth.proto`.
+
+---
+
 ## Notes (CRUD reference)
 
 The `notes` domain is the canonical worked example. Copy its layering

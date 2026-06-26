@@ -64,9 +64,8 @@ type StorageShimEntry struct {
 
 // Evidence is the engine-agnostic observation set from loading a single UI
 // surface in a browser. It carries everything the verdict rules need and
-// nothing about how the browser was driven, so any producer (the smoke phase's
-// BAS workflow today; other phases later) can build one and feed it to
-// [Analyze].
+// nothing about how the browser was driven, so the runtime group and future
+// producers can build one and feed it to [Analyze].
 type Evidence struct {
 	// URL is the surface that was loaded.
 	URL string
@@ -91,10 +90,10 @@ type Evidence struct {
 	ScreenshotRef string
 
 	// RenderBroken reports that a pixel render-health check judged the captured
-	// screenshot a clearly-broken (blank/solid-color) render. It is set by the
-	// producer (the smoke phase, via internal/visualcheck) before Analyze;
-	// producers that do not inspect pixels leave it false. A broken render is a
-	// hard failure that needs no baseline.
+	// screenshot a clearly-broken (blank/solid-color) render. It is set from
+	// ui-health's visual-health analyzer before Analyze; producers that do not
+	// inspect pixels leave it false. A broken render is a hard failure that
+	// needs no baseline.
 	RenderBroken bool
 	// RenderBrokenReason explains RenderBroken (e.g. "98% of the frame is a
 	// single tone"); empty when RenderBroken is false.

@@ -155,17 +155,16 @@ test-genie run-tests my-scenario --playbook bas/cases/smoke/dashboard-loads.json
 
 ---
 
-## ui-smoke
+## UI Runtime Validation
 
-Run only the shared UI smoke harness. The harness embeds the scenario UI in a
-host iframe shell on the **Browser Automation Studio (BAS)** workflow engine,
-waits for the iframe-bridge handshake (a hard-fail gate), and captures a
-screenshot plus console/network observations. BAS must be running
-(`vrooli scenario start browser-automation-studio`); when it is unreachable the
-smoke phase skips rather than failing hard.
+Runtime UI validation is owned by the `ui-health` phase. It embeds the scenario
+UI in a host iframe shell through **Browser Automation Studio (BAS)**, waits for
+the iframe-bridge handshake, captures browser artifacts, and delegates generic
+visual judgment to ui-health.
 
 ```bash
-test-genie ui-smoke <scenario-name> [options]
+test-genie execute <scenario-name> --phases ui-health
+ui-health validate scenario <scenario-name> --json
 ```
 
 ### Examples
@@ -276,9 +275,14 @@ decoupled from the request/process lifecycle:
 - A run whose estimated duration is at or above the auto-background threshold
   (`TEST_GENIE_AUTOBACKGROUND_SECONDS`, default 60s; `0` disables) is launched
   in the background so your shell returns immediately, with a re-attach command.
-  Shorter or unknown-ETA runs are followed inline (still cancel-survivable).
+  Unknown-ETA runs also background by default because first runs can be long
+  (`TEST_GENIE_AUTOBACKGROUND_ON_UNKNOWN_ETA=0` disables that behavior).
+  Shorter known-ETA runs are followed inline (still cancel-survivable).
 - `--wait` always blocks to completion inline regardless of ETA (used by CI and
   the `vrooli` lifecycle test phase, which need the real exit code).
+- Background and busy-run output includes an **Agent wait protocol** block with
+  the exact quiet `runs wait --json --timeout=<seconds>` command, the expected
+  duration, the recommended wait timeout, and interruption recovery commands.
 
 Re-attach / inspect a run by handle with the `runs` verbs below
 (`test-genie runs wait <scenario> <run-id>`, etc.).
@@ -451,9 +455,24 @@ Do **not** loop with repeated "still waiting" checks. If a run backgrounds or
 your tool times out, block once with the printed re-attach command:
 
 ```bash
-test-genie runs wait my-scenario 20251208-151044-abcd1234
+test-genie runs wait --json --timeout=840 my-scenario 20251208-151044-abcd1234
 # exits with the suite's real code; 124 if a --timeout window elapses
 ```
+
+For coding-agent tool execution, give that single wait command at least the
+printed recommended timeout and do not poll with short output checks. If a wait
+process was already started and then the tool turn was interrupted, attach to
+the existing local process instead of starting another wait:
+
+```bash
+pgrep -af 'test-genie runs wait --json .* my-scenario 20251208-151044-abcd1234'
+tail --pid=<pid> -f /dev/null
+```
+
+When a bounded wait times out while the run is still active, Test Genie records
+that timestamp locally. A second bounded wait for the same run within the
+eagerness window prints a warning and the same attach guidance on stderr, while
+keeping `--json` stdout parseable.
 
 ## coverage
 

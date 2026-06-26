@@ -134,7 +134,7 @@ func TestToEvidence_NilTimelineIsNotLoaded(t *testing.T) {
 	}
 }
 
-func TestToEvidence_BlankFinalDOMIsPageError(t *testing.T) {
+func TestToEvidence_BlankFinalDOMIsNotPageError(t *testing.T) {
 	tl := &ParsedTimeline{
 		Proto:           &bastimeline.ExecutionTimeline{},
 		FinalDOM:        "<html><body>   </body></html>",
@@ -142,15 +142,34 @@ func TestToEvidence_BlankFinalDOMIsPageError(t *testing.T) {
 		Frames:          []ParsedFrame{{FinalURL: "http://blank.test/"}},
 	}
 	ev := ToEvidence(tl, ToEvidenceOptions{Label: "blank.json"})
-	if len(ev.PageErrors) != 1 {
-		t.Fatalf("expected a blank-DOM page error, got %+v", ev.PageErrors)
+	if len(ev.PageErrors) != 0 {
+		t.Fatalf("expected no local page errors for blank DOM, got %+v", ev.PageErrors)
 	}
 	if ev.URL != "http://blank.test/" {
 		t.Fatalf("expected final-frame URL, got %q", ev.URL)
 	}
 	v := evidence.Analyze(ev)
-	if v.Passed() || v.PageErrorCount != 1 {
-		t.Fatalf("expected failing verdict with 1 page error, got %+v", v)
+	if !v.Passed() || v.PageErrorCount != 0 {
+		t.Fatalf("expected local evidence to pass without ui-health visual judgment, got %+v", v)
+	}
+}
+
+func TestToVisualStepArtifact_CarriesFinalDOMForUiHealth(t *testing.T) {
+	tl := &ParsedTimeline{
+		Proto:           &bastimeline.ExecutionTimeline{},
+		FinalDOM:        "<html><body>   </body></html>",
+		FinalDOMPreview: "<body></body>",
+		Frames:          []ParsedFrame{{FinalURL: "http://blank.test/"}},
+	}
+	step := ToVisualStepArtifact(tl, ToEvidenceOptions{Label: "blank.json"})
+	if step == nil {
+		t.Fatal("expected visual step artifact")
+	}
+	if step.DomHtml != tl.FinalDOM {
+		t.Fatalf("expected final DOM to be delegated to ui-health, got %q", step.DomHtml)
+	}
+	if step.Url != "http://blank.test/" {
+		t.Fatalf("expected final-frame URL, got %q", step.Url)
 	}
 }
 

@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 
 	"ui-health/internal/evidence"
 	"ui-health/internal/services/manifestvalidation"
+	"ui-health/internal/visualhealth"
 )
 
 const basScenarioID = "browser-automation-studio"
@@ -70,7 +72,79 @@ func (r *Runner) Check(ctx context.Context, in Input) []manifestvalidation.Findi
 			"runtime render skipped: browser-automation-studio is unavailable; static checks still ran",
 		)}
 	}
-	return findingsFromEvidence(res.evidenceFor(url))
+	ev := res.evidenceFor(url)
+	visualFinds := applyVisualHealth(&ev, res.visualStep(url))
+	finds := findingsFromEvidence(ev)
+	return append(finds, visualFinds...)
+}
+
+func (r *runResult) visualStep(url string) *visualpb.VisualStepArtifact {
+	if r == nil {
+		return &visualpb.VisualStepArtifact{StepId: "runtime-render", Url: url}
+	}
+	step := &visualpb.VisualStepArtifact{
+		StepId:        "runtime-render",
+		Url:           url,
+		ScreenshotPng: r.screenshotPNG,
+		DomHtml:       r.domHTML,
+		LayoutJson:    r.layoutJSON,
+		ScreenshotRef: &visualpb.ArtifactRef{Uri: r.screenshotRef},
+	}
+	if r.viewportWidth > 0 || r.viewportHeight > 0 {
+		step.Viewport = &visualpb.Viewport{Width: r.viewportWidth, Height: r.viewportHeight}
+	}
+	for _, entry := range r.network {
+		status := int32(0)
+		if entry.Status != nil {
+			status = int32(*entry.Status)
+		}
+		step.Network = append(step.Network, &visualpb.NetworkEntry{
+			Url:          entry.URL,
+			Method:       entry.Method,
+			ResourceType: entry.ResourceType,
+			Status:       status,
+			ErrorText:    entry.ErrorText,
+		})
+	}
+	return step
+}
+
+func applyVisualHealth(ev *evidence.Evidence, step *visualpb.VisualStepArtifact) []manifestvalidation.Finding {
+	if ev == nil || step == nil {
+		return nil
+	}
+	resp := visualhealth.DefaultAnalyzer().Analyze(&visualpb.AnalyzeArtifactsRequest{
+		Steps: []*visualpb.VisualStepArtifact{step},
+	})
+	var details []manifestvalidation.Finding
+	for _, finding := range resp.GetFindings() {
+		if finding.GetSeverity() == visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR && !ev.RenderBroken {
+			ev.RenderBroken = true
+			ev.RenderBrokenReason = firstNonEmpty(finding.GetEvidence(), finding.GetMessage())
+		}
+		details = append(details, visualFindingToManifest(finding))
+	}
+	return details
+}
+
+func visualFindingToManifest(finding *visualpb.VisualFinding) manifestvalidation.Finding {
+	if finding == nil {
+		return manifestvalidation.Finding{}
+	}
+	severity := manifestvalidation.SeverityInfo
+	switch finding.GetSeverity() {
+	case visualpb.VisualSeverity_VISUAL_SEVERITY_ERROR:
+		severity = manifestvalidation.SeverityError
+	case visualpb.VisualSeverity_VISUAL_SEVERITY_WARNING:
+		severity = manifestvalidation.SeverityWarning
+	}
+	return manifestvalidation.Finding{
+		Severity:   severity,
+		Code:       finding.GetCode(),
+		Location:   finding.GetLocation(),
+		Message:    finding.GetMessage(),
+		Suggestion: finding.GetRemediation(),
+	}
 }
 
 // findingsFromEvidence runs the shared verdict and maps it to ui-health findings.

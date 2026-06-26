@@ -44,7 +44,7 @@
         { "path": "phases/structure/cli-approaches.md", "title": "CLI Manifest Contract", "description": "Manifest-driven scenario CLI adapter validation" },
         { "path": "phases/structure/ui-smoke.md", "title": "UI Smoke Testing", "description": "Fast UI validation on Browser Automation Studio" },
         { "path": "phases/contracts/README.md", "title": "Contracts Phase", "description": "cli/manifest.json proto-binding validation via cli-health" },
-        { "path": "phases/ui-health/README.md", "title": "UI Health Phase", "description": "All UI validation via ui-health: manifest/slot/overlay rules, static UI-interop, net-new UI standards, UI-bundle freshness, and a BAS-driven runtime render + iframe-bridge handshake group (execution mode; absorbed the retired smoke phase)" },
+        { "path": "phases/ui-health/README.md", "title": "UI Health Phase", "description": "All UI validation via ui-health: manifest/slot/overlay rules, static UI-interop, net-new UI standards, UI-bundle freshness, and a BAS-driven runtime render + iframe-bridge handshake group (execution mode)" },
         { "path": "phases/standards/README.md", "title": "Standards Phase", "description": "Standards enforcement via scenario-auditor" },
         { "path": "phases/dependencies/README.md", "title": "Dependencies Phase", "description": "Runtime and tool availability checks" },
         { "path": "phases/quality/README.md", "title": "Quality Phase", "description": "Static quality contracts via quality-health" },

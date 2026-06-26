@@ -24,12 +24,10 @@ type freshnessClient interface {
 // including --static-only, and needs no BAS — it delegates to the canonical
 // content-hash freshness engine via the typed vrooli CLI, which folds in file:
 // workspace deps (e.g. @vrooli/iframe-bridge), keyed build inputs (NODE_ENV,
-// toolchain), and per-file content hashing that the retired smoke phase's
-// mtime heuristic missed.
+// toolchain), and per-file content hashing.
 //
-// A stale UI bundle is a gating ERROR with the restart remediation — parity
-// with the retired smoke phase, which hard-blocked the render on a stale
-// bundle before establishing the iframe-bridge handshake. Only the `ui-bundle`
+// A stale UI bundle is a gating ERROR with the restart remediation, because the
+// runtime/render group must not validate a stale build. Only the `ui-bundle`
 // check group is consulted; API-binary freshness is not a UI concern.
 //
 // Resolution errors degrade gracefully (logged, no finding): a freshness-engine

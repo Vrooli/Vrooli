@@ -1,11 +1,10 @@
 // VisualsDiff (Plan B §4.3) — visual snapshot delta for one baseline.
 //
-// The visuals surface is advisory: test-genie compares the two runs' captures at
-// the pixel level (internal/visualcheck) and reports neutral per-page deltas. A
-// difference here is a "review before/after" signal, never a failure — a
-// clearly-broken render fails earlier, at smoke time, on the test surface. This
-// view renders the three states (clean / changed-review / not-comparable) and
-// links to the Screenshots tab for the side-by-side imagery.
+// The visuals surface is advisory: test-genie enumerates the two runs' captures
+// and delegates pixel comparison to ui-health, returning neutral per-page
+// deltas. A difference here is a "review before/after" signal, never a failure.
+// This view renders the three states (clean / changed-review / not-comparable)
+// and links to the Screenshots tab for the side-by-side imagery.
 
 import { DiffSection, SurfaceDiffBody } from "../parts";
 import type { SurfaceDiff } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";

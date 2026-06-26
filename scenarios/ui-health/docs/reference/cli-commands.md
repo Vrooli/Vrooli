@@ -89,6 +89,46 @@ Read values back without an argument:
 ui-health configure api_base
 ```
 
+## Scenario commands — `visual`
+
+The `visual` domain is the generic browser visual-health authority. BAS
+and Playbooks supply artifacts; ui-health owns the rule registry,
+finding taxonomy, and pixel/layout/DOM judgment.
+
+### `ui-health visual analyze-artifacts --request <path>`
+
+Analyze a JSON `VisualHealthService.AnalyzeArtifactsRequest` file. The
+request can include inline PNG/DOM/layout data for tests and small
+captures, or artifact references for durable run artifacts. Calls the
+generated Connect-RPC `VisualHealthService/AnalyzeArtifacts` method.
+
+```bash
+ui-health visual analyze-artifacts --request ./visual-request.json
+ui-health visual analyze-artifacts --request ./visual-request.json --json
+```
+
+### `ui-health visual compare-artifacts --request <path>`
+
+Compare a JSON `VisualHealthService.CompareArtifactsRequest` file.
+This is the canonical visual delta analyzer; orchestrators such as
+Test Genie may enumerate run artifacts, but ui-health owns comparison
+logic and verdicts.
+
+```bash
+ui-health visual compare-artifacts --request ./visual-compare.json
+ui-health visual compare-artifacts --request ./visual-compare.json --json
+```
+
+### `ui-health visual rules`
+
+List the deterministic visual-health rule registry, including each
+rule's category, severity, required artifacts, and remediation.
+
+```bash
+ui-health visual rules
+ui-health visual rules --json
+```
+
 ## Scenario commands — `notes` (CRUD reference)
 
 The `notes` domain is the canonical worked example. Copy its layout

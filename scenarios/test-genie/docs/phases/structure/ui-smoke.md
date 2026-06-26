@@ -119,8 +119,8 @@ The UI smoke test drives its capture on the BAS workflow engine, so the
 vrooli scenario start browser-automation-studio
 ```
 
-When BAS is unreachable, the runnability gate **skips** the smoke phase
-(resource unavailable) rather than failing it hard.
+When BAS is unreachable, the runnability gate **skips or degrades**
+BAS-dependent validation (resource unavailable) rather than failing it hard.
 
 ### 2. iframe-bridge Dependency
 

@@ -13,6 +13,7 @@ const (
 	nodeNavigate  = "smoke-navigate-host"
 	nodeInject    = "smoke-inject-frame"
 	nodeHandshake = "smoke-assert-handshake"
+	nodeArtifacts = "visual-capture-artifacts"
 	nodeScreens   = "smoke-screenshot-frame"
 
 	// hostFrameSelector is the id of the host iframe element embedding the
@@ -49,7 +50,8 @@ var defaultHandshakeSignals = []string{
 //     host DOM once the bridge child posts READY/HELLO (or a signal poll holds);
 //  3. assert [data-smoke-bridge-ready] EXISTS (the hard-fail gate), bounded by
 //     timeoutMs — succeeds the moment the marker appears, fails on timeout;
-//  4. screenshot the host iframe element.
+//  4. evaluate: best-effort DOM/layout/viewport artifact capture;
+//  5. screenshot the host iframe element.
 func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.Duration, vw, vh int) map[string]any {
 	if len(signals) == 0 {
 		signals = defaultHandshakeSignals
@@ -92,6 +94,13 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.D
 					"failure_message": "Iframe bridge never signaled ready.",
 				},
 			}),
+			node(nodeArtifacts, "Capture visual health artifacts", map[string]any{
+				"type": "ACTION_TYPE_EVALUATE",
+				"evaluate": map[string]any{
+					"expression":   artifactCaptureScript(),
+					"store_result": "visual_artifacts",
+				},
+			}),
 			node(nodeScreens, "Screenshot embedded UI", map[string]any{
 				"type":       "ACTION_TYPE_SCREENSHOT",
 				"screenshot": map[string]any{"selector": hostFrameSelector},
@@ -100,7 +109,8 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, timeout time.D
 		"edges": []any{
 			edge(nodeNavigate, nodeInject),
 			edge(nodeInject, nodeHandshake),
-			edge(nodeHandshake, nodeScreens),
+			edge(nodeHandshake, nodeArtifacts),
+			edge(nodeArtifacts, nodeScreens),
 		},
 	}
 }
@@ -218,4 +228,131 @@ const injectionTemplate = `(() => {
     if (w && frameReady(w)) { signalReady(); clearInterval(poll); }
     if (doc.documentElement.hasAttribute('data-smoke-bridge-ready')) { clearInterval(poll); }
   }, 100);
+})();`
+
+func artifactCaptureScript() string {
+	return artifactCaptureTemplate
+}
+
+const artifactCaptureTemplate = `(() => {
+  function candidateDocument() {
+    var frame = document.querySelector('#ui-smoke-frame');
+    if (frame) {
+      try {
+        if (frame.contentDocument && frame.contentDocument.documentElement) {
+          return frame.contentDocument;
+        }
+      } catch (e) {}
+    }
+    return document;
+  }
+
+  function selectorFor(el) {
+    if (!el || !el.tagName) { return ''; }
+    if (el.id) { return '#' + el.id; }
+    var tag = String(el.tagName).toLowerCase();
+    var name = el.getAttribute && el.getAttribute('name');
+    if (name) { return tag + '[name="' + name + '"]'; }
+    var role = el.getAttribute && el.getAttribute('role');
+    if (role) { return tag + '[role="' + role + '"]'; }
+    var cls = el.classList && el.classList.length ? Array.prototype.slice.call(el.classList, 0, 2).join('.') : '';
+    return cls ? tag + '.' + cls : tag;
+  }
+
+  function visibleText(el) {
+    var text = (el.innerText || el.textContent || '').trim();
+    return text.length > 160 ? text.slice(0, 160) : text;
+  }
+
+  function elementRecord(el) {
+    var rect = el.getBoundingClientRect();
+    var style = window.getComputedStyle(el);
+    var tag = String(el.tagName || '').toLowerCase();
+    var role = el.getAttribute('role') || '';
+    var tabIndex = Number(el.getAttribute('tabindex'));
+    var interactive = /^(a|button|input|select|textarea|summary)$/.test(tag) ||
+      /^(button|link|checkbox|combobox|menuitem|radio|searchbox|slider|switch|tab|textbox)$/.test(role) ||
+      el.isContentEditable || tabIndex >= 0;
+    return {
+      selector: selectorFor(el),
+      tag: tag,
+      role: role,
+      type: el.getAttribute('type') || '',
+      text: visibleText(el),
+      interactive: !!interactive,
+      contentEditable: !!el.isContentEditable,
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      clientWidth: el.clientWidth,
+      clientHeight: el.clientHeight,
+      scrollWidth: el.scrollWidth,
+      scrollHeight: el.scrollHeight,
+      fontSize: parseFloat(style.fontSize) || 0,
+      position: style.position,
+      overflowX: style.overflowX,
+      overflowY: style.overflowY,
+      pointerEvents: style.pointerEvents,
+      visibility: style.visibility,
+      display: style.display,
+      opacity: parseFloat(style.opacity || '1'),
+      ariaModal: el.getAttribute('aria-modal') === 'true'
+    };
+  }
+
+  function collectElements(doc) {
+    var selector = [
+      'a[href]', 'button', 'input', 'select', 'textarea', 'summary',
+      '[role]', '[tabindex]', '[contenteditable="true"]',
+      'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'label', 'span', 'div'
+    ].join(',');
+    return Array.prototype.slice.call(doc.querySelectorAll(selector), 0, 250).map(elementRecord);
+  }
+
+  function resourceType(entry) {
+    if (entry.initiatorType) { return entry.initiatorType; }
+    var name = entry.name || '';
+    if (/\.(png|jpe?g|gif|webp|svg|ico)(\?|$)/i.test(name)) { return 'image'; }
+    if (/\.(css)(\?|$)/i.test(name)) { return 'stylesheet'; }
+    if (/\.(woff2?|ttf|otf)(\?|$)/i.test(name)) { return 'font'; }
+    return 'resource';
+  }
+
+  var doc = candidateDocument();
+  var root = doc.documentElement;
+  var body = doc.body || root;
+  var viewport = {
+    width: window.innerWidth || root.clientWidth || 0,
+    height: window.innerHeight || root.clientHeight || 0,
+    deviceScaleFactor: window.devicePixelRatio || 1,
+    visualViewportWidth: window.visualViewport ? window.visualViewport.width : 0,
+    visualViewportHeight: window.visualViewport ? window.visualViewport.height : 0,
+    visualViewportScale: window.visualViewport ? window.visualViewport.scale : 0
+  };
+  var layout = {
+    viewport: viewport,
+    document: {
+      scrollWidth: Math.max(root.scrollWidth || 0, body.scrollWidth || 0),
+      scrollHeight: Math.max(root.scrollHeight || 0, body.scrollHeight || 0),
+      clientWidth: root.clientWidth || 0,
+      clientHeight: root.clientHeight || 0
+    },
+    elements: collectElements(doc)
+  };
+  var network = [];
+  try {
+    network = performance.getEntriesByType('resource').slice(-200).map(function (entry) {
+      return {
+        url: entry.name || '',
+        method: 'GET',
+        resourceType: resourceType(entry),
+        status: 0,
+        errorText: ''
+      };
+    });
+  } catch (e) {}
+  return {
+    domHtml: root ? root.outerHTML : '',
+    layout: layout,
+    viewport: viewport,
+    network: network
+  };
 })();`

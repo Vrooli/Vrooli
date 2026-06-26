@@ -98,22 +98,24 @@ graph TB
 A workflow's own assertions are the **primary** verdict: a failed assertion
 fails the workflow, an all-green workflow passes. On top of that, each workflow's
 BAS timeline is run through the shared browser-evidence analyzer
-(`internal/evidence`, the same authority the [UI smoke phase](../structure/ui-smoke.md)
-uses) to surface browser-level problems the assertions did not explicitly check:
+(`internal/evidence`) to surface browser-level problems the assertions did not
+explicitly check:
 
 - **failed network requests** (transport failure or `>=400` status) → error finding;
-- **uncaught page errors / a blank final DOM** → error finding;
+- **uncaught page errors** → error finding;
 - **console errors** → error finding (counted and surfaced, but non-fatal — a
   passing UI may log handled errors);
-- **console warnings** → warning finding.
+- **console warnings** → warning finding;
+- **generic visual-health findings from ui-health** → matching observation
+  severity.
 
 These findings are **additive observations**: they appear alongside the
 workflow's pass/fail result and never, on their own, flip a passing workflow to
 failed. A clean workflow with console errors surfaces them; an all-green clean
 workflow stays green with no findings. The console/network/screenshot extraction
-is shared with the standalone ui-smoke harness via
-`playbooks/execution/evidence_adapter.go`, and the verdict rules live once in
-`internal/evidence` — they cannot drift between the two BAS-driven consumers.
+lives in `playbooks/execution/evidence_adapter.go`, and generic DOM/pixel/layout
+judgment is delegated to ui-health so Playbooks does not reimplement browser UI
+health rules.
 
 ## Workflow Structure
 

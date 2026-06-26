@@ -88,9 +88,9 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	root := h.resolveScenarioRoot(req.Msg.GetScenario(), req.Msg.GetPath())
 	report.Findings = append(report.Findings, runInteropFindings(root, req.Msg.GetScenario())...)
 	// Static freshness group (group 4): the canonical content-hash engine flags a
-	// stale UI bundle as a gating ERROR (restart remediation), parity with the
-	// retired smoke phase. Runs on every validation, including --static-only —
-	// it needs no BAS — and degrades gracefully when freshness can't be resolved.
+	// stale UI bundle as a gating ERROR (restart remediation). Runs on every
+	// validation, including --static-only — it needs no BAS — and degrades
+	// gracefully when freshness can't be resolved.
 	report.Findings = append(report.Findings, h.freshnessFindings(ctx, req.Msg.GetScenario(), root)...)
 	// Runtime/render group: runs only when the caller requested execution
 	// (include_execution=true, i.e. not --static-only) and the scenario has a UI.

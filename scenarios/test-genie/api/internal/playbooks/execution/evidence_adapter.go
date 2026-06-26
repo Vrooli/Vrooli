@@ -8,6 +8,7 @@ import (
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 )
 
 // This file is the single home for mapping a BAS [ParsedTimeline] onto the
@@ -73,9 +74,9 @@ type ToEvidenceOptions struct {
 //
 // A playbooks workflow runs many steps across many frames, so the evidence is
 // aggregated over the entire run: console and network observations are the union
-// across all frames; the screenshot reference and DOM-blank signal are taken
-// from the final frame (the run's end state). Unlike smoke, playbooks does not
-// gate on the iframe-bridge handshake — it drives the scenario UI top-level — so
+// across all frames and the screenshot reference is taken from the final frame
+// (the run's end state). Playbooks does not gate on the iframe-bridge handshake
+// because it drives authored workflows against the scenario UI top-level, so
 // Handshake is reported as signaled (the workflow's own assertions are the
 // primary contract; this evidence is additive). Loaded is false only when BAS
 // produced no usable timeline at all, which the analyzer treats as a load
@@ -85,9 +86,9 @@ func ToEvidence(tl *ParsedTimeline, opts ToEvidenceOptions) evidence.Evidence {
 		URL:    opts.URL,
 		Label:  opts.Label,
 		Loaded: tl != nil && tl.Proto != nil,
-		// Playbooks does not embed the host-iframe bridge; the handshake gate is
-		// a smoke-only concern. Report signaled so the analyzer does not raise a
-		// handshake failure for a phase that never performs the handshake.
+		// Playbooks does not embed the host-iframe bridge. Report signaled so
+		// the analyzer does not raise a handshake failure for a phase that never
+		// performs the handshake.
 		Handshake: evidence.Handshake{Signaled: true},
 	}
 	if !ev.Loaded {
@@ -98,67 +99,42 @@ func ToEvidence(tl *ParsedTimeline, opts ToEvidenceOptions) evidence.Evidence {
 	ev.URL = firstNonEmptyString(opts.URL, finalFrameURL(tl))
 	ev.Console = ConsoleEntries(tl)
 	ev.Network = NetworkFailures(tl)
-	ev.PageErrors = pageErrorsFromTimeline(tl)
 	ev.ScreenshotRef = finalScreenshotRef(tl)
 	return ev
 }
 
-// pageErrorsFromTimeline derives page-level failures from the run's end state. A
-// blank final DOM (no rendered content) is reported as a page error so the
-// analyzer surfaces a UI that loaded but rendered nothing.
-//
-// This is the playbooks authority for "the page is blank": playbooks observe a
-// DOM timeline, not a screenshot, so they detect blankness structurally. The
-// smoke phase, which captures screenshots, uses the pixel render-health check
-// (internal/visualcheck via Evidence.RenderBroken) instead. One concept, two
-// producers, each scoped to the evidence it actually has — they never run over
-// the same capture, so a blank page is reported exactly once.
-func pageErrorsFromTimeline(tl *ParsedTimeline) []evidence.PageError {
-	if tl == nil {
+// ToVisualStepArtifact maps the same timeline into ui-health's generic visual
+// artifact contract. Playbooks owns workflow execution; ui-health owns generic
+// DOM/pixel/browser-artifact judgment.
+func ToVisualStepArtifact(tl *ParsedTimeline, opts ToEvidenceOptions) *visualpb.VisualStepArtifact {
+	if tl == nil || tl.Proto == nil {
 		return nil
 	}
-	if isBlankDOM(tl.FinalDOM) && isBlankDOM(tl.FinalDOMPreview) {
-		// Only flag blank when a DOM snapshot was actually captured; absence of a
-		// snapshot is not evidence of a blank page.
-		if tl.FinalDOM == "" && tl.FinalDOMPreview == "" {
-			return nil
+	step := &visualpb.VisualStepArtifact{
+		StepId:  opts.Label,
+		Label:   opts.Label,
+		Url:     firstNonEmptyString(opts.URL, finalFrameURL(tl)),
+		DomHtml: firstNonEmptyString(tl.FinalDOM, tl.FinalDOMPreview),
+	}
+	if ref := finalScreenshotRef(tl); ref != "" {
+		step.ScreenshotRef = &visualpb.ArtifactRef{Uri: ref}
+	}
+	for _, c := range ConsoleEntries(tl) {
+		step.Console = append(step.Console, &visualpb.ConsoleEntry{Level: c.Level, Message: c.Message})
+	}
+	for _, n := range NetworkFailures(tl) {
+		entry := &visualpb.NetworkEntry{
+			Url:          n.URL,
+			Method:       n.Method,
+			ResourceType: n.ResourceType,
+			ErrorText:    n.ErrorText,
 		}
-		return []evidence.PageError{{Message: "final DOM was blank (no rendered content)"}}
-	}
-	return nil
-}
-
-// isBlankDOM reports whether a DOM string carries no visible content. Markup
-// stripped of tags and whitespace that yields nothing is considered blank.
-func isBlankDOM(dom string) bool {
-	if strings.TrimSpace(dom) == "" {
-		return true
-	}
-	stripped := stripTags(dom)
-	return strings.TrimSpace(stripped) == ""
-}
-
-// stripTags removes angle-bracket tags from an HTML string, leaving only text
-// content. It is a deliberately simple textual strip — enough to tell a page
-// that rendered text from an empty shell.
-func stripTags(html string) string {
-	var b strings.Builder
-	depth := 0
-	for _, r := range html {
-		switch r {
-		case '<':
-			depth++
-		case '>':
-			if depth > 0 {
-				depth--
-			}
-		default:
-			if depth == 0 {
-				b.WriteRune(r)
-			}
+		if n.Status != nil {
+			entry.Status = int32(*n.Status)
 		}
+		step.Network = append(step.Network, entry)
 	}
-	return b.String()
+	return step
 }
 
 // finalFrameURL returns the URL of the last frame that recorded one.

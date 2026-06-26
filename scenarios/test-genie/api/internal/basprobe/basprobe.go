@@ -16,11 +16,11 @@ import (
 )
 
 // BASScenarioName is the scenario slug for Browser Automation Studio, the engine
-// that drives the smoke capture.
+// that drives browser workflows and artifact capture.
 const BASScenarioName = "browser-automation-studio"
 
 // ResolveBASBaseURL resolves the BAS API base URL (".../api/v1") via scenario
-// discovery. The smoke capture and the runnability resource probe share this so
+// discovery. Browser phases and the runnability resource probe share this so
 // there is exactly one BAS-endpoint resolution path.
 func ResolveBASBaseURL(ctx context.Context) (string, error) {
 	url, err := discovery.ResolveScenarioURL(ctx, BASScenarioName, "API_PORT")
@@ -37,7 +37,7 @@ func ResolveBASBaseURL(ctx context.Context) (string, error) {
 // ProbeBAS reports whether the BAS workflow engine is reachable and healthy. It
 // resolves the endpoint and issues a bounded health check, reusing the shared
 // BAS client (no parallel probe). Used by the runnability gate to skip/degrade
-// smoke when BAS is down instead of failing it hard.
+// BAS-dependent phases when BAS is down instead of failing them hard.
 func ProbeBAS(ctx context.Context) bool {
 	baseURL, err := ResolveBASBaseURL(ctx)
 	if err != nil {

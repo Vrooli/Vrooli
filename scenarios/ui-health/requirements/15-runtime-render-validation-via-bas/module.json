@@ -54,35 +54,35 @@
       "dependencies": [
         "REQ-P0-015"
       ],
-      "description": "The ui-health runtime/render validation must replace the test-genie native `smoke` phase. No native smoke phase should remain in test-genie; browser-driven runtime validation is delivered through ui-health.",
+      "description": "The ui-health runtime/render validation owns browser-driven UI validation through ui-health. Test Genie delegates UI runtime coverage to ui-health.",
       "id": "REQ-P0-016",
       "prd_ref": "OT-P0-009",
       "status": "draft",
-      "title": "Replaces test-genie smoke phase",
+      "title": "Owns browser-driven UI validation",
       "validation": [
         {
-          "notes": "The ui-health runtime/render group covers the validations previously performed by the smoke phase",
+          "notes": "The ui-health runtime/render group covers browser-driven render and iframe-bridge validation",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "test-genie no longer defines a native smoke phase",
+          "notes": "test-genie delegates browser-driven UI validation to ui-health",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Run test-genie for a scenario and confirm no smoke phase executes and runtime coverage comes from ui-health",
+          "notes": "Run test-genie for a scenario and confirm runtime UI coverage comes from ui-health",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Runtime/render validation is owned by ui-health and the legacy smoke phase is fully retired",
+          "notes": "Runtime/render validation is owned by ui-health",
           "phase": "business",
           "ref": "",
           "status": "pending",

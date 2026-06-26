@@ -8,11 +8,11 @@
 //	<scenario>/
 //	├── coverage/                      # All test outputs under one root
 //	│   ├── phase-results/             # Per-phase JSON summaries
-//	│   │   ├── smoke.json
+//	│   │   ├── ui-health.json
 //	│   │   ├── unit.json
 //	│   │   ├── playbooks.json
 //	│   │   └── ...
-//	│   ├── ui-smoke/                  # UI smoke test artifacts
+//	│   ├── ui-smoke/                  # Legacy per-page visual artifact tree
 //	│   │   ├── latest.json
 //	│   │   ├── screenshot.png
 //	│   │   ├── console.json
@@ -52,16 +52,18 @@ const (
 
 	// RunsDir is the root for append-only, runID-keyed run artifacts.
 	// Each run writes under coverage/runs/<runID>/{phase-results,ui-smoke,...}.
+	// The ui-smoke path is retained as a historical storage directory for per-page
+	// visual artifacts; active visual judgment is delegated to ui-health.
 	RunsDir = "coverage/runs"
 
 	// RunsIndexFile is the append-only index of all runs, stored under coverage/.
 	RunsIndexFile = "runs.index.json"
 
 	// PhaseResultsSubdir is the per-run subdirectory for phase JSON summaries.
-	// Each phase writes <phase>.json here (e.g., smoke.json, unit.json).
+	// Each phase writes <phase>.json here (e.g., ui-health.json, unit.json).
 	PhaseResultsSubdir = "phase-results"
 
-	// UISmokeSubdir is the per-run subdirectory for UI smoke artifacts.
+	// UISmokeSubdir is the historical per-run subdirectory for page visual artifacts.
 	UISmokeSubdir = "ui-smoke"
 
 	// AutomationSubdir is the per-run subdirectory for playbook timelines.
@@ -94,7 +96,7 @@ const (
 // ============================================================================
 
 const (
-	// PhaseResultsSmoke is the filename for smoke phase results.
+	// PhaseResultsSmoke is the legacy filename for retired browser-render results.
 	PhaseResultsSmoke = "smoke.json"
 
 	// PhaseResultsUnit is the filename for unit phase results.
@@ -133,7 +135,7 @@ func RunPhaseResultsDir(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), PhaseResultsSubdir)
 }
 
-// RunUISmokeDir returns the absolute per-run UI smoke directory.
+// RunUISmokeDir returns the absolute per-run legacy visual artifact directory.
 func RunUISmokeDir(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), UISmokeSubdir)
 }
@@ -143,7 +145,8 @@ func RunUISmokeDir(scenarioDir, runID string) string {
 const UISmokePagesSubdir = "pages"
 
 // RunUISmokePagesDir returns the absolute per-run all-pages visual capture
-// directory (coverage/runs/<runID>/ui-smoke/pages/).
+// directory. It uses the historical ui-smoke storage path for compatibility
+// with existing run artifacts.
 func RunUISmokePagesDir(scenarioDir, runID string) string {
 	return filepath.Join(RunUISmokeDir(scenarioDir, runID), UISmokePagesSubdir)
 }

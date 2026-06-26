@@ -88,11 +88,11 @@ If those become operator controls later, they should be added only with a clear 
 
 ## Visual Render-Health & Comparison Levers
 
-The smoke phase's all-pages capture runs a stdlib-only pixel analysis
-(`internal/visualcheck`) over each screenshot: a **render-health** check (is the
-page a blank/solid-color broken render?) and, for baseline diffs, a **pairwise
-comparison** (how much did the page change?). Both downscale to a coarse
-luminance grid so anti-aliasing/font jitter never produces false signals.
+Visual render-health and comparison thresholds are owned by ui-health. Test
+Genie can still expose run visual deltas through `CompareRunVisuals`, but that
+RPC delegates analysis to `ui-health.VisualHealthService.CompareArtifacts`.
+ui-health's stdlib-only pixel engine downscales screenshots to a coarse
+luminance grid so anti-aliasing/font jitter does not produce false signals.
 
 Every threshold is an environment-overridable lever. Unset or out-of-range
 values fall back to the safe default (a malformed lever degrades, never fails).
@@ -100,18 +100,18 @@ All are monotonic — "higher = stricter" is noted per lever.
 
 | Lever | Default | Range | Effect |
 |---|---|---|---|
-| `TEST_GENIE_VISUAL_GRID_SIZE` | `32` | int > 0 | Edge of the square luminance grid each image is downscaled to. Higher = finer detail (more sensitive, slower); lower = more jitter-tolerant. |
-| `TEST_GENIE_VISUAL_BLANK_FRACTION` | `0.98` | (0,1] | Share of grid cells in one luminance band for a render to be judged blank/solid (broken). Higher = stricter (only near-uniform frames are broken). |
-| `TEST_GENIE_VISUAL_MIN_VARIANCE` | `0.0005` | ≥ 0 | Grid-luminance variance at/below which a render is judged flat/broken. Higher = stricter (more frames flagged broken). |
-| `TEST_GENIE_VISUAL_PIXEL_DELTA` | `0.06` | [0,1] | Per-cell normalized luminance delta above which a cell counts as changed in a comparison. Higher = looser (small shifts ignored). |
-| `TEST_GENIE_VISUAL_CHANGED_TOLERANCE` | `0.01` | [0,1] | Share of changed cells at/below which two captures are "identical". Higher = looser (more drift tolerated as identical). |
+| `UI_HEALTH_VISUAL_GRID_SIZE` | `32` | int > 0 | Edge of the square luminance grid each image is downscaled to. Higher = finer detail (more sensitive, slower); lower = more jitter-tolerant. |
+| `UI_HEALTH_VISUAL_BLANK_FRACTION` | `0.98` | (0,1] | Share of grid cells in one luminance band for a render to be judged blank/solid (broken). Higher = stricter (only near-uniform frames are broken). |
+| `UI_HEALTH_VISUAL_MIN_VARIANCE` | `0.0005` | >= 0 | Grid-luminance variance at/below which a render is judged flat/broken. Higher = stricter (more frames flagged broken). |
+| `UI_HEALTH_VISUAL_PIXEL_DELTA` | `0.06` | [0,1] | Per-cell normalized luminance delta above which a cell counts as changed in a comparison. Higher = looser (small shifts ignored). |
+| `UI_HEALTH_VISUAL_CHANGED_TOLERANCE` | `0.01` | [0,1] | Share of changed cells at/below which two captures are "identical". Higher = looser (more drift tolerated as identical). |
 
-**Verdict semantics.** A clearly-broken render is a **hard failure** at smoke
-time (it fails its phase, with the page named in the message), and needs no
-baseline. Any other visual difference is surfaced by git-control-tower's baseline
-diff as the neutral, advisory **`changed`** tier ("review before/after") — it
-never gates a run (the diff exit code stays 0). Console errors are counted but
-are not, alone, a failure; network failures and broken renders are.
+**Verdict semantics.** A clearly-broken render is a hard ui-health finding and
+needs no baseline. Any other visual difference is surfaced by
+git-control-tower's baseline diff as the neutral, advisory **`changed`** tier
+("review before/after") — it never gates a run (the diff exit code stays 0).
+Console errors are counted but are not, alone, a failure; network failures and
+broken renders are.
 
 ## Run-Lifecycle Feedback Levers
 

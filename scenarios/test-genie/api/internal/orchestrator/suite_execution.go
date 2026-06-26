@@ -154,8 +154,8 @@ type SuiteExecutionRequest struct {
 	DiagnosticsPreset string `json:"diagnosticsPreset,omitempty"`
 
 	// CaptureProfile is the capture-depth dial (orthogonal to the phase set).
-	// "" = default depth (single-page smoke, unchanged cost); "baseline" =
-	// all-pages visual capture + video for the smoke phase. See
+	// "" = default depth with no extra all-pages capture; "baseline" =
+	// all-pages visual capture + video for baseline diffs. See
 	// internal/captureprofile.
 	CaptureProfile string `json:"captureProfile,omitempty"`
 
@@ -419,7 +419,8 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 	// reused from a self-target or started for another target). The per-phase
 	// runnability gate reads it to decide RUN / RUN_DEGRADED / SKIP. The
 	// resource map is probed from the selected phases' declared requirements so
-	// e.g. smoke skips/degrades when BAS is unreachable rather than failing hard.
+	// BAS-dependent phases skip/degrade when BAS is unreachable rather than
+	// failing hard.
 	rc := resolveRunContext(env, targetruntime.URLs{}, false, "", resolveResources(ctx, defs))
 	return env, rc, lease, manager, nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	basexec "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // errBASUnavailable signals the BAS engine could not be reached or driven. The
@@ -35,6 +37,11 @@ type runResult struct {
 	handshakeSignaled bool
 	handshakeError    string
 	screenshotRef     string
+	screenshotPNG     []byte
+	domHTML           string
+	layoutJSON        string
+	viewportWidth     int32
+	viewportHeight    int32
 	console           []evidence.ConsoleEntry
 	network           []evidence.NetworkEntry
 }
@@ -121,7 +128,73 @@ func (c *connectRunner) Run(ctx context.Context, def map[string]any) (*runResult
 	if err != nil {
 		return nil, errBASUnavailable
 	}
-	return readTimeline(tlResp.Msg), nil
+	result := readTimeline(tlResp.Msg)
+	if png, ref := c.downloadExecutionScreenshot(ctx, ex, baseURL, execID); len(png) > 0 {
+		result.screenshotPNG = png
+		result.screenshotRef = firstNonEmpty(ref, result.screenshotRef)
+	}
+	return result, nil
+}
+
+func (c *connectRunner) downloadExecutionScreenshot(ctx context.Context, ex apiconnect.ExecutionsServiceClient, baseURL, execID string) ([]byte, string) {
+	shots, err := ex.GetExecutionScreenshots(ctx, connect.NewRequest(&basapi.GetExecutionScreenshotsRequest{ExecutionId: execID}))
+	if err != nil {
+		return nil, ""
+	}
+	var selectedURL string
+	for _, entry := range shots.Msg.GetScreenshots() {
+		if entry.GetNodeId() == nodeScreens && entry.GetScreenshot() != nil {
+			selectedURL = entry.GetScreenshot().GetUrl()
+			break
+		}
+	}
+	if selectedURL == "" {
+		for i := len(shots.Msg.GetScreenshots()) - 1; i >= 0; i-- {
+			if shot := shots.Msg.GetScreenshots()[i].GetScreenshot(); shot != nil && strings.TrimSpace(shot.GetUrl()) != "" {
+				selectedURL = shot.GetUrl()
+				break
+			}
+		}
+	}
+	if selectedURL == "" {
+		return nil, ""
+	}
+	data, err := c.downloadAsset(ctx, baseURL, selectedURL)
+	if err != nil {
+		return nil, selectedURL
+	}
+	return data, selectedURL
+}
+
+func (c *connectRunner) downloadAsset(ctx context.Context, baseURL, assetURL string) ([]byte, error) {
+	fullURL := strings.TrimSpace(assetURL)
+	if fullURL == "" {
+		return nil, errors.New("asset URL is empty")
+	}
+	if !strings.HasPrefix(fullURL, "http://") && !strings.HasPrefix(fullURL, "https://") {
+		if strings.HasPrefix(fullURL, "/") {
+			fullURL = strings.TrimRight(baseURL, "/") + fullURL
+		} else {
+			fullURL = strings.TrimRight(baseURL, "/") + "/" + fullURL
+		}
+	}
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 30 * time.Second}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("asset download failed: status=%s url=%s", resp.Status, fullURL)
+	}
+	return io.ReadAll(resp.Body)
 }
 
 func (c *connectRunner) waitTerminal(ctx context.Context, ex apiconnect.ExecutionsServiceClient, execID string) {
@@ -211,6 +284,8 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 					r.screenshotRef = "captured"
 				}
 			}
+		case nodeArtifacts:
+			r.applyVisualArtifacts(e.GetContext().GetExtractedData())
 		}
 	}
 	if !handshakeSeen {
@@ -224,6 +299,109 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 		})
 	}
 	return r
+}
+
+func (r *runResult) applyVisualArtifacts(values map[string]*commonpb.JsonValue) {
+	if r == nil || len(values) == 0 {
+		return
+	}
+	payload, ok := jsonValueToAny(values["visual_artifacts"]).(map[string]any)
+	if !ok {
+		return
+	}
+	if dom, ok := payload["domHtml"].(string); ok {
+		r.domHTML = dom
+	}
+	if layout, ok := payload["layout"].(map[string]any); ok {
+		if raw, err := json.Marshal(layout); err == nil {
+			r.layoutJSON = string(raw)
+		}
+	}
+	if viewport, ok := payload["viewport"].(map[string]any); ok {
+		r.viewportWidth = int32(numberFromAny(viewport["width"]))
+		r.viewportHeight = int32(numberFromAny(viewport["height"]))
+	}
+	if network, ok := payload["network"].([]any); ok {
+		r.network = append(r.network, networkEntriesFromAny(network)...)
+	}
+}
+
+func jsonValueToAny(v *commonpb.JsonValue) any {
+	if v == nil {
+		return nil
+	}
+	switch kind := v.GetKind().(type) {
+	case *commonpb.JsonValue_BoolValue:
+		return kind.BoolValue
+	case *commonpb.JsonValue_IntValue:
+		return float64(kind.IntValue)
+	case *commonpb.JsonValue_DoubleValue:
+		return kind.DoubleValue
+	case *commonpb.JsonValue_StringValue:
+		return kind.StringValue
+	case *commonpb.JsonValue_BytesValue:
+		return kind.BytesValue
+	case *commonpb.JsonValue_ListValue:
+		values := kind.ListValue.GetValues()
+		out := make([]any, 0, len(values))
+		for _, item := range values {
+			out = append(out, jsonValueToAny(item))
+		}
+		return out
+	case *commonpb.JsonValue_ObjectValue:
+		fields := kind.ObjectValue.GetFields()
+		out := make(map[string]any, len(fields))
+		for key, value := range fields {
+			out[key] = jsonValueToAny(value)
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func networkEntriesFromAny(values []any) []evidence.NetworkEntry {
+	out := make([]evidence.NetworkEntry, 0, len(values))
+	for _, item := range values {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		var status *int
+		if n := int(numberFromAny(m["status"])); n > 0 {
+			status = &n
+		}
+		out = append(out, evidence.NetworkEntry{
+			URL:          stringFromAny(m["url"]),
+			Method:       stringFromAny(m["method"]),
+			ResourceType: stringFromAny(m["resourceType"]),
+			Status:       status,
+			ErrorText:    stringFromAny(m["errorText"]),
+		})
+	}
+	return out
+}
+
+func stringFromAny(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
+}
+
+func numberFromAny(v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case int32:
+		return float64(n)
+	case int64:
+		return float64(n)
+	default:
+		return 0
+	}
 }
 
 // normalizeLevel maps a BAS LogLevel enum string (LOG_LEVEL_ERROR) to the

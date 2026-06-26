@@ -76,6 +76,7 @@ type Runner struct {
 	seedManager      seeds.Manager
 	artifactWriter   artifacts.Writer
 	traceWriter      artifacts.TraceWriter
+	visualHealth     visualHealthAnalyzer
 
 	// Hooks for scenario management (injected for testing)
 	resolvePort   func(ctx context.Context, scenario, portName string) (string, error)
@@ -115,6 +116,9 @@ func New(cfg Config, opts ...Option) *Runner {
 	}
 	if r.artifactWriter == nil {
 		r.artifactWriter = artifacts.NewWriter(cfg.ScenarioDir, cfg.ScenarioName, cfg.RunID, cfg.AppRoot)
+	}
+	if r.visualHealth == nil {
+		r.visualHealth = defaultVisualHealthAnalyzer{}
 	}
 
 	return r
@@ -166,6 +170,14 @@ func WithArtifactWriter(w artifacts.Writer) Option {
 func WithTraceWriter(w artifacts.TraceWriter) Option {
 	return func(r *Runner) {
 		r.traceWriter = w
+	}
+}
+
+// WithVisualHealthAnalyzer sets the ui-health analyzer seam for generic visual
+// artifact judgment.
+func WithVisualHealthAnalyzer(a visualHealthAnalyzer) Option {
+	return func(r *Runner) {
+		r.visualHealth = a
 	}
 }
 
@@ -538,7 +550,7 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 	// Derive additive browser-evidence findings (console/network/page errors)
 	// via the shared analyzer. These surface alongside — and never override —
 	// the workflow's own assertion verdict.
-	evidenceObs := evidenceObservations(entry.File, parsed)
+	evidenceObs := evidenceObservations(ctx, r.visualHealth, entry.File, parsed)
 
 	if execErr != nil || parseErr != nil {
 		var playErr *PlaybookExecutionError

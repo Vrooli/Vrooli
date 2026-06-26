@@ -20,7 +20,7 @@ import (
 // Resource names recognized by the runnability gate. They key RunContext.Resources.
 const (
 	// ResourceBAS is the Browser Automation Studio workflow engine, required by
-	// the smoke phase (which drives its capture on BAS).
+	// phases that drive browser workflows or capture visual artifacts.
 	ResourceBAS = "browser-automation-studio"
 )
 

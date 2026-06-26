@@ -1,12 +1,20 @@
 package uiruntime
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"testing"
 
 	"ui-health/internal/evidence"
 	"ui-health/internal/services/manifestvalidation"
+
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // fakeBAS is a basRunner double returning a canned result or an unavailability error.
@@ -73,6 +81,98 @@ func TestCheckHandshakePasses(t *testing.T) {
 	}
 }
 
+func TestCheckUsesVisualHealthForBlankScreenshot(t *testing.T) {
+	bas := &fakeBAS{res: &runResult{
+		loaded:            true,
+		handshakeSignaled: true,
+		screenshotRef:     "/api/v1/storage/runtime.png",
+		screenshotPNG:     solidPNG(t, 80, 60, color.RGBA{R: 255, G: 255, B: 255, A: 255}),
+	}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	if len(finds) == 0 || finds[0].Code != "runtime_render_broken" {
+		t.Fatalf("want runtime_render_broken first, got %v", codes(finds))
+	}
+	if finds[0].Severity != manifestvalidation.SeverityError {
+		t.Fatalf("blank screenshot must be an error, got %s", finds[0].Severity)
+	}
+}
+
+func TestCheckSurfacesVisualHealthDOMFindings(t *testing.T) {
+	bas := &fakeBAS{res: &runResult{
+		loaded:            true,
+		handshakeSignaled: true,
+		domHTML:           "<main><script>boot()</script><style>.x{}</style><div> </div></main>",
+	}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	finds := r.Check(context.Background(), Input{Scenario: "demo"})
+	got := codes(finds)
+	if len(got) < 2 || got[0] != "runtime_render_broken" || got[1] != "visual_dom_blank" {
+		t.Fatalf("want runtime summary plus visual_dom_blank detail, got %v", got)
+	}
+	if finds[1].Suggestion == "" {
+		t.Fatal("visual detail finding must carry analyzer remediation")
+	}
+}
+
+func TestCheckSurfacesVisualHealthLayoutFindings(t *testing.T) {
+	bas := &fakeBAS{res: &runResult{
+		loaded:            true,
+		handshakeSignaled: true,
+		viewportWidth:     360,
+		viewportHeight:    640,
+		layoutJSON:        `{"document":{"scrollWidth":460,"scrollHeight":640},"elements":[]}`,
+	}}
+	r := newRunner("http://localhost:5173", nil, bas)
+	got := codes(r.Check(context.Background(), Input{Scenario: "demo"}))
+	if len(got) < 2 || got[0] != "runtime_render_broken" || got[1] != "visual_viewport_overflow" {
+		t.Fatalf("want runtime summary plus visual_viewport_overflow detail, got %v", got)
+	}
+}
+
+func TestReadTimelineExtractsVisualArtifacts(t *testing.T) {
+	node := nodeArtifacts
+	tl := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{{
+		NodeId: &node,
+		Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
+			"visual_artifacts": objectValue(map[string]*commonpb.JsonValue{
+				"domHtml": stringValue("<main>Ready</main>"),
+				"viewport": objectValue(map[string]*commonpb.JsonValue{
+					"width":  intValue(390),
+					"height": intValue(844),
+				}),
+				"layout": objectValue(map[string]*commonpb.JsonValue{
+					"document": objectValue(map[string]*commonpb.JsonValue{
+						"scrollWidth":  intValue(460),
+						"scrollHeight": intValue(844),
+					}),
+				}),
+				"network": listValue([]*commonpb.JsonValue{
+					objectValue(map[string]*commonpb.JsonValue{
+						"url":          stringValue("https://example.test/logo.png"),
+						"method":       stringValue("GET"),
+						"resourceType": stringValue("image"),
+						"status":       intValue(404),
+					}),
+				}),
+			}),
+		}},
+	}}}
+	res := readTimeline(tl)
+	if res.domHTML != "<main>Ready</main>" {
+		t.Fatalf("domHTML = %q", res.domHTML)
+	}
+	if res.viewportWidth != 390 || res.viewportHeight != 844 {
+		t.Fatalf("viewport = %dx%d, want 390x844", res.viewportWidth, res.viewportHeight)
+	}
+	if res.layoutJSON == "" {
+		t.Fatal("layoutJSON was not extracted")
+	}
+	if len(res.network) != 1 || res.network[0].Status == nil || *res.network[0].Status != 404 {
+		t.Fatalf("network = %+v, want one 404 image entry", res.network)
+	}
+}
+
 func TestCheckHandshakeFails(t *testing.T) {
 	bas := &fakeBAS{res: &runResult{loaded: true, handshakeSignaled: false, handshakeError: "timeout"}}
 	r := newRunner("http://localhost:5173", nil, bas)
@@ -121,4 +221,35 @@ func TestCodeForFailurePrecedence(t *testing.T) {
 			}
 		})
 	}
+}
+
+func solidPNG(t *testing.T, w, h int, c color.Color) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			img.Set(x, y, c)
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode PNG: %v", err)
+	}
+	return buf.Bytes()
+}
+
+func stringValue(v string) *commonpb.JsonValue {
+	return &commonpb.JsonValue{Kind: &commonpb.JsonValue_StringValue{StringValue: v}}
+}
+
+func intValue(v int64) *commonpb.JsonValue {
+	return &commonpb.JsonValue{Kind: &commonpb.JsonValue_IntValue{IntValue: v}}
+}
+
+func objectValue(fields map[string]*commonpb.JsonValue) *commonpb.JsonValue {
+	return &commonpb.JsonValue{Kind: &commonpb.JsonValue_ObjectValue{ObjectValue: &commonpb.JsonObject{Fields: fields}}}
+}
+
+func listValue(values []*commonpb.JsonValue) *commonpb.JsonValue {
+	return &commonpb.JsonValue{Kind: &commonpb.JsonValue_ListValue{ListValue: &commonpb.JsonList{Values: values}}}
 }

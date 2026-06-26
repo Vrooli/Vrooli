@@ -419,6 +419,83 @@
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["react-stability", "ux"]
     },
+    "visual_pixel_blank": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_pixel_unreadable": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ui-health"]
+    },
+    "visual_dom_blank": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_broken_asset": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_stuck_loading": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_layout_unreadable": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ui-health"]
+    },
+    "visual_viewport_overflow": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_offscreen_interactive": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_text_clipped": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_focus_zoom_risk": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ux"]
+    },
+    "visual_blocking_overlay": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ux"]
+    },
     "runtime_skipped_ui_unavailable": {
       "local_level_impact": "L3",
       "global_impact": "advisory",
