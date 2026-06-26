@@ -250,6 +250,34 @@
           }
         },
         {
+          "name": "depend",
+          "description": "Record that one plan depends on another",
+          "positionals": [
+            {
+              "name": "depending",
+              "required": true,
+              "description": "Depending plan id"
+            },
+            {
+              "name": "dependency",
+              "required": true,
+              "description": "Dependency plan id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PlansService",
+            "method": "LinkDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "import",
           "description": "Adopt a markdown plan from a fallback location",
           "flags": [

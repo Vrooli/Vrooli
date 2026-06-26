@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // PlanWriter is the write seam onto the plans SSOT. Finalize maps the session's
@@ -16,7 +18,7 @@ import (
 // validation's planAdapter); tests inject a fake. authoring never owns the plan
 // record — it only composes and writes it.
 type PlanWriter interface {
-	CreatePlan(ctx context.Context, p internalplans.Plan) (internalplans.Plan, error)
+	CreatePlan(ctx context.Context, p planmodel.Plan) (planmodel.Plan, error)
 }
 
 // AnchorAutofiller captures the regression anchor for a plan-in-progress. The
@@ -95,7 +97,11 @@ func (a cmdAnchorAutofiller) Anchor(ctx context.Context, title, slug string) (st
 	if a.run == nil {
 		return "", fmt.Errorf("git-control-tower unavailable")
 	}
-	out, err := a.run(ctx, "git-control-tower", "baseline", "show", "--json")
+	scenario, name := anchorScenarioAndName(title, slug)
+	if scenario == "" || name == "" {
+		return "", fmt.Errorf("scenario and baseline name are required")
+	}
+	out, err := a.run(ctx, "git-control-tower", "baseline", "show", "--scenario", scenario, "--name", name, "--json")
 	if err != nil {
 		return "", err
 	}
@@ -106,8 +112,9 @@ func (a cmdAnchorAutofiller) Anchor(ctx context.Context, title, slug string) (st
 	return captured, nil
 }
 
-// cmdRequiredReadingSource discovers required reading via prompt-manager
-// plan-skill-discovery through the CommandRunner seam.
+// cmdRequiredReadingSource discovers required reading via the live
+// prompt-manager discover surface (the executable plan-skill-discovery path)
+// through the CommandRunner seam.
 type cmdRequiredReadingSource struct{ run CommandRunner }
 
 // NewCommandRequiredReadingSource wires the production RequiredReadingSource over
@@ -145,14 +152,76 @@ func (e cmdReferenceExtractor) References(ctx context.Context, title, scope stri
 	if e.run == nil {
 		return "", fmt.Errorf("code-facts unavailable")
 	}
-	query := strings.TrimSpace(title + " " + scope)
-	out, err := e.run(ctx, "code-facts", "search", query, "--json")
-	if err != nil {
+	refs := extractCodeReferenceTargets(title + " " + scope)
+	if len(refs) == 0 {
+		return "", fmt.Errorf("no code reference targets found")
+	}
+	target := codeFactsDescribeTarget(refs[0])
+	if _, err := e.run(ctx, "code-facts", "facts", "describe", target, "--include", "surfaces,parse_units", "--json"); err != nil {
 		return "", err
 	}
-	refs := strings.TrimSpace(string(out))
-	if refs == "" {
-		return "", fmt.Errorf("code-facts returned no references")
+	lines := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		lines = append(lines, "[CODE: "+ref+"]")
 	}
-	return refs, nil
+	return strings.Join(lines, "\n"), nil
+}
+
+func anchorScenarioAndName(title, slug string) (string, string) {
+	if s := sanitizeIdentifier(slug); s != "" {
+		return s, s
+	}
+	s := sanitizeIdentifier(title)
+	return s, s
+}
+
+func sanitizeIdentifier(v string) string {
+	v = strings.TrimSpace(strings.ToLower(v))
+	v = strings.ReplaceAll(v, "_", "-")
+	fields := strings.FieldsFunc(v, func(r rune) bool {
+		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-')
+	})
+	return strings.Trim(strings.Join(fields, "-"), "-")
+}
+
+var scenarioPathPattern = regexp.MustCompile(`(?:^|[\s\[\]()"'])((?:\./)?scenarios/[A-Za-z0-9._-]+/[^\s\[\]()"',]+)`)
+
+func extractCodeReferenceTargets(text string) []string {
+	matches := scenarioPathPattern.FindAllStringSubmatch(text, -1)
+	seen := map[string]bool{}
+	out := make([]string, 0, len(matches))
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		target := strings.TrimPrefix(strings.TrimSpace(m[1]), "./")
+		target = strings.TrimRight(target, ".,;:")
+		if target == "" || seen[target] {
+			continue
+		}
+		seen[target] = true
+		out = append(out, target)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func codeFactsDescribeTarget(path string) string {
+	if name := scenarioFromPath(path); name != "" {
+		return "scenario:" + name
+	}
+	return path
+}
+
+func scenarioFromPath(path string) string {
+	path = strings.TrimPrefix(path, "./")
+	const prefix = "scenarios/"
+	if !strings.HasPrefix(path, prefix) {
+		return ""
+	}
+	rest := strings.TrimPrefix(path, prefix)
+	if i := strings.IndexByte(rest, '/'); i > 0 {
+		return rest[:i]
+	}
+	return rest
 }

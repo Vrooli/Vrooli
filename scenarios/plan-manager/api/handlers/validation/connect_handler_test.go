@@ -103,14 +103,14 @@ func TestComputeStalenessSuccess(t *testing.T) {
 
 func TestDeriveBaselineScopeSuccess(t *testing.T) {
 	svc := &fakeValidationService{scope: internalvalidation.BaselineScope{
-		Commands:  []string{"git-control-tower baseline diff --scenario foo"},
+		Commands:  []string{"git-control-tower baseline diff --scenario foo --name impl"},
 		Locations: []string{"scenarios/foo"},
 	}}
 	h := newValidationHandler(svc)
 
 	resp, err := h.DeriveBaselineScope(context.Background(), connect.NewRequest(&validationv1.DeriveBaselineScopeRequest{PlanId: "p1", PhaseId: "ph-1"}))
 	require.NoError(t, err)
-	require.Equal(t, []string{"git-control-tower baseline diff --scenario foo"}, resp.Msg.GetCommands())
+	require.Equal(t, []string{"git-control-tower baseline diff --scenario foo --name impl"}, resp.Msg.GetCommands())
 	require.Equal(t, []string{"scenarios/foo"}, resp.Msg.GetLocations())
 }
 

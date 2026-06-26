@@ -2,10 +2,13 @@ package authoring
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/markedrefs"
+
 	"plan-manager/internal/clock"
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 
 	"github.com/google/uuid"
 )
@@ -18,7 +21,7 @@ type Service interface {
 	Next(ctx context.Context, sessionID string) (Section, bool, error)
 	ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, error)
 	Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, error)
-	Finalize(ctx context.Context, sessionID string) (internalplans.Plan, error)
+	Finalize(ctx context.Context, sessionID string) (planmodel.Plan, error)
 }
 
 type service struct {
@@ -27,6 +30,7 @@ type service struct {
 	anchor       AnchorAutofiller
 	reading      RequiredReadingSource
 	references   ReferenceExtractor
+	commands     CommandReferenceValidator
 	templateSeed TemplateSeeder
 	clock        clock.Clock
 }
@@ -42,6 +46,7 @@ type Deps struct {
 	Anchor         AnchorAutofiller
 	RequiredRead   RequiredReadingSource
 	References     ReferenceExtractor
+	Commands       CommandReferenceValidator
 	TemplateSeeder TemplateSeeder
 	Clock          clock.Clock
 }
@@ -65,6 +70,7 @@ func NewService(d Deps) Service {
 		anchor:       d.Anchor,
 		reading:      d.RequiredRead,
 		references:   d.References,
+		commands:     d.Commands,
 		templateSeed: d.TemplateSeeder,
 		clock:        clk,
 	}
@@ -124,6 +130,7 @@ func (s *service) SubmitSection(ctx context.Context, sessionID string, key Secti
 	sess.Sections[idx].Filled = strings.TrimSpace(content) != ""
 	sess.Sections[idx].Autofilled = false // an author submission supersedes any autofill
 	violations := violationsForSection(sess.Sections[idx])
+	violations = append(violations, s.commandViolationsForSection(ctx, sess.Sections[idx])...)
 	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
 	sess.UpdatedAt = s.now()
 	if err := s.store.Save(ctx, sess); err != nil {
@@ -151,6 +158,7 @@ func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool
 		return false, nil, err
 	}
 	violations := structureViolations(sess.Sections)
+	violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
 	return len(violations) == 0, violations, nil
 }
 
@@ -221,23 +229,30 @@ func (s *service) runAutofill(ctx context.Context, sess *Session, src AutofillSo
 	return AutofillResult{Source: src, SectionKey: key, Filled: true, Detail: "autofilled"}
 }
 
-func (s *service) Finalize(ctx context.Context, sessionID string) (internalplans.Plan, error) {
+func (s *service) Finalize(ctx context.Context, sessionID string) (planmodel.Plan, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
-		return internalplans.Plan{}, err
+		return planmodel.Plan{}, err
 	}
 	if violations := structureViolations(sess.Sections); len(violations) > 0 {
-		return internalplans.Plan{}, ErrStructureGate{Violations: violations}
+		return planmodel.Plan{}, ErrStructureGate{Violations: violations}
 	}
-	plan, err := s.writer.CreatePlan(ctx, sessionToPlan(sess))
+	if violations := s.commandViolationsForSections(ctx, sess.Sections); len(violations) > 0 {
+		return planmodel.Plan{}, ErrStructureGate{Violations: violations}
+	}
+	draft, err := sessionToPlan(sess)
 	if err != nil {
-		return internalplans.Plan{}, err
+		return planmodel.Plan{}, err
+	}
+	plan, err := s.writer.CreatePlan(ctx, draft)
+	if err != nil {
+		return planmodel.Plan{}, err
 	}
 	sess.Finalized = true
 	sess.PlanID = plan.ID
 	sess.UpdatedAt = s.now()
 	if err := s.store.Save(ctx, sess); err != nil {
-		return internalplans.Plan{}, err
+		return planmodel.Plan{}, err
 	}
 	return plan, nil
 }
@@ -301,6 +316,94 @@ func violationsForSection(sec Section) []StructureViolation {
 	return out
 }
 
+func (s *service) commandViolationsForSections(ctx context.Context, sections []Section) []StructureViolation {
+	var out []StructureViolation
+	for _, sec := range sections {
+		out = append(out, s.commandViolationsForSection(ctx, sec)...)
+	}
+	return out
+}
+
+func (s *service) commandViolationsForSection(ctx context.Context, sec Section) []StructureViolation {
+	if strings.TrimSpace(sec.Content) == "" {
+		return nil
+	}
+	refs := commandRefsInSection(sec)
+	if len(refs) == 0 {
+		return nil
+	}
+	if s.commands == nil {
+		return []StructureViolation{{
+			SectionKey: sec.Key,
+			Message:    "command reference validation unavailable: CLI Health command validator is not configured",
+		}}
+	}
+	var out []StructureViolation
+	for _, ref := range refs {
+		if !markedrefs.RequiresExistence(ref) {
+			continue
+		}
+		result, err := s.commands.ValidateCommandReference(ctx, CommandReferenceRequest{
+			CommandText: ref.Value,
+			Qualifiers:  append([]string(nil), ref.Qualifiers...),
+		})
+		if err != nil {
+			out = append(out, StructureViolation{
+				SectionKey: sec.Key,
+				Message:    fmt.Sprintf("command reference %q could not be validated through CLI Health: %v", ref.Value, err),
+			})
+			continue
+		}
+		switch strings.ToLower(result.Verdict) {
+		case "valid", "partial", "skipped":
+			continue
+		default:
+			out = append(out, StructureViolation{
+				SectionKey: sec.Key,
+				Message:    commandReferenceViolationMessage(ref.Value, result),
+			})
+		}
+	}
+	return out
+}
+
+func commandRefsInSection(sec Section) []markedrefs.Reference {
+	var out []markedrefs.Reference
+	for lineNumber, line := range strings.Split(sec.Content, "\n") {
+		for _, ref := range markedrefs.ParseInlineCode(line, lineNumber+1) {
+			if ref.Marker == markedrefs.MarkerCLI {
+				out = append(out, ref)
+			}
+		}
+	}
+	return out
+}
+
+func commandReferenceViolationMessage(command string, result CommandReferenceResult) string {
+	var parts []string
+	for _, issue := range result.Issues {
+		if issue.Code != "" && issue.Message != "" {
+			parts = append(parts, issue.Code+": "+issue.Message)
+		} else if issue.Message != "" {
+			parts = append(parts, issue.Message)
+		}
+	}
+	for _, suggestion := range result.Suggestions {
+		if suggestion != "" {
+			parts = append(parts, "suggestion: "+suggestion)
+		}
+	}
+	parts = append(parts, result.Guidance...)
+	if len(parts) == 0 {
+		detail := strings.TrimSpace(strings.Join([]string{result.Verdict, result.ValidationLevel}, " "))
+		if detail == "" {
+			detail = "CLI Health returned no validation detail"
+		}
+		parts = append(parts, detail)
+	}
+	return fmt.Sprintf("command reference %q is not a valid current command: %s", command, strings.Join(parts, "; "))
+}
+
 func hasMandatoryViolation(violations []StructureViolation, key SectionKey) bool {
 	for _, v := range violations {
 		if v.SectionKey == key {
@@ -351,9 +454,12 @@ func degraded(src AutofillSource, key SectionKey, detail string) AutofillResult 
 // sections (not re-extracted) so authored content is never lossily reshaped. The
 // regression anchor is carried as captured prose; the validation domain derives
 // the anchor's commands from the plan's references later.
-func sessionToPlan(sess Session) internalplans.Plan {
-	parsed := parseReferencesAndPhases(sess)
-	p := internalplans.Plan{
+func sessionToPlan(sess Session) (planmodel.Plan, error) {
+	parsed, err := parseReferencesAndPhases(sess)
+	if err != nil {
+		return planmodel.Plan{}, err
+	}
+	p := planmodel.Plan{
 		Title:            sess.Title,
 		Slug:             sess.Slug,
 		Purpose:          contentOf(sess.Sections, SectionPurpose),
@@ -368,12 +474,12 @@ func sessionToPlan(sess Session) internalplans.Plan {
 		// The regression-anchor section content is the authored/auto-filled
 		// "before" capture; carry it forward as captured prose. Commands are
 		// derived later by the validation domain from the plan's references.
-		p.RegressionAnchor = internalplans.RegressionAnchor{
+		p.RegressionAnchor = planmodel.RegressionAnchor{
 			Strategy:     "captured",
 			BaselineName: anchor,
 		}
 	}
-	return p
+	return p, nil
 }
 
 // parseReferencesAndPhases recovers the structured references[] and phases[] from
@@ -381,26 +487,48 @@ func sessionToPlan(sess Session) internalplans.Plan {
 // SSOT for the [CODE:]/[REQ:]/[DOC:] + `### Phase N — Title` grammar). It feeds a
 // minimal markdown view — a synthetic title (so the parser accepts it) plus the
 // references and phases sections — and returns only the recovered structured
-// lists; the prose fields are taken verbatim by the caller. A parse failure
-// degrades to empty lists rather than failing finalize.
-func parseReferencesAndPhases(sess Session) internalplans.Plan {
+// lists; the prose fields are taken verbatim by the caller. Because these
+// sections are machine-readable, non-empty markup that cannot be parsed is a
+// typed authoring error, never an empty-list degradation.
+func parseReferencesAndPhases(sess Session) (planmodel.Plan, error) {
 	var b strings.Builder
 	b.WriteString("# ")
 	b.WriteString(sess.Title)
 	b.WriteString("\n\n")
-	if refs := strings.TrimSpace(contentOf(sess.Sections, SectionReferences)); refs != "" {
+	refsContent := strings.TrimSpace(contentOf(sess.Sections, SectionReferences))
+	phasesContent := strings.TrimSpace(contentOf(sess.Sections, SectionPhases))
+	if refsContent != "" {
 		b.WriteString("## References\n\n")
-		b.WriteString(refs)
+		b.WriteString(refsContent)
 		b.WriteString("\n\n")
 	}
-	if phases := strings.TrimSpace(contentOf(sess.Sections, SectionPhases)); phases != "" {
+	if phasesContent != "" {
 		b.WriteString("## Phases\n\n")
-		b.WriteString(phases)
+		b.WriteString(phasesContent)
 		b.WriteString("\n")
 	}
-	parsed, err := internalplans.ParsePlanMarkdown(b.String())
+	parsed, err := planmodel.ParsePlanMarkdown(b.String())
 	if err != nil {
-		return internalplans.Plan{}
+		return planmodel.Plan{}, ErrAuthoredMarkup{SectionKey: markupSectionForError(refsContent, phasesContent, err.Error()), Reason: err.Error()}
 	}
-	return parsed
+	if refsContent != "" && len(parsed.References) == 0 {
+		return planmodel.Plan{}, ErrAuthoredMarkup{SectionKey: SectionReferences, Reason: "expected at least one [CODE:], [REQ:], or [DOC:] reference"}
+	}
+	if phasesContent != "" && len(parsed.Phases) == 0 {
+		return planmodel.Plan{}, ErrAuthoredMarkup{SectionKey: SectionPhases, Reason: "expected at least one '### Phase N - Title' heading"}
+	}
+	return parsed, nil
+}
+
+func markupSectionForError(refsContent, phasesContent, reason string) SectionKey {
+	if phasesContent != "" && strings.Contains(reason, "phase") {
+		return SectionPhases
+	}
+	if refsContent != "" && strings.Contains(reason, "reference") {
+		return SectionReferences
+	}
+	if phasesContent != "" {
+		return SectionPhases
+	}
+	return SectionPhases
 }

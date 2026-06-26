@@ -33,6 +33,7 @@ const (
 	checkContent   = "content"
 	checkLinks     = "links"
 	checkRefs      = "refs"
+	checkCommands  = "commands"
 	checkManifest  = "manifest"
 	checkNumbers   = "numbers"
 )
@@ -50,6 +51,7 @@ var checkRegistry = []checkSpec{
 	{checkContent, scopeGeneric, "Markdown, mermaid, and absolute-path content checks."},
 	{checkLinks, scopeGeneric, "Local and external link validation."},
 	{checkRefs, scopeGeneric, "Bidirectional reference audit ([CODE:], // DOC:, marked refs)."},
+	{checkCommands, scopeGeneric, "Conservative Vrooli-owned command validation in fenced shell snippets."},
 	{checkManifest, scopeScenario, "docs/manifest.json coverage (orphaned docs, missing registrations)."},
 	{checkNumbers, scopeGeneric, "Drift-prone hardcoded-number / derived-count lint."},
 }
@@ -116,7 +118,7 @@ func (sel selection) runs(name string, target docTarget) bool {
 // needsMarkdownFiles reports whether any selected, applicable check operates on
 // the markdown file set (so the walker only runs when something consumes it).
 func (sel selection) needsMarkdownFiles(target docTarget) bool {
-	for _, name := range []string{checkContent, checkLinks, checkRefs, checkNumbers, checkManifest} {
+	for _, name := range []string{checkContent, checkLinks, checkRefs, checkCommands, checkNumbers, checkManifest} {
 		if sel.runs(name, target) {
 			return true
 		}

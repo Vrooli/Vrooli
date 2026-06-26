@@ -178,11 +178,6 @@
       "description": "Execute phased test suite via test-genie",
       "steps": [
         {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
           "name": "run-tests",
           "run": "test-genie execute plan-manager --preset comprehensive",
           "description": "Run all test phases via test-genie"

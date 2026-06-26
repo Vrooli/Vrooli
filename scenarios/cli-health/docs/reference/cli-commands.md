@@ -37,10 +37,9 @@ to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
 `binding.kind` is currently `connect-rpc` only. REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
-`omitted[]` array.
+commands, if a future domain needs them, should be appended to the
+loaded group outside the manifest path in the domain's `register.go`
+and documented in the manifest's `omitted[]` array.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -89,54 +88,86 @@ Read values back without an argument:
 cli-health configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Command reference validation
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
-
-### `cli-health notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+`cli-health command validate` validates Vrooli-owned command references without
+executing the referenced command. It tokenizes the command text, rejects shell
+operators and expansions, checks the command path against CLI Health's catalog,
+and validates argument shape when manifest metadata is available.
 
 ```bash
-cli-health notes list
-cli-health notes list --json
+cli-health command validate --command "knowledge-observatory docs health cli-health --checks=refs,commands" --policy docs
+cli-health command validate --command "vrooli scenario test cli-health" --policy plan --json
 ```
 
-### `cli-health notes create --title <title> [--body <body>]`
+Results distinguish valid, invalid, partial, skipped, unknown, and unsupported
+references. A partial result means the command path exists, but reliable argument
+metadata was unavailable. Qualifiers such as `cli[future]:...`, `cli[old]:...`,
+`cli[external]:...`, and `cli[literal]:...` are interpreted through the shared
+marked-reference rules in `path:docs/reference/machine-readable-references.md`.
 
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
+Examples:
 
 ```bash
-cli-health notes create --title "First note" --body "Hello world"
+# Valid current command.
+cli-health command validate --command "vrooli scenario test cli-health" --policy plan
+
+# Invalid command path with suggestions.
+cli-health command validate --command "cli-health search queri docs" --policy docs
+
+# Valid command path with partial argument coverage when the catalog lacks reliable argument metadata.
+cli-health command validate --command "knowledge-observatory docs health cli-health --checks=refs,commands" --policy docs
+
+# Explicit non-current reference; pass qualifiers from the marked reference.
+cli-health command validate --command "future-tool launch" --policy docs --qualifiers future
+
+# Unsupported shell expression; CLI Health does not interpret pipelines or redirects.
+cli-health command validate --command "vrooli scenario test cli-health | tee out.log" --policy docs
 ```
 
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
+## Scenario commands
 
-### `cli-health notes get <id>`
+### `cli-health search query <text>`
 
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
+Search the indexed command catalog.
 
 ```bash
-cli-health notes get abc123
+cli-health search query "docs health"
+cli-health search query "docs health" --mode text --limit 5
 ```
 
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
+### `cli-health search status`
 
-### `cli-health notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
+Show command-search backend availability.
 
 ```bash
-cli-health notes attach abc123 --file ./example.png
+cli-health search status
+cli-health search status --json
+```
+
+### `cli-health reindex run`
+
+Rebuild command-search corpus entries from manifests and help output.
+
+```bash
+cli-health reindex run --dry-run
+cli-health reindex run --scenario prompt-manager
+```
+
+### `cli-health reindex status <job_id>`
+
+Poll an in-flight reindex job.
+
+```bash
+cli-health reindex status job-123
+```
+
+### `cli-health reindex cancel <job_id>`
+
+Request cooperative cancellation for an in-flight reindex job.
+
+```bash
+cli-health reindex cancel job-123
 ```
 
 ## Output contracts
@@ -159,8 +190,9 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new domain, copy the smallest current manifest-backed command
+group that has the same read/write shape, then replace it once your
+real domain is green.
 
 For a command inside an existing domain:
 
@@ -204,11 +236,11 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
+- **Subcommand groups** (`search query`, `reindex run`) over flat
+  verbs (`search-query`, `run-reindex`). Discoverability via `--help`
   is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Positional for required, flags for optional.** `reindex status <job_id>`
+  not `reindex status --job-id <job_id>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

@@ -171,7 +171,7 @@ fails the check.
 
 To scaffold a new flow:
 
-```bash
+```text
 flow-verifier flows new ui/src/features/<feature> --flow-id <flow-id> --lang ts --root .
 flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go --root .
 ```

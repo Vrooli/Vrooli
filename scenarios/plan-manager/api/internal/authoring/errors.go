@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // ErrSessionNotFound is returned when a session id does not resolve to a stored
@@ -43,6 +43,17 @@ func (e ErrStructureGate) Error() string {
 	return fmt.Sprintf("structure gate not satisfied: %d violation(s)", len(e.Violations))
 }
 
+// ErrAuthoredMarkup is returned when authored references/phases markup cannot be
+// converted into the structured plans model without losing information.
+type ErrAuthoredMarkup struct {
+	SectionKey SectionKey
+	Reason     string
+}
+
+func (e ErrAuthoredMarkup) Error() string {
+	return fmt.Sprintf("invalid authored markup in section %q: %s", e.SectionKey, e.Reason)
+}
+
 // ToConnectError translates authoring/plans sentinels into Connect's typed error
 // model. Unknown errors map to internal.
 func ToConnectError(err error) error {
@@ -65,7 +76,11 @@ func ToConnectError(err error) error {
 	if errors.As(err, &gate) {
 		return connect.NewError(connect.CodeFailedPrecondition, gate)
 	}
-	var planInvalid internalplans.ErrInvalidPlan
+	var markup ErrAuthoredMarkup
+	if errors.As(err, &markup) {
+		return connect.NewError(connect.CodeInvalidArgument, markup)
+	}
+	var planInvalid planmodel.ErrInvalidPlan
 	if errors.As(err, &planInvalid) {
 		return connect.NewError(connect.CodeInvalidArgument, planInvalid)
 	}

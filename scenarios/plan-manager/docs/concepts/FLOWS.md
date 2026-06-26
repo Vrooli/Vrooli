@@ -79,12 +79,12 @@ fresh ──small diff in refs──▶ lightly_stale ──refs moved/deleted�
 
 ## Maturity Ladder
 
-- **L0 (now):** flows specified here; no runtime code yet (documentation-first).
-- **L1:** authoring + plans flows implemented and green (first vertical slice).
-- **L2:** execution + validation flows green; staleness computed from live refs.
-- **L3:** completion/handoff finalizer + candidate-finding triage green.
-- **L4:** temporal-flow audit / formal model for the phase + handoff state machines
-  (resume idempotency, partial-completion correctness).
+- **L3 (now):** authoring, plans, execution, validation, completion/handoff, and
+  candidate-finding triage flows are implemented and covered by service,
+  handler, CLI, and integration tests.
+- **L4 (future):** formal flow model for the phase + handoff state machines
+  (resume idempotency, partial-completion correctness), added only when checked
+  artifacts and replay tests exist.
 
 ## Production Shape
 

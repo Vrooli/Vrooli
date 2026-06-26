@@ -53,7 +53,11 @@ func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[plans
 }
 
 func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[plansv1.CreatePlanRequest]) (*connect.Response[plansv1.CreatePlanResponse], error) {
-	p, err := h.deps.Service.Create(ctx, planFromProto(req.Msg.GetPlan()))
+	in, err := planFromProtoChecked(req.Msg.GetPlan())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	p, err := h.deps.Service.Create(ctx, in)
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -61,7 +65,11 @@ func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[pl
 }
 
 func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[plansv1.UpdatePlanRequest]) (*connect.Response[plansv1.UpdatePlanResponse], error) {
-	p, err := h.deps.Service.Update(ctx, planFromProto(req.Msg.GetPlan()))
+	in, err := planFromProtoChecked(req.Msg.GetPlan())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	p, err := h.deps.Service.Update(ctx, in)
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -85,7 +93,11 @@ func (h *connectHandler) RenderMarkdown(ctx context.Context, req *connect.Reques
 }
 
 func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[plansv1.AddPhaseRequest]) (*connect.Response[plansv1.AddPhaseResponse], error) {
-	p, err := h.deps.Service.AddPhase(ctx, req.Msg.GetPlanId(), phaseFromProto(req.Msg.GetPhase()))
+	phase, err := phaseFromProtoChecked(req.Msg.GetPhase())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	p, err := h.deps.Service.AddPhase(ctx, req.Msg.GetPlanId(), phase)
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -93,7 +105,11 @@ func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[plan
 }
 
 func (h *connectHandler) UpdatePhase(ctx context.Context, req *connect.Request[plansv1.UpdatePhaseRequest]) (*connect.Response[plansv1.UpdatePhaseResponse], error) {
-	p, err := h.deps.Service.UpdatePhase(ctx, req.Msg.GetPlanId(), phaseFromProto(req.Msg.GetPhase()))
+	phase, err := phaseFromProtoChecked(req.Msg.GetPhase())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	p, err := h.deps.Service.UpdatePhase(ctx, req.Msg.GetPlanId(), phase)
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
@@ -118,6 +134,14 @@ func (h *connectHandler) LinkSupersession(ctx context.Context, req *connect.Requ
 		return nil, internalplans.ToConnectError(err)
 	}
 	return connect.NewResponse(&plansv1.LinkSupersessionResponse{Plan: planToProto(p)}), nil
+}
+
+func (h *connectHandler) LinkDependency(ctx context.Context, req *connect.Request[plansv1.LinkDependencyRequest]) (*connect.Response[plansv1.LinkDependencyResponse], error) {
+	p, err := h.deps.Service.LinkDependency(ctx, req.Msg.GetDependingPlanId(), req.Msg.GetDependencyPlanId())
+	if err != nil {
+		return nil, internalplans.ToConnectError(err)
+	}
+	return connect.NewResponse(&plansv1.LinkDependencyResponse{Plan: planToProto(p)}), nil
 }
 
 func (h *connectHandler) ImportPlan(ctx context.Context, req *connect.Request[plansv1.ImportPlanRequest]) (*connect.Response[plansv1.ImportPlanResponse], error) {

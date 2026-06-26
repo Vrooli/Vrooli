@@ -80,6 +80,36 @@ func (f fakeRefs) References(_ context.Context, _, _ string) (string, error) {
 	return f.out, f.err
 }
 
+type fakeCommandValidator struct {
+	results map[string]authoring.CommandReferenceResult
+	err     error
+	calls   []authoring.CommandReferenceRequest
+}
+
+func (f *fakeCommandValidator) ValidateCommandReference(_ context.Context, req authoring.CommandReferenceRequest) (authoring.CommandReferenceResult, error) {
+	f.calls = append(f.calls, req)
+	if f.err != nil {
+		return authoring.CommandReferenceResult{}, f.err
+	}
+	if got, ok := f.results[req.CommandText]; ok {
+		return got, nil
+	}
+	return authoring.CommandReferenceResult{Verdict: "valid", ValidationLevel: "argument_shape_validated"}, nil
+}
+
+type recordingRunner struct {
+	name string
+	args []string
+	out  []byte
+	err  error
+}
+
+func (r *recordingRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
+	r.name = name
+	r.args = append([]string(nil), args...)
+	return r.out, r.err
+}
+
 func newService(t *testing.T, d authoring.Deps) authoring.Service {
 	t.Helper()
 	store, clk := newStore(t)
@@ -229,6 +259,77 @@ func TestSubmitSectionReportsPerSectionViolations(t *testing.T) {
 	require.Empty(t, violations)
 }
 
+func TestSubmitSectionValidatesCurrentCLIReferences(t *testing.T) {
+	commands := &fakeCommandValidator{results: map[string]authoring.CommandReferenceResult{
+		"vrooli scenario tost cli-health": {
+			Verdict:     "invalid",
+			Issues:      []authoring.CommandIssue{{Code: "command_not_found", Message: "unknown command path"}},
+			Suggestions: []string{"vrooli scenario test"},
+			Guidance:    []string{"fix this to a current command or mark it cli[future] if intentional"},
+		},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Commands: commands})
+	ctx := context.Background()
+	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+
+	_, violations, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Run `cli:vrooli scenario tost cli-health`.")
+	require.NoError(t, err)
+	require.Len(t, violations, 1)
+	require.Equal(t, authoring.SectionPurpose, violations[0].SectionKey)
+	require.Contains(t, violations[0].Message, "command_not_found")
+	require.Contains(t, violations[0].Message, "vrooli scenario test")
+	require.Len(t, commands.calls, 1)
+	require.Equal(t, "vrooli scenario tost cli-health", commands.calls[0].CommandText)
+}
+
+func TestCommandReferenceQualifiersSkipAuthoringCurrentValidation(t *testing.T) {
+	commands := &fakeCommandValidator{results: map[string]authoring.CommandReferenceResult{
+		"vrooli scenario someday cli-health": {Verdict: "invalid"},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Commands: commands})
+	ctx := context.Background()
+	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+
+	_, violations, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Planned: `cli[future]:vrooli scenario someday cli-health`.")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Empty(t, commands.calls, "future references are not current-command requirements")
+}
+
+func TestFinalizeRejectsInvalidCLIReferences(t *testing.T) {
+	writer := &fakePlanWriter{}
+	commands := &fakeCommandValidator{results: map[string]authoring.CommandReferenceResult{
+		"vrooli scenario tost cli-health": {
+			Verdict: "invalid",
+			Issues:  []authoring.CommandIssue{{Code: "command_not_found", Message: "unknown command path"}},
+		},
+	}}
+	svc := newService(t, authoring.Deps{Writer: writer, Commands: commands})
+	ctx := context.Background()
+	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Run `cli:vrooli scenario tost cli-health`.")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Tests green.")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n")
+	require.NoError(t, err)
+
+	_, err = svc.Finalize(ctx, sess.ID)
+	require.Error(t, err)
+	var gate authoring.ErrStructureGate
+	require.True(t, errors.As(err, &gate))
+	require.Len(t, gate.Violations, 1)
+	require.Contains(t, gate.Violations[0].Message, "command_not_found")
+	require.Equal(t, 0, writer.calls)
+}
+
 func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 	svc := newService(t, authoring.Deps{
 		Writer:       &fakePlanWriter{},
@@ -262,6 +363,28 @@ func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 		require.True(t, updated.Sections[idx].Autofilled)
 		require.NotEmpty(t, updated.Sections[idx].Content)
 	}
+}
+
+func TestAutofilledReferencesSurviveFinalize(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{
+		Writer:     writer,
+		References: fakeRefs{out: "[CODE: scenarios/plan-manager/api/internal/validation/service.go]"},
+	})
+	ctx := context.Background()
+	sess, err := svc.StartSession(ctx, "Improve validation", "improve-validation", "")
+	require.NoError(t, err)
+
+	_, results, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillReferences})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.True(t, results[0].Filled)
+
+	fillMandatory(t, svc, sess.ID)
+	_, err = svc.Finalize(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, writer.created.References, 1)
+	require.Equal(t, "scenarios/plan-manager/api/internal/validation/service.go", writer.created.References[0].Target)
 }
 
 func TestAutofillDegradesPerSourceNeverFalseFill(t *testing.T) {
@@ -327,6 +450,29 @@ func TestAutofillEmptyOutputDegrades(t *testing.T) {
 	require.False(t, results[0].Filled)
 }
 
+func TestCommandAnchorAutofillerUsesVerifiedGCTShape(t *testing.T) {
+	runner := &recordingRunner{out: []byte(`{"scenario":"plan-manager","name":"impl"}`)}
+	got, err := authoring.NewCommandAnchorAutofiller(runner.Run).Anchor(context.Background(), "Ignored Title", "plan-manager")
+	require.NoError(t, err)
+	require.Contains(t, got, `"name":"impl"`)
+	require.Equal(t, "git-control-tower", runner.name)
+	require.Equal(t, []string{"baseline", "show", "--scenario", "plan-manager", "--name", "plan-manager", "--json"}, runner.args)
+}
+
+func TestCommandReferenceExtractorEmitsParseableCodeRefs(t *testing.T) {
+	runner := &recordingRunner{out: []byte(`{"target":"scenario:plan-manager"}`)}
+	got, err := authoring.NewCommandReferenceExtractor(runner.Run).References(
+		context.Background(),
+		"Improve validation",
+		"Touch scenarios/plan-manager/api/internal/validation/service.go and scenarios/plan-manager/api/handlers/validation/module.go.",
+	)
+	require.NoError(t, err)
+	require.Equal(t, "code-facts", runner.name)
+	require.Equal(t, []string{"facts", "describe", "scenario:plan-manager", "--include", "surfaces,parse_units", "--json"}, runner.args)
+	require.Contains(t, got, "[CODE: scenarios/plan-manager/api/internal/validation/service.go]")
+	require.Contains(t, got, "[CODE: scenarios/plan-manager/api/handlers/validation/module.go]")
+}
+
 func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	writer := &fakePlanWriter{}
 	svc := newService(t, authoring.Deps{Writer: writer})
@@ -358,6 +504,51 @@ func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	got, err := svc.GetSection(ctx, sess.ID, authoring.SectionPurpose)
 	require.NoError(t, err)
 	require.NotEmpty(t, got.Content)
+}
+
+func TestFinalizeRejectsMalformedAuthoredReferences(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+
+	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE:]")
+	require.NoError(t, err)
+
+	_, err = svc.Finalize(ctx, sess.ID)
+	require.Error(t, err)
+	var markup authoring.ErrAuthoredMarkup
+	require.True(t, errors.As(err, &markup), "malformed reference markup is a typed authoring error")
+	require.Equal(t, authoring.SectionReferences, markup.SectionKey)
+	require.Equal(t, 0, writer.calls, "no plan written after a lossy parse failure")
+}
+
+func TestFinalizeRejectsNonParseablePhaseMarkup(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+
+	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Make widgets better.")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Tests green.")
+	require.NoError(t, err)
+	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "Phase 1 - missing markdown heading")
+	require.NoError(t, err)
+
+	_, err = svc.Finalize(ctx, sess.ID)
+	require.Error(t, err)
+	var markup authoring.ErrAuthoredMarkup
+	require.True(t, errors.As(err, &markup), "non-empty phase markup that parses to zero phases is rejected")
+	require.Equal(t, authoring.SectionPhases, markup.SectionKey)
+	require.Equal(t, 0, writer.calls)
 }
 
 func TestFinalizeRejectsWhenStructureInvalid(t *testing.T) {

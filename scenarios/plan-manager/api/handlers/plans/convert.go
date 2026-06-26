@@ -1,8 +1,10 @@
 package plans
 
 import (
-	"math"
+	"fmt"
+	"strings"
 
+	"plan-manager/internal/planproto"
 	internalplans "plan-manager/internal/plans"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
@@ -23,41 +25,25 @@ type (
 // small and non-negative in practice). The explicit clamp satisfies gosec G115
 // without a //nosec — a phase order can never legitimately overflow int32.
 func orderToInt32(n int) int32 {
-	switch {
-	case n < 0:
-		return 0
-	case n > math.MaxInt32:
-		return math.MaxInt32
-	default:
-		return int32(n)
-	}
+	return planproto.OrderToInt32(n)
 }
 
 func planToProto(p internalplans.Plan) *sharedv1.Plan {
-	return &sharedv1.Plan{
-		Id:               p.ID,
-		Slug:             p.Slug,
-		Title:            p.Title,
-		Status:           planStatusToProto(p.Status),
-		ContentHash:      p.ContentHash,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
-		Purpose:          p.Purpose,
-		Scope:            p.Scope,
-		Constraints:      p.Constraints,
-		NonGoals:         p.NonGoals,
-		References:       referencesToProto(p.References),
-		RegressionAnchor: anchorToProto(p.RegressionAnchor),
-		DefinitionOfDone: p.DefinitionOfDone,
-		Phases:           phasesToProto(p.Phases),
-		Supersedes:       p.Supersedes,
-		SupersededBy:     p.SupersededBy,
-	}
+	return planproto.PlanToProto(p)
 }
 
 func planFromProto(p *sharedv1.Plan) internalplans.Plan {
+	out, _ := planFromProtoChecked(p)
+	return out
+}
+
+func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 	if p == nil {
-		return internalplans.Plan{}
+		return internalplans.Plan{}, nil
+	}
+	phases, err := phasesFromProtoChecked(p.GetPhases())
+	if err != nil {
+		return internalplans.Plan{}, err
 	}
 	return internalplans.Plan{
 		ID:               p.GetId(),
@@ -74,46 +60,48 @@ func planFromProto(p *sharedv1.Plan) internalplans.Plan {
 		References:       referencesFromProto(p.GetReferences()),
 		RegressionAnchor: anchorFromProto(p.GetRegressionAnchor()),
 		DefinitionOfDone: p.GetDefinitionOfDone(),
-		Phases:           phasesFromProto(p.GetPhases()),
+		Phases:           phases,
 		Supersedes:       p.GetSupersedes(),
 		SupersededBy:     p.GetSupersededBy(),
-	}
+	}, nil
 }
 
 func phasesToProto(phases []internalplans.Phase) []*sharedv1.Phase {
-	out := make([]*sharedv1.Phase, 0, len(phases))
-	for _, ph := range phases {
-		out = append(out, phaseToProto(ph))
-	}
-	return out
+	return planproto.PhasesToProto(phases)
 }
 
 func phaseToProto(ph internalplans.Phase) *sharedv1.Phase {
-	return &sharedv1.Phase{
-		Id:              ph.ID,
-		Order:           orderToInt32(ph.Order),
-		Title:           ph.Title,
-		Intent:          ph.Intent,
-		RequiredReading: ph.RequiredReading,
-		Reminders:       ph.Reminders,
-		BaselineScope:   ph.BaselineScope,
-		Acceptance:      ph.Acceptance,
-		Status:          phaseStatusToProto(ph.Status),
-		References:      referencesToProto(ph.References),
-	}
+	return planproto.PhaseToProto(ph)
 }
 
 func phasesFromProto(phases []*sharedv1.Phase) []internalplans.Phase {
-	out := make([]internalplans.Phase, 0, len(phases))
-	for _, ph := range phases {
-		out = append(out, phaseFromProto(ph))
-	}
+	out, _ := phasesFromProtoChecked(phases)
 	return out
 }
 
+func phasesFromProtoChecked(phases []*sharedv1.Phase) ([]internalplans.Phase, error) {
+	out := make([]internalplans.Phase, 0, len(phases))
+	for i, ph := range phases {
+		converted, err := phaseFromProtoChecked(ph)
+		if err != nil {
+			return nil, fmt.Errorf("phase %d: %w", i, err)
+		}
+		out = append(out, converted)
+	}
+	return out, nil
+}
+
 func phaseFromProto(ph *sharedv1.Phase) internalplans.Phase {
+	out, _ := phaseFromProtoChecked(ph)
+	return out
+}
+
+func phaseFromProtoChecked(ph *sharedv1.Phase) (internalplans.Phase, error) {
 	if ph == nil {
-		return internalplans.Phase{}
+		return internalplans.Phase{}, nil
+	}
+	if err := rejectUnsupportedPhaseFields(ph); err != nil {
+		return internalplans.Phase{}, err
 	}
 	return internalplans.Phase{
 		ID:              ph.GetId(),
@@ -126,24 +114,28 @@ func phaseFromProto(ph *sharedv1.Phase) internalplans.Phase {
 		Acceptance:      ph.GetAcceptance(),
 		Status:          phaseStatusFromProto(ph.GetStatus()),
 		References:      referencesFromProto(ph.GetReferences()),
+	}, nil
+}
+
+func rejectUnsupportedPhaseFields(ph *sharedv1.Phase) error {
+	var dropped []string
+	if ph.GetLastValidation() != nil {
+		dropped = append(dropped, "last_validation")
 	}
+	if len(ph.GetDecisions()) > 0 {
+		dropped = append(dropped, "decisions")
+	}
+	if len(ph.GetFindings()) > 0 {
+		dropped = append(dropped, "findings")
+	}
+	if len(dropped) == 0 {
+		return nil
+	}
+	return internalplans.ErrInvalidPlan{Reason: "plans write cannot accept computed/joined phase fields: " + strings.Join(dropped, ", ")}
 }
 
 func referencesToProto(refs []internalplans.Reference) []*sharedv1.Reference {
-	out := make([]*sharedv1.Reference, 0, len(refs))
-	for _, r := range refs {
-		out = append(out, &sharedv1.Reference{
-			Id:           r.ID,
-			Kind:         refKindToProto(r.Kind),
-			Target:       r.Target,
-			Future:       r.Future,
-			Resolution:   refResolutionToProto(r.Resolution),
-			Staleness:    stalenessToProto(r.Staleness),
-			ChangeFactor: r.ChangeFactor,
-			Note:         r.Note,
-		})
-	}
-	return out
+	return planproto.ReferencesToProto(refs)
 }
 
 func referencesFromProto(refs []*sharedv1.Reference) []internalplans.Reference {
@@ -167,16 +159,7 @@ func referencesFromProto(refs []*sharedv1.Reference) []internalplans.Reference {
 }
 
 func anchorToProto(a internalplans.RegressionAnchor) *sharedv1.RegressionAnchor {
-	return &sharedv1.RegressionAnchor{
-		Strategy:       a.Strategy,
-		Scenario:       a.Scenario,
-		BaselineName:   a.BaselineName,
-		HeadSha:        a.HeadSha,
-		AllowlistPaths: a.AllowlistPaths,
-		Commands:       a.Commands,
-		CapturedAt:     a.CapturedAt,
-		Unavailable:    a.Unavailable,
-	}
+	return planproto.AnchorToProto(a)
 }
 
 func anchorFromProto(a *sharedv1.RegressionAnchor) internalplans.RegressionAnchor {
@@ -196,153 +179,47 @@ func anchorFromProto(a *sharedv1.RegressionAnchor) internalplans.RegressionAncho
 }
 
 func edgeToProto(e internalplans.PlanEdge) *sharedv1.PlanEdge {
-	return &sharedv1.PlanEdge{
-		FromPlanId: e.FromPlanID,
-		ToPlanId:   e.ToPlanID,
-		Kind:       e.Kind,
-	}
+	return planproto.EdgeToProto(e)
 }
 
 // --- enum converters ---
 
 func planStatusToProto(s internalplans.PlanStatus) sharedv1.PlanStatus {
-	switch s {
-	case internalplans.PlanStatusDraft:
-		return sharedv1.PlanStatus_PLAN_STATUS_DRAFT
-	case internalplans.PlanStatusActive:
-		return sharedv1.PlanStatus_PLAN_STATUS_ACTIVE
-	case internalplans.PlanStatusComplete:
-		return sharedv1.PlanStatus_PLAN_STATUS_COMPLETE
-	case internalplans.PlanStatusArchived:
-		return sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED
-	default:
-		return sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED
-	}
+	return planproto.PlanStatusToProto(s)
 }
 
 func planStatusFromProto(s sharedv1.PlanStatus) internalplans.PlanStatus {
-	switch s {
-	case sharedv1.PlanStatus_PLAN_STATUS_DRAFT:
-		return internalplans.PlanStatusDraft
-	case sharedv1.PlanStatus_PLAN_STATUS_ACTIVE:
-		return internalplans.PlanStatusActive
-	case sharedv1.PlanStatus_PLAN_STATUS_COMPLETE:
-		return internalplans.PlanStatusComplete
-	case sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED:
-		return internalplans.PlanStatusArchived
-	default:
-		return ""
-	}
+	return planproto.PlanStatusFromProto(s)
 }
 
 func phaseStatusToProto(s internalplans.PhaseStatus) sharedv1.PhaseStatus {
-	switch s {
-	case internalplans.PhaseStatusTodo:
-		return sharedv1.PhaseStatus_PHASE_STATUS_TODO
-	case internalplans.PhaseStatusActive:
-		return sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE
-	case internalplans.PhaseStatusDone:
-		return sharedv1.PhaseStatus_PHASE_STATUS_DONE
-	case internalplans.PhaseStatusBlocked:
-		return sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED
-	default:
-		return sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED
-	}
+	return planproto.PhaseStatusToProto(s)
 }
 
 func phaseStatusFromProto(s sharedv1.PhaseStatus) internalplans.PhaseStatus {
-	switch s {
-	case sharedv1.PhaseStatus_PHASE_STATUS_TODO:
-		return internalplans.PhaseStatusTodo
-	case sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE:
-		return internalplans.PhaseStatusActive
-	case sharedv1.PhaseStatus_PHASE_STATUS_DONE:
-		return internalplans.PhaseStatusDone
-	case sharedv1.PhaseStatus_PHASE_STATUS_BLOCKED:
-		return internalplans.PhaseStatusBlocked
-	default:
-		return ""
-	}
+	return planproto.PhaseStatusFromProto(s)
 }
 
 func refKindToProto(k internalplans.ReferenceKind) sharedv1.ReferenceKind {
-	switch k {
-	case internalplans.ReferenceCode:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_CODE
-	case internalplans.ReferenceReq:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_REQ
-	case internalplans.ReferenceDoc:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_DOC
-	default:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED
-	}
+	return planproto.RefKindToProto(k)
 }
 
 func refKindFromProto(k sharedv1.ReferenceKind) internalplans.ReferenceKind {
-	switch k {
-	case sharedv1.ReferenceKind_REFERENCE_KIND_REQ:
-		return internalplans.ReferenceReq
-	case sharedv1.ReferenceKind_REFERENCE_KIND_DOC:
-		return internalplans.ReferenceDoc
-	case sharedv1.ReferenceKind_REFERENCE_KIND_CODE:
-		return internalplans.ReferenceCode
-	default:
-		return internalplans.ReferenceCode
-	}
+	return planproto.RefKindFromProto(k)
 }
 
 func refResolutionToProto(r internalplans.ReferenceResolution) sharedv1.ReferenceResolution {
-	switch r {
-	case internalplans.ResolutionResolved:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_RESOLVED
-	case internalplans.ResolutionUnresolved:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNRESOLVED
-	case internalplans.ResolutionFuture:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE
-	case internalplans.ResolutionMissing:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING
-	default:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNSPECIFIED
-	}
+	return planproto.RefResolutionToProto(r)
 }
 
 func refResolutionFromProto(r sharedv1.ReferenceResolution) internalplans.ReferenceResolution {
-	switch r {
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_RESOLVED:
-		return internalplans.ResolutionResolved
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNRESOLVED:
-		return internalplans.ResolutionUnresolved
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE:
-		return internalplans.ResolutionFuture
-	case sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING:
-		return internalplans.ResolutionMissing
-	default:
-		return internalplans.ResolutionUnspecified
-	}
+	return planproto.RefResolutionFromProto(r)
 }
 
 func stalenessToProto(s internalplans.StalenessTier) sharedv1.StalenessTier {
-	switch s {
-	case internalplans.StalenessFresh:
-		return sharedv1.StalenessTier_STALENESS_TIER_FRESH
-	case internalplans.StalenessLightlyStale:
-		return sharedv1.StalenessTier_STALENESS_TIER_LIGHTLY_STALE
-	case internalplans.StalenessDefinitelyStale:
-		return sharedv1.StalenessTier_STALENESS_TIER_DEFINITELY_STALE
-	default:
-		return sharedv1.StalenessTier_STALENESS_TIER_UNSPECIFIED
-	}
+	return planproto.StalenessToProto(s)
 }
 
 func stalenessFromProto(s sharedv1.StalenessTier) internalplans.StalenessTier {
-	switch s {
-	case sharedv1.StalenessTier_STALENESS_TIER_FRESH:
-		return internalplans.StalenessFresh
-	case sharedv1.StalenessTier_STALENESS_TIER_LIGHTLY_STALE:
-		return internalplans.StalenessLightlyStale
-	case sharedv1.StalenessTier_STALENESS_TIER_DEFINITELY_STALE:
-		return internalplans.StalenessDefinitelyStale
-	default:
-		return internalplans.StalenessUnknown
-	}
+	return planproto.StalenessFromProto(s)
 }

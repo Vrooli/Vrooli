@@ -11,6 +11,7 @@ import (
 
 	"cli-health/internal/aisearch"
 	"cli-health/internal/clock"
+	"cli-health/internal/commandref"
 	"cli-health/internal/modules"
 	"cli-health/internal/server"
 
@@ -23,6 +24,7 @@ import (
 	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 
+	commandH "cli-health/handlers/command"
 	healthH "cli-health/handlers/health"
 	searchH "cli-health/handlers/search"
 	searchcontrolH "cli-health/handlers/searchcontrol"
@@ -219,6 +221,7 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cli-health-api", "1.0.0"),
 		validationH.Module(logger, repoRoot, externalCLINames(discovery.ListExternalCLIs())),
+		commandH.Module(logger, commandref.Service{Discovery: discovery}),
 		searchH.Module(logger, aiService, overrideGate),
 		searchcontrolH.Module(logger, searchcontrolH.Deps{
 			Logger:       logger,

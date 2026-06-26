@@ -22,6 +22,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	commandH "cli-health/handlers/command"
 	healthH "cli-health/handlers/health"
 	searchH "cli-health/handlers/search"
 	searchcontrolH "cli-health/handlers/searchcontrol"
@@ -36,6 +37,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, commandH.Endpoints...)
 	out = append(out, searchH.Endpoints...)
 	out = append(out, searchcontrolH.Endpoints...)
 	out = append(out, validationH.Endpoints...)
@@ -64,6 +66,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "command", File: commandH.ProtoFile},
 		{Module: "search", File: searchH.ProtoFile},
 		{Module: "searchcontrol", File: searchcontrolH.ProtoFile},
 		{Module: "validation", File: validationH.ProtoFile},
@@ -81,6 +84,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(commandH.Schema),
 		apidb.SchemaProviderFunc(searchH.Schema),
 		apidb.SchemaProviderFunc(searchcontrolH.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),

@@ -25,6 +25,7 @@ import (
 // the manifest value is aisearch's own (the manifest path lives here).
 const (
 	SourceManifest   = "manifest"
+	SourceBuiltin    = "builtin"
 	SourceHelp       = cliruntime.SourceHelp
 	SourceHelpFailed = cliruntime.SourceHelpFailed
 )
@@ -300,13 +301,38 @@ func parseManifestRecords(scenario string, raw []byte) ([]CommandRecord, error) 
 			if svc := strings.TrimSpace(cmd.Binding.Service); svc != "" {
 				rec.Binding = svc + "." + strings.TrimSpace(cmd.Binding.Method)
 			}
+			if args, err := cliapp.ManifestArgs(cmd); err == nil {
+				rec.Args = &args
+			}
 
 			rec.Tags = composeTags(groupName, cmd)
 			records = append(records, rec)
 		}
 	}
+	records = append(records, builtinCommandRecords(scenario)...)
 	sort.Slice(records, func(i, j int) bool { return records[i].FullPath < records[j].FullPath })
 	return records, nil
+}
+
+func builtinCommandRecords(scenario string) []CommandRecord {
+	return []CommandRecord{
+		{
+			Origin:      scenario,
+			Name:        "status",
+			FullPath:    canonicalFullPath(scenario, "", "status"),
+			Description: "Check API health.",
+			Source:      SourceBuiltin,
+			Tags:        []string{"builtin", "effect:read", "run-eligible"},
+		},
+		{
+			Origin:      scenario,
+			Name:        "configure",
+			FullPath:    canonicalFullPath(scenario, "", "configure"),
+			Description: "View or update CLI settings.",
+			Source:      SourceBuiltin,
+			Tags:        []string{"builtin", "effect:read"},
+		},
+	}
 }
 
 func composeTags(group string, cmd cliapp.ManifestCommand) []string {

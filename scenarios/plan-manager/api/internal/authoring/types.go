@@ -17,13 +17,17 @@
 //
 // Every autofill source degrades honestly: a nil seam or an error leaves that
 // section for the author and marks the result degraded — NEVER a false fill. The
-// structured Plan/Phase/Reference Go types are owned by the plans domain;
-// authoring imports them (internal/plans) as the shared model. See
+// structured Plan/Phase/Reference Go types live in the neutral planmodel kernel;
+// authoring imports that kernel as the shared model. See
 // docs/concepts/DOMAINS.md (authoring), docs/concepts/FLOWS.md, and
 // docs/concepts/PLAN-MODEL.md.
 package authoring
 
-import internalplans "plan-manager/internal/plans"
+import (
+	"context"
+
+	planmodel "plan-manager/internal/planmodel"
+)
 
 // SectionKey is the stable identifier for one section of a plan-in-progress.
 type SectionKey string
@@ -67,11 +71,33 @@ type Session struct {
 	UpdatedAt         string
 }
 
-// StructureViolation is one structure-gate failure (an empty mandatory section
-// or an empty regression anchor).
+// StructureViolation is one structure/authoring-gate failure (an empty mandatory
+// section, an empty regression anchor, or an invalid current command reference).
 type StructureViolation struct {
 	SectionKey SectionKey
 	Message    string
+}
+
+type CommandReferenceValidator interface {
+	ValidateCommandReference(context.Context, CommandReferenceRequest) (CommandReferenceResult, error)
+}
+
+type CommandReferenceRequest struct {
+	CommandText string
+	Qualifiers  []string
+}
+
+type CommandReferenceResult struct {
+	Verdict         string
+	ValidationLevel string
+	Issues          []CommandIssue
+	Suggestions     []string
+	Guidance        []string
+}
+
+type CommandIssue struct {
+	Code    string
+	Message string
 }
 
 // AutofillSource names one mechanical-section autofill source.
@@ -130,4 +156,4 @@ func newSkeleton() []Section {
 // PlanForSession is the resolved subset of the plans model authoring writes
 // through. It is the shared plans.Plan; aliased here so the seam signature reads
 // in authoring's vocabulary without re-importing at every call site.
-type PlanForSession = internalplans.Plan
+type PlanForSession = planmodel.Plan

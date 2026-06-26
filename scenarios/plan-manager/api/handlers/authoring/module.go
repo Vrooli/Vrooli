@@ -38,6 +38,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Anchor:       internalauthoring.NewCommandAnchorAutofiller(runner),
 		RequiredRead: internalauthoring.NewCommandRequiredReadingSource(runner),
 		References:   internalauthoring.NewCommandReferenceExtractor(runner),
+		Commands:     newCLIHealthCommandValidator(),
 		Clock:        clk,
 	})
 	connectPath, connectHandler := authoringconnect.NewAuthoringServiceHandler(NewConnectHandler(Deps{

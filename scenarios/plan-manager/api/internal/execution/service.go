@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"plan-manager/internal/clock"
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 
 	"github.com/google/uuid"
 )
@@ -21,7 +21,7 @@ type Service interface {
 	Start(ctx context.Context, planID, runID string) (Execution, error)
 	GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, error)
 	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, error)
-	TransitionPhase(ctx context.Context, executionID, phaseID string, to internalplans.PhaseStatus) (Execution, internalplans.Plan, error)
+	TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, error)
 
 	RecordDecision(ctx context.Context, executionID, phaseID, summary, detail string) (Decision, error)
 	RecordFinding(ctx context.Context, executionID, phaseID, title, detail string) (Finding, error)
@@ -127,37 +127,43 @@ func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext
 	if err != nil {
 		return PhaseContext{}, false, err
 	}
-	// Advance the runner's pointer to the earliest non-done phase (the resume
-	// point). When none remains the run is functionally complete.
-	next := resumePhaseID(plan.Phases)
+	// Advance means "move past the current pointer" when a later non-done phase
+	// exists. The resume point remains the earliest non-done phase and is exposed
+	// by GetStatus/buildContext; using it here would repeat the current phase.
+	next := nextActionablePhaseID(plan.Phases, e.CurrentPhaseID)
+	resume := resumePhaseID(plan.Phases)
+	if next == "" {
+		next = resume
+	}
 	e.CurrentPhaseID = next
+	e.Complete = resume == ""
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return PhaseContext{}, false, err
 	}
 	pctx := s.buildContext(ctx, plan, next)
-	return pctx, next == "", nil
+	return pctx, e.Complete, nil
 }
 
-func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID string, to internalplans.PhaseStatus) (Execution, internalplans.Plan, error) {
+func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
-		return Execution{}, internalplans.Plan{}, err
+		return Execution{}, planmodel.Plan{}, err
 	}
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
-		return Execution{}, internalplans.Plan{}, err
+		return Execution{}, planmodel.Plan{}, err
 	}
 	target, ok := findPhase(plan.Phases, phaseID)
 	if !ok {
-		return Execution{}, internalplans.Plan{}, internalplans.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
+		return Execution{}, planmodel.Plan{}, planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
 	}
 	// Delegate the phase-status change to the plans domain — it stays the single
 	// source of truth for the record (plan status is recomputed there).
 	target.Status = to
 	updated, err := s.plans.UpdatePhase(ctx, plan.ID, target)
 	if err != nil {
-		return Execution{}, internalplans.Plan{}, err
+		return Execution{}, planmodel.Plan{}, err
 	}
 	// Move the runner's pointer to the next actionable phase and mark the
 	// execution complete when every phase is terminal.
@@ -165,7 +171,7 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	e.Complete = e.CurrentPhaseID == ""
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
-		return Execution{}, internalplans.Plan{}, err
+		return Execution{}, planmodel.Plan{}, err
 	}
 	return e, updated, nil
 }
@@ -409,7 +415,7 @@ func (s *service) getExecution(ctx context.Context, executionID string) (Executi
 }
 
 // buildContext assembles the just-in-time PhaseContext for the named phase.
-func (s *service) buildContext(ctx context.Context, plan internalplans.Plan, phaseID string) PhaseContext {
+func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID string) PhaseContext {
 	pctx := PhaseContext{
 		ResumePhaseID: resumePhaseID(plan.Phases),
 		Completeness:  computeCompleteness(plan.Phases),
@@ -435,17 +441,17 @@ func (s *service) buildContext(ctx context.Context, plan internalplans.Plan, pha
 // result + the staleness captured with it. This is a cheap store read — it never
 // shells a subprocess — so status/next stay cheap. Degrades to UNKNOWN/absent
 // (never a false pass) when the validator is nil, errors, or has no result yet.
-func (s *service) lastValidation(ctx context.Context, plan internalplans.Plan, phaseID string) (ValidationResult, bool, internalplans.StalenessTier) {
+func (s *service) lastValidation(ctx context.Context, plan planmodel.Plan, phaseID string) (ValidationResult, bool, planmodel.StalenessTier) {
 	if s.validator == nil {
-		return ValidationResult{}, false, internalplans.StalenessUnknown
+		return ValidationResult{}, false, planmodel.StalenessUnknown
 	}
 	res, ok, err := s.validator.LastValidation(ctx, plan.ID, phaseID)
 	if err != nil || !ok {
-		return ValidationResult{}, false, internalplans.StalenessUnknown
+		return ValidationResult{}, false, planmodel.StalenessUnknown
 	}
 	staleness := res.Staleness
 	if staleness == "" {
-		staleness = internalplans.StalenessUnknown
+		staleness = planmodel.StalenessUnknown
 	}
 	return res, true, staleness
 }
@@ -486,11 +492,11 @@ func (s *service) assembleLiveHandoff(ctx context.Context, executionID string) (
 
 // completionNudges builds the thin guided-completion checklist. Each nudge is
 // satisfied=true when captured state already covers it.
-func (s *service) completionNudges(plan internalplans.Plan, candidates []Finding) []CompletionNudge {
+func (s *service) completionNudges(plan planmodel.Plan, candidates []Finding) []CompletionNudge {
 	allTerminal := computeCompleteness(plan.Phases) == CompletenessFull
 	for _, ph := range plan.Phases {
 		st := ph.Status
-		if st == internalplans.PhaseStatusDone || st == internalplans.PhaseStatusBlocked {
+		if st == planmodel.PhaseStatusDone || st == planmodel.PhaseStatusBlocked {
 			continue
 		}
 		allTerminal = false
@@ -538,9 +544,9 @@ func (s *service) wallTime(startedAt, now string) int64 {
 // resumePhaseID returns the earliest non-done phase id (the resume point), or ""
 // when every phase is done. "Earliest" is by the authored phase order. A blocked
 // phase is non-done and so is a candidate resume point.
-func resumePhaseID(phases []internalplans.Phase) string {
+func resumePhaseID(phases []planmodel.Phase) string {
 	for _, ph := range phases {
-		if ph.Status != internalplans.PhaseStatusDone {
+		if ph.Status != planmodel.PhaseStatusDone {
 			return ph.ID
 		}
 	}
@@ -549,12 +555,12 @@ func resumePhaseID(phases []internalplans.Phase) string {
 
 // computeCompleteness is FULL iff every phase is done; PARTIAL otherwise. An
 // empty plan (no phases) is PARTIAL — there is nothing proven done.
-func computeCompleteness(phases []internalplans.Phase) Completeness {
+func computeCompleteness(phases []planmodel.Phase) Completeness {
 	if len(phases) == 0 {
 		return CompletenessPartial
 	}
 	for _, ph := range phases {
-		if ph.Status != internalplans.PhaseStatusDone {
+		if ph.Status != planmodel.PhaseStatusDone {
 			return CompletenessPartial
 		}
 	}
@@ -562,21 +568,39 @@ func computeCompleteness(phases []internalplans.Phase) Completeness {
 }
 
 // findPhase returns the phase with the given id.
-func findPhase(phases []internalplans.Phase, phaseID string) (internalplans.Phase, bool) {
+func findPhase(phases []planmodel.Phase, phaseID string) (planmodel.Phase, bool) {
 	for _, ph := range phases {
 		if ph.ID == phaseID {
 			return ph, true
 		}
 	}
-	return internalplans.Phase{}, false
+	return planmodel.Phase{}, false
 }
 
 // nextPhase returns the phase immediately after phaseID in authored order.
-func nextPhase(phases []internalplans.Phase, phaseID string) (internalplans.Phase, bool) {
+func nextPhase(phases []planmodel.Phase, phaseID string) (planmodel.Phase, bool) {
 	for i, ph := range phases {
 		if ph.ID == phaseID && i+1 < len(phases) {
 			return phases[i+1], true
 		}
 	}
-	return internalplans.Phase{}, false
+	return planmodel.Phase{}, false
+}
+
+func nextActionablePhaseID(phases []planmodel.Phase, currentID string) string {
+	if strings.TrimSpace(currentID) == "" {
+		return resumePhaseID(phases)
+	}
+	for i, ph := range phases {
+		if ph.ID != currentID {
+			continue
+		}
+		for _, candidate := range phases[i+1:] {
+			if candidate.Status != planmodel.PhaseStatusDone {
+				return candidate.ID
+			}
+		}
+		return ""
+	}
+	return resumePhaseID(phases)
 }

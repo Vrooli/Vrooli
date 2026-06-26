@@ -7,6 +7,8 @@
 // env config — lives in github.com/vrooli/ai-go/search.
 package aisearch
 
+import "github.com/vrooli/cli-core/cliapp"
+
 // DefaultCollection is the Qdrant collection cli-health indexes its commands
 // into. Single named-dense vector layout (the shared engine's CollectionSpec).
 const DefaultCollection = "cli-health-commands"
@@ -26,12 +28,13 @@ type CommandRecord struct {
 	// embedding text (composeCommandEmbeddingText) on both the manifest and
 	// --help discovery paths. Empty when there is no group or it merely repeats
 	// the leaf's own description.
-	GroupDescription string   `json:"groupDescription,omitempty"`
-	Flags            []string `json:"flags,omitempty"`
-	Positionals      []string `json:"positionals,omitempty"`
-	Tags             []string `json:"tags,omitempty"`
-	Binding          string   `json:"binding,omitempty"` // "Service.Method" when source=manifest
-	Source           string   `json:"source"`            // "manifest" | "help" | "help-failed"
+	GroupDescription string            `json:"groupDescription,omitempty"`
+	Flags            []string          `json:"flags,omitempty"`
+	Positionals      []string          `json:"positionals,omitempty"`
+	Args             *cliapp.ArgSchema `json:"-"`
+	Tags             []string          `json:"tags,omitempty"`
+	Binding          string            `json:"binding,omitempty"` // "Service.Method" when source=manifest
+	Source           string            `json:"source"`            // "manifest" | "builtin" | "help" | "help-failed"
 	// Measure carries the parsed `measure` block + proto-derived param schema
 	// when this command declares one (source=manifest only). Nil otherwise. Its
 	// questions/intent are folded into the embedding text (appendMeasureText) so

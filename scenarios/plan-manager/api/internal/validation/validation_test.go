@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	internalplans "plan-manager/internal/plans"
@@ -45,6 +46,19 @@ type fakeStaleness struct {
 
 func (f fakeStaleness) Compute(_ context.Context, _ internalplans.Reference) (internalplans.StalenessTier, float64, error) {
 	return f.tier, f.factor, f.err
+}
+
+type fakeCommandValidator struct {
+	results map[string]validation.CommandReferenceResult
+	calls   []validation.CommandReferenceRequest
+}
+
+func (f *fakeCommandValidator) ValidateCommandReference(_ context.Context, req validation.CommandReferenceRequest) (validation.CommandReferenceResult, error) {
+	f.calls = append(f.calls, req)
+	if res, ok := f.results[req.CommandText]; ok {
+		return res, nil
+	}
+	return validation.CommandReferenceResult{Verdict: "unknown", ValidationLevel: "parsed"}, nil
 }
 
 func planWith(refs []internalplans.Reference, phases []internalplans.Phase) internalplans.Plan {
@@ -173,29 +187,42 @@ func TestDeriveBaselineScope(t *testing.T) {
 			{Kind: internalplans.ReferenceCode, Target: "scenarios/baz/x.go", Future: true}, // future excluded
 			{Kind: internalplans.ReferenceReq, Target: "OT-P0-001"},                         // non-code excluded
 		},
-		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo"}},
+		RegressionAnchor: internalplans.RegressionAnchor{
+			BaselineName: "impl",
+			Commands:     []string{"git-control-tower baseline diff --scenario foo --name impl"},
+		},
 	}
 	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
 	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
 	require.NoError(t, err)
 
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo")
-	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl")
 	require.Contains(t, scope.Commands, "git diff --stat", "non-scenario code => repo-level diff")
 	require.Contains(t, scope.Locations, "scenarios/foo")
 	require.Contains(t, scope.Locations, "repo")
 	// Anchor command is deduped, not duplicated.
 	foo := 0
 	for _, c := range scope.Commands {
-		if c == "git-control-tower baseline diff --scenario foo" {
+		if c == "git-control-tower baseline diff --scenario foo --name impl" {
 			foo++
 		}
 	}
 	require.Equal(t, 1, foo, "anchor command deduped against derived command")
 }
 
+func TestDeriveBaselineScopeDoesNotFabricateGCTCommandWithoutName(t *testing.T) {
+	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
+	require.NoError(t, err)
+	require.Contains(t, scope.Locations, "scenarios/foo")
+	require.Empty(t, scope.Commands, "GCT baseline diff requires a verified --name")
+}
+
 func TestRunValidationVerdicts(t *testing.T) {
 	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)
+	plan.RegressionAnchor = internalplans.RegressionAnchor{BaselineName: "impl"}
 
 	// PASS: runner returns no error for every command.
 	pass := validation.NewService(validation.Deps{
@@ -224,6 +251,41 @@ func TestRunValidationVerdicts(t *testing.T) {
 	require.Equal(t, validation.VerdictUnknown, res.Verdict)
 }
 
+func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
+	plan := planWith(nil, []internalplans.Phase{{
+		ID: "ph1",
+		Intent: strings.Join([]string{
+			"Run `cli:vrooli scenario test cli-health`.",
+			"Fix `cli:knowledge-observatory docs healt cli-health`.",
+			"Document `cli[future]:future-tool launch`.",
+		}, "\n"),
+	}})
+	validator := &fakeCommandValidator{results: map[string]validation.CommandReferenceResult{
+		"vrooli scenario test cli-health": {
+			Verdict:         "partial",
+			ValidationLevel: "command_exists",
+			Issues:          []validation.CommandIssue{{Code: "argument_schema_unavailable", Message: "arguments unavailable"}},
+		},
+		"knowledge-observatory docs healt cli-health": {
+			Verdict:         "invalid",
+			ValidationLevel: "owner_identified",
+			Issues:          []validation.CommandIssue{{Code: "unknown_command", Message: "command path was not found"}},
+			Suggestions:     []string{"knowledge-observatory docs health"},
+		},
+	}}
+	svc := validation.NewService(validation.Deps{
+		Plans:    fakePlans{plan: plan},
+		Commands: validator,
+	})
+
+	res, err := svc.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Equal(t, validation.VerdictFail, res.Verdict)
+	require.Len(t, res.CommandFindings, 2, "future refs should be skipped")
+	require.Len(t, validator.calls, 2)
+	require.Contains(t, res.Detail, "command reference validation")
+}
+
 // TestVerdictHonestyByExitClass pins the corrected verdict model: a missing tool
 // is UNKNOWN (not FAIL — git-control-tower being absent must not look like a
 // regression), a baseline-diff exit 2 ("not comparable") is UNKNOWN, an exit 1 is
@@ -231,6 +293,7 @@ func TestRunValidationVerdicts(t *testing.T) {
 // oracle) is UNKNOWN even when the command exits 0 — never a false PASS.
 func TestVerdictHonestyByExitClass(t *testing.T) {
 	scenarioPlan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)
+	scenarioPlan.RegressionAnchor = internalplans.RegressionAnchor{BaselineName: "impl"}
 	repoOnlyPlan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "packages/api-core/x.go"}}, nil)
 
 	cases := []struct {
@@ -291,7 +354,7 @@ func TestVerifyDoDDerivesFromReferences(t *testing.T) {
 			{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/api/main.go"},
 		},
 		// Captured prose anchor, NO commands — exactly what the authoring wizard writes.
-		RegressionAnchor: internalplans.RegressionAnchor{Strategy: "captured", BaselineName: "before edits"},
+		RegressionAnchor: internalplans.RegressionAnchor{Strategy: "captured", BaselineName: "impl"},
 	}
 	var ran []string
 	svc := validation.NewService(validation.Deps{
@@ -306,14 +369,14 @@ func TestVerifyDoDDerivesFromReferences(t *testing.T) {
 	require.True(t, ok, "DoD derives an oracle from references when the anchor has no commands")
 	require.Equal(t, validation.VerdictPass, res.Verdict)
 	require.NotEmpty(t, ran, "a baseline command was actually derived and run")
-	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo")
+	require.Contains(t, res.CommandsRun, "git-control-tower baseline diff --scenario foo --name impl")
 }
 
 func TestVerifyDefinitionOfDone(t *testing.T) {
 	plan := internalplans.Plan{
 		ID:               "p1",
 		Slug:             "p1",
-		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo"}},
+		RegressionAnchor: internalplans.RegressionAnchor{Commands: []string{"git-control-tower baseline diff --scenario foo --name impl"}},
 	}
 
 	// DoD met: oracle exits 0.

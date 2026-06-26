@@ -29,6 +29,55 @@
       }
     },
     {
+      "id": "command_validate",
+      "path": "/vrooli.cli_health.v1.command.CommandReferenceValidationService/ValidateCommandReference",
+      "method": "POST",
+      "summary": "Validate one command reference",
+      "description": "Validates a Vrooli-owned command reference without executing it.",
+      "category": "command",
+      "request": {
+        "type": "object",
+        "properties": {
+          "command_text": "string",
+          "policy": "CommandReferencePolicy",
+          "qualifiers": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "result": "CommandReferenceValidationResult"
+        }
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Returned only when command validation is not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.command.CommandReferenceValidationService/ValidateCommandReference -H 'Content-Type: application/json' -d '{\"command_text\":\"vrooli scenario test cli-health\",\"policy\":\"COMMAND_REFERENCE_POLICY_PLAN\"}'"
+        }
+      ]
+    },
+    {
+      "id": "command_validate_batch",
+      "path": "/vrooli.cli_health.v1.command.CommandReferenceValidationService/ValidateCommandReferences",
+      "method": "POST",
+      "summary": "Validate command references",
+      "description": "Batch-validates Vrooli-owned command references without executing them.",
+      "category": "command",
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<CommandReferenceValidationResult>"
+        }
+      }
+    },
+    {
       "id": "search_query",
       "path": "/vrooli.cli_health.v1.search.SearchService/Search",
       "method": "POST",
@@ -346,6 +395,54 @@
         {
           "name": "Validate scenario",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview deterministic remediations for a scenario (unimplemented)",
+      "description": "cli-health ships no deterministic autofixer; PreviewFix returns Unimplemented so the test-genie deterministic-fix aggregate records this provider as no_fixer and skips it.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "cli-health has no deterministic fixer"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply deterministic remediations for a scenario (unimplemented)",
+      "description": "cli-health ships no deterministic autofixer; ApplyFix returns Unimplemented so the test-genie deterministic-fix aggregate records this provider as no_fixer and skips it.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "cli-health has no deterministic fixer"
         }
       ]
     }

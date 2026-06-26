@@ -44,12 +44,9 @@ func TestNoProductionImports(t *testing.T) {
 		if strings.Contains(rel, "/vendor/") {
 			return
 		}
-		// mocks/ holds test-only fakes that lack the _test.go suffix (so sibling
-		// _test.go files in other packages can import them); generated/ holds
-		// temporal-model output (replay.go, runtime.go) that legitimately bridges
-		// production transition functions into the modeltest harness. Both are test
-		// scaffolding by directory-shape, exempt from the testutil-import rule.
-		if pathHasDir(rel, "mocks") || pathHasDir(rel, "generated") {
+		// mocks/ holds test-only fakes that lack the _test.go suffix so sibling
+		// _test.go files in other packages can import them.
+		if pathHasDir(rel, "mocks") {
 			return
 		}
 
@@ -121,10 +118,8 @@ func walk(t *testing.T, root string, fn func(path string)) {
 }
 
 // pathHasDir reports whether any directory segment of rel (excluding the file
-// name itself) equals name. It expresses the directory-shape exemptions for
-// test-scaffolding trees that lack a `_test.go` suffix (mocks/, generated/):
-// production code never imports them, and the TestNoProductionImports walker
-// catches any production file that reaches for testutil directly.
+// name itself) equals name. It expresses the directory-shape exemption for
+// test-scaffolding trees that lack a `_test.go` suffix.
 func pathHasDir(rel, name string) bool {
 	parts := strings.Split(filepath.ToSlash(rel), "/")
 	for _, p := range parts[:len(parts)-1] {

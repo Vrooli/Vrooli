@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // StatFunc is the filesystem-probe seam (os.Stat by default; faked in tests).
@@ -47,13 +47,13 @@ func (r FileResolver) exists(target string) bool {
 }
 
 // Resolve annotates the reference with a filesystem-existence resolution.
-func (r FileResolver) Resolve(_ context.Context, ref internalplans.Reference) (internalplans.Reference, error) {
+func (r FileResolver) Resolve(_ context.Context, ref planmodel.Reference) (planmodel.Reference, error) {
 	switch ref.Kind {
-	case internalplans.ReferenceCode, internalplans.ReferenceDoc:
+	case planmodel.ReferenceCode, planmodel.ReferenceDoc:
 		if r.exists(ref.Target) {
-			ref.Resolution = internalplans.ResolutionResolved
+			ref.Resolution = planmodel.ResolutionResolved
 		} else {
-			ref.Resolution = internalplans.ResolutionMissing
+			ref.Resolution = planmodel.ResolutionMissing
 			ref.Note = "referenced location not found on disk"
 		}
 	default:
@@ -65,10 +65,10 @@ func (r FileResolver) Resolve(_ context.Context, ref internalplans.Reference) (i
 
 // ExistenceStaleness is the dependency-free production StalenessComputer. A
 // reference whose location is gone is DEFINITELY_STALE (the model's
-// moved/deleted tier); a present location is FRESH. The LIGHTLY_STALE tier
-// (small diffs in still-present code) requires the freshness engine and is the
-// soft-dep upgrade — this floor honestly reports FRESH for present files rather
-// than fabricating a change magnitude it cannot measure.
+// moved/deleted tier); a present location is FRESH. The service refines present
+// references to LIGHTLY_STALE through git-sourced per-reference drift when a
+// regression anchor SHA is available. This floor honestly reports FRESH for
+// present files rather than fabricating a change magnitude it cannot measure.
 type ExistenceStaleness struct {
 	resolver FileResolver
 }
@@ -81,12 +81,12 @@ func NewExistenceStaleness(r FileResolver) ExistenceStaleness {
 var _ StalenessComputer = ExistenceStaleness{}
 
 // Compute reports DEFINITELY_STALE when the location is gone, else FRESH.
-func (s ExistenceStaleness) Compute(_ context.Context, ref internalplans.Reference) (internalplans.StalenessTier, float64, error) {
-	if ref.Kind != internalplans.ReferenceCode && ref.Kind != internalplans.ReferenceDoc {
-		return internalplans.StalenessFresh, 0, nil
+func (s ExistenceStaleness) Compute(_ context.Context, ref planmodel.Reference) (planmodel.StalenessTier, float64, error) {
+	if ref.Kind != planmodel.ReferenceCode && ref.Kind != planmodel.ReferenceDoc {
+		return planmodel.StalenessFresh, 0, nil
 	}
 	if s.resolver.exists(ref.Target) {
-		return internalplans.StalenessFresh, 0, nil
+		return planmodel.StalenessFresh, 0, nil
 	}
-	return internalplans.StalenessDefinitelyStale, 1, nil
+	return planmodel.StalenessDefinitelyStale, 1, nil
 }

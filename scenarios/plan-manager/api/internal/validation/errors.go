@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // ErrPhaseNotFound is returned when a phase id is not on the named plan.
@@ -29,11 +29,11 @@ func ToConnectError(err error) error {
 	if errors.As(err, &phaseNotFound) {
 		return connect.NewError(connect.CodeNotFound, phaseNotFound)
 	}
-	var planNotFound internalplans.ErrPlanNotFound
+	var planNotFound planmodel.ErrPlanNotFound
 	if errors.As(err, &planNotFound) {
 		return connect.NewError(connect.CodeNotFound, planNotFound)
 	}
-	var invalid internalplans.ErrInvalidPlan
+	var invalid planmodel.ErrInvalidPlan
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, invalid)
 	}

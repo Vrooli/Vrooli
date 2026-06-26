@@ -1,7 +1,8 @@
 package validation
 
 import (
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
+	"plan-manager/internal/planproto"
 	internalvalidation "plan-manager/internal/validation"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
@@ -24,21 +25,8 @@ func resultToProto(r internalvalidation.Result) *sharedv1.ValidationResult {
 	}
 }
 
-func referencesToProto(refs []internalplans.Reference) []*sharedv1.Reference {
-	out := make([]*sharedv1.Reference, 0, len(refs))
-	for _, r := range refs {
-		out = append(out, &sharedv1.Reference{
-			Id:           r.ID,
-			Kind:         refKindToProto(r.Kind),
-			Target:       r.Target,
-			Future:       r.Future,
-			Resolution:   refResolutionToProto(r.Resolution),
-			Staleness:    stalenessToProto(r.Staleness),
-			ChangeFactor: r.ChangeFactor,
-			Note:         r.Note,
-		})
-	}
-	return out
+func referencesToProto(refs []planmodel.Reference) []*sharedv1.Reference {
+	return planproto.ReferencesToProto(refs)
 }
 
 func verdictToProto(v internalvalidation.Verdict) sharedv1.ValidationVerdict {
@@ -54,43 +42,14 @@ func verdictToProto(v internalvalidation.Verdict) sharedv1.ValidationVerdict {
 	}
 }
 
-func refKindToProto(k internalplans.ReferenceKind) sharedv1.ReferenceKind {
-	switch k {
-	case internalplans.ReferenceCode:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_CODE
-	case internalplans.ReferenceReq:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_REQ
-	case internalplans.ReferenceDoc:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_DOC
-	default:
-		return sharedv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED
-	}
+func refKindToProto(k planmodel.ReferenceKind) sharedv1.ReferenceKind {
+	return planproto.RefKindToProto(k)
 }
 
-func refResolutionToProto(r internalplans.ReferenceResolution) sharedv1.ReferenceResolution {
-	switch r {
-	case internalplans.ResolutionResolved:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_RESOLVED
-	case internalplans.ResolutionUnresolved:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNRESOLVED
-	case internalplans.ResolutionFuture:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_FUTURE
-	case internalplans.ResolutionMissing:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_MISSING
-	default:
-		return sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNSPECIFIED
-	}
+func refResolutionToProto(r planmodel.ReferenceResolution) sharedv1.ReferenceResolution {
+	return planproto.RefResolutionToProto(r)
 }
 
-func stalenessToProto(s internalplans.StalenessTier) sharedv1.StalenessTier {
-	switch s {
-	case internalplans.StalenessFresh:
-		return sharedv1.StalenessTier_STALENESS_TIER_FRESH
-	case internalplans.StalenessLightlyStale:
-		return sharedv1.StalenessTier_STALENESS_TIER_LIGHTLY_STALE
-	case internalplans.StalenessDefinitelyStale:
-		return sharedv1.StalenessTier_STALENESS_TIER_DEFINITELY_STALE
-	default:
-		return sharedv1.StalenessTier_STALENESS_TIER_UNSPECIFIED
-	}
+func stalenessToProto(s planmodel.StalenessTier) sharedv1.StalenessTier {
+	return planproto.StalenessToProto(s)
 }

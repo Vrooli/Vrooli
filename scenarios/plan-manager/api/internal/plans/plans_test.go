@@ -3,6 +3,7 @@ package plans_test
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -278,6 +279,55 @@ func TestSupersessionResolution(t *testing.T) {
 	require.Len(t, all, 1)
 }
 
+func TestContentHashDerivesSupersession(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	oldPlan, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+
+	newPlan, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+	require.Equal(t, oldPlan.ContentHash, newPlan.ContentHash)
+	require.Contains(t, newPlan.Supersedes, oldPlan.ID, "duplicate authored content records the newer plan as superseding the older one")
+
+	gotOld, err := svc.Get(ctx, oldPlan.ID)
+	require.NoError(t, err)
+	require.Contains(t, gotOld.SupersededBy, newPlan.ID)
+
+	edges, err := svc.GetGraph(ctx, newPlan.ID)
+	require.NoError(t, err)
+	require.Len(t, edges, 1)
+	require.Equal(t, plans.EdgeKindSupersedes, edges[0].Kind)
+	require.Equal(t, newPlan.ID, edges[0].FromPlanID)
+	require.Equal(t, oldPlan.ID, edges[0].ToPlanID)
+}
+
+func TestLinkDependencyCreatesGraphEdge(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	dependency, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+	dependingInput := samplePlan()
+	dependingInput.Title = "Downstream widget"
+	dependingInput.Purpose = "Build on the first plan."
+	depending, err := svc.Create(ctx, dependingInput)
+	require.NoError(t, err)
+
+	got, err := svc.LinkDependency(ctx, depending.ID, dependency.ID)
+	require.NoError(t, err)
+	require.Equal(t, depending.ID, got.ID)
+
+	edges, err := svc.GetGraph(ctx, depending.ID)
+	require.NoError(t, err)
+	require.Len(t, edges, 1)
+	require.Equal(t, depending.ID, edges[0].FromPlanID)
+	require.Equal(t, dependency.ID, edges[0].ToPlanID)
+	require.Equal(t, plans.EdgeKindDependsOn, edges[0].Kind)
+
+	_, err = svc.LinkDependency(ctx, depending.ID, depending.ID)
+	require.Error(t, err)
+}
+
 func TestListFilters(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()
@@ -364,6 +414,30 @@ func TestParsePlanMarkdown(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestParsePlanMarkdownRejectsMalformedMachineMarkup(t *testing.T) {
+	cases := []struct {
+		name string
+		md   string
+	}{
+		{
+			name: "empty_reference_target",
+			md:   "# Bad\n\n## References\n\n[CODE:]\n",
+		},
+		{
+			name: "malformed_phase_heading",
+			md:   "# Bad\n\n## Phases\n\n### Phase One - Missing numeric order\n- Intent: x\n",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := plans.ParsePlanMarkdown(tc.md)
+			require.Error(t, err)
+			var invalid plans.ErrInvalidPlan
+			require.True(t, errors.As(err, &invalid))
+		})
+	}
+}
+
 func TestImportAndMigrate(t *testing.T) {
 	d, clk := newDB(t)
 	reader := fakeReader{files: map[string]string{
@@ -392,4 +466,38 @@ func TestImportAndMigrate(t *testing.T) {
 	// Importing with neither markdown nor a resolvable path errors.
 	_, err = svc.Import(ctx, "", "")
 	require.Error(t, err)
+}
+
+func TestMigrateImportsIndexedFallbackPlan(t *testing.T) {
+	d, clk := newDB(t)
+	reader := fakeReader{files: map[string]string{
+		"docs/plans/_index.json": `{
+			"version": 1,
+			"plans": [
+				{
+					"id": "legacy-plan",
+					"title": "Legacy Plan",
+					"slug": "legacy-plan",
+					"path": "docs/plans/legacy-plan.md",
+					"created_at": "2026-06-25T12:00:00Z",
+					"updated_at": "2026-06-25T12:00:00Z",
+					"archived": false
+				}
+			]
+		}`,
+		"docs/plans/legacy-plan.md": "# Legacy Plan\n\n## Purpose\nAdopt this from the old store.\n\n## Phases\n\n### Phase 1 — Start\n- Intent: migrate\n",
+	}}
+	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	ctx := context.Background()
+
+	migrated, err := svc.Migrate(ctx, "legacy-plan")
+	require.NoError(t, err)
+	require.Equal(t, "Legacy Plan", migrated.Title)
+	require.Equal(t, "legacy-plan", migrated.Slug)
+	require.Len(t, migrated.Phases, 1)
+
+	got, err := svc.Get(ctx, migrated.ID)
+	require.NoError(t, err)
+	require.Equal(t, migrated.ID, got.ID)
+	require.Equal(t, "Adopt this from the old store.", got.Purpose)
 }

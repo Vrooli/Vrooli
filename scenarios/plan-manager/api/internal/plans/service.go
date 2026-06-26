@@ -28,6 +28,7 @@ type Service interface {
 
 	GetGraph(ctx context.Context, planID string) ([]PlanEdge, error)
 	LinkSupersession(ctx context.Context, supersedingID, supersededID string) (Plan, error)
+	LinkDependency(ctx context.Context, dependingID, dependencyID string) (Plan, error)
 
 	ListTemplates(ctx context.Context) ([]PlanTemplate, error)
 	CreateFromTemplate(ctx context.Context, templateID, title, slug string) (Plan, error)
@@ -78,7 +79,29 @@ func (s *service) Create(ctx context.Context, p Plan) (Plan, error) {
 	p.Phases = normalizePhases(p.Phases)
 	p.Status = computePlanStatus(p.Phases)
 	p.ContentHash = contentHash(p)
-	if err := s.repo.Save(ctx, p); err != nil {
+	hashMatches, err := s.contentHashMatches(ctx, p)
+	if err != nil {
+		return Plan{}, err
+	}
+	for _, match := range hashMatches {
+		p.Supersedes = appendUnique(p.Supersedes, match.ID)
+	}
+	if err := s.repo.WithTx(ctx, func(repo Repository) error {
+		if err := repo.Save(ctx, p); err != nil {
+			return err
+		}
+		for _, match := range hashMatches {
+			match.SupersededBy = appendUnique(match.SupersededBy, p.ID)
+			match.UpdatedAt = s.now()
+			if err := repo.SaveEdge(ctx, PlanEdge{FromPlanID: p.ID, ToPlanID: match.ID, Kind: EdgeKindSupersedes}); err != nil {
+				return err
+			}
+			if err := repo.Save(ctx, match); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return Plan{}, err
 	}
 	return p, nil
@@ -108,11 +131,34 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	} else {
 		p.Status = computePlanStatus(p.Phases)
 	}
-	// Supersession edges are managed via LinkSupersession, not free-form update.
+	// Supersession edges are managed by graph APIs and content-hash derivation,
+	// not free-form update payload fields.
 	p.Supersedes = existing.Supersedes
 	p.SupersededBy = existing.SupersededBy
 	p.ContentHash = contentHash(p)
-	if err := s.repo.Save(ctx, p); err != nil {
+	hashMatches, err := s.contentHashMatches(ctx, p)
+	if err != nil {
+		return Plan{}, err
+	}
+	for _, match := range hashMatches {
+		p.Supersedes = appendUnique(p.Supersedes, match.ID)
+	}
+	if err := s.repo.WithTx(ctx, func(repo Repository) error {
+		if err := repo.Save(ctx, p); err != nil {
+			return err
+		}
+		for _, match := range hashMatches {
+			match.SupersededBy = appendUnique(match.SupersededBy, p.ID)
+			match.UpdatedAt = s.now()
+			if err := repo.SaveEdge(ctx, PlanEdge{FromPlanID: p.ID, ToPlanID: match.ID, Kind: EdgeKindSupersedes}); err != nil {
+				return err
+			}
+			if err := repo.Save(ctx, match); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return Plan{}, err
 	}
 	return p, nil
@@ -215,7 +261,7 @@ func (s *service) LinkSupersession(ctx context.Context, supersedingID, supersede
 		if err := repo.SaveEdge(ctx, PlanEdge{
 			FromPlanID: superseding.ID,
 			ToPlanID:   superseded.ID,
-			Kind:       "supersedes",
+			Kind:       EdgeKindSupersedes,
 		}); err != nil {
 			return err
 		}
@@ -227,6 +273,34 @@ func (s *service) LinkSupersession(ctx context.Context, supersedingID, supersede
 		return Plan{}, err
 	}
 	return superseding, nil
+}
+
+func (s *service) LinkDependency(ctx context.Context, dependingID, dependencyID string) (Plan, error) {
+	depending, err := s.Get(ctx, dependingID)
+	if err != nil {
+		return Plan{}, err
+	}
+	dependency, err := s.Get(ctx, dependencyID)
+	if err != nil {
+		return Plan{}, err
+	}
+	if depending.ID == dependency.ID {
+		return Plan{}, ErrInvalidPlan{Reason: "a plan cannot depend on itself"}
+	}
+	depending.UpdatedAt = s.now()
+	if err := s.repo.WithTx(ctx, func(repo Repository) error {
+		if err := repo.SaveEdge(ctx, PlanEdge{
+			FromPlanID: depending.ID,
+			ToPlanID:   dependency.ID,
+			Kind:       EdgeKindDependsOn,
+		}); err != nil {
+			return err
+		}
+		return repo.Save(ctx, depending)
+	}); err != nil {
+		return Plan{}, err
+	}
+	return depending, nil
 }
 
 func (s *service) ListTemplates(ctx context.Context) ([]PlanTemplate, error) {
@@ -260,10 +334,52 @@ func (s *service) saveRecomputed(ctx context.Context, p Plan) (Plan, error) {
 	}
 	p.UpdatedAt = s.now()
 	p.ContentHash = contentHash(p)
-	if err := s.repo.Save(ctx, p); err != nil {
+	hashMatches, err := s.contentHashMatches(ctx, p)
+	if err != nil {
+		return Plan{}, err
+	}
+	for _, match := range hashMatches {
+		p.Supersedes = appendUnique(p.Supersedes, match.ID)
+	}
+	if err := s.repo.WithTx(ctx, func(repo Repository) error {
+		if err := repo.Save(ctx, p); err != nil {
+			return err
+		}
+		for _, match := range hashMatches {
+			match.SupersededBy = appendUnique(match.SupersededBy, p.ID)
+			match.UpdatedAt = s.now()
+			if err := repo.SaveEdge(ctx, PlanEdge{FromPlanID: p.ID, ToPlanID: match.ID, Kind: EdgeKindSupersedes}); err != nil {
+				return err
+			}
+			if err := repo.Save(ctx, match); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		return Plan{}, err
 	}
 	return p, nil
+}
+
+func (s *service) contentHashMatches(ctx context.Context, p Plan) ([]Plan, error) {
+	if strings.TrimSpace(p.ContentHash) == "" {
+		return nil, nil
+	}
+	all, err := s.repo.List(ctx, ListFilter{IncludeArchived: true})
+	if err != nil {
+		return nil, err
+	}
+	matches := make([]Plan, 0)
+	for _, candidate := range all {
+		if candidate.ID == p.ID || candidate.Status == PlanStatusArchived {
+			continue
+		}
+		if candidate.ContentHash == p.ContentHash {
+			matches = append(matches, candidate)
+		}
+	}
+	return matches, nil
 }
 
 func (s *service) now() string { return s.clock.Now().UTC().Format(planTimeFormat) }

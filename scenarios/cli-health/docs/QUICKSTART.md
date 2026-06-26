@@ -50,8 +50,7 @@ Or check the URL directly:
 vrooli scenario port cli-health UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the UI rendering live `/health` data and command-search status.
 
 ## 4 — Talk to the API
 
@@ -60,8 +59,8 @@ automatically):
 
 ```bash
 cli-health status
-cli-health notes list
-cli-health notes create --title "First note" --body "Hello"
+cli-health search status
+cli-health command validate --command "vrooli scenario test cli-health" --policy plan
 ```
 
 Or directly via HTTP:
@@ -69,9 +68,9 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port cli-health API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.cli_health.v1.notes.NotesService/ListNotes" \
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.cli_health.v1.command.CommandReferenceValidationService/ValidateCommandReference" \
   -H 'Content-Type: application/json' \
-  -d '{}'
+  -d '{"command_text":"vrooli scenario test cli-health","policy":"COMMAND_REFERENCE_POLICY_PLAN"}'
 ```
 
 ## 5 — Run the tests

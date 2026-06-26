@@ -154,6 +154,17 @@ func (h *handlers) link(ctx cliapp.RunContext) error {
 	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Linked supersession on")
 }
 
+func (h *handlers) depend(ctx cliapp.RunContext) error {
+	resp, err := h.client.LinkDependency(context.Background(), connect.NewRequest(&plansv1.LinkDependencyRequest{
+		DependingPlanId:  ctx.Positional("depending"),
+		DependencyPlanId: ctx.Positional("dependency"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("link dependency", err, nil)
+	}
+	return h.renderMutation(ctx, resp.Msg.GetPlan(), "Linked dependency on")
+}
+
 func (h *handlers) importPlan(ctx cliapp.RunContext) error {
 	resp, err := h.client.ImportPlan(context.Background(), connect.NewRequest(&plansv1.ImportPlanRequest{
 		SourcePath: ctx.Flag("source"),

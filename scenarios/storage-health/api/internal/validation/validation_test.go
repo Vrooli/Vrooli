@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // writeFile creates a file (and parents) with the given content.
@@ -57,6 +58,34 @@ func TestFilesystemDetector_NonGo(t *testing.T) {
 	got := FilesystemDetector{}.Detect(context.Background(), "demo-ts", scenarioDir)
 	if got.Language != "typescript" {
 		t.Fatalf("language = %q, want typescript", got.Language)
+	}
+}
+
+type blockingResolver struct{}
+
+func (blockingResolver) ResolveScenarioURLDefault(ctx context.Context, _ string) (string, error) {
+	<-ctx.Done()
+	return "", ctx.Err()
+}
+
+func TestCodeFactsDetector_TimeoutFallsBackToFilesystem(t *testing.T) {
+	repoRoot := goFixture(t, "demo-go")
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "demo-go")
+
+	start := time.Now()
+	got := CodeFactsDetector{
+		Resolver: blockingResolver{},
+		Timeout:  5 * time.Millisecond,
+	}.Detect(context.Background(), "demo-go", scenarioDir)
+
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("Detect took %s, want short fallback", elapsed)
+	}
+	if got.Language != "go" {
+		t.Fatalf("language = %q, want filesystem fallback go", got.Language)
+	}
+	if len(got.Domains) == 0 {
+		t.Fatalf("domains = %v, want filesystem fallback domains", got.Domains)
 	}
 }
 

@@ -37,6 +37,7 @@ const (
 	markedRefSkipped
 	markedRefUnknown
 	markedRefBroken
+	markedRefPartial
 )
 
 type markedRefTarget struct {
@@ -56,7 +57,7 @@ type refSummary struct {
 	MarkedRefsUnknown int
 }
 
-func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdownFiles []string, cfg effective) ([]Finding, refSummary) {
+func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdownFiles []string, cfg effective, commandValidator CommandReferenceValidator) ([]Finding, refSummary) {
 	var out []Finding
 	var summary refSummary
 
@@ -92,16 +93,22 @@ func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdown
 		refs := extractMarkedRefs(file, string(content))
 		summary.MarkedRefsFound += len(refs)
 		for _, ref := range refs {
-			status, err := validateMarkedRef(scenarioDir, ref)
+			status, err := validateMarkedRef(ctx, scenarioDir, ref, commandValidator)
 			switch status {
 			case markedRefSkipped:
 				summary.MarkedRefsSkipped++
 			case markedRefUnknown:
 				summary.MarkedRefsUnknown++
+				message := fmt.Sprintf("%s:%d unknown marked reference marker %q in %s", ref.File, ref.Ref.Line, ref.Ref.Marker, ref.Ref.Raw)
+				code := "unknown_marked_ref"
+				if err != nil {
+					code = "unknown_cli_ref"
+					message = fmt.Sprintf("%s:%d CLI reference %s could not be fully validated: %v", ref.File, ref.Ref.Line, ref.Ref.Raw, err)
+				}
 				out = append(out, Finding{
-					Code:     "unknown_marked_ref",
+					Code:     code,
 					Severity: SeverityWarning,
-					Message:  fmt.Sprintf("%s:%d unknown marked reference marker %q in %s", ref.File, ref.Ref.Line, ref.Ref.Marker, ref.Ref.Raw),
+					Message:  message,
 					Path:     ref.File,
 					Line:     ref.Ref.Line,
 				})
@@ -113,6 +120,15 @@ func validateBidirectionalRefs(ctx context.Context, scenarioDir string, markdown
 					Message:  fmt.Sprintf("%s:%d broken marked reference %s: %v", ref.File, ref.Ref.Line, ref.Ref.Raw, err),
 					Path:     ref.File,
 					Line:     ref.Ref.Line,
+				})
+			case markedRefPartial:
+				out = append(out, Finding{
+					Code:     "partial_cli_ref",
+					Severity: SeverityInfo,
+					Message:  fmt.Sprintf("%s:%d partially validated CLI reference %s: %v", ref.File, ref.Ref.Line, ref.Ref.Raw, err),
+					Path:     ref.File,
+					Line:     ref.Ref.Line,
+					Target:   ref.Ref.Value,
 				})
 			}
 		}
@@ -228,9 +244,12 @@ func resolveScenarioTarget(scenarioDir, target string) (string, bool) {
 	return resolved, true
 }
 
-func validateMarkedRef(scenarioDir string, ref markedRefTarget) (markedRefStatus, error) {
+func validateMarkedRef(ctx context.Context, scenarioDir string, ref markedRefTarget, commandValidator CommandReferenceValidator) (markedRefStatus, error) {
 	if markedrefs.UnknownMarker(ref.Ref) {
 		return markedRefUnknown, nil
+	}
+	if ref.Ref.Marker == markedrefs.MarkerCLI {
+		return validateCLIRef(ctx, ref, commandValidator)
 	}
 	if ref.Ref.Marker != markedrefs.MarkerPath && ref.Ref.Marker != markedrefs.MarkerDoc {
 		return markedRefSkipped, nil
@@ -261,6 +280,63 @@ func validateMarkedRef(scenarioDir string, ref markedRefTarget) (markedRefStatus
 		return markedRefOK, nil
 	}
 	return markedRefOK, nil
+}
+
+func validateCLIRef(ctx context.Context, ref markedRefTarget, commandValidator CommandReferenceValidator) (markedRefStatus, error) {
+	if !markedrefs.RequiresExistence(ref.Ref) {
+		return markedRefSkipped, nil
+	}
+	if strings.TrimSpace(ref.Ref.Value) == "" {
+		return markedRefBroken, fmt.Errorf("empty CLI reference target")
+	}
+	if commandValidator == nil {
+		return markedRefUnknown, fmt.Errorf("CLI Health command validator is not configured")
+	}
+	result, err := commandValidator.ValidateCommandReference(ctx, CommandReferenceRequest{
+		CommandText: ref.Ref.Value,
+		Qualifiers:  append([]string(nil), ref.Ref.Qualifiers...),
+	})
+	if err != nil {
+		return markedRefUnknown, err
+	}
+	switch result.Verdict {
+	case "valid", "skipped":
+		return markedRefOK, nil
+	case "partial":
+		return markedRefPartial, formatCommandReferenceResult(result)
+	case "invalid", "unsupported":
+		return markedRefBroken, formatCommandReferenceResult(result)
+	default:
+		return markedRefUnknown, formatCommandReferenceResult(result)
+	}
+}
+
+func formatCommandReferenceResult(result CommandReferenceResult) error {
+	var parts []string
+	if result.Verdict != "" {
+		if result.ValidationLevel != "" {
+			parts = append(parts, fmt.Sprintf("verdict=%s level=%s", result.Verdict, result.ValidationLevel))
+		} else {
+			parts = append(parts, "verdict="+result.Verdict)
+		}
+	}
+	for _, issue := range result.Issues {
+		if issue.Code != "" && issue.Message != "" {
+			parts = append(parts, issue.Code+": "+issue.Message)
+		} else if issue.Message != "" {
+			parts = append(parts, issue.Message)
+		}
+	}
+	for _, suggestion := range result.Suggestions {
+		if suggestion.Command != "" {
+			parts = append(parts, "suggestion: "+suggestion.Command)
+		}
+	}
+	parts = append(parts, result.Guidance...)
+	if len(parts) == 0 {
+		return fmt.Errorf("CLI Health returned no detail")
+	}
+	return fmt.Errorf("%s", strings.Join(parts, "; "))
 }
 
 func validateCodeRef(scenarioDir string, ref codeRefTarget) error {

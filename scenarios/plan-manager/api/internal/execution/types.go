@@ -17,15 +17,15 @@
 //	                        gracefully — staleness/last_validation become UNKNOWN,
 //	                        never a false PASS)
 //
-// The structured Plan/Phase/Reference Go types are owned by the plans domain;
-// execution imports them (internal/plans) as the shared model. The in-flow
+// The structured Plan/Phase/Reference Go types live in the neutral planmodel kernel;
+// execution imports that kernel as the shared model. The in-flow
 // records it OWNS (Decision/Finding/Handoff/VelocityPoint/Execution) are defined
 // here, mirroring the shared proto messages, and persisted in the execution home
 // store. The proto wire types live one floor up (handlers/execution) and never
 // import this package; the handler is the only translation point (api-steer §7).
 package execution
 
-import internalplans "plan-manager/internal/plans"
+import planmodel "plan-manager/internal/planmodel"
 
 // Completeness distinguishes a full run from a partial one. COMPUTED from the
 // phase-status set (full iff every phase is done); never narrated.
@@ -99,7 +99,7 @@ type Handoff struct {
 	CandidateFindings []Finding
 	LastValidation    ValidationResult
 	HasValidation     bool
-	Staleness         internalplans.StalenessTier
+	Staleness         planmodel.StalenessTier
 	ProseHandoffRef   string
 	AssembledAt       string
 }
@@ -125,7 +125,7 @@ type ValidationResult struct {
 	PlanID      string
 	PhaseID     string
 	Verdict     string
-	Staleness   internalplans.StalenessTier
+	Staleness   planmodel.StalenessTier
 	CommandsRun []string
 	Detail      string
 	RanAt       string
@@ -134,15 +134,15 @@ type ValidationResult struct {
 // PhaseContext is the just-in-time context assembled for a phase — everything an
 // agent would otherwise carry in its head. COMPUTED at request time.
 type PhaseContext struct {
-	CurrentPhase    internalplans.Phase
-	NextPhase       internalplans.Phase
+	CurrentPhase    planmodel.Phase
+	NextPhase       planmodel.Phase
 	HasCurrent      bool
 	HasNext         bool
 	RequiredReading []string
 	Reminders       []string
 	LastValidation  ValidationResult
 	HasValidation   bool
-	Staleness       internalplans.StalenessTier
+	Staleness       planmodel.StalenessTier
 	ResumePhaseID   string
 	Completeness    Completeness
 }

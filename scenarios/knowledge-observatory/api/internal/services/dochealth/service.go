@@ -22,9 +22,10 @@ var (
 
 // Service provides documentation health operations scoped to scenarios.
 type Service struct {
-	scenariosRoot string
-	staticCfg     staticConfig
-	doer          Doer
+	scenariosRoot    string
+	staticCfg        staticConfig
+	doer             Doer
+	commandValidator CommandReferenceValidator
 }
 
 // ServiceOption configures a Service.
@@ -34,6 +35,12 @@ type ServiceOption func(*Service)
 // default is *http.Client with a per-request timeout from staticConfig.
 func WithDoer(d Doer) ServiceOption {
 	return func(s *Service) { s.doer = d }
+}
+
+// WithCommandReferenceValidator overrides the CLI Health command-reference
+// validator. Tests use this seam; production uses CLI Health over Connect.
+func WithCommandReferenceValidator(v CommandReferenceValidator) ServiceOption {
+	return func(s *Service) { s.commandValidator = v }
 }
 
 // HealthResult bundles validation results with doc counts.
@@ -55,7 +62,11 @@ func NewService(scenariosRoot string, opts ...ServiceOption) (*Service, error) {
 	if !info.IsDir() {
 		return nil, ErrScenarioRootInvalid
 	}
-	s := &Service{scenariosRoot: scenariosRoot, staticCfg: defaultStaticConfig()}
+	s := &Service{
+		scenariosRoot:    scenariosRoot,
+		staticCfg:        defaultStaticConfig(),
+		commandValidator: NewCLIHealthCommandReferenceValidator(),
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -234,7 +245,7 @@ func (s *Service) DocHealth(ctx context.Context, scenarioName string, opts DocHe
 	}
 
 	if sel.runs(checkRefs, target) {
-		refFindings, refSum := validateBidirectionalRefs(ctx, target.root, files, cfg)
+		refFindings, refSum := validateBidirectionalRefs(ctx, target.root, files, cfg, s.commandValidator)
 		result.ReferenceFindings = append(result.ReferenceFindings, refFindings...)
 		result.Counts.CodeRefsFound = refSum.CodeRefsFound
 		result.Counts.CodeRefsBroken = refSum.CodeRefsBroken
@@ -245,6 +256,10 @@ func (s *Service) DocHealth(ctx context.Context, scenarioName string, opts DocHe
 		result.Counts.MarkedRefsBroken = refSum.MarkedRefsBroken
 		result.Counts.MarkedRefsSkipped = refSum.MarkedRefsSkipped
 		result.Counts.MarkedRefsUnknown = refSum.MarkedRefsUnknown
+	}
+
+	if sel.runs(checkCommands, target) {
+		result.ReferenceFindings = append(result.ReferenceFindings, validateCommandSnippets(ctx, target.root, files, s.commandValidator)...)
 	}
 
 	if sel.runs(checkManifest, target) {

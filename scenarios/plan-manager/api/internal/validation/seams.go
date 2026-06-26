@@ -8,14 +8,14 @@ import (
 	"strings"
 	"time"
 
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // PlanSource is the read seam onto the plans SSOT. Production wraps the plans
 // domain Service; tests inject a fake. validation only reads plans — it never
 // mutates them.
 type PlanSource interface {
-	GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error)
+	GetPlan(ctx context.Context, idOrSlug string) (planmodel.Plan, error)
 }
 
 // ReferenceResolver resolves a single code/req/doc reference against code-facts.
@@ -23,14 +23,15 @@ type PlanSource interface {
 // resolver (or one returning an error) degrades the reference to UNRESOLVED —
 // recorded but unresolved, never a false "resolved".
 type ReferenceResolver interface {
-	Resolve(ctx context.Context, ref internalplans.Reference) (internalplans.Reference, error)
+	Resolve(ctx context.Context, ref planmodel.Reference) (planmodel.Reference, error)
 }
 
 // StalenessComputer computes the staleness tier + change factor of a resolved
-// reference. Production wires the freshness engine + code-facts; tests inject a
-// fake. A nil computer (or an error) degrades staleness to UNKNOWN.
+// reference. Production wires the filesystem existence floor plus git-sourced
+// per-reference drift refinement; tests inject a fake. A nil computer (or an
+// error) degrades staleness to UNKNOWN.
 type StalenessComputer interface {
-	Compute(ctx context.Context, ref internalplans.Reference) (internalplans.StalenessTier, float64, error)
+	Compute(ctx context.Context, ref planmodel.Reference) (planmodel.StalenessTier, float64, error)
 }
 
 // ResultStore persists validation results and reads back the last-known result

@@ -139,6 +139,14 @@ func (r *plansRecorder) LinkSupersession(_ context.Context, req *connect.Request
 	return connect.NewResponse(&plansv1.LinkSupersessionResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetSupersedingPlanId()}}), nil
 }
 
+func (r *plansRecorder) LinkDependency(_ context.Context, req *connect.Request[plansv1.LinkDependencyRequest]) (*connect.Response[plansv1.LinkDependencyResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	return connect.NewResponse(&plansv1.LinkDependencyResponse{Plan: &sharedv1.Plan{Id: req.Msg.GetDependingPlanId()}}), nil
+}
+
 func (r *plansRecorder) ImportPlan(_ context.Context, req *connect.Request[plansv1.ImportPlanRequest]) (*connect.Response[plansv1.ImportPlanResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -279,6 +287,15 @@ func TestPlansRequestMapping(t *testing.T) {
 				m := req.(*plansv1.LinkSupersessionRequest)
 				require.Equal(t, "new-plan", m.GetSupersedingPlanId())
 				require.Equal(t, "old-plan", m.GetSupersededPlanId())
+			},
+		},
+		{
+			name: "depend maps both positionals", group: "plans", cmd: "depend",
+			argv: []string{"downstream", "upstream"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.LinkDependencyRequest)
+				require.Equal(t, "downstream", m.GetDependingPlanId())
+				require.Equal(t, "upstream", m.GetDependencyPlanId())
 			},
 		},
 		{

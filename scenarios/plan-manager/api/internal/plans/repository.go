@@ -22,7 +22,7 @@ type Repository interface {
 	// SaveEdge inserts a graph edge (idempotent on the (from,to,kind) key).
 	SaveEdge(ctx context.Context, e PlanEdge) error
 	// WithTx runs fn against a repository bound to a single transaction so a
-	// multi-write operation (LinkSupersession: one edge + both plans' edge lists)
+	// multi-write operation (edge + any associated plan document updates)
 	// commits atomically or rolls back as a unit.
 	WithTx(ctx context.Context, fn func(Repository) error) error
 }

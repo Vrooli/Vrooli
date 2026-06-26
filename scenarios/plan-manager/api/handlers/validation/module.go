@@ -23,23 +23,26 @@ import (
 
 // Module returns the validation domain's contribution to the API: the generated
 // ValidationService Connect-RPC handler, backed by the plans SSOT (read seam),
-// the filesystem reference resolver / existence staleness floor (code-facts +
-// the freshness engine are the soft-dep upgrades), and the LookPath-guarded
-// command runner (the git-control-tower baseline-diff oracle). All wired here at
-// the production edge; never imported into internal/validation.
+// the code-facts-backed reference resolver with a filesystem floor, the
+// filesystem existence staleness floor plus git-sourced per-reference drift
+// refinement, and the LookPath-guarded command runner (the git-control-tower
+// baseline-diff oracle). All wired here at the production edge; never imported
+// into internal/validation.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	plansSvc := internalplans.NewService(internalplans.Deps{
 		Repo:  internalplans.NewSQLiteRepository(db, clk),
 		Clock: clk,
 	})
-	resolver := internalvalidation.NewFileResolver(repoRoot())
+	root := repoRoot()
+	resolver := newCodeFactsReferenceResolver(root)
 	svc := internalvalidation.NewService(internalvalidation.Deps{
 		Plans:     planAdapter{svc: plansSvc},
 		Resolver:  resolver,
-		Staleness: internalvalidation.NewExistenceStaleness(resolver),
+		Staleness: internalvalidation.NewExistenceStaleness(internalvalidation.NewFileResolver(root)),
 		Runner:    internalvalidation.DefaultRunner(),
 		Results:   internalvalidation.NewSQLiteResultStore(db, clk),
 		Clock:     clk,
+		Commands:  newCLIHealthCommandValidator(),
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
 		Service: svc,

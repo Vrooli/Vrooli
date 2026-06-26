@@ -5,7 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // ToConnectError translates execution/plans domain sentinels into Connect's
@@ -29,15 +29,15 @@ func ToConnectError(err error) error {
 	}
 	// Plans-domain sentinels surface through the PlanStore seam (Start resolves a
 	// plan; TransitionPhase mutates one) and must keep their codes.
-	var planNotFound internalplans.ErrPlanNotFound
+	var planNotFound planmodel.ErrPlanNotFound
 	if errors.As(err, &planNotFound) {
 		return connect.NewError(connect.CodeNotFound, planNotFound)
 	}
-	var phaseNotFound internalplans.ErrPhaseNotFound
+	var phaseNotFound planmodel.ErrPhaseNotFound
 	if errors.As(err, &phaseNotFound) {
 		return connect.NewError(connect.CodeNotFound, phaseNotFound)
 	}
-	var invalidPlan internalplans.ErrInvalidPlan
+	var invalidPlan planmodel.ErrInvalidPlan
 	if errors.As(err, &invalidPlan) {
 		return connect.NewError(connect.CodeInvalidArgument, invalidPlan)
 	}

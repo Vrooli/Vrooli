@@ -44,6 +44,26 @@
       ]
     },
     {
+      "name": "command",
+      "description": "Validate Vrooli-owned command references without executing them",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a single command reference",
+          "positionals": [
+            { "name": "command-ref", "description": "Command reference to validate" }
+          ],
+          "flags": [
+            { "name": "command", "description": "Command reference to validate" },
+            { "name": "policy", "default": "docs", "description": "Validation policy: docs | skill | plan | action" },
+            { "name": "qualifiers", "description": "Comma-separated cli marker qualifiers such as future,old,external,literal" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CommandReferenceValidationService", "method": "ValidateCommandReference" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "reindex",
       "description": "Reconcile the search corpus: rebuild Qdrant points from CLI manifests + help output",
       "commands": [
@@ -86,6 +106,9 @@
     }
   ],
   "omitted": [
+    {"service":"CommandReferenceValidationService","method":"ValidateCommandReferences","reason":"Batch command-reference validation is an API integration surface for health consumers; the CLI exposes the single-reference validate command for operator use."},
+    {"service":"ScenarioValidationService","method":"PreviewFix","reason":"CLI Health has no deterministic fixer; the API method is intentionally unimplemented for the shared validation contract."},
+    {"service":"ScenarioValidationService","method":"ApplyFix","reason":"CLI Health has no deterministic fixer; the API method is intentionally unimplemented for the shared validation contract."},
     {"service":"SearchControlService","method":"WriteConfig","reason":"Internal search-index write API consumed programmatically by the reindex pipeline; no standalone CLI command."},
     {"service":"SearchControlService","method":"WriteCorpus","reason":"Internal search-index write API consumed programmatically by the reindex pipeline; no standalone CLI command."}
   ]

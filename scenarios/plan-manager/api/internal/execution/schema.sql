@@ -69,6 +69,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_dedup
   ON findings(execution_id, attribution_run_id, title)
   WHERE attribution_run_id <> '';
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_dedup_title_norm
+  ON findings(execution_id, attribution_run_id, lower(trim(title)))
+  WHERE attribution_run_id <> '';
+
 -- handoffs — canonical structured handoff records, FK→execution. The assembled
 -- decisions/candidate-findings snapshot and the last-validation result live in
 -- the `document` JSON column; the queryable columns power lookup by execution.

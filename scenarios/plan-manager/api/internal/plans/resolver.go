@@ -2,11 +2,15 @@ package plans
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
-	"regexp"
-	"strconv"
+	"path/filepath"
 	"strings"
+	"time"
+
+	"plan-manager/internal/planmodel"
 )
 
 // SourceReader is the filesystem seam for the plan-source resolver. It reads
@@ -36,6 +40,8 @@ var FallbackReadLocations = []string{
 	"plans",
 }
 
+const fallbackIndexFilename = "_index.json"
+
 // Import adopts a markdown plan (from one of the fallback read locations) into
 // the structured model and persists it through Create. When markdown is empty,
 // the source is read from sourcePath via the SourceReader seam. References are
@@ -63,167 +69,111 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown string) (Plan
 }
 
 // Migrate ensures a plan resolved from a fallback location is present in the
-// canonical home store (idempotent re-save). Since the repository IS the
-// canonical store, a plan already known to the store round-trips through a touch
-// that re-affirms its canonical residence; an unknown plan is a not-found (Import
-// it first). The fallback source is never destructively removed here.
+// canonical home store. If the plan is already canonical it is idempotently
+// touched; otherwise the resolver reads the legacy ~/.vrooli/plans index (plus
+// the documented fallback locations), parses the referenced markdown, and
+// imports it as a structured plan. The fallback source is never destructively
+// removed here.
 func (s *service) Migrate(ctx context.Context, idOrSlug string) (Plan, error) {
 	p, err := s.Get(ctx, idOrSlug)
+	if err == nil {
+		p.UpdatedAt = s.now()
+		if err := s.repo.Save(ctx, p); err != nil {
+			return Plan{}, err
+		}
+		return p, nil
+	}
+	var notFound ErrPlanNotFound
+	if !errors.As(err, &notFound) {
+		return Plan{}, err
+	}
+	sourcePath, markdown, err := s.resolveFallbackPlanSource(strings.TrimSpace(idOrSlug))
 	if err != nil {
 		return Plan{}, err
 	}
-	p.UpdatedAt = s.now()
-	if err := s.repo.Save(ctx, p); err != nil {
-		return Plan{}, err
-	}
-	return p, nil
+	return s.Import(ctx, sourcePath, markdown)
 }
 
-var (
-	titleRe     = regexp.MustCompile(`(?m)^#\s+(.+?)\s*$`)
-	sectionRe   = regexp.MustCompile(`(?m)^##\s+(.+?)\s*$`)
-	phaseRe     = regexp.MustCompile(`(?m)^###\s+Phase\s+(\d+)\s*[—:-]\s*(.+?)\s*$`)
-	referenceRe = regexp.MustCompile(`\[(CODE|REQ|DOC):\s*([^\]]+?)\]`)
-	bulletKVRe  = regexp.MustCompile(`(?m)^-\s*([A-Za-z ]+):\s*(.+?)\s*$`)
-)
-
-// ParsePlanMarkdown parses a markdown plan into the structured model. It is a
-// pure, deterministic function (no I/O) so it is directly unit-testable. The
-// parse is intentionally forgiving: it extracts the title, the recognized prose
-// sections, the machine-readable references, and the first-class phases; unknown
-// sections are ignored. The markdown view is a projection, so a parse round-trip
-// is best-effort adoption, not a lossless inverse of RenderMarkdown.
-func ParsePlanMarkdown(markdown string) (Plan, error) {
-	if strings.TrimSpace(markdown) == "" {
-		return Plan{}, ErrInvalidPlan{Reason: "empty markdown"}
-	}
-	var p Plan
-	if m := titleRe.FindStringSubmatch(markdown); m != nil {
-		p.Title = strings.TrimSpace(m[1])
-	}
-	if p.Title == "" {
-		return Plan{}, ErrInvalidPlan{Reason: "markdown has no title heading"}
-	}
-
-	// Split out the phases region (everything from the first "## Phases" or the
-	// first "### Phase" heading) so prose-section extraction doesn't swallow it.
-	sections := extractSections(markdown)
-	p.Purpose = sections["purpose"]
-	p.Scope = sections["scope"]
-	p.Constraints = sections["constraints"]
-	p.NonGoals = firstNonEmpty(sections["non-goals"], sections["non goals"])
-	p.DefinitionOfDone = firstNonEmpty(sections["definition of done"], sections["definition-of-done"])
-
-	p.References = parseReferences(markdown)
-	p.Phases = parsePhases(markdown)
-	return p, nil
+type fallbackIndex struct {
+	Version int                  `json:"version"`
+	Plans   []fallbackPlanRecord `json:"plans"`
 }
 
-// extractSections maps each "## Heading" (lowercased) to the prose body up to
-// the next heading of the same-or-higher level.
-func extractSections(markdown string) map[string]string {
-	out := map[string]string{}
-	locs := sectionRe.FindAllStringSubmatchIndex(markdown, -1)
-	for i, loc := range locs {
-		heading := strings.ToLower(strings.TrimSpace(markdown[loc[2]:loc[3]]))
-		bodyStart := loc[1]
-		bodyEnd := len(markdown)
-		if i+1 < len(locs) {
-			bodyEnd = locs[i+1][0]
+type fallbackPlanRecord struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Slug        string    `json:"slug"`
+	Path        string    `json:"path"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Archived    bool      `json:"archived"`
+	ContentHash string    `json:"content_hash"`
+}
+
+func (s *service) resolveFallbackPlanSource(idOrSlug string) (string, string, error) {
+	if strings.TrimSpace(idOrSlug) == "" {
+		return "", "", ErrInvalidPlan{Reason: "migrate requires a plan id or slug"}
+	}
+	if s.reader == nil {
+		return "", "", ErrInvalidPlan{Reason: "no source reader configured; cannot read fallback plans"}
+	}
+	for _, location := range FallbackReadLocations {
+		dir := expandPlanLocation(location)
+		if sourcePath, markdown, ok, err := s.resolveFallbackFromIndex(dir, idOrSlug); ok || err != nil {
+			return sourcePath, markdown, err
 		}
-		// Stop a section body before a phases block if one starts inside it.
-		body := markdown[bodyStart:bodyEnd]
-		if idx := phaseRe.FindStringIndex(body); idx != nil {
-			body = body[:idx[0]]
+		sourcePath := filepath.Join(dir, idOrSlug+".md")
+		raw, err := s.reader.ReadFile(sourcePath)
+		if err == nil {
+			return sourcePath, string(raw), nil
 		}
-		out[heading] = strings.TrimSpace(body)
-	}
-	return out
-}
-
-func parseReferences(markdown string) []Reference {
-	matches := referenceRe.FindAllStringSubmatch(markdown, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-	seen := map[string]bool{}
-	out := make([]Reference, 0, len(matches))
-	for _, m := range matches {
-		kind := referenceKindFromMarker(m[1])
-		target := strings.TrimSpace(m[2])
-		key := string(kind) + "|" + target
-		if seen[key] {
+		if !os.IsNotExist(err) {
 			continue
 		}
-		seen[key] = true
-		out = append(out, Reference{Kind: kind, Target: target})
 	}
-	return out
+	return "", "", ErrPlanNotFound{ID: idOrSlug}
 }
 
-func parsePhases(markdown string) []Phase {
-	locs := phaseRe.FindAllStringSubmatchIndex(markdown, -1)
-	if len(locs) == 0 {
-		return nil
+func (s *service) resolveFallbackFromIndex(dir, idOrSlug string) (string, string, bool, error) {
+	indexPath := filepath.Join(dir, fallbackIndexFilename)
+	raw, err := s.reader.ReadFile(indexPath)
+	if err != nil {
+		return "", "", false, nil
 	}
-	out := make([]Phase, 0, len(locs))
-	for i, loc := range locs {
-		order, _ := strconv.Atoi(markdown[loc[2]:loc[3]])
-		title := strings.TrimSpace(markdown[loc[4]:loc[5]])
-		bodyStart := loc[1]
-		bodyEnd := len(markdown)
-		if i+1 < len(locs) {
-			bodyEnd = locs[i+1][0]
+	var idx fallbackIndex
+	if err := json.Unmarshal(raw, &idx); err != nil {
+		return "", "", true, fmt.Errorf("decode fallback plan index %q: %w", indexPath, err)
+	}
+	for _, record := range idx.Plans {
+		if record.Archived {
+			continue
 		}
-		body := markdown[bodyStart:bodyEnd]
-		ph := Phase{Order: order, Title: title, Status: PhaseStatusTodo}
-		for _, kv := range bulletKVRe.FindAllStringSubmatch(body, -1) {
-			key := strings.ToLower(strings.TrimSpace(kv[1]))
-			val := strings.TrimSpace(kv[2])
-			switch key {
-			case "intent":
-				ph.Intent = val
-			case "acceptance":
-				ph.Acceptance = val
-			case "status":
-				ph.Status = phaseStatusFromLabel(val)
-			}
+		if record.ID != idOrSlug && record.Slug != idOrSlug {
+			continue
 		}
-		ph.References = parseReferences(body)
-		out = append(out, ph)
+		sourcePath := strings.TrimSpace(record.Path)
+		if sourcePath == "" {
+			sourcePath = filepath.Join(dir, record.Slug+".md")
+		}
+		raw, err := s.reader.ReadFile(sourcePath)
+		if err != nil {
+			return "", "", true, fmt.Errorf("read fallback plan %q: %w", sourcePath, err)
+		}
+		return sourcePath, string(raw), true, nil
 	}
-	return out
+	return "", "", false, nil
 }
 
-func referenceKindFromMarker(marker string) ReferenceKind {
-	switch strings.ToUpper(strings.TrimSpace(marker)) {
-	case "REQ":
-		return ReferenceReq
-	case "DOC":
-		return ReferenceDoc
-	default:
-		return ReferenceCode
-	}
-}
-
-func phaseStatusFromLabel(s string) PhaseStatus {
-	switch strings.ToLower(strings.Trim(strings.TrimSpace(s), "*")) {
-	case "active":
-		return PhaseStatusActive
-	case "done":
-		return PhaseStatusDone
-	case "blocked":
-		return PhaseStatusBlocked
-	default:
-		return PhaseStatusTodo
-	}
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
+func expandPlanLocation(location string) string {
+	if strings.HasPrefix(location, "~/") {
+		if home, err := os.UserHomeDir(); err == nil && home != "" {
+			return filepath.Join(home, strings.TrimPrefix(location, "~/"))
 		}
 	}
-	return ""
+	return filepath.Clean(location)
+}
+
+// ParsePlanMarkdown parses a markdown plan into the structured model.
+func ParsePlanMarkdown(markdown string) (Plan, error) {
+	return planmodel.ParsePlanMarkdown(markdown)
 }

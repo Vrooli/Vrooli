@@ -18,7 +18,7 @@ func TestResultToProto(t *testing.T) {
 		PhaseID:     "ph-1",
 		Verdict:     internalvalidation.VerdictFail,
 		Staleness:   internalplans.StalenessDefinitelyStale,
-		CommandsRun: []string{"git-control-tower baseline diff --scenario foo"},
+		CommandsRun: []string{"git-control-tower baseline diff --scenario foo --name impl"},
 		Detail:      "regression",
 		RanAt:       "t",
 	})
@@ -27,7 +27,7 @@ func TestResultToProto(t *testing.T) {
 	require.Equal(t, "ph-1", got.GetPhaseId())
 	require.Equal(t, sharedv1.ValidationVerdict_VALIDATION_VERDICT_FAIL, got.GetVerdict())
 	require.Equal(t, sharedv1.StalenessTier_STALENESS_TIER_DEFINITELY_STALE, got.GetStaleness())
-	require.Equal(t, []string{"git-control-tower baseline diff --scenario foo"}, got.GetCommandsRun())
+	require.Equal(t, []string{"git-control-tower baseline diff --scenario foo --name impl"}, got.GetCommandsRun())
 	require.Equal(t, "regression", got.GetDetail())
 	require.Equal(t, "t", got.GetRanAt())
 }

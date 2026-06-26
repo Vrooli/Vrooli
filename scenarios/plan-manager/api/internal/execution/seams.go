@@ -3,7 +3,7 @@ package execution
 import (
 	"context"
 
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // PlanStore is the read+phase-mutate seam onto the plans SSOT. Production wraps
@@ -12,10 +12,10 @@ import (
 // domain (UpdatePhase) — it never persists plan/phase structure itself, the plans
 // domain stays the single source of truth for the record.
 type PlanStore interface {
-	GetPlan(ctx context.Context, idOrSlug string) (internalplans.Plan, error)
+	GetPlan(ctx context.Context, idOrSlug string) (planmodel.Plan, error)
 	// UpdatePhase applies an authored/status mutation to one phase and returns the
 	// recomputed plan (plan status is derived from the phase-status set there).
-	UpdatePhase(ctx context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error)
+	UpdatePhase(ctx context.Context, planID string, phase planmodel.Phase) (planmodel.Plan, error)
 }
 
 // Validator is the read seam onto the validation domain for the just-in-time

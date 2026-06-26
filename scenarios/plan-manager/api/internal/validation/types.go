@@ -9,16 +9,20 @@
 // Layering:
 //
 //	handler → Service → {PlanSource, ReferenceResolver, StalenessComputer, CommandRunner}
-//	            ↑            ↑ plans domain   ↑ code-facts      ↑ freshness    ↑ git-control-tower
+//	            ↑            ↑ plans domain   ↑ code-facts      ↑ fs/git       ↑ git-control-tower
 //	        (proto edge)   (all faked in tests; all degrade gracefully)
 //
-// The structured plan/phase/reference Go types are owned by the plans domain;
-// validation imports them (internal/plans) as the shared model and annotates
+// The structured plan/phase/reference Go types live in the neutral planmodel kernel;
+// validation imports that kernel and annotates
 // references with resolution/staleness. It does NOT own project-level validation
 // of resources/packages — that is consumed from test-genie / scenario-validation.
 package validation
 
-import internalplans "plan-manager/internal/plans"
+import (
+	"context"
+
+	planmodel "plan-manager/internal/planmodel"
+)
 
 // Verdict is the outcome of a validation/DoD check. Unknown is the honest
 // degraded result when a composed dependency is unavailable — never a false pass.
@@ -34,21 +38,22 @@ const (
 // Result is a validation/baseline outcome for a plan or phase. Computed by the
 // service (verdict from baseline diff exit-0 as oracle).
 type Result struct {
-	ID          string
-	PlanID      string
-	PhaseID     string
-	Verdict     Verdict
-	Staleness   internalplans.StalenessTier
-	CommandsRun []string
-	Detail      string
-	RanAt       string
+	ID              string
+	PlanID          string
+	PhaseID         string
+	Verdict         Verdict
+	Staleness       planmodel.StalenessTier
+	CommandsRun     []string
+	CommandFindings []CommandFinding
+	Detail          string
+	RanAt           string
 }
 
 // ReferenceReport is the resolved-reference view returned by ResolveReferences /
 // ComputeStaleness: the annotated references plus whether a dependency degraded.
 type ReferenceReport struct {
-	References []internalplans.Reference
-	Overall    internalplans.StalenessTier
+	References []planmodel.Reference
+	Overall    planmodel.StalenessTier
 	Degraded   bool
 }
 
@@ -57,4 +62,34 @@ type ReferenceReport struct {
 type BaselineScope struct {
 	Commands  []string
 	Locations []string
+}
+
+type CommandReferenceValidator interface {
+	ValidateCommandReference(context.Context, CommandReferenceRequest) (CommandReferenceResult, error)
+}
+
+type CommandReferenceRequest struct {
+	CommandText string
+	Qualifiers  []string
+}
+
+type CommandReferenceResult struct {
+	Verdict         string
+	ValidationLevel string
+	Issues          []CommandIssue
+	Suggestions     []string
+	Guidance        []string
+}
+
+type CommandIssue struct {
+	Code    string
+	Message string
+}
+
+type CommandFinding struct {
+	CommandText string
+	Verdict     string
+	Level       string
+	Message     string
+	Location    string
 }

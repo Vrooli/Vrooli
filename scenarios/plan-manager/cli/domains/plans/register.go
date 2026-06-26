@@ -33,6 +33,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGro
 		"PlansService.RenderMarkdown":   h.render,
 		"PlansService.GetGraph":         h.graph,
 		"PlansService.LinkSupersession": h.link,
+		"PlansService.LinkDependency":   h.depend,
 		"PlansService.ImportPlan":       h.importPlan,
 		"PlansService.MigratePlan":      h.migrate,
 	})

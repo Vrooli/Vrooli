@@ -63,12 +63,12 @@ The structured plan/phase schema every domain operates on lives in
 
 - Purpose: the guided composer wizard (OT-P0-002) — walk the plan's sections in order, validate structure as it goes, and auto-fill the mechanical sections (regression anchor, required-reading, code references) so a small model supplies only genuine prose.
 - Primary archetype: workflow / guided process.
-- Owns: authoring-session progression, the structure-validation gate, autofill orchestration (behind seams to git-control-tower, prompt-manager, code-facts).
-- Does not own: the plan record itself (delegates writes to `plans`); the actual baseline/reference computation (delegates to `validation`).
+- Owns: authoring-session progression, the structure-validation gate, authoring-time `cli:` command-reference feedback, autofill orchestration (behind seams to git-control-tower, prompt-manager, code-facts).
+- Does not own: the plan record itself (delegates writes to `plans`); command truth (delegates to CLI Health); the actual baseline/reference computation (delegates to `validation`).
 - API: `api/handlers/authoring/`. CLI: `cli/domains/authoring/`. UI: `ui/src/features/authoring/`.
 - Storage: transient authoring-session state; the plan it produces is owned by `plans`.
 - Requirements: PM-AUTHOR-001, PM-AUTHOR-002.
-- Tests: gate rejects empty mandatory sections; autofill degrades gracefully when a source is down.
+- Tests: gate rejects empty mandatory sections and invalid current `cli:` references; autofill degrades gracefully when a source is down.
 
 ### execution
 
@@ -86,7 +86,7 @@ The structured plan/phase schema every domain operates on lives in
 - Purpose: plan health (OT-P0-004/005) — resolve code references, compute staleness tiers, derive each phase's baseline scope, orchestrate baseline/check runs on request, and verify Definition of Done against the regression anchor.
 - Primary archetype: verification / analysis.
 - Owns: reference resolutions, staleness factors, baseline-scope derivation, validation results.
-- Does not own: project-level validation of resources/packages/whole-project (consumed from test-genie / scenario-validation, not owned here); the baseline mechanism itself (composes git-control-tower) or the staleness mechanism (composes the freshness engine + code-facts).
+- Does not own: project-level validation of resources/packages/whole-project (consumed from test-genie / scenario-validation, not owned here); the baseline mechanism itself (composes git-control-tower). Per-reference staleness is implemented as filesystem existence plus git-sourced drift from the regression anchor because the live freshness engine is scenario-artifact scoped today.
 - API: `api/handlers/validation/`. CLI: `cli/domains/validation/`. UI: `ui/src/features/validation/`.
 - Storage: reference + validation result records keyed to plan/phase.
 - Requirements: PM-REF-001, PM-STALE-001, PM-VALID-001/002.

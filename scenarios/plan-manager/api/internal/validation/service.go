@@ -8,8 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/api-core/markedrefs"
+
 	"plan-manager/internal/clock"
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 
 	"github.com/google/uuid"
 )
@@ -34,6 +36,7 @@ type service struct {
 	runner    CommandRunner
 	results   ResultStore
 	clock     clock.Clock
+	commands  CommandReferenceValidator
 }
 
 // Deps wires the validation Service. plans is required; resolver/staleness/runner/
@@ -47,6 +50,7 @@ type Deps struct {
 	Runner    CommandRunner
 	Results   ResultStore
 	Clock     clock.Clock
+	Commands  CommandReferenceValidator
 }
 
 // NewService constructs the validation Service.
@@ -62,6 +66,7 @@ func NewService(d Deps) Service {
 		runner:    d.Runner,
 		results:   d.Results,
 		clock:     clk,
+		commands:  d.Commands,
 	}
 }
 
@@ -69,7 +74,7 @@ var _ Service = (*service)(nil)
 
 // scopedReferences returns the references in scope: a phase's references when
 // phaseID is set, else the plan-level references.
-func (s *service) scopedReferences(p internalplans.Plan, phaseID string) ([]internalplans.Reference, error) {
+func (s *service) scopedReferences(p planmodel.Plan, phaseID string) ([]planmodel.Reference, error) {
 	if phaseID == "" {
 		return p.References, nil
 	}
@@ -97,17 +102,17 @@ func (s *service) ResolveReferences(ctx context.Context, planID, phaseID string)
 // resolveAll resolves every reference, degrading honestly. A nil resolver or a
 // per-reference error marks that reference UNRESOLVED (or FUTURE preserved) and
 // flags the report degraded.
-func (s *service) resolveAll(ctx context.Context, refs []internalplans.Reference) ([]internalplans.Reference, bool) {
-	out := make([]internalplans.Reference, 0, len(refs))
+func (s *service) resolveAll(ctx context.Context, refs []planmodel.Reference) ([]planmodel.Reference, bool) {
+	out := make([]planmodel.Reference, 0, len(refs))
 	degraded := false
 	for _, ref := range refs {
 		if ref.Future {
-			ref.Resolution = internalplans.ResolutionFuture
+			ref.Resolution = planmodel.ResolutionFuture
 			out = append(out, ref)
 			continue
 		}
 		if s.resolver == nil {
-			ref.Resolution = internalplans.ResolutionUnresolved
+			ref.Resolution = planmodel.ResolutionUnresolved
 			ref.Note = "code-facts unavailable"
 			degraded = true
 			out = append(out, ref)
@@ -115,7 +120,7 @@ func (s *service) resolveAll(ctx context.Context, refs []internalplans.Reference
 		}
 		got, err := s.resolver.Resolve(ctx, ref)
 		if err != nil {
-			ref.Resolution = internalplans.ResolutionUnresolved
+			ref.Resolution = planmodel.ResolutionUnresolved
 			ref.Note = "resolve failed: " + err.Error()
 			degraded = true
 			out = append(out, ref)
@@ -132,12 +137,15 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 		return ReferenceReport{}, err
 	}
 	// The regression anchor's HeadSha is the "before" point against which a
-	// still-present reference is graded fresh vs lightly-stale.
+	// still-present reference is graded fresh vs lightly-stale. The platform
+	// freshness engine is scenario-artifact scoped today, so per-reference
+	// change magnitude remains git-sourced until that substrate exposes a
+	// reference-level contract.
 	headSha := ""
 	if p, gerr := s.plans.GetPlan(ctx, planID); gerr == nil {
 		headSha = p.RegressionAnchor.HeadSha
 	}
-	overall := internalplans.StalenessFresh
+	overall := planmodel.StalenessFresh
 	anyKnown := false
 	for i := range report.References {
 		ref := report.References[i]
@@ -145,14 +153,14 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 			continue // proposed code is never "stale"
 		}
 		if s.staleness == nil {
-			ref.Staleness = internalplans.StalenessUnknown
+			ref.Staleness = planmodel.StalenessUnknown
 			report.Degraded = true
 			report.References[i] = ref
 			continue
 		}
 		tier, factor, err := s.staleness.Compute(ctx, ref)
 		if err != nil {
-			ref.Staleness = internalplans.StalenessUnknown
+			ref.Staleness = planmodel.StalenessUnknown
 			report.Degraded = true
 			report.References[i] = ref
 			continue
@@ -161,7 +169,7 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 		// changed since the anchor is LIGHTLY_STALE ("small diffs in referenced
 		// code"). DEFINITELY_STALE (moved/deleted) is never downgraded. Absent a
 		// HeadSha or a git runner, the floor's FRESH stands — honest, never guessed.
-		if tier == internalplans.StalenessFresh {
+		if tier == planmodel.StalenessFresh {
 			if t2, f2, refined := s.gitChangeTier(ctx, headSha, ref); refined {
 				tier, factor = t2, f2
 			}
@@ -175,7 +183,7 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 		}
 	}
 	if !anyKnown {
-		overall = internalplans.StalenessUnknown
+		overall = planmodel.StalenessUnknown
 	}
 	report.Overall = overall
 	return report, nil
@@ -185,14 +193,15 @@ func (s *service) ComputeStaleness(ctx context.Context, planID, phaseID string) 
 // its location has changed since the anchor's HeadSha, with a change factor from
 // the diff magnitude. Returns refined=false (keep FRESH) when there is no anchor
 // sha, no runner, the tool is absent, the ref is not file-backed, or nothing
-// changed. Uses `git diff --numstat <sha> -- <target>`: empty output (exit 0)
-// means unchanged; non-empty means changed.
-func (s *service) gitChangeTier(ctx context.Context, headSha string, ref internalplans.Reference) (internalplans.StalenessTier, float64, bool) {
+// changed. Uses `git diff --numstat <sha> -- <target>` because the live
+// freshness engine only reports scenario-artifact staleness, not per-reference
+// code drift. Empty output (exit 0) means unchanged; non-empty means changed.
+func (s *service) gitChangeTier(ctx context.Context, headSha string, ref planmodel.Reference) (planmodel.StalenessTier, float64, bool) {
 	headSha = strings.TrimSpace(headSha)
 	if headSha == "" || s.runner == nil {
 		return "", 0, false
 	}
-	if ref.Kind != internalplans.ReferenceCode && ref.Kind != internalplans.ReferenceDoc {
+	if ref.Kind != planmodel.ReferenceCode && ref.Kind != planmodel.ReferenceDoc {
 		return "", 0, false
 	}
 	out, err := s.runner(ctx, "git", "diff", "--numstat", headSha, "--", ref.Target)
@@ -210,7 +219,7 @@ func (s *service) gitChangeTier(ctx context.Context, headSha string, ref interna
 	case factor <= 0:
 		factor = 0.05 // changed but tiny — still a non-zero signal
 	}
-	return internalplans.StalenessLightlyStale, factor, true
+	return planmodel.StalenessLightlyStale, factor, true
 }
 
 // parseNumstat sums the added/deleted columns of `git diff --numstat` output.
@@ -265,12 +274,173 @@ func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Re
 		RanAt:       s.now(),
 	}
 	res.Verdict, res.Detail = s.runCommands(ctx, scope.Commands)
+	commandFindings, commandVerdict, commandDetail := s.validatePlanCommands(ctx, p, phaseID)
+	res.CommandFindings = commandFindings
+	res.Verdict = combineValidationVerdicts(res.Verdict, commandVerdict)
+	res.Detail = joinDetails(res.Detail, commandDetail)
 	// Persist for the cheap-read context path (status/next). Best-effort: a cache
 	// write failure must not fail the live validation the agent asked for.
 	if s.results != nil {
 		_ = s.results.SaveResult(ctx, res)
 	}
 	return res, nil
+}
+
+func (s *service) validatePlanCommands(ctx context.Context, p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
+	refs, err := commandRefsForScope(p, phaseID)
+	if err != nil {
+		return []CommandFinding{{Verdict: string(VerdictUnknown), Message: err.Error()}}, VerdictUnknown, "command reference validation unknown: " + err.Error()
+	}
+	if len(refs) == 0 {
+		return nil, VerdictPass, ""
+	}
+	if s.commands == nil {
+		return []CommandFinding{{Verdict: string(VerdictUnknown), Message: "CLI Health command validator unavailable"}}, VerdictUnknown, "command reference validation unknown: CLI Health command validator unavailable"
+	}
+	var findings []CommandFinding
+	verdict := VerdictPass
+	for _, ref := range refs {
+		if !markedrefs.RequiresExistence(ref.ref) {
+			continue
+		}
+		result, err := s.commands.ValidateCommandReference(ctx, CommandReferenceRequest{
+			CommandText: ref.ref.Value,
+			Qualifiers:  append([]string(nil), ref.ref.Qualifiers...),
+		})
+		if err != nil {
+			findings = append(findings, CommandFinding{
+				CommandText: ref.ref.Value,
+				Verdict:     string(VerdictUnknown),
+				Message:     "CLI Health unavailable: " + err.Error(),
+				Location:    ref.location,
+			})
+			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
+			continue
+		}
+		finding := CommandFinding{
+			CommandText: ref.ref.Value,
+			Verdict:     result.Verdict,
+			Level:       result.ValidationLevel,
+			Message:     commandResultMessage(result),
+			Location:    ref.location,
+		}
+		switch strings.ToLower(result.Verdict) {
+		case "valid", "skipped":
+		case "partial":
+			findings = append(findings, finding)
+		case "invalid", "unsupported":
+			findings = append(findings, finding)
+			verdict = VerdictFail
+		default:
+			findings = append(findings, finding)
+			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
+		}
+	}
+	return findings, verdict, commandFindingsDetail(findings)
+}
+
+type scopedCommandRef struct {
+	ref      markedrefs.Reference
+	location string
+}
+
+func commandRefsForScope(p planmodel.Plan, phaseID string) ([]scopedCommandRef, error) {
+	var out []scopedCommandRef
+	if phaseID == "" {
+		addCommandRefs(&out, "plan.purpose", p.Purpose)
+		addCommandRefs(&out, "plan.scope", p.Scope)
+		addCommandRefs(&out, "plan.constraints", p.Constraints)
+		addCommandRefs(&out, "plan.definition_of_done", p.DefinitionOfDone)
+		for _, phase := range p.Phases {
+			addCommandRefs(&out, "phase."+phase.ID+".intent", phase.Intent)
+			for i, item := range phase.RequiredReading {
+				addCommandRefs(&out, fmt.Sprintf("phase.%s.required_reading[%d]", phase.ID, i), item)
+			}
+			for i, item := range phase.Reminders {
+				addCommandRefs(&out, fmt.Sprintf("phase.%s.reminders[%d]", phase.ID, i), item)
+			}
+			addCommandRefs(&out, "phase."+phase.ID+".acceptance", phase.Acceptance)
+		}
+		return out, nil
+	}
+	for _, phase := range p.Phases {
+		if phase.ID != phaseID {
+			continue
+		}
+		addCommandRefs(&out, "phase."+phase.ID+".intent", phase.Intent)
+		for i, item := range phase.RequiredReading {
+			addCommandRefs(&out, fmt.Sprintf("phase.%s.required_reading[%d]", phase.ID, i), item)
+		}
+		for i, item := range phase.Reminders {
+			addCommandRefs(&out, fmt.Sprintf("phase.%s.reminders[%d]", phase.ID, i), item)
+		}
+		addCommandRefs(&out, "phase."+phase.ID+".acceptance", phase.Acceptance)
+		return out, nil
+	}
+	return nil, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+}
+
+func addCommandRefs(out *[]scopedCommandRef, location, text string) {
+	for lineNumber, line := range strings.Split(text, "\n") {
+		for _, ref := range markedrefs.ParseInlineCode(line, lineNumber+1) {
+			if ref.Marker == markedrefs.MarkerCLI {
+				*out = append(*out, scopedCommandRef{ref: ref, location: location})
+			}
+		}
+	}
+}
+
+func commandResultMessage(result CommandReferenceResult) string {
+	var parts []string
+	for _, issue := range result.Issues {
+		if issue.Code != "" && issue.Message != "" {
+			parts = append(parts, issue.Code+": "+issue.Message)
+		} else if issue.Message != "" {
+			parts = append(parts, issue.Message)
+		}
+	}
+	for _, suggestion := range result.Suggestions {
+		if suggestion != "" {
+			parts = append(parts, "suggestion: "+suggestion)
+		}
+	}
+	parts = append(parts, result.Guidance...)
+	if len(parts) == 0 {
+		return strings.TrimSpace(result.Verdict + " " + result.ValidationLevel)
+	}
+	return strings.Join(parts, "; ")
+}
+
+func commandFindingsDetail(findings []CommandFinding) string {
+	if len(findings) == 0 {
+		return ""
+	}
+	lines := []string{"command reference validation:"}
+	for _, finding := range findings {
+		lines = append(lines, fmt.Sprintf("%s %s (%s): %s", finding.Verdict, finding.CommandText, finding.Location, finding.Message))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func combineValidationVerdicts(a, b Verdict) Verdict {
+	if a == VerdictFail || b == VerdictFail {
+		return VerdictFail
+	}
+	if a == VerdictUnknown || b == VerdictUnknown || a == VerdictUnspecified || b == VerdictUnspecified {
+		return VerdictUnknown
+	}
+	return VerdictPass
+}
+
+func joinDetails(parts ...string) string {
+	var nonEmpty []string
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			nonEmpty = append(nonEmpty, part)
+		}
+	}
+	return strings.Join(nonEmpty, "\n")
 }
 
 // LastValidation returns the most recent STORED validation result for a
@@ -342,37 +512,21 @@ func (s *service) runCommands(ctx context.Context, commands []string) (Verdict, 
 		oracleUnknown bool
 	)
 	for _, cmd := range commands {
-		name, args := splitCommand(cmd)
-		if name == "" {
+		result, ok := s.runOneCommand(ctx, cmd)
+		if !ok {
 			continue
 		}
-		oracle := isOracleCommand(cmd)
-		_, err := s.runner(ctx, name, args...)
-		switch {
-		case err == nil:
-			details = append(details, fmt.Sprintf("ok %s", cmd))
-			if oracle {
-				oraclePassed++
-			}
-		case errors.Is(err, ErrToolNotFound):
-			details = append(details, fmt.Sprintf("unknown %s: tool not found", cmd))
-			if oracle {
-				oracleUnknown = true
-			}
+		details = append(details, result.detail)
+		if !result.oracle {
+			continue
+		}
+		switch result.verdict {
+		case VerdictPass:
+			oraclePassed++
+		case VerdictFail:
+			oracleFailed = true
 		default:
-			var exitErr CommandExitError
-			if errors.As(err, &exitErr) && exitErr.Code == 2 {
-				details = append(details, fmt.Sprintf("unknown %s: not comparable (exit 2)", cmd))
-				if oracle {
-					oracleUnknown = true
-				}
-				continue
-			}
-			details = append(details, fmt.Sprintf("FAIL %s: %v", cmd, err))
-			if oracle {
-				oracleFailed = true
-			}
-			// An informational command failing does not flip the verdict.
+			oracleUnknown = true
 		}
 	}
 	detail := strings.Join(details, "\n")
@@ -388,20 +542,60 @@ func (s *service) runCommands(ctx context.Context, commands []string) (Verdict, 
 	}
 }
 
+type commandRunResult struct {
+	oracle  bool
+	verdict Verdict
+	detail  string
+}
+
+func (s *service) runOneCommand(ctx context.Context, cmd string) (commandRunResult, bool) {
+	name, args := splitCommand(cmd)
+	if name == "" {
+		return commandRunResult{}, false
+	}
+	oracle := isOracleCommand(cmd)
+	_, err := s.runner(ctx, name, args...)
+	return classifyCommandRun(cmd, oracle, err), true
+}
+
+func classifyCommandRun(cmd string, oracle bool, err error) commandRunResult {
+	result := commandRunResult{oracle: oracle, verdict: VerdictPass, detail: fmt.Sprintf("ok %s", cmd)}
+	if err == nil {
+		return result
+	}
+	if errors.Is(err, ErrToolNotFound) {
+		result.verdict = VerdictUnknown
+		result.detail = fmt.Sprintf("unknown %s: tool not found", cmd)
+		return result
+	}
+	var exitErr CommandExitError
+	if errors.As(err, &exitErr) && exitErr.Code == 2 {
+		result.verdict = VerdictUnknown
+		result.detail = fmt.Sprintf("unknown %s: not comparable (exit 2)", cmd)
+		return result
+	}
+	result.verdict = VerdictFail
+	result.detail = fmt.Sprintf("FAIL %s: %v", cmd, err)
+	return result
+}
+
 func (s *service) now() string {
 	return s.clock.Now().UTC().Format("2006-01-02T15:04:05.999999999Z07:00")
 }
 
 // deriveScope computes the exact baseline/validation command set across all
 // affected locations a plan/phase's references touch. Scenario-scoped code refs
-// map to a git-control-tower scenario baseline diff; non-scenario code refs map
-// to a repo-level git diff. The plan's own regression-anchor commands are folded
-// in. Output is deduped and stably ordered so the command set is deterministic.
-func deriveScope(p internalplans.Plan, refs []internalplans.Reference) BaselineScope {
+// map to a git-control-tower scenario baseline diff only when the plan carries a
+// baseline name; the verified GCT CLI requires both --scenario and --name. If no
+// baseline name exists, those locations are still returned but no oracle command
+// is fabricated. Non-scenario code refs map to a repo-level informational git
+// diff. The plan's own regression-anchor commands are folded in. Output is
+// deduped and stably ordered so the command set is deterministic.
+func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 	scenarios := map[string]bool{}
 	repoLevel := false
 	for _, ref := range refs {
-		if ref.Kind != internalplans.ReferenceCode || ref.Future {
+		if ref.Kind != planmodel.ReferenceCode || ref.Future {
 			continue
 		}
 		if name := scenarioFromTarget(ref.Target); name != "" {
@@ -420,7 +614,9 @@ func deriveScope(p internalplans.Plan, refs []internalplans.Reference) BaselineS
 	sort.Strings(names)
 	for _, name := range names {
 		locations = append(locations, "scenarios/"+name)
-		commands = append(commands, fmt.Sprintf("git-control-tower baseline diff --scenario %s", name))
+		if cmd := baselineDiffCommand(name, p.RegressionAnchor); cmd != "" {
+			commands = append(commands, cmd)
+		}
 	}
 	if repoLevel {
 		locations = append(locations, "repo")
@@ -438,6 +634,14 @@ func deriveScope(p internalplans.Plan, refs []internalplans.Reference) BaselineS
 		commands = appendUnique(commands, c)
 	}
 	return BaselineScope{Commands: commands, Locations: locations}
+}
+
+func baselineDiffCommand(scenario string, anchor planmodel.RegressionAnchor) string {
+	name := strings.TrimSpace(anchor.BaselineName)
+	if name == "" || strings.ContainsAny(name, " \t\r\n") {
+		return ""
+	}
+	return fmt.Sprintf("git-control-tower baseline diff --scenario %s --name %s", scenario, name)
 }
 
 func scenarioFromTarget(target string) string {
@@ -464,13 +668,13 @@ func splitCommand(cmd string) (string, []string) {
 	return fields[0], fields[1:]
 }
 
-func stalenessRank(t internalplans.StalenessTier) int {
+func stalenessRank(t planmodel.StalenessTier) int {
 	switch t {
-	case internalplans.StalenessFresh:
+	case planmodel.StalenessFresh:
 		return 1
-	case internalplans.StalenessLightlyStale:
+	case planmodel.StalenessLightlyStale:
 		return 2
-	case internalplans.StalenessDefinitelyStale:
+	case planmodel.StalenessDefinitelyStale:
 		return 3
 	default:
 		return 0

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"plan-manager/internal/clock"
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // resultTimeFormat matches the rest of the scenario (RFC3339Nano sorts
@@ -85,7 +85,7 @@ func (r *sqliteResultStore) LastResult(ctx context.Context, planID, phaseID stri
 		return Result{}, false, fmt.Errorf("get last validation result for %q/%q: %w", planID, phaseID, err)
 	}
 	res.Verdict = Verdict(verdict)
-	res.Staleness = internalplans.StalenessTier(staleness)
+	res.Staleness = planmodel.StalenessTier(staleness)
 	if commands != "" {
 		_ = json.Unmarshal([]byte(commands), &res.CommandsRun)
 	}

@@ -41,6 +41,8 @@ type fakePlansService struct {
 	gotGraphPlanID       string
 	gotSupersedingID     string
 	gotSupersededID      string
+	gotDependingID       string
+	gotDependencyID      string
 	gotImportPath        string
 	gotImportMarkdown    string
 	gotMigrateID         string
@@ -99,6 +101,12 @@ func (f *fakePlansService) GetGraph(_ context.Context, planID string) ([]interna
 func (f *fakePlansService) LinkSupersession(_ context.Context, supersedingID, supersededID string) (internalplans.Plan, error) {
 	f.gotSupersedingID = supersedingID
 	f.gotSupersededID = supersededID
+	return f.plan, f.err
+}
+
+func (f *fakePlansService) LinkDependency(_ context.Context, dependingID, dependencyID string) (internalplans.Plan, error) {
+	f.gotDependingID = dependingID
+	f.gotDependencyID = dependencyID
 	return f.plan, f.err
 }
 
@@ -259,6 +267,19 @@ func TestLinkSupersessionForwardsBothIDs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "super", svc.gotSupersedingID)
 	require.Equal(t, "old", svc.gotSupersededID)
+}
+
+func TestLinkDependencyForwardsBothIDs(t *testing.T) {
+	svc := &fakePlansService{plan: internalplans.Plan{ID: "depending"}}
+	h := newPlansHandler(svc)
+
+	_, err := h.LinkDependency(context.Background(), connect.NewRequest(&plansv1.LinkDependencyRequest{
+		DependingPlanId:  "depending",
+		DependencyPlanId: "dependency",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "depending", svc.gotDependingID)
+	require.Equal(t, "dependency", svc.gotDependencyID)
 }
 
 func TestImportPlanForwardsArgs(t *testing.T) {

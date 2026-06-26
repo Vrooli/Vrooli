@@ -44,10 +44,17 @@ func TestFilesystemDiscoverySource_ManifestParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Discover: %v", err)
 	}
-	if len(records) != 1 {
-		t.Fatalf("want 1 record, got %d (%+v)", len(records), records)
+	if len(records) != 3 {
+		t.Fatalf("want 3 records, got %d (%+v)", len(records), records)
 	}
-	r := records[0]
+	byPath := make(map[string]CommandRecord, len(records))
+	for _, record := range records {
+		byPath[record.FullPath] = record
+	}
+	r, ok := byPath["demo things list"]
+	if !ok {
+		t.Fatalf("missing manifest command in records: %+v", records)
+	}
 	if r.Origin != "demo" || r.Group != "things" || r.Name != "list" {
 		t.Errorf("unexpected identity: %+v", r)
 	}
@@ -68,6 +75,20 @@ func TestFilesystemDiscoverySource_ManifestParse(t *testing.T) {
 	sort.Strings(wantTags)
 	if !equalStrings(r.Tags, wantTags) {
 		t.Errorf("Tags = %+v, want %+v", r.Tags, wantTags)
+	}
+	status, ok := byPath["demo status"]
+	if !ok {
+		t.Fatalf("missing built-in status command in records: %+v", records)
+	}
+	if status.Source != SourceBuiltin {
+		t.Errorf("built-in status Source = %q, want %q", status.Source, SourceBuiltin)
+	}
+	configure, ok := byPath["demo configure"]
+	if !ok {
+		t.Fatalf("missing built-in configure command in records: %+v", records)
+	}
+	if configure.Source != SourceBuiltin {
+		t.Errorf("built-in configure Source = %q, want %q", configure.Source, SourceBuiltin)
 	}
 }
 

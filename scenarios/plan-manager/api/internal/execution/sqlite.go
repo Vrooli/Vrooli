@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"plan-manager/internal/clock"
-	internalplans "plan-manager/internal/plans"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // execTimeFormat matches the rest of the scenario (RFC3339Nano sorts
@@ -392,7 +392,7 @@ func boolToInt(b bool) int {
 }
 
 // stalenessFromString rebuilds the plans StalenessTier from its stored string.
-// The empty string is the unknown/degraded tier (internalplans.StalenessUnknown).
-func stalenessFromString(s string) internalplans.StalenessTier {
-	return internalplans.StalenessTier(s)
+// The empty string is the unknown/degraded tier (planmodel.StalenessUnknown).
+func stalenessFromString(s string) planmodel.StalenessTier {
+	return planmodel.StalenessTier(s)
 }

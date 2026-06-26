@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -14,7 +15,10 @@ import (
 	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
 )
 
-const codeFactsScenarioID = "code-facts"
+const (
+	codeFactsScenarioID     = "code-facts"
+	defaultCodeFactsTimeout = 3 * time.Second
+)
 
 // CodeFactsDetector resolves a scenario's API language + domains by calling the
 // code-facts service, and degrades to the filesystem detector on any failure so
@@ -30,6 +34,9 @@ type CodeFactsDetector struct {
 	// Fallback is the detector used when code-facts is unavailable. Defaults to
 	// FilesystemDetector.
 	Fallback Detector
+	// Timeout bounds optional code-facts enrichment before falling back to the
+	// filesystem detector. Zero uses defaultCodeFactsTimeout.
+	Timeout time.Duration
 }
 
 var _ Detector = CodeFactsDetector{}
@@ -52,12 +59,20 @@ func (d CodeFactsDetector) Detect(ctx context.Context, scenario, scenarioDir str
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	baseURL, err := resolver.ResolveScenarioURLDefault(ctx, codeFactsScenarioID)
+
+	timeout := d.Timeout
+	if timeout <= 0 {
+		timeout = defaultCodeFactsTimeout
+	}
+	detectCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	baseURL, err := resolver.ResolveScenarioURLDefault(detectCtx, codeFactsScenarioID)
 	if err != nil {
 		return fs
 	}
 	client := factsconnect.NewCodeFactsServiceClient(httpClient, baseURL)
-	resp, err := client.DescribeCodeFacts(ctx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
+	resp, err := client.DescribeCodeFacts(detectCtx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
 		Target: &factsv1.CodeTarget{
 			Kind:     factsv1.TargetKind_TARGET_KIND_SCENARIO,
 			Scenario: scenario,

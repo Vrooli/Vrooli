@@ -13,9 +13,10 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | Dependency | Kind | Purpose | Hard/Soft |
 |---|---|---|---|
 | `~/.vrooli` home store (SQLite) | Resource | Durable plan persistence (server-independent) | Required |
-| `code-facts` | Scenario | Resolve `[CODE:]` references; staleness inputs | Soft |
+| `code-facts` | Scenario | Resolve `[CODE:]`/`[REQ:]` references where its current surface can provide evidence | Soft |
 | `git-control-tower` | Scenario | Regression anchor (baseline snapshot/diff) | Soft |
-| freshness engine | Platform | Content-hash staleness mechanism | Soft |
+| `cli-health` | Scenario | Validate authored `cli:` command references in plans without executing them | Soft |
+| git / freshness engine | Platform | Per-reference drift is git-sourced today; freshness engine remains scenario-artifact scoped | Soft |
 | `test-genie` / `scenario-validation` | Scenario | Validation results consumed (not owned) | Soft |
 | `prompt-manager` | Scenario | `plan-skill-discovery` for required-reading autofill | Soft |
 | `meta-optimization-manager` | Scenario | Velocity signal sink (trials) | Soft |
@@ -37,12 +38,21 @@ reverse): `swarm-manager` `phased-plan-drain`, project hygiene plan checks, the
 All soft; each is reached through a seam and degrades to a marked gap rather than
 failing the flow:
 
-- **code-facts** — resolves code references and feeds staleness. If down: references
-  remain recorded but unresolved; staleness reported as `unknown`.
+- **code-facts** — resolves reference evidence where its current surface can
+  express the locator. If down: references remain recorded; validation falls back
+  to filesystem resolution for CODE/DOC refs and marks unresolved gaps honestly.
 - **git-control-tower** — captures/diffs the regression anchor. If down: anchor
   autofill is skipped and flagged; DoD verification reports anchor-unavailable.
-- **freshness engine** — content-hash staleness. If unavailable: fall back to
-  reference-existence checks only (moved/deleted still detectable).
+- **cli-health** — validates authored `cli:` marked references in plan/phase
+  text. If down: command validation reports UNKNOWN and never fabricates a pass.
+  Plan Manager owns plan policy and authoring feedback; CLI Health owns command
+  existence, argument-shape confidence, suggestions, and guidance.
+- **git / freshness engine** — Phase 0 substrate recon found `vrooli scenario
+  freshness <scenario> --json` reports scenario-artifact staleness, not
+  per-reference code drift. v1 therefore uses filesystem existence as the floor
+  and `git diff --numstat <anchor> -- <ref>` for LIGHTLY_STALE refinement when an
+  anchor SHA is available. If that refinement is unavailable: present references
+  remain FRESH and missing references are still DEFINITELY_STALE.
 - **test-genie / scenario-validation** — validation results consumed for plan
   health. plan-manager never re-implements project-level validation; it reads.
 - **prompt-manager** — `plan-skill-discovery` for required-reading autofill. If

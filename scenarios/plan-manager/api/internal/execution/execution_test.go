@@ -128,6 +128,33 @@ func TestStartRequiresPlanID(t *testing.T) {
 	require.ErrorAs(t, err, &execution.ErrInvalidExecution{})
 }
 
+func TestFindingDedupIndexNormalizesTitleCase(t *testing.T) {
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(execution.Schema),
+	))
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	repo := execution.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+
+	require.NoError(t, repo.SaveFinding(ctx, execution.Finding{
+		ID:               "finding-1",
+		ExecutionID:      "exec-1",
+		Title:            "Config Drift",
+		Triage:           execution.TriageCandidate,
+		AttributionRunID: "run-1",
+	}))
+	err := repo.SaveFinding(ctx, execution.Finding{
+		ID:               "finding-2",
+		ExecutionID:      "exec-1",
+		Title:            "  config drift  ",
+		Triage:           execution.TriageCandidate,
+		AttributionRunID: "run-1",
+	})
+	require.Error(t, err, "case/space variants must hit the store-level dedup backstop")
+}
+
 func TestResumePointDerivationEarliestNonDone(t *testing.T) {
 	plan := threePhasePlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusDone // ph-1 done
@@ -199,6 +226,41 @@ func TestGetNextAdvancesAndReportsComplete(t *testing.T) {
 	require.True(t, complete, "no actionable phase remains")
 	require.Equal(t, "", pctx.ResumePhaseID)
 	require.Equal(t, execution.CompletenessFull, pctx.Completeness)
+}
+
+func TestGetNextAdvancesPastCurrentUnfinishedPhase(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	e, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.Equal(t, "ph-1", e.CurrentPhaseID)
+
+	pctx, complete, err := h.svc.GetNext(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.False(t, complete)
+	require.True(t, pctx.HasCurrent)
+	require.Equal(t, "ph-2", pctx.CurrentPhase.ID, "GetNext advances to a later actionable phase instead of recomputing the resume point")
+	require.Equal(t, "ph-1", pctx.ResumePhaseID, "resume point remains the earliest unfinished phase")
+
+	updated, pctx, err := h.svc.GetStatus(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, "ph-2", updated.CurrentPhaseID, "advanced pointer is persisted")
+	require.Equal(t, "ph-2", pctx.CurrentPhase.ID)
+}
+
+func TestGetNextKeepsLastUnfinishedPhaseIncomplete(t *testing.T) {
+	plan := threePhasePlan()
+	plan.Phases[0].Status = internalplans.PhaseStatusDone
+	plan.Phases[1].Status = internalplans.PhaseStatusDone
+	h := newHarness(t, plan, nil)
+	e, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.Equal(t, "ph-3", e.CurrentPhaseID)
+
+	pctx, complete, err := h.svc.GetNext(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.False(t, complete, "last unfinished phase is still actionable")
+	require.Equal(t, "ph-3", pctx.CurrentPhase.ID)
+	require.Equal(t, "ph-3", pctx.ResumePhaseID)
 }
 
 func TestRecordDecisionPersistsForHandoff(t *testing.T) {

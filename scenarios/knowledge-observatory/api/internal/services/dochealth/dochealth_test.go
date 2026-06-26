@@ -34,6 +34,20 @@ func (f *fakeDoer) Do(req *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(""))}, nil
 }
 
+type fakeCommandValidator struct {
+	results map[string]CommandReferenceResult
+	calls   []CommandReferenceRequest
+}
+
+func (f *fakeCommandValidator) ValidateCommandReference(ctx context.Context, req CommandReferenceRequest) (CommandReferenceResult, error) {
+	_ = ctx
+	f.calls = append(f.calls, req)
+	if res, ok := f.results[req.CommandText]; ok {
+		return res, nil
+	}
+	return CommandReferenceResult{CommandText: req.CommandText, Verdict: "unknown", ValidationLevel: "parsed"}, nil
+}
+
 func writeTestFile(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -290,6 +304,111 @@ func TestScanCodeFilesForDocRefs_SkipsNodeModules(t *testing.T) {
 		if strings.Contains(ref.File, "node_modules") {
 			t.Fatalf("node_modules should be skipped, got %+v", ref)
 		}
+	}
+}
+
+func TestValidateBidirectionalRefs_ValidatesCLIRefsThroughCLIHealth(t *testing.T) {
+	dir := t.TempDir()
+	doc := filepath.Join(dir, "docs", "commands.md")
+	writeTestFile(t, doc, strings.Join([]string{
+		"Use `cli:cli-health command validate --command \"vrooli scenario test cli-health\"`.",
+		"Fix `cli:knowledge-observatory docs healt cli-health`.",
+		"Partial `cli:knowledge-observatory docs health cli-health --checks=refs`.",
+		"Future `cli[future]:future-tool launch`.",
+	}, "\n"))
+	validator := &fakeCommandValidator{results: map[string]CommandReferenceResult{
+		`cli-health command validate --command "vrooli scenario test cli-health"`: {
+			Verdict:         "valid",
+			ValidationLevel: "argument_shape_validated",
+		},
+		"knowledge-observatory docs healt cli-health": {
+			Verdict:         "invalid",
+			ValidationLevel: "owner_identified",
+			Issues:          []CommandReferenceIssue{{Code: "unknown_command", Message: "command path was not found"}},
+			Suggestions:     []CommandReferenceSuggestion{{Command: "knowledge-observatory docs health"}},
+		},
+		"knowledge-observatory docs health cli-health --checks=refs": {
+			Verdict:         "partial",
+			ValidationLevel: "command_exists",
+			Issues:          []CommandReferenceIssue{{Code: "argument_schema_unavailable", Message: "arguments unavailable"}},
+		},
+	}}
+
+	findings, summary := validateBidirectionalRefs(context.Background(), dir, []string{doc}, newCfg(), validator)
+
+	if summary.MarkedRefsFound != 4 {
+		t.Fatalf("MarkedRefsFound = %d, want 4", summary.MarkedRefsFound)
+	}
+	if summary.MarkedRefsBroken != 1 {
+		t.Fatalf("MarkedRefsBroken = %d, want 1; findings=%#v", summary.MarkedRefsBroken, findings)
+	}
+	if summary.MarkedRefsSkipped != 1 {
+		t.Fatalf("MarkedRefsSkipped = %d, want 1", summary.MarkedRefsSkipped)
+	}
+	if !hasFinding(findings, "broken_marked_ref") {
+		t.Fatalf("expected broken CLI ref finding, got %#v", findings)
+	}
+	if !hasFinding(findings, "partial_cli_ref") {
+		t.Fatalf("expected partial CLI ref finding, got %#v", findings)
+	}
+	if len(validator.calls) != 3 {
+		t.Fatalf("validator calls = %d, want 3", len(validator.calls))
+	}
+}
+
+func TestValidateCommandSnippets_ValidatesVrooliOwnedShellFences(t *testing.T) {
+	root := t.TempDir()
+	scenariosRoot := filepath.Join(root, "scenarios")
+	scenarioDir := filepath.Join(scenariosRoot, "demo")
+	for _, name := range []string{"cli-health", "knowledge-observatory"} {
+		if err := os.MkdirAll(filepath.Join(scenariosRoot, name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	doc := filepath.Join(scenarioDir, "docs", "commands.md")
+	writeTestFile(t, doc, strings.Join([]string{
+		"# Commands",
+		"```bash",
+		"$ cli-health command validate --command \"vrooli scenario test cli-health\"",
+		"git status",
+		"knowledge-observatory docs healt cli-health",
+		"knowledge-observatory docs health cli-health --checks=refs",
+		"```",
+		"```text",
+		"cli-health command typo",
+		"```",
+	}, "\n"))
+	validator := &fakeCommandValidator{results: map[string]CommandReferenceResult{
+		`cli-health command validate --command "vrooli scenario test cli-health"`: {
+			Verdict:         "valid",
+			ValidationLevel: "argument_shape_validated",
+		},
+		"knowledge-observatory docs healt cli-health": {
+			Verdict:         "invalid",
+			ValidationLevel: "owner_identified",
+			Issues:          []CommandReferenceIssue{{Code: "unknown_command", Message: "command path was not found"}},
+			Suggestions:     []CommandReferenceSuggestion{{Command: "knowledge-observatory docs health"}},
+		},
+		"knowledge-observatory docs health cli-health --checks=refs": {
+			Verdict:         "partial",
+			ValidationLevel: "command_exists",
+			Issues:          []CommandReferenceIssue{{Code: "argument_schema_unavailable", Message: "arguments unavailable"}},
+		},
+	}}
+
+	findings := validateCommandSnippets(context.Background(), scenarioDir, []string{doc}, validator)
+
+	if len(validator.calls) != 3 {
+		t.Fatalf("validator calls = %d, want 3 (%#v)", len(validator.calls), validator.calls)
+	}
+	if !hasFinding(findings, "broken_command_snippet") {
+		t.Fatalf("expected broken command snippet, got %#v", findings)
+	}
+	if !hasFinding(findings, "partial_command_snippet") {
+		t.Fatalf("expected partial command snippet, got %#v", findings)
+	}
+	if hasFinding(findings, "unknown_command_snippet") {
+		t.Fatalf("did not expect unknown command snippet, got %#v", findings)
 	}
 }
 

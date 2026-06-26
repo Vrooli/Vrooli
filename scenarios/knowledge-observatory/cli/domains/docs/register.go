@@ -386,7 +386,7 @@ func health(deps support.Dependencies, args []string) error {
 	scenario := fs.String("scenario", "", "Scenario name")
 	scope := fs.String("scope", "", "Scope: scenario (default) or path")
 	path := fs.String("path", "", "Docs path to scan (for scope=path; absolute or repo-relative)")
-	checks := fs.String("checks", "", "Comma-separated checks to run (structure,content,links,refs,manifest,numbers); default all applicable")
+	checks := fs.String("checks", "", "Comma-separated checks to run (structure,content,links,refs,commands,manifest,numbers); default all applicable")
 	jsonOut := fs.Bool("json", false, "Output raw JSON")
 	strictExternal := fs.Bool("strict-external-links", false, "Treat external link failures as failures (overrides server default)")
 	requireRegistered := fs.Bool("require-all-docs-registered", false, "Fail when scenario docs are missing from docs/manifest.json")
@@ -408,7 +408,7 @@ func health(deps support.Dependencies, args []string) error {
 			scopeValue = "path"
 		}
 	} else if scenarioValue == "" {
-		return fmt.Errorf("usage: docs health <scenario> [--scenario=name] [--scope=path --path=DIR] [--checks=structure,content,links,refs,manifest,numbers] [--strict-external-links] [--require-all-docs-registered] [--skip-external-links] [--json]")
+		return fmt.Errorf("usage: docs health <scenario> [--scenario=name] [--scope=path --path=DIR] [--checks=structure,content,links,refs,commands,manifest,numbers] [--strict-external-links] [--require-all-docs-registered] [--skip-external-links] [--json]")
 	}
 
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(deps.ScenarioApp())

@@ -213,7 +213,7 @@ func (r *sqliteRepository) ListEdges(ctx context.Context, planID string) ([]Plan
 
 func (r *sqliteRepository) SaveEdge(ctx context.Context, e PlanEdge) error {
 	if e.Kind == "" {
-		e.Kind = "supersedes"
+		e.Kind = EdgeKindSupersedes
 	}
 	if _, err := r.db.ExecContext(ctx, upsertEdgeSQL, e.FromPlanID, e.ToPlanID, e.Kind); err != nil {
 		return fmt.Errorf("save plan edge %s->%s: %w", e.FromPlanID, e.ToPlanID, err)

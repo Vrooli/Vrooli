@@ -298,6 +298,18 @@ Fetch documentation health details for a scenario.
 | Flag | Description |
 |------|-------------|
 | `--scenario` | Scenario name (optional if provided as positional argument) |
+| `--scope` | `scenario` (default) or `path` |
+| `--path` | Docs path to scan when using path scope |
+| `--checks` | Comma-separated checks: `structure`, `content`, `links`, `refs`, `commands`, `manifest`, `numbers` |
+| `--strict-external-links` | Treat external link failures as failures |
+| `--require-all-docs-registered` | Report scenario docs missing from `docs/manifest.json` |
+| `--skip-external-links` | Skip external link probing for offline runs |
+| `--json` | Emit raw JSON output |
+
+The `refs` check validates explicit marked references such as `cli:...`.
+The `commands` check conservatively validates Vrooli-owned commands found in
+fenced shell snippets by delegating to CLI Health; it does not execute the
+referenced commands.
 
 ### docs view
 

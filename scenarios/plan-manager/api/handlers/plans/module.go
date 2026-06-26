@@ -60,6 +60,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("plans_update_phase", plansconnect.PlansServiceUpdatePhaseProcedure, "Update a phase", "Replaces a phase's authored fields."),
 	endpoint("plans_get_graph", plansconnect.PlansServiceGetGraphProcedure, "Get the plan graph", "Returns supersession/dependency edges, optionally scoped to one plan (OT-P1-002)."),
 	endpoint("plans_link_supersession", plansconnect.PlansServiceLinkSupersessionProcedure, "Link supersession", "Records that one plan supersedes another (PM-GRAPH-001)."),
+	endpoint("plans_link_dependency", plansconnect.PlansServiceLinkDependencyProcedure, "Link dependency", "Records that one plan depends on another."),
 	endpoint("plans_import", plansconnect.PlansServiceImportPlanProcedure, "Import a markdown plan", "Adopts a markdown plan from a fallback read location into the structured model."),
 	endpoint("plans_migrate", plansconnect.PlansServiceMigratePlanProcedure, "Migrate a plan to canonical", "Ensures a fallback-resolved plan resides in the canonical home store."),
 	endpoint("plans_list_templates", plansconnect.PlansServiceListTemplatesProcedure, "List plan templates", "Returns the per-surface plan templates (CLI/proto/UI)."),
