@@ -78,6 +78,7 @@ func newCodeFactsTestServer(t *testing.T, svc fakeCodeFactsService) *httptest.Se
 	return httptest.NewServer(mux)
 }
 
+// [REQ:PM-REF-001]
 func TestCodeFactsReferenceResolverUsesConnectEvidence(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "alpha"), 0o755))

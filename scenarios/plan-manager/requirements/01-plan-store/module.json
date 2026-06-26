@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "plan-store",
     "description": "OT-P0-001 — structured plan + phase record persisted to a durable, scenario-independent home store.",
+    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "module": "plan-store",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,27 +11,59 @@
     {
       "id": "PM-STORE-001",
       "title": "A plan is a first-class structured record with ordered first-class phases",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "plans",
       "description": "A plan is stored as a structured record (meta + global sections + ordered phases; each phase owns its required-reading, reminders, baseline scope, acceptance, and status) and exposes CRUD plus a rendered markdown view. Persistence is rooted at the scenario-independent ~/.vrooli home store so plans remain readable when the plan-manager server is down.",
-      "tags": ["plans", "storage", "schema"],
+      "tags": [
+        "plans",
+        "storage",
+        "schema"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: plan + phase round-trips through the repository; markdown render is deterministic; target api/internal/plans." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Store roots at the home store path and reads succeed without the server process; target api/internal/plans storage seam." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: plan create/show/list shape over the durable store; target cli/domains/plans." }
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestRepositorySaveGetRoundTrip",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Plan + phase round-trip through the SQLite repository."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestRenderMarkdownDeterministic",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Structured plans render to deterministic markdown with machine-readable references."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestImportAndMigrate",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Plans can be imported and migrated through the store-backed service seam."
+        }
       ]
     },
     {
       "id": "PM-STORE-002",
       "title": "Phase status is a computed runtime transition, never agent-edited markdown",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "plans",
       "description": "Phase status (todo / active / done / blocked) changes only through a typed state transition (or inference from acceptance/validation passing). The rendered markdown view reflects status but is never the source of truth, so an agent cannot corrupt plan state by editing prose.",
-      "tags": ["plans", "phases", "state"],
+      "tags": [
+        "plans",
+        "phases",
+        "state"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Transitions enforce legal status moves; render reflects but does not drive status; target api/internal/plans." }
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestStatusTransitionLegality",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Typed phase transitions compute plan status and archive remains terminal."
+        }
       ]
     }
   ]

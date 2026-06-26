@@ -3,8 +3,9 @@ package graph
 
 import (
 	"context"
-	"prompt-manager/store"
 	"strings"
+
+	"prompt-manager/store"
 )
 
 // agentNodeSource provides agent listing for graph node construction.
@@ -42,6 +43,7 @@ type Builder struct {
 	scoreFns               []ScoreFn
 	scenarioHealthProvider ScenarioHealthProvider
 	healthConfigProvider   HealthConfigProvider
+	commandValidator       CommandReferenceValidator
 }
 
 // NewBuilder creates a graph builder.
@@ -74,6 +76,12 @@ func (b *Builder) SetScenarioHealthProvider(provider ScenarioHealthProvider) {
 // SetHealthConfigProvider configures graph health scoring controls.
 func (b *Builder) SetHealthConfigProvider(provider HealthConfigProvider) {
 	b.healthConfigProvider = provider
+}
+
+// SetCommandReferenceValidator configures CLI Health-backed validation for
+// command usages detected in skills.
+func (b *Builder) SetCommandReferenceValidator(validator CommandReferenceValidator) {
+	b.commandValidator = validator
 }
 
 // Build constructs the complete graph.
@@ -172,6 +180,7 @@ func (b *Builder) Build(ctx context.Context) (Graph, error) {
 			g.HealthScores = ScoreAll(g, b.scoreFns)
 			g.HealthScores = ApplyCLIHealthPolicy(ctx, g, g.HealthScores, b.scenarioHealthProvider)
 		}
+		g.HealthScores = ApplyCommandReferenceDiagnostics(ctx, g, g.HealthScores, b.commandValidator)
 	}
 
 	return g, nil
@@ -336,13 +345,14 @@ func actionCommandEdges(actions []store.Action) []Edge {
 			break
 		}
 		edges = append(edges, Edge{
-			From:       actionNodeID(action.ID),
-			To:         "cli:" + command,
-			Kind:       EdgeActionCommand,
-			Category:   CodeScenarioCLI,
-			Command:    command,
-			Subcommand: subcommand,
-			SourceFile: "action.json",
+			From:        actionNodeID(action.ID),
+			To:          "cli:" + command,
+			Kind:        EdgeActionCommand,
+			Category:    CodeScenarioCLI,
+			Command:     command,
+			Subcommand:  subcommand,
+			CommandText: strings.Join(action.Command.Argv, " "),
+			SourceFile:  "action.json",
 		})
 	}
 	return edges

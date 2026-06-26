@@ -13,7 +13,7 @@ import (
 // The domain layer never imports proto (api-steer §7).
 
 func resultToProto(r internalvalidation.Result) *sharedv1.ValidationResult {
-	return &sharedv1.ValidationResult{
+	out := &sharedv1.ValidationResult{
 		Id:          r.ID,
 		PlanId:      r.PlanID,
 		PhaseId:     r.PhaseID,
@@ -23,6 +23,19 @@ func resultToProto(r internalvalidation.Result) *sharedv1.ValidationResult {
 		Detail:      r.Detail,
 		RanAt:       r.RanAt,
 	}
+	for _, finding := range r.CommandFindings {
+		out.CommandFindings = append(out.CommandFindings, &sharedv1.CommandValidationFinding{
+			CommandText:     finding.CommandText,
+			Verdict:         finding.Verdict,
+			ValidationLevel: finding.Level,
+			Message:         finding.Message,
+			Location:        finding.Location,
+			IssueCodes:      append([]string(nil), finding.IssueCodes...),
+			Suggestions:     append([]string(nil), finding.Suggestions...),
+			Guidance:        append([]string(nil), finding.Guidance...),
+		})
+	}
+	return out
 }
 
 func referencesToProto(refs []planmodel.Reference) []*sharedv1.Reference {

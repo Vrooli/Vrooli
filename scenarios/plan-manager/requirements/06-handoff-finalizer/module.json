@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "handoff-finalizer",
     "description": "OT-P1-001 — thin guided completion + canonical structured handoff assembled from in-flow state.",
+    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "module": "handoff-finalizer",
     "prd_ref": "PRD.md",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,25 +11,51 @@
     {
       "id": "PM-HANDOFF-001",
       "title": "Thin guided completion assembles the canonical handoff from captured state",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "execution",
       "description": "A complete flow runs a thin guided completion process (nudges to record findings, file bugs, confirm phase status) and assembles the canonical handoff record from state captured in-flow during the run, with full/partial + resume point computed. plan-manager owns only the structured handoff; the prose final-message catch-all is captured by the orchestration layer.",
-      "tags": ["handoff", "completion"],
+      "tags": [
+        "handoff",
+        "completion"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Finalizer assembles canonical handoff from captured decisions/validation/phase state; nudges fire on missing records; target api/internal/execution." }
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestCompleteAssemblesHandoffAndCapturesVelocity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Completion assembles canonical handoff from captured decisions, findings, validation, and phase state."
+        }
       ]
     },
     {
       "id": "PM-HANDOFF-002",
       "title": "Findings are candidates pending operator triage; attribution prevents double-filing",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "execution",
       "description": "Findings recorded during a run are filed as candidate (explicitly unvalidated) entries an operator triages before they become real bugs. The finalizer reconciles against run-id attribution (VROOLI_AGENT_MANAGER_RUN_ID) so anything the agent already did during the run is not double-filed.",
-      "tags": ["handoff", "findings", "attribution"],
+      "tags": [
+        "handoff",
+        "findings",
+        "attribution"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Candidate findings carry unvalidated state; attribution-keyed dedup against same-run actions; target api/internal/execution." }
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestRecordFindingAlwaysCandidate",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recorded findings are candidates and carry run attribution."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestRecordFindingDedupByRunIDAndTitle",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Attribution and normalized title prevent double-filing within the same run."
+        }
       ]
     }
   ]

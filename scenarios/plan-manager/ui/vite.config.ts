@@ -28,7 +28,9 @@ export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 
   return {
-    base: './',  // Required for tunnel/proxy contexts
+    // INTEROP-CRITICAL: Relative asset URLs keep this iframe-hosted UI working
+    // behind Vrooli lifecycle tunnels, nested proxy paths, and the host shell.
+    base: './',
     plugins: [react(), stringsCodegen()],
     resolve: isProfile
       ? {

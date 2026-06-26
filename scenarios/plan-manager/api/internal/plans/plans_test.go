@@ -79,6 +79,7 @@ func samplePlan() plans.Plan {
 	}
 }
 
+// [REQ:PM-STORE-001]
 func TestRepositorySaveGetRoundTrip(t *testing.T) {
 	d, clk := newDB(t)
 	repo := plans.NewSQLiteRepository(d, clk)
@@ -159,6 +160,7 @@ func TestContentHashStableAndSensitive(t *testing.T) {
 	require.NotEqual(t, a.ContentHash, got.ContentHash)
 }
 
+// [REQ:PM-STORE-002]
 func TestStatusTransitionLegality(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()
@@ -231,6 +233,7 @@ func TestAddPhaseAppendsAndOrders(t *testing.T) {
 	require.Equal(t, plans.PhaseStatusTodo, p.Phases[2].Status)
 }
 
+// [REQ:PM-STORE-001]
 func TestRenderMarkdownDeterministic(t *testing.T) {
 	p := samplePlan()
 	p.Status = plans.PlanStatusActive
@@ -279,6 +282,7 @@ func TestSupersessionResolution(t *testing.T) {
 	require.Len(t, all, 1)
 }
 
+// [REQ:PM-GRAPH-001]
 func TestContentHashDerivesSupersession(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()
@@ -302,6 +306,7 @@ func TestContentHashDerivesSupersession(t *testing.T) {
 	require.Equal(t, oldPlan.ID, edges[0].ToPlanID)
 }
 
+// [REQ:PM-GRAPH-001]
 func TestLinkDependencyCreatesGraphEdge(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()
@@ -354,6 +359,7 @@ func TestListFilters(t *testing.T) {
 	require.Len(t, archived, 1)
 }
 
+// [REQ:PM-GRAPH-001]
 func TestTemplates(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()
@@ -438,6 +444,7 @@ func TestParsePlanMarkdownRejectsMalformedMachineMarkup(t *testing.T) {
 	}
 }
 
+// [REQ:PM-STORE-001]
 func TestImportAndMigrate(t *testing.T) {
 	d, clk := newDB(t)
 	reader := fakeReader{files: map[string]string{

@@ -31,9 +31,10 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		commandText = strings.TrimSpace(ctx.Positional("command-ref"))
 	}
 	resp, err := h.client.ValidateCommandReference(context.Background(), connect.NewRequest(&commandv1.ValidateCommandReferenceRequest{
-		CommandText: commandText,
-		Policy:      parsePolicy(ctx.Flag("policy")),
-		Qualifiers:  parseCSV(ctx.Flag("qualifiers")),
+		CommandText:   commandText,
+		Policy:        parsePolicy(ctx.Flag("policy")),
+		Qualifiers:    parseCSV(ctx.Flag("qualifiers")),
+		RefreshPolicy: parseRefreshPolicy(ctx.Flag("refresh")),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("validate command reference", err, nil)
@@ -64,6 +65,17 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		ResultsHeading: "Validation",
 		Results:        results,
 	})
+}
+
+func parseRefreshPolicy(s string) commandv1.CommandReferenceRefreshPolicy {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "never", "":
+		return commandv1.CommandReferenceRefreshPolicy_COMMAND_REFERENCE_REFRESH_POLICY_NEVER
+	case "on-miss", "on_miss":
+		return commandv1.CommandReferenceRefreshPolicy_COMMAND_REFERENCE_REFRESH_POLICY_ON_MISS
+	default:
+		return commandv1.CommandReferenceRefreshPolicy_COMMAND_REFERENCE_REFRESH_POLICY_UNSPECIFIED
+	}
 }
 
 func parsePolicy(s string) commandv1.CommandReferencePolicy {

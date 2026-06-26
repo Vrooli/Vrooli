@@ -41,14 +41,15 @@ type Node struct {
 
 // Edge represents a directed relationship between two nodes.
 type Edge struct {
-	From       string       `json:"from"`
-	To         string       `json:"to"`
-	Kind       EdgeKind     `json:"kind"`
-	Category   CodeCategory `json:"category,omitempty"`   // Only set for EdgeCodeUsage edges
-	Command    string       `json:"command,omitempty"`    // Canonical command token (e.g. "vrooli", "grep")
-	Subcommand string       `json:"subcommand,omitempty"` // First non-flag argument, when present
-	SourceFile string       `json:"sourceFile,omitempty"`
-	LineNumber int          `json:"lineNumber,omitempty"`
+	From        string       `json:"from"`
+	To          string       `json:"to"`
+	Kind        EdgeKind     `json:"kind"`
+	Category    CodeCategory `json:"category,omitempty"`    // Only set for EdgeCodeUsage edges
+	Command     string       `json:"command,omitempty"`     // Canonical command token (e.g. "vrooli", "grep")
+	Subcommand  string       `json:"subcommand,omitempty"`  // First non-flag argument, when present
+	CommandText string       `json:"commandText,omitempty"` // Full detected command text, when available
+	SourceFile  string       `json:"sourceFile,omitempty"`
+	LineNumber  int          `json:"lineNumber,omitempty"`
 }
 
 // HealthMessage explains why a node's health was scored a certain way

@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "execution-context",
     "description": "OT-P0-003 — guided execution where status/next act as a just-in-time context server.",
+    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "module": "execution-context",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,26 +11,59 @@
     {
       "id": "PM-EXEC-001",
       "title": "status/next inject phase-scoped context just-in-time",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "description": "The status/next commands return the current phase, what is next, phase-scoped required-reading + reminders, the last validation results, and current staleness — so the agent does not carry that procedural knowledge in context.",
-      "tags": ["execution", "context", "reminders"],
+      "tags": [
+        "execution",
+        "context",
+        "reminders"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "next returns the earliest unfinished phase + its scoped reading/reminders; target api/internal/execution." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: status/next output shape includes validation + staleness summary; target cli/domains/execution." }
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestGetStatusInjectsPhaseScopedContext",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Status injects current phase, required reading, reminders, next phase, staleness, and resume point."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestGetNextAdvancesPastCurrentUnfinishedPhase",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Next advances to a later actionable phase while preserving the resume point."
+        }
       ]
     },
     {
       "id": "PM-EXEC-002",
       "title": "Full vs partial completion and resume point are computed",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "description": "Whether a run completed the whole plan or part of it, and where to resume, are derived from phase status — not narrated by the agent. A partial run yields a deterministic resume point.",
-      "tags": ["execution", "resume", "phases"],
+      "tags": [
+        "execution",
+        "resume",
+        "phases"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Resume point = earliest non-done phase; full/partial derived from phase status set; target api/internal/execution." }
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestCompletenessFullVsPartial",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Full versus partial completion is derived from phase status."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestCompleteAssemblesHandoffAndCapturesVelocity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Complete computes full handoff state with no resume point when every phase is done."
+        }
       ]
     }
   ]

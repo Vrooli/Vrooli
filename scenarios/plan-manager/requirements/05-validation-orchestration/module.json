@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "validation-orchestration",
     "description": "OT-P0-005 — baseline-aware validation: compute the exact check set, run on request, verify DoD.",
+    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "module": "validation-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,26 +11,51 @@
     {
       "id": "PM-VALID-001",
       "title": "Compute the exact baseline/validation command set from connected code",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "validation",
       "description": "From a plan's connected code, derive the precise set of baseline/validation commands needed across all affected locations (not just scenarios) — so the agent does not have to reason about which scenarios to baseline.",
-      "tags": ["validation", "baseline", "orchestration"],
+      "tags": [
+        "validation",
+        "baseline",
+        "orchestration"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Command-set derivation maps connected code -> minimal baseline/diff command set; target api/internal/validation." }
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestDeriveBaselineScope",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Connected code maps to deduplicated scenario baseline commands and repo diff locations."
+        }
       ]
     },
     {
       "id": "PM-VALID-002",
       "title": "Run validation on request and verify DoD against the regression anchor",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "validation",
       "description": "On request (agent in the loop) the scenario runs the computed checks and returns results + staleness, and verifies Definition-of-Done against the regression anchor as an oracle rather than relying on a narrated claim. Agents may run baselines; they never commit.",
-      "tags": ["validation", "definition-of-done"],
+      "tags": [
+        "validation",
+        "definition-of-done"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Runner behind a seam; DoD verdict derives from baseline diff exit status; target api/internal/validation." },
-        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: run computed baselines for a plan and surface pass/regression + staleness." }
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestRunValidationVerdicts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Validation verdicts derive from command runner outcomes without false passes."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestVerifyDoDDerivesFromReferences",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Definition-of-done verification derives a baseline oracle from connected code references."
+        }
       ]
     }
   ]

@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "reference-staleness",
     "description": "OT-P0-004 — code-reference tracking and computed staleness tiers.",
+    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "module": "reference-staleness",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,25 +11,57 @@
     {
       "id": "PM-REF-001",
       "title": "Record code references for existing and proposed code",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "validation",
       "description": "Every referenced location (existing and proposed code) is captured via the machine-readable grammar ([CODE:], [REQ:]) and resolved against code-facts, so a plan declares its connected code explicitly.",
-      "tags": ["references", "code-facts"],
+      "tags": [
+        "references",
+        "code-facts"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Reference parsing + resolution behind a code-facts seam; unresolved refs are flagged not dropped; target api/internal/validation." }
+        {
+          "type": "test",
+          "ref": "api/handlers/validation/codefacts_resolver_test.go::TestCodeFactsReferenceResolverUsesConnectEvidence",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The validation handler resolves code references through code-facts evidence."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestResolveReferencesDegradesWhenResolverDown",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Resolver failures degrade honestly without dropping or falsely resolving references."
+        }
       ]
     },
     {
       "id": "PM-STALE-001",
       "title": "Compute staleness tiers from referenced-code change",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "validation",
       "description": "Given a plan's references, compute a staleness tier — fresh, lightly-stale (small diffs in referenced code), or definitely-stale (referenced locations moved or deleted) — reusing the freshness engine's content-hash mechanism, so a plan that has sat around has a known validity.",
-      "tags": ["staleness", "freshness"],
+      "tags": [
+        "staleness",
+        "freshness"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Tier derivation: no change -> fresh; small diff -> lightly-stale; moved/deleted -> definitely-stale; target api/internal/validation." }
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestComputeStalenessTiering",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Staleness reports the worst tier across referenced code."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestStalenessRefinesFreshToLightlyStaleViaGit",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Git-sourced drift upgrades fresh references to lightly stale when referenced code changed."
+        }
       ]
     }
   ]

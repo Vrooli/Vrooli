@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && tsc --noEmit && vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile)",
+    "build": "pnpm strings:gen && tsc --noEmit && vite build",
     "build:profile": "pnpm strings:gen && tsc --noEmit && vite build --mode profile",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -29,6 +29,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.18.2",
+    "helmet": "^6.1.0",
     "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
     "react": "^18.3.1",

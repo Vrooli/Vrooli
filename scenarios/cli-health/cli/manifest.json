@@ -56,7 +56,8 @@
           "flags": [
             { "name": "command", "description": "Command reference to validate" },
             { "name": "policy", "default": "docs", "description": "Validation policy: docs | skill | plan | action" },
-            { "name": "qualifiers", "description": "Comma-separated cli marker qualifiers such as future,old,external,literal" }
+            { "name": "qualifiers", "description": "Comma-separated cli marker qualifiers such as future,old,external,literal" },
+            { "name": "refresh", "default": "never", "description": "Refresh policy: never | on-miss" }
           ],
           "binding": { "kind": "connect-rpc", "service": "CommandReferenceValidationService", "method": "ValidateCommandReference" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }

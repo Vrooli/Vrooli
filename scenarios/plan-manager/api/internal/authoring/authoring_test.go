@@ -160,6 +160,7 @@ func TestStartSessionSeedsSkeletonAndPointer(t *testing.T) {
 	require.Error(t, err)
 }
 
+// [REQ:PM-AUTHOR-001]
 func TestSessionProgressionToComplete(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
@@ -211,6 +212,7 @@ func TestGetSectionAndPersistenceAcrossCalls(t *testing.T) {
 	require.Error(t, err)
 }
 
+// [REQ:PM-AUTHOR-001]
 func TestStructureGateRejectsEmptyMandatoryAndAnchor(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
@@ -330,6 +332,7 @@ func TestFinalizeRejectsInvalidCLIReferences(t *testing.T) {
 	require.Equal(t, 0, writer.calls)
 }
 
+// [REQ:PM-AUTHOR-002]
 func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 	svc := newService(t, authoring.Deps{
 		Writer:       &fakePlanWriter{},
@@ -365,6 +368,7 @@ func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 	}
 }
 
+// [REQ:PM-AUTHOR-002]
 func TestAutofilledReferencesSurviveFinalize(t *testing.T) {
 	writer := &fakePlanWriter{}
 	svc := newService(t, authoring.Deps{

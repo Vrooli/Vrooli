@@ -75,6 +75,18 @@ Commands:
     skill              Manage skills (list|show|read|add)
 `
 
+const promptManagerSkillHelp = `prompt-manager skill - Manage skills (list|show|read|add|sync)
+
+Usage:
+  prompt-manager skill <subcommand> [args]
+
+Subcommands:
+  list, ls              List all skills
+  show, get <id>        Show skill details
+  read <identifier>...  Read skills (content or combined output)
+  sync                  Sync skills with hash-based change detection
+`
+
 func staticRunner(t *testing.T, table map[string]string) (Runner, *int) {
 	t.Helper()
 	calls := 0
@@ -222,6 +234,36 @@ func TestParseHelpTree_CategoryLabelsIgnored(t *testing.T) {
 	for _, want := range []string{"version", "status", "skill"} {
 		if !names[want] {
 			t.Errorf("missing command %q; got names=%v", want, names)
+		}
+	}
+}
+
+func TestParseHelpTree_ParsesCommandRowsWithUsageTail(t *testing.T) {
+	run, _ := staticRunner(t, map[string]string{
+		"prompt-manager":            promptManagerHelp,
+		"prompt-manager version":    "1.0.0",
+		"prompt-manager status":     "ok",
+		"prompt-manager skill":      promptManagerSkillHelp,
+		"prompt-manager skill list": "Usage: prompt-manager skill list\n\nList all skills\n",
+		"prompt-manager skill show": "Usage: prompt-manager skill show <id>\n\nShow skill details\n",
+		"prompt-manager skill read": "Usage: prompt-manager skill read <identifier>...\n\nRead skills\n",
+		"prompt-manager skill sync": "Usage: prompt-manager skill sync\n\nSync skills\n",
+	})
+
+	records := ParseHelpTree(context.Background(), run, "prompt-manager", HelpTreeOptions{Origin: "prompt-manager"})
+	paths := make(map[string]Command, len(records))
+	for _, r := range records {
+		paths[r.FullPath] = r
+	}
+
+	for _, want := range []string{
+		"prompt-manager skill list",
+		"prompt-manager skill show",
+		"prompt-manager skill read",
+		"prompt-manager skill sync",
+	} {
+		if _, ok := paths[want]; !ok {
+			t.Errorf("missing command %q; got %v", want, keys(paths))
 		}
 	}
 }

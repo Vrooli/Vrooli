@@ -3,9 +3,10 @@ package graph
 
 import (
 	"context"
-	"prompt-manager/store"
 	"regexp"
 	"strings"
+
+	"prompt-manager/store"
 )
 
 // Regex patterns for reference extraction (ported from xrefs/scanner.go).
@@ -359,14 +360,15 @@ func (s *Scanner) codeUsageEdgesFromContent(sourceID, sourceFile, content string
 		}
 		seen[key] = true
 		edges = append(edges, Edge{
-			From:       sourceID,
-			To:         to,
-			Kind:       EdgeCodeUsage,
-			Category:   cr.Category,
-			Command:    command,
-			Subcommand: subcommand,
-			SourceFile: sourceFile,
-			LineNumber: cr.Line,
+			From:        sourceID,
+			To:          to,
+			Kind:        EdgeCodeUsage,
+			Category:    cr.Category,
+			Command:     command,
+			Subcommand:  subcommand,
+			CommandText: cr.Value,
+			SourceFile:  sourceFile,
+			LineNumber:  cr.Line,
 		})
 	}
 	return edges

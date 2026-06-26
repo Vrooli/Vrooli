@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"errors"
+
 	"prompt-manager/store"
 )
 
@@ -165,6 +166,23 @@ type mockGraphScanner struct {
 
 func (m *mockGraphScanner) ScanAll(_ context.Context) ([]Edge, error) {
 	return m.edges, m.err
+}
+
+type mockCommandReferenceValidator struct {
+	results map[string]CommandReferenceResult
+	err     error
+	calls   []CommandReferenceRequest
+}
+
+func (m *mockCommandReferenceValidator) ValidateCommandReference(_ context.Context, req CommandReferenceRequest) (CommandReferenceResult, error) {
+	m.calls = append(m.calls, req)
+	if m.err != nil {
+		return CommandReferenceResult{}, m.err
+	}
+	if got, ok := m.results[req.CommandText]; ok {
+		return got, nil
+	}
+	return CommandReferenceResult{Verdict: "valid", ValidationLevel: "argument_shape_validated"}, nil
 }
 
 // --- Handler mocks (used by handlers_test.go) ---

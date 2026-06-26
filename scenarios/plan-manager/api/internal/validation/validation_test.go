@@ -67,6 +67,7 @@ func planWith(refs []internalplans.Reference, phases []internalplans.Phase) inte
 
 // --- tests ---
 
+// [REQ:PM-REF-001]
 func TestResolveReferencesDegradesWhenResolverDown(t *testing.T) {
 	plan := planWith([]internalplans.Reference{
 		{Kind: internalplans.ReferenceCode, Target: "a.go"},
@@ -92,6 +93,7 @@ func TestResolveReferencesResolverError(t *testing.T) {
 	require.Equal(t, internalplans.ResolutionUnresolved, report.References[0].Resolution)
 }
 
+// [REQ:PM-STALE-001]
 func TestComputeStalenessTiering(t *testing.T) {
 	plan := planWith([]internalplans.Reference{
 		{Kind: internalplans.ReferenceCode, Target: "a.go"},
@@ -112,6 +114,7 @@ func TestComputeStalenessTiering(t *testing.T) {
 // reference the existence floor calls FRESH (still present) is upgraded to
 // LIGHTLY_STALE when git shows its code changed since the anchor HeadSha — with a
 // non-zero change factor — while no change leaves it FRESH.
+// [REQ:PM-STALE-001]
 func TestStalenessRefinesFreshToLightlyStaleViaGit(t *testing.T) {
 	plan := internalplans.Plan{
 		ID: "p1", Slug: "p1", Title: "P",
@@ -176,6 +179,7 @@ func TestComputeStalenessUnknownWhenComputerDown(t *testing.T) {
 	require.True(t, report.Degraded)
 }
 
+// [REQ:PM-VALID-001]
 func TestDeriveBaselineScope(t *testing.T) {
 	plan := internalplans.Plan{
 		ID:   "p1",
@@ -220,6 +224,7 @@ func TestDeriveBaselineScopeDoesNotFabricateGCTCommandWithoutName(t *testing.T) 
 	require.Empty(t, scope.Commands, "GCT baseline diff requires a verified --name")
 }
 
+// [REQ:PM-VALID-002]
 func TestRunValidationVerdicts(t *testing.T) {
 	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)
 	plan.RegressionAnchor = internalplans.RegressionAnchor{BaselineName: "impl"}
@@ -271,6 +276,7 @@ func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 			ValidationLevel: "owner_identified",
 			Issues:          []validation.CommandIssue{{Code: "unknown_command", Message: "command path was not found"}},
 			Suggestions:     []string{"knowledge-observatory docs health"},
+			Guidance:        []string{"Fix the command to a current catalog command."},
 		},
 	}}
 	svc := validation.NewService(validation.Deps{
@@ -282,6 +288,9 @@ func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, validation.VerdictFail, res.Verdict)
 	require.Len(t, res.CommandFindings, 2, "future refs should be skipped")
+	require.Equal(t, []string{"unknown_command"}, res.CommandFindings[1].IssueCodes)
+	require.Equal(t, []string{"knowledge-observatory docs health"}, res.CommandFindings[1].Suggestions)
+	require.Equal(t, []string{"Fix the command to a current catalog command."}, res.CommandFindings[1].Guidance)
 	require.Len(t, validator.calls, 2)
 	require.Contains(t, res.Detail, "command reference validation")
 }
@@ -345,6 +354,7 @@ func TestVerdictHonestyByExitClass(t *testing.T) {
 // plan carries the anchor as captured prose with NO explicit commands, yet DoD
 // must still verify against a real oracle derived from the plan's connected code
 // (it used to always degrade to UNKNOWN/not-met).
+// [REQ:PM-VALID-002]
 func TestVerifyDoDDerivesFromReferences(t *testing.T) {
 	wizardPlan := internalplans.Plan{
 		ID:    "p1",

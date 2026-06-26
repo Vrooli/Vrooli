@@ -3,8 +3,10 @@ package graph
 import (
 	"context"
 	"errors"
-	"prompt-manager/store"
+	"strings"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 // ---------------------------------------------------------------------------
@@ -274,6 +276,63 @@ func TestBuild_HealthScores_CLIOverridesApplied(t *testing.T) {
 	}
 	if grepScore.Score != 0 {
 		t.Fatalf("expected cli:grep score 0, got %f", grepScore.Score)
+	}
+}
+
+func TestBuild_SkillCommandReferencesValidatedThroughCLIHealth(t *testing.T) {
+	validator := &mockCommandReferenceValidator{results: map[string]CommandReferenceResult{
+		"vrooli scenario tost cli-health": {
+			Verdict:     "invalid",
+			Issues:      []CommandIssue{{Code: "command_not_found", Message: "unknown command path"}},
+			Suggestions: []string{"vrooli scenario test"},
+			Guidance:    []string{"fix this to a current command"},
+		},
+	}}
+	b := NewBuilder(
+		&mockAgentNodeSource{},
+		&mockTeamNodeSource{},
+		&mockSkillNodeSource{skills: []store.Skill{{ID: "skill-1", Name: "Skill"}}},
+		&mockGraphScanner{edges: []Edge{{
+			From:        "skill-1",
+			To:          "cli:vrooli",
+			Kind:        EdgeCodeUsage,
+			Category:    CodeScenarioCLI,
+			Command:     "vrooli",
+			Subcommand:  "scenario",
+			CommandText: "vrooli scenario tost cli-health",
+		}}},
+		DefaultScoreFns(),
+	)
+	b.SetCommandReferenceValidator(validator)
+
+	g, err := b.Build(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(validator.calls) != 1 || validator.calls[0].CommandText != "vrooli scenario tost cli-health" {
+		t.Fatalf("unexpected validator calls: %+v", validator.calls)
+	}
+	var skillScore *HealthScore
+	for i := range g.HealthScores {
+		if g.HealthScores[i].NodeID == "skill-1" {
+			skillScore = &g.HealthScores[i]
+			break
+		}
+	}
+	if skillScore == nil {
+		t.Fatalf("expected health score for skill-1: %+v", g.HealthScores)
+	}
+	if skillScore.Score > 0.2 {
+		t.Fatalf("invalid command should cap skill health, got %f", skillScore.Score)
+	}
+	found := false
+	for _, msg := range skillScore.Messages {
+		if msg.Key == "skill.command.invalid" && msg.Severity == severityCritical && strings.Contains(msg.Recommendation, "vrooli scenario test") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("missing invalid command diagnostic: %+v", skillScore.Messages)
 	}
 }
 

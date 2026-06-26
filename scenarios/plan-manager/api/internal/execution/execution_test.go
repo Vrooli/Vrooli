@@ -164,6 +164,7 @@ func TestResumePointDerivationEarliestNonDone(t *testing.T) {
 	require.Equal(t, "ph-2", e.CurrentPhaseID, "resume point skips the done phase to the earliest non-done one")
 }
 
+// [REQ:PM-EXEC-001]
 func TestGetStatusInjectsPhaseScopedContext(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	e, err := h.svc.Start(context.Background(), "plan-1", "")
@@ -228,6 +229,7 @@ func TestGetNextAdvancesAndReportsComplete(t *testing.T) {
 	require.Equal(t, execution.CompletenessFull, pctx.Completeness)
 }
 
+// [REQ:PM-EXEC-001]
 func TestGetNextAdvancesPastCurrentUnfinishedPhase(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	e, err := h.svc.Start(context.Background(), "plan-1", "")
@@ -273,6 +275,7 @@ func TestRecordDecisionPersistsForHandoff(t *testing.T) {
 	require.Equal(t, "chose SQLite", d.Summary)
 }
 
+// [REQ:PM-HANDOFF-002]
 func TestRecordFindingAlwaysCandidate(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	e, err := h.svc.Start(context.Background(), "plan-1", "run-x")
@@ -283,6 +286,7 @@ func TestRecordFindingAlwaysCandidate(t *testing.T) {
 	require.Equal(t, "run-x", f.AttributionRunID)
 }
 
+// [REQ:PM-HANDOFF-002]
 func TestRecordFindingDedupByRunIDAndTitle(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	e, err := h.svc.Start(context.Background(), "plan-1", "run-dup")
@@ -314,6 +318,7 @@ func TestRecordFindingDedupByTitleWhenNoRunID(t *testing.T) {
 	require.Equal(t, first.ID, second.ID, "no run id => dedup by title within the execution")
 }
 
+// [REQ:PM-EXEC-002]
 func TestCompletenessFullVsPartial(t *testing.T) {
 	require := require.New(t)
 
@@ -336,6 +341,7 @@ func TestCompletenessFullVsPartial(t *testing.T) {
 	require.Equal(execution.CompletenessFull, pctx2.Completeness)
 }
 
+// [REQ:PM-HANDOFF-001] [REQ:PM-EXEC-002] [REQ:PM-VEL-001]
 func TestCompleteAssemblesHandoffAndCapturesVelocity(t *testing.T) {
 	validator := fakeValidator{
 		hasResult: true,

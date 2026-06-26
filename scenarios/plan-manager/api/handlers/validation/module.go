@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"plan-manager/internal/clock"
 	"plan-manager/internal/module"
@@ -77,8 +78,10 @@ func (a planAdapter) GetPlan(ctx context.Context, idOrSlug string) (internalplan
 // env, then a walk up from the working directory for a `.git` marker, then the
 // working directory as a last resort (references then resolve relative to it).
 func repoRoot() string {
-	if root := os.Getenv("VROOLI_REPO_ROOT"); root != "" {
-		return root
+	if root, ok := os.LookupEnv("VROOLI_REPO_ROOT"); ok {
+		if root = strings.TrimSpace(root); root != "" {
+			return root
+		}
 	}
 	dir, err := os.Getwd()
 	if err != nil {

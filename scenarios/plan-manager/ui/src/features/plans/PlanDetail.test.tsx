@@ -9,9 +9,11 @@ import { create } from "@bufbuild/protobuf";
 
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
-import { setLocale } from "../../i18n";
+import { i18n, setLocale } from "../../i18n";
+import { strings } from "../../consts/strings";
 import {
   PlanSchema,
+  PlanEdgeSchema,
   PlanStatus,
   PhaseSchema,
   PhaseStatus,
@@ -96,6 +98,33 @@ describe("PlanDetail", () => {
 
     expect(await screen.findByTestId(selectors.pages.planDetail)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.plans.phase({ id: "p1" }))).toBeInTheDocument();
+  });
+
+  it("renders empty optional plan sections without placeholders leaking", async () => {
+    getPlan.mockResolvedValue(create(PlanSchema, { id: "plan-empty", title: "Empty plan" }));
+    getGraph.mockResolvedValue([]);
+
+    renderWithProviders(<PlanDetail planId="plan-empty" />);
+
+    expect(await screen.findByTestId(selectors.pages.planDetail)).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.noPhases))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.noReferences))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.anchorNone))).toBeInTheDocument();
+    expect(await screen.findByText(i18n.t(strings.pages.plans.detail.edgeNone))).toBeInTheDocument();
+  });
+
+  it("renders supersession graph directions", async () => {
+    getPlan.mockResolvedValue(fullPlan);
+    getGraph.mockResolvedValue([
+      create(PlanEdgeSchema, { fromPlanId: "plan-1", toPlanId: "old-plan", kind: "supersedes" }),
+      create(PlanEdgeSchema, { fromPlanId: "new-plan", toPlanId: "plan-1", kind: "supersedes" }),
+    ]);
+
+    renderWithProviders(<PlanDetail planId="plan-1" />);
+
+    const graph = await screen.findByTestId(selectors.plans.detailGraph);
+    expect(graph.textContent).toContain("old-plan");
+    expect(graph.textContent).toContain("new-plan");
   });
 
   it("lazily fetches and shows rendered markdown when toggled", async () => {

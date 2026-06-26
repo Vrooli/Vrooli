@@ -6,6 +6,18 @@ import (
 	"unicode"
 )
 
+type shellSyntaxError struct {
+	Kind   string
+	Symbol string
+}
+
+func (e shellSyntaxError) Error() string {
+	if e.Symbol == "" {
+		return "unsupported shell " + e.Kind
+	}
+	return fmt.Sprintf("unsupported shell %s %q", e.Kind, e.Symbol)
+}
+
 func tokenizeCommand(s string) ([]string, error) {
 	var out []string
 	var b strings.Builder
@@ -39,10 +51,14 @@ func tokenizeCommand(s string) ([]string, error) {
 			continue
 		}
 		switch r {
-		case '\n', '\r', '|', ';', '<', '>', '&', '`':
-			return nil, fmt.Errorf("unsupported shell syntax %q", string(r))
+		case '<', '>':
+			return nil, shellSyntaxError{Kind: "redirection", Symbol: string(r)}
+		case '|', ';', '&', '`':
+			return nil, shellSyntaxError{Kind: "syntax", Symbol: string(r)}
+		case '\n', '\r':
+			return nil, shellSyntaxError{Kind: "syntax", Symbol: "newline"}
 		case '$':
-			return nil, fmt.Errorf("unsupported shell expansion")
+			return nil, shellSyntaxError{Kind: "expansion"}
 		case '\'', '"':
 			quote = r
 		default:

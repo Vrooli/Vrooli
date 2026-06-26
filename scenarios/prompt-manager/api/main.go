@@ -220,7 +220,7 @@ func main() {
 	tagsHandlers := tags.NewHandlers(tagsRepo)
 	testingHandlers := testing.NewHandlers(testingRepo, ollamaClient, skillStoreAdapter)
 	templateHandlers := templates.NewHandlers(templates.NewStore(roots.Config))
-	actionService := actions.NewService(fileStore.Actions(), actions.NewManifestCommandResolver(roots.Config))
+	actionService := actions.NewService(fileStore.Actions(), actions.NewCLIHealthCommandResolver())
 	actionHandlers := actions.NewHandlers(actionService)
 
 	// Agent handlers (new storage-backed, replaces member handlers)
@@ -368,6 +368,7 @@ func main() {
 	graphHealthConfigStore := graph.NewHealthConfigStore(roots.Config)
 	graphBuilder.SetHealthConfigProvider(graphHealthConfigStore)
 	graphBuilder.SetScenarioHealthProvider(graph.NewScenarioCompletenessCLIProvider(15 * time.Second))
+	graphBuilder.SetCommandReferenceValidator(graph.NewCLIHealthCommandValidator())
 	graphIndex := graph.NewIndexStore(roots.RuntimeCache, graphBuilder)
 	// Always regenerate on startup so the index reflects the current detection code.
 	go func() {

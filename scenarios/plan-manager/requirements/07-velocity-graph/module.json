@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "velocity-graph",
     "description": "OT-P1-002 — per-plan velocity emitted as a signal, plus the plan supersession/dependency graph.",
+    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "module": "velocity-graph",
     "prd_ref": "PRD.md",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,25 +11,59 @@
     {
       "id": "PM-VEL-001",
       "title": "Track per-plan velocity and emit it to meta-optimization trials",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "analytics",
       "description": "Capture per-plan velocity (wall-time + tokens + iterations to complete; full vs partial) as a historical signal and emit it to meta-optimization-manager trials, so plan throughput becomes a measurable local-model-readiness input.",
-      "tags": ["velocity", "analytics", "meta-optimization"],
+      "tags": [
+        "velocity",
+        "analytics",
+        "meta-optimization"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Velocity aggregation per plan/run; emit behind a seam that degrades when the sink is down; target api/internal/execution." }
+        {
+          "type": "test",
+          "ref": "api/internal/execution/execution_test.go::TestCompleteAssemblesHandoffAndCapturesVelocity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Completion captures local velocity and emits it through the velocity sink seam."
+        }
       ]
     },
     {
       "id": "PM-GRAPH-001",
       "title": "Maintain a plan supersession/dependency graph and per-surface templates",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "plans",
       "description": "Track supersession/dependency edges between plans (using the stored content hash) and provide per-surface plan templates (CLI/proto/UI) so a new plan starts pre-scaffolded for its surface.",
-      "tags": ["plans", "graph", "templates"],
+      "tags": [
+        "plans",
+        "graph",
+        "templates"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Supersession edges resolve; templates seed the correct sections per surface; target api/internal/plans." }
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestContentHashDerivesSupersession",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Matching content hashes derive supersession edges."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestLinkDependencyCreatesGraphEdge",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Dependency links are first-class graph edges."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/plans/plans_test.go::TestTemplates",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Per-surface templates seed structured plan phases."
+        }
       ]
     }
   ]

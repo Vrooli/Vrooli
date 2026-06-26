@@ -2,6 +2,7 @@ package commandref
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,8 +13,10 @@ import (
 	"cli-health/internal/aisearch"
 )
 
-type Verdict string
-type Level string
+type (
+	Verdict string
+	Level   string
+)
 
 const (
 	VerdictValid       Verdict = "valid"
@@ -55,13 +58,18 @@ type Result struct {
 }
 
 type Request struct {
-	CommandText string
-	Policy      string
-	Qualifiers  []string
+	CommandText   string
+	Policy        string
+	Qualifiers    []string
+	RefreshPolicy string
 }
 
 type Service struct {
 	Discovery aisearch.DiscoverySource
+}
+
+type refreshDiscoverySource interface {
+	RefreshOwner(ctx context.Context, owner string) ([]aisearch.CommandRecord, bool, error)
 }
 
 func (s Service) Validate(ctx context.Context, req Request) Result {
@@ -88,7 +96,7 @@ func (s Service) Validate(ctx context.Context, req Request) Result {
 		res.Verdict = VerdictUnsupported
 		res.Level = LevelUnsupportedSyntax
 		res.Issues = append(res.Issues, Issue{Code: "unsupported_shell_syntax", Message: err.Error(), Severity: "error"})
-		res.Guidance = append(res.Guidance, "Use a single command reference without pipes, redirects, command substitution, or chained shell syntax.")
+		res.Guidance = appendUnsupportedSyntaxGuidance(res.Guidance, err)
 		return res
 	}
 	if len(tokens) == 0 {
@@ -120,6 +128,17 @@ func (s Service) Validate(ctx context.Context, req Request) Result {
 	res.Level = LevelOwnerIdentified
 
 	match, argTokens, ok := longestMatch(tokens, records)
+	if !ok && shouldRefreshOnMiss(req.RefreshPolicy) {
+		if refreshed, refreshedKnown, refreshErr := s.refreshOwner(ctx, owner); refreshErr != nil {
+			res.Issues = append(res.Issues, Issue{Code: "catalog_refresh_failed", Message: refreshErr.Error(), Severity: "warning"})
+		} else if refreshedKnown {
+			records = refreshed
+			match, argTokens, ok = longestMatch(tokens, records)
+			if !ok {
+				res.Issues = append(res.Issues, Issue{Code: "catalog_refresh_attempted", Message: "catalog was refreshed for the command owner, but the command path was still not found", Severity: "info"})
+			}
+		}
+	}
 	if !ok {
 		res.Verdict = VerdictInvalid
 		res.Issues = append(res.Issues, Issue{Code: "unknown_command", Message: "command path was not found in the CLI Health catalog", Severity: "error"})
@@ -148,6 +167,21 @@ func (s Service) Validate(ctx context.Context, req Request) Result {
 	return res
 }
 
+func appendUnsupportedSyntaxGuidance(guidance []string, err error) []string {
+	var syntaxErr shellSyntaxError
+	if errors.As(err, &syntaxErr) && syntaxErr.Kind == "redirection" {
+		return append(guidance,
+			"`<` and `>` are shell redirection operators in executable shell snippets. If this was a placeholder, use a shell-safe value like `TOKEN_VALUE`; if the text is not meant to run, mark it as literal/text instead.",
+		)
+	}
+	return append(guidance, "Use a single command reference without pipes, redirects, command substitution, or chained shell syntax.")
+}
+
+func shouldRefreshOnMiss(policy string) bool {
+	policy = strings.ToLower(strings.TrimSpace(policy))
+	return policy == "on_miss" || policy == "command_reference_refresh_policy_on_miss"
+}
+
 func requiresExistence(qualifiers []string) bool {
 	return markedrefs.RequiresExistence(markedrefs.Reference{
 		Marker:     markedrefs.MarkerCLI,
@@ -173,6 +207,14 @@ func (s Service) ownerRecords(ctx context.Context, owner string) ([]aisearch.Com
 		}
 	}
 	return nil, false, nil
+}
+
+func (s Service) refreshOwner(ctx context.Context, owner string) ([]aisearch.CommandRecord, bool, error) {
+	refresher, ok := s.Discovery.(refreshDiscoverySource)
+	if !ok {
+		return nil, false, nil
+	}
+	return refresher.RefreshOwner(ctx, owner)
 }
 
 func longestMatch(tokens []string, records []aisearch.CommandRecord) (aisearch.CommandRecord, []string, bool) {

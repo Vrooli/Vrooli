@@ -21,6 +21,16 @@ func TestResultToProto(t *testing.T) {
 		CommandsRun: []string{"git-control-tower baseline diff --scenario foo --name impl"},
 		Detail:      "regression",
 		RanAt:       "t",
+		CommandFindings: []internalvalidation.CommandFinding{{
+			CommandText: "vrooli scenario tost cli-health",
+			Verdict:     "invalid",
+			Level:       "owner_identified",
+			Message:     "unknown_command: command path was not found",
+			Location:    "phase.ph-1.intent",
+			IssueCodes:  []string{"unknown_command"},
+			Suggestions: []string{"vrooli scenario test cli-health"},
+			Guidance:    []string{"Fix the command to a current catalog command."},
+		}},
 	})
 	require.Equal(t, "v1", got.GetId())
 	require.Equal(t, "p1", got.GetPlanId())
@@ -30,6 +40,15 @@ func TestResultToProto(t *testing.T) {
 	require.Equal(t, []string{"git-control-tower baseline diff --scenario foo --name impl"}, got.GetCommandsRun())
 	require.Equal(t, "regression", got.GetDetail())
 	require.Equal(t, "t", got.GetRanAt())
+	require.Len(t, got.GetCommandFindings(), 1)
+	require.Equal(t, "vrooli scenario tost cli-health", got.GetCommandFindings()[0].GetCommandText())
+	require.Equal(t, "invalid", got.GetCommandFindings()[0].GetVerdict())
+	require.Equal(t, "owner_identified", got.GetCommandFindings()[0].GetValidationLevel())
+	require.Equal(t, "unknown_command: command path was not found", got.GetCommandFindings()[0].GetMessage())
+	require.Equal(t, "phase.ph-1.intent", got.GetCommandFindings()[0].GetLocation())
+	require.Equal(t, []string{"unknown_command"}, got.GetCommandFindings()[0].GetIssueCodes())
+	require.Equal(t, []string{"vrooli scenario test cli-health"}, got.GetCommandFindings()[0].GetSuggestions())
+	require.Equal(t, []string{"Fix the command to a current catalog command."}, got.GetCommandFindings()[0].GetGuidance())
 }
 
 func TestReferencesToProto(t *testing.T) {

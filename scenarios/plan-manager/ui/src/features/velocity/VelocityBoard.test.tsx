@@ -67,7 +67,7 @@ describe("VelocityBoard", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the chart and table with bigint values converted safely", async () => {
+  it("[REQ:PM-UI-001] renders the chart and table with bigint values converted safely", async () => {
     getVelocity.mockResolvedValue([point]);
     await pickPlan();
     await waitFor(() => {

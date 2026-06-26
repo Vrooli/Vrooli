@@ -92,4 +92,7 @@ type CommandFinding struct {
 	Level       string
 	Message     string
 	Location    string
+	IssueCodes  []string
+	Suggestions []string
+	Guidance    []string
 }

@@ -91,7 +91,7 @@ describe("ExecutionRunner", () => {
     vi.clearAllMocks();
   });
 
-  it("starts a run and renders just-in-time context", async () => {
+  it("[REQ:PM-EXEC-001] starts a run and renders just-in-time context", async () => {
     await startAndLand();
     expect(startExecution).toHaveBeenCalledWith("plan-1", "");
     expect(screen.getByTestId(selectors.execution.context)).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe("ExecutionRunner", () => {
     });
   });
 
-  it("completes the run and shows the handoff", async () => {
+  it("[REQ:PM-HANDOFF-001] completes the run and shows the handoff", async () => {
     const user = await startAndLand();
     completeExecution.mockResolvedValue({
       handoff: create(HandoffSchema, { id: "h1", executionId: "exec-1", staleness: StalenessTier.FRESH }),

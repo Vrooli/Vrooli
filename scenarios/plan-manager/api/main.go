@@ -48,10 +48,18 @@ import (
 // internal/testutil/db.NewSQLite so production and tests open files the
 // same way.
 func sqliteDSN() (string, error) {
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+	if path, ok := os.LookupEnv("SQLITE_PATH"); ok {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			return "", fmt.Errorf("SQLITE_PATH is set but empty")
+		}
 		return sqliteFileDSN(path)
 	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+	if path, ok := os.LookupEnv("SQLITE_DB"); ok {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			return "", fmt.Errorf("SQLITE_DB is set but empty")
+		}
 		return sqliteFileDSN(path)
 	}
 

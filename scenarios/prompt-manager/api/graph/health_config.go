@@ -5,9 +5,10 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"prompt-manager/store"
 	"strings"
 	"sync"
+
+	"prompt-manager/store"
 )
 
 // HealthWeights defines tunable metric weights for a node type.
@@ -50,7 +51,7 @@ type HealthConfigProvider interface {
 // HealthConfigStore persists graph health config under the scenario store.
 type HealthConfigStore struct {
 	configDir string
-	mu       sync.RWMutex
+	mu        sync.RWMutex
 }
 
 const healthConfigRelativePath = "config/graph-health.json"

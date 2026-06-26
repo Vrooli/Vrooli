@@ -55,9 +55,10 @@ func requestFromProto(r *commandv1.ValidateCommandReferenceRequest) commandref.R
 		return commandref.Request{}
 	}
 	return commandref.Request{
-		CommandText: r.GetCommandText(),
-		Policy:      r.GetPolicy().String(),
-		Qualifiers:  append([]string(nil), r.GetQualifiers()...),
+		CommandText:   r.GetCommandText(),
+		Policy:        r.GetPolicy().String(),
+		Qualifiers:    append([]string(nil), r.GetQualifiers()...),
+		RefreshPolicy: r.GetRefreshPolicy().String(),
 	}
 }
 

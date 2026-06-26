@@ -394,6 +394,7 @@ const literalSelectors = {
     baseline: "validation-baseline",
     runButton: "validation-run-button",
     result: "validation-result",
+    commandFindings: "validation-command-findings",
     dodButton: "validation-dod-button",
     dod: "validation-dod",
   },

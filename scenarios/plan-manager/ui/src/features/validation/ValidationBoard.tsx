@@ -21,6 +21,7 @@ import { stalenessDescriptor, verdictDescriptor } from "../../lib/planStatus";
 import { useTranslation } from "../../i18n";
 import {
   ReferenceResolution,
+  type CommandValidationFinding,
   type Reference,
   type ValidationResult,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
@@ -53,6 +54,67 @@ function CodeList({ items }: { items: readonly string[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function FindingList({
+  items,
+  className = "list-disc space-y-1 pl-4",
+}: {
+  items: readonly string[];
+  className?: string;
+}) {
+  if (items.length === 0) {
+    return null;
+  }
+  return (
+    <ul className={className}>
+      {items.map((item, i) => (
+        <li key={`${item}-${i}`} className="break-words">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CommandFindingCard({ finding }: { finding: CommandValidationFinding }) {
+  const { t } = useTranslation();
+  const meta = [finding.verdict, finding.validationLevel, finding.location].filter(Boolean);
+  return (
+    <li className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm">
+      <div className="flex flex-col gap-1">
+        <code className="break-words text-xs text-app-foreground">{finding.commandText}</code>
+        {meta.length > 0 ? (
+          <p className="text-xs text-app-muted-foreground">{meta.join(" · ")}</p>
+        ) : null}
+        {finding.message ? <p className="text-app-foreground">{finding.message}</p> : null}
+      </div>
+      {finding.issueCodes.length > 0 ? (
+        <div className="mt-2">
+          <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+            {t(strings.pages.validation.commandIssuesLabel)}
+          </p>
+          <FindingList items={finding.issueCodes} className="flex flex-wrap gap-1 text-xs text-app-danger" />
+        </div>
+      ) : null}
+      {finding.suggestions.length > 0 ? (
+        <div className="mt-2">
+          <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+            {t(strings.pages.validation.commandSuggestionsLabel)}
+          </p>
+          <FindingList items={finding.suggestions} />
+        </div>
+      ) : null}
+      {finding.guidance.length > 0 ? (
+        <div className="mt-2">
+          <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+            {t(strings.pages.validation.commandGuidanceLabel)}
+          </p>
+          <FindingList items={finding.guidance} />
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -273,6 +335,20 @@ export function ValidationBoard() {
                   </dt>
                   <dd>
                     <CodeList items={result.commandsRun} />
+                  </dd>
+                </div>
+              ) : null}
+              {result.commandFindings.length > 0 ? (
+                <div data-testid={selectors.validation.commandFindings}>
+                  <dt className="text-xs uppercase tracking-wide text-app-muted-foreground">
+                    {t(strings.pages.validation.commandFindingsLabel)}
+                  </dt>
+                  <dd>
+                    <ul className="flex flex-col gap-2">
+                      {result.commandFindings.map((finding, i) => (
+                        <CommandFindingCard key={`${finding.commandText}-${finding.location}-${i}`} finding={finding} />
+                      ))}
+                    </ul>
                   </dd>
                 </div>
               ) : null}

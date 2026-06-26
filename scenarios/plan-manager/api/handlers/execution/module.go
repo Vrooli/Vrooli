@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"plan-manager/internal/clock"
 	internalexecution "plan-manager/internal/execution"
@@ -126,8 +127,10 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 // Mirrors handlers/validation/module.go: VROOLI_REPO_ROOT env, then a walk up for
 // a `.git` marker, then the working directory as a last resort.
 func repoRoot() string {
-	if root := os.Getenv("VROOLI_REPO_ROOT"); root != "" {
-		return root
+	if root, ok := os.LookupEnv("VROOLI_REPO_ROOT"); ok {
+		if root = strings.TrimSpace(root); root != "" {
+			return root
+		}
 	}
 	dir, err := os.Getwd()
 	if err != nil {

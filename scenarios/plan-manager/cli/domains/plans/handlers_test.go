@@ -2,6 +2,7 @@ package plans
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"testing"
@@ -459,8 +460,11 @@ func TestPlansJSONOutput(t *testing.T) {
 	app, groups := newPlansFixture(t, rec)
 	out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "plans", "get"), app, "plan-j", "--json")
 	require.NoError(t, err)
-	require.Contains(t, out, `"id": "plan-j"`)
-	require.Contains(t, out, `"slug": "jj"`)
+
+	var payload map[string]map[string]string
+	require.NoError(t, json.Unmarshal([]byte(out), &payload))
+	require.Equal(t, "plan-j", payload["plan"]["id"])
+	require.Equal(t, "jj", payload["plan"]["slug"])
 }
 
 // TestPlansErrorHandling covers the two failure shapes: a server-side Connect

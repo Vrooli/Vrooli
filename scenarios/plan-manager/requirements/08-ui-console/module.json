@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "ui-console",
     "description": "OT-P2-001 — operator console for plans, phases, staleness, handoffs, triage, and velocity.",
+    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "module": "ui-console",
     "prd_ref": "PRD.md",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -10,14 +11,22 @@
     {
       "id": "PM-UI-001",
       "title": "Operator console renders plans, phase progress, staleness, handoffs, and velocity",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "ui",
       "description": "A React/Vite console lets operators view and manage plans, phase progress, staleness tiers, handoff records (canonical + linked prose), candidate-finding triage, and velocity trends, using the vrooli-default design with status-color semantics and the template's i18n + accessibility seams.",
-      "tags": ["ui", "console"],
+      "tags": [
+        "ui",
+        "console"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Boards render loading/empty/error/success states; testids + axe-clean; target ui/src/features." },
-        { "type": "automation", "phase": "business", "status": "planned", "notes": "BAS: operator can open a plan, view phases + staleness, and triage a candidate finding." }
+        {
+          "type": "test",
+          "ref": "ui/src/features/velocity/VelocityBoard.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Operator velocity board renders chart/table states with stable selectors and accessible coverage."
+        }
       ]
     }
   ]

@@ -137,6 +137,34 @@ func (d *FilesystemDiscoverySource) DiscoverExternal(ctx context.Context, cli Ex
 	return d.parseHelpTreeCached(ctx, bin, name), nil
 }
 
+// RefreshOwner performs one bounded owner-specific command discovery pass for
+// command-reference validation. It reuses the same manifest/help sources as
+// ordinary discovery, but bypasses the process-lifetime help cache so a miss can
+// be retried without executing the referenced command text itself.
+func (d *FilesystemDiscoverySource) RefreshOwner(ctx context.Context, owner string) ([]CommandRecord, bool, error) {
+	owner = strings.TrimSpace(owner)
+	if owner == "" {
+		return nil, false, nil
+	}
+	scenarios, err := d.ListScenarios(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, scenario := range scenarios {
+		if scenario == owner {
+			records, err := d.discoverFresh(ctx, owner)
+			return records, true, err
+		}
+	}
+	for _, cli := range d.ListExternalCLIs() {
+		if cli.Name == owner {
+			records, err := d.discoverExternalFresh(ctx, cli)
+			return records, true, err
+		}
+	}
+	return nil, false, nil
+}
+
 // ListScenarios returns every directory under scenarios/ in the repo.
 func (d *FilesystemDiscoverySource) ListScenarios(_ context.Context) ([]string, error) {
 	if strings.TrimSpace(d.RepoRoot) == "" {
@@ -188,6 +216,33 @@ func (d *FilesystemDiscoverySource) Discover(ctx context.Context, scenario strin
 	}
 
 	return d.helpFallback(ctx, scenario), nil
+}
+
+func (d *FilesystemDiscoverySource) discoverFresh(ctx context.Context, scenario string) ([]CommandRecord, error) {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil, fmt.Errorf("scenario is required")
+	}
+
+	path, err := repocontract.ScenarioCLIManifestPath(d.RepoRoot, scenario)
+	if err != nil {
+		return nil, fmt.Errorf("resolve manifest path: %w", err)
+	}
+
+	raw, err := os.ReadFile(path)
+	if err == nil {
+		records, perr := parseManifestRecords(scenario, raw)
+		if perr != nil {
+			return nil, perr
+		}
+		attachMeasures(records, raw, d.measureSchemaSource())
+		return records, nil
+	}
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("read manifest: %w", err)
+	}
+
+	return d.helpFallbackFresh(ctx, scenario), nil
 }
 
 // attachMeasures parses the manifest's measure blocks and joins each onto its
@@ -378,6 +433,43 @@ func (d *FilesystemDiscoverySource) helpFallback(ctx context.Context, origin str
 	return d.parseHelpTreeCached(ctx, bin, origin)
 }
 
+func (d *FilesystemDiscoverySource) helpFallbackFresh(ctx context.Context, origin string) []CommandRecord {
+	bin := d.resolveBinary(origin)
+	if bin == "" {
+		return []CommandRecord{{
+			Origin:      origin,
+			Name:        origin,
+			FullPath:    origin,
+			Source:      SourceHelpFailed,
+			Description: fmt.Sprintf("Scenario %s has no CLI manifest and no binary on PATH; index entry is a stub.", origin),
+		}}
+	}
+	return d.parseHelpTreeFresh(ctx, bin, origin)
+}
+
+func (d *FilesystemDiscoverySource) discoverExternalFresh(ctx context.Context, cli ExternalCLI) ([]CommandRecord, error) {
+	name := strings.TrimSpace(cli.Name)
+	if name == "" {
+		return nil, fmt.Errorf("external CLI name is required")
+	}
+	bin := strings.TrimSpace(cli.Binary)
+	if bin == "" {
+		bin = name
+	}
+	if resolved, err := exec.LookPath(bin); err == nil {
+		bin = resolved
+	} else {
+		return []CommandRecord{{
+			Origin:      name,
+			Name:        name,
+			FullPath:    name,
+			Source:      SourceHelpFailed,
+			Description: fmt.Sprintf("External CLI %s: binary %q not found on PATH; index entry is a stub.", name, cli.Binary),
+		}}, nil
+	}
+	return d.parseHelpTreeFresh(ctx, bin, name), nil
+}
+
 // parseHelpTreeCached returns the help-derived CommandRecords for bin,
 // reusing a cached parse when the binary's mtime is unchanged. The cache
 // lives for the lifetime of the FilesystemDiscoverySource (typically the
@@ -401,6 +493,24 @@ func (d *FilesystemDiscoverySource) parseHelpTreeCached(ctx context.Context, bin
 	))
 
 	if ok {
+		d.mu.Lock()
+		if d.helpCache == nil {
+			d.helpCache = make(map[string]helpCacheEntry)
+		}
+		d.helpCache[bin] = helpCacheEntry{mtime: mtime, origin: origin, records: cloneRecords(records)}
+		d.mu.Unlock()
+	}
+	return records
+}
+
+func (d *FilesystemDiscoverySource) parseHelpTreeFresh(ctx context.Context, bin, origin string) []CommandRecord {
+	records := commandRecordsFromRuntime(cliruntime.ParseHelpTree(
+		ctx,
+		cliruntime.ExecRunner(d.HelpTimeout),
+		bin,
+		cliruntime.HelpTreeOptions{Origin: origin, MaxDepth: cliruntime.DefaultHelpMaxDepth},
+	))
+	if mtime, ok := binaryMtime(bin); ok {
 		d.mu.Lock()
 		if d.helpCache == nil {
 			d.helpCache = make(map[string]helpCacheEntry)

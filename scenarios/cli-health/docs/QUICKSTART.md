@@ -61,6 +61,7 @@ automatically):
 cli-health status
 cli-health search status
 cli-health command validate --command "vrooli scenario test cli-health" --policy plan
+cli-health command validate --command "cli-health search query docs" --policy docs --refresh=on-miss
 ```
 
 Or directly via HTTP:

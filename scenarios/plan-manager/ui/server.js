@@ -1,10 +1,21 @@
 import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
+import helmet from 'helmet'
 
 const connectRpcPath = /^\/vrooli\.plan_manager\.v1\./
 
-// Standard security headers for the static UI. The shared api-base server only
-// disables X-Powered-By, so we apply the rest here on every response (the static
-// SPA + the Connect proxy hop).
+const requiredEnv = (name) => {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`${name} must be set`)
+  }
+  return value
+}
+
+const uiPort = requiredEnv('UI_PORT')
+const apiPort = requiredEnv('API_PORT')
+
+// Standard security headers for the static UI. Helmet owns the CSP and common
+// hardening headers for the static SPA + the Connect proxy hop.
 //
 // IMPORTANT: this scenario renders INSIDE the Vrooli host shell via an iframe, so
 // we must NOT set X-Frame-Options: DENY or frame-ancestors 'none' — that would
@@ -16,45 +27,43 @@ const connectRpcPath = /^\/vrooli\.plan_manager\.v1\./
 const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
   .split(/[,\s]+/)
   .filter(Boolean)
-const frameAncestors = [
-  "'self'",
-  'http://localhost:*',
-  'http://127.0.0.1:*',
-  'http://[::1]:*',
-  ...extraFrameAncestors,
-]
+const frameAncestors = ["'self'", 'http://localhost:*', 'http://127.0.0.1:*', 'http://[::1]:*', ...extraFrameAncestors]
 
-const SECURITY_HEADERS = {
-  'Content-Security-Policy': [
-    "default-src 'self'",
-    "base-uri 'self'",
-    `frame-ancestors ${frameAncestors.join(' ')}`,
-    "object-src 'none'",
-    "img-src 'self' data:",
-    "style-src 'self' 'unsafe-inline'",
-    "script-src 'self'",
-    "connect-src 'self'",
-    "font-src 'self'",
-    "form-action 'self'",
-  ].join('; '),
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-}
+const securityMiddleware = helmet({
+  frameguard: false,
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      baseUri: ["'self'"],
+      frameAncestors,
+      objectSrc: ["'none'"],
+      imgSrc: ["'self'", 'data:'],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  permissionsPolicy: {
+    features: {
+      camera: [],
+      microphone: [],
+      geolocation: [],
+    },
+  },
+})
 
 startScenarioServer({
-  uiPort: process.env.UI_PORT,
-  apiPort: process.env.API_PORT,
+  uiPort,
+  apiPort,
   distDir: './dist',
   serviceName: 'plan-manager',
   corsOrigins: '*',
   setupRoutes(app) {
-    app.use((_req, res, next) => {
-      for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
-        res.setHeader(name, value)
-      }
-      next()
-    })
+    app.use(securityMiddleware)
 
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {
@@ -63,7 +72,7 @@ startScenarioServer({
       }
 
       proxyToApi(req, res, req.originalUrl || req.url, {
-        apiPort: process.env.API_PORT,
+        apiPort,
       }).catch(next)
     })
   },

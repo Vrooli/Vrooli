@@ -323,6 +323,9 @@ func (s *service) validatePlanCommands(ctx context.Context, p planmodel.Plan, ph
 			Level:       result.ValidationLevel,
 			Message:     commandResultMessage(result),
 			Location:    ref.location,
+			IssueCodes:  commandIssueCodes(result.Issues),
+			Suggestions: append([]string(nil), result.Suggestions...),
+			Guidance:    append([]string(nil), result.Guidance...),
 		}
 		switch strings.ToLower(result.Verdict) {
 		case "valid", "skipped":
@@ -409,6 +412,16 @@ func commandResultMessage(result CommandReferenceResult) string {
 		return strings.TrimSpace(result.Verdict + " " + result.ValidationLevel)
 	}
 	return strings.Join(parts, "; ")
+}
+
+func commandIssueCodes(issues []CommandIssue) []string {
+	var out []string
+	for _, issue := range issues {
+		if strings.TrimSpace(issue.Code) != "" {
+			out = append(out, issue.Code)
+		}
+	}
+	return out
 }
 
 func commandFindingsDetail(findings []CommandFinding) string {

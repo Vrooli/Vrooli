@@ -9,6 +9,14 @@
   color-scheme: light;
 }
 
+/* INTEROP-CRITICAL: iframe-hosted surfaces size against the host-provided
+   container, not the outer browser viewport. App shells use h-full/min-h-full. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);

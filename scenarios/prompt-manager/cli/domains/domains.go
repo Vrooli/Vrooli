@@ -16,6 +16,8 @@ import (
 	"prompt-manager/cli/testing"
 	"prompt-manager/cli/topics"
 
+	"github.com/vrooli/api-core/spacecli"
+	"github.com/vrooli/api-core/spacedoc"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -37,6 +39,10 @@ func CommandGroups(ctx appctx.Context) []cliapp.CommandGroup {
 		search.Commands(ctx),
 		discover.Commands(ctx),
 		graph.Commands(ctx),
+		// prompt-manager owns the Guide projection denominator
+		// (docs/spaces/guide-space.md); `space` is the cross-scenario read
+		// contract meta-optimization-manager consumes.
+		spacecli.CommandGroup(spacecli.Config{Owner: "prompt-manager", Projection: spacedoc.ProjectionGuide}),
 	)
 	return groups
 }

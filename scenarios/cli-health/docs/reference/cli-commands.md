@@ -79,7 +79,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 cli-health configure api_base http://localhost:15001/api/v1
-cli-health configure token <token>
+cli-health configure token TOKEN_VALUE
 ```
 
 Read values back without an argument:
@@ -104,7 +104,10 @@ Results distinguish valid, invalid, partial, skipped, unknown, and unsupported
 references. A partial result means the command path exists, but reliable argument
 metadata was unavailable. Qualifiers such as `cli[future]:...`, `cli[old]:...`,
 `cli[external]:...`, and `cli[literal]:...` are interpreted through the shared
-marked-reference rules in `path:docs/reference/machine-readable-references.md`.
+marked-reference rules in `path:../../docs/reference/machine-readable-references.md`.
+Use `--refresh=on-miss` when validating against a catalog that may have changed
+since the last discovery pass; CLI Health performs one owner-scoped refresh
+before returning an invalid command-path miss.
 
 Examples:
 
@@ -114,6 +117,9 @@ cli-health command validate --command "vrooli scenario test cli-health" --policy
 
 # Invalid command path with suggestions.
 cli-health command validate --command "cli-health search queri docs" --policy docs
+
+# Retry discovery once for this owner before reporting a command-path miss.
+cli-health command validate --command "cli-health search query docs" --policy docs --refresh=on-miss
 
 # Valid command path with partial argument coverage when the catalog lacks reliable argument metadata.
 cli-health command validate --command "knowledge-observatory docs health cli-health --checks=refs,commands" --policy docs

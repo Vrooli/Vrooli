@@ -128,7 +128,7 @@ Set values via the CLI rather than editing the file directly:
 
 ```bash
 cli-health configure api_base http://localhost:15001/api/v1
-cli-health configure token <token>
+cli-health configure token TOKEN_VALUE
 ```
 
 ## API-base resolution precedence

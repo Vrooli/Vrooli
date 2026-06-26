@@ -31,9 +31,9 @@ The structured plan/phase schema every domain operates on lives in
 |---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/plan-manager/v1/shared/health.proto` |
 | plans | Own the structured plan + phase record (SSOT): CRUD, markdown render, lifecycle, supersession graph, templates. | CRUD / entity | Plans, phases, references, supersession edges. | API, CLI, UI | PM-STORE-001/002, PM-GRAPH-001 | `api/internal/plans/`, `api/handlers/plans/`, `cli/domains/plans/`, `ui/src/features/plans/`, `packages/proto/schemas/plan-manager/v1/plans/` |
-| authoring | Guided composer wizard: section-by-section flow, structure-validation gate, autofill of mechanical sections. | Workflow / guided process | Authoring-session state; validation findings. | API, CLI, UI | PM-AUTHOR-001/002 | `api/internal/authoring/`, `api/handlers/authoring/`, `cli/domains/authoring/`, `ui/src/features/authoring/`, `packages/proto/schemas/plan-manager/v1/authoring/` |
-| execution | Guided runner: phase transitions, just-in-time context injection, in-flow decision/finding capture, thin completion + canonical handoff, velocity. | Workflow / state machine | Execution/run linkage, handoff records, candidate findings, velocity series. | API, CLI, UI | PM-EXEC-001/002, PM-HANDOFF-001/002, PM-VEL-001 | `api/internal/execution/`, `api/handlers/execution/`, `cli/domains/execution/`, `ui/src/features/execution/`, `packages/proto/schemas/plan-manager/v1/execution/` |
-| validation | Plan health: code-reference resolution, staleness tiers, baseline-scope derivation, baseline/check orchestration, DoD verification. | Verification / analysis | Reference resolutions, validation results, staleness factors. | API, CLI, UI | PM-REF-001, PM-STALE-001, PM-VALID-001/002 | `api/internal/validation/`, `api/handlers/validation/`, `cli/domains/validation/`, `ui/src/features/validation/`, `packages/proto/schemas/plan-manager/v1/validation/` |
+| authoring | Guided composer wizard: section-by-section flow, structure-validation gate, autofill of mechanical sections. | orchestration / workflow | Authoring-session state; validation findings. | API, CLI, UI | PM-AUTHOR-001/002 | `api/internal/authoring/`, `api/handlers/authoring/`, `cli/domains/authoring/`, `ui/src/features/authoring/`, `packages/proto/schemas/plan-manager/v1/authoring/` |
+| execution | Guided runner: phase transitions, just-in-time context injection, in-flow decision/finding capture, thin completion + canonical handoff, candidate triage, velocity. | orchestration / state machine | Execution/run linkage, handoff records, candidate findings, velocity series. | API, CLI, UI | PM-EXEC-001/002, PM-HANDOFF-001/002, PM-VEL-001, PM-UI-001 | `api/internal/execution/`, `api/handlers/execution/`, `cli/domains/execution/`, `ui/src/features/execution/`, `ui/src/features/triage/`, `ui/src/features/velocity/`, `packages/proto/schemas/plan-manager/v1/execution/` |
+| validation | Plan health: code-reference resolution, staleness tiers, baseline-scope derivation, baseline/check orchestration, DoD verification. | provider / verification | Reference resolutions, validation results, staleness factors. | API, CLI, UI | PM-REF-001, PM-STALE-001, PM-VALID-001/002 | `api/internal/validation/`, `api/handlers/validation/`, `cli/domains/validation/`, `ui/src/features/validation/`, `packages/proto/schemas/plan-manager/v1/validation/` |
 
 ## Domain Details
 
@@ -62,7 +62,7 @@ The structured plan/phase schema every domain operates on lives in
 ### authoring
 
 - Purpose: the guided composer wizard (OT-P0-002) — walk the plan's sections in order, validate structure as it goes, and auto-fill the mechanical sections (regression anchor, required-reading, code references) so a small model supplies only genuine prose.
-- Primary archetype: workflow / guided process.
+- Primary archetype: orchestration / workflow.
 - Owns: authoring-session progression, the structure-validation gate, authoring-time `cli:` command-reference feedback, autofill orchestration (behind seams to git-control-tower, prompt-manager, code-facts).
 - Does not own: the plan record itself (delegates writes to `plans`); command truth (delegates to CLI Health); the actual baseline/reference computation (delegates to `validation`).
 - API: `api/handlers/authoring/`. CLI: `cli/domains/authoring/`. UI: `ui/src/features/authoring/`.
@@ -73,18 +73,18 @@ The structured plan/phase schema every domain operates on lives in
 ### execution
 
 - Purpose: the guided runner (OT-P0-003, OT-P1-001/002) — phase status transitions, just-in-time context injection (`status`/`next`), in-flow capture of decisions/findings, the thin guided completion process, the canonical structured handoff, and per-plan velocity.
-- Primary archetype: workflow / state machine.
+- Primary archetype: orchestration / state machine.
 - Owns: run↔plan linkage, captured decisions/findings, candidate (unvalidated) findings, the canonical handoff record, the velocity series.
 - Does not own: the prose final-message handoff (orchestration-layer concern — see [`INTEGRATIONS.md`](INTEGRATIONS.md)); promotion of candidate findings to real bugs (operator triage); the validation it surfaces (delegates to `validation`).
-- API: `api/handlers/execution/`. CLI: `cli/domains/execution/`. UI: `ui/src/features/execution/`.
+- API: `api/handlers/execution/`. CLI: `cli/domains/execution/`. UI: `ui/src/features/execution/`, `ui/src/features/triage/`, `ui/src/features/velocity/`.
 - Storage: execution/run state, handoff records, candidate findings, velocity points.
-- Requirements: PM-EXEC-001/002, PM-HANDOFF-001/002, PM-VEL-001.
+- Requirements: PM-EXEC-001/002, PM-HANDOFF-001/002, PM-VEL-001, PM-UI-001.
 - Tests: resume-point derivation, completion nudges, attribution-keyed dedup, handoff assembly from captured state.
 
 ### validation
 
 - Purpose: plan health (OT-P0-004/005) — resolve code references, compute staleness tiers, derive each phase's baseline scope, orchestrate baseline/check runs on request, and verify Definition of Done against the regression anchor.
-- Primary archetype: verification / analysis.
+- Primary archetype: provider / verification.
 - Owns: reference resolutions, staleness factors, baseline-scope derivation, validation results.
 - Does not own: project-level validation of resources/packages/whole-project (consumed from test-genie / scenario-validation, not owned here); the baseline mechanism itself (composes git-control-tower). Per-reference staleness is implemented as filesystem existence plus git-sourced drift from the regression anchor because the live freshness engine is scenario-artifact scoped today.
 - API: `api/handlers/validation/`. CLI: `cli/domains/validation/`. UI: `ui/src/features/validation/`.
