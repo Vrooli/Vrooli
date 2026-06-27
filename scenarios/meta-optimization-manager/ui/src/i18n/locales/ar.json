@@ -54,6 +54,7 @@
     "convergence": {
       "title": "Convergence",
       "description": "Per-template four-lens fitness and gold-star reference-scenario health/eligibility.",
+      "methodologyNote": "Lens counts are filesystem proxies (LOC, comment-grep) — structural signals, not semantic analysis.",
       "templatesHeading": "Template fitness",
       "referencesHeading": "Reference health",
       "lensLabel": "per-replica {{cost}} · drift {{drift}} · comment-contracts {{contracts}} · coordinated-edits {{edits}}",

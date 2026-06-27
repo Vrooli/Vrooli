@@ -49,6 +49,12 @@ export function ConvergenceBoard() {
         <h3 id="conv-templates-heading" className="text-lg font-semibold">
           {t(strings.pages.convergence.templatesHeading)}
         </h3>
+        <p
+          data-testid={selectors.convergence.methodology}
+          className="text-xs italic text-app-muted-foreground"
+        >
+          {t(strings.pages.convergence.methodologyNote)}
+        </p>
         <ul className="flex flex-col gap-2">
           {templates.map((tf) => (
             <li

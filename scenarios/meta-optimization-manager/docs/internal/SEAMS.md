@@ -80,6 +80,16 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### coverage.cellMatcher (per-projection numerator join)
+
+| | |
+|---|---|
+| **Seam** | Per-projection live numerator matcher |
+| **Interface** | `api/internal/coverage/numerator.go::cellMatcher` (`registryArgs`, `recompute`) |
+| **Production wiring** | `execNumeratorJoiner.Join` selects `answerMatcher`, `validateMatcher`, or `guideMatcher` through `matcherFor(projection)` and reads the owner registry through `CommandRunner`. |
+| **Test fake** | No separate fake type: tests inject a fake `CommandRunner` through `NewNumeratorJoinerWithRunner` and exercise the production matchers against synthetic JSON plus captured owner fixtures in `api/internal/coverage/testdata/`. |
+| **Why it exists** | Answer, Validate, and Guide have different live registry contracts and status semantics. The seam keeps the honest-degradation contract shared while making each projection's per-cell join testable without spawning owner CLIs. |
+
 ### Clock
 
 | | |

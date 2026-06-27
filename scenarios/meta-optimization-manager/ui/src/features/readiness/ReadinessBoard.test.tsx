@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 
-import { Projection, CellStatus, DenominatorConfidence } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
+import { Projection, DenominatorConfidence } from "@vrooli/proto-types/meta-optimization-manager/v1/shared/model_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";

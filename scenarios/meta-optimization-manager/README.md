@@ -1,129 +1,126 @@
 # Meta-Optimization Manager
 
-Measures local-coding-agent readiness by aggregating Answer/Validate/Guide coverage across the fleet and surfacing where to focus.
+Measures how ready the Vrooli project is for **lower-powered (local) coding
+agents** to do real software engineering — and points to where to improve next.
 
-This scenario was generated from the `react-vite` template and packages
-the standard full-stack Vrooli scenario shape:
+It is a thin, **read-mostly aggregator**: it reads each owner scenario's
+"intended space" (the denominator) and joins it against that owner's live
+registry (the numerator) to produce an honest, per-projection readiness
+scoreboard. It **surfaces numbers and candidates; it never decides** — substrate,
+tiering, and nomination calls stay agentic.
 
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
+## The Model In One Picture
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+Readiness is measured as coverage across three answerability **projections**, each
+owned by another scenario, plus upstream-generator convergence:
 
-## What's In This Scenario
+| Projection | Question it answers | Denominator owner | Live numerator source |
+|---|---|---|---|
+| **Answer** | "Can the project answer architectural questions?" | `search-hub` | `search-hub` provider registry |
+| **Validate** | "Is the right thing tested and auto-fixed?" | `test-genie` | `test-genie health` + `fleet status` |
+| **Guide** | "Is there a skill for each SWE task?" | `prompt-manager` | `prompt-manager graph health` |
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
+Coverage = `now / total` per projection, **computed live and never stored** (only
+short-TTL snapshots are cached). Every coverage number is paired with a
+**denominator-confidence** (`authoritative` / `partial` / `sketch`) so the board
+can never imply false completeness. The canonical model — the projection
+definitions, the `basis × sufficiency` attestation contract, the status legend,
+and the Guide→Validate→Answer maturity gradient — lives in
+[`docs/concepts/COVERAGE-MODEL.md`](docs/concepts/COVERAGE-MODEL.md).
 
-## Placeholders vs. Durable Scaffolding
+The denominators are **not owned here** — they live with their owners as
+`docs/spaces/<projection>-space.md` and are read through a shared
+`space --projection <p> --json` contract (with a doc-parse fallback today; see
+[Known Limitations](#known-limitations)).
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+## Capabilities (Domains)
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
+| Domain | CLI verbs | What it gives you |
+|---|---|---|
+| **coverage** | `coverage status`, `coverage list-cells`, `coverage explain-cell`, `coverage validate-docs` | The readiness scoreboard, per-cell drill-down with provenance, and the base-document integrity gate (no stale/broken refs; Guide rows map to exactly one skill). |
+| **focus** | `focus next` | Ranked next-best gaps (impact × importance) across all projections. |
+| **gaps** | `gaps list`, `gaps show`, `gaps note` | The honest, durable gaps registry with notes/approaches/context. |
+| **convergence** | `convergence status`, `convergence fitness`, `convergence references`, `convergence trend` | Per-template four-lens fitness and gold-star reference-scenario health (OT-P1-002). Lens counts are **filesystem proxies** (LOC, comment-grep) — structural signals, not semantic analysis. |
+| **trials** | `trials run`, `trials list`, `trials history`, `trials show`, `trials coverage` | Empirically exercises a local model on fixture SWE tasks via agent-manager's sandboxed runner, scores the produced diff against a deterministic oracle, and records success-rate / tokens / wall-time as a trend (the real proof of readiness). |
 
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
+All `--json` output is typed proto-JSON. Every cross-scenario read **degrades
+gracefully** — an owner being down marks that projection unavailable with an
+honest reason, it never false-fails.
 
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
+## Architecture
 
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+Domain-first Go API behind Connect-RPC, a typed Go CLI mirroring each service, and
+a React/Vite operator console — all coordinated through generated proto contracts
+in `packages/proto/schemas/meta-optimization-manager`. Each domain follows the
+canonical layering:
 
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+```
+handler → Service → { SpaceReader, NumeratorJoiner, SnapshotRepository }
+             ↑              ↑ (faked in tests)        ↑
+          (proto edge)   live owner reads        short-TTL cache
+```
 
-## Running The Scenario
+State is minimal and local (SQLite via `api-core/storage`): the qualitative gaps
+registry, the trials history time-series, a cached convergence index, and
+short-TTL coverage snapshots. See
+[`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) and
+[`docs/internal/SEAMS.md`](docs/internal/SEAMS.md).
+
+## Running
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
-# Start API + UI in the background
-make start   # wraps `vrooli scenario start`
+make setup   # build API + UI, install deps + scenario CLI (wraps `vrooli scenario setup`)
+make start   # start API + UI (wraps `vrooli scenario start`)
+make test    # run the suite (wraps `vrooli scenario test`)
+make logs    # tail logs
+make stop    # stop
 ```
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute meta-optimization-manager --preset comprehensive` directly for
-finer-grained presets.
+## Known Limitations
+
+These are honest, current gaps — tracked in
+[`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md):
+
+- **The `space --projection` verb is not built on the owners yet.** Coverage runs
+  on the doc-parse fallback (the same `api-core/spacedoc` parser the verb will
+  use), so the numbers are real today, but the decoupled read contract is still
+  pending.
+- **Trials are not yet proven end-to-end on a live local model.** The runner,
+  evaluator, and fixtures are real and tested; a single operator live-e2e pass
+  (opencode + a local model) is needed to confirm the diff-apply path.
 
 ## Documentation Map
 
 | Need | Start Here |
 |---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at this scenario's root |
+| The coverage model + attestation contract | [`docs/concepts/COVERAGE-MODEL.md`](docs/concepts/COVERAGE-MODEL.md) |
+| Architecture & data flow | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
-| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
-| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
-| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
-| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
-| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
-| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
-| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
-| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| UI design language | [`DESIGN.md`](DESIGN.md) |
+| CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
+| Env vars, ports, config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Seams & fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Durable decisions | [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md) |
+| Known issues & deferred work | [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) |
 
 ## Working Rules
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within this scenario's directory.
-
-## pnpm Everywhere
-
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+1. **Surfaces, does not decide.** Add numbers, candidates, and confidence — never
+   bake in substrate/tiering/nomination judgment.
+2. **Honest by construction.** Every coverage number ships paired with its
+   denominator-confidence; reads degrade gracefully and never false-fail.
+3. **Do not own the denominators.** The space docs live with their owners; read
+   them through the shared contract, never re-implement an owner's measurement.
+4. **Update `PRD.md` and `requirements/`** before feature work — operational
+   targets drive code + tests.
+5. **Read [`DESIGN.md`](DESIGN.md) before UI work**; preserve the i18n and
+   accessibility seams.
+6. **Append to [`docs/internal/PROGRESS.md`](docs/internal/PROGRESS.md)** when you
+   land work, and record real debt in
+   [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md).
+7. **Keep boundaries** — only edit within this scenario, except the shared
+   `*-space.md` denominators this scenario co-owns by contract.

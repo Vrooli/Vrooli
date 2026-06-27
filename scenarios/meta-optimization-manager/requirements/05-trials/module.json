@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "trials",
     "description": "OT-P1-001 — empirical local-model readiness trials.",
+    "last_validated_at": "2026-06-26T16:13:33-04:00",
+    "module": "trials",
     "prd_ref": "PRD.md",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -14,37 +15,87 @@
       "prd_ref": "OT-P1-001",
       "category": "trials",
       "description": "`trials run` dispatches SWE tasks (add-feature/research/comprehend/bugfix + negative cases) through agent-manager's sandboxed primitive (profile ensure → task create → run create --run-mode sandboxed → poll run get → run diff, runner=opencode + local-model), then evaluates the produced diff in MoM against the fixture oracle (deterministic-first, agent-judge fallback; negatives pass on correct abstention) and appends success-rate + tokens + wall-time + fixture-rev to a historical time-series. agent-manager is the spawner only; the verdict is MoM's.",
-      "tags": ["trials", "agent-manager", "evaluator", "fixtures", "history"],
+      "tags": [
+        "trials",
+        "agent-manager",
+        "evaluator",
+        "fixtures",
+        "history"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "implemented", "notes": "API: Runner seam-tested with a faked agent-manager CommandRunner (sequence + metric parse + step-error → VerdictError); Evaluator tested (oracle pass/fail, negative abstention, agent-judge fallback); Service idempotency + orchestration; target api/internal/trials." },
-        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: sandboxed dispatch with a stub agent-manager run; target bas/cases/trials." },
-        { "type": "manual", "phase": "integration", "status": "planned", "notes": "Live local-model e2e trial (expensive; operator-invoked); runbook in docs/internal/TESTING.md." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "API: Runner seam-tested with a faked agent-manager CommandRunner (sequence + metric parse + step-error → VerdictError); Evaluator tested (oracle pass/fail, negative abstention, agent-judge fallback); Service idempotency + orchestration; target api/internal/trials."
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "E2E: sandboxed dispatch with a stub agent-manager run; target bas/cases/trials."
+        },
+        {
+          "type": "manual",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Live local-model e2e trial (expensive; operator-invoked); runbook in docs/internal/TESTING.md."
+        }
       ]
     },
     {
       "id": "MOM-TRIALS-002",
       "title": "tracks % of Guide tasks with a live empirical gate",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "trials",
       "description": "Each Guide-space task category maps to zero or more empirical gates; the trials domain computes and reports gate coverage over the Guide space as a recursive readiness metric.",
-      "tags": ["trials", "guide", "coverage"],
+      "tags": [
+        "trials",
+        "guide",
+        "coverage"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: gate-coverage computation over the Guide space; target api/internal/trials." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: trials coverage output; target cli/domains/trials." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "API: gate-coverage computation over the Guide space; target api/internal/trials."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI: trials coverage output; target cli/domains/trials."
+        }
       ]
     },
     {
       "id": "MOM-TRIALS-003",
       "title": "list the task suite and inspect a run with its sandbox diff",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "trials",
-      "description": "`trials list` enumerates the task suite generated from the Guide space, and `trials show <run-id>` returns one run with its verdict, tokens, wall-time, and the agent-manager sandbox diff reference that attributes changed files to that run.",
-      "tags": ["trials", "suite", "inspection", "agent-manager"],
+      "description": "`trials list` enumerates the task suite generated from the Guide space, and `trials show \u003crun-id\u003e` returns one run with its verdict, tokens, wall-time, and the agent-manager sandbox diff reference that attributes changed files to that run.",
+      "tags": [
+        "trials",
+        "suite",
+        "inspection",
+        "agent-manager"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: ListTrialTasks from the Guide space + GetTrialRun with sandbox diff ref; target api/internal/trials." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: trials list/show; target cli/domains/trials." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "API: ListTrialTasks from the Guide space + GetTrialRun with sandbox diff ref; target api/internal/trials."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI: trials list/show; target cli/domains/trials."
+        }
       ]
     }
   ]

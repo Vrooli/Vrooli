@@ -54,19 +54,33 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-24 — `space --projection` verb does not exist on any owner yet
+### 2026-06-24 — `space --projection` verb not built on owners; coverage uses the doc-parse fallback
 
-**Symptom:** `coverage` cannot read a real denominator for Answer/Validate/Guide; the readiness scoreboard has no machine source.
+**Symptom:** Coverage does not read denominators through the decoupled shared contract; it parses the owner space docs directly.
 
-**Root cause:** The shared read contract (a `space --projection <p> --json` verb on search-hub/test-genie/prompt-manager) is a design dependency that has not been built. The denominators exist only as the markdown space docs today.
+**Root cause:** The shared read contract (a `space --projection <p> --json` verb on search-hub/test-genie/prompt-manager) is a design dependency that has not been built yet.
 
-**Workaround:** None for live coverage; the space docs + this scenario's design stand, but `status` is unimplementable until the verb ships.
+**Workaround (in place, working):** `SpaceReader` (`api/internal/coverage/spacereader.go`) prefers the owner `space` verb but **falls back to parsing `scenarios/<owner>/docs/spaces/<p>-space.md` with the same `api-core/spacedoc` parser the verb will use** — guaranteed-consistent output. The scoreboard numbers are real today; only the decoupling is pending. `status` is fully implemented.
 
-**Real fix:** Add the `space` verb (schema-validated JSON) to each owner as part of the implementation plan; `coverage` reads it.
+**Real fix:** Add the `space` verb (schema-validated JSON) to each owner; `SpaceReader` then takes the preferred path automatically with no MoM change.
 
-**Owner:** unassigned (next: implementation plan).
+**Owner:** unassigned.
 
-**Refs:** `../concepts/ARCHITECTURE.md` (Contracts And Data Flow); the three `*/docs/spaces/*-space.md` docs.
+**Refs:** `api/internal/coverage/spacereader.go`; `../concepts/ARCHITECTURE.md` (Contracts And Data Flow); the three `*/docs/spaces/*-space.md` docs.
+
+### 2026-06-26 — trials unproven end-to-end on a live local model
+
+**Symptom:** `trials run` is verb/flag-correct with real fixtures + deterministic oracles, but has never completed a full live pass (opencode + local model) producing a scored verdict.
+
+**Root cause:** The diff-apply path is an untested assumption: the runner scopes the agent to `fixture.TargetDir` (`--scope-path`), captures the diff via `agent-manager run diff`, and the evaluator applies it with `git apply -p1` inside a copy of `target/`. This only lands cleanly if agent-manager emits diff paths rooted at the scope-path with `a/…  b/…` prefixes; if rooted elsewhere, every trial silently becomes `VerdictError`. Separately, `agentJudge` is `nil` in prod — correct today (all 5 fixtures carry an oracle → oracle-less degrades to honest `VerdictError`), but a future oracle-less family would silently yield `VerdictError` with only a log line.
+
+**Workaround:** Keep OT-P1-001 unaccepted until the live pass; trust the oracle-backed verdicts only.
+
+**Real fix:** (1) One operator live-e2e (the `bugfix` family is smallest); capture the raw `run diff` output, confirm/repair the `-p1` rooting, and lock the captured diff as a golden fixture. (2) Add a corpus-load-time guard asserting every fixture has an oracle or a configured judge, so future oracle-less families fail loudly instead of degrading silently.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/trials/runner.go`, `api/internal/trials/evaluator.go` (`applyDiff`, the `nil` judge).
 
 ### 2026-06-24 — convergence coordinated-edit walkthrough is unproven mechanization
 
@@ -81,19 +95,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Owner:** unassigned.
 
 **Refs:** `docs/agent-system/REFERENCE_PATTERN_FITNESS.md`; requirement MOM-CONVERGENCE-001.
-
-### 2026-06-24 — example `notes` domain still present
-
-
-**Root cause:** Documentation-first — the first real domain (`coverage`) is not yet built, so the example cannot be removed.
-
-**Workaround:** Leave it; it keeps the scaffold green.
-
-**Real fix:** After `coverage` is green, run `vrooli scenario detemplate meta-optimization-manager`.
-
-**Owner:** unassigned (implementation phase).
-
-**Refs:** `docs/START-HERE.md` Gate 7.
 
 ### 2026-06-24 — prd-control-tower LLM generation returned HTTP 500
 

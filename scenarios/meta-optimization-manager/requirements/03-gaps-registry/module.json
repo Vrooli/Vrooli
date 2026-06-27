@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "gaps-registry",
     "description": "OT-P0-003 — honest gaps registry with qualitative notes/approaches.",
+    "last_validated_at": "2026-06-26T16:13:33-04:00",
+    "module": "gaps-registry",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -14,24 +15,57 @@
       "prd_ref": "OT-P0-003",
       "category": "focus",
       "description": "The gaps command/RPC surfaces every known gap with notes/approaches/context (not just a percentage). Cross-cutting/global gaps and explored-but-unbuilt ideas are persisted in SQLite and surfaced via `gaps [--projection] [--cell]`.",
-      "tags": ["gaps", "registry", "storage"],
+      "tags": [
+        "gaps",
+        "registry",
+        "storage"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: SQLite store round-trips notes/approaches; target api/internal/gaps." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: gaps list/filter output; target cli/domains/gaps." },
-        { "type": "automation", "phase": "integration", "status": "planned", "notes": "E2E: gaps surfaced with qualitative context." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "API: SQLite store round-trips notes/approaches; target api/internal/gaps."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI: gaps list/filter output; target cli/domains/gaps."
+        },
+        {
+          "type": "automation",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "E2E: gaps surfaced with qualitative context."
+        }
       ]
     },
     {
       "id": "MOM-GAPS-002",
       "title": "append explored approaches to a gap (the store-our-thinking write verb)",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "focus",
-      "description": "`gaps note <id> --add \"<approach>\"` appends an explored-but-unbuilt idea/approach to a gap, and `gaps show <id>` returns the full gap with its accumulated notes/approaches. The one focus write verb; lets the team durably store thinking on a known gap without implementing it.",
-      "tags": ["gaps", "write", "notes"],
+      "description": "`gaps note \u003cid\u003e --add \"\u003capproach\u003e\"` appends an explored-but-unbuilt idea/approach to a gap, and `gaps show \u003cid\u003e` returns the full gap with its accumulated notes/approaches. The one focus write verb; lets the team durably store thinking on a known gap without implementing it.",
+      "tags": [
+        "gaps",
+        "write",
+        "notes"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "API: AddGapNote appends + GetGap round-trips; target api/internal/gaps." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "CLI: gaps note/show; target cli/domains/gaps." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "API: AddGapNote appends + GetGap round-trips; target api/internal/gaps."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI: gaps note/show; target cli/domains/gaps."
+        }
       ]
     }
   ]

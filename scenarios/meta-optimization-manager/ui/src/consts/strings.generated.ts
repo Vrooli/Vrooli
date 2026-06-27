@@ -66,6 +66,7 @@ export const strings = {
     convergence: {
       title: "pages.convergence.title",
       description: "pages.convergence.description",
+      methodologyNote: "pages.convergence.methodologyNote",
       templatesHeading: "pages.convergence.templatesHeading",
       referencesHeading: "pages.convergence.referencesHeading",
       lensLabel: "pages.convergence.lensLabel",

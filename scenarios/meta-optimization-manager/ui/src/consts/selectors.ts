@@ -348,6 +348,7 @@ const literalSelectors = {
     loading: "convergence-loading",
     error: "convergence-error",
     empty: "convergence-empty",
+    methodology: "convergence-methodology",
     template: "convergence-template",
     reference: "convergence-reference",
   },
