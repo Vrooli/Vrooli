@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,16 +128,25 @@ func newService(t *testing.T, d authoring.Deps) authoring.Service {
 func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) authoring.Session {
 	t.Helper()
 	ctx := context.Background()
-	content := map[authoring.SectionKey]string{
-		authoring.SectionPurpose:          "Make widgets better.",
-		authoring.SectionScope:            "In: widget core.",
-		authoring.SectionRegressionAnchor: "baseline captured at HEAD abc123",
-		authoring.SectionDefinitionOfDone: "Tests green; baseline diff exit 0.",
-		authoring.SectionPhases:           "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n",
+	content := []struct {
+		key authoring.SectionKey
+		val string
+	}{
+		{authoring.SectionPurpose, "Make widgets better."},
+		{authoring.SectionScope, "In: widget core."},
+		{authoring.SectionReferences, "NO_CODE_REFS: unit test fixture has no connected production code"},
+		{authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123"},
+		{authoring.SectionDefinitionOfDone, "Tests green; baseline diff exit 0."},
+		{authoring.SectionPhases, "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n"},
 	}
 	var sess authoring.Session
-	for key, val := range content {
-		s, _, err := svc.SubmitSection(ctx, sessionID, key, val)
+	for _, item := range content {
+		existing, _, err := svc.GetSection(ctx, sessionID, item.key)
+		require.NoError(t, err)
+		if strings.TrimSpace(existing.Content) != "" {
+			continue
+		}
+		s, _, _, err := svc.SubmitSection(ctx, sessionID, item.key, item.val)
 		require.NoError(t, err)
 		sess = s
 	}
@@ -147,16 +157,18 @@ func TestStartSessionSeedsSkeletonAndPointer(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
 
-	sess, err := svc.StartSession(ctx, "Improve widget", "improve-widget", "")
+	sess, step, err := svc.StartSession(ctx, "Improve widget", "improve-widget", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, sess.ID)
 	require.Equal(t, "Improve widget", sess.Title)
 	require.NotEmpty(t, sess.Sections)
 	// The first mandatory section is the current pointer.
 	require.Equal(t, authoring.SectionPurpose, sess.CurrentSectionKey)
+	require.Equal(t, "purpose", step.StepKind)
+	require.Equal(t, []string{"author", "next", sess.ID}, step.NextActions[0].Argv)
 
 	// Empty title is rejected.
-	_, err = svc.StartSession(ctx, "  ", "", "")
+	_, _, err = svc.StartSession(ctx, "  ", "", "")
 	require.Error(t, err)
 }
 
@@ -165,24 +177,26 @@ func TestSessionProgressionToComplete(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
 
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
 	// Next points at the first unfilled mandatory section, not complete.
-	sec, complete, err := svc.Next(ctx, sess.ID)
+	sec, step, complete, err := svc.Next(ctx, sess.ID)
 	require.NoError(t, err)
 	require.False(t, complete)
 	require.Equal(t, authoring.SectionPurpose, sec.Key)
+	require.Equal(t, []string{"author", "section-submit", sess.ID, "--section", "purpose", "--content", "<one concise purpose paragraph>"}, step.NextActions[0].Argv)
 
 	// Submitting purpose advances the pointer past it.
-	updated, violations, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
+	updated, violations, step, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.NotEqual(t, authoring.SectionPurpose, updated.CurrentSectionKey)
+	require.Equal(t, string(updated.CurrentSectionKey), step.NextActions[0].Argv[4])
 
 	// Fill every mandatory section => Next reports complete.
 	fillMandatory(t, svc, sess.ID)
-	_, complete, err = svc.Next(ctx, sess.ID)
+	_, _, complete, err = svc.Next(ctx, sess.ID)
 	require.NoError(t, err)
 	require.True(t, complete)
 }
@@ -194,21 +208,21 @@ func TestGetSectionAndPersistenceAcrossCalls(t *testing.T) {
 	ctx := context.Background()
 
 	svc1 := authoring.NewService(authoring.Deps{Store: store, Writer: &fakePlanWriter{}, Clock: clk})
-	sess, err := svc1.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc1.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
-	_, _, err = svc1.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
+	_, _, _, err = svc1.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
 	require.NoError(t, err)
 
 	svc2 := authoring.NewService(authoring.Deps{Store: store, Writer: &fakePlanWriter{}, Clock: clk})
-	got, err := svc2.GetSection(ctx, sess.ID, authoring.SectionPurpose)
+	got, _, err := svc2.GetSection(ctx, sess.ID, authoring.SectionPurpose)
 	require.NoError(t, err)
 	require.Equal(t, "A purpose.", got.Content)
 	require.True(t, got.Filled)
 
 	// Unknown section / session are typed not-founds.
-	_, err = svc2.GetSection(ctx, sess.ID, "nope")
+	_, _, err = svc2.GetSection(ctx, sess.ID, "nope")
 	require.Error(t, err)
-	_, err = svc2.GetSection(ctx, "no-such-session", authoring.SectionPurpose)
+	_, _, err = svc2.GetSection(ctx, "no-such-session", authoring.SectionPurpose)
 	require.Error(t, err)
 }
 
@@ -217,11 +231,11 @@ func TestStructureGateRejectsEmptyMandatoryAndAnchor(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
 
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
 	// A brand-new session fails the gate: mandatory sections + the anchor are empty.
-	valid, violations, err := svc.ValidateStructure(ctx, sess.ID)
+	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
 	require.NoError(t, err)
 	require.False(t, valid)
 	require.NotEmpty(t, violations)
@@ -237,7 +251,7 @@ func TestStructureGateRejectsEmptyMandatoryAndAnchor(t *testing.T) {
 
 	// Filling everything mandatory satisfies the gate.
 	fillMandatory(t, svc, sess.ID)
-	valid, violations, err = svc.ValidateStructure(ctx, sess.ID)
+	valid, violations, _, err = svc.ValidateStructure(ctx, sess.ID)
 	require.NoError(t, err)
 	require.True(t, valid)
 	require.Empty(t, violations)
@@ -246,17 +260,17 @@ func TestStructureGateRejectsEmptyMandatoryAndAnchor(t *testing.T) {
 func TestSubmitSectionReportsPerSectionViolations(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
 	// Submitting empty content to a mandatory section reports a violation.
-	_, violations, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "   ")
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "   ")
 	require.NoError(t, err)
 	require.Len(t, violations, 1)
 	require.Equal(t, authoring.SectionPurpose, violations[0].SectionKey)
 
 	// Non-empty content passes.
-	_, violations, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Real purpose.")
+	_, violations, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Real purpose.")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 }
@@ -272,10 +286,10 @@ func TestSubmitSectionValidatesCurrentCLIReferences(t *testing.T) {
 	}}
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Commands: commands})
 	ctx := context.Background()
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
-	_, violations, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Run `cli:vrooli scenario tost cli-health`.")
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Run `cli:vrooli scenario tost cli-health`.")
 	require.NoError(t, err)
 	require.Len(t, violations, 1)
 	require.Equal(t, authoring.SectionPurpose, violations[0].SectionKey)
@@ -291,10 +305,10 @@ func TestCommandReferenceQualifiersSkipAuthoringCurrentValidation(t *testing.T) 
 	}}
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Commands: commands})
 	ctx := context.Background()
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
-	_, violations, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Planned: `cli[future]:vrooli scenario someday cli-health`.")
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Planned: `cli[future]:vrooli scenario someday cli-health`.")
 	require.NoError(t, err)
 	require.Empty(t, violations)
 	require.Empty(t, commands.calls, "future references are not current-command requirements")
@@ -310,20 +324,22 @@ func TestFinalizeRejectsInvalidCLIReferences(t *testing.T) {
 	}}
 	svc := newService(t, authoring.Deps{Writer: writer, Commands: commands})
 	ctx := context.Background()
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Run `cli:vrooli scenario tost cli-health`.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Run `cli:vrooli scenario tost cli-health`.")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: command validation fixture exercises CLI references only")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Tests green.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Tests green.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Anchor\n- Intent: Capture baseline\n- Status: todo\n")
 	require.NoError(t, err)
 
-	_, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID)
 	require.Error(t, err)
 	var gate authoring.ErrStructureGate
 	require.True(t, errors.As(err, &gate))
@@ -341,10 +357,10 @@ func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 		References:   fakeRefs{out: "[CODE: internal/widget/core.go]"},
 	})
 	ctx := context.Background()
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
-	updated, results, err := svc.Autofill(ctx, sess.ID, nil) // nil => all sources
+	updated, results, _, err := svc.Autofill(ctx, sess.ID, nil) // nil => all sources
 	require.NoError(t, err)
 	require.Len(t, results, 3)
 	for _, r := range results {
@@ -376,16 +392,16 @@ func TestAutofilledReferencesSurviveFinalize(t *testing.T) {
 		References: fakeRefs{out: "[CODE: scenarios/plan-manager/api/internal/validation/service.go]"},
 	})
 	ctx := context.Background()
-	sess, err := svc.StartSession(ctx, "Improve validation", "improve-validation", "")
+	sess, _, err := svc.StartSession(ctx, "Improve validation", "improve-validation", "")
 	require.NoError(t, err)
 
-	_, results, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillReferences})
+	_, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillReferences})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.True(t, results[0].Filled)
 
 	fillMandatory(t, svc, sess.ID)
-	_, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID)
 	require.NoError(t, err)
 	require.Len(t, writer.created.References, 1)
 	require.Equal(t, "scenarios/plan-manager/api/internal/validation/service.go", writer.created.References[0].Target)
@@ -401,10 +417,10 @@ func TestAutofillDegradesPerSourceNeverFalseFill(t *testing.T) {
 		RequiredRead: fakeReading{err: errors.New("prompt-manager down")},
 		References:   fakeRefs{out: "[CODE: internal/widget/core.go]"},
 	})
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
-	updated, results, err := svc.Autofill(ctx, sess.ID, nil)
+	updated, results, _, err := svc.Autofill(ctx, sess.ID, nil)
 	require.NoError(t, err)
 	require.Len(t, results, 3)
 
@@ -430,7 +446,7 @@ func TestAutofillDegradesPerSourceNeverFalseFill(t *testing.T) {
 
 	// The degraded sections are genuinely empty in the persisted session.
 	for _, key := range []authoring.SectionKey{authoring.SectionRegressionAnchor, authoring.SectionRequiredReading} {
-		got, err := svc.GetSection(ctx, sess.ID, key)
+		got, _, err := svc.GetSection(ctx, sess.ID, key)
 		require.NoError(t, err)
 		require.Empty(t, got.Content, "degraded section %s must be left for the author", key)
 		require.False(t, got.Filled)
@@ -444,23 +460,109 @@ func TestAutofillEmptyOutputDegrades(t *testing.T) {
 		Anchor: fakeAnchor{out: "   "}, // whitespace-only is not a real fill
 	})
 	ctx := context.Background()
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
-	_, results, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillRegressionAnchor})
+	_, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillRegressionAnchor})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.True(t, results[0].Degraded)
 	require.False(t, results[0].Filled)
 }
 
+func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve authoring", "improve-authoring", "")
+	require.NoError(t, err)
+
+	updated, phase, violations, step, err := svc.AddPhase(ctx, sess.ID, "Authoring contract", "Add phase-native RPCs.")
+	require.NoError(t, err)
+	require.NotEmpty(t, phase.ID)
+	require.Equal(t, 1, phase.Order)
+	require.NotEmpty(t, violations, "acceptance + refs are still required")
+	require.Len(t, updated.PhaseDrafts, 1)
+	require.Equal(t, []string{"author", "phase-submit", sess.ID, phase.ID, "--field", "references", "--content", "[CODE: path/to/file.go]"}, step.NextActions[0].Argv)
+
+	updated, violations, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldReferences, "[CODE: scenarios/plan-manager/api/internal/authoring/service.go]")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations, "acceptance is still missing")
+	require.Len(t, updated.PhaseDrafts[0].References, 1)
+
+	updated, violations, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRequiredReading, "docs/concepts/PLAN-MODEL.md\nprompt-manager skill read plan-skill-discovery")
+	require.NoError(t, err)
+	require.NotEmpty(t, violations)
+	require.Len(t, updated.PhaseDrafts[0].RequiredReading, 2)
+
+	updated, violations, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldAcceptance, "API and CLI tests cover the new phase-native flow.")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Empty(t, updated.CurrentPhaseID)
+
+	_, step, complete, err := svc.NextPhase(ctx, sess.ID)
+	require.NoError(t, err)
+	require.True(t, complete)
+	require.Equal(t, "final_review", step.StepKind)
+
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Make authoring smaller-model friendly.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: plan-manager authoring.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE: scenarios/plan-manager/api/internal/authoring/service.go]")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Scenario tests pass.")
+	require.NoError(t, err)
+
+	plan, _, err := svc.Finalize(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Equal(t, "plan-finalized", plan.ID)
+	require.Len(t, writer.created.Phases, 1)
+	require.Equal(t, "Authoring contract", writer.created.Phases[0].Title)
+	require.Len(t, writer.created.Phases[0].References, 1)
+	require.Len(t, writer.created.Phases[0].RequiredReading, 2)
+}
+
+func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In scope.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "anchor")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "done")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "### Phase 1 — Work\n- Intent: Work\n- Acceptance: Done\n")
+	require.NoError(t, err)
+
+	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, valid)
+	require.Contains(t, violations[0].Message, "references must include")
+
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: docs-only plan")
+	require.NoError(t, err)
+	valid, violations, _, err = svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.True(t, valid)
+	require.Empty(t, violations)
+}
+
 func TestCommandAnchorAutofillerUsesVerifiedGCTShape(t *testing.T) {
-	runner := &recordingRunner{out: []byte(`{"scenario":"plan-manager","name":"impl"}`)}
+	runner := &recordingRunner{out: []byte(`{"status":"ready","scenario":"plan-manager","name":"plan-manager","baseline":{"name":"impl"}}`)}
 	got, err := authoring.NewCommandAnchorAutofiller(runner.Run).Anchor(context.Background(), "Ignored Title", "plan-manager")
 	require.NoError(t, err)
-	require.Contains(t, got, `"name":"impl"`)
+	require.Equal(t, "impl", got)
 	require.Equal(t, "git-control-tower", runner.name)
-	require.Equal(t, []string{"baseline", "show", "--scenario", "plan-manager", "--name", "plan-manager", "--json"}, runner.args)
+	require.Equal(t, []string{"baseline", "snapshot", "status", "--scenario", "plan-manager", "--name", "plan-manager", "--json"}, runner.args)
 }
 
 func TestCommandReferenceExtractorEmitsParseableCodeRefs(t *testing.T) {
@@ -482,15 +584,15 @@ func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: writer})
 	ctx := context.Background()
 
-	sess, err := svc.StartSession(ctx, "Improve widget", "improve-widget", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "improve-widget", "")
 	require.NoError(t, err)
 
 	// Add a references section so the plan carries a parsed reference.
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE: internal/widget/core.go]")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE: internal/widget/core.go]")
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
 
-	plan, err := svc.Finalize(ctx, sess.ID)
+	plan, _, err := svc.Finalize(ctx, sess.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, writer.calls)
 	require.Equal(t, "plan-finalized", plan.ID)
@@ -505,7 +607,7 @@ func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	require.NotEmpty(t, writer.created.RegressionAnchor.BaselineName, "captured anchor carried forward")
 
 	// The session is marked finalized + linked to the plan.
-	got, err := svc.GetSection(ctx, sess.ID, authoring.SectionPurpose)
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionPurpose)
 	require.NoError(t, err)
 	require.NotEmpty(t, got.Content)
 }
@@ -515,13 +617,13 @@ func TestFinalizeRejectsMalformedAuthoredReferences(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: writer})
 	ctx := context.Background()
 
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 	fillMandatory(t, svc, sess.ID)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE:]")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "[CODE:]")
 	require.NoError(t, err)
 
-	_, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID)
 	require.Error(t, err)
 	var markup authoring.ErrAuthoredMarkup
 	require.True(t, errors.As(err, &markup), "malformed reference markup is a typed authoring error")
@@ -534,20 +636,22 @@ func TestFinalizeRejectsNonParseablePhaseMarkup(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: writer})
 	ctx := context.Background()
 
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Make widgets better.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "Make widgets better.")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In: widget core.")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: malformed phase markup fixture")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Tests green.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "baseline captured at HEAD abc123")
 	require.NoError(t, err)
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "Phase 1 - missing markdown heading")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "Tests green.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPhases, "Phase 1 - missing markdown heading")
 	require.NoError(t, err)
 
-	_, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID)
 	require.Error(t, err)
 	var markup authoring.ErrAuthoredMarkup
 	require.True(t, errors.As(err, &markup), "non-empty phase markup that parses to zero phases is rejected")
@@ -560,14 +664,14 @@ func TestFinalizeRejectsWhenStructureInvalid(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: writer})
 	ctx := context.Background()
 
-	sess, err := svc.StartSession(ctx, "Improve widget", "", "")
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
 	// Fill only purpose — the gate still has violations.
-	_, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
 	require.NoError(t, err)
 
-	_, err = svc.Finalize(ctx, sess.ID)
+	_, _, err = svc.Finalize(ctx, sess.ID)
 	require.Error(t, err)
 	var gate authoring.ErrStructureGate
 	require.True(t, errors.As(err, &gate), "structure gate failure is typed")
@@ -580,13 +684,13 @@ func TestUnknownSessionIsNotFound(t *testing.T) {
 	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
 	ctx := context.Background()
 
-	_, err := svc.GetSection(ctx, "nope", authoring.SectionPurpose)
+	_, _, err := svc.GetSection(ctx, "nope", authoring.SectionPurpose)
 	var notFound authoring.ErrSessionNotFound
 	require.True(t, errors.As(err, &notFound))
 
-	_, _, err = svc.Next(ctx, "nope")
+	_, _, _, err = svc.Next(ctx, "nope")
 	require.Error(t, err)
-	_, _, err = svc.ValidateStructure(ctx, "nope")
+	_, _, _, err = svc.ValidateStructure(ctx, "nope")
 	require.Error(t, err)
 	_ = sql.ErrNoRows
 }

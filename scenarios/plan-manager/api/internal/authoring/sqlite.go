@@ -41,8 +41,10 @@ var _ SessionStore = (*sqliteStore)(nil)
 // sections[] and the current-section pointer live here because they round-trip
 // with the session and are never queried across sessions.
 type sessionDocument struct {
-	Sections          []Section  `json:"sections"`
-	CurrentSectionKey SectionKey `json:"current_section_key"`
+	Sections          []Section    `json:"sections"`
+	CurrentSectionKey SectionKey   `json:"current_section_key"`
+	PhaseDrafts       []PhaseDraft `json:"phase_drafts,omitempty"`
+	CurrentPhaseID    string       `json:"current_phase_id,omitempty"`
 }
 
 const (
@@ -63,7 +65,12 @@ FROM authoring_sessions WHERE id = ? LIMIT 1`
 )
 
 func (r *sqliteStore) Save(ctx context.Context, s Session) error {
-	doc := sessionDocument{Sections: s.Sections, CurrentSectionKey: s.CurrentSectionKey}
+	doc := sessionDocument{
+		Sections:          s.Sections,
+		CurrentSectionKey: s.CurrentSectionKey,
+		PhaseDrafts:       s.PhaseDrafts,
+		CurrentPhaseID:    s.CurrentPhaseID,
+	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
 		return fmt.Errorf("marshal session document %q: %w", s.ID, err)
@@ -120,5 +127,7 @@ func scanSession(sc rowScanner) (Session, error) {
 	}
 	s.Sections = doc.Sections
 	s.CurrentSectionKey = doc.CurrentSectionKey
+	s.PhaseDrafts = doc.PhaseDrafts
+	s.CurrentPhaseID = doc.CurrentPhaseID
 	return s, nil
 }

@@ -114,37 +114,50 @@ describe("Connect API wrapper helpers", () => {
   it("threads AuthoringService requests and unwraps responses", async () => {
     const session = { id: "session-1" };
     const section = { key: "purpose" };
+    const step = { stepKind: "purpose" };
+    const phase = { id: "phase-1" };
     const violation = { sectionKey: "purpose" };
     const result = { source: "references" };
     const plan = { id: "plan-1" };
     const client = {
-      startSession: vi.fn().mockResolvedValue({ session }),
-      getSection: vi.fn().mockResolvedValue({ section }),
-      submitSection: vi.fn().mockResolvedValue({ session, violations: [violation] }),
-      next: vi.fn().mockResolvedValue({ section, complete: true }),
-      validateStructure: vi.fn().mockResolvedValue({ valid: false, violations: [violation] }),
-      autofill: vi.fn().mockResolvedValue({ session, results: [result] }),
-      finalize: vi.fn().mockResolvedValue({ plan }),
+      startSession: vi.fn().mockResolvedValue({ session, step }),
+      getSection: vi.fn().mockResolvedValue({ section, step }),
+      submitSection: vi.fn().mockResolvedValue({ session, violations: [violation], step }),
+      next: vi.fn().mockResolvedValue({ section, complete: true, step }),
+      validateStructure: vi.fn().mockResolvedValue({ valid: false, violations: [violation], step }),
+      autofill: vi.fn().mockResolvedValue({ session, results: [result], step }),
+      addPhase: vi.fn().mockResolvedValue({ session, phase, violations: [violation], step }),
+      getPhase: vi.fn().mockResolvedValue({ phase, step }),
+      submitPhaseField: vi.fn().mockResolvedValue({ session, violations: [violation], step }),
+      nextPhase: vi.fn().mockResolvedValue({ phase, complete: true, step }),
+      finalize: vi.fn().mockResolvedValue({ plan, step }),
     };
     createClientMock.mockReturnValue(client);
 
     const authoring = await import("./authoring");
 
-    await expect(authoring.startSession("Title", "slug", "cli")).resolves.toBe(session);
-    await expect(authoring.getSection("session-1", "purpose")).resolves.toBe(section);
-    await expect(authoring.submitSection("session-1", "purpose", "Body")).resolves.toEqual({ session, violations: [violation] });
-    await expect(authoring.nextSection("session-1")).resolves.toEqual({ section, complete: true });
-    await expect(authoring.validateStructure("session-1")).resolves.toEqual({ valid: false, violations: [violation] });
-    await expect(authoring.autofill("session-1", ["references"])).resolves.toEqual({ session, results: [result] });
-    await expect(authoring.finalize("session-1")).resolves.toBe(plan);
-    await expect(authoring.startSession("Bare")).resolves.toBe(session);
-    await expect(authoring.autofill("session-1")).resolves.toEqual({ session, results: [result] });
+    await expect(authoring.startSession("Title", "slug", "cli")).resolves.toEqual({ session, step });
+    await expect(authoring.getSection("session-1", "purpose")).resolves.toEqual({ section, step });
+    await expect(authoring.submitSection("session-1", "purpose", "Body")).resolves.toEqual({ session, violations: [violation], step });
+    await expect(authoring.nextSection("session-1")).resolves.toEqual({ section, complete: true, step });
+    await expect(authoring.validateStructure("session-1")).resolves.toEqual({ valid: false, violations: [violation], step });
+    await expect(authoring.autofill("session-1", ["references"])).resolves.toEqual({ session, results: [result], step });
+    await expect(authoring.addPhase("session-1", "Title", "Intent")).resolves.toEqual({ session, phase, violations: [violation], step });
+    await expect(authoring.getPhase("session-1", "phase-1")).resolves.toEqual({ phase, step });
+    await expect(authoring.submitPhaseField("session-1", "phase-1", "acceptance", "Done")).resolves.toEqual({ session, violations: [violation], step });
+    await expect(authoring.nextPhase("session-1")).resolves.toEqual({ phase, complete: true, step });
+    await expect(authoring.finalize("session-1")).resolves.toEqual({ plan, step });
+    await expect(authoring.startSession("Bare")).resolves.toEqual({ session, step });
+    await expect(authoring.autofill("session-1")).resolves.toEqual({ session, results: [result], step });
 
     expect(client.startSession).toHaveBeenCalledWith({ title: "Title", slug: "slug", templateId: "cli" });
     expect(client.startSession).toHaveBeenCalledWith({ title: "Bare", slug: "", templateId: "" });
     expect(client.submitSection).toHaveBeenCalledWith({ sessionId: "session-1", sectionKey: "purpose", content: "Body" });
     expect(client.autofill).toHaveBeenCalledWith({ sessionId: "session-1", sources: ["references"] });
     expect(client.autofill).toHaveBeenCalledWith({ sessionId: "session-1", sources: [] });
+    expect(client.addPhase).toHaveBeenCalledWith({ sessionId: "session-1", title: "Title", intent: "Intent" });
+    expect(client.getPhase).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1" });
+    expect(client.submitPhaseField).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", field: "acceptance", content: "Done" });
   });
 
   it("threads ExecutionService requests and unwraps responses", async () => {
@@ -155,15 +168,16 @@ describe("Connect API wrapper helpers", () => {
     const handoff = { id: "handoff-1" };
     const nudge = { kind: "record_finding" };
     const point = { id: "velocity-1" };
+    const step = { stepKind: "execution" };
     const client = {
-      start: vi.fn().mockResolvedValue({ execution }),
-      getStatus: vi.fn().mockResolvedValue({ execution, context }),
-      getNext: vi.fn().mockResolvedValue({ context, complete: false }),
-      transitionPhase: vi.fn().mockResolvedValue({ execution }),
-      recordDecision: vi.fn().mockResolvedValue({ decision }),
-      recordFinding: vi.fn().mockResolvedValue({ finding }),
-      complete: vi.fn().mockResolvedValue({ handoff, nudges: [nudge] }),
-      getHandoff: vi.fn().mockResolvedValue({ handoff }),
+      start: vi.fn().mockResolvedValue({ execution, step }),
+      getStatus: vi.fn().mockResolvedValue({ execution, context, step }),
+      getNext: vi.fn().mockResolvedValue({ context, complete: false, step }),
+      transitionPhase: vi.fn().mockResolvedValue({ execution, step }),
+      recordDecision: vi.fn().mockResolvedValue({ decision, step }),
+      recordFinding: vi.fn().mockResolvedValue({ finding, step }),
+      complete: vi.fn().mockResolvedValue({ handoff, nudges: [nudge], step }),
+      getHandoff: vi.fn().mockResolvedValue({ handoff, step }),
       listCandidateFindings: vi.fn().mockResolvedValue({ findings: [finding] }),
       triageFinding: vi.fn().mockResolvedValue({ finding }),
       getVelocity: vi.fn().mockResolvedValue({ points: [point] }),
@@ -172,21 +186,21 @@ describe("Connect API wrapper helpers", () => {
 
     const executionApi = await import("./execution");
 
-    await expect(executionApi.startExecution("plan-1", "run-1")).resolves.toBe(execution);
-    await expect(executionApi.getStatus("exec-1")).resolves.toEqual({ execution, context });
-    await expect(executionApi.getNext("exec-1")).resolves.toEqual({ context, complete: false });
-    await expect(executionApi.transitionPhase("exec-1", "phase-1", PhaseStatus.DONE)).resolves.toEqual({ execution });
-    await expect(executionApi.recordDecision("exec-1", "phase-1", "summary", "detail")).resolves.toBe(decision);
-    await expect(executionApi.recordFinding("exec-1", "phase-1", "title", "detail")).resolves.toBe(finding);
-    await expect(executionApi.completeExecution("exec-1", 10n, 2)).resolves.toEqual({ handoff, nudges: [nudge] });
-    await expect(executionApi.getHandoff("exec-1")).resolves.toBe(handoff);
+    await expect(executionApi.startExecution("plan-1", "run-1")).resolves.toEqual({ execution, step });
+    await expect(executionApi.getStatus("exec-1")).resolves.toEqual({ execution, context, step });
+    await expect(executionApi.getNext("exec-1")).resolves.toEqual({ context, complete: false, step });
+    await expect(executionApi.transitionPhase("exec-1", "phase-1", PhaseStatus.DONE)).resolves.toEqual({ execution, step });
+    await expect(executionApi.recordDecision("exec-1", "phase-1", "summary", "detail")).resolves.toEqual({ decision, step });
+    await expect(executionApi.recordFinding("exec-1", "phase-1", "title", "detail")).resolves.toEqual({ finding, step });
+    await expect(executionApi.completeExecution("exec-1", 10n, 2)).resolves.toEqual({ handoff, nudges: [nudge], step });
+    await expect(executionApi.getHandoff("exec-1")).resolves.toEqual({ handoff, step });
     await expect(executionApi.listCandidateFindings("exec-1")).resolves.toEqual([finding]);
     await expect(executionApi.triageFinding("finding-1", FindingTriage.PROMOTED)).resolves.toBe(finding);
     await expect(executionApi.getVelocity("plan-1")).resolves.toEqual([point]);
-    await expect(executionApi.startExecution("plan-1")).resolves.toBe(execution);
-    await expect(executionApi.recordDecision("exec-1", "phase-1", "summary")).resolves.toBe(decision);
-    await expect(executionApi.recordFinding("exec-1", "phase-1", "title")).resolves.toBe(finding);
-    await expect(executionApi.completeExecution("exec-1")).resolves.toEqual({ handoff, nudges: [nudge] });
+    await expect(executionApi.startExecution("plan-1")).resolves.toEqual({ execution, step });
+    await expect(executionApi.recordDecision("exec-1", "phase-1", "summary")).resolves.toEqual({ decision, step });
+    await expect(executionApi.recordFinding("exec-1", "phase-1", "title")).resolves.toEqual({ finding, step });
+    await expect(executionApi.completeExecution("exec-1")).resolves.toEqual({ handoff, nudges: [nudge], step });
     await expect(executionApi.listCandidateFindings()).resolves.toEqual([finding]);
 
     expect(client.start).toHaveBeenCalledWith({ planId: "plan-1", runId: "run-1" });

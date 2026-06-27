@@ -26,6 +26,7 @@ import {
   PhaseStatus,
   type Decision,
   type Finding,
+  type GuidedStep,
   type Handoff,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import type {
@@ -41,6 +42,7 @@ interface RunnerState {
   findings: Finding[];
   handoff?: Handoff;
   nudges: CompletionNudge[];
+  step?: GuidedStep;
 }
 
 const TRANSITION_TARGETS: { value: PhaseStatus; labelKey: StringKey }[] = [
@@ -66,6 +68,59 @@ function StringList({ items, empty }: { items: readonly string[]; empty: string 
         </li>
       ))}
     </ul>
+  );
+}
+
+function shellQuote(arg: string) {
+  if (/^[A-Za-z0-9_./:=@+-]+$/.test(arg)) return arg;
+  return `'${arg.replace(/'/g, "'\\''")}'`;
+}
+
+function shellCommand(argv: readonly string[]) {
+  return ["vrooli", "scenario", "plan-manager", ...argv].map(shellQuote).join(" ");
+}
+
+function StepPanel({ step }: { step?: GuidedStep }) {
+  if (!step || (!step.title && !step.summary)) return null;
+  return (
+    <SectionPanel title={step.title || step.stepKind} headingId="execution-step-heading">
+      <div data-testid={selectors.execution.guidedStep} className="flex flex-col gap-3">
+        {step.summary ? <p className="text-sm text-app-muted-foreground">{step.summary}</p> : null}
+        {step.instructions.length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {step.instructions.map((item, i) => (
+              <li key={`${item}-${i}`} className="text-sm text-app-foreground">
+                {item}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {step.requiredInputs.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {step.requiredInputs.map((item) => (
+              <span
+                key={item}
+                className="rounded-control border border-app-border bg-app-surface-muted px-2 py-1 font-mono text-xs"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {step.nextActions.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {step.nextActions.map((action) => (
+              <code
+                key={`${action.label}-${action.argv.join(" ")}`}
+                className="break-all rounded-control bg-app-surface-muted px-3 py-2 text-xs text-app-foreground"
+              >
+                {shellCommand(action.argv)}
+              </code>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </SectionPanel>
   );
 }
 
@@ -108,16 +163,17 @@ export function ExecutionRunner() {
 
   const refreshStatus = async (executionId: string) => {
     const res = await getStatus(executionId);
-    setState((prev) => ({ ...prev, execution: res.execution, context: res.context }));
+    setState((prev) => ({ ...prev, execution: res.execution, context: res.context, step: res.step }));
   };
 
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
     if (planId.length === 0) return;
     run(async () => {
-      const exec = await startExecution(planId, runId.trim());
+      const res = await startExecution(planId, runId.trim());
+      const exec = res.execution;
       if (exec) {
-        setState({ execution: exec, decisions: [], findings: [], nudges: [] });
+        setState({ execution: exec, decisions: [], findings: [], nudges: [], step: res.step });
         await refreshStatus(exec.id);
       }
     });
@@ -126,7 +182,8 @@ export function ExecutionRunner() {
   const handleTransition = () => {
     if (!execution || currentPhaseId.length === 0) return;
     run(async () => {
-      await transitionPhase(execution.id, currentPhaseId, toStatus);
+      const res = await transitionPhase(execution.id, currentPhaseId, toStatus);
+      setState((prev) => ({ ...prev, execution: res.execution ?? prev.execution, step: res.step }));
       await refreshStatus(execution.id);
     });
   };
@@ -134,14 +191,15 @@ export function ExecutionRunner() {
   const handleRecordDecision = () => {
     if (!execution || decisionSummary.trim().length === 0) return;
     run(async () => {
-      const dec = await recordDecision(
+      const res = await recordDecision(
         execution.id,
         currentPhaseId,
         decisionSummary.trim(),
         decisionDetail.trim(),
       );
+      const dec = res.decision;
       if (dec) {
-        setState((prev) => ({ ...prev, decisions: [...prev.decisions, dec] }));
+        setState((prev) => ({ ...prev, decisions: [...prev.decisions, dec], step: res.step }));
         setDecisionSummary("");
         setDecisionDetail("");
       }
@@ -151,14 +209,15 @@ export function ExecutionRunner() {
   const handleRecordFinding = () => {
     if (!execution || findingTitle.trim().length === 0) return;
     run(async () => {
-      const finding = await recordFinding(
+      const res = await recordFinding(
         execution.id,
         currentPhaseId,
         findingTitle.trim(),
         findingDetail.trim(),
       );
+      const finding = res.finding;
       if (finding) {
-        setState((prev) => ({ ...prev, findings: [...prev.findings, finding] }));
+        setState((prev) => ({ ...prev, findings: [...prev.findings, finding], step: res.step }));
         setFindingTitle("");
         setFindingDetail("");
       }
@@ -169,7 +228,7 @@ export function ExecutionRunner() {
     if (!execution) return;
     run(async () => {
       const res = await completeExecution(execution.id);
-      setState((prev) => ({ ...prev, handoff: res.handoff, nudges: res.nudges }));
+      setState((prev) => ({ ...prev, handoff: res.handoff, nudges: res.nudges, step: res.step }));
       await refreshStatus(execution.id);
     });
   };
@@ -226,6 +285,8 @@ export function ExecutionRunner() {
           {errorMessage(error, t)}
         </p>
       ) : null}
+
+      <StepPanel step={state.step} />
 
       <SectionPanel
         title={t(strings.pages.execution.contextHeading)}

@@ -22,6 +22,8 @@ func sessionToProto(s internalauthoring.Session) *authoringv1.AuthoringSession {
 		CurrentSectionKey: string(s.CurrentSectionKey),
 		Finalized:         s.Finalized,
 		PlanId:            s.PlanID,
+		PhaseDrafts:       phaseDraftsToProto(s.PhaseDrafts),
+		CurrentPhaseId:    s.CurrentPhaseID,
 	}
 }
 
@@ -78,6 +80,72 @@ func autofillSourcesFromProto(sources []string) []internalauthoring.AutofillSour
 		out = append(out, internalauthoring.AutofillSource(s))
 	}
 	return out
+}
+
+func guidedStepToProto(g internalauthoring.GuidedStep) *sharedv1.GuidedStep {
+	return &sharedv1.GuidedStep{
+		StepKind:       g.StepKind,
+		Title:          g.Title,
+		Summary:        g.Summary,
+		Instructions:   append([]string(nil), g.Instructions...),
+		RequiredInputs: append([]string(nil), g.RequiredInputs...),
+		Examples:       append([]string(nil), g.Examples...),
+		CommonMistakes: append([]string(nil), g.CommonMistakes...),
+		NextActions:    nextActionsToProto(g.NextActions),
+	}
+}
+
+func nextActionsToProto(actions []internalauthoring.NextAction) []*sharedv1.NextAction {
+	out := make([]*sharedv1.NextAction, 0, len(actions))
+	for _, action := range actions {
+		out = append(out, &sharedv1.NextAction{
+			Id:                 action.ID,
+			Kind:               nextActionKindToProto(action.Kind),
+			Label:              action.Label,
+			Reason:             action.Reason,
+			Argv:               append([]string(nil), action.Argv...),
+			ContentPlaceholder: action.ContentPlaceholder,
+			BlockedBy:          append([]string(nil), action.BlockedBy...),
+		})
+	}
+	return out
+}
+
+func nextActionKindToProto(kind internalauthoring.NextActionKind) sharedv1.NextActionKind {
+	switch kind {
+	case internalauthoring.NextActionRecommended:
+		return sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED
+	case internalauthoring.NextActionAlternative:
+		return sharedv1.NextActionKind_NEXT_ACTION_KIND_ALTERNATIVE
+	case internalauthoring.NextActionOptional:
+		return sharedv1.NextActionKind_NEXT_ACTION_KIND_OPTIONAL
+	case internalauthoring.NextActionRecovery:
+		return sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOVERY
+	default:
+		return sharedv1.NextActionKind_NEXT_ACTION_KIND_UNSPECIFIED
+	}
+}
+
+func phaseDraftsToProto(phases []internalauthoring.PhaseDraft) []*authoringv1.PhaseDraft {
+	out := make([]*authoringv1.PhaseDraft, 0, len(phases))
+	for _, phase := range phases {
+		out = append(out, phaseDraftToProto(phase))
+	}
+	return out
+}
+
+func phaseDraftToProto(phase internalauthoring.PhaseDraft) *authoringv1.PhaseDraft {
+	return &authoringv1.PhaseDraft{
+		Id:               phase.ID,
+		Order:            int32Of(phase.Order),
+		Title:            phase.Title,
+		Intent:           phase.Intent,
+		References:       referencesToProto(phase.References),
+		RequiredReading:  append([]string(nil), phase.RequiredReading...),
+		Reminders:        append([]string(nil), phase.Reminders...),
+		Acceptance:       phase.Acceptance,
+		NoCodeRefsReason: phase.NoCodeRefsReason,
+	}
 }
 
 // planToProto translates a persisted plans domain Plan into its shared proto wire

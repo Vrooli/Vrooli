@@ -9,6 +9,7 @@ import (
 
 	authoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring"
 	authoringconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring/authoring_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,11 +38,9 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	}
 	sess := resp.Msg.GetSession()
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Started session %s for %q.", sess.GetId(), sess.GetTitle())},
-		Changes: []string{fmt.Sprintf("Seeded %d section(s); next: %s.", len(sess.GetSections()), nextLabel(sess.GetCurrentSectionKey()))},
-		NextCommand: []string{
-			fmt.Sprintf("`author next %s` — the next section that needs input", sess.GetId()),
-		},
+		Result:      []string{fmt.Sprintf("Started session %s for %q.", sess.GetId(), sess.GetTitle())},
+		Changes:     append([]string{fmt.Sprintf("Seeded %d section(s); next: %s.", len(sess.GetSections()), nextLabel(sess.GetCurrentSectionKey()))}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -57,6 +56,7 @@ func (h *handlers) sectionGet(ctx cliapp.RunContext) error {
 		Summary:        []string{formatSection(resp.Msg.GetSection())},
 		ResultsHeading: "Content",
 		Results:        []string{resp.Msg.GetSection().GetContent()},
+		RetrievalHints: formatStep(resp.Msg.GetStep()),
 	})
 }
 
@@ -73,9 +73,11 @@ func (h *handlers) sectionSubmit(ctx cliapp.RunContext) error {
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
 		changes = append(changes, formatViolations(v)...)
 	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Submitted section %q (%d violation(s)).", ctx.Flag("section"), len(resp.Msg.GetViolations()))},
-		Changes: changes,
+		Result:      []string{fmt.Sprintf("Submitted section %q (%d violation(s)).", ctx.Flag("section"), len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -90,14 +92,15 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 		return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 			Summary:        []string{"All mandatory sections are filled."},
 			ResultsHeading: "Next step",
-			Results:        []string{"Run `author validate <session>` then `author finalize <session>`."},
+			Results:        formatStep(resp.Msg.GetStep()),
+			RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
 		})
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{"Next section needing input:"},
 		ResultsHeading: "Section",
 		Results:        []string{formatSection(resp.Msg.GetSection())},
-		RetrievalHints: []string{fmt.Sprintf("`author section-submit %s --section %s --content '…'`", ctx.Positional("session"), resp.Msg.GetSection().GetKey())},
+		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
 	})
 }
 
@@ -116,6 +119,7 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 		Summary:        []string{fmt.Sprintf("Structure is %s (%d violation(s)).", verdict, len(resp.Msg.GetViolations()))},
 		ResultsHeading: "Violations",
 		Results:        formatViolations(resp.Msg.GetViolations()),
+		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
 	})
 }
 
@@ -136,8 +140,92 @@ func (h *handlers) autofill(ctx cliapp.RunContext) error {
 		}
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Autofilled %d of %d source(s).", filled, len(resp.Msg.GetResults()))},
-		Changes: results,
+		Result:      []string{fmt.Sprintf("Autofilled %d of %d source(s).", filled, len(resp.Msg.GetResults()))},
+		Changes:     append(results, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
+	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&authoringv1.AddPhaseRequest{
+		SessionId: ctx.Positional("session"),
+		Title:     ctx.Flag("title"),
+		Intent:    ctx.Flag("intent"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("add phase", err, nil)
+	}
+	phase := resp.Msg.GetPhase()
+	changes := []string{formatPhase(phase)}
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Added phase %d (%s).", phase.GetOrder(), phase.GetId())},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) phaseGet(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetPhase(context.Background(), connect.NewRequest(&authoringv1.GetPhaseRequest{
+		SessionId: ctx.Positional("session"),
+		PhaseId:   ctx.Positional("phase"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("get phase", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{formatPhase(resp.Msg.GetPhase())},
+		ResultsHeading: "Guided step",
+		Results:        formatStep(resp.Msg.GetStep()),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) phaseSubmit(ctx cliapp.RunContext) error {
+	resp, err := h.client.SubmitPhaseField(context.Background(), connect.NewRequest(&authoringv1.SubmitPhaseFieldRequest{
+		SessionId: ctx.Positional("session"),
+		PhaseId:   ctx.Positional("phase"),
+		Field:     ctx.Flag("field"),
+		Content:   ctx.Flag("content"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("submit phase field", err, nil)
+	}
+	changes := []string{fmt.Sprintf("Submitted phase field %q.", ctx.Flag("field"))}
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Phase field submitted (%d violation(s)).", len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) phaseNext(ctx cliapp.RunContext) error {
+	resp, err := h.client.NextPhase(context.Background(), connect.NewRequest(&authoringv1.NextPhaseRequest{
+		SessionId: ctx.Positional("session"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("next phase", err, nil)
+	}
+	if resp.Msg.GetComplete() {
+		return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+			Summary:        []string{"All structured phases have required fields."},
+			ResultsHeading: "Guided step",
+			Results:        formatStep(resp.Msg.GetStep()),
+			RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
+		})
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{"Next phase needing input:"},
+		ResultsHeading: "Phase",
+		Results:        []string{formatPhase(resp.Msg.GetPhase())},
+		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
 	})
 }
 
@@ -150,11 +238,9 @@ func (h *handlers) finalize(ctx cliapp.RunContext) error {
 	}
 	plan := resp.Msg.GetPlan()
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Finalized into plan %s (%s).", plan.GetId(), plan.GetSlug())},
-		Changes: []string{fmt.Sprintf("Persisted %d phase(s) and %d reference(s).", len(plan.GetPhases()), len(plan.GetReferences()))},
-		NextCommand: []string{
-			fmt.Sprintf("`plans get %s` — view the structured plan", plan.GetSlug()),
-		},
+		Result:      []string{fmt.Sprintf("Finalized into plan %s (%s).", plan.GetId(), plan.GetSlug())},
+		Changes:     append([]string{fmt.Sprintf("Persisted %d phase(s) and %d reference(s).", len(plan.GetPhases()), len(plan.GetReferences()))}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -186,6 +272,80 @@ func formatAutofillResult(r *authoringv1.AutofillResult) string {
 		return fmt.Sprintf("%s → degraded (%s)", r.GetSource(), r.GetDetail())
 	}
 	return fmt.Sprintf("%s → filled %s", r.GetSource(), r.GetSectionKey())
+}
+
+func formatPhase(phase *authoringv1.PhaseDraft) string {
+	return fmt.Sprintf("Phase %d [%s]: %s — %s", phase.GetOrder(), phase.GetId(), phase.GetTitle(), phase.GetIntent())
+}
+
+func formatStep(step *sharedv1.GuidedStep) []string {
+	if step == nil || strings.TrimSpace(step.GetStepKind()) == "" {
+		return nil
+	}
+	out := []string{fmt.Sprintf("Current Step (%s): %s", step.GetStepKind(), step.GetSummary())}
+	for _, input := range step.GetRequiredInputs() {
+		out = append(out, "Required input: "+input)
+	}
+	for _, item := range step.GetInstructions() {
+		out = append(out, "- "+item)
+	}
+	if len(step.GetExamples()) > 0 {
+		out = append(out, "Example: "+step.GetExamples()[0])
+	}
+	for _, action := range step.GetNextActions() {
+		if action.GetKind() == sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED {
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s: `%s` — %s", actionKindLabel(action.GetKind()), shellCommand(action.GetArgv()), action.GetReason()))
+	}
+	return out
+}
+
+func formatRecommendedActions(step *sharedv1.GuidedStep) []string {
+	if step == nil {
+		return nil
+	}
+	out := make([]string, 0, 1)
+	for _, action := range step.GetNextActions() {
+		if action.GetKind() != sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED {
+			continue
+		}
+		out = append(out, fmt.Sprintf("`%s` — %s", shellCommand(action.GetArgv()), action.GetReason()))
+	}
+	return out
+}
+
+func actionKindLabel(kind sharedv1.NextActionKind) string {
+	switch kind {
+	case sharedv1.NextActionKind_NEXT_ACTION_KIND_ALTERNATIVE:
+		return "Alternative"
+	case sharedv1.NextActionKind_NEXT_ACTION_KIND_OPTIONAL:
+		return "Optional"
+	case sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOVERY:
+		return "Recovery"
+	default:
+		return "Action"
+	}
+}
+
+func shellCommand(argv []string) string {
+	parts := make([]string, 0, len(argv))
+	for _, arg := range argv {
+		parts = append(parts, shellQuote(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+func shellQuote(arg string) string {
+	if arg == "" {
+		return "''"
+	}
+	if strings.IndexFunc(arg, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '\'' || r == '"' || r == '<' || r == '>' || r == '[' || r == ']' || r == ':' || r == ';' || r == '|' || r == '&'
+	}) < 0 {
+		return arg
+	}
+	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
 }
 
 func nextLabel(key string) string {

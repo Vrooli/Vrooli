@@ -2,6 +2,7 @@ package authoring
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -101,15 +102,43 @@ func (a cmdAnchorAutofiller) Anchor(ctx context.Context, title, slug string) (st
 	if scenario == "" || name == "" {
 		return "", fmt.Errorf("scenario and baseline name are required")
 	}
-	out, err := a.run(ctx, "git-control-tower", "baseline", "show", "--scenario", scenario, "--name", name, "--json")
+	out, err := a.run(ctx, "git-control-tower", "baseline", "snapshot", "status", "--scenario", scenario, "--name", name, "--json")
 	if err != nil {
 		return "", err
 	}
-	captured := strings.TrimSpace(string(out))
-	if captured == "" {
-		return "", fmt.Errorf("git-control-tower returned no baseline")
+	captured, err := parseSnapshotStatusBaselineName(out)
+	if err != nil {
+		return "", err
 	}
 	return captured, nil
+}
+
+func parseSnapshotStatusBaselineName(out []byte) (string, error) {
+	var status struct {
+		Status   string `json:"status"`
+		Name     string `json:"name"`
+		Baseline struct {
+			Name string `json:"name"`
+		} `json:"baseline"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(out, &status); err != nil {
+		return "", fmt.Errorf("parse git-control-tower snapshot status: %w", err)
+	}
+	if strings.TrimSpace(status.Status) != "ready" {
+		if msg := strings.TrimSpace(status.Error); msg != "" {
+			return "", fmt.Errorf("baseline snapshot not ready: status=%s: %s", status.Status, msg)
+		}
+		return "", fmt.Errorf("baseline snapshot not ready: status=%s", status.Status)
+	}
+	name := strings.TrimSpace(status.Baseline.Name)
+	if name == "" {
+		name = strings.TrimSpace(status.Name)
+	}
+	if name == "" {
+		return "", fmt.Errorf("git-control-tower snapshot status returned no baseline name")
+	}
+	return name, nil
 }
 
 // cmdRequiredReadingSource discovers required reading via the live

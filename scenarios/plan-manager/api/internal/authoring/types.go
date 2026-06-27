@@ -44,6 +44,21 @@ const (
 	SectionPhases           SectionKey = "phases"
 )
 
+// PhaseField is one structured phase-draft field the authoring wizard can ask
+// for independently. This is the phase-native path that replaces asking a small
+// model to submit one large markdown "phases" blob.
+type PhaseField string
+
+const (
+	PhaseFieldTitle            PhaseField = "title"
+	PhaseFieldIntent           PhaseField = "intent"
+	PhaseFieldReferences       PhaseField = "references"
+	PhaseFieldRequiredReading  PhaseField = "required_reading"
+	PhaseFieldReminders        PhaseField = "reminders"
+	PhaseFieldAcceptance       PhaseField = "acceptance"
+	PhaseFieldNoCodeRefsReason PhaseField = "no_code_refs_reason"
+)
+
 // Section is one authored or auto-filled section of a plan-in-progress. key/
 // label/mandatory are the skeleton (seeded by StartSession); content/filled/
 // autofilled accrue as the author or an autofill source touches the section.
@@ -56,6 +71,59 @@ type Section struct {
 	Autofilled bool
 }
 
+// NextActionKind classifies how strongly the wizard recommends an action.
+type NextActionKind string
+
+const (
+	NextActionRecommended NextActionKind = "recommended"
+	NextActionAlternative NextActionKind = "alternative"
+	NextActionOptional    NextActionKind = "optional"
+	NextActionRecovery    NextActionKind = "recovery"
+)
+
+// NextAction is one API-owned concrete action for the current guided step. Argv
+// is canonical; CLI/UI may format it, but they must not decide workflow order.
+type NextAction struct {
+	ID                 string
+	Kind               NextActionKind
+	Label              string
+	Reason             string
+	Argv               []string
+	ContentPlaceholder string
+	BlockedBy          []string
+}
+
+// GuidedStep is deterministic just-in-time wizard steering for the current
+// authoring step. It moves the old prose skill reminders and next-command
+// decisions into the runtime, so a smaller model receives the relevant rule and
+// concrete command exactly when it is authoring a field.
+type GuidedStep struct {
+	StepKind       string
+	Title          string
+	Summary        string
+	Instructions   []string
+	RequiredInputs []string
+	Examples       []string
+	CommonMistakes []string
+	NextActions    []NextAction
+}
+
+// PhaseDraft is a structured phase being authored before Finalize maps it into
+// the plans SSOT. References are parsed into structured locators immediately so
+// phase-specific validation, staleness and execution context can be computed
+// without re-parsing a prose blob later.
+type PhaseDraft struct {
+	ID               string
+	Order            int
+	Title            string
+	Intent           string
+	References       []planmodel.Reference
+	RequiredReading  []string
+	Reminders        []string
+	Acceptance       string
+	NoCodeRefsReason string
+}
+
 // Session is the transient state of a guided authoring flow. It persists across
 // CLI calls via the SessionStore. The plan it produces is owned by the plans
 // domain (PlanID is set after Finalize).
@@ -65,6 +133,8 @@ type Session struct {
 	Slug              string
 	Sections          []Section
 	CurrentSectionKey SectionKey
+	PhaseDrafts       []PhaseDraft
+	CurrentPhaseID    string
 	Finalized         bool
 	PlanID            string
 	CreatedAt         string

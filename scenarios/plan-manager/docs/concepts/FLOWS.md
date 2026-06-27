@@ -21,14 +21,20 @@ determine whether a small/local model can drive plan work.
 
 ### Authoring (Composer)
 
-1. Start a plan; the wizard walks sections in order.
+1. Start a plan; the wizard walks sections in order and returns the API-owned
+   guided step for the current section.
 2. As each section is reached, the wizard **auto-fills** the mechanical ones —
    regression anchor (git-control-tower), required-reading (plan-skill-discovery),
    code references (code-facts) — each behind a seam that degrades to a marked gap
    if the source is down.
-3. The structure-validation gate refuses to finalize while a mandatory section or
-   a phase's acceptance is empty.
-4. On finalize the plan moves `draft → active` and is persisted by `plans`.
+3. The author creates phase drafts through phase-native steps: title/intent,
+   references or an explicit `NO_CODE_REFS:` reason, phase-scoped reading,
+   reminders, and acceptance. Each response returns a guided step so the agent
+   does not need the full authoring skill in context.
+4. The structure-validation gate refuses to finalize while a mandatory section is
+   empty, a plan/phase has neither references nor a no-code reason, or a phase's
+   acceptance is empty.
+5. On finalize the plan moves `draft → active` and is persisted by `plans`.
 
 ### Phase execution (Runner)
 

@@ -42,7 +42,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 			fmt.Sprintf("current phase: %s", orNone(e.GetCurrentPhaseId())),
 			fmt.Sprintf("run id: %s", orNone(e.GetRunId())),
 		},
-		NextCommand: []string{"`exec status <execution>` — fetch the just-in-time context for the current phase"},
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -56,7 +56,8 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        contextSummary(resp.Msg.GetExecution(), resp.Msg.GetContext()),
 		ResultsHeading: "Phase context",
-		Results:        contextLines(resp.Msg.GetContext()),
+		Results:        append(contextLines(resp.Msg.GetContext()), formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -74,7 +75,8 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{summary},
 		ResultsHeading: "Phase context",
-		Results:        contextLines(resp.Msg.GetContext()),
+		Results:        append(contextLines(resp.Msg.GetContext()), formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -90,10 +92,11 @@ func (h *handlers) transition(ctx cliapp.RunContext) error {
 	e := resp.Msg.GetExecution()
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{fmt.Sprintf("Transitioned phase %s to %s.", ctx.Positional("phase"), phaseStatusLabel(phaseStatusFlag(ctx.Flag("status"))))},
-		Changes: []string{
+		Changes: append([]string{
 			fmt.Sprintf("plan status: %s", planStatusLabel(resp.Msg.GetPlan().GetStatus())),
 			fmt.Sprintf("current phase: %s", orNone(e.GetCurrentPhaseId())),
-		},
+		}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -109,8 +112,9 @@ func (h *handlers) decisionAdd(ctx cliapp.RunContext) error {
 	}
 	d := resp.Msg.GetDecision()
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Recorded decision %s.", d.GetId())},
-		Changes: []string{d.GetSummary()},
+		Result:      []string{fmt.Sprintf("Recorded decision %s.", d.GetId())},
+		Changes:     append([]string{d.GetSummary()}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -126,8 +130,9 @@ func (h *handlers) findingAdd(ctx cliapp.RunContext) error {
 	}
 	f := resp.Msg.GetFinding()
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Filed candidate finding %s (triage %s).", f.GetId(), triageLabel(f.GetTriage()))},
-		Changes: []string{f.GetTitle()},
+		Result:      []string{fmt.Sprintf("Filed candidate finding %s (triage %s).", f.GetId(), triageLabel(f.GetTriage()))},
+		Changes:     append([]string{f.GetTitle()}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -163,8 +168,8 @@ func (h *handlers) complete(ctx cliapp.RunContext) error {
 			fmt.Sprintf("Resume point: %s.", orNone(ho.GetResumePhaseId())),
 		},
 		ResultsHeading: "Completion nudges",
-		Results:        results,
-		RetrievalHints: []string{"`exec handoff <execution>` — fetch the assembled canonical handoff"},
+		Results:        append(results, formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -189,7 +194,8 @@ func (h *handlers) handoff(ctx cliapp.RunContext) error {
 			fmt.Sprintf("Resume point: %s.", orNone(ho.GetResumePhaseId())),
 		},
 		ResultsHeading: "Captured state",
-		Results:        results,
+		Results:        append(results, formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -208,7 +214,7 @@ func (h *handlers) findings(ctx cliapp.RunContext) error {
 		Summary:        []string{fmt.Sprintf("%d candidate finding(s) awaiting triage.", len(resp.Msg.GetFindings()))},
 		ResultsHeading: "Candidate findings",
 		Results:        results,
-		RetrievalHints: []string{"`exec triage <finding> --status promoted|dismissed` — operator triage"},
+		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
 	})
 }
 
@@ -222,8 +228,9 @@ func (h *handlers) triage(ctx cliapp.RunContext) error {
 	}
 	f := resp.Msg.GetFinding()
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Finding %s triaged to %s.", f.GetId(), triageLabel(f.GetTriage()))},
-		Changes: []string{f.GetTitle()},
+		Result:      []string{fmt.Sprintf("Finding %s triaged to %s.", f.GetId(), triageLabel(f.GetTriage()))},
+		Changes:     append([]string{f.GetTitle()}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -274,6 +281,73 @@ func contextLines(c *executionv1.PhaseContext) []string {
 		out = append(out, fmt.Sprintf("last validation: %s", lv.GetDetail()))
 	}
 	return out
+}
+
+func formatStep(step *sharedv1.GuidedStep) []string {
+	if step == nil || strings.TrimSpace(step.GetStepKind()) == "" {
+		return nil
+	}
+	out := []string{fmt.Sprintf("Current Step (%s): %s", step.GetStepKind(), step.GetSummary())}
+	for _, input := range step.GetRequiredInputs() {
+		out = append(out, "Required input: "+input)
+	}
+	for _, item := range step.GetInstructions() {
+		out = append(out, "- "+item)
+	}
+	for _, action := range step.GetNextActions() {
+		if action.GetKind() == sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED {
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s: `%s` — %s", actionKindLabel(action.GetKind()), shellCommand(action.GetArgv()), action.GetReason()))
+	}
+	return out
+}
+
+func formatRecommendedActions(step *sharedv1.GuidedStep) []string {
+	if step == nil {
+		return nil
+	}
+	out := make([]string, 0, 1)
+	for _, action := range step.GetNextActions() {
+		if action.GetKind() != sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOMMENDED {
+			continue
+		}
+		out = append(out, fmt.Sprintf("`%s` — %s", shellCommand(action.GetArgv()), action.GetReason()))
+	}
+	return out
+}
+
+func actionKindLabel(kind sharedv1.NextActionKind) string {
+	switch kind {
+	case sharedv1.NextActionKind_NEXT_ACTION_KIND_ALTERNATIVE:
+		return "Alternative"
+	case sharedv1.NextActionKind_NEXT_ACTION_KIND_OPTIONAL:
+		return "Optional"
+	case sharedv1.NextActionKind_NEXT_ACTION_KIND_RECOVERY:
+		return "Recovery"
+	default:
+		return "Action"
+	}
+}
+
+func shellCommand(argv []string) string {
+	parts := make([]string, 0, len(argv))
+	for _, arg := range argv {
+		parts = append(parts, shellQuote(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+func shellQuote(arg string) string {
+	if arg == "" {
+		return "''"
+	}
+	if strings.IndexFunc(arg, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '\'' || r == '"' || r == '<' || r == '>' || r == '[' || r == ']' || r == ':' || r == ';' || r == '|' || r == '&'
+	}) < 0 {
+		return arg
+	}
+	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
 }
 
 func parseInt64Flag(s string) (int64, error) {

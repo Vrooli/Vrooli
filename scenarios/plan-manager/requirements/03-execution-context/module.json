@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-003 — guided execution where status/next act as a just-in-time context server.",
-    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "last_validated_at": "2026-06-26T17:11:03-04:00",
     "module": "execution-context",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PM-EXEC-001",
       "title": "status/next inject phase-scoped context just-in-time",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "description": "The status/next commands return the current phase, what is next, phase-scoped required-reading + reminders, the last validation results, and current staleness — so the agent does not carry that procedural knowledge in context.",
@@ -25,14 +25,14 @@
           "type": "test",
           "ref": "api/internal/execution/execution_test.go::TestGetStatusInjectsPhaseScopedContext",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Status injects current phase, required reading, reminders, next phase, staleness, and resume point."
         },
         {
           "type": "test",
           "ref": "api/internal/execution/execution_test.go::TestGetNextAdvancesPastCurrentUnfinishedPhase",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Next advances to a later actionable phase while preserving the resume point."
         }
       ]
@@ -40,7 +40,7 @@
     {
       "id": "PM-EXEC-002",
       "title": "Full vs partial completion and resume point are computed",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "execution",
       "description": "Whether a run completed the whole plan or part of it, and where to resume, are derived from phase status — not narrated by the agent. A partial run yields a deterministic resume point.",
@@ -54,14 +54,14 @@
           "type": "test",
           "ref": "api/internal/execution/execution_test.go::TestCompletenessFullVsPartial",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Full versus partial completion is derived from phase status."
         },
         {
           "type": "test",
           "ref": "api/internal/execution/execution_test.go::TestCompleteAssemblesHandoffAndCapturesVelocity",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Complete computes full handoff state with no resume point when every phase is done."
         }
       ]

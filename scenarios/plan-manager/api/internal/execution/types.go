@@ -161,3 +161,33 @@ type CompletionInputs struct {
 	Tokens     int64
 	Iterations int32
 }
+
+type NextActionKind string
+
+const (
+	NextActionRecommended NextActionKind = "recommended"
+	NextActionAlternative NextActionKind = "alternative"
+	NextActionOptional    NextActionKind = "optional"
+	NextActionRecovery    NextActionKind = "recovery"
+)
+
+type NextAction struct {
+	ID                 string
+	Kind               NextActionKind
+	Label              string
+	Reason             string
+	Argv               []string
+	ContentPlaceholder string
+	BlockedBy          []string
+}
+
+type GuidedStep struct {
+	StepKind       string
+	Title          string
+	Summary        string
+	Instructions   []string
+	RequiredInputs []string
+	Examples       []string
+	CommonMistakes []string
+	NextActions    []NextAction
+}

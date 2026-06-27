@@ -200,6 +200,8 @@ func TestDeriveBaselineScope(t *testing.T) {
 	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
 	require.NoError(t, err)
 
+	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario foo --name impl")
+	require.Contains(t, scope.Commands, "git-control-tower baseline snapshot status --scenario bar --name impl")
 	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario foo --name impl")
 	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario bar --name impl")
 	require.Contains(t, scope.Commands, "git diff --stat", "non-scenario code => repo-level diff")

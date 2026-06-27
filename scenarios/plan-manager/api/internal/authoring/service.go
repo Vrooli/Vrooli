@@ -15,13 +15,17 @@ import (
 
 // Service is the authoring application surface — the guided composer wizard.
 type Service interface {
-	StartSession(ctx context.Context, title, slug, templateID string) (Session, error)
-	GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, error)
-	SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, error)
-	Next(ctx context.Context, sessionID string) (Section, bool, error)
-	ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, error)
-	Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, error)
-	Finalize(ctx context.Context, sessionID string) (planmodel.Plan, error)
+	StartSession(ctx context.Context, title, slug, templateID string) (Session, GuidedStep, error)
+	GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, GuidedStep, error)
+	SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, GuidedStep, error)
+	Next(ctx context.Context, sessionID string) (Section, GuidedStep, bool, error)
+	ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, GuidedStep, error)
+	Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, GuidedStep, error)
+	AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
+	GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error)
+	SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error)
+	NextPhase(ctx context.Context, sessionID string) (PhaseDraft, GuidedStep, bool, error)
+	Finalize(ctx context.Context, sessionID string) (planmodel.Plan, GuidedStep, error)
 }
 
 type service struct {
@@ -78,10 +82,10 @@ func NewService(d Deps) Service {
 
 var _ Service = (*service)(nil)
 
-func (s *service) StartSession(ctx context.Context, title, slug, templateID string) (Session, error) {
+func (s *service) StartSession(ctx context.Context, title, slug, templateID string) (Session, GuidedStep, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
-		return Session{}, ErrInvalidSession{Reason: "title is required"}
+		return Session{}, GuidedStep{}, ErrInvalidSession{Reason: "title is required"}
 	}
 	sections := newSkeleton()
 	if templateID != "" && s.templateSeed != nil {
@@ -100,31 +104,31 @@ func (s *service) StartSession(ctx context.Context, title, slug, templateID stri
 		UpdatedAt:         now,
 	}
 	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, err
+		return Session{}, GuidedStep{}, err
 	}
-	return sess, nil
+	return sess, stepForSession(sess), nil
 }
 
-func (s *service) GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, error) {
+func (s *service) GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, GuidedStep, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
-		return Section{}, err
+		return Section{}, GuidedStep{}, err
 	}
 	idx := indexOf(sess.Sections, key)
 	if idx < 0 {
-		return Section{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: string(key)}
+		return Section{}, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: string(key)}
 	}
-	return sess.Sections[idx], nil
+	return sess.Sections[idx], stepForSection(sess, sess.Sections[idx]), nil
 }
 
-func (s *service) SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, error) {
+func (s *service) SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, GuidedStep, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
-		return Session{}, nil, err
+		return Session{}, nil, GuidedStep{}, err
 	}
 	idx := indexOf(sess.Sections, key)
 	if idx < 0 {
-		return Session{}, nil, ErrSectionNotFound{SessionID: sessionID, SectionKey: string(key)}
+		return Session{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: string(key)}
 	}
 	sess.Sections[idx].Content = content
 	sess.Sections[idx].Filled = strings.TrimSpace(content) != ""
@@ -134,38 +138,39 @@ func (s *service) SubmitSection(ctx context.Context, sessionID string, key Secti
 	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
 	sess.UpdatedAt = s.now()
 	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, nil, err
+		return Session{}, nil, GuidedStep{}, err
 	}
-	return sess, violations, nil
+	return sess, violations, stepForCurrentSessionState(sess), nil
 }
 
-func (s *service) Next(ctx context.Context, sessionID string) (Section, bool, error) {
+func (s *service) Next(ctx context.Context, sessionID string) (Section, GuidedStep, bool, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
-		return Section{}, false, err
+		return Section{}, GuidedStep{}, false, err
 	}
 	key := firstUnfilledMandatory(sess.Sections)
 	if key == "" {
-		return Section{}, true, nil
+		return Section{}, stepForReview(sess), true, nil
 	}
 	idx := indexOf(sess.Sections, key)
-	return sess.Sections[idx], false, nil
+	return sess.Sections[idx], stepForSection(sess, sess.Sections[idx]), false, nil
 }
 
-func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, error) {
+func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, GuidedStep, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
-		return false, nil, err
+		return false, nil, GuidedStep{}, err
 	}
-	violations := structureViolations(sess.Sections)
+	violations := sessionViolations(sess)
 	violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
-	return len(violations) == 0, violations, nil
+	valid := len(violations) == 0
+	return valid, violations, stepForValidation(sess, valid, violations), nil
 }
 
-func (s *service) Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, error) {
+func (s *service) Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, GuidedStep, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
-		return Session{}, nil, err
+		return Session{}, nil, GuidedStep{}, err
 	}
 	if len(sources) == 0 {
 		sources = []AutofillSource{AutofillRegressionAnchor, AutofillRequiredReading, AutofillReferences}
@@ -177,9 +182,9 @@ func (s *service) Autofill(ctx context.Context, sessionID string, sources []Auto
 	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
 	sess.UpdatedAt = s.now()
 	if err := s.store.Save(ctx, sess); err != nil {
-		return Session{}, nil, err
+		return Session{}, nil, GuidedStep{}, err
 	}
-	return sess, results, nil
+	return sess, results, stepForCurrentSessionState(sess), nil
 }
 
 // runAutofill runs one source against the session in place. It NEVER fabricates a
@@ -229,32 +234,108 @@ func (s *service) runAutofill(ctx context.Context, sess *Session, src AutofillSo
 	return AutofillResult{Source: src, SectionKey: key, Filled: true, Detail: "autofilled"}
 }
 
-func (s *service) Finalize(ctx context.Context, sessionID string) (planmodel.Plan, error) {
+func (s *service) AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error) {
 	sess, err := s.load(ctx, sessionID)
 	if err != nil {
-		return planmodel.Plan{}, err
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, err
 	}
-	if violations := structureViolations(sess.Sections); len(violations) > 0 {
-		return planmodel.Plan{}, ErrStructureGate{Violations: violations}
+	title = strings.TrimSpace(title)
+	intent = strings.TrimSpace(intent)
+	phase := PhaseDraft{
+		ID:     uuid.NewString(),
+		Order:  len(sess.PhaseDrafts) + 1,
+		Title:  title,
+		Intent: intent,
+	}
+	sess.PhaseDrafts = append(sess.PhaseDrafts, phase)
+	if sess.CurrentPhaseID == "" {
+		sess.CurrentPhaseID = phase.ID
+	}
+	sess = syncPhaseSection(sess)
+	sess.UpdatedAt = s.now()
+	violations := phaseViolations(phase)
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, PhaseDraft{}, nil, GuidedStep{}, err
+	}
+	return sess, phase, violations, stepForPhase(sess, phase), nil
+}
+
+func (s *service) GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return PhaseDraft{}, GuidedStep{}, err
+	}
+	phase, ok := findDraft(sess.PhaseDrafts, phaseID)
+	if !ok {
+		return PhaseDraft{}, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+	}
+	return phase, stepForPhase(sess, phase), nil
+}
+
+func (s *service) SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	idx := indexOfDraft(sess.PhaseDrafts, phaseID)
+	if idx < 0 {
+		return Session{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+	}
+	if err := applyPhaseField(&sess.PhaseDrafts[idx], field, content); err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
+	sess = syncPhaseSection(sess)
+	sess.UpdatedAt = s.now()
+	violations := phaseViolations(sess.PhaseDrafts[idx])
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	return sess, violations, stepForNextPhaseState(sess, sess.PhaseDrafts[idx]), nil
+}
+
+func (s *service) NextPhase(ctx context.Context, sessionID string) (PhaseDraft, GuidedStep, bool, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return PhaseDraft{}, GuidedStep{}, false, err
+	}
+	id := nextIncompletePhaseID(sess.PhaseDrafts)
+	if id == "" {
+		return PhaseDraft{}, stepForReview(sess), true, nil
+	}
+	phase, ok := findDraft(sess.PhaseDrafts, id)
+	if !ok {
+		return PhaseDraft{}, GuidedStep{}, false, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + id}
+	}
+	return phase, stepForPhase(sess, phase), false, nil
+}
+
+func (s *service) Finalize(ctx context.Context, sessionID string) (planmodel.Plan, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return planmodel.Plan{}, GuidedStep{}, err
+	}
+	if violations := sessionViolations(sess); len(violations) > 0 {
+		return planmodel.Plan{}, GuidedStep{}, ErrStructureGate{Violations: violations}
 	}
 	if violations := s.commandViolationsForSections(ctx, sess.Sections); len(violations) > 0 {
-		return planmodel.Plan{}, ErrStructureGate{Violations: violations}
+		return planmodel.Plan{}, GuidedStep{}, ErrStructureGate{Violations: violations}
 	}
 	draft, err := sessionToPlan(sess)
 	if err != nil {
-		return planmodel.Plan{}, err
+		return planmodel.Plan{}, GuidedStep{}, err
 	}
 	plan, err := s.writer.CreatePlan(ctx, draft)
 	if err != nil {
-		return planmodel.Plan{}, err
+		return planmodel.Plan{}, GuidedStep{}, err
 	}
 	sess.Finalized = true
 	sess.PlanID = plan.ID
 	sess.UpdatedAt = s.now()
 	if err := s.store.Save(ctx, sess); err != nil {
-		return planmodel.Plan{}, err
+		return planmodel.Plan{}, GuidedStep{}, err
 	}
-	return plan, nil
+	return plan, stepForFinalizedPlan(sess, plan.ID, plan.Slug), nil
 }
 
 func (s *service) load(ctx context.Context, sessionID string) (Session, error) {
@@ -271,6 +352,25 @@ func (s *service) load(ctx context.Context, sessionID string) (Session, error) {
 func (s *service) now() string { return s.clock.Now().UTC().Format(sessionTimeFormat) }
 
 // --- pure helpers (no I/O) ---
+
+func stepForCurrentSessionState(sess Session) GuidedStep {
+	if sess.CurrentSectionKey == "" {
+		return stepForReview(sess)
+	}
+	if sec, ok := sectionByKey(sess.Sections, sess.CurrentSectionKey); ok {
+		return stepForSection(sess, sec)
+	}
+	return stepForReview(sess)
+}
+
+func stepForNextPhaseState(sess Session, fallback PhaseDraft) GuidedStep {
+	if id := nextIncompletePhaseID(sess.PhaseDrafts); id != "" {
+		if phase, ok := findDraft(sess.PhaseDrafts, id); ok {
+			return stepForPhase(sess, phase)
+		}
+	}
+	return stepForPhase(sess, fallback)
+}
 
 // structureViolations is the structure-validation gate (PM-AUTHOR-002): every
 // mandatory section must be non-empty, and the regression-anchor section must not
@@ -290,6 +390,47 @@ func structureViolations(sections []Section) []StructureViolation {
 		out = append(out, StructureViolation{
 			SectionKey: SectionRegressionAnchor,
 			Message:    "regression anchor must be captured before finalizing",
+		})
+	}
+	return out
+}
+
+func sessionViolations(sess Session) []StructureViolation {
+	out := structureViolations(sess.Sections)
+	refsContent := contentOf(sess.Sections, SectionReferences)
+	if !hasReferencesOrNoCodeReason(refsContent) {
+		out = append(out, StructureViolation{
+			SectionKey: SectionReferences,
+			Message:    "references must include at least one [CODE:], [REQ:], or [DOC:] reference, or a NO_CODE_REFS: reason",
+		})
+	}
+	for _, phase := range sess.PhaseDrafts {
+		for _, v := range phaseViolations(phase) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func phaseViolations(phase PhaseDraft) []StructureViolation {
+	var out []StructureViolation
+	prefix := "phase"
+	if phase.Order > 0 {
+		prefix = fmt.Sprintf("phase %d", phase.Order)
+	}
+	if strings.TrimSpace(phase.Title) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " title must not be empty"})
+	}
+	if strings.TrimSpace(phase.Intent) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " intent must not be empty"})
+	}
+	if strings.TrimSpace(phase.Acceptance) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " acceptance must not be empty"})
+	}
+	if len(phase.References) == 0 && strings.TrimSpace(phase.NoCodeRefsReason) == "" {
+		out = append(out, StructureViolation{
+			SectionKey: SectionPhases,
+			Message:    prefix + " must include references or a no_code_refs_reason",
 		})
 	}
 	return out
@@ -444,6 +585,188 @@ func degraded(src AutofillSource, key SectionKey, detail string) AutofillResult 
 	return AutofillResult{Source: src, SectionKey: key, Filled: false, Degraded: true, Detail: detail}
 }
 
+func hasReferencesOrNoCodeReason(content string) bool {
+	if strings.TrimSpace(noCodeRefsReason(content)) != "" {
+		return true
+	}
+	return hasReferenceMarker(content)
+}
+
+func hasReferenceMarker(content string) bool {
+	upper := strings.ToUpper(content)
+	return strings.Contains(upper, "[CODE:") ||
+		strings.Contains(upper, "[REQ:") ||
+		strings.Contains(upper, "[DOC:")
+}
+
+func noCodeRefsReason(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToUpper(line), "NO_CODE_REFS:") {
+			return strings.TrimSpace(line[len("NO_CODE_REFS:"):])
+		}
+	}
+	return ""
+}
+
+func parseReferencesContent(content string) ([]planmodel.Reference, error) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return nil, nil
+	}
+	var b strings.Builder
+	b.WriteString("# References\n\n## References\n\n")
+	b.WriteString(content)
+	b.WriteString("\n")
+	parsed, err := planmodel.ParsePlanMarkdown(b.String())
+	if err != nil {
+		return nil, err
+	}
+	return parsed.References, nil
+}
+
+func splitLines(content string) []string {
+	var out []string
+	for _, line := range strings.Split(content, "\n") {
+		if trimmed := strings.TrimSpace(strings.TrimPrefix(line, "-")); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func applyPhaseField(phase *PhaseDraft, field PhaseField, content string) error {
+	content = strings.TrimSpace(content)
+	switch field {
+	case PhaseFieldTitle:
+		phase.Title = content
+	case PhaseFieldIntent:
+		phase.Intent = content
+	case PhaseFieldReferences:
+		refs, err := parseReferencesContent(content)
+		if err != nil {
+			return ErrAuthoredMarkup{SectionKey: SectionPhases, Reason: err.Error()}
+		}
+		phase.References = refs
+		if len(refs) > 0 {
+			phase.NoCodeRefsReason = ""
+		}
+	case PhaseFieldRequiredReading:
+		phase.RequiredReading = splitLines(content)
+	case PhaseFieldReminders:
+		phase.Reminders = splitLines(content)
+	case PhaseFieldAcceptance:
+		phase.Acceptance = content
+	case PhaseFieldNoCodeRefsReason:
+		phase.NoCodeRefsReason = content
+		if content != "" {
+			phase.References = nil
+		}
+	default:
+		return ErrInvalidSession{Reason: "unknown phase field " + string(field)}
+	}
+	return nil
+}
+
+func syncPhaseSection(sess Session) Session {
+	if len(sess.PhaseDrafts) == 0 {
+		return sess
+	}
+	idx := indexOf(sess.Sections, SectionPhases)
+	if idx < 0 {
+		return sess
+	}
+	sess.Sections[idx].Content = renderPhaseDrafts(sess.PhaseDrafts)
+	sess.Sections[idx].Filled = strings.TrimSpace(sess.Sections[idx].Content) != ""
+	sess.Sections[idx].Autofilled = false
+	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
+	return sess
+}
+
+func renderPhaseDrafts(phases []PhaseDraft) string {
+	var b strings.Builder
+	for i, ph := range phases {
+		order := ph.Order
+		if order <= 0 {
+			order = i + 1
+		}
+		fmt.Fprintf(&b, "### Phase %d — %s\n", order, ph.Title)
+		if ph.Intent != "" {
+			fmt.Fprintf(&b, "- Intent: %s\n", ph.Intent)
+		}
+		if ph.Acceptance != "" {
+			fmt.Fprintf(&b, "- Acceptance: %s\n", ph.Acceptance)
+		}
+		if len(ph.RequiredReading) > 0 {
+			b.WriteString("- Required reading:\n")
+			for _, item := range ph.RequiredReading {
+				fmt.Fprintf(&b, "  - %s\n", item)
+			}
+		}
+		if len(ph.Reminders) > 0 {
+			b.WriteString("- Reminders:\n")
+			for _, item := range ph.Reminders {
+				fmt.Fprintf(&b, "  - %s\n", item)
+			}
+		}
+		if len(ph.References) > 0 {
+			b.WriteString("- References:\n")
+			for _, ref := range ph.References {
+				fmt.Fprintf(&b, "  - [%s: %s]\n", referenceMarker(ref.Kind), ref.Target)
+			}
+		}
+		if ph.NoCodeRefsReason != "" {
+			fmt.Fprintf(&b, "- NO_CODE_REFS: %s\n", ph.NoCodeRefsReason)
+		}
+		b.WriteString("\n")
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func referenceMarker(k planmodel.ReferenceKind) string {
+	switch k {
+	case planmodel.ReferenceReq:
+		return "REQ"
+	case planmodel.ReferenceDoc:
+		return "DOC"
+	default:
+		return "CODE"
+	}
+}
+
+func findDraft(phases []PhaseDraft, id string) (PhaseDraft, bool) {
+	if strings.TrimSpace(id) == "" && len(phases) > 0 {
+		return phases[0], true
+	}
+	for _, ph := range phases {
+		if ph.ID == id || fmt.Sprint(ph.Order) == id {
+			return ph, true
+		}
+	}
+	return PhaseDraft{}, false
+}
+
+func indexOfDraft(phases []PhaseDraft, id string) int {
+	if strings.TrimSpace(id) == "" && len(phases) > 0 {
+		return 0
+	}
+	for i, ph := range phases {
+		if ph.ID == id || fmt.Sprint(ph.Order) == id {
+			return i
+		}
+	}
+	return -1
+}
+
+func nextIncompletePhaseID(phases []PhaseDraft) string {
+	for _, ph := range phases {
+		if len(phaseViolations(ph)) > 0 {
+			return ph.ID
+		}
+	}
+	return ""
+}
+
 // sessionToPlan maps a finalized session's sections into the structured plans
 // model. The prose sections map directly to the matching plan fields; the
 // references and phases sections carry authored markup (the same [CODE:]/[REQ:]/
@@ -470,6 +793,12 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		References:       parsed.References,
 		Phases:           parsed.Phases,
 	}
+	if len(sess.PhaseDrafts) > 0 {
+		p.Phases = phaseDraftsToPlanPhases(sess.PhaseDrafts)
+	}
+	if reason := noCodeRefsReason(contentOf(sess.Sections, SectionReferences)); reason != "" {
+		p.Constraints = appendNoCodeRefsReason(p.Constraints, reason)
+	}
 	if anchor := strings.TrimSpace(contentOf(sess.Sections, SectionRegressionAnchor)); anchor != "" {
 		// The regression-anchor section content is the authored/auto-filled
 		// "before" capture; carry it forward as captured prose. Commands are
@@ -480,6 +809,39 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		}
 	}
 	return p, nil
+}
+
+func phaseDraftsToPlanPhases(drafts []PhaseDraft) []planmodel.Phase {
+	out := make([]planmodel.Phase, 0, len(drafts))
+	for i, draft := range drafts {
+		order := draft.Order
+		if order <= 0 {
+			order = i + 1
+		}
+		reminders := append([]string(nil), draft.Reminders...)
+		if draft.NoCodeRefsReason != "" {
+			reminders = append(reminders, "No connected code references: "+draft.NoCodeRefsReason)
+		}
+		out = append(out, planmodel.Phase{
+			Order:           order,
+			Title:           draft.Title,
+			Intent:          draft.Intent,
+			RequiredReading: append([]string(nil), draft.RequiredReading...),
+			Reminders:       reminders,
+			Acceptance:      draft.Acceptance,
+			References:      append([]planmodel.Reference(nil), draft.References...),
+			Status:          planmodel.PhaseStatusTodo,
+		})
+	}
+	return out
+}
+
+func appendNoCodeRefsReason(constraints, reason string) string {
+	line := "No connected code references: " + reason
+	if strings.TrimSpace(constraints) == "" {
+		return line
+	}
+	return strings.TrimRight(constraints, "\n") + "\n" + line
 }
 
 // parseReferencesAndPhases recovers the structured references[] and phases[] from
@@ -497,7 +859,8 @@ func parseReferencesAndPhases(sess Session) (planmodel.Plan, error) {
 	b.WriteString("\n\n")
 	refsContent := strings.TrimSpace(contentOf(sess.Sections, SectionReferences))
 	phasesContent := strings.TrimSpace(contentOf(sess.Sections, SectionPhases))
-	if refsContent != "" {
+	refsOnlyExplainsNoCode := refsContent != "" && noCodeRefsReason(refsContent) != "" && !hasReferenceMarker(refsContent)
+	if refsContent != "" && !refsOnlyExplainsNoCode {
 		b.WriteString("## References\n\n")
 		b.WriteString(refsContent)
 		b.WriteString("\n\n")
@@ -511,7 +874,7 @@ func parseReferencesAndPhases(sess Session) (planmodel.Plan, error) {
 	if err != nil {
 		return planmodel.Plan{}, ErrAuthoredMarkup{SectionKey: markupSectionForError(refsContent, phasesContent, err.Error()), Reason: err.Error()}
 	}
-	if refsContent != "" && len(parsed.References) == 0 {
+	if refsContent != "" && !refsOnlyExplainsNoCode && len(parsed.References) == 0 {
 		return planmodel.Plan{}, ErrAuthoredMarkup{SectionKey: SectionReferences, Reason: "expected at least one [CODE:], [REQ:], or [DOC:] reference"}
 	}
 	if phasesContent != "" && len(parsed.Phases) == 0 {

@@ -3,9 +3,12 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, Sparkles, Wand2 } from "lucide-react";
 
 import {
+  addPhase,
   autofill,
   finalize,
+  nextPhase,
   startSession,
+  submitPhaseField,
   submitSection,
   validateStructure,
 } from "../../api/authoring";
@@ -20,18 +23,29 @@ import { useTranslation } from "../../i18n";
 import type {
   AuthoringSession,
   AutofillResult,
+  PhaseDraft,
   Section,
   StructureViolation,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
+import type { GuidedStep } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 /** Local wizard state. The session is the source of truth once started. */
 interface WizardState {
   session?: AuthoringSession;
   violations: StructureViolation[];
   autofillResults: AutofillResult[];
+  step?: GuidedStep;
   finalizedSlug?: string;
   finalizedPlanId?: string;
 }
+
+const phaseFields = [
+  "references",
+  "required_reading",
+  "reminders",
+  "acceptance",
+  "no_code_refs_reason",
+];
 
 function SectionRow({
   section,
@@ -80,6 +94,75 @@ function SectionRow({
   );
 }
 
+function StepPanel({ step }: { step?: GuidedStep }) {
+  if (!step || (!step.title && !step.summary)) return null;
+  return (
+    <SectionPanel title={step.title || step.stepKind} headingId="authoring-guidance-heading">
+      <div data-testid={selectors.authoring.guidance} className="flex flex-col gap-3">
+        {step.summary ? <p className="text-sm text-app-muted-foreground">{step.summary}</p> : null}
+        {step.instructions.length > 0 ? (
+          <ul className="flex flex-col gap-1 text-sm text-app-foreground">
+            {step.instructions.map((item, i) => (
+              <li key={`instruction-${i}`}>{item}</li>
+            ))}
+          </ul>
+        ) : null}
+        {step.requiredInputs.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {step.requiredInputs.map((item) => (
+              <span key={item} className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
+                {item}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {step.nextActions.length > 0 ? (
+          <div className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            {step.nextActions.map((action) => (
+              <code key={action.id || action.label} className="rounded-control bg-app-surface-muted px-2 py-1">
+                {action.argv.join(" ")}
+              </code>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </SectionPanel>
+  );
+}
+
+function PhaseRow({
+  phase,
+  active,
+  onSelect,
+}: {
+  phase: PhaseDraft;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={active ? "true" : undefined}
+        className={[
+          "flex w-full items-center justify-between gap-2 rounded-control border px-3 py-2 text-left text-sm transition-colors",
+          active
+            ? "border-app-primary bg-app-primary/10 text-app-foreground"
+            : "border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",
+        ].join(" ")}
+      >
+        <span>
+          {phase.order}. {phase.title || "Untitled phase"}
+        </span>
+        <span className="text-xs text-app-muted-foreground">
+          {phase.references.length > 0 || phase.noCodeRefsReason ? "refs" : "needs refs"}
+        </span>
+      </button>
+    </li>
+  );
+}
+
 /**
  * AuthoringWizard — the guided composer. Start a session, walk + submit
  * sections (surfacing structure violations honestly), run autofill (showing
@@ -92,12 +175,19 @@ export function AuthoringWizard() {
   const [state, setState] = useState<WizardState>({ violations: [], autofillResults: [] });
   const [activeKey, setActiveKey] = useState("");
   const [draft, setDraft] = useState("");
+  const [phaseTitle, setPhaseTitle] = useState("");
+  const [phaseIntent, setPhaseIntent] = useState("");
+  const [activePhaseId, setActivePhaseId] = useState("");
+  const [phaseField, setPhaseField] = useState<string>("references");
+  const [phaseDraft, setPhaseDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   const session = state.session;
   const sections = session?.sections ?? [];
   const activeSection = sections.find((s) => s.key === activeKey);
+  const phases = session?.phaseDrafts ?? [];
+  const activePhase = phases.find((p) => p.id === activePhaseId) ?? phases[0];
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -115,12 +205,13 @@ export function AuthoringWizard() {
     e.preventDefault();
     if (title.trim().length === 0) return;
     void run(async () => {
-      const s = await startSession(title.trim(), "", templateId.trim());
-      if (s) {
-        setState({ session: s, violations: [], autofillResults: [] });
-        const first = s.currentSectionKey || s.sections[0]?.key || "";
+      const res = await startSession(title.trim(), "", templateId.trim());
+      if (res.session) {
+        setState({ session: res.session, violations: [], autofillResults: [], step: res.step });
+        const first = res.session.currentSectionKey || res.session.sections[0]?.key || "";
         setActiveKey(first);
-        setDraft(s.sections.find((sec) => sec.key === first)?.content ?? "");
+        setActivePhaseId(res.session.currentPhaseId || res.session.phaseDrafts[0]?.id || "");
+        setDraft(res.session.sections.find((sec) => sec.key === first)?.content ?? "");
       }
     });
   };
@@ -135,7 +226,58 @@ export function AuthoringWizard() {
     void run(async () => {
       const res = await submitSection(session.id, activeSection.key, draft);
       if (res.session) {
-        setState((prev) => ({ ...prev, session: res.session, violations: res.violations }));
+        setState((prev) => ({
+          ...prev,
+          session: res.session,
+          violations: res.violations,
+          step: res.step,
+        }));
+      }
+    });
+  };
+
+  const handleAddPhase = () => {
+    if (!session || phaseTitle.trim().length === 0) return;
+    void run(async () => {
+      const res = await addPhase(session.id, phaseTitle.trim(), phaseIntent.trim());
+      if (res.session) {
+        setState((prev) => ({
+          ...prev,
+          session: res.session,
+          violations: res.violations,
+          step: res.step,
+        }));
+        setActivePhaseId(res.phase?.id || res.session.currentPhaseId || "");
+        setPhaseTitle("");
+        setPhaseIntent("");
+      }
+    });
+  };
+
+  const handleSubmitPhaseField = () => {
+    if (!session || !activePhase) return;
+    void run(async () => {
+      const res = await submitPhaseField(session.id, activePhase.id, phaseField, phaseDraft);
+      if (res.session) {
+        setState((prev) => ({
+          ...prev,
+          session: res.session,
+          violations: res.violations,
+          step: res.step,
+        }));
+        setActivePhaseId(res.session.currentPhaseId || activePhase.id);
+        setPhaseDraft("");
+      }
+    });
+  };
+
+  const handleNextPhase = () => {
+    if (!session) return;
+    void run(async () => {
+      const res = await nextPhase(session.id);
+      setState((prev) => ({ ...prev, step: res.step }));
+      if (res.phase) {
+        setActivePhaseId(res.phase.id);
       }
     });
   };
@@ -144,7 +286,7 @@ export function AuthoringWizard() {
     if (!session) return;
     void run(async () => {
       const res = await validateStructure(session.id);
-      setState((prev) => ({ ...prev, violations: res.violations }));
+      setState((prev) => ({ ...prev, violations: res.violations, step: res.step }));
     });
   };
 
@@ -153,7 +295,7 @@ export function AuthoringWizard() {
     void run(async () => {
       const res = await autofill(session.id);
       if (res.session) {
-        setState((prev) => ({ ...prev, session: res.session, autofillResults: res.results }));
+        setState((prev) => ({ ...prev, session: res.session, autofillResults: res.results, step: res.step }));
       }
     });
   };
@@ -161,10 +303,12 @@ export function AuthoringWizard() {
   const handleFinalize = () => {
     if (!session) return;
     void run(async () => {
-      const plan = await finalize(session.id);
+      const res = await finalize(session.id);
+      const plan = res.plan;
       if (plan) {
         setState((prev) => ({
           ...prev,
+          step: res.step,
           finalizedSlug: plan.slug,
           finalizedPlanId: plan.id,
         }));
@@ -263,6 +407,8 @@ export function AuthoringWizard() {
           </p>
         ) : null}
 
+        <StepPanel step={state.step} />
+
         {activeSection ? (
           <SectionPanel
             title={activeSection.label || activeSection.key}
@@ -302,6 +448,97 @@ export function AuthoringWizard() {
             </div>
           </SectionPanel>
         ) : null}
+
+        <SectionPanel title={t(strings.pages.authoring.phasesHeading)} headingId="authoring-phases-heading">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(16rem,1fr)]">
+            <div className="flex flex-col gap-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  data-testid={selectors.authoring.phaseTitleInput}
+                  value={phaseTitle}
+                  onChange={(e) => setPhaseTitle(e.target.value)}
+                  placeholder={t(strings.pages.authoring.phaseTitlePlaceholder)}
+                  aria-label={t(strings.pages.authoring.phaseTitleLabel)}
+                />
+                <Input
+                  data-testid={selectors.authoring.phaseIntentInput}
+                  value={phaseIntent}
+                  onChange={(e) => setPhaseIntent(e.target.value)}
+                  placeholder={t(strings.pages.authoring.phaseIntentPlaceholder)}
+                  aria-label={t(strings.pages.authoring.phaseIntentLabel)}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  data-testid={selectors.authoring.phaseAddButton}
+                  disabled={busy || phaseTitle.trim().length === 0}
+                  onClick={handleAddPhase}
+                >
+                  {t(strings.pages.authoring.addPhase)}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  data-testid={selectors.authoring.phaseNextButton}
+                  disabled={busy}
+                  onClick={handleNextPhase}
+                >
+                  {t(strings.pages.authoring.nextPhase)}
+                </Button>
+              </div>
+              {phases.length === 0 ? (
+                <p className="text-sm text-app-muted-foreground">{t(strings.pages.authoring.noPhases)}</p>
+              ) : (
+                <ul data-testid={selectors.authoring.phases} className="flex flex-col gap-1.5">
+                  {phases.map((phase) => (
+                    <PhaseRow
+                      key={phase.id}
+                      phase={phase}
+                      active={phase.id === activePhase?.id}
+                      onSelect={() => setActivePhaseId(phase.id)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <select
+                data-testid={selectors.authoring.phaseFieldSelect}
+                value={phaseField}
+                onChange={(e) => setPhaseField(e.target.value)}
+                className="h-10 rounded-control border border-app-border bg-app-surface px-3 text-sm"
+                aria-label={t(strings.pages.authoring.phaseFieldLabel)}
+              >
+                {phaseFields.map((field) => (
+                  <option key={field} value={field}>
+                    {field}
+                  </option>
+                ))}
+              </select>
+              <Textarea
+                data-testid={selectors.authoring.phaseFieldInput}
+                value={phaseDraft}
+                onChange={(e) => setPhaseDraft(e.target.value)}
+                placeholder={t(strings.pages.authoring.phaseFieldContentPlaceholder)}
+                rows={5}
+                aria-label={t(strings.pages.authoring.phaseFieldContentLabel)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                data-testid={selectors.authoring.phaseSubmitButton}
+                disabled={busy || !activePhase}
+                onClick={handleSubmitPhaseField}
+                className="w-fit"
+              >
+                {t(strings.pages.authoring.savePhaseField)}
+              </Button>
+            </div>
+          </div>
+        </SectionPanel>
 
         <SectionPanel
           title={t(strings.pages.authoring.violationsHeading)}

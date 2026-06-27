@@ -18,21 +18,21 @@ const runIDEnv = "VROOLI_AGENT_MANAGER_RUN_ID"
 
 // Service is the execution application surface — the guided runner.
 type Service interface {
-	Start(ctx context.Context, planID, runID string) (Execution, error)
-	GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, error)
-	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, error)
-	TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, error)
+	Start(ctx context.Context, planID, runID string) (Execution, GuidedStep, error)
+	GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error)
+	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error)
+	TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, GuidedStep, error)
 
-	RecordDecision(ctx context.Context, executionID, phaseID, summary, detail string) (Decision, error)
-	RecordFinding(ctx context.Context, executionID, phaseID, title, detail string) (Finding, error)
+	RecordDecision(ctx context.Context, executionID, phaseID, summary, detail string) (Decision, GuidedStep, error)
+	RecordFinding(ctx context.Context, executionID, phaseID, title, detail string) (Finding, GuidedStep, error)
 
-	Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, error)
-	GetHandoff(ctx context.Context, executionID string) (Handoff, error)
+	Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error)
+	GetHandoff(ctx context.Context, executionID string) (Handoff, GuidedStep, error)
 
-	ListCandidateFindings(ctx context.Context, executionID string) ([]Finding, error)
-	TriageFinding(ctx context.Context, findingID string, triage FindingTriage) (Finding, error)
+	ListCandidateFindings(ctx context.Context, executionID string) ([]Finding, GuidedStep, error)
+	TriageFinding(ctx context.Context, findingID string, triage FindingTriage) (Finding, GuidedStep, error)
 
-	GetVelocity(ctx context.Context, planID string) ([]VelocityPoint, error)
+	GetVelocity(ctx context.Context, planID string) ([]VelocityPoint, GuidedStep, error)
 }
 
 type service struct {
@@ -76,16 +76,16 @@ func NewService(d Deps) Service {
 
 var _ Service = (*service)(nil)
 
-func (s *service) Start(ctx context.Context, planID, runID string) (Execution, error) {
+func (s *service) Start(ctx context.Context, planID, runID string) (Execution, GuidedStep, error) {
 	planID = strings.TrimSpace(planID)
 	if planID == "" {
-		return Execution{}, ErrInvalidExecution{Reason: "plan id is required"}
+		return Execution{}, GuidedStep{}, ErrInvalidExecution{Reason: "plan id is required"}
 	}
 	// Resolve the plan (id or slug) through the plans SSOT so the linkage stores
 	// the canonical plan id, and so a bad plan fails fast with NotFound.
 	plan, err := s.plans.GetPlan(ctx, planID)
 	if err != nil {
-		return Execution{}, err
+		return Execution{}, GuidedStep{}, err
 	}
 	if runID == "" {
 		runID = strings.TrimSpace(os.Getenv(runIDEnv))
@@ -100,32 +100,32 @@ func (s *service) Start(ctx context.Context, planID, runID string) (Execution, e
 		UpdatedAt:      now,
 	}
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
-		return Execution{}, err
+		return Execution{}, GuidedStep{}, err
 	}
-	return e, nil
+	return e, stepForStarted(e), nil
 }
 
-func (s *service) GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, error) {
+func (s *service) GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
-		return Execution{}, PhaseContext{}, err
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
-		return Execution{}, PhaseContext{}, err
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID)
-	return e, pctx, nil
+	return e, pctx, stepForContext(e.ID, pctx, e.Complete), nil
 }
 
-func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext, bool, error) {
+func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
-		return PhaseContext{}, false, err
+		return PhaseContext{}, false, GuidedStep{}, err
 	}
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
-		return PhaseContext{}, false, err
+		return PhaseContext{}, false, GuidedStep{}, err
 	}
 	// Advance means "move past the current pointer" when a later non-done phase
 	// exists. The resume point remains the earliest non-done phase and is exposed
@@ -139,31 +139,31 @@ func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext
 	e.Complete = resume == ""
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
-		return PhaseContext{}, false, err
+		return PhaseContext{}, false, GuidedStep{}, err
 	}
 	pctx := s.buildContext(ctx, plan, next)
-	return pctx, e.Complete, nil
+	return pctx, e.Complete, stepForContext(e.ID, pctx, e.Complete), nil
 }
 
-func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, error) {
+func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
-		return Execution{}, planmodel.Plan{}, err
+		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
-		return Execution{}, planmodel.Plan{}, err
+		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
 	target, ok := findPhase(plan.Phases, phaseID)
 	if !ok {
-		return Execution{}, planmodel.Plan{}, planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
+		return Execution{}, planmodel.Plan{}, GuidedStep{}, planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
 	}
 	// Delegate the phase-status change to the plans domain — it stays the single
 	// source of truth for the record (plan status is recomputed there).
 	target.Status = to
 	updated, err := s.plans.UpdatePhase(ctx, plan.ID, target)
 	if err != nil {
-		return Execution{}, planmodel.Plan{}, err
+		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
 	// Move the runner's pointer to the next actionable phase and mark the
 	// execution complete when every phase is terminal.
@@ -171,15 +171,15 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	e.Complete = e.CurrentPhaseID == ""
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
-		return Execution{}, planmodel.Plan{}, err
+		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
-	return e, updated, nil
+	return e, updated, stepForTransition(e), nil
 }
 
-func (s *service) RecordDecision(ctx context.Context, executionID, phaseID, summary, detail string) (Decision, error) {
+func (s *service) RecordDecision(ctx context.Context, executionID, phaseID, summary, detail string) (Decision, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
-		return Decision{}, err
+		return Decision{}, GuidedStep{}, err
 	}
 	d := Decision{
 		ID:          uuid.NewString(),
@@ -190,15 +190,15 @@ func (s *service) RecordDecision(ctx context.Context, executionID, phaseID, summ
 		RecordedAt:  s.now(),
 	}
 	if err := s.repo.SaveDecision(ctx, d); err != nil {
-		return Decision{}, err
+		return Decision{}, GuidedStep{}, err
 	}
-	return d, nil
+	return d, stepForRecorded(e.ID, phaseID), nil
 }
 
-func (s *service) RecordFinding(ctx context.Context, executionID, phaseID, title, detail string) (Finding, error) {
+func (s *service) RecordFinding(ctx context.Context, executionID, phaseID, title, detail string) (Finding, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
-		return Finding{}, err
+		return Finding{}, GuidedStep{}, err
 	}
 	// Attribution-keyed dedup: a finding with the same (attribution_run_id, title)
 	// is not double-filed. When the run id is absent, dedup by title within the
@@ -206,7 +206,7 @@ func (s *service) RecordFinding(ctx context.Context, executionID, phaseID, title
 	// nested query inside the lookup), then return the existing match if any.
 	existing, err := s.repo.ListFindings(ctx, e.ID, "")
 	if err != nil {
-		return Finding{}, err
+		return Finding{}, GuidedStep{}, err
 	}
 	for _, f := range existing {
 		if !strings.EqualFold(strings.TrimSpace(f.Title), strings.TrimSpace(title)) {
@@ -214,12 +214,12 @@ func (s *service) RecordFinding(ctx context.Context, executionID, phaseID, title
 		}
 		if e.RunID != "" {
 			if f.AttributionRunID == e.RunID {
-				return f, nil
+				return f, stepForRecorded(e.ID, phaseID), nil
 			}
 			continue
 		}
 		// No run id: dedup by title within the execution.
-		return f, nil
+		return f, stepForRecorded(e.ID, phaseID), nil
 	}
 	f := Finding{
 		ID:               uuid.NewString(),
@@ -237,12 +237,12 @@ func (s *service) RecordFinding(ctx context.Context, executionID, phaseID, title
 		// write, return that winner instead of failing the agent's record call.
 		if isUniqueViolation(err) && e.RunID != "" {
 			if winner, ok := s.findByRunAndTitle(ctx, e.ID, e.RunID, title); ok {
-				return winner, nil
+				return winner, stepForRecorded(e.ID, phaseID), nil
 			}
 		}
-		return Finding{}, err
+		return Finding{}, GuidedStep{}, err
 	}
-	return f, nil
+	return f, stepForRecorded(e.ID, phaseID), nil
 }
 
 // findByRunAndTitle re-reads the execution's findings to return the one matching
@@ -273,22 +273,22 @@ func isUniqueViolation(err error) bool {
 	return strings.Contains(msg, "unique constraint") || strings.Contains(msg, "constraint failed")
 }
 
-func (s *service) Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, error) {
+func (s *service) Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
-		return Handoff{}, nil, err
+		return Handoff{}, nil, GuidedStep{}, err
 	}
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
-		return Handoff{}, nil, err
+		return Handoff{}, nil, GuidedStep{}, err
 	}
 	decisions, err := s.repo.ListDecisions(ctx, e.ID)
 	if err != nil {
-		return Handoff{}, nil, err
+		return Handoff{}, nil, GuidedStep{}, err
 	}
 	candidates, err := s.repo.ListFindings(ctx, e.ID, TriageCandidate)
 	if err != nil {
-		return Handoff{}, nil, err
+		return Handoff{}, nil, GuidedStep{}, err
 	}
 
 	// Assemble the canonical handoff from captured state. Completeness + resume
@@ -341,64 +341,79 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		}
 		return repo.SaveExecution(ctx, e)
 	}); err != nil {
-		return Handoff{}, nil, err
+		return Handoff{}, nil, GuidedStep{}, err
 	}
 	_ = s.velocity.Emit(ctx, point) // best-effort; the no-op default never errors
 
 	nudges := s.completionNudges(plan, candidates)
-	return handoff, nudges, nil
+	return handoff, nudges, stepForComplete(e.ID, nudges), nil
 }
 
-func (s *service) GetHandoff(ctx context.Context, executionID string) (Handoff, error) {
+func (s *service) GetHandoff(ctx context.Context, executionID string) (Handoff, GuidedStep, error) {
 	if _, err := s.getExecution(ctx, executionID); err != nil {
-		return Handoff{}, err
+		return Handoff{}, GuidedStep{}, err
 	}
 	h, ok, err := s.repo.GetHandoff(ctx, executionID)
 	if err != nil {
-		return Handoff{}, err
+		return Handoff{}, GuidedStep{}, err
 	}
 	if !ok {
 		// No handoff assembled yet — assemble a live view from current captured
 		// state so a caller asking before Complete still gets the structured shape
 		// rather than an error (the persisted record is written by Complete).
-		return s.assembleLiveHandoff(ctx, executionID)
+		h, err := s.assembleLiveHandoff(ctx, executionID)
+		return h, stepForHandoff(executionID), err
 	}
-	return h, nil
+	return h, stepForHandoff(executionID), nil
 }
 
-func (s *service) ListCandidateFindings(ctx context.Context, executionID string) ([]Finding, error) {
-	return s.repo.ListFindings(ctx, strings.TrimSpace(executionID), TriageCandidate)
+func (s *service) ListCandidateFindings(ctx context.Context, executionID string) ([]Finding, GuidedStep, error) {
+	findings, err := s.repo.ListFindings(ctx, strings.TrimSpace(executionID), TriageCandidate)
+	return findings, GuidedStep{
+		StepKind: "candidate_findings",
+		Title:    "Candidate Findings",
+		Summary:  "Candidate findings are awaiting operator triage.",
+		NextActions: []NextAction{{
+			ID:                 "triage-finding",
+			Kind:               NextActionRecommended,
+			Label:              "Triage a finding",
+			Reason:             "Promote or dismiss a candidate finding after review.",
+			Argv:               []string{"exec", "triage", "<finding id>", "--status", "promoted"},
+			ContentPlaceholder: "<finding id>",
+		}},
+	}, err
 }
 
-func (s *service) TriageFinding(ctx context.Context, findingID string, triage FindingTriage) (Finding, error) {
+func (s *service) TriageFinding(ctx context.Context, findingID string, triage FindingTriage) (Finding, GuidedStep, error) {
 	f, ok, err := s.repo.GetFinding(ctx, strings.TrimSpace(findingID))
 	if err != nil {
-		return Finding{}, err
+		return Finding{}, GuidedStep{}, err
 	}
 	if !ok {
-		return Finding{}, ErrFindingNotFound{ID: findingID}
+		return Finding{}, GuidedStep{}, ErrFindingNotFound{ID: findingID}
 	}
 	if triage == "" {
-		return Finding{}, ErrInvalidExecution{Reason: "triage state is required"}
+		return Finding{}, GuidedStep{}, ErrInvalidExecution{Reason: "triage state is required"}
 	}
 	f.Triage = triage
 	if err := s.repo.SaveFinding(ctx, f); err != nil {
-		return Finding{}, err
+		return Finding{}, GuidedStep{}, err
 	}
-	return f, nil
+	return f, stepForRecorded(f.ExecutionID, f.PhaseID), nil
 }
 
-func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoint, error) {
+func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoint, GuidedStep, error) {
 	planID = strings.TrimSpace(planID)
 	if planID == "" {
-		return nil, ErrInvalidExecution{Reason: "plan id is required"}
+		return nil, GuidedStep{}, ErrInvalidExecution{Reason: "plan id is required"}
 	}
 	// Resolve a slug to the canonical id so velocity recorded under the id is
 	// found when the caller passes the slug.
 	if plan, err := s.plans.GetPlan(ctx, planID); err == nil {
 		planID = plan.ID
 	}
-	return s.repo.ListVelocity(ctx, planID)
+	points, err := s.repo.ListVelocity(ctx, planID)
+	return points, GuidedStep{}, err
 }
 
 // --- helpers ---

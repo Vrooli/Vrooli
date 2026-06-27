@@ -25,6 +25,10 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AuthoringService.Next":              h.next,
 		"AuthoringService.ValidateStructure": h.validate,
 		"AuthoringService.Autofill":          h.autofill,
+		"AuthoringService.AddPhase":          h.phaseAdd,
+		"AuthoringService.GetPhase":          h.phaseGet,
+		"AuthoringService.SubmitPhaseField":  h.phaseSubmit,
+		"AuthoringService.NextPhase":         h.phaseNext,
 		"AuthoringService.Finalize":          h.finalize,
 	})
 	if err != nil {

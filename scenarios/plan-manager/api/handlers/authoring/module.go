@@ -78,6 +78,10 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_next", authoringconnect.AuthoringServiceNextProcedure, "Next section", "Returns the next section that still needs author input, or signals the session is structurally complete."),
 	endpoint("authoring_validate_structure", authoringconnect.AuthoringServiceValidateStructureProcedure, "Validate structure", "Runs the structure-validation gate over the whole session — rejects empty mandatory sections + an empty regression anchor (PM-AUTHOR-002)."),
 	endpoint("authoring_autofill", authoringconnect.AuthoringServiceAutofillProcedure, "Autofill mechanical sections", "Orchestrates the mechanical-section autofill behind seams (regression anchor / required reading / references). Degrades gracefully, never a false fill (OT-P0-002)."),
+	endpoint("authoring_add_phase", authoringconnect.AuthoringServiceAddPhaseProcedure, "Add phase draft", "Appends one structured phase draft so agents do not submit all phases as a markdown blob."),
+	endpoint("authoring_get_phase", authoringconnect.AuthoringServiceGetPhaseProcedure, "Get phase draft", "Returns one structured phase draft plus the API-owned guided step for the next missing phase field."),
+	endpoint("authoring_submit_phase_field", authoringconnect.AuthoringServiceSubmitPhaseFieldProcedure, "Submit phase field", "Records one phase-native field and validates references/acceptance immediately."),
+	endpoint("authoring_next_phase", authoringconnect.AuthoringServiceNextPhaseProcedure, "Next phase draft", "Returns the first structured phase draft that still needs author input."),
 	endpoint("authoring_finalize", authoringconnect.AuthoringServiceFinalizeProcedure, "Finalize the plan", "Runs the structure gate then writes the produced plan through the plans domain, returning the persisted plan."),
 }
 

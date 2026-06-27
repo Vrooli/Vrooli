@@ -68,6 +68,7 @@ runner walks and the unit context is scoped to.
 | `intent` | authored | What this phase accomplishes. |
 | `required_reading[]` | auto-filled + authored | Skills/docs to load **for this phase**; injected on `next`. |
 | `reminders[]` | authored | General + phase-specific reminders, surfaced just-in-time during the phase. |
+| `references[]` | authored + resolved | Phase-scoped connected-code, requirement, or document references. A phase with no connected references must carry an explicit no-code reason during authoring. |
 | `baseline_scope` | computed | The set of connected-code locations this phase touches → the exact baseline/validation command set. |
 | `acceptance` | authored | Objective pass/fail for this phase. |
 | `status` | computed | `todo` → `active` → `done` / `blocked`. A typed transition or inferred from acceptance + validation passing. |
@@ -90,7 +91,9 @@ Every connected code location is captured with the machine-readable grammar from
 References are resolved against `code-facts`. The not-yet-built **unified code
 identifier** is a planned drop-in upgrade for the locator; until then `[CODE:]` +
 code-facts is the contract. References are how staleness becomes computable, so
-the authoring wizard makes them mandatory.
+the authoring wizard makes them mandatory at plan and phase scope. A docs-only
+or process-only plan/phase may use `NO_CODE_REFS: <reason>` instead; the reason
+is stored as authored context rather than pretending the plan has connected code.
 
 ## Validation, Staleness, And The Regression Anchor
 

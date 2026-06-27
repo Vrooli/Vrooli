@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P1-002 — per-plan velocity emitted as a signal, plus the plan supersession/dependency graph.",
-    "last_validated_at": "2026-06-26T11:11:21-04:00",
+    "last_validated_at": "2026-06-26T17:11:03-04:00",
     "module": "velocity-graph",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "PM-VEL-001",
       "title": "Track per-plan velocity and emit it to meta-optimization trials",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "analytics",
       "description": "Capture per-plan velocity (wall-time + tokens + iterations to complete; full vs partial) as a historical signal and emit it to meta-optimization-manager trials, so plan throughput becomes a measurable local-model-readiness input.",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/execution/execution_test.go::TestCompleteAssemblesHandoffAndCapturesVelocity",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Completion captures local velocity and emits it through the velocity sink seam."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "PM-GRAPH-001",
       "title": "Maintain a plan supersession/dependency graph and per-surface templates",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "plans",
       "description": "Track supersession/dependency edges between plans (using the stored content hash) and provide per-surface plan templates (CLI/proto/UI) so a new plan starts pre-scaffolded for its surface.",
@@ -47,21 +47,21 @@
           "type": "test",
           "ref": "api/internal/plans/plans_test.go::TestContentHashDerivesSupersession",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Matching content hashes derive supersession edges."
         },
         {
           "type": "test",
           "ref": "api/internal/plans/plans_test.go::TestLinkDependencyCreatesGraphEdge",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Dependency links are first-class graph edges."
         },
         {
           "type": "test",
           "ref": "api/internal/plans/plans_test.go::TestTemplates",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Per-surface templates seed structured plan phases."
         }
       ]

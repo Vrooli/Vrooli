@@ -500,7 +500,7 @@ func (s *service) VerifyDefinitionOfDone(ctx context.Context, planID string) (Re
 // surfaced to the agent, but it never determines the verdict (treating it as an
 // oracle is how "validation passed" used to mean only "git ran").
 func isOracleCommand(cmd string) bool {
-	return strings.HasPrefix(strings.TrimSpace(cmd), "git-control-tower baseline diff")
+	return strings.HasPrefix(strings.TrimSpace(cmd), "git-control-tower baseline diff ")
 }
 
 // runCommands runs the derived command set and computes a verdict from the
@@ -598,12 +598,13 @@ func (s *service) now() string {
 
 // deriveScope computes the exact baseline/validation command set across all
 // affected locations a plan/phase's references touch. Scenario-scoped code refs
-// map to a git-control-tower scenario baseline diff only when the plan carries a
-// baseline name; the verified GCT CLI requires both --scenario and --name. If no
-// baseline name exists, those locations are still returned but no oracle command
-// is fabricated. Non-scenario code refs map to a repo-level informational git
-// diff. The plan's own regression-anchor commands are folded in. Output is
-// deduped and stably ordered so the command set is deterministic.
+// map to a git-control-tower snapshot lifecycle check followed by a baseline
+// diff only when the plan carries a baseline name; the verified GCT CLI requires
+// both --scenario and --name. If no baseline name exists, those locations are
+// still returned but no oracle command is fabricated. Non-scenario code refs map
+// to a repo-level informational git diff. The plan's own regression-anchor
+// commands are folded in. Output is deduped and stably ordered so the command set
+// is deterministic.
 func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 	scenarios := map[string]bool{}
 	repoLevel := false
@@ -627,9 +628,7 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 	sort.Strings(names)
 	for _, name := range names {
 		locations = append(locations, "scenarios/"+name)
-		if cmd := baselineDiffCommand(name, p.RegressionAnchor); cmd != "" {
-			commands = append(commands, cmd)
-		}
+		commands = append(commands, baselineCommands(name, p.RegressionAnchor)...)
 	}
 	if repoLevel {
 		locations = append(locations, "repo")
@@ -650,11 +649,24 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 }
 
 func baselineDiffCommand(scenario string, anchor planmodel.RegressionAnchor) string {
+	cmds := baselineCommands(scenario, anchor)
+	for _, cmd := range cmds {
+		if isOracleCommand(cmd) {
+			return cmd
+		}
+	}
+	return ""
+}
+
+func baselineCommands(scenario string, anchor planmodel.RegressionAnchor) []string {
 	name := strings.TrimSpace(anchor.BaselineName)
 	if name == "" || strings.ContainsAny(name, " \t\r\n") {
-		return ""
+		return nil
 	}
-	return fmt.Sprintf("git-control-tower baseline diff --scenario %s --name %s", scenario, name)
+	return []string{
+		fmt.Sprintf("git-control-tower baseline snapshot status --scenario %s --name %s", scenario, name),
+		fmt.Sprintf("git-control-tower baseline diff --scenario %s --name %s", scenario, name),
+	}
 }
 
 func scenarioFromTarget(target string) string {

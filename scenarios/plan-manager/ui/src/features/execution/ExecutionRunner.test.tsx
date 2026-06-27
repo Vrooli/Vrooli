@@ -12,6 +12,7 @@ import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 import {
   DecisionSchema,
+  GuidedStepSchema,
   HandoffSchema,
   PhaseSchema,
   PhaseStatus,
@@ -57,6 +58,12 @@ vi.mock("../../api/plans", () => ({
 import { ExecutionRunner } from "./ExecutionRunner";
 
 const execution = create(ExecutionSchema, { id: "exec-1", planId: "plan-1", currentPhaseId: "p1" });
+const step = create(GuidedStepSchema, {
+  stepKind: "execution_context",
+  title: "Review phase context",
+  summary: "Use the returned context before transitioning phases.",
+  nextActions: [{ label: "Mark done", argv: ["exec", "transition", "exec-1", "p1", "--status", "done"] }],
+});
 const context = create(PhaseContextSchema, {
   currentPhase: create(PhaseSchema, { id: "p1", order: 1, title: "Contracts", status: PhaseStatus.ACTIVE }),
   requiredReading: ["docs/PLAN.md"],
@@ -67,8 +74,8 @@ const context = create(PhaseContextSchema, {
 const startAndLand = async () => {
   const user = userEvent.setup();
   listPlans.mockResolvedValue([create(PlanSchema, { id: "plan-1", title: "Migrate auth" })]);
-  startExecution.mockResolvedValue(execution);
-  getStatus.mockResolvedValue({ execution, context });
+  startExecution.mockResolvedValue({ execution, step });
+  getStatus.mockResolvedValue({ execution, context, step });
 
   renderWithProviders(<ExecutionRunner />);
   await waitFor(() => {
@@ -95,11 +102,12 @@ describe("ExecutionRunner", () => {
     await startAndLand();
     expect(startExecution).toHaveBeenCalledWith("plan-1", "");
     expect(screen.getByTestId(selectors.execution.context)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.execution.guidedStep)).toHaveTextContent("exec transition exec-1 p1 --status done");
   });
 
   it("transitions the current phase", async () => {
     const user = await startAndLand();
-    transitionPhase.mockResolvedValue({ execution });
+    transitionPhase.mockResolvedValue({ execution, step });
     await user.click(screen.getByTestId(selectors.execution.transitionButton));
     await waitFor(() => {
       expect(transitionPhase).toHaveBeenCalledWith("exec-1", "p1", PhaseStatus.DONE);
@@ -108,7 +116,10 @@ describe("ExecutionRunner", () => {
 
   it("records a decision in-flow", async () => {
     const user = await startAndLand();
-    recordDecision.mockResolvedValue(create(DecisionSchema, { id: "d1", summary: "chose Connect" }));
+    recordDecision.mockResolvedValue({
+      decision: create(DecisionSchema, { id: "d1", summary: "chose Connect" }),
+      step,
+    });
     await user.type(screen.getByTestId(selectors.execution.decisionSummary), "chose Connect");
     await user.click(screen.getByTestId(selectors.execution.recordDecisionButton));
     await waitFor(() => {
@@ -121,6 +132,7 @@ describe("ExecutionRunner", () => {
     completeExecution.mockResolvedValue({
       handoff: create(HandoffSchema, { id: "h1", executionId: "exec-1", staleness: StalenessTier.FRESH }),
       nudges: [],
+      step,
     });
     await user.click(screen.getByTestId(selectors.execution.completeButton));
     await waitFor(() => {

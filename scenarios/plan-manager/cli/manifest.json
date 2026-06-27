@@ -1,11 +1,11 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "plan-manager",
-  "description": "Plan Manager CLI — the agent- and operator-facing surface for the planning runtime: author (guided composer wizard), exec (guided runner with just-in-time context + canonical handoff), plans/phase/template (the structured-plan SSOT), and validate (references, staleness, baseline-aware validation, Definition-of-Done). Schema-validated against cli-manifest/v1 and cross-validated against the PlansService/AuthoringService/ExecutionService/ValidationService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Plan Manager CLI \u2014 the agent- and operator-facing surface for the planning runtime: author (guided composer wizard), exec (guided runner with just-in-time context + canonical handoff), plans/phase/template (the structured-plan SSOT), and validate (references, staleness, baseline-aware validation, Definition-of-Done). Schema-validated against cli-manifest/v1 and cross-validated against the PlansService/AuthoringService/ExecutionService/ValidationService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
       "name": "plans",
-      "description": "The structured-plan SSOT — create, read, render, archive, graph, and import/migrate plans",
+      "description": "The structured-plan SSOT \u2014 create, read, render, archive, graph, and import/migrate plans",
       "commands": [
         {
           "name": "list",
@@ -330,7 +330,7 @@
     },
     {
       "name": "phase",
-      "description": "First-class phases on a plan — add and update",
+      "description": "First-class phases on a plan \u2014 add and update",
       "commands": [
         {
           "name": "add",
@@ -444,7 +444,7 @@
     },
     {
       "name": "template",
-      "description": "Per-surface plan templates — list and instantiate",
+      "description": "Per-surface plan templates \u2014 list and instantiate",
       "commands": [
         {
           "name": "list",
@@ -500,7 +500,7 @@
     },
     {
       "name": "validate",
-      "description": "Plan health — resolve references, compute staleness, derive + run baselines, verify the Definition of Done",
+      "description": "Plan health \u2014 resolve references, compute staleness, derive + run baselines, verify the Definition of Done",
       "commands": [
         {
           "name": "references",
@@ -645,7 +645,7 @@
     },
     {
       "name": "author",
-      "description": "Guided composer wizard — start a session, walk and submit sections, validate structure, autofill mechanical sections, and finalize into a structured plan",
+      "description": "Guided composer wizard \u2014 start a session, walk and submit sections, validate structure, autofill mechanical sections, and finalize into a structured plan",
       "commands": [
         {
           "name": "start",
@@ -819,6 +819,131 @@
           }
         },
         {
+          "name": "phase-add",
+          "description": "Append one structured phase draft to an authoring session",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "required": true,
+              "description": "Phase title"
+            },
+            {
+              "name": "intent",
+              "description": "Phase intent"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "AddPhase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-get",
+          "description": "Get one structured phase draft and its current guided step",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id or order number"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "GetPhase"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-submit",
+          "description": "Submit one structured phase field and re-validate the phase",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "phase",
+              "required": true,
+              "description": "Phase id or order number"
+            }
+          ],
+          "flags": [
+            {
+              "name": "field",
+              "required": true,
+              "description": "Phase field: title, intent, references, required_reading, reminders, acceptance, no_code_refs_reason"
+            },
+            {
+              "name": "content",
+              "required": true,
+              "description": "Field content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SubmitPhaseField"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "phase-next",
+          "description": "Return the first structured phase draft that still needs input",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "NextPhase"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "finalize",
           "description": "Run the structure gate then write the produced plan through the plans domain",
           "positionals": [
@@ -845,7 +970,7 @@
     },
     {
       "name": "exec",
-      "description": "Guided runner — start a run, get just-in-time context, transition phases, capture decisions/findings, complete into the canonical handoff, triage candidate findings, and read velocity",
+      "description": "Guided runner \u2014 start a run, get just-in-time context, transition phases, capture decisions/findings, complete into the canonical handoff, triage candidate findings, and read velocity",
       "commands": [
         {
           "name": "start",

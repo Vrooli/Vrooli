@@ -61,14 +61,14 @@ The structured plan/phase schema every domain operates on lives in
 
 ### authoring
 
-- Purpose: the guided composer wizard (OT-P0-002) — walk the plan's sections in order, validate structure as it goes, and auto-fill the mechanical sections (regression anchor, required-reading, code references) so a small model supplies only genuine prose.
+- Purpose: the guided composer wizard (OT-P0-002) — walk the plan's sections in order, then author each phase as a first-class draft object with API-owned guided steps at every transition. The wizard validates structure as it goes and auto-fills the mechanical sections (regression anchor, required-reading, code references) so a small model supplies only genuine prose.
 - Primary archetype: orchestration / workflow.
-- Owns: authoring-session progression, the structure-validation gate, authoring-time `cli:` command-reference feedback, autofill orchestration (behind seams to git-control-tower, prompt-manager, code-facts).
+- Owns: authoring-session progression, phase-draft progression, API-owned guided-step payloads, the structure-validation gate, authoring-time `cli:` command-reference feedback, autofill orchestration (behind seams to git-control-tower, prompt-manager, code-facts).
 - Does not own: the plan record itself (delegates writes to `plans`); command truth (delegates to CLI Health); the actual baseline/reference computation (delegates to `validation`).
 - API: `api/handlers/authoring/`. CLI: `cli/domains/authoring/`. UI: `ui/src/features/authoring/`.
 - Storage: transient authoring-session state; the plan it produces is owned by `plans`.
 - Requirements: PM-AUTHOR-001, PM-AUTHOR-002.
-- Tests: gate rejects empty mandatory sections and invalid current `cli:` references; autofill degrades gracefully when a source is down.
+- Tests: gate rejects empty mandatory sections, missing plan/phase references without an explicit `NO_CODE_REFS` reason, and invalid current `cli:` references; autofill degrades gracefully when a source is down.
 
 ### execution
 

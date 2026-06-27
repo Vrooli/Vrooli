@@ -29,6 +29,7 @@ type fakeExecutionService struct {
 	handoff   internalexecution.Handoff
 	nudges    []internalexecution.CompletionNudge
 	points    []internalexecution.VelocityPoint
+	step      internalexecution.GuidedStep
 	complete  bool
 	err       error
 
@@ -45,59 +46,59 @@ type fakeExecutionService struct {
 	gotTriage      internalexecution.FindingTriage
 }
 
-func (f *fakeExecutionService) Start(_ context.Context, planID, runID string) (internalexecution.Execution, error) {
+func (f *fakeExecutionService) Start(_ context.Context, planID, runID string) (internalexecution.Execution, internalexecution.GuidedStep, error) {
 	f.gotPlanID, f.gotRunID = planID, runID
-	return f.execution, f.err
+	return f.execution, f.step, f.err
 }
 
-func (f *fakeExecutionService) GetStatus(_ context.Context, executionID string) (internalexecution.Execution, internalexecution.PhaseContext, error) {
+func (f *fakeExecutionService) GetStatus(_ context.Context, executionID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
-	return f.execution, f.pctx, f.err
+	return f.execution, f.pctx, f.step, f.err
 }
 
-func (f *fakeExecutionService) GetNext(_ context.Context, executionID string) (internalexecution.PhaseContext, bool, error) {
+func (f *fakeExecutionService) GetNext(_ context.Context, executionID string) (internalexecution.PhaseContext, bool, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
-	return f.pctx, f.complete, f.err
+	return f.pctx, f.complete, f.step, f.err
 }
 
-func (f *fakeExecutionService) TransitionPhase(_ context.Context, executionID, phaseID string, to internalplans.PhaseStatus) (internalexecution.Execution, internalplans.Plan, error) {
+func (f *fakeExecutionService) TransitionPhase(_ context.Context, executionID, phaseID string, to internalplans.PhaseStatus) (internalexecution.Execution, internalplans.Plan, internalexecution.GuidedStep, error) {
 	f.gotExecutionID, f.gotPhaseID, f.gotToStatus = executionID, phaseID, to
-	return f.execution, f.plan, f.err
+	return f.execution, f.plan, f.step, f.err
 }
 
-func (f *fakeExecutionService) RecordDecision(_ context.Context, executionID, phaseID, summary, detail string) (internalexecution.Decision, error) {
+func (f *fakeExecutionService) RecordDecision(_ context.Context, executionID, phaseID, summary, detail string) (internalexecution.Decision, internalexecution.GuidedStep, error) {
 	f.gotExecutionID, f.gotPhaseID, f.gotSummary, f.gotDetail = executionID, phaseID, summary, detail
-	return f.decision, f.err
+	return f.decision, f.step, f.err
 }
 
-func (f *fakeExecutionService) RecordFinding(_ context.Context, executionID, phaseID, title, detail string) (internalexecution.Finding, error) {
+func (f *fakeExecutionService) RecordFinding(_ context.Context, executionID, phaseID, title, detail string) (internalexecution.Finding, internalexecution.GuidedStep, error) {
 	f.gotExecutionID, f.gotPhaseID, f.gotTitle, f.gotDetail = executionID, phaseID, title, detail
-	return f.finding, f.err
+	return f.finding, f.step, f.err
 }
 
-func (f *fakeExecutionService) Complete(_ context.Context, executionID string, inputs internalexecution.CompletionInputs) (internalexecution.Handoff, []internalexecution.CompletionNudge, error) {
+func (f *fakeExecutionService) Complete(_ context.Context, executionID string, inputs internalexecution.CompletionInputs) (internalexecution.Handoff, []internalexecution.CompletionNudge, internalexecution.GuidedStep, error) {
 	f.gotExecutionID, f.gotInputs = executionID, inputs
-	return f.handoff, f.nudges, f.err
+	return f.handoff, f.nudges, f.step, f.err
 }
 
-func (f *fakeExecutionService) GetHandoff(_ context.Context, executionID string) (internalexecution.Handoff, error) {
+func (f *fakeExecutionService) GetHandoff(_ context.Context, executionID string) (internalexecution.Handoff, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
-	return f.handoff, f.err
+	return f.handoff, f.step, f.err
 }
 
-func (f *fakeExecutionService) ListCandidateFindings(_ context.Context, executionID string) ([]internalexecution.Finding, error) {
+func (f *fakeExecutionService) ListCandidateFindings(_ context.Context, executionID string) ([]internalexecution.Finding, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
-	return f.findings, f.err
+	return f.findings, f.step, f.err
 }
 
-func (f *fakeExecutionService) TriageFinding(_ context.Context, findingID string, triage internalexecution.FindingTriage) (internalexecution.Finding, error) {
+func (f *fakeExecutionService) TriageFinding(_ context.Context, findingID string, triage internalexecution.FindingTriage) (internalexecution.Finding, internalexecution.GuidedStep, error) {
 	f.gotFindingID, f.gotTriage = findingID, triage
-	return f.finding, f.err
+	return f.finding, f.step, f.err
 }
 
-func (f *fakeExecutionService) GetVelocity(_ context.Context, planID string) ([]internalexecution.VelocityPoint, error) {
+func (f *fakeExecutionService) GetVelocity(_ context.Context, planID string) ([]internalexecution.VelocityPoint, internalexecution.GuidedStep, error) {
 	f.gotPlanID = planID
-	return f.points, f.err
+	return f.points, f.step, f.err
 }
 
 var _ internalexecution.Service = (*fakeExecutionService)(nil)
@@ -107,12 +108,17 @@ func newExecutionHandler(svc internalexecution.Service) *connectHandler {
 }
 
 func TestStartSuccess(t *testing.T) {
-	svc := &fakeExecutionService{execution: internalexecution.Execution{ID: "e1", PlanID: "p1", RunID: "run-1"}}
+	svc := &fakeExecutionService{
+		execution: internalexecution.Execution{ID: "e1", PlanID: "p1", RunID: "run-1"},
+		step:      internalexecution.GuidedStep{StepKind: "execution_started", NextActions: []internalexecution.NextAction{{ID: "status", Kind: internalexecution.NextActionRecommended, Argv: []string{"exec", "status", "e1"}}}},
+	}
 	h := newExecutionHandler(svc)
 
 	resp, err := h.Start(context.Background(), connect.NewRequest(&executionv1.StartRequest{PlanId: "p1", RunId: "run-1"}))
 	require.NoError(t, err)
 	require.Equal(t, "e1", resp.Msg.GetExecution().GetId())
+	require.Equal(t, "execution_started", resp.Msg.GetStep().GetStepKind())
+	require.Equal(t, []string{"exec", "status", "e1"}, resp.Msg.GetStep().GetNextActions()[0].GetArgv())
 	require.Equal(t, "p1", svc.gotPlanID)
 	require.Equal(t, "run-1", svc.gotRunID)
 }

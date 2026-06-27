@@ -125,6 +125,14 @@
       "category": "plans"
     },
     {
+      "id": "plans_link_dependency",
+      "path": "/vrooli.plan_manager.v1.plans.PlansService/LinkDependency",
+      "method": "POST",
+      "summary": "Link dependency",
+      "description": "Records that one plan depends on another.",
+      "category": "plans"
+    },
+    {
       "id": "plans_import",
       "path": "/vrooli.plan_manager.v1.plans.PlansService/ImportPlan",
       "method": "POST",
@@ -242,6 +250,38 @@
       "method": "POST",
       "summary": "Autofill mechanical sections",
       "description": "Orchestrates the mechanical-section autofill behind seams (regression anchor / required reading / references). Degrades gracefully, never a false fill (OT-P0-002).",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_add_phase",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase",
+      "method": "POST",
+      "summary": "Add phase draft",
+      "description": "Appends one structured phase draft so agents do not submit all phases as a markdown blob.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_get_phase",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/GetPhase",
+      "method": "POST",
+      "summary": "Get phase draft",
+      "description": "Returns one structured phase draft plus the API-owned guided step for the next missing phase field.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_submit_phase_field",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitPhaseField",
+      "method": "POST",
+      "summary": "Submit phase field",
+      "description": "Records one phase-native field and validates references/acceptance immediately.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_next_phase",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/NextPhase",
+      "method": "POST",
+      "summary": "Next phase draft",
+      "description": "Returns the first structured phase draft that still needs author input.",
       "category": "authoring"
     },
     {

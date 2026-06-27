@@ -117,6 +117,50 @@ func (r *authRecorder) Finalize(_ context.Context, req *connect.Request[authorin
 	return connect.NewResponse(&authoringv1.FinalizeResponse{Plan: &sharedv1.Plan{Id: "plan-final", Slug: "pf"}}), nil
 }
 
+func (r *authRecorder) AddPhase(_ context.Context, req *connect.Request[authoringv1.AddPhaseRequest]) (*connect.Response[authoringv1.AddPhaseResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.AddPhaseResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.AddPhaseResponse{Phase: &authoringv1.PhaseDraft{Id: "ph1", Order: 1, Title: req.Msg.GetTitle()}}), nil
+}
+
+func (r *authRecorder) GetPhase(_ context.Context, req *connect.Request[authoringv1.GetPhaseRequest]) (*connect.Response[authoringv1.GetPhaseResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.GetPhaseResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.GetPhaseResponse{Phase: &authoringv1.PhaseDraft{Id: req.Msg.GetPhaseId(), Order: 1}}), nil
+}
+
+func (r *authRecorder) SubmitPhaseField(_ context.Context, req *connect.Request[authoringv1.SubmitPhaseFieldRequest]) (*connect.Response[authoringv1.SubmitPhaseFieldResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.SubmitPhaseFieldResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.SubmitPhaseFieldResponse{Session: &authoringv1.AuthoringSession{Id: req.Msg.GetSessionId()}}), nil
+}
+
+func (r *authRecorder) NextPhase(_ context.Context, req *connect.Request[authoringv1.NextPhaseRequest]) (*connect.Response[authoringv1.NextPhaseResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.NextPhaseResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.NextPhaseResponse{Phase: &authoringv1.PhaseDraft{Id: "ph1", Order: 1}}), nil
+}
+
 func newAuthFixture(t *testing.T, rec *authRecorder) (*cliapp.ScenarioApp, []cliapp.SubcommandGroup) {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -201,6 +245,43 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			argv: []string{"sess-1"},
 			assert: func(t *testing.T, req proto.Message) {
 				require.Equal(t, "sess-1", req.(*authoringv1.FinalizeRequest).GetSessionId())
+			},
+		},
+		{
+			name: "phase-add maps session title intent", cmd: "phase-add",
+			argv: []string{"sess-1", "--title", "Contract", "--intent", "Add RPCs"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.AddPhaseRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "Contract", m.GetTitle())
+				require.Equal(t, "Add RPCs", m.GetIntent())
+			},
+		},
+		{
+			name: "phase-get maps session and phase", cmd: "phase-get",
+			argv: []string{"sess-1", "ph1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.GetPhaseRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "ph1", m.GetPhaseId())
+			},
+		},
+		{
+			name: "phase-submit maps field content", cmd: "phase-submit",
+			argv: []string{"sess-1", "ph1", "--field", "references", "--content", "[CODE: x.go]"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.SubmitPhaseFieldRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "ph1", m.GetPhaseId())
+				require.Equal(t, "references", m.GetField())
+				require.Equal(t, "[CODE: x.go]", m.GetContent())
+			},
+		},
+		{
+			name: "phase-next maps session", cmd: "phase-next",
+			argv: []string{"sess-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, "sess-1", req.(*authoringv1.NextPhaseRequest).GetSessionId())
 			},
 		},
 	}

@@ -144,12 +144,12 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	require.NotEmpty(t, plan.Phases)
 	phaseID := plan.Phases[0].ID
 
-	exec, err := executionSvc.Start(ctx, plan.ID, "run-cheap")
+	exec, _, err := executionSvc.Start(ctx, plan.ID, "run-cheap")
 	require.NoError(t, err)
 
 	// Before any explicit validation run: NO validation in the injected context.
 	// status answered the poll without triggering a live baseline.
-	_, before, err := executionSvc.GetStatus(ctx, exec.ID)
+	_, before, _, err := executionSvc.GetStatus(ctx, exec.ID)
 	require.NoError(t, err)
 	require.False(t, before.HasValidation, "status must not trigger a live validation run")
 
@@ -159,7 +159,7 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	require.Equal(t, internalvalidation.VerdictUnknown, res.Verdict)
 
 	// Now status reads the STORED result (a cheap store read, no subprocess).
-	_, after, err := executionSvc.GetStatus(ctx, exec.ID)
+	_, after, _, err := executionSvc.GetStatus(ctx, exec.ID)
 	require.NoError(t, err)
 	require.True(t, after.HasValidation, "status injects the last STORED validation result")
 	require.Equal(t, "unknown", after.LastValidation.Verdict)
@@ -171,7 +171,7 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 
 	// 1) Author a plan via the guided wizard: fill every section the wizard asks
 	// for, validate the structure gate, then finalize into the plans SSOT.
-	session, err := authoringSvc.StartSession(ctx, "Cross-domain plan", "", "")
+	session, _, err := authoringSvc.StartSession(ctx, "Cross-domain plan", "", "")
 	require.NoError(t, err)
 
 	// Fill every section the wizard seeded (mandatory + optional) so the
@@ -179,21 +179,21 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	// Next() pointer (which surfaces only mandatory-unfilled sections) is
 	// exercised separately in the authoring unit tests.
 	for _, sec := range session.Sections {
-		_, violations, subErr := authoringSvc.SubmitSection(ctx, session.ID, sec.Key, contentFor(string(sec.Key)))
+		_, violations, _, subErr := authoringSvc.SubmitSection(ctx, session.ID, sec.Key, contentFor(string(sec.Key)))
 		require.NoError(t, subErr)
 		require.Empty(t, violations, "submitted content should satisfy the section gate for %q", sec.Key)
 	}
 
 	// The Next() pointer reports the session structurally complete.
-	_, complete, err := authoringSvc.Next(ctx, session.ID)
+	_, _, complete, err := authoringSvc.Next(ctx, session.ID)
 	require.NoError(t, err)
 	require.True(t, complete, "all sections filled => wizard complete")
 
-	valid, violations, err := authoringSvc.ValidateStructure(ctx, session.ID)
+	valid, violations, _, err := authoringSvc.ValidateStructure(ctx, session.ID)
 	require.NoError(t, err)
 	require.True(t, valid, "structure gate should pass once all mandatory sections are filled; violations=%v", violations)
 
-	plan, err := authoringSvc.Finalize(ctx, session.ID)
+	plan, _, err := authoringSvc.Finalize(ctx, session.ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, plan.ID)
 	require.NotEmpty(t, plan.Phases, "phases section parsed into structured phases")
@@ -214,25 +214,25 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	_ = scope // derivation must not error; exact commands depend on ref targets
 
 	// 4) Execute the plan phase by phase with just-in-time context injection.
-	exec, err := executionSvc.Start(ctx, plan.ID, "run-xyz")
+	exec, _, err := executionSvc.Start(ctx, plan.ID, "run-xyz")
 	require.NoError(t, err)
 	require.Equal(t, plan.ID, exec.PlanID)
 	require.Equal(t, "run-xyz", exec.RunID)
 
-	_, phaseCtx, err := executionSvc.GetStatus(ctx, exec.ID)
+	_, phaseCtx, _, err := executionSvc.GetStatus(ctx, exec.ID)
 	require.NoError(t, err)
 	require.True(t, phaseCtx.HasCurrent, "context injection returns the current phase")
 	require.NotEmpty(t, phaseCtx.CurrentPhase.ID)
 
 	// Record an in-flow decision + candidate finding (feeds the handoff).
-	_, err = executionSvc.RecordDecision(ctx, exec.ID, persisted.Phases[0].ID, "use the SSOT", "")
+	_, _, err = executionSvc.RecordDecision(ctx, exec.ID, persisted.Phases[0].ID, "use the SSOT", "")
 	require.NoError(t, err)
-	_, err = executionSvc.RecordFinding(ctx, exec.ID, persisted.Phases[0].ID, "possible edge case", "")
+	_, _, err = executionSvc.RecordFinding(ctx, exec.ID, persisted.Phases[0].ID, "possible edge case", "")
 	require.NoError(t, err)
 
 	// Drive every phase to done (the runner delegates the transition to plans).
 	for _, ph := range persisted.Phases {
-		_, _, transErr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalplans.PhaseStatusDone)
+		_, _, _, transErr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalplans.PhaseStatusDone)
 		require.NoError(t, transErr)
 	}
 
@@ -242,19 +242,19 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	require.Equal(t, internalplans.PlanStatusComplete, done.Status)
 
 	// 5) Complete → canonical handoff assembled from captured state.
-	handoff, _, err := executionSvc.Complete(ctx, exec.ID, internalexecution.CompletionInputs{Tokens: 1234, Iterations: 5})
+	handoff, _, _, err := executionSvc.Complete(ctx, exec.ID, internalexecution.CompletionInputs{Tokens: 1234, Iterations: 5})
 	require.NoError(t, err)
 	require.Equal(t, internalexecution.CompletenessFull, handoff.Completeness, "all phases done => full")
 	require.Empty(t, handoff.ResumePhaseID, "no resume point when complete")
 	require.Len(t, handoff.Decisions, 1)
 	require.Len(t, handoff.CandidateFindings, 1)
 
-	got, err := executionSvc.GetHandoff(ctx, exec.ID)
+	got, _, err := executionSvc.GetHandoff(ctx, exec.ID)
 	require.NoError(t, err)
 	require.Equal(t, handoff.ID, got.ID)
 
 	// 6) Velocity captured locally.
-	points, err := executionSvc.GetVelocity(ctx, plan.ID)
+	points, _, err := executionSvc.GetVelocity(ctx, plan.ID)
 	require.NoError(t, err)
 	require.Len(t, points, 1)
 	require.EqualValues(t, 1234, points[0].Tokens)

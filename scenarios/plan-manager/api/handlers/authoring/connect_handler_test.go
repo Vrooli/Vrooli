@@ -23,6 +23,8 @@ type fakeAuthoringService struct {
 	section    internalauthoring.Section
 	violations []internalauthoring.StructureViolation
 	results    []internalauthoring.AutofillResult
+	phase      internalauthoring.PhaseDraft
+	step       internalauthoring.GuidedStep
 	valid      bool
 	complete   bool
 	plan       internalplans.Plan
@@ -35,41 +37,63 @@ type fakeAuthoringService struct {
 	gotSectionKey internalauthoring.SectionKey
 	gotContent    string
 	gotSources    []internalauthoring.AutofillSource
+	gotPhaseID    string
+	gotPhaseField internalauthoring.PhaseField
 }
 
-func (f *fakeAuthoringService) StartSession(_ context.Context, title, slug, templateID string) (internalauthoring.Session, error) {
+func (f *fakeAuthoringService) StartSession(_ context.Context, title, slug, templateID string) (internalauthoring.Session, internalauthoring.GuidedStep, error) {
 	f.gotTitle, f.gotSlug, f.gotTemplateID = title, slug, templateID
-	return f.session, f.err
+	return f.session, f.step, f.err
 }
 
-func (f *fakeAuthoringService) GetSection(_ context.Context, sessionID string, key internalauthoring.SectionKey) (internalauthoring.Section, error) {
+func (f *fakeAuthoringService) GetSection(_ context.Context, sessionID string, key internalauthoring.SectionKey) (internalauthoring.Section, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotSectionKey = sessionID, key
-	return f.section, f.err
+	return f.section, f.step, f.err
 }
 
-func (f *fakeAuthoringService) SubmitSection(_ context.Context, sessionID string, key internalauthoring.SectionKey, content string) (internalauthoring.Session, []internalauthoring.StructureViolation, error) {
+func (f *fakeAuthoringService) SubmitSection(_ context.Context, sessionID string, key internalauthoring.SectionKey, content string) (internalauthoring.Session, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotSectionKey, f.gotContent = sessionID, key, content
-	return f.session, f.violations, f.err
+	return f.session, f.violations, f.step, f.err
 }
 
-func (f *fakeAuthoringService) Next(_ context.Context, sessionID string) (internalauthoring.Section, bool, error) {
+func (f *fakeAuthoringService) Next(_ context.Context, sessionID string) (internalauthoring.Section, internalauthoring.GuidedStep, bool, error) {
 	f.gotSessionID = sessionID
-	return f.section, f.complete, f.err
+	return f.section, f.step, f.complete, f.err
 }
 
-func (f *fakeAuthoringService) ValidateStructure(_ context.Context, sessionID string) (bool, []internalauthoring.StructureViolation, error) {
+func (f *fakeAuthoringService) ValidateStructure(_ context.Context, sessionID string) (bool, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
 	f.gotSessionID = sessionID
-	return f.valid, f.violations, f.err
+	return f.valid, f.violations, f.step, f.err
 }
 
-func (f *fakeAuthoringService) Autofill(_ context.Context, sessionID string, sources []internalauthoring.AutofillSource) (internalauthoring.Session, []internalauthoring.AutofillResult, error) {
+func (f *fakeAuthoringService) Autofill(_ context.Context, sessionID string, sources []internalauthoring.AutofillSource) (internalauthoring.Session, []internalauthoring.AutofillResult, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotSources = sessionID, sources
-	return f.session, f.results, f.err
+	return f.session, f.results, f.step, f.err
 }
 
-func (f *fakeAuthoringService) Finalize(_ context.Context, sessionID string) (internalplans.Plan, error) {
+func (f *fakeAuthoringService) AddPhase(_ context.Context, sessionID string, title, intent string) (internalauthoring.Session, internalauthoring.PhaseDraft, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotContent = sessionID, title+"|"+intent
+	return f.session, f.phase, f.violations, f.step, f.err
+}
+
+func (f *fakeAuthoringService) GetPhase(_ context.Context, sessionID, phaseID string) (internalauthoring.PhaseDraft, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotPhaseID = sessionID, phaseID
+	return f.phase, f.step, f.err
+}
+
+func (f *fakeAuthoringService) SubmitPhaseField(_ context.Context, sessionID, phaseID string, field internalauthoring.PhaseField, content string) (internalauthoring.Session, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotPhaseID, f.gotPhaseField, f.gotContent = sessionID, phaseID, field, content
+	return f.session, f.violations, f.step, f.err
+}
+
+func (f *fakeAuthoringService) NextPhase(_ context.Context, sessionID string) (internalauthoring.PhaseDraft, internalauthoring.GuidedStep, bool, error) {
 	f.gotSessionID = sessionID
-	return f.plan, f.err
+	return f.phase, f.step, f.complete, f.err
+}
+
+func (f *fakeAuthoringService) Finalize(_ context.Context, sessionID string) (internalplans.Plan, internalauthoring.GuidedStep, error) {
+	f.gotSessionID = sessionID
+	return f.plan, f.step, f.err
 }
 
 var _ internalauthoring.Service = (*fakeAuthoringService)(nil)
@@ -130,7 +154,11 @@ func TestSubmitSectionSuccess(t *testing.T) {
 }
 
 func TestNextIncludesSectionWhenIncomplete(t *testing.T) {
-	svc := &fakeAuthoringService{section: internalauthoring.Section{Key: internalauthoring.SectionScope, Label: "Scope"}, complete: false}
+	svc := &fakeAuthoringService{
+		section:  internalauthoring.Section{Key: internalauthoring.SectionScope, Label: "Scope"},
+		step:     internalauthoring.GuidedStep{StepKind: "scope", Summary: "Draw the boundary."},
+		complete: false,
+	}
 	h := newAuthoringHandler(svc)
 
 	resp, err := h.Next(context.Background(), connect.NewRequest(&authoringv1.NextRequest{SessionId: "s1"}))
@@ -138,6 +166,7 @@ func TestNextIncludesSectionWhenIncomplete(t *testing.T) {
 	require.False(t, resp.Msg.GetComplete())
 	require.NotNil(t, resp.Msg.GetSection(), "an incomplete Next must carry the next section")
 	require.Equal(t, "scope", resp.Msg.GetSection().GetKey())
+	require.Equal(t, "scope", resp.Msg.GetStep().GetStepKind())
 }
 
 func TestNextOmitsSectionWhenComplete(t *testing.T) {
@@ -148,6 +177,58 @@ func TestNextOmitsSectionWhenComplete(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.Msg.GetComplete())
 	require.Nil(t, resp.Msg.GetSection(), "a complete Next must not carry a section")
+}
+
+func TestPhaseNativeHandlers(t *testing.T) {
+	t.Run("add phase", func(t *testing.T) {
+		svc := &fakeAuthoringService{
+			session: internalauthoring.Session{ID: "s1"},
+			phase:   internalauthoring.PhaseDraft{ID: "ph1", Order: 1, Title: "Contract"},
+			step:    internalauthoring.GuidedStep{StepKind: "phase_references"},
+		}
+		h := newAuthoringHandler(svc)
+		resp, err := h.AddPhase(context.Background(), connect.NewRequest(&authoringv1.AddPhaseRequest{
+			SessionId: "s1",
+			Title:     "Contract",
+			Intent:    "Add RPCs",
+		}))
+		require.NoError(t, err)
+		require.Equal(t, "ph1", resp.Msg.GetPhase().GetId())
+		require.Equal(t, "s1", svc.gotSessionID)
+		require.Equal(t, "Contract|Add RPCs", svc.gotContent)
+	})
+
+	t.Run("submit phase field", func(t *testing.T) {
+		svc := &fakeAuthoringService{
+			session: internalauthoring.Session{ID: "s1"},
+			phase:   internalauthoring.PhaseDraft{ID: "ph1"},
+			step:    internalauthoring.GuidedStep{StepKind: "phase_acceptance"},
+		}
+		h := newAuthoringHandler(svc)
+		resp, err := h.SubmitPhaseField(context.Background(), connect.NewRequest(&authoringv1.SubmitPhaseFieldRequest{
+			SessionId: "s1",
+			PhaseId:   "ph1",
+			Field:     "references",
+			Content:   "[CODE: x.go]",
+		}))
+		require.NoError(t, err)
+		require.Equal(t, "s1", resp.Msg.GetSession().GetId())
+		require.Equal(t, internalauthoring.PhaseFieldReferences, svc.gotPhaseField)
+		require.Equal(t, "[CODE: x.go]", svc.gotContent)
+	})
+
+	t.Run("next phase", func(t *testing.T) {
+		svc := &fakeAuthoringService{
+			phase: internalauthoring.PhaseDraft{ID: "ph1", Order: 1, Title: "Contract"},
+			step:  internalauthoring.GuidedStep{StepKind: "phase_references"},
+		}
+		h := newAuthoringHandler(svc)
+		resp, err := h.NextPhase(context.Background(), connect.NewRequest(&authoringv1.NextPhaseRequest{SessionId: "s1"}))
+		require.NoError(t, err)
+		require.False(t, resp.Msg.GetComplete())
+		require.Equal(t, "ph1", resp.Msg.GetPhase().GetId())
+		require.Equal(t, "phase_references", resp.Msg.GetStep().GetStepKind())
+	})
 }
 
 func TestValidateStructureSuccess(t *testing.T) {
