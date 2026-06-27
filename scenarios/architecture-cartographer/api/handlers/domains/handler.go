@@ -8,13 +8,17 @@ package domains
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
+	"architecture-cartographer/internal/archetype"
+	"architecture-cartographer/internal/attest"
 	"architecture-cartographer/internal/domains"
 
 	"connectrpc.com/connect"
 	domainsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains/domains_v1connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -104,7 +108,7 @@ func proposedDomainToProto(d domains.ProposedDomain) *domainsv1.ProposedDomain {
 	return &domainsv1.ProposedDomain{
 		Name:       d.Name,
 		Paths:      append([]string(nil), d.Paths...),
-		Archetype:  d.Archetype,
+		Archetype:  primaryArchetypeName(d.Archetypes),
 		Glossary:   append([]string(nil), d.Glossary...),
 		Confidence: d.Confidence,
 		Evidence:   append([]string(nil), d.Evidence...),
@@ -147,6 +151,7 @@ func mapToProto(m domains.DerivedDomainMap) *domainsv1.DerivedDomainMap {
 	if !m.DerivedAt.IsZero() {
 		out.DerivedAt = timestamppb.New(m.DerivedAt)
 	}
+	out.Attestation = mapAttestation(m)
 	for _, d := range m.Domains {
 		out.Domains = append(out.Domains, domainToProto(d))
 	}
@@ -162,15 +167,139 @@ func mapToProto(m domains.DerivedDomainMap) *domainsv1.DerivedDomainMap {
 
 func domainToProto(d domains.DerivedDomain) *domainsv1.DerivedDomain {
 	out := &domainsv1.DerivedDomain{
-		Name:      d.Name,
-		Paths:     append([]string(nil), d.Paths...),
-		Glossary:  append([]string(nil), d.Glossary...),
-		Archetype: d.Archetype,
+		Name:            d.Name,
+		Paths:           append([]string(nil), d.Paths...),
+		Glossary:        append([]string(nil), d.Glossary...),
+		Responsibility:  d.Responsibility,
+		Purpose:         d.Purpose,
+		OwnsData:        d.OwnsData,
+		SecondaryTraits: append([]string(nil), d.SecondaryTraits...),
+		Surfaces:        append([]string(nil), d.Surfaces...),
+	}
+	for _, archetype := range d.Archetypes {
+		out.Archetypes = append(out.Archetypes, archetypeToProto(archetype))
 	}
 	for _, s := range d.Provenance {
 		out.Provenance = append(out.Provenance, sourceToProto(s))
 	}
+	out.Attestation = domainAttestation(d)
 	return out
+}
+
+// mapAttestation is the map-level Q2 honesty contract: the resolved domain map
+// is DERIVED from on-disk sources; sufficiency tracks how curated the authority
+// is (HIGH authority -> FULL, otherwise the ground truth is itself inferred ->
+// PARTIAL).
+func mapAttestation(m domains.DerivedDomainMap) *commonv1.AttestedAnswer {
+	suff := commonv1.Sufficiency_SUFFICIENCY_PARTIAL
+	if m.AuthorityConfidence == domains.ConfidenceHigh {
+		suff = commonv1.Sufficiency_SUFFICIENCY_FULL
+	}
+	b := attest.New(fmt.Sprintf("domain map for %q: %d domain(s) resolved from %s", m.Scenario, len(m.Domains), m.Authority)).
+		Basis(commonv1.Basis_BASIS_DERIVED).
+		Sufficiency(suff)
+	if m.Authority == domains.SourceDomainsDoc {
+		b.CiteDoc(domains.DomainsDocPath, "authority rung")
+	} else {
+		b.CiteCode(string(m.Authority), "authority rung (derived source)")
+	}
+	if m.AuthorityConfidence != domains.ConfidenceHigh {
+		b.Gap("authority fell back to a derived source; the resolved set is itself inferred")
+		b.FollowUp("author docs/concepts/DOMAINS.md to raise the map to a curated authority")
+	}
+	a := b.Build()
+	if attest.Validate(a) != nil {
+		a.Basis = commonv1.Basis_BASIS_ABSENT
+	}
+	return a
+}
+
+// domainAttestation is the per-domain Q2 honesty contract: VALIDATED when the
+// domain is both declared in DOMAINS.md and present in code, DERIVED when only
+// code implies it, DECLARED_UNVERIFIED when only the doc declares it.
+func domainAttestation(d domains.DerivedDomain) *commonv1.AttestedAnswer {
+	hasDoc, hasCode := false, false
+	for _, s := range d.Provenance {
+		switch s {
+		case domains.SourceDomainsDoc, domains.SourceAPIManifest:
+			hasDoc = true
+		case domains.SourceAPIFolders, domains.SourceCLIGroups, domains.SourceUIFeatures:
+			hasCode = true
+		}
+	}
+	basis := attest.ConvergenceBasis(hasCode, hasDoc, hasCode && hasDoc)
+	suff := commonv1.Sufficiency_SUFFICIENCY_PARTIAL
+	if hasDoc && strings.TrimSpace(d.Responsibility) != "" {
+		suff = commonv1.Sufficiency_SUFFICIENCY_FULL
+	}
+	b := attest.New(fmt.Sprintf("domain %q owns %d path(s)", d.Name, len(d.Paths))).
+		Basis(basis).
+		Sufficiency(suff)
+	if hasDoc {
+		b.CiteDoc(domains.DomainsDocPath, "declared in the Domain Inventory")
+	}
+	for _, p := range d.Paths {
+		b.CiteCode(p, "")
+	}
+	a := b.Build()
+	if attest.Validate(a) != nil {
+		a.Basis = commonv1.Basis_BASIS_ABSENT
+	}
+	return a
+}
+
+func archetypeToProto(a domains.DomainArchetype) *domainsv1.DomainArchetype {
+	return &domainsv1.DomainArchetype{
+		Archetype:     archetypeNameToProto(a.Name),
+		Source:        archetypeSourceToProto(a.Source),
+		Confidence:    a.Confidence,
+		Evidence:      append([]string(nil), a.Evidence...),
+		DeclaredLabel: a.DeclaredLabel,
+	}
+}
+
+func archetypeNameToProto(name string) domainsv1.Archetype {
+	switch archetype.Name(name) {
+	case archetype.Reporting:
+		return domainsv1.Archetype_ARCHETYPE_REPORTING
+	case archetype.Service:
+		return domainsv1.Archetype_ARCHETYPE_SERVICE
+	case archetype.Mutation:
+		return domainsv1.Archetype_ARCHETYPE_MUTATION
+	case archetype.Classification:
+		return domainsv1.Archetype_ARCHETYPE_CLASSIFICATION
+	case archetype.Orchestration:
+		return domainsv1.Archetype_ARCHETYPE_ORCHESTRATION
+	case archetype.Scoring:
+		return domainsv1.Archetype_ARCHETYPE_SCORING
+	case archetype.Query:
+		return domainsv1.Archetype_ARCHETYPE_QUERY
+	default:
+		return domainsv1.Archetype_ARCHETYPE_UNSPECIFIED
+	}
+}
+
+func archetypeSourceToProto(s domains.ArchetypeSource) domainsv1.ArchetypeSource {
+	switch s {
+	case domains.ArchetypeSourceDeclared:
+		return domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_DECLARED
+	case domains.ArchetypeSourceInferred:
+		return domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_INFERRED
+	default:
+		return domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_UNSPECIFIED
+	}
+}
+
+func primaryArchetypeName(archetypes []domains.DomainArchetype) string {
+	if len(archetypes) == 0 {
+		return ""
+	}
+	for _, archetype := range archetypes {
+		if archetype.Source == domains.ArchetypeSourceDeclared && archetype.Name != "" {
+			return archetype.Name
+		}
+	}
+	return archetypes[0].Name
 }
 
 func confidenceToProto(c domains.AuthorityConfidence) domainsv1.AuthorityConfidence {

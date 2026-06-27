@@ -13,6 +13,8 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	"google.golang.org/protobuf/proto"
 
+	"architecture-cartographer/cli/internal/attestrender"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -210,6 +212,9 @@ func conflictDetailLines(c *sharedv1.Conflict) []string {
 		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
 		fmt.Sprintf("class    : %s", findingClassName(c.GetFindingClass())),
 		fmt.Sprintf("stable_id: %s", c.GetStableId()),
+	}
+	if att := c.GetAttestation(); att != nil {
+		lines = append(lines, fmt.Sprintf("basis    : %s (%s)", attestrender.Basis(att.GetBasis()), attestrender.Sufficiency(att.GetSufficiency())))
 	}
 	if iid := c.GetInstanceId(); iid != "" {
 		lines = append(lines, fmt.Sprintf("instance : %s (this run)", iid))

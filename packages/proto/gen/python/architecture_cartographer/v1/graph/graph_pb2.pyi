@@ -1,5 +1,8 @@
 import datetime
 
+from architecture_cartographer.v1.domains import domains_pb2 as _domains_pb2
+from architecture_cartographer.v1.shared import shared_pb2 as _shared_pb2
+from common.v1 import attestation_pb2 as _attestation_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -15,9 +18,18 @@ class Language(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     LANGUAGE_UNSPECIFIED: _ClassVar[Language]
     LANGUAGE_GO: _ClassVar[Language]
     LANGUAGE_TYPESCRIPT: _ClassVar[Language]
+
+class AuthorityConfidence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    AUTHORITY_CONFIDENCE_UNSPECIFIED: _ClassVar[AuthorityConfidence]
+    AUTHORITY_CONFIDENCE_HIGH: _ClassVar[AuthorityConfidence]
+    AUTHORITY_CONFIDENCE_LOW: _ClassVar[AuthorityConfidence]
 LANGUAGE_UNSPECIFIED: Language
 LANGUAGE_GO: Language
 LANGUAGE_TYPESCRIPT: Language
+AUTHORITY_CONFIDENCE_UNSPECIFIED: AuthorityConfidence
+AUTHORITY_CONFIDENCE_HIGH: AuthorityConfidence
+AUTHORITY_CONFIDENCE_LOW: AuthorityConfidence
 
 class FileNode(_message.Message):
     __slots__ = ("id", "path", "package_id", "language", "lines", "is_test")
@@ -187,3 +199,205 @@ class ExportGraphResponse(_message.Message):
     payload: bytes
     content_type: str
     def __init__(self, payload: _Optional[bytes] = ..., content_type: _Optional[str] = ...) -> None: ...
+
+class GetZoneMapRequest(_message.Message):
+    __slots__ = ("scenario", "snapshot_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    snapshot_id: str
+    def __init__(self, scenario: _Optional[str] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
+
+class GetZoneMapResponse(_message.Message):
+    __slots__ = ("zone_map",)
+    ZONE_MAP_FIELD_NUMBER: _ClassVar[int]
+    zone_map: ZoneMap
+    def __init__(self, zone_map: _Optional[_Union[ZoneMap, _Mapping]] = ...) -> None: ...
+
+class ZoneMap(_message.Message):
+    __slots__ = ("scenario", "snapshot_id", "packages", "violations", "authority_confidence", "attestation")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    PACKAGES_FIELD_NUMBER: _ClassVar[int]
+    VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    AUTHORITY_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    ATTESTATION_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    snapshot_id: str
+    packages: _containers.RepeatedCompositeFieldContainer[ZonePackage]
+    violations: _containers.RepeatedCompositeFieldContainer[ZoneViolation]
+    authority_confidence: AuthorityConfidence
+    attestation: _attestation_pb2.AttestedAnswer
+    def __init__(self, scenario: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., packages: _Optional[_Iterable[_Union[ZonePackage, _Mapping]]] = ..., violations: _Optional[_Iterable[_Union[ZoneViolation, _Mapping]]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ...) -> None: ...
+
+class ZonePackage(_message.Message):
+    __slots__ = ("package_id", "import_path", "repo_path", "zone", "domain", "archetype", "declared", "confidence", "declared_layer", "evidence", "drift")
+    PACKAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    IMPORT_PATH_FIELD_NUMBER: _ClassVar[int]
+    REPO_PATH_FIELD_NUMBER: _ClassVar[int]
+    ZONE_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    ARCHETYPE_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_LAYER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    DRIFT_FIELD_NUMBER: _ClassVar[int]
+    package_id: str
+    import_path: str
+    repo_path: str
+    zone: str
+    domain: str
+    archetype: str
+    declared: bool
+    confidence: float
+    declared_layer: str
+    evidence: _containers.RepeatedCompositeFieldContainer[ZoneEvidence]
+    drift: bool
+    def __init__(self, package_id: _Optional[str] = ..., import_path: _Optional[str] = ..., repo_path: _Optional[str] = ..., zone: _Optional[str] = ..., domain: _Optional[str] = ..., archetype: _Optional[str] = ..., declared: _Optional[bool] = ..., confidence: _Optional[float] = ..., declared_layer: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ZoneEvidence, _Mapping]]] = ..., drift: _Optional[bool] = ...) -> None: ...
+
+class ZoneEvidence(_message.Message):
+    __slots__ = ("kind", "detail", "locator")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    LOCATOR_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    detail: str
+    locator: str
+    def __init__(self, kind: _Optional[str] = ..., detail: _Optional[str] = ..., locator: _Optional[str] = ...) -> None: ...
+
+class ZoneViolation(_message.Message):
+    __slots__ = ("kind", "subtype", "severity", "locations", "domains", "summary")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SUBTYPE_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    LOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    DOMAINS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    subtype: str
+    severity: _shared_pb2.Severity
+    locations: _containers.RepeatedScalarFieldContainer[str]
+    domains: _containers.RepeatedScalarFieldContainer[str]
+    summary: str
+    def __init__(self, kind: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[_shared_pb2.Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ...) -> None: ...
+
+class GetSliceRequest(_message.Message):
+    __slots__ = ("scenario", "domain", "snapshot_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    domain: str
+    snapshot_id: str
+    def __init__(self, scenario: _Optional[str] = ..., domain: _Optional[str] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
+
+class GetSliceResponse(_message.Message):
+    __slots__ = ("slice",)
+    SLICE_FIELD_NUMBER: _ClassVar[int]
+    slice: DomainSlice
+    def __init__(self, slice: _Optional[_Union[DomainSlice, _Mapping]] = ...) -> None: ...
+
+class DomainSlice(_message.Message):
+    __slots__ = ("scenario", "domain", "snapshot_id", "rungs", "surfaces", "layer_edges", "attestation")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNGS_FIELD_NUMBER: _ClassVar[int]
+    SURFACES_FIELD_NUMBER: _ClassVar[int]
+    LAYER_EDGES_FIELD_NUMBER: _ClassVar[int]
+    ATTESTATION_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    domain: str
+    snapshot_id: str
+    rungs: _containers.RepeatedCompositeFieldContainer[SliceRung]
+    surfaces: _containers.RepeatedScalarFieldContainer[str]
+    layer_edges: _containers.RepeatedCompositeFieldContainer[SliceEdge]
+    attestation: _attestation_pb2.AttestedAnswer
+    def __init__(self, scenario: _Optional[str] = ..., domain: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., rungs: _Optional[_Iterable[_Union[SliceRung, _Mapping]]] = ..., surfaces: _Optional[_Iterable[str]] = ..., layer_edges: _Optional[_Iterable[_Union[SliceEdge, _Mapping]]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ...) -> None: ...
+
+class SliceRung(_message.Message):
+    __slots__ = ("name", "present", "evidence", "files", "symbols")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PRESENT_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    SYMBOLS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    present: bool
+    evidence: _containers.RepeatedCompositeFieldContainer[SliceEvidence]
+    files: _containers.RepeatedCompositeFieldContainer[SliceFile]
+    symbols: _containers.RepeatedCompositeFieldContainer[SliceSymbol]
+    def __init__(self, name: _Optional[str] = ..., present: _Optional[bool] = ..., evidence: _Optional[_Iterable[_Union[SliceEvidence, _Mapping]]] = ..., files: _Optional[_Iterable[_Union[SliceFile, _Mapping]]] = ..., symbols: _Optional[_Iterable[_Union[SliceSymbol, _Mapping]]] = ...) -> None: ...
+
+class SliceEvidence(_message.Message):
+    __slots__ = ("kind", "value", "source")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    value: str
+    source: str
+    def __init__(self, kind: _Optional[str] = ..., value: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
+
+class SliceFile(_message.Message):
+    __slots__ = ("path", "lines", "is_test")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    LINES_FIELD_NUMBER: _ClassVar[int]
+    IS_TEST_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    lines: int
+    is_test: bool
+    def __init__(self, path: _Optional[str] = ..., lines: _Optional[int] = ..., is_test: _Optional[bool] = ...) -> None: ...
+
+class SliceSymbol(_message.Message):
+    __slots__ = ("name", "kind", "file")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    kind: str
+    file: str
+    def __init__(self, name: _Optional[str] = ..., kind: _Optional[str] = ..., file: _Optional[str] = ...) -> None: ...
+
+class SliceEdge(_message.Message):
+    __slots__ = ("from_rung", "to_rung", "kind")
+    FROM_RUNG_FIELD_NUMBER: _ClassVar[int]
+    TO_RUNG_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    from_rung: str
+    to_rung: str
+    kind: str
+    def __init__(self, from_rung: _Optional[str] = ..., to_rung: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
+
+class InferArchetypeRequest(_message.Message):
+    __slots__ = ("scenario", "domain", "snapshot_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    domain: str
+    snapshot_id: str
+    def __init__(self, scenario: _Optional[str] = ..., domain: _Optional[str] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
+
+class InferArchetypeResponse(_message.Message):
+    __slots__ = ("scenario", "snapshot_id", "reports")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    REPORTS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    snapshot_id: str
+    reports: _containers.RepeatedCompositeFieldContainer[ArchetypeReport]
+    def __init__(self, scenario: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., reports: _Optional[_Iterable[_Union[ArchetypeReport, _Mapping]]] = ...) -> None: ...
+
+class ArchetypeReport(_message.Message):
+    __slots__ = ("domain", "archetypes", "convergence_drift", "attestation")
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    ARCHETYPES_FIELD_NUMBER: _ClassVar[int]
+    CONVERGENCE_DRIFT_FIELD_NUMBER: _ClassVar[int]
+    ATTESTATION_FIELD_NUMBER: _ClassVar[int]
+    domain: str
+    archetypes: _containers.RepeatedCompositeFieldContainer[_domains_pb2.DomainArchetype]
+    convergence_drift: bool
+    attestation: _attestation_pb2.AttestedAnswer
+    def __init__(self, domain: _Optional[str] = ..., archetypes: _Optional[_Iterable[_Union[_domains_pb2.DomainArchetype, _Mapping]]] = ..., convergence_drift: _Optional[bool] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ...) -> None: ...

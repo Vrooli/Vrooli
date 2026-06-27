@@ -249,27 +249,119 @@ message RegressionAnchor {
   bool unavailable = 8;
 }
 
-// Decision is an in-flow recorded design decision (captured during execution via
-// a runner command), feeding the handoff.
-message Decision {
-  string id = 1;
-  string summary = 2;
-  string detail = 3;
-  string phase_id = 4;
-  string recorded_at = 5;
+// =============================================================================
+// EXECUTION-LOG LEDGER — the typed plan-log vocabulary
+// =============================================================================
+//
+// The log domain is Plan Manager's single durable ledger for the work products
+// an agent produces while executing a plan. Findings, bug reports, and records
+// are DISTINCT concepts and must not be conflated: a finding is an unvalidated
+// candidate observation; a bug_report is a defect deliberately filed to the
+// issue tracker; a record is reusable learning captured for the learning loop.
+// Bug reports and records are forwarded to downstream systems through internal
+// seams; the local entry stays durable with a sync_status even when the
+// downstream write fails. See docs/concepts/PLAN-MODEL.md and
+// docs/concepts/DOMAINS.md (log).
+
+// LogEntryType is the typed kind of an execution-log ledger entry.
+enum LogEntryType {
+  LOG_ENTRY_TYPE_UNSPECIFIED = 0;
+  LOG_ENTRY_TYPE_DECISION = 1;
+  LOG_ENTRY_TYPE_FINDING = 2;
+  LOG_ENTRY_TYPE_BUG_REPORT = 3;
+  LOG_ENTRY_TYPE_RECORD = 4;
+  LOG_ENTRY_TYPE_NOTE = 5;
 }
 
-// Finding is an in-flow recorded candidate finding (possible bug). Always filed
-// as CANDIDATE; an operator triages it before it becomes a real bug.
-message Finding {
+// LogSyncStatus is the downstream-integration state of a log entry. LOCAL means
+// the entry has no downstream target (decisions/findings/notes). PENDING/SYNCED/
+// FAILED apply to bug_report and record entries Plan Manager forwards through an
+// internal seam. A FAILED entry remains durable and retryable.
+enum LogSyncStatus {
+  LOG_SYNC_STATUS_UNSPECIFIED = 0;
+  LOG_SYNC_STATUS_LOCAL = 1;
+  LOG_SYNC_STATUS_PENDING = 2;
+  LOG_SYNC_STATUS_SYNCED = 3;
+  LOG_SYNC_STATUS_FAILED = 4;
+}
+
+// LogSeverity is the optional severity of a finding or bug-report entry.
+enum LogSeverity {
+  LOG_SEVERITY_UNSPECIFIED = 0;
+  LOG_SEVERITY_INFO = 1;
+  LOG_SEVERITY_LOW = 2;
+  LOG_SEVERITY_MEDIUM = 3;
+  LOG_SEVERITY_HIGH = 4;
+  LOG_SEVERITY_CRITICAL = 5;
+}
+
+// DownstreamRef records the result of forwarding a log entry to a downstream
+// system (the scenario-qa bug inbox, swarm-manager records).
+message DownstreamRef {
+  string system = 1; // "scenario-qa" | "swarm-manager"
+  string kind = 2; // "bug_report" | "record"
+  string reference = 3; // downstream id/url once synced
+  string detail = 4; // last sync detail or error
+  string synced_at = 5; // RFC3339; empty until first successful sync
+}
+
+// LogEntry is one typed execution-log ledger entry — the unified record for
+// decisions, candidate findings, bug reports, reusable records, and notes.
+message LogEntry {
   string id = 1;
-  string title = 2;
-  string detail = 3;
-  FindingTriage triage = 4;
+  LogEntryType type = 2;
+  string plan_id = 3;
+  string execution_id = 4;
   string phase_id = 5;
-  string recorded_at = 6;
+  string title = 6;
+  string detail = 7;
+  LogSeverity severity = 8;
+  // Operator-triage state; meaningful for finding entries (candidate ->
+  // promoted/dismissed). Other types stay UNSPECIFIED.
+  FindingTriage triage = 9;
+  LogSyncStatus sync_status = 10;
+  DownstreamRef downstream = 11;
+  // The plan-manager CLI command path that produced this entry (audit trail).
+  string source_command = 12;
+  // Optional supporting evidence locators (paths, command output refs, urls).
+  repeated string evidence = 13;
   // VROOLI_AGENT_MANAGER_RUN_ID when present; powers attribution-keyed dedup.
-  string attribution_run_id = 7;
+  string attribution_run_id = 14;
+  // Idempotency key; a retry with the same key returns the existing entry.
+  string idempotency_key = 15;
+  // When this entry corrects/supersedes an earlier entry.
+  string supersedes_id = 16;
+  // When this bug_report/record was promoted from a finding entry.
+  string promoted_from_id = 17;
+  string created_at = 18;
+  string updated_at = 19;
+}
+
+// LogSummaryItem is one compact line in a LogSummary.
+message LogSummaryItem {
+  string id = 1;
+  LogEntryType type = 2;
+  string title = 3;
+  LogSyncStatus sync_status = 4;
+  FindingTriage triage = 5;
+  string phase_id = 6;
+}
+
+// LogSummary is a compact roll-up of an execution's (or plan's) log ledger,
+// surfaced into resume/status/handoff so a resumed agent reorients without
+// reading every entry.
+message LogSummary {
+  int32 total = 1;
+  int32 decisions = 2;
+  int32 findings = 3;
+  int32 bug_reports = 4;
+  int32 records = 5;
+  int32 notes = 6;
+  int32 candidate_findings = 7;
+  int32 pending_sync = 8;
+  int32 failed_sync = 9;
+  // A short, most-recent-first list for quick reorientation.
+  repeated LogSummaryItem recent = 10;
 }
 
 // ValidationResult is the most recent validation/baseline outcome for a plan or
@@ -307,14 +399,17 @@ message CommandValidationFinding {
 }
 
 // Phase is a first-class phase — the unit the runner walks and context is scoped
-// to. order/title/intent/required_reading/reminders/acceptance are AUTHORED;
-// baseline_scope/status/last_validation are COMPUTED; decisions/findings are
-// captured in-flow.
+// to. order/title/intent/relevant_context/reminders/acceptance are AUTHORED;
+// required_reading is legacy migration input; baseline_scope/status/
+// last_validation are COMPUTED. In-flow decisions/findings are NOT stored on the
+// phase — they are typed entries in the log domain (LogService), scoped to the
+// phase by phase_id.
 message Phase {
   string id = 1;
   int32 order = 2;
   string title = 3;
   string intent = 4;
+  // Legacy migration input. Execution-facing setup is relevant_context.
   repeated string required_reading = 5;
   repeated string reminders = 6;
   // COMPUTED: the baseline/validation command set this phase touches, derived
@@ -323,10 +418,8 @@ message Phase {
   string acceptance = 8;
   PhaseStatus status = 9;
   ValidationResult last_validation = 10;
-  repeated Decision decisions = 11;
-  repeated Finding findings = 12;
-  repeated Reference references = 13;
-  repeated RelevantContextItem relevant_context = 14;
+  repeated Reference references = 11;
+  repeated RelevantContextItem relevant_context = 12;
 }
 
 // Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
@@ -384,8 +477,11 @@ message Handoff {
   string plan_id = 3;
   Completeness completeness = 4; // COMPUTED from the phase-status set
   string resume_phase_id = 5; // COMPUTED: earliest non-done phase
-  repeated Decision decisions = 6;
-  repeated Finding candidate_findings = 7;
+  // Compact roll-up of the execution's log ledger (decisions/findings/bugs/
+  // records) assembled from the log domain at handoff time.
+  LogSummary log_summary = 6;
+  // The full log entries captured during the run, oldest-first.
+  repeated LogEntry log_entries = 7;
   ValidationResult last_validation = 8;
   StalenessTier staleness = 9;
   // Reference (URL/id) to the orchestration-layer prose handoff; plan-manager

@@ -7,6 +7,7 @@
 package shared_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -803,8 +804,14 @@ type Conflict struct {
 	StableId          string                 `protobuf:"bytes,20,opt,name=stable_id,json=stableId,proto3" json:"stable_id,omitempty"`
 	InstanceId        string                 `protobuf:"bytes,21,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
 	FindingClass      FindingClass           `protobuf:"varint,22,opt,name=finding_class,json=findingClass,proto3,enum=vrooli.architecture_cartographer.v1.shared.FindingClass" json:"finding_class,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Honesty contract for this finding: a drift conflict (glossary/surface/zone/
+	// archetype) carries basis CONTRADICTED with citations to both the doc and the
+	// code; a code-computed finding (cycle/coupling) carries DERIVED with code
+	// citations. Built via internal/attest so CLI/RPC and future federated search
+	// present identically.
+	Attestation   *v1.AttestedAnswer `protobuf:"bytes,23,opt,name=attestation,proto3" json:"attestation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Conflict) Reset() {
@@ -970,11 +977,18 @@ func (x *Conflict) GetFindingClass() FindingClass {
 	return FindingClass_FINDING_CLASS_UNSPECIFIED
 }
 
+func (x *Conflict) GetAttestation() *v1.AttestedAnswer {
+	if x != nil {
+		return x.Attestation
+	}
+	return nil
+}
+
 var File_architecture_cartographer_v1_shared_shared_proto protoreflect.FileDescriptor
 
 const file_architecture_cartographer_v1_shared_shared_proto_rawDesc = "" +
 	"\n" +
-	"0architecture-cartographer/v1/shared/shared.proto\x12*vrooli.architecture_cartographer.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\"j\n" +
+	"0architecture-cartographer/v1/shared/shared.proto\x12*vrooli.architecture_cartographer.v1.shared\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"j\n" +
 	"\bEvidence\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
 	"\asummary\x18\x02 \x01(\tR\asummary\x12\x18\n" +
@@ -1022,7 +1036,7 @@ const file_architecture_cartographer_v1_shared_shared_proto_rawDesc = "" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x06 \x01(\x01R\n" +
-	"confidence\"\xce\a\n" +
+	"confidence\"\x8b\b\n" +
 	"\bConflict\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1a\n" +
@@ -1049,7 +1063,8 @@ const file_architecture_cartographer_v1_shared_shared_proto_rawDesc = "" +
 	"\tstable_id\x18\x14 \x01(\tR\bstableId\x12\x1f\n" +
 	"\vinstance_id\x18\x15 \x01(\tR\n" +
 	"instanceId\x12]\n" +
-	"\rfinding_class\x18\x16 \x01(\x0e28.vrooli.architecture_cartographer.v1.shared.FindingClassR\ffindingClassJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eR\x06statusR\x0fassigned_domainR\x0fresolution_note*t\n" +
+	"\rfinding_class\x18\x16 \x01(\x0e28.vrooli.architecture_cartographer.v1.shared.FindingClassR\ffindingClass\x12;\n" +
+	"\vattestation\x18\x17 \x01(\v2\x19.common.v1.AttestedAnswerR\vattestationJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eR\x06statusR\x0fassigned_domainR\x0fresolution_note*t\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSEVERITY_INFO\x10\x01\x12\x11\n" +
@@ -1101,6 +1116,7 @@ var file_architecture_cartographer_v1_shared_shared_proto_goTypes = []any{
 	(*Fix)(nil),                   // 10: vrooli.architecture_cartographer.v1.shared.Fix
 	(*Conflict)(nil),              // 11: vrooli.architecture_cartographer.v1.shared.Conflict
 	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*v1.AttestedAnswer)(nil),     // 13: common.v1.AttestedAnswer
 }
 var file_architecture_cartographer_v1_shared_shared_proto_depIdxs = []int32{
 	4,  // 0: vrooli.architecture_cartographer.v1.shared.Score.evidence:type_name -> vrooli.architecture_cartographer.v1.shared.Evidence
@@ -1117,11 +1133,12 @@ var file_architecture_cartographer_v1_shared_shared_proto_depIdxs = []int32{
 	12, // 11: vrooli.architecture_cartographer.v1.shared.Conflict.detected_at:type_name -> google.protobuf.Timestamp
 	12, // 12: vrooli.architecture_cartographer.v1.shared.Conflict.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 13: vrooli.architecture_cartographer.v1.shared.Conflict.finding_class:type_name -> vrooli.architecture_cartographer.v1.shared.FindingClass
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	13, // 14: vrooli.architecture_cartographer.v1.shared.Conflict.attestation:type_name -> common.v1.AttestedAnswer
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_shared_shared_proto_init() }

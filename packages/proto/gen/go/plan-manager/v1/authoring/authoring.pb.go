@@ -122,11 +122,13 @@ type AuthoringSession struct {
 	CurrentSectionKey string `protobuf:"bytes,5,opt,name=current_section_key,json=currentSectionKey,proto3" json:"current_section_key,omitempty"`
 	Finalized         bool   `protobuf:"varint,6,opt,name=finalized,proto3" json:"finalized,omitempty"`
 	// Set after Finalize: the id of the persisted plan in the plans domain.
-	PlanId         string        `protobuf:"bytes,7,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
-	PhaseDrafts    []*PhaseDraft `protobuf:"bytes,8,rep,name=phase_drafts,json=phaseDrafts,proto3" json:"phase_drafts,omitempty"`
-	CurrentPhaseId string        `protobuf:"bytes,9,opt,name=current_phase_id,json=currentPhaseId,proto3" json:"current_phase_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	PlanId            string                        `protobuf:"bytes,7,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	PhaseDrafts       []*PhaseDraft                 `protobuf:"bytes,8,rep,name=phase_drafts,json=phaseDrafts,proto3" json:"phase_drafts,omitempty"`
+	CurrentPhaseId    string                        `protobuf:"bytes,9,opt,name=current_phase_id,json=currentPhaseId,proto3" json:"current_phase_id,omitempty"`
+	RelevantContext   []*shared.RelevantContextItem `protobuf:"bytes,10,rep,name=relevant_context,json=relevantContext,proto3" json:"relevant_context,omitempty"`
+	ContextCandidates []*ContextCandidate           `protobuf:"bytes,11,rep,name=context_candidates,json=contextCandidates,proto3" json:"context_candidates,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AuthoringSession) Reset() {
@@ -222,6 +224,20 @@ func (x *AuthoringSession) GetCurrentPhaseId() string {
 	return ""
 }
 
+func (x *AuthoringSession) GetRelevantContext() []*shared.RelevantContextItem {
+	if x != nil {
+		return x.RelevantContext
+	}
+	return nil
+}
+
+func (x *AuthoringSession) GetContextCandidates() []*ContextCandidate {
+	if x != nil {
+		return x.ContextCandidates
+	}
+	return nil
+}
+
 // StructureViolation is one structure-gate failure (e.g. empty mandatory section
 // or an empty regression anchor).
 type StructureViolation struct {
@@ -279,7 +295,8 @@ func (x *StructureViolation) GetMessage() string {
 // AutofillResult reports the outcome of one autofill source.
 type AutofillResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// "regression_anchor" | "required_reading" | "references".
+	// "regression_anchor" | "references"; "required_reading" is legacy
+	// migration input and must be requested explicitly.
 	Source     string `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
 	SectionKey string `protobuf:"bytes,2,opt,name=section_key,json=sectionKey,proto3" json:"section_key,omitempty"`
 	Filled     bool   `protobuf:"varint,3,opt,name=filled,proto3" json:"filled,omitempty"`
@@ -356,26 +373,131 @@ func (x *AutofillResult) GetDetail() string {
 	return ""
 }
 
+// ContextCandidate is a discovered but not-yet-accepted relevant-context item.
+// Candidates are intentionally reviewable: the wizard stores the proposed setup
+// command plus the reason/source, but the author must accept or reject it.
+type ContextCandidate struct {
+	state           protoimpl.MessageState      `protogen:"open.v1"`
+	Id              string                      `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Item            *shared.RelevantContextItem `protobuf:"bytes,2,opt,name=item,proto3" json:"item,omitempty"`
+	Concept         string                      `protobuf:"bytes,3,opt,name=concept,proto3" json:"concept,omitempty"`
+	Source          string                      `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	Degraded        bool                        `protobuf:"varint,5,opt,name=degraded,proto3" json:"degraded,omitempty"`
+	Detail          string                      `protobuf:"bytes,6,opt,name=detail,proto3" json:"detail,omitempty"`
+	Status          string                      `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"` // pending | accepted | rejected
+	RejectionReason string                      `protobuf:"bytes,8,opt,name=rejection_reason,json=rejectionReason,proto3" json:"rejection_reason,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ContextCandidate) Reset() {
+	*x = ContextCandidate{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContextCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContextCandidate) ProtoMessage() {}
+
+func (x *ContextCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContextCandidate.ProtoReflect.Descriptor instead.
+func (*ContextCandidate) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ContextCandidate) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ContextCandidate) GetItem() *shared.RelevantContextItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *ContextCandidate) GetConcept() string {
+	if x != nil {
+		return x.Concept
+	}
+	return ""
+}
+
+func (x *ContextCandidate) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ContextCandidate) GetDegraded() bool {
+	if x != nil {
+		return x.Degraded
+	}
+	return false
+}
+
+func (x *ContextCandidate) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *ContextCandidate) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ContextCandidate) GetRejectionReason() string {
+	if x != nil {
+		return x.RejectionReason
+	}
+	return ""
+}
+
 // PhaseDraft is the structured pre-finalize phase object owned by an authoring
 // session. Finalize maps these into shared.Phase records in the plans domain.
 type PhaseDraft struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Order            int32                  `protobuf:"varint,2,opt,name=order,proto3" json:"order,omitempty"`
-	Title            string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Intent           string                 `protobuf:"bytes,4,opt,name=intent,proto3" json:"intent,omitempty"`
-	References       []*shared.Reference    `protobuf:"bytes,5,rep,name=references,proto3" json:"references,omitempty"`
-	RequiredReading  []string               `protobuf:"bytes,6,rep,name=required_reading,json=requiredReading,proto3" json:"required_reading,omitempty"`
-	Reminders        []string               `protobuf:"bytes,7,rep,name=reminders,proto3" json:"reminders,omitempty"`
-	Acceptance       string                 `protobuf:"bytes,8,opt,name=acceptance,proto3" json:"acceptance,omitempty"`
-	NoCodeRefsReason string                 `protobuf:"bytes,9,opt,name=no_code_refs_reason,json=noCodeRefsReason,proto3" json:"no_code_refs_reason,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Order      int32                  `protobuf:"varint,2,opt,name=order,proto3" json:"order,omitempty"`
+	Title      string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Intent     string                 `protobuf:"bytes,4,opt,name=intent,proto3" json:"intent,omitempty"`
+	References []*shared.Reference    `protobuf:"bytes,5,rep,name=references,proto3" json:"references,omitempty"`
+	// Legacy migration input. Finalize converts these lines into relevant_context.
+	RequiredReading  []string                      `protobuf:"bytes,6,rep,name=required_reading,json=requiredReading,proto3" json:"required_reading,omitempty"`
+	Reminders        []string                      `protobuf:"bytes,7,rep,name=reminders,proto3" json:"reminders,omitempty"`
+	Acceptance       string                        `protobuf:"bytes,8,opt,name=acceptance,proto3" json:"acceptance,omitempty"`
+	NoCodeRefsReason string                        `protobuf:"bytes,9,opt,name=no_code_refs_reason,json=noCodeRefsReason,proto3" json:"no_code_refs_reason,omitempty"`
+	RelevantContext  []*shared.RelevantContextItem `protobuf:"bytes,10,rep,name=relevant_context,json=relevantContext,proto3" json:"relevant_context,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PhaseDraft) Reset() {
 	*x = PhaseDraft{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[4]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -387,7 +509,7 @@ func (x *PhaseDraft) String() string {
 func (*PhaseDraft) ProtoMessage() {}
 
 func (x *PhaseDraft) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[4]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -400,7 +522,7 @@ func (x *PhaseDraft) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhaseDraft.ProtoReflect.Descriptor instead.
 func (*PhaseDraft) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{4}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PhaseDraft) GetId() string {
@@ -466,6 +588,13 @@ func (x *PhaseDraft) GetNoCodeRefsReason() string {
 	return ""
 }
 
+func (x *PhaseDraft) GetRelevantContext() []*shared.RelevantContextItem {
+	if x != nil {
+		return x.RelevantContext
+	}
+	return nil
+}
+
 type StartSessionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Title string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
@@ -478,7 +607,7 @@ type StartSessionRequest struct {
 
 func (x *StartSessionRequest) Reset() {
 	*x = StartSessionRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[5]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +619,7 @@ func (x *StartSessionRequest) String() string {
 func (*StartSessionRequest) ProtoMessage() {}
 
 func (x *StartSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[5]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +632,7 @@ func (x *StartSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSessionRequest.ProtoReflect.Descriptor instead.
 func (*StartSessionRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{5}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StartSessionRequest) GetTitle() string {
@@ -537,7 +666,7 @@ type StartSessionResponse struct {
 
 func (x *StartSessionResponse) Reset() {
 	*x = StartSessionResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[6]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -549,7 +678,7 @@ func (x *StartSessionResponse) String() string {
 func (*StartSessionResponse) ProtoMessage() {}
 
 func (x *StartSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[6]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -562,7 +691,7 @@ func (x *StartSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSessionResponse.ProtoReflect.Descriptor instead.
 func (*StartSessionResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{6}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StartSessionResponse) GetSession() *AuthoringSession {
@@ -589,7 +718,7 @@ type GetSectionRequest struct {
 
 func (x *GetSectionRequest) Reset() {
 	*x = GetSectionRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[7]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -601,7 +730,7 @@ func (x *GetSectionRequest) String() string {
 func (*GetSectionRequest) ProtoMessage() {}
 
 func (x *GetSectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[7]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -614,7 +743,7 @@ func (x *GetSectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSectionRequest.ProtoReflect.Descriptor instead.
 func (*GetSectionRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{7}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetSectionRequest) GetSessionId() string {
@@ -641,7 +770,7 @@ type GetSectionResponse struct {
 
 func (x *GetSectionResponse) Reset() {
 	*x = GetSectionResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[8]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -653,7 +782,7 @@ func (x *GetSectionResponse) String() string {
 func (*GetSectionResponse) ProtoMessage() {}
 
 func (x *GetSectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[8]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -666,7 +795,7 @@ func (x *GetSectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSectionResponse.ProtoReflect.Descriptor instead.
 func (*GetSectionResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{8}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetSectionResponse) GetSection() *Section {
@@ -694,7 +823,7 @@ type SubmitSectionRequest struct {
 
 func (x *SubmitSectionRequest) Reset() {
 	*x = SubmitSectionRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -706,7 +835,7 @@ func (x *SubmitSectionRequest) String() string {
 func (*SubmitSectionRequest) ProtoMessage() {}
 
 func (x *SubmitSectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -719,7 +848,7 @@ func (x *SubmitSectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitSectionRequest.ProtoReflect.Descriptor instead.
 func (*SubmitSectionRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{9}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SubmitSectionRequest) GetSessionId() string {
@@ -755,7 +884,7 @@ type SubmitSectionResponse struct {
 
 func (x *SubmitSectionResponse) Reset() {
 	*x = SubmitSectionResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -767,7 +896,7 @@ func (x *SubmitSectionResponse) String() string {
 func (*SubmitSectionResponse) ProtoMessage() {}
 
 func (x *SubmitSectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -780,7 +909,7 @@ func (x *SubmitSectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitSectionResponse.ProtoReflect.Descriptor instead.
 func (*SubmitSectionResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{10}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SubmitSectionResponse) GetSession() *AuthoringSession {
@@ -813,7 +942,7 @@ type NextRequest struct {
 
 func (x *NextRequest) Reset() {
 	*x = NextRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -825,7 +954,7 @@ func (x *NextRequest) String() string {
 func (*NextRequest) ProtoMessage() {}
 
 func (x *NextRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -838,7 +967,7 @@ func (x *NextRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextRequest.ProtoReflect.Descriptor instead.
 func (*NextRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{11}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *NextRequest) GetSessionId() string {
@@ -860,7 +989,7 @@ type NextResponse struct {
 
 func (x *NextResponse) Reset() {
 	*x = NextResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -872,7 +1001,7 @@ func (x *NextResponse) String() string {
 func (*NextResponse) ProtoMessage() {}
 
 func (x *NextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -885,7 +1014,7 @@ func (x *NextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextResponse.ProtoReflect.Descriptor instead.
 func (*NextResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{12}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *NextResponse) GetSection() *Section {
@@ -909,6 +1038,134 @@ func (x *NextResponse) GetStep() *shared.GuidedStep {
 	return nil
 }
 
+type ContinueAuthoringRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContinueAuthoringRequest) Reset() {
+	*x = ContinueAuthoringRequest{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContinueAuthoringRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContinueAuthoringRequest) ProtoMessage() {}
+
+func (x *ContinueAuthoringRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContinueAuthoringRequest.ProtoReflect.Descriptor instead.
+func (*ContinueAuthoringRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ContinueAuthoringRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type ContinueAuthoringResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Session         *AuthoringSession      `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Section         *Section               `protobuf:"bytes,2,opt,name=section,proto3" json:"section,omitempty"`
+	Phase           *PhaseDraft            `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	ReadyToFinalize bool                   `protobuf:"varint,4,opt,name=ready_to_finalize,json=readyToFinalize,proto3" json:"ready_to_finalize,omitempty"`
+	Violations      []*StructureViolation  `protobuf:"bytes,5,rep,name=violations,proto3" json:"violations,omitempty"`
+	Step            *shared.GuidedStep     `protobuf:"bytes,6,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ContinueAuthoringResponse) Reset() {
+	*x = ContinueAuthoringResponse{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContinueAuthoringResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContinueAuthoringResponse) ProtoMessage() {}
+
+func (x *ContinueAuthoringResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContinueAuthoringResponse.ProtoReflect.Descriptor instead.
+func (*ContinueAuthoringResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ContinueAuthoringResponse) GetSession() *AuthoringSession {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *ContinueAuthoringResponse) GetSection() *Section {
+	if x != nil {
+		return x.Section
+	}
+	return nil
+}
+
+func (x *ContinueAuthoringResponse) GetPhase() *PhaseDraft {
+	if x != nil {
+		return x.Phase
+	}
+	return nil
+}
+
+func (x *ContinueAuthoringResponse) GetReadyToFinalize() bool {
+	if x != nil {
+		return x.ReadyToFinalize
+	}
+	return false
+}
+
+func (x *ContinueAuthoringResponse) GetViolations() []*StructureViolation {
+	if x != nil {
+		return x.Violations
+	}
+	return nil
+}
+
+func (x *ContinueAuthoringResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
 type ValidateStructureRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -918,7 +1175,7 @@ type ValidateStructureRequest struct {
 
 func (x *ValidateStructureRequest) Reset() {
 	*x = ValidateStructureRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -930,7 +1187,7 @@ func (x *ValidateStructureRequest) String() string {
 func (*ValidateStructureRequest) ProtoMessage() {}
 
 func (x *ValidateStructureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -943,7 +1200,7 @@ func (x *ValidateStructureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateStructureRequest.ProtoReflect.Descriptor instead.
 func (*ValidateStructureRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{13}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ValidateStructureRequest) GetSessionId() string {
@@ -964,7 +1221,7 @@ type ValidateStructureResponse struct {
 
 func (x *ValidateStructureResponse) Reset() {
 	*x = ValidateStructureResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[14]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -976,7 +1233,7 @@ func (x *ValidateStructureResponse) String() string {
 func (*ValidateStructureResponse) ProtoMessage() {}
 
 func (x *ValidateStructureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[14]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -989,7 +1246,7 @@ func (x *ValidateStructureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateStructureResponse.ProtoReflect.Descriptor instead.
 func (*ValidateStructureResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{14}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ValidateStructureResponse) GetValid() bool {
@@ -1024,7 +1281,7 @@ type AutofillRequest struct {
 
 func (x *AutofillRequest) Reset() {
 	*x = AutofillRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[15]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1036,7 +1293,7 @@ func (x *AutofillRequest) String() string {
 func (*AutofillRequest) ProtoMessage() {}
 
 func (x *AutofillRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[15]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1049,7 +1306,7 @@ func (x *AutofillRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofillRequest.ProtoReflect.Descriptor instead.
 func (*AutofillRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{15}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AutofillRequest) GetSessionId() string {
@@ -1077,7 +1334,7 @@ type AutofillResponse struct {
 
 func (x *AutofillResponse) Reset() {
 	*x = AutofillResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1089,7 +1346,7 @@ func (x *AutofillResponse) String() string {
 func (*AutofillResponse) ProtoMessage() {}
 
 func (x *AutofillResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[16]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1102,7 +1359,7 @@ func (x *AutofillResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutofillResponse.ProtoReflect.Descriptor instead.
 func (*AutofillResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{16}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *AutofillResponse) GetSession() *AuthoringSession {
@@ -1126,6 +1383,621 @@ func (x *AutofillResponse) GetStep() *shared.GuidedStep {
 	return nil
 }
 
+type SubmitRelevantContextItemRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// Optional phase id or authored order number. When set, the item is stored on
+	// that phase draft and finalized as phase-scoped context.
+	PhaseId       string                      `protobuf:"bytes,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	Item          *shared.RelevantContextItem `protobuf:"bytes,3,opt,name=item,proto3" json:"item,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitRelevantContextItemRequest) Reset() {
+	*x = SubmitRelevantContextItemRequest{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitRelevantContextItemRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitRelevantContextItemRequest) ProtoMessage() {}
+
+func (x *SubmitRelevantContextItemRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitRelevantContextItemRequest.ProtoReflect.Descriptor instead.
+func (*SubmitRelevantContextItemRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SubmitRelevantContextItemRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SubmitRelevantContextItemRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *SubmitRelevantContextItemRequest) GetItem() *shared.RelevantContextItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+type SubmitRelevantContextItemResponse struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Session       *AuthoringSession           `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Item          *shared.RelevantContextItem `protobuf:"bytes,2,opt,name=item,proto3" json:"item,omitempty"`
+	Violations    []*StructureViolation       `protobuf:"bytes,3,rep,name=violations,proto3" json:"violations,omitempty"`
+	Step          *shared.GuidedStep          `protobuf:"bytes,4,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitRelevantContextItemResponse) Reset() {
+	*x = SubmitRelevantContextItemResponse{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitRelevantContextItemResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitRelevantContextItemResponse) ProtoMessage() {}
+
+func (x *SubmitRelevantContextItemResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitRelevantContextItemResponse.ProtoReflect.Descriptor instead.
+func (*SubmitRelevantContextItemResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SubmitRelevantContextItemResponse) GetSession() *AuthoringSession {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *SubmitRelevantContextItemResponse) GetItem() *shared.RelevantContextItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *SubmitRelevantContextItemResponse) GetViolations() []*StructureViolation {
+	if x != nil {
+		return x.Violations
+	}
+	return nil
+}
+
+func (x *SubmitRelevantContextItemResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+type ListRelevantContextRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// Optional phase id or authored order number. Empty returns global context.
+	PhaseId       string `protobuf:"bytes,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRelevantContextRequest) Reset() {
+	*x = ListRelevantContextRequest{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRelevantContextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRelevantContextRequest) ProtoMessage() {}
+
+func (x *ListRelevantContextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRelevantContextRequest.ProtoReflect.Descriptor instead.
+func (*ListRelevantContextRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListRelevantContextRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ListRelevantContextRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+type ListRelevantContextResponse struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Items         []*shared.RelevantContextItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Step          *shared.GuidedStep            `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRelevantContextResponse) Reset() {
+	*x = ListRelevantContextResponse{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRelevantContextResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRelevantContextResponse) ProtoMessage() {}
+
+func (x *ListRelevantContextResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRelevantContextResponse.ProtoReflect.Descriptor instead.
+func (*ListRelevantContextResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListRelevantContextResponse) GetItems() []*shared.RelevantContextItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListRelevantContextResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+type DiscoverContextCandidatesRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// Decomposed concepts from plan-skill-discovery methodology. Empty uses the
+	// session title as a fallback concept.
+	Concepts []string `protobuf:"bytes,2,rep,name=concepts,proto3" json:"concepts,omitempty"`
+	// Optional prompt-manager skill discovery complexity, e.g. "architectural".
+	Complexity    string `protobuf:"bytes,3,opt,name=complexity,proto3" json:"complexity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverContextCandidatesRequest) Reset() {
+	*x = DiscoverContextCandidatesRequest{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverContextCandidatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverContextCandidatesRequest) ProtoMessage() {}
+
+func (x *DiscoverContextCandidatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverContextCandidatesRequest.ProtoReflect.Descriptor instead.
+func (*DiscoverContextCandidatesRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DiscoverContextCandidatesRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *DiscoverContextCandidatesRequest) GetConcepts() []string {
+	if x != nil {
+		return x.Concepts
+	}
+	return nil
+}
+
+func (x *DiscoverContextCandidatesRequest) GetComplexity() string {
+	if x != nil {
+		return x.Complexity
+	}
+	return ""
+}
+
+type DiscoverContextCandidatesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       *AuthoringSession      `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Candidates    []*ContextCandidate    `protobuf:"bytes,2,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoverContextCandidatesResponse) Reset() {
+	*x = DiscoverContextCandidatesResponse{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoverContextCandidatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoverContextCandidatesResponse) ProtoMessage() {}
+
+func (x *DiscoverContextCandidatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoverContextCandidatesResponse.ProtoReflect.Descriptor instead.
+func (*DiscoverContextCandidatesResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *DiscoverContextCandidatesResponse) GetSession() *AuthoringSession {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *DiscoverContextCandidatesResponse) GetCandidates() []*ContextCandidate {
+	if x != nil {
+		return x.Candidates
+	}
+	return nil
+}
+
+func (x *DiscoverContextCandidatesResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+type AcceptContextCandidateRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	SessionId   string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	CandidateId string                 `protobuf:"bytes,2,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	// Optional phase id or order number. Empty accepts as global context.
+	PhaseId       string `protobuf:"bytes,3,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptContextCandidateRequest) Reset() {
+	*x = AcceptContextCandidateRequest{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptContextCandidateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptContextCandidateRequest) ProtoMessage() {}
+
+func (x *AcceptContextCandidateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptContextCandidateRequest.ProtoReflect.Descriptor instead.
+func (*AcceptContextCandidateRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *AcceptContextCandidateRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *AcceptContextCandidateRequest) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+func (x *AcceptContextCandidateRequest) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+type AcceptContextCandidateResponse struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Session       *AuthoringSession           `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Candidate     *ContextCandidate           `protobuf:"bytes,2,opt,name=candidate,proto3" json:"candidate,omitempty"`
+	Item          *shared.RelevantContextItem `protobuf:"bytes,3,opt,name=item,proto3" json:"item,omitempty"`
+	Violations    []*StructureViolation       `protobuf:"bytes,4,rep,name=violations,proto3" json:"violations,omitempty"`
+	Step          *shared.GuidedStep          `protobuf:"bytes,5,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptContextCandidateResponse) Reset() {
+	*x = AcceptContextCandidateResponse{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptContextCandidateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptContextCandidateResponse) ProtoMessage() {}
+
+func (x *AcceptContextCandidateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptContextCandidateResponse.ProtoReflect.Descriptor instead.
+func (*AcceptContextCandidateResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AcceptContextCandidateResponse) GetSession() *AuthoringSession {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *AcceptContextCandidateResponse) GetCandidate() *ContextCandidate {
+	if x != nil {
+		return x.Candidate
+	}
+	return nil
+}
+
+func (x *AcceptContextCandidateResponse) GetItem() *shared.RelevantContextItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *AcceptContextCandidateResponse) GetViolations() []*StructureViolation {
+	if x != nil {
+		return x.Violations
+	}
+	return nil
+}
+
+func (x *AcceptContextCandidateResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+type RejectContextCandidateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	CandidateId   string                 `protobuf:"bytes,2,opt,name=candidate_id,json=candidateId,proto3" json:"candidate_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RejectContextCandidateRequest) Reset() {
+	*x = RejectContextCandidateRequest{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RejectContextCandidateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RejectContextCandidateRequest) ProtoMessage() {}
+
+func (x *RejectContextCandidateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RejectContextCandidateRequest.ProtoReflect.Descriptor instead.
+func (*RejectContextCandidateRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *RejectContextCandidateRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *RejectContextCandidateRequest) GetCandidateId() string {
+	if x != nil {
+		return x.CandidateId
+	}
+	return ""
+}
+
+func (x *RejectContextCandidateRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type RejectContextCandidateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Session       *AuthoringSession      `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
+	Candidate     *ContextCandidate      `protobuf:"bytes,2,opt,name=candidate,proto3" json:"candidate,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RejectContextCandidateResponse) Reset() {
+	*x = RejectContextCandidateResponse{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RejectContextCandidateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RejectContextCandidateResponse) ProtoMessage() {}
+
+func (x *RejectContextCandidateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RejectContextCandidateResponse.ProtoReflect.Descriptor instead.
+func (*RejectContextCandidateResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *RejectContextCandidateResponse) GetSession() *AuthoringSession {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *RejectContextCandidateResponse) GetCandidate() *ContextCandidate {
+	if x != nil {
+		return x.Candidate
+	}
+	return nil
+}
+
+func (x *RejectContextCandidateResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
 type AddPhaseRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -1137,7 +2009,7 @@ type AddPhaseRequest struct {
 
 func (x *AddPhaseRequest) Reset() {
 	*x = AddPhaseRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[17]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1149,7 +2021,7 @@ func (x *AddPhaseRequest) String() string {
 func (*AddPhaseRequest) ProtoMessage() {}
 
 func (x *AddPhaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[17]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1162,7 +2034,7 @@ func (x *AddPhaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddPhaseRequest.ProtoReflect.Descriptor instead.
 func (*AddPhaseRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{17}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *AddPhaseRequest) GetSessionId() string {
@@ -1198,7 +2070,7 @@ type AddPhaseResponse struct {
 
 func (x *AddPhaseResponse) Reset() {
 	*x = AddPhaseResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[18]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1210,7 +2082,7 @@ func (x *AddPhaseResponse) String() string {
 func (*AddPhaseResponse) ProtoMessage() {}
 
 func (x *AddPhaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[18]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1223,7 +2095,7 @@ func (x *AddPhaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddPhaseResponse.ProtoReflect.Descriptor instead.
 func (*AddPhaseResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{18}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *AddPhaseResponse) GetSession() *AuthoringSession {
@@ -1265,7 +2137,7 @@ type GetPhaseRequest struct {
 
 func (x *GetPhaseRequest) Reset() {
 	*x = GetPhaseRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[19]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1277,7 +2149,7 @@ func (x *GetPhaseRequest) String() string {
 func (*GetPhaseRequest) ProtoMessage() {}
 
 func (x *GetPhaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[19]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1290,7 +2162,7 @@ func (x *GetPhaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPhaseRequest.ProtoReflect.Descriptor instead.
 func (*GetPhaseRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{19}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetPhaseRequest) GetSessionId() string {
@@ -1317,7 +2189,7 @@ type GetPhaseResponse struct {
 
 func (x *GetPhaseResponse) Reset() {
 	*x = GetPhaseResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[20]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1329,7 +2201,7 @@ func (x *GetPhaseResponse) String() string {
 func (*GetPhaseResponse) ProtoMessage() {}
 
 func (x *GetPhaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[20]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1342,7 +2214,7 @@ func (x *GetPhaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPhaseResponse.ProtoReflect.Descriptor instead.
 func (*GetPhaseResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{20}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GetPhaseResponse) GetPhase() *PhaseDraft {
@@ -1364,8 +2236,9 @@ type SubmitPhaseFieldRequest struct {
 	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// Phase id or authored order number.
 	PhaseId string `protobuf:"bytes,2,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
-	// title | intent | references | required_reading | reminders | acceptance |
-	// no_code_refs_reason
+	// title | intent | references | relevant_context | reminders | acceptance |
+	// no_code_refs_reason. required_reading is accepted only as legacy migration
+	// input.
 	Field         string `protobuf:"bytes,3,opt,name=field,proto3" json:"field,omitempty"`
 	Content       string `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1374,7 +2247,7 @@ type SubmitPhaseFieldRequest struct {
 
 func (x *SubmitPhaseFieldRequest) Reset() {
 	*x = SubmitPhaseFieldRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[21]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1386,7 +2259,7 @@ func (x *SubmitPhaseFieldRequest) String() string {
 func (*SubmitPhaseFieldRequest) ProtoMessage() {}
 
 func (x *SubmitPhaseFieldRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[21]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1399,7 +2272,7 @@ func (x *SubmitPhaseFieldRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitPhaseFieldRequest.ProtoReflect.Descriptor instead.
 func (*SubmitPhaseFieldRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{21}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SubmitPhaseFieldRequest) GetSessionId() string {
@@ -1441,7 +2314,7 @@ type SubmitPhaseFieldResponse struct {
 
 func (x *SubmitPhaseFieldResponse) Reset() {
 	*x = SubmitPhaseFieldResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[22]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1453,7 +2326,7 @@ func (x *SubmitPhaseFieldResponse) String() string {
 func (*SubmitPhaseFieldResponse) ProtoMessage() {}
 
 func (x *SubmitPhaseFieldResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[22]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1466,7 +2339,7 @@ func (x *SubmitPhaseFieldResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitPhaseFieldResponse.ProtoReflect.Descriptor instead.
 func (*SubmitPhaseFieldResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{22}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *SubmitPhaseFieldResponse) GetSession() *AuthoringSession {
@@ -1499,7 +2372,7 @@ type NextPhaseRequest struct {
 
 func (x *NextPhaseRequest) Reset() {
 	*x = NextPhaseRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[23]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1511,7 +2384,7 @@ func (x *NextPhaseRequest) String() string {
 func (*NextPhaseRequest) ProtoMessage() {}
 
 func (x *NextPhaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[23]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1524,7 +2397,7 @@ func (x *NextPhaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextPhaseRequest.ProtoReflect.Descriptor instead.
 func (*NextPhaseRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{23}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *NextPhaseRequest) GetSessionId() string {
@@ -1545,7 +2418,7 @@ type NextPhaseResponse struct {
 
 func (x *NextPhaseResponse) Reset() {
 	*x = NextPhaseResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[24]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1557,7 +2430,7 @@ func (x *NextPhaseResponse) String() string {
 func (*NextPhaseResponse) ProtoMessage() {}
 
 func (x *NextPhaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[24]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1570,7 +2443,7 @@ func (x *NextPhaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextPhaseResponse.ProtoReflect.Descriptor instead.
 func (*NextPhaseResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{24}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *NextPhaseResponse) GetPhase() *PhaseDraft {
@@ -1603,7 +2476,7 @@ type FinalizeRequest struct {
 
 func (x *FinalizeRequest) Reset() {
 	*x = FinalizeRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[25]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1615,7 +2488,7 @@ func (x *FinalizeRequest) String() string {
 func (*FinalizeRequest) ProtoMessage() {}
 
 func (x *FinalizeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[25]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1628,7 +2501,7 @@ func (x *FinalizeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinalizeRequest.ProtoReflect.Descriptor instead.
 func (*FinalizeRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{25}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *FinalizeRequest) GetSessionId() string {
@@ -1648,7 +2521,7 @@ type FinalizeResponse struct {
 
 func (x *FinalizeResponse) Reset() {
 	*x = FinalizeResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1660,7 +2533,7 @@ func (x *FinalizeResponse) String() string {
 func (*FinalizeResponse) ProtoMessage() {}
 
 func (x *FinalizeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[26]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1673,7 +2546,7 @@ func (x *FinalizeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinalizeResponse.ProtoReflect.Descriptor instead.
 func (*FinalizeResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{26}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *FinalizeResponse) GetPlan() *shared.Plan {
@@ -1703,7 +2576,7 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\x06filled\x18\x05 \x01(\bR\x06filled\x12\x1e\n" +
 	"\n" +
 	"autofilled\x18\x06 \x01(\bR\n" +
-	"autofilled\"\xfe\x02\n" +
+	"autofilled\"\xc0\x04\n" +
 	"\x10AuthoringSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1b\n" +
@@ -1713,7 +2586,10 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\tfinalized\x18\x06 \x01(\bR\tfinalized\x12\x17\n" +
 	"\aplan_id\x18\a \x01(\tR\x06planId\x12O\n" +
 	"\fphase_drafts\x18\b \x03(\v2,.vrooli.plan_manager.v1.authoring.PhaseDraftR\vphaseDrafts\x12(\n" +
-	"\x10current_phase_id\x18\t \x01(\tR\x0ecurrentPhaseId\"O\n" +
+	"\x10current_phase_id\x18\t \x01(\tR\x0ecurrentPhaseId\x12]\n" +
+	"\x10relevant_context\x18\n" +
+	" \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x0frelevantContext\x12a\n" +
+	"\x12context_candidates\x18\v \x03(\v22.vrooli.plan_manager.v1.authoring.ContextCandidateR\x11contextCandidates\"O\n" +
 	"\x12StructureViolation\x12\x1f\n" +
 	"\vsection_key\x18\x01 \x01(\tR\n" +
 	"sectionKey\x12\x18\n" +
@@ -1724,7 +2600,16 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"sectionKey\x12\x16\n" +
 	"\x06filled\x18\x03 \x01(\bR\x06filled\x12\x1a\n" +
 	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12\x16\n" +
-	"\x06detail\x18\x05 \x01(\tR\x06detail\"\xc2\x02\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\"\x93\x02\n" +
+	"\x10ContextCandidate\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12F\n" +
+	"\x04item\x18\x02 \x01(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x04item\x12\x18\n" +
+	"\aconcept\x18\x03 \x01(\tR\aconcept\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12\x1a\n" +
+	"\bdegraded\x18\x05 \x01(\bR\bdegraded\x12\x16\n" +
+	"\x06detail\x18\x06 \x01(\tR\x06detail\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12)\n" +
+	"\x10rejection_reason\x18\b \x01(\tR\x0frejectionReason\"\xa1\x03\n" +
 	"\n" +
 	"PhaseDraft\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
@@ -1739,7 +2624,9 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\n" +
 	"acceptance\x18\b \x01(\tR\n" +
 	"acceptance\x12-\n" +
-	"\x13no_code_refs_reason\x18\t \x01(\tR\x10noCodeRefsReason\"`\n" +
+	"\x13no_code_refs_reason\x18\t \x01(\tR\x10noCodeRefsReason\x12]\n" +
+	"\x10relevant_context\x18\n" +
+	" \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x0frelevantContext\"`\n" +
 	"\x13StartSessionRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x1f\n" +
@@ -1775,6 +2662,18 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\asection\x18\x01 \x01(\v2).vrooli.plan_manager.v1.authoring.SectionR\asection\x12\x1a\n" +
 	"\bcomplete\x18\x02 \x01(\bR\bcomplete\x12=\n" +
 	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"9\n" +
+	"\x18ContinueAuthoringRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\xb3\x03\n" +
+	"\x19ContinueAuthoringResponse\x12L\n" +
+	"\asession\x18\x01 \x01(\v22.vrooli.plan_manager.v1.authoring.AuthoringSessionR\asession\x12C\n" +
+	"\asection\x18\x02 \x01(\v2).vrooli.plan_manager.v1.authoring.SectionR\asection\x12B\n" +
+	"\x05phase\x18\x03 \x01(\v2,.vrooli.plan_manager.v1.authoring.PhaseDraftR\x05phase\x12*\n" +
+	"\x11ready_to_finalize\x18\x04 \x01(\bR\x0freadyToFinalize\x12T\n" +
+	"\n" +
+	"violations\x18\x05 \x03(\v24.vrooli.plan_manager.v1.authoring.StructureViolationR\n" +
+	"violations\x12=\n" +
+	"\x04step\x18\x06 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"9\n" +
 	"\x18ValidateStructureRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\xc6\x01\n" +
@@ -1791,6 +2690,60 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\x10AutofillResponse\x12L\n" +
 	"\asession\x18\x01 \x01(\v22.vrooli.plan_manager.v1.authoring.AuthoringSessionR\asession\x12J\n" +
 	"\aresults\x18\x02 \x03(\v20.vrooli.plan_manager.v1.authoring.AutofillResultR\aresults\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"\xa4\x01\n" +
+	" SubmitRelevantContextItemRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
+	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12F\n" +
+	"\x04item\x18\x03 \x01(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x04item\"\xce\x02\n" +
+	"!SubmitRelevantContextItemResponse\x12L\n" +
+	"\asession\x18\x01 \x01(\v22.vrooli.plan_manager.v1.authoring.AuthoringSessionR\asession\x12F\n" +
+	"\x04item\x18\x02 \x01(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x04item\x12T\n" +
+	"\n" +
+	"violations\x18\x03 \x03(\v24.vrooli.plan_manager.v1.authoring.StructureViolationR\n" +
+	"violations\x12=\n" +
+	"\x04step\x18\x04 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"V\n" +
+	"\x1aListRelevantContextRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
+	"\bphase_id\x18\x02 \x01(\tR\aphaseId\"\xa6\x01\n" +
+	"\x1bListRelevantContextResponse\x12H\n" +
+	"\x05items\x18\x01 \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x05items\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"}\n" +
+	" DiscoverContextCandidatesRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1a\n" +
+	"\bconcepts\x18\x02 \x03(\tR\bconcepts\x12\x1e\n" +
+	"\n" +
+	"complexity\x18\x03 \x01(\tR\n" +
+	"complexity\"\x84\x02\n" +
+	"!DiscoverContextCandidatesResponse\x12L\n" +
+	"\asession\x18\x01 \x01(\v22.vrooli.plan_manager.v1.authoring.AuthoringSessionR\asession\x12R\n" +
+	"\n" +
+	"candidates\x18\x02 \x03(\v22.vrooli.plan_manager.v1.authoring.ContextCandidateR\n" +
+	"candidates\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"|\n" +
+	"\x1dAcceptContextCandidateRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
+	"\fcandidate_id\x18\x02 \x01(\tR\vcandidateId\x12\x19\n" +
+	"\bphase_id\x18\x03 \x01(\tR\aphaseId\"\x9d\x03\n" +
+	"\x1eAcceptContextCandidateResponse\x12L\n" +
+	"\asession\x18\x01 \x01(\v22.vrooli.plan_manager.v1.authoring.AuthoringSessionR\asession\x12P\n" +
+	"\tcandidate\x18\x02 \x01(\v22.vrooli.plan_manager.v1.authoring.ContextCandidateR\tcandidate\x12F\n" +
+	"\x04item\x18\x03 \x01(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x04item\x12T\n" +
+	"\n" +
+	"violations\x18\x04 \x03(\v24.vrooli.plan_manager.v1.authoring.StructureViolationR\n" +
+	"violations\x12=\n" +
+	"\x04step\x18\x05 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"y\n" +
+	"\x1dRejectContextCandidateRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
+	"\fcandidate_id\x18\x02 \x01(\tR\vcandidateId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xff\x01\n" +
+	"\x1eRejectContextCandidateResponse\x12L\n" +
+	"\asession\x18\x01 \x01(\v22.vrooli.plan_manager.v1.authoring.AuthoringSessionR\asession\x12P\n" +
+	"\tcandidate\x18\x02 \x01(\v22.vrooli.plan_manager.v1.authoring.ContextCandidateR\tcandidate\x12=\n" +
 	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"^\n" +
 	"\x0fAddPhaseRequest\x12\x1d\n" +
 	"\n" +
@@ -1835,16 +2788,21 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\x8a\x01\n" +
 	"\x10FinalizeResponse\x127\n" +
 	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\x12=\n" +
-	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step2\xd1\n" +
-	"\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step2\xff\x11\n" +
 	"\x10AuthoringService\x12}\n" +
 	"\fStartSession\x125.vrooli.plan_manager.v1.authoring.StartSessionRequest\x1a6.vrooli.plan_manager.v1.authoring.StartSessionResponse\x12w\n" +
 	"\n" +
 	"GetSection\x123.vrooli.plan_manager.v1.authoring.GetSectionRequest\x1a4.vrooli.plan_manager.v1.authoring.GetSectionResponse\x12\x80\x01\n" +
 	"\rSubmitSection\x126.vrooli.plan_manager.v1.authoring.SubmitSectionRequest\x1a7.vrooli.plan_manager.v1.authoring.SubmitSectionResponse\x12e\n" +
 	"\x04Next\x12-.vrooli.plan_manager.v1.authoring.NextRequest\x1a..vrooli.plan_manager.v1.authoring.NextResponse\x12\x8c\x01\n" +
+	"\x11ContinueAuthoring\x12:.vrooli.plan_manager.v1.authoring.ContinueAuthoringRequest\x1a;.vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse\x12\x8c\x01\n" +
 	"\x11ValidateStructure\x12:.vrooli.plan_manager.v1.authoring.ValidateStructureRequest\x1a;.vrooli.plan_manager.v1.authoring.ValidateStructureResponse\x12q\n" +
-	"\bAutofill\x121.vrooli.plan_manager.v1.authoring.AutofillRequest\x1a2.vrooli.plan_manager.v1.authoring.AutofillResponse\x12q\n" +
+	"\bAutofill\x121.vrooli.plan_manager.v1.authoring.AutofillRequest\x1a2.vrooli.plan_manager.v1.authoring.AutofillResponse\x12\xa4\x01\n" +
+	"\x19SubmitRelevantContextItem\x12B.vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest\x1aC.vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse\x12\x92\x01\n" +
+	"\x13ListRelevantContext\x12<.vrooli.plan_manager.v1.authoring.ListRelevantContextRequest\x1a=.vrooli.plan_manager.v1.authoring.ListRelevantContextResponse\x12\xa4\x01\n" +
+	"\x19DiscoverContextCandidates\x12B.vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesRequest\x1aC.vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse\x12\x9b\x01\n" +
+	"\x16AcceptContextCandidate\x12?.vrooli.plan_manager.v1.authoring.AcceptContextCandidateRequest\x1a@.vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse\x12\x9b\x01\n" +
+	"\x16RejectContextCandidate\x12?.vrooli.plan_manager.v1.authoring.RejectContextCandidateRequest\x1a@.vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse\x12q\n" +
 	"\bAddPhase\x121.vrooli.plan_manager.v1.authoring.AddPhaseRequest\x1a2.vrooli.plan_manager.v1.authoring.AddPhaseResponse\x12q\n" +
 	"\bGetPhase\x121.vrooli.plan_manager.v1.authoring.GetPhaseRequest\x1a2.vrooli.plan_manager.v1.authoring.GetPhaseResponse\x12\x89\x01\n" +
 	"\x10SubmitPhaseField\x129.vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest\x1a:.vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse\x12t\n" +
@@ -1863,97 +2821,150 @@ func file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP() []byte {
 	return file_plan_manager_v1_authoring_authoring_proto_rawDescData
 }
 
-var file_plan_manager_v1_authoring_authoring_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_plan_manager_v1_authoring_authoring_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_plan_manager_v1_authoring_authoring_proto_goTypes = []any{
-	(*Section)(nil),                   // 0: vrooli.plan_manager.v1.authoring.Section
-	(*AuthoringSession)(nil),          // 1: vrooli.plan_manager.v1.authoring.AuthoringSession
-	(*StructureViolation)(nil),        // 2: vrooli.plan_manager.v1.authoring.StructureViolation
-	(*AutofillResult)(nil),            // 3: vrooli.plan_manager.v1.authoring.AutofillResult
-	(*PhaseDraft)(nil),                // 4: vrooli.plan_manager.v1.authoring.PhaseDraft
-	(*StartSessionRequest)(nil),       // 5: vrooli.plan_manager.v1.authoring.StartSessionRequest
-	(*StartSessionResponse)(nil),      // 6: vrooli.plan_manager.v1.authoring.StartSessionResponse
-	(*GetSectionRequest)(nil),         // 7: vrooli.plan_manager.v1.authoring.GetSectionRequest
-	(*GetSectionResponse)(nil),        // 8: vrooli.plan_manager.v1.authoring.GetSectionResponse
-	(*SubmitSectionRequest)(nil),      // 9: vrooli.plan_manager.v1.authoring.SubmitSectionRequest
-	(*SubmitSectionResponse)(nil),     // 10: vrooli.plan_manager.v1.authoring.SubmitSectionResponse
-	(*NextRequest)(nil),               // 11: vrooli.plan_manager.v1.authoring.NextRequest
-	(*NextResponse)(nil),              // 12: vrooli.plan_manager.v1.authoring.NextResponse
-	(*ValidateStructureRequest)(nil),  // 13: vrooli.plan_manager.v1.authoring.ValidateStructureRequest
-	(*ValidateStructureResponse)(nil), // 14: vrooli.plan_manager.v1.authoring.ValidateStructureResponse
-	(*AutofillRequest)(nil),           // 15: vrooli.plan_manager.v1.authoring.AutofillRequest
-	(*AutofillResponse)(nil),          // 16: vrooli.plan_manager.v1.authoring.AutofillResponse
-	(*AddPhaseRequest)(nil),           // 17: vrooli.plan_manager.v1.authoring.AddPhaseRequest
-	(*AddPhaseResponse)(nil),          // 18: vrooli.plan_manager.v1.authoring.AddPhaseResponse
-	(*GetPhaseRequest)(nil),           // 19: vrooli.plan_manager.v1.authoring.GetPhaseRequest
-	(*GetPhaseResponse)(nil),          // 20: vrooli.plan_manager.v1.authoring.GetPhaseResponse
-	(*SubmitPhaseFieldRequest)(nil),   // 21: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest
-	(*SubmitPhaseFieldResponse)(nil),  // 22: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
-	(*NextPhaseRequest)(nil),          // 23: vrooli.plan_manager.v1.authoring.NextPhaseRequest
-	(*NextPhaseResponse)(nil),         // 24: vrooli.plan_manager.v1.authoring.NextPhaseResponse
-	(*FinalizeRequest)(nil),           // 25: vrooli.plan_manager.v1.authoring.FinalizeRequest
-	(*FinalizeResponse)(nil),          // 26: vrooli.plan_manager.v1.authoring.FinalizeResponse
-	(*shared.Reference)(nil),          // 27: vrooli.plan_manager.v1.shared.Reference
-	(*shared.GuidedStep)(nil),         // 28: vrooli.plan_manager.v1.shared.GuidedStep
-	(*shared.Plan)(nil),               // 29: vrooli.plan_manager.v1.shared.Plan
+	(*Section)(nil),                           // 0: vrooli.plan_manager.v1.authoring.Section
+	(*AuthoringSession)(nil),                  // 1: vrooli.plan_manager.v1.authoring.AuthoringSession
+	(*StructureViolation)(nil),                // 2: vrooli.plan_manager.v1.authoring.StructureViolation
+	(*AutofillResult)(nil),                    // 3: vrooli.plan_manager.v1.authoring.AutofillResult
+	(*ContextCandidate)(nil),                  // 4: vrooli.plan_manager.v1.authoring.ContextCandidate
+	(*PhaseDraft)(nil),                        // 5: vrooli.plan_manager.v1.authoring.PhaseDraft
+	(*StartSessionRequest)(nil),               // 6: vrooli.plan_manager.v1.authoring.StartSessionRequest
+	(*StartSessionResponse)(nil),              // 7: vrooli.plan_manager.v1.authoring.StartSessionResponse
+	(*GetSectionRequest)(nil),                 // 8: vrooli.plan_manager.v1.authoring.GetSectionRequest
+	(*GetSectionResponse)(nil),                // 9: vrooli.plan_manager.v1.authoring.GetSectionResponse
+	(*SubmitSectionRequest)(nil),              // 10: vrooli.plan_manager.v1.authoring.SubmitSectionRequest
+	(*SubmitSectionResponse)(nil),             // 11: vrooli.plan_manager.v1.authoring.SubmitSectionResponse
+	(*NextRequest)(nil),                       // 12: vrooli.plan_manager.v1.authoring.NextRequest
+	(*NextResponse)(nil),                      // 13: vrooli.plan_manager.v1.authoring.NextResponse
+	(*ContinueAuthoringRequest)(nil),          // 14: vrooli.plan_manager.v1.authoring.ContinueAuthoringRequest
+	(*ContinueAuthoringResponse)(nil),         // 15: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse
+	(*ValidateStructureRequest)(nil),          // 16: vrooli.plan_manager.v1.authoring.ValidateStructureRequest
+	(*ValidateStructureResponse)(nil),         // 17: vrooli.plan_manager.v1.authoring.ValidateStructureResponse
+	(*AutofillRequest)(nil),                   // 18: vrooli.plan_manager.v1.authoring.AutofillRequest
+	(*AutofillResponse)(nil),                  // 19: vrooli.plan_manager.v1.authoring.AutofillResponse
+	(*SubmitRelevantContextItemRequest)(nil),  // 20: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest
+	(*SubmitRelevantContextItemResponse)(nil), // 21: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse
+	(*ListRelevantContextRequest)(nil),        // 22: vrooli.plan_manager.v1.authoring.ListRelevantContextRequest
+	(*ListRelevantContextResponse)(nil),       // 23: vrooli.plan_manager.v1.authoring.ListRelevantContextResponse
+	(*DiscoverContextCandidatesRequest)(nil),  // 24: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesRequest
+	(*DiscoverContextCandidatesResponse)(nil), // 25: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse
+	(*AcceptContextCandidateRequest)(nil),     // 26: vrooli.plan_manager.v1.authoring.AcceptContextCandidateRequest
+	(*AcceptContextCandidateResponse)(nil),    // 27: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse
+	(*RejectContextCandidateRequest)(nil),     // 28: vrooli.plan_manager.v1.authoring.RejectContextCandidateRequest
+	(*RejectContextCandidateResponse)(nil),    // 29: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse
+	(*AddPhaseRequest)(nil),                   // 30: vrooli.plan_manager.v1.authoring.AddPhaseRequest
+	(*AddPhaseResponse)(nil),                  // 31: vrooli.plan_manager.v1.authoring.AddPhaseResponse
+	(*GetPhaseRequest)(nil),                   // 32: vrooli.plan_manager.v1.authoring.GetPhaseRequest
+	(*GetPhaseResponse)(nil),                  // 33: vrooli.plan_manager.v1.authoring.GetPhaseResponse
+	(*SubmitPhaseFieldRequest)(nil),           // 34: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest
+	(*SubmitPhaseFieldResponse)(nil),          // 35: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
+	(*NextPhaseRequest)(nil),                  // 36: vrooli.plan_manager.v1.authoring.NextPhaseRequest
+	(*NextPhaseResponse)(nil),                 // 37: vrooli.plan_manager.v1.authoring.NextPhaseResponse
+	(*FinalizeRequest)(nil),                   // 38: vrooli.plan_manager.v1.authoring.FinalizeRequest
+	(*FinalizeResponse)(nil),                  // 39: vrooli.plan_manager.v1.authoring.FinalizeResponse
+	(*shared.RelevantContextItem)(nil),        // 40: vrooli.plan_manager.v1.shared.RelevantContextItem
+	(*shared.Reference)(nil),                  // 41: vrooli.plan_manager.v1.shared.Reference
+	(*shared.GuidedStep)(nil),                 // 42: vrooli.plan_manager.v1.shared.GuidedStep
+	(*shared.Plan)(nil),                       // 43: vrooli.plan_manager.v1.shared.Plan
 }
 var file_plan_manager_v1_authoring_authoring_proto_depIdxs = []int32{
 	0,  // 0: vrooli.plan_manager.v1.authoring.AuthoringSession.sections:type_name -> vrooli.plan_manager.v1.authoring.Section
-	4,  // 1: vrooli.plan_manager.v1.authoring.AuthoringSession.phase_drafts:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
-	27, // 2: vrooli.plan_manager.v1.authoring.PhaseDraft.references:type_name -> vrooli.plan_manager.v1.shared.Reference
-	1,  // 3: vrooli.plan_manager.v1.authoring.StartSessionResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
-	28, // 4: vrooli.plan_manager.v1.authoring.StartSessionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 5: vrooli.plan_manager.v1.authoring.GetSectionResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
-	28, // 6: vrooli.plan_manager.v1.authoring.GetSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	1,  // 7: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
-	2,  // 8: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	28, // 9: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 10: vrooli.plan_manager.v1.authoring.NextResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
-	28, // 11: vrooli.plan_manager.v1.authoring.NextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	2,  // 12: vrooli.plan_manager.v1.authoring.ValidateStructureResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	28, // 13: vrooli.plan_manager.v1.authoring.ValidateStructureResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	1,  // 14: vrooli.plan_manager.v1.authoring.AutofillResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
-	3,  // 15: vrooli.plan_manager.v1.authoring.AutofillResponse.results:type_name -> vrooli.plan_manager.v1.authoring.AutofillResult
-	28, // 16: vrooli.plan_manager.v1.authoring.AutofillResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	1,  // 17: vrooli.plan_manager.v1.authoring.AddPhaseResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
-	4,  // 18: vrooli.plan_manager.v1.authoring.AddPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
-	2,  // 19: vrooli.plan_manager.v1.authoring.AddPhaseResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	28, // 20: vrooli.plan_manager.v1.authoring.AddPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	4,  // 21: vrooli.plan_manager.v1.authoring.GetPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
-	28, // 22: vrooli.plan_manager.v1.authoring.GetPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	1,  // 23: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
-	2,  // 24: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	28, // 25: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	4,  // 26: vrooli.plan_manager.v1.authoring.NextPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
-	28, // 27: vrooli.plan_manager.v1.authoring.NextPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	29, // 28: vrooli.plan_manager.v1.authoring.FinalizeResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	28, // 29: vrooli.plan_manager.v1.authoring.FinalizeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	5,  // 30: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:input_type -> vrooli.plan_manager.v1.authoring.StartSessionRequest
-	7,  // 31: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:input_type -> vrooli.plan_manager.v1.authoring.GetSectionRequest
-	9,  // 32: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:input_type -> vrooli.plan_manager.v1.authoring.SubmitSectionRequest
-	11, // 33: vrooli.plan_manager.v1.authoring.AuthoringService.Next:input_type -> vrooli.plan_manager.v1.authoring.NextRequest
-	13, // 34: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:input_type -> vrooli.plan_manager.v1.authoring.ValidateStructureRequest
-	15, // 35: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:input_type -> vrooli.plan_manager.v1.authoring.AutofillRequest
-	17, // 36: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:input_type -> vrooli.plan_manager.v1.authoring.AddPhaseRequest
-	19, // 37: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:input_type -> vrooli.plan_manager.v1.authoring.GetPhaseRequest
-	21, // 38: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:input_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest
-	23, // 39: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:input_type -> vrooli.plan_manager.v1.authoring.NextPhaseRequest
-	25, // 40: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:input_type -> vrooli.plan_manager.v1.authoring.FinalizeRequest
-	6,  // 41: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:output_type -> vrooli.plan_manager.v1.authoring.StartSessionResponse
-	8,  // 42: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:output_type -> vrooli.plan_manager.v1.authoring.GetSectionResponse
-	10, // 43: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:output_type -> vrooli.plan_manager.v1.authoring.SubmitSectionResponse
-	12, // 44: vrooli.plan_manager.v1.authoring.AuthoringService.Next:output_type -> vrooli.plan_manager.v1.authoring.NextResponse
-	14, // 45: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:output_type -> vrooli.plan_manager.v1.authoring.ValidateStructureResponse
-	16, // 46: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:output_type -> vrooli.plan_manager.v1.authoring.AutofillResponse
-	18, // 47: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:output_type -> vrooli.plan_manager.v1.authoring.AddPhaseResponse
-	20, // 48: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:output_type -> vrooli.plan_manager.v1.authoring.GetPhaseResponse
-	22, // 49: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:output_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
-	24, // 50: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:output_type -> vrooli.plan_manager.v1.authoring.NextPhaseResponse
-	26, // 51: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:output_type -> vrooli.plan_manager.v1.authoring.FinalizeResponse
-	41, // [41:52] is the sub-list for method output_type
-	30, // [30:41] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	5,  // 1: vrooli.plan_manager.v1.authoring.AuthoringSession.phase_drafts:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
+	40, // 2: vrooli.plan_manager.v1.authoring.AuthoringSession.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	4,  // 3: vrooli.plan_manager.v1.authoring.AuthoringSession.context_candidates:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
+	40, // 4: vrooli.plan_manager.v1.authoring.ContextCandidate.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	41, // 5: vrooli.plan_manager.v1.authoring.PhaseDraft.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	40, // 6: vrooli.plan_manager.v1.authoring.PhaseDraft.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	1,  // 7: vrooli.plan_manager.v1.authoring.StartSessionResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	42, // 8: vrooli.plan_manager.v1.authoring.StartSessionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 9: vrooli.plan_manager.v1.authoring.GetSectionResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
+	42, // 10: vrooli.plan_manager.v1.authoring.GetSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 11: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	2,  // 12: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
+	42, // 13: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 14: vrooli.plan_manager.v1.authoring.NextResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
+	42, // 15: vrooli.plan_manager.v1.authoring.NextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 16: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	0,  // 17: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
+	5,  // 18: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
+	2,  // 19: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
+	42, // 20: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	2,  // 21: vrooli.plan_manager.v1.authoring.ValidateStructureResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
+	42, // 22: vrooli.plan_manager.v1.authoring.ValidateStructureResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 23: vrooli.plan_manager.v1.authoring.AutofillResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	3,  // 24: vrooli.plan_manager.v1.authoring.AutofillResponse.results:type_name -> vrooli.plan_manager.v1.authoring.AutofillResult
+	42, // 25: vrooli.plan_manager.v1.authoring.AutofillResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	40, // 26: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	1,  // 27: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	40, // 28: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	2,  // 29: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
+	42, // 30: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	40, // 31: vrooli.plan_manager.v1.authoring.ListRelevantContextResponse.items:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	42, // 32: vrooli.plan_manager.v1.authoring.ListRelevantContextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 33: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	4,  // 34: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse.candidates:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
+	42, // 35: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 36: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	4,  // 37: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.candidate:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
+	40, // 38: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	2,  // 39: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
+	42, // 40: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 41: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	4,  // 42: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse.candidate:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
+	42, // 43: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 44: vrooli.plan_manager.v1.authoring.AddPhaseResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	5,  // 45: vrooli.plan_manager.v1.authoring.AddPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
+	2,  // 46: vrooli.plan_manager.v1.authoring.AddPhaseResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
+	42, // 47: vrooli.plan_manager.v1.authoring.AddPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	5,  // 48: vrooli.plan_manager.v1.authoring.GetPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
+	42, // 49: vrooli.plan_manager.v1.authoring.GetPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 50: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
+	2,  // 51: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
+	42, // 52: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	5,  // 53: vrooli.plan_manager.v1.authoring.NextPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
+	42, // 54: vrooli.plan_manager.v1.authoring.NextPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	43, // 55: vrooli.plan_manager.v1.authoring.FinalizeResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	42, // 56: vrooli.plan_manager.v1.authoring.FinalizeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	6,  // 57: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:input_type -> vrooli.plan_manager.v1.authoring.StartSessionRequest
+	8,  // 58: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:input_type -> vrooli.plan_manager.v1.authoring.GetSectionRequest
+	10, // 59: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:input_type -> vrooli.plan_manager.v1.authoring.SubmitSectionRequest
+	12, // 60: vrooli.plan_manager.v1.authoring.AuthoringService.Next:input_type -> vrooli.plan_manager.v1.authoring.NextRequest
+	14, // 61: vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring:input_type -> vrooli.plan_manager.v1.authoring.ContinueAuthoringRequest
+	16, // 62: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:input_type -> vrooli.plan_manager.v1.authoring.ValidateStructureRequest
+	18, // 63: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:input_type -> vrooli.plan_manager.v1.authoring.AutofillRequest
+	20, // 64: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem:input_type -> vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest
+	22, // 65: vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext:input_type -> vrooli.plan_manager.v1.authoring.ListRelevantContextRequest
+	24, // 66: vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates:input_type -> vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesRequest
+	26, // 67: vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate:input_type -> vrooli.plan_manager.v1.authoring.AcceptContextCandidateRequest
+	28, // 68: vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate:input_type -> vrooli.plan_manager.v1.authoring.RejectContextCandidateRequest
+	30, // 69: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:input_type -> vrooli.plan_manager.v1.authoring.AddPhaseRequest
+	32, // 70: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:input_type -> vrooli.plan_manager.v1.authoring.GetPhaseRequest
+	34, // 71: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:input_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest
+	36, // 72: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:input_type -> vrooli.plan_manager.v1.authoring.NextPhaseRequest
+	38, // 73: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:input_type -> vrooli.plan_manager.v1.authoring.FinalizeRequest
+	7,  // 74: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:output_type -> vrooli.plan_manager.v1.authoring.StartSessionResponse
+	9,  // 75: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:output_type -> vrooli.plan_manager.v1.authoring.GetSectionResponse
+	11, // 76: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:output_type -> vrooli.plan_manager.v1.authoring.SubmitSectionResponse
+	13, // 77: vrooli.plan_manager.v1.authoring.AuthoringService.Next:output_type -> vrooli.plan_manager.v1.authoring.NextResponse
+	15, // 78: vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring:output_type -> vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse
+	17, // 79: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:output_type -> vrooli.plan_manager.v1.authoring.ValidateStructureResponse
+	19, // 80: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:output_type -> vrooli.plan_manager.v1.authoring.AutofillResponse
+	21, // 81: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem:output_type -> vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse
+	23, // 82: vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext:output_type -> vrooli.plan_manager.v1.authoring.ListRelevantContextResponse
+	25, // 83: vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates:output_type -> vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse
+	27, // 84: vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate:output_type -> vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse
+	29, // 85: vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate:output_type -> vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse
+	31, // 86: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:output_type -> vrooli.plan_manager.v1.authoring.AddPhaseResponse
+	33, // 87: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:output_type -> vrooli.plan_manager.v1.authoring.GetPhaseResponse
+	35, // 88: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:output_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
+	37, // 89: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:output_type -> vrooli.plan_manager.v1.authoring.NextPhaseResponse
+	39, // 90: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:output_type -> vrooli.plan_manager.v1.authoring.FinalizeResponse
+	74, // [74:91] is the sub-list for method output_type
+	57, // [57:74] is the sub-list for method input_type
+	57, // [57:57] is the sub-list for extension type_name
+	57, // [57:57] is the sub-list for extension extendee
+	0,  // [0:57] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_authoring_authoring_proto_init() }
@@ -1967,7 +2978,7 @@ func file_plan_manager_v1_authoring_authoring_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_authoring_authoring_proto_rawDesc), len(file_plan_manager_v1_authoring_authoring_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   27,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

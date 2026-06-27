@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 	"time"
+
+	"architecture-cartographer/internal/archetype"
 )
 
 // RunLadder runs each extractor against the scenario directory in trust
@@ -71,12 +73,21 @@ func Resolve(scenario string, extractions []Extraction, derivedAt time.Time) (De
 	for _, d := range authority.Domains {
 		prov := append([]Source(nil), declaredBy[d.Name]...)
 		sortSources(prov)
+		archetypes := cloneArchetypes(d.Archetypes)
+		archetypes = appendInferredArchetypes(archetypes, archetype.Infer(archetype.Input{
+			Name:  d.Name,
+			Paths: d.Paths,
+		})...)
 		m.Domains = append(m.Domains, DerivedDomain{
-			Name:       d.Name,
-			Paths:      append([]string(nil), d.Paths...),
-			Glossary:   append([]string(nil), d.Glossary...),
-			Archetype:  d.Archetype,
-			Provenance: prov,
+			Name:            d.Name,
+			Paths:           append([]string(nil), d.Paths...),
+			Glossary:        append([]string(nil), d.Glossary...),
+			Responsibility:  d.Responsibility,
+			Purpose:         d.Purpose,
+			OwnsData:        d.OwnsData,
+			SecondaryTraits: append([]string(nil), d.SecondaryTraits...),
+			Archetypes:      archetypes,
+			Provenance:      prov,
 		})
 	}
 	sort.Slice(m.Domains, func(i, j int) bool { return m.Domains[i].Name < m.Domains[j].Name })
@@ -115,6 +126,44 @@ func Resolve(scenario string, extractions []Extraction, derivedAt time.Time) (De
 	}
 
 	return m, nil
+}
+
+func cloneArchetypes(in []DomainArchetype) []DomainArchetype {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]DomainArchetype, 0, len(in))
+	for _, archetype := range in {
+		archetype.Evidence = append([]string(nil), archetype.Evidence...)
+		out = append(out, archetype)
+	}
+	return out
+}
+
+func appendInferredArchetypes(in []DomainArchetype, inferred ...archetype.Result) []DomainArchetype {
+	seen := make(map[string]struct{}, len(in)+len(inferred))
+	for _, existing := range in {
+		seen[string(existing.Source)+"\x00"+existing.Name] = struct{}{}
+	}
+	out := append([]DomainArchetype(nil), in...)
+	for _, result := range inferred {
+		name := result.Name
+		if name == "" {
+			continue
+		}
+		key := string(ArchetypeSourceInferred) + "\x00" + name
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, DomainArchetype{
+			Name:       name,
+			Source:     ArchetypeSourceInferred,
+			Confidence: result.Confidence,
+			Evidence:   append([]string(nil), result.Evidence...),
+		})
+	}
+	return out
 }
 
 func sortSources(s []Source) {

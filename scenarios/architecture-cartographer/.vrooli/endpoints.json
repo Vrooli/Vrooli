@@ -169,6 +169,36 @@
       ]
     },
     {
+      "id": "validation.preview-fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview architecture autofixes",
+      "description": "Part of the shared ScenarioValidationService contract. Architecture findings are advisory and have no format-preserving autofix, so this returns an empty candidate set (unimplemented).",
+      "category": "validation",
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Architecture findings have no autofix"
+        }
+      ]
+    },
+    {
+      "id": "validation.apply-fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply architecture autofixes",
+      "description": "Part of the shared ScenarioValidationService contract. Architecture findings are advisory and have no format-preserving autofix, so this applies nothing (unimplemented).",
+      "category": "validation",
+      "errors": [
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Architecture findings have no autofix"
+        }
+      ]
+    },
+    {
       "id": "campaign.create",
       "path": "/vrooli.architecture_cartographer.v1.campaign.CampaignService/CreateCampaign",
       "method": "POST",
@@ -351,6 +381,30 @@
       "summary": "Export snapshot bytes",
       "description": "Returns the persisted snapshot serialized as canonical-form JSON bytes for offline analysis or fixture authoring.",
       "category": "graph"
+    },
+    {
+      "id": "zones.show",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/GetZoneMap",
+      "method": "POST",
+      "summary": "Show the template-derived zone map",
+      "description": "Classifies graph packages into manifest-backed code-layout zones and returns layering cross-check violations.",
+      "category": "zones"
+    },
+    {
+      "id": "slice.show",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/GetSlice",
+      "method": "POST",
+      "summary": "Show the implementation slice for one domain",
+      "description": "Returns proto, handler, internal, CLI, and UI rungs with per-rung evidence for a derived domain.",
+      "category": "slice"
+    },
+    {
+      "id": "archetype.infer",
+      "path": "/vrooli.architecture_cartographer.v1.graph.GraphService/InferArchetype",
+      "method": "POST",
+      "summary": "Infer and converge each domain's archetype (Q20)",
+      "description": "Infers each domain's archetype from graph signals and converges it against the declared DOMAINS.md value, reporting drift without overriding the declared archetype.",
+      "category": "archetype"
     },
     {
       "id": "signals.score",

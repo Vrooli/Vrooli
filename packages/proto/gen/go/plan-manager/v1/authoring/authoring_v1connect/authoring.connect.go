@@ -44,12 +44,30 @@ const (
 	AuthoringServiceSubmitSectionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitSection"
 	// AuthoringServiceNextProcedure is the fully-qualified name of the AuthoringService's Next RPC.
 	AuthoringServiceNextProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/Next"
+	// AuthoringServiceContinueAuthoringProcedure is the fully-qualified name of the AuthoringService's
+	// ContinueAuthoring RPC.
+	AuthoringServiceContinueAuthoringProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ContinueAuthoring"
 	// AuthoringServiceValidateStructureProcedure is the fully-qualified name of the AuthoringService's
 	// ValidateStructure RPC.
 	AuthoringServiceValidateStructureProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ValidateStructure"
 	// AuthoringServiceAutofillProcedure is the fully-qualified name of the AuthoringService's Autofill
 	// RPC.
 	AuthoringServiceAutofillProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/Autofill"
+	// AuthoringServiceSubmitRelevantContextItemProcedure is the fully-qualified name of the
+	// AuthoringService's SubmitRelevantContextItem RPC.
+	AuthoringServiceSubmitRelevantContextItemProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitRelevantContextItem"
+	// AuthoringServiceListRelevantContextProcedure is the fully-qualified name of the
+	// AuthoringService's ListRelevantContext RPC.
+	AuthoringServiceListRelevantContextProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ListRelevantContext"
+	// AuthoringServiceDiscoverContextCandidatesProcedure is the fully-qualified name of the
+	// AuthoringService's DiscoverContextCandidates RPC.
+	AuthoringServiceDiscoverContextCandidatesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverContextCandidates"
+	// AuthoringServiceAcceptContextCandidateProcedure is the fully-qualified name of the
+	// AuthoringService's AcceptContextCandidate RPC.
+	AuthoringServiceAcceptContextCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptContextCandidate"
+	// AuthoringServiceRejectContextCandidateProcedure is the fully-qualified name of the
+	// AuthoringService's RejectContextCandidate RPC.
+	AuthoringServiceRejectContextCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectContextCandidate"
 	// AuthoringServiceAddPhaseProcedure is the fully-qualified name of the AuthoringService's AddPhase
 	// RPC.
 	AuthoringServiceAddPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase"
@@ -80,11 +98,29 @@ type AuthoringServiceClient interface {
 	// Next returns the next section that still needs author input (or signals the
 	// session is structurally complete).
 	Next(context.Context, *connect.Request[authoring.NextRequest]) (*connect.Response[authoring.NextResponse], error)
+	// ContinueAuthoring returns the single recommended next wizard action across
+	// section, context, phase, validation-review, and finalize states.
+	ContinueAuthoring(context.Context, *connect.Request[authoring.ContinueAuthoringRequest]) (*connect.Response[authoring.ContinueAuthoringResponse], error)
 	// ValidateStructure runs the structure-validation gate over the whole session
 	// (PM-AUTHOR-002).
 	ValidateStructure(context.Context, *connect.Request[authoring.ValidateStructureRequest]) (*connect.Response[authoring.ValidateStructureResponse], error)
 	// Autofill orchestrates the mechanical-section autofill behind seams.
 	Autofill(context.Context, *connect.Request[authoring.AutofillRequest]) (*connect.Response[authoring.AutofillResponse], error)
+	// SubmitRelevantContextItem records one global or phase-scoped setup item in
+	// the authoring session. Accepted items finalize into the plans domain's
+	// shared RelevantContextItem contract.
+	SubmitRelevantContextItem(context.Context, *connect.Request[authoring.SubmitRelevantContextItemRequest]) (*connect.Response[authoring.SubmitRelevantContextItemResponse], error)
+	// ListRelevantContext returns accepted context items from the session without
+	// changing wizard position.
+	ListRelevantContext(context.Context, *connect.Request[authoring.ListRelevantContextRequest]) (*connect.Response[authoring.ListRelevantContextResponse], error)
+	// DiscoverContextCandidates runs the guided context-discovery seams for one
+	// or more concepts and stores pending candidates on the authoring session.
+	DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error)
+	// AcceptContextCandidate promotes one pending discovery candidate into the
+	// session's global or phase-scoped relevant-context list.
+	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
+	// RejectContextCandidate records why a discovered candidate is not relevant.
+	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// GetPhase returns one structured phase draft plus the API-owned guided step
@@ -136,6 +172,12 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(authoringServiceMethods.ByName("Next")),
 			connect.WithClientOptions(opts...),
 		),
+		continueAuthoring: connect.NewClient[authoring.ContinueAuthoringRequest, authoring.ContinueAuthoringResponse](
+			httpClient,
+			baseURL+AuthoringServiceContinueAuthoringProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("ContinueAuthoring")),
+			connect.WithClientOptions(opts...),
+		),
 		validateStructure: connect.NewClient[authoring.ValidateStructureRequest, authoring.ValidateStructureResponse](
 			httpClient,
 			baseURL+AuthoringServiceValidateStructureProcedure,
@@ -146,6 +188,36 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AuthoringServiceAutofillProcedure,
 			connect.WithSchema(authoringServiceMethods.ByName("Autofill")),
+			connect.WithClientOptions(opts...),
+		),
+		submitRelevantContextItem: connect.NewClient[authoring.SubmitRelevantContextItemRequest, authoring.SubmitRelevantContextItemResponse](
+			httpClient,
+			baseURL+AuthoringServiceSubmitRelevantContextItemProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("SubmitRelevantContextItem")),
+			connect.WithClientOptions(opts...),
+		),
+		listRelevantContext: connect.NewClient[authoring.ListRelevantContextRequest, authoring.ListRelevantContextResponse](
+			httpClient,
+			baseURL+AuthoringServiceListRelevantContextProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("ListRelevantContext")),
+			connect.WithClientOptions(opts...),
+		),
+		discoverContextCandidates: connect.NewClient[authoring.DiscoverContextCandidatesRequest, authoring.DiscoverContextCandidatesResponse](
+			httpClient,
+			baseURL+AuthoringServiceDiscoverContextCandidatesProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("DiscoverContextCandidates")),
+			connect.WithClientOptions(opts...),
+		),
+		acceptContextCandidate: connect.NewClient[authoring.AcceptContextCandidateRequest, authoring.AcceptContextCandidateResponse](
+			httpClient,
+			baseURL+AuthoringServiceAcceptContextCandidateProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("AcceptContextCandidate")),
+			connect.WithClientOptions(opts...),
+		),
+		rejectContextCandidate: connect.NewClient[authoring.RejectContextCandidateRequest, authoring.RejectContextCandidateResponse](
+			httpClient,
+			baseURL+AuthoringServiceRejectContextCandidateProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
 			connect.WithClientOptions(opts...),
 		),
 		addPhase: connect.NewClient[authoring.AddPhaseRequest, authoring.AddPhaseResponse](
@@ -183,17 +255,23 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // authoringServiceClient implements AuthoringServiceClient.
 type authoringServiceClient struct {
-	startSession      *connect.Client[authoring.StartSessionRequest, authoring.StartSessionResponse]
-	getSection        *connect.Client[authoring.GetSectionRequest, authoring.GetSectionResponse]
-	submitSection     *connect.Client[authoring.SubmitSectionRequest, authoring.SubmitSectionResponse]
-	next              *connect.Client[authoring.NextRequest, authoring.NextResponse]
-	validateStructure *connect.Client[authoring.ValidateStructureRequest, authoring.ValidateStructureResponse]
-	autofill          *connect.Client[authoring.AutofillRequest, authoring.AutofillResponse]
-	addPhase          *connect.Client[authoring.AddPhaseRequest, authoring.AddPhaseResponse]
-	getPhase          *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
-	submitPhaseField  *connect.Client[authoring.SubmitPhaseFieldRequest, authoring.SubmitPhaseFieldResponse]
-	nextPhase         *connect.Client[authoring.NextPhaseRequest, authoring.NextPhaseResponse]
-	finalize          *connect.Client[authoring.FinalizeRequest, authoring.FinalizeResponse]
+	startSession              *connect.Client[authoring.StartSessionRequest, authoring.StartSessionResponse]
+	getSection                *connect.Client[authoring.GetSectionRequest, authoring.GetSectionResponse]
+	submitSection             *connect.Client[authoring.SubmitSectionRequest, authoring.SubmitSectionResponse]
+	next                      *connect.Client[authoring.NextRequest, authoring.NextResponse]
+	continueAuthoring         *connect.Client[authoring.ContinueAuthoringRequest, authoring.ContinueAuthoringResponse]
+	validateStructure         *connect.Client[authoring.ValidateStructureRequest, authoring.ValidateStructureResponse]
+	autofill                  *connect.Client[authoring.AutofillRequest, authoring.AutofillResponse]
+	submitRelevantContextItem *connect.Client[authoring.SubmitRelevantContextItemRequest, authoring.SubmitRelevantContextItemResponse]
+	listRelevantContext       *connect.Client[authoring.ListRelevantContextRequest, authoring.ListRelevantContextResponse]
+	discoverContextCandidates *connect.Client[authoring.DiscoverContextCandidatesRequest, authoring.DiscoverContextCandidatesResponse]
+	acceptContextCandidate    *connect.Client[authoring.AcceptContextCandidateRequest, authoring.AcceptContextCandidateResponse]
+	rejectContextCandidate    *connect.Client[authoring.RejectContextCandidateRequest, authoring.RejectContextCandidateResponse]
+	addPhase                  *connect.Client[authoring.AddPhaseRequest, authoring.AddPhaseResponse]
+	getPhase                  *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
+	submitPhaseField          *connect.Client[authoring.SubmitPhaseFieldRequest, authoring.SubmitPhaseFieldResponse]
+	nextPhase                 *connect.Client[authoring.NextPhaseRequest, authoring.NextPhaseResponse]
+	finalize                  *connect.Client[authoring.FinalizeRequest, authoring.FinalizeResponse]
 }
 
 // StartSession calls vrooli.plan_manager.v1.authoring.AuthoringService.StartSession.
@@ -216,6 +294,11 @@ func (c *authoringServiceClient) Next(ctx context.Context, req *connect.Request[
 	return c.next.CallUnary(ctx, req)
 }
 
+// ContinueAuthoring calls vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring.
+func (c *authoringServiceClient) ContinueAuthoring(ctx context.Context, req *connect.Request[authoring.ContinueAuthoringRequest]) (*connect.Response[authoring.ContinueAuthoringResponse], error) {
+	return c.continueAuthoring.CallUnary(ctx, req)
+}
+
 // ValidateStructure calls vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure.
 func (c *authoringServiceClient) ValidateStructure(ctx context.Context, req *connect.Request[authoring.ValidateStructureRequest]) (*connect.Response[authoring.ValidateStructureResponse], error) {
 	return c.validateStructure.CallUnary(ctx, req)
@@ -224,6 +307,35 @@ func (c *authoringServiceClient) ValidateStructure(ctx context.Context, req *con
 // Autofill calls vrooli.plan_manager.v1.authoring.AuthoringService.Autofill.
 func (c *authoringServiceClient) Autofill(ctx context.Context, req *connect.Request[authoring.AutofillRequest]) (*connect.Response[authoring.AutofillResponse], error) {
 	return c.autofill.CallUnary(ctx, req)
+}
+
+// SubmitRelevantContextItem calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem.
+func (c *authoringServiceClient) SubmitRelevantContextItem(ctx context.Context, req *connect.Request[authoring.SubmitRelevantContextItemRequest]) (*connect.Response[authoring.SubmitRelevantContextItemResponse], error) {
+	return c.submitRelevantContextItem.CallUnary(ctx, req)
+}
+
+// ListRelevantContext calls vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext.
+func (c *authoringServiceClient) ListRelevantContext(ctx context.Context, req *connect.Request[authoring.ListRelevantContextRequest]) (*connect.Response[authoring.ListRelevantContextResponse], error) {
+	return c.listRelevantContext.CallUnary(ctx, req)
+}
+
+// DiscoverContextCandidates calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates.
+func (c *authoringServiceClient) DiscoverContextCandidates(ctx context.Context, req *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error) {
+	return c.discoverContextCandidates.CallUnary(ctx, req)
+}
+
+// AcceptContextCandidate calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate.
+func (c *authoringServiceClient) AcceptContextCandidate(ctx context.Context, req *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error) {
+	return c.acceptContextCandidate.CallUnary(ctx, req)
+}
+
+// RejectContextCandidate calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate.
+func (c *authoringServiceClient) RejectContextCandidate(ctx context.Context, req *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error) {
+	return c.rejectContextCandidate.CallUnary(ctx, req)
 }
 
 // AddPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase.
@@ -264,11 +376,29 @@ type AuthoringServiceHandler interface {
 	// Next returns the next section that still needs author input (or signals the
 	// session is structurally complete).
 	Next(context.Context, *connect.Request[authoring.NextRequest]) (*connect.Response[authoring.NextResponse], error)
+	// ContinueAuthoring returns the single recommended next wizard action across
+	// section, context, phase, validation-review, and finalize states.
+	ContinueAuthoring(context.Context, *connect.Request[authoring.ContinueAuthoringRequest]) (*connect.Response[authoring.ContinueAuthoringResponse], error)
 	// ValidateStructure runs the structure-validation gate over the whole session
 	// (PM-AUTHOR-002).
 	ValidateStructure(context.Context, *connect.Request[authoring.ValidateStructureRequest]) (*connect.Response[authoring.ValidateStructureResponse], error)
 	// Autofill orchestrates the mechanical-section autofill behind seams.
 	Autofill(context.Context, *connect.Request[authoring.AutofillRequest]) (*connect.Response[authoring.AutofillResponse], error)
+	// SubmitRelevantContextItem records one global or phase-scoped setup item in
+	// the authoring session. Accepted items finalize into the plans domain's
+	// shared RelevantContextItem contract.
+	SubmitRelevantContextItem(context.Context, *connect.Request[authoring.SubmitRelevantContextItemRequest]) (*connect.Response[authoring.SubmitRelevantContextItemResponse], error)
+	// ListRelevantContext returns accepted context items from the session without
+	// changing wizard position.
+	ListRelevantContext(context.Context, *connect.Request[authoring.ListRelevantContextRequest]) (*connect.Response[authoring.ListRelevantContextResponse], error)
+	// DiscoverContextCandidates runs the guided context-discovery seams for one
+	// or more concepts and stores pending candidates on the authoring session.
+	DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error)
+	// AcceptContextCandidate promotes one pending discovery candidate into the
+	// session's global or phase-scoped relevant-context list.
+	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
+	// RejectContextCandidate records why a discovered candidate is not relevant.
+	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// GetPhase returns one structured phase draft plus the API-owned guided step
@@ -315,6 +445,12 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		connect.WithSchema(authoringServiceMethods.ByName("Next")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authoringServiceContinueAuthoringHandler := connect.NewUnaryHandler(
+		AuthoringServiceContinueAuthoringProcedure,
+		svc.ContinueAuthoring,
+		connect.WithSchema(authoringServiceMethods.ByName("ContinueAuthoring")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authoringServiceValidateStructureHandler := connect.NewUnaryHandler(
 		AuthoringServiceValidateStructureProcedure,
 		svc.ValidateStructure,
@@ -325,6 +461,36 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		AuthoringServiceAutofillProcedure,
 		svc.Autofill,
 		connect.WithSchema(authoringServiceMethods.ByName("Autofill")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceSubmitRelevantContextItemHandler := connect.NewUnaryHandler(
+		AuthoringServiceSubmitRelevantContextItemProcedure,
+		svc.SubmitRelevantContextItem,
+		connect.WithSchema(authoringServiceMethods.ByName("SubmitRelevantContextItem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceListRelevantContextHandler := connect.NewUnaryHandler(
+		AuthoringServiceListRelevantContextProcedure,
+		svc.ListRelevantContext,
+		connect.WithSchema(authoringServiceMethods.ByName("ListRelevantContext")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceDiscoverContextCandidatesHandler := connect.NewUnaryHandler(
+		AuthoringServiceDiscoverContextCandidatesProcedure,
+		svc.DiscoverContextCandidates,
+		connect.WithSchema(authoringServiceMethods.ByName("DiscoverContextCandidates")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceAcceptContextCandidateHandler := connect.NewUnaryHandler(
+		AuthoringServiceAcceptContextCandidateProcedure,
+		svc.AcceptContextCandidate,
+		connect.WithSchema(authoringServiceMethods.ByName("AcceptContextCandidate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceRejectContextCandidateHandler := connect.NewUnaryHandler(
+		AuthoringServiceRejectContextCandidateProcedure,
+		svc.RejectContextCandidate,
+		connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authoringServiceAddPhaseHandler := connect.NewUnaryHandler(
@@ -367,10 +533,22 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceSubmitSectionHandler.ServeHTTP(w, r)
 		case AuthoringServiceNextProcedure:
 			authoringServiceNextHandler.ServeHTTP(w, r)
+		case AuthoringServiceContinueAuthoringProcedure:
+			authoringServiceContinueAuthoringHandler.ServeHTTP(w, r)
 		case AuthoringServiceValidateStructureProcedure:
 			authoringServiceValidateStructureHandler.ServeHTTP(w, r)
 		case AuthoringServiceAutofillProcedure:
 			authoringServiceAutofillHandler.ServeHTTP(w, r)
+		case AuthoringServiceSubmitRelevantContextItemProcedure:
+			authoringServiceSubmitRelevantContextItemHandler.ServeHTTP(w, r)
+		case AuthoringServiceListRelevantContextProcedure:
+			authoringServiceListRelevantContextHandler.ServeHTTP(w, r)
+		case AuthoringServiceDiscoverContextCandidatesProcedure:
+			authoringServiceDiscoverContextCandidatesHandler.ServeHTTP(w, r)
+		case AuthoringServiceAcceptContextCandidateProcedure:
+			authoringServiceAcceptContextCandidateHandler.ServeHTTP(w, r)
+		case AuthoringServiceRejectContextCandidateProcedure:
+			authoringServiceRejectContextCandidateHandler.ServeHTTP(w, r)
 		case AuthoringServiceAddPhaseProcedure:
 			authoringServiceAddPhaseHandler.ServeHTTP(w, r)
 		case AuthoringServiceGetPhaseProcedure:
@@ -406,12 +584,36 @@ func (UnimplementedAuthoringServiceHandler) Next(context.Context, *connect.Reque
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.Next is not implemented"))
 }
 
+func (UnimplementedAuthoringServiceHandler) ContinueAuthoring(context.Context, *connect.Request[authoring.ContinueAuthoringRequest]) (*connect.Response[authoring.ContinueAuthoringResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring is not implemented"))
+}
+
 func (UnimplementedAuthoringServiceHandler) ValidateStructure(context.Context, *connect.Request[authoring.ValidateStructureRequest]) (*connect.Response[authoring.ValidateStructureResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) Autofill(context.Context, *connect.Request[authoring.AutofillRequest]) (*connect.Response[authoring.AutofillResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.Autofill is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) SubmitRelevantContextItem(context.Context, *connect.Request[authoring.SubmitRelevantContextItemRequest]) (*connect.Response[authoring.SubmitRelevantContextItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) ListRelevantContext(context.Context, *connect.Request[authoring.ListRelevantContextRequest]) (*connect.Response[authoring.ListRelevantContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error) {

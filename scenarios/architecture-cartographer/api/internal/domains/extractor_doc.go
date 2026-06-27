@@ -3,6 +3,7 @@ package domains
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -15,28 +16,6 @@ import (
 // DomainsDocPath is the scenario-relative location of the canonical
 // structured domain inventory.
 const DomainsDocPath = "docs/concepts/DOMAINS.md"
-
-// archetypeVocabulary is the fixed set of primary archetypes the
-// structured contract recognizes. The parser takes the first token of a
-// compound cell (e.g., "service / orchestration" -> "service") and matches
-// it case-insensitively. Unknown archetypes are preserved verbatim so
-// convergence reporting (Phase 3) can flag them rather than the parser
-// silently dropping intent.
-var archetypeVocabulary = map[string]string{
-	"service":          "service",
-	"reporting":        "reporting",
-	"validation":       "validation",
-	"mutation":         "mutation",
-	"orchestration":    "orchestration",
-	"infrastructure":   "infrastructure",
-	"composition-root": "composition-root",
-	// Coordinating roles: a provider serves a composed read/validation surface
-	// over several domains; an aggregation rolls many domains' data into one
-	// view. Both legitimately import sibling domains (see the layering detector's
-	// coordinatingArchetypes set).
-	"provider":    "provider",
-	"aggregation": "aggregation",
-}
 
 // DomainsDocExtractor parses the structured Domain Inventory table in
 // docs/concepts/DOMAINS.md. It is the interim top rung of the ladder until
@@ -68,15 +47,20 @@ func (e *DomainsDocExtractor) Extract(_ context.Context, scenarioDir string) (Ex
 		}
 		return Extraction{}, fmt.Errorf("read %s: %w", DomainsDocPath, err)
 	}
-	return e.parse(string(data))
+	contract := loadDomainInventoryContract(scenarioDir)
+	return e.parseWithContract(string(data), contract)
 }
 
 // parse is the pure parsing core, split out so tests can drive it with
 // golden markdown without touching the filesystem.
 func (e *DomainsDocExtractor) parse(content string) (Extraction, error) {
+	return e.parseWithContract(content, domainInventoryContract{})
+}
+
+func (e *DomainsDocExtractor) parseWithContract(content string, contract domainInventoryContract) (Extraction, error) {
 	out := Extraction{Source: SourceDomainsDoc}
 
-	domains, warns, err := parseDomainInventory(content)
+	domains, warns, err := parseDomainInventory(content, contract)
 	if err != nil {
 		return Extraction{}, err
 	}
@@ -93,7 +77,7 @@ func (e *DomainsDocExtractor) parse(content string) (Extraction, error) {
 // skipped for structural reasons). The caller propagates warnings up to
 // the audit pipeline so the operator sees what was silently dropped
 // rather than guessing why a domain count looks off.
-func parseDomainInventory(content string) ([]ExtractedDomain, []ExtractionWarning, error) {
+func parseDomainInventory(content string, contract domainInventoryContract) ([]ExtractedDomain, []ExtractionWarning, error) {
 	section, ok := sectionBody(content, "Domain Inventory")
 	if !ok {
 		return nil, nil, fmt.Errorf("%s: missing '## Domain Inventory' section", DomainsDocPath)
@@ -106,10 +90,14 @@ func parseDomainInventory(content string) ([]ExtractedDomain, []ExtractionWarnin
 	var warns []ExtractionWarning
 	lineNo := 0
 	var (
-		idxDomain    = -1
-		idxArchetype = -1
-		idxPaths     = -1
-		idxGlossary  = -1
+		idxDomain          = -1
+		idxResponsibility  = -1
+		idxPurpose         = -1
+		idxOwnsData        = -1
+		idxPrimary         = -1
+		idxSecondaryTraits = -1
+		idxGlossary        = -1
+		idxPaths           = -1
 	)
 
 	sc := bufio.NewScanner(strings.NewReader(section))
@@ -130,14 +118,14 @@ func parseDomainInventory(content string) ([]ExtractedDomain, []ExtractionWarnin
 		if !headerSeen {
 			headerCells = cells
 			expectedCols = len(headerCells)
-			idxDomain = headerIndex(headerCells, func(h string) bool { return h == "domain" })
-			idxArchetype = headerIndex(headerCells, func(h string) bool {
-				return strings.Contains(h, "archetype")
-			})
-			idxPaths = headerIndex(headerCells, func(h string) bool {
-				return strings.HasPrefix(h, "source paths")
-			})
-			idxGlossary = headerIndex(headerCells, func(h string) bool { return h == "glossary" })
+			idxDomain = contract.headerIndex(headerCells, "Domain")
+			idxResponsibility = contract.headerIndex(headerCells, "Responsibility")
+			idxPurpose = contract.headerIndex(headerCells, "Purpose")
+			idxOwnsData = contract.headerIndex(headerCells, "Owns Data")
+			idxPrimary = contract.headerIndex(headerCells, "Primary Archetype")
+			idxSecondaryTraits = contract.headerIndex(headerCells, "Secondary Traits")
+			idxGlossary = contract.headerIndex(headerCells, "Glossary")
+			idxPaths = contract.headerIndex(headerCells, "Source Paths")
 			if idxDomain < 0 || idxPaths < 0 {
 				return nil, nil, fmt.Errorf("%s: Domain Inventory table must have 'Domain' and 'Source Paths' columns", DomainsDocPath)
 			}
@@ -165,11 +153,16 @@ func parseDomainInventory(content string) ([]ExtractedDomain, []ExtractionWarnin
 			continue
 		}
 		d := ExtractedDomain{
-			Name:      name,
-			Paths:     parsePathList(cell(cells, idxPaths)),
-			Archetype: normalizeArchetype(cell(cells, idxArchetype)),
-			Glossary:  parseTermList(cell(cells, idxGlossary)),
+			Name:            name,
+			Paths:           parsePathList(cell(cells, idxPaths)),
+			Glossary:        parseTermList(cell(cells, idxGlossary)),
+			Responsibility:  cleanTextCell(cell(cells, idxResponsibility)),
+			Purpose:         cleanTextCell(cell(cells, idxPurpose)),
+			OwnsData:        cleanTextCell(cell(cells, idxOwnsData)),
+			SecondaryTraits: parseArchetypeNames(cell(cells, idxSecondaryTraits)),
 		}
+		primary := parseArchetypeNames(cell(cells, idxPrimary))
+		d.Archetypes = DeclaredArchetypes(append(primary, d.SecondaryTraits...)...)
 		if len(d.Paths) == 0 {
 			warns = append(warns, ExtractionWarning{
 				Kind:    "domains_doc.no_paths",
@@ -287,6 +280,161 @@ func headerIndex(headers []string, match func(string) bool) int {
 	return -1
 }
 
+type domainInventoryContract struct {
+	Columns []tableColumnContract
+}
+
+type tableColumnContract struct {
+	Name       string   `json:"name"`
+	Type       string   `json:"type"`
+	EnumValues []string `json:"enumValues"`
+	Aliases    []string `json:"aliases"`
+}
+
+func (c domainInventoryContract) headerIndex(headers []string, name string) int {
+	if len(c.Columns) == 0 {
+		return fallbackHeaderIndex(headers, name)
+	}
+	names := map[string]struct{}{normalizeHeaderName(name): {}}
+	for _, col := range c.Columns {
+		if !strings.EqualFold(strings.TrimSpace(col.Name), name) {
+			continue
+		}
+		names[normalizeHeaderName(col.Name)] = struct{}{}
+		for _, alias := range col.Aliases {
+			names[normalizeHeaderName(alias)] = struct{}{}
+		}
+	}
+	for i, h := range headers {
+		if _, ok := names[normalizeHeaderName(h)]; ok {
+			return i
+		}
+	}
+	return -1
+}
+
+func fallbackHeaderIndex(headers []string, name string) int {
+	switch name {
+	case "Domain":
+		return headerIndex(headers, func(h string) bool { return h == "domain" })
+	case "Responsibility":
+		return headerIndex(headers, func(h string) bool { return h == "responsibility" })
+	case "Purpose":
+		return headerIndex(headers, func(h string) bool { return h == "purpose" })
+	case "Owns Data":
+		return headerIndex(headers, func(h string) bool { return h == "owns data" })
+	case "Primary Archetype":
+		return headerIndex(headers, func(h string) bool { return strings.Contains(h, "archetype") })
+	case "Secondary Traits":
+		return headerIndex(headers, func(h string) bool { return h == "secondary traits" })
+	case "Glossary":
+		return headerIndex(headers, func(h string) bool { return h == "glossary" })
+	case "Source Paths":
+		return headerIndex(headers, func(h string) bool { return strings.HasPrefix(h, "source paths") })
+	default:
+		return -1
+	}
+}
+
+func normalizeHeaderName(header string) string {
+	header = strings.TrimSpace(strings.ToLower(header))
+	if i := strings.Index(header, "("); i >= 0 {
+		header = strings.TrimSpace(header[:i])
+	}
+	return strings.Join(strings.Fields(header), " ")
+}
+
+func loadDomainInventoryContract(scenarioDir string) domainInventoryContract {
+	repoRoot := findRepoRoot(scenarioDir)
+	if repoRoot == "" {
+		return domainInventoryContract{}
+	}
+	templateID := templateIDForScenario(scenarioDir)
+	scenarioManifest := filepath.Join(scenarioDir, "docs", "manifest.json")
+	if c, ok := loadContractFromManifest(scenarioManifest); ok {
+		return c
+	}
+	templateManifest := filepath.Join(repoRoot, "templates", "scenarios", templateID, "docs", "manifest.json")
+	if c, ok := loadContractFromManifest(templateManifest); ok {
+		return c
+	}
+	return domainInventoryContract{}
+}
+
+func loadContractFromManifest(path string) (domainInventoryContract, bool) {
+	type manifest struct {
+		Sections []struct {
+			Documents []struct {
+				Path       string `json:"path"`
+				Validation struct {
+					TableContracts []struct {
+						AnchorHeading string                `json:"anchorHeading"`
+						Columns       []tableColumnContract `json:"columns"`
+					} `json:"tableContracts"`
+				} `json:"validation"`
+			} `json:"documents"`
+		} `json:"sections"`
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return domainInventoryContract{}, false
+	}
+	var m manifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return domainInventoryContract{}, false
+	}
+	for _, section := range m.Sections {
+		for _, doc := range section.Documents {
+			if !isDomainsDocManifestPath(doc.Path) {
+				continue
+			}
+			for _, contract := range doc.Validation.TableContracts {
+				if strings.EqualFold(strings.TrimSpace(contract.AnchorHeading), "Domain Inventory") {
+					return domainInventoryContract{Columns: contract.Columns}, true
+				}
+			}
+		}
+	}
+	return domainInventoryContract{}, false
+}
+
+func isDomainsDocManifestPath(path string) bool {
+	normalized := NormalizePath(path)
+	return normalized == DomainsDocPath || normalized == strings.TrimPrefix(DomainsDocPath, "docs/")
+}
+
+func findRepoRoot(start string) string {
+	start = filepath.Clean(start)
+	for dir := start; dir != "" && dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+		if _, err := os.Stat(filepath.Join(dir, "templates", "scenarios", "react-vite", "docs", "manifest.json")); err == nil {
+			return dir
+		}
+	}
+	return ""
+}
+
+func templateIDForScenario(scenarioDir string) string {
+	type serviceConfig struct {
+		Generation struct {
+			Template struct {
+				ID string `json:"id"`
+			} `json:"template"`
+		} `json:"generation"`
+	}
+	data, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "service.json"))
+	if err != nil {
+		return "react-vite"
+	}
+	var cfg serviceConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return "react-vite"
+	}
+	if id := strings.TrimSpace(cfg.Generation.Template.ID); id != "" {
+		return id
+	}
+	return "react-vite"
+}
+
 func cell(cells []string, idx int) string {
 	if idx < 0 || idx >= len(cells) {
 		return ""
@@ -308,6 +456,14 @@ func parseTermList(cellVal string) []string {
 	})
 }
 
+func cleanTextCell(cellVal string) string {
+	cellVal = strings.TrimSpace(strings.Trim(cellVal, "`"))
+	if cellVal == "" || cellVal == "-" || cellVal == "—" {
+		return ""
+	}
+	return cellVal
+}
+
 func splitNormalized(cellVal string, norm func(string) string) []string {
 	cellVal = strings.TrimSpace(cellVal)
 	if cellVal == "" || cellVal == "—" || cellVal == "-" {
@@ -326,21 +482,38 @@ func splitNormalized(cellVal string, norm func(string) string) []string {
 	return out
 }
 
-func normalizeArchetype(cellVal string) string {
+// parseArchetypeNames splits an archetype cell into individual labels. The
+// labels are returned verbatim (lowercased); canonical normalization onto the
+// fixed Archetype vocabulary happens in DeclaredArchetypes, which preserves
+// non-canonical labels for honest drift reporting.
+func parseArchetypeNames(cellVal string) []string {
 	cellVal = strings.TrimSpace(cellVal)
 	if cellVal == "" {
-		return ""
+		return nil
 	}
-	// Take the first token of a compound cell ("service / orchestration").
-	first := cellVal
-	if i := strings.IndexAny(cellVal, "/,"); i >= 0 {
-		first = cellVal[:i]
+	parts := strings.FieldsFunc(cellVal, func(r rune) bool {
+		return r == ',' || r == '/'
+	})
+	out := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for _, part := range parts {
+		name := normalizeArchetypeName(part)
+		if name == "" || name == "-" || name == "—" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
 	}
-	first = strings.ToLower(strings.TrimSpace(first))
-	if canonical, ok := archetypeVocabulary[first]; ok {
-		return canonical
-	}
-	return first
+	return out
+}
+
+func normalizeArchetypeName(value string) string {
+	value = strings.TrimSpace(strings.Trim(value, "`"))
+	value = strings.ToLower(value)
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func firstBacktickToken(line string) string {

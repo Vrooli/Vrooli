@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/module"
 
@@ -9,8 +10,8 @@ import (
 )
 
 // Module returns the graph domain's contribution to the API router.
-func Module(svc graph.Service) module.Module {
-	h := NewHandler(svc)
+func Module(svc graph.Service, domainsSvc ...domains.Service) module.Module {
+	h := NewHandler(svc, domainsSvc...)
 	pattern, connectHandler := graph_v1connect.NewGraphServiceHandler(h)
 	return module.Module{
 		Name: "graph",

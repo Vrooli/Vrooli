@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"strings"
 
-	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // basisByName maps the wire string a provider emits for the attestation `basis`
 // onto the AttestedAnswer.Basis enum. Mirrors the canonical contract in
 // meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md.
-var basisByName = map[string]routingv1.Basis{
-	"derived":             routingv1.Basis_BASIS_DERIVED,
-	"validated":           routingv1.Basis_BASIS_VALIDATED,
-	"declared_unverified": routingv1.Basis_BASIS_DECLARED_UNVERIFIED,
-	"contradicted":        routingv1.Basis_BASIS_CONTRADICTED,
-	"absent":              routingv1.Basis_BASIS_ABSENT,
+var basisByName = map[string]commonv1.Basis{
+	"derived":             commonv1.Basis_BASIS_DERIVED,
+	"validated":           commonv1.Basis_BASIS_VALIDATED,
+	"declared_unverified": commonv1.Basis_BASIS_DECLARED_UNVERIFIED,
+	"contradicted":        commonv1.Basis_BASIS_CONTRADICTED,
+	"absent":              commonv1.Basis_BASIS_ABSENT,
 }
 
-var sufficiencyByName = map[string]routingv1.Sufficiency{
-	"full":         routingv1.Sufficiency_SUFFICIENCY_FULL,
-	"partial":      routingv1.Sufficiency_SUFFICIENCY_PARTIAL,
-	"insufficient": routingv1.Sufficiency_SUFFICIENCY_INSUFFICIENT,
+var sufficiencyByName = map[string]commonv1.Sufficiency{
+	"full":         commonv1.Sufficiency_SUFFICIENCY_FULL,
+	"partial":      commonv1.Sufficiency_SUFFICIENCY_PARTIAL,
+	"insufficient": commonv1.Sufficiency_SUFFICIENCY_INSUFFICIENT,
 }
 
 // decodeAttestation decodes the per-item attestation object at `path` into a
@@ -33,7 +33,7 @@ var sufficiencyByName = map[string]routingv1.Sufficiency{
 // rather than carried, so consumers never see a DERIVED claim with no provenance.
 // This is the generic carrier: zero provider-specific code, the descriptor's
 // attestation_field is the only switch.
-func decodeAttestation(item map[string]any, path string) *routingv1.AttestedAnswer {
+func decodeAttestation(item map[string]any, path string) *commonv1.AttestedAnswer {
 	if path == "" {
 		return nil
 	}
@@ -41,7 +41,7 @@ func decodeAttestation(item map[string]any, path string) *routingv1.AttestedAnsw
 	if !ok || len(obj) == 0 {
 		return nil
 	}
-	att := &routingv1.AttestedAnswer{
+	att := &commonv1.AttestedAnswer{
 		Claim:       coerceString(obj["claim"]),
 		Basis:       basisByName[strings.ToLower(coerceString(obj["basis"]))],
 		Sufficiency: sufficiencyByName[strings.ToLower(coerceString(obj["sufficiency"]))],
@@ -56,7 +56,7 @@ func decodeAttestation(item map[string]any, path string) *routingv1.AttestedAnsw
 			if locator == "" {
 				continue
 			}
-			att.Citations = append(att.Citations, &routingv1.Citation{
+			att.Citations = append(att.Citations, &commonv1.Citation{
 				Locator: locator,
 				Kind:    coerceString(cm["kind"]),
 				Note:    coerceString(cm["note"]),
@@ -83,7 +83,7 @@ func decodeAttestation(item map[string]any, path string) *routingv1.AttestedAnsw
 //
 // Exposed so a provider-registration conformance test can gate architectural
 // providers, and so the adapter can drop a non-conformant runtime attestation.
-func ValidateAttestation(a *routingv1.AttestedAnswer) error {
+func ValidateAttestation(a *commonv1.AttestedAnswer) error {
 	if a == nil {
 		return fmt.Errorf("attestation: nil")
 	}
@@ -91,7 +91,7 @@ func ValidateAttestation(a *routingv1.AttestedAnswer) error {
 		return fmt.Errorf("attestation: empty claim")
 	}
 	switch a.GetBasis() {
-	case routingv1.Basis_BASIS_DERIVED, routingv1.Basis_BASIS_VALIDATED, routingv1.Basis_BASIS_CONTRADICTED:
+	case commonv1.Basis_BASIS_DERIVED, commonv1.Basis_BASIS_VALIDATED, commonv1.Basis_BASIS_CONTRADICTED:
 		if len(a.GetCitations()) == 0 {
 			return fmt.Errorf("attestation: basis %s requires at least one citation", a.GetBasis())
 		}

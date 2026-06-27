@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from common.v1 import attestation_pb2 as common_dot_v1_dot_attestation__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\"\x84\x02\n\x0cQueryRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n\x03\x61ll\x18\x03 \x01(\x08R\x03\x61ll\x12\x14\n\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x14\n\x05group\x18\x05 \x01(\tR\x05group\x12\x18\n\x07\x65xplain\x18\x06 \x01(\x08R\x07\x65xplain\x12K\n\toverrides\x18\x07 \x01(\x0b\x32-.vrooli.search_hub.v1.routing.SearchOverridesR\toverrides\x12#\n\rcontrol_token\x18\x08 \x01(\tR\x0c\x63ontrolToken\"\xcd\x02\n\x0fSearchOverrides\x12*\n\x0ererank_enabled\x18\x01 \x01(\x08H\x00R\rrerankEnabled\x88\x01\x01\x12&\n\x0crerank_blend\x18\x02 \x01(\x08H\x01R\x0brerankBlend\x88\x01\x01\x12.\n\x10rerank_shortlist\x18\x03 \x01(\x05H\x02R\x0frerankShortlist\x88\x01\x01\x12\'\n\rfloor_max_gap\x18\x04 \x01(\x01H\x03R\x0b\x66loorMaxGap\x88\x01\x01\x12-\n\x10\x66loor_hard_floor\x18\x05 \x01(\x01H\x04R\x0e\x66loorHardFloor\x88\x01\x01\x42\x11\n\x0f_rerank_enabledB\x0f\n\r_rerank_blendB\x13\n\x11_rerank_shortlistB\x10\n\x0e_floor_max_gapB\x13\n\x11_floor_hard_floor\"\x88\x03\n\tSearchHit\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12%\n\x0eprovider_group\x18\x02 \x01(\tR\rproviderGroup\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x0e\n\x02id\x18\x04 \x01(\tR\x02id\x12\x14\n\x05title\x18\x05 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x06 \x01(\tR\x07snippet\x12\x12\n\x04path\x18\x07 \x01(\tR\x04path\x12\x14\n\x05score\x18\x08 \x01(\x01R\x05score\x12!\n\x0crerank_score\x18\t \x01(\x01R\x0brerankScore\x12\x42\n\x07measure\x18\n \x01(\x0b\x32(.vrooli.search_hub.v1.routing.MeasureHitR\x07measure\x12N\n\x0b\x61ttestation\x18\x0b \x01(\x0b\x32,.vrooli.search_hub.v1.routing.AttestedAnswerR\x0b\x61ttestation\"\xdd\x02\n\nMeasureHit\x12\x1d\n\nmeasure_id\x18\x01 \x01(\tR\tmeasureId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12L\n\x06params\x18\x03 \x03(\x0b\x32\x34.vrooli.search_hub.v1.routing.MeasureHit.ParamsEntryR\x06params\x12\x16\n\x06\x61nswer\x18\x04 \x01(\tR\x06\x61nswer\x12\x14\n\x05needs\x18\x05 \x03(\tR\x05needs\x12\x16\n\x06\x65\x66\x66\x65\x63t\x18\x06 \x01(\tR\x06\x65\x66\x66\x65\x63t\x12%\n\x0e\x65xecuted_query\x18\x07 \x01(\tR\rexecutedQuery\x12\x1e\n\nconfidence\x18\x08 \x01(\x01R\nconfidence\x1a\x39\n\x0bParamsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xba\x02\n\x0e\x41ttestedAnswer\x12\x14\n\x05\x63laim\x18\x01 \x01(\tR\x05\x63laim\x12\x44\n\tcitations\x18\x02 \x03(\x0b\x32&.vrooli.search_hub.v1.routing.CitationR\tcitations\x12\x39\n\x05\x62\x61sis\x18\x03 \x01(\x0e\x32#.vrooli.search_hub.v1.routing.BasisR\x05\x62\x61sis\x12K\n\x0bsufficiency\x18\x04 \x01(\x0e\x32).vrooli.search_hub.v1.routing.SufficiencyR\x0bsufficiency\x12\x12\n\x04gaps\x18\x05 \x03(\tR\x04gaps\x12\x30\n\x14suggested_follow_ups\x18\x06 \x03(\tR\x12suggestedFollowUps\"L\n\x08\x43itation\x12\x18\n\x07locator\x18\x01 \x01(\tR\x07locator\x12\x12\n\x04kind\x18\x02 \x01(\tR\x04kind\x12\x12\n\x04note\x18\x03 \x01(\tR\x04note\"\xb9\x01\n\x13ProviderResultGroup\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12;\n\x04hits\x18\x02 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x04hits\x12\x14\n\x05\x63ount\x18\x03 \x01(\x05R\x05\x63ount\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\x12\n\x04note\x18\x05 \x01(\tR\x04note\"\xce\x02\n\rQueryResponse\x12?\n\x06ranked\x18\x01 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x06ranked\x12I\n\x06groups\x18\x02 \x03(\x0b\x32\x31.vrooli.search_hub.v1.routing.ProviderResultGroupR\x06groups\x12)\n\x10\x63orpora_searched\x18\x03 \x03(\tR\x0f\x63orporaSearched\x12/\n\x13routing_explanation\x18\x04 \x03(\tR\x12routingExplanation\x12\x1a\n\x08reranked\x18\x05 \x01(\x08R\x08reranked\x12\x1a\n\x08\x64\x65graded\x18\x06 \x01(\x08R\x08\x64\x65graded\x12\x1d\n\nlatency_ms\x18\x07 \x01(\x03R\tlatencyMs\"\x0f\n\rStatusRequest\"\xaa\x01\n\x0eProviderHealth\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1c\n\treachable\x18\x02 \x01(\x08R\treachable\x12\x1c\n\tfreshness\x18\x03 \x01(\tR\tfreshness\x12\x1f\n\x0bpoint_count\x18\x04 \x01(\x03R\npointCount\x12\x1a\n\x08\x64\x65graded\x18\x05 \x01(\x08R\x08\x64\x65graded\"\xbe\x01\n\x0eStatusResponse\x12J\n\tproviders\x18\x01 \x03(\x0b\x32,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x12\x31\n\x14\x63lassifier_available\x18\x02 \x01(\x08R\x13\x63lassifierAvailable\x12-\n\x12reranker_available\x18\x03 \x01(\x08R\x11rerankerAvailable*\x8f\x01\n\x05\x42\x61sis\x12\x15\n\x11\x42\x41SIS_UNSPECIFIED\x10\x00\x12\x11\n\rBASIS_DERIVED\x10\x01\x12\x13\n\x0f\x42\x41SIS_VALIDATED\x10\x02\x12\x1d\n\x19\x42\x41SIS_DECLARED_UNVERIFIED\x10\x03\x12\x16\n\x12\x42\x41SIS_CONTRADICTED\x10\x04\x12\x10\n\x0c\x42\x41SIS_ABSENT\x10\x05*w\n\x0bSufficiency\x12\x1b\n\x17SUFFICIENCY_UNSPECIFIED\x10\x00\x12\x14\n\x10SUFFICIENCY_FULL\x10\x01\x12\x17\n\x13SUFFICIENCY_PARTIAL\x10\x02\x12\x1c\n\x18SUFFICIENCY_INSUFFICIENT\x10\x03\x32\xd7\x01\n\x0eRoutingService\x12`\n\x05Query\x12*.vrooli.search_hub.v1.routing.QueryRequest\x1a+.vrooli.search_hub.v1.routing.QueryResponse\x12\x63\n\x06Status\x12+.vrooli.search_hub.v1.routing.StatusRequest\x1a,.vrooli.search_hub.v1.routing.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\x1a\x1b\x63ommon/v1/attestation.proto\"\x84\x02\n\x0cQueryRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n\x03\x61ll\x18\x03 \x01(\x08R\x03\x61ll\x12\x14\n\x05limit\x18\x04 \x01(\x05R\x05limit\x12\x14\n\x05group\x18\x05 \x01(\tR\x05group\x12\x18\n\x07\x65xplain\x18\x06 \x01(\x08R\x07\x65xplain\x12K\n\toverrides\x18\x07 \x01(\x0b\x32-.vrooli.search_hub.v1.routing.SearchOverridesR\toverrides\x12#\n\rcontrol_token\x18\x08 \x01(\tR\x0c\x63ontrolToken\"\xcd\x02\n\x0fSearchOverrides\x12*\n\x0ererank_enabled\x18\x01 \x01(\x08H\x00R\rrerankEnabled\x88\x01\x01\x12&\n\x0crerank_blend\x18\x02 \x01(\x08H\x01R\x0brerankBlend\x88\x01\x01\x12.\n\x10rerank_shortlist\x18\x03 \x01(\x05H\x02R\x0frerankShortlist\x88\x01\x01\x12\'\n\rfloor_max_gap\x18\x04 \x01(\x01H\x03R\x0b\x66loorMaxGap\x88\x01\x01\x12-\n\x10\x66loor_hard_floor\x18\x05 \x01(\x01H\x04R\x0e\x66loorHardFloor\x88\x01\x01\x42\x11\n\x0f_rerank_enabledB\x0f\n\r_rerank_blendB\x13\n\x11_rerank_shortlistB\x10\n\x0e_floor_max_gapB\x13\n\x11_floor_hard_floor\"\xf5\x02\n\tSearchHit\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12%\n\x0eprovider_group\x18\x02 \x01(\tR\rproviderGroup\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x0e\n\x02id\x18\x04 \x01(\tR\x02id\x12\x14\n\x05title\x18\x05 \x01(\tR\x05title\x12\x18\n\x07snippet\x18\x06 \x01(\tR\x07snippet\x12\x12\n\x04path\x18\x07 \x01(\tR\x04path\x12\x14\n\x05score\x18\x08 \x01(\x01R\x05score\x12!\n\x0crerank_score\x18\t \x01(\x01R\x0brerankScore\x12\x42\n\x07measure\x18\n \x01(\x0b\x32(.vrooli.search_hub.v1.routing.MeasureHitR\x07measure\x12;\n\x0b\x61ttestation\x18\x0b \x01(\x0b\x32\x19.common.v1.AttestedAnswerR\x0b\x61ttestation\"\xdd\x02\n\nMeasureHit\x12\x1d\n\nmeasure_id\x18\x01 \x01(\tR\tmeasureId\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12L\n\x06params\x18\x03 \x03(\x0b\x32\x34.vrooli.search_hub.v1.routing.MeasureHit.ParamsEntryR\x06params\x12\x16\n\x06\x61nswer\x18\x04 \x01(\tR\x06\x61nswer\x12\x14\n\x05needs\x18\x05 \x03(\tR\x05needs\x12\x16\n\x06\x65\x66\x66\x65\x63t\x18\x06 \x01(\tR\x06\x65\x66\x66\x65\x63t\x12%\n\x0e\x65xecuted_query\x18\x07 \x01(\tR\rexecutedQuery\x12\x1e\n\nconfidence\x18\x08 \x01(\x01R\nconfidence\x1a\x39\n\x0bParamsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xb9\x01\n\x13ProviderResultGroup\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12;\n\x04hits\x18\x02 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x04hits\x12\x14\n\x05\x63ount\x18\x03 \x01(\x05R\x05\x63ount\x12\x1a\n\x08\x64\x65graded\x18\x04 \x01(\x08R\x08\x64\x65graded\x12\x12\n\x04note\x18\x05 \x01(\tR\x04note\"\xce\x02\n\rQueryResponse\x12?\n\x06ranked\x18\x01 \x03(\x0b\x32\'.vrooli.search_hub.v1.routing.SearchHitR\x06ranked\x12I\n\x06groups\x18\x02 \x03(\x0b\x32\x31.vrooli.search_hub.v1.routing.ProviderResultGroupR\x06groups\x12)\n\x10\x63orpora_searched\x18\x03 \x03(\tR\x0f\x63orporaSearched\x12/\n\x13routing_explanation\x18\x04 \x03(\tR\x12routingExplanation\x12\x1a\n\x08reranked\x18\x05 \x01(\x08R\x08reranked\x12\x1a\n\x08\x64\x65graded\x18\x06 \x01(\x08R\x08\x64\x65graded\x12\x1d\n\nlatency_ms\x18\x07 \x01(\x03R\tlatencyMs\"\x0f\n\rStatusRequest\"\xaa\x01\n\x0eProviderHealth\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x1c\n\treachable\x18\x02 \x01(\x08R\treachable\x12\x1c\n\tfreshness\x18\x03 \x01(\tR\tfreshness\x12\x1f\n\x0bpoint_count\x18\x04 \x01(\x03R\npointCount\x12\x1a\n\x08\x64\x65graded\x18\x05 \x01(\x08R\x08\x64\x65graded\"\xbe\x01\n\x0eStatusResponse\x12J\n\tproviders\x18\x01 \x03(\x0b\x32,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x12\x31\n\x14\x63lassifier_available\x18\x02 \x01(\x08R\x13\x63lassifierAvailable\x12-\n\x12reranker_available\x18\x03 \x01(\x08R\x11rerankerAvailable2\xd7\x01\n\x0eRoutingService\x12`\n\x05Query\x12*.vrooli.search_hub.v1.routing.QueryRequest\x1a+.vrooli.search_hub.v1.routing.QueryResponse\x12\x63\n\x06Status\x12+.vrooli.search_hub.v1.routing.StatusRequest\x1a,.vrooli.search_hub.v1.routing.StatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,34 +35,26 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1'
   _globals['_MEASUREHIT_PARAMSENTRY']._loaded_options = None
   _globals['_MEASUREHIT_PARAMSENTRY']._serialized_options = b'8\001'
-  _globals['_BASIS']._serialized_start=2719
-  _globals['_BASIS']._serialized_end=2862
-  _globals['_SUFFICIENCY']._serialized_start=2864
-  _globals['_SUFFICIENCY']._serialized_end=2983
-  _globals['_QUERYREQUEST']._serialized_start=70
-  _globals['_QUERYREQUEST']._serialized_end=330
-  _globals['_SEARCHOVERRIDES']._serialized_start=333
-  _globals['_SEARCHOVERRIDES']._serialized_end=666
-  _globals['_SEARCHHIT']._serialized_start=669
-  _globals['_SEARCHHIT']._serialized_end=1061
-  _globals['_MEASUREHIT']._serialized_start=1064
-  _globals['_MEASUREHIT']._serialized_end=1413
-  _globals['_MEASUREHIT_PARAMSENTRY']._serialized_start=1356
-  _globals['_MEASUREHIT_PARAMSENTRY']._serialized_end=1413
-  _globals['_ATTESTEDANSWER']._serialized_start=1416
-  _globals['_ATTESTEDANSWER']._serialized_end=1730
-  _globals['_CITATION']._serialized_start=1732
-  _globals['_CITATION']._serialized_end=1808
-  _globals['_PROVIDERRESULTGROUP']._serialized_start=1811
-  _globals['_PROVIDERRESULTGROUP']._serialized_end=1996
-  _globals['_QUERYRESPONSE']._serialized_start=1999
-  _globals['_QUERYRESPONSE']._serialized_end=2333
-  _globals['_STATUSREQUEST']._serialized_start=2335
-  _globals['_STATUSREQUEST']._serialized_end=2350
-  _globals['_PROVIDERHEALTH']._serialized_start=2353
-  _globals['_PROVIDERHEALTH']._serialized_end=2523
-  _globals['_STATUSRESPONSE']._serialized_start=2526
-  _globals['_STATUSRESPONSE']._serialized_end=2716
-  _globals['_ROUTINGSERVICE']._serialized_start=2986
-  _globals['_ROUTINGSERVICE']._serialized_end=3201
+  _globals['_QUERYREQUEST']._serialized_start=99
+  _globals['_QUERYREQUEST']._serialized_end=359
+  _globals['_SEARCHOVERRIDES']._serialized_start=362
+  _globals['_SEARCHOVERRIDES']._serialized_end=695
+  _globals['_SEARCHHIT']._serialized_start=698
+  _globals['_SEARCHHIT']._serialized_end=1071
+  _globals['_MEASUREHIT']._serialized_start=1074
+  _globals['_MEASUREHIT']._serialized_end=1423
+  _globals['_MEASUREHIT_PARAMSENTRY']._serialized_start=1366
+  _globals['_MEASUREHIT_PARAMSENTRY']._serialized_end=1423
+  _globals['_PROVIDERRESULTGROUP']._serialized_start=1426
+  _globals['_PROVIDERRESULTGROUP']._serialized_end=1611
+  _globals['_QUERYRESPONSE']._serialized_start=1614
+  _globals['_QUERYRESPONSE']._serialized_end=1948
+  _globals['_STATUSREQUEST']._serialized_start=1950
+  _globals['_STATUSREQUEST']._serialized_end=1965
+  _globals['_PROVIDERHEALTH']._serialized_start=1968
+  _globals['_PROVIDERHEALTH']._serialized_end=2138
+  _globals['_STATUSRESPONSE']._serialized_start=2141
+  _globals['_STATUSRESPONSE']._serialized_end=2331
+  _globals['_ROUTINGSERVICE']._serialized_start=2334
+  _globals['_ROUTINGSERVICE']._serialized_end=2549
 # @@protoc_insertion_point(module_scope)

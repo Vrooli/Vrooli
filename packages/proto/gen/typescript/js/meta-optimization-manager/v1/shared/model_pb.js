@@ -8,7 +8,7 @@ import { enumDesc, fileDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
  * Describes the file meta-optimization-manager/v1/shared/model.proto.
  */
 export const file_meta_optimization_manager_v1_shared_model = /*@__PURE__*/
-  fileDesc("Ci9tZXRhLW9wdGltaXphdGlvbi1tYW5hZ2VyL3YxL3NoYXJlZC9tb2RlbC5wcm90bxIqdnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuc2hhcmVkKm4KClByb2plY3Rpb24SGgoWUFJPSkVDVElPTl9VTlNQRUNJRklFRBAAEhUKEVBST0pFQ1RJT05fQU5TV0VSEAESFwoTUFJPSkVDVElPTl9WQUxJREFURRACEhQKEFBST0pFQ1RJT05fR1VJREUQAyqwAQoVRGVub21pbmF0b3JDb25maWRlbmNlEiYKIkRFTk9NSU5BVE9SX0NPTkZJREVOQ0VfVU5TUEVDSUZJRUQQABIoCiRERU5PTUlOQVRPUl9DT05GSURFTkNFX0FVVEhPUklUQVRJVkUQARIiCh5ERU5PTUlOQVRPUl9DT05GSURFTkNFX1BBUlRJQUwQAhIhCh1ERU5PTUlOQVRPUl9DT05GSURFTkNFX1NLRVRDSBADKnEKCkNlbGxTdGF0dXMSGwoXQ0VMTF9TVEFUVVNfVU5TUEVDSUZJRUQQABITCg9DRUxMX1NUQVRVU19OT1cQARIYChRDRUxMX1NUQVRVU19JTl9SRUFDSBACEhcKE0NFTExfU1RBVFVTX01JU1NJTkcQAyqPAQoFQmFzaXMSFQoRQkFTSVNfVU5TUEVDSUZJRUQQABIRCg1CQVNJU19ERVJJVkVEEAESEwoPQkFTSVNfVkFMSURBVEVEEAISHQoZQkFTSVNfREVDTEFSRURfVU5WRVJJRklFRBADEhYKEkJBU0lTX0NPTlRSQURJQ1RFRBAEEhAKDEJBU0lTX0FCU0VOVBAFKncKC1N1ZmZpY2llbmN5EhsKF1NVRkZJQ0lFTkNZX1VOU1BFQ0lGSUVEEAASFAoQU1VGRklDSUVOQ1lfRlVMTBABEhcKE1NVRkZJQ0lFTkNZX1BBUlRJQUwQAhIcChhTVUZGSUNJRU5DWV9JTlNVRkZJQ0lFTlQQAypeCghTZXZlcml0eRIYChRTRVZFUklUWV9VTlNQRUNJRklFRBAAEhEKDVNFVkVSSVRZX0lORk8QARIRCg1TRVZFUklUWV9XQVJOEAISEgoOU0VWRVJJVFlfRVJST1IQA0JeWlxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21ldGEtb3B0aW1pemF0aW9uLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("Ci9tZXRhLW9wdGltaXphdGlvbi1tYW5hZ2VyL3YxL3NoYXJlZC9tb2RlbC5wcm90bxIqdnJvb2xpLm1ldGFfb3B0aW1pemF0aW9uX21hbmFnZXIudjEuc2hhcmVkKm4KClByb2plY3Rpb24SGgoWUFJPSkVDVElPTl9VTlNQRUNJRklFRBAAEhUKEVBST0pFQ1RJT05fQU5TV0VSEAESFwoTUFJPSkVDVElPTl9WQUxJREFURRACEhQKEFBST0pFQ1RJT05fR1VJREUQAyqwAQoVRGVub21pbmF0b3JDb25maWRlbmNlEiYKIkRFTk9NSU5BVE9SX0NPTkZJREVOQ0VfVU5TUEVDSUZJRUQQABIoCiRERU5PTUlOQVRPUl9DT05GSURFTkNFX0FVVEhPUklUQVRJVkUQARIiCh5ERU5PTUlOQVRPUl9DT05GSURFTkNFX1BBUlRJQUwQAhIhCh1ERU5PTUlOQVRPUl9DT05GSURFTkNFX1NLRVRDSBADKnEKCkNlbGxTdGF0dXMSGwoXQ0VMTF9TVEFUVVNfVU5TUEVDSUZJRUQQABITCg9DRUxMX1NUQVRVU19OT1cQARIYChRDRUxMX1NUQVRVU19JTl9SRUFDSBACEhcKE0NFTExfU1RBVFVTX01JU1NJTkcQAypeCghTZXZlcml0eRIYChRTRVZFUklUWV9VTlNQRUNJRklFRBAAEhEKDVNFVkVSSVRZX0lORk8QARIRCg1TRVZFUklUWV9XQVJOEAISEgoOU0VWRVJJVFlfRVJST1IQA0JeWlxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21ldGEtb3B0aW1pemF0aW9uLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
 
 /**
  * Describes the enum vrooli.meta_optimization_manager.v1.shared.Projection.
@@ -61,40 +61,10 @@ export const CellStatus = /*@__PURE__*/
   tsEnum(CellStatusSchema);
 
 /**
- * Describes the enum vrooli.meta_optimization_manager.v1.shared.Basis.
- */
-export const BasisSchema = /*@__PURE__*/
-  enumDesc(file_meta_optimization_manager_v1_shared_model, 3);
-
-/**
- * Basis is the epistemic provenance axis of the attestation contract: how do we
- * know the answer? Ordered most-trusted to least.
- *
- * @generated from enum vrooli.meta_optimization_manager.v1.shared.Basis
- */
-export const Basis = /*@__PURE__*/
-  tsEnum(BasisSchema);
-
-/**
- * Describes the enum vrooli.meta_optimization_manager.v1.shared.Sufficiency.
- */
-export const SufficiencySchema = /*@__PURE__*/
-  enumDesc(file_meta_optimization_manager_v1_shared_model, 4);
-
-/**
- * Sufficiency is the coverage axis of the attestation contract: is the source
- * even shaped to answer the question? Orthogonal to Basis.
- *
- * @generated from enum vrooli.meta_optimization_manager.v1.shared.Sufficiency
- */
-export const Sufficiency = /*@__PURE__*/
-  tsEnum(SufficiencySchema);
-
-/**
  * Describes the enum vrooli.meta_optimization_manager.v1.shared.Severity.
  */
 export const SeveritySchema = /*@__PURE__*/
-  enumDesc(file_meta_optimization_manager_v1_shared_model, 5);
+  enumDesc(file_meta_optimization_manager_v1_shared_model, 3);
 
 /**
  * Severity grades a base-document-integrity issue.

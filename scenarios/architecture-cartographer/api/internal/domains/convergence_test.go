@@ -172,3 +172,62 @@ func TestConvergence_HighConfidenceWhenDomainsDocAuthority(t *testing.T) {
 		}
 	}
 }
+
+func TestResolve_AddsInferredArchetype(t *testing.T) {
+	m, err := Resolve("x", []Extraction{{
+		Source: SourceDomainsDoc,
+		Domains: []ExtractedDomain{{
+			Name:       "graph",
+			Paths:      []string{"api/internal/graph/"},
+			Archetypes: DeclaredArchetypes("service"),
+		}},
+	}}, time.Time{})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	var hasInferred bool
+	for _, archetype := range m.Domains[0].Archetypes {
+		if archetype.Source == ArchetypeSourceInferred && archetype.Name == "service" && archetype.Confidence >= 0.6 {
+			hasInferred = true
+		}
+	}
+	if !hasInferred {
+		t.Fatalf("expected inferred service archetype, got %+v", m.Domains[0].Archetypes)
+	}
+}
+
+func TestConvergence_ArchetypeDrift(t *testing.T) {
+	m, err := Resolve("x", []Extraction{{
+		Source: SourceDomainsDoc,
+		Domains: []ExtractedDomain{{
+			Name:       "apply",
+			Paths:      []string{"api/internal/apply/"},
+			Archetypes: DeclaredArchetypes("query"),
+		}},
+	}}, time.Time{})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	byKind := findingsByKind(Convergence(m))
+	if got := byKind[FindingArchetypeDrift]; len(got) != 1 || got[0] != "apply" {
+		t.Fatalf("archetype_drift = %v, want [apply]", got)
+	}
+}
+
+func TestConvergence_ArchetypeMatchNoDrift(t *testing.T) {
+	m, err := Resolve("x", []Extraction{{
+		Source: SourceDomainsDoc,
+		Domains: []ExtractedDomain{{
+			Name:       "apply",
+			Paths:      []string{"api/internal/apply/"},
+			Archetypes: DeclaredArchetypes("mutation"),
+		}},
+	}}, time.Time{})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	byKind := findingsByKind(Convergence(m))
+	if got := byKind[FindingArchetypeDrift]; len(got) != 0 {
+		t.Fatalf("archetype_drift = %v, want none", got)
+	}
+}

@@ -142,6 +142,123 @@
       ]
     },
     {
+      "name": "zones",
+      "description": "Inspect template-derived code-layout zones and layering cross-checks",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Show the package-to-zone map for a target scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "snapshot-id",
+              "description": "Optional graph snapshot id; defaults to the latest cached snapshot or a fresh extraction"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "GetZoneMap"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "slice",
+      "description": "Inspect a domain's proto-to-surface implementation slice",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Show the implementation slice for a target scenario domain",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            },
+            {
+              "name": "domain",
+              "required": true,
+              "description": "Domain name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "snapshot-id",
+              "description": "Optional graph snapshot id; defaults to the latest cached snapshot or a fresh extraction"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "GetSlice"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "archetype",
+      "description": "Infer and converge each domain's archetype (Q20) against the declared DOMAINS.md value",
+      "commands": [
+        {
+          "name": "infer",
+          "description": "Infer each domain's archetype from graph signals and report declared-vs-inferred drift",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "domain",
+              "description": "Optional single domain; defaults to every domain in the map"
+            },
+            {
+              "name": "snapshot-id",
+              "description": "Optional graph snapshot id; defaults to the latest cached snapshot or a fresh extraction"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "InferArchetype"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "audit",
       "description": "Run a CI-shaped drift audit — orchestrates graph extract (if needed), domains derivation, and conflicts detection, then maps the outcome to a process exit code",
       "commands": [
@@ -1100,6 +1217,16 @@
       "service": "ScenarioValidationService",
       "method": "ValidateScenario",
       "reason": "Shared cross-scenario validation surface; exercised via the audit run command rather than a dedicated binding."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "PreviewFix",
+      "reason": "Shared validation fix-preview surface; architecture-cartographer exposes remediation through audit/apply workflows rather than a dedicated shared-validation CLI binding."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Shared validation fix-application surface; architecture-cartographer keeps mutations behind its apply domain until governance for shared validation mutations is finalized."
     }
   ]
 }

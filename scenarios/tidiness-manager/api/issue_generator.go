@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 // IssueGeneratorConfig defines thresholds for issue generation
@@ -143,6 +144,16 @@ func severityForComplexity(complexity, threshold int) string {
 		return "medium"
 	}
 	return "low"
+}
+
+// capSeverityAtMedium downgrades a "high" severity to "medium" (warning),
+// leaving "medium"/"low" untouched. Used to keep structural duplication visible
+// as a warning instead of gating the phase as an error.
+func capSeverityAtMedium(severity string) string {
+	if strings.EqualFold(strings.TrimSpace(severity), "high") {
+		return "medium"
+	}
+	return severity
 }
 
 // severityForDuplication returns severity based on duplication percentage

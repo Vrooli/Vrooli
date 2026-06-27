@@ -139,12 +139,12 @@ func DraftFromMap(m DerivedDomainMap) DomainDraft {
 			Name:       d.Name,
 			Paths:      append([]string(nil), d.Paths...),
 			Glossary:   append([]string(nil), d.Glossary...),
-			Archetype:  d.Archetype,
+			Archetypes: cloneArchetypes(d.Archetypes),
 			Confidence: draftConfidence(m, d),
 			Evidence:   sourceEvidence(d.Provenance),
 		}
-		if p.Archetype == "" {
-			p.Archetype = "TODO"
+		if len(p.Archetypes) == 0 {
+			p.Archetypes = DeclaredArchetypes("TODO")
 		}
 		out.Domains = append(out.Domains, p)
 	}
@@ -181,16 +181,47 @@ func draftMarkdown(d DomainDraft) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Domains — %s\n\n", d.Scenario)
 	b.WriteString("## Domain Inventory\n\n")
-	b.WriteString("| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths | Glossary |\n")
+	b.WriteString("| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |\n")
 	b.WriteString("|---|---|---|---|---|---|---|---|\n")
 	for _, domain := range d.Domains {
-		fmt.Fprintf(&b, "| %s | TODO | %s | TODO | TODO | TODO | %s | %s |\n",
+		fmt.Fprintf(&b, "| %s | TODO | TODO | TODO | %s | %s | %s | %s |\n",
 			domain.Name,
-			domain.Archetype,
-			formatDraftList(domain.Paths),
-			formatDraftList(domain.Glossary))
+			formatPrimaryArchetype(domain.Archetypes),
+			formatSecondaryTraits(domain.Archetypes),
+			formatDraftList(domain.Glossary),
+			formatDraftList(domain.Paths))
 	}
 	return b.String()
+}
+
+func formatPrimaryArchetype(archetypes []DomainArchetype) string {
+	if len(archetypes) == 0 {
+		return "TODO"
+	}
+	for _, archetype := range archetypes {
+		if archetype.Source == ArchetypeSourceDeclared && archetype.Name != "" {
+			return archetype.Name
+		}
+	}
+	return archetypes[0].Name
+}
+
+func formatSecondaryTraits(archetypes []DomainArchetype) string {
+	if len(archetypes) <= 1 {
+		return "—"
+	}
+	primary := formatPrimaryArchetype(archetypes)
+	traits := make([]string, 0, len(archetypes)-1)
+	for _, archetype := range archetypes {
+		if archetype.Name == "" || archetype.Name == primary {
+			continue
+		}
+		traits = append(traits, archetype.Name)
+	}
+	if len(traits) == 0 {
+		return "—"
+	}
+	return strings.Join(traits, ", ")
 }
 
 func formatDraftList(values []string) string {

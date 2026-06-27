@@ -49,19 +49,37 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-05-21 — go-code-graph does not exist yet (initialized 2026-05-23, not implemented)
+### 2026-05-21 — go-code-graph Go extraction (RESOLVED 2026-05-25)
 
-**Symptom:** Cartographer's Go-side `graph` extraction cannot run end-to-end because the `go-code-graph` scenario it depends on for Go source parsing is initialized (PRD, requirements, docs in place at `scenarios/go-code-graph/` as of 2026-05-23) but no domain implementation has shipped. Cartographer's `graph` and `apply` domains still cannot call real `Extract` / `Rewrite` endpoints for Go.
+**Status:** RESOLVED. `go-code-graph` shipped its deterministic `Extract` (over
+`golang.org/x/tools/go/packages`) on 2026-05-25; cartographer's `graph` domain
+calls it for real Go extraction. The earlier "initialized but not implemented"
+state is no longer true. The build-tagged `e2e_lang_graph_test.go` is now filled
+to drive a live extract → zones/slice/drift end-to-end (run with
+`go test -tags e2e_lang_graph ./internal/conflicts/`).
 
-**Root cause:** Layered scenario architecture (see [`DECISIONS.md`](DECISIONS.md), entry 2026-05-21) requires graph extraction to live in language-specific scenarios. The 2026-05-23 initialization session generated `go-code-graph` from the `react-vite` template, authored a full PRD (10 P0 + 5 P1 + 5 P2), generated and validated requirements (15 modules `healthy`), and filled the docs surface — but did not implement the `graph` or `rewrite` domains.
+**Refs:** [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — Intentional Deviations; [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — Scenario Dependencies; `scenarios/go-code-graph/` PRD and PROBLEMS.md.
 
-**Workaround:** Cartographer's `e2e_lang_graph_test.go` remains build-tagged off (`//go:build e2e_lang_graph`). Cartographer's `bas/fixtures/go-cycles/expected-graph.json` is hand-curated and stands in for what `go-code-graph` will eventually return.
+### 2026-06-27 — Q17 feature/runtime-flow is a non-goal (prerequisite recorded)
 
-**Real fix:** Implement the P0 operational targets in `go-code-graph` per its launch sequencing: deterministic `Extract` against `golang.org/x/tools/go/packages`, two-step `Rewrite`, fixture determinism gate. Once `go-code-graph`'s `Extract` is shipping, unstub `e2e_lang_graph_test.go`. The Go-source fixture for `bas/fixtures/go-cycles/` belongs in `scenarios/go-code-graph/bas/fixtures/go-cycles/` per the fixture-split decision; cartographer keeps `expected-conflicts.json` and references the language-scenario's `expected-graph.json` (or keeps a copy as integration-test input).
+**Symptom:** The answer-space row Q17 (feature/runtime flow — "how does a
+request flow through domain X at runtime?") is not answerable today and is
+explicitly out of scope for the capability-completion work.
 
-**Owner:** Next implementation agent. Plan is to drive each scenario in its own chat per the user's preference.
+**Root cause:** Reconstructing a feature flow needs call/reference edges that the
+shared code-graph envelope does not yet define. `common/v1/code_graph.proto`'s
+`EdgeKind` has only import/intra-package-ref/re-export kinds — there is no
+`EDGE_KIND_CALL` or `EDGE_KIND_REFERENCE`, and neither go-code-graph
+(`x/tools/go/callgraph`) nor typescript-code-graph (ts-morph) emits them.
 
-**Refs:** [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — Intentional Deviations; [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — Scenario Dependencies; PRD.md — Launch sequencing step 1; `scenarios/go-code-graph/` PRD and PROBLEMS.md.
+**Real fix (prerequisite, then build):** (1) add `EDGE_KIND_CALL` +
+`EDGE_KIND_REFERENCE` to `packages/proto/schemas/common/v1/code_graph.proto`;
+(2) emit them from go-code-graph and typescript-code-graph; (3) only then build
+the flow-reconstruction engine. The Q16 slice already exposes package-level
+`layer_edges`; the symbol-level upgrade rides on the same call/reference-edge
+work. Tracked as the sequel-after-search or a parallel code-graph plan.
+
+**Owner:** A later plan (code-graph call/reference edges), not this one.
 
 ### 2026-05-21 — `vrooli scenario requirements validate` and `lint-prd` are broken by an unrelated test-genie build error
 

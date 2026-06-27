@@ -74,6 +74,61 @@ func (CommercialUse) EnumDescriptor() ([]byte, []int) {
 	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{0}
 }
 
+// ModelLayout classifies an import source's on-disk shape, which determines how
+// it installs (single-file → direct asset; diffusers-repo → pinned snapshot).
+type ModelLayout int32
+
+const (
+	ModelLayout_MODEL_LAYOUT_UNSPECIFIED ModelLayout = 0
+	// A single self-contained checkpoint (.safetensors/.ckpt) — installs as a
+	// direct asset on the stable-diffusion.cpp backend.
+	ModelLayout_MODEL_LAYOUT_SINGLE_FILE ModelLayout = 1
+	// A model_index.json + sharded subdir tree — installs as a pinned snapshot on
+	// the diffusers backend.
+	ModelLayout_MODEL_LAYOUT_DIFFUSERS_REPO ModelLayout = 2
+)
+
+// Enum value maps for ModelLayout.
+var (
+	ModelLayout_name = map[int32]string{
+		0: "MODEL_LAYOUT_UNSPECIFIED",
+		1: "MODEL_LAYOUT_SINGLE_FILE",
+		2: "MODEL_LAYOUT_DIFFUSERS_REPO",
+	}
+	ModelLayout_value = map[string]int32{
+		"MODEL_LAYOUT_UNSPECIFIED":    0,
+		"MODEL_LAYOUT_SINGLE_FILE":    1,
+		"MODEL_LAYOUT_DIFFUSERS_REPO": 2,
+	}
+)
+
+func (x ModelLayout) Enum() *ModelLayout {
+	p := new(ModelLayout)
+	*p = x
+	return p
+}
+
+func (x ModelLayout) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ModelLayout) Descriptor() protoreflect.EnumDescriptor {
+	return file_image_tools_v1_models_models_proto_enumTypes[1].Descriptor()
+}
+
+func (ModelLayout) Type() protoreflect.EnumType {
+	return &file_image_tools_v1_models_models_proto_enumTypes[1]
+}
+
+func (x ModelLayout) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ModelLayout.Descriptor instead.
+func (ModelLayout) EnumDescriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{1}
+}
+
 // CatalogFindingSeverity classifies a catalog doctor finding.
 type CatalogFindingSeverity int32
 
@@ -108,11 +163,11 @@ func (x CatalogFindingSeverity) String() string {
 }
 
 func (CatalogFindingSeverity) Descriptor() protoreflect.EnumDescriptor {
-	return file_image_tools_v1_models_models_proto_enumTypes[1].Descriptor()
+	return file_image_tools_v1_models_models_proto_enumTypes[2].Descriptor()
 }
 
 func (CatalogFindingSeverity) Type() protoreflect.EnumType {
-	return &file_image_tools_v1_models_models_proto_enumTypes[1]
+	return &file_image_tools_v1_models_models_proto_enumTypes[2]
 }
 
 func (x CatalogFindingSeverity) Number() protoreflect.EnumNumber {
@@ -121,7 +176,7 @@ func (x CatalogFindingSeverity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CatalogFindingSeverity.Descriptor instead.
 func (CatalogFindingSeverity) EnumDescriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{1}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{2}
 }
 
 // Hardware captures a model's host requirements.
@@ -1495,6 +1550,409 @@ func (x *AddCustomModelResponse) GetModel() *Model {
 	return nil
 }
 
+// ArchitectureInference is the proposed architecture for an inspected source.
+type ArchitectureInference struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// architecture is the models.Architecture enum value ("sdxl", "sd15", "flux",
+	// …) or "none" when nothing recognizable was found (manual pick required).
+	Architecture string `protobuf:"bytes,1,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	// confidence grades the signal: "none" | "low" | "medium" | "high".
+	Confidence string `protobuf:"bytes,2,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	// evidence is the human-readable basis (e.g. `pipeline class "StableDiffusionXLPipeline"`).
+	Evidence      string `protobuf:"bytes,3,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureInference) Reset() {
+	*x = ArchitectureInference{}
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureInference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureInference) ProtoMessage() {}
+
+func (x *ArchitectureInference) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureInference.ProtoReflect.Descriptor instead.
+func (*ArchitectureInference) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ArchitectureInference) GetArchitecture() string {
+	if x != nil {
+		return x.Architecture
+	}
+	return ""
+}
+
+func (x *ArchitectureInference) GetConfidence() string {
+	if x != nil {
+		return x.Confidence
+	}
+	return ""
+}
+
+func (x *ArchitectureInference) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+type InspectModelSourceRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A HuggingFace repo id ("org/name"), a direct weight URL, or a local path.
+	Source        string `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectModelSourceRequest) Reset() {
+	*x = InspectModelSourceRequest{}
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectModelSourceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectModelSourceRequest) ProtoMessage() {}
+
+func (x *InspectModelSourceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectModelSourceRequest.ProtoReflect.Descriptor instead.
+func (*InspectModelSourceRequest) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *InspectModelSourceRequest) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+type InspectModelSourceResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Source string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	// Resolved HuggingFace repo id + immutable commit SHA (empty for URL/local).
+	RepoId       string                 `protobuf:"bytes,2,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
+	Revision     string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Layout       ModelLayout            `protobuf:"varint,4,opt,name=layout,proto3,enum=vrooli.image_tools.v1.models.ModelLayout" json:"layout,omitempty"`
+	Architecture *ArchitectureInference `protobuf:"bytes,5,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	// Declared license ("unverified" when the source declares none) + NSFW flag.
+	License   string `protobuf:"bytes,6,opt,name=license,proto3" json:"license,omitempty"`
+	Nsfw      bool   `protobuf:"varint,7,opt,name=nsfw,proto3" json:"nsfw,omitempty"`
+	SizeBytes uint64 `protobuf:"varint,8,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// diffusers _class_name when the source is a diffusers repo (else "").
+	PipelineClass string `protobuf:"bytes,9,opt,name=pipeline_class,json=pipelineClass,proto3" json:"pipeline_class,omitempty"`
+	// The operations the proposed entry would offer (native + proven-derived).
+	OfferedOperations []string `protobuf:"bytes,10,rep,name=offered_operations,json=offeredOperations,proto3" json:"offered_operations,omitempty"`
+	// The registry entry that WOULD be added (pre-confirmation); the client shows
+	// it for confirmation and may override id/name/architecture/operations.
+	Proposed      *Model `protobuf:"bytes,11,opt,name=proposed,proto3" json:"proposed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InspectModelSourceResponse) Reset() {
+	*x = InspectModelSourceResponse{}
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InspectModelSourceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InspectModelSourceResponse) ProtoMessage() {}
+
+func (x *InspectModelSourceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InspectModelSourceResponse.ProtoReflect.Descriptor instead.
+func (*InspectModelSourceResponse) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *InspectModelSourceResponse) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *InspectModelSourceResponse) GetRepoId() string {
+	if x != nil {
+		return x.RepoId
+	}
+	return ""
+}
+
+func (x *InspectModelSourceResponse) GetRevision() string {
+	if x != nil {
+		return x.Revision
+	}
+	return ""
+}
+
+func (x *InspectModelSourceResponse) GetLayout() ModelLayout {
+	if x != nil {
+		return x.Layout
+	}
+	return ModelLayout_MODEL_LAYOUT_UNSPECIFIED
+}
+
+func (x *InspectModelSourceResponse) GetArchitecture() *ArchitectureInference {
+	if x != nil {
+		return x.Architecture
+	}
+	return nil
+}
+
+func (x *InspectModelSourceResponse) GetLicense() string {
+	if x != nil {
+		return x.License
+	}
+	return ""
+}
+
+func (x *InspectModelSourceResponse) GetNsfw() bool {
+	if x != nil {
+		return x.Nsfw
+	}
+	return false
+}
+
+func (x *InspectModelSourceResponse) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *InspectModelSourceResponse) GetPipelineClass() string {
+	if x != nil {
+		return x.PipelineClass
+	}
+	return ""
+}
+
+func (x *InspectModelSourceResponse) GetOfferedOperations() []string {
+	if x != nil {
+		return x.OfferedOperations
+	}
+	return nil
+}
+
+func (x *InspectModelSourceResponse) GetProposed() *Model {
+	if x != nil {
+		return x.Proposed
+	}
+	return nil
+}
+
+type ImportModelRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The import source (same forms as InspectModelSource).
+	Source string `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	// Operator-confirmed id for the new entry (must not collide with a seed model).
+	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	// Display name (defaults to the source's last path segment when empty).
+	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// Operator-confirmed architecture (models.Architecture value). REQUIRED when
+	// inference returned "none"; overrides inference otherwise.
+	Architecture string `protobuf:"bytes,4,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	// Operator-confirmed operations (defaults to the architecture's base ops).
+	Operations []string `protobuf:"bytes,5,rep,name=operations,proto3" json:"operations,omitempty"`
+	// Attest commercial rights to allow public/BYOK serving (decision D4). Local
+	// serving never requires this.
+	AttestCommercialRights bool `protobuf:"varint,6,opt,name=attest_commercial_rights,json=attestCommercialRights,proto3" json:"attest_commercial_rights,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ImportModelRequest) Reset() {
+	*x = ImportModelRequest{}
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportModelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportModelRequest) ProtoMessage() {}
+
+func (x *ImportModelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportModelRequest.ProtoReflect.Descriptor instead.
+func (*ImportModelRequest) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ImportModelRequest) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ImportModelRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ImportModelRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ImportModelRequest) GetArchitecture() string {
+	if x != nil {
+		return x.Architecture
+	}
+	return ""
+}
+
+func (x *ImportModelRequest) GetOperations() []string {
+	if x != nil {
+		return x.Operations
+	}
+	return nil
+}
+
+func (x *ImportModelRequest) GetAttestCommercialRights() bool {
+	if x != nil {
+		return x.AttestCommercialRights
+	}
+	return false
+}
+
+type ImportModelResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The registered entry (add-only, local tier, user-imported provenance).
+	Model *Model `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
+	// The durable install job (mirrors InstallModel). Empty job_id with
+	// already_installed=true means the weights were already present.
+	JobId            string `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	EtaSeconds       int32  `protobuf:"varint,3,opt,name=eta_seconds,json=etaSeconds,proto3" json:"eta_seconds,omitempty"`
+	AlreadyInstalled bool   `protobuf:"varint,4,opt,name=already_installed,json=alreadyInstalled,proto3" json:"already_installed,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ImportModelResponse) Reset() {
+	*x = ImportModelResponse{}
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportModelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportModelResponse) ProtoMessage() {}
+
+func (x *ImportModelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportModelResponse.ProtoReflect.Descriptor instead.
+func (*ImportModelResponse) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ImportModelResponse) GetModel() *Model {
+	if x != nil {
+		return x.Model
+	}
+	return nil
+}
+
+func (x *ImportModelResponse) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *ImportModelResponse) GetEtaSeconds() int32 {
+	if x != nil {
+		return x.EtaSeconds
+	}
+	return 0
+}
+
+func (x *ImportModelResponse) GetAlreadyInstalled() bool {
+	if x != nil {
+		return x.AlreadyInstalled
+	}
+	return false
+}
+
 type SetDefaultModelRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Operation string                 `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
@@ -1507,7 +1965,7 @@ type SetDefaultModelRequest struct {
 
 func (x *SetDefaultModelRequest) Reset() {
 	*x = SetDefaultModelRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[23]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1519,7 +1977,7 @@ func (x *SetDefaultModelRequest) String() string {
 func (*SetDefaultModelRequest) ProtoMessage() {}
 
 func (x *SetDefaultModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[23]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1532,7 +1990,7 @@ func (x *SetDefaultModelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDefaultModelRequest.ProtoReflect.Descriptor instead.
 func (*SetDefaultModelRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{23}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SetDefaultModelRequest) GetOperation() string {
@@ -1559,7 +2017,7 @@ type SetDefaultModelResponse struct {
 
 func (x *SetDefaultModelResponse) Reset() {
 	*x = SetDefaultModelResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[24]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1571,7 +2029,7 @@ func (x *SetDefaultModelResponse) String() string {
 func (*SetDefaultModelResponse) ProtoMessage() {}
 
 func (x *SetDefaultModelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[24]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1584,7 +2042,7 @@ func (x *SetDefaultModelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetDefaultModelResponse.ProtoReflect.Descriptor instead.
 func (*SetDefaultModelResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{24}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SetDefaultModelResponse) GetOperation() string {
@@ -1614,7 +2072,7 @@ type OpDefault struct {
 
 func (x *OpDefault) Reset() {
 	*x = OpDefault{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[25]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1626,7 +2084,7 @@ func (x *OpDefault) String() string {
 func (*OpDefault) ProtoMessage() {}
 
 func (x *OpDefault) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[25]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1639,7 +2097,7 @@ func (x *OpDefault) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpDefault.ProtoReflect.Descriptor instead.
 func (*OpDefault) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{25}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *OpDefault) GetOperation() string {
@@ -1671,7 +2129,7 @@ type ListDefaultsRequest struct {
 
 func (x *ListDefaultsRequest) Reset() {
 	*x = ListDefaultsRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[26]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1683,7 +2141,7 @@ func (x *ListDefaultsRequest) String() string {
 func (*ListDefaultsRequest) ProtoMessage() {}
 
 func (x *ListDefaultsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[26]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1696,7 +2154,7 @@ func (x *ListDefaultsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDefaultsRequest.ProtoReflect.Descriptor instead.
 func (*ListDefaultsRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{26}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{31}
 }
 
 type ListDefaultsResponse struct {
@@ -1708,7 +2166,7 @@ type ListDefaultsResponse struct {
 
 func (x *ListDefaultsResponse) Reset() {
 	*x = ListDefaultsResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[27]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1720,7 +2178,7 @@ func (x *ListDefaultsResponse) String() string {
 func (*ListDefaultsResponse) ProtoMessage() {}
 
 func (x *ListDefaultsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[27]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1733,7 +2191,7 @@ func (x *ListDefaultsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDefaultsResponse.ProtoReflect.Descriptor instead.
 func (*ListDefaultsResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{27}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListDefaultsResponse) GetDefaults() []*OpDefault {
@@ -1757,7 +2215,7 @@ type CatalogFinding struct {
 
 func (x *CatalogFinding) Reset() {
 	*x = CatalogFinding{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[28]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1769,7 +2227,7 @@ func (x *CatalogFinding) String() string {
 func (*CatalogFinding) ProtoMessage() {}
 
 func (x *CatalogFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[28]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1782,7 +2240,7 @@ func (x *CatalogFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CatalogFinding.ProtoReflect.Descriptor instead.
 func (*CatalogFinding) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{28}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CatalogFinding) GetSeverity() CatalogFindingSeverity {
@@ -1828,7 +2286,7 @@ type DoctorCatalogRequest struct {
 
 func (x *DoctorCatalogRequest) Reset() {
 	*x = DoctorCatalogRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[29]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1840,7 +2298,7 @@ func (x *DoctorCatalogRequest) String() string {
 func (*DoctorCatalogRequest) ProtoMessage() {}
 
 func (x *DoctorCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[29]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1853,7 +2311,7 @@ func (x *DoctorCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorCatalogRequest.ProtoReflect.Descriptor instead.
 func (*DoctorCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{29}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{34}
 }
 
 type DoctorCatalogResponse struct {
@@ -1866,7 +2324,7 @@ type DoctorCatalogResponse struct {
 
 func (x *DoctorCatalogResponse) Reset() {
 	*x = DoctorCatalogResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[30]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1878,7 +2336,7 @@ func (x *DoctorCatalogResponse) String() string {
 func (*DoctorCatalogResponse) ProtoMessage() {}
 
 func (x *DoctorCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[30]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1891,7 +2349,7 @@ func (x *DoctorCatalogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorCatalogResponse.ProtoReflect.Descriptor instead.
 func (*DoctorCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{30}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DoctorCatalogResponse) GetOk() bool {
@@ -1932,7 +2390,7 @@ type BackendStatus struct {
 
 func (x *BackendStatus) Reset() {
 	*x = BackendStatus{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[31]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1944,7 +2402,7 @@ func (x *BackendStatus) String() string {
 func (*BackendStatus) ProtoMessage() {}
 
 func (x *BackendStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[31]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1957,7 +2415,7 @@ func (x *BackendStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackendStatus.ProtoReflect.Descriptor instead.
 func (*BackendStatus) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{31}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *BackendStatus) GetName() string {
@@ -2045,7 +2503,7 @@ type DoctorBackendsRequest struct {
 
 func (x *DoctorBackendsRequest) Reset() {
 	*x = DoctorBackendsRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[32]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2057,7 +2515,7 @@ func (x *DoctorBackendsRequest) String() string {
 func (*DoctorBackendsRequest) ProtoMessage() {}
 
 func (x *DoctorBackendsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[32]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2070,7 +2528,7 @@ func (x *DoctorBackendsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorBackendsRequest.ProtoReflect.Descriptor instead.
 func (*DoctorBackendsRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{32}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{37}
 }
 
 type DoctorBackendsResponse struct {
@@ -2083,7 +2541,7 @@ type DoctorBackendsResponse struct {
 
 func (x *DoctorBackendsResponse) Reset() {
 	*x = DoctorBackendsResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[33]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2095,7 +2553,7 @@ func (x *DoctorBackendsResponse) String() string {
 func (*DoctorBackendsResponse) ProtoMessage() {}
 
 func (x *DoctorBackendsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[33]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2108,7 +2566,7 @@ func (x *DoctorBackendsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DoctorBackendsResponse.ProtoReflect.Descriptor instead.
 func (*DoctorBackendsResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{33}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *DoctorBackendsResponse) GetOk() bool {
@@ -2141,7 +2599,7 @@ type EnsureBackendRequest struct {
 
 func (x *EnsureBackendRequest) Reset() {
 	*x = EnsureBackendRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[34]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2153,7 +2611,7 @@ func (x *EnsureBackendRequest) String() string {
 func (*EnsureBackendRequest) ProtoMessage() {}
 
 func (x *EnsureBackendRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[34]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2166,7 +2624,7 @@ func (x *EnsureBackendRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnsureBackendRequest.ProtoReflect.Descriptor instead.
 func (*EnsureBackendRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{34}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *EnsureBackendRequest) GetTool() string {
@@ -2214,7 +2672,7 @@ type EnsureBackendResponse struct {
 
 func (x *EnsureBackendResponse) Reset() {
 	*x = EnsureBackendResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[35]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2226,7 +2684,7 @@ func (x *EnsureBackendResponse) String() string {
 func (*EnsureBackendResponse) ProtoMessage() {}
 
 func (x *EnsureBackendResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[35]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2239,7 +2697,7 @@ func (x *EnsureBackendResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnsureBackendResponse.ProtoReflect.Descriptor instead.
 func (*EnsureBackendResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{35}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *EnsureBackendResponse) GetTool() string {
@@ -2299,7 +2757,7 @@ type GetHostSummaryRequest struct {
 
 func (x *GetHostSummaryRequest) Reset() {
 	*x = GetHostSummaryRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[36]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2311,7 +2769,7 @@ func (x *GetHostSummaryRequest) String() string {
 func (*GetHostSummaryRequest) ProtoMessage() {}
 
 func (x *GetHostSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[36]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2324,7 +2782,7 @@ func (x *GetHostSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHostSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GetHostSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{36}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{41}
 }
 
 type GetHostSummaryResponse struct {
@@ -2336,7 +2794,7 @@ type GetHostSummaryResponse struct {
 
 func (x *GetHostSummaryResponse) Reset() {
 	*x = GetHostSummaryResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[37]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2348,7 +2806,7 @@ func (x *GetHostSummaryResponse) String() string {
 func (*GetHostSummaryResponse) ProtoMessage() {}
 
 func (x *GetHostSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[37]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2361,7 +2819,7 @@ func (x *GetHostSummaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHostSummaryResponse.ProtoReflect.Descriptor instead.
 func (*GetHostSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{37}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetHostSummaryResponse) GetHost() *HostSummary {
@@ -2381,7 +2839,7 @@ type ListOperationModelsRequest struct {
 
 func (x *ListOperationModelsRequest) Reset() {
 	*x = ListOperationModelsRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[38]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2393,7 +2851,7 @@ func (x *ListOperationModelsRequest) String() string {
 func (*ListOperationModelsRequest) ProtoMessage() {}
 
 func (x *ListOperationModelsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[38]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2406,7 +2864,7 @@ func (x *ListOperationModelsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOperationModelsRequest.ProtoReflect.Descriptor instead.
 func (*ListOperationModelsRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{38}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ListOperationModelsRequest) GetOperation() string {
@@ -2454,7 +2912,7 @@ type Resolution struct {
 
 func (x *Resolution) Reset() {
 	*x = Resolution{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[39]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2466,7 +2924,7 @@ func (x *Resolution) String() string {
 func (*Resolution) ProtoMessage() {}
 
 func (x *Resolution) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[39]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2479,7 +2937,7 @@ func (x *Resolution) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Resolution.ProtoReflect.Descriptor instead.
 func (*Resolution) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{39}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Resolution) GetOperation() string {
@@ -2576,7 +3034,7 @@ type ExplainResolutionRequest struct {
 
 func (x *ExplainResolutionRequest) Reset() {
 	*x = ExplainResolutionRequest{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[40]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2588,7 +3046,7 @@ func (x *ExplainResolutionRequest) String() string {
 func (*ExplainResolutionRequest) ProtoMessage() {}
 
 func (x *ExplainResolutionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[40]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2601,7 +3059,7 @@ func (x *ExplainResolutionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainResolutionRequest.ProtoReflect.Descriptor instead.
 func (*ExplainResolutionRequest) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{40}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ExplainResolutionRequest) GetOperation() string {
@@ -2634,7 +3092,7 @@ type ExplainResolutionResponse struct {
 
 func (x *ExplainResolutionResponse) Reset() {
 	*x = ExplainResolutionResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[41]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2646,7 +3104,7 @@ func (x *ExplainResolutionResponse) String() string {
 func (*ExplainResolutionResponse) ProtoMessage() {}
 
 func (x *ExplainResolutionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[41]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2659,7 +3117,7 @@ func (x *ExplainResolutionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainResolutionResponse.ProtoReflect.Descriptor instead.
 func (*ExplainResolutionResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{41}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ExplainResolutionResponse) GetResolution() *Resolution {
@@ -2696,7 +3154,7 @@ type HostSummary struct {
 
 func (x *HostSummary) Reset() {
 	*x = HostSummary{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[42]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2708,7 +3166,7 @@ func (x *HostSummary) String() string {
 func (*HostSummary) ProtoMessage() {}
 
 func (x *HostSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[42]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2721,7 +3179,7 @@ func (x *HostSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostSummary.ProtoReflect.Descriptor instead.
 func (*HostSummary) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{42}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *HostSummary) GetHasGpu() bool {
@@ -2821,7 +3279,7 @@ type ModelFit struct {
 
 func (x *ModelFit) Reset() {
 	*x = ModelFit{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[43]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2833,7 +3291,7 @@ func (x *ModelFit) String() string {
 func (*ModelFit) ProtoMessage() {}
 
 func (x *ModelFit) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[43]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2846,7 +3304,7 @@ func (x *ModelFit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelFit.ProtoReflect.Descriptor instead.
 func (*ModelFit) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{43}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ModelFit) GetRunnable() bool {
@@ -2914,7 +3372,7 @@ type BackendReadiness struct {
 
 func (x *BackendReadiness) Reset() {
 	*x = BackendReadiness{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[44]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2926,7 +3384,7 @@ func (x *BackendReadiness) String() string {
 func (*BackendReadiness) ProtoMessage() {}
 
 func (x *BackendReadiness) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[44]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2939,7 +3397,7 @@ func (x *BackendReadiness) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackendReadiness.ProtoReflect.Descriptor instead.
 func (*BackendReadiness) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{44}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *BackendReadiness) GetBackend() string {
@@ -3029,7 +3487,7 @@ type CandidateModel struct {
 
 func (x *CandidateModel) Reset() {
 	*x = CandidateModel{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[45]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3041,7 +3499,7 @@ func (x *CandidateModel) String() string {
 func (*CandidateModel) ProtoMessage() {}
 
 func (x *CandidateModel) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[45]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3054,7 +3512,7 @@ func (x *CandidateModel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CandidateModel.ProtoReflect.Descriptor instead.
 func (*CandidateModel) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{45}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *CandidateModel) GetModel() *Model {
@@ -3131,7 +3589,7 @@ type ListOperationModelsResponse struct {
 
 func (x *ListOperationModelsResponse) Reset() {
 	*x = ListOperationModelsResponse{}
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[46]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3143,7 +3601,7 @@ func (x *ListOperationModelsResponse) String() string {
 func (*ListOperationModelsResponse) ProtoMessage() {}
 
 func (x *ListOperationModelsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_models_models_proto_msgTypes[46]
+	mi := &file_image_tools_v1_models_models_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3156,7 +3614,7 @@ func (x *ListOperationModelsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOperationModelsResponse.ProtoReflect.Descriptor instead.
 func (*ListOperationModelsResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{46}
+	return file_image_tools_v1_models_models_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ListOperationModelsResponse) GetOperation() string {
@@ -3301,7 +3759,44 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"local_path\x18\x02 \x01(\tR\tlocalPath\x12!\n" +
 	"\fdownload_url\x18\x03 \x01(\tR\vdownloadUrl\"S\n" +
 	"\x16AddCustomModelResponse\x129\n" +
-	"\x05model\x18\x01 \x01(\v2#.vrooli.image_tools.v1.models.ModelR\x05model\"Q\n" +
+	"\x05model\x18\x01 \x01(\v2#.vrooli.image_tools.v1.models.ModelR\x05model\"w\n" +
+	"\x15ArchitectureInference\x12\"\n" +
+	"\farchitecture\x18\x01 \x01(\tR\farchitecture\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x02 \x01(\tR\n" +
+	"confidence\x12\x1a\n" +
+	"\bevidence\x18\x03 \x01(\tR\bevidence\"3\n" +
+	"\x19InspectModelSourceRequest\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\"\xe9\x03\n" +
+	"\x1aInspectModelSourceResponse\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x17\n" +
+	"\arepo_id\x18\x02 \x01(\tR\x06repoId\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\x12A\n" +
+	"\x06layout\x18\x04 \x01(\x0e2).vrooli.image_tools.v1.models.ModelLayoutR\x06layout\x12W\n" +
+	"\farchitecture\x18\x05 \x01(\v23.vrooli.image_tools.v1.models.ArchitectureInferenceR\farchitecture\x12\x18\n" +
+	"\alicense\x18\x06 \x01(\tR\alicense\x12\x12\n" +
+	"\x04nsfw\x18\a \x01(\bR\x04nsfw\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\b \x01(\x04R\tsizeBytes\x12%\n" +
+	"\x0epipeline_class\x18\t \x01(\tR\rpipelineClass\x12-\n" +
+	"\x12offered_operations\x18\n" +
+	" \x03(\tR\x11offeredOperations\x12?\n" +
+	"\bproposed\x18\v \x01(\v2#.vrooli.image_tools.v1.models.ModelR\bproposed\"\xce\x01\n" +
+	"\x12ImportModelRequest\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\"\n" +
+	"\farchitecture\x18\x04 \x01(\tR\farchitecture\x12\x1e\n" +
+	"\n" +
+	"operations\x18\x05 \x03(\tR\n" +
+	"operations\x128\n" +
+	"\x18attest_commercial_rights\x18\x06 \x01(\bR\x16attestCommercialRights\"\xb5\x01\n" +
+	"\x13ImportModelResponse\x129\n" +
+	"\x05model\x18\x01 \x01(\v2#.vrooli.image_tools.v1.models.ModelR\x05model\x12\x15\n" +
+	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12\x1f\n" +
+	"\veta_seconds\x18\x03 \x01(\x05R\n" +
+	"etaSeconds\x12+\n" +
+	"\x11already_installed\x18\x04 \x01(\bR\x10alreadyInstalled\"Q\n" +
 	"\x16SetDefaultModelRequest\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x19\n" +
 	"\bmodel_id\x18\x02 \x01(\tR\amodelId\"R\n" +
@@ -3443,11 +3938,15 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x1aCOMMERCIAL_USE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12COMMERCIAL_USE_YES\x10\x01\x12\x15\n" +
 	"\x11COMMERCIAL_USE_NO\x10\x02\x12\x1e\n" +
-	"\x1aCOMMERCIAL_USE_CONDITIONAL\x10\x03*\x8c\x01\n" +
+	"\x1aCOMMERCIAL_USE_CONDITIONAL\x10\x03*j\n" +
+	"\vModelLayout\x12\x1c\n" +
+	"\x18MODEL_LAYOUT_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18MODEL_LAYOUT_SINGLE_FILE\x10\x01\x12\x1f\n" +
+	"\x1bMODEL_LAYOUT_DIFFUSERS_REPO\x10\x02*\x8c\x01\n" +
 	"\x16CatalogFindingSeverity\x12(\n" +
 	"$CATALOG_FINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eCATALOG_FINDING_SEVERITY_ERROR\x10\x01\x12$\n" +
-	" CATALOG_FINDING_SEVERITY_WARNING\x10\x022\xb7\x10\n" +
+	" CATALOG_FINDING_SEVERITY_WARNING\x10\x022\xb5\x12\n" +
 	"\rModelsService\x12o\n" +
 	"\n" +
 	"ListModels\x12/.vrooli.image_tools.v1.models.ListModelsRequest\x1a0.vrooli.image_tools.v1.models.ListModelsResponse\x12i\n" +
@@ -3458,7 +3957,9 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\rListBlocklist\x122.vrooli.image_tools.v1.models.ListBlocklistRequest\x1a3.vrooli.image_tools.v1.models.ListBlocklistResponse\x12u\n" +
 	"\fInstallModel\x121.vrooli.image_tools.v1.models.InstallModelRequest\x1a2.vrooli.image_tools.v1.models.InstallModelResponse\x12r\n" +
 	"\vRemoveModel\x120.vrooli.image_tools.v1.models.RemoveModelRequest\x1a1.vrooli.image_tools.v1.models.RemoveModelResponse\x12{\n" +
-	"\x0eAddCustomModel\x123.vrooli.image_tools.v1.models.AddCustomModelRequest\x1a4.vrooli.image_tools.v1.models.AddCustomModelResponse\x12~\n" +
+	"\x0eAddCustomModel\x123.vrooli.image_tools.v1.models.AddCustomModelRequest\x1a4.vrooli.image_tools.v1.models.AddCustomModelResponse\x12\x87\x01\n" +
+	"\x12InspectModelSource\x127.vrooli.image_tools.v1.models.InspectModelSourceRequest\x1a8.vrooli.image_tools.v1.models.InspectModelSourceResponse\x12r\n" +
+	"\vImportModel\x120.vrooli.image_tools.v1.models.ImportModelRequest\x1a1.vrooli.image_tools.v1.models.ImportModelResponse\x12~\n" +
 	"\x0fSetDefaultModel\x124.vrooli.image_tools.v1.models.SetDefaultModelRequest\x1a5.vrooli.image_tools.v1.models.SetDefaultModelResponse\x12u\n" +
 	"\fListDefaults\x121.vrooli.image_tools.v1.models.ListDefaultsRequest\x1a2.vrooli.image_tools.v1.models.ListDefaultsResponse\x12x\n" +
 	"\rDoctorCatalog\x122.vrooli.image_tools.v1.models.DoctorCatalogRequest\x1a3.vrooli.image_tools.v1.models.DoctorCatalogResponse\x12{\n" +
@@ -3480,121 +3981,135 @@ func file_image_tools_v1_models_models_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_models_models_proto_rawDescData
 }
 
-var file_image_tools_v1_models_models_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_image_tools_v1_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
+var file_image_tools_v1_models_models_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_image_tools_v1_models_models_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_image_tools_v1_models_models_proto_goTypes = []any{
 	(CommercialUse)(0),                  // 0: vrooli.image_tools.v1.models.CommercialUse
-	(CatalogFindingSeverity)(0),         // 1: vrooli.image_tools.v1.models.CatalogFindingSeverity
-	(*Hardware)(nil),                    // 2: vrooli.image_tools.v1.models.Hardware
-	(*CapabilityLabels)(nil),            // 3: vrooli.image_tools.v1.models.CapabilityLabels
-	(*Model)(nil),                       // 4: vrooli.image_tools.v1.models.Model
-	(*InstallState)(nil),                // 5: vrooli.image_tools.v1.models.InstallState
-	(*BlocklistEntry)(nil),              // 6: vrooli.image_tools.v1.models.BlocklistEntry
-	(*ListModelsRequest)(nil),           // 7: vrooli.image_tools.v1.models.ListModelsRequest
-	(*ListModelsResponse)(nil),          // 8: vrooli.image_tools.v1.models.ListModelsResponse
-	(*GetModelRequest)(nil),             // 9: vrooli.image_tools.v1.models.GetModelRequest
-	(*GetModelResponse)(nil),            // 10: vrooli.image_tools.v1.models.GetModelResponse
-	(*ListOperationsRequest)(nil),       // 11: vrooli.image_tools.v1.models.ListOperationsRequest
-	(*ListOperationsResponse)(nil),      // 12: vrooli.image_tools.v1.models.ListOperationsResponse
-	(*SelectModelRequest)(nil),          // 13: vrooli.image_tools.v1.models.SelectModelRequest
-	(*SelectModelResponse)(nil),         // 14: vrooli.image_tools.v1.models.SelectModelResponse
-	(*SetModelEnabledRequest)(nil),      // 15: vrooli.image_tools.v1.models.SetModelEnabledRequest
-	(*SetModelEnabledResponse)(nil),     // 16: vrooli.image_tools.v1.models.SetModelEnabledResponse
-	(*ListBlocklistRequest)(nil),        // 17: vrooli.image_tools.v1.models.ListBlocklistRequest
-	(*ListBlocklistResponse)(nil),       // 18: vrooli.image_tools.v1.models.ListBlocklistResponse
-	(*InstallModelRequest)(nil),         // 19: vrooli.image_tools.v1.models.InstallModelRequest
-	(*InstallModelResponse)(nil),        // 20: vrooli.image_tools.v1.models.InstallModelResponse
-	(*RemoveModelRequest)(nil),          // 21: vrooli.image_tools.v1.models.RemoveModelRequest
-	(*RemoveModelResponse)(nil),         // 22: vrooli.image_tools.v1.models.RemoveModelResponse
-	(*AddCustomModelRequest)(nil),       // 23: vrooli.image_tools.v1.models.AddCustomModelRequest
-	(*AddCustomModelResponse)(nil),      // 24: vrooli.image_tools.v1.models.AddCustomModelResponse
-	(*SetDefaultModelRequest)(nil),      // 25: vrooli.image_tools.v1.models.SetDefaultModelRequest
-	(*SetDefaultModelResponse)(nil),     // 26: vrooli.image_tools.v1.models.SetDefaultModelResponse
-	(*OpDefault)(nil),                   // 27: vrooli.image_tools.v1.models.OpDefault
-	(*ListDefaultsRequest)(nil),         // 28: vrooli.image_tools.v1.models.ListDefaultsRequest
-	(*ListDefaultsResponse)(nil),        // 29: vrooli.image_tools.v1.models.ListDefaultsResponse
-	(*CatalogFinding)(nil),              // 30: vrooli.image_tools.v1.models.CatalogFinding
-	(*DoctorCatalogRequest)(nil),        // 31: vrooli.image_tools.v1.models.DoctorCatalogRequest
-	(*DoctorCatalogResponse)(nil),       // 32: vrooli.image_tools.v1.models.DoctorCatalogResponse
-	(*BackendStatus)(nil),               // 33: vrooli.image_tools.v1.models.BackendStatus
-	(*DoctorBackendsRequest)(nil),       // 34: vrooli.image_tools.v1.models.DoctorBackendsRequest
-	(*DoctorBackendsResponse)(nil),      // 35: vrooli.image_tools.v1.models.DoctorBackendsResponse
-	(*EnsureBackendRequest)(nil),        // 36: vrooli.image_tools.v1.models.EnsureBackendRequest
-	(*EnsureBackendResponse)(nil),       // 37: vrooli.image_tools.v1.models.EnsureBackendResponse
-	(*GetHostSummaryRequest)(nil),       // 38: vrooli.image_tools.v1.models.GetHostSummaryRequest
-	(*GetHostSummaryResponse)(nil),      // 39: vrooli.image_tools.v1.models.GetHostSummaryResponse
-	(*ListOperationModelsRequest)(nil),  // 40: vrooli.image_tools.v1.models.ListOperationModelsRequest
-	(*Resolution)(nil),                  // 41: vrooli.image_tools.v1.models.Resolution
-	(*ExplainResolutionRequest)(nil),    // 42: vrooli.image_tools.v1.models.ExplainResolutionRequest
-	(*ExplainResolutionResponse)(nil),   // 43: vrooli.image_tools.v1.models.ExplainResolutionResponse
-	(*HostSummary)(nil),                 // 44: vrooli.image_tools.v1.models.HostSummary
-	(*ModelFit)(nil),                    // 45: vrooli.image_tools.v1.models.ModelFit
-	(*BackendReadiness)(nil),            // 46: vrooli.image_tools.v1.models.BackendReadiness
-	(*CandidateModel)(nil),              // 47: vrooli.image_tools.v1.models.CandidateModel
-	(*ListOperationModelsResponse)(nil), // 48: vrooli.image_tools.v1.models.ListOperationModelsResponse
+	(ModelLayout)(0),                    // 1: vrooli.image_tools.v1.models.ModelLayout
+	(CatalogFindingSeverity)(0),         // 2: vrooli.image_tools.v1.models.CatalogFindingSeverity
+	(*Hardware)(nil),                    // 3: vrooli.image_tools.v1.models.Hardware
+	(*CapabilityLabels)(nil),            // 4: vrooli.image_tools.v1.models.CapabilityLabels
+	(*Model)(nil),                       // 5: vrooli.image_tools.v1.models.Model
+	(*InstallState)(nil),                // 6: vrooli.image_tools.v1.models.InstallState
+	(*BlocklistEntry)(nil),              // 7: vrooli.image_tools.v1.models.BlocklistEntry
+	(*ListModelsRequest)(nil),           // 8: vrooli.image_tools.v1.models.ListModelsRequest
+	(*ListModelsResponse)(nil),          // 9: vrooli.image_tools.v1.models.ListModelsResponse
+	(*GetModelRequest)(nil),             // 10: vrooli.image_tools.v1.models.GetModelRequest
+	(*GetModelResponse)(nil),            // 11: vrooli.image_tools.v1.models.GetModelResponse
+	(*ListOperationsRequest)(nil),       // 12: vrooli.image_tools.v1.models.ListOperationsRequest
+	(*ListOperationsResponse)(nil),      // 13: vrooli.image_tools.v1.models.ListOperationsResponse
+	(*SelectModelRequest)(nil),          // 14: vrooli.image_tools.v1.models.SelectModelRequest
+	(*SelectModelResponse)(nil),         // 15: vrooli.image_tools.v1.models.SelectModelResponse
+	(*SetModelEnabledRequest)(nil),      // 16: vrooli.image_tools.v1.models.SetModelEnabledRequest
+	(*SetModelEnabledResponse)(nil),     // 17: vrooli.image_tools.v1.models.SetModelEnabledResponse
+	(*ListBlocklistRequest)(nil),        // 18: vrooli.image_tools.v1.models.ListBlocklistRequest
+	(*ListBlocklistResponse)(nil),       // 19: vrooli.image_tools.v1.models.ListBlocklistResponse
+	(*InstallModelRequest)(nil),         // 20: vrooli.image_tools.v1.models.InstallModelRequest
+	(*InstallModelResponse)(nil),        // 21: vrooli.image_tools.v1.models.InstallModelResponse
+	(*RemoveModelRequest)(nil),          // 22: vrooli.image_tools.v1.models.RemoveModelRequest
+	(*RemoveModelResponse)(nil),         // 23: vrooli.image_tools.v1.models.RemoveModelResponse
+	(*AddCustomModelRequest)(nil),       // 24: vrooli.image_tools.v1.models.AddCustomModelRequest
+	(*AddCustomModelResponse)(nil),      // 25: vrooli.image_tools.v1.models.AddCustomModelResponse
+	(*ArchitectureInference)(nil),       // 26: vrooli.image_tools.v1.models.ArchitectureInference
+	(*InspectModelSourceRequest)(nil),   // 27: vrooli.image_tools.v1.models.InspectModelSourceRequest
+	(*InspectModelSourceResponse)(nil),  // 28: vrooli.image_tools.v1.models.InspectModelSourceResponse
+	(*ImportModelRequest)(nil),          // 29: vrooli.image_tools.v1.models.ImportModelRequest
+	(*ImportModelResponse)(nil),         // 30: vrooli.image_tools.v1.models.ImportModelResponse
+	(*SetDefaultModelRequest)(nil),      // 31: vrooli.image_tools.v1.models.SetDefaultModelRequest
+	(*SetDefaultModelResponse)(nil),     // 32: vrooli.image_tools.v1.models.SetDefaultModelResponse
+	(*OpDefault)(nil),                   // 33: vrooli.image_tools.v1.models.OpDefault
+	(*ListDefaultsRequest)(nil),         // 34: vrooli.image_tools.v1.models.ListDefaultsRequest
+	(*ListDefaultsResponse)(nil),        // 35: vrooli.image_tools.v1.models.ListDefaultsResponse
+	(*CatalogFinding)(nil),              // 36: vrooli.image_tools.v1.models.CatalogFinding
+	(*DoctorCatalogRequest)(nil),        // 37: vrooli.image_tools.v1.models.DoctorCatalogRequest
+	(*DoctorCatalogResponse)(nil),       // 38: vrooli.image_tools.v1.models.DoctorCatalogResponse
+	(*BackendStatus)(nil),               // 39: vrooli.image_tools.v1.models.BackendStatus
+	(*DoctorBackendsRequest)(nil),       // 40: vrooli.image_tools.v1.models.DoctorBackendsRequest
+	(*DoctorBackendsResponse)(nil),      // 41: vrooli.image_tools.v1.models.DoctorBackendsResponse
+	(*EnsureBackendRequest)(nil),        // 42: vrooli.image_tools.v1.models.EnsureBackendRequest
+	(*EnsureBackendResponse)(nil),       // 43: vrooli.image_tools.v1.models.EnsureBackendResponse
+	(*GetHostSummaryRequest)(nil),       // 44: vrooli.image_tools.v1.models.GetHostSummaryRequest
+	(*GetHostSummaryResponse)(nil),      // 45: vrooli.image_tools.v1.models.GetHostSummaryResponse
+	(*ListOperationModelsRequest)(nil),  // 46: vrooli.image_tools.v1.models.ListOperationModelsRequest
+	(*Resolution)(nil),                  // 47: vrooli.image_tools.v1.models.Resolution
+	(*ExplainResolutionRequest)(nil),    // 48: vrooli.image_tools.v1.models.ExplainResolutionRequest
+	(*ExplainResolutionResponse)(nil),   // 49: vrooli.image_tools.v1.models.ExplainResolutionResponse
+	(*HostSummary)(nil),                 // 50: vrooli.image_tools.v1.models.HostSummary
+	(*ModelFit)(nil),                    // 51: vrooli.image_tools.v1.models.ModelFit
+	(*BackendReadiness)(nil),            // 52: vrooli.image_tools.v1.models.BackendReadiness
+	(*CandidateModel)(nil),              // 53: vrooli.image_tools.v1.models.CandidateModel
+	(*ListOperationModelsResponse)(nil), // 54: vrooli.image_tools.v1.models.ListOperationModelsResponse
 }
 var file_image_tools_v1_models_models_proto_depIdxs = []int32{
 	0,  // 0: vrooli.image_tools.v1.models.CapabilityLabels.commercial_use:type_name -> vrooli.image_tools.v1.models.CommercialUse
-	2,  // 1: vrooli.image_tools.v1.models.Model.hardware:type_name -> vrooli.image_tools.v1.models.Hardware
-	3,  // 2: vrooli.image_tools.v1.models.Model.capability_labels:type_name -> vrooli.image_tools.v1.models.CapabilityLabels
-	5,  // 3: vrooli.image_tools.v1.models.Model.install:type_name -> vrooli.image_tools.v1.models.InstallState
-	4,  // 4: vrooli.image_tools.v1.models.ListModelsResponse.models:type_name -> vrooli.image_tools.v1.models.Model
-	4,  // 5: vrooli.image_tools.v1.models.GetModelResponse.model:type_name -> vrooli.image_tools.v1.models.Model
-	4,  // 6: vrooli.image_tools.v1.models.SelectModelResponse.model:type_name -> vrooli.image_tools.v1.models.Model
-	4,  // 7: vrooli.image_tools.v1.models.SetModelEnabledResponse.model:type_name -> vrooli.image_tools.v1.models.Model
-	6,  // 8: vrooli.image_tools.v1.models.ListBlocklistResponse.entries:type_name -> vrooli.image_tools.v1.models.BlocklistEntry
-	4,  // 9: vrooli.image_tools.v1.models.AddCustomModelRequest.model:type_name -> vrooli.image_tools.v1.models.Model
-	4,  // 10: vrooli.image_tools.v1.models.AddCustomModelResponse.model:type_name -> vrooli.image_tools.v1.models.Model
-	27, // 11: vrooli.image_tools.v1.models.ListDefaultsResponse.defaults:type_name -> vrooli.image_tools.v1.models.OpDefault
-	1,  // 12: vrooli.image_tools.v1.models.CatalogFinding.severity:type_name -> vrooli.image_tools.v1.models.CatalogFindingSeverity
-	30, // 13: vrooli.image_tools.v1.models.DoctorCatalogResponse.findings:type_name -> vrooli.image_tools.v1.models.CatalogFinding
-	33, // 14: vrooli.image_tools.v1.models.DoctorBackendsResponse.backends:type_name -> vrooli.image_tools.v1.models.BackendStatus
-	44, // 15: vrooli.image_tools.v1.models.GetHostSummaryResponse.host:type_name -> vrooli.image_tools.v1.models.HostSummary
-	41, // 16: vrooli.image_tools.v1.models.ExplainResolutionResponse.resolution:type_name -> vrooli.image_tools.v1.models.Resolution
-	4,  // 17: vrooli.image_tools.v1.models.CandidateModel.model:type_name -> vrooli.image_tools.v1.models.Model
-	45, // 18: vrooli.image_tools.v1.models.CandidateModel.fit:type_name -> vrooli.image_tools.v1.models.ModelFit
-	46, // 19: vrooli.image_tools.v1.models.CandidateModel.backend:type_name -> vrooli.image_tools.v1.models.BackendReadiness
-	44, // 20: vrooli.image_tools.v1.models.ListOperationModelsResponse.host:type_name -> vrooli.image_tools.v1.models.HostSummary
-	47, // 21: vrooli.image_tools.v1.models.ListOperationModelsResponse.candidates:type_name -> vrooli.image_tools.v1.models.CandidateModel
-	7,  // 22: vrooli.image_tools.v1.models.ModelsService.ListModels:input_type -> vrooli.image_tools.v1.models.ListModelsRequest
-	9,  // 23: vrooli.image_tools.v1.models.ModelsService.GetModel:input_type -> vrooli.image_tools.v1.models.GetModelRequest
-	11, // 24: vrooli.image_tools.v1.models.ModelsService.ListOperations:input_type -> vrooli.image_tools.v1.models.ListOperationsRequest
-	13, // 25: vrooli.image_tools.v1.models.ModelsService.SelectModel:input_type -> vrooli.image_tools.v1.models.SelectModelRequest
-	15, // 26: vrooli.image_tools.v1.models.ModelsService.SetModelEnabled:input_type -> vrooli.image_tools.v1.models.SetModelEnabledRequest
-	17, // 27: vrooli.image_tools.v1.models.ModelsService.ListBlocklist:input_type -> vrooli.image_tools.v1.models.ListBlocklistRequest
-	19, // 28: vrooli.image_tools.v1.models.ModelsService.InstallModel:input_type -> vrooli.image_tools.v1.models.InstallModelRequest
-	21, // 29: vrooli.image_tools.v1.models.ModelsService.RemoveModel:input_type -> vrooli.image_tools.v1.models.RemoveModelRequest
-	23, // 30: vrooli.image_tools.v1.models.ModelsService.AddCustomModel:input_type -> vrooli.image_tools.v1.models.AddCustomModelRequest
-	25, // 31: vrooli.image_tools.v1.models.ModelsService.SetDefaultModel:input_type -> vrooli.image_tools.v1.models.SetDefaultModelRequest
-	28, // 32: vrooli.image_tools.v1.models.ModelsService.ListDefaults:input_type -> vrooli.image_tools.v1.models.ListDefaultsRequest
-	31, // 33: vrooli.image_tools.v1.models.ModelsService.DoctorCatalog:input_type -> vrooli.image_tools.v1.models.DoctorCatalogRequest
-	34, // 34: vrooli.image_tools.v1.models.ModelsService.DoctorBackends:input_type -> vrooli.image_tools.v1.models.DoctorBackendsRequest
-	36, // 35: vrooli.image_tools.v1.models.ModelsService.EnsureBackend:input_type -> vrooli.image_tools.v1.models.EnsureBackendRequest
-	38, // 36: vrooli.image_tools.v1.models.ModelsService.GetHostSummary:input_type -> vrooli.image_tools.v1.models.GetHostSummaryRequest
-	40, // 37: vrooli.image_tools.v1.models.ModelsService.ListOperationModels:input_type -> vrooli.image_tools.v1.models.ListOperationModelsRequest
-	42, // 38: vrooli.image_tools.v1.models.ModelsService.ExplainResolution:input_type -> vrooli.image_tools.v1.models.ExplainResolutionRequest
-	8,  // 39: vrooli.image_tools.v1.models.ModelsService.ListModels:output_type -> vrooli.image_tools.v1.models.ListModelsResponse
-	10, // 40: vrooli.image_tools.v1.models.ModelsService.GetModel:output_type -> vrooli.image_tools.v1.models.GetModelResponse
-	12, // 41: vrooli.image_tools.v1.models.ModelsService.ListOperations:output_type -> vrooli.image_tools.v1.models.ListOperationsResponse
-	14, // 42: vrooli.image_tools.v1.models.ModelsService.SelectModel:output_type -> vrooli.image_tools.v1.models.SelectModelResponse
-	16, // 43: vrooli.image_tools.v1.models.ModelsService.SetModelEnabled:output_type -> vrooli.image_tools.v1.models.SetModelEnabledResponse
-	18, // 44: vrooli.image_tools.v1.models.ModelsService.ListBlocklist:output_type -> vrooli.image_tools.v1.models.ListBlocklistResponse
-	20, // 45: vrooli.image_tools.v1.models.ModelsService.InstallModel:output_type -> vrooli.image_tools.v1.models.InstallModelResponse
-	22, // 46: vrooli.image_tools.v1.models.ModelsService.RemoveModel:output_type -> vrooli.image_tools.v1.models.RemoveModelResponse
-	24, // 47: vrooli.image_tools.v1.models.ModelsService.AddCustomModel:output_type -> vrooli.image_tools.v1.models.AddCustomModelResponse
-	26, // 48: vrooli.image_tools.v1.models.ModelsService.SetDefaultModel:output_type -> vrooli.image_tools.v1.models.SetDefaultModelResponse
-	29, // 49: vrooli.image_tools.v1.models.ModelsService.ListDefaults:output_type -> vrooli.image_tools.v1.models.ListDefaultsResponse
-	32, // 50: vrooli.image_tools.v1.models.ModelsService.DoctorCatalog:output_type -> vrooli.image_tools.v1.models.DoctorCatalogResponse
-	35, // 51: vrooli.image_tools.v1.models.ModelsService.DoctorBackends:output_type -> vrooli.image_tools.v1.models.DoctorBackendsResponse
-	37, // 52: vrooli.image_tools.v1.models.ModelsService.EnsureBackend:output_type -> vrooli.image_tools.v1.models.EnsureBackendResponse
-	39, // 53: vrooli.image_tools.v1.models.ModelsService.GetHostSummary:output_type -> vrooli.image_tools.v1.models.GetHostSummaryResponse
-	48, // 54: vrooli.image_tools.v1.models.ModelsService.ListOperationModels:output_type -> vrooli.image_tools.v1.models.ListOperationModelsResponse
-	43, // 55: vrooli.image_tools.v1.models.ModelsService.ExplainResolution:output_type -> vrooli.image_tools.v1.models.ExplainResolutionResponse
-	39, // [39:56] is the sub-list for method output_type
-	22, // [22:39] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	3,  // 1: vrooli.image_tools.v1.models.Model.hardware:type_name -> vrooli.image_tools.v1.models.Hardware
+	4,  // 2: vrooli.image_tools.v1.models.Model.capability_labels:type_name -> vrooli.image_tools.v1.models.CapabilityLabels
+	6,  // 3: vrooli.image_tools.v1.models.Model.install:type_name -> vrooli.image_tools.v1.models.InstallState
+	5,  // 4: vrooli.image_tools.v1.models.ListModelsResponse.models:type_name -> vrooli.image_tools.v1.models.Model
+	5,  // 5: vrooli.image_tools.v1.models.GetModelResponse.model:type_name -> vrooli.image_tools.v1.models.Model
+	5,  // 6: vrooli.image_tools.v1.models.SelectModelResponse.model:type_name -> vrooli.image_tools.v1.models.Model
+	5,  // 7: vrooli.image_tools.v1.models.SetModelEnabledResponse.model:type_name -> vrooli.image_tools.v1.models.Model
+	7,  // 8: vrooli.image_tools.v1.models.ListBlocklistResponse.entries:type_name -> vrooli.image_tools.v1.models.BlocklistEntry
+	5,  // 9: vrooli.image_tools.v1.models.AddCustomModelRequest.model:type_name -> vrooli.image_tools.v1.models.Model
+	5,  // 10: vrooli.image_tools.v1.models.AddCustomModelResponse.model:type_name -> vrooli.image_tools.v1.models.Model
+	1,  // 11: vrooli.image_tools.v1.models.InspectModelSourceResponse.layout:type_name -> vrooli.image_tools.v1.models.ModelLayout
+	26, // 12: vrooli.image_tools.v1.models.InspectModelSourceResponse.architecture:type_name -> vrooli.image_tools.v1.models.ArchitectureInference
+	5,  // 13: vrooli.image_tools.v1.models.InspectModelSourceResponse.proposed:type_name -> vrooli.image_tools.v1.models.Model
+	5,  // 14: vrooli.image_tools.v1.models.ImportModelResponse.model:type_name -> vrooli.image_tools.v1.models.Model
+	33, // 15: vrooli.image_tools.v1.models.ListDefaultsResponse.defaults:type_name -> vrooli.image_tools.v1.models.OpDefault
+	2,  // 16: vrooli.image_tools.v1.models.CatalogFinding.severity:type_name -> vrooli.image_tools.v1.models.CatalogFindingSeverity
+	36, // 17: vrooli.image_tools.v1.models.DoctorCatalogResponse.findings:type_name -> vrooli.image_tools.v1.models.CatalogFinding
+	39, // 18: vrooli.image_tools.v1.models.DoctorBackendsResponse.backends:type_name -> vrooli.image_tools.v1.models.BackendStatus
+	50, // 19: vrooli.image_tools.v1.models.GetHostSummaryResponse.host:type_name -> vrooli.image_tools.v1.models.HostSummary
+	47, // 20: vrooli.image_tools.v1.models.ExplainResolutionResponse.resolution:type_name -> vrooli.image_tools.v1.models.Resolution
+	5,  // 21: vrooli.image_tools.v1.models.CandidateModel.model:type_name -> vrooli.image_tools.v1.models.Model
+	51, // 22: vrooli.image_tools.v1.models.CandidateModel.fit:type_name -> vrooli.image_tools.v1.models.ModelFit
+	52, // 23: vrooli.image_tools.v1.models.CandidateModel.backend:type_name -> vrooli.image_tools.v1.models.BackendReadiness
+	50, // 24: vrooli.image_tools.v1.models.ListOperationModelsResponse.host:type_name -> vrooli.image_tools.v1.models.HostSummary
+	53, // 25: vrooli.image_tools.v1.models.ListOperationModelsResponse.candidates:type_name -> vrooli.image_tools.v1.models.CandidateModel
+	8,  // 26: vrooli.image_tools.v1.models.ModelsService.ListModels:input_type -> vrooli.image_tools.v1.models.ListModelsRequest
+	10, // 27: vrooli.image_tools.v1.models.ModelsService.GetModel:input_type -> vrooli.image_tools.v1.models.GetModelRequest
+	12, // 28: vrooli.image_tools.v1.models.ModelsService.ListOperations:input_type -> vrooli.image_tools.v1.models.ListOperationsRequest
+	14, // 29: vrooli.image_tools.v1.models.ModelsService.SelectModel:input_type -> vrooli.image_tools.v1.models.SelectModelRequest
+	16, // 30: vrooli.image_tools.v1.models.ModelsService.SetModelEnabled:input_type -> vrooli.image_tools.v1.models.SetModelEnabledRequest
+	18, // 31: vrooli.image_tools.v1.models.ModelsService.ListBlocklist:input_type -> vrooli.image_tools.v1.models.ListBlocklistRequest
+	20, // 32: vrooli.image_tools.v1.models.ModelsService.InstallModel:input_type -> vrooli.image_tools.v1.models.InstallModelRequest
+	22, // 33: vrooli.image_tools.v1.models.ModelsService.RemoveModel:input_type -> vrooli.image_tools.v1.models.RemoveModelRequest
+	24, // 34: vrooli.image_tools.v1.models.ModelsService.AddCustomModel:input_type -> vrooli.image_tools.v1.models.AddCustomModelRequest
+	27, // 35: vrooli.image_tools.v1.models.ModelsService.InspectModelSource:input_type -> vrooli.image_tools.v1.models.InspectModelSourceRequest
+	29, // 36: vrooli.image_tools.v1.models.ModelsService.ImportModel:input_type -> vrooli.image_tools.v1.models.ImportModelRequest
+	31, // 37: vrooli.image_tools.v1.models.ModelsService.SetDefaultModel:input_type -> vrooli.image_tools.v1.models.SetDefaultModelRequest
+	34, // 38: vrooli.image_tools.v1.models.ModelsService.ListDefaults:input_type -> vrooli.image_tools.v1.models.ListDefaultsRequest
+	37, // 39: vrooli.image_tools.v1.models.ModelsService.DoctorCatalog:input_type -> vrooli.image_tools.v1.models.DoctorCatalogRequest
+	40, // 40: vrooli.image_tools.v1.models.ModelsService.DoctorBackends:input_type -> vrooli.image_tools.v1.models.DoctorBackendsRequest
+	42, // 41: vrooli.image_tools.v1.models.ModelsService.EnsureBackend:input_type -> vrooli.image_tools.v1.models.EnsureBackendRequest
+	44, // 42: vrooli.image_tools.v1.models.ModelsService.GetHostSummary:input_type -> vrooli.image_tools.v1.models.GetHostSummaryRequest
+	46, // 43: vrooli.image_tools.v1.models.ModelsService.ListOperationModels:input_type -> vrooli.image_tools.v1.models.ListOperationModelsRequest
+	48, // 44: vrooli.image_tools.v1.models.ModelsService.ExplainResolution:input_type -> vrooli.image_tools.v1.models.ExplainResolutionRequest
+	9,  // 45: vrooli.image_tools.v1.models.ModelsService.ListModels:output_type -> vrooli.image_tools.v1.models.ListModelsResponse
+	11, // 46: vrooli.image_tools.v1.models.ModelsService.GetModel:output_type -> vrooli.image_tools.v1.models.GetModelResponse
+	13, // 47: vrooli.image_tools.v1.models.ModelsService.ListOperations:output_type -> vrooli.image_tools.v1.models.ListOperationsResponse
+	15, // 48: vrooli.image_tools.v1.models.ModelsService.SelectModel:output_type -> vrooli.image_tools.v1.models.SelectModelResponse
+	17, // 49: vrooli.image_tools.v1.models.ModelsService.SetModelEnabled:output_type -> vrooli.image_tools.v1.models.SetModelEnabledResponse
+	19, // 50: vrooli.image_tools.v1.models.ModelsService.ListBlocklist:output_type -> vrooli.image_tools.v1.models.ListBlocklistResponse
+	21, // 51: vrooli.image_tools.v1.models.ModelsService.InstallModel:output_type -> vrooli.image_tools.v1.models.InstallModelResponse
+	23, // 52: vrooli.image_tools.v1.models.ModelsService.RemoveModel:output_type -> vrooli.image_tools.v1.models.RemoveModelResponse
+	25, // 53: vrooli.image_tools.v1.models.ModelsService.AddCustomModel:output_type -> vrooli.image_tools.v1.models.AddCustomModelResponse
+	28, // 54: vrooli.image_tools.v1.models.ModelsService.InspectModelSource:output_type -> vrooli.image_tools.v1.models.InspectModelSourceResponse
+	30, // 55: vrooli.image_tools.v1.models.ModelsService.ImportModel:output_type -> vrooli.image_tools.v1.models.ImportModelResponse
+	32, // 56: vrooli.image_tools.v1.models.ModelsService.SetDefaultModel:output_type -> vrooli.image_tools.v1.models.SetDefaultModelResponse
+	35, // 57: vrooli.image_tools.v1.models.ModelsService.ListDefaults:output_type -> vrooli.image_tools.v1.models.ListDefaultsResponse
+	38, // 58: vrooli.image_tools.v1.models.ModelsService.DoctorCatalog:output_type -> vrooli.image_tools.v1.models.DoctorCatalogResponse
+	41, // 59: vrooli.image_tools.v1.models.ModelsService.DoctorBackends:output_type -> vrooli.image_tools.v1.models.DoctorBackendsResponse
+	43, // 60: vrooli.image_tools.v1.models.ModelsService.EnsureBackend:output_type -> vrooli.image_tools.v1.models.EnsureBackendResponse
+	45, // 61: vrooli.image_tools.v1.models.ModelsService.GetHostSummary:output_type -> vrooli.image_tools.v1.models.GetHostSummaryResponse
+	54, // 62: vrooli.image_tools.v1.models.ModelsService.ListOperationModels:output_type -> vrooli.image_tools.v1.models.ListOperationModelsResponse
+	49, // 63: vrooli.image_tools.v1.models.ModelsService.ExplainResolution:output_type -> vrooli.image_tools.v1.models.ExplainResolutionResponse
+	45, // [45:64] is the sub-list for method output_type
+	26, // [26:45] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_models_models_proto_init() }
@@ -3607,8 +4122,8 @@ func file_image_tools_v1_models_models_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_models_models_proto_rawDesc), len(file_image_tools_v1_models_models_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   47,
+			NumEnums:      3,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -127,7 +127,7 @@ func Analyze(scenario string, snap graph.GraphSnapshot, m domains.DerivedDomainM
 
 	archetype := make(map[string]string, len(m.Domains))
 	for _, d := range m.Domains {
-		archetype[d.Name] = d.Archetype
+		archetype[d.Name] = d.PrimaryArchetype()
 	}
 
 	domainOf := func(pkgID string) string {

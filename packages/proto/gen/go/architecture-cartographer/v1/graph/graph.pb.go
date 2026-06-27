@@ -7,6 +7,9 @@
 package graph_v1
 
 import (
+	domains "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -70,6 +73,56 @@ func (x Language) Number() protoreflect.EnumNumber {
 // Deprecated: Use Language.Descriptor instead.
 func (Language) EnumDescriptor() ([]byte, []int) {
 	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{0}
+}
+
+// AuthorityConfidence grades how trustworthy a derived map's authority is.
+type AuthorityConfidence int32
+
+const (
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED AuthorityConfidence = 0
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH        AuthorityConfidence = 1
+	AuthorityConfidence_AUTHORITY_CONFIDENCE_LOW         AuthorityConfidence = 2
+)
+
+// Enum value maps for AuthorityConfidence.
+var (
+	AuthorityConfidence_name = map[int32]string{
+		0: "AUTHORITY_CONFIDENCE_UNSPECIFIED",
+		1: "AUTHORITY_CONFIDENCE_HIGH",
+		2: "AUTHORITY_CONFIDENCE_LOW",
+	}
+	AuthorityConfidence_value = map[string]int32{
+		"AUTHORITY_CONFIDENCE_UNSPECIFIED": 0,
+		"AUTHORITY_CONFIDENCE_HIGH":        1,
+		"AUTHORITY_CONFIDENCE_LOW":         2,
+	}
+)
+
+func (x AuthorityConfidence) Enum() *AuthorityConfidence {
+	p := new(AuthorityConfidence)
+	*p = x
+	return p
+}
+
+func (x AuthorityConfidence) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AuthorityConfidence) Descriptor() protoreflect.EnumDescriptor {
+	return file_architecture_cartographer_v1_graph_graph_proto_enumTypes[1].Descriptor()
+}
+
+func (AuthorityConfidence) Type() protoreflect.EnumType {
+	return &file_architecture_cartographer_v1_graph_graph_proto_enumTypes[1]
+}
+
+func (x AuthorityConfidence) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AuthorityConfidence.Descriptor instead.
+func (AuthorityConfidence) EnumDescriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{1}
 }
 
 // FileNode is one source file in the target scenario.
@@ -1136,11 +1189,1189 @@ func (x *ExportGraphResponse) GetContentType() string {
 	return ""
 }
 
+type GetZoneMapRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Target scenario name.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+	// or extract one when no cached snapshot exists.
+	SnapshotId    string `protobuf:"bytes,2,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetZoneMapRequest) Reset() {
+	*x = GetZoneMapRequest{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetZoneMapRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetZoneMapRequest) ProtoMessage() {}
+
+func (x *GetZoneMapRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetZoneMapRequest.ProtoReflect.Descriptor instead.
+func (*GetZoneMapRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetZoneMapRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *GetZoneMapRequest) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+type GetZoneMapResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ZoneMap       *ZoneMap               `protobuf:"bytes,1,opt,name=zone_map,json=zoneMap,proto3" json:"zone_map,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetZoneMapResponse) Reset() {
+	*x = GetZoneMapResponse{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetZoneMapResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetZoneMapResponse) ProtoMessage() {}
+
+func (x *GetZoneMapResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetZoneMapResponse.ProtoReflect.Descriptor instead.
+func (*GetZoneMapResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetZoneMapResponse) GetZoneMap() *ZoneMap {
+	if x != nil {
+		return x.ZoneMap
+	}
+	return nil
+}
+
+type ZoneMap struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Scenario   string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	SnapshotId string                 `protobuf:"bytes,2,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	Packages   []*ZonePackage         `protobuf:"bytes,3,rep,name=packages,proto3" json:"packages,omitempty"`
+	Violations []*ZoneViolation       `protobuf:"bytes,4,rep,name=violations,proto3" json:"violations,omitempty"`
+	// How trustworthy the zone taxonomy is: HIGH when ARCHITECTURE.md declares a
+	// Zone Map that the code confirms; LOW when zones are derived-only (no
+	// ARCHITECTURE.md Zone Map to converge against).
+	AuthorityConfidence AuthorityConfidence `protobuf:"varint,5,opt,name=authority_confidence,json=authorityConfidence,proto3,enum=vrooli.architecture_cartographer.v1.graph.AuthorityConfidence" json:"authority_confidence,omitempty"`
+	// Map-level honesty contract (Q7): DERIVED when zones are code-computed,
+	// CONTRADICTED when any package's declared layer disagrees with the code.
+	Attestation   *v1.AttestedAnswer `protobuf:"bytes,6,opt,name=attestation,proto3" json:"attestation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZoneMap) Reset() {
+	*x = ZoneMap{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZoneMap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZoneMap) ProtoMessage() {}
+
+func (x *ZoneMap) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZoneMap.ProtoReflect.Descriptor instead.
+func (*ZoneMap) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ZoneMap) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ZoneMap) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *ZoneMap) GetPackages() []*ZonePackage {
+	if x != nil {
+		return x.Packages
+	}
+	return nil
+}
+
+func (x *ZoneMap) GetViolations() []*ZoneViolation {
+	if x != nil {
+		return x.Violations
+	}
+	return nil
+}
+
+func (x *ZoneMap) GetAuthorityConfidence() AuthorityConfidence {
+	if x != nil {
+		return x.AuthorityConfidence
+	}
+	return AuthorityConfidence_AUTHORITY_CONFIDENCE_UNSPECIFIED
+}
+
+func (x *ZoneMap) GetAttestation() *v1.AttestedAnswer {
+	if x != nil {
+		return x.Attestation
+	}
+	return nil
+}
+
+type ZonePackage struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	PackageId  string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	ImportPath string                 `protobuf:"bytes,2,opt,name=import_path,json=importPath,proto3" json:"import_path,omitempty"`
+	RepoPath   string                 `protobuf:"bytes,3,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Zone       string                 `protobuf:"bytes,4,opt,name=zone,proto3" json:"zone,omitempty"`
+	Domain     string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	Archetype  string                 `protobuf:"bytes,6,opt,name=archetype,proto3" json:"archetype,omitempty"`
+	Declared   bool                   `protobuf:"varint,7,opt,name=declared,proto3" json:"declared,omitempty"`
+	// Convergence confidence in [0,1] from the three zone signals (manifest /
+	// ARCHITECTURE.md / import graph).
+	Confidence float64 `protobuf:"fixed64,8,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	// Raw layer label from the ARCHITECTURE.md Zone Map, preserved verbatim;
+	// empty when the doc does not declare this package's layer.
+	DeclaredLayer string `protobuf:"bytes,9,opt,name=declared_layer,json=declaredLayer,proto3" json:"declared_layer,omitempty"`
+	// Typed evidence behind the classification (one per contributing signal).
+	Evidence []*ZoneEvidence `protobuf:"bytes,10,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	// True when the declared layer disagrees with the code-derived zone.
+	Drift         bool `protobuf:"varint,11,opt,name=drift,proto3" json:"drift,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZonePackage) Reset() {
+	*x = ZonePackage{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZonePackage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZonePackage) ProtoMessage() {}
+
+func (x *ZonePackage) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZonePackage.ProtoReflect.Descriptor instead.
+func (*ZonePackage) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ZonePackage) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *ZonePackage) GetImportPath() string {
+	if x != nil {
+		return x.ImportPath
+	}
+	return ""
+}
+
+func (x *ZonePackage) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *ZonePackage) GetZone() string {
+	if x != nil {
+		return x.Zone
+	}
+	return ""
+}
+
+func (x *ZonePackage) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *ZonePackage) GetArchetype() string {
+	if x != nil {
+		return x.Archetype
+	}
+	return ""
+}
+
+func (x *ZonePackage) GetDeclared() bool {
+	if x != nil {
+		return x.Declared
+	}
+	return false
+}
+
+func (x *ZonePackage) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
+func (x *ZonePackage) GetDeclaredLayer() string {
+	if x != nil {
+		return x.DeclaredLayer
+	}
+	return ""
+}
+
+func (x *ZonePackage) GetEvidence() []*ZoneEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *ZonePackage) GetDrift() bool {
+	if x != nil {
+		return x.Drift
+	}
+	return false
+}
+
+// ZoneEvidence is one typed signal behind a converged zone classification.
+type ZoneEvidence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"` // manifest | architecture_doc | import_graph
+	Detail        string                 `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	Locator       string                 `protobuf:"bytes,3,opt,name=locator,proto3" json:"locator,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZoneEvidence) Reset() {
+	*x = ZoneEvidence{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZoneEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZoneEvidence) ProtoMessage() {}
+
+func (x *ZoneEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZoneEvidence.ProtoReflect.Descriptor instead.
+func (*ZoneEvidence) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ZoneEvidence) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ZoneEvidence) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *ZoneEvidence) GetLocator() string {
+	if x != nil {
+		return x.Locator
+	}
+	return ""
+}
+
+type ZoneViolation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Subtype       string                 `protobuf:"bytes,2,opt,name=subtype,proto3" json:"subtype,omitempty"`
+	Severity      shared.Severity        `protobuf:"varint,3,opt,name=severity,proto3,enum=vrooli.architecture_cartographer.v1.shared.Severity" json:"severity,omitempty"`
+	Locations     []string               `protobuf:"bytes,4,rep,name=locations,proto3" json:"locations,omitempty"`
+	Domains       []string               `protobuf:"bytes,5,rep,name=domains,proto3" json:"domains,omitempty"`
+	Summary       string                 `protobuf:"bytes,6,opt,name=summary,proto3" json:"summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZoneViolation) Reset() {
+	*x = ZoneViolation{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZoneViolation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZoneViolation) ProtoMessage() {}
+
+func (x *ZoneViolation) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZoneViolation.ProtoReflect.Descriptor instead.
+func (*ZoneViolation) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ZoneViolation) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ZoneViolation) GetSubtype() string {
+	if x != nil {
+		return x.Subtype
+	}
+	return ""
+}
+
+func (x *ZoneViolation) GetSeverity() shared.Severity {
+	if x != nil {
+		return x.Severity
+	}
+	return shared.Severity(0)
+}
+
+func (x *ZoneViolation) GetLocations() []string {
+	if x != nil {
+		return x.Locations
+	}
+	return nil
+}
+
+func (x *ZoneViolation) GetDomains() []string {
+	if x != nil {
+		return x.Domains
+	}
+	return nil
+}
+
+func (x *ZoneViolation) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+type GetSliceRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Target scenario name.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Domain name from DOMAINS.md / the derived domain map.
+	Domain string `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	// Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+	// or extract one when no cached snapshot exists.
+	SnapshotId    string `protobuf:"bytes,3,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSliceRequest) Reset() {
+	*x = GetSliceRequest{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSliceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSliceRequest) ProtoMessage() {}
+
+func (x *GetSliceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSliceRequest.ProtoReflect.Descriptor instead.
+func (*GetSliceRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetSliceRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *GetSliceRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *GetSliceRequest) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+type GetSliceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slice         *DomainSlice           `protobuf:"bytes,1,opt,name=slice,proto3" json:"slice,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSliceResponse) Reset() {
+	*x = GetSliceResponse{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSliceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSliceResponse) ProtoMessage() {}
+
+func (x *GetSliceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSliceResponse.ProtoReflect.Descriptor instead.
+func (*GetSliceResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetSliceResponse) GetSlice() *DomainSlice {
+	if x != nil {
+		return x.Slice
+	}
+	return nil
+}
+
+type DomainSlice struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Scenario   string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Domain     string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	SnapshotId string                 `protobuf:"bytes,3,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	Rungs      []*SliceRung           `protobuf:"bytes,4,rep,name=rungs,proto3" json:"rungs,omitempty"`
+	Surfaces   []string               `protobuf:"bytes,5,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
+	// Package-level dependency edges between rungs (handler->internal->proto…).
+	LayerEdges []*SliceEdge `protobuf:"bytes,6,rep,name=layer_edges,json=layerEdges,proto3" json:"layer_edges,omitempty"`
+	// Q16 honesty contract: DERIVED from the graph; sufficiency PARTIAL while
+	// symbol-level edge resolution is deferred to the call/reference-edge phase.
+	Attestation   *v1.AttestedAnswer `protobuf:"bytes,7,opt,name=attestation,proto3" json:"attestation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DomainSlice) Reset() {
+	*x = DomainSlice{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DomainSlice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DomainSlice) ProtoMessage() {}
+
+func (x *DomainSlice) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DomainSlice.ProtoReflect.Descriptor instead.
+func (*DomainSlice) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *DomainSlice) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *DomainSlice) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *DomainSlice) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *DomainSlice) GetRungs() []*SliceRung {
+	if x != nil {
+		return x.Rungs
+	}
+	return nil
+}
+
+func (x *DomainSlice) GetSurfaces() []string {
+	if x != nil {
+		return x.Surfaces
+	}
+	return nil
+}
+
+func (x *DomainSlice) GetLayerEdges() []*SliceEdge {
+	if x != nil {
+		return x.LayerEdges
+	}
+	return nil
+}
+
+func (x *DomainSlice) GetAttestation() *v1.AttestedAnswer {
+	if x != nil {
+		return x.Attestation
+	}
+	return nil
+}
+
+type SliceRung struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Present       bool                   `protobuf:"varint,2,opt,name=present,proto3" json:"present,omitempty"`
+	Evidence      []*SliceEvidence       `protobuf:"bytes,3,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	Files         []*SliceFile           `protobuf:"bytes,4,rep,name=files,proto3" json:"files,omitempty"`
+	Symbols       []*SliceSymbol         `protobuf:"bytes,5,rep,name=symbols,proto3" json:"symbols,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SliceRung) Reset() {
+	*x = SliceRung{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SliceRung) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SliceRung) ProtoMessage() {}
+
+func (x *SliceRung) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SliceRung.ProtoReflect.Descriptor instead.
+func (*SliceRung) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *SliceRung) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SliceRung) GetPresent() bool {
+	if x != nil {
+		return x.Present
+	}
+	return false
+}
+
+func (x *SliceRung) GetEvidence() []*SliceEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *SliceRung) GetFiles() []*SliceFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *SliceRung) GetSymbols() []*SliceSymbol {
+	if x != nil {
+		return x.Symbols
+	}
+	return nil
+}
+
+// SliceEvidence is one typed justification for a rung; folds into a Citation.
+type SliceEvidence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`     // declared_path | package | proto_import | proto_file
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`   // locator
+	Source        string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"` // doc | code
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SliceEvidence) Reset() {
+	*x = SliceEvidence{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SliceEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SliceEvidence) ProtoMessage() {}
+
+func (x *SliceEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SliceEvidence.ProtoReflect.Descriptor instead.
+func (*SliceEvidence) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SliceEvidence) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *SliceEvidence) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *SliceEvidence) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+type SliceFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Lines         int32                  `protobuf:"varint,2,opt,name=lines,proto3" json:"lines,omitempty"`
+	IsTest        bool                   `protobuf:"varint,3,opt,name=is_test,json=isTest,proto3" json:"is_test,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SliceFile) Reset() {
+	*x = SliceFile{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SliceFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SliceFile) ProtoMessage() {}
+
+func (x *SliceFile) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SliceFile.ProtoReflect.Descriptor instead.
+func (*SliceFile) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *SliceFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *SliceFile) GetLines() int32 {
+	if x != nil {
+		return x.Lines
+	}
+	return 0
+}
+
+func (x *SliceFile) GetIsTest() bool {
+	if x != nil {
+		return x.IsTest
+	}
+	return false
+}
+
+type SliceSymbol struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	File          string                 `protobuf:"bytes,3,opt,name=file,proto3" json:"file,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SliceSymbol) Reset() {
+	*x = SliceSymbol{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SliceSymbol) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SliceSymbol) ProtoMessage() {}
+
+func (x *SliceSymbol) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SliceSymbol.ProtoReflect.Descriptor instead.
+func (*SliceSymbol) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *SliceSymbol) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SliceSymbol) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *SliceSymbol) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+type SliceEdge struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FromRung      string                 `protobuf:"bytes,1,opt,name=from_rung,json=fromRung,proto3" json:"from_rung,omitempty"`
+	ToRung        string                 `protobuf:"bytes,2,opt,name=to_rung,json=toRung,proto3" json:"to_rung,omitempty"`
+	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"` // import
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SliceEdge) Reset() {
+	*x = SliceEdge{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SliceEdge) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SliceEdge) ProtoMessage() {}
+
+func (x *SliceEdge) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SliceEdge.ProtoReflect.Descriptor instead.
+func (*SliceEdge) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *SliceEdge) GetFromRung() string {
+	if x != nil {
+		return x.FromRung
+	}
+	return ""
+}
+
+func (x *SliceEdge) GetToRung() string {
+	if x != nil {
+		return x.ToRung
+	}
+	return ""
+}
+
+func (x *SliceEdge) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+type InferArchetypeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Target scenario name.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Optional single domain; empty infers for every domain in the map.
+	Domain string `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	// Optional GraphSnapshot.id. Empty uses/extracts the latest snapshot.
+	SnapshotId    string `protobuf:"bytes,3,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InferArchetypeRequest) Reset() {
+	*x = InferArchetypeRequest{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InferArchetypeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InferArchetypeRequest) ProtoMessage() {}
+
+func (x *InferArchetypeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InferArchetypeRequest.ProtoReflect.Descriptor instead.
+func (*InferArchetypeRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *InferArchetypeRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *InferArchetypeRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *InferArchetypeRequest) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+type InferArchetypeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	SnapshotId    string                 `protobuf:"bytes,2,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	Reports       []*ArchetypeReport     `protobuf:"bytes,3,rep,name=reports,proto3" json:"reports,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InferArchetypeResponse) Reset() {
+	*x = InferArchetypeResponse{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InferArchetypeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InferArchetypeResponse) ProtoMessage() {}
+
+func (x *InferArchetypeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InferArchetypeResponse.ProtoReflect.Descriptor instead.
+func (*InferArchetypeResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *InferArchetypeResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *InferArchetypeResponse) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+func (x *InferArchetypeResponse) GetReports() []*ArchetypeReport {
+	if x != nil {
+		return x.Reports
+	}
+	return nil
+}
+
+// ArchetypeReport is the Q20 answer for one domain: the converged archetype set
+// (declared + inferred, primary first) plus a drift flag and the honesty
+// contract. The declared value is never overridden — disagreement is reported.
+type ArchetypeReport struct {
+	state      protoimpl.MessageState     `protogen:"open.v1"`
+	Domain     string                     `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	Archetypes []*domains.DomainArchetype `protobuf:"bytes,2,rep,name=archetypes,proto3" json:"archetypes,omitempty"`
+	// True when the declared primary archetype disagrees with the inferred one.
+	ConvergenceDrift bool               `protobuf:"varint,3,opt,name=convergence_drift,json=convergenceDrift,proto3" json:"convergence_drift,omitempty"`
+	Attestation      *v1.AttestedAnswer `protobuf:"bytes,4,opt,name=attestation,proto3" json:"attestation,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ArchetypeReport) Reset() {
+	*x = ArchetypeReport{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchetypeReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchetypeReport) ProtoMessage() {}
+
+func (x *ArchetypeReport) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchetypeReport.ProtoReflect.Descriptor instead.
+func (*ArchetypeReport) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ArchetypeReport) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *ArchetypeReport) GetArchetypes() []*domains.DomainArchetype {
+	if x != nil {
+		return x.Archetypes
+	}
+	return nil
+}
+
+func (x *ArchetypeReport) GetConvergenceDrift() bool {
+	if x != nil {
+		return x.ConvergenceDrift
+	}
+	return false
+}
+
+func (x *ArchetypeReport) GetAttestation() *v1.AttestedAnswer {
+	if x != nil {
+		return x.Attestation
+	}
+	return nil
+}
+
 var File_architecture_cartographer_v1_graph_graph_proto protoreflect.FileDescriptor
 
 const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"\n" +
-	".architecture-cartographer/v1/graph/graph.proto\x12)vrooli.architecture_cartographer.v1.graph\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x01\n" +
+	".architecture-cartographer/v1/graph/graph.proto\x12)vrooli.architecture_cartographer.v1.graph\x1a2architecture-cartographer/v1/domains/domains.proto\x1a0architecture-cartographer/v1/shared/shared.proto\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x01\n" +
 	"\bFileNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x1d\n" +
@@ -1218,17 +2449,125 @@ const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"R\n" +
 	"\x13ExportGraphResponse\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\x12!\n" +
-	"\fcontent_type\x18\x02 \x01(\tR\vcontentType*N\n" +
+	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"P\n" +
+	"\x11GetZoneMapRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
+	"\vsnapshot_id\x18\x02 \x01(\tR\n" +
+	"snapshotId\"c\n" +
+	"\x12GetZoneMapResponse\x12M\n" +
+	"\bzone_map\x18\x01 \x01(\v22.vrooli.architecture_cartographer.v1.graph.ZoneMapR\azoneMap\"\xa4\x03\n" +
+	"\aZoneMap\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
+	"\vsnapshot_id\x18\x02 \x01(\tR\n" +
+	"snapshotId\x12R\n" +
+	"\bpackages\x18\x03 \x03(\v26.vrooli.architecture_cartographer.v1.graph.ZonePackageR\bpackages\x12X\n" +
+	"\n" +
+	"violations\x18\x04 \x03(\v28.vrooli.architecture_cartographer.v1.graph.ZoneViolationR\n" +
+	"violations\x12q\n" +
+	"\x14authority_confidence\x18\x05 \x01(\x0e2>.vrooli.architecture_cartographer.v1.graph.AuthorityConfidenceR\x13authorityConfidence\x12;\n" +
+	"\vattestation\x18\x06 \x01(\v2\x19.common.v1.AttestedAnswerR\vattestation\"\x82\x03\n" +
+	"\vZonePackage\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12\x1f\n" +
+	"\vimport_path\x18\x02 \x01(\tR\n" +
+	"importPath\x12\x1b\n" +
+	"\trepo_path\x18\x03 \x01(\tR\brepoPath\x12\x12\n" +
+	"\x04zone\x18\x04 \x01(\tR\x04zone\x12\x16\n" +
+	"\x06domain\x18\x05 \x01(\tR\x06domain\x12\x1c\n" +
+	"\tarchetype\x18\x06 \x01(\tR\tarchetype\x12\x1a\n" +
+	"\bdeclared\x18\a \x01(\bR\bdeclared\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\b \x01(\x01R\n" +
+	"confidence\x12%\n" +
+	"\x0edeclared_layer\x18\t \x01(\tR\rdeclaredLayer\x12S\n" +
+	"\bevidence\x18\n" +
+	" \x03(\v27.vrooli.architecture_cartographer.v1.graph.ZoneEvidenceR\bevidence\x12\x14\n" +
+	"\x05drift\x18\v \x01(\bR\x05drift\"T\n" +
+	"\fZoneEvidence\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\x12\x18\n" +
+	"\alocator\x18\x03 \x01(\tR\alocator\"\xe1\x01\n" +
+	"\rZoneViolation\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
+	"\asubtype\x18\x02 \x01(\tR\asubtype\x12P\n" +
+	"\bseverity\x18\x03 \x01(\x0e24.vrooli.architecture_cartographer.v1.shared.SeverityR\bseverity\x12\x1c\n" +
+	"\tlocations\x18\x04 \x03(\tR\tlocations\x12\x18\n" +
+	"\adomains\x18\x05 \x03(\tR\adomains\x12\x18\n" +
+	"\asummary\x18\x06 \x01(\tR\asummary\"f\n" +
+	"\x0fGetSliceRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1f\n" +
+	"\vsnapshot_id\x18\x03 \x01(\tR\n" +
+	"snapshotId\"`\n" +
+	"\x10GetSliceResponse\x12L\n" +
+	"\x05slice\x18\x01 \x01(\v26.vrooli.architecture_cartographer.v1.graph.DomainSliceR\x05slice\"\xde\x02\n" +
+	"\vDomainSlice\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1f\n" +
+	"\vsnapshot_id\x18\x03 \x01(\tR\n" +
+	"snapshotId\x12J\n" +
+	"\x05rungs\x18\x04 \x03(\v24.vrooli.architecture_cartographer.v1.graph.SliceRungR\x05rungs\x12\x1a\n" +
+	"\bsurfaces\x18\x05 \x03(\tR\bsurfaces\x12U\n" +
+	"\vlayer_edges\x18\x06 \x03(\v24.vrooli.architecture_cartographer.v1.graph.SliceEdgeR\n" +
+	"layerEdges\x12;\n" +
+	"\vattestation\x18\a \x01(\v2\x19.common.v1.AttestedAnswerR\vattestation\"\xad\x02\n" +
+	"\tSliceRung\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\apresent\x18\x02 \x01(\bR\apresent\x12T\n" +
+	"\bevidence\x18\x03 \x03(\v28.vrooli.architecture_cartographer.v1.graph.SliceEvidenceR\bevidence\x12J\n" +
+	"\x05files\x18\x04 \x03(\v24.vrooli.architecture_cartographer.v1.graph.SliceFileR\x05files\x12P\n" +
+	"\asymbols\x18\x05 \x03(\v26.vrooli.architecture_cartographer.v1.graph.SliceSymbolR\asymbols\"Q\n" +
+	"\rSliceEvidence\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\"N\n" +
+	"\tSliceFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
+	"\x05lines\x18\x02 \x01(\x05R\x05lines\x12\x17\n" +
+	"\ais_test\x18\x03 \x01(\bR\x06isTest\"I\n" +
+	"\vSliceSymbol\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04file\x18\x03 \x01(\tR\x04file\"U\n" +
+	"\tSliceEdge\x12\x1b\n" +
+	"\tfrom_rung\x18\x01 \x01(\tR\bfromRung\x12\x17\n" +
+	"\ato_rung\x18\x02 \x01(\tR\x06toRung\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\"l\n" +
+	"\x15InferArchetypeRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1f\n" +
+	"\vsnapshot_id\x18\x03 \x01(\tR\n" +
+	"snapshotId\"\xab\x01\n" +
+	"\x16InferArchetypeResponse\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1f\n" +
+	"\vsnapshot_id\x18\x02 \x01(\tR\n" +
+	"snapshotId\x12T\n" +
+	"\areports\x18\x03 \x03(\v2:.vrooli.architecture_cartographer.v1.graph.ArchetypeReportR\areports\"\xf1\x01\n" +
+	"\x0fArchetypeReport\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\\\n" +
+	"\n" +
+	"archetypes\x18\x02 \x03(\v2<.vrooli.architecture_cartographer.v1.domains.DomainArchetypeR\n" +
+	"archetypes\x12+\n" +
+	"\x11convergence_drift\x18\x03 \x01(\bR\x10convergenceDrift\x12;\n" +
+	"\vattestation\x18\x04 \x01(\v2\x19.common.v1.AttestedAnswerR\vattestation*N\n" +
 	"\bLanguage\x12\x18\n" +
 	"\x14LANGUAGE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vLANGUAGE_GO\x10\x01\x12\x17\n" +
-	"\x13LANGUAGE_TYPESCRIPT\x10\x022\x98\x06\n" +
+	"\x13LANGUAGE_TYPESCRIPT\x10\x02*x\n" +
+	"\x13AuthorityConfidence\x12$\n" +
+	" AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19AUTHORITY_CONFIDENCE_HIGH\x10\x01\x12\x1c\n" +
+	"\x18AUTHORITY_CONFIDENCE_LOW\x10\x022\xc2\t\n" +
 	"\fGraphService\x12\x8f\x01\n" +
 	"\fExtractGraph\x12>.vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest\x1a?.vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse\x12\x9b\x01\n" +
 	"\x10GetGraphSnapshot\x12B.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest\x1aC.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse\x12\xa1\x01\n" +
 	"\x12ListGraphSnapshots\x12D.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest\x1aE.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse\x12\xa4\x01\n" +
 	"\x13ClearGraphSnapshots\x12E.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest\x1aF.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse\x12\x8c\x01\n" +
-	"\vExportGraph\x12=.vrooli.architecture_cartographer.v1.graph.ExportGraphRequest\x1a>.vrooli.architecture_cartographer.v1.graph.ExportGraphResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1b\x06proto3"
+	"\vExportGraph\x12=.vrooli.architecture_cartographer.v1.graph.ExportGraphRequest\x1a>.vrooli.architecture_cartographer.v1.graph.ExportGraphResponse\x12\x89\x01\n" +
+	"\n" +
+	"GetZoneMap\x12<.vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest\x1a=.vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse\x12\x83\x01\n" +
+	"\bGetSlice\x12:.vrooli.architecture_cartographer.v1.graph.GetSliceRequest\x1a;.vrooli.architecture_cartographer.v1.graph.GetSliceResponse\x12\x95\x01\n" +
+	"\x0eInferArchetype\x12@.vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest\x1aA.vrooli.architecture_cartographer.v1.graph.InferArchetypeResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1b\x06proto3"
 
 var (
 	file_architecture_cartographer_v1_graph_graph_proto_rawDescOnce sync.Once
@@ -1242,56 +2581,100 @@ func file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP() []byte {
 	return file_architecture_cartographer_v1_graph_graph_proto_rawDescData
 }
 
-var file_architecture_cartographer_v1_graph_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_architecture_cartographer_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_architecture_cartographer_v1_graph_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_architecture_cartographer_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_architecture_cartographer_v1_graph_graph_proto_goTypes = []any{
 	(Language)(0),                       // 0: vrooli.architecture_cartographer.v1.graph.Language
-	(*FileNode)(nil),                    // 1: vrooli.architecture_cartographer.v1.graph.FileNode
-	(*PackageNode)(nil),                 // 2: vrooli.architecture_cartographer.v1.graph.PackageNode
-	(*SymbolNode)(nil),                  // 3: vrooli.architecture_cartographer.v1.graph.SymbolNode
-	(*ImportEdge)(nil),                  // 4: vrooli.architecture_cartographer.v1.graph.ImportEdge
-	(*Chunk)(nil),                       // 5: vrooli.architecture_cartographer.v1.graph.Chunk
-	(*GraphSnapshot)(nil),               // 6: vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	(*ExtractGraphRequest)(nil),         // 7: vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
-	(*ExtractGraphResponse)(nil),        // 8: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
-	(*GetGraphSnapshotRequest)(nil),     // 9: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
-	(*GetGraphSnapshotResponse)(nil),    // 10: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
-	(*ListGraphSnapshotsRequest)(nil),   // 11: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
-	(*ListGraphSnapshotsResponse)(nil),  // 12: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
-	(*ClearGraphSnapshotsRequest)(nil),  // 13: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
-	(*ClearGraphSnapshotsResponse)(nil), // 14: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
-	(*ExportGraphRequest)(nil),          // 15: vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
-	(*ExportGraphResponse)(nil),         // 16: vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
-	(*timestamppb.Timestamp)(nil),       // 17: google.protobuf.Timestamp
+	(AuthorityConfidence)(0),            // 1: vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
+	(*FileNode)(nil),                    // 2: vrooli.architecture_cartographer.v1.graph.FileNode
+	(*PackageNode)(nil),                 // 3: vrooli.architecture_cartographer.v1.graph.PackageNode
+	(*SymbolNode)(nil),                  // 4: vrooli.architecture_cartographer.v1.graph.SymbolNode
+	(*ImportEdge)(nil),                  // 5: vrooli.architecture_cartographer.v1.graph.ImportEdge
+	(*Chunk)(nil),                       // 6: vrooli.architecture_cartographer.v1.graph.Chunk
+	(*GraphSnapshot)(nil),               // 7: vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	(*ExtractGraphRequest)(nil),         // 8: vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
+	(*ExtractGraphResponse)(nil),        // 9: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
+	(*GetGraphSnapshotRequest)(nil),     // 10: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
+	(*GetGraphSnapshotResponse)(nil),    // 11: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
+	(*ListGraphSnapshotsRequest)(nil),   // 12: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
+	(*ListGraphSnapshotsResponse)(nil),  // 13: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
+	(*ClearGraphSnapshotsRequest)(nil),  // 14: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
+	(*ClearGraphSnapshotsResponse)(nil), // 15: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
+	(*ExportGraphRequest)(nil),          // 16: vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
+	(*ExportGraphResponse)(nil),         // 17: vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
+	(*GetZoneMapRequest)(nil),           // 18: vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
+	(*GetZoneMapResponse)(nil),          // 19: vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
+	(*ZoneMap)(nil),                     // 20: vrooli.architecture_cartographer.v1.graph.ZoneMap
+	(*ZonePackage)(nil),                 // 21: vrooli.architecture_cartographer.v1.graph.ZonePackage
+	(*ZoneEvidence)(nil),                // 22: vrooli.architecture_cartographer.v1.graph.ZoneEvidence
+	(*ZoneViolation)(nil),               // 23: vrooli.architecture_cartographer.v1.graph.ZoneViolation
+	(*GetSliceRequest)(nil),             // 24: vrooli.architecture_cartographer.v1.graph.GetSliceRequest
+	(*GetSliceResponse)(nil),            // 25: vrooli.architecture_cartographer.v1.graph.GetSliceResponse
+	(*DomainSlice)(nil),                 // 26: vrooli.architecture_cartographer.v1.graph.DomainSlice
+	(*SliceRung)(nil),                   // 27: vrooli.architecture_cartographer.v1.graph.SliceRung
+	(*SliceEvidence)(nil),               // 28: vrooli.architecture_cartographer.v1.graph.SliceEvidence
+	(*SliceFile)(nil),                   // 29: vrooli.architecture_cartographer.v1.graph.SliceFile
+	(*SliceSymbol)(nil),                 // 30: vrooli.architecture_cartographer.v1.graph.SliceSymbol
+	(*SliceEdge)(nil),                   // 31: vrooli.architecture_cartographer.v1.graph.SliceEdge
+	(*InferArchetypeRequest)(nil),       // 32: vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
+	(*InferArchetypeResponse)(nil),      // 33: vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
+	(*ArchetypeReport)(nil),             // 34: vrooli.architecture_cartographer.v1.graph.ArchetypeReport
+	(*timestamppb.Timestamp)(nil),       // 35: google.protobuf.Timestamp
+	(*v1.AttestedAnswer)(nil),           // 36: common.v1.AttestedAnswer
+	(shared.Severity)(0),                // 37: vrooli.architecture_cartographer.v1.shared.Severity
+	(*domains.DomainArchetype)(nil),     // 38: vrooli.architecture_cartographer.v1.domains.DomainArchetype
 }
 var file_architecture_cartographer_v1_graph_graph_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.graph.FileNode.language:type_name -> vrooli.architecture_cartographer.v1.graph.Language
 	0,  // 1: vrooli.architecture_cartographer.v1.graph.PackageNode.language:type_name -> vrooli.architecture_cartographer.v1.graph.Language
 	0,  // 2: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.languages:type_name -> vrooli.architecture_cartographer.v1.graph.Language
-	17, // 3: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.extracted_at:type_name -> google.protobuf.Timestamp
-	1,  // 4: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.files:type_name -> vrooli.architecture_cartographer.v1.graph.FileNode
-	2,  // 5: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.packages:type_name -> vrooli.architecture_cartographer.v1.graph.PackageNode
-	3,  // 6: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SymbolNode
-	4,  // 7: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.imports:type_name -> vrooli.architecture_cartographer.v1.graph.ImportEdge
+	35, // 3: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.extracted_at:type_name -> google.protobuf.Timestamp
+	2,  // 4: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.files:type_name -> vrooli.architecture_cartographer.v1.graph.FileNode
+	3,  // 5: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.packages:type_name -> vrooli.architecture_cartographer.v1.graph.PackageNode
+	4,  // 6: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SymbolNode
+	5,  // 7: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.imports:type_name -> vrooli.architecture_cartographer.v1.graph.ImportEdge
 	0,  // 8: vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest.languages:type_name -> vrooli.architecture_cartographer.v1.graph.Language
-	6,  // 9: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	6,  // 10: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	6,  // 11: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse.snapshots:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	7,  // 12: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
-	9,  // 13: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:input_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
-	11, // 14: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
-	13, // 15: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
-	15, // 16: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
-	8,  // 17: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
-	10, // 18: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:output_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
-	12, // 19: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
-	14, // 20: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
-	16, // 21: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	7,  // 9: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	7,  // 10: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse.snapshot:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	7,  // 11: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse.snapshots:type_name -> vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	20, // 12: vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse.zone_map:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneMap
+	21, // 13: vrooli.architecture_cartographer.v1.graph.ZoneMap.packages:type_name -> vrooli.architecture_cartographer.v1.graph.ZonePackage
+	23, // 14: vrooli.architecture_cartographer.v1.graph.ZoneMap.violations:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneViolation
+	1,  // 15: vrooli.architecture_cartographer.v1.graph.ZoneMap.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
+	36, // 16: vrooli.architecture_cartographer.v1.graph.ZoneMap.attestation:type_name -> common.v1.AttestedAnswer
+	22, // 17: vrooli.architecture_cartographer.v1.graph.ZonePackage.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneEvidence
+	37, // 18: vrooli.architecture_cartographer.v1.graph.ZoneViolation.severity:type_name -> vrooli.architecture_cartographer.v1.shared.Severity
+	26, // 19: vrooli.architecture_cartographer.v1.graph.GetSliceResponse.slice:type_name -> vrooli.architecture_cartographer.v1.graph.DomainSlice
+	27, // 20: vrooli.architecture_cartographer.v1.graph.DomainSlice.rungs:type_name -> vrooli.architecture_cartographer.v1.graph.SliceRung
+	31, // 21: vrooli.architecture_cartographer.v1.graph.DomainSlice.layer_edges:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEdge
+	36, // 22: vrooli.architecture_cartographer.v1.graph.DomainSlice.attestation:type_name -> common.v1.AttestedAnswer
+	28, // 23: vrooli.architecture_cartographer.v1.graph.SliceRung.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEvidence
+	29, // 24: vrooli.architecture_cartographer.v1.graph.SliceRung.files:type_name -> vrooli.architecture_cartographer.v1.graph.SliceFile
+	30, // 25: vrooli.architecture_cartographer.v1.graph.SliceRung.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SliceSymbol
+	34, // 26: vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse.reports:type_name -> vrooli.architecture_cartographer.v1.graph.ArchetypeReport
+	38, // 27: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.archetypes:type_name -> vrooli.architecture_cartographer.v1.domains.DomainArchetype
+	36, // 28: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.attestation:type_name -> common.v1.AttestedAnswer
+	8,  // 29: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
+	10, // 30: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:input_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
+	12, // 31: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
+	14, // 32: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
+	16, // 33: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
+	18, // 34: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:input_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
+	24, // 35: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:input_type -> vrooli.architecture_cartographer.v1.graph.GetSliceRequest
+	32, // 36: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:input_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
+	9,  // 37: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
+	11, // 38: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:output_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
+	13, // 39: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
+	15, // 40: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
+	17, // 41: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
+	19, // 42: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:output_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
+	25, // 43: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:output_type -> vrooli.architecture_cartographer.v1.graph.GetSliceResponse
+	33, // 44: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:output_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
+	37, // [37:45] is the sub-list for method output_type
+	29, // [29:37] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_graph_graph_proto_init() }
@@ -1304,8 +2687,8 @@ func file_architecture_cartographer_v1_graph_graph_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_graph_graph_proto_rawDesc), len(file_architecture_cartographer_v1_graph_graph_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   16,
+			NumEnums:      2,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -25,22 +25,6 @@ class CellStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CELL_STATUS_IN_REACH: _ClassVar[CellStatus]
     CELL_STATUS_MISSING: _ClassVar[CellStatus]
 
-class Basis(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    BASIS_UNSPECIFIED: _ClassVar[Basis]
-    BASIS_DERIVED: _ClassVar[Basis]
-    BASIS_VALIDATED: _ClassVar[Basis]
-    BASIS_DECLARED_UNVERIFIED: _ClassVar[Basis]
-    BASIS_CONTRADICTED: _ClassVar[Basis]
-    BASIS_ABSENT: _ClassVar[Basis]
-
-class Sufficiency(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SUFFICIENCY_UNSPECIFIED: _ClassVar[Sufficiency]
-    SUFFICIENCY_FULL: _ClassVar[Sufficiency]
-    SUFFICIENCY_PARTIAL: _ClassVar[Sufficiency]
-    SUFFICIENCY_INSUFFICIENT: _ClassVar[Sufficiency]
-
 class Severity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SEVERITY_UNSPECIFIED: _ClassVar[Severity]
@@ -59,16 +43,6 @@ CELL_STATUS_UNSPECIFIED: CellStatus
 CELL_STATUS_NOW: CellStatus
 CELL_STATUS_IN_REACH: CellStatus
 CELL_STATUS_MISSING: CellStatus
-BASIS_UNSPECIFIED: Basis
-BASIS_DERIVED: Basis
-BASIS_VALIDATED: Basis
-BASIS_DECLARED_UNVERIFIED: Basis
-BASIS_CONTRADICTED: Basis
-BASIS_ABSENT: Basis
-SUFFICIENCY_UNSPECIFIED: Sufficiency
-SUFFICIENCY_FULL: Sufficiency
-SUFFICIENCY_PARTIAL: Sufficiency
-SUFFICIENCY_INSUFFICIENT: Sufficiency
 SEVERITY_UNSPECIFIED: Severity
 SEVERITY_INFO: Severity
 SEVERITY_WARN: Severity

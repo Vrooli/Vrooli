@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.domains;
 
+import "common/v1/attestation.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains;domains_v1";
@@ -73,19 +74,47 @@ message DerivedDomain {
   // Every source that declared a domain with this name (the authority rung
   // plus any lower rungs that agree). Used by convergence reporting.
   repeated DomainSource provenance = 10;
+  // Honesty contract for this domain (Q2): DERIVED from code when only code
+  // declares it; VALIDATED when the DOMAINS.md claim matches code;
+  // DECLARED_UNVERIFIED when only the doc declares it. Built via internal/attest.
+  common.v1.AttestedAnswer attestation = 11;
 }
 
 message DomainArchetype {
-  string name = 1;
+  // Canonical archetype from the fixed fleet vocabulary (the SSOT). Both
+  // declared (DOMAINS.md) and inferred (code shape) archetypes are normalized
+  // to this enum so convergence can compare them.
+  Archetype archetype = 1;
   ArchetypeSource source = 2;
   double confidence = 3;
   repeated string evidence = 4;
+  // Original label as written in the source when source == DECLARED and the
+  // label does not map onto a canonical Archetype (archetype is then
+  // ARCHETYPE_UNSPECIFIED). Empty when the declared label is canonical.
+  // Preserves the authored intent for honest drift reporting rather than
+  // silently coercing it.
+  string declared_label = 5;
 }
 
 enum ArchetypeSource {
   ARCHETYPE_SOURCE_UNSPECIFIED = 0;
   ARCHETYPE_SOURCE_DECLARED = 1;
   ARCHETYPE_SOURCE_INFERRED = 2;
+}
+
+// Archetype is the fixed canonical vocabulary of domain architectural roles
+// (the fleet vocabulary). A domain carries a primary archetype plus optional
+// secondary archetypes; declared-vs-inferred disagreement is reported as drift,
+// never used to override the authored value.
+enum Archetype {
+  ARCHETYPE_UNSPECIFIED = 0;
+  ARCHETYPE_REPORTING = 1; // read/serve a view over existing state
+  ARCHETYPE_SERVICE = 2; // own + serve a capability over its own data
+  ARCHETYPE_MUTATION = 3; // write-side apply / state change
+  ARCHETYPE_CLASSIFICATION = 4; // categorize / label inputs
+  ARCHETYPE_ORCHESTRATION = 5; // coordinate other domains/capabilities
+  ARCHETYPE_SCORING = 6; // compute graded/ranked verdicts
+  ARCHETYPE_QUERY = 7; // parameterized read/lookup
 }
 
 // DomainDeclaration is one ladder rung's raw view of the domain set,
@@ -121,6 +150,10 @@ message DerivedDomainMap {
   // LOW = the authority fell back to a derived source (api folders, cli
   // groups); the "ground truth" is itself inferred.
   AuthorityConfidence authority_confidence = 8;
+  // Map-level honesty contract (Q2): DERIVED — the resolved map is computed
+  // from on-disk sources. sufficiency reflects authority_confidence. Built via
+  // internal/attest.
+  common.v1.AttestedAnswer attestation = 9;
 }
 
 // AuthorityConfidence grades how trustworthy the resolved authority is.

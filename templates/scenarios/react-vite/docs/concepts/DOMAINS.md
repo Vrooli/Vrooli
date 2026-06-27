@@ -25,10 +25,10 @@ belong in [`DATA.md`](DATA.md).
 
 ## Domain Inventory
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
-|---|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/health.proto` |
-| _(your domain)_ | What product capability it owns. | Pick an archetype. | Its tables, if any. | API/CLI/UI. | PRD requirement modules. | `api/internal/<domain>/`, … |
+| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
+|---|---|---|---|---|---|---|---|
+| health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/health.proto` |
+| _(your domain)_ | What product capability it owns. | Why the capability exists for users or operators. | Its tables, if any. | service | — | DomainVocabulary | `api/internal/<domain>/` |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `vrooli scenario detemplate`)
@@ -36,9 +36,9 @@ belong in [`DATA.md`](DATA.md).
 The template ships `notes` as a worked CRUD vertical slice with a binary
 upload exception. Copy its shape for your own domains, then remove it.
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
-|---|---|---|---|---|---|---|
-| notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/` |
+| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
+|---|---|---|---|---|---|---|---|
+| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/` |
 
 - Purpose: demonstrate the expected vertical slice for a real domain.
 - Primary archetype: CRUD / entity.

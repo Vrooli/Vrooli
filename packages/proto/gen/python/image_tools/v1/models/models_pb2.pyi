@@ -14,6 +14,12 @@ class CommercialUse(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COMMERCIAL_USE_NO: _ClassVar[CommercialUse]
     COMMERCIAL_USE_CONDITIONAL: _ClassVar[CommercialUse]
 
+class ModelLayout(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODEL_LAYOUT_UNSPECIFIED: _ClassVar[ModelLayout]
+    MODEL_LAYOUT_SINGLE_FILE: _ClassVar[ModelLayout]
+    MODEL_LAYOUT_DIFFUSERS_REPO: _ClassVar[ModelLayout]
+
 class CatalogFindingSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CATALOG_FINDING_SEVERITY_UNSPECIFIED: _ClassVar[CatalogFindingSeverity]
@@ -23,6 +29,9 @@ COMMERCIAL_USE_UNSPECIFIED: CommercialUse
 COMMERCIAL_USE_YES: CommercialUse
 COMMERCIAL_USE_NO: CommercialUse
 COMMERCIAL_USE_CONDITIONAL: CommercialUse
+MODEL_LAYOUT_UNSPECIFIED: ModelLayout
+MODEL_LAYOUT_SINGLE_FILE: ModelLayout
+MODEL_LAYOUT_DIFFUSERS_REPO: ModelLayout
 CATALOG_FINDING_SEVERITY_UNSPECIFIED: CatalogFindingSeverity
 CATALOG_FINDING_SEVERITY_ERROR: CatalogFindingSeverity
 CATALOG_FINDING_SEVERITY_WARNING: CatalogFindingSeverity
@@ -244,6 +253,76 @@ class AddCustomModelResponse(_message.Message):
     MODEL_FIELD_NUMBER: _ClassVar[int]
     model: Model
     def __init__(self, model: _Optional[_Union[Model, _Mapping]] = ...) -> None: ...
+
+class ArchitectureInference(_message.Message):
+    __slots__ = ("architecture", "confidence", "evidence")
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    architecture: str
+    confidence: str
+    evidence: str
+    def __init__(self, architecture: _Optional[str] = ..., confidence: _Optional[str] = ..., evidence: _Optional[str] = ...) -> None: ...
+
+class InspectModelSourceRequest(_message.Message):
+    __slots__ = ("source",)
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    source: str
+    def __init__(self, source: _Optional[str] = ...) -> None: ...
+
+class InspectModelSourceResponse(_message.Message):
+    __slots__ = ("source", "repo_id", "revision", "layout", "architecture", "license", "nsfw", "size_bytes", "pipeline_class", "offered_operations", "proposed")
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    LAYOUT_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_FIELD_NUMBER: _ClassVar[int]
+    NSFW_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    OFFERED_OPERATIONS_FIELD_NUMBER: _ClassVar[int]
+    PROPOSED_FIELD_NUMBER: _ClassVar[int]
+    source: str
+    repo_id: str
+    revision: str
+    layout: ModelLayout
+    architecture: ArchitectureInference
+    license: str
+    nsfw: bool
+    size_bytes: int
+    pipeline_class: str
+    offered_operations: _containers.RepeatedScalarFieldContainer[str]
+    proposed: Model
+    def __init__(self, source: _Optional[str] = ..., repo_id: _Optional[str] = ..., revision: _Optional[str] = ..., layout: _Optional[_Union[ModelLayout, str]] = ..., architecture: _Optional[_Union[ArchitectureInference, _Mapping]] = ..., license: _Optional[str] = ..., nsfw: _Optional[bool] = ..., size_bytes: _Optional[int] = ..., pipeline_class: _Optional[str] = ..., offered_operations: _Optional[_Iterable[str]] = ..., proposed: _Optional[_Union[Model, _Mapping]] = ...) -> None: ...
+
+class ImportModelRequest(_message.Message):
+    __slots__ = ("source", "id", "name", "architecture", "operations", "attest_commercial_rights")
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
+    OPERATIONS_FIELD_NUMBER: _ClassVar[int]
+    ATTEST_COMMERCIAL_RIGHTS_FIELD_NUMBER: _ClassVar[int]
+    source: str
+    id: str
+    name: str
+    architecture: str
+    operations: _containers.RepeatedScalarFieldContainer[str]
+    attest_commercial_rights: bool
+    def __init__(self, source: _Optional[str] = ..., id: _Optional[str] = ..., name: _Optional[str] = ..., architecture: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., attest_commercial_rights: _Optional[bool] = ...) -> None: ...
+
+class ImportModelResponse(_message.Message):
+    __slots__ = ("model", "job_id", "eta_seconds", "already_installed")
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    ETA_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    model: Model
+    job_id: str
+    eta_seconds: int
+    already_installed: bool
+    def __init__(self, model: _Optional[_Union[Model, _Mapping]] = ..., job_id: _Optional[str] = ..., eta_seconds: _Optional[int] = ..., already_installed: _Optional[bool] = ...) -> None: ...
 
 class SetDefaultModelRequest(_message.Message):
     __slots__ = ("operation", "model_id")

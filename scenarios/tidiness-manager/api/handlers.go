@@ -329,12 +329,20 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 
 	analysisStage := collector.Stage("analysis")
 
+	roles := newRoleCache(scenarioPath)
+
 	findings := make([]TidinessFinding, 0)
 	const longFileThreshold = 500
 	const longTestFileThreshold = 1250
 	for _, metric := range fileMetrics {
+		role := roles.role(metric.Path)
+		// Generated code is fully excluded; declarative const registries are
+		// long by design, so they do not gate on file length.
+		if role == FileRoleGenerated || role == FileRoleDeclarativeWiring {
+			continue
+		}
 		threshold := longFileThreshold
-		if IsTestFilePath(metric.Path) {
+		if role == FileRoleTest || role == FileRoleTestSupport {
 			threshold = longTestFileThreshold
 		}
 		if metric.Lines > threshold {
@@ -355,9 +363,16 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 			continue
 		}
 		for _, relPath := range langInfoFiles {
+			fileRole := roles.role(relPath)
+			// Generated code is excluded from every finding family.
+			if fileRole == FileRoleGenerated {
+				continue
+			}
 			if codeMetrics, err := codeAnalyzer.analyzeFile(filepath.Join(scenarioPath, relPath), lang); err == nil {
 				findings = append(findings, techDebtFindings(scenarioName, relPath, codeMetrics)...)
-				if codeMetrics.ImportCount > DefaultIssueGeneratorConfig().HighImportThreshold {
+				// Composition roots aggregate many collaborators by design;
+				// their high import count is structural, not coupling debt.
+				if fileRole != FileRoleCompositionRoot && codeMetrics.ImportCount > DefaultIssueGeneratorConfig().HighImportThreshold {
 					threshold := DefaultIssueGeneratorConfig().HighImportThreshold
 					findings = append(findings, newTidinessFinding(scenarioName, "high-coupling", "coupling", severityForCoupling(codeMetrics.ImportCount, threshold), relPath, "", 1,
 						fmt.Sprintf("File has %d imports", codeMetrics.ImportCount),
@@ -372,6 +387,9 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 
 		if metrics.Complexity != nil && !metrics.Complexity.Skipped {
 			for _, complexFile := range metrics.Complexity.HighComplexityFiles {
+				if roles.role(complexFile.Path) == FileRoleGenerated {
+					continue
+				}
 				findings = append(findings, newTidinessFinding(scenarioName, "high-complexity", "complexity", severityForComplexity(complexFile.Complexity, metrics.Complexity.Threshold), complexFile.Path, complexFile.Function, complexFile.Line,
 					fmt.Sprintf("%s has cyclomatic complexity %d", complexFile.Function, complexFile.Complexity),
 					fmt.Sprintf("Function %s has cyclomatic complexity %d, exceeding the threshold of %d.", complexFile.Function, complexFile.Complexity, metrics.Complexity.Threshold),
@@ -390,10 +408,29 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 					primaryPath = block.Files[0].Path
 					line = block.Files[0].StartLine
 				}
-				findings = append(findings, newTidinessFinding(scenarioName, "duplicated-code", "duplication", severityForDuplication(float64(block.Lines), 10), primaryPath, "", line,
+				primaryRole := roles.role(primaryPath)
+				// Generated code is fully excluded.
+				if primaryRole == FileRoleGenerated {
+					continue
+				}
+				// Cap structural duplication at warning: a uniform descriptor
+				// list or test-scaffolding block is enforced consistency, not
+				// logic debt. Content-confirm (IsStructuralBlock) guards against
+				// masking — a genuine logic block in a role-named file keeps its
+				// normal severity.
+				var blockLines []string
+				if roleAllowsStructuralCap(primaryRole) && primaryPath != "" {
+					blockLines, _ = readBlockLines(filepath.Join(scenarioPath, primaryPath), line, block.Lines)
+				}
+				severity, structural := resolveDuplicationSeverity(severityForDuplication(float64(block.Lines), 10), primaryRole, blockLines)
+				evidence := map[string]any{"lines": block.Lines, "locations": block.Files, "tool": metrics.Duplicates.Tool, "file_role": primaryRole.String()}
+				if structural {
+					evidence["structural"] = true
+				}
+				findings = append(findings, newTidinessFinding(scenarioName, "duplicated-code", "duplication", severity, primaryPath, "", line,
 					fmt.Sprintf("Duplicated block spans %d lines", block.Lines),
 					fmt.Sprintf("Duplicated code block #%d spans %d lines across %d locations.", i+1, block.Lines, len(block.Files)),
-					map[string]any{"lines": block.Lines, "locations": block.Files, "tool": metrics.Duplicates.Tool},
+					evidence,
 					"Duplicated code multiplies future fixes and makes behavior drift likely.",
 					"Extract the shared behavior or intentionally document why the copies must diverge.",
 					"duplication"))

@@ -65,7 +65,7 @@ func Modules(db *database.RoutedDB, repoRoot string, cfg config.Config) []module
 		auditH.Module(auditSvc, repoRoot, nil),
 		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Domains: domainsSvc, Signals: signalsSvc, Suppressions: suppressionProvider}),
 		domainsH.Module(domainsSvc),
-		graphH.Module(graphSvc),
+		graphH.Module(graphSvc, domainsSvc),
 		campaignH.Module(campaignSvc),
 		signalsH.Module(signalsSvc),
 	}

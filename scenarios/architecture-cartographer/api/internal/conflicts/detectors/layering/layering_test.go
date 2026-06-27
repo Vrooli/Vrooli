@@ -13,8 +13,8 @@ import (
 func testMap() domains.DerivedDomainMap {
 	return domains.DerivedDomainMap{
 		Domains: []domains.DerivedDomain{
-			{Name: "billing", Paths: []string{"api/internal/billing/**", "api/handlers/billing/**"}, Archetype: "validation"},
-			{Name: "orders", Paths: []string{"api/internal/orders/**", "api/handlers/orders/**"}, Archetype: "service"},
+			{Name: "billing", Paths: []string{"api/internal/billing/**", "api/handlers/billing/**"}, Archetypes: domains.DeclaredArchetypes("validation")},
+			{Name: "orders", Paths: []string{"api/internal/orders/**", "api/handlers/orders/**"}, Archetypes: domains.DeclaredArchetypes("service")},
 		},
 		SharedSubstrate: []string{"api/internal/database/**"},
 	}
@@ -138,9 +138,9 @@ func TestDetect_OrchestrationArchetypeMayCoordinateSiblingDomain(t *testing.T) {
 func coordMap() domains.DerivedDomainMap {
 	return domains.DerivedDomainMap{
 		Domains: []domains.DerivedDomain{
-			{Name: "validation", Paths: []string{"api/handlers/validation/**"}, Archetype: "provider"},
-			{Name: "fleet", Paths: []string{"api/handlers/fleet/**"}, Archetype: "aggregation"},
-			{Name: "trend", Paths: []string{"api/internal/trend/**"}, Archetype: "reporting"},
+			{Name: "validation", Paths: []string{"api/handlers/validation/**"}, Archetypes: domains.DeclaredArchetypes("provider")},
+			{Name: "fleet", Paths: []string{"api/handlers/fleet/**"}, Archetypes: domains.DeclaredArchetypes("aggregation")},
+			{Name: "trend", Paths: []string{"api/internal/trend/**"}, Archetypes: domains.DeclaredArchetypes("reporting")},
 		},
 	}
 }

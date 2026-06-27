@@ -21,6 +21,8 @@ replace github.com/testcontainers/testcontainers-go => github.com/testcontainers
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
@@ -65,6 +67,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/mod v0.11.0 // indirect

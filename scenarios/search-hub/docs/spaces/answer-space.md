@@ -3,8 +3,7 @@
 > **Model & terminology** — the attestation contract (basis × sufficiency), the
 > entity × archetype × aspect model, the denominator/numerator split, and the Status/Basis
 > legend are defined once in the canonical model doc:
-> `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` _(planned — create before this
-> space ships)_. This document does not re-explain them.
+> `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`. This document does not re-explain them.
 
 ## Purpose
 
@@ -21,7 +20,7 @@ column doubles as the gap registry.
 | Owner | `search-hub` (holds the `capability_gap` provider registry this extends) |
 | Tiers | G0 Project · G1 Scenario · G2 Within-scenario · G3 Domain · G4 Symbol · G5 Ecosystem |
 | Denominator confidence | `PARTIAL` — cells enumerated from the model + provider map, not swept exhaustively or validated against real question logs; G0/G5 are sketchier than G1–G3. |
-| Sibling spaces | `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md` _(planned)_ |
+| Sibling spaces | `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md` |
 | Legend | `NOW` live provider · `IN-REACH` substrate exists, build/attest the provider · `MISSING` no provider · ⭐ requester example. |
 
 ## Coverage Grid
@@ -69,7 +68,7 @@ column doubles as the gap registry.
 | 17 | ⭐ Feature · Flow — "Visualize how feature X works at runtime (control/data flow)." | code-graph (call/ref graph) | MISSING | PARTIAL (reconstructed) | Flow is reconstructed → lower basis; render as sequence/mermaid. |
 | 18 | Proto · Conformance — "Does domain X's code match its proto contract?" | `proto-health` / cartographer | IN-REACH | DERIVED | Proto adoption + endpoint proofs. |
 | 19 | Invariants · Verification — "What invariants does X enforce, and how?" | `INVARIANTS.md` + `// INVARIANT` tags + proto validation | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Basis depends on the enforcement mechanism (type/db/test/runtime). |
-| 20 | Archetype · Inventory / Anatomy — "What's domain X's archetype (CRUD / temporal / integration / orchestration)?" | `architecture-cartographer` | IN-REACH | HEURISTIC → DECLARED | Inferred from code shape; mark confidence honestly. |
+| 20 | Archetype · Inventory / Anatomy — "What's domain X's archetype (one of the canonical fleet vocabulary: reporting / service / mutation / classification / orchestration / scoring / query)?" | `architecture-cartographer` | IN-REACH | HEURISTIC → DECLARED | Inferred from code shape and converged with the declared DOMAINS.md value; confidence from signal specificity; declared-vs-inferred disagreement reported as drift, never silently overridden. |
 | 21 | Persistence · Anatomy — "What's X's storage/persistence pattern (schema, migrations, seams)?" | `storage-health` + code-graph | IN-REACH | DERIVED | Read storage-health, attest. |
 | 22 | Intent · Provenance — "Why does domain X exist / when should it change?" | `PRD.md` + code comments | MISSING (pointer-only) | ABSENT | Judgment; contract forces pointer-only to PRD/comments. |
 
@@ -101,7 +100,7 @@ The `MISSING` cells, grouped by tier:
 - **Ecosystem (G5)** — #32 dependency-rationale query (governance stores rationale; no query-by-rationale surface).
 
 Cross-cutting/global gaps that belong to no single cell are tracked in the `meta-optimization-manager`
-`PROBLEMS.md` _(planned)_, not here.
+`PROBLEMS.md`, not here.
 
 ## Sources Of Truth
 
@@ -113,6 +112,6 @@ Cross-cutting/global gaps that belong to no single cell are tracked in the `meta
 
 ## Cross-References
 
-- `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` — canonical model, contract, and legend _(planned)_.
-- `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md` — sibling projection denominators _(planned)_.
+- `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` — canonical model, contract, and legend.
+- `test-genie/docs/spaces/validate-space.md`, `prompt-manager/docs/spaces/guide-space.md` — sibling projection denominators.
 - `../concepts/ARCHITECTURE.md`, `../concepts/DOMAINS.md` — search-hub's own architecture (a live example target for these questions).

@@ -43,7 +43,7 @@ func (l *PackagesLoaderImpl) Load(ctx context.Context, modulePath string, opts L
 		Context: ctx,
 		Mode:    loadMode,
 		Dir:     modulePath,
-		Tests:   false,
+		Tests:   true,
 	}
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {

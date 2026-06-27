@@ -1,0 +1,12 @@
+{
+  "scenario": "ts-junk-drawer",
+  "conflicts": [
+    {
+      "detector": "layering",
+      "type": "layering",
+      "severity": "blocker",
+      "locations_min": 2,
+      "evidence_kinds_include": ["import_edge", "layer_rule"]
+    }
+  ]
+}

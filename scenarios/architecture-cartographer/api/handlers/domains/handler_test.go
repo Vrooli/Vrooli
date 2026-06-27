@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	domainsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 type fakeService struct {
@@ -42,7 +43,7 @@ func TestHandler_ExtractDomains_Translates(t *testing.T) {
 				Name:       "graph",
 				Paths:      []string{"api/internal/graph/"},
 				Glossary:   []string{"GraphSnapshot"},
-				Archetype:  "service",
+				Archetypes: domains.DeclaredArchetypes("service"),
 				Provenance: []domains.Source{domains.SourceDomainsDoc, domains.SourceAPIFolders},
 			},
 		},
@@ -68,8 +69,14 @@ func TestHandler_ExtractDomains_Translates(t *testing.T) {
 		t.Fatalf("domains = %d", len(got.GetDomains()))
 	}
 	d := got.GetDomains()[0]
-	if d.GetName() != "graph" || d.GetArchetype() != "service" {
+	if d.GetName() != "graph" || len(d.GetArchetypes()) != 1 || d.GetArchetypes()[0].GetArchetype() != domainsv1.Archetype_ARCHETYPE_SERVICE {
 		t.Fatalf("domain = %+v", d)
+	}
+	if d.GetAttestation() == nil || d.GetAttestation().GetBasis() == commonv1.Basis_BASIS_UNSPECIFIED {
+		t.Fatalf("domain attestation missing or unspecified: %+v", d.GetAttestation())
+	}
+	if got.GetAttestation() == nil || got.GetAttestation().GetBasis() != commonv1.Basis_BASIS_DERIVED {
+		t.Fatalf("map attestation should be DERIVED: %+v", got.GetAttestation())
 	}
 	if len(d.GetProvenance()) != 2 {
 		t.Fatalf("provenance = %v", d.GetProvenance())

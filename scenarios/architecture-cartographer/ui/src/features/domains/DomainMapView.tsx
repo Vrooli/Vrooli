@@ -9,7 +9,9 @@ import { DataTable, type DataTableColumn } from "../../components/DataTable";
 import type { DerivedDomain } from "@vrooli/proto-types/architecture-cartographer/v1/domains/domains_pb";
 import {
   DomainSource,
+  Archetype,
 } from "@vrooli/proto-types/architecture-cartographer/v1/domains/domains_pb";
+import type { DomainArchetype } from "@vrooli/proto-types/architecture-cartographer/v1/domains/domains_pb";
 import {
   useGetDomainMap,
   useExtractDomains,
@@ -36,6 +38,26 @@ function domainSourceLabel(source: DomainSource): string {
     default:
       return "unspecified";
   }
+}
+
+const ARCHETYPE_LABELS: Record<Archetype, string> = {
+  [Archetype.UNSPECIFIED]: "",
+  [Archetype.REPORTING]: "reporting",
+  [Archetype.SERVICE]: "service",
+  [Archetype.MUTATION]: "mutation",
+  [Archetype.CLASSIFICATION]: "classification",
+  [Archetype.ORCHESTRATION]: "orchestration",
+  [Archetype.SCORING]: "scoring",
+  [Archetype.QUERY]: "query",
+};
+
+function singleArchetypeLabel(archetype: DomainArchetype): string {
+  return ARCHETYPE_LABELS[archetype.archetype] || archetype.declaredLabel || "";
+}
+
+function archetypeLabel(domain: DerivedDomain): string {
+  const labels = (domain.archetypes ?? []).map(singleArchetypeLabel).filter(Boolean);
+  return labels.length === 0 ? "—" : labels.join(", ");
 }
 
 export function DomainMapView({ scenario }: DomainMapViewProps) {
@@ -201,7 +223,7 @@ function DomainMapTable({ domains }: DomainMapTableProps) {
       header: t(strings.pages.targetDomains.columns.archetype),
       cell: (row) => (
         <span className="text-xs text-app-muted-foreground">
-          {row.archetype || "—"}
+          {archetypeLabel(row)}
         </span>
       ),
     },

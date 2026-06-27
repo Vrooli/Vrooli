@@ -188,120 +188,6 @@ func (CellStatus) EnumDescriptor() ([]byte, []int) {
 	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{2}
 }
 
-// Basis is the epistemic provenance axis of the attestation contract: how do we
-// know the answer? Ordered most-trusted to least.
-type Basis int32
-
-const (
-	Basis_BASIS_UNSPECIFIED         Basis = 0
-	Basis_BASIS_DERIVED             Basis = 1 // computed directly from code (AST/graph/facts)
-	Basis_BASIS_VALIDATED           Basis = 2 // doc claim checked against code; agrees (zero drift)
-	Basis_BASIS_DECLARED_UNVERIFIED Basis = 3 // doc claim exists but cannot be fully validated
-	Basis_BASIS_CONTRADICTED        Basis = 4 // doc claim disagrees with code (drift)
-	Basis_BASIS_ABSENT              Basis = 5 // no source of truth; pointer-only
-)
-
-// Enum value maps for Basis.
-var (
-	Basis_name = map[int32]string{
-		0: "BASIS_UNSPECIFIED",
-		1: "BASIS_DERIVED",
-		2: "BASIS_VALIDATED",
-		3: "BASIS_DECLARED_UNVERIFIED",
-		4: "BASIS_CONTRADICTED",
-		5: "BASIS_ABSENT",
-	}
-	Basis_value = map[string]int32{
-		"BASIS_UNSPECIFIED":         0,
-		"BASIS_DERIVED":             1,
-		"BASIS_VALIDATED":           2,
-		"BASIS_DECLARED_UNVERIFIED": 3,
-		"BASIS_CONTRADICTED":        4,
-		"BASIS_ABSENT":              5,
-	}
-)
-
-func (x Basis) Enum() *Basis {
-	p := new(Basis)
-	*p = x
-	return p
-}
-
-func (x Basis) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Basis) Descriptor() protoreflect.EnumDescriptor {
-	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3].Descriptor()
-}
-
-func (Basis) Type() protoreflect.EnumType {
-	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3]
-}
-
-func (x Basis) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Basis.Descriptor instead.
-func (Basis) EnumDescriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{3}
-}
-
-// Sufficiency is the coverage axis of the attestation contract: is the source
-// even shaped to answer the question? Orthogonal to Basis.
-type Sufficiency int32
-
-const (
-	Sufficiency_SUFFICIENCY_UNSPECIFIED  Sufficiency = 0
-	Sufficiency_SUFFICIENCY_FULL         Sufficiency = 1 // source covers the question completely
-	Sufficiency_SUFFICIENCY_PARTIAL      Sufficiency = 2 // answers part; the rest is gapped
-	Sufficiency_SUFFICIENCY_INSUFFICIENT Sufficiency = 3 // accurate as far as it goes, but lacks conventions
-)
-
-// Enum value maps for Sufficiency.
-var (
-	Sufficiency_name = map[int32]string{
-		0: "SUFFICIENCY_UNSPECIFIED",
-		1: "SUFFICIENCY_FULL",
-		2: "SUFFICIENCY_PARTIAL",
-		3: "SUFFICIENCY_INSUFFICIENT",
-	}
-	Sufficiency_value = map[string]int32{
-		"SUFFICIENCY_UNSPECIFIED":  0,
-		"SUFFICIENCY_FULL":         1,
-		"SUFFICIENCY_PARTIAL":      2,
-		"SUFFICIENCY_INSUFFICIENT": 3,
-	}
-)
-
-func (x Sufficiency) Enum() *Sufficiency {
-	p := new(Sufficiency)
-	*p = x
-	return p
-}
-
-func (x Sufficiency) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Sufficiency) Descriptor() protoreflect.EnumDescriptor {
-	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[4].Descriptor()
-}
-
-func (Sufficiency) Type() protoreflect.EnumType {
-	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[4]
-}
-
-func (x Sufficiency) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Sufficiency.Descriptor instead.
-func (Sufficiency) EnumDescriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{4}
-}
-
 // Severity grades a base-document-integrity issue.
 type Severity int32
 
@@ -339,11 +225,11 @@ func (x Severity) String() string {
 }
 
 func (Severity) Descriptor() protoreflect.EnumDescriptor {
-	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[5].Descriptor()
+	return file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3].Descriptor()
 }
 
 func (Severity) Type() protoreflect.EnumType {
-	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[5]
+	return &file_meta_optimization_manager_v1_shared_model_proto_enumTypes[3]
 }
 
 func (x Severity) Number() protoreflect.EnumNumber {
@@ -352,7 +238,7 @@ func (x Severity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Severity.Descriptor instead.
 func (Severity) EnumDescriptor() ([]byte, []int) {
-	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{5}
+	return file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP(), []int{3}
 }
 
 var File_meta_optimization_manager_v1_shared_model_proto protoreflect.FileDescriptor
@@ -376,19 +262,7 @@ const file_meta_optimization_manager_v1_shared_model_proto_rawDesc = "" +
 	"\x17CELL_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fCELL_STATUS_NOW\x10\x01\x12\x18\n" +
 	"\x14CELL_STATUS_IN_REACH\x10\x02\x12\x17\n" +
-	"\x13CELL_STATUS_MISSING\x10\x03*\x8f\x01\n" +
-	"\x05Basis\x12\x15\n" +
-	"\x11BASIS_UNSPECIFIED\x10\x00\x12\x11\n" +
-	"\rBASIS_DERIVED\x10\x01\x12\x13\n" +
-	"\x0fBASIS_VALIDATED\x10\x02\x12\x1d\n" +
-	"\x19BASIS_DECLARED_UNVERIFIED\x10\x03\x12\x16\n" +
-	"\x12BASIS_CONTRADICTED\x10\x04\x12\x10\n" +
-	"\fBASIS_ABSENT\x10\x05*w\n" +
-	"\vSufficiency\x12\x1b\n" +
-	"\x17SUFFICIENCY_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10SUFFICIENCY_FULL\x10\x01\x12\x17\n" +
-	"\x13SUFFICIENCY_PARTIAL\x10\x02\x12\x1c\n" +
-	"\x18SUFFICIENCY_INSUFFICIENT\x10\x03*^\n" +
+	"\x13CELL_STATUS_MISSING\x10\x03*^\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSEVERITY_INFO\x10\x01\x12\x11\n" +
@@ -407,14 +281,12 @@ func file_meta_optimization_manager_v1_shared_model_proto_rawDescGZIP() []byte {
 	return file_meta_optimization_manager_v1_shared_model_proto_rawDescData
 }
 
-var file_meta_optimization_manager_v1_shared_model_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_meta_optimization_manager_v1_shared_model_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_meta_optimization_manager_v1_shared_model_proto_goTypes = []any{
 	(Projection)(0),            // 0: vrooli.meta_optimization_manager.v1.shared.Projection
 	(DenominatorConfidence)(0), // 1: vrooli.meta_optimization_manager.v1.shared.DenominatorConfidence
 	(CellStatus)(0),            // 2: vrooli.meta_optimization_manager.v1.shared.CellStatus
-	(Basis)(0),                 // 3: vrooli.meta_optimization_manager.v1.shared.Basis
-	(Sufficiency)(0),           // 4: vrooli.meta_optimization_manager.v1.shared.Sufficiency
-	(Severity)(0),              // 5: vrooli.meta_optimization_manager.v1.shared.Severity
+	(Severity)(0),              // 3: vrooli.meta_optimization_manager.v1.shared.Severity
 }
 var file_meta_optimization_manager_v1_shared_model_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -434,7 +306,7 @@ func file_meta_optimization_manager_v1_shared_model_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_meta_optimization_manager_v1_shared_model_proto_rawDesc), len(file_meta_optimization_manager_v1_shared_model_proto_rawDesc)),
-			NumEnums:      6,
+			NumEnums:      4,
 			NumMessages:   0,
 			NumExtensions: 0,
 			NumServices:   0,

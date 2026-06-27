@@ -55,7 +55,11 @@ Recommended columns:
 
 | Header | Meaning | Rule |
 |---|---|---|
-| `Primary Archetype` (or `Archetype`) | Domain archetype | Optional. The parser takes the first token of a compound cell (`service / orchestration` → `service`). Recognized vocabulary: `service`, `reporting`, `validation`, `mutation`, `orchestration`, `infrastructure`, `composition-root`. Unknown values are preserved verbatim so convergence reporting can flag them. |
+| `Responsibility` | Semantic anchor for the capability | Required by the template contract; one concise sentence. |
+| `Purpose` | Why the capability exists | Optional human-authored context. |
+| `Owns Data` | Data ownership claim | Optional; use explicit `None` when the domain is stateless. |
+| `Primary Archetype` (or `Archetype`) | Declared archetype | Required by the template contract. The canonical archetype vocabulary is the fixed fleet enum — `reporting`, `service`, `mutation`, `classification`, `orchestration`, `scoring`, `query` (proto `architecture-cartographer.v1.domains.Archetype`); declared labels are normalized onto it and a non-canonical label is preserved verbatim and reported as drift rather than silently coerced. Compound cells such as `service / orchestration` are preserved as multiple declared archetypes rather than truncating to the first token. (Distinct from the zone-layering *coordinating roles* vocabulary, which is a deliberate superset used only to decide which packages may coordinate siblings.) |
+| `Secondary Traits` | Additional declared archetype traits | Optional list normalized onto the same canonical archetype vocabulary. |
 | `Glossary` | Canonical vocabulary for the symbol-glossary signal | Optional. Comma-separated type/function names; backticks tolerated. Empty cell = no glossary. |
 
 A row whose `Domain` cell is empty is skipped. A present row with no source

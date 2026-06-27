@@ -9,6 +9,7 @@ import (
 	"errors"
 	"strings"
 
+	"architecture-cartographer/internal/attest"
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
@@ -19,6 +20,7 @@ import (
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts/conflicts_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -223,7 +225,67 @@ func conflictToProto(c conflicts.Conflict) *sharedv1.Conflict {
 			Confidence: f.Confidence,
 		})
 	}
+	out.Attestation = conflictAttestation(c)
 	return out
+}
+
+// conflictAttestation builds the honesty contract for a finding (Q3/Q15 and the
+// later drift detectors). A doc-vs-code disagreement is CONTRADICTED with
+// citations to both sides; a code-computed structural finding is DERIVED from
+// the graph. Citations come from the finding's own evidence (locator-classified
+// as doc/code), falling back to the finding's locations so a code basis always
+// carries the citation the conformance lint requires.
+func conflictAttestation(c conflicts.Conflict) *commonv1.AttestedAnswer {
+	basis := conflictBasis(c.Type)
+	b := attest.New(conflictClaim(c)).Basis(basis).Sufficiency(commonv1.Sufficiency_SUFFICIENCY_FULL)
+	for _, e := range c.Evidence {
+		kind := attest.KindCode
+		if isDocLocator(e.Locator) || isDocLocator(e.Summary) {
+			kind = attest.KindDoc
+		}
+		b.Cite(e.Locator, kind, e.Summary)
+	}
+	if len(c.Evidence) == 0 {
+		for _, loc := range c.Locations {
+			b.CiteCode(loc, "")
+		}
+	}
+	a := b.Build()
+	if attest.Validate(a) != nil {
+		// A code/contradicted basis with no usable citation would be a dishonest
+		// overclaim; degrade to a pointer-only ABSENT rather than emit it.
+		a.Basis = commonv1.Basis_BASIS_ABSENT
+	}
+	return a
+}
+
+// conflictBasis maps a finding type onto the uniform basis vocabulary.
+func conflictBasis(conflictType string) commonv1.Basis {
+	switch conflictType {
+	case "glossary_drift", "surface_coherence", "convergence_drift", "naming", "zone_drift", "archetype_drift":
+		return commonv1.Basis_BASIS_CONTRADICTED // doc claim disagrees with code
+	case "domains_doc_parse_warning":
+		return commonv1.Basis_BASIS_DECLARED_UNVERIFIED // the doc exists but cannot be validated
+	default:
+		return commonv1.Basis_BASIS_DERIVED // cycle / coupling / layering / mislocated — computed from the graph
+	}
+}
+
+func conflictClaim(c conflicts.Conflict) string {
+	claim := strings.TrimSpace(c.Type)
+	if c.Subtype != "" {
+		claim += " (" + c.Subtype + ")"
+	}
+	if len(c.Domains) > 0 {
+		claim += ": " + strings.Join(c.Domains, ", ")
+	} else if len(c.Locations) > 0 {
+		claim += ": " + strings.Join(c.Locations, ", ")
+	}
+	return claim
+}
+
+func isDocLocator(s string) bool {
+	return strings.Contains(s, ".md") || strings.Contains(strings.ToUpper(s), "DOMAINS") || strings.Contains(strings.ToUpper(s), "ARCHITECTURE.MD")
 }
 
 func findingClassToProto(c conflicts.FindingClass) sharedv1.FindingClass {

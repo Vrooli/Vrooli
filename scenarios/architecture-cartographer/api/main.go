@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"architecture-cartographer/internal/app"
 	"architecture-cartographer/internal/clock"
@@ -85,8 +86,9 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:      handler,
+		WriteTimeout: 5 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

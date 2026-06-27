@@ -53,3 +53,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace intent-go => ../../../packages/intent-go
 
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch

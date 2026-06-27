@@ -11,65 +11,8 @@ import (
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
+	"architecture-cartographer/internal/zones"
 )
-
-const (
-	zoneUnknown         = ""
-	zoneTransport       = "transport"
-	zoneDomain          = "domain"
-	zoneSubstrate       = "substrate"
-	zoneCompositionRoot = "composition-root"
-	zoneCLI             = "cli"
-	zoneUI              = "ui"
-)
-
-var builtInSubstrateSegments = map[string]struct{}{
-	"clock":        {},
-	"config":       {},
-	"database":     {},
-	"git":          {},
-	"httpc":        {},
-	"httpx":        {},
-	"middleware":   {},
-	"server":       {},
-	"suppressions": {},
-	"testutil":     {},
-}
-
-var builtInCompositionRootSegments = map[string]struct{}{
-	"app":     {},
-	"module":  {},
-	"modules": {},
-}
-
-// coordinatingArchetypes are the domain archetypes permitted to import sibling
-// domains: a domain declared with one of these roles is a legitimate coordinator
-// (it composes other domains by design) rather than a leaky boundary. `provider`
-// and `aggregation` join the orchestration-family roles because a provider
-// (serves a composed read/validation surface over several domains) and an
-// aggregator (rolls many domains' data into one view) coordinate by definition.
-// Keep this in sync with the archetype vocabulary in
-// internal/domains/extractor_doc.go.
-var coordinatingArchetypes = map[string]struct{}{
-	"aggregation":      {},
-	"composition-root": {},
-	"infrastructure":   {},
-	"mutation":         {},
-	"orchestration":    {},
-	"provider":         {},
-	"service":          {},
-}
-
-// coordinatingVocabulary is the sorted, human-readable list of coordinating
-// archetypes, used in remediation messages so the fix is discoverable.
-func coordinatingVocabulary() string {
-	roles := make([]string, 0, len(coordinatingArchetypes))
-	for r := range coordinatingArchetypes {
-		roles = append(roles, r)
-	}
-	sort.Strings(roles)
-	return strings.Join(roles, ", ")
-}
 
 // Detector flags wrong-direction imports. Strict mode promotes blocker-class
 // direction violations to blocker severity; non-strict mode keeps them error
@@ -99,6 +42,7 @@ func (Detector) Class() conflicts.FindingClass {
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	packages := packageIndex(in.Snapshot)
 	files := fileIndex(in.Snapshot)
+	zoneConfig := zones.LoadForScenarioName(in.Scenario)
 	var out []conflicts.Conflict
 	for _, edge := range in.Snapshot.Imports {
 		if edge.TestOnly {
@@ -109,12 +53,12 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 		if fromPkg.ID == "" || toPkg.ID == "" {
 			continue
 		}
-		from := classifyPackage(fromPkg, in.DomainMap)
-		to := classifyPackage(toPkg, in.DomainMap)
-		if from.zone == zoneUnknown || to.zone == zoneUnknown {
+		from := classifyPackage(zoneConfig, fromPkg, in.DomainMap)
+		to := classifyPackage(zoneConfig, toPkg, in.DomainMap)
+		if from.Zone == zones.Unknown || to.Zone == zones.Unknown {
 			continue
 		}
-		violation := classifyViolation(from, to)
+		violation := classifyViolation(zoneConfig, from, to)
 		if violation.kind == "" {
 			continue
 		}
@@ -124,13 +68,13 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 			Type:      "layering",
 			Subtype:   violation.kind,
 			Severity:  d.severityFor(violation.blockerEligible),
-			Locations: []string{from.path, to.path},
-			Domains:   domainList(from.domain, to.domain),
+			Locations: []string{from.Path, to.Path},
+			Domains:   domainList(from.Domain, to.Domain),
 			Evidence: []conflicts.Evidence{
 				{
 					Kind:    "import_edge",
-					Summary: fmt.Sprintf("%s imports %s", from.path, to.path),
-					Locator: fmt.Sprintf("%s -> %s", from.path, to.path),
+					Summary: fmt.Sprintf("%s imports %s", from.Path, to.Path),
+					Locator: fmt.Sprintf("%s -> %s", from.Path, to.Path),
 				},
 				{
 					Kind:    "layer_rule",
@@ -161,17 +105,7 @@ func (d Detector) severityFor(blockerEligible bool) conflicts.Severity {
 	return conflicts.SeverityError
 }
 
-type packageZone struct {
-	path      string
-	zone      string
-	domain    string
-	archetype string
-	// declared is true when the package's domain came from a DOMAINS.md Source
-	// Paths entry, false when it was inferred from the path segment (i.e. the
-	// path is owned by no declared domain). An undeclared owner turns a sibling
-	// import into the clearer "unowned source path" remediation.
-	declared bool
-}
+type packageZone = zones.Info
 
 type violation struct {
 	kind            string
@@ -180,11 +114,25 @@ type violation struct {
 	blockerEligible bool
 }
 
-func classifyViolation(from, to packageZone) violation {
-	if from.zone == zoneCompositionRoot || to.zone == zoneCompositionRoot {
+func classifyViolation(zoneConfig zones.Config, from, to packageZone) violation {
+	if from.Zone == zones.CompositionRoot || to.Zone == zones.CompositionRoot {
 		return violation{}
 	}
-	if from.zone == zoneDomain && to.zone == zoneTransport {
+	for _, rule := range []func(zones.Config, packageZone, packageZone) violation{
+		domainImportsTransport,
+		substrateImportsProduct,
+		domainImportsSiblingDomain,
+		handlerImportsSiblingDomain,
+	} {
+		if v := rule(zoneConfig, from, to); v.kind != "" {
+			return v
+		}
+	}
+	return violation{}
+}
+
+func domainImportsTransport(_ zones.Config, from, to packageZone) violation {
+	if from.Zone == zones.Domain && to.Zone == zones.Transport {
 		return violation{
 			kind:            "domain-imports-transport",
 			summary:         "domain packages must not import transport handlers",
@@ -192,7 +140,11 @@ func classifyViolation(from, to packageZone) violation {
 			blockerEligible: true,
 		}
 	}
-	if from.zone == zoneSubstrate && (to.zone == zoneDomain || to.zone == zoneTransport) {
+	return violation{}
+}
+
+func substrateImportsProduct(_ zones.Config, from, to packageZone) violation {
+	if from.Zone == zones.Substrate && (to.Zone == zones.Domain || to.Zone == zones.Transport) {
 		return violation{
 			kind:            "substrate-imports-product",
 			summary:         "shared substrate must stay business-vocabulary-free and must not import product domains or handlers",
@@ -200,29 +152,37 @@ func classifyViolation(from, to packageZone) violation {
 			blockerEligible: true,
 		}
 	}
-	if from.zone == zoneDomain && to.zone == zoneDomain && from.domain != "" && to.domain != "" && from.domain != to.domain && !mayCoordinate(from.archetype) {
-		if !from.declared {
-			return unownedSourcePath(from, to)
+	return violation{}
+}
+
+func domainImportsSiblingDomain(zoneConfig zones.Config, from, to packageZone) violation {
+	if from.Zone == zones.Domain && to.Zone == zones.Domain && from.Domain != "" && to.Domain != "" && from.Domain != to.Domain && !zoneConfig.MayCoordinate(from.Archetype) {
+		if !from.Declared {
+			return unownedSourcePath(zoneConfig, from, to)
 		}
 		return violation{
 			kind:    "domain-imports-sibling-domain",
 			summary: "a non-coordinating domain package must not import sibling domain internals",
 			fix: fmt.Sprintf("Either DECLARE %q's archetype as a coordinating role (%s) in DOMAINS.md if it legitimately composes other domains, "+
 				"or INVERT the dependency: introduce a narrow interface owned by %q and wire the concrete sibling from the composition root.",
-				from.domain, coordinatingVocabulary(), from.domain),
+				from.Domain, zoneConfig.CoordinatingVocabulary(), from.Domain),
 			blockerEligible: false,
 		}
 	}
-	if from.zone == zoneTransport && to.zone == zoneDomain && from.domain != "" && to.domain != "" && from.domain != to.domain && !mayCoordinate(from.archetype) {
-		if !from.declared {
-			return unownedSourcePath(from, to)
+	return violation{}
+}
+
+func handlerImportsSiblingDomain(zoneConfig zones.Config, from, to packageZone) violation {
+	if from.Zone == zones.Transport && to.Zone == zones.Domain && from.Domain != "" && to.Domain != "" && from.Domain != to.Domain && !zoneConfig.MayCoordinate(from.Archetype) {
+		if !from.Declared {
+			return unownedSourcePath(zoneConfig, from, to)
 		}
 		return violation{
 			kind:    "handler-imports-sibling-domain",
 			summary: "a handler package should translate requests for its own domain, not reach into sibling domains",
 			fix: fmt.Sprintf("Either DECLARE %q's archetype as a coordinating role (%s) in DOMAINS.md if it is an aggregator/provider that composes other domains, "+
 				"or INVERT the dependency: move cross-domain coordination behind an interface owned by %q (wired from the composition root).",
-				from.domain, coordinatingVocabulary(), from.domain),
+				from.Domain, zoneConfig.CoordinatingVocabulary(), from.Domain),
 			blockerEligible: false,
 		}
 	}
@@ -233,70 +193,19 @@ func classifyViolation(from, to packageZone) violation {
 // zone but its path is owned by no declared domain (the domain was inferred from
 // the path segment). Rather than emit a misleading "imports sibling domain"
 // finding against a phantom domain, point the operator at the DOMAINS.md gap.
-func unownedSourcePath(from, to packageZone) violation {
+func unownedSourcePath(zoneConfig zones.Config, from, to packageZone) violation {
 	return violation{
 		kind:    "unowned-source-path",
 		summary: "this source path is owned by no declared domain, so its cross-domain import cannot be governed",
 		fix: fmt.Sprintf("Declare %q in DOMAINS.md: add it to the Source Paths of the domain that owns it (or a new domain), "+
 			"giving it an archetype — a coordinating role (%s) if it legitimately composes %q.",
-			from.path, coordinatingVocabulary(), to.domain),
+			from.Path, zoneConfig.CoordinatingVocabulary(), to.Domain),
 		blockerEligible: false,
 	}
 }
 
-func mayCoordinate(archetype string) bool {
-	_, ok := coordinatingArchetypes[strings.ToLower(strings.TrimSpace(archetype))]
-	return ok
-}
-
-func classifyPackage(pkg graph.PackageNode, m domains.DerivedDomainMap) packageZone {
-	path := strings.Trim(strings.TrimSpace(pkg.RepoPath), "/")
-	if path == "" {
-		return packageZone{}
-	}
-	domain := m.DomainFor(path)
-	archetype := archetypeFor(domain, m)
-	declared := domain != ""
-	switch {
-	case strings.HasPrefix(path, "api/handlers/"):
-		return packageZone{path: path, zone: zoneTransport, domain: firstNonEmpty(domain, segmentAfter(path, "api/handlers/")), archetype: archetype, declared: declared}
-	case strings.HasPrefix(path, "api/internal/"):
-		if isBuiltInCompositionRoot(path) {
-			return packageZone{path: path, zone: zoneCompositionRoot, archetype: "composition-root", declared: true}
-		}
-		if m.IsSharedSubstrate(path) || isBuiltInSubstrate(path) {
-			return packageZone{path: path, zone: zoneSubstrate, declared: true}
-		}
-		if domain != "" {
-			return packageZone{path: path, zone: zoneDomain, domain: domain, archetype: archetype, declared: true}
-		}
-	case strings.HasPrefix(path, "cli/domains/"):
-		return packageZone{path: path, zone: zoneCLI, domain: firstNonEmpty(domain, segmentAfter(path, "cli/domains/")), archetype: archetype, declared: declared}
-	case strings.HasPrefix(path, "ui/src/features/"):
-		return packageZone{path: path, zone: zoneUI, domain: firstNonEmpty(domain, segmentAfter(path, "ui/src/features/")), archetype: archetype, declared: declared}
-	}
-	return packageZone{path: path, zone: zoneUnknown, domain: domain, archetype: archetype, declared: declared}
-}
-
-func isBuiltInSubstrate(path string) bool {
-	seg := segmentAfter(path, "api/internal/")
-	_, ok := builtInSubstrateSegments[seg]
-	return ok
-}
-
-func isBuiltInCompositionRoot(path string) bool {
-	seg := segmentAfter(path, "api/internal/")
-	_, ok := builtInCompositionRootSegments[seg]
-	return ok
-}
-
-func archetypeFor(domain string, m domains.DerivedDomainMap) string {
-	for _, d := range m.Domains {
-		if d.Name == domain {
-			return d.Archetype
-		}
-	}
-	return ""
+func classifyPackage(zoneConfig zones.Config, pkg graph.PackageNode, m domains.DerivedDomainMap) packageZone {
+	return zoneConfig.Classify(pkg.RepoPath, m)
 }
 
 func packageIndex(snap graph.GraphSnapshot) map[string]graph.PackageNode {

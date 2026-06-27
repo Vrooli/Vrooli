@@ -38,30 +38,26 @@ const (
 	// ExecutionServiceGetStatusProcedure is the fully-qualified name of the ExecutionService's
 	// GetStatus RPC.
 	ExecutionServiceGetStatusProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetStatus"
+	// ExecutionServiceGetContextProcedure is the fully-qualified name of the ExecutionService's
+	// GetContext RPC.
+	ExecutionServiceGetContextProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetContext"
+	// ExecutionServiceResumeProcedure is the fully-qualified name of the ExecutionService's Resume RPC.
+	ExecutionServiceResumeProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/Resume"
+	// ExecutionServiceContinueExecutionProcedure is the fully-qualified name of the ExecutionService's
+	// ContinueExecution RPC.
+	ExecutionServiceContinueExecutionProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/ContinueExecution"
 	// ExecutionServiceGetNextProcedure is the fully-qualified name of the ExecutionService's GetNext
 	// RPC.
 	ExecutionServiceGetNextProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetNext"
 	// ExecutionServiceTransitionPhaseProcedure is the fully-qualified name of the ExecutionService's
 	// TransitionPhase RPC.
 	ExecutionServiceTransitionPhaseProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/TransitionPhase"
-	// ExecutionServiceRecordDecisionProcedure is the fully-qualified name of the ExecutionService's
-	// RecordDecision RPC.
-	ExecutionServiceRecordDecisionProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/RecordDecision"
-	// ExecutionServiceRecordFindingProcedure is the fully-qualified name of the ExecutionService's
-	// RecordFinding RPC.
-	ExecutionServiceRecordFindingProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/RecordFinding"
 	// ExecutionServiceCompleteProcedure is the fully-qualified name of the ExecutionService's Complete
 	// RPC.
 	ExecutionServiceCompleteProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/Complete"
 	// ExecutionServiceGetHandoffProcedure is the fully-qualified name of the ExecutionService's
 	// GetHandoff RPC.
 	ExecutionServiceGetHandoffProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetHandoff"
-	// ExecutionServiceListCandidateFindingsProcedure is the fully-qualified name of the
-	// ExecutionService's ListCandidateFindings RPC.
-	ExecutionServiceListCandidateFindingsProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/ListCandidateFindings"
-	// ExecutionServiceTriageFindingProcedure is the fully-qualified name of the ExecutionService's
-	// TriageFinding RPC.
-	ExecutionServiceTriageFindingProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/TriageFinding"
 	// ExecutionServiceGetVelocityProcedure is the fully-qualified name of the ExecutionService's
 	// GetVelocity RPC.
 	ExecutionServiceGetVelocityProcedure = "/vrooli.plan_manager.v1.execution.ExecutionService/GetVelocity"
@@ -74,25 +70,26 @@ type ExecutionServiceClient interface {
 	Start(context.Context, *connect.Request[execution.StartRequest]) (*connect.Response[execution.StartResponse], error)
 	// GetStatus returns the just-in-time context for the current phase.
 	GetStatus(context.Context, *connect.Request[execution.GetStatusRequest]) (*connect.Response[execution.GetStatusResponse], error)
+	// GetContext returns only the actionable setup context for the current or
+	// requested phase without advancing the execution pointer.
+	GetContext(context.Context, *connect.Request[execution.GetContextRequest]) (*connect.Response[execution.GetContextResponse], error)
+	// Resume resolves an existing execution or creates one for a plan, optionally
+	// moves the pointer to a phase, and returns setup context without advancing.
+	Resume(context.Context, *connect.Request[execution.ResumeRequest]) (*connect.Response[execution.ResumeResponse], error)
+	// ContinueExecution resumes or starts a run for a plan/execution id and
+	// returns the single recommended next runner action without advancing.
+	ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error)
 	// GetNext advances the runner's pointer to the next actionable phase and
 	// returns its injected context.
 	GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error)
 	// TransitionPhase performs a typed phase-status transition; plan status is
 	// recomputed from the phase-status set.
 	TransitionPhase(context.Context, *connect.Request[execution.TransitionPhaseRequest]) (*connect.Response[execution.TransitionPhaseResponse], error)
-	// RecordDecision captures an in-flow design decision (feeds the handoff).
-	RecordDecision(context.Context, *connect.Request[execution.RecordDecisionRequest]) (*connect.Response[execution.RecordDecisionResponse], error)
-	// RecordFinding captures an in-flow CANDIDATE finding (never auto-promoted).
-	RecordFinding(context.Context, *connect.Request[execution.RecordFindingRequest]) (*connect.Response[execution.RecordFindingResponse], error)
 	// Complete runs the thin guided completion process and assembles the canonical
 	// handoff, capturing a velocity point (OT-P1-001/002).
 	Complete(context.Context, *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error)
 	// GetHandoff returns the assembled canonical handoff for an execution.
 	GetHandoff(context.Context, *connect.Request[execution.GetHandoffRequest]) (*connect.Response[execution.GetHandoffResponse], error)
-	// ListCandidateFindings returns candidate findings awaiting operator triage.
-	ListCandidateFindings(context.Context, *connect.Request[execution.ListCandidateFindingsRequest]) (*connect.Response[execution.ListCandidateFindingsResponse], error)
-	// TriageFinding promotes or dismisses a candidate finding (operator action).
-	TriageFinding(context.Context, *connect.Request[execution.TriageFindingRequest]) (*connect.Response[execution.TriageFindingResponse], error)
 	// GetVelocity returns the per-plan velocity series.
 	GetVelocity(context.Context, *connect.Request[execution.GetVelocityRequest]) (*connect.Response[execution.GetVelocityResponse], error)
 }
@@ -121,6 +118,24 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(executionServiceMethods.ByName("GetStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		getContext: connect.NewClient[execution.GetContextRequest, execution.GetContextResponse](
+			httpClient,
+			baseURL+ExecutionServiceGetContextProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("GetContext")),
+			connect.WithClientOptions(opts...),
+		),
+		resume: connect.NewClient[execution.ResumeRequest, execution.ResumeResponse](
+			httpClient,
+			baseURL+ExecutionServiceResumeProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("Resume")),
+			connect.WithClientOptions(opts...),
+		),
+		continueExecution: connect.NewClient[execution.ContinueExecutionRequest, execution.ContinueExecutionResponse](
+			httpClient,
+			baseURL+ExecutionServiceContinueExecutionProcedure,
+			connect.WithSchema(executionServiceMethods.ByName("ContinueExecution")),
+			connect.WithClientOptions(opts...),
+		),
 		getNext: connect.NewClient[execution.GetNextRequest, execution.GetNextResponse](
 			httpClient,
 			baseURL+ExecutionServiceGetNextProcedure,
@@ -131,18 +146,6 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+ExecutionServiceTransitionPhaseProcedure,
 			connect.WithSchema(executionServiceMethods.ByName("TransitionPhase")),
-			connect.WithClientOptions(opts...),
-		),
-		recordDecision: connect.NewClient[execution.RecordDecisionRequest, execution.RecordDecisionResponse](
-			httpClient,
-			baseURL+ExecutionServiceRecordDecisionProcedure,
-			connect.WithSchema(executionServiceMethods.ByName("RecordDecision")),
-			connect.WithClientOptions(opts...),
-		),
-		recordFinding: connect.NewClient[execution.RecordFindingRequest, execution.RecordFindingResponse](
-			httpClient,
-			baseURL+ExecutionServiceRecordFindingProcedure,
-			connect.WithSchema(executionServiceMethods.ByName("RecordFinding")),
 			connect.WithClientOptions(opts...),
 		),
 		complete: connect.NewClient[execution.CompleteRequest, execution.CompleteResponse](
@@ -157,18 +160,6 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(executionServiceMethods.ByName("GetHandoff")),
 			connect.WithClientOptions(opts...),
 		),
-		listCandidateFindings: connect.NewClient[execution.ListCandidateFindingsRequest, execution.ListCandidateFindingsResponse](
-			httpClient,
-			baseURL+ExecutionServiceListCandidateFindingsProcedure,
-			connect.WithSchema(executionServiceMethods.ByName("ListCandidateFindings")),
-			connect.WithClientOptions(opts...),
-		),
-		triageFinding: connect.NewClient[execution.TriageFindingRequest, execution.TriageFindingResponse](
-			httpClient,
-			baseURL+ExecutionServiceTriageFindingProcedure,
-			connect.WithSchema(executionServiceMethods.ByName("TriageFinding")),
-			connect.WithClientOptions(opts...),
-		),
 		getVelocity: connect.NewClient[execution.GetVelocityRequest, execution.GetVelocityResponse](
 			httpClient,
 			baseURL+ExecutionServiceGetVelocityProcedure,
@@ -180,17 +171,16 @@ func NewExecutionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // executionServiceClient implements ExecutionServiceClient.
 type executionServiceClient struct {
-	start                 *connect.Client[execution.StartRequest, execution.StartResponse]
-	getStatus             *connect.Client[execution.GetStatusRequest, execution.GetStatusResponse]
-	getNext               *connect.Client[execution.GetNextRequest, execution.GetNextResponse]
-	transitionPhase       *connect.Client[execution.TransitionPhaseRequest, execution.TransitionPhaseResponse]
-	recordDecision        *connect.Client[execution.RecordDecisionRequest, execution.RecordDecisionResponse]
-	recordFinding         *connect.Client[execution.RecordFindingRequest, execution.RecordFindingResponse]
-	complete              *connect.Client[execution.CompleteRequest, execution.CompleteResponse]
-	getHandoff            *connect.Client[execution.GetHandoffRequest, execution.GetHandoffResponse]
-	listCandidateFindings *connect.Client[execution.ListCandidateFindingsRequest, execution.ListCandidateFindingsResponse]
-	triageFinding         *connect.Client[execution.TriageFindingRequest, execution.TriageFindingResponse]
-	getVelocity           *connect.Client[execution.GetVelocityRequest, execution.GetVelocityResponse]
+	start             *connect.Client[execution.StartRequest, execution.StartResponse]
+	getStatus         *connect.Client[execution.GetStatusRequest, execution.GetStatusResponse]
+	getContext        *connect.Client[execution.GetContextRequest, execution.GetContextResponse]
+	resume            *connect.Client[execution.ResumeRequest, execution.ResumeResponse]
+	continueExecution *connect.Client[execution.ContinueExecutionRequest, execution.ContinueExecutionResponse]
+	getNext           *connect.Client[execution.GetNextRequest, execution.GetNextResponse]
+	transitionPhase   *connect.Client[execution.TransitionPhaseRequest, execution.TransitionPhaseResponse]
+	complete          *connect.Client[execution.CompleteRequest, execution.CompleteResponse]
+	getHandoff        *connect.Client[execution.GetHandoffRequest, execution.GetHandoffResponse]
+	getVelocity       *connect.Client[execution.GetVelocityRequest, execution.GetVelocityResponse]
 }
 
 // Start calls vrooli.plan_manager.v1.execution.ExecutionService.Start.
@@ -203,6 +193,21 @@ func (c *executionServiceClient) GetStatus(ctx context.Context, req *connect.Req
 	return c.getStatus.CallUnary(ctx, req)
 }
 
+// GetContext calls vrooli.plan_manager.v1.execution.ExecutionService.GetContext.
+func (c *executionServiceClient) GetContext(ctx context.Context, req *connect.Request[execution.GetContextRequest]) (*connect.Response[execution.GetContextResponse], error) {
+	return c.getContext.CallUnary(ctx, req)
+}
+
+// Resume calls vrooli.plan_manager.v1.execution.ExecutionService.Resume.
+func (c *executionServiceClient) Resume(ctx context.Context, req *connect.Request[execution.ResumeRequest]) (*connect.Response[execution.ResumeResponse], error) {
+	return c.resume.CallUnary(ctx, req)
+}
+
+// ContinueExecution calls vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution.
+func (c *executionServiceClient) ContinueExecution(ctx context.Context, req *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error) {
+	return c.continueExecution.CallUnary(ctx, req)
+}
+
 // GetNext calls vrooli.plan_manager.v1.execution.ExecutionService.GetNext.
 func (c *executionServiceClient) GetNext(ctx context.Context, req *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error) {
 	return c.getNext.CallUnary(ctx, req)
@@ -213,16 +218,6 @@ func (c *executionServiceClient) TransitionPhase(ctx context.Context, req *conne
 	return c.transitionPhase.CallUnary(ctx, req)
 }
 
-// RecordDecision calls vrooli.plan_manager.v1.execution.ExecutionService.RecordDecision.
-func (c *executionServiceClient) RecordDecision(ctx context.Context, req *connect.Request[execution.RecordDecisionRequest]) (*connect.Response[execution.RecordDecisionResponse], error) {
-	return c.recordDecision.CallUnary(ctx, req)
-}
-
-// RecordFinding calls vrooli.plan_manager.v1.execution.ExecutionService.RecordFinding.
-func (c *executionServiceClient) RecordFinding(ctx context.Context, req *connect.Request[execution.RecordFindingRequest]) (*connect.Response[execution.RecordFindingResponse], error) {
-	return c.recordFinding.CallUnary(ctx, req)
-}
-
 // Complete calls vrooli.plan_manager.v1.execution.ExecutionService.Complete.
 func (c *executionServiceClient) Complete(ctx context.Context, req *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error) {
 	return c.complete.CallUnary(ctx, req)
@@ -231,17 +226,6 @@ func (c *executionServiceClient) Complete(ctx context.Context, req *connect.Requ
 // GetHandoff calls vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff.
 func (c *executionServiceClient) GetHandoff(ctx context.Context, req *connect.Request[execution.GetHandoffRequest]) (*connect.Response[execution.GetHandoffResponse], error) {
 	return c.getHandoff.CallUnary(ctx, req)
-}
-
-// ListCandidateFindings calls
-// vrooli.plan_manager.v1.execution.ExecutionService.ListCandidateFindings.
-func (c *executionServiceClient) ListCandidateFindings(ctx context.Context, req *connect.Request[execution.ListCandidateFindingsRequest]) (*connect.Response[execution.ListCandidateFindingsResponse], error) {
-	return c.listCandidateFindings.CallUnary(ctx, req)
-}
-
-// TriageFinding calls vrooli.plan_manager.v1.execution.ExecutionService.TriageFinding.
-func (c *executionServiceClient) TriageFinding(ctx context.Context, req *connect.Request[execution.TriageFindingRequest]) (*connect.Response[execution.TriageFindingResponse], error) {
-	return c.triageFinding.CallUnary(ctx, req)
 }
 
 // GetVelocity calls vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity.
@@ -256,25 +240,26 @@ type ExecutionServiceHandler interface {
 	Start(context.Context, *connect.Request[execution.StartRequest]) (*connect.Response[execution.StartResponse], error)
 	// GetStatus returns the just-in-time context for the current phase.
 	GetStatus(context.Context, *connect.Request[execution.GetStatusRequest]) (*connect.Response[execution.GetStatusResponse], error)
+	// GetContext returns only the actionable setup context for the current or
+	// requested phase without advancing the execution pointer.
+	GetContext(context.Context, *connect.Request[execution.GetContextRequest]) (*connect.Response[execution.GetContextResponse], error)
+	// Resume resolves an existing execution or creates one for a plan, optionally
+	// moves the pointer to a phase, and returns setup context without advancing.
+	Resume(context.Context, *connect.Request[execution.ResumeRequest]) (*connect.Response[execution.ResumeResponse], error)
+	// ContinueExecution resumes or starts a run for a plan/execution id and
+	// returns the single recommended next runner action without advancing.
+	ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error)
 	// GetNext advances the runner's pointer to the next actionable phase and
 	// returns its injected context.
 	GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error)
 	// TransitionPhase performs a typed phase-status transition; plan status is
 	// recomputed from the phase-status set.
 	TransitionPhase(context.Context, *connect.Request[execution.TransitionPhaseRequest]) (*connect.Response[execution.TransitionPhaseResponse], error)
-	// RecordDecision captures an in-flow design decision (feeds the handoff).
-	RecordDecision(context.Context, *connect.Request[execution.RecordDecisionRequest]) (*connect.Response[execution.RecordDecisionResponse], error)
-	// RecordFinding captures an in-flow CANDIDATE finding (never auto-promoted).
-	RecordFinding(context.Context, *connect.Request[execution.RecordFindingRequest]) (*connect.Response[execution.RecordFindingResponse], error)
 	// Complete runs the thin guided completion process and assembles the canonical
 	// handoff, capturing a velocity point (OT-P1-001/002).
 	Complete(context.Context, *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error)
 	// GetHandoff returns the assembled canonical handoff for an execution.
 	GetHandoff(context.Context, *connect.Request[execution.GetHandoffRequest]) (*connect.Response[execution.GetHandoffResponse], error)
-	// ListCandidateFindings returns candidate findings awaiting operator triage.
-	ListCandidateFindings(context.Context, *connect.Request[execution.ListCandidateFindingsRequest]) (*connect.Response[execution.ListCandidateFindingsResponse], error)
-	// TriageFinding promotes or dismisses a candidate finding (operator action).
-	TriageFinding(context.Context, *connect.Request[execution.TriageFindingRequest]) (*connect.Response[execution.TriageFindingResponse], error)
 	// GetVelocity returns the per-plan velocity series.
 	GetVelocity(context.Context, *connect.Request[execution.GetVelocityRequest]) (*connect.Response[execution.GetVelocityResponse], error)
 }
@@ -298,6 +283,24 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 		connect.WithSchema(executionServiceMethods.ByName("GetStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	executionServiceGetContextHandler := connect.NewUnaryHandler(
+		ExecutionServiceGetContextProcedure,
+		svc.GetContext,
+		connect.WithSchema(executionServiceMethods.ByName("GetContext")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionServiceResumeHandler := connect.NewUnaryHandler(
+		ExecutionServiceResumeProcedure,
+		svc.Resume,
+		connect.WithSchema(executionServiceMethods.ByName("Resume")),
+		connect.WithHandlerOptions(opts...),
+	)
+	executionServiceContinueExecutionHandler := connect.NewUnaryHandler(
+		ExecutionServiceContinueExecutionProcedure,
+		svc.ContinueExecution,
+		connect.WithSchema(executionServiceMethods.ByName("ContinueExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
 	executionServiceGetNextHandler := connect.NewUnaryHandler(
 		ExecutionServiceGetNextProcedure,
 		svc.GetNext,
@@ -308,18 +311,6 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 		ExecutionServiceTransitionPhaseProcedure,
 		svc.TransitionPhase,
 		connect.WithSchema(executionServiceMethods.ByName("TransitionPhase")),
-		connect.WithHandlerOptions(opts...),
-	)
-	executionServiceRecordDecisionHandler := connect.NewUnaryHandler(
-		ExecutionServiceRecordDecisionProcedure,
-		svc.RecordDecision,
-		connect.WithSchema(executionServiceMethods.ByName("RecordDecision")),
-		connect.WithHandlerOptions(opts...),
-	)
-	executionServiceRecordFindingHandler := connect.NewUnaryHandler(
-		ExecutionServiceRecordFindingProcedure,
-		svc.RecordFinding,
-		connect.WithSchema(executionServiceMethods.ByName("RecordFinding")),
 		connect.WithHandlerOptions(opts...),
 	)
 	executionServiceCompleteHandler := connect.NewUnaryHandler(
@@ -334,18 +325,6 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 		connect.WithSchema(executionServiceMethods.ByName("GetHandoff")),
 		connect.WithHandlerOptions(opts...),
 	)
-	executionServiceListCandidateFindingsHandler := connect.NewUnaryHandler(
-		ExecutionServiceListCandidateFindingsProcedure,
-		svc.ListCandidateFindings,
-		connect.WithSchema(executionServiceMethods.ByName("ListCandidateFindings")),
-		connect.WithHandlerOptions(opts...),
-	)
-	executionServiceTriageFindingHandler := connect.NewUnaryHandler(
-		ExecutionServiceTriageFindingProcedure,
-		svc.TriageFinding,
-		connect.WithSchema(executionServiceMethods.ByName("TriageFinding")),
-		connect.WithHandlerOptions(opts...),
-	)
 	executionServiceGetVelocityHandler := connect.NewUnaryHandler(
 		ExecutionServiceGetVelocityProcedure,
 		svc.GetVelocity,
@@ -358,22 +337,20 @@ func NewExecutionServiceHandler(svc ExecutionServiceHandler, opts ...connect.Han
 			executionServiceStartHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetStatusProcedure:
 			executionServiceGetStatusHandler.ServeHTTP(w, r)
+		case ExecutionServiceGetContextProcedure:
+			executionServiceGetContextHandler.ServeHTTP(w, r)
+		case ExecutionServiceResumeProcedure:
+			executionServiceResumeHandler.ServeHTTP(w, r)
+		case ExecutionServiceContinueExecutionProcedure:
+			executionServiceContinueExecutionHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetNextProcedure:
 			executionServiceGetNextHandler.ServeHTTP(w, r)
 		case ExecutionServiceTransitionPhaseProcedure:
 			executionServiceTransitionPhaseHandler.ServeHTTP(w, r)
-		case ExecutionServiceRecordDecisionProcedure:
-			executionServiceRecordDecisionHandler.ServeHTTP(w, r)
-		case ExecutionServiceRecordFindingProcedure:
-			executionServiceRecordFindingHandler.ServeHTTP(w, r)
 		case ExecutionServiceCompleteProcedure:
 			executionServiceCompleteHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetHandoffProcedure:
 			executionServiceGetHandoffHandler.ServeHTTP(w, r)
-		case ExecutionServiceListCandidateFindingsProcedure:
-			executionServiceListCandidateFindingsHandler.ServeHTTP(w, r)
-		case ExecutionServiceTriageFindingProcedure:
-			executionServiceTriageFindingHandler.ServeHTTP(w, r)
 		case ExecutionServiceGetVelocityProcedure:
 			executionServiceGetVelocityHandler.ServeHTTP(w, r)
 		default:
@@ -393,6 +370,18 @@ func (UnimplementedExecutionServiceHandler) GetStatus(context.Context, *connect.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.GetStatus is not implemented"))
 }
 
+func (UnimplementedExecutionServiceHandler) GetContext(context.Context, *connect.Request[execution.GetContextRequest]) (*connect.Response[execution.GetContextResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.GetContext is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) Resume(context.Context, *connect.Request[execution.ResumeRequest]) (*connect.Response[execution.ResumeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.Resume is not implemented"))
+}
+
+func (UnimplementedExecutionServiceHandler) ContinueExecution(context.Context, *connect.Request[execution.ContinueExecutionRequest]) (*connect.Response[execution.ContinueExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution is not implemented"))
+}
+
 func (UnimplementedExecutionServiceHandler) GetNext(context.Context, *connect.Request[execution.GetNextRequest]) (*connect.Response[execution.GetNextResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.GetNext is not implemented"))
 }
@@ -401,28 +390,12 @@ func (UnimplementedExecutionServiceHandler) TransitionPhase(context.Context, *co
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase is not implemented"))
 }
 
-func (UnimplementedExecutionServiceHandler) RecordDecision(context.Context, *connect.Request[execution.RecordDecisionRequest]) (*connect.Response[execution.RecordDecisionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.RecordDecision is not implemented"))
-}
-
-func (UnimplementedExecutionServiceHandler) RecordFinding(context.Context, *connect.Request[execution.RecordFindingRequest]) (*connect.Response[execution.RecordFindingResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.RecordFinding is not implemented"))
-}
-
 func (UnimplementedExecutionServiceHandler) Complete(context.Context, *connect.Request[execution.CompleteRequest]) (*connect.Response[execution.CompleteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.Complete is not implemented"))
 }
 
 func (UnimplementedExecutionServiceHandler) GetHandoff(context.Context, *connect.Request[execution.GetHandoffRequest]) (*connect.Response[execution.GetHandoffResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff is not implemented"))
-}
-
-func (UnimplementedExecutionServiceHandler) ListCandidateFindings(context.Context, *connect.Request[execution.ListCandidateFindingsRequest]) (*connect.Response[execution.ListCandidateFindingsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.ListCandidateFindings is not implemented"))
-}
-
-func (UnimplementedExecutionServiceHandler) TriageFinding(context.Context, *connect.Request[execution.TriageFindingRequest]) (*connect.Response[execution.TriageFindingResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.execution.ExecutionService.TriageFinding is not implemented"))
 }
 
 func (UnimplementedExecutionServiceHandler) GetVelocity(context.Context, *connect.Request[execution.GetVelocityRequest]) (*connect.Response[execution.GetVelocityResponse], error) {

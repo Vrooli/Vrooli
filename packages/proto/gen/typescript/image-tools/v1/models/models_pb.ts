@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/models/models.proto.
  */
 export const file_image_tools_v1_models_models: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiPQoWU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiPgoXU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJIkAKCU9wRGVmYXVsdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDgoGc291cmNlGAMgASgJIhUKE0xpc3REZWZhdWx0c1JlcXVlc3QiUQoUTGlzdERlZmF1bHRzUmVzcG9uc2USOQoIZGVmYXVsdHMYASADKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk9wRGVmYXVsdCKcAQoOQ2F0YWxvZ0ZpbmRpbmcSRgoIc2V2ZXJpdHkYASABKA4yNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghtb2RlbF9pZBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSDwoHbWVzc2FnZRgFIAEoCSIWChREb2N0b3JDYXRhbG9nUmVxdWVzdCJjChVEb2N0b3JDYXRhbG9nUmVzcG9uc2USCgoCb2sYASABKAgSPgoIZmluZGluZ3MYAiADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nIuABCg1CYWNrZW5kU3RhdHVzEgwKBG5hbWUYASABKAkSEgoKb3BlcmF0aW9ucxgCIAMoCRIRCglhdmFpbGFibGUYAyABKAgSEgoKc3RhbmRhbG9uZRgEIAEoCBINCgVjbG91ZBgFIAEoCBITCgtncHVfY2FwYWJsZRgGIAEoCBIOCgZkZXRhaWwYByABKAkSEQoJcHJvdmlzaW9uGAggASgJEhEKCWhvc3RfdG9vbBgJIAEoCRIXCg9ob3N0X3Rvb2xfcmVhZHkYCiABKAgSEwoLcmVtZWRpYXRpb24YCyABKAkiFwoVRG9jdG9yQmFja2VuZHNSZXF1ZXN0ImMKFkRvY3RvckJhY2tlbmRzUmVzcG9uc2USCgoCb2sYASABKAgSPQoIYmFja2VuZHMYAiADKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkJhY2tlbmRTdGF0dXMiSAoURW5zdXJlQmFja2VuZFJlcXVlc3QSDAoEdG9vbBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDwoHZHJ5X3J1bhgDIAEoCCKUAQoVRW5zdXJlQmFja2VuZFJlc3BvbnNlEgwKBHRvb2wYASABKAkSDgoGam9iX2lkGAIgASgJEhMKC2V0YV9zZWNvbmRzGAMgASgFEhkKEWFscmVhZHlfaW5zdGFsbGVkGAQgASgIEg4KBm1hbnVhbBgFIAEoCBINCgVzdGF0ZRgGIAEoCRIOCgZkZXRhaWwYByABKAkiFwoVR2V0SG9zdFN1bW1hcnlSZXF1ZXN0IlEKFkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USNwoEaG9zdBgBIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSG9zdFN1bW1hcnkiLwoaTGlzdE9wZXJhdGlvbk1vZGVsc1JlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJItUBCgpSZXNvbHV0aW9uEhEKCW9wZXJhdGlvbhgBIAEoCRIQCghtb2RlbF9pZBgCIAEoCRISCgptb2RlbF9uYW1lGAMgASgJEg8KB3N1cHBvcnQYBCABKAkSEQoJdGVjaG5pcXVlGAUgASgJEhYKDnBpcGVsaW5lX2NsYXNzGAYgASgJEg4KBmNhdmVhdBgHIAEoCRIOCgZ3ZWlnaHQYCCABKAkSDAoEdGllchgJIAEoCRISCgpncHVfdmlhYmxlGAogASgIEhAKCHdhcm5pbmdzGAsgAygJIlMKGEV4cGxhaW5SZXNvbHV0aW9uUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSEgoKYWxsb3dfYnlvaxgDIAEoCCJZChlFeHBsYWluUmVzb2x1dGlvblJlc3BvbnNlEjwKCnJlc29sdXRpb24YASABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlJlc29sdXRpb24iwQEKC0hvc3RTdW1tYXJ5Eg8KB2hhc19ncHUYASABKAgSEAoIZ3B1X25hbWUYAiABKAkSEQoJZ3B1X2NvdW50GAMgASgFEhUKDXZyYW1fdG90YWxfZ2IYBCABKAUSFAoMdnJhbV9mcmVlX2diGAUgASgFEhIKCnZyYW1fa25vd24YBiABKAgSDgoGcmFtX2diGAcgASgFEhEKCWNwdV9jb3JlcxgIIAEoBRIKCgJvcxgJIAEoCRIMCgRhcmNoGAogASgJInAKCE1vZGVsRml0EhAKCHJ1bm5hYmxlGAEgASgIEhIKCmdwdV92aWFibGUYAiABKAgSEQoJZml0X2NsYXNzGAMgASgJEhkKEXZyYW1fc2hvcnRmYWxsX2diGAQgASgFEhAKCHdhcm5pbmdzGAUgAygJIpUBChBCYWNrZW5kUmVhZGluZXNzEg8KB2JhY2tlbmQYASABKAkSEQoJaG9zdF90b29sGAIgASgJEg0KBXJlYWR5GAMgASgIEhQKDGluc3RhbGxfdGllchgEIAEoCRITCgtyZW1lZGlhdGlvbhgFIAEoCRITCgttYW51YWxfaGludBgGIAEoCRIOCgZkZXRhaWwYByABKAkilQIKDkNhbmRpZGF0ZU1vZGVsEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBIzCgNmaXQYAiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsRml0Ej8KB2JhY2tlbmQYAyABKAsyLi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkJhY2tlbmRSZWFkaW5lc3MSEwoLcmVhZHlfc3RhdGUYBCABKAkSEAoIc2VsZWN0ZWQYBSABKAgSDwoHc3VwcG9ydBgGIAEoCRIRCgl0ZWNobmlxdWUYByABKAkSDgoGY2F2ZWF0GAggASgJItkBChtMaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEjcKBGhvc3QYAiABKAsyKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkhvc3RTdW1tYXJ5EkAKCmNhbmRpZGF0ZXMYAyADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhbmRpZGF0ZU1vZGVsEhMKC3NlbGVjdGVkX2lkGAQgASgJEhcKD3NlbGVjdGVkX3JlYXNvbhgFIAEoCSp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADKowBChZDYXRhbG9nRmluZGluZ1NldmVyaXR5EigKJENBVEFMT0dfRklORElOR19TRVZFUklUWV9VTlNQRUNJRklFRBAAEiIKHkNBVEFMT0dfRklORElOR19TRVZFUklUWV9FUlJPUhABEiQKIENBVEFMT0dfRklORElOR19TRVZFUklUWV9XQVJOSU5HEAIytxAKDU1vZGVsc1NlcnZpY2USbwoKTGlzdE1vZGVscxIvLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE1vZGVsc1JlcXVlc3QaMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXNwb25zZRJpCghHZXRNb2RlbBItLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXF1ZXN0Gi4udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRNb2RlbFJlc3BvbnNlEnsKDkxpc3RPcGVyYXRpb25zEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2UScgoLU2VsZWN0TW9kZWwSMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVxdWVzdBoxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2VsZWN0TW9kZWxSZXNwb25zZRJ+Cg9TZXRNb2RlbEVuYWJsZWQSNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlcXVlc3QaNS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlc3BvbnNlEngKDUxpc3RCbG9ja2xpc3QSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RCbG9ja2xpc3RSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVzcG9uc2USdQoMSW5zdGFsbE1vZGVsEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXNwb25zZRJyCgtSZW1vdmVNb2RlbBIwLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVtb3ZlTW9kZWxSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5SZW1vdmVNb2RlbFJlc3BvbnNlEnsKDkFkZEN1c3RvbU1vZGVsEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5BZGRDdXN0b21Nb2RlbFJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkFkZEN1c3RvbU1vZGVsUmVzcG9uc2USfgoPU2V0RGVmYXVsdE1vZGVsEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXNwb25zZRJ1CgxMaXN0RGVmYXVsdHMSMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1JlcXVlc3QaMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1Jlc3BvbnNlEngKDURvY3RvckNhdGFsb2cSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckNhdGFsb2dSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JDYXRhbG9nUmVzcG9uc2USewoORG9jdG9yQmFja2VuZHMSMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckJhY2tlbmRzUmVxdWVzdBo0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRG9jdG9yQmFja2VuZHNSZXNwb25zZRJ4Cg1FbnN1cmVCYWNrZW5kEjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5FbnN1cmVCYWNrZW5kUmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRW5zdXJlQmFja2VuZFJlc3BvbnNlEnsKDkdldEhvc3RTdW1tYXJ5EjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRIb3N0U3VtbWFyeVJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USigEKE0xpc3RPcGVyYXRpb25Nb2RlbHMSOC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25Nb2RlbHNSZXF1ZXN0GjkudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2UShAEKEUV4cGxhaW5SZXNvbHV0aW9uEjYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5FeHBsYWluUmVzb2x1dGlvblJlcXVlc3QaNy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkV4cGxhaW5SZXNvbHV0aW9uUmVzcG9uc2VCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9tb2RlbHM7bW9kZWxzX3YxYgZwcm90bzM");
+  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiUwoVQXJjaGl0ZWN0dXJlSW5mZXJlbmNlEhQKDGFyY2hpdGVjdHVyZRgBIAEoCRISCgpjb25maWRlbmNlGAIgASgJEhAKCGV2aWRlbmNlGAMgASgJIisKGUluc3BlY3RNb2RlbFNvdXJjZVJlcXVlc3QSDgoGc291cmNlGAEgASgJIvMCChpJbnNwZWN0TW9kZWxTb3VyY2VSZXNwb25zZRIOCgZzb3VyY2UYASABKAkSDwoHcmVwb19pZBgCIAEoCRIQCghyZXZpc2lvbhgDIAEoCRI5CgZsYXlvdXQYBCABKA4yKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsTGF5b3V0EkkKDGFyY2hpdGVjdHVyZRgFIAEoCzIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQXJjaGl0ZWN0dXJlSW5mZXJlbmNlEg8KB2xpY2Vuc2UYBiABKAkSDAoEbnNmdxgHIAEoCBISCgpzaXplX2J5dGVzGAggASgEEhYKDnBpcGVsaW5lX2NsYXNzGAkgASgJEhoKEm9mZmVyZWRfb3BlcmF0aW9ucxgKIAMoCRI1Cghwcm9wb3NlZBgLIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiigEKEkltcG9ydE1vZGVsUmVxdWVzdBIOCgZzb3VyY2UYASABKAkSCgoCaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIUCgxhcmNoaXRlY3R1cmUYBCABKAkSEgoKb3BlcmF0aW9ucxgFIAMoCRIgChhhdHRlc3RfY29tbWVyY2lhbF9yaWdodHMYBiABKAgiiQEKE0ltcG9ydE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsEg4KBmpvYl9pZBgCIAEoCRITCgtldGFfc2Vjb25kcxgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCI9ChZTZXREZWZhdWx0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRIQCghtb2RlbF9pZBgCIAEoCSI+ChdTZXREZWZhdWx0TW9kZWxSZXNwb25zZRIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiQAoJT3BEZWZhdWx0EhEKCW9wZXJhdGlvbhgBIAEoCRIQCghtb2RlbF9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkiFQoTTGlzdERlZmF1bHRzUmVxdWVzdCJRChRMaXN0RGVmYXVsdHNSZXNwb25zZRI5CghkZWZhdWx0cxgBIAMoCzInLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuT3BEZWZhdWx0IpwBCg5DYXRhbG9nRmluZGluZxJGCghzZXZlcml0eRgBIAEoDjI0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2F0YWxvZ0ZpbmRpbmdTZXZlcml0eRIMCgRjb2RlGAIgASgJEhAKCG1vZGVsX2lkGAMgASgJEhEKCW9wZXJhdGlvbhgEIAEoCRIPCgdtZXNzYWdlGAUgASgJIhYKFERvY3RvckNhdGFsb2dSZXF1ZXN0ImMKFURvY3RvckNhdGFsb2dSZXNwb25zZRIKCgJvaxgBIAEoCBI+CghmaW5kaW5ncxgCIAMoCzIsLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2F0YWxvZ0ZpbmRpbmci4AEKDUJhY2tlbmRTdGF0dXMSDAoEbmFtZRgBIAEoCRISCgpvcGVyYXRpb25zGAIgAygJEhEKCWF2YWlsYWJsZRgDIAEoCBISCgpzdGFuZGFsb25lGAQgASgIEg0KBWNsb3VkGAUgASgIEhMKC2dwdV9jYXBhYmxlGAYgASgIEg4KBmRldGFpbBgHIAEoCRIRCglwcm92aXNpb24YCCABKAkSEQoJaG9zdF90b29sGAkgASgJEhcKD2hvc3RfdG9vbF9yZWFkeRgKIAEoCBITCgtyZW1lZGlhdGlvbhgLIAEoCSIXChVEb2N0b3JCYWNrZW5kc1JlcXVlc3QiYwoWRG9jdG9yQmFja2VuZHNSZXNwb25zZRIKCgJvaxgBIAEoCBI9CghiYWNrZW5kcxgCIAMoCzIrLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQmFja2VuZFN0YXR1cyJIChRFbnN1cmVCYWNrZW5kUmVxdWVzdBIMCgR0b29sGAEgASgJEhEKCW9wZXJhdGlvbhgCIAEoCRIPCgdkcnlfcnVuGAMgASgIIpQBChVFbnN1cmVCYWNrZW5kUmVzcG9uc2USDAoEdG9vbBgBIAEoCRIOCgZqb2JfaWQYAiABKAkSEwoLZXRhX3NlY29uZHMYAyABKAUSGQoRYWxyZWFkeV9pbnN0YWxsZWQYBCABKAgSDgoGbWFudWFsGAUgASgIEg0KBXN0YXRlGAYgASgJEg4KBmRldGFpbBgHIAEoCSIXChVHZXRIb3N0U3VtbWFyeVJlcXVlc3QiUQoWR2V0SG9zdFN1bW1hcnlSZXNwb25zZRI3CgRob3N0GAEgASgLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Ib3N0U3VtbWFyeSIvChpMaXN0T3BlcmF0aW9uTW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAki1QEKClJlc29sdXRpb24SEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJEhIKCm1vZGVsX25hbWUYAyABKAkSDwoHc3VwcG9ydBgEIAEoCRIRCgl0ZWNobmlxdWUYBSABKAkSFgoOcGlwZWxpbmVfY2xhc3MYBiABKAkSDgoGY2F2ZWF0GAcgASgJEg4KBndlaWdodBgIIAEoCRIMCgR0aWVyGAkgASgJEhIKCmdwdV92aWFibGUYCiABKAgSEAoId2FybmluZ3MYCyADKAkiUwoYRXhwbGFpblJlc29sdXRpb25SZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRIQCghtb2RlbF9pZBgCIAEoCRISCgphbGxvd19ieW9rGAMgASgIIlkKGUV4cGxhaW5SZXNvbHV0aW9uUmVzcG9uc2USPAoKcmVzb2x1dGlvbhgBIAEoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVzb2x1dGlvbiLBAQoLSG9zdFN1bW1hcnkSDwoHaGFzX2dwdRgBIAEoCBIQCghncHVfbmFtZRgCIAEoCRIRCglncHVfY291bnQYAyABKAUSFQoNdnJhbV90b3RhbF9nYhgEIAEoBRIUCgx2cmFtX2ZyZWVfZ2IYBSABKAUSEgoKdnJhbV9rbm93bhgGIAEoCBIOCgZyYW1fZ2IYByABKAUSEQoJY3B1X2NvcmVzGAggASgFEgoKAm9zGAkgASgJEgwKBGFyY2gYCiABKAkicAoITW9kZWxGaXQSEAoIcnVubmFibGUYASABKAgSEgoKZ3B1X3ZpYWJsZRgCIAEoCBIRCglmaXRfY2xhc3MYAyABKAkSGQoRdnJhbV9zaG9ydGZhbGxfZ2IYBCABKAUSEAoId2FybmluZ3MYBSADKAkilQEKEEJhY2tlbmRSZWFkaW5lc3MSDwoHYmFja2VuZBgBIAEoCRIRCglob3N0X3Rvb2wYAiABKAkSDQoFcmVhZHkYAyABKAgSFAoMaW5zdGFsbF90aWVyGAQgASgJEhMKC3JlbWVkaWF0aW9uGAUgASgJEhMKC21hbnVhbF9oaW50GAYgASgJEg4KBmRldGFpbBgHIAEoCSKVAgoOQ2FuZGlkYXRlTW9kZWwSMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsEjMKA2ZpdBgCIAEoCzImLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWxGaXQSPwoHYmFja2VuZBgDIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQmFja2VuZFJlYWRpbmVzcxITCgtyZWFkeV9zdGF0ZRgEIAEoCRIQCghzZWxlY3RlZBgFIAEoCBIPCgdzdXBwb3J0GAYgASgJEhEKCXRlY2huaXF1ZRgHIAEoCRIOCgZjYXZlYXQYCCABKAki2QEKG0xpc3RPcGVyYXRpb25Nb2RlbHNSZXNwb25zZRIRCglvcGVyYXRpb24YASABKAkSNwoEaG9zdBgCIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSG9zdFN1bW1hcnkSQAoKY2FuZGlkYXRlcxgDIAMoCzIsLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FuZGlkYXRlTW9kZWwSEwoLc2VsZWN0ZWRfaWQYBCABKAkSFwoPc2VsZWN0ZWRfcmVhc29uGAUgASgJKn4KDUNvbW1lcmNpYWxVc2USHgoaQ09NTUVSQ0lBTF9VU0VfVU5TUEVDSUZJRUQQABIWChJDT01NRVJDSUFMX1VTRV9ZRVMQARIVChFDT01NRVJDSUFMX1VTRV9OTxACEh4KGkNPTU1FUkNJQUxfVVNFX0NPTkRJVElPTkFMEAMqagoLTW9kZWxMYXlvdXQSHAoYTU9ERUxfTEFZT1VUX1VOU1BFQ0lGSUVEEAASHAoYTU9ERUxfTEFZT1VUX1NJTkdMRV9GSUxFEAESHwobTU9ERUxfTEFZT1VUX0RJRkZVU0VSU19SRVBPEAIqjAEKFkNhdGFsb2dGaW5kaW5nU2V2ZXJpdHkSKAokQ0FUQUxPR19GSU5ESU5HX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASIgoeQ0FUQUxPR19GSU5ESU5HX1NFVkVSSVRZX0VSUk9SEAESJAogQ0FUQUxPR19GSU5ESU5HX1NFVkVSSVRZX1dBUk5JTkcQAjK1EgoNTW9kZWxzU2VydmljZRJvCgpMaXN0TW9kZWxzEi8udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0TW9kZWxzUmVxdWVzdBowLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE1vZGVsc1Jlc3BvbnNlEmkKCEdldE1vZGVsEi0udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRNb2RlbFJlcXVlc3QaLi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldE1vZGVsUmVzcG9uc2USewoOTGlzdE9wZXJhdGlvbnMSMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25zUmVxdWVzdBo0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE9wZXJhdGlvbnNSZXNwb25zZRJyCgtTZWxlY3RNb2RlbBIwLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2VsZWN0TW9kZWxSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZWxlY3RNb2RlbFJlc3BvbnNlEn4KD1NldE1vZGVsRW5hYmxlZBI0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0TW9kZWxFbmFibGVkUmVxdWVzdBo1LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USeAoNTGlzdEJsb2NrbGlzdBIyLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdEJsb2NrbGlzdFJlcXVlc3QaMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RCbG9ja2xpc3RSZXNwb25zZRJ1CgxJbnN0YWxsTW9kZWwSMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxNb2RlbFJlcXVlc3QaMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxNb2RlbFJlc3BvbnNlEnIKC1JlbW92ZU1vZGVsEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5SZW1vdmVNb2RlbFJlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlJlbW92ZU1vZGVsUmVzcG9uc2USewoOQWRkQ3VzdG9tTW9kZWwSMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkFkZEN1c3RvbU1vZGVsUmVxdWVzdBo0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRKHAQoSSW5zcGVjdE1vZGVsU291cmNlEjcudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnNwZWN0TW9kZWxTb3VyY2VSZXF1ZXN0GjgudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnNwZWN0TW9kZWxTb3VyY2VSZXNwb25zZRJyCgtJbXBvcnRNb2RlbBIwLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSW1wb3J0TW9kZWxSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbXBvcnRNb2RlbFJlc3BvbnNlEn4KD1NldERlZmF1bHRNb2RlbBI0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBo1LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USdQoMTGlzdERlZmF1bHRzEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXNwb25zZRJ4Cg1Eb2N0b3JDYXRhbG9nEjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JDYXRhbG9nUmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRG9jdG9yQ2F0YWxvZ1Jlc3BvbnNlEnsKDkRvY3RvckJhY2tlbmRzEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JCYWNrZW5kc1JlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckJhY2tlbmRzUmVzcG9uc2USeAoNRW5zdXJlQmFja2VuZBIyLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRW5zdXJlQmFja2VuZFJlcXVlc3QaMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkVuc3VyZUJhY2tlbmRSZXNwb25zZRJ7Cg5HZXRIb3N0U3VtbWFyeRIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0SG9zdFN1bW1hcnlSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRIb3N0U3VtbWFyeVJlc3BvbnNlEooBChNMaXN0T3BlcmF0aW9uTW9kZWxzEjgudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uTW9kZWxzUmVxdWVzdBo5LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE9wZXJhdGlvbk1vZGVsc1Jlc3BvbnNlEoQBChFFeHBsYWluUmVzb2x1dGlvbhI2LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRXhwbGFpblJlc29sdXRpb25SZXF1ZXN0GjcudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5FeHBsYWluUmVzb2x1dGlvblJlc3BvbnNlQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvbW9kZWxzO21vZGVsc192MWIGcHJvdG8z");
 
 /**
  * Hardware captures a model's host requirements.
@@ -676,6 +676,232 @@ export const AddCustomModelResponseSchema: GenMessage<AddCustomModelResponse> = 
   messageDesc(file_image_tools_v1_models_models, 22);
 
 /**
+ * ArchitectureInference is the proposed architecture for an inspected source.
+ *
+ * @generated from message vrooli.image_tools.v1.models.ArchitectureInference
+ */
+export type ArchitectureInference = Message<"vrooli.image_tools.v1.models.ArchitectureInference"> & {
+  /**
+   * architecture is the models.Architecture enum value ("sdxl", "sd15", "flux",
+   * …) or "none" when nothing recognizable was found (manual pick required).
+   *
+   * @generated from field: string architecture = 1;
+   */
+  architecture: string;
+
+  /**
+   * confidence grades the signal: "none" | "low" | "medium" | "high".
+   *
+   * @generated from field: string confidence = 2;
+   */
+  confidence: string;
+
+  /**
+   * evidence is the human-readable basis (e.g. `pipeline class "StableDiffusionXLPipeline"`).
+   *
+   * @generated from field: string evidence = 3;
+   */
+  evidence: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ArchitectureInference.
+ * Use `create(ArchitectureInferenceSchema)` to create a new message.
+ */
+export const ArchitectureInferenceSchema: GenMessage<ArchitectureInference> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 23);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.InspectModelSourceRequest
+ */
+export type InspectModelSourceRequest = Message<"vrooli.image_tools.v1.models.InspectModelSourceRequest"> & {
+  /**
+   * A HuggingFace repo id ("org/name"), a direct weight URL, or a local path.
+   *
+   * @generated from field: string source = 1;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.InspectModelSourceRequest.
+ * Use `create(InspectModelSourceRequestSchema)` to create a new message.
+ */
+export const InspectModelSourceRequestSchema: GenMessage<InspectModelSourceRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 24);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.InspectModelSourceResponse
+ */
+export type InspectModelSourceResponse = Message<"vrooli.image_tools.v1.models.InspectModelSourceResponse"> & {
+  /**
+   * @generated from field: string source = 1;
+   */
+  source: string;
+
+  /**
+   * Resolved HuggingFace repo id + immutable commit SHA (empty for URL/local).
+   *
+   * @generated from field: string repo_id = 2;
+   */
+  repoId: string;
+
+  /**
+   * @generated from field: string revision = 3;
+   */
+  revision: string;
+
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.ModelLayout layout = 4;
+   */
+  layout: ModelLayout;
+
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.ArchitectureInference architecture = 5;
+   */
+  architecture?: ArchitectureInference | undefined;
+
+  /**
+   * Declared license ("unverified" when the source declares none) + NSFW flag.
+   *
+   * @generated from field: string license = 6;
+   */
+  license: string;
+
+  /**
+   * @generated from field: bool nsfw = 7;
+   */
+  nsfw: boolean;
+
+  /**
+   * @generated from field: uint64 size_bytes = 8;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * diffusers _class_name when the source is a diffusers repo (else "").
+   *
+   * @generated from field: string pipeline_class = 9;
+   */
+  pipelineClass: string;
+
+  /**
+   * The operations the proposed entry would offer (native + proven-derived).
+   *
+   * @generated from field: repeated string offered_operations = 10;
+   */
+  offeredOperations: string[];
+
+  /**
+   * The registry entry that WOULD be added (pre-confirmation); the client shows
+   * it for confirmation and may override id/name/architecture/operations.
+   *
+   * @generated from field: vrooli.image_tools.v1.models.Model proposed = 11;
+   */
+  proposed?: Model | undefined;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.InspectModelSourceResponse.
+ * Use `create(InspectModelSourceResponseSchema)` to create a new message.
+ */
+export const InspectModelSourceResponseSchema: GenMessage<InspectModelSourceResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 25);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ImportModelRequest
+ */
+export type ImportModelRequest = Message<"vrooli.image_tools.v1.models.ImportModelRequest"> & {
+  /**
+   * The import source (same forms as InspectModelSource).
+   *
+   * @generated from field: string source = 1;
+   */
+  source: string;
+
+  /**
+   * Operator-confirmed id for the new entry (must not collide with a seed model).
+   *
+   * @generated from field: string id = 2;
+   */
+  id: string;
+
+  /**
+   * Display name (defaults to the source's last path segment when empty).
+   *
+   * @generated from field: string name = 3;
+   */
+  name: string;
+
+  /**
+   * Operator-confirmed architecture (models.Architecture value). REQUIRED when
+   * inference returned "none"; overrides inference otherwise.
+   *
+   * @generated from field: string architecture = 4;
+   */
+  architecture: string;
+
+  /**
+   * Operator-confirmed operations (defaults to the architecture's base ops).
+   *
+   * @generated from field: repeated string operations = 5;
+   */
+  operations: string[];
+
+  /**
+   * Attest commercial rights to allow public/BYOK serving (decision D4). Local
+   * serving never requires this.
+   *
+   * @generated from field: bool attest_commercial_rights = 6;
+   */
+  attestCommercialRights: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ImportModelRequest.
+ * Use `create(ImportModelRequestSchema)` to create a new message.
+ */
+export const ImportModelRequestSchema: GenMessage<ImportModelRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 26);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ImportModelResponse
+ */
+export type ImportModelResponse = Message<"vrooli.image_tools.v1.models.ImportModelResponse"> & {
+  /**
+   * The registered entry (add-only, local tier, user-imported provenance).
+   *
+   * @generated from field: vrooli.image_tools.v1.models.Model model = 1;
+   */
+  model?: Model | undefined;
+
+  /**
+   * The durable install job (mirrors InstallModel). Empty job_id with
+   * already_installed=true means the weights were already present.
+   *
+   * @generated from field: string job_id = 2;
+   */
+  jobId: string;
+
+  /**
+   * @generated from field: int32 eta_seconds = 3;
+   */
+  etaSeconds: number;
+
+  /**
+   * @generated from field: bool already_installed = 4;
+   */
+  alreadyInstalled: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ImportModelResponse.
+ * Use `create(ImportModelResponseSchema)` to create a new message.
+ */
+export const ImportModelResponseSchema: GenMessage<ImportModelResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 27);
+
+/**
  * @generated from message vrooli.image_tools.v1.models.SetDefaultModelRequest
  */
 export type SetDefaultModelRequest = Message<"vrooli.image_tools.v1.models.SetDefaultModelRequest"> & {
@@ -698,7 +924,7 @@ export type SetDefaultModelRequest = Message<"vrooli.image_tools.v1.models.SetDe
  * Use `create(SetDefaultModelRequestSchema)` to create a new message.
  */
 export const SetDefaultModelRequestSchema: GenMessage<SetDefaultModelRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 23);
+  messageDesc(file_image_tools_v1_models_models, 28);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.SetDefaultModelResponse
@@ -720,7 +946,7 @@ export type SetDefaultModelResponse = Message<"vrooli.image_tools.v1.models.SetD
  * Use `create(SetDefaultModelResponseSchema)` to create a new message.
  */
 export const SetDefaultModelResponseSchema: GenMessage<SetDefaultModelResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 24);
+  messageDesc(file_image_tools_v1_models_models, 29);
 
 /**
  * OpDefault is the effective default model for one operation.
@@ -751,7 +977,7 @@ export type OpDefault = Message<"vrooli.image_tools.v1.models.OpDefault"> & {
  * Use `create(OpDefaultSchema)` to create a new message.
  */
 export const OpDefaultSchema: GenMessage<OpDefault> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 25);
+  messageDesc(file_image_tools_v1_models_models, 30);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListDefaultsRequest
@@ -764,7 +990,7 @@ export type ListDefaultsRequest = Message<"vrooli.image_tools.v1.models.ListDefa
  * Use `create(ListDefaultsRequestSchema)` to create a new message.
  */
 export const ListDefaultsRequestSchema: GenMessage<ListDefaultsRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 26);
+  messageDesc(file_image_tools_v1_models_models, 31);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListDefaultsResponse
@@ -781,7 +1007,7 @@ export type ListDefaultsResponse = Message<"vrooli.image_tools.v1.models.ListDef
  * Use `create(ListDefaultsResponseSchema)` to create a new message.
  */
 export const ListDefaultsResponseSchema: GenMessage<ListDefaultsResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 27);
+  messageDesc(file_image_tools_v1_models_models, 32);
 
 /**
  * CatalogFinding is one actionable model-catalog integrity finding.
@@ -820,7 +1046,7 @@ export type CatalogFinding = Message<"vrooli.image_tools.v1.models.CatalogFindin
  * Use `create(CatalogFindingSchema)` to create a new message.
  */
 export const CatalogFindingSchema: GenMessage<CatalogFinding> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 28);
+  messageDesc(file_image_tools_v1_models_models, 33);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.DoctorCatalogRequest
@@ -833,7 +1059,7 @@ export type DoctorCatalogRequest = Message<"vrooli.image_tools.v1.models.DoctorC
  * Use `create(DoctorCatalogRequestSchema)` to create a new message.
  */
 export const DoctorCatalogRequestSchema: GenMessage<DoctorCatalogRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 29);
+  messageDesc(file_image_tools_v1_models_models, 34);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.DoctorCatalogResponse
@@ -855,7 +1081,7 @@ export type DoctorCatalogResponse = Message<"vrooli.image_tools.v1.models.Doctor
  * Use `create(DoctorCatalogResponseSchema)` to create a new message.
  */
 export const DoctorCatalogResponseSchema: GenMessage<DoctorCatalogResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 30);
+  messageDesc(file_image_tools_v1_models_models, 35);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.BackendStatus
@@ -930,7 +1156,7 @@ export type BackendStatus = Message<"vrooli.image_tools.v1.models.BackendStatus"
  * Use `create(BackendStatusSchema)` to create a new message.
  */
 export const BackendStatusSchema: GenMessage<BackendStatus> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 31);
+  messageDesc(file_image_tools_v1_models_models, 36);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.DoctorBackendsRequest
@@ -943,7 +1169,7 @@ export type DoctorBackendsRequest = Message<"vrooli.image_tools.v1.models.Doctor
  * Use `create(DoctorBackendsRequestSchema)` to create a new message.
  */
 export const DoctorBackendsRequestSchema: GenMessage<DoctorBackendsRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 32);
+  messageDesc(file_image_tools_v1_models_models, 37);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.DoctorBackendsResponse
@@ -965,7 +1191,7 @@ export type DoctorBackendsResponse = Message<"vrooli.image_tools.v1.models.Docto
  * Use `create(DoctorBackendsResponseSchema)` to create a new message.
  */
 export const DoctorBackendsResponseSchema: GenMessage<DoctorBackendsResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 33);
+  messageDesc(file_image_tools_v1_models_models, 38);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.EnsureBackendRequest
@@ -1000,7 +1226,7 @@ export type EnsureBackendRequest = Message<"vrooli.image_tools.v1.models.EnsureB
  * Use `create(EnsureBackendRequestSchema)` to create a new message.
  */
 export const EnsureBackendRequestSchema: GenMessage<EnsureBackendRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 34);
+  messageDesc(file_image_tools_v1_models_models, 39);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.EnsureBackendResponse
@@ -1063,7 +1289,7 @@ export type EnsureBackendResponse = Message<"vrooli.image_tools.v1.models.Ensure
  * Use `create(EnsureBackendResponseSchema)` to create a new message.
  */
 export const EnsureBackendResponseSchema: GenMessage<EnsureBackendResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 35);
+  messageDesc(file_image_tools_v1_models_models, 40);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.GetHostSummaryRequest
@@ -1076,7 +1302,7 @@ export type GetHostSummaryRequest = Message<"vrooli.image_tools.v1.models.GetHos
  * Use `create(GetHostSummaryRequestSchema)` to create a new message.
  */
 export const GetHostSummaryRequestSchema: GenMessage<GetHostSummaryRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 36);
+  messageDesc(file_image_tools_v1_models_models, 41);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.GetHostSummaryResponse
@@ -1093,7 +1319,7 @@ export type GetHostSummaryResponse = Message<"vrooli.image_tools.v1.models.GetHo
  * Use `create(GetHostSummaryResponseSchema)` to create a new message.
  */
 export const GetHostSummaryResponseSchema: GenMessage<GetHostSummaryResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 37);
+  messageDesc(file_image_tools_v1_models_models, 42);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListOperationModelsRequest
@@ -1112,7 +1338,7 @@ export type ListOperationModelsRequest = Message<"vrooli.image_tools.v1.models.L
  * Use `create(ListOperationModelsRequestSchema)` to create a new message.
  */
 export const ListOperationModelsRequestSchema: GenMessage<ListOperationModelsRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 38);
+  messageDesc(file_image_tools_v1_models_models, 43);
 
 /**
  * Resolution is the explicit, inspectable answer to "what would run for this
@@ -1209,7 +1435,7 @@ export type Resolution = Message<"vrooli.image_tools.v1.models.Resolution"> & {
  * Use `create(ResolutionSchema)` to create a new message.
  */
 export const ResolutionSchema: GenMessage<Resolution> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 39);
+  messageDesc(file_image_tools_v1_models_models, 44);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ExplainResolutionRequest
@@ -1245,7 +1471,7 @@ export type ExplainResolutionRequest = Message<"vrooli.image_tools.v1.models.Exp
  * Use `create(ExplainResolutionRequestSchema)` to create a new message.
  */
 export const ExplainResolutionRequestSchema: GenMessage<ExplainResolutionRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 40);
+  messageDesc(file_image_tools_v1_models_models, 45);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ExplainResolutionResponse
@@ -1262,7 +1488,7 @@ export type ExplainResolutionResponse = Message<"vrooli.image_tools.v1.models.Ex
  * Use `create(ExplainResolutionResponseSchema)` to create a new message.
  */
 export const ExplainResolutionResponseSchema: GenMessage<ExplainResolutionResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 41);
+  messageDesc(file_image_tools_v1_models_models, 46);
 
 /**
  * HostSummary is a compact, user-facing snapshot of the host's AI-relevant
@@ -1338,7 +1564,7 @@ export type HostSummary = Message<"vrooli.image_tools.v1.models.HostSummary"> & 
  * Use `create(HostSummarySchema)` to create a new message.
  */
 export const HostSummarySchema: GenMessage<HostSummary> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 42);
+  messageDesc(file_image_tools_v1_models_models, 47);
 
 /**
  * ModelFit is the host-aware runnability verdict for one model (mirrors
@@ -1394,7 +1620,7 @@ export type ModelFit = Message<"vrooli.image_tools.v1.models.ModelFit"> & {
  * Use `create(ModelFitSchema)` to create a new message.
  */
 export const ModelFitSchema: GenMessage<ModelFit> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 43);
+  messageDesc(file_image_tools_v1_models_models, 48);
 
 /**
  * BackendReadiness is the provisioning posture of the host program a model needs
@@ -1463,7 +1689,7 @@ export type BackendReadiness = Message<"vrooli.image_tools.v1.models.BackendRead
  * Use `create(BackendReadinessSchema)` to create a new message.
  */
 export const BackendReadinessSchema: GenMessage<BackendReadiness> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 44);
+  messageDesc(file_image_tools_v1_models_models, 49);
 
 /**
  * CandidateModel is one model in the picker menu, fully annotated for this host.
@@ -1541,7 +1767,7 @@ export type CandidateModel = Message<"vrooli.image_tools.v1.models.CandidateMode
  * Use `create(CandidateModelSchema)` to create a new message.
  */
 export const CandidateModelSchema: GenMessage<CandidateModel> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 45);
+  messageDesc(file_image_tools_v1_models_models, 50);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListOperationModelsResponse
@@ -1586,7 +1812,7 @@ export type ListOperationModelsResponse = Message<"vrooli.image_tools.v1.models.
  * Use `create(ListOperationModelsResponseSchema)` to create a new message.
  */
 export const ListOperationModelsResponseSchema: GenMessage<ListOperationModelsResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 46);
+  messageDesc(file_image_tools_v1_models_models, 51);
 
 /**
  * CommercialUse classifies a model's commercial-use license posture.
@@ -1622,6 +1848,41 @@ export const CommercialUseSchema: GenEnum<CommercialUse> = /*@__PURE__*/
   enumDesc(file_image_tools_v1_models_models, 0);
 
 /**
+ * ModelLayout classifies an import source's on-disk shape, which determines how
+ * it installs (single-file → direct asset; diffusers-repo → pinned snapshot).
+ *
+ * @generated from enum vrooli.image_tools.v1.models.ModelLayout
+ */
+export enum ModelLayout {
+  /**
+   * @generated from enum value: MODEL_LAYOUT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * A single self-contained checkpoint (.safetensors/.ckpt) — installs as a
+   * direct asset on the stable-diffusion.cpp backend.
+   *
+   * @generated from enum value: MODEL_LAYOUT_SINGLE_FILE = 1;
+   */
+  SINGLE_FILE = 1,
+
+  /**
+   * A model_index.json + sharded subdir tree — installs as a pinned snapshot on
+   * the diffusers backend.
+   *
+   * @generated from enum value: MODEL_LAYOUT_DIFFUSERS_REPO = 2;
+   */
+  DIFFUSERS_REPO = 2,
+}
+
+/**
+ * Describes the enum vrooli.image_tools.v1.models.ModelLayout.
+ */
+export const ModelLayoutSchema: GenEnum<ModelLayout> = /*@__PURE__*/
+  enumDesc(file_image_tools_v1_models_models, 1);
+
+/**
  * CatalogFindingSeverity classifies a catalog doctor finding.
  *
  * @generated from enum vrooli.image_tools.v1.models.CatalogFindingSeverity
@@ -1647,7 +1908,7 @@ export enum CatalogFindingSeverity {
  * Describes the enum vrooli.image_tools.v1.models.CatalogFindingSeverity.
  */
 export const CatalogFindingSeveritySchema: GenEnum<CatalogFindingSeverity> = /*@__PURE__*/
-  enumDesc(file_image_tools_v1_models_models, 1);
+  enumDesc(file_image_tools_v1_models_models, 2);
 
 /**
  * @generated from service vrooli.image_tools.v1.models.ModelsService
@@ -1753,6 +2014,34 @@ export const ModelsService: GenService<{
     methodKind: "unary";
     input: typeof AddCustomModelRequestSchema;
     output: typeof AddCustomModelResponseSchema;
+  },
+  /**
+   * InspectModelSource dry-runs a guided import: it inspects a HuggingFace repo
+   * id (or a direct weight URL / local path) WITHOUT installing anything, and
+   * returns the detected layout, the inferred architecture (+confidence/evidence
+   * the user confirms), license/NSFW, approximate size, and the proposed registry
+   * entry. Installs nothing, downloads no weights — only the metadata to propose.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.InspectModelSource
+   */
+  inspectModelSource: {
+    methodKind: "unary";
+    input: typeof InspectModelSourceRequestSchema;
+    output: typeof InspectModelSourceResponseSchema;
+  },
+  /**
+   * ImportModel composes inspect → operator-confirmed fields (architecture/ops/
+   * attestation) → an add-only custom entry → a durable install job (mirrors
+   * InstallModel: returns job_id + ETA; the caller blocks once on
+   * JobsService.WaitJob). Imports default to local tier with a user-imported
+   * provenance label; public/BYOK serving requires attest_commercial_rights.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.ImportModel
+   */
+  importModel: {
+    methodKind: "unary";
+    input: typeof ImportModelRequestSchema;
+    output: typeof ImportModelResponseSchema;
   },
   /**
    * SetDefaultModel pins (or clears, with empty model_id) the default model for

@@ -8,16 +8,11 @@ The template's `notes` example domain has been removed (Phase 0 of the
 implementation plan). All inventory rows below describe the cartographer's
 own product domains.
 
-> **Contract status — proposed v2 shape.** This document has been migrated to
-> the *authored-claims-only* contract proposed in the intent-alignment work.
-> The inventory table is still backward-compatible with today's parser (which
-> reads only `Domain` / `Primary Archetype` / `Glossary` / `Source Paths`). The
-> substrate is now split into **Transport Zones**, **Shared Substrate**, and
-> **Not Owned**, superseding the single `## Non-Domains` section. The v2 reader
-> (for `Responsibility`, `Secondary Traits`, `Surface Exceptions`, and the split
-> substrate) and the DOMAINS.md **quality gate** (coverage, overlap,
-> concentration, name quality) are not yet implemented; until they ship, those
-> sections are human-facing.
+> **Contract status.** This document uses the template-manifest-backed
+> *authored-claims-only* inventory contract. The parser reads
+> `Responsibility`, `Purpose`, `Owns Data`, archetype sets, `Glossary`, and
+> `Source Paths`. Surface exceptions and the split substrate sections remain
+> human-facing until the zone/slice phases promote them into machine evidence.
 
 ## Purpose Of This Document
 
@@ -49,25 +44,30 @@ The parser is header-driven (columns may be reordered):
 - **Domain** (required) — unique product-capability name.
 - **Responsibility** (required) — one sentence; the semantic anchor the Tier 2/3
   intent checks compare the domain's code against.
+- **Purpose** (optional) — why this capability exists for users/operators.
+- **Owns Data** (optional) — the data ownership claim, or explicit none.
 - **Primary Archetype** (required) — a single value from the controlled archetype
-  vocabulary (pinned in [`../reference/domains-contract.md`](../reference/domains-contract.md)).
+  vocabulary declared in the docs manifest.
 - **Secondary Traits** (optional) — additional archetype traits, comma-separated.
 - **Glossary** (optional) — the vocabulary this domain owns and that no other
   domain should use (the `glossary_drift` signal checks the "nowhere else" half).
 - **Source Paths** (required) — repo-relative globs the domain owns; the audit
   checks these for coverage, overlap, concentration, and on-disk reality.
 
-| Domain | Responsibility | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | reporting | — | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/architecture-cartographer/v1/health/` |
-| graph | Build the ground-truth code graph for a target scenario by delegating to language code-graph scenarios. | service | orchestration | GraphSnapshot, FileNode, PackageNode, SymbolNode, ImportEdge, CodeGraphAdapter, Chunk | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/architecture-cartographer/v1/graph/` |
-| domains | Derive the intended domain map from on-disk sources via a trust ladder and report cross-surface convergence. | service | orchestration | DerivedDomainMap, DerivedDomain, DomainSourceExtractor, Extraction, ScenarioLocator, DomainSource, DomainDraft, ProposedDomain | `api/internal/domains/`, `api/handlers/domains/`, `cli/domains/domains/`, `ui/src/features/domains/`, `packages/proto/schemas/architecture-cartographer/v1/domains/` |
-| conflicts | Detect drift between the actual graph and the derived domain map and emit typed conflicts (detection only — no lifecycle). | service | classification | Conflict, Fix, Detector, Resolver, AnalyticsRecorder | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` |
-| signals | Score chunk-to-domain assignments via pluggable deterministic signals and aggregate them into explainable verdicts. | service | scoring | Signal, Score, Verdict, Tier, SignalDescriptor, Aggregator, GraphContext | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` |
-| apply | Emit per-domain migration plans and execute file moves and import rewrites under a build-green guardrail. | service | mutation | Plan, Operation, OperationKind, ApplyRun, ApplyStatus, BuildBaseline, BuildGuard, Recipe | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` |
-| analytics | Persist conflict events, resolutions, verdicts, overrides, and build deltas; serve history and stats. | reporting | — | Event, EventKind, Placement, Override, StatsSummary | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` |
-| audit | CI-shaped orchestrator: one call runs graph extract → domains derivation → conflicts detection and returns a deterministic exit-code summary. | service | orchestration | Outcome, Report, RunInput, ConflictSummary, DerivedDomainSummary, GraphSummary, CoverageSummary | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `packages/proto/schemas/architecture-cartographer/v1/audit/` |
-| campaign | Stateful tracker for a scenario-improvement effort: ingest a findings audit, drive each finding through a lifecycle, and reconcile re-audits by stable id (ingest only — never detects). | service | orchestration | Campaign, Finding, FindingStatus, CampaignLifecycle, ReauditResult, Repository, AnalyticsRecorder | `api/internal/campaign/`, `api/handlers/campaign/`, `cli/domains/campaign/`, `packages/proto/schemas/architecture-cartographer/v1/campaign/` |
+| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
+|---|---|---|---|---|---|---|---|
+| health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | None. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/architecture-cartographer/v1/health/` |
+| graph | Build the ground-truth code graph for a target scenario by delegating to language code-graph scenarios. | Produce deterministic graph evidence for placement, conflict, and audit workflows. | SQLite graph snapshots keyed by scenario and content hash. | service | orchestration | GraphSnapshot, FileNode, PackageNode, SymbolNode, ImportEdge, CodeGraphAdapter, Chunk | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/architecture-cartographer/v1/graph/` |
+| slice | Derive a domain's proto-to-surface implementation slice from graph and zone evidence. | Show whether a domain has proto, handler, internal, CLI, and UI rungs with concrete evidence. | None; slice reports are computed on demand. | reporting | query | DomainSlice, SliceRung | `api/internal/slice/`, `cli/domains/slice/` |
+| archetype | Infer domain archetypes from structural evidence and report declared-vs-inferred drift. | Make architecture role claims testable without overriding authored intent. | None; inference is computed on demand. | service | classification | DomainArchetype, ArchetypeSource, archetype_drift | `api/internal/archetype/` |
+| zones | Classify packages into manifest-backed code-layout zones and report zone-level layering violations. | Provide the shared zone map used by slice reports, layering detection, and operator inspection. | None; zone maps are computed on demand from manifests and graph evidence. | service | classification | ZoneMap, Zone, ZoneConfig, code-layout | `api/internal/zones/`, `cli/domains/zones/` |
+| domains | Derive the intended domain map from on-disk sources via a trust ladder and report cross-surface convergence. | Provide the authoritative capability map consumed by every detector and audit. | None; derived on demand. | service | orchestration | DerivedDomainMap, DerivedDomain, DomainSourceExtractor, Extraction, ScenarioLocator, DomainSource, DomainDraft, ProposedDomain | `api/internal/domains/`, `api/handlers/domains/`, `cli/domains/domains/`, `ui/src/features/domains/`, `packages/proto/schemas/architecture-cartographer/v1/domains/` |
+| conflicts | Detect drift between the actual graph and the derived domain map and emit typed conflicts (detection only — no lifecycle). | Turn graph/domain disagreement into deterministic findings and fix guidance. | Conflict records in SQLite. | service | classification | Conflict, Fix, Detector, Resolver, AnalyticsRecorder | `api/internal/conflicts/`, `api/handlers/conflicts/`, `cli/domains/conflicts/`, `ui/src/features/conflicts/`, `packages/proto/schemas/architecture-cartographer/v1/conflicts/` |
+| signals | Score chunk-to-domain assignments via pluggable deterministic signals and aggregate them into explainable verdicts. | Provide explainable placement confidence for migration and audit workflows. | None; scores are computed on demand and analytics records observations. | service | scoring | Signal, Score, Verdict, Tier, SignalDescriptor, Aggregator, GraphContext | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `packages/proto/schemas/architecture-cartographer/v1/signals/` |
+| apply | Emit per-domain migration plans and execute file moves and import rewrites under a build-green guardrail. | Provide the controlled mutation path for architecture repair. | Apply history rows in SQLite. | service | mutation | Plan, Operation, OperationKind, ApplyRun, ApplyStatus, BuildBaseline, BuildGuard, Recipe | `api/internal/apply/`, `api/handlers/apply/`, `cli/domains/apply/`, `ui/src/features/apply/`, `packages/proto/schemas/architecture-cartographer/v1/apply/` |
+| analytics | Persist conflict events, resolutions, verdicts, overrides, and build deltas; serve history and stats. | Make architecture repair outcomes measurable and calibratable over time. | Append-only SQLite event log. | reporting | query | Event, EventKind, Placement, Override, StatsSummary | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` |
+| audit | CI-shaped orchestrator: one call runs graph extract → domains derivation → conflicts detection and returns a deterministic exit-code summary. | Give CI and operators one stable architecture validation call. | None; orchestrates graph, domains, and conflicts on demand. | service | orchestration | Outcome, Report, RunInput, ConflictSummary, DerivedDomainSummary, GraphSummary, CoverageSummary | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `packages/proto/schemas/architecture-cartographer/v1/audit/` |
+| campaign | Stateful tracker for a scenario-improvement effort: ingest a findings audit, drive each finding through a lifecycle, and reconcile re-audits by stable id (ingest only — never detects). | Handhold long-running architecture repair efforts without re-running detectors itself. | Campaigns and campaign items in SQLite. | service | orchestration | Campaign, Finding, FindingStatus, CampaignLifecycle, ReauditResult, Repository, AnalyticsRecorder | `api/internal/campaign/`, `api/handlers/campaign/`, `cli/domains/campaign/`, `packages/proto/schemas/architecture-cartographer/v1/campaign/` |
 
 ## Surface Exceptions
 
@@ -375,6 +375,7 @@ never become product domains:
 - `api/internal/config/` — cartographer-global control-surface levers.
 - `api/internal/observability/` — dev-only profiling and diagnostics substrate.
 - `api/internal/suppressions/` — in-repo `// arch:allow` marker scanning/writing substrate.
+- `api/internal/attest/` — shared attestation-mapping chokepoint (internal evidence/provenance/convergence → `common.v1.AttestedAnswer`) consumed by every capability.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
 
@@ -395,6 +396,7 @@ It mirrors the shared-substrate paths above until the v2 substrate reader ships.
 - `api/internal/config/` — cartographer-global control-surface levers.
 - `api/internal/observability/` — dev-only profiling and diagnostics substrate.
 - `api/internal/suppressions/` — in-repo `// arch:allow` marker scanning/writing substrate.
+- `api/internal/attest/` — shared attestation-mapping chokepoint (internal evidence/provenance/convergence → `common.v1.AttestedAnswer`) consumed by every capability.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
 

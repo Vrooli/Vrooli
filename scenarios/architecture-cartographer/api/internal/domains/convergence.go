@@ -33,6 +33,9 @@ const (
 	// empty. Convergence findings against this authority are tautological;
 	// the real signal is that the scenario has no curated DOMAINS.md.
 	FindingAuthorityFallback = "authority_fallback"
+	// FindingArchetypeDrift: declared archetypes disagree with
+	// high-confidence inferred archetypes.
+	FindingArchetypeDrift = "archetype_drift"
 )
 
 // ConvergenceFinding is one cross-surface disagreement about the domain set.
@@ -62,114 +65,12 @@ type ConvergenceFinding struct {
 // surface, a "missing on surface X" finding is only emitted when surface X
 // declared at least one domain (i.e., the surface exists at all).
 func Convergence(m DerivedDomainMap) []ConvergenceFinding {
-	bySource := map[Source]map[string]struct{}{}
-	var authoritySource Source
-	authoritySet := map[string]struct{}{}
-	for _, decl := range m.Declarations {
-		set := make(map[string]struct{}, len(decl.DomainNames))
-		for _, n := range decl.DomainNames {
-			set[n] = struct{}{}
-		}
-		bySource[decl.Source] = set
-		if decl.Authoritative {
-			authoritySource = decl.Source
-			authoritySet = set
-		}
-	}
-
-	folders := bySource[SourceAPIFolders]
-	cli := bySource[SourceCLIGroups]
-	ui := bySource[SourceUIFeatures]
-
-	// Folders/features the authority explicitly declared as non-domains
-	// (infrastructure) are not drift — exclude them from the folder/UI
-	// checks below.
-	nonDomain := make(map[string]struct{}, len(m.NonDomains))
-	for _, n := range m.NonDomains {
-		nonDomain[n] = struct{}{}
-	}
-
-	var out []ConvergenceFinding
-
-	// Authority-fallback signal: when the ladder couldn't promote a
-	// curated DOMAINS.md / api manifest, every downstream "convergence"
-	// finding is comparing one inferred set against another. Surface the
-	// fallback itself so users see the real story instead of "no drift."
-	if m.AuthorityConfidence == ConfidenceLow {
-		out = append(out, ConvergenceFinding{
-			Kind:     FindingAuthorityFallback,
-			Severity: ConvergenceInfo,
-			Message:  "no curated DOMAINS.md (or api manifest); authority fell back to " + string(authoritySource) + " — domain map is inferred, not declared",
-			Sources:  []Source{authoritySource},
-		})
-	}
-
-	// Authority domain present, but missing on an implementing surface.
-	for name := range authoritySet {
-		if len(folders) > 0 {
-			if _, ok := folders[name]; !ok {
-				out = append(out, ConvergenceFinding{
-					Kind:     FindingMissingImplementation,
-					Domain:   name,
-					Severity: ConvergenceWarn,
-					Message:  "declared in the authority source but no api/internal/ folder implements it",
-					Sources:  []Source{authoritySource, SourceAPIFolders},
-				})
-			}
-		}
-		if len(cli) > 0 {
-			if _, ok := cli[name]; !ok {
-				if isCLICoreBuiltinDomain(name) {
-					// Scoped FP: cli-core ships built-in groups for these
-					// domains (status, version, help). A scenario that
-					// declares them as domains intentionally inherits the
-					// cli-core implementation — flagging it as missing was
-					// the L5-readiness investigation's known FP.
-					continue
-				}
-				out = append(out, ConvergenceFinding{
-					Kind:     FindingMissingCLIGroup,
-					Domain:   name,
-					Severity: ConvergenceInfo,
-					Message:  "declared domain has no cli/manifest.json command group",
-					Sources:  []Source{authoritySource, SourceCLIGroups},
-				})
-			}
-		}
-	}
-
-	// Folder present, but the authority never declared it.
-	for name := range folders {
-		if _, ok := authoritySet[name]; ok {
-			continue
-		}
-		if _, ok := nonDomain[name]; ok {
-			continue // explicitly declared infrastructure
-		}
-		out = append(out, ConvergenceFinding{
-			Kind:     FindingUndeclaredFolder,
-			Domain:   name,
-			Severity: ConvergenceWarn,
-			Message:  "an api/internal/ folder exists for a domain the authority source never declared",
-			Sources:  []Source{SourceAPIFolders, authoritySource},
-		})
-	}
-
-	// UI feature maps to no declared domain (advisory).
-	for name := range ui {
-		if _, ok := nonDomain[name]; ok {
-			continue
-		}
-		if _, ok := authoritySet[name]; !ok {
-			out = append(out, ConvergenceFinding{
-				Kind:     FindingUIFeatureNoDomain,
-				Domain:   name,
-				Severity: ConvergenceInfo,
-				Message:  "a ui/src/features/ folder maps to no declared domain (advisory coverage)",
-				Sources:  []Source{SourceUIFeatures, authoritySource},
-			})
-		}
-	}
+	input := convergenceInput(m)
+	out := authorityFallbackFindings(m, input)
+	out = append(out, missingSurfaceFindings(input)...)
+	out = append(out, undeclaredFolderFindings(input)...)
+	out = append(out, uiFeatureFindings(input)...)
+	out = append(out, archetypeDriftFindings(m.Domains, input.authoritySource)...)
 
 	out = rollupInfoFindings(out)
 
@@ -180,6 +81,181 @@ func Convergence(m DerivedDomainMap) []ConvergenceFinding {
 		return out[i].Domain < out[j].Domain
 	})
 	return out
+}
+
+type convergenceSets struct {
+	authoritySource Source
+	authoritySet    map[string]struct{}
+	folders         map[string]struct{}
+	cli             map[string]struct{}
+	ui              map[string]struct{}
+	nonDomain       map[string]struct{}
+}
+
+func convergenceInput(m DerivedDomainMap) convergenceSets {
+	bySource := map[Source]map[string]struct{}{}
+	var authoritySource Source
+	authoritySet := map[string]struct{}{}
+	for _, decl := range m.Declarations {
+		set := stringSet(decl.DomainNames)
+		bySource[decl.Source] = set
+		if decl.Authoritative {
+			authoritySource = decl.Source
+			authoritySet = set
+		}
+	}
+	return convergenceSets{
+		authoritySource: authoritySource,
+		authoritySet:    authoritySet,
+		folders:         bySource[SourceAPIFolders],
+		cli:             bySource[SourceCLIGroups],
+		ui:              bySource[SourceUIFeatures],
+		nonDomain:       stringSet(m.NonDomains),
+	}
+}
+
+func stringSet(values []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		out[value] = struct{}{}
+	}
+	return out
+}
+
+func authorityFallbackFindings(m DerivedDomainMap, input convergenceSets) []ConvergenceFinding {
+	if m.AuthorityConfidence != ConfidenceLow {
+		return nil
+	}
+	return []ConvergenceFinding{{
+		Kind:     FindingAuthorityFallback,
+		Severity: ConvergenceInfo,
+		Message:  "no curated DOMAINS.md (or api manifest); authority fell back to " + string(input.authoritySource) + " — domain map is inferred, not declared",
+		Sources:  []Source{input.authoritySource},
+	}}
+}
+
+func missingSurfaceFindings(input convergenceSets) []ConvergenceFinding {
+	var out []ConvergenceFinding
+	for name := range input.authoritySet {
+		out = append(out, missingImplementationFinding(input, name)...)
+		out = append(out, missingCLIGroupFinding(input, name)...)
+	}
+	return out
+}
+
+func missingImplementationFinding(input convergenceSets, name string) []ConvergenceFinding {
+	if len(input.folders) == 0 {
+		return nil
+	}
+	if _, ok := input.folders[name]; ok {
+		return nil
+	}
+	return []ConvergenceFinding{{
+		Kind:     FindingMissingImplementation,
+		Domain:   name,
+		Severity: ConvergenceWarn,
+		Message:  "declared in the authority source but no api/internal/ folder implements it",
+		Sources:  []Source{input.authoritySource, SourceAPIFolders},
+	}}
+}
+
+func missingCLIGroupFinding(input convergenceSets, name string) []ConvergenceFinding {
+	if len(input.cli) == 0 || isCLICoreBuiltinDomain(name) {
+		return nil
+	}
+	if _, ok := input.cli[name]; ok {
+		return nil
+	}
+	return []ConvergenceFinding{{
+		Kind:     FindingMissingCLIGroup,
+		Domain:   name,
+		Severity: ConvergenceInfo,
+		Message:  "declared domain has no cli/manifest.json command group",
+		Sources:  []Source{input.authoritySource, SourceCLIGroups},
+	}}
+}
+
+func undeclaredFolderFindings(input convergenceSets) []ConvergenceFinding {
+	var out []ConvergenceFinding
+	for name := range input.folders {
+		if _, ok := input.authoritySet[name]; ok {
+			continue
+		}
+		if _, ok := input.nonDomain[name]; ok {
+			continue
+		}
+		out = append(out, ConvergenceFinding{
+			Kind:     FindingUndeclaredFolder,
+			Domain:   name,
+			Severity: ConvergenceWarn,
+			Message:  "an api/internal/ folder exists for a domain the authority source never declared",
+			Sources:  []Source{SourceAPIFolders, input.authoritySource},
+		})
+	}
+	return out
+}
+
+func uiFeatureFindings(input convergenceSets) []ConvergenceFinding {
+	var out []ConvergenceFinding
+	for name := range input.ui {
+		if _, ok := input.nonDomain[name]; ok {
+			continue
+		}
+		if _, ok := input.authoritySet[name]; ok {
+			continue
+		}
+		out = append(out, ConvergenceFinding{
+			Kind:     FindingUIFeatureNoDomain,
+			Domain:   name,
+			Severity: ConvergenceInfo,
+			Message:  "a ui/src/features/ folder maps to no declared domain (advisory coverage)",
+			Sources:  []Source{SourceUIFeatures, input.authoritySource},
+		})
+	}
+	return out
+}
+
+func archetypeDriftFindings(domains []DerivedDomain, authoritySource Source) []ConvergenceFinding {
+	var out []ConvergenceFinding
+	for _, domain := range domains {
+		if !archetypeDrifts(domain) {
+			continue
+		}
+		out = append(out, ConvergenceFinding{
+			Kind:     FindingArchetypeDrift,
+			Domain:   domain.Name,
+			Severity: ConvergenceWarn,
+			Message:  "declared archetype set does not include any high-confidence inferred archetype",
+			Sources:  []Source{authoritySource},
+		})
+	}
+	return out
+}
+
+func archetypeDrifts(domain DerivedDomain) bool {
+	declared := map[string]struct{}{}
+	var inferred []string
+	for _, archetype := range domain.Archetypes {
+		switch archetype.Source {
+		case ArchetypeSourceDeclared:
+			if archetype.Name != "" {
+				declared[archetype.Name] = struct{}{}
+			}
+		case ArchetypeSourceInferred:
+			if archetype.Confidence >= 0.8 && archetype.Name != "" {
+				inferred = append(inferred, archetype.Name)
+			}
+		}
+	}
+	if len(declared) == 0 || len(inferred) == 0 {
+		return false
+	}
+	for _, name := range inferred {
+		if _, ok := declared[name]; ok {
+			return false
+		}
+	}
+	return true
 }
 
 // cliCoreBuiltinDomains is the set of domain names that cli-core ships

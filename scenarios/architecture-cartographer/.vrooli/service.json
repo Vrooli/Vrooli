@@ -208,7 +208,34 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "scenarios": {
+      "code-facts": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "freshness_policy": "reuse_running",
+        "description": "Provides import, endpoint, CLI, and proto adoption facts used to enrich domain evidence.",
+        "degraded_behavior": "Audit still runs with graph/domain evidence, but domain enrichment omits code-facts-backed proofs while the dependency is unavailable."
+      },
+      "go-code-graph": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "freshness_policy": "reuse_running",
+        "description": "Extracts Go code graphs for cartographer graph snapshots.",
+        "degraded_behavior": "Go graph extraction fails for scenarios with Go surfaces until go-code-graph is available."
+      },
+      "typescript-code-graph": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "freshness_policy": "reuse_running",
+        "description": "Extracts TypeScript code graphs for cartographer graph snapshots.",
+        "degraded_behavior": "TypeScript graph extraction fails for scenarios with TypeScript surfaces until typescript-code-graph is available."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/architecture-cartographer.db"
   }

@@ -40,14 +40,10 @@ func Normalize(pkgs []*packages.Package, moduleRoot string) (Graph, []Warning) {
 	)
 
 	// Visit packages in stable import-path order. packages.Load is
-	// notoriously non-deterministic across runs.
-	sorted := make([]*packages.Package, 0, len(pkgs))
-	for _, p := range pkgs {
-		if p == nil {
-			continue
-		}
-		sorted = append(sorted, p)
-	}
+	// notoriously non-deterministic across runs. Tests:true also returns
+	// production, test-variant, external-test, and synthetic test-binary
+	// packages; canonicalize those variants before graph emission.
+	sorted, testOnlyImports := mergePackageTestVariants(pkgs)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].PkgPath < sorted[j].PkgPath })
 
 	for _, p := range sorted {
@@ -112,7 +108,7 @@ func Normalize(pkgs []*packages.Package, moduleRoot string) (Graph, []Warning) {
 			seenEdge[edgeID] = true
 			symbolIDs, symbolKinds := importSymbolFacts(p, imp)
 			attrs := map[string]string{
-				"test_only": boolAttr(false),
+				"test_only": boolAttr(testOnlyImports[p.PkgPath][imp]),
 			}
 			if len(symbolIDs) > 0 {
 				attrs["symbol_ids"] = strings.Join(symbolIDs, ",")
@@ -148,6 +144,149 @@ func Normalize(pkgs []*packages.Package, moduleRoot string) (Graph, []Warning) {
 	})
 
 	return Graph{Nodes: nodes, Edges: edges}, warnings
+}
+
+func mergePackageTestVariants(pkgs []*packages.Package) ([]*packages.Package, map[string]map[string]bool) {
+	groups := map[string][]*packages.Package{}
+	for _, p := range pkgs {
+		if p == nil || isSyntheticTestBinaryPackage(p) {
+			continue
+		}
+		groups[p.PkgPath] = append(groups[p.PkgPath], p)
+	}
+
+	paths := make([]string, 0, len(groups))
+	for path := range groups {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	out := make([]*packages.Package, 0, len(paths))
+	testOnly := make(map[string]map[string]bool, len(paths))
+	for _, path := range paths {
+		group := groups[path]
+		sort.Slice(group, func(i, j int) bool { return packageVariantKey(group[i]) < packageVariantKey(group[j]) })
+
+		prod := productionPackageVariant(group)
+		merged := clonePackage(richestPackageVariant(group))
+		merged.Imports = mergedImports(group)
+		merged.GoFiles = mergedFiles(group, func(p *packages.Package) []string { return p.GoFiles })
+		merged.CompiledGoFiles = mergedFiles(group, func(p *packages.Package) []string { return p.CompiledGoFiles })
+
+		prodImports := map[string]bool{}
+		if prod != nil && !isExternalTestPackage(prod) {
+			for imp := range prod.Imports {
+				prodImports[imp] = true
+			}
+		}
+		testOnly[path] = map[string]bool{}
+		allTestPackage := prod == nil || isExternalTestPackage(merged)
+		for imp := range merged.Imports {
+			testOnly[path][imp] = allTestPackage || !prodImports[imp]
+		}
+		out = append(out, merged)
+	}
+	return out, testOnly
+}
+
+func packageVariantKey(p *packages.Package) string {
+	if p == nil {
+		return ""
+	}
+	return p.PkgPath + "\x00" + p.ID
+}
+
+func productionPackageVariant(group []*packages.Package) *packages.Package {
+	for _, p := range group {
+		if p != nil && p.ID == p.PkgPath && !isExternalTestPackage(p) {
+			return p
+		}
+	}
+	for _, p := range group {
+		if p != nil && !strings.Contains(p.ID, " [") && !isExternalTestPackage(p) {
+			return p
+		}
+	}
+	return nil
+}
+
+func richestPackageVariant(group []*packages.Package) *packages.Package {
+	var best *packages.Package
+	for _, p := range group {
+		if p == nil {
+			continue
+		}
+		if best == nil || packageVariantWeight(p) > packageVariantWeight(best) ||
+			(packageVariantWeight(p) == packageVariantWeight(best) && packageVariantKey(p) < packageVariantKey(best)) {
+			best = p
+		}
+	}
+	if best == nil {
+		return &packages.Package{}
+	}
+	return best
+}
+
+func packageVariantWeight(p *packages.Package) int {
+	if p == nil {
+		return 0
+	}
+	weight := len(p.GoFiles)*2 + len(p.Syntax)
+	if strings.Contains(p.ID, " [") {
+		weight++
+	}
+	return weight
+}
+
+func clonePackage(p *packages.Package) *packages.Package {
+	cp := *p
+	return &cp
+}
+
+func mergedImports(group []*packages.Package) map[string]*packages.Package {
+	out := map[string]*packages.Package{}
+	for _, p := range group {
+		if p == nil {
+			continue
+		}
+		keys := make([]string, 0, len(p.Imports))
+		for imp := range p.Imports {
+			keys = append(keys, imp)
+		}
+		sort.Strings(keys)
+		for _, imp := range keys {
+			if _, ok := out[imp]; !ok {
+				out[imp] = p.Imports[imp]
+			}
+		}
+	}
+	return out
+}
+
+func mergedFiles(group []*packages.Package, files func(*packages.Package) []string) []string {
+	seen := map[string]bool{}
+	for _, p := range group {
+		if p == nil {
+			continue
+		}
+		for _, file := range files(p) {
+			seen[file] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for file := range seen {
+		out = append(out, file)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func isSyntheticTestBinaryPackage(p *packages.Package) bool {
+	return p != nil && strings.HasSuffix(p.PkgPath, ".test")
+}
+
+func isExternalTestPackage(p *packages.Package) bool {
+	return p != nil && strings.HasSuffix(p.Name, "_test")
 }
 
 func importSymbolFacts(p *packages.Package, importPath string) ([]string, []string) {

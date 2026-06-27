@@ -71,6 +71,24 @@ business logic. UI and CLI translate user/operator intent into API
 calls. Proto types flow from one source of truth so wire-shape drift
 between surfaces is impossible.
 
+## Zone Map
+
+The code-layout zones (responsibility tiers + import direction) the scenario is
+expected to follow. This is the DECLARED signal: `architecture-cartographer`
+converges it against the template manifest (the DERIVED SSOT,
+`templates/scenarios/react-vite/manifest.json`) and the import graph (reality),
+and reports any disagreement as `zone_drift`. The finer domain-vs-substrate
+split under `api/internal/` is resolved by domain membership, not this table.
+
+| Zone | Declared Layer | Path Convention |
+|---|---|---|
+| transport | API transport edge | `api/handlers/<domain>/` |
+| domain | Scenario core | `api/internal/<domain>/` |
+| substrate | Shared infrastructure | `api/internal/<segment>/` |
+| composition-root | Bootstrap and wiring | `api/internal/app/` |
+| cli | Operator wrapper | `cli/domains/<domain>/` |
+| ui | Browser presentation | `ui/src/features/<domain>/` |
+
 ## System Boundaries
 
 The scenario owns:

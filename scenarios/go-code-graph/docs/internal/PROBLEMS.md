@@ -51,13 +51,11 @@ Use this section for deferred findings from `screaming-architecture-audit`. Do n
 
 ### 2026-05-23 — `Extract` proto envelope under-emits cartographer-relevant attributes (partial fix 2026-05-24)
 
-**Status (2026-05-24):** Partially closed. `lines` (real signal, computed from `*ast.File` end-position) and `internal` (path-based heuristic) now flow through and are consumed by cartographer's `protoToRawGraph`. `is_test` and `test_only` are emitted on the wire but always serialize as `"false"` today because the loader still runs `packages.Config{Tests: false}` — test files do not appear in `p.GoFiles`, so the basename heuristic never fires.
+**Status (2026-06-26):** Closed. `lines` (real signal, computed from `*ast.File` end-position), `internal` (path-based heuristic), `is_test`, `test_only`, `symbol_ids`, and `symbol_kinds` now flow through and are consumed by cartographer's `protoToRawGraph`.
 
-**Remaining gap:** Switch `internal/graph/loader_packages.go` to `Tests: true` and add a variant-merge pass in `Normalize` so test variants of a package (same `PkgPath`, different IDs; `ForTest` non-empty) are folded back into the canonical entry rather than skipped by `seenPkg[pkgID]`. Filter synthetic test-binary packages (`PkgPath` ending in `.test`). Once merged, `p.TestGoFiles` / `p.XTestGoFiles` populate `is_test`, and the diff between prod and test-variant `Imports` populates `test_only` on edges. Add a `go-tests` fixture exercising both branches; the determinism gate enforces stability.
+**Resolution:** `internal/graph/loader_packages.go` now runs `packages.Config{Tests: true}`. `Normalize` folds production and test variants into one package row per `PkgPath`, filters synthetic test-binary packages (`PkgPath` ending in `.test`), marks `_test.go` files with `is_test=true`, and derives `test_only=true` from imports that exist only in the merged test variant or originate from an external `_test` package. The `bas/fixtures/go-tests` golden fixture exercises production imports, internal test-only imports, and external test-package imports.
 
-`ImportEdge.SymbolIDs` (symbol-level import provenance) remains unmapped — no analogue exists in the proto envelope today and needs a proto contract turn before any producer work.
-
-**Refs:** `internal/graph/normalize.go` (current `lines` / `internal` emit + placeholder `is_test` / `test_only`), `internal/graph/loader_packages.go` (`Tests: false` switch site), `scenarios/architecture-cartographer/api/internal/graph/gocodegraph/client.go` (`protoToRawGraph` now reads all four new attributes).
+**Refs:** `internal/graph/normalize.go`, `internal/graph/loader_packages.go`, `internal/graph/integration_test.go::TestExtractGoTestsFixtureMarksTestOnlyEdges`, `bas/fixtures/go-tests`, `scenarios/architecture-cartographer/api/internal/graph/gocodegraph/client.go`.
 
 ### 2026-05-23 — Per-path mutex memory leak — closed 2026-05-24
 

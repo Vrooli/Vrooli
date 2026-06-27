@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.shared;
 
+import "common/v1/attestation.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared;shared_v1";
@@ -140,4 +141,10 @@ message Conflict {
   string stable_id = 20;
   string instance_id = 21;
   FindingClass finding_class = 22;
+  // Honesty contract for this finding: a drift conflict (glossary/surface/zone/
+  // archetype) carries basis CONTRADICTED with citations to both the doc and the
+  // code; a code-computed finding (cycle/coupling) carries DERIVED with code
+  // citations. Built via internal/attest so CLI/RPC and future federated search
+  // present identically.
+  common.v1.AttestedAnswer attestation = 23;
 }

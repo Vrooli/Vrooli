@@ -799,6 +799,183 @@ func (NextActionKind) EnumDescriptor() ([]byte, []int) {
 	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{13}
 }
 
+// LogEntryType is the typed kind of an execution-log ledger entry.
+type LogEntryType int32
+
+const (
+	LogEntryType_LOG_ENTRY_TYPE_UNSPECIFIED LogEntryType = 0
+	LogEntryType_LOG_ENTRY_TYPE_DECISION    LogEntryType = 1
+	LogEntryType_LOG_ENTRY_TYPE_FINDING     LogEntryType = 2
+	LogEntryType_LOG_ENTRY_TYPE_BUG_REPORT  LogEntryType = 3
+	LogEntryType_LOG_ENTRY_TYPE_RECORD      LogEntryType = 4
+	LogEntryType_LOG_ENTRY_TYPE_NOTE        LogEntryType = 5
+)
+
+// Enum value maps for LogEntryType.
+var (
+	LogEntryType_name = map[int32]string{
+		0: "LOG_ENTRY_TYPE_UNSPECIFIED",
+		1: "LOG_ENTRY_TYPE_DECISION",
+		2: "LOG_ENTRY_TYPE_FINDING",
+		3: "LOG_ENTRY_TYPE_BUG_REPORT",
+		4: "LOG_ENTRY_TYPE_RECORD",
+		5: "LOG_ENTRY_TYPE_NOTE",
+	}
+	LogEntryType_value = map[string]int32{
+		"LOG_ENTRY_TYPE_UNSPECIFIED": 0,
+		"LOG_ENTRY_TYPE_DECISION":    1,
+		"LOG_ENTRY_TYPE_FINDING":     2,
+		"LOG_ENTRY_TYPE_BUG_REPORT":  3,
+		"LOG_ENTRY_TYPE_RECORD":      4,
+		"LOG_ENTRY_TYPE_NOTE":        5,
+	}
+)
+
+func (x LogEntryType) Enum() *LogEntryType {
+	p := new(LogEntryType)
+	*p = x
+	return p
+}
+
+func (x LogEntryType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LogEntryType) Descriptor() protoreflect.EnumDescriptor {
+	return file_plan_manager_v1_shared_model_proto_enumTypes[14].Descriptor()
+}
+
+func (LogEntryType) Type() protoreflect.EnumType {
+	return &file_plan_manager_v1_shared_model_proto_enumTypes[14]
+}
+
+func (x LogEntryType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LogEntryType.Descriptor instead.
+func (LogEntryType) EnumDescriptor() ([]byte, []int) {
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{14}
+}
+
+// LogSyncStatus is the downstream-integration state of a log entry. LOCAL means
+// the entry has no downstream target (decisions/findings/notes). PENDING/SYNCED/
+// FAILED apply to bug_report and record entries Plan Manager forwards through an
+// internal seam. A FAILED entry remains durable and retryable.
+type LogSyncStatus int32
+
+const (
+	LogSyncStatus_LOG_SYNC_STATUS_UNSPECIFIED LogSyncStatus = 0
+	LogSyncStatus_LOG_SYNC_STATUS_LOCAL       LogSyncStatus = 1
+	LogSyncStatus_LOG_SYNC_STATUS_PENDING     LogSyncStatus = 2
+	LogSyncStatus_LOG_SYNC_STATUS_SYNCED      LogSyncStatus = 3
+	LogSyncStatus_LOG_SYNC_STATUS_FAILED      LogSyncStatus = 4
+)
+
+// Enum value maps for LogSyncStatus.
+var (
+	LogSyncStatus_name = map[int32]string{
+		0: "LOG_SYNC_STATUS_UNSPECIFIED",
+		1: "LOG_SYNC_STATUS_LOCAL",
+		2: "LOG_SYNC_STATUS_PENDING",
+		3: "LOG_SYNC_STATUS_SYNCED",
+		4: "LOG_SYNC_STATUS_FAILED",
+	}
+	LogSyncStatus_value = map[string]int32{
+		"LOG_SYNC_STATUS_UNSPECIFIED": 0,
+		"LOG_SYNC_STATUS_LOCAL":       1,
+		"LOG_SYNC_STATUS_PENDING":     2,
+		"LOG_SYNC_STATUS_SYNCED":      3,
+		"LOG_SYNC_STATUS_FAILED":      4,
+	}
+)
+
+func (x LogSyncStatus) Enum() *LogSyncStatus {
+	p := new(LogSyncStatus)
+	*p = x
+	return p
+}
+
+func (x LogSyncStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LogSyncStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_plan_manager_v1_shared_model_proto_enumTypes[15].Descriptor()
+}
+
+func (LogSyncStatus) Type() protoreflect.EnumType {
+	return &file_plan_manager_v1_shared_model_proto_enumTypes[15]
+}
+
+func (x LogSyncStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LogSyncStatus.Descriptor instead.
+func (LogSyncStatus) EnumDescriptor() ([]byte, []int) {
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{15}
+}
+
+// LogSeverity is the optional severity of a finding or bug-report entry.
+type LogSeverity int32
+
+const (
+	LogSeverity_LOG_SEVERITY_UNSPECIFIED LogSeverity = 0
+	LogSeverity_LOG_SEVERITY_INFO        LogSeverity = 1
+	LogSeverity_LOG_SEVERITY_LOW         LogSeverity = 2
+	LogSeverity_LOG_SEVERITY_MEDIUM      LogSeverity = 3
+	LogSeverity_LOG_SEVERITY_HIGH        LogSeverity = 4
+	LogSeverity_LOG_SEVERITY_CRITICAL    LogSeverity = 5
+)
+
+// Enum value maps for LogSeverity.
+var (
+	LogSeverity_name = map[int32]string{
+		0: "LOG_SEVERITY_UNSPECIFIED",
+		1: "LOG_SEVERITY_INFO",
+		2: "LOG_SEVERITY_LOW",
+		3: "LOG_SEVERITY_MEDIUM",
+		4: "LOG_SEVERITY_HIGH",
+		5: "LOG_SEVERITY_CRITICAL",
+	}
+	LogSeverity_value = map[string]int32{
+		"LOG_SEVERITY_UNSPECIFIED": 0,
+		"LOG_SEVERITY_INFO":        1,
+		"LOG_SEVERITY_LOW":         2,
+		"LOG_SEVERITY_MEDIUM":      3,
+		"LOG_SEVERITY_HIGH":        4,
+		"LOG_SEVERITY_CRITICAL":    5,
+	}
+)
+
+func (x LogSeverity) Enum() *LogSeverity {
+	p := new(LogSeverity)
+	*p = x
+	return p
+}
+
+func (x LogSeverity) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LogSeverity) Descriptor() protoreflect.EnumDescriptor {
+	return file_plan_manager_v1_shared_model_proto_enumTypes[16].Descriptor()
+}
+
+func (LogSeverity) Type() protoreflect.EnumType {
+	return &file_plan_manager_v1_shared_model_proto_enumTypes[16]
+}
+
+func (x LogSeverity) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LogSeverity.Descriptor instead.
+func (LogSeverity) EnumDescriptor() ([]byte, []int) {
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{16}
+}
+
 // NextAction is one concrete command/action the API recommends for the current
 // guided step. argv is canonical; shell strings are presentation-only.
 type NextAction struct {
@@ -1377,33 +1554,33 @@ func (x *RegressionAnchor) GetUnavailable() bool {
 	return false
 }
 
-// Decision is an in-flow recorded design decision (captured during execution via
-// a runner command), feeding the handoff.
-type Decision struct {
+// DownstreamRef records the result of forwarding a log entry to a downstream
+// system (the scenario-qa bug inbox, swarm-manager records).
+type DownstreamRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Summary       string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
-	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
-	PhaseId       string                 `protobuf:"bytes,4,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
-	RecordedAt    string                 `protobuf:"bytes,5,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	System        string                 `protobuf:"bytes,1,opt,name=system,proto3" json:"system,omitempty"`                     // "scenario-qa" | "swarm-manager"
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`                         // "bug_report" | "record"
+	Reference     string                 `protobuf:"bytes,3,opt,name=reference,proto3" json:"reference,omitempty"`               // downstream id/url once synced
+	Detail        string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`                     // last sync detail or error
+	SyncedAt      string                 `protobuf:"bytes,5,opt,name=synced_at,json=syncedAt,proto3" json:"synced_at,omitempty"` // RFC3339; empty until first successful sync
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Decision) Reset() {
-	*x = Decision{}
+func (x *DownstreamRef) Reset() {
+	*x = DownstreamRef{}
 	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Decision) String() string {
+func (x *DownstreamRef) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Decision) ProtoMessage() {}
+func (*DownstreamRef) ProtoMessage() {}
 
-func (x *Decision) ProtoReflect() protoreflect.Message {
+func (x *DownstreamRef) ProtoReflect() protoreflect.Message {
 	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1415,76 +1592,95 @@ func (x *Decision) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Decision.ProtoReflect.Descriptor instead.
-func (*Decision) Descriptor() ([]byte, []int) {
+// Deprecated: Use DownstreamRef.ProtoReflect.Descriptor instead.
+func (*DownstreamRef) Descriptor() ([]byte, []int) {
 	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Decision) GetId() string {
+func (x *DownstreamRef) GetSystem() string {
 	if x != nil {
-		return x.Id
+		return x.System
 	}
 	return ""
 }
 
-func (x *Decision) GetSummary() string {
+func (x *DownstreamRef) GetKind() string {
 	if x != nil {
-		return x.Summary
+		return x.Kind
 	}
 	return ""
 }
 
-func (x *Decision) GetDetail() string {
+func (x *DownstreamRef) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *DownstreamRef) GetDetail() string {
 	if x != nil {
 		return x.Detail
 	}
 	return ""
 }
 
-func (x *Decision) GetPhaseId() string {
+func (x *DownstreamRef) GetSyncedAt() string {
 	if x != nil {
-		return x.PhaseId
+		return x.SyncedAt
 	}
 	return ""
 }
 
-func (x *Decision) GetRecordedAt() string {
-	if x != nil {
-		return x.RecordedAt
-	}
-	return ""
-}
-
-// Finding is an in-flow recorded candidate finding (possible bug). Always filed
-// as CANDIDATE; an operator triages it before it becomes a real bug.
-type Finding struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title      string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Detail     string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
-	Triage     FindingTriage          `protobuf:"varint,4,opt,name=triage,proto3,enum=vrooli.plan_manager.v1.shared.FindingTriage" json:"triage,omitempty"`
-	PhaseId    string                 `protobuf:"bytes,5,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
-	RecordedAt string                 `protobuf:"bytes,6,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+// LogEntry is one typed execution-log ledger entry — the unified record for
+// decisions, candidate findings, bug reports, reusable records, and notes.
+type LogEntry struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type        LogEntryType           `protobuf:"varint,2,opt,name=type,proto3,enum=vrooli.plan_manager.v1.shared.LogEntryType" json:"type,omitempty"`
+	PlanId      string                 `protobuf:"bytes,3,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	ExecutionId string                 `protobuf:"bytes,4,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	PhaseId     string                 `protobuf:"bytes,5,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	Title       string                 `protobuf:"bytes,6,opt,name=title,proto3" json:"title,omitempty"`
+	Detail      string                 `protobuf:"bytes,7,opt,name=detail,proto3" json:"detail,omitempty"`
+	Severity    LogSeverity            `protobuf:"varint,8,opt,name=severity,proto3,enum=vrooli.plan_manager.v1.shared.LogSeverity" json:"severity,omitempty"`
+	// Operator-triage state; meaningful for finding entries (candidate ->
+	// promoted/dismissed). Other types stay UNSPECIFIED.
+	Triage     FindingTriage  `protobuf:"varint,9,opt,name=triage,proto3,enum=vrooli.plan_manager.v1.shared.FindingTriage" json:"triage,omitempty"`
+	SyncStatus LogSyncStatus  `protobuf:"varint,10,opt,name=sync_status,json=syncStatus,proto3,enum=vrooli.plan_manager.v1.shared.LogSyncStatus" json:"sync_status,omitempty"`
+	Downstream *DownstreamRef `protobuf:"bytes,11,opt,name=downstream,proto3" json:"downstream,omitempty"`
+	// The plan-manager CLI command path that produced this entry (audit trail).
+	SourceCommand string `protobuf:"bytes,12,opt,name=source_command,json=sourceCommand,proto3" json:"source_command,omitempty"`
+	// Optional supporting evidence locators (paths, command output refs, urls).
+	Evidence []string `protobuf:"bytes,13,rep,name=evidence,proto3" json:"evidence,omitempty"`
 	// VROOLI_AGENT_MANAGER_RUN_ID when present; powers attribution-keyed dedup.
-	AttributionRunId string `protobuf:"bytes,7,opt,name=attribution_run_id,json=attributionRunId,proto3" json:"attribution_run_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	AttributionRunId string `protobuf:"bytes,14,opt,name=attribution_run_id,json=attributionRunId,proto3" json:"attribution_run_id,omitempty"`
+	// Idempotency key; a retry with the same key returns the existing entry.
+	IdempotencyKey string `protobuf:"bytes,15,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	// When this entry corrects/supersedes an earlier entry.
+	SupersedesId string `protobuf:"bytes,16,opt,name=supersedes_id,json=supersedesId,proto3" json:"supersedes_id,omitempty"`
+	// When this bug_report/record was promoted from a finding entry.
+	PromotedFromId string `protobuf:"bytes,17,opt,name=promoted_from_id,json=promotedFromId,proto3" json:"promoted_from_id,omitempty"`
+	CreatedAt      string `protobuf:"bytes,18,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt      string `protobuf:"bytes,19,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *Finding) Reset() {
-	*x = Finding{}
+func (x *LogEntry) Reset() {
+	*x = LogEntry{}
 	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Finding) String() string {
+func (x *LogEntry) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Finding) ProtoMessage() {}
+func (*LogEntry) ProtoMessage() {}
 
-func (x *Finding) ProtoReflect() protoreflect.Message {
+func (x *LogEntry) ProtoReflect() protoreflect.Message {
 	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1496,58 +1692,347 @@ func (x *Finding) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Finding.ProtoReflect.Descriptor instead.
-func (*Finding) Descriptor() ([]byte, []int) {
+// Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
+func (*LogEntry) Descriptor() ([]byte, []int) {
 	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *Finding) GetId() string {
+func (x *LogEntry) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *Finding) GetTitle() string {
+func (x *LogEntry) GetType() LogEntryType {
+	if x != nil {
+		return x.Type
+	}
+	return LogEntryType_LOG_ENTRY_TYPE_UNSPECIFIED
+}
+
+func (x *LogEntry) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+func (x *LogEntry) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *LogEntry) GetPhaseId() string {
+	if x != nil {
+		return x.PhaseId
+	}
+	return ""
+}
+
+func (x *LogEntry) GetTitle() string {
 	if x != nil {
 		return x.Title
 	}
 	return ""
 }
 
-func (x *Finding) GetDetail() string {
+func (x *LogEntry) GetDetail() string {
 	if x != nil {
 		return x.Detail
 	}
 	return ""
 }
 
-func (x *Finding) GetTriage() FindingTriage {
+func (x *LogEntry) GetSeverity() LogSeverity {
+	if x != nil {
+		return x.Severity
+	}
+	return LogSeverity_LOG_SEVERITY_UNSPECIFIED
+}
+
+func (x *LogEntry) GetTriage() FindingTriage {
 	if x != nil {
 		return x.Triage
 	}
 	return FindingTriage_FINDING_TRIAGE_UNSPECIFIED
 }
 
-func (x *Finding) GetPhaseId() string {
+func (x *LogEntry) GetSyncStatus() LogSyncStatus {
+	if x != nil {
+		return x.SyncStatus
+	}
+	return LogSyncStatus_LOG_SYNC_STATUS_UNSPECIFIED
+}
+
+func (x *LogEntry) GetDownstream() *DownstreamRef {
+	if x != nil {
+		return x.Downstream
+	}
+	return nil
+}
+
+func (x *LogEntry) GetSourceCommand() string {
+	if x != nil {
+		return x.SourceCommand
+	}
+	return ""
+}
+
+func (x *LogEntry) GetEvidence() []string {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+func (x *LogEntry) GetAttributionRunId() string {
+	if x != nil {
+		return x.AttributionRunId
+	}
+	return ""
+}
+
+func (x *LogEntry) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *LogEntry) GetSupersedesId() string {
+	if x != nil {
+		return x.SupersedesId
+	}
+	return ""
+}
+
+func (x *LogEntry) GetPromotedFromId() string {
+	if x != nil {
+		return x.PromotedFromId
+	}
+	return ""
+}
+
+func (x *LogEntry) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *LogEntry) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+// LogSummaryItem is one compact line in a LogSummary.
+type LogSummaryItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type          LogEntryType           `protobuf:"varint,2,opt,name=type,proto3,enum=vrooli.plan_manager.v1.shared.LogEntryType" json:"type,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	SyncStatus    LogSyncStatus          `protobuf:"varint,4,opt,name=sync_status,json=syncStatus,proto3,enum=vrooli.plan_manager.v1.shared.LogSyncStatus" json:"sync_status,omitempty"`
+	Triage        FindingTriage          `protobuf:"varint,5,opt,name=triage,proto3,enum=vrooli.plan_manager.v1.shared.FindingTriage" json:"triage,omitempty"`
+	PhaseId       string                 `protobuf:"bytes,6,opt,name=phase_id,json=phaseId,proto3" json:"phase_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogSummaryItem) Reset() {
+	*x = LogSummaryItem{}
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogSummaryItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogSummaryItem) ProtoMessage() {}
+
+func (x *LogSummaryItem) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogSummaryItem.ProtoReflect.Descriptor instead.
+func (*LogSummaryItem) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *LogSummaryItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *LogSummaryItem) GetType() LogEntryType {
+	if x != nil {
+		return x.Type
+	}
+	return LogEntryType_LOG_ENTRY_TYPE_UNSPECIFIED
+}
+
+func (x *LogSummaryItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *LogSummaryItem) GetSyncStatus() LogSyncStatus {
+	if x != nil {
+		return x.SyncStatus
+	}
+	return LogSyncStatus_LOG_SYNC_STATUS_UNSPECIFIED
+}
+
+func (x *LogSummaryItem) GetTriage() FindingTriage {
+	if x != nil {
+		return x.Triage
+	}
+	return FindingTriage_FINDING_TRIAGE_UNSPECIFIED
+}
+
+func (x *LogSummaryItem) GetPhaseId() string {
 	if x != nil {
 		return x.PhaseId
 	}
 	return ""
 }
 
-func (x *Finding) GetRecordedAt() string {
-	if x != nil {
-		return x.RecordedAt
-	}
-	return ""
+// LogSummary is a compact roll-up of an execution's (or plan's) log ledger,
+// surfaced into resume/status/handoff so a resumed agent reorients without
+// reading every entry.
+type LogSummary struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Total             int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Decisions         int32                  `protobuf:"varint,2,opt,name=decisions,proto3" json:"decisions,omitempty"`
+	Findings          int32                  `protobuf:"varint,3,opt,name=findings,proto3" json:"findings,omitempty"`
+	BugReports        int32                  `protobuf:"varint,4,opt,name=bug_reports,json=bugReports,proto3" json:"bug_reports,omitempty"`
+	Records           int32                  `protobuf:"varint,5,opt,name=records,proto3" json:"records,omitempty"`
+	Notes             int32                  `protobuf:"varint,6,opt,name=notes,proto3" json:"notes,omitempty"`
+	CandidateFindings int32                  `protobuf:"varint,7,opt,name=candidate_findings,json=candidateFindings,proto3" json:"candidate_findings,omitempty"`
+	PendingSync       int32                  `protobuf:"varint,8,opt,name=pending_sync,json=pendingSync,proto3" json:"pending_sync,omitempty"`
+	FailedSync        int32                  `protobuf:"varint,9,opt,name=failed_sync,json=failedSync,proto3" json:"failed_sync,omitempty"`
+	// A short, most-recent-first list for quick reorientation.
+	Recent        []*LogSummaryItem `protobuf:"bytes,10,rep,name=recent,proto3" json:"recent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Finding) GetAttributionRunId() string {
+func (x *LogSummary) Reset() {
+	*x = LogSummary{}
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogSummary) ProtoMessage() {}
+
+func (x *LogSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[8]
 	if x != nil {
-		return x.AttributionRunId
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	return ""
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogSummary.ProtoReflect.Descriptor instead.
+func (*LogSummary) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *LogSummary) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *LogSummary) GetDecisions() int32 {
+	if x != nil {
+		return x.Decisions
+	}
+	return 0
+}
+
+func (x *LogSummary) GetFindings() int32 {
+	if x != nil {
+		return x.Findings
+	}
+	return 0
+}
+
+func (x *LogSummary) GetBugReports() int32 {
+	if x != nil {
+		return x.BugReports
+	}
+	return 0
+}
+
+func (x *LogSummary) GetRecords() int32 {
+	if x != nil {
+		return x.Records
+	}
+	return 0
+}
+
+func (x *LogSummary) GetNotes() int32 {
+	if x != nil {
+		return x.Notes
+	}
+	return 0
+}
+
+func (x *LogSummary) GetCandidateFindings() int32 {
+	if x != nil {
+		return x.CandidateFindings
+	}
+	return 0
+}
+
+func (x *LogSummary) GetPendingSync() int32 {
+	if x != nil {
+		return x.PendingSync
+	}
+	return 0
+}
+
+func (x *LogSummary) GetFailedSync() int32 {
+	if x != nil {
+		return x.FailedSync
+	}
+	return 0
+}
+
+func (x *LogSummary) GetRecent() []*LogSummaryItem {
+	if x != nil {
+		return x.Recent
+	}
+	return nil
 }
 
 // ValidationResult is the most recent validation/baseline outcome for a plan or
@@ -1571,7 +2056,7 @@ type ValidationResult struct {
 
 func (x *ValidationResult) Reset() {
 	*x = ValidationResult{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[7]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1583,7 +2068,7 @@ func (x *ValidationResult) String() string {
 func (*ValidationResult) ProtoMessage() {}
 
 func (x *ValidationResult) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[7]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1596,7 +2081,7 @@ func (x *ValidationResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationResult.ProtoReflect.Descriptor instead.
 func (*ValidationResult) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{7}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ValidationResult) GetId() string {
@@ -1685,7 +2170,7 @@ type CommandValidationFinding struct {
 
 func (x *CommandValidationFinding) Reset() {
 	*x = CommandValidationFinding{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[8]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1697,7 +2182,7 @@ func (x *CommandValidationFinding) String() string {
 func (*CommandValidationFinding) ProtoMessage() {}
 
 func (x *CommandValidationFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[8]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1710,7 +2195,7 @@ func (x *CommandValidationFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommandValidationFinding.ProtoReflect.Descriptor instead.
 func (*CommandValidationFinding) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{8}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CommandValidationFinding) GetCommandText() string {
@@ -1770,34 +2255,35 @@ func (x *CommandValidationFinding) GetGuidance() []string {
 }
 
 // Phase is a first-class phase — the unit the runner walks and context is scoped
-// to. order/title/intent/required_reading/reminders/acceptance are AUTHORED;
-// baseline_scope/status/last_validation are COMPUTED; decisions/findings are
-// captured in-flow.
+// to. order/title/intent/relevant_context/reminders/acceptance are AUTHORED;
+// required_reading is legacy migration input; baseline_scope/status/
+// last_validation are COMPUTED. In-flow decisions/findings are NOT stored on the
+// phase — they are typed entries in the log domain (LogService), scoped to the
+// phase by phase_id.
 type Phase struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Order           int32                  `protobuf:"varint,2,opt,name=order,proto3" json:"order,omitempty"`
-	Title           string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Intent          string                 `protobuf:"bytes,4,opt,name=intent,proto3" json:"intent,omitempty"`
-	RequiredReading []string               `protobuf:"bytes,5,rep,name=required_reading,json=requiredReading,proto3" json:"required_reading,omitempty"`
-	Reminders       []string               `protobuf:"bytes,6,rep,name=reminders,proto3" json:"reminders,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Id     string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Order  int32                  `protobuf:"varint,2,opt,name=order,proto3" json:"order,omitempty"`
+	Title  string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Intent string                 `protobuf:"bytes,4,opt,name=intent,proto3" json:"intent,omitempty"`
+	// Legacy migration input. Execution-facing setup is relevant_context.
+	RequiredReading []string `protobuf:"bytes,5,rep,name=required_reading,json=requiredReading,proto3" json:"required_reading,omitempty"`
+	Reminders       []string `protobuf:"bytes,6,rep,name=reminders,proto3" json:"reminders,omitempty"`
 	// COMPUTED: the baseline/validation command set this phase touches, derived
 	// from its references across all affected locations.
 	BaselineScope   []string               `protobuf:"bytes,7,rep,name=baseline_scope,json=baselineScope,proto3" json:"baseline_scope,omitempty"`
 	Acceptance      string                 `protobuf:"bytes,8,opt,name=acceptance,proto3" json:"acceptance,omitempty"`
 	Status          PhaseStatus            `protobuf:"varint,9,opt,name=status,proto3,enum=vrooli.plan_manager.v1.shared.PhaseStatus" json:"status,omitempty"`
 	LastValidation  *ValidationResult      `protobuf:"bytes,10,opt,name=last_validation,json=lastValidation,proto3" json:"last_validation,omitempty"`
-	Decisions       []*Decision            `protobuf:"bytes,11,rep,name=decisions,proto3" json:"decisions,omitempty"`
-	Findings        []*Finding             `protobuf:"bytes,12,rep,name=findings,proto3" json:"findings,omitempty"`
-	References      []*Reference           `protobuf:"bytes,13,rep,name=references,proto3" json:"references,omitempty"`
-	RelevantContext []*RelevantContextItem `protobuf:"bytes,14,rep,name=relevant_context,json=relevantContext,proto3" json:"relevant_context,omitempty"`
+	References      []*Reference           `protobuf:"bytes,11,rep,name=references,proto3" json:"references,omitempty"`
+	RelevantContext []*RelevantContextItem `protobuf:"bytes,12,rep,name=relevant_context,json=relevantContext,proto3" json:"relevant_context,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Phase) Reset() {
 	*x = Phase{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1809,7 +2295,7 @@ func (x *Phase) String() string {
 func (*Phase) ProtoMessage() {}
 
 func (x *Phase) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[9]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1822,7 +2308,7 @@ func (x *Phase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Phase.ProtoReflect.Descriptor instead.
 func (*Phase) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{9}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Phase) GetId() string {
@@ -1895,20 +2381,6 @@ func (x *Phase) GetLastValidation() *ValidationResult {
 	return nil
 }
 
-func (x *Phase) GetDecisions() []*Decision {
-	if x != nil {
-		return x.Decisions
-	}
-	return nil
-}
-
-func (x *Phase) GetFindings() []*Finding {
-	if x != nil {
-		return x.Findings
-	}
-	return nil
-}
-
 func (x *Phase) GetReferences() []*Reference {
 	if x != nil {
 		return x.References
@@ -1951,7 +2423,7 @@ type Plan struct {
 
 func (x *Plan) Reset() {
 	*x = Plan{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1963,7 +2435,7 @@ func (x *Plan) String() string {
 func (*Plan) ProtoMessage() {}
 
 func (x *Plan) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[10]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1976,7 +2448,7 @@ func (x *Plan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Plan.ProtoReflect.Descriptor instead.
 func (*Plan) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{10}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Plan) GetId() string {
@@ -2118,7 +2590,7 @@ type PlanEdge struct {
 
 func (x *PlanEdge) Reset() {
 	*x = PlanEdge{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2130,7 +2602,7 @@ func (x *PlanEdge) String() string {
 func (*PlanEdge) ProtoMessage() {}
 
 func (x *PlanEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[11]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2143,7 +2615,7 @@ func (x *PlanEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanEdge.ProtoReflect.Descriptor instead.
 func (*PlanEdge) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{11}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PlanEdge) GetFromPlanId() string {
@@ -2186,7 +2658,7 @@ type VelocityPoint struct {
 
 func (x *VelocityPoint) Reset() {
 	*x = VelocityPoint{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2198,7 +2670,7 @@ func (x *VelocityPoint) String() string {
 func (*VelocityPoint) ProtoMessage() {}
 
 func (x *VelocityPoint) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[12]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2211,7 +2683,7 @@ func (x *VelocityPoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VelocityPoint.ProtoReflect.Descriptor instead.
 func (*VelocityPoint) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{12}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *VelocityPoint) GetId() string {
@@ -2275,16 +2747,19 @@ func (x *VelocityPoint) GetRecordedAt() string {
 // final-message catch-all is owned by the orchestration layer and linked here by
 // reference (prose_handoff_ref).
 type Handoff struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ExecutionId       string                 `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
-	PlanId            string                 `protobuf:"bytes,3,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
-	Completeness      Completeness           `protobuf:"varint,4,opt,name=completeness,proto3,enum=vrooli.plan_manager.v1.shared.Completeness" json:"completeness,omitempty"` // COMPUTED from the phase-status set
-	ResumePhaseId     string                 `protobuf:"bytes,5,opt,name=resume_phase_id,json=resumePhaseId,proto3" json:"resume_phase_id,omitempty"`                         // COMPUTED: earliest non-done phase
-	Decisions         []*Decision            `protobuf:"bytes,6,rep,name=decisions,proto3" json:"decisions,omitempty"`
-	CandidateFindings []*Finding             `protobuf:"bytes,7,rep,name=candidate_findings,json=candidateFindings,proto3" json:"candidate_findings,omitempty"`
-	LastValidation    *ValidationResult      `protobuf:"bytes,8,opt,name=last_validation,json=lastValidation,proto3" json:"last_validation,omitempty"`
-	Staleness         StalenessTier          `protobuf:"varint,9,opt,name=staleness,proto3,enum=vrooli.plan_manager.v1.shared.StalenessTier" json:"staleness,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ExecutionId   string                 `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	PlanId        string                 `protobuf:"bytes,3,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	Completeness  Completeness           `protobuf:"varint,4,opt,name=completeness,proto3,enum=vrooli.plan_manager.v1.shared.Completeness" json:"completeness,omitempty"` // COMPUTED from the phase-status set
+	ResumePhaseId string                 `protobuf:"bytes,5,opt,name=resume_phase_id,json=resumePhaseId,proto3" json:"resume_phase_id,omitempty"`                         // COMPUTED: earliest non-done phase
+	// Compact roll-up of the execution's log ledger (decisions/findings/bugs/
+	// records) assembled from the log domain at handoff time.
+	LogSummary *LogSummary `protobuf:"bytes,6,opt,name=log_summary,json=logSummary,proto3" json:"log_summary,omitempty"`
+	// The full log entries captured during the run, oldest-first.
+	LogEntries     []*LogEntry       `protobuf:"bytes,7,rep,name=log_entries,json=logEntries,proto3" json:"log_entries,omitempty"`
+	LastValidation *ValidationResult `protobuf:"bytes,8,opt,name=last_validation,json=lastValidation,proto3" json:"last_validation,omitempty"`
+	Staleness      StalenessTier     `protobuf:"varint,9,opt,name=staleness,proto3,enum=vrooli.plan_manager.v1.shared.StalenessTier" json:"staleness,omitempty"`
 	// Reference (URL/id) to the orchestration-layer prose handoff; plan-manager
 	// never reads transcripts, it only links.
 	ProseHandoffRef string `protobuf:"bytes,10,opt,name=prose_handoff_ref,json=proseHandoffRef,proto3" json:"prose_handoff_ref,omitempty"`
@@ -2295,7 +2770,7 @@ type Handoff struct {
 
 func (x *Handoff) Reset() {
 	*x = Handoff{}
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2307,7 +2782,7 @@ func (x *Handoff) String() string {
 func (*Handoff) ProtoMessage() {}
 
 func (x *Handoff) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[13]
+	mi := &file_plan_manager_v1_shared_model_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2320,7 +2795,7 @@ func (x *Handoff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Handoff.ProtoReflect.Descriptor instead.
 func (*Handoff) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{13}
+	return file_plan_manager_v1_shared_model_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Handoff) GetId() string {
@@ -2358,16 +2833,16 @@ func (x *Handoff) GetResumePhaseId() string {
 	return ""
 }
 
-func (x *Handoff) GetDecisions() []*Decision {
+func (x *Handoff) GetLogSummary() *LogSummary {
 	if x != nil {
-		return x.Decisions
+		return x.LogSummary
 	}
 	return nil
 }
 
-func (x *Handoff) GetCandidateFindings() []*Finding {
+func (x *Handoff) GetLogEntries() []*LogEntry {
 	if x != nil {
-		return x.CandidateFindings
+		return x.LogEntries
 	}
 	return nil
 }
@@ -2462,23 +2937,62 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\bcommands\x18\x06 \x03(\tR\bcommands\x12\x1f\n" +
 	"\vcaptured_at\x18\a \x01(\tR\n" +
 	"capturedAt\x12 \n" +
-	"\vunavailable\x18\b \x01(\bR\vunavailable\"\x88\x01\n" +
-	"\bDecision\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\asummary\x18\x02 \x01(\tR\asummary\x12\x16\n" +
-	"\x06detail\x18\x03 \x01(\tR\x06detail\x12\x19\n" +
-	"\bphase_id\x18\x04 \x01(\tR\aphaseId\x12\x1f\n" +
-	"\vrecorded_at\x18\x05 \x01(\tR\n" +
-	"recordedAt\"\xf7\x01\n" +
-	"\aFinding\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\x12\x16\n" +
-	"\x06detail\x18\x03 \x01(\tR\x06detail\x12D\n" +
-	"\x06triage\x18\x04 \x01(\x0e2,.vrooli.plan_manager.v1.shared.FindingTriageR\x06triage\x12\x19\n" +
-	"\bphase_id\x18\x05 \x01(\tR\aphaseId\x12\x1f\n" +
-	"\vrecorded_at\x18\x06 \x01(\tR\n" +
-	"recordedAt\x12,\n" +
-	"\x12attribution_run_id\x18\a \x01(\tR\x10attributionRunId\"\xa4\x03\n" +
+	"\vunavailable\x18\b \x01(\bR\vunavailable\"\x8e\x01\n" +
+	"\rDownstreamRef\x12\x16\n" +
+	"\x06system\x18\x01 \x01(\tR\x06system\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1c\n" +
+	"\treference\x18\x03 \x01(\tR\treference\x12\x16\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\x12\x1b\n" +
+	"\tsynced_at\x18\x05 \x01(\tR\bsyncedAt\"\xb2\x06\n" +
+	"\bLogEntry\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12?\n" +
+	"\x04type\x18\x02 \x01(\x0e2+.vrooli.plan_manager.v1.shared.LogEntryTypeR\x04type\x12\x17\n" +
+	"\aplan_id\x18\x03 \x01(\tR\x06planId\x12!\n" +
+	"\fexecution_id\x18\x04 \x01(\tR\vexecutionId\x12\x19\n" +
+	"\bphase_id\x18\x05 \x01(\tR\aphaseId\x12\x14\n" +
+	"\x05title\x18\x06 \x01(\tR\x05title\x12\x16\n" +
+	"\x06detail\x18\a \x01(\tR\x06detail\x12F\n" +
+	"\bseverity\x18\b \x01(\x0e2*.vrooli.plan_manager.v1.shared.LogSeverityR\bseverity\x12D\n" +
+	"\x06triage\x18\t \x01(\x0e2,.vrooli.plan_manager.v1.shared.FindingTriageR\x06triage\x12M\n" +
+	"\vsync_status\x18\n" +
+	" \x01(\x0e2,.vrooli.plan_manager.v1.shared.LogSyncStatusR\n" +
+	"syncStatus\x12L\n" +
+	"\n" +
+	"downstream\x18\v \x01(\v2,.vrooli.plan_manager.v1.shared.DownstreamRefR\n" +
+	"downstream\x12%\n" +
+	"\x0esource_command\x18\f \x01(\tR\rsourceCommand\x12\x1a\n" +
+	"\bevidence\x18\r \x03(\tR\bevidence\x12,\n" +
+	"\x12attribution_run_id\x18\x0e \x01(\tR\x10attributionRunId\x12'\n" +
+	"\x0fidempotency_key\x18\x0f \x01(\tR\x0eidempotencyKey\x12#\n" +
+	"\rsupersedes_id\x18\x10 \x01(\tR\fsupersedesId\x12(\n" +
+	"\x10promoted_from_id\x18\x11 \x01(\tR\x0epromotedFromId\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x12 \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x13 \x01(\tR\tupdatedAt\"\xa7\x02\n" +
+	"\x0eLogSummaryItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12?\n" +
+	"\x04type\x18\x02 \x01(\x0e2+.vrooli.plan_manager.v1.shared.LogEntryTypeR\x04type\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12M\n" +
+	"\vsync_status\x18\x04 \x01(\x0e2,.vrooli.plan_manager.v1.shared.LogSyncStatusR\n" +
+	"syncStatus\x12D\n" +
+	"\x06triage\x18\x05 \x01(\x0e2,.vrooli.plan_manager.v1.shared.FindingTriageR\x06triage\x12\x19\n" +
+	"\bphase_id\x18\x06 \x01(\tR\aphaseId\"\xe7\x02\n" +
+	"\n" +
+	"LogSummary\x12\x14\n" +
+	"\x05total\x18\x01 \x01(\x05R\x05total\x12\x1c\n" +
+	"\tdecisions\x18\x02 \x01(\x05R\tdecisions\x12\x1a\n" +
+	"\bfindings\x18\x03 \x01(\x05R\bfindings\x12\x1f\n" +
+	"\vbug_reports\x18\x04 \x01(\x05R\n" +
+	"bugReports\x12\x18\n" +
+	"\arecords\x18\x05 \x01(\x05R\arecords\x12\x14\n" +
+	"\x05notes\x18\x06 \x01(\x05R\x05notes\x12-\n" +
+	"\x12candidate_findings\x18\a \x01(\x05R\x11candidateFindings\x12!\n" +
+	"\fpending_sync\x18\b \x01(\x05R\vpendingSync\x12\x1f\n" +
+	"\vfailed_sync\x18\t \x01(\x05R\n" +
+	"failedSync\x12E\n" +
+	"\x06recent\x18\n" +
+	" \x03(\v2-.vrooli.plan_manager.v1.shared.LogSummaryItemR\x06recent\"\xa4\x03\n" +
 	"\x10ValidationResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x19\n" +
@@ -2498,7 +3012,7 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\vissue_codes\x18\x06 \x03(\tR\n" +
 	"issueCodes\x12 \n" +
 	"\vsuggestions\x18\a \x03(\tR\vsuggestions\x12\x1a\n" +
-	"\bguidance\x18\b \x03(\tR\bguidance\"\xbd\x05\n" +
+	"\bguidance\x18\b \x03(\tR\bguidance\"\xb2\x04\n" +
 	"\x05Phase\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05order\x18\x02 \x01(\x05R\x05order\x12\x14\n" +
@@ -2512,13 +3026,11 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"acceptance\x12B\n" +
 	"\x06status\x18\t \x01(\x0e2*.vrooli.plan_manager.v1.shared.PhaseStatusR\x06status\x12X\n" +
 	"\x0flast_validation\x18\n" +
-	" \x01(\v2/.vrooli.plan_manager.v1.shared.ValidationResultR\x0elastValidation\x12E\n" +
-	"\tdecisions\x18\v \x03(\v2'.vrooli.plan_manager.v1.shared.DecisionR\tdecisions\x12B\n" +
-	"\bfindings\x18\f \x03(\v2&.vrooli.plan_manager.v1.shared.FindingR\bfindings\x12H\n" +
+	" \x01(\v2/.vrooli.plan_manager.v1.shared.ValidationResultR\x0elastValidation\x12H\n" +
 	"\n" +
-	"references\x18\r \x03(\v2(.vrooli.plan_manager.v1.shared.ReferenceR\n" +
+	"references\x18\v \x03(\v2(.vrooli.plan_manager.v1.shared.ReferenceR\n" +
 	"references\x12]\n" +
-	"\x10relevant_context\x18\x0e \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x0frelevantContext\"\x8b\x06\n" +
+	"\x10relevant_context\x18\f \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x0frelevantContext\"\x8b\x06\n" +
 	"\x04Plan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x14\n" +
@@ -2562,15 +3074,17 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"iterations\x12O\n" +
 	"\fcompleteness\x18\a \x01(\x0e2+.vrooli.plan_manager.v1.shared.CompletenessR\fcompleteness\x12\x1f\n" +
 	"\vrecorded_at\x18\b \x01(\tR\n" +
-	"recordedAt\"\xe1\x04\n" +
+	"recordedAt\"\xd9\x04\n" +
 	"\aHandoff\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x17\n" +
 	"\aplan_id\x18\x03 \x01(\tR\x06planId\x12O\n" +
 	"\fcompleteness\x18\x04 \x01(\x0e2+.vrooli.plan_manager.v1.shared.CompletenessR\fcompleteness\x12&\n" +
-	"\x0fresume_phase_id\x18\x05 \x01(\tR\rresumePhaseId\x12E\n" +
-	"\tdecisions\x18\x06 \x03(\v2'.vrooli.plan_manager.v1.shared.DecisionR\tdecisions\x12U\n" +
-	"\x12candidate_findings\x18\a \x03(\v2&.vrooli.plan_manager.v1.shared.FindingR\x11candidateFindings\x12X\n" +
+	"\x0fresume_phase_id\x18\x05 \x01(\tR\rresumePhaseId\x12J\n" +
+	"\vlog_summary\x18\x06 \x01(\v2).vrooli.plan_manager.v1.shared.LogSummaryR\n" +
+	"logSummary\x12H\n" +
+	"\vlog_entries\x18\a \x03(\v2'.vrooli.plan_manager.v1.shared.LogEntryR\n" +
+	"logEntries\x12X\n" +
 	"\x0flast_validation\x18\b \x01(\v2/.vrooli.plan_manager.v1.shared.ValidationResultR\x0elastValidation\x12J\n" +
 	"\tstaleness\x18\t \x01(\x0e2,.vrooli.plan_manager.v1.shared.StalenessTierR\tstaleness\x12*\n" +
 	"\x11prose_handoff_ref\x18\n" +
@@ -2655,7 +3169,27 @@ const file_plan_manager_v1_shared_model_proto_rawDesc = "" +
 	"\x1cNEXT_ACTION_KIND_RECOMMENDED\x10\x01\x12 \n" +
 	"\x1cNEXT_ACTION_KIND_ALTERNATIVE\x10\x02\x12\x1d\n" +
 	"\x19NEXT_ACTION_KIND_OPTIONAL\x10\x03\x12\x1d\n" +
-	"\x19NEXT_ACTION_KIND_RECOVERY\x10\x04BQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared;shared_v1b\x06proto3"
+	"\x19NEXT_ACTION_KIND_RECOVERY\x10\x04*\xba\x01\n" +
+	"\fLogEntryType\x12\x1e\n" +
+	"\x1aLOG_ENTRY_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17LOG_ENTRY_TYPE_DECISION\x10\x01\x12\x1a\n" +
+	"\x16LOG_ENTRY_TYPE_FINDING\x10\x02\x12\x1d\n" +
+	"\x19LOG_ENTRY_TYPE_BUG_REPORT\x10\x03\x12\x19\n" +
+	"\x15LOG_ENTRY_TYPE_RECORD\x10\x04\x12\x17\n" +
+	"\x13LOG_ENTRY_TYPE_NOTE\x10\x05*\xa0\x01\n" +
+	"\rLogSyncStatus\x12\x1f\n" +
+	"\x1bLOG_SYNC_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15LOG_SYNC_STATUS_LOCAL\x10\x01\x12\x1b\n" +
+	"\x17LOG_SYNC_STATUS_PENDING\x10\x02\x12\x1a\n" +
+	"\x16LOG_SYNC_STATUS_SYNCED\x10\x03\x12\x1a\n" +
+	"\x16LOG_SYNC_STATUS_FAILED\x10\x04*\xa3\x01\n" +
+	"\vLogSeverity\x12\x1c\n" +
+	"\x18LOG_SEVERITY_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11LOG_SEVERITY_INFO\x10\x01\x12\x14\n" +
+	"\x10LOG_SEVERITY_LOW\x10\x02\x12\x17\n" +
+	"\x13LOG_SEVERITY_MEDIUM\x10\x03\x12\x15\n" +
+	"\x11LOG_SEVERITY_HIGH\x10\x04\x12\x19\n" +
+	"\x15LOG_SEVERITY_CRITICAL\x10\x05BQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_plan_manager_v1_shared_model_proto_rawDescOnce sync.Once
@@ -2669,8 +3203,8 @@ func file_plan_manager_v1_shared_model_proto_rawDescGZIP() []byte {
 	return file_plan_manager_v1_shared_model_proto_rawDescData
 }
 
-var file_plan_manager_v1_shared_model_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_plan_manager_v1_shared_model_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_plan_manager_v1_shared_model_proto_enumTypes = make([]protoimpl.EnumInfo, 17)
+var file_plan_manager_v1_shared_model_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_plan_manager_v1_shared_model_proto_goTypes = []any{
 	(PlanStatus)(0),                  // 0: vrooli.plan_manager.v1.shared.PlanStatus
 	(PhaseStatus)(0),                 // 1: vrooli.plan_manager.v1.shared.PhaseStatus
@@ -2686,24 +3220,29 @@ var file_plan_manager_v1_shared_model_proto_goTypes = []any{
 	(Completeness)(0),                // 11: vrooli.plan_manager.v1.shared.Completeness
 	(ValidationVerdict)(0),           // 12: vrooli.plan_manager.v1.shared.ValidationVerdict
 	(NextActionKind)(0),              // 13: vrooli.plan_manager.v1.shared.NextActionKind
-	(*NextAction)(nil),               // 14: vrooli.plan_manager.v1.shared.NextAction
-	(*GuidedStep)(nil),               // 15: vrooli.plan_manager.v1.shared.GuidedStep
-	(*Reference)(nil),                // 16: vrooli.plan_manager.v1.shared.Reference
-	(*RelevantContextItem)(nil),      // 17: vrooli.plan_manager.v1.shared.RelevantContextItem
-	(*RegressionAnchor)(nil),         // 18: vrooli.plan_manager.v1.shared.RegressionAnchor
-	(*Decision)(nil),                 // 19: vrooli.plan_manager.v1.shared.Decision
-	(*Finding)(nil),                  // 20: vrooli.plan_manager.v1.shared.Finding
-	(*ValidationResult)(nil),         // 21: vrooli.plan_manager.v1.shared.ValidationResult
-	(*CommandValidationFinding)(nil), // 22: vrooli.plan_manager.v1.shared.CommandValidationFinding
-	(*Phase)(nil),                    // 23: vrooli.plan_manager.v1.shared.Phase
-	(*Plan)(nil),                     // 24: vrooli.plan_manager.v1.shared.Plan
-	(*PlanEdge)(nil),                 // 25: vrooli.plan_manager.v1.shared.PlanEdge
-	(*VelocityPoint)(nil),            // 26: vrooli.plan_manager.v1.shared.VelocityPoint
-	(*Handoff)(nil),                  // 27: vrooli.plan_manager.v1.shared.Handoff
+	(LogEntryType)(0),                // 14: vrooli.plan_manager.v1.shared.LogEntryType
+	(LogSyncStatus)(0),               // 15: vrooli.plan_manager.v1.shared.LogSyncStatus
+	(LogSeverity)(0),                 // 16: vrooli.plan_manager.v1.shared.LogSeverity
+	(*NextAction)(nil),               // 17: vrooli.plan_manager.v1.shared.NextAction
+	(*GuidedStep)(nil),               // 18: vrooli.plan_manager.v1.shared.GuidedStep
+	(*Reference)(nil),                // 19: vrooli.plan_manager.v1.shared.Reference
+	(*RelevantContextItem)(nil),      // 20: vrooli.plan_manager.v1.shared.RelevantContextItem
+	(*RegressionAnchor)(nil),         // 21: vrooli.plan_manager.v1.shared.RegressionAnchor
+	(*DownstreamRef)(nil),            // 22: vrooli.plan_manager.v1.shared.DownstreamRef
+	(*LogEntry)(nil),                 // 23: vrooli.plan_manager.v1.shared.LogEntry
+	(*LogSummaryItem)(nil),           // 24: vrooli.plan_manager.v1.shared.LogSummaryItem
+	(*LogSummary)(nil),               // 25: vrooli.plan_manager.v1.shared.LogSummary
+	(*ValidationResult)(nil),         // 26: vrooli.plan_manager.v1.shared.ValidationResult
+	(*CommandValidationFinding)(nil), // 27: vrooli.plan_manager.v1.shared.CommandValidationFinding
+	(*Phase)(nil),                    // 28: vrooli.plan_manager.v1.shared.Phase
+	(*Plan)(nil),                     // 29: vrooli.plan_manager.v1.shared.Plan
+	(*PlanEdge)(nil),                 // 30: vrooli.plan_manager.v1.shared.PlanEdge
+	(*VelocityPoint)(nil),            // 31: vrooli.plan_manager.v1.shared.VelocityPoint
+	(*Handoff)(nil),                  // 32: vrooli.plan_manager.v1.shared.Handoff
 }
 var file_plan_manager_v1_shared_model_proto_depIdxs = []int32{
 	13, // 0: vrooli.plan_manager.v1.shared.NextAction.kind:type_name -> vrooli.plan_manager.v1.shared.NextActionKind
-	14, // 1: vrooli.plan_manager.v1.shared.GuidedStep.next_actions:type_name -> vrooli.plan_manager.v1.shared.NextAction
+	17, // 1: vrooli.plan_manager.v1.shared.GuidedStep.next_actions:type_name -> vrooli.plan_manager.v1.shared.NextAction
 	3,  // 2: vrooli.plan_manager.v1.shared.Reference.kind:type_name -> vrooli.plan_manager.v1.shared.ReferenceKind
 	4,  // 3: vrooli.plan_manager.v1.shared.Reference.resolution:type_name -> vrooli.plan_manager.v1.shared.ReferenceResolution
 	2,  // 4: vrooli.plan_manager.v1.shared.Reference.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
@@ -2712,32 +3251,38 @@ var file_plan_manager_v1_shared_model_proto_depIdxs = []int32{
 	7,  // 7: vrooli.plan_manager.v1.shared.RelevantContextItem.repeat_policy:type_name -> vrooli.plan_manager.v1.shared.RelevantContextRepeatPolicy
 	8,  // 8: vrooli.plan_manager.v1.shared.RelevantContextItem.source:type_name -> vrooli.plan_manager.v1.shared.RelevantContextSource
 	9,  // 9: vrooli.plan_manager.v1.shared.RelevantContextItem.status:type_name -> vrooli.plan_manager.v1.shared.RelevantContextStatus
-	10, // 10: vrooli.plan_manager.v1.shared.Finding.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
-	12, // 11: vrooli.plan_manager.v1.shared.ValidationResult.verdict:type_name -> vrooli.plan_manager.v1.shared.ValidationVerdict
-	2,  // 12: vrooli.plan_manager.v1.shared.ValidationResult.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
-	22, // 13: vrooli.plan_manager.v1.shared.ValidationResult.command_findings:type_name -> vrooli.plan_manager.v1.shared.CommandValidationFinding
-	1,  // 14: vrooli.plan_manager.v1.shared.Phase.status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
-	21, // 15: vrooli.plan_manager.v1.shared.Phase.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
-	19, // 16: vrooli.plan_manager.v1.shared.Phase.decisions:type_name -> vrooli.plan_manager.v1.shared.Decision
-	20, // 17: vrooli.plan_manager.v1.shared.Phase.findings:type_name -> vrooli.plan_manager.v1.shared.Finding
-	16, // 18: vrooli.plan_manager.v1.shared.Phase.references:type_name -> vrooli.plan_manager.v1.shared.Reference
-	17, // 19: vrooli.plan_manager.v1.shared.Phase.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
-	0,  // 20: vrooli.plan_manager.v1.shared.Plan.status:type_name -> vrooli.plan_manager.v1.shared.PlanStatus
-	16, // 21: vrooli.plan_manager.v1.shared.Plan.references:type_name -> vrooli.plan_manager.v1.shared.Reference
-	18, // 22: vrooli.plan_manager.v1.shared.Plan.regression_anchor:type_name -> vrooli.plan_manager.v1.shared.RegressionAnchor
-	23, // 23: vrooli.plan_manager.v1.shared.Plan.phases:type_name -> vrooli.plan_manager.v1.shared.Phase
-	17, // 24: vrooli.plan_manager.v1.shared.Plan.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
-	11, // 25: vrooli.plan_manager.v1.shared.VelocityPoint.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
-	11, // 26: vrooli.plan_manager.v1.shared.Handoff.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
-	19, // 27: vrooli.plan_manager.v1.shared.Handoff.decisions:type_name -> vrooli.plan_manager.v1.shared.Decision
-	20, // 28: vrooli.plan_manager.v1.shared.Handoff.candidate_findings:type_name -> vrooli.plan_manager.v1.shared.Finding
-	21, // 29: vrooli.plan_manager.v1.shared.Handoff.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
-	2,  // 30: vrooli.plan_manager.v1.shared.Handoff.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
-	31, // [31:31] is the sub-list for method output_type
-	31, // [31:31] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	14, // 10: vrooli.plan_manager.v1.shared.LogEntry.type:type_name -> vrooli.plan_manager.v1.shared.LogEntryType
+	16, // 11: vrooli.plan_manager.v1.shared.LogEntry.severity:type_name -> vrooli.plan_manager.v1.shared.LogSeverity
+	10, // 12: vrooli.plan_manager.v1.shared.LogEntry.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
+	15, // 13: vrooli.plan_manager.v1.shared.LogEntry.sync_status:type_name -> vrooli.plan_manager.v1.shared.LogSyncStatus
+	22, // 14: vrooli.plan_manager.v1.shared.LogEntry.downstream:type_name -> vrooli.plan_manager.v1.shared.DownstreamRef
+	14, // 15: vrooli.plan_manager.v1.shared.LogSummaryItem.type:type_name -> vrooli.plan_manager.v1.shared.LogEntryType
+	15, // 16: vrooli.plan_manager.v1.shared.LogSummaryItem.sync_status:type_name -> vrooli.plan_manager.v1.shared.LogSyncStatus
+	10, // 17: vrooli.plan_manager.v1.shared.LogSummaryItem.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
+	24, // 18: vrooli.plan_manager.v1.shared.LogSummary.recent:type_name -> vrooli.plan_manager.v1.shared.LogSummaryItem
+	12, // 19: vrooli.plan_manager.v1.shared.ValidationResult.verdict:type_name -> vrooli.plan_manager.v1.shared.ValidationVerdict
+	2,  // 20: vrooli.plan_manager.v1.shared.ValidationResult.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
+	27, // 21: vrooli.plan_manager.v1.shared.ValidationResult.command_findings:type_name -> vrooli.plan_manager.v1.shared.CommandValidationFinding
+	1,  // 22: vrooli.plan_manager.v1.shared.Phase.status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
+	26, // 23: vrooli.plan_manager.v1.shared.Phase.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
+	19, // 24: vrooli.plan_manager.v1.shared.Phase.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	20, // 25: vrooli.plan_manager.v1.shared.Phase.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	0,  // 26: vrooli.plan_manager.v1.shared.Plan.status:type_name -> vrooli.plan_manager.v1.shared.PlanStatus
+	19, // 27: vrooli.plan_manager.v1.shared.Plan.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	21, // 28: vrooli.plan_manager.v1.shared.Plan.regression_anchor:type_name -> vrooli.plan_manager.v1.shared.RegressionAnchor
+	28, // 29: vrooli.plan_manager.v1.shared.Plan.phases:type_name -> vrooli.plan_manager.v1.shared.Phase
+	20, // 30: vrooli.plan_manager.v1.shared.Plan.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	11, // 31: vrooli.plan_manager.v1.shared.VelocityPoint.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
+	11, // 32: vrooli.plan_manager.v1.shared.Handoff.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
+	25, // 33: vrooli.plan_manager.v1.shared.Handoff.log_summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
+	23, // 34: vrooli.plan_manager.v1.shared.Handoff.log_entries:type_name -> vrooli.plan_manager.v1.shared.LogEntry
+	26, // 35: vrooli.plan_manager.v1.shared.Handoff.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
+	2,  // 36: vrooli.plan_manager.v1.shared.Handoff.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
+	37, // [37:37] is the sub-list for method output_type
+	37, // [37:37] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_shared_model_proto_init() }
@@ -2750,8 +3295,8 @@ func file_plan_manager_v1_shared_model_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_shared_model_proto_rawDesc), len(file_plan_manager_v1_shared_model_proto_rawDesc)),
-			NumEnums:      14,
-			NumMessages:   14,
+			NumEnums:      17,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

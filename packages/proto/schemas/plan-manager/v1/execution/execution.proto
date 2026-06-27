@@ -14,9 +14,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 //
 // ExecutionService is the guided runner: it links a run to a plan, walks the
 // phases via typed status transitions, and acts as a just-in-time context server
-// (GetStatus / GetNext return the current phase, what is next, phase-scoped
-// required-reading + reminders, the last validation and staleness) so the agent
-// does not carry that knowledge (OT-P0-003). It captures decisions/findings
+// (Start / GetStatus / GetContext / Resume / GetNext return the current phase,
+// what is next, setup context, reminders, the last validation and staleness) so
+// the agent does not carry that knowledge (OT-P0-003). It captures decisions/findings
 // in-flow, runs a thin guided completion process (nudges), and assembles the
 // canonical structured handoff from captured state — full/partial + resume point
 // COMPUTED from the phase-status set (OT-P1-001). Findings are filed as CANDIDATE
@@ -32,28 +32,35 @@ service ExecutionService {
   rpc Start(StartRequest) returns (StartResponse);
   // GetStatus returns the just-in-time context for the current phase.
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  // GetContext returns only the actionable setup context for the current or
+  // requested phase without advancing the execution pointer.
+  rpc GetContext(GetContextRequest) returns (GetContextResponse);
+  // Resume resolves an existing execution or creates one for a plan, optionally
+  // moves the pointer to a phase, and returns setup context without advancing.
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+  // ContinueExecution resumes or starts a run for a plan/execution id and
+  // returns the single recommended next runner action without advancing.
+  rpc ContinueExecution(ContinueExecutionRequest) returns (ContinueExecutionResponse);
   // GetNext advances the runner's pointer to the next actionable phase and
   // returns its injected context.
   rpc GetNext(GetNextRequest) returns (GetNextResponse);
   // TransitionPhase performs a typed phase-status transition; plan status is
   // recomputed from the phase-status set.
   rpc TransitionPhase(TransitionPhaseRequest) returns (TransitionPhaseResponse);
-  // RecordDecision captures an in-flow design decision (feeds the handoff).
-  rpc RecordDecision(RecordDecisionRequest) returns (RecordDecisionResponse);
-  // RecordFinding captures an in-flow CANDIDATE finding (never auto-promoted).
-  rpc RecordFinding(RecordFindingRequest) returns (RecordFindingResponse);
   // Complete runs the thin guided completion process and assembles the canonical
   // handoff, capturing a velocity point (OT-P1-001/002).
   rpc Complete(CompleteRequest) returns (CompleteResponse);
   // GetHandoff returns the assembled canonical handoff for an execution.
   rpc GetHandoff(GetHandoffRequest) returns (GetHandoffResponse);
-  // ListCandidateFindings returns candidate findings awaiting operator triage.
-  rpc ListCandidateFindings(ListCandidateFindingsRequest) returns (ListCandidateFindingsResponse);
-  // TriageFinding promotes or dismisses a candidate finding (operator action).
-  rpc TriageFinding(TriageFindingRequest) returns (TriageFindingResponse);
   // GetVelocity returns the per-plan velocity series.
   rpc GetVelocity(GetVelocityRequest) returns (GetVelocityResponse);
 }
+
+// Decisions, candidate findings, bug reports, and records are NOT captured here.
+// They are typed entries in the log domain (LogService); execution reads compact
+// log summaries through an internal seam for its just-in-time context and
+// handoff. This keeps findings, bug reports, and records distinct and owned by a
+// single ledger.
 
 // Execution is a run↔plan linkage with the runner's current pointer.
 message Execution {
@@ -72,6 +79,7 @@ message Execution {
 message PhaseContext {
   shared.Phase current_phase = 1;
   shared.Phase next_phase = 2;
+  // Legacy migration input. Execution-facing setup is relevant_context.
   repeated string required_reading = 3;
   repeated string reminders = 4;
   shared.ValidationResult last_validation = 5;
@@ -80,11 +88,17 @@ message PhaseContext {
   string resume_phase_id = 7;
   shared.Completeness completeness = 8;
   repeated shared.RelevantContextItem relevant_context = 9;
+  // Compact roll-up of the execution's log ledger so a resumed agent sees
+  // decisions/findings/bugs/records without reading every entry. Assembled from
+  // the log domain through an internal seam.
+  shared.LogSummary log_summary = 10;
 }
 
-// CompletionNudge is one item in the thin guided completion process.
+// CompletionNudge is one item in the thin guided completion process. Nudges are
+// typed and Plan Manager-local — they point back at `plan-manager log ...`
+// commands, never at external scenario CLIs.
 message CompletionNudge {
-  // "record_finding" | "file_bugs" | "confirm_phase_status".
+  // "record_finding" | "file_bug" | "capture_record" | "confirm_phase_status".
   string kind = 1;
   string message = 2;
   // True when the captured state already satisfies the nudge.
@@ -114,6 +128,49 @@ message GetStatusResponse {
   shared.GuidedStep step = 3;
 }
 
+message GetContextRequest {
+  string execution_id = 1;
+  // Optional phase override. When empty, the execution pointer is used. This
+  // read does not persist the override.
+  string phase_id = 2;
+}
+
+message GetContextResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message ResumeRequest {
+  // Plan id/slug or execution id.
+  string plan_or_execution = 1;
+  // Optional phase override. When set, the execution pointer is moved there.
+  string phase_id = 2;
+  // Optional attribution run id used only when a new execution is created.
+  string run_id = 3;
+}
+
+message ResumeResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
+message ContinueExecutionRequest {
+  // Plan id/slug or execution id.
+  string plan_or_execution = 1;
+  // Optional phase override. When set, the execution pointer is moved there.
+  string phase_id = 2;
+  // Optional attribution run id used only when a new execution is created.
+  string run_id = 3;
+}
+
+message ContinueExecutionResponse {
+  Execution execution = 1;
+  PhaseContext context = 2;
+  shared.GuidedStep step = 3;
+}
+
 message GetNextRequest {
   string execution_id = 1;
 }
@@ -129,6 +186,10 @@ message TransitionPhaseRequest {
   string execution_id = 1;
   string phase_id = 2;
   shared.PhaseStatus to_status = 3;
+  // Required when marking a phase done without a recent passing validation
+  // result. This is an explicit audit trail for degraded/offline work, not a
+  // free pass hidden in prose.
+  ValidationOverride validation_override = 4;
 }
 
 message TransitionPhaseResponse {
@@ -137,28 +198,8 @@ message TransitionPhaseResponse {
   shared.GuidedStep step = 3;
 }
 
-message RecordDecisionRequest {
-  string execution_id = 1;
-  string phase_id = 2;
-  string summary = 3;
-  string detail = 4;
-}
-
-message RecordDecisionResponse {
-  shared.Decision decision = 1;
-  shared.GuidedStep step = 2;
-}
-
-message RecordFindingRequest {
-  string execution_id = 1;
-  string phase_id = 2;
-  string title = 3;
-  string detail = 4;
-}
-
-message RecordFindingResponse {
-  shared.Finding finding = 1;
-  shared.GuidedStep step = 2;
+message ValidationOverride {
+  string reason = 1;
 }
 
 message CompleteRequest {
@@ -182,26 +223,6 @@ message GetHandoffRequest {
 
 message GetHandoffResponse {
   shared.Handoff handoff = 1;
-  shared.GuidedStep step = 2;
-}
-
-message ListCandidateFindingsRequest {
-  // Optional execution scope; empty lists candidate findings across executions.
-  string execution_id = 1;
-}
-
-message ListCandidateFindingsResponse {
-  repeated shared.Finding findings = 1;
-  shared.GuidedStep step = 2;
-}
-
-message TriageFindingRequest {
-  string finding_id = 1;
-  shared.FindingTriage triage = 2;
-}
-
-message TriageFindingResponse {
-  shared.Finding finding = 1;
   shared.GuidedStep step = 2;
 }
 

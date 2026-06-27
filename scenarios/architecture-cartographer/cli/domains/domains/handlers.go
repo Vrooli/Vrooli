@@ -10,6 +10,8 @@ import (
 	domainsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains"
 	domainsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains/domains_v1connect"
 
+	"architecture-cartographer/cli/internal/attestrender"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -137,16 +139,22 @@ func renderMap(ctx cliapp.RunContext, m *domainsv1.DerivedDomainMap) error {
 	results := make([]string, 0, len(m.GetDomains()))
 	for _, d := range m.GetDomains() {
 		line := fmt.Sprintf("%s — paths: %s", d.GetName(), strings.Join(d.GetPaths(), ", "))
-		if arche := d.GetArchetype(); arche != "" {
+		if arche := primaryArchetypeName(d.GetArchetypes()); arche != "" {
 			line += fmt.Sprintf(" — archetype: %s", arche)
 		}
 		line += fmt.Sprintf(" — declared by: %s", strings.Join(sourceNames(d.GetProvenance()), ", "))
+		if basis := attestrender.Basis(d.GetAttestation().GetBasis()); basis != "" {
+			line += fmt.Sprintf(" — basis: %s", basis)
+		}
 		results = append(results, line)
 	}
 	summary := []string{
 		fmt.Sprintf("Derived %d domain(s) for %q.", len(m.GetDomains()), m.GetScenario()),
 		fmt.Sprintf("Authority source: %s", sourceName(m.GetAuthority())),
 		fmt.Sprintf("Authority confidence: %s", confidenceName(m.GetAuthorityConfidence())),
+	}
+	if att := m.GetAttestation(); att != nil {
+		summary = append(summary, fmt.Sprintf("Map basis: %s (%s)", attestrender.Basis(att.GetBasis()), attestrender.Sufficiency(att.GetSufficiency())))
 	}
 	if shared := m.GetSharedSubstrate(); len(shared) > 0 {
 		summary = append(summary, fmt.Sprintf("Shared substrate: %s", strings.Join(shared, ", ")))
@@ -157,6 +165,44 @@ func renderMap(ctx cliapp.RunContext, m *domainsv1.DerivedDomainMap) error {
 		Results:        results,
 		RetrievalHints: []string{"Provenance shows which ladder rungs agreed on each domain; the authority rung defines the expected set."},
 	})
+}
+
+func primaryArchetypeName(archetypes []*domainsv1.DomainArchetype) string {
+	for _, archetype := range archetypes {
+		if archetype.GetSource() == domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_DECLARED {
+			if label := archetypeLabel(archetype); label != "" {
+				return label
+			}
+		}
+	}
+	if len(archetypes) > 0 {
+		return archetypeLabel(archetypes[0])
+	}
+	return ""
+}
+
+// archetypeLabel renders a DomainArchetype as its canonical lowercase name,
+// falling back to the preserved declared label when the declared value did not
+// map onto the canonical vocabulary.
+func archetypeLabel(a *domainsv1.DomainArchetype) string {
+	switch a.GetArchetype() {
+	case domainsv1.Archetype_ARCHETYPE_REPORTING:
+		return "reporting"
+	case domainsv1.Archetype_ARCHETYPE_SERVICE:
+		return "service"
+	case domainsv1.Archetype_ARCHETYPE_MUTATION:
+		return "mutation"
+	case domainsv1.Archetype_ARCHETYPE_CLASSIFICATION:
+		return "classification"
+	case domainsv1.Archetype_ARCHETYPE_ORCHESTRATION:
+		return "orchestration"
+	case domainsv1.Archetype_ARCHETYPE_SCORING:
+		return "scoring"
+	case domainsv1.Archetype_ARCHETYPE_QUERY:
+		return "query"
+	default:
+		return a.GetDeclaredLabel()
+	}
 }
 
 func sourceNames(sources []domainsv1.DomainSource) []string {

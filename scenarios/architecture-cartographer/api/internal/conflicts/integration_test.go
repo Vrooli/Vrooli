@@ -10,6 +10,8 @@ import (
 
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
+	"architecture-cartographer/internal/conflicts/detectors/glossarydrift"
+	"architecture-cartographer/internal/conflicts/detectors/layering"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
 	conflictmocks "architecture-cartographer/internal/conflicts/mocks"
 	"architecture-cartographer/internal/domains"
@@ -141,46 +143,55 @@ func expectedConflictsFromFixture(t *testing.T, path string) expectedConflicts {
 // expected conflict envelope when run against the go-cycles fixture
 // via the canonical orchestration path: Normalize → Registry.DetectAll
 // → conflict shape.
-func TestIntegration_GoCyclesFixture(t *testing.T) {
-	const fixture = "go-cycles"
-	raw := rawGraphFromFixture(t, fixturePath(t, fixture, "expected-graph.json"))
-	dmap := domainMapFromFixture(t, fixture)
-	want := expectedConflictsFromFixture(t, fixturePath(t, fixture, "expected-conflicts.json"))
+func TestIntegration_Fixtures(t *testing.T) {
+	for _, fixture := range []string{"go-cycles", "go-mislocated", "ts-junk-drawer"} {
+		fixture := fixture
+		t.Run(fixture, func(t *testing.T) {
+			raw := rawGraphFromFixture(t, fixturePath(t, fixture, "expected-graph.json"))
+			dmap := domainMapFromFixture(t, fixture)
+			want := expectedConflictsFromFixture(t, fixturePath(t, fixture, "expected-conflicts.json"))
 
-	snap := graph.Normalize(want.Scenario, raw)
+			snap := graph.Normalize(want.Scenario, raw)
 
-	registry := conflicts.NewRegistry(cycle.New(), mislocatedfile.New())
-	svc := conflicts.NewService(&conflictmocks.FakeRepository{}, registry, conflicts.NewResolverRegistry())
+			registry := conflicts.NewRegistry(
+				cycle.New(),
+				glossarydrift.New(),
+				layering.New(),
+				mislocatedfile.New(),
+			)
+			svc := conflicts.NewService(&conflictmocks.FakeRepository{}, registry, conflicts.NewResolverRegistry())
 
-	got, err := svc.DetectConflicts(context.Background(), conflicts.DetectOrchestrationInput{
-		Scenario:  want.Scenario,
-		Snapshot:  snap,
-		DomainMap: dmap,
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, got, "go-cycles fixture must produce at least one conflict")
+			got, err := svc.DetectConflicts(context.Background(), conflicts.DetectOrchestrationInput{
+				Scenario:  want.Scenario,
+				Snapshot:  snap,
+				DomainMap: dmap,
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, got, "%s fixture must produce at least one conflict", fixture)
 
-	// Look for an exact match against each expected envelope (loose:
-	// envelope-level fields only).
-	for _, w := range want.Conflicts {
-		matched := false
-		for _, c := range got {
-			if c.Detector != w.Detector || c.Type != w.Type {
-				continue
+			// Look for an exact match against each expected envelope (loose:
+			// envelope-level fields only).
+			for _, w := range want.Conflicts {
+				matched := false
+				for _, c := range got {
+					if c.Detector != w.Detector || c.Type != w.Type {
+						continue
+					}
+					if w.Severity != "" && string(c.Severity) != w.Severity {
+						continue
+					}
+					if len(c.Locations) < w.LocationsMin {
+						continue
+					}
+					if !containsAllEvidenceKinds(c, w.EvidenceKindsInclude) {
+						continue
+					}
+					matched = true
+					break
+				}
+				require.Truef(t, matched, "no detected conflict matched expected %+v; got=%+v", w, got)
 			}
-			if w.Severity != "" && string(c.Severity) != w.Severity {
-				continue
-			}
-			if len(c.Locations) < w.LocationsMin {
-				continue
-			}
-			if !containsAllEvidenceKinds(c, w.EvidenceKindsInclude) {
-				continue
-			}
-			matched = true
-			break
-		}
-		require.Truef(t, matched, "no detected conflict matched expected %+v; got=%+v", w, got)
+		})
 	}
 }
 

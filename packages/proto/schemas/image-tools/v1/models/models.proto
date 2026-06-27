@@ -71,6 +71,20 @@ service ModelsService {
   // of the read-only seed. The id must not collide with a seed model.
   rpc AddCustomModel(AddCustomModelRequest) returns (AddCustomModelResponse);
 
+  // InspectModelSource dry-runs a guided import: it inspects a HuggingFace repo
+  // id (or a direct weight URL / local path) WITHOUT installing anything, and
+  // returns the detected layout, the inferred architecture (+confidence/evidence
+  // the user confirms), license/NSFW, approximate size, and the proposed registry
+  // entry. Installs nothing, downloads no weights — only the metadata to propose.
+  rpc InspectModelSource(InspectModelSourceRequest) returns (InspectModelSourceResponse);
+
+  // ImportModel composes inspect → operator-confirmed fields (architecture/ops/
+  // attestation) → an add-only custom entry → a durable install job (mirrors
+  // InstallModel: returns job_id + ETA; the caller blocks once on
+  // JobsService.WaitJob). Imports default to local tier with a user-imported
+  // provenance label; public/BYOK serving requires attest_commercial_rights.
+  rpc ImportModel(ImportModelRequest) returns (ImportModelResponse);
+
   // SetDefaultModel pins (or clears, with empty model_id) the default model for
   // an operation — the settings surface. Selection applies it when a request
   // gives no explicit override.
@@ -297,6 +311,81 @@ message AddCustomModelRequest {
 
 message AddCustomModelResponse {
   Model model = 1;
+}
+
+// ModelLayout classifies an import source's on-disk shape, which determines how
+// it installs (single-file → direct asset; diffusers-repo → pinned snapshot).
+enum ModelLayout {
+  MODEL_LAYOUT_UNSPECIFIED = 0;
+  // A single self-contained checkpoint (.safetensors/.ckpt) — installs as a
+  // direct asset on the stable-diffusion.cpp backend.
+  MODEL_LAYOUT_SINGLE_FILE = 1;
+  // A model_index.json + sharded subdir tree — installs as a pinned snapshot on
+  // the diffusers backend.
+  MODEL_LAYOUT_DIFFUSERS_REPO = 2;
+}
+
+// ArchitectureInference is the proposed architecture for an inspected source.
+message ArchitectureInference {
+  // architecture is the models.Architecture enum value ("sdxl", "sd15", "flux",
+  // …) or "none" when nothing recognizable was found (manual pick required).
+  string architecture = 1;
+  // confidence grades the signal: "none" | "low" | "medium" | "high".
+  string confidence = 2;
+  // evidence is the human-readable basis (e.g. `pipeline class "StableDiffusionXLPipeline"`).
+  string evidence = 3;
+}
+
+message InspectModelSourceRequest {
+  // A HuggingFace repo id ("org/name"), a direct weight URL, or a local path.
+  string source = 1;
+}
+
+message InspectModelSourceResponse {
+  string source = 1;
+  // Resolved HuggingFace repo id + immutable commit SHA (empty for URL/local).
+  string repo_id = 2;
+  string revision = 3;
+  ModelLayout layout = 4;
+  ArchitectureInference architecture = 5;
+  // Declared license ("unverified" when the source declares none) + NSFW flag.
+  string license = 6;
+  bool nsfw = 7;
+  uint64 size_bytes = 8;
+  // diffusers _class_name when the source is a diffusers repo (else "").
+  string pipeline_class = 9;
+  // The operations the proposed entry would offer (native + proven-derived).
+  repeated string offered_operations = 10;
+  // The registry entry that WOULD be added (pre-confirmation); the client shows
+  // it for confirmation and may override id/name/architecture/operations.
+  Model proposed = 11;
+}
+
+message ImportModelRequest {
+  // The import source (same forms as InspectModelSource).
+  string source = 1;
+  // Operator-confirmed id for the new entry (must not collide with a seed model).
+  string id = 2;
+  // Display name (defaults to the source's last path segment when empty).
+  string name = 3;
+  // Operator-confirmed architecture (models.Architecture value). REQUIRED when
+  // inference returned "none"; overrides inference otherwise.
+  string architecture = 4;
+  // Operator-confirmed operations (defaults to the architecture's base ops).
+  repeated string operations = 5;
+  // Attest commercial rights to allow public/BYOK serving (decision D4). Local
+  // serving never requires this.
+  bool attest_commercial_rights = 6;
+}
+
+message ImportModelResponse {
+  // The registered entry (add-only, local tier, user-imported provenance).
+  Model model = 1;
+  // The durable install job (mirrors InstallModel). Empty job_id with
+  // already_installed=true means the weights were already present.
+  string job_id = 2;
+  int32 eta_seconds = 3;
+  bool already_installed = 4;
 }
 
 message SetDefaultModelRequest {

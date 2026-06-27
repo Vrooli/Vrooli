@@ -104,6 +104,7 @@ func TestExtractFixtures(t *testing.T) {
 	}{
 		{"go-cycles", "../../../bas/fixtures/go-cycles"},
 		{"go-mislocated", "../../../bas/fixtures/go-mislocated"},
+		{"go-tests", "../../../bas/fixtures/go-tests"},
 		{"go-usage-facts", "../../../bas/fixtures/go-usage-facts"},
 	}
 
@@ -139,6 +140,46 @@ func TestExtractFixtures(t *testing.T) {
 					tc.name, len(expected), string(expected), len(actual), string(actual))
 			}
 		})
+	}
+}
+
+func TestExtractGoTestsFixtureMarksTestOnlyEdges(t *testing.T) {
+	abs := resolveFixture(t, "../../../bas/fixtures/go-tests")
+	g, warnings, err := newRealService().Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
+	if err != nil {
+		t.Fatalf("Extract go-tests: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("go-tests fixture should extract without warnings, got %+v", warnings)
+	}
+
+	edges := map[string]graph.Edge{}
+	for _, edge := range g.Edges {
+		edges[edge.From+"->"+edge.To] = edge
+	}
+
+	liveFmt := edges["package:github.com/vrooli/fixtures/go-tests/lib->package:fmt"]
+	if liveFmt.ID == "" {
+		t.Fatalf("missing live fmt import edge: %+v", g.Edges)
+	}
+	if got := liveFmt.Attributes["test_only"]; got != "false" {
+		t.Fatalf("live fmt import test_only = %q, want false", got)
+	}
+
+	internalHelper := edges["package:github.com/vrooli/fixtures/go-tests/lib->package:github.com/vrooli/fixtures/go-tests/helper"]
+	if internalHelper.ID == "" {
+		t.Fatalf("missing internal test helper import edge: %+v", g.Edges)
+	}
+	if got := internalHelper.Attributes["test_only"]; got != "true" {
+		t.Fatalf("internal helper import test_only = %q, want true", got)
+	}
+
+	externalLib := edges["package:github.com/vrooli/fixtures/go-tests/lib_test->package:github.com/vrooli/fixtures/go-tests/lib"]
+	if externalLib.ID == "" {
+		t.Fatalf("missing external test package import edge: %+v", g.Edges)
+	}
+	if got := externalLib.Attributes["test_only"]; got != "true" {
+		t.Fatalf("external test package import test_only = %q, want true", got)
 	}
 }
 

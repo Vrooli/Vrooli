@@ -13,8 +13,8 @@ import (
 func TestDetect_FlagsDeclaredMissingUISurface(t *testing.T) {
 	got := detect(t, domains.DerivedDomainMap{
 		Domains: []domains.DerivedDomain{{
-			Name:      "billing",
-			Archetype: "service",
+			Name:       "billing",
+			Archetypes: domains.DeclaredArchetypes("service"),
 			Paths: []string{
 				"api/internal/billing/**",
 				"ui/src/features/billing/**",
@@ -52,8 +52,8 @@ func TestDetect_NoConflictWhenDeclaredSurfaceHasEvidence(t *testing.T) {
 func TestDetect_ArchetypeImpliedAPIRequiresEvidenceWhenAPISurfaceExists(t *testing.T) {
 	got := detect(t, domains.DerivedDomainMap{
 		Domains: []domains.DerivedDomain{
-			{Name: "billing", Archetype: "service", Paths: []string{"cli/domains/billing/**"}},
-			{Name: "orders", Archetype: "service", Paths: []string{"api/internal/orders/**"}},
+			{Name: "billing", Archetypes: domains.DeclaredArchetypes("service"), Paths: []string{"cli/domains/billing/**"}},
+			{Name: "orders", Archetypes: domains.DeclaredArchetypes("service"), Paths: []string{"api/internal/orders/**"}},
 		},
 		Declarations: []domains.DomainDeclaration{
 			{Source: domains.SourceAPIFolders, DomainNames: []string{"orders"}},

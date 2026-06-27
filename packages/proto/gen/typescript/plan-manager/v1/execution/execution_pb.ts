@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Completeness, Decision, Finding, FindingTriage, GuidedStep, Handoff, Phase, PhaseStatus, Plan, RelevantContextItem, StalenessTier, ValidationResult, VelocityPoint } from "../shared/model_pb";
+import type { Completeness, GuidedStep, Handoff, LogSummary, Phase, PhaseStatus, Plan, RelevantContextItem, StalenessTier, ValidationResult, VelocityPoint } from "../shared/model_pb";
 import { file_plan_manager_v1_shared_model } from "../shared/model_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/execution/execution.proto.
  */
 export const file_plan_manager_v1_execution_execution: GenFile = /*@__PURE__*/
-  fileDesc("CilwbGFuLW1hbmFnZXIvdjEvZXhlY3V0aW9uL2V4ZWN1dGlvbi5wcm90bxIgdnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24ijAEKCUV4ZWN1dGlvbhIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIYChBjdXJyZW50X3BoYXNlX2lkGAQgASgJEhAKCGNvbXBsZXRlGAUgASgIEhIKCnN0YXJ0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCSLnAwoMUGhhc2VDb250ZXh0EjsKDWN1cnJlbnRfcGhhc2UYASABKAsyJC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QaGFzZRI4CgpuZXh0X3BoYXNlGAIgASgLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2USGAoQcmVxdWlyZWRfcmVhZGluZxgDIAMoCRIRCglyZW1pbmRlcnMYBCADKAkSSAoPbGFzdF92YWxpZGF0aW9uGAUgASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI/CglzdGFsZW5lc3MYBiABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5TdGFsZW5lc3NUaWVyEhcKD3Jlc3VtZV9waGFzZV9pZBgHIAEoCRJBCgxjb21wbGV0ZW5lc3MYCCABKA4yKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Db21wbGV0ZW5lc3MSTAoQcmVsZXZhbnRfY29udGV4dBgJIAMoCzIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dEl0ZW0iQwoPQ29tcGxldGlvbk51ZGdlEgwKBGtpbmQYASABKAkSDwoHbWVzc2FnZRgCIAEoCRIRCglzYXRpc2ZpZWQYAyABKAgiLwoMU3RhcnRSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSDgoGcnVuX2lkGAIgASgJIskBCg1TdGFydFJlc3BvbnNlEj4KCWV4ZWN1dGlvbhgBIAEoCzIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkV4ZWN1dGlvbhI3CgRzdGVwGAIgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcBI/Cgdjb250ZXh0GAMgASgLMi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uUGhhc2VDb250ZXh0IigKEEdldFN0YXR1c1JlcXVlc3QSFAoMZXhlY3V0aW9uX2lkGAEgASgJIs0BChFHZXRTdGF0dXNSZXNwb25zZRI+CglleGVjdXRpb24YASABKAsyKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5FeGVjdXRpb24SPwoHY29udGV4dBgCIAEoCzIuLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlBoYXNlQ29udGV4dBI3CgRzdGVwGAMgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCImCg5HZXROZXh0UmVxdWVzdBIUCgxleGVjdXRpb25faWQYASABKAkinQEKD0dldE5leHRSZXNwb25zZRI/Cgdjb250ZXh0GAEgASgLMi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uUGhhc2VDb250ZXh0EhAKCGNvbXBsZXRlGAIgASgIEjcKBHN0ZXAYAyABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5HdWlkZWRTdGVwIn8KFlRyYW5zaXRpb25QaGFzZVJlcXVlc3QSFAoMZXhlY3V0aW9uX2lkGAEgASgJEhAKCHBoYXNlX2lkGAIgASgJEj0KCXRvX3N0YXR1cxgDIAEoDjIqLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlU3RhdHVzIsUBChdUcmFuc2l0aW9uUGhhc2VSZXNwb25zZRI+CglleGVjdXRpb24YASABKAsyKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5FeGVjdXRpb24SMQoEcGxhbhgCIAEoCzIjLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW4SNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiYAoVUmVjb3JkRGVjaXNpb25SZXF1ZXN0EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEg4KBmRldGFpbBgEIAEoCSKMAQoWUmVjb3JkRGVjaXNpb25SZXNwb25zZRI5CghkZWNpc2lvbhgBIAEoCzInLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkRlY2lzaW9uEjcKBHN0ZXAYAiABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5HdWlkZWRTdGVwIl0KFFJlY29yZEZpbmRpbmdSZXF1ZXN0EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRINCgV0aXRsZRgDIAEoCRIOCgZkZXRhaWwYBCABKAkiiQEKFVJlY29yZEZpbmRpbmdSZXNwb25zZRI3CgdmaW5kaW5nGAEgASgLMiYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRmluZGluZxI3CgRzdGVwGAIgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCJLCg9Db21wbGV0ZVJlcXVlc3QSFAoMZXhlY3V0aW9uX2lkGAEgASgJEg4KBnRva2VucxgCIAEoAxISCgppdGVyYXRpb25zGAMgASgFIscBChBDb21wbGV0ZVJlc3BvbnNlEjcKB2hhbmRvZmYYASABKAsyJi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5IYW5kb2ZmEkEKBm51ZGdlcxgCIAMoCzIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkNvbXBsZXRpb25OdWRnZRI3CgRzdGVwGAMgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCIpChFHZXRIYW5kb2ZmUmVxdWVzdBIUCgxleGVjdXRpb25faWQYASABKAkihgEKEkdldEhhbmRvZmZSZXNwb25zZRI3CgdoYW5kb2ZmGAEgASgLMiYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuSGFuZG9mZhI3CgRzdGVwGAIgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCI0ChxMaXN0Q2FuZGlkYXRlRmluZGluZ3NSZXF1ZXN0EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCSKSAQodTGlzdENhbmRpZGF0ZUZpbmRpbmdzUmVzcG9uc2USOAoIZmluZGluZ3MYASADKAsyJi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5GaW5kaW5nEjcKBHN0ZXAYAiABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5HdWlkZWRTdGVwImgKFFRyaWFnZUZpbmRpbmdSZXF1ZXN0EhIKCmZpbmRpbmdfaWQYASABKAkSPAoGdHJpYWdlGAIgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRmluZGluZ1RyaWFnZSKJAQoVVHJpYWdlRmluZGluZ1Jlc3BvbnNlEjcKB2ZpbmRpbmcYASABKAsyJi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5GaW5kaW5nEjcKBHN0ZXAYAiABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5HdWlkZWRTdGVwIiUKEkdldFZlbG9jaXR5UmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJIowBChNHZXRWZWxvY2l0eVJlc3BvbnNlEjwKBnBvaW50cxgBIAMoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZlbG9jaXR5UG9pbnQSNwoEc3RlcBgCIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAy+goKEEV4ZWN1dGlvblNlcnZpY2USaAoFU3RhcnQSLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5TdGFydFJlcXVlc3QaLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5TdGFydFJlc3BvbnNlEnQKCUdldFN0YXR1cxIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkdldFN0YXR1c1JlcXVlc3QaMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5HZXRTdGF0dXNSZXNwb25zZRJuCgdHZXROZXh0EjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uR2V0TmV4dFJlcXVlc3QaMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5HZXROZXh0UmVzcG9uc2UShgEKD1RyYW5zaXRpb25QaGFzZRI4LnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlRyYW5zaXRpb25QaGFzZVJlcXVlc3QaOS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5UcmFuc2l0aW9uUGhhc2VSZXNwb25zZRKDAQoOUmVjb3JkRGVjaXNpb24SNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5SZWNvcmREZWNpc2lvblJlcXVlc3QaOC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5SZWNvcmREZWNpc2lvblJlc3BvbnNlEoABCg1SZWNvcmRGaW5kaW5nEjYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uUmVjb3JkRmluZGluZ1JlcXVlc3QaNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5SZWNvcmRGaW5kaW5nUmVzcG9uc2UScQoIQ29tcGxldGUSMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5Db21wbGV0ZVJlcXVlc3QaMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5Db21wbGV0ZVJlc3BvbnNlEncKCkdldEhhbmRvZmYSMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5HZXRIYW5kb2ZmUmVxdWVzdBo0LnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkdldEhhbmRvZmZSZXNwb25zZRKYAQoVTGlzdENhbmRpZGF0ZUZpbmRpbmdzEj4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uTGlzdENhbmRpZGF0ZUZpbmRpbmdzUmVxdWVzdBo/LnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkxpc3RDYW5kaWRhdGVGaW5kaW5nc1Jlc3BvbnNlEoABCg1UcmlhZ2VGaW5kaW5nEjYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uVHJpYWdlRmluZGluZ1JlcXVlc3QaNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5UcmlhZ2VGaW5kaW5nUmVzcG9uc2USegoLR2V0VmVsb2NpdHkSNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5HZXRWZWxvY2l0eVJlcXVlc3QaNS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5HZXRWZWxvY2l0eVJlc3BvbnNlQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGxhbi1tYW5hZ2VyL3YxL2V4ZWN1dGlvbjtleGVjdXRpb25fdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
+  fileDesc("CilwbGFuLW1hbmFnZXIvdjEvZXhlY3V0aW9uL2V4ZWN1dGlvbi5wcm90bxIgdnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24ijAEKCUV4ZWN1dGlvbhIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEg4KBnJ1bl9pZBgDIAEoCRIYChBjdXJyZW50X3BoYXNlX2lkGAQgASgJEhAKCGNvbXBsZXRlGAUgASgIEhIKCnN0YXJ0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCSKnBAoMUGhhc2VDb250ZXh0EjsKDWN1cnJlbnRfcGhhc2UYASABKAsyJC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QaGFzZRI4CgpuZXh0X3BoYXNlGAIgASgLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2USGAoQcmVxdWlyZWRfcmVhZGluZxgDIAMoCRIRCglyZW1pbmRlcnMYBCADKAkSSAoPbGFzdF92YWxpZGF0aW9uGAUgASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI/CglzdGFsZW5lc3MYBiABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5TdGFsZW5lc3NUaWVyEhcKD3Jlc3VtZV9waGFzZV9pZBgHIAEoCRJBCgxjb21wbGV0ZW5lc3MYCCABKA4yKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Db21wbGV0ZW5lc3MSTAoQcmVsZXZhbnRfY29udGV4dBgJIAMoCzIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dEl0ZW0SPgoLbG9nX3N1bW1hcnkYCiABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTdW1tYXJ5IkMKD0NvbXBsZXRpb25OdWRnZRIMCgRraW5kGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSEQoJc2F0aXNmaWVkGAMgASgIIi8KDFN0YXJ0UmVxdWVzdBIPCgdwbGFuX2lkGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSLJAQoNU3RhcnRSZXNwb25zZRI+CglleGVjdXRpb24YASABKAsyKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5FeGVjdXRpb24SNwoEc3RlcBgCIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXASPwoHY29udGV4dBgDIAEoCzIuLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlBoYXNlQ29udGV4dCIoChBHZXRTdGF0dXNSZXF1ZXN0EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCSLNAQoRR2V0U3RhdHVzUmVzcG9uc2USPgoJZXhlY3V0aW9uGAEgASgLMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uRXhlY3V0aW9uEj8KB2NvbnRleHQYAiABKAsyLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5QaGFzZUNvbnRleHQSNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiOwoRR2V0Q29udGV4dFJlcXVlc3QSFAoMZXhlY3V0aW9uX2lkGAEgASgJEhAKCHBoYXNlX2lkGAIgASgJIs4BChJHZXRDb250ZXh0UmVzcG9uc2USPgoJZXhlY3V0aW9uGAEgASgLMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uRXhlY3V0aW9uEj8KB2NvbnRleHQYAiABKAsyLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5QaGFzZUNvbnRleHQSNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiTAoNUmVzdW1lUmVxdWVzdBIZChFwbGFuX29yX2V4ZWN1dGlvbhgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkiygEKDlJlc3VtZVJlc3BvbnNlEj4KCWV4ZWN1dGlvbhgBIAEoCzIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkV4ZWN1dGlvbhI/Cgdjb250ZXh0GAIgASgLMi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uUGhhc2VDb250ZXh0EjcKBHN0ZXAYAyABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5HdWlkZWRTdGVwIlcKGENvbnRpbnVlRXhlY3V0aW9uUmVxdWVzdBIZChFwbGFuX29yX2V4ZWN1dGlvbhgBIAEoCRIQCghwaGFzZV9pZBgCIAEoCRIOCgZydW5faWQYAyABKAki1QEKGUNvbnRpbnVlRXhlY3V0aW9uUmVzcG9uc2USPgoJZXhlY3V0aW9uGAEgASgLMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uRXhlY3V0aW9uEj8KB2NvbnRleHQYAiABKAsyLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5QaGFzZUNvbnRleHQSNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiJgoOR2V0TmV4dFJlcXVlc3QSFAoMZXhlY3V0aW9uX2lkGAEgASgJIp0BCg9HZXROZXh0UmVzcG9uc2USPwoHY29udGV4dBgBIAEoCzIuLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlBoYXNlQ29udGV4dBIQCghjb21wbGV0ZRgCIAEoCBI3CgRzdGVwGAMgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCLSAQoWVHJhbnNpdGlvblBoYXNlUmVxdWVzdBIUCgxleGVjdXRpb25faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkSPQoJdG9fc3RhdHVzGAMgASgOMioudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2VTdGF0dXMSUQoTdmFsaWRhdGlvbl9vdmVycmlkZRgEIAEoCzI0LnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlZhbGlkYXRpb25PdmVycmlkZSLFAQoXVHJhbnNpdGlvblBoYXNlUmVzcG9uc2USPgoJZXhlY3V0aW9uGAEgASgLMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uRXhlY3V0aW9uEjEKBHBsYW4YAiABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuEjcKBHN0ZXAYAyABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5HdWlkZWRTdGVwIiQKElZhbGlkYXRpb25PdmVycmlkZRIOCgZyZWFzb24YASABKAkiSwoPQ29tcGxldGVSZXF1ZXN0EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIOCgZ0b2tlbnMYAiABKAMSEgoKaXRlcmF0aW9ucxgDIAEoBSLHAQoQQ29tcGxldGVSZXNwb25zZRI3CgdoYW5kb2ZmGAEgASgLMiYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuSGFuZG9mZhJBCgZudWRnZXMYAiADKAsyMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5Db21wbGV0aW9uTnVkZ2USNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiKQoRR2V0SGFuZG9mZlJlcXVlc3QSFAoMZXhlY3V0aW9uX2lkGAEgASgJIoYBChJHZXRIYW5kb2ZmUmVzcG9uc2USNwoHaGFuZG9mZhgBIAEoCzImLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkhhbmRvZmYSNwoEc3RlcBgCIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiJQoSR2V0VmVsb2NpdHlSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkijAEKE0dldFZlbG9jaXR5UmVzcG9uc2USPAoGcG9pbnRzGAEgAygLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmVsb2NpdHlQb2ludBI3CgRzdGVwGAIgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcDLICQoQRXhlY3V0aW9uU2VydmljZRJoCgVTdGFydBIuLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlN0YXJ0UmVxdWVzdBovLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlN0YXJ0UmVzcG9uc2USdAoJR2V0U3RhdHVzEjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uR2V0U3RhdHVzUmVxdWVzdBozLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkdldFN0YXR1c1Jlc3BvbnNlEncKCkdldENvbnRleHQSMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5HZXRDb250ZXh0UmVxdWVzdBo0LnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkdldENvbnRleHRSZXNwb25zZRJrCgZSZXN1bWUSLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5SZXN1bWVSZXF1ZXN0GjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uUmVzdW1lUmVzcG9uc2USjAEKEUNvbnRpbnVlRXhlY3V0aW9uEjoudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uQ29udGludWVFeGVjdXRpb25SZXF1ZXN0GjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uQ29udGludWVFeGVjdXRpb25SZXNwb25zZRJuCgdHZXROZXh0EjAudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uR2V0TmV4dFJlcXVlc3QaMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5HZXROZXh0UmVzcG9uc2UShgEKD1RyYW5zaXRpb25QaGFzZRI4LnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLlRyYW5zaXRpb25QaGFzZVJlcXVlc3QaOS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmV4ZWN1dGlvbi5UcmFuc2l0aW9uUGhhc2VSZXNwb25zZRJxCghDb21wbGV0ZRIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkNvbXBsZXRlUmVxdWVzdBoyLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkNvbXBsZXRlUmVzcG9uc2USdwoKR2V0SGFuZG9mZhIzLnZyb29saS5wbGFuX21hbmFnZXIudjEuZXhlY3V0aW9uLkdldEhhbmRvZmZSZXF1ZXN0GjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uR2V0SGFuZG9mZlJlc3BvbnNlEnoKC0dldFZlbG9jaXR5EjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uR2V0VmVsb2NpdHlSZXF1ZXN0GjUudnJvb2xpLnBsYW5fbWFuYWdlci52MS5leGVjdXRpb24uR2V0VmVsb2NpdHlSZXNwb25zZUJXWlVnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BsYW4tbWFuYWdlci92MS9leGVjdXRpb247ZXhlY3V0aW9uX3YxYgZwcm90bzM", [file_plan_manager_v1_shared_model]);
 
 /**
  * Execution is a run↔plan linkage with the runner's current pointer.
@@ -83,6 +83,8 @@ export type PhaseContext = Message<"vrooli.plan_manager.v1.execution.PhaseContex
   nextPhase?: Phase | undefined;
 
   /**
+   * Legacy migration input. Execution-facing setup is relevant_context.
+   *
    * @generated from field: repeated string required_reading = 3;
    */
   requiredReading: string[];
@@ -118,6 +120,15 @@ export type PhaseContext = Message<"vrooli.plan_manager.v1.execution.PhaseContex
    * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem relevant_context = 9;
    */
   relevantContext: RelevantContextItem[];
+
+  /**
+   * Compact roll-up of the execution's log ledger so a resumed agent sees
+   * decisions/findings/bugs/records without reading every entry. Assembled from
+   * the log domain through an internal seam.
+   *
+   * @generated from field: vrooli.plan_manager.v1.shared.LogSummary log_summary = 10;
+   */
+  logSummary?: LogSummary | undefined;
 };
 
 /**
@@ -128,13 +139,15 @@ export const PhaseContextSchema: GenMessage<PhaseContext> = /*@__PURE__*/
   messageDesc(file_plan_manager_v1_execution_execution, 1);
 
 /**
- * CompletionNudge is one item in the thin guided completion process.
+ * CompletionNudge is one item in the thin guided completion process. Nudges are
+ * typed and Plan Manager-local — they point back at `plan-manager log ...`
+ * commands, never at external scenario CLIs.
  *
  * @generated from message vrooli.plan_manager.v1.execution.CompletionNudge
  */
 export type CompletionNudge = Message<"vrooli.plan_manager.v1.execution.CompletionNudge"> & {
   /**
-   * "record_finding" | "file_bugs" | "confirm_phase_status".
+   * "record_finding" | "file_bug" | "capture_record" | "confirm_phase_status".
    *
    * @generated from field: string kind = 1;
    */
@@ -257,6 +270,178 @@ export const GetStatusResponseSchema: GenMessage<GetStatusResponse> = /*@__PURE_
   messageDesc(file_plan_manager_v1_execution_execution, 6);
 
 /**
+ * @generated from message vrooli.plan_manager.v1.execution.GetContextRequest
+ */
+export type GetContextRequest = Message<"vrooli.plan_manager.v1.execution.GetContextRequest"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * Optional phase override. When empty, the execution pointer is used. This
+   * read does not persist the override.
+   *
+   * @generated from field: string phase_id = 2;
+   */
+  phaseId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.execution.GetContextRequest.
+ * Use `create(GetContextRequestSchema)` to create a new message.
+ */
+export const GetContextRequestSchema: GenMessage<GetContextRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_execution_execution, 7);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.execution.GetContextResponse
+ */
+export type GetContextResponse = Message<"vrooli.plan_manager.v1.execution.GetContextResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.execution.Execution execution = 1;
+   */
+  execution?: Execution | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.execution.PhaseContext context = 2;
+   */
+  context?: PhaseContext | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.execution.GetContextResponse.
+ * Use `create(GetContextResponseSchema)` to create a new message.
+ */
+export const GetContextResponseSchema: GenMessage<GetContextResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_execution_execution, 8);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.execution.ResumeRequest
+ */
+export type ResumeRequest = Message<"vrooli.plan_manager.v1.execution.ResumeRequest"> & {
+  /**
+   * Plan id/slug or execution id.
+   *
+   * @generated from field: string plan_or_execution = 1;
+   */
+  planOrExecution: string;
+
+  /**
+   * Optional phase override. When set, the execution pointer is moved there.
+   *
+   * @generated from field: string phase_id = 2;
+   */
+  phaseId: string;
+
+  /**
+   * Optional attribution run id used only when a new execution is created.
+   *
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.execution.ResumeRequest.
+ * Use `create(ResumeRequestSchema)` to create a new message.
+ */
+export const ResumeRequestSchema: GenMessage<ResumeRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_execution_execution, 9);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.execution.ResumeResponse
+ */
+export type ResumeResponse = Message<"vrooli.plan_manager.v1.execution.ResumeResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.execution.Execution execution = 1;
+   */
+  execution?: Execution | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.execution.PhaseContext context = 2;
+   */
+  context?: PhaseContext | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.execution.ResumeResponse.
+ * Use `create(ResumeResponseSchema)` to create a new message.
+ */
+export const ResumeResponseSchema: GenMessage<ResumeResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_execution_execution, 10);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.execution.ContinueExecutionRequest
+ */
+export type ContinueExecutionRequest = Message<"vrooli.plan_manager.v1.execution.ContinueExecutionRequest"> & {
+  /**
+   * Plan id/slug or execution id.
+   *
+   * @generated from field: string plan_or_execution = 1;
+   */
+  planOrExecution: string;
+
+  /**
+   * Optional phase override. When set, the execution pointer is moved there.
+   *
+   * @generated from field: string phase_id = 2;
+   */
+  phaseId: string;
+
+  /**
+   * Optional attribution run id used only when a new execution is created.
+   *
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.execution.ContinueExecutionRequest.
+ * Use `create(ContinueExecutionRequestSchema)` to create a new message.
+ */
+export const ContinueExecutionRequestSchema: GenMessage<ContinueExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_execution_execution, 11);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.execution.ContinueExecutionResponse
+ */
+export type ContinueExecutionResponse = Message<"vrooli.plan_manager.v1.execution.ContinueExecutionResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.execution.Execution execution = 1;
+   */
+  execution?: Execution | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.execution.PhaseContext context = 2;
+   */
+  context?: PhaseContext | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.execution.ContinueExecutionResponse.
+ * Use `create(ContinueExecutionResponseSchema)` to create a new message.
+ */
+export const ContinueExecutionResponseSchema: GenMessage<ContinueExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_execution_execution, 12);
+
+/**
  * @generated from message vrooli.plan_manager.v1.execution.GetNextRequest
  */
 export type GetNextRequest = Message<"vrooli.plan_manager.v1.execution.GetNextRequest"> & {
@@ -271,7 +456,7 @@ export type GetNextRequest = Message<"vrooli.plan_manager.v1.execution.GetNextRe
  * Use `create(GetNextRequestSchema)` to create a new message.
  */
 export const GetNextRequestSchema: GenMessage<GetNextRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 7);
+  messageDesc(file_plan_manager_v1_execution_execution, 13);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.GetNextResponse
@@ -300,7 +485,7 @@ export type GetNextResponse = Message<"vrooli.plan_manager.v1.execution.GetNextR
  * Use `create(GetNextResponseSchema)` to create a new message.
  */
 export const GetNextResponseSchema: GenMessage<GetNextResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 8);
+  messageDesc(file_plan_manager_v1_execution_execution, 14);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.TransitionPhaseRequest
@@ -320,6 +505,15 @@ export type TransitionPhaseRequest = Message<"vrooli.plan_manager.v1.execution.T
    * @generated from field: vrooli.plan_manager.v1.shared.PhaseStatus to_status = 3;
    */
   toStatus: PhaseStatus;
+
+  /**
+   * Required when marking a phase done without a recent passing validation
+   * result. This is an explicit audit trail for degraded/offline work, not a
+   * free pass hidden in prose.
+   *
+   * @generated from field: vrooli.plan_manager.v1.execution.ValidationOverride validation_override = 4;
+   */
+  validationOverride?: ValidationOverride | undefined;
 };
 
 /**
@@ -327,7 +521,7 @@ export type TransitionPhaseRequest = Message<"vrooli.plan_manager.v1.execution.T
  * Use `create(TransitionPhaseRequestSchema)` to create a new message.
  */
 export const TransitionPhaseRequestSchema: GenMessage<TransitionPhaseRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 9);
+  messageDesc(file_plan_manager_v1_execution_execution, 15);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.TransitionPhaseResponse
@@ -354,115 +548,24 @@ export type TransitionPhaseResponse = Message<"vrooli.plan_manager.v1.execution.
  * Use `create(TransitionPhaseResponseSchema)` to create a new message.
  */
 export const TransitionPhaseResponseSchema: GenMessage<TransitionPhaseResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 10);
+  messageDesc(file_plan_manager_v1_execution_execution, 16);
 
 /**
- * @generated from message vrooli.plan_manager.v1.execution.RecordDecisionRequest
+ * @generated from message vrooli.plan_manager.v1.execution.ValidationOverride
  */
-export type RecordDecisionRequest = Message<"vrooli.plan_manager.v1.execution.RecordDecisionRequest"> & {
+export type ValidationOverride = Message<"vrooli.plan_manager.v1.execution.ValidationOverride"> & {
   /**
-   * @generated from field: string execution_id = 1;
+   * @generated from field: string reason = 1;
    */
-  executionId: string;
-
-  /**
-   * @generated from field: string phase_id = 2;
-   */
-  phaseId: string;
-
-  /**
-   * @generated from field: string summary = 3;
-   */
-  summary: string;
-
-  /**
-   * @generated from field: string detail = 4;
-   */
-  detail: string;
+  reason: string;
 };
 
 /**
- * Describes the message vrooli.plan_manager.v1.execution.RecordDecisionRequest.
- * Use `create(RecordDecisionRequestSchema)` to create a new message.
+ * Describes the message vrooli.plan_manager.v1.execution.ValidationOverride.
+ * Use `create(ValidationOverrideSchema)` to create a new message.
  */
-export const RecordDecisionRequestSchema: GenMessage<RecordDecisionRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 11);
-
-/**
- * @generated from message vrooli.plan_manager.v1.execution.RecordDecisionResponse
- */
-export type RecordDecisionResponse = Message<"vrooli.plan_manager.v1.execution.RecordDecisionResponse"> & {
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.Decision decision = 1;
-   */
-  decision?: Decision | undefined;
-
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
-   */
-  step?: GuidedStep | undefined;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.execution.RecordDecisionResponse.
- * Use `create(RecordDecisionResponseSchema)` to create a new message.
- */
-export const RecordDecisionResponseSchema: GenMessage<RecordDecisionResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 12);
-
-/**
- * @generated from message vrooli.plan_manager.v1.execution.RecordFindingRequest
- */
-export type RecordFindingRequest = Message<"vrooli.plan_manager.v1.execution.RecordFindingRequest"> & {
-  /**
-   * @generated from field: string execution_id = 1;
-   */
-  executionId: string;
-
-  /**
-   * @generated from field: string phase_id = 2;
-   */
-  phaseId: string;
-
-  /**
-   * @generated from field: string title = 3;
-   */
-  title: string;
-
-  /**
-   * @generated from field: string detail = 4;
-   */
-  detail: string;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.execution.RecordFindingRequest.
- * Use `create(RecordFindingRequestSchema)` to create a new message.
- */
-export const RecordFindingRequestSchema: GenMessage<RecordFindingRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 13);
-
-/**
- * @generated from message vrooli.plan_manager.v1.execution.RecordFindingResponse
- */
-export type RecordFindingResponse = Message<"vrooli.plan_manager.v1.execution.RecordFindingResponse"> & {
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.Finding finding = 1;
-   */
-  finding?: Finding | undefined;
-
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
-   */
-  step?: GuidedStep | undefined;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.execution.RecordFindingResponse.
- * Use `create(RecordFindingResponseSchema)` to create a new message.
- */
-export const RecordFindingResponseSchema: GenMessage<RecordFindingResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 14);
+export const ValidationOverrideSchema: GenMessage<ValidationOverride> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_execution_execution, 17);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.CompleteRequest
@@ -491,7 +594,7 @@ export type CompleteRequest = Message<"vrooli.plan_manager.v1.execution.Complete
  * Use `create(CompleteRequestSchema)` to create a new message.
  */
 export const CompleteRequestSchema: GenMessage<CompleteRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 15);
+  messageDesc(file_plan_manager_v1_execution_execution, 18);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.CompleteResponse
@@ -521,7 +624,7 @@ export type CompleteResponse = Message<"vrooli.plan_manager.v1.execution.Complet
  * Use `create(CompleteResponseSchema)` to create a new message.
  */
 export const CompleteResponseSchema: GenMessage<CompleteResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 16);
+  messageDesc(file_plan_manager_v1_execution_execution, 19);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.GetHandoffRequest
@@ -538,7 +641,7 @@ export type GetHandoffRequest = Message<"vrooli.plan_manager.v1.execution.GetHan
  * Use `create(GetHandoffRequestSchema)` to create a new message.
  */
 export const GetHandoffRequestSchema: GenMessage<GetHandoffRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 17);
+  messageDesc(file_plan_manager_v1_execution_execution, 20);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.GetHandoffResponse
@@ -560,92 +663,7 @@ export type GetHandoffResponse = Message<"vrooli.plan_manager.v1.execution.GetHa
  * Use `create(GetHandoffResponseSchema)` to create a new message.
  */
 export const GetHandoffResponseSchema: GenMessage<GetHandoffResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 18);
-
-/**
- * @generated from message vrooli.plan_manager.v1.execution.ListCandidateFindingsRequest
- */
-export type ListCandidateFindingsRequest = Message<"vrooli.plan_manager.v1.execution.ListCandidateFindingsRequest"> & {
-  /**
-   * Optional execution scope; empty lists candidate findings across executions.
-   *
-   * @generated from field: string execution_id = 1;
-   */
-  executionId: string;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.execution.ListCandidateFindingsRequest.
- * Use `create(ListCandidateFindingsRequestSchema)` to create a new message.
- */
-export const ListCandidateFindingsRequestSchema: GenMessage<ListCandidateFindingsRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 19);
-
-/**
- * @generated from message vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse
- */
-export type ListCandidateFindingsResponse = Message<"vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse"> & {
-  /**
-   * @generated from field: repeated vrooli.plan_manager.v1.shared.Finding findings = 1;
-   */
-  findings: Finding[];
-
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
-   */
-  step?: GuidedStep | undefined;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse.
- * Use `create(ListCandidateFindingsResponseSchema)` to create a new message.
- */
-export const ListCandidateFindingsResponseSchema: GenMessage<ListCandidateFindingsResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 20);
-
-/**
- * @generated from message vrooli.plan_manager.v1.execution.TriageFindingRequest
- */
-export type TriageFindingRequest = Message<"vrooli.plan_manager.v1.execution.TriageFindingRequest"> & {
-  /**
-   * @generated from field: string finding_id = 1;
-   */
-  findingId: string;
-
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.FindingTriage triage = 2;
-   */
-  triage: FindingTriage;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.execution.TriageFindingRequest.
- * Use `create(TriageFindingRequestSchema)` to create a new message.
- */
-export const TriageFindingRequestSchema: GenMessage<TriageFindingRequest> = /*@__PURE__*/
   messageDesc(file_plan_manager_v1_execution_execution, 21);
-
-/**
- * @generated from message vrooli.plan_manager.v1.execution.TriageFindingResponse
- */
-export type TriageFindingResponse = Message<"vrooli.plan_manager.v1.execution.TriageFindingResponse"> & {
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.Finding finding = 1;
-   */
-  finding?: Finding | undefined;
-
-  /**
-   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
-   */
-  step?: GuidedStep | undefined;
-};
-
-/**
- * Describes the message vrooli.plan_manager.v1.execution.TriageFindingResponse.
- * Use `create(TriageFindingResponseSchema)` to create a new message.
- */
-export const TriageFindingResponseSchema: GenMessage<TriageFindingResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 22);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.GetVelocityRequest
@@ -662,7 +680,7 @@ export type GetVelocityRequest = Message<"vrooli.plan_manager.v1.execution.GetVe
  * Use `create(GetVelocityRequestSchema)` to create a new message.
  */
 export const GetVelocityRequestSchema: GenMessage<GetVelocityRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 23);
+  messageDesc(file_plan_manager_v1_execution_execution, 22);
 
 /**
  * @generated from message vrooli.plan_manager.v1.execution.GetVelocityResponse
@@ -684,7 +702,7 @@ export type GetVelocityResponse = Message<"vrooli.plan_manager.v1.execution.GetV
  * Use `create(GetVelocityResponseSchema)` to create a new message.
  */
 export const GetVelocityResponseSchema: GenMessage<GetVelocityResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_execution_execution, 24);
+  messageDesc(file_plan_manager_v1_execution_execution, 23);
 
 /**
  * @generated from service vrooli.plan_manager.v1.execution.ExecutionService
@@ -711,6 +729,39 @@ export const ExecutionService: GenService<{
     output: typeof GetStatusResponseSchema;
   },
   /**
+   * GetContext returns only the actionable setup context for the current or
+   * requested phase without advancing the execution pointer.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.execution.ExecutionService.GetContext
+   */
+  getContext: {
+    methodKind: "unary";
+    input: typeof GetContextRequestSchema;
+    output: typeof GetContextResponseSchema;
+  },
+  /**
+   * Resume resolves an existing execution or creates one for a plan, optionally
+   * moves the pointer to a phase, and returns setup context without advancing.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.execution.ExecutionService.Resume
+   */
+  resume: {
+    methodKind: "unary";
+    input: typeof ResumeRequestSchema;
+    output: typeof ResumeResponseSchema;
+  },
+  /**
+   * ContinueExecution resumes or starts a run for a plan/execution id and
+   * returns the single recommended next runner action without advancing.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution
+   */
+  continueExecution: {
+    methodKind: "unary";
+    input: typeof ContinueExecutionRequestSchema;
+    output: typeof ContinueExecutionResponseSchema;
+  },
+  /**
    * GetNext advances the runner's pointer to the next actionable phase and
    * returns its injected context.
    *
@@ -733,26 +784,6 @@ export const ExecutionService: GenService<{
     output: typeof TransitionPhaseResponseSchema;
   },
   /**
-   * RecordDecision captures an in-flow design decision (feeds the handoff).
-   *
-   * @generated from rpc vrooli.plan_manager.v1.execution.ExecutionService.RecordDecision
-   */
-  recordDecision: {
-    methodKind: "unary";
-    input: typeof RecordDecisionRequestSchema;
-    output: typeof RecordDecisionResponseSchema;
-  },
-  /**
-   * RecordFinding captures an in-flow CANDIDATE finding (never auto-promoted).
-   *
-   * @generated from rpc vrooli.plan_manager.v1.execution.ExecutionService.RecordFinding
-   */
-  recordFinding: {
-    methodKind: "unary";
-    input: typeof RecordFindingRequestSchema;
-    output: typeof RecordFindingResponseSchema;
-  },
-  /**
    * Complete runs the thin guided completion process and assembles the canonical
    * handoff, capturing a velocity point (OT-P1-001/002).
    *
@@ -772,26 +803,6 @@ export const ExecutionService: GenService<{
     methodKind: "unary";
     input: typeof GetHandoffRequestSchema;
     output: typeof GetHandoffResponseSchema;
-  },
-  /**
-   * ListCandidateFindings returns candidate findings awaiting operator triage.
-   *
-   * @generated from rpc vrooli.plan_manager.v1.execution.ExecutionService.ListCandidateFindings
-   */
-  listCandidateFindings: {
-    methodKind: "unary";
-    input: typeof ListCandidateFindingsRequestSchema;
-    output: typeof ListCandidateFindingsResponseSchema;
-  },
-  /**
-   * TriageFinding promotes or dismisses a candidate finding (operator action).
-   *
-   * @generated from rpc vrooli.plan_manager.v1.execution.ExecutionService.TriageFinding
-   */
-  triageFinding: {
-    methodKind: "unary";
-    input: typeof TriageFindingRequestSchema;
-    output: typeof TriageFindingResponseSchema;
   },
   /**
    * GetVelocity returns the per-plan velocity series.

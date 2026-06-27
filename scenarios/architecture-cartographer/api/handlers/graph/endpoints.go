@@ -54,4 +54,28 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Returns the persisted snapshot serialized as canonical-form JSON bytes for offline analysis or fixture authoring.",
 		Category:    "graph",
 	},
+	{
+		ID:          "zones.show",
+		Path:        graph_v1connect.GraphServiceGetZoneMapProcedure,
+		Method:      "POST",
+		Summary:     "Show the template-derived zone map",
+		Description: "Classifies graph packages into manifest-backed code-layout zones and returns layering cross-check violations.",
+		Category:    "zones",
+	},
+	{
+		ID:          "slice.show",
+		Path:        graph_v1connect.GraphServiceGetSliceProcedure,
+		Method:      "POST",
+		Summary:     "Show the implementation slice for one domain",
+		Description: "Returns proto, handler, internal, CLI, and UI rungs with per-rung evidence for a derived domain.",
+		Category:    "slice",
+	},
+	{
+		ID:          "archetype.infer",
+		Path:        graph_v1connect.GraphServiceInferArchetypeProcedure,
+		Method:      "POST",
+		Summary:     "Infer and converge each domain's archetype (Q20)",
+		Description: "Infers each domain's archetype from graph signals and converges it against the declared DOMAINS.md value, reporting drift without overriding the declared archetype.",
+		Category:    "archetype",
+	},
 }

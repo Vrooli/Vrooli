@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/shared/model.proto.
  */
 export const file_plan_manager_v1_shared_model: GenFile = /*@__PURE__*/
-  fileDesc("CiJwbGFuLW1hbmFnZXIvdjEvc2hhcmVkL21vZGVsLnByb3RvEh12cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZCKzAQoKTmV4dEFjdGlvbhIKCgJpZBgBIAEoCRI7CgRraW5kGAIgASgOMi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTmV4dEFjdGlvbktpbmQSDQoFbGFiZWwYAyABKAkSDgoGcmVhc29uGAQgASgJEgwKBGFyZ3YYBSADKAkSGwoTY29udGVudF9wbGFjZWhvbGRlchgGIAEoCRISCgpibG9ja2VkX2J5GAcgAygJItoBCgpHdWlkZWRTdGVwEhEKCXN0ZXBfa2luZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhQKDGluc3RydWN0aW9ucxgEIAMoCRIXCg9yZXF1aXJlZF9pbnB1dHMYBSADKAkSEAoIZXhhbXBsZXMYBiADKAkSFwoPY29tbW9uX21pc3Rha2VzGAcgAygJEj8KDG5leHRfYWN0aW9ucxgIIAMoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLk5leHRBY3Rpb24ioQIKCVJlZmVyZW5jZRIKCgJpZBgBIAEoCRI6CgRraW5kGAIgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlS2luZBIOCgZ0YXJnZXQYAyABKAkSDgoGZnV0dXJlGAQgASgIEkYKCnJlc29sdXRpb24YBSABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWZlcmVuY2VSZXNvbHV0aW9uEj8KCXN0YWxlbmVzcxgGIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFQoNY2hhbmdlX2ZhY3RvchgHIAEoARIMCgRub3RlGAggASgJIqQEChNSZWxldmFudENvbnRleHRJdGVtEgoKAmlkGAEgASgJEkAKBGtpbmQYAiABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRLaW5kEkIKBXNjb3BlGAMgASgOMjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U2NvcGUSEAoIcGhhc2VfaWQYBCABKAkSDQoFbGFiZWwYBSABKAkSDgoGcmVhc29uGAYgASgJEhMKC2luc3RydWN0aW9uGAcgASgJEg8KB2NvbW1hbmQYCCABKAkSDAoEYXJndhgJIAMoCRIOCgZ0YXJnZXQYCiABKAkSEAoIcmVxdWlyZWQYCyABKAgSUQoNcmVwZWF0X3BvbGljeRgMIAEoDjI6LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dFJlcGVhdFBvbGljeRJECgZzb3VyY2UYDSABKA4yNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRTb3VyY2USRAoGc3RhdHVzGA4gASgOMjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U3RhdHVzEhUKDXN0YXR1c19kZXRhaWwYDyABKAkitAEKEFJlZ3Jlc3Npb25BbmNob3ISEAoIc3RyYXRlZ3kYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFQoNYmFzZWxpbmVfbmFtZRgDIAEoCRIQCghoZWFkX3NoYRgEIAEoCRIXCg9hbGxvd2xpc3RfcGF0aHMYBSADKAkSEAoIY29tbWFuZHMYBiADKAkSEwoLY2FwdHVyZWRfYXQYByABKAkSEwoLdW5hdmFpbGFibGUYCCABKAgiXgoIRGVjaXNpb24SCgoCaWQYASABKAkSDwoHc3VtbWFyeRgCIAEoCRIOCgZkZXRhaWwYAyABKAkSEAoIcGhhc2VfaWQYBCABKAkSEwoLcmVjb3JkZWRfYXQYBSABKAkitQEKB0ZpbmRpbmcSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDgoGZGV0YWlsGAMgASgJEjwKBnRyaWFnZRgEIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmdUcmlhZ2USEAoIcGhhc2VfaWQYBSABKAkSEwoLcmVjb3JkZWRfYXQYBiABKAkSGgoSYXR0cmlidXRpb25fcnVuX2lkGAcgASgJIs4CChBWYWxpZGF0aW9uUmVzdWx0EgoKAmlkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSEAoIcGhhc2VfaWQYAyABKAkSQQoHdmVyZGljdBgEIAEoDjIwLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25WZXJkaWN0Ej8KCXN0YWxlbmVzcxgFIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFAoMY29tbWFuZHNfcnVuGAYgAygJEg4KBmRldGFpbBgHIAEoCRIOCgZyYW5fYXQYCCABKAkSUQoQY29tbWFuZF9maW5kaW5ncxgJIAMoCzI3LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbW1hbmRWYWxpZGF0aW9uRmluZGluZyK6AQoYQ29tbWFuZFZhbGlkYXRpb25GaW5kaW5nEhQKDGNvbW1hbmRfdGV4dBgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEhgKEHZhbGlkYXRpb25fbGV2ZWwYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRITCgtpc3N1ZV9jb2RlcxgGIAMoCRITCgtzdWdnZXN0aW9ucxgHIAMoCRIQCghndWlkYW5jZRgIIAMoCSKiBAoFUGhhc2USCgoCaWQYASABKAkSDQoFb3JkZXIYAiABKAUSDQoFdGl0bGUYAyABKAkSDgoGaW50ZW50GAQgASgJEhgKEHJlcXVpcmVkX3JlYWRpbmcYBSADKAkSEQoJcmVtaW5kZXJzGAYgAygJEhYKDmJhc2VsaW5lX3Njb3BlGAcgAygJEhIKCmFjY2VwdGFuY2UYCCABKAkSOgoGc3RhdHVzGAkgASgOMioudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2VTdGF0dXMSSAoPbGFzdF92YWxpZGF0aW9uGAogASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI6CglkZWNpc2lvbnMYCyADKAsyJy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5EZWNpc2lvbhI4CghmaW5kaW5ncxgMIAMoCzImLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmcSPAoKcmVmZXJlbmNlcxgNIAMoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZRJMChByZWxldmFudF9jb250ZXh0GA4gAygLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0SXRlbSLFBAoEUGxhbhIKCgJpZBgBIAEoCRIMCgRzbHVnGAIgASgJEg0KBXRpdGxlGAMgASgJEjkKBnN0YXR1cxgEIAEoDjIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW5TdGF0dXMSFAoMY29udGVudF9oYXNoGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCRIPCgdwdXJwb3NlGAggASgJEg0KBXNjb3BlGAkgASgJEhMKC2NvbnN0cmFpbnRzGAogASgJEhEKCW5vbl9nb2FscxgLIAEoCRI8CgpyZWZlcmVuY2VzGAwgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEkoKEXJlZ3Jlc3Npb25fYW5jaG9yGA0gASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVncmVzc2lvbkFuY2hvchIaChJkZWZpbml0aW9uX29mX2RvbmUYDiABKAkSNAoGcGhhc2VzGA8gAygLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2USEgoKc3VwZXJzZWRlcxgQIAMoCRIVCg1zdXBlcnNlZGVkX2J5GBEgAygJEkwKEHJlbGV2YW50X2NvbnRleHQYEiADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRJdGVtIkIKCFBsYW5FZGdlEhQKDGZyb21fcGxhbl9pZBgBIAEoCRISCgp0b19wbGFuX2lkGAIgASgJEgwKBGtpbmQYAyABKAki0wEKDVZlbG9jaXR5UG9pbnQSCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSGQoRd2FsbF90aW1lX3NlY29uZHMYBCABKAMSDgoGdG9rZW5zGAUgASgDEhIKCml0ZXJhdGlvbnMYBiABKAUSQQoMY29tcGxldGVuZXNzGAcgASgOMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuQ29tcGxldGVuZXNzEhMKC3JlY29yZGVkX2F0GAggASgJItQDCgdIYW5kb2ZmEgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIPCgdwbGFuX2lkGAMgASgJEkEKDGNvbXBsZXRlbmVzcxgEIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbXBsZXRlbmVzcxIXCg9yZXN1bWVfcGhhc2VfaWQYBSABKAkSOgoJZGVjaXNpb25zGAYgAygLMicudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRGVjaXNpb24SQgoSY2FuZGlkYXRlX2ZpbmRpbmdzGAcgAygLMiYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRmluZGluZxJICg9sYXN0X3ZhbGlkYXRpb24YCCABKAsyLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uUmVzdWx0Ej8KCXN0YWxlbmVzcxgJIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISGQoRcHJvc2VfaGFuZG9mZl9yZWYYCiABKAkSFAoMYXNzZW1ibGVkX2F0GAsgASgJKowBCgpQbGFuU3RhdHVzEhsKF1BMQU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRUExBTl9TVEFUVVNfRFJBRlQQARIWChJQTEFOX1NUQVRVU19BQ1RJVkUQAhIYChRQTEFOX1NUQVRVU19DT01QTEVURRADEhgKFFBMQU5fU1RBVFVTX0FSQ0hJVkVEEAQqjAEKC1BoYXNlU3RhdHVzEhwKGFBIQVNFX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEVBIQVNFX1NUQVRVU19UT0RPEAESFwoTUEhBU0VfU1RBVFVTX0FDVElWRRACEhUKEVBIQVNFX1NUQVRVU19ET05FEAMSGAoUUEhBU0VfU1RBVFVTX0JMT0NLRUQQBCqQAQoNU3RhbGVuZXNzVGllchIeChpTVEFMRU5FU1NfVElFUl9VTlNQRUNJRklFRBAAEhgKFFNUQUxFTkVTU19USUVSX0ZSRVNIEAESIAocU1RBTEVORVNTX1RJRVJfTElHSFRMWV9TVEFMRRACEiMKH1NUQUxFTkVTU19USUVSX0RFRklOSVRFTFlfU1RBTEUQAyp4Cg1SZWZlcmVuY2VLaW5kEh4KGlJFRkVSRU5DRV9LSU5EX1VOU1BFQ0lGSUVEEAASFwoTUkVGRVJFTkNFX0tJTkRfQ09ERRABEhYKElJFRkVSRU5DRV9LSU5EX1JFURACEhYKElJFRkVSRU5DRV9LSU5EX0RPQxADKsYBChNSZWZlcmVuY2VSZXNvbHV0aW9uEiQKIFJFRkVSRU5DRV9SRVNPTFVUSU9OX1VOU1BFQ0lGSUVEEAASIQodUkVGRVJFTkNFX1JFU09MVVRJT05fUkVTT0xWRUQQARIjCh9SRUZFUkVOQ0VfUkVTT0xVVElPTl9VTlJFU09MVkVEEAISHwobUkVGRVJFTkNFX1JFU09MVVRJT05fRlVUVVJFEAMSIAocUkVGRVJFTkNFX1JFU09MVVRJT05fTUlTU0lORxAEKqgCChNSZWxldmFudENvbnRleHRLaW5kEiUKIVJFTEVWQU5UX0NPTlRFWFRfS0lORF9VTlNQRUNJRklFRBAAEh8KG1JFTEVWQU5UX0NPTlRFWFRfS0lORF9TS0lMTBABEh0KGVJFTEVWQU5UX0NPTlRFWFRfS0lORF9ET0MQAhIhCh1SRUxFVkFOVF9DT05URVhUX0tJTkRfQ09NTUFORBADEiAKHFJFTEVWQU5UX0NPTlRFWFRfS0lORF9TRUFSQ0gQBBIiCh5SRUxFVkFOVF9DT05URVhUX0tJTkRfQ09ERV9SRUYQBRIhCh1SRUxFVkFOVF9DT05URVhUX0tJTkRfUkVRX1JFRhAGEh4KGlJFTEVWQU5UX0NPTlRFWFRfS0lORF9OT1RFEAcqgwEKFFJlbGV2YW50Q29udGV4dFNjb3BlEiYKIlJFTEVWQU5UX0NPTlRFWFRfU0NPUEVfVU5TUEVDSUZJRUQQABIhCh1SRUxFVkFOVF9DT05URVhUX1NDT1BFX0dMT0JBTBABEiAKHFJFTEVWQU5UX0NPTlRFWFRfU0NPUEVfUEhBU0UQAirAAgobUmVsZXZhbnRDb250ZXh0UmVwZWF0UG9saWN5Ei4KKlJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9VTlNQRUNJRklFRBAAEjUKMVJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9PTkNFX1BFUl9FWEVDVVRJT04QARIsCihSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfT05fUkVTVU1FEAISLgoqUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX0VWRVJZX1BIQVNFEAMSLgoqUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX1BIQVNFX0VOVFJZEAQSLAooUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX0FTX05FRURFRBAFKtwBChVSZWxldmFudENvbnRleHRTb3VyY2USJwojUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfVU5TUEVDSUZJRUQQABIkCiBSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9BVVRIT1JFRBABEiYKIlJFTEVWQU5UX0NPTlRFWFRfU09VUkNFX0RJU0NPVkVSRUQQAhIkCiBSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9NSUdSQVRFRBADEiYKIlJFTEVWQU5UX0NPTlRFWFRfU09VUkNFX0FVVE9GSUxMRUQQBCqxAQoVUmVsZXZhbnRDb250ZXh0U3RhdHVzEicKI1JFTEVWQU5UX0NPTlRFWFRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIQodUkVMRVZBTlRfQ09OVEVYVF9TVEFUVVNfUkVBRFkQARIkCiBSRUxFVkFOVF9DT05URVhUX1NUQVRVU19ERUdSQURFRBACEiYKIlJFTEVWQU5UX0NPTlRFWFRfU1RBVFVTX1VOUkVTT0xWRUQQAyqIAQoNRmluZGluZ1RyaWFnZRIeChpGSU5ESU5HX1RSSUFHRV9VTlNQRUNJRklFRBAAEhwKGEZJTkRJTkdfVFJJQUdFX0NBTkRJREFURRABEhsKF0ZJTkRJTkdfVFJJQUdFX1BST01PVEVEEAISHAoYRklORElOR19UUklBR0VfRElTTUlTU0VEEAMqXQoMQ29tcGxldGVuZXNzEhwKGENPTVBMRVRFTkVTU19VTlNQRUNJRklFRBAAEhUKEUNPTVBMRVRFTkVTU19GVUxMEAESGAoUQ09NUExFVEVORVNTX1BBUlRJQUwQAiqRAQoRVmFsaWRhdGlvblZlcmRpY3QSIgoeVkFMSURBVElPTl9WRVJESUNUX1VOU1BFQ0lGSUVEEAASGwoXVkFMSURBVElPTl9WRVJESUNUX1BBU1MQARIbChdWQUxJREFUSU9OX1ZFUkRJQ1RfRkFJTBACEh4KGlZBTElEQVRJT05fVkVSRElDVF9VTktOT1dOEAMqtAEKDk5leHRBY3Rpb25LaW5kEiAKHE5FWFRfQUNUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIgChxORVhUX0FDVElPTl9LSU5EX1JFQ09NTUVOREVEEAESIAocTkVYVF9BQ1RJT05fS0lORF9BTFRFUk5BVElWRRACEh0KGU5FWFRfQUNUSU9OX0tJTkRfT1BUSU9OQUwQAxIdChlORVhUX0FDVElPTl9LSU5EX1JFQ09WRVJZEARCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiJwbGFuLW1hbmFnZXIvdjEvc2hhcmVkL21vZGVsLnByb3RvEh12cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZCKzAQoKTmV4dEFjdGlvbhIKCgJpZBgBIAEoCRI7CgRraW5kGAIgASgOMi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTmV4dEFjdGlvbktpbmQSDQoFbGFiZWwYAyABKAkSDgoGcmVhc29uGAQgASgJEgwKBGFyZ3YYBSADKAkSGwoTY29udGVudF9wbGFjZWhvbGRlchgGIAEoCRISCgpibG9ja2VkX2J5GAcgAygJItoBCgpHdWlkZWRTdGVwEhEKCXN0ZXBfa2luZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhQKDGluc3RydWN0aW9ucxgEIAMoCRIXCg9yZXF1aXJlZF9pbnB1dHMYBSADKAkSEAoIZXhhbXBsZXMYBiADKAkSFwoPY29tbW9uX21pc3Rha2VzGAcgAygJEj8KDG5leHRfYWN0aW9ucxgIIAMoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLk5leHRBY3Rpb24ioQIKCVJlZmVyZW5jZRIKCgJpZBgBIAEoCRI6CgRraW5kGAIgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlS2luZBIOCgZ0YXJnZXQYAyABKAkSDgoGZnV0dXJlGAQgASgIEkYKCnJlc29sdXRpb24YBSABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWZlcmVuY2VSZXNvbHV0aW9uEj8KCXN0YWxlbmVzcxgGIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFQoNY2hhbmdlX2ZhY3RvchgHIAEoARIMCgRub3RlGAggASgJIqQEChNSZWxldmFudENvbnRleHRJdGVtEgoKAmlkGAEgASgJEkAKBGtpbmQYAiABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRLaW5kEkIKBXNjb3BlGAMgASgOMjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U2NvcGUSEAoIcGhhc2VfaWQYBCABKAkSDQoFbGFiZWwYBSABKAkSDgoGcmVhc29uGAYgASgJEhMKC2luc3RydWN0aW9uGAcgASgJEg8KB2NvbW1hbmQYCCABKAkSDAoEYXJndhgJIAMoCRIOCgZ0YXJnZXQYCiABKAkSEAoIcmVxdWlyZWQYCyABKAgSUQoNcmVwZWF0X3BvbGljeRgMIAEoDjI6LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dFJlcGVhdFBvbGljeRJECgZzb3VyY2UYDSABKA4yNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRTb3VyY2USRAoGc3RhdHVzGA4gASgOMjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U3RhdHVzEhUKDXN0YXR1c19kZXRhaWwYDyABKAkitAEKEFJlZ3Jlc3Npb25BbmNob3ISEAoIc3RyYXRlZ3kYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFQoNYmFzZWxpbmVfbmFtZRgDIAEoCRIQCghoZWFkX3NoYRgEIAEoCRIXCg9hbGxvd2xpc3RfcGF0aHMYBSADKAkSEAoIY29tbWFuZHMYBiADKAkSEwoLY2FwdHVyZWRfYXQYByABKAkSEwoLdW5hdmFpbGFibGUYCCABKAgiYwoNRG93bnN0cmVhbVJlZhIOCgZzeXN0ZW0YASABKAkSDAoEa2luZBgCIAEoCRIRCglyZWZlcmVuY2UYAyABKAkSDgoGZGV0YWlsGAQgASgJEhEKCXN5bmNlZF9hdBgFIAEoCSLiBAoITG9nRW50cnkSCgoCaWQYASABKAkSOQoEdHlwZRgCIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkxvZ0VudHJ5VHlwZRIPCgdwbGFuX2lkGAMgASgJEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRIQCghwaGFzZV9pZBgFIAEoCRINCgV0aXRsZRgGIAEoCRIOCgZkZXRhaWwYByABKAkSPAoIc2V2ZXJpdHkYCCABKA4yKi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTZXZlcml0eRI8CgZ0cmlhZ2UYCSABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5GaW5kaW5nVHJpYWdlEkEKC3N5bmNfc3RhdHVzGAogASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTG9nU3luY1N0YXR1cxJACgpkb3duc3RyZWFtGAsgASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRG93bnN0cmVhbVJlZhIWCg5zb3VyY2VfY29tbWFuZBgMIAEoCRIQCghldmlkZW5jZRgNIAMoCRIaChJhdHRyaWJ1dGlvbl9ydW5faWQYDiABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GA8gASgJEhUKDXN1cGVyc2VkZXNfaWQYECABKAkSGAoQcHJvbW90ZWRfZnJvbV9pZBgRIAEoCRISCgpjcmVhdGVkX2F0GBIgASgJEhIKCnVwZGF0ZWRfYXQYEyABKAki+QEKDkxvZ1N1bW1hcnlJdGVtEgoKAmlkGAEgASgJEjkKBHR5cGUYAiABKA4yKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dFbnRyeVR5cGUSDQoFdGl0bGUYAyABKAkSQQoLc3luY19zdGF0dXMYBCABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTeW5jU3RhdHVzEjwKBnRyaWFnZRgFIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmdUcmlhZ2USEAoIcGhhc2VfaWQYBiABKAki+wEKCkxvZ1N1bW1hcnkSDQoFdG90YWwYASABKAUSEQoJZGVjaXNpb25zGAIgASgFEhAKCGZpbmRpbmdzGAMgASgFEhMKC2J1Z19yZXBvcnRzGAQgASgFEg8KB3JlY29yZHMYBSABKAUSDQoFbm90ZXMYBiABKAUSGgoSY2FuZGlkYXRlX2ZpbmRpbmdzGAcgASgFEhQKDHBlbmRpbmdfc3luYxgIIAEoBRITCgtmYWlsZWRfc3luYxgJIAEoBRI9CgZyZWNlbnQYCiADKAsyLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTdW1tYXJ5SXRlbSLOAgoQVmFsaWRhdGlvblJlc3VsdBIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEhAKCHBoYXNlX2lkGAMgASgJEkEKB3ZlcmRpY3QYBCABKA4yMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uVmVyZGljdBI/CglzdGFsZW5lc3MYBSABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5TdGFsZW5lc3NUaWVyEhQKDGNvbW1hbmRzX3J1bhgGIAMoCRIOCgZkZXRhaWwYByABKAkSDgoGcmFuX2F0GAggASgJElEKEGNvbW1hbmRfZmluZGluZ3MYCSADKAsyNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Db21tYW5kVmFsaWRhdGlvbkZpbmRpbmciugEKGENvbW1hbmRWYWxpZGF0aW9uRmluZGluZxIUCgxjb21tYW5kX3RleHQYASABKAkSDwoHdmVyZGljdBgCIAEoCRIYChB2YWxpZGF0aW9uX2xldmVsGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSEAoIbG9jYXRpb24YBSABKAkSEwoLaXNzdWVfY29kZXMYBiADKAkSEwoLc3VnZ2VzdGlvbnMYByADKAkSEAoIZ3VpZGFuY2UYCCADKAkirAMKBVBoYXNlEgoKAmlkGAEgASgJEg0KBW9yZGVyGAIgASgFEg0KBXRpdGxlGAMgASgJEg4KBmludGVudBgEIAEoCRIYChByZXF1aXJlZF9yZWFkaW5nGAUgAygJEhEKCXJlbWluZGVycxgGIAMoCRIWCg5iYXNlbGluZV9zY29wZRgHIAMoCRISCgphY2NlcHRhbmNlGAggASgJEjoKBnN0YXR1cxgJIAEoDjIqLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlU3RhdHVzEkgKD2xhc3RfdmFsaWRhdGlvbhgKIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25SZXN1bHQSPAoKcmVmZXJlbmNlcxgLIAMoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZRJMChByZWxldmFudF9jb250ZXh0GAwgAygLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0SXRlbSLFBAoEUGxhbhIKCgJpZBgBIAEoCRIMCgRzbHVnGAIgASgJEg0KBXRpdGxlGAMgASgJEjkKBnN0YXR1cxgEIAEoDjIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW5TdGF0dXMSFAoMY29udGVudF9oYXNoGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCRIPCgdwdXJwb3NlGAggASgJEg0KBXNjb3BlGAkgASgJEhMKC2NvbnN0cmFpbnRzGAogASgJEhEKCW5vbl9nb2FscxgLIAEoCRI8CgpyZWZlcmVuY2VzGAwgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEkoKEXJlZ3Jlc3Npb25fYW5jaG9yGA0gASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVncmVzc2lvbkFuY2hvchIaChJkZWZpbml0aW9uX29mX2RvbmUYDiABKAkSNAoGcGhhc2VzGA8gAygLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2USEgoKc3VwZXJzZWRlcxgQIAMoCRIVCg1zdXBlcnNlZGVkX2J5GBEgAygJEkwKEHJlbGV2YW50X2NvbnRleHQYEiADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRJdGVtIkIKCFBsYW5FZGdlEhQKDGZyb21fcGxhbl9pZBgBIAEoCRISCgp0b19wbGFuX2lkGAIgASgJEgwKBGtpbmQYAyABKAki0wEKDVZlbG9jaXR5UG9pbnQSCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSGQoRd2FsbF90aW1lX3NlY29uZHMYBCABKAMSDgoGdG9rZW5zGAUgASgDEhIKCml0ZXJhdGlvbnMYBiABKAUSQQoMY29tcGxldGVuZXNzGAcgASgOMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuQ29tcGxldGVuZXNzEhMKC3JlY29yZGVkX2F0GAggASgJItIDCgdIYW5kb2ZmEgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIPCgdwbGFuX2lkGAMgASgJEkEKDGNvbXBsZXRlbmVzcxgEIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbXBsZXRlbmVzcxIXCg9yZXN1bWVfcGhhc2VfaWQYBSABKAkSPgoLbG9nX3N1bW1hcnkYBiABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTdW1tYXJ5EjwKC2xvZ19lbnRyaWVzGAcgAygLMicudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTG9nRW50cnkSSAoPbGFzdF92YWxpZGF0aW9uGAggASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI/CglzdGFsZW5lc3MYCSABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5TdGFsZW5lc3NUaWVyEhkKEXByb3NlX2hhbmRvZmZfcmVmGAogASgJEhQKDGFzc2VtYmxlZF9hdBgLIAEoCSqMAQoKUGxhblN0YXR1cxIbChdQTEFOX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEVBMQU5fU1RBVFVTX0RSQUZUEAESFgoSUExBTl9TVEFUVVNfQUNUSVZFEAISGAoUUExBTl9TVEFUVVNfQ09NUExFVEUQAxIYChRQTEFOX1NUQVRVU19BUkNISVZFRBAEKowBCgtQaGFzZVN0YXR1cxIcChhQSEFTRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIVChFQSEFTRV9TVEFUVVNfVE9ETxABEhcKE1BIQVNFX1NUQVRVU19BQ1RJVkUQAhIVChFQSEFTRV9TVEFUVVNfRE9ORRADEhgKFFBIQVNFX1NUQVRVU19CTE9DS0VEEAQqkAEKDVN0YWxlbmVzc1RpZXISHgoaU1RBTEVORVNTX1RJRVJfVU5TUEVDSUZJRUQQABIYChRTVEFMRU5FU1NfVElFUl9GUkVTSBABEiAKHFNUQUxFTkVTU19USUVSX0xJR0hUTFlfU1RBTEUQAhIjCh9TVEFMRU5FU1NfVElFUl9ERUZJTklURUxZX1NUQUxFEAMqeAoNUmVmZXJlbmNlS2luZBIeChpSRUZFUkVOQ0VfS0lORF9VTlNQRUNJRklFRBAAEhcKE1JFRkVSRU5DRV9LSU5EX0NPREUQARIWChJSRUZFUkVOQ0VfS0lORF9SRVEQAhIWChJSRUZFUkVOQ0VfS0lORF9ET0MQAyrGAQoTUmVmZXJlbmNlUmVzb2x1dGlvbhIkCiBSRUZFUkVOQ0VfUkVTT0xVVElPTl9VTlNQRUNJRklFRBAAEiEKHVJFRkVSRU5DRV9SRVNPTFVUSU9OX1JFU09MVkVEEAESIwofUkVGRVJFTkNFX1JFU09MVVRJT05fVU5SRVNPTFZFRBACEh8KG1JFRkVSRU5DRV9SRVNPTFVUSU9OX0ZVVFVSRRADEiAKHFJFRkVSRU5DRV9SRVNPTFVUSU9OX01JU1NJTkcQBCqoAgoTUmVsZXZhbnRDb250ZXh0S2luZBIlCiFSRUxFVkFOVF9DT05URVhUX0tJTkRfVU5TUEVDSUZJRUQQABIfChtSRUxFVkFOVF9DT05URVhUX0tJTkRfU0tJTEwQARIdChlSRUxFVkFOVF9DT05URVhUX0tJTkRfRE9DEAISIQodUkVMRVZBTlRfQ09OVEVYVF9LSU5EX0NPTU1BTkQQAxIgChxSRUxFVkFOVF9DT05URVhUX0tJTkRfU0VBUkNIEAQSIgoeUkVMRVZBTlRfQ09OVEVYVF9LSU5EX0NPREVfUkVGEAUSIQodUkVMRVZBTlRfQ09OVEVYVF9LSU5EX1JFUV9SRUYQBhIeChpSRUxFVkFOVF9DT05URVhUX0tJTkRfTk9URRAHKoMBChRSZWxldmFudENvbnRleHRTY29wZRImCiJSRUxFVkFOVF9DT05URVhUX1NDT1BFX1VOU1BFQ0lGSUVEEAASIQodUkVMRVZBTlRfQ09OVEVYVF9TQ09QRV9HTE9CQUwQARIgChxSRUxFVkFOVF9DT05URVhUX1NDT1BFX1BIQVNFEAIqwAIKG1JlbGV2YW50Q29udGV4dFJlcGVhdFBvbGljeRIuCipSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABI1CjFSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfT05DRV9QRVJfRVhFQ1VUSU9OEAESLAooUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX09OX1JFU1VNRRACEi4KKlJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9FVkVSWV9QSEFTRRADEi4KKlJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9QSEFTRV9FTlRSWRAEEiwKKFJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9BU19ORUVERUQQBSrcAQoVUmVsZXZhbnRDb250ZXh0U291cmNlEicKI1JFTEVWQU5UX0NPTlRFWFRfU09VUkNFX1VOU1BFQ0lGSUVEEAASJAogUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfQVVUSE9SRUQQARImCiJSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9ESVNDT1ZFUkVEEAISJAogUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfTUlHUkFURUQQAxImCiJSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9BVVRPRklMTEVEEAQqsQEKFVJlbGV2YW50Q29udGV4dFN0YXR1cxInCiNSRUxFVkFOVF9DT05URVhUX1NUQVRVU19VTlNQRUNJRklFRBAAEiEKHVJFTEVWQU5UX0NPTlRFWFRfU1RBVFVTX1JFQURZEAESJAogUkVMRVZBTlRfQ09OVEVYVF9TVEFUVVNfREVHUkFERUQQAhImCiJSRUxFVkFOVF9DT05URVhUX1NUQVRVU19VTlJFU09MVkVEEAMqiAEKDUZpbmRpbmdUcmlhZ2USHgoaRklORElOR19UUklBR0VfVU5TUEVDSUZJRUQQABIcChhGSU5ESU5HX1RSSUFHRV9DQU5ESURBVEUQARIbChdGSU5ESU5HX1RSSUFHRV9QUk9NT1RFRBACEhwKGEZJTkRJTkdfVFJJQUdFX0RJU01JU1NFRBADKl0KDENvbXBsZXRlbmVzcxIcChhDT01QTEVURU5FU1NfVU5TUEVDSUZJRUQQABIVChFDT01QTEVURU5FU1NfRlVMTBABEhgKFENPTVBMRVRFTkVTU19QQVJUSUFMEAIqkQEKEVZhbGlkYXRpb25WZXJkaWN0EiIKHlZBTElEQVRJT05fVkVSRElDVF9VTlNQRUNJRklFRBAAEhsKF1ZBTElEQVRJT05fVkVSRElDVF9QQVNTEAESGwoXVkFMSURBVElPTl9WRVJESUNUX0ZBSUwQAhIeChpWQUxJREFUSU9OX1ZFUkRJQ1RfVU5LTk9XThADKrQBCg5OZXh0QWN0aW9uS2luZBIgChxORVhUX0FDVElPTl9LSU5EX1VOU1BFQ0lGSUVEEAASIAocTkVYVF9BQ1RJT05fS0lORF9SRUNPTU1FTkRFRBABEiAKHE5FWFRfQUNUSU9OX0tJTkRfQUxURVJOQVRJVkUQAhIdChlORVhUX0FDVElPTl9LSU5EX09QVElPTkFMEAMSHQoZTkVYVF9BQ1RJT05fS0lORF9SRUNPVkVSWRAEKroBCgxMb2dFbnRyeVR5cGUSHgoaTE9HX0VOVFJZX1RZUEVfVU5TUEVDSUZJRUQQABIbChdMT0dfRU5UUllfVFlQRV9ERUNJU0lPThABEhoKFkxPR19FTlRSWV9UWVBFX0ZJTkRJTkcQAhIdChlMT0dfRU5UUllfVFlQRV9CVUdfUkVQT1JUEAMSGQoVTE9HX0VOVFJZX1RZUEVfUkVDT1JEEAQSFwoTTE9HX0VOVFJZX1RZUEVfTk9URRAFKqABCg1Mb2dTeW5jU3RhdHVzEh8KG0xPR19TWU5DX1NUQVRVU19VTlNQRUNJRklFRBAAEhkKFUxPR19TWU5DX1NUQVRVU19MT0NBTBABEhsKF0xPR19TWU5DX1NUQVRVU19QRU5ESU5HEAISGgoWTE9HX1NZTkNfU1RBVFVTX1NZTkNFRBADEhoKFkxPR19TWU5DX1NUQVRVU19GQUlMRUQQBCqjAQoLTG9nU2V2ZXJpdHkSHAoYTE9HX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASFQoRTE9HX1NFVkVSSVRZX0lORk8QARIUChBMT0dfU0VWRVJJVFlfTE9XEAISFwoTTE9HX1NFVkVSSVRZX01FRElVTRADEhUKEUxPR19TRVZFUklUWV9ISUdIEAQSGQoVTE9HX1NFVkVSSVRZX0NSSVRJQ0FMEAVCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
 
 /**
  * NextAction is one concrete command/action the API recommends for the current
@@ -360,71 +360,81 @@ export const RegressionAnchorSchema: GenMessage<RegressionAnchor> = /*@__PURE__*
   messageDesc(file_plan_manager_v1_shared_model, 4);
 
 /**
- * Decision is an in-flow recorded design decision (captured during execution via
- * a runner command), feeding the handoff.
+ * DownstreamRef records the result of forwarding a log entry to a downstream
+ * system (the scenario-qa bug inbox, swarm-manager records).
  *
- * @generated from message vrooli.plan_manager.v1.shared.Decision
+ * @generated from message vrooli.plan_manager.v1.shared.DownstreamRef
  */
-export type Decision = Message<"vrooli.plan_manager.v1.shared.Decision"> & {
+export type DownstreamRef = Message<"vrooli.plan_manager.v1.shared.DownstreamRef"> & {
   /**
-   * @generated from field: string id = 1;
+   * "scenario-qa" | "swarm-manager"
+   *
+   * @generated from field: string system = 1;
    */
-  id: string;
+  system: string;
 
   /**
-   * @generated from field: string summary = 2;
+   * "bug_report" | "record"
+   *
+   * @generated from field: string kind = 2;
    */
-  summary: string;
+  kind: string;
 
   /**
-   * @generated from field: string detail = 3;
+   * downstream id/url once synced
+   *
+   * @generated from field: string reference = 3;
+   */
+  reference: string;
+
+  /**
+   * last sync detail or error
+   *
+   * @generated from field: string detail = 4;
    */
   detail: string;
 
   /**
-   * @generated from field: string phase_id = 4;
+   * RFC3339; empty until first successful sync
+   *
+   * @generated from field: string synced_at = 5;
    */
-  phaseId: string;
-
-  /**
-   * @generated from field: string recorded_at = 5;
-   */
-  recordedAt: string;
+  syncedAt: string;
 };
 
 /**
- * Describes the message vrooli.plan_manager.v1.shared.Decision.
- * Use `create(DecisionSchema)` to create a new message.
+ * Describes the message vrooli.plan_manager.v1.shared.DownstreamRef.
+ * Use `create(DownstreamRefSchema)` to create a new message.
  */
-export const DecisionSchema: GenMessage<Decision> = /*@__PURE__*/
+export const DownstreamRefSchema: GenMessage<DownstreamRef> = /*@__PURE__*/
   messageDesc(file_plan_manager_v1_shared_model, 5);
 
 /**
- * Finding is an in-flow recorded candidate finding (possible bug). Always filed
- * as CANDIDATE; an operator triages it before it becomes a real bug.
+ * LogEntry is one typed execution-log ledger entry — the unified record for
+ * decisions, candidate findings, bug reports, reusable records, and notes.
  *
- * @generated from message vrooli.plan_manager.v1.shared.Finding
+ * @generated from message vrooli.plan_manager.v1.shared.LogEntry
  */
-export type Finding = Message<"vrooli.plan_manager.v1.shared.Finding"> & {
+export type LogEntry = Message<"vrooli.plan_manager.v1.shared.LogEntry"> & {
   /**
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * @generated from field: string title = 2;
+   * @generated from field: vrooli.plan_manager.v1.shared.LogEntryType type = 2;
    */
-  title: string;
+  type: LogEntryType;
 
   /**
-   * @generated from field: string detail = 3;
+   * @generated from field: string plan_id = 3;
    */
-  detail: string;
+  planId: string;
 
   /**
-   * @generated from field: vrooli.plan_manager.v1.shared.FindingTriage triage = 4;
+   * @generated from field: string execution_id = 4;
    */
-  triage: FindingTriage;
+  executionId: string;
 
   /**
    * @generated from field: string phase_id = 5;
@@ -432,24 +442,209 @@ export type Finding = Message<"vrooli.plan_manager.v1.shared.Finding"> & {
   phaseId: string;
 
   /**
-   * @generated from field: string recorded_at = 6;
+   * @generated from field: string title = 6;
    */
-  recordedAt: string;
+  title: string;
+
+  /**
+   * @generated from field: string detail = 7;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.LogSeverity severity = 8;
+   */
+  severity: LogSeverity;
+
+  /**
+   * Operator-triage state; meaningful for finding entries (candidate ->
+   * promoted/dismissed). Other types stay UNSPECIFIED.
+   *
+   * @generated from field: vrooli.plan_manager.v1.shared.FindingTriage triage = 9;
+   */
+  triage: FindingTriage;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.LogSyncStatus sync_status = 10;
+   */
+  syncStatus: LogSyncStatus;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.DownstreamRef downstream = 11;
+   */
+  downstream?: DownstreamRef | undefined;
+
+  /**
+   * The plan-manager CLI command path that produced this entry (audit trail).
+   *
+   * @generated from field: string source_command = 12;
+   */
+  sourceCommand: string;
+
+  /**
+   * Optional supporting evidence locators (paths, command output refs, urls).
+   *
+   * @generated from field: repeated string evidence = 13;
+   */
+  evidence: string[];
 
   /**
    * VROOLI_AGENT_MANAGER_RUN_ID when present; powers attribution-keyed dedup.
    *
-   * @generated from field: string attribution_run_id = 7;
+   * @generated from field: string attribution_run_id = 14;
    */
   attributionRunId: string;
+
+  /**
+   * Idempotency key; a retry with the same key returns the existing entry.
+   *
+   * @generated from field: string idempotency_key = 15;
+   */
+  idempotencyKey: string;
+
+  /**
+   * When this entry corrects/supersedes an earlier entry.
+   *
+   * @generated from field: string supersedes_id = 16;
+   */
+  supersedesId: string;
+
+  /**
+   * When this bug_report/record was promoted from a finding entry.
+   *
+   * @generated from field: string promoted_from_id = 17;
+   */
+  promotedFromId: string;
+
+  /**
+   * @generated from field: string created_at = 18;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string updated_at = 19;
+   */
+  updatedAt: string;
 };
 
 /**
- * Describes the message vrooli.plan_manager.v1.shared.Finding.
- * Use `create(FindingSchema)` to create a new message.
+ * Describes the message vrooli.plan_manager.v1.shared.LogEntry.
+ * Use `create(LogEntrySchema)` to create a new message.
  */
-export const FindingSchema: GenMessage<Finding> = /*@__PURE__*/
+export const LogEntrySchema: GenMessage<LogEntry> = /*@__PURE__*/
   messageDesc(file_plan_manager_v1_shared_model, 6);
+
+/**
+ * LogSummaryItem is one compact line in a LogSummary.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.LogSummaryItem
+ */
+export type LogSummaryItem = Message<"vrooli.plan_manager.v1.shared.LogSummaryItem"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.LogEntryType type = 2;
+   */
+  type: LogEntryType;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.LogSyncStatus sync_status = 4;
+   */
+  syncStatus: LogSyncStatus;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.FindingTriage triage = 5;
+   */
+  triage: FindingTriage;
+
+  /**
+   * @generated from field: string phase_id = 6;
+   */
+  phaseId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.LogSummaryItem.
+ * Use `create(LogSummaryItemSchema)` to create a new message.
+ */
+export const LogSummaryItemSchema: GenMessage<LogSummaryItem> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 7);
+
+/**
+ * LogSummary is a compact roll-up of an execution's (or plan's) log ledger,
+ * surfaced into resume/status/handoff so a resumed agent reorients without
+ * reading every entry.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.LogSummary
+ */
+export type LogSummary = Message<"vrooli.plan_manager.v1.shared.LogSummary"> & {
+  /**
+   * @generated from field: int32 total = 1;
+   */
+  total: number;
+
+  /**
+   * @generated from field: int32 decisions = 2;
+   */
+  decisions: number;
+
+  /**
+   * @generated from field: int32 findings = 3;
+   */
+  findings: number;
+
+  /**
+   * @generated from field: int32 bug_reports = 4;
+   */
+  bugReports: number;
+
+  /**
+   * @generated from field: int32 records = 5;
+   */
+  records: number;
+
+  /**
+   * @generated from field: int32 notes = 6;
+   */
+  notes: number;
+
+  /**
+   * @generated from field: int32 candidate_findings = 7;
+   */
+  candidateFindings: number;
+
+  /**
+   * @generated from field: int32 pending_sync = 8;
+   */
+  pendingSync: number;
+
+  /**
+   * @generated from field: int32 failed_sync = 9;
+   */
+  failedSync: number;
+
+  /**
+   * A short, most-recent-first list for quick reorientation.
+   *
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.LogSummaryItem recent = 10;
+   */
+  recent: LogSummaryItem[];
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.LogSummary.
+ * Use `create(LogSummarySchema)` to create a new message.
+ */
+export const LogSummarySchema: GenMessage<LogSummary> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 8);
 
 /**
  * ValidationResult is the most recent validation/baseline outcome for a plan or
@@ -512,7 +707,7 @@ export type ValidationResult = Message<"vrooli.plan_manager.v1.shared.Validation
  * Use `create(ValidationResultSchema)` to create a new message.
  */
 export const ValidationResultSchema: GenMessage<ValidationResult> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 7);
+  messageDesc(file_plan_manager_v1_shared_model, 9);
 
 /**
  * CommandValidationFinding is one CLI Health-backed finding for an authored
@@ -575,13 +770,15 @@ export type CommandValidationFinding = Message<"vrooli.plan_manager.v1.shared.Co
  * Use `create(CommandValidationFindingSchema)` to create a new message.
  */
 export const CommandValidationFindingSchema: GenMessage<CommandValidationFinding> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 8);
+  messageDesc(file_plan_manager_v1_shared_model, 10);
 
 /**
  * Phase is a first-class phase — the unit the runner walks and context is scoped
- * to. order/title/intent/required_reading/reminders/acceptance are AUTHORED;
- * baseline_scope/status/last_validation are COMPUTED; decisions/findings are
- * captured in-flow.
+ * to. order/title/intent/relevant_context/reminders/acceptance are AUTHORED;
+ * required_reading is legacy migration input; baseline_scope/status/
+ * last_validation are COMPUTED. In-flow decisions/findings are NOT stored on the
+ * phase — they are typed entries in the log domain (LogService), scoped to the
+ * phase by phase_id.
  *
  * @generated from message vrooli.plan_manager.v1.shared.Phase
  */
@@ -607,6 +804,8 @@ export type Phase = Message<"vrooli.plan_manager.v1.shared.Phase"> & {
   intent: string;
 
   /**
+   * Legacy migration input. Execution-facing setup is relevant_context.
+   *
    * @generated from field: repeated string required_reading = 5;
    */
   requiredReading: string[];
@@ -640,22 +839,12 @@ export type Phase = Message<"vrooli.plan_manager.v1.shared.Phase"> & {
   lastValidation?: ValidationResult | undefined;
 
   /**
-   * @generated from field: repeated vrooli.plan_manager.v1.shared.Decision decisions = 11;
-   */
-  decisions: Decision[];
-
-  /**
-   * @generated from field: repeated vrooli.plan_manager.v1.shared.Finding findings = 12;
-   */
-  findings: Finding[];
-
-  /**
-   * @generated from field: repeated vrooli.plan_manager.v1.shared.Reference references = 13;
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.Reference references = 11;
    */
   references: Reference[];
 
   /**
-   * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem relevant_context = 14;
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem relevant_context = 12;
    */
   relevantContext: RelevantContextItem[];
 };
@@ -665,7 +854,7 @@ export type Phase = Message<"vrooli.plan_manager.v1.shared.Phase"> & {
  * Use `create(PhaseSchema)` to create a new message.
  */
 export const PhaseSchema: GenMessage<Phase> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 9);
+  messageDesc(file_plan_manager_v1_shared_model, 11);
 
 /**
  * Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
@@ -780,7 +969,7 @@ export type Plan = Message<"vrooli.plan_manager.v1.shared.Plan"> & {
  * Use `create(PlanSchema)` to create a new message.
  */
 export const PlanSchema: GenMessage<Plan> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 10);
+  messageDesc(file_plan_manager_v1_shared_model, 12);
 
 /**
  * PlanEdge is one supersession/dependency edge between two plans (the plan
@@ -812,7 +1001,7 @@ export type PlanEdge = Message<"vrooli.plan_manager.v1.shared.PlanEdge"> & {
  * Use `create(PlanEdgeSchema)` to create a new message.
  */
 export const PlanEdgeSchema: GenMessage<PlanEdge> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 11);
+  messageDesc(file_plan_manager_v1_shared_model, 13);
 
 /**
  * VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
@@ -868,7 +1057,7 @@ export type VelocityPoint = Message<"vrooli.plan_manager.v1.shared.VelocityPoint
  * Use `create(VelocityPointSchema)` to create a new message.
  */
 export const VelocityPointSchema: GenMessage<VelocityPoint> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 12);
+  messageDesc(file_plan_manager_v1_shared_model, 14);
 
 /**
  * Handoff is the canonical, structured handoff assembled from state captured
@@ -909,14 +1098,19 @@ export type Handoff = Message<"vrooli.plan_manager.v1.shared.Handoff"> & {
   resumePhaseId: string;
 
   /**
-   * @generated from field: repeated vrooli.plan_manager.v1.shared.Decision decisions = 6;
+   * Compact roll-up of the execution's log ledger (decisions/findings/bugs/
+   * records) assembled from the log domain at handoff time.
+   *
+   * @generated from field: vrooli.plan_manager.v1.shared.LogSummary log_summary = 6;
    */
-  decisions: Decision[];
+  logSummary?: LogSummary | undefined;
 
   /**
-   * @generated from field: repeated vrooli.plan_manager.v1.shared.Finding candidate_findings = 7;
+   * The full log entries captured during the run, oldest-first.
+   *
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.LogEntry log_entries = 7;
    */
-  candidateFindings: Finding[];
+  logEntries: LogEntry[];
 
   /**
    * @generated from field: vrooli.plan_manager.v1.shared.ValidationResult last_validation = 8;
@@ -947,7 +1141,7 @@ export type Handoff = Message<"vrooli.plan_manager.v1.shared.Handoff"> & {
  * Use `create(HandoffSchema)` to create a new message.
  */
 export const HandoffSchema: GenMessage<Handoff> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 13);
+  messageDesc(file_plan_manager_v1_shared_model, 15);
 
 /**
  * PlanStatus is the lifecycle state of a plan. COMPUTED: derived from phase
@@ -1498,4 +1692,131 @@ export enum NextActionKind {
  */
 export const NextActionKindSchema: GenEnum<NextActionKind> = /*@__PURE__*/
   enumDesc(file_plan_manager_v1_shared_model, 13);
+
+/**
+ * LogEntryType is the typed kind of an execution-log ledger entry.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.LogEntryType
+ */
+export enum LogEntryType {
+  /**
+   * @generated from enum value: LOG_ENTRY_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: LOG_ENTRY_TYPE_DECISION = 1;
+   */
+  DECISION = 1,
+
+  /**
+   * @generated from enum value: LOG_ENTRY_TYPE_FINDING = 2;
+   */
+  FINDING = 2,
+
+  /**
+   * @generated from enum value: LOG_ENTRY_TYPE_BUG_REPORT = 3;
+   */
+  BUG_REPORT = 3,
+
+  /**
+   * @generated from enum value: LOG_ENTRY_TYPE_RECORD = 4;
+   */
+  RECORD = 4,
+
+  /**
+   * @generated from enum value: LOG_ENTRY_TYPE_NOTE = 5;
+   */
+  NOTE = 5,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.LogEntryType.
+ */
+export const LogEntryTypeSchema: GenEnum<LogEntryType> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 14);
+
+/**
+ * LogSyncStatus is the downstream-integration state of a log entry. LOCAL means
+ * the entry has no downstream target (decisions/findings/notes). PENDING/SYNCED/
+ * FAILED apply to bug_report and record entries Plan Manager forwards through an
+ * internal seam. A FAILED entry remains durable and retryable.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.LogSyncStatus
+ */
+export enum LogSyncStatus {
+  /**
+   * @generated from enum value: LOG_SYNC_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: LOG_SYNC_STATUS_LOCAL = 1;
+   */
+  LOCAL = 1,
+
+  /**
+   * @generated from enum value: LOG_SYNC_STATUS_PENDING = 2;
+   */
+  PENDING = 2,
+
+  /**
+   * @generated from enum value: LOG_SYNC_STATUS_SYNCED = 3;
+   */
+  SYNCED = 3,
+
+  /**
+   * @generated from enum value: LOG_SYNC_STATUS_FAILED = 4;
+   */
+  FAILED = 4,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.LogSyncStatus.
+ */
+export const LogSyncStatusSchema: GenEnum<LogSyncStatus> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 15);
+
+/**
+ * LogSeverity is the optional severity of a finding or bug-report entry.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.LogSeverity
+ */
+export enum LogSeverity {
+  /**
+   * @generated from enum value: LOG_SEVERITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: LOG_SEVERITY_INFO = 1;
+   */
+  INFO = 1,
+
+  /**
+   * @generated from enum value: LOG_SEVERITY_LOW = 2;
+   */
+  LOW = 2,
+
+  /**
+   * @generated from enum value: LOG_SEVERITY_MEDIUM = 3;
+   */
+  MEDIUM = 3,
+
+  /**
+   * @generated from enum value: LOG_SEVERITY_HIGH = 4;
+   */
+  HIGH = 4,
+
+  /**
+   * @generated from enum value: LOG_SEVERITY_CRITICAL = 5;
+   */
+  CRITICAL = 5,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.LogSeverity.
+ */
+export const LogSeveritySchema: GenEnum<LogSeverity> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 16);
 

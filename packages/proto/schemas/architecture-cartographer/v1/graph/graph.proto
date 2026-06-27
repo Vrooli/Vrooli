@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.graph;
 
+import "architecture-cartographer/v1/domains/domains.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
+import "common/v1/attestation.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph;graph_v1";
@@ -164,6 +167,19 @@ service GraphService {
   // ExportGraph returns the snapshot in a serializable shape (e.g.,
   // JSON) for offline analysis or fixture authoring.
   rpc ExportGraph(ExportGraphRequest) returns (ExportGraphResponse);
+
+  // GetZoneMap classifies the latest graph packages into the scenario's
+  // template-declared code-layout zones and includes layering cross-checks.
+  rpc GetZoneMap(GetZoneMapRequest) returns (GetZoneMapResponse);
+
+  // GetSlice returns the implementation slice for one domain, from proto
+  // adoption evidence through handler, internal, CLI, and UI rungs.
+  rpc GetSlice(GetSliceRequest) returns (GetSliceResponse);
+
+  // InferArchetype infers each domain's archetype (Q20) from graph signals and
+  // converges it against the declared DOMAINS.md archetype, reporting drift
+  // without overriding the declared value.
+  rpc InferArchetype(InferArchetypeRequest) returns (InferArchetypeResponse);
 }
 
 message ExtractGraphRequest {
@@ -228,4 +244,159 @@ message ExportGraphResponse {
   bytes payload = 1;
   // Content-type of the payload (e.g., "application/json").
   string content_type = 2;
+}
+
+message GetZoneMapRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+  // or extract one when no cached snapshot exists.
+  string snapshot_id = 2;
+}
+
+message GetZoneMapResponse {
+  ZoneMap zone_map = 1;
+}
+
+message ZoneMap {
+  string scenario = 1;
+  string snapshot_id = 2;
+  repeated ZonePackage packages = 3;
+  repeated ZoneViolation violations = 4;
+  // How trustworthy the zone taxonomy is: HIGH when ARCHITECTURE.md declares a
+  // Zone Map that the code confirms; LOW when zones are derived-only (no
+  // ARCHITECTURE.md Zone Map to converge against).
+  AuthorityConfidence authority_confidence = 5;
+  // Map-level honesty contract (Q7): DERIVED when zones are code-computed,
+  // CONTRADICTED when any package's declared layer disagrees with the code.
+  common.v1.AttestedAnswer attestation = 6;
+}
+
+message ZonePackage {
+  string package_id = 1;
+  string import_path = 2;
+  string repo_path = 3;
+  string zone = 4;
+  string domain = 5;
+  string archetype = 6;
+  bool declared = 7;
+  // Convergence confidence in [0,1] from the three zone signals (manifest /
+  // ARCHITECTURE.md / import graph).
+  double confidence = 8;
+  // Raw layer label from the ARCHITECTURE.md Zone Map, preserved verbatim;
+  // empty when the doc does not declare this package's layer.
+  string declared_layer = 9;
+  // Typed evidence behind the classification (one per contributing signal).
+  repeated ZoneEvidence evidence = 10;
+  // True when the declared layer disagrees with the code-derived zone.
+  bool drift = 11;
+}
+
+// ZoneEvidence is one typed signal behind a converged zone classification.
+message ZoneEvidence {
+  string kind = 1; // manifest | architecture_doc | import_graph
+  string detail = 2;
+  string locator = 3;
+}
+
+message ZoneViolation {
+  string kind = 1;
+  string subtype = 2;
+  vrooli.architecture_cartographer.v1.shared.Severity severity = 3;
+  repeated string locations = 4;
+  repeated string domains = 5;
+  string summary = 6;
+}
+
+// AuthorityConfidence grades how trustworthy a derived map's authority is.
+enum AuthorityConfidence {
+  AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+  AUTHORITY_CONFIDENCE_HIGH = 1;
+  AUTHORITY_CONFIDENCE_LOW = 2;
+}
+
+message GetSliceRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Domain name from DOMAINS.md / the derived domain map.
+  string domain = 2;
+  // Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+  // or extract one when no cached snapshot exists.
+  string snapshot_id = 3;
+}
+
+message GetSliceResponse {
+  DomainSlice slice = 1;
+}
+
+message DomainSlice {
+  string scenario = 1;
+  string domain = 2;
+  string snapshot_id = 3;
+  repeated SliceRung rungs = 4;
+  repeated string surfaces = 5;
+  // Package-level dependency edges between rungs (handler->internal->proto…).
+  repeated SliceEdge layer_edges = 6;
+  // Q16 honesty contract: DERIVED from the graph; sufficiency PARTIAL while
+  // symbol-level edge resolution is deferred to the call/reference-edge phase.
+  common.v1.AttestedAnswer attestation = 7;
+}
+
+message SliceRung {
+  string name = 1;
+  bool present = 2;
+  repeated SliceEvidence evidence = 3;
+  repeated SliceFile files = 4;
+  repeated SliceSymbol symbols = 5;
+}
+
+// SliceEvidence is one typed justification for a rung; folds into a Citation.
+message SliceEvidence {
+  string kind = 1; // declared_path | package | proto_import | proto_file
+  string value = 2; // locator
+  string source = 3; // doc | code
+}
+
+message SliceFile {
+  string path = 1;
+  int32 lines = 2;
+  bool is_test = 3;
+}
+
+message SliceSymbol {
+  string name = 1;
+  string kind = 2;
+  string file = 3;
+}
+
+message SliceEdge {
+  string from_rung = 1;
+  string to_rung = 2;
+  string kind = 3; // import
+}
+
+message InferArchetypeRequest {
+  // Target scenario name.
+  string scenario = 1;
+  // Optional single domain; empty infers for every domain in the map.
+  string domain = 2;
+  // Optional GraphSnapshot.id. Empty uses/extracts the latest snapshot.
+  string snapshot_id = 3;
+}
+
+message InferArchetypeResponse {
+  string scenario = 1;
+  string snapshot_id = 2;
+  repeated ArchetypeReport reports = 3;
+}
+
+// ArchetypeReport is the Q20 answer for one domain: the converged archetype set
+// (declared + inferred, primary first) plus a drift flag and the honesty
+// contract. The declared value is never overridden — disagreement is reported.
+message ArchetypeReport {
+  string domain = 1;
+  repeated vrooli.architecture_cartographer.v1.domains.DomainArchetype archetypes = 2;
+  // True when the declared primary archetype disagrees with the inferred one.
+  bool convergence_drift = 3;
+  common.v1.AttestedAnswer attestation = 4;
 }

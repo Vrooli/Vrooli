@@ -22,10 +22,11 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from common.v1 import attestation_pb2 as common_dot_v1_dot_attestation__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n2architecture-cartographer/v1/domains/domains.proto\x12+vrooli.architecture_cartographer.v1.domains\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb4\x03\n\rDerivedDomain\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x05paths\x18\x02 \x03(\tR\x05paths\x12\x1a\n\x08glossary\x18\x03 \x03(\tR\x08glossary\x12&\n\x0eresponsibility\x18\x04 \x01(\tR\x0eresponsibility\x12\x18\n\x07purpose\x18\x05 \x01(\tR\x07purpose\x12\x1b\n\towns_data\x18\x06 \x01(\tR\x08ownsData\x12)\n\x10secondary_traits\x18\x07 \x03(\tR\x0fsecondaryTraits\x12\x1a\n\x08surfaces\x18\x08 \x03(\tR\x08surfaces\x12\\\n\narchetypes\x18\t \x03(\x0b\x32<.vrooli.architecture_cartographer.v1.domains.DomainArchetypeR\narchetypes\x12Y\n\nprovenance\x18\n \x03(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\nprovenance\"\xb7\x01\n\x0f\x44omainArchetype\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12T\n\x06source\x18\x02 \x01(\x0e\x32<.vrooli.architecture_cartographer.v1.domains.ArchetypeSourceR\x06source\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12\x1a\n\x08\x65vidence\x18\x04 \x03(\tR\x08\x65vidence\"\xaf\x01\n\x11\x44omainDeclaration\x12Q\n\x06source\x18\x01 \x01(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\x06source\x12!\n\x0c\x64omain_names\x18\x02 \x03(\tR\x0b\x64omainNames\x12$\n\rauthoritative\x18\x03 \x01(\x08R\rauthoritative\"\xbd\x04\n\x10\x44\x65rivedDomainMap\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12T\n\x07\x64omains\x18\x02 \x03(\x0b\x32:.vrooli.architecture_cartographer.v1.domains.DerivedDomainR\x07\x64omains\x12)\n\x10shared_substrate\x18\x03 \x03(\tR\x0fsharedSubstrate\x12\x1f\n\x0bnon_domains\x18\x04 \x03(\tR\nnonDomains\x12W\n\tauthority\x18\x05 \x01(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\tauthority\x12\x62\n\x0c\x64\x65\x63larations\x18\x06 \x03(\x0b\x32>.vrooli.architecture_cartographer.v1.domains.DomainDeclarationR\x0c\x64\x65\x63larations\x12\x39\n\nderived_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tderivedAt\x12s\n\x14\x61uthority_confidence\x18\x08 \x01(\x0e\x32@.vrooli.architecture_cartographer.v1.domains.AuthorityConfidenceR\x13\x61uthorityConfidence\"3\n\x15\x45xtractDomainsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"v\n\x16\x45xtractDomainsResponse\x12\\\n\ndomain_map\x18\x01 \x01(\x0b\x32=.vrooli.architecture_cartographer.v1.domains.DerivedDomainMapR\tdomainMap\"1\n\x13GetDomainMapRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"t\n\x14GetDomainMapResponse\x12\\\n\ndomain_map\x18\x01 \x01(\x0b\x32=.vrooli.architecture_cartographer.v1.domains.DerivedDomainMapR\tdomainMap\"\xb9\x02\n\x12\x43onvergenceFinding\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n\x06\x64omain\x18\x02 \x01(\tR\x06\x64omain\x12\\\n\x08severity\x18\x03 \x01(\x0e\x32@.vrooli.architecture_cartographer.v1.domains.ConvergenceSeverityR\x08severity\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12S\n\x07sources\x18\x05 \x03(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\x07sources\x12*\n\x11rolled_up_domains\x18\x06 \x03(\tR\x0frolledUpDomains\"6\n\x18\x43onvergenceReportRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xe2\x02\n\x19\x43onvergenceReportResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12W\n\tauthority\x18\x02 \x01(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\tauthority\x12[\n\x08\x66indings\x18\x03 \x03(\x0b\x32?.vrooli.architecture_cartographer.v1.domains.ConvergenceFindingR\x08\x66indings\x12s\n\x14\x61uthority_confidence\x18\x04 \x01(\x0e\x32@.vrooli.architecture_cartographer.v1.domains.AuthorityConfidenceR\x13\x61uthorityConfidence\"1\n\x13\x44raftDomainsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xb0\x01\n\x0eProposedDomain\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x05paths\x18\x02 \x03(\tR\x05paths\x12\x1c\n\tarchetype\x18\x03 \x01(\tR\tarchetype\x12\x1a\n\x08glossary\x18\x04 \x03(\tR\x08glossary\x12\x1e\n\nconfidence\x18\x05 \x01(\tR\nconfidence\x12\x1a\n\x08\x65vidence\x18\x06 \x03(\tR\x08\x65vidence\"\xa5\x01\n\x14\x44raftDomainsResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12U\n\x07\x64omains\x18\x02 \x03(\x0b\x32;.vrooli.architecture_cartographer.v1.domains.ProposedDomainR\x07\x64omains\x12\x1a\n\x08markdown\x18\x03 \x01(\tR\x08markdown*\xc8\x01\n\x0c\x44omainSource\x12\x1d\n\x19\x44OMAIN_SOURCE_UNSPECIFIED\x10\x00\x12\x1e\n\x1a\x44OMAIN_SOURCE_API_MANIFEST\x10\x01\x12\x1d\n\x19\x44OMAIN_SOURCE_DOMAINS_DOC\x10\x02\x12\x1d\n\x19\x44OMAIN_SOURCE_API_FOLDERS\x10\x03\x12\x1c\n\x18\x44OMAIN_SOURCE_CLI_GROUPS\x10\x04\x12\x1d\n\x19\x44OMAIN_SOURCE_UI_FEATURES\x10\x05*q\n\x0f\x41rchetypeSource\x12 \n\x1c\x41RCHETYPE_SOURCE_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x41RCHETYPE_SOURCE_DECLARED\x10\x01\x12\x1d\n\x19\x41RCHETYPE_SOURCE_INFERRED\x10\x02*x\n\x13\x41uthorityConfidence\x12$\n AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x41UTHORITY_CONFIDENCE_HIGH\x10\x01\x12\x1c\n\x18\x41UTHORITY_CONFIDENCE_LOW\x10\x02*y\n\x13\x43onvergenceSeverity\x12$\n CONVERGENCE_SEVERITY_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x43ONVERGENCE_SEVERITY_INFO\x10\x01\x12\x1d\n\x19\x43ONVERGENCE_SEVERITY_WARN\x10\x02\x32\xfd\x04\n\x0e\x44omainsService\x12\x99\x01\n\x0e\x45xtractDomains\x12\x42.vrooli.architecture_cartographer.v1.domains.ExtractDomainsRequest\x1a\x43.vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse\x12\x93\x01\n\x0cGetDomainMap\x12@.vrooli.architecture_cartographer.v1.domains.GetDomainMapRequest\x1a\x41.vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse\x12\xa2\x01\n\x11\x43onvergenceReport\x12\x45.vrooli.architecture_cartographer.v1.domains.ConvergenceReportRequest\x1a\x46.vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse\x12\x93\x01\n\x0c\x44raftDomains\x12@.vrooli.architecture_cartographer.v1.domains.DraftDomainsRequest\x1a\x41.vrooli.architecture_cartographer.v1.domains.DraftDomainsResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains;domains_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n2architecture-cartographer/v1/domains/domains.proto\x12+vrooli.architecture_cartographer.v1.domains\x1a\x1b\x63ommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\x03\n\rDerivedDomain\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x05paths\x18\x02 \x03(\tR\x05paths\x12\x1a\n\x08glossary\x18\x03 \x03(\tR\x08glossary\x12&\n\x0eresponsibility\x18\x04 \x01(\tR\x0eresponsibility\x12\x18\n\x07purpose\x18\x05 \x01(\tR\x07purpose\x12\x1b\n\towns_data\x18\x06 \x01(\tR\x08ownsData\x12)\n\x10secondary_traits\x18\x07 \x03(\tR\x0fsecondaryTraits\x12\x1a\n\x08surfaces\x18\x08 \x03(\tR\x08surfaces\x12\\\n\narchetypes\x18\t \x03(\x0b\x32<.vrooli.architecture_cartographer.v1.domains.DomainArchetypeR\narchetypes\x12Y\n\nprovenance\x18\n \x03(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\nprovenance\x12;\n\x0b\x61ttestation\x18\x0b \x01(\x0b\x32\x19.common.v1.AttestedAnswerR\x0b\x61ttestation\"\xa0\x02\n\x0f\x44omainArchetype\x12T\n\tarchetype\x18\x01 \x01(\x0e\x32\x36.vrooli.architecture_cartographer.v1.domains.ArchetypeR\tarchetype\x12T\n\x06source\x18\x02 \x01(\x0e\x32<.vrooli.architecture_cartographer.v1.domains.ArchetypeSourceR\x06source\x12\x1e\n\nconfidence\x18\x03 \x01(\x01R\nconfidence\x12\x1a\n\x08\x65vidence\x18\x04 \x03(\tR\x08\x65vidence\x12%\n\x0e\x64\x65\x63lared_label\x18\x05 \x01(\tR\rdeclaredLabel\"\xaf\x01\n\x11\x44omainDeclaration\x12Q\n\x06source\x18\x01 \x01(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\x06source\x12!\n\x0c\x64omain_names\x18\x02 \x03(\tR\x0b\x64omainNames\x12$\n\rauthoritative\x18\x03 \x01(\x08R\rauthoritative\"\xfa\x04\n\x10\x44\x65rivedDomainMap\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12T\n\x07\x64omains\x18\x02 \x03(\x0b\x32:.vrooli.architecture_cartographer.v1.domains.DerivedDomainR\x07\x64omains\x12)\n\x10shared_substrate\x18\x03 \x03(\tR\x0fsharedSubstrate\x12\x1f\n\x0bnon_domains\x18\x04 \x03(\tR\nnonDomains\x12W\n\tauthority\x18\x05 \x01(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\tauthority\x12\x62\n\x0c\x64\x65\x63larations\x18\x06 \x03(\x0b\x32>.vrooli.architecture_cartographer.v1.domains.DomainDeclarationR\x0c\x64\x65\x63larations\x12\x39\n\nderived_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tderivedAt\x12s\n\x14\x61uthority_confidence\x18\x08 \x01(\x0e\x32@.vrooli.architecture_cartographer.v1.domains.AuthorityConfidenceR\x13\x61uthorityConfidence\x12;\n\x0b\x61ttestation\x18\t \x01(\x0b\x32\x19.common.v1.AttestedAnswerR\x0b\x61ttestation\"3\n\x15\x45xtractDomainsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"v\n\x16\x45xtractDomainsResponse\x12\\\n\ndomain_map\x18\x01 \x01(\x0b\x32=.vrooli.architecture_cartographer.v1.domains.DerivedDomainMapR\tdomainMap\"1\n\x13GetDomainMapRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"t\n\x14GetDomainMapResponse\x12\\\n\ndomain_map\x18\x01 \x01(\x0b\x32=.vrooli.architecture_cartographer.v1.domains.DerivedDomainMapR\tdomainMap\"\xb9\x02\n\x12\x43onvergenceFinding\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n\x06\x64omain\x18\x02 \x01(\tR\x06\x64omain\x12\\\n\x08severity\x18\x03 \x01(\x0e\x32@.vrooli.architecture_cartographer.v1.domains.ConvergenceSeverityR\x08severity\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12S\n\x07sources\x18\x05 \x03(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\x07sources\x12*\n\x11rolled_up_domains\x18\x06 \x03(\tR\x0frolledUpDomains\"6\n\x18\x43onvergenceReportRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xe2\x02\n\x19\x43onvergenceReportResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12W\n\tauthority\x18\x02 \x01(\x0e\x32\x39.vrooli.architecture_cartographer.v1.domains.DomainSourceR\tauthority\x12[\n\x08\x66indings\x18\x03 \x03(\x0b\x32?.vrooli.architecture_cartographer.v1.domains.ConvergenceFindingR\x08\x66indings\x12s\n\x14\x61uthority_confidence\x18\x04 \x01(\x0e\x32@.vrooli.architecture_cartographer.v1.domains.AuthorityConfidenceR\x13\x61uthorityConfidence\"1\n\x13\x44raftDomainsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xb0\x01\n\x0eProposedDomain\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x05paths\x18\x02 \x03(\tR\x05paths\x12\x1c\n\tarchetype\x18\x03 \x01(\tR\tarchetype\x12\x1a\n\x08glossary\x18\x04 \x03(\tR\x08glossary\x12\x1e\n\nconfidence\x18\x05 \x01(\tR\nconfidence\x12\x1a\n\x08\x65vidence\x18\x06 \x03(\tR\x08\x65vidence\"\xa5\x01\n\x14\x44raftDomainsResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12U\n\x07\x64omains\x18\x02 \x03(\x0b\x32;.vrooli.architecture_cartographer.v1.domains.ProposedDomainR\x07\x64omains\x12\x1a\n\x08markdown\x18\x03 \x01(\tR\x08markdown*\xc8\x01\n\x0c\x44omainSource\x12\x1d\n\x19\x44OMAIN_SOURCE_UNSPECIFIED\x10\x00\x12\x1e\n\x1a\x44OMAIN_SOURCE_API_MANIFEST\x10\x01\x12\x1d\n\x19\x44OMAIN_SOURCE_DOMAINS_DOC\x10\x02\x12\x1d\n\x19\x44OMAIN_SOURCE_API_FOLDERS\x10\x03\x12\x1c\n\x18\x44OMAIN_SOURCE_CLI_GROUPS\x10\x04\x12\x1d\n\x19\x44OMAIN_SOURCE_UI_FEATURES\x10\x05*q\n\x0f\x41rchetypeSource\x12 \n\x1c\x41RCHETYPE_SOURCE_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x41RCHETYPE_SOURCE_DECLARED\x10\x01\x12\x1d\n\x19\x41RCHETYPE_SOURCE_INFERRED\x10\x02*\xd5\x01\n\tArchetype\x12\x19\n\x15\x41RCHETYPE_UNSPECIFIED\x10\x00\x12\x17\n\x13\x41RCHETYPE_REPORTING\x10\x01\x12\x15\n\x11\x41RCHETYPE_SERVICE\x10\x02\x12\x16\n\x12\x41RCHETYPE_MUTATION\x10\x03\x12\x1c\n\x18\x41RCHETYPE_CLASSIFICATION\x10\x04\x12\x1b\n\x17\x41RCHETYPE_ORCHESTRATION\x10\x05\x12\x15\n\x11\x41RCHETYPE_SCORING\x10\x06\x12\x13\n\x0f\x41RCHETYPE_QUERY\x10\x07*x\n\x13\x41uthorityConfidence\x12$\n AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x41UTHORITY_CONFIDENCE_HIGH\x10\x01\x12\x1c\n\x18\x41UTHORITY_CONFIDENCE_LOW\x10\x02*y\n\x13\x43onvergenceSeverity\x12$\n CONVERGENCE_SEVERITY_UNSPECIFIED\x10\x00\x12\x1d\n\x19\x43ONVERGENCE_SEVERITY_INFO\x10\x01\x12\x1d\n\x19\x43ONVERGENCE_SEVERITY_WARN\x10\x02\x32\xfd\x04\n\x0e\x44omainsService\x12\x99\x01\n\x0e\x45xtractDomains\x12\x42.vrooli.architecture_cartographer.v1.domains.ExtractDomainsRequest\x1a\x43.vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse\x12\x93\x01\n\x0cGetDomainMap\x12@.vrooli.architecture_cartographer.v1.domains.GetDomainMapRequest\x1a\x41.vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse\x12\xa2\x01\n\x11\x43onvergenceReport\x12\x45.vrooli.architecture_cartographer.v1.domains.ConvergenceReportRequest\x1a\x46.vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse\x12\x93\x01\n\x0c\x44raftDomains\x12@.vrooli.architecture_cartographer.v1.domains.DraftDomainsRequest\x1a\x41.vrooli.architecture_cartographer.v1.domains.DraftDomainsResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains;domains_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,42 +34,44 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'architecture_cartographer.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains;domains_v1'
-  _globals['_DOMAINSOURCE']._serialized_start=2981
-  _globals['_DOMAINSOURCE']._serialized_end=3181
-  _globals['_ARCHETYPESOURCE']._serialized_start=3183
-  _globals['_ARCHETYPESOURCE']._serialized_end=3296
-  _globals['_AUTHORITYCONFIDENCE']._serialized_start=3298
-  _globals['_AUTHORITYCONFIDENCE']._serialized_end=3418
-  _globals['_CONVERGENCESEVERITY']._serialized_start=3420
-  _globals['_CONVERGENCESEVERITY']._serialized_end=3541
-  _globals['_DERIVEDDOMAIN']._serialized_start=133
-  _globals['_DERIVEDDOMAIN']._serialized_end=569
-  _globals['_DOMAINARCHETYPE']._serialized_start=572
-  _globals['_DOMAINARCHETYPE']._serialized_end=755
-  _globals['_DOMAINDECLARATION']._serialized_start=758
-  _globals['_DOMAINDECLARATION']._serialized_end=933
-  _globals['_DERIVEDDOMAINMAP']._serialized_start=936
-  _globals['_DERIVEDDOMAINMAP']._serialized_end=1509
-  _globals['_EXTRACTDOMAINSREQUEST']._serialized_start=1511
-  _globals['_EXTRACTDOMAINSREQUEST']._serialized_end=1562
-  _globals['_EXTRACTDOMAINSRESPONSE']._serialized_start=1564
-  _globals['_EXTRACTDOMAINSRESPONSE']._serialized_end=1682
-  _globals['_GETDOMAINMAPREQUEST']._serialized_start=1684
-  _globals['_GETDOMAINMAPREQUEST']._serialized_end=1733
-  _globals['_GETDOMAINMAPRESPONSE']._serialized_start=1735
-  _globals['_GETDOMAINMAPRESPONSE']._serialized_end=1851
-  _globals['_CONVERGENCEFINDING']._serialized_start=1854
-  _globals['_CONVERGENCEFINDING']._serialized_end=2167
-  _globals['_CONVERGENCEREPORTREQUEST']._serialized_start=2169
-  _globals['_CONVERGENCEREPORTREQUEST']._serialized_end=2223
-  _globals['_CONVERGENCEREPORTRESPONSE']._serialized_start=2226
-  _globals['_CONVERGENCEREPORTRESPONSE']._serialized_end=2580
-  _globals['_DRAFTDOMAINSREQUEST']._serialized_start=2582
-  _globals['_DRAFTDOMAINSREQUEST']._serialized_end=2631
-  _globals['_PROPOSEDDOMAIN']._serialized_start=2634
-  _globals['_PROPOSEDDOMAIN']._serialized_end=2810
-  _globals['_DRAFTDOMAINSRESPONSE']._serialized_start=2813
-  _globals['_DRAFTDOMAINSRESPONSE']._serialized_end=2978
-  _globals['_DOMAINSSERVICE']._serialized_start=3544
-  _globals['_DOMAINSSERVICE']._serialized_end=4181
+  _globals['_DOMAINSOURCE']._serialized_start=3237
+  _globals['_DOMAINSOURCE']._serialized_end=3437
+  _globals['_ARCHETYPESOURCE']._serialized_start=3439
+  _globals['_ARCHETYPESOURCE']._serialized_end=3552
+  _globals['_ARCHETYPE']._serialized_start=3555
+  _globals['_ARCHETYPE']._serialized_end=3768
+  _globals['_AUTHORITYCONFIDENCE']._serialized_start=3770
+  _globals['_AUTHORITYCONFIDENCE']._serialized_end=3890
+  _globals['_CONVERGENCESEVERITY']._serialized_start=3892
+  _globals['_CONVERGENCESEVERITY']._serialized_end=4013
+  _globals['_DERIVEDDOMAIN']._serialized_start=162
+  _globals['_DERIVEDDOMAIN']._serialized_end=659
+  _globals['_DOMAINARCHETYPE']._serialized_start=662
+  _globals['_DOMAINARCHETYPE']._serialized_end=950
+  _globals['_DOMAINDECLARATION']._serialized_start=953
+  _globals['_DOMAINDECLARATION']._serialized_end=1128
+  _globals['_DERIVEDDOMAINMAP']._serialized_start=1131
+  _globals['_DERIVEDDOMAINMAP']._serialized_end=1765
+  _globals['_EXTRACTDOMAINSREQUEST']._serialized_start=1767
+  _globals['_EXTRACTDOMAINSREQUEST']._serialized_end=1818
+  _globals['_EXTRACTDOMAINSRESPONSE']._serialized_start=1820
+  _globals['_EXTRACTDOMAINSRESPONSE']._serialized_end=1938
+  _globals['_GETDOMAINMAPREQUEST']._serialized_start=1940
+  _globals['_GETDOMAINMAPREQUEST']._serialized_end=1989
+  _globals['_GETDOMAINMAPRESPONSE']._serialized_start=1991
+  _globals['_GETDOMAINMAPRESPONSE']._serialized_end=2107
+  _globals['_CONVERGENCEFINDING']._serialized_start=2110
+  _globals['_CONVERGENCEFINDING']._serialized_end=2423
+  _globals['_CONVERGENCEREPORTREQUEST']._serialized_start=2425
+  _globals['_CONVERGENCEREPORTREQUEST']._serialized_end=2479
+  _globals['_CONVERGENCEREPORTRESPONSE']._serialized_start=2482
+  _globals['_CONVERGENCEREPORTRESPONSE']._serialized_end=2836
+  _globals['_DRAFTDOMAINSREQUEST']._serialized_start=2838
+  _globals['_DRAFTDOMAINSREQUEST']._serialized_end=2887
+  _globals['_PROPOSEDDOMAIN']._serialized_start=2890
+  _globals['_PROPOSEDDOMAIN']._serialized_end=3066
+  _globals['_DRAFTDOMAINSRESPONSE']._serialized_start=3069
+  _globals['_DRAFTDOMAINSRESPONSE']._serialized_end=3234
+  _globals['_DOMAINSSERVICE']._serialized_start=4016
+  _globals['_DOMAINSSERVICE']._serialized_end=4653
 # @@protoc_insertion_point(module_scope)

@@ -7,12 +7,15 @@ import (
 
 	"architecture-cartographer/cli/domains/analytics"
 	"architecture-cartographer/cli/domains/apply"
+	archetypedomain "architecture-cartographer/cli/domains/archetype"
 	"architecture-cartographer/cli/domains/audit"
 	"architecture-cartographer/cli/domains/campaign"
 	"architecture-cartographer/cli/domains/conflicts"
 	domainsdomain "architecture-cartographer/cli/domains/domains"
 	"architecture-cartographer/cli/domains/graph"
 	"architecture-cartographer/cli/domains/signals"
+	slicedomain "architecture-cartographer/cli/domains/slice"
+	"architecture-cartographer/cli/domains/zones"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -52,6 +55,24 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, fmt.Errorf("register graph: %w", err)
 	}
 	out = append(out, graphGroup)
+
+	zonesGroup, err := zones.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register zones: %w", err)
+	}
+	out = append(out, zonesGroup)
+
+	sliceGroup, err := slicedomain.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register slice: %w", err)
+	}
+	out = append(out, sliceGroup)
+
+	archetypeGroup, err := archetypedomain.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register archetype: %w", err)
+	}
+	out = append(out, archetypeGroup)
 
 	conflictsGroup, err := conflicts.Register(core, manifest)
 	if err != nil {

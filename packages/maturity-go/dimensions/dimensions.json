@@ -7,7 +7,7 @@
     { "id": "cycles", "description": "Import cycles and cross-domain coupling findings from architecture-cartographer." },
     { "id": "contracts", "description": "CLI/API manifest and binding contract gaps (cli-health)." },
     { "id": "ui", "description": "UI manifest and slot-binding health (ui-health)." },
-    { "id": "visual", "description": "Rendered UI behavior — playbook regressions. (UI render/handshake checks fold into the `ui` dimension via ui-health's execution-mode runtime group; the native smoke phase was retired.)" },
+    { "id": "visual", "description": "Rendered UI behavior — playbook regressions. UI render/handshake checks fold into the `ui` dimension via ui-health's execution-mode runtime group." },
     { "id": "accessibility", "description": "Accessibility (a11y) conformance. No test-genie producer in v0; skill-supplied." },
     { "id": "docs", "description": "Documentation coverage and reference integrity (knowledge-observatory)." },
     { "id": "tests", "description": "Automated test presence, execution, architecture, and quality. Produced by the test-genie `unit` phase, which delegates to the unit-health scenario (the separate `integration` phase was retired in the unit-health hard cutover)." },

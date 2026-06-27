@@ -3,11 +3,15 @@ package domains
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"connectrpc.com/connect"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
 )
 
 func TestInventoryFromCodeFacts(t *testing.T) {
@@ -63,8 +67,56 @@ func TestCodeFactsSurfaceProviderFallbackWarning(t *testing.T) {
 	}
 }
 
+func TestCodeFactsSurfaceProviderRequestsSliceProofFamilies(t *testing.T) {
+	var got []factsv1.FactFamily
+	svc := captureFactsService{onDescribe: func(req *factsv1.DescribeCodeFactsRequest) {
+		got = append([]factsv1.FactFamily(nil), req.GetInclude()...)
+	}}
+	mux := http.NewServeMux()
+	path, handler := factsconnect.NewCodeFactsServiceHandler(svc)
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	provider := NewCodeFactsSurfaceProvider(staticResolver{url: server.URL}, server.Client(), NewLocalSurfaceProvider())
+	_, err := provider.Inspect(context.Background(), t.TempDir())
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	want := []factsv1.FactFamily{
+		factsv1.FactFamily_FACT_FAMILY_SURFACES,
+		factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS,
+		factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
+		factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
+		factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("include = %v, want %v", got, want)
+	}
+}
+
 type failingResolver struct{}
 
 func (failingResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
 	return "", errors.New("offline")
+}
+
+type staticResolver struct {
+	url string
+}
+
+func (r staticResolver) ResolveScenarioURLDefault(context.Context, string) (string, error) {
+	return r.url, nil
+}
+
+type captureFactsService struct {
+	factsconnect.UnimplementedCodeFactsServiceHandler
+	onDescribe func(*factsv1.DescribeCodeFactsRequest)
+}
+
+func (s captureFactsService) DescribeCodeFacts(_ context.Context, req *connect.Request[factsv1.DescribeCodeFactsRequest]) (*connect.Response[factsv1.CodeFactsReport], error) {
+	if s.onDescribe != nil {
+		s.onDescribe(req.Msg)
+	}
+	return connect.NewResponse(&factsv1.CodeFactsReport{}), nil
 }

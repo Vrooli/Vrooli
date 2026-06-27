@@ -161,7 +161,33 @@
           "validation": {
             "requiredHeadings": ["Purpose Of This Document", "Domain Inventory", "Domain Details", "Shared Concepts", "Deferred Domains", "Non-Domains", "Cross-References"],
             "forbiddenPlaceholders": ["[TODO]"],
-            "requiredLinks": ["ARCHITECTURE.md", "FLOWS.md", "DATA.md", "../internal/SEAMS.md"]
+            "requiredLinks": ["ARCHITECTURE.md", "FLOWS.md", "DATA.md", "../internal/SEAMS.md"],
+            "tableContracts": [
+              {
+                "anchorHeading": "Domain Inventory",
+                "columns": [
+                  { "name": "Domain", "required": true, "type": "text" },
+                  { "name": "Responsibility", "required": true, "type": "text", "aliases": ["Purpose"] },
+                  { "name": "Purpose", "required": false, "type": "text" },
+                  { "name": "Owns Data", "required": false, "type": "text" },
+                  {
+                    "name": "Primary Archetype",
+                    "required": true,
+                    "type": "enum",
+                    "enumValues": ["service", "reporting", "validation", "mutation", "orchestration", "infrastructure", "composition-root", "provider", "aggregation", "crud", "query", "classification", "scoring"],
+                    "aliases": ["Archetype"]
+                  },
+                  {
+                    "name": "Secondary Traits",
+                    "required": false,
+                    "type": "enum-list",
+                    "enumValues": ["service", "reporting", "validation", "mutation", "orchestration", "infrastructure", "composition-root", "provider", "aggregation", "crud", "query", "classification", "scoring"]
+                  },
+                  { "name": "Glossary", "required": false, "type": "comma-list" },
+                  { "name": "Source Paths", "required": true, "type": "comma-list", "aliases": ["Primary Paths"] }
+                ]
+              }
+            ]
           }
         },
         {

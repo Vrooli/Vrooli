@@ -113,6 +113,32 @@ class NextActionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NEXT_ACTION_KIND_ALTERNATIVE: _ClassVar[NextActionKind]
     NEXT_ACTION_KIND_OPTIONAL: _ClassVar[NextActionKind]
     NEXT_ACTION_KIND_RECOVERY: _ClassVar[NextActionKind]
+
+class LogEntryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOG_ENTRY_TYPE_UNSPECIFIED: _ClassVar[LogEntryType]
+    LOG_ENTRY_TYPE_DECISION: _ClassVar[LogEntryType]
+    LOG_ENTRY_TYPE_FINDING: _ClassVar[LogEntryType]
+    LOG_ENTRY_TYPE_BUG_REPORT: _ClassVar[LogEntryType]
+    LOG_ENTRY_TYPE_RECORD: _ClassVar[LogEntryType]
+    LOG_ENTRY_TYPE_NOTE: _ClassVar[LogEntryType]
+
+class LogSyncStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOG_SYNC_STATUS_UNSPECIFIED: _ClassVar[LogSyncStatus]
+    LOG_SYNC_STATUS_LOCAL: _ClassVar[LogSyncStatus]
+    LOG_SYNC_STATUS_PENDING: _ClassVar[LogSyncStatus]
+    LOG_SYNC_STATUS_SYNCED: _ClassVar[LogSyncStatus]
+    LOG_SYNC_STATUS_FAILED: _ClassVar[LogSyncStatus]
+
+class LogSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    LOG_SEVERITY_UNSPECIFIED: _ClassVar[LogSeverity]
+    LOG_SEVERITY_INFO: _ClassVar[LogSeverity]
+    LOG_SEVERITY_LOW: _ClassVar[LogSeverity]
+    LOG_SEVERITY_MEDIUM: _ClassVar[LogSeverity]
+    LOG_SEVERITY_HIGH: _ClassVar[LogSeverity]
+    LOG_SEVERITY_CRITICAL: _ClassVar[LogSeverity]
 PLAN_STATUS_UNSPECIFIED: PlanStatus
 PLAN_STATUS_DRAFT: PlanStatus
 PLAN_STATUS_ACTIVE: PlanStatus
@@ -178,6 +204,23 @@ NEXT_ACTION_KIND_RECOMMENDED: NextActionKind
 NEXT_ACTION_KIND_ALTERNATIVE: NextActionKind
 NEXT_ACTION_KIND_OPTIONAL: NextActionKind
 NEXT_ACTION_KIND_RECOVERY: NextActionKind
+LOG_ENTRY_TYPE_UNSPECIFIED: LogEntryType
+LOG_ENTRY_TYPE_DECISION: LogEntryType
+LOG_ENTRY_TYPE_FINDING: LogEntryType
+LOG_ENTRY_TYPE_BUG_REPORT: LogEntryType
+LOG_ENTRY_TYPE_RECORD: LogEntryType
+LOG_ENTRY_TYPE_NOTE: LogEntryType
+LOG_SYNC_STATUS_UNSPECIFIED: LogSyncStatus
+LOG_SYNC_STATUS_LOCAL: LogSyncStatus
+LOG_SYNC_STATUS_PENDING: LogSyncStatus
+LOG_SYNC_STATUS_SYNCED: LogSyncStatus
+LOG_SYNC_STATUS_FAILED: LogSyncStatus
+LOG_SEVERITY_UNSPECIFIED: LogSeverity
+LOG_SEVERITY_INFO: LogSeverity
+LOG_SEVERITY_LOW: LogSeverity
+LOG_SEVERITY_MEDIUM: LogSeverity
+LOG_SEVERITY_HIGH: LogSeverity
+LOG_SEVERITY_CRITICAL: LogSeverity
 
 class NextAction(_message.Message):
     __slots__ = ("id", "kind", "label", "reason", "argv", "content_placeholder", "blocked_by")
@@ -291,37 +334,101 @@ class RegressionAnchor(_message.Message):
     unavailable: bool
     def __init__(self, strategy: _Optional[str] = ..., scenario: _Optional[str] = ..., baseline_name: _Optional[str] = ..., head_sha: _Optional[str] = ..., allowlist_paths: _Optional[_Iterable[str]] = ..., commands: _Optional[_Iterable[str]] = ..., captured_at: _Optional[str] = ..., unavailable: _Optional[bool] = ...) -> None: ...
 
-class Decision(_message.Message):
-    __slots__ = ("id", "summary", "detail", "phase_id", "recorded_at")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+class DownstreamRef(_message.Message):
+    __slots__ = ("system", "kind", "reference", "detail", "synced_at")
+    SYSTEM_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
-    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
-    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    summary: str
+    SYNCED_AT_FIELD_NUMBER: _ClassVar[int]
+    system: str
+    kind: str
+    reference: str
     detail: str
-    phase_id: str
-    recorded_at: str
-    def __init__(self, id: _Optional[str] = ..., summary: _Optional[str] = ..., detail: _Optional[str] = ..., phase_id: _Optional[str] = ..., recorded_at: _Optional[str] = ...) -> None: ...
+    synced_at: str
+    def __init__(self, system: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., detail: _Optional[str] = ..., synced_at: _Optional[str] = ...) -> None: ...
 
-class Finding(_message.Message):
-    __slots__ = ("id", "title", "detail", "triage", "phase_id", "recorded_at", "attribution_run_id")
+class LogEntry(_message.Message):
+    __slots__ = ("id", "type", "plan_id", "execution_id", "phase_id", "title", "detail", "severity", "triage", "sync_status", "downstream", "source_command", "evidence", "attribution_run_id", "idempotency_key", "supersedes_id", "promoted_from_id", "created_at", "updated_at")
     ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
     TRIAGE_FIELD_NUMBER: _ClassVar[int]
-    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
-    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    SYNC_STATUS_FIELD_NUMBER: _ClassVar[int]
+    DOWNSTREAM_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     ATTRIBUTION_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    SUPERSEDES_ID_FIELD_NUMBER: _ClassVar[int]
+    PROMOTED_FROM_ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
+    type: LogEntryType
+    plan_id: str
+    execution_id: str
+    phase_id: str
     title: str
     detail: str
+    severity: LogSeverity
+    triage: FindingTriage
+    sync_status: LogSyncStatus
+    downstream: DownstreamRef
+    source_command: str
+    evidence: _containers.RepeatedScalarFieldContainer[str]
+    attribution_run_id: str
+    idempotency_key: str
+    supersedes_id: str
+    promoted_from_id: str
+    created_at: str
+    updated_at: str
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[LogEntryType, str]] = ..., plan_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., severity: _Optional[_Union[LogSeverity, str]] = ..., triage: _Optional[_Union[FindingTriage, str]] = ..., sync_status: _Optional[_Union[LogSyncStatus, str]] = ..., downstream: _Optional[_Union[DownstreamRef, _Mapping]] = ..., source_command: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ..., attribution_run_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., supersedes_id: _Optional[str] = ..., promoted_from_id: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
+class LogSummaryItem(_message.Message):
+    __slots__ = ("id", "type", "title", "sync_status", "triage", "phase_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    SYNC_STATUS_FIELD_NUMBER: _ClassVar[int]
+    TRIAGE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    type: LogEntryType
+    title: str
+    sync_status: LogSyncStatus
     triage: FindingTriage
     phase_id: str
-    recorded_at: str
-    attribution_run_id: str
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., triage: _Optional[_Union[FindingTriage, str]] = ..., phase_id: _Optional[str] = ..., recorded_at: _Optional[str] = ..., attribution_run_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[LogEntryType, str]] = ..., title: _Optional[str] = ..., sync_status: _Optional[_Union[LogSyncStatus, str]] = ..., triage: _Optional[_Union[FindingTriage, str]] = ..., phase_id: _Optional[str] = ...) -> None: ...
+
+class LogSummary(_message.Message):
+    __slots__ = ("total", "decisions", "findings", "bug_reports", "records", "notes", "candidate_findings", "pending_sync", "failed_sync", "recent")
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    DECISIONS_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    BUG_REPORTS_FIELD_NUMBER: _ClassVar[int]
+    RECORDS_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    PENDING_SYNC_FIELD_NUMBER: _ClassVar[int]
+    FAILED_SYNC_FIELD_NUMBER: _ClassVar[int]
+    RECENT_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    decisions: int
+    findings: int
+    bug_reports: int
+    records: int
+    notes: int
+    candidate_findings: int
+    pending_sync: int
+    failed_sync: int
+    recent: _containers.RepeatedCompositeFieldContainer[LogSummaryItem]
+    def __init__(self, total: _Optional[int] = ..., decisions: _Optional[int] = ..., findings: _Optional[int] = ..., bug_reports: _Optional[int] = ..., records: _Optional[int] = ..., notes: _Optional[int] = ..., candidate_findings: _Optional[int] = ..., pending_sync: _Optional[int] = ..., failed_sync: _Optional[int] = ..., recent: _Optional[_Iterable[_Union[LogSummaryItem, _Mapping]]] = ...) -> None: ...
 
 class ValidationResult(_message.Message):
     __slots__ = ("id", "plan_id", "phase_id", "verdict", "staleness", "commands_run", "detail", "ran_at", "command_findings")
@@ -366,7 +473,7 @@ class CommandValidationFinding(_message.Message):
     def __init__(self, command_text: _Optional[str] = ..., verdict: _Optional[str] = ..., validation_level: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., issue_codes: _Optional[_Iterable[str]] = ..., suggestions: _Optional[_Iterable[str]] = ..., guidance: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Phase(_message.Message):
-    __slots__ = ("id", "order", "title", "intent", "required_reading", "reminders", "baseline_scope", "acceptance", "status", "last_validation", "decisions", "findings", "references", "relevant_context")
+    __slots__ = ("id", "order", "title", "intent", "required_reading", "reminders", "baseline_scope", "acceptance", "status", "last_validation", "references", "relevant_context")
     ID_FIELD_NUMBER: _ClassVar[int]
     ORDER_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -377,8 +484,6 @@ class Phase(_message.Message):
     ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     LAST_VALIDATION_FIELD_NUMBER: _ClassVar[int]
-    DECISIONS_FIELD_NUMBER: _ClassVar[int]
-    FINDINGS_FIELD_NUMBER: _ClassVar[int]
     REFERENCES_FIELD_NUMBER: _ClassVar[int]
     RELEVANT_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     id: str
@@ -391,11 +496,9 @@ class Phase(_message.Message):
     acceptance: str
     status: PhaseStatus
     last_validation: ValidationResult
-    decisions: _containers.RepeatedCompositeFieldContainer[Decision]
-    findings: _containers.RepeatedCompositeFieldContainer[Finding]
     references: _containers.RepeatedCompositeFieldContainer[Reference]
     relevant_context: _containers.RepeatedCompositeFieldContainer[RelevantContextItem]
-    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[Decision, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[Finding, _Mapping]]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ...) -> None: ...
 
 class Plan(_message.Message):
     __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context")
@@ -468,14 +571,14 @@ class VelocityPoint(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., wall_time_seconds: _Optional[int] = ..., tokens: _Optional[int] = ..., iterations: _Optional[int] = ..., completeness: _Optional[_Union[Completeness, str]] = ..., recorded_at: _Optional[str] = ...) -> None: ...
 
 class Handoff(_message.Message):
-    __slots__ = ("id", "execution_id", "plan_id", "completeness", "resume_phase_id", "decisions", "candidate_findings", "last_validation", "staleness", "prose_handoff_ref", "assembled_at")
+    __slots__ = ("id", "execution_id", "plan_id", "completeness", "resume_phase_id", "log_summary", "log_entries", "last_validation", "staleness", "prose_handoff_ref", "assembled_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
     RESUME_PHASE_ID_FIELD_NUMBER: _ClassVar[int]
-    DECISIONS_FIELD_NUMBER: _ClassVar[int]
-    CANDIDATE_FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    LOG_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    LOG_ENTRIES_FIELD_NUMBER: _ClassVar[int]
     LAST_VALIDATION_FIELD_NUMBER: _ClassVar[int]
     STALENESS_FIELD_NUMBER: _ClassVar[int]
     PROSE_HANDOFF_REF_FIELD_NUMBER: _ClassVar[int]
@@ -485,10 +588,10 @@ class Handoff(_message.Message):
     plan_id: str
     completeness: Completeness
     resume_phase_id: str
-    decisions: _containers.RepeatedCompositeFieldContainer[Decision]
-    candidate_findings: _containers.RepeatedCompositeFieldContainer[Finding]
+    log_summary: LogSummary
+    log_entries: _containers.RepeatedCompositeFieldContainer[LogEntry]
     last_validation: ValidationResult
     staleness: StalenessTier
     prose_handoff_ref: str
     assembled_at: str
-    def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., completeness: _Optional[_Union[Completeness, str]] = ..., resume_phase_id: _Optional[str] = ..., decisions: _Optional[_Iterable[_Union[Decision, _Mapping]]] = ..., candidate_findings: _Optional[_Iterable[_Union[Finding, _Mapping]]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., prose_handoff_ref: _Optional[str] = ..., assembled_at: _Optional[str] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., execution_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., completeness: _Optional[_Union[Completeness, str]] = ..., resume_phase_id: _Optional[str] = ..., log_summary: _Optional[_Union[LogSummary, _Mapping]] = ..., log_entries: _Optional[_Iterable[_Union[LogEntry, _Mapping]]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., prose_handoff_ref: _Optional[str] = ..., assembled_at: _Optional[str] = ...) -> None: ...

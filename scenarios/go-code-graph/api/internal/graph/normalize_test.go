@@ -171,6 +171,89 @@ func Hello(s fmt.Stringer) string {
 	}
 }
 
+func TestNormalizeMergesTestVariantsAndMarksTestOnlyImports(t *testing.T) {
+	t.Parallel()
+	prod := &packages.Package{
+		ID:      "example.com/m/alpha",
+		PkgPath: "example.com/m/alpha",
+		Name:    "alpha",
+		GoFiles: []string{"/scenario/alpha/alpha.go"},
+		Imports: map[string]*packages.Package{
+			"fmt": {PkgPath: "fmt", Name: "fmt"},
+		},
+	}
+	testVariant := &packages.Package{
+		ID:      "example.com/m/alpha [example.com/m/alpha.test]",
+		PkgPath: "example.com/m/alpha",
+		Name:    "alpha",
+		GoFiles: []string{"/scenario/alpha/alpha.go", "/scenario/alpha/alpha_test.go"},
+		Imports: map[string]*packages.Package{
+			"fmt":                  {PkgPath: "fmt", Name: "fmt"},
+			"example.com/m/helper": {PkgPath: "example.com/m/helper", Name: "helper"},
+			"testing":              {PkgPath: "testing", Name: "testing"},
+		},
+	}
+	synthetic := &packages.Package{
+		ID:      "example.com/m/alpha.test",
+		PkgPath: "example.com/m/alpha.test",
+		Name:    "main",
+		Imports: map[string]*packages.Package{
+			"example.com/m/alpha": {PkgPath: "example.com/m/alpha", Name: "alpha"},
+		},
+	}
+
+	g, _ := intgraph.Normalize([]*packages.Package{synthetic, testVariant, prod}, "/scenario")
+
+	nodes := map[string]intgraph.Node{}
+	for _, n := range g.Nodes {
+		nodes[n.ID] = n
+	}
+	if _, ok := nodes["package:example.com/m/alpha.test"]; ok {
+		t.Fatalf("synthetic test binary package should be filtered; nodes=%v", ids(g.Nodes))
+	}
+	if got := nodes["file:alpha/alpha_test.go"].Attributes["is_test"]; got != "true" {
+		t.Fatalf("alpha_test.go is_test = %q, want true", got)
+	}
+
+	edges := map[string]intgraph.Edge{}
+	for _, e := range g.Edges {
+		edges[e.To] = e
+	}
+	if got := edges["package:fmt"].Attributes["test_only"]; got != "false" {
+		t.Fatalf("fmt test_only = %q, want false", got)
+	}
+	if got := edges["package:example.com/m/helper"].Attributes["test_only"]; got != "true" {
+		t.Fatalf("helper test_only = %q, want true", got)
+	}
+	if got := edges["package:testing"].Attributes["test_only"]; got != "true" {
+		t.Fatalf("testing test_only = %q, want true", got)
+	}
+}
+
+func TestNormalizeMarksExternalTestPackageImportsTestOnly(t *testing.T) {
+	t.Parallel()
+	external := &packages.Package{
+		ID:      "example.com/m/alpha_test [example.com/m/alpha.test]",
+		PkgPath: "example.com/m/alpha_test",
+		Name:    "alpha_test",
+		GoFiles: []string{"/scenario/alpha/external_test.go"},
+		Imports: map[string]*packages.Package{
+			"example.com/m/alpha": {PkgPath: "example.com/m/alpha", Name: "alpha"},
+			"testing":             {PkgPath: "testing", Name: "testing"},
+		},
+	}
+
+	g, _ := intgraph.Normalize([]*packages.Package{external}, "/scenario")
+	if len(g.Edges) != 2 {
+		t.Fatalf("want two external-test imports, got %+v", g.Edges)
+	}
+	for _, e := range g.Edges {
+		if got := e.Attributes["test_only"]; got != "true" {
+			t.Fatalf("edge %+v test_only = %q, want true", e, got)
+		}
+	}
+}
+
 func ids(nodes []intgraph.Node) []string {
 	out := make([]string, 0, len(nodes))
 	for _, n := range nodes {

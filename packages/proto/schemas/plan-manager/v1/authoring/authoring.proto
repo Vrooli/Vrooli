@@ -13,13 +13,15 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 // @stability draft
 //
 // AuthoringService walks a plan's sections in order, validates structure as it
-// goes (a structure-validation gate rejects empty mandatory sections), and
-// auto-fills the mechanical sections — the regression anchor (via
-// git-control-tower, delegated through the validation domain), required-reading
-// (via prompt-manager plan-skill-discovery) and code references (via code-facts)
-// — so a small model supplies only genuine prose (OT-P0-002). The produced plan
-// is written through the plans domain; this service does not own the record.
-// Every autofill source is behind a seam and degrades gracefully. See
+// goes (a structure-validation gate rejects empty mandatory sections), captures
+// the regression anchor and code references behind seams, and discovers
+// relevant-context candidates that authors explicitly accept or reject so a
+// small model supplies only genuine prose and context judgment (OT-P0-002). The
+// produced plan is written through the plans domain; this service does not own
+// the record.
+// Default autofill covers only mechanical anchor/reference sources. Relevant
+// context flows through candidate discovery and explicit acceptance; legacy
+// required_reading is retained only as migration input. See
 // docs/concepts/DOMAINS.md (authoring) and docs/concepts/FLOWS.md.
 // =============================================================================
 
@@ -34,11 +36,29 @@ service AuthoringService {
   // Next returns the next section that still needs author input (or signals the
   // session is structurally complete).
   rpc Next(NextRequest) returns (NextResponse);
+  // ContinueAuthoring returns the single recommended next wizard action across
+  // section, context, phase, validation-review, and finalize states.
+  rpc ContinueAuthoring(ContinueAuthoringRequest) returns (ContinueAuthoringResponse);
   // ValidateStructure runs the structure-validation gate over the whole session
   // (PM-AUTHOR-002).
   rpc ValidateStructure(ValidateStructureRequest) returns (ValidateStructureResponse);
   // Autofill orchestrates the mechanical-section autofill behind seams.
   rpc Autofill(AutofillRequest) returns (AutofillResponse);
+  // SubmitRelevantContextItem records one global or phase-scoped setup item in
+  // the authoring session. Accepted items finalize into the plans domain's
+  // shared RelevantContextItem contract.
+  rpc SubmitRelevantContextItem(SubmitRelevantContextItemRequest) returns (SubmitRelevantContextItemResponse);
+  // ListRelevantContext returns accepted context items from the session without
+  // changing wizard position.
+  rpc ListRelevantContext(ListRelevantContextRequest) returns (ListRelevantContextResponse);
+  // DiscoverContextCandidates runs the guided context-discovery seams for one
+  // or more concepts and stores pending candidates on the authoring session.
+  rpc DiscoverContextCandidates(DiscoverContextCandidatesRequest) returns (DiscoverContextCandidatesResponse);
+  // AcceptContextCandidate promotes one pending discovery candidate into the
+  // session's global or phase-scoped relevant-context list.
+  rpc AcceptContextCandidate(AcceptContextCandidateRequest) returns (AcceptContextCandidateResponse);
+  // RejectContextCandidate records why a discovered candidate is not relevant.
+  rpc RejectContextCandidate(RejectContextCandidateRequest) returns (RejectContextCandidateResponse);
   // AddPhase appends one structured phase draft to the session.
   rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
   // GetPhase returns one structured phase draft plus the API-owned guided step
@@ -81,6 +101,8 @@ message AuthoringSession {
   string plan_id = 7;
   repeated PhaseDraft phase_drafts = 8;
   string current_phase_id = 9;
+  repeated shared.RelevantContextItem relevant_context = 10;
+  repeated ContextCandidate context_candidates = 11;
 }
 
 // StructureViolation is one structure-gate failure (e.g. empty mandatory section
@@ -92,7 +114,8 @@ message StructureViolation {
 
 // AutofillResult reports the outcome of one autofill source.
 message AutofillResult {
-  // "regression_anchor" | "required_reading" | "references".
+  // "regression_anchor" | "references"; "required_reading" is legacy
+  // migration input and must be requested explicitly.
   string source = 1;
   string section_key = 2;
   bool filled = 3;
@@ -100,6 +123,20 @@ message AutofillResult {
   // author (never a false "filled").
   bool degraded = 4;
   string detail = 5;
+}
+
+// ContextCandidate is a discovered but not-yet-accepted relevant-context item.
+// Candidates are intentionally reviewable: the wizard stores the proposed setup
+// command plus the reason/source, but the author must accept or reject it.
+message ContextCandidate {
+  string id = 1;
+  shared.RelevantContextItem item = 2;
+  string concept = 3;
+  string source = 4;
+  bool degraded = 5;
+  string detail = 6;
+  string status = 7; // pending | accepted | rejected
+  string rejection_reason = 8;
 }
 
 // PhaseDraft is the structured pre-finalize phase object owned by an authoring
@@ -110,10 +147,12 @@ message PhaseDraft {
   string title = 3;
   string intent = 4;
   repeated shared.Reference references = 5;
+  // Legacy migration input. Finalize converts these lines into relevant_context.
   repeated string required_reading = 6;
   repeated string reminders = 7;
   string acceptance = 8;
   string no_code_refs_reason = 9;
+  repeated shared.RelevantContextItem relevant_context = 10;
 }
 
 message StartSessionRequest {
@@ -162,6 +201,19 @@ message NextResponse {
   shared.GuidedStep step = 3;
 }
 
+message ContinueAuthoringRequest {
+  string session_id = 1;
+}
+
+message ContinueAuthoringResponse {
+  AuthoringSession session = 1;
+  Section section = 2;
+  PhaseDraft phase = 3;
+  bool ready_to_finalize = 4;
+  repeated StructureViolation violations = 5;
+  shared.GuidedStep step = 6;
+}
+
 message ValidateStructureRequest {
   string session_id = 1;
 }
@@ -181,6 +233,74 @@ message AutofillRequest {
 message AutofillResponse {
   AuthoringSession session = 1;
   repeated AutofillResult results = 2;
+  shared.GuidedStep step = 3;
+}
+
+message SubmitRelevantContextItemRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. When set, the item is stored on
+  // that phase draft and finalized as phase-scoped context.
+  string phase_id = 2;
+  shared.RelevantContextItem item = 3;
+}
+
+message SubmitRelevantContextItemResponse {
+  AuthoringSession session = 1;
+  shared.RelevantContextItem item = 2;
+  repeated StructureViolation violations = 3;
+  shared.GuidedStep step = 4;
+}
+
+message ListRelevantContextRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. Empty returns global context.
+  string phase_id = 2;
+}
+
+message ListRelevantContextResponse {
+  repeated shared.RelevantContextItem items = 1;
+  shared.GuidedStep step = 2;
+}
+
+message DiscoverContextCandidatesRequest {
+  string session_id = 1;
+  // Decomposed concepts from plan-skill-discovery methodology. Empty uses the
+  // session title as a fallback concept.
+  repeated string concepts = 2;
+  // Optional prompt-manager skill discovery complexity, e.g. "architectural".
+  string complexity = 3;
+}
+
+message DiscoverContextCandidatesResponse {
+  AuthoringSession session = 1;
+  repeated ContextCandidate candidates = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AcceptContextCandidateRequest {
+  string session_id = 1;
+  string candidate_id = 2;
+  // Optional phase id or order number. Empty accepts as global context.
+  string phase_id = 3;
+}
+
+message AcceptContextCandidateResponse {
+  AuthoringSession session = 1;
+  ContextCandidate candidate = 2;
+  shared.RelevantContextItem item = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message RejectContextCandidateRequest {
+  string session_id = 1;
+  string candidate_id = 2;
+  string reason = 3;
+}
+
+message RejectContextCandidateResponse {
+  AuthoringSession session = 1;
+  ContextCandidate candidate = 2;
   shared.GuidedStep step = 3;
 }
 
@@ -212,8 +332,9 @@ message SubmitPhaseFieldRequest {
   string session_id = 1;
   // Phase id or authored order number.
   string phase_id = 2;
-  // title | intent | references | required_reading | reminders | acceptance |
-  // no_code_refs_reason
+  // title | intent | references | relevant_context | reminders | acceptance |
+  // no_code_refs_reason. required_reading is accepted only as legacy migration
+  // input.
   string field = 3;
   string content = 4;
 }

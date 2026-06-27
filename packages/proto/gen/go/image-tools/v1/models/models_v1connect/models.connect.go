@@ -59,6 +59,12 @@ const (
 	// ModelsServiceAddCustomModelProcedure is the fully-qualified name of the ModelsService's
 	// AddCustomModel RPC.
 	ModelsServiceAddCustomModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/AddCustomModel"
+	// ModelsServiceInspectModelSourceProcedure is the fully-qualified name of the ModelsService's
+	// InspectModelSource RPC.
+	ModelsServiceInspectModelSourceProcedure = "/vrooli.image_tools.v1.models.ModelsService/InspectModelSource"
+	// ModelsServiceImportModelProcedure is the fully-qualified name of the ModelsService's ImportModel
+	// RPC.
+	ModelsServiceImportModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/ImportModel"
 	// ModelsServiceSetDefaultModelProcedure is the fully-qualified name of the ModelsService's
 	// SetDefaultModel RPC.
 	ModelsServiceSetDefaultModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel"
@@ -116,6 +122,18 @@ type ModelsServiceClient interface {
 	// AddCustomModel registers a custom/fine-tuned local model entry merged on top
 	// of the read-only seed. The id must not collide with a seed model.
 	AddCustomModel(context.Context, *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error)
+	// InspectModelSource dry-runs a guided import: it inspects a HuggingFace repo
+	// id (or a direct weight URL / local path) WITHOUT installing anything, and
+	// returns the detected layout, the inferred architecture (+confidence/evidence
+	// the user confirms), license/NSFW, approximate size, and the proposed registry
+	// entry. Installs nothing, downloads no weights — only the metadata to propose.
+	InspectModelSource(context.Context, *connect.Request[models.InspectModelSourceRequest]) (*connect.Response[models.InspectModelSourceResponse], error)
+	// ImportModel composes inspect → operator-confirmed fields (architecture/ops/
+	// attestation) → an add-only custom entry → a durable install job (mirrors
+	// InstallModel: returns job_id + ETA; the caller blocks once on
+	// JobsService.WaitJob). Imports default to local tier with a user-imported
+	// provenance label; public/BYOK serving requires attest_commercial_rights.
+	ImportModel(context.Context, *connect.Request[models.ImportModelRequest]) (*connect.Response[models.ImportModelResponse], error)
 	// SetDefaultModel pins (or clears, with empty model_id) the default model for
 	// an operation — the settings surface. Selection applies it when a request
 	// gives no explicit override.
@@ -225,6 +243,18 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("AddCustomModel")),
 			connect.WithClientOptions(opts...),
 		),
+		inspectModelSource: connect.NewClient[models.InspectModelSourceRequest, models.InspectModelSourceResponse](
+			httpClient,
+			baseURL+ModelsServiceInspectModelSourceProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("InspectModelSource")),
+			connect.WithClientOptions(opts...),
+		),
+		importModel: connect.NewClient[models.ImportModelRequest, models.ImportModelResponse](
+			httpClient,
+			baseURL+ModelsServiceImportModelProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("ImportModel")),
+			connect.WithClientOptions(opts...),
+		),
 		setDefaultModel: connect.NewClient[models.SetDefaultModelRequest, models.SetDefaultModelResponse](
 			httpClient,
 			baseURL+ModelsServiceSetDefaultModelProcedure,
@@ -287,6 +317,8 @@ type modelsServiceClient struct {
 	installModel        *connect.Client[models.InstallModelRequest, models.InstallModelResponse]
 	removeModel         *connect.Client[models.RemoveModelRequest, models.RemoveModelResponse]
 	addCustomModel      *connect.Client[models.AddCustomModelRequest, models.AddCustomModelResponse]
+	inspectModelSource  *connect.Client[models.InspectModelSourceRequest, models.InspectModelSourceResponse]
+	importModel         *connect.Client[models.ImportModelRequest, models.ImportModelResponse]
 	setDefaultModel     *connect.Client[models.SetDefaultModelRequest, models.SetDefaultModelResponse]
 	listDefaults        *connect.Client[models.ListDefaultsRequest, models.ListDefaultsResponse]
 	doctorCatalog       *connect.Client[models.DoctorCatalogRequest, models.DoctorCatalogResponse]
@@ -340,6 +372,16 @@ func (c *modelsServiceClient) RemoveModel(ctx context.Context, req *connect.Requ
 // AddCustomModel calls vrooli.image_tools.v1.models.ModelsService.AddCustomModel.
 func (c *modelsServiceClient) AddCustomModel(ctx context.Context, req *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error) {
 	return c.addCustomModel.CallUnary(ctx, req)
+}
+
+// InspectModelSource calls vrooli.image_tools.v1.models.ModelsService.InspectModelSource.
+func (c *modelsServiceClient) InspectModelSource(ctx context.Context, req *connect.Request[models.InspectModelSourceRequest]) (*connect.Response[models.InspectModelSourceResponse], error) {
+	return c.inspectModelSource.CallUnary(ctx, req)
+}
+
+// ImportModel calls vrooli.image_tools.v1.models.ModelsService.ImportModel.
+func (c *modelsServiceClient) ImportModel(ctx context.Context, req *connect.Request[models.ImportModelRequest]) (*connect.Response[models.ImportModelResponse], error) {
+	return c.importModel.CallUnary(ctx, req)
 }
 
 // SetDefaultModel calls vrooli.image_tools.v1.models.ModelsService.SetDefaultModel.
@@ -414,6 +456,18 @@ type ModelsServiceHandler interface {
 	// AddCustomModel registers a custom/fine-tuned local model entry merged on top
 	// of the read-only seed. The id must not collide with a seed model.
 	AddCustomModel(context.Context, *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error)
+	// InspectModelSource dry-runs a guided import: it inspects a HuggingFace repo
+	// id (or a direct weight URL / local path) WITHOUT installing anything, and
+	// returns the detected layout, the inferred architecture (+confidence/evidence
+	// the user confirms), license/NSFW, approximate size, and the proposed registry
+	// entry. Installs nothing, downloads no weights — only the metadata to propose.
+	InspectModelSource(context.Context, *connect.Request[models.InspectModelSourceRequest]) (*connect.Response[models.InspectModelSourceResponse], error)
+	// ImportModel composes inspect → operator-confirmed fields (architecture/ops/
+	// attestation) → an add-only custom entry → a durable install job (mirrors
+	// InstallModel: returns job_id + ETA; the caller blocks once on
+	// JobsService.WaitJob). Imports default to local tier with a user-imported
+	// provenance label; public/BYOK serving requires attest_commercial_rights.
+	ImportModel(context.Context, *connect.Request[models.ImportModelRequest]) (*connect.Response[models.ImportModelResponse], error)
 	// SetDefaultModel pins (or clears, with empty model_id) the default model for
 	// an operation — the settings surface. Selection applies it when a request
 	// gives no explicit override.
@@ -519,6 +573,18 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("AddCustomModel")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceInspectModelSourceHandler := connect.NewUnaryHandler(
+		ModelsServiceInspectModelSourceProcedure,
+		svc.InspectModelSource,
+		connect.WithSchema(modelsServiceMethods.ByName("InspectModelSource")),
+		connect.WithHandlerOptions(opts...),
+	)
+	modelsServiceImportModelHandler := connect.NewUnaryHandler(
+		ModelsServiceImportModelProcedure,
+		svc.ImportModel,
+		connect.WithSchema(modelsServiceMethods.ByName("ImportModel")),
+		connect.WithHandlerOptions(opts...),
+	)
 	modelsServiceSetDefaultModelHandler := connect.NewUnaryHandler(
 		ModelsServiceSetDefaultModelProcedure,
 		svc.SetDefaultModel,
@@ -587,6 +653,10 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceRemoveModelHandler.ServeHTTP(w, r)
 		case ModelsServiceAddCustomModelProcedure:
 			modelsServiceAddCustomModelHandler.ServeHTTP(w, r)
+		case ModelsServiceInspectModelSourceProcedure:
+			modelsServiceInspectModelSourceHandler.ServeHTTP(w, r)
+		case ModelsServiceImportModelProcedure:
+			modelsServiceImportModelHandler.ServeHTTP(w, r)
 		case ModelsServiceSetDefaultModelProcedure:
 			modelsServiceSetDefaultModelHandler.ServeHTTP(w, r)
 		case ModelsServiceListDefaultsProcedure:
@@ -646,6 +716,14 @@ func (UnimplementedModelsServiceHandler) RemoveModel(context.Context, *connect.R
 
 func (UnimplementedModelsServiceHandler) AddCustomModel(context.Context, *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.AddCustomModel is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) InspectModelSource(context.Context, *connect.Request[models.InspectModelSourceRequest]) (*connect.Response[models.InspectModelSourceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.InspectModelSource is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) ImportModel(context.Context, *connect.Request[models.ImportModelRequest]) (*connect.Response[models.ImportModelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ImportModel is not implemented"))
 }
 
 func (UnimplementedModelsServiceHandler) SetDefaultModel(context.Context, *connect.Request[models.SetDefaultModelRequest]) (*connect.Response[models.SetDefaultModelResponse], error) {

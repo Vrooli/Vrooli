@@ -142,7 +142,7 @@ func TestAnalyze_CompositionRootExemptFromGodDomain(t *testing.T) {
 	// Tag the fan-out hub as a composition root → exempt.
 	for i := range m.Domains {
 		if m.Domains[i].Name == "a" {
-			m.Domains[i].Archetype = "composition-root"
+			m.Domains[i].Archetypes = domains.DeclaredArchetypes("composition-root")
 		}
 	}
 	rep := boundaries.Analyze("demo", snap, m, boundaries.DefaultConfig())

@@ -24,7 +24,7 @@ class Section(_message.Message):
     def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., content: _Optional[str] = ..., mandatory: _Optional[bool] = ..., filled: _Optional[bool] = ..., autofilled: _Optional[bool] = ...) -> None: ...
 
 class AuthoringSession(_message.Message):
-    __slots__ = ("id", "title", "plan_slug", "sections", "current_section_key", "finalized", "plan_id", "phase_drafts", "current_phase_id")
+    __slots__ = ("id", "title", "plan_slug", "sections", "current_section_key", "finalized", "plan_id", "phase_drafts", "current_phase_id", "relevant_context", "context_candidates")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     PLAN_SLUG_FIELD_NUMBER: _ClassVar[int]
@@ -34,6 +34,8 @@ class AuthoringSession(_message.Message):
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_DRAFTS_FIELD_NUMBER: _ClassVar[int]
     CURRENT_PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    RELEVANT_CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_CANDIDATES_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     plan_slug: str
@@ -43,7 +45,9 @@ class AuthoringSession(_message.Message):
     plan_id: str
     phase_drafts: _containers.RepeatedCompositeFieldContainer[PhaseDraft]
     current_phase_id: str
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., plan_slug: _Optional[str] = ..., sections: _Optional[_Iterable[_Union[Section, _Mapping]]] = ..., current_section_key: _Optional[str] = ..., finalized: _Optional[bool] = ..., plan_id: _Optional[str] = ..., phase_drafts: _Optional[_Iterable[_Union[PhaseDraft, _Mapping]]] = ..., current_phase_id: _Optional[str] = ...) -> None: ...
+    relevant_context: _containers.RepeatedCompositeFieldContainer[_model_pb2.RelevantContextItem]
+    context_candidates: _containers.RepeatedCompositeFieldContainer[ContextCandidate]
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., plan_slug: _Optional[str] = ..., sections: _Optional[_Iterable[_Union[Section, _Mapping]]] = ..., current_section_key: _Optional[str] = ..., finalized: _Optional[bool] = ..., plan_id: _Optional[str] = ..., phase_drafts: _Optional[_Iterable[_Union[PhaseDraft, _Mapping]]] = ..., current_phase_id: _Optional[str] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., context_candidates: _Optional[_Iterable[_Union[ContextCandidate, _Mapping]]] = ...) -> None: ...
 
 class StructureViolation(_message.Message):
     __slots__ = ("section_key", "message")
@@ -67,8 +71,28 @@ class AutofillResult(_message.Message):
     detail: str
     def __init__(self, source: _Optional[str] = ..., section_key: _Optional[str] = ..., filled: _Optional[bool] = ..., degraded: _Optional[bool] = ..., detail: _Optional[str] = ...) -> None: ...
 
+class ContextCandidate(_message.Message):
+    __slots__ = ("id", "item", "concept", "source", "degraded", "detail", "status", "rejection_reason")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    CONCEPT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REJECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    item: _model_pb2.RelevantContextItem
+    concept: str
+    source: str
+    degraded: bool
+    detail: str
+    status: str
+    rejection_reason: str
+    def __init__(self, id: _Optional[str] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ..., concept: _Optional[str] = ..., source: _Optional[str] = ..., degraded: _Optional[bool] = ..., detail: _Optional[str] = ..., status: _Optional[str] = ..., rejection_reason: _Optional[str] = ...) -> None: ...
+
 class PhaseDraft(_message.Message):
-    __slots__ = ("id", "order", "title", "intent", "references", "required_reading", "reminders", "acceptance", "no_code_refs_reason")
+    __slots__ = ("id", "order", "title", "intent", "references", "required_reading", "reminders", "acceptance", "no_code_refs_reason", "relevant_context")
     ID_FIELD_NUMBER: _ClassVar[int]
     ORDER_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -78,6 +102,7 @@ class PhaseDraft(_message.Message):
     REMINDERS_FIELD_NUMBER: _ClassVar[int]
     ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
     NO_CODE_REFS_REASON_FIELD_NUMBER: _ClassVar[int]
+    RELEVANT_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     id: str
     order: int
     title: str
@@ -87,7 +112,8 @@ class PhaseDraft(_message.Message):
     reminders: _containers.RepeatedScalarFieldContainer[str]
     acceptance: str
     no_code_refs_reason: str
-    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., references: _Optional[_Iterable[_Union[_model_pb2.Reference, _Mapping]]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., no_code_refs_reason: _Optional[str] = ...) -> None: ...
+    relevant_context: _containers.RepeatedCompositeFieldContainer[_model_pb2.RelevantContextItem]
+    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., references: _Optional[_Iterable[_Union[_model_pb2.Reference, _Mapping]]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., no_code_refs_reason: _Optional[str] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ...) -> None: ...
 
 class StartSessionRequest(_message.Message):
     __slots__ = ("title", "slug", "template_id")
@@ -159,6 +185,28 @@ class NextResponse(_message.Message):
     step: _model_pb2.GuidedStep
     def __init__(self, section: _Optional[_Union[Section, _Mapping]] = ..., complete: _Optional[bool] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
+class ContinueAuthoringRequest(_message.Message):
+    __slots__ = ("session_id",)
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    def __init__(self, session_id: _Optional[str] = ...) -> None: ...
+
+class ContinueAuthoringResponse(_message.Message):
+    __slots__ = ("session", "section", "phase", "ready_to_finalize", "violations", "step")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    SECTION_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    READY_TO_FINALIZE_FIELD_NUMBER: _ClassVar[int]
+    VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    session: AuthoringSession
+    section: Section
+    phase: PhaseDraft
+    ready_to_finalize: bool
+    violations: _containers.RepeatedCompositeFieldContainer[StructureViolation]
+    step: _model_pb2.GuidedStep
+    def __init__(self, session: _Optional[_Union[AuthoringSession, _Mapping]] = ..., section: _Optional[_Union[Section, _Mapping]] = ..., phase: _Optional[_Union[PhaseDraft, _Mapping]] = ..., ready_to_finalize: _Optional[bool] = ..., violations: _Optional[_Iterable[_Union[StructureViolation, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
 class ValidateStructureRequest(_message.Message):
     __slots__ = ("session_id",)
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
@@ -192,6 +240,108 @@ class AutofillResponse(_message.Message):
     results: _containers.RepeatedCompositeFieldContainer[AutofillResult]
     step: _model_pb2.GuidedStep
     def __init__(self, session: _Optional[_Union[AuthoringSession, _Mapping]] = ..., results: _Optional[_Iterable[_Union[AutofillResult, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class SubmitRelevantContextItemRequest(_message.Message):
+    __slots__ = ("session_id", "phase_id", "item")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    phase_id: str
+    item: _model_pb2.RelevantContextItem
+    def __init__(self, session_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ...) -> None: ...
+
+class SubmitRelevantContextItemResponse(_message.Message):
+    __slots__ = ("session", "item", "violations", "step")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    session: AuthoringSession
+    item: _model_pb2.RelevantContextItem
+    violations: _containers.RepeatedCompositeFieldContainer[StructureViolation]
+    step: _model_pb2.GuidedStep
+    def __init__(self, session: _Optional[_Union[AuthoringSession, _Mapping]] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ..., violations: _Optional[_Iterable[_Union[StructureViolation, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class ListRelevantContextRequest(_message.Message):
+    __slots__ = ("session_id", "phase_id")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    phase_id: str
+    def __init__(self, session_id: _Optional[str] = ..., phase_id: _Optional[str] = ...) -> None: ...
+
+class ListRelevantContextResponse(_message.Message):
+    __slots__ = ("items", "step")
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[_model_pb2.RelevantContextItem]
+    step: _model_pb2.GuidedStep
+    def __init__(self, items: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class DiscoverContextCandidatesRequest(_message.Message):
+    __slots__ = ("session_id", "concepts", "complexity")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    CONCEPTS_FIELD_NUMBER: _ClassVar[int]
+    COMPLEXITY_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    concepts: _containers.RepeatedScalarFieldContainer[str]
+    complexity: str
+    def __init__(self, session_id: _Optional[str] = ..., concepts: _Optional[_Iterable[str]] = ..., complexity: _Optional[str] = ...) -> None: ...
+
+class DiscoverContextCandidatesResponse(_message.Message):
+    __slots__ = ("session", "candidates", "step")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    session: AuthoringSession
+    candidates: _containers.RepeatedCompositeFieldContainer[ContextCandidate]
+    step: _model_pb2.GuidedStep
+    def __init__(self, session: _Optional[_Union[AuthoringSession, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[ContextCandidate, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class AcceptContextCandidateRequest(_message.Message):
+    __slots__ = ("session_id", "candidate_id", "phase_id")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    candidate_id: str
+    phase_id: str
+    def __init__(self, session_id: _Optional[str] = ..., candidate_id: _Optional[str] = ..., phase_id: _Optional[str] = ...) -> None: ...
+
+class AcceptContextCandidateResponse(_message.Message):
+    __slots__ = ("session", "candidate", "item", "violations", "step")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    session: AuthoringSession
+    candidate: ContextCandidate
+    item: _model_pb2.RelevantContextItem
+    violations: _containers.RepeatedCompositeFieldContainer[StructureViolation]
+    step: _model_pb2.GuidedStep
+    def __init__(self, session: _Optional[_Union[AuthoringSession, _Mapping]] = ..., candidate: _Optional[_Union[ContextCandidate, _Mapping]] = ..., item: _Optional[_Union[_model_pb2.RelevantContextItem, _Mapping]] = ..., violations: _Optional[_Iterable[_Union[StructureViolation, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
+class RejectContextCandidateRequest(_message.Message):
+    __slots__ = ("session_id", "candidate_id", "reason")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    candidate_id: str
+    reason: str
+    def __init__(self, session_id: _Optional[str] = ..., candidate_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class RejectContextCandidateResponse(_message.Message):
+    __slots__ = ("session", "candidate", "step")
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    session: AuthoringSession
+    candidate: ContextCandidate
+    step: _model_pb2.GuidedStep
+    def __init__(self, session: _Optional[_Union[AuthoringSession, _Mapping]] = ..., candidate: _Optional[_Union[ContextCandidate, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class AddPhaseRequest(_message.Message):
     __slots__ = ("session_id", "title", "intent")

@@ -10,7 +10,10 @@ package domains
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"architecture-cartographer/internal/archetype"
 )
 
 // Source identifies which ladder rung contributed a domain declaration.
@@ -55,11 +58,100 @@ type DerivedDomain struct {
 	// Glossary is the optional canonical vocabulary (type/function names)
 	// for the symbol-glossary signal.
 	Glossary []string
-	// Archetype is the optional primary archetype (e.g., "service",
-	// "reporting"); drives archetype-aware heuristic exemptions.
-	Archetype string
+	// Responsibility is the human-authored semantic anchor for the domain.
+	Responsibility string
+	// Purpose captures why the capability exists for users/operators.
+	Purpose string
+	// OwnsData captures the authored data ownership note.
+	OwnsData string
+	// SecondaryTraits are additional declared archetype traits.
+	SecondaryTraits []string
+	// Surfaces are derived from code evidence. The slice walker populates
+	// this in a later phase; the field lives here now so the contract is
+	// ready before evidence is wired.
+	Surfaces []string
+	// Archetypes is the declared/inferred archetype set.
+	Archetypes []DomainArchetype
 	// Provenance lists every source that declared a domain with this name.
 	Provenance []Source
+}
+
+type ArchetypeSource string
+
+const (
+	ArchetypeSourceUnspecified ArchetypeSource = ""
+	ArchetypeSourceDeclared    ArchetypeSource = "declared"
+	ArchetypeSourceInferred    ArchetypeSource = "inferred"
+)
+
+type DomainArchetype struct {
+	// Name is the canonical archetype (archetype.Name vocabulary), empty when a
+	// declared label does not map onto the canonical set.
+	Name       string
+	Source     ArchetypeSource
+	Confidence float64
+	Evidence   []string
+	// DeclaredLabel preserves the original DOMAINS.md text when Source is
+	// Declared and the label is not canonical (Name is then empty). Empty
+	// otherwise. Drives honest drift reporting instead of silent coercion.
+	DeclaredLabel string
+}
+
+// PrimaryArchetype returns the effective declared archetype role, falling back
+// to the first archetype in the set. The returned value is the canonical name
+// when the declared label maps onto the fixed vocabulary, otherwise the raw
+// declared label — because the zone/layering "coordinating roles" vocabulary
+// (provider, aggregation, infrastructure, composition-root) is a deliberate
+// superset of the canonical Q20 archetypes, and those detectors must still see
+// a non-canonical declared role.
+func (a DomainArchetype) effectiveRole() string {
+	if a.Name != "" {
+		return a.Name
+	}
+	return a.DeclaredLabel
+}
+
+func (d DerivedDomain) PrimaryArchetype() string {
+	for _, archetype := range d.Archetypes {
+		if archetype.Source == ArchetypeSourceDeclared {
+			if role := archetype.effectiveRole(); role != "" {
+				return role
+			}
+		}
+	}
+	if len(d.Archetypes) > 0 {
+		return d.Archetypes[0].effectiveRole()
+	}
+	return ""
+}
+
+func DeclaredArchetypes(names ...string) []DomainArchetype {
+	out := make([]DomainArchetype, 0, len(names))
+	seen := map[string]struct{}{}
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" || name == "-" || name == "—" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		da := DomainArchetype{
+			Source:     ArchetypeSourceDeclared,
+			Confidence: 1,
+			Evidence:   []string{DomainsDocPath},
+		}
+		// Normalize onto the canonical vocabulary; preserve the raw label when it
+		// does not map so drift reporting can compare authored vs canonical.
+		if canon, ok := archetype.Normalize(name); ok {
+			da.Name = string(canon)
+		} else {
+			da.DeclaredLabel = name
+		}
+		out = append(out, da)
+	}
+	return out
 }
 
 // DomainDeclaration is one ladder rung's raw view of the domain set,
@@ -121,7 +213,7 @@ type DomainDraft struct {
 type ProposedDomain struct {
 	Name       string
 	Paths      []string
-	Archetype  string
+	Archetypes []DomainArchetype
 	Glossary   []string
 	Confidence string
 	Evidence   []string
@@ -166,10 +258,14 @@ func (m DerivedDomainMap) IsSharedSubstrate(path string) bool {
 // before ladder resolution. Folder/CLI extractors leave Glossary and
 // Archetype empty; only the DomainsDoc extractor populates them.
 type ExtractedDomain struct {
-	Name      string
-	Paths     []string
-	Glossary  []string
-	Archetype string
+	Name            string
+	Paths           []string
+	Glossary        []string
+	Responsibility  string
+	Purpose         string
+	OwnsData        string
+	SecondaryTraits []string
+	Archetypes      []DomainArchetype
 }
 
 // Extraction is the full output of one extractor for one scenario.

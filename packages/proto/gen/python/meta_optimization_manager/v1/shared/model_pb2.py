@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n/meta-optimization-manager/v1/shared/model.proto\x12*vrooli.meta_optimization_manager.v1.shared*n\n\nProjection\x12\x1a\n\x16PROJECTION_UNSPECIFIED\x10\x00\x12\x15\n\x11PROJECTION_ANSWER\x10\x01\x12\x17\n\x13PROJECTION_VALIDATE\x10\x02\x12\x14\n\x10PROJECTION_GUIDE\x10\x03*\xb0\x01\n\x15\x44\x65nominatorConfidence\x12&\n\"DENOMINATOR_CONFIDENCE_UNSPECIFIED\x10\x00\x12(\n$DENOMINATOR_CONFIDENCE_AUTHORITATIVE\x10\x01\x12\"\n\x1e\x44\x45NOMINATOR_CONFIDENCE_PARTIAL\x10\x02\x12!\n\x1d\x44\x45NOMINATOR_CONFIDENCE_SKETCH\x10\x03*q\n\nCellStatus\x12\x1b\n\x17\x43\x45LL_STATUS_UNSPECIFIED\x10\x00\x12\x13\n\x0f\x43\x45LL_STATUS_NOW\x10\x01\x12\x18\n\x14\x43\x45LL_STATUS_IN_REACH\x10\x02\x12\x17\n\x13\x43\x45LL_STATUS_MISSING\x10\x03*\x8f\x01\n\x05\x42\x61sis\x12\x15\n\x11\x42\x41SIS_UNSPECIFIED\x10\x00\x12\x11\n\rBASIS_DERIVED\x10\x01\x12\x13\n\x0f\x42\x41SIS_VALIDATED\x10\x02\x12\x1d\n\x19\x42\x41SIS_DECLARED_UNVERIFIED\x10\x03\x12\x16\n\x12\x42\x41SIS_CONTRADICTED\x10\x04\x12\x10\n\x0c\x42\x41SIS_ABSENT\x10\x05*w\n\x0bSufficiency\x12\x1b\n\x17SUFFICIENCY_UNSPECIFIED\x10\x00\x12\x14\n\x10SUFFICIENCY_FULL\x10\x01\x12\x17\n\x13SUFFICIENCY_PARTIAL\x10\x02\x12\x1c\n\x18SUFFICIENCY_INSUFFICIENT\x10\x03*^\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n\rSEVERITY_INFO\x10\x01\x12\x11\n\rSEVERITY_WARN\x10\x02\x12\x12\n\x0eSEVERITY_ERROR\x10\x03\x42^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/shared;shared_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n/meta-optimization-manager/v1/shared/model.proto\x12*vrooli.meta_optimization_manager.v1.shared*n\n\nProjection\x12\x1a\n\x16PROJECTION_UNSPECIFIED\x10\x00\x12\x15\n\x11PROJECTION_ANSWER\x10\x01\x12\x17\n\x13PROJECTION_VALIDATE\x10\x02\x12\x14\n\x10PROJECTION_GUIDE\x10\x03*\xb0\x01\n\x15\x44\x65nominatorConfidence\x12&\n\"DENOMINATOR_CONFIDENCE_UNSPECIFIED\x10\x00\x12(\n$DENOMINATOR_CONFIDENCE_AUTHORITATIVE\x10\x01\x12\"\n\x1e\x44\x45NOMINATOR_CONFIDENCE_PARTIAL\x10\x02\x12!\n\x1d\x44\x45NOMINATOR_CONFIDENCE_SKETCH\x10\x03*q\n\nCellStatus\x12\x1b\n\x17\x43\x45LL_STATUS_UNSPECIFIED\x10\x00\x12\x13\n\x0f\x43\x45LL_STATUS_NOW\x10\x01\x12\x18\n\x14\x43\x45LL_STATUS_IN_REACH\x10\x02\x12\x17\n\x13\x43\x45LL_STATUS_MISSING\x10\x03*^\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x11\n\rSEVERITY_INFO\x10\x01\x12\x11\n\rSEVERITY_WARN\x10\x02\x12\x12\n\x0eSEVERITY_ERROR\x10\x03\x42^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/shared;shared_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -38,10 +38,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_DENOMINATORCONFIDENCE']._serialized_end=384
   _globals['_CELLSTATUS']._serialized_start=386
   _globals['_CELLSTATUS']._serialized_end=499
-  _globals['_BASIS']._serialized_start=502
-  _globals['_BASIS']._serialized_end=645
-  _globals['_SUFFICIENCY']._serialized_start=647
-  _globals['_SUFFICIENCY']._serialized_end=766
-  _globals['_SEVERITY']._serialized_start=768
-  _globals['_SEVERITY']._serialized_end=862
+  _globals['_SEVERITY']._serialized_start=501
+  _globals['_SEVERITY']._serialized_end=595
 # @@protoc_insertion_point(module_scope)

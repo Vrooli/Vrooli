@@ -2,6 +2,8 @@ package domains
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -11,11 +13,11 @@ const goldenDoc = `# Domains — Example
 
 ## Domain Inventory
 
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths (planned) | Glossary |
+| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths (planned) |
 |---|---|---|---|---|---|---|---|
-| graph | Build the graph. | service / orchestration | snapshots | API, CLI | OT-1 | ` + "`api/internal/graph/`, `api/handlers/graph/`" + ` | GraphSnapshot, ImportEdge |
-| analytics | Event log. | reporting / query | events | API | OT-9 | ` + "`api/internal/analytics/`" + ` | Event, Placement |
-| conflicts | Detect drift. | service / classification | conflicts | API, CLI, UI | OT-3 | ` + "`api/internal/conflicts/`" + ` | |
+| graph | Build the graph. | Produce code graph evidence. | snapshots | service / orchestration | query | GraphSnapshot, ImportEdge | ` + "`api/internal/graph/`, `api/handlers/graph/`" + ` |
+| analytics | Event log. | Persist event summaries. | events | reporting / query | — | Event, Placement | ` + "`api/internal/analytics/`" + ` |
+| conflicts | Detect drift. | Emit architecture findings. | conflicts | service / classification | — | | ` + "`api/internal/conflicts/`" + ` |
 
 ## Non-Domains
 
@@ -54,21 +56,21 @@ func TestDomainsDocExtractor_Golden(t *testing.T) {
 		byName[d.Name] = d
 	}
 
-	// graph: paths (backtick-stripped, comma-split), archetype first token, glossary.
+	// graph: paths (backtick-stripped, comma-split), multi-archetype set, glossary.
 	graph := byName["graph"]
 	if !reflect.DeepEqual(graph.Paths, []string{"api/internal/graph/", "api/handlers/graph/"}) {
 		t.Fatalf("graph paths = %v", graph.Paths)
 	}
-	if graph.Archetype != "service" {
-		t.Fatalf("graph archetype = %q, want service", graph.Archetype)
+	if got := archetypeNames(graph.Archetypes); !reflect.DeepEqual(got, []string{"service", "orchestration", "query"}) {
+		t.Fatalf("graph archetypes = %v", got)
 	}
 	if !reflect.DeepEqual(graph.Glossary, []string{"GraphSnapshot", "ImportEdge"}) {
 		t.Fatalf("graph glossary = %v", graph.Glossary)
 	}
 
-	// analytics archetype "reporting / query" -> reporting.
-	if byName["analytics"].Archetype != "reporting" {
-		t.Fatalf("analytics archetype = %q", byName["analytics"].Archetype)
+	// analytics archetype "reporting / query" preserves both roles.
+	if got := archetypeNames(byName["analytics"].Archetypes); !reflect.DeepEqual(got, []string{"reporting", "query"}) {
+		t.Fatalf("analytics archetypes = %v", got)
 	}
 
 	// conflicts has an empty glossary cell.
@@ -95,6 +97,99 @@ func TestDomainsDocExtractor_MissingFile(t *testing.T) {
 	}
 	if len(ext.Domains) != 0 {
 		t.Fatalf("expected empty extraction, got %d domains", len(ext.Domains))
+	}
+}
+
+func TestDomainsDocExtractor_UsesTemplateTableContract(t *testing.T) {
+	repoRoot := t.TempDir()
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "example")
+	writeDomainExtractorFile(t, repoRoot, "templates/scenarios/react-vite/docs/manifest.json", `{
+  "sections": [{
+    "documents": [{
+      "path": "concepts/DOMAINS.md",
+      "validation": {
+        "tableContracts": [{
+          "anchorHeading": "Domain Inventory",
+          "columns": [
+            { "name": "Domain", "type": "text" },
+            { "name": "Primary Archetype", "type": "enum", "aliases": ["Role"], "enumValues": ["service"] },
+            { "name": "Source Paths", "type": "comma-list", "aliases": ["Locations"] }
+          ]
+        }]
+      }
+    }]
+  }]
+}`)
+	writeDomainExtractorFile(t, scenarioDir, "docs/concepts/DOMAINS.md", `# Domains
+
+## Domain Inventory
+
+| Domain | Role | Locations |
+|---|---|---|
+| graph | service | `+"`api/internal/graph/`"+` |
+`)
+
+	ext, err := NewDomainsDocExtractor().Extract(context.Background(), scenarioDir)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(ext.Domains) != 1 || ext.Domains[0].Name != "graph" {
+		t.Fatalf("domains = %+v, want graph from template aliases", ext.Domains)
+	}
+}
+
+func TestDomainsDocExtractor_ScenarioContractOverridesTemplate(t *testing.T) {
+	repoRoot := t.TempDir()
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "example")
+	writeDomainExtractorFile(t, repoRoot, "templates/scenarios/react-vite/docs/manifest.json", `{
+  "sections": [{
+    "documents": [{
+      "path": "concepts/DOMAINS.md",
+      "validation": {
+        "tableContracts": [{
+          "anchorHeading": "Domain Inventory",
+          "columns": [
+            { "name": "Domain", "type": "text" },
+            { "name": "Primary Archetype", "type": "enum", "aliases": ["Role"], "enumValues": ["service"] },
+            { "name": "Source Paths", "type": "comma-list", "aliases": ["Template Paths"] }
+          ]
+        }]
+      }
+    }]
+  }]
+}`)
+	writeDomainExtractorFile(t, scenarioDir, "docs/manifest.json", `{
+  "sections": [{
+    "documents": [{
+      "path": "concepts/DOMAINS.md",
+      "validation": {
+        "tableContracts": [{
+          "anchorHeading": "Domain Inventory",
+          "columns": [
+            { "name": "Domain", "type": "text" },
+            { "name": "Primary Archetype", "type": "enum", "aliases": ["Role"], "enumValues": ["service"] },
+            { "name": "Source Paths", "type": "comma-list", "aliases": ["Scenario Paths"] }
+          ]
+        }]
+      }
+    }]
+  }]
+}`)
+	writeDomainExtractorFile(t, scenarioDir, "docs/concepts/DOMAINS.md", `# Domains
+
+## Domain Inventory
+
+| Domain | Role | Scenario Paths |
+|---|---|---|
+| graph | service | `+"`api/internal/graph/`"+` |
+`)
+
+	ext, err := NewDomainsDocExtractor().Extract(context.Background(), scenarioDir)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if len(ext.Domains) != 1 || ext.Domains[0].Name != "graph" {
+		t.Fatalf("domains = %+v, want graph from scenario aliases", ext.Domains)
 	}
 }
 
@@ -130,18 +225,37 @@ func TestDomainsDocExtractor_Errors(t *testing.T) {
 	})
 }
 
-func TestNormalizeArchetype(t *testing.T) {
-	cases := map[string]string{
-		"service / orchestration": "service",
-		"reporting / query":       "reporting",
-		"validation / contract":   "validation",
-		"Composition-Root":        "composition-root",
-		"weird thing":             "weird thing",
-		"":                        "",
+func TestParseArchetypeNames(t *testing.T) {
+	cases := map[string][]string{
+		"service / orchestration": {"service", "orchestration"},
+		"reporting / query":       {"reporting", "query"},
+		"validation / contract":   {"validation", "contract"},
+		"Composition-Root":        {"composition-root"},
+		"weird thing":             {"weird thing"},
+		"":                        nil,
 	}
 	for in, want := range cases {
-		if got := normalizeArchetype(in); got != want {
-			t.Fatalf("normalizeArchetype(%q) = %q, want %q", in, got, want)
+		if got := parseArchetypeNames(in); !reflect.DeepEqual(got, want) {
+			t.Fatalf("parseArchetypeNames(%q) = %v, want %v", in, got, want)
 		}
 	}
+}
+
+func writeDomainExtractorFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func archetypeNames(archetypes []DomainArchetype) []string {
+	out := make([]string, 0, len(archetypes))
+	for _, archetype := range archetypes {
+		out = append(out, archetype.Name)
+	}
+	return out
 }

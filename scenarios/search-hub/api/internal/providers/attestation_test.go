@@ -3,25 +3,25 @@ package providers
 import (
 	"testing"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
-	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
 func TestValidateAttestation(t *testing.T) {
-	cite := []*routingv1.Citation{{Locator: "api/foo.go:10", Kind: "code"}}
+	cite := []*commonv1.Citation{{Locator: "api/foo.go:10", Kind: "code"}}
 	cases := []struct {
 		name string
-		att  *routingv1.AttestedAnswer
+		att  *commonv1.AttestedAnswer
 		ok   bool
 	}{
 		{"nil", nil, false},
-		{"empty claim", &routingv1.AttestedAnswer{Basis: routingv1.Basis_BASIS_ABSENT}, false},
-		{"derived no citation", &routingv1.AttestedAnswer{Claim: "x", Basis: routingv1.Basis_BASIS_DERIVED}, false},
-		{"derived with citation", &routingv1.AttestedAnswer{Claim: "x", Basis: routingv1.Basis_BASIS_DERIVED, Citations: cite}, true},
-		{"validated no citation", &routingv1.AttestedAnswer{Claim: "x", Basis: routingv1.Basis_BASIS_VALIDATED}, false},
-		{"contradicted no citation", &routingv1.AttestedAnswer{Claim: "x", Basis: routingv1.Basis_BASIS_CONTRADICTED}, false},
-		{"declared_unverified uncited ok", &routingv1.AttestedAnswer{Claim: "x", Basis: routingv1.Basis_BASIS_DECLARED_UNVERIFIED}, true},
-		{"absent uncited ok", &routingv1.AttestedAnswer{Claim: "x", Basis: routingv1.Basis_BASIS_ABSENT}, true},
+		{"empty claim", &commonv1.AttestedAnswer{Basis: commonv1.Basis_BASIS_ABSENT}, false},
+		{"derived no citation", &commonv1.AttestedAnswer{Claim: "x", Basis: commonv1.Basis_BASIS_DERIVED}, false},
+		{"derived with citation", &commonv1.AttestedAnswer{Claim: "x", Basis: commonv1.Basis_BASIS_DERIVED, Citations: cite}, true},
+		{"validated no citation", &commonv1.AttestedAnswer{Claim: "x", Basis: commonv1.Basis_BASIS_VALIDATED}, false},
+		{"contradicted no citation", &commonv1.AttestedAnswer{Claim: "x", Basis: commonv1.Basis_BASIS_CONTRADICTED}, false},
+		{"declared_unverified uncited ok", &commonv1.AttestedAnswer{Claim: "x", Basis: commonv1.Basis_BASIS_DECLARED_UNVERIFIED}, true},
+		{"absent uncited ok", &commonv1.AttestedAnswer{Claim: "x", Basis: commonv1.Basis_BASIS_ABSENT}, true},
 	}
 	for _, c := range cases {
 		err := ValidateAttestation(c.att)
@@ -64,7 +64,7 @@ func TestDecodeAttestationViaMapResults(t *testing.T) {
 	if a == nil {
 		t.Fatal("hit0 attestation nil")
 	}
-	if a.GetBasis() != routingv1.Basis_BASIS_DERIVED || a.GetSufficiency() != routingv1.Sufficiency_SUFFICIENCY_PARTIAL {
+	if a.GetBasis() != commonv1.Basis_BASIS_DERIVED || a.GetSufficiency() != commonv1.Sufficiency_SUFFICIENCY_PARTIAL {
 		t.Errorf("hit0 basis/suff = %v/%v", a.GetBasis(), a.GetSufficiency())
 	}
 	if len(a.GetCitations()) != 1 || a.GetCitations()[0].GetLocator() != "search-hub providers list" {

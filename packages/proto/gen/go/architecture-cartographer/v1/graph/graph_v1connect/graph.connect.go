@@ -48,6 +48,13 @@ const (
 	// GraphServiceExportGraphProcedure is the fully-qualified name of the GraphService's ExportGraph
 	// RPC.
 	GraphServiceExportGraphProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/ExportGraph"
+	// GraphServiceGetZoneMapProcedure is the fully-qualified name of the GraphService's GetZoneMap RPC.
+	GraphServiceGetZoneMapProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/GetZoneMap"
+	// GraphServiceGetSliceProcedure is the fully-qualified name of the GraphService's GetSlice RPC.
+	GraphServiceGetSliceProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/GetSlice"
+	// GraphServiceInferArchetypeProcedure is the fully-qualified name of the GraphService's
+	// InferArchetype RPC.
+	GraphServiceInferArchetypeProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/InferArchetype"
 )
 
 // GraphServiceClient is a client for the vrooli.architecture_cartographer.v1.graph.GraphService
@@ -67,6 +74,16 @@ type GraphServiceClient interface {
 	// ExportGraph returns the snapshot in a serializable shape (e.g.,
 	// JSON) for offline analysis or fixture authoring.
 	ExportGraph(context.Context, *connect.Request[graph.ExportGraphRequest]) (*connect.Response[graph.ExportGraphResponse], error)
+	// GetZoneMap classifies the latest graph packages into the scenario's
+	// template-declared code-layout zones and includes layering cross-checks.
+	GetZoneMap(context.Context, *connect.Request[graph.GetZoneMapRequest]) (*connect.Response[graph.GetZoneMapResponse], error)
+	// GetSlice returns the implementation slice for one domain, from proto
+	// adoption evidence through handler, internal, CLI, and UI rungs.
+	GetSlice(context.Context, *connect.Request[graph.GetSliceRequest]) (*connect.Response[graph.GetSliceResponse], error)
+	// InferArchetype infers each domain's archetype (Q20) from graph signals and
+	// converges it against the declared DOMAINS.md archetype, reporting drift
+	// without overriding the declared value.
+	InferArchetype(context.Context, *connect.Request[graph.InferArchetypeRequest]) (*connect.Response[graph.InferArchetypeResponse], error)
 }
 
 // NewGraphServiceClient constructs a client for the
@@ -111,6 +128,24 @@ func NewGraphServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(graphServiceMethods.ByName("ExportGraph")),
 			connect.WithClientOptions(opts...),
 		),
+		getZoneMap: connect.NewClient[graph.GetZoneMapRequest, graph.GetZoneMapResponse](
+			httpClient,
+			baseURL+GraphServiceGetZoneMapProcedure,
+			connect.WithSchema(graphServiceMethods.ByName("GetZoneMap")),
+			connect.WithClientOptions(opts...),
+		),
+		getSlice: connect.NewClient[graph.GetSliceRequest, graph.GetSliceResponse](
+			httpClient,
+			baseURL+GraphServiceGetSliceProcedure,
+			connect.WithSchema(graphServiceMethods.ByName("GetSlice")),
+			connect.WithClientOptions(opts...),
+		),
+		inferArchetype: connect.NewClient[graph.InferArchetypeRequest, graph.InferArchetypeResponse](
+			httpClient,
+			baseURL+GraphServiceInferArchetypeProcedure,
+			connect.WithSchema(graphServiceMethods.ByName("InferArchetype")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -121,6 +156,9 @@ type graphServiceClient struct {
 	listGraphSnapshots  *connect.Client[graph.ListGraphSnapshotsRequest, graph.ListGraphSnapshotsResponse]
 	clearGraphSnapshots *connect.Client[graph.ClearGraphSnapshotsRequest, graph.ClearGraphSnapshotsResponse]
 	exportGraph         *connect.Client[graph.ExportGraphRequest, graph.ExportGraphResponse]
+	getZoneMap          *connect.Client[graph.GetZoneMapRequest, graph.GetZoneMapResponse]
+	getSlice            *connect.Client[graph.GetSliceRequest, graph.GetSliceResponse]
+	inferArchetype      *connect.Client[graph.InferArchetypeRequest, graph.InferArchetypeResponse]
 }
 
 // ExtractGraph calls vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph.
@@ -150,6 +188,21 @@ func (c *graphServiceClient) ExportGraph(ctx context.Context, req *connect.Reque
 	return c.exportGraph.CallUnary(ctx, req)
 }
 
+// GetZoneMap calls vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap.
+func (c *graphServiceClient) GetZoneMap(ctx context.Context, req *connect.Request[graph.GetZoneMapRequest]) (*connect.Response[graph.GetZoneMapResponse], error) {
+	return c.getZoneMap.CallUnary(ctx, req)
+}
+
+// GetSlice calls vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice.
+func (c *graphServiceClient) GetSlice(ctx context.Context, req *connect.Request[graph.GetSliceRequest]) (*connect.Response[graph.GetSliceResponse], error) {
+	return c.getSlice.CallUnary(ctx, req)
+}
+
+// InferArchetype calls vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype.
+func (c *graphServiceClient) InferArchetype(ctx context.Context, req *connect.Request[graph.InferArchetypeRequest]) (*connect.Response[graph.InferArchetypeResponse], error) {
+	return c.inferArchetype.CallUnary(ctx, req)
+}
+
 // GraphServiceHandler is an implementation of the
 // vrooli.architecture_cartographer.v1.graph.GraphService service.
 type GraphServiceHandler interface {
@@ -167,6 +220,16 @@ type GraphServiceHandler interface {
 	// ExportGraph returns the snapshot in a serializable shape (e.g.,
 	// JSON) for offline analysis or fixture authoring.
 	ExportGraph(context.Context, *connect.Request[graph.ExportGraphRequest]) (*connect.Response[graph.ExportGraphResponse], error)
+	// GetZoneMap classifies the latest graph packages into the scenario's
+	// template-declared code-layout zones and includes layering cross-checks.
+	GetZoneMap(context.Context, *connect.Request[graph.GetZoneMapRequest]) (*connect.Response[graph.GetZoneMapResponse], error)
+	// GetSlice returns the implementation slice for one domain, from proto
+	// adoption evidence through handler, internal, CLI, and UI rungs.
+	GetSlice(context.Context, *connect.Request[graph.GetSliceRequest]) (*connect.Response[graph.GetSliceResponse], error)
+	// InferArchetype infers each domain's archetype (Q20) from graph signals and
+	// converges it against the declared DOMAINS.md archetype, reporting drift
+	// without overriding the declared value.
+	InferArchetype(context.Context, *connect.Request[graph.InferArchetypeRequest]) (*connect.Response[graph.InferArchetypeResponse], error)
 }
 
 // NewGraphServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -206,6 +269,24 @@ func NewGraphServiceHandler(svc GraphServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(graphServiceMethods.ByName("ExportGraph")),
 		connect.WithHandlerOptions(opts...),
 	)
+	graphServiceGetZoneMapHandler := connect.NewUnaryHandler(
+		GraphServiceGetZoneMapProcedure,
+		svc.GetZoneMap,
+		connect.WithSchema(graphServiceMethods.ByName("GetZoneMap")),
+		connect.WithHandlerOptions(opts...),
+	)
+	graphServiceGetSliceHandler := connect.NewUnaryHandler(
+		GraphServiceGetSliceProcedure,
+		svc.GetSlice,
+		connect.WithSchema(graphServiceMethods.ByName("GetSlice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	graphServiceInferArchetypeHandler := connect.NewUnaryHandler(
+		GraphServiceInferArchetypeProcedure,
+		svc.InferArchetype,
+		connect.WithSchema(graphServiceMethods.ByName("InferArchetype")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.architecture_cartographer.v1.graph.GraphService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GraphServiceExtractGraphProcedure:
@@ -218,6 +299,12 @@ func NewGraphServiceHandler(svc GraphServiceHandler, opts ...connect.HandlerOpti
 			graphServiceClearGraphSnapshotsHandler.ServeHTTP(w, r)
 		case GraphServiceExportGraphProcedure:
 			graphServiceExportGraphHandler.ServeHTTP(w, r)
+		case GraphServiceGetZoneMapProcedure:
+			graphServiceGetZoneMapHandler.ServeHTTP(w, r)
+		case GraphServiceGetSliceProcedure:
+			graphServiceGetSliceHandler.ServeHTTP(w, r)
+		case GraphServiceInferArchetypeProcedure:
+			graphServiceInferArchetypeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -245,4 +332,16 @@ func (UnimplementedGraphServiceHandler) ClearGraphSnapshots(context.Context, *co
 
 func (UnimplementedGraphServiceHandler) ExportGraph(context.Context, *connect.Request[graph.ExportGraphRequest]) (*connect.Response[graph.ExportGraphResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph is not implemented"))
+}
+
+func (UnimplementedGraphServiceHandler) GetZoneMap(context.Context, *connect.Request[graph.GetZoneMapRequest]) (*connect.Response[graph.GetZoneMapResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap is not implemented"))
+}
+
+func (UnimplementedGraphServiceHandler) GetSlice(context.Context, *connect.Request[graph.GetSliceRequest]) (*connect.Response[graph.GetSliceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice is not implemented"))
+}
+
+func (UnimplementedGraphServiceHandler) InferArchetype(context.Context, *connect.Request[graph.InferArchetypeRequest]) (*connect.Response[graph.InferArchetypeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype is not implemented"))
 }

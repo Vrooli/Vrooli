@@ -1,5 +1,6 @@
 import datetime
 
+from common.v1 import attestation_pb2 as _attestation_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -157,7 +158,7 @@ class Fix(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[FixKind, str]] = ..., resolver: _Optional[str] = ..., summary: _Optional[str] = ..., payload: _Optional[bytes] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class Conflict(_message.Message):
-    __slots__ = ("id", "scenario", "detector", "type", "subtype", "severity", "locations", "domains", "evidence", "suggested_fixes", "snapshot_id", "verdict", "detected_at", "updated_at", "suppressed", "suppression_reason", "stable_id", "instance_id", "finding_class")
+    __slots__ = ("id", "scenario", "detector", "type", "subtype", "severity", "locations", "domains", "evidence", "suggested_fixes", "snapshot_id", "verdict", "detected_at", "updated_at", "suppressed", "suppression_reason", "stable_id", "instance_id", "finding_class", "attestation")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     DETECTOR_FIELD_NUMBER: _ClassVar[int]
@@ -177,6 +178,7 @@ class Conflict(_message.Message):
     STABLE_ID_FIELD_NUMBER: _ClassVar[int]
     INSTANCE_ID_FIELD_NUMBER: _ClassVar[int]
     FINDING_CLASS_FIELD_NUMBER: _ClassVar[int]
+    ATTESTATION_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     detector: str
@@ -196,4 +198,5 @@ class Conflict(_message.Message):
     stable_id: str
     instance_id: str
     finding_class: FindingClass
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[ConflictEvidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[Fix, _Mapping]]] = ..., snapshot_id: _Optional[str] = ..., verdict: _Optional[_Union[Verdict, _Mapping]] = ..., detected_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., suppressed: _Optional[bool] = ..., suppression_reason: _Optional[str] = ..., stable_id: _Optional[str] = ..., instance_id: _Optional[str] = ..., finding_class: _Optional[_Union[FindingClass, str]] = ...) -> None: ...
+    attestation: _attestation_pb2.AttestedAnswer
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[ConflictEvidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[Fix, _Mapping]]] = ..., snapshot_id: _Optional[str] = ..., verdict: _Optional[_Union[Verdict, _Mapping]] = ..., detected_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., suppressed: _Optional[bool] = ..., suppression_reason: _Optional[str] = ..., stable_id: _Optional[str] = ..., instance_id: _Optional[str] = ..., finding_class: _Optional[_Union[FindingClass, str]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ...) -> None: ...

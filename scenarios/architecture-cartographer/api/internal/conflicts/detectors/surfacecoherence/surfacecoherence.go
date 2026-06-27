@@ -10,6 +10,7 @@ import (
 
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
+	"architecture-cartographer/internal/zones"
 )
 
 const (
@@ -40,11 +41,12 @@ func (Detector) Class() conflicts.FindingClass {
 }
 
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
-	actual := actualSurfaces(in)
-	active := activeSurfaces(in)
+	zoneConfig := zones.LoadForScenarioName(in.Scenario)
+	actual := actualSurfaces(in, zoneConfig)
+	active := activeSurfaces(in, zoneConfig)
 	var out []conflicts.Conflict
 	for _, domain := range in.DomainMap.Domains {
-		expected := expectedSurfaces(domain, active)
+		expected := expectedSurfaces(domain, active, zoneConfig)
 		for surface, reason := range expected {
 			if _, ok := active[surface]; !ok {
 				continue
@@ -64,7 +66,7 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 	return out, nil
 }
 
-func actualSurfaces(in conflicts.DetectInput) map[string]map[string]bool {
+func actualSurfaces(in conflicts.DetectInput, zoneConfig zones.Config) map[string]map[string]bool {
 	out := map[string]map[string]bool{}
 	add := func(domain, surface string) {
 		if domain == "" || surface == "" {
@@ -82,15 +84,17 @@ func actualSurfaces(in conflicts.DetectInput) map[string]map[string]bool {
 		}
 	}
 	for _, f := range in.Snapshot.Files {
-		add(in.DomainMap.DomainFor(f.Path), surfaceForPath(f.Path))
+		info := zoneConfig.Classify(f.Path, in.DomainMap)
+		add(firstNonEmpty(info.Domain, in.DomainMap.DomainFor(f.Path)), surfaceForZone(info.Zone))
 	}
 	for _, p := range in.Snapshot.Packages {
-		add(in.DomainMap.DomainFor(p.RepoPath), surfaceForPath(p.RepoPath))
+		info := zoneConfig.Classify(p.RepoPath, in.DomainMap)
+		add(firstNonEmpty(info.Domain, in.DomainMap.DomainFor(p.RepoPath)), surfaceForZone(info.Zone))
 	}
 	return out
 }
 
-func activeSurfaces(in conflicts.DetectInput) map[string]struct{} {
+func activeSurfaces(in conflicts.DetectInput, zoneConfig zones.Config) map[string]struct{} {
 	out := map[string]struct{}{}
 	for _, decl := range in.DomainMap.Declarations {
 		if surface := surfaceForSource(decl.Source); surface != "" && len(decl.DomainNames) > 0 {
@@ -98,29 +102,30 @@ func activeSurfaces(in conflicts.DetectInput) map[string]struct{} {
 		}
 	}
 	for _, f := range in.Snapshot.Files {
-		if surface := surfaceForPath(f.Path); surface != "" {
+		if surface := surfaceForZone(zoneConfig.Classify(f.Path, in.DomainMap).Zone); surface != "" {
 			out[surface] = struct{}{}
 		}
 	}
 	for _, p := range in.Snapshot.Packages {
-		if surface := surfaceForPath(p.RepoPath); surface != "" {
+		if surface := surfaceForZone(zoneConfig.Classify(p.RepoPath, in.DomainMap).Zone); surface != "" {
 			out[surface] = struct{}{}
 		}
 	}
 	return out
 }
 
-func expectedSurfaces(domain domains.DerivedDomain, active map[string]struct{}) map[string]string {
+func expectedSurfaces(domain domains.DerivedDomain, active map[string]struct{}, zoneConfig zones.Config) map[string]string {
 	out := map[string]string{}
 	for _, path := range domain.Paths {
-		if surface := surfaceForPath(path); surface != "" {
+		if surface := surfaceForZone(zoneConfig.Classify(path, domains.DerivedDomainMap{Domains: []domains.DerivedDomain{domain}}).Zone); surface != "" {
 			out[surface] = "declared source path"
 		}
 	}
-	for _, surface := range impliedSurfaces(domain.Archetype) {
+	primaryArchetype := domain.PrimaryArchetype()
+	for _, surface := range impliedSurfaces(primaryArchetype) {
 		if _, ok := active[surface]; ok {
 			if _, declared := out[surface]; !declared {
-				out[surface] = "archetype " + strings.TrimSpace(domain.Archetype)
+				out[surface] = "archetype " + strings.TrimSpace(primaryArchetype)
 			}
 		}
 	}
@@ -176,18 +181,26 @@ func surfaceForSource(src domains.Source) string {
 	}
 }
 
-func surfaceForPath(path string) string {
-	path = strings.Trim(strings.TrimSpace(path), "/")
-	switch {
-	case strings.HasPrefix(path, "api/"):
+func surfaceForZone(zone string) string {
+	switch zone {
+	case zones.Domain, zones.Transport:
 		return surfaceAPI
-	case strings.HasPrefix(path, "cli/"):
+	case zones.CLI:
 		return surfaceCLI
-	case strings.HasPrefix(path, "ui/"):
+	case zones.UI:
 		return surfaceUI
 	default:
 		return ""
 	}
+}
+
+func firstNonEmpty(parts ...string) string {
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part != "" {
+			return part
+		}
+	}
+	return ""
 }
 
 var _ conflicts.Detector = (*Detector)(nil)

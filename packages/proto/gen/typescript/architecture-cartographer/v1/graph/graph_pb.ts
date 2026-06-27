@@ -4,6 +4,12 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { DomainArchetype } from "../domains/domains_pb";
+import { file_architecture_cartographer_v1_domains_domains } from "../domains/domains_pb";
+import type { Severity } from "../shared/shared_pb";
+import { file_architecture_cartographer_v1_shared_shared } from "../shared/shared_pb";
+import type { AttestedAnswer } from "../../../common/v1/attestation_pb";
+import { file_common_v1_attestation } from "../../../common/v1/attestation_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +18,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file architecture-cartographer/v1/graph/graph.proto.
  */
 export const file_architecture_cartographer_v1_graph_graph: GenFile = /*@__PURE__*/
-  fileDesc("Ci5hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2dyYXBoL2dyYXBoLnByb3RvEil2cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaCKfAQoIRmlsZU5vZGUSCgoCaWQYASABKAkSDAoEcGF0aBgCIAEoCRISCgpwYWNrYWdlX2lkGAMgASgJEkUKCGxhbmd1YWdlGAQgASgOMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGFuZ3VhZ2USDQoFbGluZXMYBSABKAUSDwoHaXNfdGVzdBgGIAEoCCKIAQoLUGFja2FnZU5vZGUSCgoCaWQYASABKAkSEwoLaW1wb3J0X3BhdGgYAiABKAkSEQoJcmVwb19wYXRoGAMgASgJEkUKCGxhbmd1YWdlGAQgASgOMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGFuZ3VhZ2UiawoKU3ltYm9sTm9kZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnBhY2thZ2VfaWQYAyABKAkSDwoHZmlsZV9pZBgEIAEoCRIMCgRraW5kGAUgASgJEhAKCGV4cG9ydGVkGAYgASgIIlgKCkltcG9ydEVkZ2USDAoEZnJvbRgBIAEoCRIVCg10b19wYWNrYWdlX2lkGAIgASgJEhIKCnN5bWJvbF9pZHMYAyADKAkSEQoJdGVzdF9vbmx5GAQgASgIIkoKBUNodW5rEgoKAmlkGAEgASgJEg8KB2ZpbGVfaWQYAiABKAkSDAoEcGF0aBgDIAEoCRIWCg5jdXJyZW50X2RvbWFpbhgEIAEoCSLyAwoNR3JhcGhTbmFwc2hvdBIKCgJpZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIUCgxjb250ZW50X2hhc2gYAyABKAkSRgoJbGFuZ3VhZ2VzGAQgAygOMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGFuZ3VhZ2USMAoMZXh0cmFjdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1leHRyYWN0aW9uX21zGAYgASgDEkIKBWZpbGVzGAcgAygLMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRmlsZU5vZGUSSAoIcGFja2FnZXMYCCADKAsyNi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5QYWNrYWdlTm9kZRJGCgdzeW1ib2xzGAkgAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguU3ltYm9sTm9kZRJGCgdpbXBvcnRzGAogAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguSW1wb3J0RWRnZSKIAQoTRXh0cmFjdEdyYXBoUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRJGCglsYW5ndWFnZXMYAiADKA4yMy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5MYW5ndWFnZRIXCg9pZGVtcG90ZW5jeV9rZXkYAyABKAkidgoURXh0cmFjdEdyYXBoUmVzcG9uc2USSgoIc25hcHNob3QYASABKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5HcmFwaFNuYXBzaG90EhIKCmZyb21fY2FjaGUYAiABKAgiJQoXR2V0R3JhcGhTbmFwc2hvdFJlcXVlc3QSCgoCaWQYASABKAkiZgoYR2V0R3JhcGhTbmFwc2hvdFJlc3BvbnNlEkoKCHNuYXBzaG90GAEgASgLMjgudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguR3JhcGhTbmFwc2hvdCJUChlMaXN0R3JhcGhTbmFwc2hvdHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJIoIBChpMaXN0R3JhcGhTbmFwc2hvdHNSZXNwb25zZRJLCglzbmFwc2hvdHMYASADKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5HcmFwaFNuYXBzaG90EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSI/ChpDbGVhckdyYXBoU25hcHNob3RzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIPCgdkcnlfcnVuGAIgASgIIj8KG0NsZWFyR3JhcGhTbmFwc2hvdHNSZXNwb25zZRIPCgdkZWxldGVkGAEgASgFEg8KB2RyeV9ydW4YAiABKAgiIAoSRXhwb3J0R3JhcGhSZXF1ZXN0EgoKAmlkGAEgASgJIjwKE0V4cG9ydEdyYXBoUmVzcG9uc2USDwoHcGF5bG9hZBgBIAEoDBIUCgxjb250ZW50X3R5cGUYAiABKAkqTgoITGFuZ3VhZ2USGAoUTEFOR1VBR0VfVU5TUEVDSUZJRUQQABIPCgtMQU5HVUFHRV9HTxABEhcKE0xBTkdVQUdFX1RZUEVTQ1JJUFQQAjKYBgoMR3JhcGhTZXJ2aWNlEo8BCgxFeHRyYWN0R3JhcGgSPi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5FeHRyYWN0R3JhcGhSZXF1ZXN0Gj8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRXh0cmFjdEdyYXBoUmVzcG9uc2USmwEKEEdldEdyYXBoU25hcHNob3QSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5HZXRHcmFwaFNuYXBzaG90UmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkdldEdyYXBoU25hcHNob3RSZXNwb25zZRKhAQoSTGlzdEdyYXBoU25hcHNob3RzEkQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGlzdEdyYXBoU25hcHNob3RzUmVxdWVzdBpFLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkxpc3RHcmFwaFNuYXBzaG90c1Jlc3BvbnNlEqQBChNDbGVhckdyYXBoU25hcHNob3RzEkUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguQ2xlYXJHcmFwaFNuYXBzaG90c1JlcXVlc3QaRi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DbGVhckdyYXBoU25hcHNob3RzUmVzcG9uc2USjAEKC0V4cG9ydEdyYXBoEj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRXhwb3J0R3JhcGhSZXF1ZXN0Gj4udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRXhwb3J0R3JhcGhSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS1jYXJ0b2dyYXBoZXIvdjEvZ3JhcGg7Z3JhcGhfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Ci5hcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2dyYXBoL2dyYXBoLnByb3RvEil2cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaCKfAQoIRmlsZU5vZGUSCgoCaWQYASABKAkSDAoEcGF0aBgCIAEoCRISCgpwYWNrYWdlX2lkGAMgASgJEkUKCGxhbmd1YWdlGAQgASgOMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGFuZ3VhZ2USDQoFbGluZXMYBSABKAUSDwoHaXNfdGVzdBgGIAEoCCKIAQoLUGFja2FnZU5vZGUSCgoCaWQYASABKAkSEwoLaW1wb3J0X3BhdGgYAiABKAkSEQoJcmVwb19wYXRoGAMgASgJEkUKCGxhbmd1YWdlGAQgASgOMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGFuZ3VhZ2UiawoKU3ltYm9sTm9kZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCnBhY2thZ2VfaWQYAyABKAkSDwoHZmlsZV9pZBgEIAEoCRIMCgRraW5kGAUgASgJEhAKCGV4cG9ydGVkGAYgASgIIlgKCkltcG9ydEVkZ2USDAoEZnJvbRgBIAEoCRIVCg10b19wYWNrYWdlX2lkGAIgASgJEhIKCnN5bWJvbF9pZHMYAyADKAkSEQoJdGVzdF9vbmx5GAQgASgIIkoKBUNodW5rEgoKAmlkGAEgASgJEg8KB2ZpbGVfaWQYAiABKAkSDAoEcGF0aBgDIAEoCRIWCg5jdXJyZW50X2RvbWFpbhgEIAEoCSLyAwoNR3JhcGhTbmFwc2hvdBIKCgJpZBgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIUCgxjb250ZW50X2hhc2gYAyABKAkSRgoJbGFuZ3VhZ2VzGAQgAygOMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGFuZ3VhZ2USMAoMZXh0cmFjdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1leHRyYWN0aW9uX21zGAYgASgDEkIKBWZpbGVzGAcgAygLMjMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRmlsZU5vZGUSSAoIcGFja2FnZXMYCCADKAsyNi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5QYWNrYWdlTm9kZRJGCgdzeW1ib2xzGAkgAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguU3ltYm9sTm9kZRJGCgdpbXBvcnRzGAogAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguSW1wb3J0RWRnZSKIAQoTRXh0cmFjdEdyYXBoUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRJGCglsYW5ndWFnZXMYAiADKA4yMy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5MYW5ndWFnZRIXCg9pZGVtcG90ZW5jeV9rZXkYAyABKAkidgoURXh0cmFjdEdyYXBoUmVzcG9uc2USSgoIc25hcHNob3QYASABKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5HcmFwaFNuYXBzaG90EhIKCmZyb21fY2FjaGUYAiABKAgiJQoXR2V0R3JhcGhTbmFwc2hvdFJlcXVlc3QSCgoCaWQYASABKAkiZgoYR2V0R3JhcGhTbmFwc2hvdFJlc3BvbnNlEkoKCHNuYXBzaG90GAEgASgLMjgudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguR3JhcGhTbmFwc2hvdCJUChlMaXN0R3JhcGhTbmFwc2hvdHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJIoIBChpMaXN0R3JhcGhTbmFwc2hvdHNSZXNwb25zZRJLCglzbmFwc2hvdHMYASADKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5HcmFwaFNuYXBzaG90EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSI/ChpDbGVhckdyYXBoU25hcHNob3RzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIPCgdkcnlfcnVuGAIgASgIIj8KG0NsZWFyR3JhcGhTbmFwc2hvdHNSZXNwb25zZRIPCgdkZWxldGVkGAEgASgFEg8KB2RyeV9ydW4YAiABKAgiIAoSRXhwb3J0R3JhcGhSZXF1ZXN0EgoKAmlkGAEgASgJIjwKE0V4cG9ydEdyYXBoUmVzcG9uc2USDwoHcGF5bG9hZBgBIAEoDBIUCgxjb250ZW50X3R5cGUYAiABKAkiOgoRR2V0Wm9uZU1hcFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEwoLc25hcHNob3RfaWQYAiABKAkiWgoSR2V0Wm9uZU1hcFJlc3BvbnNlEkQKCHpvbmVfbWFwGAEgASgLMjIudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguWm9uZU1hcCLWAgoHWm9uZU1hcBIQCghzY2VuYXJpbxgBIAEoCRITCgtzbmFwc2hvdF9pZBgCIAEoCRJICghwYWNrYWdlcxgDIAMoCzI2LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLlpvbmVQYWNrYWdlEkwKCnZpb2xhdGlvbnMYBCADKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5ab25lVmlvbGF0aW9uElwKFGF1dGhvcml0eV9jb25maWRlbmNlGAUgASgOMj4udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguQXV0aG9yaXR5Q29uZmlkZW5jZRIuCgthdHRlc3RhdGlvbhgGIAEoCzIZLmNvbW1vbi52MS5BdHRlc3RlZEFuc3dlciKSAgoLWm9uZVBhY2thZ2USEgoKcGFja2FnZV9pZBgBIAEoCRITCgtpbXBvcnRfcGF0aBgCIAEoCRIRCglyZXBvX3BhdGgYAyABKAkSDAoEem9uZRgEIAEoCRIOCgZkb21haW4YBSABKAkSEQoJYXJjaGV0eXBlGAYgASgJEhAKCGRlY2xhcmVkGAcgASgIEhIKCmNvbmZpZGVuY2UYCCABKAESFgoOZGVjbGFyZWRfbGF5ZXIYCSABKAkSSQoIZXZpZGVuY2UYCiADKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5ab25lRXZpZGVuY2USDQoFZHJpZnQYCyABKAgiPQoMWm9uZUV2aWRlbmNlEgwKBGtpbmQYASABKAkSDgoGZGV0YWlsGAIgASgJEg8KB2xvY2F0b3IYAyABKAkiqwEKDVpvbmVWaW9sYXRpb24SDAoEa2luZBgBIAEoCRIPCgdzdWJ0eXBlGAIgASgJEkYKCHNldmVyaXR5GAMgASgOMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2hhcmVkLlNldmVyaXR5EhEKCWxvY2F0aW9ucxgEIAMoCRIPCgdkb21haW5zGAUgAygJEg8KB3N1bW1hcnkYBiABKAkiSAoPR2V0U2xpY2VSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBmRvbWFpbhgCIAEoCRITCgtzbmFwc2hvdF9pZBgDIAEoCSJZChBHZXRTbGljZVJlc3BvbnNlEkUKBXNsaWNlGAEgASgLMjYudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRG9tYWluU2xpY2UilgIKC0RvbWFpblNsaWNlEhAKCHNjZW5hcmlvGAEgASgJEg4KBmRvbWFpbhgCIAEoCRITCgtzbmFwc2hvdF9pZBgDIAEoCRJDCgVydW5ncxgEIAMoCzI0LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLlNsaWNlUnVuZxIQCghzdXJmYWNlcxgFIAMoCRJJCgtsYXllcl9lZGdlcxgGIAMoCzI0LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLlNsaWNlRWRnZRIuCgthdHRlc3RhdGlvbhgHIAEoCzIZLmNvbW1vbi52MS5BdHRlc3RlZEFuc3dlciKEAgoJU2xpY2VSdW5nEgwKBG5hbWUYASABKAkSDwoHcHJlc2VudBgCIAEoCBJKCghldmlkZW5jZRgDIAMoCzI4LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLlNsaWNlRXZpZGVuY2USQwoFZmlsZXMYBCADKAsyNC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5TbGljZUZpbGUSRwoHc3ltYm9scxgFIAMoCzI2LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLlNsaWNlU3ltYm9sIjwKDVNsaWNlRXZpZGVuY2USDAoEa2luZBgBIAEoCRINCgV2YWx1ZRgCIAEoCRIOCgZzb3VyY2UYAyABKAkiOQoJU2xpY2VGaWxlEgwKBHBhdGgYASABKAkSDQoFbGluZXMYAiABKAUSDwoHaXNfdGVzdBgDIAEoCCI3CgtTbGljZVN5bWJvbBIMCgRuYW1lGAEgASgJEgwKBGtpbmQYAiABKAkSDAoEZmlsZRgDIAEoCSI9CglTbGljZUVkZ2USEQoJZnJvbV9ydW5nGAEgASgJEg8KB3RvX3J1bmcYAiABKAkSDAoEa2luZBgDIAEoCSJOChVJbmZlckFyY2hldHlwZVJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGZG9tYWluGAIgASgJEhMKC3NuYXBzaG90X2lkGAMgASgJIowBChZJbmZlckFyY2hldHlwZVJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhMKC3NuYXBzaG90X2lkGAIgASgJEksKB3JlcG9ydHMYAyADKAsyOi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5BcmNoZXR5cGVSZXBvcnQivgEKD0FyY2hldHlwZVJlcG9ydBIOCgZkb21haW4YASABKAkSUAoKYXJjaGV0eXBlcxgCIAMoCzI8LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluQXJjaGV0eXBlEhkKEWNvbnZlcmdlbmNlX2RyaWZ0GAMgASgIEi4KC2F0dGVzdGF0aW9uGAQgASgLMhkuY29tbW9uLnYxLkF0dGVzdGVkQW5zd2VyKk4KCExhbmd1YWdlEhgKFExBTkdVQUdFX1VOU1BFQ0lGSUVEEAASDwoLTEFOR1VBR0VfR08QARIXChNMQU5HVUFHRV9UWVBFU0NSSVBUEAIqeAoTQXV0aG9yaXR5Q29uZmlkZW5jZRIkCiBBVVRIT1JJVFlfQ09ORklERU5DRV9VTlNQRUNJRklFRBAAEh0KGUFVVEhPUklUWV9DT05GSURFTkNFX0hJR0gQARIcChhBVVRIT1JJVFlfQ09ORklERU5DRV9MT1cQAjLCCQoMR3JhcGhTZXJ2aWNlEo8BCgxFeHRyYWN0R3JhcGgSPi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5FeHRyYWN0R3JhcGhSZXF1ZXN0Gj8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRXh0cmFjdEdyYXBoUmVzcG9uc2USmwEKEEdldEdyYXBoU25hcHNob3QSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5HZXRHcmFwaFNuYXBzaG90UmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkdldEdyYXBoU25hcHNob3RSZXNwb25zZRKhAQoSTGlzdEdyYXBoU25hcHNob3RzEkQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguTGlzdEdyYXBoU25hcHNob3RzUmVxdWVzdBpFLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkxpc3RHcmFwaFNuYXBzaG90c1Jlc3BvbnNlEqQBChNDbGVhckdyYXBoU25hcHNob3RzEkUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguQ2xlYXJHcmFwaFNuYXBzaG90c1JlcXVlc3QaRi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DbGVhckdyYXBoU25hcHNob3RzUmVzcG9uc2USjAEKC0V4cG9ydEdyYXBoEj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRXhwb3J0R3JhcGhSZXF1ZXN0Gj4udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguRXhwb3J0R3JhcGhSZXNwb25zZRKJAQoKR2V0Wm9uZU1hcBI8LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkdldFpvbmVNYXBSZXF1ZXN0Gj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguR2V0Wm9uZU1hcFJlc3BvbnNlEoMBCghHZXRTbGljZRI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkdldFNsaWNlUmVxdWVzdBo7LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkdldFNsaWNlUmVzcG9uc2USlQEKDkluZmVyQXJjaGV0eXBlEkAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguSW5mZXJBcmNoZXR5cGVSZXF1ZXN0GkEudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZ3JhcGguSW5mZXJBcmNoZXR5cGVSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS1jYXJ0b2dyYXBoZXIvdjEvZ3JhcGg7Z3JhcGhfdjFiBnByb3RvMw", [file_architecture_cartographer_v1_domains_domains, file_architecture_cartographer_v1_shared_shared, file_common_v1_attestation, file_google_protobuf_timestamp]);
 
 /**
  * FileNode is one source file in the target scenario.
@@ -587,6 +593,605 @@ export const ExportGraphResponseSchema: GenMessage<ExportGraphResponse> = /*@__P
   messageDesc(file_architecture_cartographer_v1_graph_graph, 15);
 
 /**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
+ */
+export type GetZoneMapRequest = Message<"vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest"> & {
+  /**
+   * Target scenario name.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+   * or extract one when no cached snapshot exists.
+   *
+   * @generated from field: string snapshot_id = 2;
+   */
+  snapshotId: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest.
+ * Use `create(GetZoneMapRequestSchema)` to create a new message.
+ */
+export const GetZoneMapRequestSchema: GenMessage<GetZoneMapRequest> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 16);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
+ */
+export type GetZoneMapResponse = Message<"vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse"> & {
+  /**
+   * @generated from field: vrooli.architecture_cartographer.v1.graph.ZoneMap zone_map = 1;
+   */
+  zoneMap?: ZoneMap | undefined;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse.
+ * Use `create(GetZoneMapResponseSchema)` to create a new message.
+ */
+export const GetZoneMapResponseSchema: GenMessage<GetZoneMapResponse> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 17);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.ZoneMap
+ */
+export type ZoneMap = Message<"vrooli.architecture_cartographer.v1.graph.ZoneMap"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string snapshot_id = 2;
+   */
+  snapshotId: string;
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.ZonePackage packages = 3;
+   */
+  packages: ZonePackage[];
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.ZoneViolation violations = 4;
+   */
+  violations: ZoneViolation[];
+
+  /**
+   * How trustworthy the zone taxonomy is: HIGH when ARCHITECTURE.md declares a
+   * Zone Map that the code confirms; LOW when zones are derived-only (no
+   * ARCHITECTURE.md Zone Map to converge against).
+   *
+   * @generated from field: vrooli.architecture_cartographer.v1.graph.AuthorityConfidence authority_confidence = 5;
+   */
+  authorityConfidence: AuthorityConfidence;
+
+  /**
+   * Map-level honesty contract (Q7): DERIVED when zones are code-computed,
+   * CONTRADICTED when any package's declared layer disagrees with the code.
+   *
+   * @generated from field: common.v1.AttestedAnswer attestation = 6;
+   */
+  attestation?: AttestedAnswer | undefined;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.ZoneMap.
+ * Use `create(ZoneMapSchema)` to create a new message.
+ */
+export const ZoneMapSchema: GenMessage<ZoneMap> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 18);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.ZonePackage
+ */
+export type ZonePackage = Message<"vrooli.architecture_cartographer.v1.graph.ZonePackage"> & {
+  /**
+   * @generated from field: string package_id = 1;
+   */
+  packageId: string;
+
+  /**
+   * @generated from field: string import_path = 2;
+   */
+  importPath: string;
+
+  /**
+   * @generated from field: string repo_path = 3;
+   */
+  repoPath: string;
+
+  /**
+   * @generated from field: string zone = 4;
+   */
+  zone: string;
+
+  /**
+   * @generated from field: string domain = 5;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: string archetype = 6;
+   */
+  archetype: string;
+
+  /**
+   * @generated from field: bool declared = 7;
+   */
+  declared: boolean;
+
+  /**
+   * Convergence confidence in [0,1] from the three zone signals (manifest /
+   * ARCHITECTURE.md / import graph).
+   *
+   * @generated from field: double confidence = 8;
+   */
+  confidence: number;
+
+  /**
+   * Raw layer label from the ARCHITECTURE.md Zone Map, preserved verbatim;
+   * empty when the doc does not declare this package's layer.
+   *
+   * @generated from field: string declared_layer = 9;
+   */
+  declaredLayer: string;
+
+  /**
+   * Typed evidence behind the classification (one per contributing signal).
+   *
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.ZoneEvidence evidence = 10;
+   */
+  evidence: ZoneEvidence[];
+
+  /**
+   * True when the declared layer disagrees with the code-derived zone.
+   *
+   * @generated from field: bool drift = 11;
+   */
+  drift: boolean;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.ZonePackage.
+ * Use `create(ZonePackageSchema)` to create a new message.
+ */
+export const ZonePackageSchema: GenMessage<ZonePackage> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 19);
+
+/**
+ * ZoneEvidence is one typed signal behind a converged zone classification.
+ *
+ * @generated from message vrooli.architecture_cartographer.v1.graph.ZoneEvidence
+ */
+export type ZoneEvidence = Message<"vrooli.architecture_cartographer.v1.graph.ZoneEvidence"> & {
+  /**
+   * manifest | architecture_doc | import_graph
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string detail = 2;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: string locator = 3;
+   */
+  locator: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.ZoneEvidence.
+ * Use `create(ZoneEvidenceSchema)` to create a new message.
+ */
+export const ZoneEvidenceSchema: GenMessage<ZoneEvidence> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 20);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.ZoneViolation
+ */
+export type ZoneViolation = Message<"vrooli.architecture_cartographer.v1.graph.ZoneViolation"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string subtype = 2;
+   */
+  subtype: string;
+
+  /**
+   * @generated from field: vrooli.architecture_cartographer.v1.shared.Severity severity = 3;
+   */
+  severity: Severity;
+
+  /**
+   * @generated from field: repeated string locations = 4;
+   */
+  locations: string[];
+
+  /**
+   * @generated from field: repeated string domains = 5;
+   */
+  domains: string[];
+
+  /**
+   * @generated from field: string summary = 6;
+   */
+  summary: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.ZoneViolation.
+ * Use `create(ZoneViolationSchema)` to create a new message.
+ */
+export const ZoneViolationSchema: GenMessage<ZoneViolation> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 21);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.GetSliceRequest
+ */
+export type GetSliceRequest = Message<"vrooli.architecture_cartographer.v1.graph.GetSliceRequest"> & {
+  /**
+   * Target scenario name.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Domain name from DOMAINS.md / the derived domain map.
+   *
+   * @generated from field: string domain = 2;
+   */
+  domain: string;
+
+  /**
+   * Optional GraphSnapshot.id. Empty means use the latest cached snapshot
+   * or extract one when no cached snapshot exists.
+   *
+   * @generated from field: string snapshot_id = 3;
+   */
+  snapshotId: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.GetSliceRequest.
+ * Use `create(GetSliceRequestSchema)` to create a new message.
+ */
+export const GetSliceRequestSchema: GenMessage<GetSliceRequest> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 22);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.GetSliceResponse
+ */
+export type GetSliceResponse = Message<"vrooli.architecture_cartographer.v1.graph.GetSliceResponse"> & {
+  /**
+   * @generated from field: vrooli.architecture_cartographer.v1.graph.DomainSlice slice = 1;
+   */
+  slice?: DomainSlice | undefined;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.GetSliceResponse.
+ * Use `create(GetSliceResponseSchema)` to create a new message.
+ */
+export const GetSliceResponseSchema: GenMessage<GetSliceResponse> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 23);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.DomainSlice
+ */
+export type DomainSlice = Message<"vrooli.architecture_cartographer.v1.graph.DomainSlice"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string domain = 2;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: string snapshot_id = 3;
+   */
+  snapshotId: string;
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.SliceRung rungs = 4;
+   */
+  rungs: SliceRung[];
+
+  /**
+   * @generated from field: repeated string surfaces = 5;
+   */
+  surfaces: string[];
+
+  /**
+   * Package-level dependency edges between rungs (handler->internal->proto…).
+   *
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.SliceEdge layer_edges = 6;
+   */
+  layerEdges: SliceEdge[];
+
+  /**
+   * Q16 honesty contract: DERIVED from the graph; sufficiency PARTIAL while
+   * symbol-level edge resolution is deferred to the call/reference-edge phase.
+   *
+   * @generated from field: common.v1.AttestedAnswer attestation = 7;
+   */
+  attestation?: AttestedAnswer | undefined;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.DomainSlice.
+ * Use `create(DomainSliceSchema)` to create a new message.
+ */
+export const DomainSliceSchema: GenMessage<DomainSlice> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 24);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.SliceRung
+ */
+export type SliceRung = Message<"vrooli.architecture_cartographer.v1.graph.SliceRung"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool present = 2;
+   */
+  present: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.SliceEvidence evidence = 3;
+   */
+  evidence: SliceEvidence[];
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.SliceFile files = 4;
+   */
+  files: SliceFile[];
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.SliceSymbol symbols = 5;
+   */
+  symbols: SliceSymbol[];
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.SliceRung.
+ * Use `create(SliceRungSchema)` to create a new message.
+ */
+export const SliceRungSchema: GenMessage<SliceRung> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 25);
+
+/**
+ * SliceEvidence is one typed justification for a rung; folds into a Citation.
+ *
+ * @generated from message vrooli.architecture_cartographer.v1.graph.SliceEvidence
+ */
+export type SliceEvidence = Message<"vrooli.architecture_cartographer.v1.graph.SliceEvidence"> & {
+  /**
+   * declared_path | package | proto_import | proto_file
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * locator
+   *
+   * @generated from field: string value = 2;
+   */
+  value: string;
+
+  /**
+   * doc | code
+   *
+   * @generated from field: string source = 3;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.SliceEvidence.
+ * Use `create(SliceEvidenceSchema)` to create a new message.
+ */
+export const SliceEvidenceSchema: GenMessage<SliceEvidence> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 26);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.SliceFile
+ */
+export type SliceFile = Message<"vrooli.architecture_cartographer.v1.graph.SliceFile"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: int32 lines = 2;
+   */
+  lines: number;
+
+  /**
+   * @generated from field: bool is_test = 3;
+   */
+  isTest: boolean;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.SliceFile.
+ * Use `create(SliceFileSchema)` to create a new message.
+ */
+export const SliceFileSchema: GenMessage<SliceFile> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 27);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.SliceSymbol
+ */
+export type SliceSymbol = Message<"vrooli.architecture_cartographer.v1.graph.SliceSymbol"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string file = 3;
+   */
+  file: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.SliceSymbol.
+ * Use `create(SliceSymbolSchema)` to create a new message.
+ */
+export const SliceSymbolSchema: GenMessage<SliceSymbol> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 28);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.SliceEdge
+ */
+export type SliceEdge = Message<"vrooli.architecture_cartographer.v1.graph.SliceEdge"> & {
+  /**
+   * @generated from field: string from_rung = 1;
+   */
+  fromRung: string;
+
+  /**
+   * @generated from field: string to_rung = 2;
+   */
+  toRung: string;
+
+  /**
+   * import
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.SliceEdge.
+ * Use `create(SliceEdgeSchema)` to create a new message.
+ */
+export const SliceEdgeSchema: GenMessage<SliceEdge> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 29);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
+ */
+export type InferArchetypeRequest = Message<"vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest"> & {
+  /**
+   * Target scenario name.
+   *
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Optional single domain; empty infers for every domain in the map.
+   *
+   * @generated from field: string domain = 2;
+   */
+  domain: string;
+
+  /**
+   * Optional GraphSnapshot.id. Empty uses/extracts the latest snapshot.
+   *
+   * @generated from field: string snapshot_id = 3;
+   */
+  snapshotId: string;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest.
+ * Use `create(InferArchetypeRequestSchema)` to create a new message.
+ */
+export const InferArchetypeRequestSchema: GenMessage<InferArchetypeRequest> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 30);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
+ */
+export type InferArchetypeResponse = Message<"vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string snapshot_id = 2;
+   */
+  snapshotId: string;
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.graph.ArchetypeReport reports = 3;
+   */
+  reports: ArchetypeReport[];
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse.
+ * Use `create(InferArchetypeResponseSchema)` to create a new message.
+ */
+export const InferArchetypeResponseSchema: GenMessage<InferArchetypeResponse> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 31);
+
+/**
+ * ArchetypeReport is the Q20 answer for one domain: the converged archetype set
+ * (declared + inferred, primary first) plus a drift flag and the honesty
+ * contract. The declared value is never overridden — disagreement is reported.
+ *
+ * @generated from message vrooli.architecture_cartographer.v1.graph.ArchetypeReport
+ */
+export type ArchetypeReport = Message<"vrooli.architecture_cartographer.v1.graph.ArchetypeReport"> & {
+  /**
+   * @generated from field: string domain = 1;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.domains.DomainArchetype archetypes = 2;
+   */
+  archetypes: DomainArchetype[];
+
+  /**
+   * True when the declared primary archetype disagrees with the inferred one.
+   *
+   * @generated from field: bool convergence_drift = 3;
+   */
+  convergenceDrift: boolean;
+
+  /**
+   * @generated from field: common.v1.AttestedAnswer attestation = 4;
+   */
+  attestation?: AttestedAnswer | undefined;
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.graph.ArchetypeReport.
+ * Use `create(ArchetypeReportSchema)` to create a new message.
+ */
+export const ArchetypeReportSchema: GenMessage<ArchetypeReport> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_graph_graph, 32);
+
+/**
  * Language identifies the source language a node/edge belongs to.
  *
  * @generated from enum vrooli.architecture_cartographer.v1.graph.Language
@@ -613,6 +1218,34 @@ export enum Language {
  */
 export const LanguageSchema: GenEnum<Language> = /*@__PURE__*/
   enumDesc(file_architecture_cartographer_v1_graph_graph, 0);
+
+/**
+ * AuthorityConfidence grades how trustworthy a derived map's authority is.
+ *
+ * @generated from enum vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
+ */
+export enum AuthorityConfidence {
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_HIGH = 1;
+   */
+  HIGH = 1,
+
+  /**
+   * @generated from enum value: AUTHORITY_CONFIDENCE_LOW = 2;
+   */
+  LOW = 2,
+}
+
+/**
+ * Describes the enum vrooli.architecture_cartographer.v1.graph.AuthorityConfidence.
+ */
+export const AuthorityConfidenceSchema: GenEnum<AuthorityConfidence> = /*@__PURE__*/
+  enumDesc(file_architecture_cartographer_v1_graph_graph, 1);
 
 /**
  * @generated from service vrooli.architecture_cartographer.v1.graph.GraphService
@@ -671,6 +1304,40 @@ export const GraphService: GenService<{
     methodKind: "unary";
     input: typeof ExportGraphRequestSchema;
     output: typeof ExportGraphResponseSchema;
+  },
+  /**
+   * GetZoneMap classifies the latest graph packages into the scenario's
+   * template-declared code-layout zones and includes layering cross-checks.
+   *
+   * @generated from rpc vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap
+   */
+  getZoneMap: {
+    methodKind: "unary";
+    input: typeof GetZoneMapRequestSchema;
+    output: typeof GetZoneMapResponseSchema;
+  },
+  /**
+   * GetSlice returns the implementation slice for one domain, from proto
+   * adoption evidence through handler, internal, CLI, and UI rungs.
+   *
+   * @generated from rpc vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice
+   */
+  getSlice: {
+    methodKind: "unary";
+    input: typeof GetSliceRequestSchema;
+    output: typeof GetSliceResponseSchema;
+  },
+  /**
+   * InferArchetype infers each domain's archetype (Q20) from graph signals and
+   * converges it against the declared DOMAINS.md archetype, reporting drift
+   * without overriding the declared value.
+   *
+   * @generated from rpc vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype
+   */
+  inferArchetype: {
+    methodKind: "unary";
+    input: typeof InferArchetypeRequestSchema;
+    output: typeof InferArchetypeResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_architecture_cartographer_v1_graph_graph, 0);
