@@ -304,11 +304,11 @@ function SessionContextPickerContent({
       data-testid={selectors.agentSessions.contextPicker}
     >
       <div className="flex min-h-0 flex-col">
-        <div className="space-y-3 border-b border-white/10 px-4 py-3">
+        <div className="space-y-2.5 border-b border-white/10 px-3 py-2.5 sm:px-4">
           <ContextChipTray
             items={draft}
             onRemove={remove}
-            className="max-h-24"
+            className="max-h-16"
             testId={selectors.agentSessions.contextSelectedTray}
           />
 
@@ -318,7 +318,7 @@ function SessionContextPickerContent({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search context..."
-              className="h-10 border-slate-700 bg-slate-950/70 pl-9 text-slate-100 placeholder:text-slate-500"
+              className="h-9 border-slate-700 bg-slate-950/70 pl-9 text-slate-100 placeholder:text-slate-500"
               data-testid={selectors.agentSessions.contextSearch}
             />
           </div>
@@ -337,7 +337,7 @@ function SessionContextPickerContent({
           tabTestIdPrefix="session-context-tab"
         />
 
-        <div className="max-h-[52vh] overflow-y-auto px-3 py-3 sm:max-h-[48vh]" data-testid={selectors.agentSessions.contextEntityList}>
+        <div className="max-h-[56vh] overflow-y-auto px-2.5 py-2.5 sm:max-h-[50vh] sm:px-3" data-testid={selectors.agentSessions.contextEntityList}>
           {pickNodes.length > 0 ? (
             <div className="space-y-1.5">{pickNodes}</div>
           ) : (

@@ -1,5 +1,5 @@
 import { Gauge, GitPullRequestArrow, Workflow } from "lucide-react";
-import type { AgentSession, AgentSessionArtifact, AgentSessionProposal } from "../../types";
+import type { AgentSession, AgentSessionArtifact, AgentSessionKind, AgentSessionProposal } from "../../types";
 
 export type SessionInspectorSection = "events" | "proposals" | "artifacts" | "details";
 
@@ -7,6 +7,24 @@ export const SESSION_KIND_LABELS: Record<AgentSession["kind"], string> = {
   meta_orchestration: "Plan work",
   operating_mode_authoring: "Author operating mode",
   swarm_operations: "Swarm operations",
+};
+
+export const SESSION_KIND_LAUNCHER_LABELS: Record<AgentSessionKind, string> = {
+  meta_orchestration: "Plan Work With Agent",
+  operating_mode_authoring: "Author Operating Mode",
+  swarm_operations: "Manage Swarm",
+};
+
+export const SESSION_KIND_DESCRIPTIONS: Record<AgentSessionKind, string> = {
+  meta_orchestration: "Draft initiatives, backlog items, and approval-ready work plans.",
+  operating_mode_authoring: "Create or refine the operating-mode loop that guides agentic work.",
+  swarm_operations: "Review progress, pending decisions, priorities, and work routing.",
+};
+
+export const SESSION_CREATE_TITLES: Record<AgentSessionKind, string> = {
+  meta_orchestration: "Plan work with agent",
+  operating_mode_authoring: "Author operating mode",
+  swarm_operations: "Manage Swarm operations",
 };
 
 export const SESSION_KIND_ICONS = {

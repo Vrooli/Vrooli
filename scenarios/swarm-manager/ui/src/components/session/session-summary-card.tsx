@@ -69,7 +69,7 @@ function SessionCardBody({ session }: { session: AgentSession }) {
         </span>
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
         <span>{KIND_LABELS[session.kind]}</span>
         <span>{formatRelativeTime(session.updatedAt)}</span>
         {active && (
@@ -80,7 +80,7 @@ function SessionCardBody({ session }: { session: AgentSession }) {
         )}
       </div>
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
+      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
         <span className="inline-flex items-center gap-1 rounded-full bg-slate-800/70 px-1.5 py-0.5">
           <MessageSquareMore className="h-3 w-3" />
           {session.messages.length}

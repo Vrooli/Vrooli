@@ -39,6 +39,13 @@ The picker is not a pre-session dialog: the same draft session can start with
 plain text, images, typed context refs, or any combination of the three, and
 follow-up messages use the same composer controls.
 
+Entity detail pages can also stage typed context into an existing or new draft
+session through `Attach to session`. This is the inverse entry point for the
+same composer-scoped model: selecting a session stores the current entity as
+pending composer context for that session and routes to the session detail page.
+The operator still sends the message or context-only start/continue request.
+No server-side session context inventory is created.
+
 Supported context ref types are closed at the API boundary:
 
 | Type | Purpose |
@@ -166,6 +173,12 @@ context chip tray on top of the shared composer so first messages and follow-up
 messages behave consistently.
 
 The graph sidebar owns session history through the `Sessions` tab. Selecting a session opens the session detail panel rather than navigating to a dedicated Sessions page.
+
+Routed entity detail pages for backlog items, initiatives, captures,
+executions, scenarios, operating modes, and sessions expose `Attach to session`.
+The action filters target sessions by the same context-type policy used by the
+composer picker, excludes the source session when attaching a session, and can
+quick-start a compatible draft session with the entity staged in its composer.
 
 Entity attribution chips can reopen the related session when `created_by.session_id` is present. Non-session provenance should fall back to agent or operator display text.
 

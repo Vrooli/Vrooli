@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T00:10:28-04:00"
+    "last_validated_at": "2026-06-25T17:22:58-04:00"
   },
   "requirements": [
     {
@@ -79,8 +79,38 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Automated tasks execute reliably"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-010-SESSION-CONTEXT",
+      "title": "Entity-first Agent Session Context Attachment",
+      "status": "in_progress",
+      "category": "ui",
+      "description": "Routed Swarm Manager entity detail pages let operators attach the current backlog item, initiative, capture, execution, scenario, operating mode, or session to a compatible Agent Session by staging a typed context ref in the target session composer. The staged context must follow the existing session-kind compatibility and context cap policy, and the operator must still explicitly send or start the session message.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/components/session/context/pending-session-context.test.ts::stages context by session without duplicating the same ref [REQ:REQ-P1-010-SESSION-CONTEXT]",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Pending context handoff storage deduplicates staged typed refs by session."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/session/context/pending-session-context.test.ts::merges compatible context and rejects incompatible context visibly [REQ:REQ-P1-010-SESSION-CONTEXT]",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Composer handoff merge enforces compatibility and cap policy instead of silently accepting invalid refs."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/pages/SessionDetailsPage.test.tsx::applies staged context and sends it with the next continuation [REQ:REQ-P1-010-SESSION-CONTEXT]",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Session detail consumes staged context and sends it through the existing continue request."
         }
       ]
     }

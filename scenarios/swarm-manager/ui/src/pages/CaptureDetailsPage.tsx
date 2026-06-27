@@ -28,6 +28,8 @@ import { backlogService } from "../services/backlog-service";
 import { useBacklogStore } from "../stores";
 import { useAppBack } from "../app/routes/useAppBack";
 import { useGlobalKeyDown } from "../hooks/useGlobalKeyDown";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { captureOption } from "../components/session/context/session-context-refs";
 
 export function CaptureDetailsPage() {
   const { captureId } = useParams<{ captureId: string }>();
@@ -46,6 +48,7 @@ export function CaptureDetailsPage() {
   });
 
   const capture: Capture | undefined = storeCapture ?? fetchedCapture;
+  const attachToSession = useAttachToSessionAction(capture ? captureOption(capture) : null);
 
   const [isRetrying, setIsRetrying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -176,6 +179,7 @@ export function CaptureDetailsPage() {
           Retry
         </Button>
       )}
+      {attachToSession.button}
       <Button
         variant="ghost"
         size="sm"
@@ -208,6 +212,7 @@ export function CaptureDetailsPage() {
         />
       }
     >
+      {attachToSession.sheet}
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Full capture text */}
         <section>

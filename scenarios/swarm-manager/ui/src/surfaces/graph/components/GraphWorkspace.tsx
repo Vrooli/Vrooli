@@ -38,12 +38,7 @@ import { GraphActionLauncher } from "./GraphActionLauncher";
 import { commandPostPath, sessionDetailPath } from "../../../app/routes/route-paths";
 import { useAppShell } from "../../../app/shell/AppShellContext";
 import type { AgentSessionKind } from "../../../types";
-
-const SESSION_CREATE_TITLES: Record<AgentSessionKind, string> = {
-  meta_orchestration: "Plan work with agent",
-  operating_mode_authoring: "Author operating mode",
-  swarm_operations: "Manage Swarm operations",
-};
+import { SESSION_CREATE_TITLES } from "../../../components/session/session-view-model";
 
 export function GraphWorkspace() {
   const navigate = useNavigate();

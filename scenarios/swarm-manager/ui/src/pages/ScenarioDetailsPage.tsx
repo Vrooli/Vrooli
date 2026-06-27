@@ -41,6 +41,8 @@ import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { useArchivePreferences } from "../hooks/useArchivePreferences";
 import { routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { scenarioOption } from "../components/session/context/session-context-refs";
 
 export function ScenarioDetailsPage() {
   const { name } = useParams<{ name: string }>();
@@ -67,6 +69,7 @@ export function ScenarioDetailsPage() {
     filesLoading,
     loadScenarioFiles,
   } = useScenarioDetailData(name, closeDetail);
+  const attachToSession = useAttachToSessionAction(scenario ? scenarioOption(scenario) : null);
 
   // Delete dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -183,24 +186,30 @@ export function ScenarioDetailsPage() {
   }
 
   const lifecycleActions = scenario ? (
-    <ScenarioLifecycleActions
-      isRunning={isRunning}
-      isStopped={isStopped}
-      actionPending={actionMutation.isPending}
-      actionInFlight={actionInFlight}
-      onAction={(action) => actionMutation.mutate(action)}
-    />
+    <div className="flex items-center gap-2">
+      <ScenarioLifecycleActions
+        isRunning={isRunning}
+        isStopped={isStopped}
+        actionPending={actionMutation.isPending}
+        actionInFlight={actionInFlight}
+        onAction={(action) => actionMutation.mutate(action)}
+      />
+      {attachToSession.button}
+    </div>
   ) : undefined;
 
   const mobileLifecycleActions = scenario ? (
-    <ScenarioLifecycleActions
-      isRunning={isRunning}
-      isStopped={isStopped}
-      actionPending={actionMutation.isPending}
-      actionInFlight={actionInFlight}
-      onAction={(action) => actionMutation.mutate(action)}
-      mobile
-    />
+    <div className="space-y-2">
+      {attachToSession.button}
+      <ScenarioLifecycleActions
+        isRunning={isRunning}
+        isStopped={isStopped}
+        actionPending={actionMutation.isPending}
+        actionInFlight={actionInFlight}
+        onAction={(action) => actionMutation.mutate(action)}
+        mobile
+      />
+    </div>
   ) : undefined;
 
   return (
@@ -219,6 +228,7 @@ export function ScenarioDetailsPage() {
       mobileActions={mobileLifecycleActions}
       mobileActionsTitle="Scenario Actions"
     >
+    {attachToSession.sheet}
     <div className="space-y-6" data-testid={selectors.scenarioDetails.page}>
       {isPageLoading && (
         <PageLoadingState

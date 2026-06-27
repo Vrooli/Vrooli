@@ -23,6 +23,8 @@ import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-p
 import { BacklogDesktopHeader } from "../components/backlog/backlog-desktop-header";
 import { BacklogDialogs } from "../components/backlog/backlog-dialogs";
 import { HeaderPrimaryAction } from "../components/backlog/header-primary-action";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { backlogOption } from "../components/session/context/session-context-refs";
 import { OperationalTargetsPanel } from "../components/backlog/operational-targets-panel";
 import { BulkActionToolbar } from "../components/backlog/bulk-action-toolbar";
 import { useActivityTimeline } from "../hooks/useActivityTimeline";
@@ -158,6 +160,7 @@ export function BacklogDetailsPage() {
   }, [agentRunIsBusy, latestAgentActivity]);
 
   const agentLabel = item?.kind === "idea" ? "Idea Agent" : "Workshop";
+  const attachToSession = useAttachToSessionAction(item ? backlogOption(item) : null);
 
   // --- Effects ---
 
@@ -375,37 +378,40 @@ export function BacklogDetailsPage() {
   );
 
   const mobileActionButtons = item && itemActions ? (
-    <BacklogActionButtons
-      item={item}
-      isUpdating={isUpdating}
-      onFinalizeWorkshop={handlers.handleFinalizeWorkshop}
-      onStartRun={uiStore.openRunModal}
-      onRunWorkshop={handlers.handleRunWorkshop}
-      onEdit={uiStore.openEdit}
-      onFollowUp={() => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null)}
-      onRetry={async () => {
-        await backlogService.retry(item.kind, item.name);
-        data.refetchItem();
-        await queryClient.invalidateQueries({
-          queryKey: ["execution-history", item.kind, item.name],
-        });
-      }}
-      onOpenAgentDialog={uiStore.openAgent}
-      onArchive={() => handlers.handleArchiveItem()}
-      onStatusChange={(newStatus) => handlers.handleUpdateItem({
-        title: item.title, description: item.description,
-        status: newStatus, priority: item.priority, tags: item.tags,
-      })}
-      onResetWorkshop={uiStore.openWorkshopReset}
-      hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
-      onDelete={() => {
-                if (getDeleteConfirmLevel("backlog") === "none") {
-                  handlers.handleDeleteConfirm();
-                } else {
-                  uiStore.openDelete();
-                }
-              }}
-    />
+    <div className="space-y-2">
+      {attachToSession.button}
+      <BacklogActionButtons
+        item={item}
+        isUpdating={isUpdating}
+        onFinalizeWorkshop={handlers.handleFinalizeWorkshop}
+        onStartRun={uiStore.openRunModal}
+        onRunWorkshop={handlers.handleRunWorkshop}
+        onEdit={uiStore.openEdit}
+        onFollowUp={() => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null)}
+        onRetry={async () => {
+          await backlogService.retry(item.kind, item.name);
+          data.refetchItem();
+          await queryClient.invalidateQueries({
+            queryKey: ["execution-history", item.kind, item.name],
+          });
+        }}
+        onOpenAgentDialog={uiStore.openAgent}
+        onArchive={() => handlers.handleArchiveItem()}
+        onStatusChange={(newStatus) => handlers.handleUpdateItem({
+          title: item.title, description: item.description,
+          status: newStatus, priority: item.priority, tags: item.tags,
+        })}
+        onResetWorkshop={uiStore.openWorkshopReset}
+        hasWorkshopRounds={(workshopRounds?.length ?? 0) > 0}
+        onDelete={() => {
+          if (getDeleteConfirmLevel("backlog") === "none") {
+            handlers.handleDeleteConfirm();
+          } else {
+            uiStore.openDelete();
+          }
+        }}
+      />
+    </div>
   ) : undefined;
 
   const fileWorkspaceElement = fileService ? (
@@ -472,7 +478,12 @@ export function BacklogDetailsPage() {
             nodeId={nodeId}
             lenses={BACKLOG_LENSES}
             metadata={item?.createdBy ? <AttributionChip attribution={item.createdBy} /> : undefined}
-            actions={item ? <HeaderPrimaryAction className="shrink-0" onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} /> : undefined}
+            actions={item ? (
+              <div className="flex items-center gap-2">
+                <HeaderPrimaryAction className="shrink-0" onFinalizeWorkshop={handlers.handleFinalizeWorkshop} onRunWorkshop={handlers.handleRunWorkshop} />
+                {attachToSession.button}
+              </div>
+            ) : undefined}
             onStatusChange={!isLocked ? (newStatus) => data.updateStatus(newStatus) : undefined}
             statusChangePending={data.isUpdatingStatus}
             tabBar={tabBar}
@@ -481,6 +492,7 @@ export function BacklogDetailsPage() {
         mobileActions={mobileActionButtons}
         mobileActionsTitle="Backlog Actions"
       >
+        {attachToSession.sheet}
         <div className="space-y-0 lg:space-y-6" data-testid={selectors.backlogDetails.page}>
           {isPageLoading && (
             <PageLoadingState label="Loading backlog details..." variant="detail" testId="backlog-details-loading-state" />

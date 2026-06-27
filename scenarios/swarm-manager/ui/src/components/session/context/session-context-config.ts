@@ -38,6 +38,15 @@ export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSession
   }
 }
 
+export function compatibleSessionKindsForContextType(type: AgentSessionContextType): AgentSessionKind[] {
+  const kinds: AgentSessionKind[] = ["meta_orchestration", "swarm_operations", "operating_mode_authoring"];
+  return kinds.filter((kind) => allowedContextTypesForKind(kind).includes(type));
+}
+
+export function sessionKindAllowsContextType(kind: AgentSessionKind, type: AgentSessionContextType): boolean {
+  return allowedContextTypesForKind(kind).includes(type);
+}
+
 export function totalContextCapForKind(kind: AgentSessionKind): number {
   return kind === "operating_mode_authoring" ? 8 : 12;
 }

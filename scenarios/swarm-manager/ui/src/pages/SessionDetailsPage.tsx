@@ -25,7 +25,9 @@ import { SessionProposalList } from "../components/session/SessionProposalList";
 import { SessionSectionTabs, type SessionSectionValue } from "../components/session/SessionSectionTabs";
 import { useComposerImageAttachments } from "../components/composer/useComposerImageAttachments";
 import { optionsToRefs } from "../components/session/context/session-context-options";
-import { startupBriefOption, type SessionContextOption } from "../components/session/context/session-context-refs";
+import { sessionOption, startupBriefOption, type SessionContextOption } from "../components/session/context/session-context-refs";
+import { clearStagedContextForSession, mergeContextOptions, peekStagedContextForSession } from "../components/session/context/pending-session-context";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
 import { ActionMenu, ActionMenuSheetContent, type ActionMenuItem } from "../components/ui/action-menu";
 import { nodeIdForSessionArtifact } from "../components/session/session-artifact-routing";
 import {
@@ -77,6 +79,10 @@ export function SessionDetailsPage() {
   });
 
   const session: AgentSession | undefined = storeSession ?? fetchedSession;
+  const attachToSession = useAttachToSessionAction(
+    session ? sessionOption(session) : null,
+    { currentSessionId: session?.id },
+  );
   const startupBriefQuery = useQuery({
     queryKey: ["session-startup-brief", session?.id, session?.kind],
     queryFn: () => loadStartupBrief(session?.id ?? ""),
@@ -104,6 +110,20 @@ export function SessionDetailsPage() {
     }
     setPendingContext(session?.status === "draft" ? [startupBriefOption(session.kind)] : []);
   }, [session?.id, session?.kind, session?.status, sessionDraftKey]);
+
+  useEffect(() => {
+    if (!session) return;
+    const staged = peekStagedContextForSession(session.id);
+    if (staged.length === 0) return;
+    setPendingContext((current) => {
+      const merged = mergeContextOptions(current, staged, session.kind);
+      if (merged.rejected.length > 0) {
+        setLocalError(merged.rejected.map(({ option, reason }) => `${option.title}: ${reason}`).join(" "));
+      }
+      clearStagedContextForSession(session.id, merged.applied);
+      return merged.items;
+    });
+  }, [session]);
 
   useEffect(() => {
     if (!session || session.status !== "draft" || !startupBriefQuery.data) return;
@@ -306,6 +326,7 @@ export function SessionDetailsPage() {
   ];
 
   const mobileActionItems: ActionMenuItem[] = [
+    attachToSession.actionItem,
     ...(session.status === "draft" ? [{
       label: "Refresh brief",
       icon: <RefreshCw />,
@@ -338,7 +359,7 @@ export function SessionDetailsPage() {
       testId: "session-delete-action",
     },
   ];
-  const desktopDeleteItems = mobileActionItems.filter((item) => item.testId === "session-delete-action");
+  const desktopMoreItems = mobileActionItems.filter((item) => item.testId === "session-delete-action" || item.testId === attachToSession.actionItem.testId);
 
   const headerActions = (
     <>
@@ -381,7 +402,7 @@ export function SessionDetailsPage() {
             Cancel
           </Button>
           <ActionMenu
-            items={desktopDeleteItems}
+            items={desktopMoreItems}
             label="Session actions"
             triggerTestId="session-desktop-header-actions"
             menuTestId="session-desktop-actions-menu"
@@ -507,6 +528,7 @@ export function SessionDetailsPage() {
           {mobileActions}
         </BottomSheet>
       )}
+      {attachToSession.sheet}
       <ConfirmDialog {...deleteDialogProps} />
     </DetailPageLayout>
   );

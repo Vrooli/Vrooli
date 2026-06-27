@@ -1,9 +1,14 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Gauge, GitPullRequestArrow, Loader2, MessageSquarePlus, Plus, Workflow, X } from "lucide-react";
+import { Loader2, MessageSquarePlus, Plus, X } from "lucide-react";
 import { BottomSheet } from "../../../components/ui/bottom-sheet";
 import { FloatingActionButton } from "../../../components/ui/floating-action-button";
 import { cn } from "../../../lib/utils";
+import {
+  SESSION_KIND_DESCRIPTIONS,
+  SESSION_KIND_ICONS,
+  SESSION_KIND_LAUNCHER_LABELS,
+} from "../../../components/session/session-view-model";
 
 interface GraphActionLauncherProps {
   isBusy?: boolean;
@@ -51,23 +56,23 @@ export function GraphActionLauncher({
             onClick={() => runAction(onQuickCapture)}
           />
           <LauncherItem
-            icon={<Workflow className="h-5 w-5" />}
-            label="Plan Work With Agent"
-            description="Start a planning session for drafting initiatives, backlog items, and approval-ready work plans."
+            icon={<SESSION_KIND_ICONS.meta_orchestration className="h-5 w-5" />}
+            label={SESSION_KIND_LAUNCHER_LABELS.meta_orchestration}
+            description={SESSION_KIND_DESCRIPTIONS.meta_orchestration}
             onClick={() => runAction(onPlanWork)}
             disabled={isBusy}
           />
           <LauncherItem
-            icon={<Gauge className="h-5 w-5" />}
-            label="Manage Swarm"
-            description="Review progress, pending decisions, priorities, and whether initiatives should use backlog or operating modes."
+            icon={<SESSION_KIND_ICONS.swarm_operations className="h-5 w-5" />}
+            label={SESSION_KIND_LAUNCHER_LABELS.swarm_operations}
+            description={SESSION_KIND_DESCRIPTIONS.swarm_operations}
             onClick={() => runAction(onManageSwarm)}
             disabled={isBusy}
           />
           <LauncherItem
-            icon={<GitPullRequestArrow className="h-5 w-5" />}
-            label="Author Operating Mode"
-            description="Create or refine the operating-mode loop that guides agentic work on an initiative."
+            icon={<SESSION_KIND_ICONS.operating_mode_authoring className="h-5 w-5" />}
+            label={SESSION_KIND_LAUNCHER_LABELS.operating_mode_authoring}
+            description={SESSION_KIND_DESCRIPTIONS.operating_mode_authoring}
             onClick={() => runAction(onAuthorOperatingMode)}
             disabled={isBusy}
           />

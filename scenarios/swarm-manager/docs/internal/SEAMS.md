@@ -150,6 +150,13 @@ and page assembly only.
   The API-owned `agentsessions.ContextResolver` resolves refs into bounded
   context snapshots before messages are persisted and prompts are built. UI
   store objects are never treated as trusted prompt payloads.
+- **Entity-to-session context handoff boundary**: routed detail pages can stage
+  the current entity as a typed `SessionContextOption` for a target session via
+  UI-local pending-context storage. `SessionDetailsPage` is the only consumer of
+  that handoff: when the target session loads, it merges staged refs into the
+  composer using the same kind compatibility and cap policy as the picker,
+  clears only successfully applied items, and surfaces rejected staged context
+  as a local alert. The handoff is not a server-side session metadata model.
 - **Session attachment boundary**: session image uploads flow through
   `POST /api/v1/agent-sessions/{session_id}/attachments`. Uploaded files are
   stored under the session folder, exposed only through the session attachment

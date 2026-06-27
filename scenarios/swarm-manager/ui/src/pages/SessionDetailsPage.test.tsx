@@ -5,6 +5,7 @@ import { Route, Routes } from "react-router-dom";
 import type { AgentSession } from "../types";
 import { SessionDetailsPage } from "./SessionDetailsPage";
 import { createTestQueryClient, installMatchMediaMock, renderWithProviders } from "../test-utils";
+import { stageContextForSession } from "../components/session/context/pending-session-context";
 
 const storeMock = vi.hoisted(() => {
   const initialState = {
@@ -158,6 +159,7 @@ async function activateTab(name: string | RegExp) {
 describe("SessionDetailsPage", () => {
   beforeEach(() => {
     installMatchMediaMock(false);
+    window.localStorage.clear();
     navigateMock.mockReset();
     storeMock.useAgentSessionStore.reset();
     storeMock.useAgentSessionStore.setState({
@@ -286,6 +288,32 @@ describe("SessionDetailsPage", () => {
 
     await waitFor(() => {
       expect(continueSession).toHaveBeenCalledWith({ sessionId: "sess_meta", message: "Next step" });
+    });
+  });
+
+  it("applies staged context and sends it with the next continuation [REQ:REQ-P1-010-SESSION-CONTEXT]", async () => {
+    const continueSession = vi.fn().mockResolvedValue(SESSION);
+    storeMock.useAgentSessionStore.setState({ continueSession });
+    stageContextForSession("sess_meta", {
+      type: "initiative",
+      ref: "quality-gates",
+      title: "Quality gates",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Quality gates")).toBeInTheDocument();
+
+    const composer = screen.getByTestId("agent-session-composer");
+    fireEvent.change(composer, { target: { value: "Use this context" } });
+    fireEvent.keyDown(composer, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => {
+      expect(continueSession).toHaveBeenCalledWith({
+        sessionId: "sess_meta",
+        message: "Use this context",
+        contextRefs: [{ type: "initiative", ref: "quality-gates" }],
+      });
     });
   });
 

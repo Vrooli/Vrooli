@@ -48,6 +48,8 @@ import { canRunPostRunChecks } from "../lib/finalization";
 import { ENTITY_TYPE_ICONS } from "../types/constants";
 import type { ExecutionRecord } from "../types";
 import { routeTargetToNodeId } from "../app/routes/route-paths";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { executionOption } from "../components/session/context/session-context-refs";
 
 type ExecutionTab = "overview" | "changes" | "review" | "prompt";
 
@@ -85,6 +87,7 @@ export function ExecutionDetailsPage() {
     refetch,
     actionBusy,
   } = data;
+  const attachToSession = useAttachToSessionAction(execution ? executionOption(execution) : null);
 
   // --- Agent manager URL ---
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
@@ -206,6 +209,7 @@ export function ExecutionDetailsPage() {
   );
 
   const mobileActionItems: ActionMenuItem[] = [];
+  mobileActionItems.push(attachToSession.actionItem);
   if (isActive) {
     mobileActionItems.push({
       label: "Cancel",
@@ -257,13 +261,19 @@ export function ExecutionDetailsPage() {
           status={execution.status}
           nodeId={nodeId}
           lenses={EXECUTION_LENSES}
-          actions={primaryAction}
+          actions={
+            <div className="flex items-center gap-2">
+              {primaryAction}
+              {attachToSession.button}
+            </div>
+          }
           tabBar={tabBar}
         />
       }
       mobileActions={mobileActions}
       mobileActionsTitle="Execution Actions"
     >
+      {attachToSession.sheet}
       <div className="space-y-0 md:mx-auto md:max-w-3xl">
         {activeTab === "overview" && (
           <ExecutionOverviewTab

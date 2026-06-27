@@ -51,6 +51,8 @@ import {
   phaseCardDomId,
 } from "../components/initiative/operating-mode/utils";
 import { useUrlState } from "../hooks/use-url-state";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { operatingModeOption } from "../components/session/context/session-context-refs";
 
 const EMPTY_LENSES: never[] = [];
 
@@ -112,6 +114,7 @@ export function OperatingModeDetailsPage() {
   const docsExecutionModesUrl = useDocsUrl("/docs/concepts/EXECUTION-MODES.md");
   const docsHolisticLoopUrl = useDocsUrl("/docs/guides/holistic-loop-mode.md");
   const docsPhasedPlanDrainUrl = useDocsUrl("/docs/guides/phased-plan-drain-mode.md");
+  const attachToSession = useAttachToSessionAction(data ? operatingModeOption(data.entry) : null);
 
   useEffect(() => {
     return () => {
@@ -202,9 +205,11 @@ export function OperatingModeDetailsPage() {
               {linkedInitiatives.length} initiative{linkedInitiatives.length === 1 ? "" : "s"}
             </span>
           }
+          actions={attachToSession.button}
         />
       }
     >
+      {attachToSession.sheet}
       <DetailSection
         title="Overview"
         icon={Layers}

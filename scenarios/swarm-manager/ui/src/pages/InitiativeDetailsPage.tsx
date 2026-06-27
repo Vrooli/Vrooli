@@ -56,6 +56,8 @@ import { StatusChip } from "../components/ui/status-chip";
 import { BACKLOG_STATUS_COLORS } from "../types";
 import { backlogDetailPath, initiativeDetailPath, operatingModeDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
 import { useAppBack } from "../app/routes/useAppBack";
+import { useAttachToSessionAction } from "../components/session/context/useAttachToSessionAction";
+import { initiativeOption } from "../components/session/context/session-context-refs";
 
 type InitiativeTab = "info" | "mode" | "feedback" | "review" | "files";
 type ItemsView = "list" | "graph";
@@ -250,6 +252,7 @@ export function InitiativeDetailsPage() {
 
   const initiative = data?.initiative;
   const rollup = data?.rollup;
+  const attachToSession = useAttachToSessionAction(data ? initiativeOption(data) : null);
 
   // Pull all initiatives for upstream/downstream chip rendering.
   const allInitiatives = useInitiativeStore((s) => s.items);
@@ -435,6 +438,7 @@ export function InitiativeDetailsPage() {
   );
 
   const mobileActionItems: ActionMenuItem[] = initiative ? [
+    attachToSession.actionItem,
     {
       label: "Add Feedback",
       icon: <MessageCirclePlus />,
@@ -633,21 +637,25 @@ export function InitiativeDetailsPage() {
           metadata={initiative.createdBy ? <AttributionChip attribution={initiative.createdBy} /> : undefined}
           tabBar={tabBar}
           actions={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFeedbackDialogOpen(true)}
-              data-testid={selectors.initiativeDetails.addFeedbackButtonDesktop}
-            >
-              <MessageCirclePlus className="mr-1.5 h-4 w-4" />
-              Add Feedback
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFeedbackDialogOpen(true)}
+                data-testid={selectors.initiativeDetails.addFeedbackButtonDesktop}
+              >
+                <MessageCirclePlus className="mr-1.5 h-4 w-4" />
+                Add Feedback
+              </Button>
+              {attachToSession.button}
+            </div>
           }
         />
       }
       mobileActions={mobileActions}
       mobileActionsTitle="Initiative Actions"
     >
+      {attachToSession.sheet}
       <div className="space-y-0 md:mx-auto md:max-w-3xl" data-testid={selectors.initiativeDetails.page}>
         {isArchived && (
           <div className="mb-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">

@@ -28,7 +28,7 @@ export function PickModeRow({ selection, children, className }: PickModeRowProps
         if (!disabled) onToggleSelect?.();
       }}
       className={cn(
-        "flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors",
+        "flex w-full items-start gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors",
         selected
           ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-50"
           : "border-slate-800 bg-slate-950/45 text-slate-200 hover:border-slate-700 hover:bg-slate-800/55",
@@ -39,7 +39,7 @@ export function PickModeRow({ selection, children, className }: PickModeRowProps
     >
       <span
         className={cn(
-          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
+          "mt-0.5 flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded border transition-colors",
           selected ? "border-cyan-300 bg-cyan-300 text-slate-950" : "border-slate-600 bg-slate-900",
         )}
       >

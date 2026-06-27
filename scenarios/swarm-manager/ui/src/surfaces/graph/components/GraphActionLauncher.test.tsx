@@ -23,7 +23,7 @@ describe("GraphActionLauncher", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByRole("menu")).toBeInTheDocument();
     expect(screen.getByText("Capture a note, task, dependency, or relationship without starting an agent session.")).toBeInTheDocument();
-    expect(screen.getByText("Review progress, pending decisions, priorities, and whether initiatives should use backlog or operating modes.")).toBeInTheDocument();
+    expect(screen.getByText("Review progress, pending decisions, priorities, and work routing.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("menuitem", { name: "Quick Capture" }));
     expect(onQuickCapture).toHaveBeenCalledTimes(1);
