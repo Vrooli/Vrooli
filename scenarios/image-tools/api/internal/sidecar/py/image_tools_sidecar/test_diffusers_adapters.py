@@ -77,6 +77,43 @@ def test_unknown_family_exits():
     assert raised, "unknown family must fail loud (SystemExit), not return None"
 
 
+def test_inpaint_kwargs_defaults():
+    from ._diffusers import TransformParams, build_inpaint_kwargs
+
+    k = build_inpaint_kwargs(TransformParams(prompt="a clear blue sky"))
+    _eq(k["prompt"], "a clear blue sky", "inpaint prompt")
+    _eq(k["num_inference_steps"], 30, "inpaint default steps")
+    _eq(k["guidance_scale"], 7.5, "inpaint default guidance")
+    _eq(k["strength"], 0.85, "inpaint default strength")
+    assert "negative_prompt" not in k, "inpaint omits negative_prompt when empty"
+
+
+def test_inpaint_kwargs_overrides():
+    from ._diffusers import TransformParams, build_inpaint_kwargs
+
+    k = build_inpaint_kwargs(
+        TransformParams(prompt="p", negative_prompt="blurry", strength=0.6, steps=28, guidance=6.0)
+    )
+    _eq(k["num_inference_steps"], 28, "inpaint steps override")
+    _eq(k["guidance_scale"], 6.0, "inpaint guidance override")
+    _eq(k["strength"], 0.6, "inpaint strength override")
+    _eq(k["negative_prompt"], "blurry", "inpaint negative_prompt override")
+
+
+def test_inpaint_class_known_archs():
+    _eq(_diffusers._inpaint_class("sd15"), "StableDiffusionInpaintPipeline", "sd15 inpaint class")
+    _eq(_diffusers._inpaint_class("sdxl"), "StableDiffusionXLInpaintPipeline", "sdxl inpaint class")
+
+
+def test_inpaint_class_unknown_arch_exits():
+    raised = False
+    try:
+        _diffusers._inpaint_class("not-an-arch")
+    except SystemExit:
+        raised = True
+    assert raised, "unknown architecture must fail loud (SystemExit)"
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

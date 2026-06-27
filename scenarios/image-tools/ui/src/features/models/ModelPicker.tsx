@@ -180,12 +180,30 @@ function ModelRow({
               values={view.status.values}
               className={PICKER_TONE_CLASS[view.status.tone]}
             />
+            {view.support ? (
+              <Chip
+                keyText={view.support.key}
+                values={view.support.values}
+                className={PICKER_TONE_CLASS[view.support.tone]}
+              />
+            ) : null}
             {model && model.sizeMbApprox > 0 ? (
               <span className="text-[11px] text-app-muted-foreground">
                 {t(strings.models.picker.size, { size: model.sizeMbApprox })}
               </span>
             ) : null}
           </div>
+          {view.caveat ? (
+            <p
+              data-testid={selectors.models.pickerCaveat({ id })}
+              className="mt-1 text-[11px] text-app-warning"
+            >
+              {t(strings.models.picker.caveatBanner, {
+                op: picker.operation,
+                caveat: view.caveat,
+              })}
+            </p>
+          ) : null}
           {candidate.fit?.vramShortfallGb && view.dimmed ? (
             <p className="mt-1 text-[11px] text-app-muted-foreground">
               {t(strings.models.picker.fit.insufficientVram, {

@@ -27,6 +27,8 @@ import (
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
+	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
+	modelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models/models_v1connect"
 )
 
 // GroupName is the manifest group name this package owns.
@@ -86,6 +88,26 @@ func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, p
 		return nil, fmt.Errorf("decode submit response: %w", err)
 	}
 	return parsed, nil
+}
+
+// explainResolution calls ModelsService.ExplainResolution — the read-only
+// dry-run behind `--explain`: it returns the Resolution (which model/technique
+// would run, native-vs-derived, tier, safety weight) without submitting a job.
+func explainResolution(core *cliapp.ScenarioApp, operation, modelOverride string, allowBYOK bool) (*modelsv1.Resolution, error) {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	client := modelsconnect.NewModelsServiceClient(httpClient, baseURL)
+	resp, err := client.ExplainResolution(context.Background(), connect.NewRequest(&modelsv1.ExplainResolutionRequest{
+		Operation: operation,
+		ModelId:   modelOverride,
+		AllowByok: allowBYOK,
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("explain resolution for %q", operation), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetResolution() == nil {
+		return nil, fmt.Errorf("server returned no resolution")
+	}
+	return resp.Msg.GetResolution(), nil
 }
 
 func addFilePart(mw *multipart.Writer, field, path string) error {

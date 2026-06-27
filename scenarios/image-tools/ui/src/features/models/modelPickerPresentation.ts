@@ -9,11 +9,12 @@ import type { CandidateModel, HostSummary } from "../../api/models";
  */
 export type PickerTone = "positive" | "info" | "caution" | "muted" | "neutral";
 
-/** The translation keys a picker chip can carry (fit / status / host lines). */
+/** The translation keys a picker chip can carry (fit / status / host / support). */
 export type PickerStringKey =
   | (typeof strings.models.picker.fit)[keyof typeof strings.models.picker.fit]
   | (typeof strings.models.picker.state)[keyof typeof strings.models.picker.state]
-  | (typeof strings.models.picker.host)[keyof typeof strings.models.picker.host];
+  | (typeof strings.models.picker.host)[keyof typeof strings.models.picker.host]
+  | (typeof strings.models.picker.support)[keyof typeof strings.models.picker.support];
 
 /** A localized chip: a translation key + interpolation values + a tone. */
 export interface PickerChip {
@@ -37,6 +38,17 @@ export interface CandidatePresentation {
   fit: PickerChip;
   /** The ready-state status chip. */
   status: PickerChip;
+  /**
+   * The native/via-workflow support chip — present only for DERIVED candidates
+   * (a model that serves this op through a derived technique, not a declared
+   * native one). undefined for native candidates (no chip needed).
+   */
+  support?: PickerChip;
+  /**
+   * The derived-op quality caveat, raw text to surface in a banner on selection
+   * ("" / undefined for native candidates).
+   */
+  caveat?: string;
   /** The primary action this row offers (may be "none"). */
   action: PickerActionKind;
   /** Whether the row itself is selectable (click-to-use). */
@@ -54,7 +66,10 @@ const READY_STATE = {
   disabled: "disabled",
   insufficient: "insufficient",
   unsupported: "unsupported",
+  derivedUnproven: "derived_pipeline_unproven",
 } as const;
+
+const SUPPORT = { native: "native", derived: "derived" } as const;
 
 /**
  * fitChip turns a candidate's host-aware fit_class into an affirmative badge. A
@@ -106,6 +121,10 @@ const STATUS_BY_STATE: Record<string, PickerChip> = {
   [READY_STATE.disabled]: { key: strings.models.picker.state.disabled, tone: "neutral" },
   [READY_STATE.insufficient]: { key: strings.models.picker.state.insufficient, tone: "muted" },
   [READY_STATE.unsupported]: { key: strings.models.picker.state.unsupported, tone: "muted" },
+  [READY_STATE.derivedUnproven]: {
+    key: strings.models.picker.state.derivedUnproven,
+    tone: "caution",
+  },
 };
 
 /** statusChip resolves the ready-state status chip (falls back to neutral). */
@@ -116,6 +135,19 @@ export function statusChip(candidate: CandidateModel): PickerChip {
       tone: "neutral",
     }
   );
+}
+
+/**
+ * supportChip distinguishes a candidate that serves the op NATIVELY (declared)
+ * from one that serves it via a DERIVED technique. It returns a chip only for
+ * derived candidates (a "Via workflow" caution badge) — native candidates need
+ * no badge and return undefined, so the common case stays visually quiet.
+ */
+export function supportChip(candidate: CandidateModel): PickerChip | undefined {
+  if (candidate.support !== SUPPORT.derived) {
+    return undefined;
+  }
+  return { key: strings.models.picker.support.viaWorkflow, tone: "caution" };
 }
 
 /**
@@ -149,10 +181,13 @@ export function present(
   const action = actionFor(candidate);
   const dimmed =
     candidate.readyState === READY_STATE.insufficient ||
-    candidate.readyState === READY_STATE.unsupported;
+    candidate.readyState === READY_STATE.unsupported ||
+    candidate.readyState === READY_STATE.derivedUnproven;
   return {
     fit: fitChip(candidate, host),
     status: statusChip(candidate),
+    support: supportChip(candidate),
+    caveat: candidate.caveat || undefined,
     action,
     selectable: candidate.readyState === READY_STATE.ready,
     dimmed,

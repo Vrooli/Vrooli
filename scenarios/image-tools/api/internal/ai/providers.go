@@ -10,13 +10,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"image-tools/internal/backends"
-	"image-tools/internal/models"
+	"image-tools/internal/technique"
 )
 
 // commandRunner executes a resolved command. Injected so tests assert argument
@@ -37,11 +38,6 @@ type pythonModuleChecker func(ctx context.Context, python string, modules []stri
 // from the configured Python executable.
 type onnxProviderChecker func(ctx context.Context, python string) ([]string, error)
 
-// argBuilder assembles the argv (after the program name) for one backend from a
-// run request. modelDir is the installed model's directory. It is a pure
-// function of its inputs so it can be unit-tested without executing anything.
-type argBuilder func(req backends.Request, modelDir string) ([]string, error)
-
 // pythonProgram is the sentinel program string that marks a backend as Python-
 // served. Such backends run ONLY through the scenario's private uv venv
 // interpreter (execProvider.pythonInterpreter); they never resolve a bare
@@ -50,10 +46,12 @@ const pythonProgram = "python3"
 
 // execProvider is a backends.Provider backed by an external CLI/sidecar program.
 // One configured instance exists per standalone backend (stable-diffusion.cpp,
-// diffusers, iopaint, realesrgan-ncnn-vulkan, rembg, onnxruntime). Availability
-// is "the program resolves on PATH"; model-weight presence is a separate gate
-// the engine applies (so it can produce a precise "model not installed" hint),
-// keeping providers model-agnostic.
+// diffusers, iopaint, realesrgan-ncnn-vulkan, rembg, onnxruntime). It owns the
+// backend *process* (availability probe, exec, host-tool resolution) and
+// dispatches arg-building to the technique.Set it was registered with — it never
+// re-declares the arg shapes (those live in internal/technique). Availability is
+// "the program resolves on PATH"; model-weight presence is a separate gate the
+// engine applies, keeping providers model-agnostic.
 type execProvider struct {
 	name    string
 	program string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
@@ -72,16 +70,17 @@ type execProvider struct {
 	// (e.g. "sd-gpu") and be picked up automatically without colliding with the
 	// base CPU launcher's command name. Empty for backends with no GPU variant.
 	programAliases []string
-	ops            []string
-	build          argBuilder
-	gpuCapable     bool // can this backend (the TYPE) use the GPU? (CPU-only sidecars: false)
-	provision      string
-	imports        []string
-	lookPath       lookPathFunc
-	checkPy        pythonModuleChecker
-	checkONNX      onnxProviderChecker
-	run            commandRunner
-	warm           warmRunner
+	// techniques maps an operation to the technique that serves it on this backend.
+	// Execute dispatches by req.Operation; an op with no technique is unsupported.
+	techniques technique.Set
+	gpuCapable bool // can this backend (the TYPE) use the GPU? (CPU-only sidecars: false)
+	provision  string
+	imports    []string
+	lookPath   lookPathFunc
+	checkPy    pythonModuleChecker
+	checkONNX  onnxProviderChecker
+	run        commandRunner
+	warm       warmRunner
 	// gpuProbe, when set, reports whether the INSTALLED binary actually has a GPU
 	// compute backend compiled in (a prebuilt release may be CPU-only even though
 	// the backend type can use a GPU). gpuCapable gates the type; gpuProbe gates
@@ -99,20 +98,20 @@ type execProvider struct {
 	stream streamRunner
 }
 
-func (p *execProvider) Name() string         { return p.name }
-func (p *execProvider) Operations() []string { return append([]string(nil), p.ops...) }
-func (p *execProvider) Standalone() bool     { return true } // none of these are ComfyUI
-func (p *execProvider) IsCloud() bool        { return false }
+func (p *execProvider) Name() string     { return p.name }
+func (p *execProvider) Standalone() bool { return true } // none of these are ComfyUI
+func (p *execProvider) IsCloud() bool    { return false }
 
-// GPUCapable reports whether this backend can run on the GPU. The onnxruntime
-// sidecar is bound to CPUExecutionProvider, so it returns false and the selector
-// labels its runs local-cpu even on a GPU host (honest tier reporting).
-//
-// gpuCapable is the static capability of the backend TYPE. When a gpuProbe is
-// set, the INSTALLED binary is also consulted (cached): a prebuilt
-// stable-diffusion.cpp release with no CUDA/Vulkan backend compiled in runs on
-// the CPU regardless of a GPU on the host, so claiming local-gpu would be a lie
-// (the user sees "Running on your GPU" while the binary reports VRAM 0.00MB).
+// Operations returns the ops this backend serves, sorted for determinism.
+func (p *execProvider) Operations() []string {
+	ops := make([]string, 0, len(p.techniques))
+	for op := range p.techniques {
+		ops = append(ops, op)
+	}
+	sort.Strings(ops)
+	return ops
+}
+
 // programName returns the program this provider should invoke: the first of its
 // programAliases that resolves on PATH (a GPU build like "sd-gpu"), else the
 // base program ("sd"). Resolution is cheap (a PATH lookup) and done per call so
@@ -139,6 +138,15 @@ func (p *execProvider) programName() string {
 	return p.program
 }
 
+// GPUCapable reports whether this backend can run on the GPU. The onnxruntime
+// sidecar is bound to CPUExecutionProvider, so it returns false and the selector
+// labels its runs local-cpu even on a GPU host (honest tier reporting).
+//
+// gpuCapable is the static capability of the backend TYPE. When a gpuProbe is
+// set, the INSTALLED binary is also consulted (cached): a prebuilt
+// stable-diffusion.cpp release with no CUDA/Vulkan backend compiled in runs on
+// the CPU regardless of a GPU on the host, so claiming local-gpu would be a lie
+// (the user sees "Running on your GPU" while the binary reports VRAM 0.00MB).
 func (p *execProvider) GPUCapable() bool {
 	if !p.gpuCapable {
 		return false
@@ -285,9 +293,9 @@ func defaultCheckONNXRuntimeProviders(ctx context.Context, python string) ([]str
 	return providers, nil
 }
 
-// Execute resolves the model directory, builds the argv, and runs the program.
-// The output is written to req.Output.LocalPath by contract; Execute returns
-// that path as the result ref.
+// Execute resolves the model directory, dispatches to the operation's technique
+// arg-builder, and runs the program. The output is written to
+// req.Output.LocalPath by contract; Execute returns that path as the result ref.
 func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
 	if req.Output.LocalPath == "" {
 		return backends.Result{}, fmt.Errorf("ai: backend %q requires a local output path", p.name)
@@ -303,7 +311,11 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	if p.program == pythonProgram && program == "" {
 		return backends.Result{}, fmt.Errorf("ai: backend %q unavailable: image-tools Python venv not provisioned — %s", p.name, p.provision)
 	}
-	args, err := p.build(req, modelDir)
+	tech, ok := p.techniques[req.Operation]
+	if !ok {
+		return backends.Result{}, fmt.Errorf("ai: backend %q does not serve operation %q", p.name, req.Operation)
+	}
+	args, err := tech.Build(req, modelDir)
 	if err != nil {
 		return backends.Result{}, fmt.Errorf("ai: backend %q build args: %w", p.name, err)
 	}
@@ -484,405 +496,15 @@ func probeStableDiffusionGPU(ctx context.Context, program string) bool {
 // (not an absolute path) keeps providers path-policy-agnostic.
 func modelDirFor(modelID string) string { return "models/" + modelID }
 
-// =============================================================================
-// Per-backend argument builders. Each mirrors the documented CLI of a real
-// standalone backend; they are pure and unit-tested (arg assembly), while live
-// execution is gated on the program + model being installed.
-// =============================================================================
-
-func in0(req backends.Request) (string, error) {
-	if len(req.InputKeys) == 0 || req.InputKeys[0] == "" {
-		return "", fmt.Errorf("missing input image")
-	}
-	return req.InputKeys[0], nil
-}
-
-func maskPath(req backends.Request) (string, error) {
-	if len(req.InputKeys) < 2 || req.InputKeys[1] == "" {
-		return "", fmt.Errorf("missing mask image")
-	}
-	return req.InputKeys[1], nil
-}
-
-func intParam(req backends.Request, key string, def int) int {
-	if v, ok := req.Params[key]; ok {
-		if n, err := strconv.Atoi(v); err == nil && n != 0 {
-			return n
-		}
-	}
-	return def
-}
-
-func strParam(req backends.Request, key string) string { return req.Params[key] }
-
-// buildStableDiffusionCpp assembles a stable-diffusion.cpp `sd-cli` invocation
-// for text_to_image / image_to_image. Shape: sd-cli -m <model> -p <prompt>
-// [-n <neg>] [--cfg-scale x] --steps n -W w -H h [-s seed] [-i in --strength x]
-// -o out. image_to_image is selected by passing -i <init>; the run mode stays
-// the default img_gen (the new -M flag's values are img_gen|vid_gen|upscale|
-// convert|metadata, so the old `-M img2img` is gone).
-// sdModelArg resolves the weights argument for sd-cli. The image-tools model
-// install dir holds a single-file checkpoint (.safetensors/.gguf/.ckpt), but
-// sd-cli's `-m` expects that FILE — handed a bare directory it tries to load a
-// diffusers-layout tree and fails. Resolve the single-file checkpoint inside the
-// dir; fall back to the path as-is when none is found (already a file, or a
-// diffusers-layout dir sd-cli can load directly).
-func sdModelArg(modelDir string) string {
-	for _, pattern := range []string{"*.safetensors", "*.gguf", "*.ckpt"} {
-		if matches, _ := filepath.Glob(filepath.Join(modelDir, pattern)); len(matches) > 0 {
-			return matches[0]
-		}
-	}
-	return modelDir
-}
-
-func buildStableDiffusionCpp(req backends.Request, modelDir string) ([]string, error) {
-	args := []string{"-m", sdModelArg(modelDir), "-o", req.Output.LocalPath, "-p", strParam(req, "prompt")}
-	if neg := strParam(req, "negative_prompt"); neg != "" {
-		args = append(args, "-n", neg)
-	}
-	if cfg := strParam(req, "cfg_scale"); cfg != "" {
-		args = append(args, "--cfg-scale", cfg)
-	}
-	args = append(args, "--steps", strconv.Itoa(intParam(req, "steps", 20)))
-	args = append(args, "-W", strconv.Itoa(intParam(req, "width", 512)))
-	args = append(args, "-H", strconv.Itoa(intParam(req, "height", 512)))
-	if seed := strParam(req, "seed"); seed != "" {
-		args = append(args, "-s", seed)
-	}
-	if req.Operation == "image_to_image" {
-		in, err := in0(req)
-		if err != nil {
-			return nil, err
-		}
-		args = append(args, "-i", in)
-		if s := strParam(req, "strength"); s != "" {
-			args = append(args, "--strength", s)
-		}
-	}
-	return args, nil
-}
-
-// buildDiffusers dispatches a diffusers python-sidecar invocation by operation:
-// inpaint (masked regenerate) and edit_instruct (whole-image instruction edit)
-// share the diffusers backend but invoke different sidecar modules with
-// different argv shapes.
-func buildDiffusers(req backends.Request, modelDir string) ([]string, error) {
-	switch req.Operation {
-	case "inpaint", "outpaint", "background_replace":
-		// All three are masked-regenerate ops with the same argv shape: the mask
-		// marks the region to synthesize (the hole for inpaint, the new border
-		// region for outpaint, the background for background_replace) and the
-		// prompt steers it. They share the inpaint sidecar module.
-		return buildDiffusersInpaint(req, modelDir)
-	case "edit_instruct":
-		return buildDiffusersEditInstruct(req, modelDir)
-	default:
-		return nil, fmt.Errorf("diffusers: unsupported operation %q", req.Operation)
-	}
-}
-
-// buildDiffusersInpaint assembles a diffusers python-sidecar inpaint invocation.
-// Shape: python3 -m image_tools_sidecar.inpaint --model <dir> --image <in>
-// --mask <mask> --prompt <p> --out <out>.
-func buildDiffusersInpaint(req backends.Request, modelDir string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	mask, err := maskPath(req)
-	if err != nil {
-		return nil, err
-	}
-	return []string{
-		"-m", "image_tools_sidecar.inpaint",
-		"--model", modelDir,
-		"--image", in,
-		"--mask", mask,
-		"--prompt", strParam(req, "prompt"),
-		"--out", req.Output.LocalPath,
-	}, nil
-}
-
-// buildDiffusersEditInstruct assembles a diffusers instruction-edit invocation
-// (InstructPix2Pix / Qwen-Image-Edit class). The op is identity-preserving and
-// prompt-only: there is no mask, and `prompt` is the natural-language
-// instruction ("make it winter", "add sunglasses"). cfg_scale maps to the text
-// guidance scale; image_guidance (how faithful to the source) defaults inside
-// the sidecar but can be overridden via the `strength` param. The concrete
-// pipeline class + call contract are selected by the model's registry runtime
-// family (passed via --family), not hardcoded — so the diffusers backend runs
-// every registered edit family, not just InstructPix2Pix.
-// Shape: python3 -m image_tools_sidecar.edit_instruct --model <dir> --family <fam>
-// --image <in> --prompt <instruction> --out <out> [--steps n] [--guidance x]
-// [--image-guidance x] [--negative-prompt p] [--seed s].
-func buildDiffusersEditInstruct(req backends.Request, modelDir string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	family := strings.TrimSpace(req.Model.Runtime.Family)
-	if family == "" {
-		return nil, fmt.Errorf("diffusers edit_instruct: model %q has no runtime.family (not runnable)", req.Model.ID)
-	}
-	args := []string{
-		"-m", "image_tools_sidecar.edit_instruct",
-		"--model", modelDir,
-		"--family", family,
-		"--image", in,
-		"--prompt", strParam(req, "prompt"),
-		"--out", req.Output.LocalPath,
-	}
-	// Pass --steps only when explicitly requested so each family applies its own
-	// default (e.g. 20 for InstructPix2Pix, 40 for Qwen-Image-Edit).
-	if s := intParam(req, "steps", 0); s > 0 {
-		args = append(args, "--steps", strconv.Itoa(s))
-	}
-	if g := strParam(req, "cfg_scale"); g != "" {
-		args = append(args, "--guidance", g)
-	}
-	if ig := strParam(req, "strength"); ig != "" {
-		args = append(args, "--image-guidance", ig)
-	}
-	if np := strParam(req, "negative_prompt"); np != "" {
-		args = append(args, "--negative-prompt", np)
-	}
-	if seed := strParam(req, "seed"); seed != "" {
-		args = append(args, "--seed", seed)
-	}
-	return args, nil
-}
-
-// buildIopaint assembles an iopaint object-removal invocation.
-// Shape: iopaint run --model <dir> --device <cpu|cuda> --image <in> --mask <mask> --output <out>.
-func buildIopaint(req backends.Request, modelDir string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	mask, err := maskPath(req)
-	if err != nil {
-		return nil, err
-	}
-	device := "cpu"
-	if req.GPU {
-		device = "cuda"
-	}
-	return []string{
-		"run",
-		"--model", modelDir,
-		"--device", device,
-		"--image", in,
-		"--mask", mask,
-		"--output", req.Output.LocalPath,
-	}, nil
-}
-
-// buildRealesrgan assembles a realesrgan-ncnn-vulkan invocation. The prebuilt
-// release ships its own `models/` directory (realesr-animevideov3 at -s 2/3/4
-// and realesrgan-x4plus), which the binary resolves relative to its own
-// location — so we pass a bundled model NAME via -n and let the tool find the
-// weights, rather than a -m model dir or the image-tools model id (neither of
-// which holds the ncnn .param/.bin files). realesr-animevideov3 is the
-// variable-scale general model used for both upscale and denoise.
-// Shape: realesrgan-ncnn-vulkan -i <in> -o <out> -s <scale> -n <bundled-model>.
-func buildRealesrgan(req backends.Request, _ string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	scale := intParam(req, "scale", 4)
-	if scale < 2 || scale > 4 {
-		scale = 4
-	}
-	return []string{
-		"-i", in,
-		"-o", req.Output.LocalPath,
-		"-s", strconv.Itoa(scale),
-		"-n", "realesr-animevideov3",
-	}, nil
-}
-
-// buildRembg assembles a rembg invocation. background_removal writes an RGBA
-// cutout. background_replace asks rembg to composite the cutout over a caller-
-// supplied background_color (R,G,B or R,G,B,A) so replacement requests do not
-// silently degrade to removal-only output.
-// Shape: rembg i -m <model-id> [--bgcolor r,g,b,a] <in> <out>.
-func buildRembg(req backends.Request, _ string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	args := []string{"i", "-m", req.Model.ID}
-	if req.Operation == "background_replace" {
-		color := strings.TrimSpace(strParam(req, "background_color"))
-		if color == "" {
-			return nil, fmt.Errorf("rembg background_replace requires background_color")
-		}
-		args = append(args, "--bgcolor", color)
-	}
-	args = append(args, in, req.Output.LocalPath)
-	return args, nil
-}
-
-// buildLlamaCppCaption assembles a llama.cpp multimodal caption invocation.
-// Shape: llama-mtmd-cli -m <gguf> --mmproj <gguf> --image <in> -p <prompt> -n <tokens>.
-func buildLlamaCppCaption(req backends.Request, modelDir string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	model, mmproj, err := llamaCppModelPaths(req, modelDir)
-	if err != nil {
-		return nil, err
-	}
-	prompt := strParam(req, "prompt")
-	if prompt == "" {
-		prompt = "Describe this image concisely."
-	}
-	args := []string{
-		"-m", model,
-		"--mmproj", mmproj,
-		"--image", in,
-		"-p", prompt,
-		"-n", strconv.Itoa(intParam(req, "max_tokens", 96)),
-	}
-	if temp := strParam(req, "temperature"); temp != "" {
-		args = append(args, "--temp", temp)
-	}
-	return args, nil
-}
-
-func llamaCppModelPaths(req backends.Request, modelDir string) (model string, mmproj string, err error) {
-	for _, a := range req.Model.Source.Assets {
-		if a.Kind != models.ArtifactGGUF || a.Filename == "" {
-			continue
-		}
-		path := filepath.Join(modelDir, a.Filename)
-		if strings.Contains(strings.ToLower(a.Filename), "mmproj") {
-			if mmproj == "" {
-				mmproj = path
-			}
-			continue
-		}
-		if model == "" {
-			model = path
-		}
-	}
-	if model == "" || mmproj == "" {
-		return "", "", fmt.Errorf("llama.cpp caption requires one text GGUF and one mmproj GGUF asset")
-	}
-	return model, mmproj, nil
-}
-
-// buildOnnxSidecar assembles an invocation of the in-repo onnxruntime python
-// sidecar (sidecar/image_tools_sidecar). The sidecar is the CPU-tractable,
-// provisionable backend: onnxruntime + Pillow run real ONNX weights with no
-// GPU. One dispatch per supported op:
-//
-//	background_removal: python3 -m image_tools_sidecar.bg_removal --model <onnx> --image <in> --out <out>
-//	denoise:            python3 -m image_tools_sidecar.denoise    --model <onnx> --image <in> --out <out>
-//	deblur:             python3 -m image_tools_sidecar.deblur     --model <onnx> --image <in> --out <out>
-//	object_detection:   python3 -m image_tools_sidecar.detect     --model <onnx> --image <in> --out <out>
-//	segment:            python3 -m image_tools_sidecar.segment    --model <dir|onnx> --image <in> --out <out>
-//	tagging:            python3 -m image_tools_sidecar.tagging    --model <onnx> --image <in> --out <out>
-//	nsfw_classify:      python3 -m image_tools_sidecar.nsfw       --model <onnx> --image <in> --out <out>
-//	embedding:          python3 -m image_tools_sidecar.embedding  --model <onnx> --image <in> --out <out>
-//
-// The model argument is the resolved ONNX weight file inside the model dir
-// (from the registry asset list), not the directory, so the sidecar loads it
-// directly.
-func buildOnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	model := onnxModelPath(req, modelDir)
-	var module string
-	switch req.Operation {
-	case "background_removal":
-		module = "image_tools_sidecar.bg_removal"
-	case "denoise":
-		module = "image_tools_sidecar.denoise"
-	case "deblur":
-		module = "image_tools_sidecar.deblur"
-	case "colorize":
-		module = "image_tools_sidecar.colorize"
-	case "depth_map":
-		module = "image_tools_sidecar.depth"
-	case "object_detection":
-		module = "image_tools_sidecar.detect"
-	case "segment":
-		module = "image_tools_sidecar.segment"
-		model = modelDir
-	case "tagging":
-		module = "image_tools_sidecar.tagging"
-	case "nsfw_classify":
-		module = "image_tools_sidecar.nsfw"
-	case "embedding":
-		module = "image_tools_sidecar.embedding"
-	default:
-		return nil, fmt.Errorf("onnxruntime sidecar: unsupported operation %q", req.Operation)
-	}
-	return []string{
-		"-m", module,
-		"--model", model,
-		"--image", in,
-		"--out", req.Output.LocalPath,
-	}, nil
-}
-
-// buildPythonSidecar assembles invocations for enabled catalog entries whose
-// native backend family is `python-sidecar`. These are heavier Python modules
-// than the ONNX CPU floor, but they still use the embedded sidecar package and
-// the same host-provisioned Python runtime seam.
-func buildPythonSidecar(req backends.Request, modelDir string) ([]string, error) {
-	in, err := in0(req)
-	if err != nil {
-		return nil, err
-	}
-	var module string
-	switch req.Operation {
-	case "colorize":
-		module = "image_tools_sidecar.colorize"
-	case "face_restore", "old_photo_restore":
-		module = "image_tools_sidecar.restore"
-	default:
-		return nil, fmt.Errorf("python-sidecar: unsupported operation %q", req.Operation)
-	}
-	return []string{
-		"-m", module,
-		"--model", modelDir,
-		"--image", in,
-		"--out", req.Output.LocalPath,
-	}, nil
-}
-
-// onnxModelPath resolves the ONNX weight file the sidecar should load: the first
-// registry asset of kind ONNX (else the first asset) under the model dir. Falls
-// back to the model dir itself when the model declares no assets.
-func onnxModelPath(req backends.Request, modelDir string) string {
-	assets := req.Model.Source.Assets
-	for _, a := range assets {
-		if a.Kind == models.ArtifactONNX && a.Filename != "" {
-			return filepath.Join(modelDir, a.Filename)
-		}
-	}
-	if len(assets) > 0 && assets[0].Filename != "" {
-		return filepath.Join(modelDir, assets[0].Filename)
-	}
-	return modelDir
-}
-
 // providerSpec declares one standalone backend provider, keyed by the registry
-// `backend` name so the selector's match-by-backend path lines up.
+// `backend` name so the selector's match-by-backend path lines up. Its techniques
+// are the per-operation arg-builders (internal/technique) this backend exposes.
 type providerSpec struct {
 	name           string
-	program        string   // binary/interpreter resolved on PATH
-	programAliases []string // preferred GPU-build commands tried before program (e.g. "sd-gpu")
-	ops            []string
-	build          argBuilder
-	gpuCapable     bool // backend can use the GPU (false for the CPU-only onnx sidecar)
+	program        string                // binary/interpreter resolved on PATH
+	programAliases []string              // preferred GPU-build commands tried before program (e.g. "sd-gpu")
+	techniques     []technique.Technique // per-op technique rows this backend serves
+	gpuCapable     bool                  // backend can use the GPU (false for the CPU-only onnx sidecar)
 	// hostTool is the platform host-tool NAME this backend depends on (the
 	// cross-module contract: the scenario declares it in service.json hostTools
 	// and the platform defines it in internal/tools/<hostTool>/tool.json). The
@@ -890,6 +512,16 @@ type providerSpec struct {
 	// there is one source of truth and no free-text drift.
 	hostTool string
 	imports  []string
+}
+
+// ops returns the operations this provider serves, in technique-declaration
+// order (so the derived host-tool matrix / backends.md stays stable).
+func (s providerSpec) ops() []string {
+	ops := make([]string, 0, len(s.techniques))
+	for _, t := range s.techniques {
+		ops = append(ops, t.Op)
+	}
+	return ops
 }
 
 // provision returns the derived remediation message for this provider: the exact
@@ -957,7 +589,7 @@ func HostToolBindings() []HostToolBinding {
 	specs := providerSpecs()
 	out := make([]HostToolBinding, 0, len(specs)+1)
 	for _, s := range specs {
-		out = append(out, HostToolBinding{Provider: s.name, HostTool: s.hostTool, Ops: append([]string(nil), s.ops...)})
+		out = append(out, HostToolBinding{Provider: s.name, HostTool: s.hostTool, Ops: s.ops()})
 	}
 	out = append(out, HostToolBinding{Provider: "llama.cpp", HostTool: llamaCppHostTool, Ops: []string{"caption"}})
 	return out
@@ -998,7 +630,7 @@ func (p *llamaCppProvider) Execute(ctx context.Context, req backends.Request) (b
 	if modelDir == "" {
 		modelDir = modelDirFor(req.Model.ID)
 	}
-	args, err := buildLlamaCppCaption(req, modelDir)
+	args, err := technique.LlamaCppCaption(req, modelDir)
 	if err != nil {
 		return backends.Result{}, fmt.Errorf("ai: backend %q build args: %w", p.Name(), err)
 	}
@@ -1048,16 +680,80 @@ func (p *llamaCppProvider) resolveProgram() (string, error) {
 	return "", fmt.Errorf("llama-mtmd-cli/llama-cli not found on PATH")
 }
 
+// nativeTechnique is a thin constructor for a proven, native technique row: a
+// stable name, the op it yields, and the pure arg-builder. PipelineClass/Caveat
+// stay empty (no derived-op quality note); a later phase populates those for
+// architecture-derived techniques.
+func nativeTechnique(name, op string, build technique.ArgBuilder) technique.Technique {
+	return technique.Technique{Name: name, Op: op, Ready: true, Build: build}
+}
+
 func providerSpecs() []providerSpec {
 	return []providerSpec{
-		{name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true, hostTool: "sd"},
-		{name: "diffusers", program: pythonProgram, ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true, hostTool: "uv", imports: []string{"diffusers", "torch", "PIL"}},
-		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true, hostTool: "iopaint"},
-		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale", "denoise"}, build: buildRealesrgan, gpuCapable: true, hostTool: "realesrgan-ncnn-vulkan"},
-		{name: "rembg", program: "rembg", ops: []string{"background_removal", "background_replace"}, build: buildRembg, gpuCapable: false, hostTool: "rembg"},
-		{name: "onnxruntime", program: pythonProgram, ops: []string{"denoise", "deblur", "background_removal", "colorize", "depth_map", "object_detection", "segment", "tagging", "nsfw_classify", "embedding"}, build: buildOnnxSidecar, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"}},
-		{name: "python-sidecar", program: pythonProgram, ops: []string{"colorize"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"}},
-		{name: "python-sidecar", program: pythonProgram, ops: []string{"face_restore", "old_photo_restore"}, build: buildPythonSidecar, gpuCapable: false, hostTool: "uv", imports: []string{"torch", "basicsr", "facexlib", "PIL", "numpy"}},
+		{
+			name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, gpuCapable: true, hostTool: "sd",
+			techniques: []technique.Technique{
+				nativeTechnique("sd-txt2img", "text_to_image", technique.StableDiffusionCpp),
+				nativeTechnique("sd-img2img", "image_to_image", technique.StableDiffusionCpp),
+			},
+		},
+		{
+			name: "diffusers", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"diffusers", "torch", "PIL"},
+			techniques: []technique.Technique{
+				nativeTechnique("diffusers-inpaint", "inpaint", technique.DiffusersInpaint),
+				nativeTechnique("diffusers-outpaint", "outpaint", technique.DiffusersInpaint),
+				nativeTechnique("diffusers-background-replace", "background_replace", technique.DiffusersInpaint),
+				nativeTechnique("diffusers-edit-instruct", "edit_instruct", technique.DiffusersEditInstruct),
+			},
+		},
+		{
+			name: "iopaint", program: "iopaint", gpuCapable: true, hostTool: "iopaint",
+			techniques: []technique.Technique{
+				nativeTechnique("iopaint-object-removal", "object_removal", technique.Iopaint),
+			},
+		},
+		{
+			name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", gpuCapable: true, hostTool: "realesrgan-ncnn-vulkan",
+			techniques: []technique.Technique{
+				nativeTechnique("realesrgan-upscale", "upscale", technique.Realesrgan),
+				nativeTechnique("realesrgan-denoise", "denoise", technique.Realesrgan),
+			},
+		},
+		{
+			name: "rembg", program: "rembg", gpuCapable: false, hostTool: "rembg",
+			techniques: []technique.Technique{
+				nativeTechnique("rembg-background-removal", "background_removal", technique.Rembg),
+				nativeTechnique("rembg-background-replace", "background_replace", technique.Rembg),
+			},
+		},
+		{
+			name: "onnxruntime", program: pythonProgram, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"},
+			techniques: []technique.Technique{
+				nativeTechnique("onnx-denoise", "denoise", technique.OnnxSidecar),
+				nativeTechnique("onnx-deblur", "deblur", technique.OnnxSidecar),
+				nativeTechnique("onnx-background-removal", "background_removal", technique.OnnxSidecar),
+				nativeTechnique("onnx-colorize", "colorize", technique.OnnxSidecar),
+				nativeTechnique("onnx-depth-map", "depth_map", technique.OnnxSidecar),
+				nativeTechnique("onnx-object-detection", "object_detection", technique.OnnxSidecar),
+				nativeTechnique("onnx-segment", "segment", technique.OnnxSidecar),
+				nativeTechnique("onnx-tagging", "tagging", technique.OnnxSidecar),
+				nativeTechnique("onnx-nsfw-classify", "nsfw_classify", technique.OnnxSidecar),
+				nativeTechnique("onnx-embedding", "embedding", technique.OnnxSidecar),
+			},
+		},
+		{
+			name: "python-sidecar", program: pythonProgram, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"},
+			techniques: []technique.Technique{
+				nativeTechnique("python-sidecar-colorize", "colorize", technique.PythonSidecar),
+			},
+		},
+		{
+			name: "python-sidecar", program: pythonProgram, gpuCapable: false, hostTool: "uv", imports: []string{"torch", "basicsr", "facexlib", "PIL", "numpy"},
+			techniques: []technique.Technique{
+				nativeTechnique("python-sidecar-face-restore", "face_restore", technique.PythonSidecar),
+				nativeTechnique("python-sidecar-old-photo-restore", "old_photo_restore", technique.PythonSidecar),
+			},
+		},
 	}
 }
 
@@ -1072,7 +768,7 @@ func providerSpecs() []providerSpec {
 // before use via doctor/health/ready_state.
 func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner, pythonInterpreter string) error {
 	for _, s := range providerSpecs() {
-		p := &execProvider{name: s.name, program: s.program, programAliases: s.programAliases, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
+		p := &execProvider{name: s.name, program: s.program, programAliases: s.programAliases, techniques: technique.NewSet(s.techniques...), gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}
 		if s.isPython() {
 			p.pythonInterpreter = pythonInterpreter
 		}

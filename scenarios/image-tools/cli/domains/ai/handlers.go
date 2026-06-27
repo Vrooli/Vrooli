@@ -41,6 +41,11 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 // positional/flag the op reads (empty when the op needs none).
 func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
+		// --explain is a read-only dry-run: resolve which model/technique would run
+		// and exit 0 without submitting (or requiring an input image/mask).
+		if boolOr(ctx, "explain") {
+			return h.explainResolution(ctx, operation)
+		}
 		input := ""
 		if needsInput {
 			input = ctx.Positional("input")
@@ -83,6 +88,44 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 			Changes: changes,
 		})
 	}
+}
+
+// explainResolution renders the read-only resolution for an op (the `--explain`
+// dry-run): which model/technique would run, native-vs-derived, tier, safety
+// weight — without submitting a job.
+func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) error {
+	r, err := explainResolution(h.core, operation, flagOr(ctx, "model"), boolOr(ctx, "byok"))
+	if err != nil {
+		return err
+	}
+	results := []string{
+		fmt.Sprintf("model: %s (%s)", r.GetModelId(), r.GetModelName()),
+		"support: " + r.GetSupport(),
+	}
+	if r.GetTechnique() != "" {
+		results = append(results, "technique: "+r.GetTechnique())
+	}
+	if r.GetPipelineClass() != "" {
+		results = append(results, "pipeline_class: "+r.GetPipelineClass())
+	}
+	if r.GetTier() != "" {
+		results = append(results, "tier: "+r.GetTier())
+	}
+	results = append(results,
+		fmt.Sprintf("gpu_viable: %t", r.GetGpuViable()),
+		"safety_weight: "+r.GetWeight(),
+	)
+	if r.GetCaveat() != "" {
+		results = append(results, "caveat: "+r.GetCaveat())
+	}
+	for _, w := range r.GetWarnings() {
+		results = append(results, "warning: "+w)
+	}
+	return cliapp.RenderProtoList(ctx, r, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%s would run %q as a %s op (no job submitted).", r.GetModelId(), operation, r.GetSupport())},
+		ResultsHeading: "Resolution",
+		Results:        results,
+	})
 }
 
 // buildParams assembles AIParams from whichever flags the command declared.

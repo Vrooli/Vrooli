@@ -303,6 +303,36 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "models_explain_resolution",
+		Path:        modelsconnect.ModelsServiceExplainResolutionProcedure,
+		Method:      "POST",
+		Summary:     "Explain the operation→model→technique resolution (dry-run)",
+		Description: "Returns the explicit Resolution for an operation on this host — which model would run, whether it serves the op natively or via a derived technique (with the quality caveat), the backend tier, GPU viability, and the operation's safety consent weight — without executing anything. The read-only --explain / dry-run surface over the same resolver the AI submit edge pins into a job.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"operation":  "string (required; registry op)",
+				"model_id":   "string (optional; force a model id)",
+				"allow_byok": "bool (optional; permit a paid BYOK cloud tier)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"resolution": "Resolution (model/support/technique/pipeline_class/caveat/weight/tier/gpu_viable/warnings)",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Unknown operation or invalid model id"},
+			{Status: 412, Code: "failed_precondition", Description: "No enabled model can run for the operation on this host"},
+			{Status: 500, Code: "internal", Description: "Host probe or model-state load failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Explain inpaint", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ExplainResolution -H 'Content-Type: application/json' -d '{\"operation\":\"inpaint\"}'"},
+		},
+	},
+	{
 		ID:          "models_install",
 		Path:        modelsconnect.ModelsServiceInstallModelProcedure,
 		Method:      "POST",

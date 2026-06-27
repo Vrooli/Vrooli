@@ -9,6 +9,7 @@ import (
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
+	"image-tools/internal/technique"
 )
 
 // TestScanStableDiffusionProgress checks that only the sd-cli SAMPLING bar
@@ -60,7 +61,7 @@ func TestExecProvider_StreamsProgress(t *testing.T) {
 	p := &execProvider{
 		name:         "stable-diffusion.cpp",
 		program:      "sd",
-		build:        buildStableDiffusionCpp,
+		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
 		progressScan: scanStableDiffusionProgress,
 		stream: func(_ context.Context, _ string, _ []string, onLine func(string)) error {
 			for _, l := range lines {
@@ -102,7 +103,7 @@ func TestExecProvider_StreamErrorPropagates(t *testing.T) {
 	p := &execProvider{
 		name:         "stable-diffusion.cpp",
 		program:      "sd",
-		build:        buildStableDiffusionCpp,
+		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
 		progressScan: scanStableDiffusionProgress,
 		stream: func(context.Context, string, []string, func(string)) error {
 			return errors.New("sd boom")
@@ -129,7 +130,7 @@ func TestExecProvider_NoProgressUsesPlainRunner(t *testing.T) {
 	p := &execProvider{
 		name:         "stable-diffusion.cpp",
 		program:      "sd",
-		build:        buildStableDiffusionCpp,
+		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
 		progressScan: scanStableDiffusionProgress,
 		run: func(context.Context, string, []string) error {
 			plainCalls++

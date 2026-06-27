@@ -137,6 +137,35 @@ FAMILIES = {
     for name, a in _ADAPTERS.items()
 }
 
+# ARCHITECTURES is the pure, importable mirror of the Go architecture→technique
+# derivation table (internal/models/architecture.go `architectureTechniques`).
+# It maps a model's weight-lineage architecture to the operations it can DERIVE
+# (beyond its declared/native ops) through a named technique, with a `ready` gate
+# (False ⇒ declared but not yet proven on this architecture — an honest
+# derived_pipeline_unproven state, flipped only by the attended GPU acceptance
+# run). The Go parity test (TestArchitectureTechniquesMirrorPython) asserts the
+# {op, technique, ready} triples agree, so capability derivation cannot drift
+# between the selector (Go) and the runtime (Python). The quality `caveat` prose
+# is Go-only (UI text) and intentionally excluded from the parity contract.
+ARCHITECTURES = {
+    "sd15": [
+        {"op": "image_to_image", "technique": "sd-img2img", "ready": True},
+        {"op": "inpaint", "technique": "diffusers-inpaint", "ready": True},
+        {"op": "outpaint", "technique": "diffusers-outpaint", "ready": False},
+        {"op": "edit_instruct", "technique": "edit-via-img2img", "ready": False},
+    ],
+    "sdxl": [
+        {"op": "image_to_image", "technique": "sd-img2img", "ready": True},
+        {"op": "inpaint", "technique": "diffusers-inpaint", "ready": True},
+        {"op": "outpaint", "technique": "diffusers-outpaint", "ready": False},
+        {"op": "edit_instruct", "technique": "edit-via-img2img", "ready": False},
+    ],
+    "flux": [
+        {"op": "image_to_image", "technique": "sd-img2img", "ready": False},
+        {"op": "edit_instruct", "technique": "edit-via-img2img", "ready": False},
+    ],
+}
+
 
 def adapter_for(family: str) -> Adapter:
     a = _ADAPTERS.get(family)
@@ -362,6 +391,222 @@ def run(*, family: str, model_dir: str, image_paths, out_path: str, params: "Par
         _common.fail(f"{family!r} instruction edit failed: {exc}", code=8)
         raise
 
+    try:
+        result.save(out_path, format="PNG")
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"failed to write output {out_path!r}: {exc}", code=7)
+
+
+# =============================================================================
+# Derived base-checkpoint transforms (inpaint via AutoPipeline).
+#
+# These are NOT family adapters. A *base* text2image checkpoint (any sd15/sdxl
+# model) is loaded into the standard inpaint pipeline for its architecture and run
+# as a masked regenerate. There is no per-model call contract — the only knobs are
+# the generic {prompt, negative, strength, steps, guidance, seed}. Offerability is
+# gated UPSTREAM in Go (the architecture→technique `Ready` flag in
+# internal/models/architecture.go, mirrored in ARCHITECTURES above); this runner
+# only executes, so it does not re-check Ready (a caller reaches it only for a
+# technique the Go selector already deemed offerable). A dedicated *-inpainting
+# checkpoint blends masked edges more cleanly — that quality trade-off is the
+# derived caveat the Go table carries, not an execution error here.
+# =============================================================================
+
+
+class TransformParams(NamedTuple):
+    """Normalized params for a base-checkpoint masked regenerate (the Go
+    DiffusersInpaint arg-builder emits exactly these)."""
+
+    prompt: str
+    negative_prompt: Optional[str] = None
+    strength: Optional[float] = None  # how much the masked region may change (0..1)
+    steps: int = 0  # 0 → default
+    guidance: Optional[float] = None  # text guidance scale (cfg_scale)
+    seed: int = 0
+
+
+# arch → concrete inpaint pipeline class. from_single_file needs a concrete class
+# (it cannot auto-resolve a bare checkpoint); a diffusers repo tree is loaded with
+# AutoPipelineForInpainting instead, which auto-detects the architecture.
+_INPAINT_SINGLE_FILE = {
+    "sd15": "StableDiffusionInpaintPipeline",
+    "sdxl": "StableDiffusionXLInpaintPipeline",
+}
+
+# Per-architecture inpaint dtype + default sampler steps. Kept tiny + explicit so
+# the cheap path (kwargs) stays torch-free and unit-testable.
+_INPAINT_DEFAULT_STEPS = 30
+
+
+def build_inpaint_kwargs(params: "TransformParams") -> dict:
+    """Pure param→kwargs mapping for a base-checkpoint inpaint (no torch).
+    Unit-testable; mirrors build_call_kwargs for the family path."""
+    out = {
+        "prompt": params.prompt,
+        "num_inference_steps": params.steps or _INPAINT_DEFAULT_STEPS,
+        "guidance_scale": 7.5 if params.guidance is None else params.guidance,
+        "strength": 0.85 if params.strength is None else params.strength,
+    }
+    if params.negative_prompt:
+        out["negative_prompt"] = params.negative_prompt
+    return out
+
+
+def _inpaint_class(architecture: str) -> str:
+    cls = _INPAINT_SINGLE_FILE.get(architecture)
+    if cls is None:
+        _common.fail(
+            f"no inpaint pipeline class for architecture {architecture!r}; "
+            f"known: {sorted(_INPAINT_SINGLE_FILE)}",
+            code=4,
+        )
+    return cls  # type: ignore[return-value]
+
+
+def _import_diffusers_backend():
+    try:
+        import diffusers  # noqa: WPS433
+        import torch  # noqa: WPS433
+        from PIL import Image  # noqa: WPS433
+
+        return diffusers, torch, Image
+    except ImportError as exc:  # pragma: no cover - exercised on un-provisioned hosts
+        _common.fail(
+            f"missing diffusers backend ({exc}); the Python venv is not provisioned. "
+            "Ensure `vrooli host install uv`, then restart image-tools to build/repair "
+            "the lock-pinned venv (versions come from internal/pydeps/requirements.lock; "
+            "GPU strongly recommended — see docs/reference/backends.md).",
+            code=3,
+        )
+        raise
+
+
+def _place_pipe(pipe, torch, use_cuda: bool, offload: bool):
+    """Move a constructed pipeline onto the device, choosing an offload mode from
+    the ACTUAL free VRAM (mirrors run()): model-level offload with headroom, else
+    sequential per-submodule streaming so a contended GPU completes instead of
+    OOMing."""
+    if use_cuda and offload:
+        free_bytes, _ = torch.cuda.mem_get_info()
+        if free_bytes < 10 * 1024**3:
+            pipe.enable_sequential_cpu_offload()
+        else:
+            pipe.enable_model_cpu_offload()
+        return pipe
+    return pipe.to("cuda" if use_cuda else "cpu")
+
+
+def inpaint_smoke(*, architecture: str, model_dir: str, deep: bool = False) -> str:
+    """Install-time load-smoke for a base-checkpoint inpaint, the analogue of
+    smoke() for the family path. Cheap path: the architecture's inpaint pipeline
+    class resolves against the installed diffusers and the install shape is valid.
+    deep=True constructs the pipeline (reads full weights). Never a fabricated
+    pass — fails loud via _common.fail."""
+    cls_name = _inpaint_class(architecture)
+    diffusers, torch, _Image = _import_diffusers_backend()
+
+    if getattr(diffusers, cls_name, None) is None:
+        _common.fail(
+            f"installed diffusers has no inpaint pipeline class {cls_name!r} for "
+            f"architecture {architecture!r} (runtime too old? check runtime.min_runtime)",
+            code=5,
+        )
+    if not os.path.isdir(model_dir):
+        _common.fail(f"model dir {model_dir!r} does not exist", code=4)
+    single = _find_single_file(model_dir)
+    repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+    if not repo_index and single is None:
+        _common.fail(
+            f"model dir {model_dir!r} has neither model_index.json (repo) nor a "
+            "single-file .safetensors/.ckpt checkpoint (incomplete download?)",
+            code=5,
+        )
+    if not deep:
+        shape = "repo" if repo_index else "single-file"
+        return (
+            f"diffusers inpaint smoke OK (shallow): arch={architecture} class={cls_name} "
+            f"shape={shape}; pipeline class resolves and the install shape is valid"
+        )
+
+    pipe = _load_inpaint_pipe(diffusers, torch, architecture, model_dir, repo_index, single)
+    return f"diffusers inpaint smoke OK (deep): constructed {type(pipe).__name__} from {model_dir}"
+
+
+def _load_inpaint_pipe(diffusers, torch, architecture: str, model_dir: str, repo_index: bool, single):
+    use_cuda = torch.cuda.is_available()
+    dtype = _resolve_dtype(torch, "float16", use_cuda)
+    load_kwargs = {"torch_dtype": dtype}
+    # SD-1.5 base checkpoints ship a safety checker that blanks flagged output; the
+    # scenario owns its own NSFW gate, so disable the in-pipeline one (SD-family
+    # only — SDXL's inpaint pipeline takes no safety_checker arg).
+    if architecture == "sd15":
+        load_kwargs["safety_checker"] = None
+    try:
+        if repo_index:
+            pipe = diffusers.AutoPipelineForInpainting.from_pretrained(model_dir, **load_kwargs)
+        else:
+            cls = getattr(diffusers, _inpaint_class(architecture))
+            pipe = cls.from_single_file(single, **load_kwargs)
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(
+            f"failed to load inpaint pipeline for arch {architecture!r} from {model_dir!r}: {exc}",
+            code=5,
+        )
+        raise
+    return pipe
+
+
+def run_inpaint(
+    *,
+    architecture: str,
+    model_dir: str,
+    image_path: str,
+    mask_path: str,
+    out_path: str,
+    params: "TransformParams",
+) -> None:
+    """Load a base checkpoint into its architecture's inpaint pipeline and run one
+    masked regenerate (white mask = repaint, black = keep), writing a PNG. FAILS
+    LOUD on a missing backend or load failure — never a fabricated success."""
+    diffusers, torch, Image = _import_diffusers_backend()
+
+    try:
+        image = Image.open(image_path).convert("RGB")
+        mask = Image.open(mask_path).convert("L")  # white=repaint, black=keep
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"failed to open input image/mask: {exc}", code=6)
+
+    single = _find_single_file(model_dir) if os.path.isdir(model_dir) else None
+    repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+    if not repo_index and single is None:
+        _common.fail(
+            f"model dir {model_dir!r} has neither model_index.json (repo) nor a "
+            "single-file .safetensors/.ckpt checkpoint",
+            code=5,
+        )
+
+    pipe = _load_inpaint_pipe(diffusers, torch, architecture, model_dir, repo_index, single)
+    use_cuda = torch.cuda.is_available()
+    pipe = _place_pipe(pipe, torch, use_cuda, offload=True)
+
+    kwargs = build_inpaint_kwargs(params)
+    kwargs["image"] = image
+    kwargs["mask_image"] = mask
+    # Pin the output geometry to the (multiple-of-8) input size so the pipeline does
+    # not silently fall back to its native default and return a differently-sized
+    # canvas the caller did not ask for.
+    w, h = image.size
+    kwargs["width"], kwargs["height"] = w - (w % 8), h - (h % 8)
+    if params.seed:
+        kwargs["generator"] = torch.Generator(
+            device="cuda" if use_cuda else "cpu"
+        ).manual_seed(params.seed)
+
+    try:
+        result = pipe(**kwargs).images[0]
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"inpaint ({architecture}) failed: {exc}", code=8)
+        raise
     try:
         result.save(out_path, format="PNG")
     except Exception as exc:  # noqa: BLE001

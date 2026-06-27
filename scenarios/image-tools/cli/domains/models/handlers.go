@@ -114,6 +114,53 @@ func (h *handlers) selectModel(ctx cliapp.RunContext) error {
 	})
 }
 
+// explain mirrors ModelsService.ExplainResolution: the read-only `--explain`
+// surface that prints which model/technique would run for an operation
+// (native-vs-derived, backend tier, safety weight) without executing.
+func (h *handlers) explain(ctx cliapp.RunContext) error {
+	op := ctx.Positional("operation")
+	resp, err := h.client.ExplainResolution(context.Background(), connect.NewRequest(&modelsv1.ExplainResolutionRequest{
+		Operation: op,
+		ModelId:   strings.TrimSpace(ctx.Flag("model")),
+		AllowByok: ctx.BoolFlag("byok"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("explain resolution for %q", op), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Resolution == nil {
+		return fmt.Errorf("server returned no resolution")
+	}
+	r := resp.Msg.Resolution
+	results := []string{
+		fmt.Sprintf("model: %s (%s)", r.ModelId, r.ModelName),
+		"support: " + r.Support,
+	}
+	if r.Technique != "" {
+		results = append(results, "technique: "+r.Technique)
+	}
+	if r.PipelineClass != "" {
+		results = append(results, "pipeline_class: "+r.PipelineClass)
+	}
+	if r.Tier != "" {
+		results = append(results, "tier: "+r.Tier)
+	}
+	results = append(results,
+		fmt.Sprintf("gpu_viable: %t", r.GpuViable),
+		"safety_weight: "+r.Weight,
+	)
+	if r.Caveat != "" {
+		results = append(results, "caveat: "+r.Caveat)
+	}
+	for _, w := range r.Warnings {
+		results = append(results, "warning: "+w)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%s would run %q as a %s op.", r.ModelId, op, r.Support)},
+		ResultsHeading: "Resolution",
+		Results:        results,
+	})
+}
+
 func (h *handlers) setEnabled(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	enabled := !ctx.BoolFlag("disable")

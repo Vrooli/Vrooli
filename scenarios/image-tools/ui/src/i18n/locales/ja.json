@@ -351,8 +351,14 @@
         "needsBoth": "重みとエンジンが必要",
         "disabled": "設定で無効",
         "insufficient": "このハードウェアでは実行不可",
-        "unsupported": "お使いの OS では利用不可"
+        "unsupported": "お使いの OS では利用不可",
+        "derivedUnproven": "ワークフロー経由（未実証）"
       },
+      "support": {
+        "native": "ネイティブ",
+        "viaWorkflow": "ワークフロー経由"
+      },
+      "caveatBanner": "派生技術で {{op}} を実行 — {{caveat}}",
       "action": {
         "select": "使用",
         "selected": "使用中",

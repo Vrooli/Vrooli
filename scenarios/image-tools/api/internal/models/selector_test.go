@@ -14,7 +14,6 @@ func testRegistry(t *testing.T) *Registry {
 	t.Helper()
 	const seed = `{
       "schema_version": "1.0.0",
-      "operations_vocabulary": ["upscale", "ocr"],
       "models": [
         {
           "id": "cpu-default", "name": "CPU Default", "operations": ["upscale"],
@@ -123,7 +122,6 @@ func TestSelectFallsBackWhenFreeVRAMInsufficient(t *testing.T) {
 func TestSelectWarnsWhenSelectedCPUModelNeedsMoreFreeVRAM(t *testing.T) {
 	const seed = `{
       "schema_version": "1.0.0",
-      "operations_vocabulary": ["inpaint"],
       "models": [
         {
           "id": "cpu-gpu-preferred", "name": "CPU GPU Preferred", "operations": ["inpaint"],

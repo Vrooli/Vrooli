@@ -868,6 +868,11 @@ const dynamicSelectorDefinitions = {
       testIdPattern: "models-picker-row-error-${id}",
       params: { id: { type: "string" } },
     }),
+    pickerCaveat: defineDynamicSelector({
+      description: "Model-picker derived-op caveat banner by model id",
+      testIdPattern: "models-picker-caveat-${id}",
+      params: { id: { type: "string" } },
+    }),
   },
   settingsPage: {
     themeOption: defineDynamicSelector({

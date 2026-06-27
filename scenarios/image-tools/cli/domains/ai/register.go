@@ -34,6 +34,7 @@ func commonFlags() []cliapp.Flag {
 		{Name: "wait", Bool: true, Description: "Block once until the job finishes and download the result"},
 		{Name: "model", Description: "Force a specific model id (override hardware-fit)"},
 		{Name: "byok", Bool: true, Description: "Allow a paid BYOK cloud provider when no local backend is available"},
+		{Name: "explain", Bool: true, Description: "Print which model/technique would run (native-vs-derived) and exit without submitting"},
 		{Name: "consent", Bool: true, Description: "Affirm you have the right to edit the people in this image (required for identity-altering ops on a public deployment)"},
 	}
 }

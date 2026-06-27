@@ -22,6 +22,7 @@ import {
   hostSummaryLine,
   present,
   statusChip,
+  supportChip,
   type PickerTone,
 } from "./modelPickerPresentation";
 
@@ -165,6 +166,41 @@ describe("present", () => {
     const view = present(makeCandidateModel({ readyState: "needs_model_install" }), gpuHost);
     expect(view.selectable).toBe(false);
     expect(view.dimmed).toBe(false);
+  });
+
+  it("surfaces the support chip + caveat for a derived candidate and dims it when unproven", () => {
+    const view = present(
+      makeCandidateModel({
+        readyState: "derived_pipeline_unproven",
+        support: "derived",
+        technique: "diffusers-inpaint",
+        caveat: "derived: a base checkpoint inpaints via the standard pipeline",
+      }),
+      gpuHost,
+    );
+    expect(view.support?.key).toBe(strings.models.picker.support.viaWorkflow);
+    expect(view.caveat).toContain("standard pipeline");
+    expect(view.selectable).toBe(false);
+    expect(view.dimmed).toBe(true);
+    expect(view.action).toBe("none");
+  });
+
+  it("a native candidate carries no support chip and no caveat", () => {
+    const view = present(makeCandidateModel({ readyState: "ready", support: "native" }), gpuHost);
+    expect(view.support).toBeUndefined();
+    expect(view.caveat).toBeUndefined();
+  });
+});
+
+describe("supportChip", () => {
+  it("returns a via-workflow caution chip for a derived candidate", () => {
+    const chip = supportChip(makeCandidateModel({ support: "derived" }));
+    expect(chip).toEqual({ key: strings.models.picker.support.viaWorkflow, tone: "caution" });
+  });
+
+  it("returns undefined for a native candidate", () => {
+    expect(supportChip(makeCandidateModel({ support: "native" }))).toBeUndefined();
+    expect(supportChip(makeCandidateModel({ support: "" }))).toBeUndefined();
   });
 });
 

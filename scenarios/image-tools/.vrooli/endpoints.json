@@ -1076,6 +1076,51 @@
       ]
     },
     {
+      "id": "models_explain_resolution",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ExplainResolution",
+      "method": "POST",
+      "summary": "Explain the operation→model→technique resolution (dry-run)",
+      "description": "Returns the explicit Resolution for an operation on this host — which model would run, whether it serves the op natively or via a derived technique (with the quality caveat), the backend tier, GPU viability, and the operation's safety consent weight — without executing anything. The read-only --explain / dry-run surface over the same resolver the AI submit edge pins into a job.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "allow_byok": "bool (optional; permit a paid BYOK cloud tier)",
+          "model_id": "string (optional; force a model id)",
+          "operation": "string (required; registry op)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "resolution": "Resolution (model/support/technique/pipeline_class/caveat/weight/tier/gpu_viable/warnings)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown operation or invalid model id"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "No enabled model can run for the operation on this host"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Host probe or model-state load failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Explain inpaint",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ExplainResolution -H 'Content-Type: application/json' -d '{\"operation\":\"inpaint\"}'"
+        }
+      ]
+    },
+    {
       "id": "models_install",
       "path": "/vrooli.image_tools.v1.models.ModelsService/InstallModel",
       "method": "POST",

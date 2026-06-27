@@ -91,10 +91,12 @@ business logic. UI and CLI translate user/operator intent into API
 calls. Proto types flow from one source of truth so wire-shape drift
 between surfaces is impossible.
 
-Internally the API is layered: operation domains (`ops`, `generation`,
-`enhancement`, `analysis`) express *what* an operation does; the
-`backends` abstraction resolves *which provider* runs it (subject to the
-fallback ladder); `models` answers *which weights* fit the probed host;
+Internally the API is layered: operation surfaces (`ops` for deterministic
+edits, `ai` for the generation+enhancement engine, `analysis` for extraction —
+`generation` and `enhancement` are op *categories* within `ai`, not separate
+packages) express *what* an operation does; the `technique` table resolves *how*
+(which pipeline) and the `backends` abstraction resolves *which provider* runs
+it (subject to the fallback ladder); `models` answers *which weights* fit the probed host;
 `jobs` owns *when and in what order* heavy work executes; and `storage`
 owns *where* inputs and outputs live. Operation domains never talk to
 providers, model weights, or the queue directly — they go through these
@@ -198,7 +200,7 @@ metadata stay proto-typed. Opaque image bytes are intentionally *not*
 carried inside proto payloads; the proto messages reference stored blobs
 by id/handle. This is the scenario's one durable transport deviation
 (recorded in *Intentional Deviations*) and applies uniformly across
-`ops`, `generation`, `enhancement`, and `analysis`.
+`ops`, `ai` (generation+enhancement), and `analysis`.
 
 ### The three internal seams
 
@@ -299,7 +301,7 @@ target shape. Update it as each domain becomes green.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Template-ready, domains planned | Module registry, per-domain schema, documented seams from `react-vite`. | All eleven product domains (`ops`/`generation`/`enhancement`/`analysis`/`models`/`backends`/`jobs`/`storage`/`recipes`/`automation`/`measures`) are planned, not built; `notes` example must be removed. |
+| API | Built | Module registry, per-domain schema, documented seams from `react-vite`. | The product domains live under `api/internal/` as `ops`/`ai` (the generation+enhancement engine — there is no separate `generation`/`enhancement` package; those are op *categories*)/`analysis`/`models`/`backends`/`jobs`/`storage`/`looks` (the single compound substrate — the former `recipes` domain is removed)/`selection`/`automation`/`measures`, with the Operation/Technique/Model spine expressed by `operations` (vocabulary SSOT) / `technique` (named-pipeline table) / `resolver` (op→model→technique Resolution) layered above `ai`; `notes` template example must be removed. |
 | UI | Template-ready, features planned | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Operation forms, before/after slider, mask-painting canvas, progress-with-cancel, and model-management settings are planned. |
 | CLI | Template-ready, parity planned | Domain command groups wrap API calls and render reports. | Full headless parity across every op and the block-once job wait verb are planned. |
 | Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints; concept docs authored to PRD. | Reference docs and per-domain deep docs fill in as domains land. |

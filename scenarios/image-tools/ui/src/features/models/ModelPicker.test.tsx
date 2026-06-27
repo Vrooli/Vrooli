@@ -18,6 +18,7 @@ import { ModelPicker } from "./ModelPicker";
 import type { UseModelPicker } from "./useModelPicker";
 
 const fakePicker = (overrides: Partial<UseModelPicker> = {}): UseModelPicker => ({
+  operation: "upscale",
   candidates: [],
   host: makeHostSummary(),
   selectedId: "",
@@ -83,6 +84,25 @@ describe("ModelPicker", () => {
     expect(screen.getByTestId(selectors.models.pickerRow({ id: "a" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.models.pickerRow({ id: "b" }))).toBeInTheDocument();
     expect(screen.getByTestId(selectors.models.picker.host)).toBeInTheDocument();
+  });
+
+  it("shows the via-workflow support chip + caveat banner for a derived candidate", () => {
+    renderPicker(
+      fakePicker({
+        operation: "inpaint",
+        candidates: [
+          candidate("base-sdxl", "derived_pipeline_unproven", {
+            support: "derived",
+            technique: "diffusers-inpaint",
+            caveat: "derived: a base checkpoint inpaints via the standard pipeline",
+          }),
+        ],
+      }),
+    );
+    const banner = screen.getByTestId(selectors.models.pickerCaveat({ id: "base-sdxl" }));
+    expect(banner).toHaveTextContent("standard pipeline");
+    // The unproven derived row is shown but offers no select button.
+    expect(screen.queryByTestId(selectors.models.pickerSelect({ id: "base-sdxl" }))).not.toBeInTheDocument();
   });
 
   it("shows the loading state while the first load is in flight", () => {

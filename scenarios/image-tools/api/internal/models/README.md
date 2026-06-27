@@ -40,7 +40,8 @@ var seedBytes []byte
 
 ## Field schema
 
-See `field_reference` and `operations_vocabulary` inside the JSON. Every entry
+See `field_reference` inside the JSON; the operation vocabulary is the SSOT
+(`api/internal/operations`), not declared in the seed. Every entry
 carries: `id`, `name`, `operations`, `default_for`, `tier`, `backend` +
 `alt_backends`, `requires_comfyui` (always `false` — ComfyUI is an optional
 plug-in only), `size_mb_approx` + `quant_variants`, `hardware`

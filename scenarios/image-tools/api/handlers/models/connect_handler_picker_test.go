@@ -41,6 +41,71 @@ func TestReadyState_EnvAndSmokeOverrides(t *testing.T) {
 	}
 }
 
+// findCandidate returns the named model's candidate row from a picker response.
+func findCandidate(resp *modelsv1.ListOperationModelsResponse, id string) *modelsv1.CandidateModel {
+	for _, c := range resp.GetCandidates() {
+		if c.GetModel().GetId() == id {
+			return c
+		}
+	}
+	return nil
+}
+
+// TestListOperationModels_DerivedCandidateSurfaced proves the capability-matrix
+// behavior (plan Phase 6) for both halves of the no-vaporware gate using one base
+// checkpoint (sd-1.5, architecture sd15, declaring only text_to_image/
+// image_to_image):
+//   - inpaint: a PROVEN sd15 derivation — sd-1.5 appears as a derived candidate
+//     with its caveat and a real install/backend ready_state (not the unproven
+//     state), so once provisioned it can be selected. It never vanishes for not
+//     declaring inpaint.
+//   - edit_instruct: a still-UNPROVEN sd15 derivation — sd-1.5 appears as a derived
+//     candidate with an honest derived_pipeline_unproven ready_state and is never
+//     offered for execution.
+func TestListOperationModels_DerivedCandidateSurfaced(t *testing.T) {
+	h, _ := newTestHandler(t, gpuTestHost)
+
+	// Proven derived op: inpaint.
+	respIn, err := h.ListOperationModels(context.Background(),
+		connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: "inpaint"}))
+	if err != nil {
+		t.Fatalf("ListOperationModels(inpaint): %v", err)
+	}
+	sd15 := findCandidate(respIn.Msg, "sd-1.5")
+	if sd15 == nil {
+		t.Fatal("base sd-1.5 checkpoint must appear in the inpaint picker as a derived candidate")
+	}
+	if sd15.GetSupport() != "derived" {
+		t.Fatalf("sd-1.5 inpaint support = %q, want derived", sd15.GetSupport())
+	}
+	if sd15.GetCaveat() == "" {
+		t.Fatal("derived candidate must carry a caveat")
+	}
+	if sd15.GetReadyState() == "derived_pipeline_unproven" {
+		t.Fatal("sd-1.5 inpaint is a PROVEN sd15 derivation; ready_state must not be derived_pipeline_unproven")
+	}
+
+	// Still-unproven derived op: edit_instruct (sd15 derives it, not yet proven).
+	respEdit, err := h.ListOperationModels(context.Background(),
+		connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: "edit_instruct"}))
+	if err != nil {
+		t.Fatalf("ListOperationModels(edit_instruct): %v", err)
+	}
+	sd15e := findCandidate(respEdit.Msg, "sd-1.5")
+	if sd15e == nil {
+		t.Fatal("base sd-1.5 checkpoint must appear in the edit_instruct picker as a derived candidate")
+	}
+	if sd15e.GetSupport() != "derived" {
+		t.Fatalf("sd-1.5 edit_instruct support = %q, want derived", sd15e.GetSupport())
+	}
+	if sd15e.GetReadyState() != "derived_pipeline_unproven" {
+		t.Fatalf("sd-1.5 edit_instruct ready_state = %q, want derived_pipeline_unproven (no faked-green)", sd15e.GetReadyState())
+	}
+	if sd15e.GetSelected() {
+		t.Fatal("an unproven derived candidate must never be the selected model")
+	}
+}
+
 // TestListOperationModels checks the picker data source: a GPU host's summary is
 // reported, every candidate carries a fit class + ready_state, and a weightless
 // builtin op (naturalize) with an available backend reads as "ready".

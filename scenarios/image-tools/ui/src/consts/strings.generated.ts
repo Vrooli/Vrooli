@@ -368,7 +368,13 @@ export const strings = {
         disabled: "models.picker.state.disabled",
         insufficient: "models.picker.state.insufficient",
         unsupported: "models.picker.state.unsupported",
+        derivedUnproven: "models.picker.state.derivedUnproven",
       },
+      support: {
+        native: "models.picker.support.native",
+        viaWorkflow: "models.picker.support.viaWorkflow",
+      },
+      caveatBanner: "models.picker.caveatBanner",
       action: {
         select: "models.picker.action.select",
         selected: "models.picker.action.selected",

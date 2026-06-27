@@ -5,7 +5,6 @@ import "testing"
 func TestDoctorCatalogReportsActionableFindings(t *testing.T) {
 	const seed = `{
 	  "schema_version": "1.0.0",
-	  "operations_vocabulary": ["upscale", "segment", "naturalize"],
 	  "models": [
 	    {
 	      "id": "missing-assets", "name": "Missing Assets", "operations": ["upscale"],
@@ -79,7 +78,6 @@ func TestDoctorDiffusersEditRunnableInvariant(t *testing.T) {
 		}
 		return `{
 		  "schema_version": "1.0.0",
-		  "operations_vocabulary": ["edit_instruct"],
 		  "models": [{
 		    "id": "` + id + `", "name": "Edit", "operations": ["edit_instruct"],
 		    "default_for": ["edit_instruct"], "tier": "quality", "backend": "diffusers",

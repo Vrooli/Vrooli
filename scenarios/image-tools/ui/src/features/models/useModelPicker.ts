@@ -52,6 +52,8 @@ export const liveModelPickerClient: ModelPickerClient = {
 };
 
 export interface UseModelPicker {
+  /** The operation this picker menu is for (surfaced in the derived-op caveat). */
+  operation: string;
   candidates: CandidateModel[];
   host?: HostSummary;
   selectedId: string;
@@ -218,6 +220,7 @@ export function useModelPicker({
   );
 
   return {
+    operation,
     candidates,
     host,
     selectedId,

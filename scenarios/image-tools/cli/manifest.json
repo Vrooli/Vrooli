@@ -195,6 +195,40 @@
           }
         },
         {
+          "name": "explain",
+          "description": "Explain which model/technique would run for an operation on this host, native-vs-derived, without executing (--model ID, --byok)",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Operation to resolve"
+            }
+          ],
+          "flags": [
+            {
+              "name": "model",
+              "description": "Force a specific model id"
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Allow a paid BYOK cloud tier when no local backend is available"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ExplainResolution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "enable",
           "description": "Enable or disable a model (--disable to turn off); persisted overlay over the seed catalog",
           "positionals": [

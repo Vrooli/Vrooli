@@ -10,6 +10,7 @@ import (
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
 	internalmodels "image-tools/internal/models"
+	internalresolver "image-tools/internal/resolver"
 
 	"connectrpc.com/connect"
 
@@ -66,14 +67,20 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 		}
 	}
 
-	// Candidate models: seed entries for the op plus any custom entries.
-	candidates := append([]internalmodels.Model(nil), h.deps.Registry.ForOperation(op)...)
+	// Candidate models: the FULL menu for the op — every model whose effective op
+	// set contains it, native OR architecture-derived (proven or not), so a base
+	// checkpoint shows "inpaint ⚠ via workflow" instead of disappearing. Each
+	// carries its EffectiveOp (support/technique/caveat/Ready) for annotation.
+	candidates := h.deps.Registry.OpCandidates(op)
 	customMap := map[string]bool{}
 	if customs, cerr := h.customModels(ctx); cerr == nil {
 		for _, m := range customs {
-			if m.ServesOperation(op) {
-				candidates = append(candidates, m)
-				customMap[m.ID] = true
+			for _, eo := range m.EffectiveOps() {
+				if eo.Op == op {
+					candidates = append(candidates, internalmodels.OpCandidate{Model: m, Effective: eo})
+					customMap[m.ID] = true
+					break
+				}
 			}
 		}
 	}
@@ -96,7 +103,8 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 		SelectedReason: selectedReason,
 		Candidates:     make([]*modelsv1.CandidateModel, 0, len(candidates)),
 	}
-	for _, m := range candidates {
+	for _, cand := range candidates {
+		m := cand.Model
 		fit := internalmodels.Fit(m, host)
 		fitClass := internalmodels.FitClass(m, host, fit)
 		enabled := internalmodels.EffectiveEnabled(m, overlay)
@@ -113,16 +121,82 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 			}
 			smokeStatus = h.deps.Installer.SmokeStatusFor(m, dir)
 		}
+		eo := cand.Effective
+		// A derived op whose technique is not yet proven is honestly un-offerable
+		// (derived_pipeline_unproven) regardless of weights/backend/hardware — it is
+		// shown so the user understands the capability exists, never run.
+		ready := readyState(installed, enabled, fitClass, backend, smokeStatus)
+		if eo.Support == "derived" && !eo.Ready {
+			ready = "derived_pipeline_unproven"
+		}
 		out.Candidates = append(out.Candidates, &modelsv1.CandidateModel{
 			Model:      domainToProto(m, viewFor(m, customMap[m.ID], overlay, installs)),
 			Fit:        fitToProto(fit, fitClass),
 			Backend:    backend,
-			ReadyState: readyState(installed, enabled, fitClass, backend, smokeStatus),
+			ReadyState: ready,
 			Selected:   m.ID == selectedID,
+			Support:    eo.Support,
+			Technique:  eo.Technique,
+			Caveat:     eo.Caveat,
 		})
 	}
 	sortCandidates(out.Candidates)
 	return connect.NewResponse(out), nil
+}
+
+// ExplainResolution returns the explicit Resolution for an operation on this
+// host — which model would run, native-vs-derived support + technique + caveat,
+// the backend tier, and the operation's safety consent weight — without
+// executing anything. It is the read-only `--explain` / dry-run surface over the
+// same resolver the AI submit edge uses.
+func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Request[modelsv1.ExplainResolutionRequest]) (*connect.Response[modelsv1.ExplainResolutionResponse], error) {
+	op := strings.TrimSpace(req.Msg.GetOperation())
+	if op == "" || !h.deps.Registry.IsOperation(op) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, internalmodels.ErrUnknownOperation)
+	}
+	host, err := h.deps.Probe.Inventory(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.ExplainResolution probe: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("probe host hardware"))
+	}
+	overlay, err := h.overlay(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.ExplainResolution overlay: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
+	}
+	override := req.Msg.GetModelId()
+	if override == "" && h.deps.OpDefaults != nil {
+		if pinned, derr := h.deps.OpDefaults.Get(ctx, op); derr == nil {
+			override = pinned
+		}
+	}
+	res, err := internalresolver.New(h.deps.Registry, h.deps.Backends).Resolve(ctx, internalresolver.Request{
+		Operation:     op,
+		ModelOverride: override,
+		Host:          host,
+		AllowBYOK:     req.Msg.GetAllowByok(),
+		IsEnabled:     h.deps.Registry.EnabledWithOverlay(overlay),
+	})
+	if err != nil {
+		return nil, selectError(err)
+	}
+	return connect.NewResponse(&modelsv1.ExplainResolutionResponse{Resolution: resolutionToProto(res)}), nil
+}
+
+func resolutionToProto(r internalresolver.Resolution) *modelsv1.Resolution {
+	return &modelsv1.Resolution{
+		Operation:     r.Operation,
+		ModelId:       r.Model.ID,
+		ModelName:     r.Model.Name,
+		Support:       r.Support,
+		Technique:     r.Technique,
+		PipelineClass: r.PipelineClass,
+		Caveat:        r.Caveat,
+		Weight:        r.Weight,
+		Tier:          r.Tier,
+		GpuViable:     r.GPUViable,
+		Warnings:      r.Warnings,
+	}
 }
 
 // toolTier is the cached install-posture classification for one host tool.
@@ -263,12 +337,14 @@ func readyRank(state string) int {
 		return 6
 	case "disabled":
 		return 7
-	case "insufficient":
+	case "derived_pipeline_unproven":
 		return 8
-	case "unsupported":
+	case "insufficient":
 		return 9
-	default:
+	case "unsupported":
 		return 10
+	default:
+		return 11
 	}
 }
 

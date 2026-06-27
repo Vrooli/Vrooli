@@ -16,6 +16,7 @@ import (
 	"image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
+	"image-tools/internal/resolver"
 	"image-tools/internal/storage"
 
 	"github.com/google/uuid"
@@ -156,34 +157,29 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		}
 		override = pinned
 	}
-	sel, err := e.deps.Registry.Select(models.SelectRequest{
-		Operation:  req.Operation,
-		Host:       host,
-		OverrideID: override,
-	}, enabled)
-	if err != nil {
-		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid)
-	}
-	if !e.deps.ModelInstalled(sel.Model.ID) {
-		return Plan{}, fmt.Errorf("%w: %q — run `image-tools models install %s`", ErrModelNotInstalled, sel.Model.ID, sel.Model.ID)
-	}
-	bsel, err := e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
-		Operation:    req.Operation,
-		ModelBackend: sel.Model.Backend,
-		GPUViable:    sel.GPUViable,
-		AllowBYOK:    req.AllowBYOK,
+	// The Resolver is the single home for op→model→technique→backend resolution
+	// (it does model selection + native/derived technique derivation + backend-tier
+	// selection + the consent weight). The engine adds only the install gate and
+	// the ETA, which are submit-edge concerns the read-only explain surface omits.
+	res, err := resolver.New(e.deps.Registry, e.deps.Backends).Resolve(ctx, resolver.Request{
+		Operation:     req.Operation,
+		ModelOverride: override,
+		Host:          host,
+		AllowBYOK:     req.AllowBYOK,
+		IsEnabled:     enabled,
 	})
 	if err != nil {
-		return Plan{}, err // "no available provider — install a backend/enable BYOK"
+		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid / no provider)
 	}
-	warnings := append([]string{}, sel.Warnings...)
-	warnings = append(warnings, bsel.Warnings...)
+	if !e.deps.ModelInstalled(res.Model.ID) {
+		return Plan{}, fmt.Errorf("%w: %q — run `image-tools models install %s`", ErrModelNotInstalled, res.Model.ID, res.Model.ID)
+	}
 	return Plan{
-		ModelID:          sel.Model.ID,
-		Tier:             bsel.Tier.String(),
-		Warnings:         warnings,
-		EstimatedSeconds: estimateSeconds(req.Operation, sel.GPUViable),
-		GPUViable:        sel.GPUViable,
+		ModelID:          res.Model.ID,
+		Tier:             res.Tier,
+		Warnings:         res.Warnings,
+		EstimatedSeconds: estimateSeconds(req.Operation, res.GPUViable),
+		GPUViable:        res.GPUViable,
 	}, nil
 }
 

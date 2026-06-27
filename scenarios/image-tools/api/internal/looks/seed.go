@@ -114,5 +114,52 @@ func BuiltinLooks() []*looksv1.Look {
 				aiStep("naturalize", map[string]string{"realism": "0.6", "face_aware": "true"}),
 			},
 		},
+		// ---------------------------------------------------------------------
+		// Compound-technique Looks (plan Phase 5). These express the multi-step
+		// techniques that have no single dedicated op as ORDERED Look steps over
+		// the existing op/technique vocabulary — Looks is the one compound
+		// substrate (no second pipeline format). Their model-backed steps make
+		// them Workspace-previewed (not in-process), exactly like the style Looks.
+		// ---------------------------------------------------------------------
+		{
+			Id:             "edit-via-img2img",
+			Name:           "Edit (via img2img)",
+			Description:    "Probabilistic edit for a base checkpoint with no true instruction-edit pipeline: low-strength img2img with your instruction as the prompt. Not identity-preserving like a dedicated edit model — the result re-imagines the whole frame. (model-backed)",
+			Kind:           looksv1.LookKind_LOOK_KIND_STYLE,
+			Builtin:        true,
+			PromptTemplate: "{prompt}",
+			Params:         map[string]string{"strength": "0.35"},
+			Steps: []*looksv1.LookStep{
+				aiStep("image_to_image", nil),
+			},
+		},
+		{
+			Id:             "outpaint-extend",
+			Name:           "Outpaint (extend canvas)",
+			Description:    "Expand the image beyond its borders: pad the canvas to the requested size, generate the new region with inpaint, then re-add micro-texture so the new border blends with the original. (model-backed)",
+			Kind:           looksv1.LookKind_LOOK_KIND_ENHANCE,
+			Builtin:        true,
+			PromptTemplate: "Extend the scene naturally beyond its original borders, continuing the existing content. {prompt}",
+			Steps: []*looksv1.LookStep{
+				// Deterministic expand-canvas: the caller/Workspace supplies the
+				// target width/height + gravity (the new region to fill); the
+				// default is a centered, transparent pad the inpaint step regenerates.
+				det("canvas", map[string]string{"gravity": "center", "background": "00000000"}),
+				aiStep("inpaint", nil),
+				aiStep("naturalize", map[string]string{"realism": "0.5"}),
+			},
+		},
+		{
+			Id:             "hi-res-fix",
+			Name:           "Hi-Res Fix",
+			Description:    "Super-resolve, then refine with a low-strength img2img pass so the upscaled detail is coherent rather than merely interpolated — the classic high-resolution-fix chain. (model-backed)",
+			Kind:           looksv1.LookKind_LOOK_KIND_ENHANCE,
+			Builtin:        true,
+			PromptTemplate: "{prompt}",
+			Steps: []*looksv1.LookStep{
+				aiStep("upscale", map[string]string{"scale": "2"}),
+				aiStep("image_to_image", map[string]string{"strength": "0.3"}),
+			},
+		},
 	}
 }

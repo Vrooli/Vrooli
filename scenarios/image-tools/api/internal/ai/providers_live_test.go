@@ -11,6 +11,7 @@ import (
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
+	"image-tools/internal/technique"
 )
 
 // TestLive_StableDiffusion exercises the real installed sd-cli end to end:
@@ -41,7 +42,7 @@ func TestLive_StableDiffusion(t *testing.T) {
 	p := &execProvider{
 		name:         "stable-diffusion.cpp",
 		program:      sd,
-		build:        buildStableDiffusionCpp,
+		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
 		progressScan: scanStableDiffusionProgress,
 		lookPath:     exec.LookPath,
 	}

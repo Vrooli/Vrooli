@@ -359,8 +359,14 @@
         "needsBoth": "يلزم الأوزان والمحرّك",
         "disabled": "مُعطَّل في الإعدادات",
         "insufficient": "لا يمكن تشغيله على جهازك",
-        "unsupported": "غير متاح لنظام تشغيلك"
+        "unsupported": "غير متاح لنظام تشغيلك",
+        "derivedUnproven": "عبر سير عمل (غير مُثبَت بعد)"
       },
+      "support": {
+        "native": "أصلي",
+        "viaWorkflow": "عبر سير عمل"
+      },
+      "caveatBanner": "يُشغِّل {{op}} عبر تقنية مُشتقّة — {{caveat}}",
       "action": {
         "select": "استخدام",
         "selected": "قيد الاستخدام",

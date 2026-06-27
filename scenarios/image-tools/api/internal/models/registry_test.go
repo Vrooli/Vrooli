@@ -3,8 +3,11 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
+
+	"image-tools/internal/operations"
 )
 
 // TestLoadSeed asserts the bundled catalog loads, validates, and upholds the
@@ -102,7 +105,6 @@ func TestSeedRegistryLintIsClean(t *testing.T) {
 func TestRegistryLintFlagsLandingPageStub(t *testing.T) {
 	base := `{
 	  "schema_version": "1.0.0",
-	  "operations_vocabulary": ["upscale"],
 	  "models": [
 	    {
 	      "id": "stub", "name": "Landing Page Stub", "operations": ["upscale"],
@@ -264,7 +266,6 @@ func TestWeightlessBackendsDoNotRequireInstallAssets(t *testing.T) {
 // validSeed is a minimal well-formed catalog used to test rejection of mutations.
 const validSeed = `{
   "schema_version": "1.0.0",
-  "operations_vocabulary": ["upscale", "denoise"],
   "models": [
     {
       "id": "good-default",
@@ -298,8 +299,10 @@ func TestParseValid(t *testing.T) {
 	if !r.IsOperation("upscale") || r.IsOperation("teleport") {
 		t.Fatalf("operation membership mismatch")
 	}
-	if got := r.Operations(); len(got) != 2 || got[0] != "upscale" || got[1] != "denoise" {
-		t.Fatalf("operations = %v", got)
+	// The vocabulary is the SSOT (internal/operations), not declared in the seed;
+	// Operations() exposes it verbatim regardless of which ops the seed's models use.
+	if got := r.Operations(); !reflect.DeepEqual(got, operations.Names()) {
+		t.Fatalf("operations = %v, want SSOT vocabulary %v", got, operations.Names())
 	}
 	models := r.ForOperation("upscale")
 	if len(models) != 1 || models[0].ID != "good-default" {
@@ -340,7 +343,6 @@ func TestParseRejectsMalformed(t *testing.T) {
 		data []byte
 	}{
 		{"missing schema", "schema_version", mutate(func(d map[string]any) { delete(d, "schema_version") })},
-		{"empty vocab", "operations_vocabulary", mutate(func(d map[string]any) { d["operations_vocabulary"] = []any{} })},
 		{"no models", "no models", mutate(func(d map[string]any) { d["models"] = []any{} })},
 		{"missing id", "missing id", mutate(func(d map[string]any) { firstModel(d)["id"] = "" })},
 		{"missing name", "missing name", mutate(func(d map[string]any) { firstModel(d)["name"] = "" })},
@@ -351,9 +353,6 @@ func TestParseRejectsMalformed(t *testing.T) {
 		{"default_for not in ops", "not in this model", mutate(func(d map[string]any) { firstModel(d)["default_for"] = []any{"denoise"} })},
 		{"duplicate op on model", "listed twice", mutate(func(d map[string]any) {
 			firstModel(d)["operations"] = []any{"upscale", "upscale"}
-		})},
-		{"empty vocab entry", "empty entry", mutate(func(d map[string]any) {
-			d["operations_vocabulary"] = []any{"upscale", ""}
 		})},
 		{"negative figures", "negative", mutate(func(d map[string]any) {
 			firstModel(d)["size_mb_approx"] = -1

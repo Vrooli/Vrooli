@@ -11,6 +11,7 @@ import (
 
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
+	"image-tools/internal/technique"
 )
 
 // builtinExec runs an op entirely in-process (no external program, no model
@@ -56,7 +57,7 @@ func (p *builtinProvider) Execute(ctx context.Context, req backends.Request) (ba
 // runNaturalize is the builtin executor for the naturalize op: decode the input
 // image, run the deterministic realism compositor, and write the PNG result.
 func runNaturalize(_ context.Context, req backends.Request) error {
-	in, err := in0(req)
+	in, err := technique.Input0(req)
 	if err != nil {
 		return err
 	}
@@ -83,7 +84,7 @@ func runNaturalize(_ context.Context, req backends.Request) error {
 // computed default for normal_map: no weights, no host packages, just local CPU
 // gradients over a depth image.
 func runNormalMap(_ context.Context, req backends.Request) error {
-	in, err := in0(req)
+	in, err := technique.Input0(req)
 	if err != nil {
 		return err
 	}

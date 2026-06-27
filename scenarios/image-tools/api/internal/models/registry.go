@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"image-tools/internal/operations"
 )
 
 //go:embed registry.seed.json
@@ -249,6 +251,7 @@ type Model struct {
 	Name             string           `json:"name"`
 	Operations       []string         `json:"operations"`
 	DefaultFor       []string         `json:"default_for"`
+	Architecture     Architecture     `json:"architecture,omitempty"`
 	Tier             Tier             `json:"tier"`
 	Backend          string           `json:"backend"`
 	AltBackends      []string         `json:"alt_backends"`
@@ -292,10 +295,15 @@ func (m Model) RequiresWeights() bool {
 	}
 }
 
-// ServesOperation reports whether this model can run the given operation.
+// ServesOperation reports whether this model can run the given operation today:
+// natively (declared) OR through a PROVEN derived technique of its architecture.
+// A derived op whose technique is not yet Ready is intentionally NOT served (it
+// is surfaced honestly elsewhere as derived_pipeline_unproven, never silently
+// run). This is the literal-array gate's replacement — capability is now a
+// derivation over the architecture table, not a hand-list.
 func (m Model) ServesOperation(op string) bool {
-	for _, o := range m.Operations {
-		if o == op {
+	for _, eo := range m.EffectiveOps() {
+		if eo.Op == op && eo.Offerable() {
 			return true
 		}
 	}
@@ -322,12 +330,13 @@ type BlocklistEntry struct {
 	ExportingONNXRemovesRestriction bool     `json:"exporting_onnx_removes_restriction"`
 }
 
-// seedFile mirrors the on-disk registry.seed.json top-level shape.
+// seedFile mirrors the on-disk registry.seed.json top-level shape. The operation
+// vocabulary is NOT declared here — it lives in the SSOT (internal/operations);
+// the registry reads it from there and validates every model op against it.
 type seedFile struct {
-	SchemaVersion        string           `json:"schema_version"`
-	OperationsVocabulary []string         `json:"operations_vocabulary"`
-	Models               []Model          `json:"models"`
-	Blocklist            []BlocklistEntry `json:"blocklist"`
+	SchemaVersion string           `json:"schema_version"`
+	Models        []Model          `json:"models"`
+	Blocklist     []BlocklistEntry `json:"blocklist"`
 }
 
 // Registry is the validated, indexed view of the model catalog.
@@ -371,26 +380,24 @@ func Parse(data []byte) (*Registry, error) {
 	if sf.SchemaVersion == "" {
 		return nil, fmt.Errorf("missing schema_version")
 	}
-	if len(sf.OperationsVocabulary) == 0 {
-		return nil, fmt.Errorf("empty operations_vocabulary")
-	}
 	if len(sf.Models) == 0 {
 		return nil, fmt.Errorf("registry has no models")
 	}
 
+	// The operation vocabulary is the SSOT (internal/operations); the registry
+	// reads it rather than carrying its own copy. Per-model operations[] are
+	// validated against it below.
+	vocabOrder := operations.Names()
 	r := &Registry{
 		schemaVersion: sf.SchemaVersion,
 		byID:          make(map[string]Model, len(sf.Models)),
 		byOperation:   make(map[string][]Model),
 		defaultFor:    make(map[string]string),
-		vocab:         make(map[string]struct{}, len(sf.OperationsVocabulary)),
-		vocabOrder:    append([]string(nil), sf.OperationsVocabulary...),
+		vocab:         make(map[string]struct{}, len(vocabOrder)),
+		vocabOrder:    vocabOrder,
 		blockByID:     make(map[string]BlocklistEntry, len(sf.Blocklist)),
 	}
-	for _, op := range sf.OperationsVocabulary {
-		if op == "" {
-			return nil, fmt.Errorf("operations_vocabulary contains an empty entry")
-		}
+	for _, op := range vocabOrder {
 		r.vocab[op] = struct{}{}
 	}
 
@@ -404,8 +411,15 @@ func Parse(data []byte) (*Registry, error) {
 		}
 		r.models = append(r.models, m)
 		r.byID[m.ID] = m
-		for _, op := range m.Operations {
-			r.byOperation[op] = append(r.byOperation[op], m)
+		// Index by the OFFERABLE effective op set: declared natives plus any
+		// architecture-derived op whose technique is proven (Ready). Today every
+		// derivation is Ready=false, so this is exactly m.Operations; once the
+		// attended GPU run proves a derivation, that model auto-joins the op's
+		// picker with no per-model code.
+		for _, eo := range m.EffectiveOps() {
+			if eo.Offerable() {
+				r.byOperation[eo.Op] = append(r.byOperation[eo.Op], m)
+			}
 		}
 		for _, op := range m.DefaultFor {
 			if existing, ok := r.defaultFor[op]; ok {
@@ -472,6 +486,14 @@ func (r *Registry) validateModel(m Model) error {
 		// A model that is neither CPU-capable nor GPU-required is unrunnable.
 		return fmt.Errorf("model is neither cpu_capable nor gpu_required")
 	}
+	// A declared architecture must be a known enum member (typo guard). An empty
+	// architecture is allowed (treated as ArchNone — derives nothing); the seed
+	// invariant below additionally REQUIRES a concrete architecture on diffusion
+	// generation backends so a base checkpoint can never vanish from the derived
+	// pickers for lack of a lineage tag.
+	if m.Architecture != "" && !m.Architecture.valid() {
+		return fmt.Errorf("invalid architecture %q", m.Architecture)
+	}
 	// A declared runtime family must name a registered adapter (typo guard), and
 	// any declared pipeline_class must match that adapter's — so the registry
 	// can't drift from the executor. The doctor (DoctorCatalog) additionally
@@ -500,6 +522,15 @@ func (r *Registry) validateSeedInvariants() error {
 	for _, m := range r.models {
 		if m.RequiresComfyUI {
 			return fmt.Errorf("model %q sets requires_comfyui=true (ComfyUI is an optional plug-in only)", m.ID)
+		}
+		// A diffusion-generation checkpoint MUST declare a concrete (non-none)
+		// architecture: the architecture is what derives its image-conditioned ops,
+		// so a missing lineage tag is exactly the "usable base checkpoint vanishes
+		// from the img2img/inpaint pickers" bug this refactor removes.
+		if m.Backend == BackendDiffusers || m.Backend == "stable-diffusion.cpp" {
+			if m.Architecture == "" || m.Architecture == ArchNone {
+				return fmt.Errorf("model %q on backend %q must declare a concrete architecture (none/empty derives nothing)", m.ID, m.Backend)
+			}
 		}
 		// Commercial-clean gate: never seed an outright non-commercial model.
 		// "conditional" is tolerated ONLY as an opt-in (disabled-by-default)
@@ -544,6 +575,34 @@ func (r *Registry) ByID(id string) (Model, bool) {
 // ForOperation returns every model serving op, in seed order.
 func (r *Registry) ForOperation(op string) []Model {
 	return append([]Model(nil), r.byOperation[op]...)
+}
+
+// OpCandidate pairs a model with how it would serve a requested operation: its
+// EffectiveOp carries the native|derived support, the technique, the caveat, and
+// whether a derived technique is proven (Ready). Unlike ForOperation (which lists
+// only OFFERABLE models — native or proven-derived), OpCandidates includes models
+// that could serve the op via an UNPROVEN derivation, so the picker can show
+// "inpaint ⚠ via workflow (unproven)" instead of the model disappearing.
+type OpCandidate struct {
+	Model     Model
+	Effective EffectiveOp
+}
+
+// OpCandidates returns every model whose effective op set contains op — native
+// OR architecture-derived, proven or not — in seed order, each tagged with its
+// EffectiveOp. This is the picker's full menu; the handler styles each by support
+// + Ready. ForOperation stays the offerable-only set the engine/selector use.
+func (r *Registry) OpCandidates(op string) []OpCandidate {
+	var out []OpCandidate
+	for _, m := range r.models {
+		for _, eo := range m.EffectiveOps() {
+			if eo.Op == op {
+				out = append(out, OpCandidate{Model: m, Effective: eo})
+				break
+			}
+		}
+	}
+	return out
 }
 
 // DefaultFor returns the seeded default model for op.

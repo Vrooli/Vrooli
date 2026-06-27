@@ -11,6 +11,9 @@ failure that fails the install.
 Probe kinds:
   * diffusers — resolve the family's pipeline class against the installed
     diffusers and validate the install shape (delegates to _diffusers.smoke).
+  * diffusers-inpaint — resolve the architecture's inpaint pipeline class (the
+    derived base-checkpoint inpaint path) and validate the install shape
+    (delegates to _diffusers.inpaint_smoke).
   * onnx — construct an onnxruntime InferenceSession from the installed .onnx
     weight (a real, cheap load that catches corruption / opset mismatch).
 """
@@ -31,6 +34,14 @@ def _smoke_diffusers(model_dir: str, family: str, deep: bool) -> str:
     return _diffusers.smoke(family=family, model_dir=model_dir, deep=deep)
 
 
+def _smoke_diffusers_inpaint(model_dir: str, architecture: str, deep: bool) -> str:
+    if not architecture:
+        _common.fail("diffusers-inpaint smoke requires --architecture", code=2)
+    from . import _diffusers  # local import: avoids torch import for onnx smoke
+
+    return _diffusers.inpaint_smoke(architecture=architecture, model_dir=model_dir, deep=deep)
+
+
 def _smoke_onnx(model_dir: str) -> str:
     onnx_path = _common.resolve_onnx_path(model_dir)
     session = _common.make_session(onnx_path)  # fails loud on a corrupt/opset-bad model
@@ -40,14 +51,17 @@ def _smoke_onnx(model_dir: str) -> str:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="image-tools install-time load-smoke probe")
-    p.add_argument("--kind", required=True, choices=["diffusers", "onnx"])
+    p.add_argument("--kind", required=True, choices=["diffusers", "diffusers-inpaint", "onnx"])
     p.add_argument("--model-dir", required=True, help="installed model directory")
     p.add_argument("--family", default="", help="diffusers family (required for --kind diffusers)")
+    p.add_argument("--architecture", default="", help="model architecture (required for --kind diffusers-inpaint)")
     p.add_argument("--deep", action="store_true", help="also load full weights (opt-in, expensive)")
     args = p.parse_args()
 
     if args.kind == "diffusers":
         summary = _smoke_diffusers(args.model_dir, args.family, args.deep)
+    elif args.kind == "diffusers-inpaint":
+        summary = _smoke_diffusers_inpaint(args.model_dir, args.architecture, args.deep)
     else:
         summary = _smoke_onnx(args.model_dir)
 

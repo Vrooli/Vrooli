@@ -18,59 +18,38 @@
 // attended run on a host with the CPU default models installed.
 package ai
 
-import "sort"
+import (
+	"sort"
 
-// Category groups AI operations for discovery/UI.
-type Category string
+	"image-tools/internal/operations"
+)
+
+// Category and Op are views over the operation vocabulary SSOT
+// (internal/operations). The AI engine owns exactly the generation + enhancement
+// ops — the ones it builds runners for — so its catalog is a category filter over
+// the one table rather than a re-declared list (W1 collapse, see
+// docs/internal/TECHNIQUE-SUBSTRATE.md).
+type Category = operations.Category
 
 const (
 	// CategoryGeneration covers text-to-image and image-editing generation.
-	CategoryGeneration Category = "generation"
+	CategoryGeneration = operations.CategoryGeneration
 	// CategoryEnhancement covers super-resolution / restoration enhancement.
-	CategoryEnhancement Category = "enhancement"
+	CategoryEnhancement = operations.CategoryEnhancement
 )
 
-// Op is one model-backed AI operation. Name matches the registry operation
-// vocabulary (internal/models) so the selector and provider registry agree.
-type Op struct {
-	// Name is the canonical op name and the {operation} path segment.
-	Name string
-	// Category is generation or enhancement.
-	Category Category
-	// Summary is a one-line human description.
-	Summary string
-	// RequiresImage is true when the op edits an input image (false for the
-	// prompt-only text_to_image).
-	RequiresImage bool
-	// RequiresMask is true when the op needs a mask image (inpaint, object_removal).
-	RequiresMask bool
-	// PromptDriven is true when a text prompt is a primary input.
-	PromptDriven bool
-}
+// Op is one model-backed AI operation (an alias of the vocabulary entry). Name
+// matches the registry operation vocabulary so the selector and provider registry
+// agree.
+type Op = operations.Operation
 
-// catalog is the canonical AI-op table: the P0 generation + enhancement ops plus
-// the Phase-4 breadth ops (outpaint / background_replace generation; colorize /
-// depth_map enhancement — IMG-P1-001/002). It is the single source of truth
+// catalog is the AI-op table derived from the vocabulary SSOT: every generation +
+// enhancement operation (the ops the runner factory builds runners for). It is
 // consumed by the runner factory (execution), the AIService (discovery), and the
 // CLI surface. Each op's model is forward-declared in registry.seed.json and the
 // op gates honestly (HTTP 409) until its backend program + weights are installed.
 var catalog = func() map[string]Op {
-	ops := []Op{
-		{Name: "text_to_image", Category: CategoryGeneration, Summary: "Generate an image from a text prompt", PromptDriven: true},
-		{Name: "image_to_image", Category: CategoryGeneration, Summary: "Transform an input image guided by a prompt", RequiresImage: true, PromptDriven: true},
-		{Name: "edit_instruct", Category: CategoryGeneration, Summary: "Edit an image from a natural-language instruction (identity-preserving)", RequiresImage: true, PromptDriven: true},
-		{Name: "inpaint", Category: CategoryGeneration, Summary: "Regenerate a masked region from a prompt", RequiresImage: true, RequiresMask: true, PromptDriven: true},
-		{Name: "outpaint", Category: CategoryGeneration, Summary: "Expand an image beyond its borders, generating the new region from a prompt", RequiresImage: true, RequiresMask: true, PromptDriven: true},
-		{Name: "object_removal", Category: CategoryGeneration, Summary: "Remove a masked object and fill the gap", RequiresImage: true, RequiresMask: true},
-		{Name: "background_replace", Category: CategoryGeneration, Summary: "Replace the background behind a masked subject from a prompt", RequiresImage: true, RequiresMask: true, PromptDriven: true},
-		{Name: "upscale", Category: CategoryEnhancement, Summary: "Super-resolve / enlarge an image", RequiresImage: true},
-		{Name: "background_removal", Category: CategoryEnhancement, Summary: "Remove the background to transparency", RequiresImage: true},
-		{Name: "denoise", Category: CategoryEnhancement, Summary: "Reduce noise / deblur an image", RequiresImage: true},
-		{Name: "naturalize", Category: CategoryEnhancement, Summary: "Reintroduce realistic texture/grain to over-smoothed (restored/upscaled) images", RequiresImage: true},
-		{Name: "colorize", Category: CategoryEnhancement, Summary: "Add realistic colour to a grayscale / black-and-white image", RequiresImage: true},
-		{Name: "depth_map", Category: CategoryEnhancement, Summary: "Estimate a per-pixel depth map from a single image", RequiresImage: true},
-		{Name: "normal_map", Category: CategoryEnhancement, Summary: "Convert image luminance/depth into a tangent-space normal map", RequiresImage: true},
-	}
+	ops := operations.ByCategory(CategoryGeneration, CategoryEnhancement)
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {
 		m[o.Name] = o

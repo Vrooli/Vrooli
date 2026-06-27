@@ -13,6 +13,7 @@ import (
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
+	"image-tools/internal/technique"
 )
 
 type fakeWarmRunner struct {
@@ -134,7 +135,7 @@ func TestRegisterProviders_ThreadsInterpreterToPythonBackendsOnly(t *testing.T) 
 		t.Fatalf("register: %v", err)
 	}
 	for _, s := range providerSpecs() {
-		for _, p := range reg.Providers(s.ops[0]) {
+		for _, p := range reg.Providers(s.ops()[0]) {
 			ep, ok := p.(*execProvider)
 			if !ok || ep.name != s.name {
 				continue
@@ -316,7 +317,7 @@ func TestExecProvider_UsesWarmRunnerBeforeOneShot(t *testing.T) {
 		name:              "onnxruntime",
 		program:           "python3",
 		pythonInterpreter: "/data/pyenv/bin/python",
-		build:             buildOnnxSidecar,
+		techniques:        technique.Single("depth_map", technique.OnnxSidecar),
 		warm:              warm,
 		run: func(context.Context, string, []string) error {
 			oneShotCalls++
@@ -349,7 +350,7 @@ func TestExecProvider_FallsBackWhenWarmRunnerFails(t *testing.T) {
 		name:              "onnxruntime",
 		program:           "python3",
 		pythonInterpreter: "/data/pyenv/bin/python",
-		build:             buildOnnxSidecar,
+		techniques:        technique.Single("depth_map", technique.OnnxSidecar),
 		warm:              warm,
 		run: func(context.Context, string, []string) error {
 			oneShotCalls++
@@ -382,7 +383,7 @@ func TestExecProvider_ExecutionErrors(t *testing.T) {
 		InputKeys: []string{"/in.png"},
 		Output:    storage.OutputTarget{LocalPath: "/out.png"},
 	}
-	p := &execProvider{name: "onnxruntime", program: "python3", pythonInterpreter: "/data/pyenv/bin/python", build: buildOnnxSidecar}
+	p := &execProvider{name: "onnxruntime", program: "python3", pythonInterpreter: "/data/pyenv/bin/python", techniques: technique.Single("depth_map", technique.OnnxSidecar)}
 	if _, err := p.Execute(context.Background(), backends.Request{Operation: "depth_map", Model: models.Model{ID: "m1"}, InputKeys: []string{"/in.png"}}); err == nil {
 		t.Fatal("expected missing output path error")
 	}
@@ -390,7 +391,7 @@ func TestExecProvider_ExecutionErrors(t *testing.T) {
 	if _, err := p.Execute(context.Background(), req); err == nil || !strings.Contains(err.Error(), "execution failed") {
 		t.Fatalf("expected execution failure, got %v", err)
 	}
-	p.build = func(backends.Request, string) ([]string, error) { return nil, errors.New("bad args") }
+	p.techniques = technique.Single("depth_map", func(backends.Request, string) ([]string, error) { return nil, errors.New("bad args") })
 	if _, err := p.Execute(context.Background(), req); err == nil || !strings.Contains(err.Error(), "build args") {
 		t.Fatalf("expected build error, got %v", err)
 	}
@@ -409,208 +410,6 @@ func TestDefaultRunHelpers(t *testing.T) {
 	}
 	if _, err := defaultRunOutput(context.Background(), "sh", []string{"-c", "printf bad; exit 8"}); err == nil || !strings.Contains(err.Error(), "bad") {
 		t.Fatalf("defaultRunOutput should include command output on failure, got %v", err)
-	}
-}
-
-// TestArgBuilders pins each backend's argv assembly (the part testable without
-// the real binary).
-func TestArgBuilders(t *testing.T) {
-	req := func(op string, in []string, params map[string]string) backends.Request {
-		return backends.Request{
-			Operation: op,
-			Model:     models.Model{ID: "m1"},
-			ModelDir:  "/models/m1",
-			InputKeys: in,
-			Output:    storage.OutputTarget{LocalPath: "/out.png"},
-			Params:    params,
-		}
-	}
-	cases := []struct {
-		name string
-		args []string
-		err  bool
-		want []string // substrings that must appear in argv
-	}{
-		{
-			name: "sd text",
-			args: mustArgs(t, buildStableDiffusionCpp, req("text_to_image", nil, map[string]string{"prompt": "cat", "steps": "30"})),
-			want: []string{"-m", "/models/m1", "-p", "cat", "--steps", "30", "-o", "/out.png"},
-		},
-		{
-			name: "sd img2img needs input",
-			err:  argErr(buildStableDiffusionCpp, req("image_to_image", nil, map[string]string{"prompt": "x"})),
-		},
-		{
-			name: "iopaint needs mask",
-			err:  argErr(buildIopaint, req("object_removal", []string{"/in.png"}, nil)),
-		},
-		{
-			name: "realesrgan scale",
-			// Uses the release's bundled model name (resolved relative to the
-			// binary), not a -m dir or the image-tools model id.
-			args: mustArgs(t, buildRealesrgan, req("upscale", []string{"/in.png"}, map[string]string{"scale": "2"})),
-			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "2", "-n", "realesr-animevideov3"},
-		},
-		{
-			name: "realesrgan denoise",
-			args: mustArgs(t, buildRealesrgan, req("denoise", []string{"/in.png"}, map[string]string{"denoise": "3"})),
-			want: []string{"-i", "/in.png", "-o", "/out.png", "-s", "4", "-n", "realesr-animevideov3"},
-		},
-		{
-			name: "rembg",
-			args: mustArgs(t, buildRembg, req("background_removal", []string{"/in.png"}, nil)),
-			want: []string{"i", "-m", "m1", "/in.png", "/out.png"},
-		},
-		{
-			name: "rembg background_replace",
-			args: mustArgs(t, buildRembg, req("background_replace", []string{"/in.png"}, map[string]string{"background_color": "240,240,240,255"})),
-			want: []string{"i", "-m", "m1", "--bgcolor", "240,240,240,255", "/in.png", "/out.png"},
-		},
-		{
-			name: "rembg background_replace needs color",
-			err:  argErr(buildRembg, req("background_replace", []string{"/in.png"}, nil)),
-		},
-		{
-			name: "llama.cpp caption",
-			args: mustArgs(t, buildLlamaCppCaption, func() backends.Request {
-				r := req("caption", []string{"/in.png"}, map[string]string{"prompt": "alt text", "max_tokens": "48", "temperature": "0.2"})
-				r.Model.Source.Assets = []models.Asset{
-					{Filename: "model.gguf", Kind: models.ArtifactGGUF},
-					{Filename: "mmproj-model.gguf", Kind: models.ArtifactGGUF},
-				}
-				return r
-			}()),
-			want: []string{"-m", "/models/m1/model.gguf", "--mmproj", "/models/m1/mmproj-model.gguf", "--image", "/in.png", "-p", "alt text", "-n", "48", "--temp", "0.2"},
-		},
-		{
-			name: "llama.cpp caption needs mmproj",
-			err: func() bool {
-				r := req("caption", []string{"/in.png"}, nil)
-				r.Model.Source.Assets = []models.Asset{{Filename: "model.gguf", Kind: models.ArtifactGGUF}}
-				return argErr(buildLlamaCppCaption, r)
-			}(),
-		},
-		{
-			name: "diffusers edit_instruct",
-			args: mustArgs(t, buildDiffusers, func() backends.Request {
-				r := req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "make it winter", "cfg_scale": "7.5", "strength": "1.5", "seed": "42", "steps": "30", "negative_prompt": "blurry"})
-				r.Model.Runtime.Family = "instruct-pix2pix"
-				return r
-			}()),
-			// The pipeline class is selected by --family, not hardcoded. --steps and
-			// --negative-prompt are passed only when explicitly requested.
-			want: []string{"-m", "image_tools_sidecar.edit_instruct", "--model", "/models/m1", "--family", "instruct-pix2pix", "--image", "/in.png", "--prompt", "make it winter", "--out", "/out.png", "--steps", "30", "--guidance", "7.5", "--image-guidance", "1.5", "--negative-prompt", "blurry", "--seed", "42"},
-		},
-		{
-			name: "diffusers edit_instruct needs input",
-			err: func() bool {
-				r := req("edit_instruct", nil, map[string]string{"prompt": "x"})
-				r.Model.Runtime.Family = "instruct-pix2pix"
-				return argErr(buildDiffusers, r)
-			}(),
-		},
-		{
-			name: "diffusers edit_instruct needs a runtime family",
-			err:  argErr(buildDiffusers, req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "x"})),
-		},
-		{
-			name: "diffusers inpaint via dispatcher",
-			args: mustArgs(t, buildDiffusers, req("inpaint", []string{"/in.png", "/mask.png"}, map[string]string{"prompt": "sky"})),
-			want: []string{"-m", "image_tools_sidecar.inpaint", "--mask", "/mask.png", "--prompt", "sky"},
-		},
-		{
-			name: "diffusers outpaint reuses the inpaint sidecar",
-			args: mustArgs(t, buildDiffusers, req("outpaint", []string{"/in.png", "/mask.png"}, map[string]string{"prompt": "extend the beach"})),
-			want: []string{"-m", "image_tools_sidecar.inpaint", "--mask", "/mask.png", "--prompt", "extend the beach"},
-		},
-		{
-			name: "diffusers background_replace reuses the inpaint sidecar",
-			args: mustArgs(t, buildDiffusers, req("background_replace", []string{"/in.png", "/mask.png"}, map[string]string{"prompt": "a studio backdrop"})),
-			want: []string{"-m", "image_tools_sidecar.inpaint", "--mask", "/mask.png", "--prompt", "a studio backdrop"},
-		},
-		{
-			name: "diffusers outpaint needs a mask",
-			err:  argErr(buildDiffusers, req("outpaint", []string{"/in.png"}, map[string]string{"prompt": "x"})),
-		},
-		{
-			name: "onnx colorize sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("colorize", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.colorize", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx depth sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("depth_map", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.depth", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx deblur sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("deblur", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.deblur", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx detection sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("object_detection", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.detect", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx segment sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("segment", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.segment", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx tagging sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("tagging", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.tagging", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx nsfw sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("nsfw_classify", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.nsfw", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx embedding sidecar dispatch",
-			args: mustArgs(t, buildOnnxSidecar, req("embedding", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.embedding", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "python-sidecar colorize dispatch",
-			args: mustArgs(t, buildPythonSidecar, req("colorize", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.colorize", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "python-sidecar face restore dispatch",
-			args: mustArgs(t, buildPythonSidecar, req("face_restore", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.restore", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "python-sidecar old photo restore dispatch",
-			args: mustArgs(t, buildPythonSidecar, req("old_photo_restore", []string{"/in.png"}, nil)),
-			want: []string{"-m", "image_tools_sidecar.restore", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png"},
-		},
-		{
-			name: "onnx rejects unknown op",
-			err:  argErr(buildOnnxSidecar, req("text_to_image", []string{"/in.png"}, nil)),
-		},
-		{
-			name: "python-sidecar rejects unknown op",
-			err:  argErr(buildPythonSidecar, req("text_to_image", []string{"/in.png"}, nil)),
-		},
-		{
-			name: "diffusers rejects unknown op",
-			err:  argErr(buildDiffusers, req("text_to_image", []string{"/in.png"}, nil)),
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.err {
-				return // error path asserted by argErr
-			}
-			for _, w := range tc.want {
-				if !slices.Contains(tc.args, w) {
-					t.Errorf("argv %v missing %q", tc.args, w)
-				}
-			}
-		})
 	}
 }
 
@@ -732,38 +531,6 @@ func TestLlamaCppProvider_ExecuteErrors(t *testing.T) {
 	if _, err := missing.Execute(context.Background(), baseReq); err == nil || !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("expected unavailable error, got %v", err)
 	}
-}
-
-func TestOnnxModelPathResolution(t *testing.T) {
-	req := backends.Request{Model: models.Model{Source: models.Source{Assets: []models.Asset{
-		{Filename: "fallback.bin", Kind: models.ArtifactGeneric},
-		{Filename: "model.onnx", Kind: models.ArtifactONNX},
-	}}}}
-	if got := onnxModelPath(req, "/models/m1"); got != filepath.Join("/models/m1", "model.onnx") {
-		t.Fatalf("onnx path = %q", got)
-	}
-	req.Model.Source.Assets = []models.Asset{{Filename: "first.bin"}}
-	if got := onnxModelPath(req, "/models/m1"); got != filepath.Join("/models/m1", "first.bin") {
-		t.Fatalf("fallback asset path = %q", got)
-	}
-	req.Model.Source.Assets = nil
-	if got := onnxModelPath(req, "/models/m1"); got != "/models/m1" {
-		t.Fatalf("empty assets path = %q", got)
-	}
-}
-
-func mustArgs(t *testing.T, b argBuilder, req backends.Request) []string {
-	t.Helper()
-	args, err := b(req, req.ModelDir)
-	if err != nil {
-		t.Fatalf("build args: %v", err)
-	}
-	return args
-}
-
-func argErr(b argBuilder, req backends.Request) bool {
-	_, err := b(req, req.ModelDir)
-	return err != nil
 }
 
 // TestExecProvider_PrefersGPUAlias verifies the stable-diffusion.cpp provider

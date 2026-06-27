@@ -22,10 +22,13 @@ belong in [`DATA.md`](DATA.md).
 
 image-tools is a local-first capability-primitive scenario in Vrooli's
 `*-tools` family. It groups its capability surface into the bounded
-contexts below. Four are the user-facing operation families
-(`ops`, `generation`, `enhancement`, `analysis`); the rest are the
+contexts below. The user-facing operation families (`ops` deterministic;
+`ai` generation+enhancement; `analysis`) draw their operation names from one
+vocabulary SSOT — `api/internal/operations` (the model/AI/analysis ops) and
+`api/internal/ops` (the deterministic ops) — so no domain re-declares the
+vocabulary (see docs/internal/TECHNIQUE-SUBSTRATE.md). The rest are the
 infrastructure domains that make those families reliable, hardware-aware,
-and composable (`models`, `backends`, `jobs`, `storage`, `recipes`,
+and composable (`models`, `backends`, `jobs`, `storage`, `looks`,
 `automation`, `measures`). Every operation across every domain runs fully
 headless from the CLI with no UI and no ComfyUI dependency — the UI is an
 enhancer, never a gate.
@@ -43,10 +46,9 @@ enhancer, never a gate.
 | backends | Per-op provider abstraction and fallback ladder. | Abstraction / policy | No product data (in-memory provider registry). | API (internal seam), CLI (introspection) | OT-P0-005, OT-P0-011 | `api/internal/backends/`, `packages/proto/schemas/image-tools/v1/backends/` |
 | jobs | Durable server-owned async jobs, GPU-serializing queue, progress/SSE. | Lifecycle / queue | Job records, status, progress. | API, CLI, UI | OT-P0-009 | `api/internal/jobs/`, `api/handlers/jobs/`, `cli/domains/jobs/`, `ui/src/features/jobs/`, `packages/proto/schemas/image-tools/v1/jobs/` |
 | storage | api-core storage/blobstore integration and output ownership. | Infrastructure seam | Blob references and ownership metadata. | API (seam), CLI (save-location flag) | OT-P0-010 | `api/internal/storage/`, `packages/proto/schemas/image-tools/v1/storage/` |
-| recipes | Saveable, replayable multi-step operation pipelines. | CRUD + replay | Recipe definitions (op-stack graphs). | API, CLI, UI | OT-P1-004 | `api/internal/recipes/`, `api/handlers/recipes/`, `cli/domains/recipes/`, `ui/src/features/recipes/`, `packages/proto/schemas/image-tools/v1/recipes/` |
 | automation | Batch, watch-folder, signed webhook callbacks. | Trigger / orchestration | Watch-folder config, callback delivery state. | API, CLI, UI | OT-P1-005, OT-P1-006 | `api/internal/automation/`, `api/handlers/automation/`, `cli/domains/automation/`, `ui/src/features/automation/`, `packages/proto/schemas/image-tools/v1/automation/` |
 | measures | Op latency/throughput/queue-wait/fallback-usage observability. | Reporting / telemetry | Measure samples and aggregates. | API, CLI | OT-P0-012 | `api/internal/measures/`, `cli/manifest.json` measure blocks, `packages/proto/schemas/image-tools/v1/measures/` |
-| looks | The Look/Style Library — data-defined, thumbnail-backed Looks that compile to {prompt + mask/selection + params}; generalizes presets + recipes. | CRUD + compile | Custom Look definitions (SQLite); built-in seed read-only. | API, CLI, UI | OT-P1-012 | `api/internal/looks/`, `api/handlers/looks/`, `cli/domains/looks/`, `ui/src/features/looks/`, `packages/proto/schemas/image-tools/v1/looks/` |
+| looks | The Look/Style Library — data-defined, thumbnail-backed Looks that compile to {prompt + mask/selection + params}; the SINGLE compound/multi-step substrate (subsumes presets and the former `recipes` concept). Built-in compound-technique Looks: `outpaint-extend`, `hi-res-fix`, `edit-via-img2img`. | CRUD + compile | Custom Look definitions (SQLite); built-in seed read-only. | API, CLI, UI | OT-P1-012 | `api/internal/looks/`, `api/handlers/looks/`, `cli/domains/looks/`, `ui/src/features/looks/`, `packages/proto/schemas/image-tools/v1/looks/` |
 | selection | Smart-Select → Classify → Contextual Edit — a built-in region-grow `segment` op + heuristic region classifier + a selection→edit compiler. Segmentation is synchronous; the chosen edit submits to the AI job queue with the produced mask. | Operation + compile | No persistent data; the produced mask is stored via `storage`, segmentation recorded as a terminal job. | API, CLI, UI | OT-P1-013 | `api/internal/selection/`, `api/handlers/selection/`, `cli/domains/selection/`, `ui/src/features/select/`, `packages/proto/schemas/image-tools/v1/selection/` |
 | notes | Worked CRUD reference with attachment upload exception. **Template example — remove during implementation.** | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/image-tools/v1/notes/` |
 
@@ -272,28 +274,16 @@ enhancer, never a gate.
 - Related docs: [`DATA.md`](DATA.md), [`INTEGRATIONS.md`](INTEGRATIONS.md),
   [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
-### recipes
+### recipes (superseded by `looks`)
 
-- Purpose: let users save, name, and replay multi-step operation graphs
-  (recipes). The visual op-stack in the UI and the CLI pipeline are a
-  unified representation; ComfyUI-style chaining is supported without
-  ComfyUI being required.
-- Primary archetype: CRUD + replay.
-- Secondary traits: op-stack graph as a single shared representation
-  across UI and CLI.
-- Owns: recipe definitions, validation, and the replay engine.
-- Does not own: the operation implementations (it composes them), job
-  mechanics (it submits to `jobs`).
-- API: `api/handlers/recipes/` (Connect-RPC CRUD + run).
-- CLI: `cli/domains/recipes/` — save/list/run recipe pipelines.
-- UI: `ui/src/features/recipes/` (visual op-stack with undo/redo over the
-  headless op core).
-- Storage: SQLite recipe definitions (see [`DATA.md`](DATA.md)).
-- Requirements: OT-P1-004.
-- Tests: recipe repository, replay-engine unit, handler, CLI, UI feature,
-  accessibility.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
+The standalone `recipes` domain was **never built as a separate package** and is
+**removed from this inventory** (plan technique-capability-refactor, Phase 5). Its
+intent — save/name/replay multi-step operation graphs without ComfyUI — is fully
+served by **`looks`**, the single compound/multi-step substrate: a Look is an
+ordered list of op/AI steps with merged params, and the seeded compound-technique
+Looks (`outpaint-extend`, `hi-res-fix`, `edit-via-img2img`) are exactly the
+multi-step pipelines recipes would have held. No second pipeline format survives
+(greenfield). See [`looks`](#looks) and `api/internal/looks/`.
 
 ### automation
 

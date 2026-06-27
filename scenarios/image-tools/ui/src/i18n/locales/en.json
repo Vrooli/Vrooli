@@ -355,8 +355,14 @@
         "needsBoth": "Weights + engine needed",
         "disabled": "Disabled in settings",
         "insufficient": "Can't run on your hardware",
-        "unsupported": "Not available for your OS"
+        "unsupported": "Not available for your OS",
+        "derivedUnproven": "Via workflow (not yet proven)"
       },
+      "support": {
+        "native": "Native",
+        "viaWorkflow": "Via workflow"
+      },
+      "caveatBanner": "Runs {{op}} via a derived technique — {{caveat}}",
       "action": {
         "select": "Use",
         "selected": "In use",
