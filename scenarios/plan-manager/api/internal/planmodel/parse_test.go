@@ -108,3 +108,113 @@ func TestParsePlanMarkdownRejectsMalformedMachineReadableMarkup(t *testing.T) {
 		})
 	}
 }
+
+func TestParsePlanMarkdownRecoversRelevantContextSetup(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown(`# Context plan
+
+## Global Execution Setup
+
+### Load Skills
+
+- api-steer _(required, run on resume, discovered)_
+  - Reason: API contract changes.
+  - Instruction: Load API steering.
+  ` + "```bash" + `
+  prompt-manager skill read api-steer
+  ` + "```" + `
+
+### Run Discovery Searches
+
+- Prior records _(as needed)_
+  - Reason: Avoid repeating prior work.
+  ` + "```bash" + `
+  search-hub query "plan manager relevant context" --type record,doc
+  ` + "```" + `
+
+## Phases
+
+### Phase 1 — Parser
+
+- Intent: Preserve rendered setup.
+- Status: active
+
+**Phase Context Setup:**
+
+### Read Docs
+
+- docs/concepts/PLAN-MODEL.md _(required)_
+  - Reason: Parse semantics live there.
+  ` + "```bash" + `
+  sed -n '1,220p' docs/concepts/PLAN-MODEL.md
+  ` + "```" + `
+
+### Inspect References
+
+- [REQ: PM-CTX-001] _(required, unresolved)_
+  - Status: Requirement index unavailable.
+
+### Operator Notes
+
+- Keep Markdown as a projection, not the source of truth.
+`)
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+	if got := len(plan.RelevantContext); got != 2 {
+		t.Fatalf("len(plan.RelevantContext) = %d, want 2", got)
+	}
+	skill := plan.RelevantContext[0]
+	if skill.Kind != RelevantContextSkill || skill.Target != "api-steer" || !skill.Required {
+		t.Fatalf("skill context = %#v", skill)
+	}
+	if skill.RepeatPolicy != RelevantContextOnResume || skill.Source != RelevantContextSourceDiscovered {
+		t.Fatalf("skill policy/source = %#v", skill)
+	}
+	if skill.Reason != "API contract changes." || skill.Instruction != "Load API steering." {
+		t.Fatalf("skill reason/instruction = %#v", skill)
+	}
+	search := plan.RelevantContext[1]
+	if search.Kind != RelevantContextSearch || search.Command == "" || search.RepeatPolicy != RelevantContextAsNeeded {
+		t.Fatalf("search context = %#v", search)
+	}
+	if got := len(plan.Phases); got != 1 {
+		t.Fatalf("len(plan.Phases) = %d, want 1", got)
+	}
+	phaseContext := plan.Phases[0].RelevantContext
+	if got := len(phaseContext); got != 3 {
+		t.Fatalf("len(phase context) = %d, want 3", got)
+	}
+	if phaseContext[0].Kind != RelevantContextDoc || phaseContext[0].Target != "docs/concepts/PLAN-MODEL.md" {
+		t.Fatalf("doc context = %#v", phaseContext[0])
+	}
+	if phaseContext[0].RepeatPolicy != RelevantContextPhaseEntry || phaseContext[0].Scope != RelevantContextScopePhase {
+		t.Fatalf("doc scope/policy = %#v", phaseContext[0])
+	}
+	if phaseContext[1].Kind != RelevantContextReqRef || phaseContext[1].Target != "PM-CTX-001" || phaseContext[1].Status != RelevantContextStatusUnresolved {
+		t.Fatalf("req context = %#v", phaseContext[1])
+	}
+	if phaseContext[2].Kind != RelevantContextNote || phaseContext[2].Instruction == "" {
+		t.Fatalf("note context = %#v", phaseContext[2])
+	}
+}
+
+func TestParsePlanMarkdownRejectsMalformedRelevantContextBlock(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParsePlanMarkdown(`# Bad context
+
+## Global Execution Setup
+
+### Run Commands
+
+- Setup
+  ` + "```bash" + `
+  vrooli help
+`)
+	var invalid ErrInvalidPlan
+	if !errors.As(err, &invalid) {
+		t.Fatalf("ParsePlanMarkdown() error = %v, want ErrInvalidPlan", err)
+	}
+}

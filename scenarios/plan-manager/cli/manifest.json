@@ -357,8 +357,8 @@
               "description": "Objective pass/fail"
             },
             {
-              "name": "required-reading",
-              "description": "Phase-scoped required reading, comma-separated"
+              "name": "context",
+              "description": "Phase-scoped relevant context, comma-separated entries using key=value fields separated by semicolons"
             },
             {
               "name": "reminders",
@@ -415,8 +415,8 @@
               "description": "Phase status (todo|active|done|blocked)"
             },
             {
-              "name": "required-reading",
-              "description": "Phase-scoped required reading, comma-separated"
+              "name": "context",
+              "description": "Phase-scoped relevant context, comma-separated entries using key=value fields separated by semicolons"
             },
             {
               "name": "reminders",
@@ -645,7 +645,7 @@
     },
     {
       "name": "author",
-      "description": "Guided composer wizard \u2014 start a session, walk and submit sections, validate structure, autofill mechanical sections, and finalize into a structured plan",
+      "description": "Guided composer wizard \u2014 start a session, walk and submit sections, validate structure, submit relevant context, autofill mechanical sections, and finalize into a structured plan",
       "commands": [
         {
           "name": "start",
@@ -791,7 +791,7 @@
         },
         {
           "name": "autofill",
-          "description": "Autofill the mechanical sections behind seams (regression anchor / required reading / references)",
+          "description": "Autofill mechanical sections behind seams (regression anchor / references)",
           "positionals": [
             {
               "name": "session",
@@ -802,13 +802,210 @@
           "flags": [
             {
               "name": "sources",
-              "description": "Comma-separated autofill source(s) to run; omit to run all (regression_anchor, required_reading, references)"
+              "description": "Comma-separated autofill source(s) to run; omit to run default sources (regression_anchor, references). required_reading is legacy migration-only and must be requested explicitly."
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "AuthoringService",
             "method": "Autofill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-submit",
+          "description": "Submit one global or phase-scoped relevant-context setup item",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number for phase-scoped context"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note"
+            },
+            {
+              "name": "label",
+              "description": "Short label for the context item"
+            },
+            {
+              "name": "reason",
+              "description": "Why this context is relevant"
+            },
+            {
+              "name": "instruction",
+              "description": "What the execution agent should do with this context"
+            },
+            {
+              "name": "command",
+              "description": "Exact command for command/search/skill setup items"
+            },
+            {
+              "name": "argv",
+              "description": "Comma-separated canonical argv; defaults from command when omitted"
+            },
+            {
+              "name": "target",
+              "description": "Doc/code/requirement/skill target locator"
+            },
+            {
+              "name": "required",
+              "description": "Mark the context item required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SubmitRelevantContextItem"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-list",
+          "description": "List accepted relevant-context setup items for a session or phase",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for global context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ListRelevantContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-discover",
+          "description": "Discover relevant-context candidates from decomposed concepts",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "concepts",
+              "description": "Comma-separated discovery concepts; omit to use the session title"
+            },
+            {
+              "name": "complexity",
+              "description": "Optional prompt-manager skill discovery complexity, e.g. architectural"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "DiscoverContextCandidates"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-accept",
+          "description": "Accept a discovered context candidate into global or phase-scoped setup context",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Context candidate id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number for phase-scoped context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "AcceptContextCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-reject",
+          "description": "Reject a discovered context candidate with a reason",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Context candidate id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Why this candidate is not relevant"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "RejectContextCandidate"
           },
           "governance": {
             "effect": "write",
@@ -899,7 +1096,7 @@
             {
               "name": "field",
               "required": true,
-              "description": "Phase field: title, intent, references, required_reading, reminders, acceptance, no_code_refs_reason"
+              "description": "Phase field: title, intent, references, relevant_context, reminders, acceptance, no_code_refs_reason. required_reading is accepted only as legacy migration input."
             },
             {
               "name": "content",
@@ -1018,6 +1215,68 @@
           },
           "governance": {
             "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context",
+          "description": "Get setup context for the current or requested phase without advancing",
+          "positionals": [
+            {
+              "name": "execution",
+              "required": true,
+              "description": "Execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id to inspect without moving the pointer"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "GetContext"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "resume",
+          "description": "Resume an execution or plan and return setup context without advancing",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id to move the pointer to"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id when a new execution is created"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "Resume"
+          },
+          "governance": {
+            "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal"

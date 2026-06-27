@@ -15,6 +15,12 @@ import type {
   Plan,
   PlanEdge,
   RegressionAnchor,
+  RelevantContextItem,
+} from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import {
+  RelevantContextKind,
+  RelevantContextRepeatPolicy,
+  RelevantContextStatus,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import { useArchivePlan, usePlanDetail, usePlanGraph, usePlanMarkdown } from "./usePlans";
 
@@ -30,6 +36,84 @@ function StringList({ items, empty }: { items: readonly string[]; empty: string 
           {item}
         </li>
       ))}
+    </ul>
+  );
+}
+
+const contextKindLabels: Record<RelevantContextKind, string> = {
+  [RelevantContextKind.UNSPECIFIED]: "Context",
+  [RelevantContextKind.SKILL]: "Skill",
+  [RelevantContextKind.DOC]: "Doc",
+  [RelevantContextKind.COMMAND]: "Command",
+  [RelevantContextKind.SEARCH]: "Search",
+  [RelevantContextKind.CODE_REF]: "Code",
+  [RelevantContextKind.REQ_REF]: "Requirement",
+  [RelevantContextKind.NOTE]: "Note",
+};
+
+function repeatLabel(policy: RelevantContextRepeatPolicy) {
+  switch (policy) {
+    case RelevantContextRepeatPolicy.ON_RESUME:
+      return "on resume";
+    case RelevantContextRepeatPolicy.EVERY_PHASE:
+      return "every phase";
+    case RelevantContextRepeatPolicy.PHASE_ENTRY:
+      return "phase entry";
+    case RelevantContextRepeatPolicy.AS_NEEDED:
+      return "as needed";
+    case RelevantContextRepeatPolicy.ONCE_PER_EXECUTION:
+      return "once";
+    default:
+      return "";
+  }
+}
+
+function contextCommand(item: RelevantContextItem) {
+  if (item.argv.length > 0) return item.argv.join(" ");
+  return item.command;
+}
+
+function RelevantContextList({ items }: { items: readonly RelevantContextItem[] }) {
+  const { t } = useTranslation();
+  if (items.length === 0) {
+    return <p className="text-sm text-app-muted-foreground">{t(strings.pages.plans.detail.noContext)}</p>;
+  }
+  return (
+    <ul data-testid={selectors.plans.relevantContext} className="flex flex-col gap-2">
+      {items.map((item, i) => {
+        const command = contextCommand(item);
+        const repeat = repeatLabel(item.repeatPolicy);
+        return (
+          <li
+            key={item.id || `${item.kind}-${item.label}-${i}`}
+            className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
+                {contextKindLabels[item.kind]}
+              </span>
+              <span className="font-medium text-app-foreground">{item.label || item.target || command}</span>
+              {repeat ? <span className="text-xs text-app-muted-foreground">{repeat}</span> : null}
+              {item.status === RelevantContextStatus.DEGRADED ? (
+                <span className="rounded-pill bg-app-warning/15 px-2 py-0.5 text-xs text-app-warning">
+                  {t(strings.common.degradedBadge)}
+                </span>
+              ) : null}
+            </div>
+            {item.reason ? <p className="mt-1 text-xs text-app-muted-foreground">{item.reason}</p> : null}
+            {item.instruction ? <p className="mt-1 text-xs text-app-foreground">{item.instruction}</p> : null}
+            {command ? (
+              <code className="mt-2 block break-all rounded-control bg-app-surface px-2 py-1 font-mono text-xs text-app-foreground">
+                {command}
+              </code>
+            ) : item.target ? (
+              <code className="mt-2 block break-all rounded-control bg-app-surface px-2 py-1 font-mono text-xs text-app-foreground">
+                {item.target}
+              </code>
+            ) : null}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -54,8 +138,12 @@ function PhaseCard({ phase }: { phase: Phase }) {
         {phase.acceptance ? (
           <MetaRow term={t(strings.pages.plans.detail.phaseAcceptance)}>{phase.acceptance}</MetaRow>
         ) : null}
-        {phase.requiredReading.length > 0 ? (
-          <MetaRow term={t(strings.pages.plans.detail.phaseRequiredReading)}>
+        {phase.relevantContext.length > 0 ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseContext)}>
+            <RelevantContextList items={phase.relevantContext} />
+          </MetaRow>
+        ) : phase.requiredReading.length > 0 ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseLegacyRequiredReading)}>
             <StringList items={phase.requiredReading} empty={t(strings.common.none)} />
           </MetaRow>
         ) : null}
@@ -209,6 +297,12 @@ function PlanBody({ plan }: { plan: Plan }) {
       {plan.definitionOfDone ? (
         <SectionPanel title={t(strings.pages.plans.detail.dodHeading)} headingId="plan-dod">
           <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.definitionOfDone}</p>
+        </SectionPanel>
+      ) : null}
+
+      {plan.relevantContext.length > 0 ? (
+        <SectionPanel title={t(strings.pages.plans.detail.globalContextHeading)} headingId="plan-global-context">
+          <RelevantContextList items={plan.relevantContext} />
         </SectionPanel>
       ) : null}
 

@@ -29,9 +29,9 @@ export const executionClient = createClient(ExecutionService, transport);
 export async function startExecution(
   planId: string,
   runId = "",
-): Promise<{ execution: Execution | undefined; step: GuidedStep | undefined }> {
+): Promise<{ execution: Execution | undefined; context: PhaseContext | undefined; step: GuidedStep | undefined }> {
   const resp = await executionClient.start({ planId, runId });
-  return { execution: resp.execution, step: resp.step };
+  return { execution: resp.execution, context: resp.context, step: resp.step };
 }
 
 export async function getStatus(
@@ -50,6 +50,31 @@ export async function getNext(
 ): Promise<{ context: PhaseContext | undefined; complete: boolean; step: GuidedStep | undefined }> {
   const resp = await executionClient.getNext({ executionId });
   return { context: resp.context, complete: resp.complete, step: resp.step };
+}
+
+export async function getContext(
+  executionId: string,
+  phaseId = "",
+): Promise<{
+  execution: Execution | undefined;
+  context: PhaseContext | undefined;
+  step: GuidedStep | undefined;
+}> {
+  const resp = await executionClient.getContext({ executionId, phaseId });
+  return { execution: resp.execution, context: resp.context, step: resp.step };
+}
+
+export async function resumeExecution(
+  planOrExecution: string,
+  phaseId = "",
+  runId = "",
+): Promise<{
+  execution: Execution | undefined;
+  context: PhaseContext | undefined;
+  step: GuidedStep | undefined;
+}> {
+  const resp = await executionClient.resume({ planOrExecution, phaseId, runId });
+  return { execution: resp.execution, context: resp.context, step: resp.step };
 }
 
 export async function transitionPhase(

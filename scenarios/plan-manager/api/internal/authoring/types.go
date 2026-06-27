@@ -1,16 +1,15 @@
 // Package authoring is the guided-composer domain. It walks a plan's sections in
 // order, runs a structure-validation gate as it goes (rejecting empty mandatory
-// sections and an empty regression anchor), and auto-fills the mechanical
-// sections behind seams — the regression anchor (via git-control-tower),
-// required-reading (via prompt-manager plan-skill-discovery) and code references
-// (via code-facts) — so a small local model supplies only genuine prose
-// (OT-P0-002). The produced plan is written THROUGH the plans domain; this
-// service does not own the record.
+// sections and an empty regression anchor), captures mechanical context behind
+// seams, and drives relevant-context candidate discovery so a small local model
+// supplies only genuine prose and final context judgment (OT-P0-002). The
+// produced plan is written THROUGH the plans domain; this service does not own
+// the record.
 //
 // Layering mirrors the canonical domain pattern:
 //
 //	handler → Service → {SessionStore, PlanWriter, AnchorAutofiller,
-//	            ↑            ↑ owned store    ↑ plans domain   RequiredReadingSource,
+//	            ↑            ↑ owned store    ↑ plans domain   ContextDiscoverer,
 //	        (proto edge)   (faked in tests)                   ReferenceExtractor}
 //	                                                          ↑ all behind seams,
 //	                                                            all degrade gracefully
@@ -42,6 +41,7 @@ const (
 	SectionRequiredReading  SectionKey = "required_reading"
 	SectionDefinitionOfDone SectionKey = "definition_of_done"
 	SectionPhases           SectionKey = "phases"
+	SectionRelevantContext  SectionKey = "relevant_context"
 )
 
 // PhaseField is one structured phase-draft field the authoring wizard can ask
@@ -57,6 +57,7 @@ const (
 	PhaseFieldReminders        PhaseField = "reminders"
 	PhaseFieldAcceptance       PhaseField = "acceptance"
 	PhaseFieldNoCodeRefsReason PhaseField = "no_code_refs_reason"
+	PhaseFieldRelevantContext  PhaseField = "relevant_context"
 )
 
 // Section is one authored or auto-filled section of a plan-in-progress. key/
@@ -122,6 +123,7 @@ type PhaseDraft struct {
 	Reminders        []string
 	Acceptance       string
 	NoCodeRefsReason string
+	RelevantContext  []planmodel.RelevantContextItem
 }
 
 // Session is the transient state of a guided authoring flow. It persists across
@@ -135,6 +137,8 @@ type Session struct {
 	CurrentSectionKey SectionKey
 	PhaseDrafts       []PhaseDraft
 	CurrentPhaseID    string
+	RelevantContext   []planmodel.RelevantContextItem
+	ContextCandidates []ContextCandidate
 	Finalized         bool
 	PlanID            string
 	CreatedAt         string
@@ -170,7 +174,9 @@ type CommandIssue struct {
 	Message string
 }
 
-// AutofillSource names one mechanical-section autofill source.
+// AutofillSource names one mechanical-section autofill source. Required-reading
+// is retained as an explicit legacy migration source but is not part of default
+// autofill; new setup context flows through context discovery/acceptance.
 type AutofillSource string
 
 const (
@@ -190,6 +196,26 @@ type AutofillResult struct {
 	Detail     string
 }
 
+type ContextCandidateStatus string
+
+const (
+	ContextCandidatePending  ContextCandidateStatus = "pending"
+	ContextCandidateAccepted ContextCandidateStatus = "accepted"
+	ContextCandidateRejected ContextCandidateStatus = "rejected"
+)
+
+// ContextCandidate is a discovered setup item awaiting author judgment.
+type ContextCandidate struct {
+	ID              string
+	Item            planmodel.RelevantContextItem
+	Concept         string
+	Source          string
+	Degraded        bool
+	Detail          string
+	Status          ContextCandidateStatus
+	RejectionReason string
+}
+
 // sectionSpec is the seed shape for one section in the default skeleton.
 type sectionSpec struct {
 	Key       SectionKey
@@ -199,9 +225,9 @@ type sectionSpec struct {
 
 // defaultSkeleton is the ordered section skeleton StartSession seeds. The
 // mandatory sections gate Finalize; the optional ones (constraints, non_goals,
-// references) may be left empty. The autofillable mechanical sections
-// (regression_anchor, required_reading, references) carry prose only when an
-// autofill source supplies it. phases is mandatory so a plan always has work.
+// references, relevant_context) may be left empty. The autofillable mechanical
+// sections (regression_anchor, references) carry prose only when an autofill
+// source supplies it. phases is mandatory so a plan always has work.
 var defaultSkeleton = []sectionSpec{
 	{Key: SectionPurpose, Label: "Purpose", Mandatory: true},
 	{Key: SectionScope, Label: "Scope", Mandatory: true},
@@ -209,7 +235,7 @@ var defaultSkeleton = []sectionSpec{
 	{Key: SectionNonGoals, Label: "Non-goals", Mandatory: false},
 	{Key: SectionReferences, Label: "References", Mandatory: false},
 	{Key: SectionRegressionAnchor, Label: "Regression anchor", Mandatory: true},
-	{Key: SectionRequiredReading, Label: "Required reading", Mandatory: false},
+	{Key: SectionRelevantContext, Label: "Relevant context", Mandatory: false},
 	{Key: SectionDefinitionOfDone, Label: "Definition of Done", Mandatory: true},
 	{Key: SectionPhases, Label: "Phases", Mandatory: true},
 }

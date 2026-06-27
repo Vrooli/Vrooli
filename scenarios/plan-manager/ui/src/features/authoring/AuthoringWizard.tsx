@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { create } from "@bufbuild/protobuf";
 import { CheckCircle2, Sparkles, Wand2 } from "lucide-react";
 
 import {
+  acceptContextCandidate,
   addPhase,
   autofill,
+  discoverContextCandidates,
   finalize,
   nextPhase,
+  rejectContextCandidate,
   startSession,
+  submitRelevantContextItem,
   submitPhaseField,
   submitSection,
   validateStructure,
@@ -23,11 +28,21 @@ import { useTranslation } from "../../i18n";
 import type {
   AuthoringSession,
   AutofillResult,
+  ContextCandidate,
   PhaseDraft,
   Section,
   StructureViolation,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
-import type { GuidedStep } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import {
+  RelevantContextItemSchema,
+  RelevantContextKind,
+  RelevantContextRepeatPolicy,
+  RelevantContextScope,
+  RelevantContextSource,
+  RelevantContextStatus,
+  type GuidedStep,
+  type RelevantContextItem,
+} from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 /** Local wizard state. The session is the source of truth once started. */
 interface WizardState {
@@ -41,11 +56,144 @@ interface WizardState {
 
 const phaseFields = [
   "references",
-  "required_reading",
+  "relevant_context",
   "reminders",
   "acceptance",
   "no_code_refs_reason",
 ];
+
+const contextKinds = [
+  RelevantContextKind.SKILL,
+  RelevantContextKind.DOC,
+  RelevantContextKind.COMMAND,
+  RelevantContextKind.SEARCH,
+  RelevantContextKind.CODE_REF,
+  RelevantContextKind.REQ_REF,
+  RelevantContextKind.NOTE,
+];
+
+const contextKindLabels: Record<RelevantContextKind, string> = {
+  [RelevantContextKind.UNSPECIFIED]: "context",
+  [RelevantContextKind.SKILL]: "skill",
+  [RelevantContextKind.DOC]: "doc",
+  [RelevantContextKind.COMMAND]: "command",
+  [RelevantContextKind.SEARCH]: "search",
+  [RelevantContextKind.CODE_REF]: "code_ref",
+  [RelevantContextKind.REQ_REF]: "req_ref",
+  [RelevantContextKind.NOTE]: "note",
+};
+
+function ContextList({ items }: { items: readonly RelevantContextItem[] }) {
+  const { t } = useTranslation();
+  if (items.length === 0) {
+    return <p className="text-sm text-app-muted-foreground">{t(strings.pages.authoring.contextEmpty)}</p>;
+  }
+  return (
+    <ul data-testid={selectors.authoring.contextItems} className="flex flex-col gap-1.5">
+      {items.map((item, i) => (
+        <li
+          key={item.id || `${item.kind}-${item.label}-${i}`}
+          className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
+              {contextKindLabels[item.kind]}
+            </span>
+            <span className="font-medium text-app-foreground">{item.label || item.target || item.command}</span>
+          </div>
+          {item.reason ? <p className="mt-1 text-xs text-app-muted-foreground">{item.reason}</p> : null}
+          {item.instruction ? <p className="mt-1 text-xs text-app-foreground">{item.instruction}</p> : null}
+          {item.command || item.target ? (
+            <code className="mt-2 block break-all rounded-control bg-app-surface px-2 py-1 font-mono text-xs">
+              {item.command || item.target}
+            </code>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function contextCandidateLabel(candidate: ContextCandidate) {
+  const item = candidate.item;
+  return item?.label || item?.target || item?.command || candidate.concept || candidate.id;
+}
+
+function ContextCandidateList({
+  candidates,
+  onAccept,
+  onReject,
+  busy,
+}: {
+  candidates: readonly ContextCandidate[];
+  onAccept: (candidateId: string) => void;
+  onReject: (candidateId: string) => void;
+  busy: boolean;
+}) {
+  const { t } = useTranslation();
+  if (candidates.length === 0) {
+    return <p className="text-sm text-app-muted-foreground">{t(strings.pages.authoring.contextCandidatesEmpty)}</p>;
+  }
+  return (
+    <ul data-testid={selectors.authoring.contextCandidates} className="flex flex-col gap-1.5">
+      {candidates.map((candidate) => {
+        const item = candidate.item;
+        const pending = candidate.status === "" || candidate.status === "pending";
+        return (
+          <li
+            key={candidate.id}
+            className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-app-foreground">{contextCandidateLabel(candidate)}</span>
+              <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
+                {candidate.status || "pending"}
+              </span>
+              {candidate.degraded ? (
+                <span className="rounded-pill bg-app-warning/15 px-2 py-0.5 text-xs text-app-warning">
+                  {t(strings.common.degradedBadge)}
+                </span>
+              ) : null}
+            </div>
+            {item?.reason ? <p className="mt-1 text-xs text-app-muted-foreground">{item.reason}</p> : null}
+            {candidate.detail ? <p className="mt-1 text-xs text-app-muted-foreground">{candidate.detail}</p> : null}
+            {item?.command || item?.target ? (
+              <code className="mt-2 block break-all rounded-control bg-app-surface px-2 py-1 font-mono text-xs">
+                {item.command || item.target}
+              </code>
+            ) : null}
+            {candidate.rejectionReason ? (
+              <p className="mt-1 text-xs text-app-danger">{candidate.rejectionReason}</p>
+            ) : null}
+            {pending ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  data-testid={selectors.authoring.contextCandidateAcceptButton}
+                  disabled={busy}
+                  onClick={() => onAccept(candidate.id)}
+                >
+                  {t(strings.pages.authoring.contextAccept)}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  data-testid={selectors.authoring.contextCandidateRejectButton}
+                  disabled={busy}
+                  onClick={() => onReject(candidate.id)}
+                >
+                  {t(strings.pages.authoring.contextReject)}
+                </Button>
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 function SectionRow({
   section,
@@ -180,6 +328,16 @@ export function AuthoringWizard() {
   const [activePhaseId, setActivePhaseId] = useState("");
   const [phaseField, setPhaseField] = useState<string>("references");
   const [phaseDraft, setPhaseDraft] = useState("");
+  const [contextKind, setContextKind] = useState<RelevantContextKind>(RelevantContextKind.COMMAND);
+  const [contextPhaseScoped, setContextPhaseScoped] = useState(false);
+  const [contextLabel, setContextLabel] = useState("");
+  const [contextReason, setContextReason] = useState("");
+  const [contextInstruction, setContextInstruction] = useState("");
+  const [contextCommand, setContextCommand] = useState("");
+  const [contextTarget, setContextTarget] = useState("");
+  const [contextConcepts, setContextConcepts] = useState("");
+  const [contextComplexity, setContextComplexity] = useState("architectural");
+  const [contextRejectReason, setContextRejectReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -296,6 +454,90 @@ export function AuthoringWizard() {
       const res = await autofill(session.id);
       if (res.session) {
         setState((prev) => ({ ...prev, session: res.session, autofillResults: res.results, step: res.step }));
+      }
+    });
+  };
+
+  const handleSubmitContext = () => {
+    if (!session) return;
+    const phaseId = contextPhaseScoped ? activePhase?.id ?? "" : "";
+    if (contextPhaseScoped && phaseId.length === 0) return;
+    void run(async () => {
+      const item = create(RelevantContextItemSchema, {
+        kind: contextKind,
+        scope: contextPhaseScoped ? RelevantContextScope.PHASE : RelevantContextScope.GLOBAL,
+        phaseId,
+        label: contextLabel.trim(),
+        reason: contextReason.trim(),
+        instruction: contextInstruction.trim(),
+        command: contextCommand.trim(),
+        target: contextTarget.trim(),
+        required: true,
+        repeatPolicy: contextPhaseScoped
+          ? RelevantContextRepeatPolicy.PHASE_ENTRY
+          : RelevantContextRepeatPolicy.ONCE_PER_EXECUTION,
+        source: RelevantContextSource.AUTHORED,
+        status: RelevantContextStatus.READY,
+      });
+      const res = await submitRelevantContextItem(session.id, phaseId, item);
+      if (res.session) {
+        setState((prev) => ({
+          ...prev,
+          session: res.session,
+          violations: res.violations,
+          step: res.step,
+        }));
+        setContextLabel("");
+        setContextReason("");
+        setContextInstruction("");
+        setContextCommand("");
+        setContextTarget("");
+      }
+    });
+  };
+
+  const handleDiscoverContext = () => {
+    if (!session) return;
+    const concepts = contextConcepts
+      .split(",")
+      .map((concept) => concept.trim())
+      .filter(Boolean);
+    void run(async () => {
+      const res = await discoverContextCandidates(session.id, concepts, contextComplexity.trim());
+      if (res.session) {
+        setState((prev) => ({ ...prev, session: res.session, step: res.step }));
+      }
+    });
+  };
+
+  const handleAcceptCandidate = (candidateId: string) => {
+    if (!session) return;
+    const phaseId = contextPhaseScoped ? activePhase?.id ?? "" : "";
+    if (contextPhaseScoped && phaseId.length === 0) return;
+    void run(async () => {
+      const res = await acceptContextCandidate(session.id, candidateId, phaseId);
+      if (res.session) {
+        setState((prev) => ({
+          ...prev,
+          session: res.session,
+          violations: res.violations,
+          step: res.step,
+        }));
+      }
+    });
+  };
+
+  const handleRejectCandidate = (candidateId: string) => {
+    if (!session) return;
+    void run(async () => {
+      const res = await rejectContextCandidate(
+        session.id,
+        candidateId,
+        contextRejectReason.trim() || "not relevant",
+      );
+      if (res.session) {
+        setState((prev) => ({ ...prev, session: res.session, step: res.step }));
+        setContextRejectReason("");
       }
     });
   };
@@ -607,6 +849,143 @@ export function AuthoringWizard() {
               ))}
             </ul>
           )}
+        </SectionPanel>
+
+        <SectionPanel title={t(strings.pages.authoring.contextHeading)} headingId="authoring-context-heading">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(16rem,1fr)]">
+            <div className="flex flex-col gap-2">
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                <Input
+                  data-testid={selectors.authoring.contextConceptsInput}
+                  value={contextConcepts}
+                  onChange={(e) => setContextConcepts(e.target.value)}
+                  placeholder={t(strings.pages.authoring.contextConceptsPlaceholder)}
+                  aria-label={t(strings.pages.authoring.contextConceptsLabel)}
+                />
+                <Input
+                  data-testid={selectors.authoring.contextComplexityInput}
+                  value={contextComplexity}
+                  onChange={(e) => setContextComplexity(e.target.value)}
+                  placeholder={t(strings.pages.authoring.contextComplexityPlaceholder)}
+                  aria-label={t(strings.pages.authoring.contextComplexityLabel)}
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid={selectors.authoring.contextDiscoverButton}
+                disabled={busy}
+                onClick={handleDiscoverContext}
+                className="w-fit"
+              >
+                {t(strings.pages.authoring.contextDiscover)}
+              </Button>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select
+                  data-testid={selectors.authoring.contextKindSelect}
+                  value={String(contextKind)}
+                  onChange={(e) => setContextKind(Number(e.target.value))}
+                  className="h-10 rounded-control border border-app-border bg-app-surface px-3 text-sm"
+                  aria-label={t(strings.pages.authoring.contextKindLabel)}
+                >
+                  {contextKinds.map((kind) => (
+                    <option key={kind} value={String(kind)}>
+                      {contextKindLabels[kind]}
+                    </option>
+                  ))}
+                </select>
+                <label className="flex h-10 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 text-sm">
+                  <input
+                    data-testid={selectors.authoring.contextPhaseToggle}
+                    type="checkbox"
+                    checked={contextPhaseScoped}
+                    onChange={(e) => setContextPhaseScoped(e.target.checked)}
+                  />
+                  {t(strings.pages.authoring.contextPhaseScoped)}
+                </label>
+              </div>
+              <Input
+                data-testid={selectors.authoring.contextLabelInput}
+                value={contextLabel}
+                onChange={(e) => setContextLabel(e.target.value)}
+                placeholder={t(strings.pages.authoring.contextLabelPlaceholder)}
+                aria-label={t(strings.pages.authoring.contextLabelLabel)}
+              />
+              <Textarea
+                data-testid={selectors.authoring.contextReasonInput}
+                value={contextReason}
+                onChange={(e) => setContextReason(e.target.value)}
+                placeholder={t(strings.pages.authoring.contextReasonPlaceholder)}
+                rows={2}
+                aria-label={t(strings.pages.authoring.contextReasonLabel)}
+              />
+              <Textarea
+                data-testid={selectors.authoring.contextInstructionInput}
+                value={contextInstruction}
+                onChange={(e) => setContextInstruction(e.target.value)}
+                placeholder={t(strings.pages.authoring.contextInstructionPlaceholder)}
+                rows={2}
+                aria-label={t(strings.pages.authoring.contextInstructionLabel)}
+              />
+              <Input
+                data-testid={selectors.authoring.contextCommandInput}
+                value={contextCommand}
+                onChange={(e) => setContextCommand(e.target.value)}
+                placeholder={t(strings.pages.authoring.contextCommandPlaceholder)}
+                aria-label={t(strings.pages.authoring.contextCommandLabel)}
+              />
+              <Input
+                data-testid={selectors.authoring.contextTargetInput}
+                value={contextTarget}
+                onChange={(e) => setContextTarget(e.target.value)}
+                placeholder={t(strings.pages.authoring.contextTargetPlaceholder)}
+                aria-label={t(strings.pages.authoring.contextTargetLabel)}
+              />
+              <Input
+                data-testid={selectors.authoring.contextRejectReasonInput}
+                value={contextRejectReason}
+                onChange={(e) => setContextRejectReason(e.target.value)}
+                placeholder={t(strings.pages.authoring.contextRejectReasonPlaceholder)}
+                aria-label={t(strings.pages.authoring.contextRejectReasonLabel)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                data-testid={selectors.authoring.contextSubmitButton}
+                disabled={busy || contextLabel.trim().length === 0}
+                onClick={handleSubmitContext}
+                className="w-fit"
+              >
+                {t(strings.pages.authoring.contextSubmit)}
+              </Button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.pages.authoring.contextCandidates)}
+                </p>
+                <ContextCandidateList
+                  candidates={session.contextCandidates}
+                  onAccept={handleAcceptCandidate}
+                  onReject={handleRejectCandidate}
+                  busy={busy}
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.pages.authoring.globalContext)}
+                </p>
+                <ContextList items={session.relevantContext} />
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.pages.authoring.phaseContext)}
+                </p>
+                <ContextList items={activePhase?.relevantContext ?? []} />
+              </div>
+            </div>
+          </div>
         </SectionPanel>
 
         <div className="flex justify-end">

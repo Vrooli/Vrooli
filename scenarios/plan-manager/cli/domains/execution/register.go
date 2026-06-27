@@ -23,6 +23,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ExecutionService.Start":                 h.start,
 		"ExecutionService.GetStatus":             h.status,
+		"ExecutionService.GetContext":            h.context,
+		"ExecutionService.Resume":                h.resume,
 		"ExecutionService.GetNext":               h.next,
 		"ExecutionService.TransitionPhase":       h.transition,
 		"ExecutionService.RecordDecision":        h.decisionAdd,

@@ -35,6 +35,7 @@ type fakeExecutionService struct {
 
 	gotPlanID      string
 	gotRunID       string
+	gotPlanOrExec  string
 	gotExecutionID string
 	gotPhaseID     string
 	gotToStatus    internalplans.PhaseStatus
@@ -46,13 +47,23 @@ type fakeExecutionService struct {
 	gotTriage      internalexecution.FindingTriage
 }
 
-func (f *fakeExecutionService) Start(_ context.Context, planID, runID string) (internalexecution.Execution, internalexecution.GuidedStep, error) {
+func (f *fakeExecutionService) Start(_ context.Context, planID, runID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
 	f.gotPlanID, f.gotRunID = planID, runID
-	return f.execution, f.step, f.err
+	return f.execution, f.pctx, f.step, f.err
 }
 
 func (f *fakeExecutionService) GetStatus(_ context.Context, executionID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
+	return f.execution, f.pctx, f.step, f.err
+}
+
+func (f *fakeExecutionService) GetContext(_ context.Context, executionID, phaseID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
+	f.gotExecutionID, f.gotPhaseID = executionID, phaseID
+	return f.execution, f.pctx, f.step, f.err
+}
+
+func (f *fakeExecutionService) Resume(_ context.Context, planOrExecution, phaseID, runID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
+	f.gotPlanOrExec, f.gotPhaseID, f.gotRunID = planOrExecution, phaseID, runID
 	return f.execution, f.pctx, f.step, f.err
 }
 
@@ -141,6 +152,43 @@ func TestGetStatusSuccess(t *testing.T) {
 	require.Equal(t, "ph-1", resp.Msg.GetContext().GetCurrentPhase().GetId())
 	require.Equal(t, sharedv1.Completeness_COMPLETENESS_PARTIAL, resp.Msg.GetContext().GetCompleteness())
 	require.Equal(t, "e1", svc.gotExecutionID)
+}
+
+func TestGetContextSuccess(t *testing.T) {
+	svc := &fakeExecutionService{
+		execution: internalexecution.Execution{ID: "e1", CurrentPhaseID: "ph-1"},
+		pctx: internalexecution.PhaseContext{
+			CurrentPhase: internalplans.Phase{ID: "ph-2", Title: "Requested"},
+			HasCurrent:   true,
+		},
+	}
+	h := newExecutionHandler(svc)
+
+	resp, err := h.GetContext(context.Background(), connect.NewRequest(&executionv1.GetContextRequest{ExecutionId: "e1", PhaseId: "ph-2"}))
+	require.NoError(t, err)
+	require.Equal(t, "e1", resp.Msg.GetExecution().GetId())
+	require.Equal(t, "ph-2", resp.Msg.GetContext().GetCurrentPhase().GetId())
+	require.Equal(t, "e1", svc.gotExecutionID)
+	require.Equal(t, "ph-2", svc.gotPhaseID)
+}
+
+func TestResumeSuccess(t *testing.T) {
+	svc := &fakeExecutionService{
+		execution: internalexecution.Execution{ID: "e1", CurrentPhaseID: "ph-2"},
+		pctx: internalexecution.PhaseContext{
+			CurrentPhase: internalplans.Phase{ID: "ph-2", Title: "Requested"},
+			HasCurrent:   true,
+		},
+	}
+	h := newExecutionHandler(svc)
+
+	resp, err := h.Resume(context.Background(), connect.NewRequest(&executionv1.ResumeRequest{PlanOrExecution: "plan-1", PhaseId: "ph-2", RunId: "run-1"}))
+	require.NoError(t, err)
+	require.Equal(t, "e1", resp.Msg.GetExecution().GetId())
+	require.Equal(t, "ph-2", resp.Msg.GetContext().GetCurrentPhase().GetId())
+	require.Equal(t, "plan-1", svc.gotPlanOrExec)
+	require.Equal(t, "ph-2", svc.gotPhaseID)
+	require.Equal(t, "run-1", svc.gotRunID)
 }
 
 func TestGetNextSuccess(t *testing.T) {

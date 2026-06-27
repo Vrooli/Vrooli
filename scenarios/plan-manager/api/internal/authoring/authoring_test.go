@@ -81,6 +81,24 @@ func (f fakeRefs) References(_ context.Context, _, _ string) (string, error) {
 	return f.out, f.err
 }
 
+type fakeContextDiscoverer struct {
+	candidates []authoring.ContextCandidate
+	err        error
+	gotTitle   string
+	gotConcept []string
+	gotComplex string
+}
+
+func (f *fakeContextDiscoverer) DiscoverContext(_ context.Context, title string, concepts []string, complexity string) ([]authoring.ContextCandidate, error) {
+	f.gotTitle = title
+	f.gotConcept = append([]string(nil), concepts...)
+	f.gotComplex = complexity
+	if f.err != nil {
+		return nil, f.err
+	}
+	return append([]authoring.ContextCandidate(nil), f.candidates...), nil
+}
+
 type fakeCommandValidator struct {
 	results map[string]authoring.CommandReferenceResult
 	err     error
@@ -362,14 +380,14 @@ func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 
 	updated, results, _, err := svc.Autofill(ctx, sess.ID, nil) // nil => all sources
 	require.NoError(t, err)
-	require.Len(t, results, 3)
+	require.Len(t, results, 2)
 	for _, r := range results {
 		require.True(t, r.Filled, "source %s should fill", r.Source)
 		require.False(t, r.Degraded)
 	}
 	// The autofilled sections carry content + the autofilled marker.
 	for _, key := range []authoring.SectionKey{
-		authoring.SectionRegressionAnchor, authoring.SectionRequiredReading, authoring.SectionReferences,
+		authoring.SectionRegressionAnchor, authoring.SectionReferences,
 	} {
 		idx := -1
 		for i := range updated.Sections {
@@ -382,6 +400,26 @@ func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 		require.True(t, updated.Sections[idx].Autofilled)
 		require.NotEmpty(t, updated.Sections[idx].Content)
 	}
+}
+
+func TestLegacyRequiredReadingAutofillIsExplicitOnly(t *testing.T) {
+	svc := newService(t, authoring.Deps{
+		Writer:       &fakePlanWriter{},
+		RequiredRead: fakeReading{out: "docs/TESTING.md"},
+	})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+
+	updated, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillRequiredReading})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.True(t, results[0].Degraded)
+	require.False(t, results[0].Filled)
+	require.Contains(t, results[0].Detail, "section not present")
+
+	_, _, _, err = svc.SubmitSection(ctx, updated.ID, authoring.SectionRequiredReading, "prompt-manager skill read plan-skill-discovery")
+	require.Error(t, err)
 }
 
 // [REQ:PM-AUTHOR-002]
@@ -422,7 +460,7 @@ func TestAutofillDegradesPerSourceNeverFalseFill(t *testing.T) {
 
 	updated, results, _, err := svc.Autofill(ctx, sess.ID, nil)
 	require.NoError(t, err)
-	require.Len(t, results, 3)
+	require.Len(t, results, 2)
 
 	byKey := map[authoring.SectionKey]authoring.AutofillResult{}
 	for _, r := range results {
@@ -434,18 +472,13 @@ func TestAutofillDegradesPerSourceNeverFalseFill(t *testing.T) {
 	require.True(t, anchorRes.Degraded)
 	require.False(t, anchorRes.Filled)
 
-	// Reading: erroring seam => degraded, section left unfilled.
-	readingRes := byKey[authoring.SectionRequiredReading]
-	require.True(t, readingRes.Degraded)
-	require.False(t, readingRes.Filled)
-
 	// References: healthy => filled.
 	refsRes := byKey[authoring.SectionReferences]
 	require.True(t, refsRes.Filled)
 	require.False(t, refsRes.Degraded)
 
 	// The degraded sections are genuinely empty in the persisted session.
-	for _, key := range []authoring.SectionKey{authoring.SectionRegressionAnchor, authoring.SectionRequiredReading} {
+	for _, key := range []authoring.SectionKey{authoring.SectionRegressionAnchor} {
 		got, _, err := svc.GetSection(ctx, sess.ID, key)
 		require.NoError(t, err)
 		require.Empty(t, got.Content, "degraded section %s must be left for the author", key)
@@ -495,6 +528,32 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.NotEmpty(t, violations)
 	require.Len(t, updated.PhaseDrafts[0].RequiredReading, 2)
 
+	updated, item, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
+		Kind:         internalplans.RelevantContextCommand,
+		Label:        "Recall prior work",
+		Reason:       "Prior records describe the relevant-context slices already completed.",
+		Instruction:  "Run recall before implementation.",
+		Command:      "search-hub query plan-manager relevant context --type record",
+		Required:     true,
+		RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+	})
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, internalplans.RelevantContextScopeGlobal, item.Scope)
+	require.Len(t, updated.RelevantContext, 1)
+
+	updated, phaseItem, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, phase.ID, internalplans.RelevantContextItem{
+		Kind:        internalplans.RelevantContextDoc,
+		Label:       "Plan model docs",
+		Reason:      "The phase changes plan model semantics.",
+		Instruction: "Read before editing authoring finalization.",
+		Target:      "scenarios/plan-manager/docs/concepts/PLAN-MODEL.md",
+	})
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, internalplans.RelevantContextScopePhase, phaseItem.Scope)
+	require.Len(t, updated.PhaseDrafts[0].RelevantContext, 1)
+
 	updated, violations, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldAcceptance, "API and CLI tests cover the new phase-native flow.")
 	require.NoError(t, err)
 	require.Empty(t, violations)
@@ -521,8 +580,106 @@ func TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase(t *testing.T) 
 	require.Equal(t, "plan-finalized", plan.ID)
 	require.Len(t, writer.created.Phases, 1)
 	require.Equal(t, "Authoring contract", writer.created.Phases[0].Title)
+	require.Equal(t, phase.ID, writer.created.Phases[0].ID)
 	require.Len(t, writer.created.Phases[0].References, 1)
 	require.Len(t, writer.created.Phases[0].RequiredReading, 2)
+	require.Len(t, writer.created.RelevantContext, 1)
+	require.Len(t, writer.created.Phases[0].RelevantContext, 3, "explicit phase context plus migrated required-reading items")
+	require.Equal(t, internalplans.RelevantContextDoc, writer.created.Phases[0].RelevantContext[0].Kind)
+	require.Equal(t, phase.ID, writer.created.Phases[0].RelevantContext[0].PhaseID)
+	require.Equal(t, internalplans.RelevantContextSourceMigrated, writer.created.Phases[0].RelevantContext[1].Source)
+	require.Equal(t, phase.ID, writer.created.Phases[0].RelevantContext[1].PhaseID)
+}
+
+func TestContextDiscoveryCandidateLifecycle(t *testing.T) {
+	writer := &fakePlanWriter{}
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:      "cand-global",
+		Concept: "plan-manager relevant context",
+		Source:  "search-hub-recall",
+		Item: internalplans.RelevantContextItem{
+			Kind:         internalplans.RelevantContextSearch,
+			Label:        "Recall context records",
+			Reason:       "Prior records explain completed relevant-context slices.",
+			Instruction:  "Run recall before choosing the next slice.",
+			Command:      "search-hub query plan-manager relevant context --type record,skill,doc",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+			Source:       internalplans.RelevantContextSourceDiscovered,
+		},
+	}}}
+	svc := newService(t, authoring.Deps{Writer: writer, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve context", "improve-context", "")
+	require.NoError(t, err)
+
+	updated, candidates, step, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"plan-manager relevant context"}, "architectural")
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Len(t, updated.ContextCandidates, 1)
+	require.Equal(t, "context_discovery", step.StepKind)
+	require.Equal(t, []string{"plan-manager relevant context"}, discovery.gotConcept)
+	require.Equal(t, "architectural", discovery.gotComplex)
+
+	updated, candidate, item, violations, _, err := svc.AcceptContextCandidate(ctx, sess.ID, "cand-global", "")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, authoring.ContextCandidateAccepted, candidate.Status)
+	require.Equal(t, internalplans.RelevantContextScopeGlobal, item.Scope)
+	require.Len(t, updated.RelevantContext, 1)
+
+	updated, rejected, _, err := svc.RejectContextCandidate(ctx, sess.ID, "cand-global", "duplicate after accept")
+	require.NoError(t, err)
+	require.Equal(t, authoring.ContextCandidateRejected, rejected.Status)
+	require.Equal(t, "duplicate after accept", updated.ContextCandidates[0].RejectionReason)
+}
+
+func TestContextDiscoveryDegradesWhenSeamUnavailable(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve context", "", "")
+	require.NoError(t, err)
+
+	updated, candidates, _, err := svc.DiscoverContextCandidates(ctx, sess.ID, []string{"context discovery"}, "")
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.True(t, candidates[0].Degraded)
+	require.Equal(t, internalplans.RelevantContextStatusDegraded, candidates[0].Item.Status)
+	require.Len(t, updated.ContextCandidates, 1)
+}
+
+func TestAcceptContextCandidateAssignsPhaseScope(t *testing.T) {
+	discovery := &fakeContextDiscoverer{candidates: []authoring.ContextCandidate{{
+		ID:      "cand-phase",
+		Concept: "phase context",
+		Source:  "prompt-manager-actions",
+		Item: internalplans.RelevantContextItem{
+			Kind:         internalplans.RelevantContextCommand,
+			Label:        "Discover actions",
+			Reason:       "This phase needs current operational commands.",
+			Instruction:  "Run discovery before editing.",
+			Command:      "prompt-manager discover phase context --type all",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+			Source:       internalplans.RelevantContextSourceDiscovered,
+		},
+	}}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Context: discovery})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve context", "", "")
+	require.NoError(t, err)
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Phase context", "Wire candidate assignment.")
+	require.NoError(t, err)
+	_, _, _, err = svc.DiscoverContextCandidates(ctx, sess.ID, []string{"phase context"}, "")
+	require.NoError(t, err)
+
+	updated, _, item, violations, _, err := svc.AcceptContextCandidate(ctx, sess.ID, "cand-phase", phase.ID)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, internalplans.RelevantContextScopePhase, item.Scope)
+	require.Equal(t, phase.ID, item.PhaseID)
+	require.Equal(t, internalplans.RelevantContextPhaseEntry, item.RepeatPolicy)
+	require.Len(t, updated.PhaseDrafts[0].RelevantContext, 1)
 }
 
 func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {

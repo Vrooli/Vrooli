@@ -91,6 +91,10 @@ ON CONFLICT(id) DO UPDATE SET
 SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at
 FROM executions WHERE id = ? LIMIT 1`
 
+	latestExecutionForPlanSQL = `
+SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at
+FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC LIMIT 1`
+
 	insertDecisionSQL = `
 INSERT INTO decisions (id, execution_id, phase_id, summary, detail, recorded_at)
 VALUES (?, ?, ?, ?, ?, ?)`
@@ -162,6 +166,24 @@ func (r *sqliteRepository) GetExecution(ctx context.Context, id string) (Executi
 	}
 	if err != nil {
 		return Execution{}, false, fmt.Errorf("get execution %q: %w", id, err)
+	}
+	e.Complete = complete != 0
+	return e, true, nil
+}
+
+func (r *sqliteRepository) LatestExecutionForPlan(ctx context.Context, planID string) (Execution, bool, error) {
+	var (
+		e        Execution
+		complete int
+	)
+	err := r.db.QueryRowContext(ctx, latestExecutionForPlanSQL, planID).Scan(
+		&e.ID, &e.PlanID, &e.RunID, &e.CurrentPhaseID, &complete, &e.StartedAt, &e.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Execution{}, false, nil
+	}
+	if err != nil {
+		return Execution{}, false, fmt.Errorf("latest execution for plan %q: %w", planID, err)
 	}
 	e.Complete = complete != 0
 	return e, true, nil

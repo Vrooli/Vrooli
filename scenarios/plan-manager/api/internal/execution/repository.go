@@ -12,6 +12,9 @@ type Repository interface {
 	SaveExecution(ctx context.Context, e Execution) error
 	// GetExecution returns the execution matching id; ok=false when absent.
 	GetExecution(ctx context.Context, id string) (Execution, bool, error)
+	// LatestExecutionForPlan returns the newest execution for a plan; ok=false
+	// when the plan has never been started.
+	LatestExecutionForPlan(ctx context.Context, planID string) (Execution, bool, error)
 
 	// SaveDecision inserts an in-flow decision.
 	SaveDecision(ctx context.Context, d Decision) error

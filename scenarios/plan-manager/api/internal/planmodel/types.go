@@ -54,6 +54,58 @@ const (
 	ResolutionMissing     ReferenceResolution = "missing"
 )
 
+// RelevantContextKind classifies one setup item a fresh/resumed agent should
+// load, inspect, or run before acting on a plan or phase.
+type RelevantContextKind string
+
+const (
+	RelevantContextSkill   RelevantContextKind = "skill"
+	RelevantContextDoc     RelevantContextKind = "doc"
+	RelevantContextCommand RelevantContextKind = "command"
+	RelevantContextSearch  RelevantContextKind = "search"
+	RelevantContextCodeRef RelevantContextKind = "code_ref"
+	RelevantContextReqRef  RelevantContextKind = "req_ref"
+	RelevantContextNote    RelevantContextKind = "note"
+)
+
+// RelevantContextScope says whether an item applies plan-wide or to one phase.
+type RelevantContextScope string
+
+const (
+	RelevantContextScopeGlobal RelevantContextScope = "global"
+	RelevantContextScopePhase  RelevantContextScope = "phase"
+)
+
+// RelevantContextRepeatPolicy says when execution should re-emit the item.
+type RelevantContextRepeatPolicy string
+
+const (
+	RelevantContextOncePerExecution RelevantContextRepeatPolicy = "once_per_execution"
+	RelevantContextOnResume         RelevantContextRepeatPolicy = "on_resume"
+	RelevantContextEveryPhase       RelevantContextRepeatPolicy = "every_phase"
+	RelevantContextPhaseEntry       RelevantContextRepeatPolicy = "phase_entry"
+	RelevantContextAsNeeded         RelevantContextRepeatPolicy = "as_needed"
+)
+
+// RelevantContextSource captures how the context item entered the plan.
+type RelevantContextSource string
+
+const (
+	RelevantContextSourceAuthored   RelevantContextSource = "authored"
+	RelevantContextSourceDiscovered RelevantContextSource = "discovered"
+	RelevantContextSourceMigrated   RelevantContextSource = "migrated"
+	RelevantContextSourceAutofilled RelevantContextSource = "autofilled"
+)
+
+// RelevantContextStatus records whether the item is usable or degraded.
+type RelevantContextStatus string
+
+const (
+	RelevantContextStatusReady      RelevantContextStatus = "ready"
+	RelevantContextStatusDegraded   RelevantContextStatus = "degraded"
+	RelevantContextStatusUnresolved RelevantContextStatus = "unresolved"
+)
+
 // Reference is one connected-code locator on a plan or phase. kind/target/future
 // are AUTHORED; resolution/staleness/change_factor are filled by validation.
 type Reference struct {
@@ -65,6 +117,25 @@ type Reference struct {
 	Staleness    StalenessTier
 	ChangeFactor float64
 	Note         string
+}
+
+// RelevantContextItem is the execution-facing setup contract.
+type RelevantContextItem struct {
+	ID           string
+	Kind         RelevantContextKind
+	Scope        RelevantContextScope
+	PhaseID      string
+	Label        string
+	Reason       string
+	Instruction  string
+	Command      string
+	Argv         []string
+	Target       string
+	Required     bool
+	RepeatPolicy RelevantContextRepeatPolicy
+	Source       RelevantContextSource
+	Status       RelevantContextStatus
+	StatusDetail string
 }
 
 // RegressionAnchor is the "before" anchor captured prior to changes.
@@ -92,6 +163,7 @@ type Phase struct {
 	Acceptance      string
 	Status          PhaseStatus
 	References      []Reference
+	RelevantContext []RelevantContextItem
 }
 
 // Plan is the top-level structured record.
@@ -113,6 +185,7 @@ type Plan struct {
 	Phases           []Phase
 	Supersedes       []string
 	SupersededBy     []string
+	RelevantContext  []RelevantContextItem
 }
 
 // PlanEdge is one supersession/dependency edge between two plans.

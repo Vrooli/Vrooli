@@ -63,6 +63,7 @@ func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 		Phases:           phases,
 		Supersedes:       p.GetSupersedes(),
 		SupersededBy:     p.GetSupersededBy(),
+		RelevantContext:  planproto.RelevantContextItemsFromProto(p.GetRelevantContext()),
 	}, nil
 }
 
@@ -114,6 +115,7 @@ func phaseFromProtoChecked(ph *sharedv1.Phase) (internalplans.Phase, error) {
 		Acceptance:      ph.GetAcceptance(),
 		Status:          phaseStatusFromProto(ph.GetStatus()),
 		References:      referencesFromProto(ph.GetReferences()),
+		RelevantContext: planproto.RelevantContextItemsFromProto(ph.GetRelevantContext()),
 	}, nil
 }
 

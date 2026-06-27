@@ -146,6 +146,117 @@ func (h *handlers) autofill(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) contextSubmit(ctx cliapp.RunContext) error {
+	item := &sharedv1.RelevantContextItem{
+		Kind:         parseContextKind(ctx.Flag("kind")),
+		Label:        ctx.Flag("label"),
+		Reason:       ctx.Flag("reason"),
+		Instruction:  ctx.Flag("instruction"),
+		Command:      ctx.Flag("command"),
+		Argv:         parseArgv(ctx.Flag("argv"), ctx.Flag("command")),
+		Target:       ctx.Flag("target"),
+		Required:     ctx.BoolFlag("required"),
+		RepeatPolicy: parseRepeatPolicy(ctx.Flag("repeat")),
+		Source:       sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED,
+		Status:       sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY,
+	}
+	resp, err := h.client.SubmitRelevantContextItem(context.Background(), connect.NewRequest(&authoringv1.SubmitRelevantContextItemRequest{
+		SessionId: ctx.Positional("session"),
+		PhaseId:   ctx.Flag("phase"),
+		Item:      item,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("submit relevant context", err, nil)
+	}
+	changes := []string{formatContextItem(resp.Msg.GetItem())}
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Submitted relevant context item (%d violation(s)).", len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) contextList(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListRelevantContext(context.Background(), connect.NewRequest(&authoringv1.ListRelevantContextRequest{
+		SessionId: ctx.Positional("session"),
+		PhaseId:   ctx.Flag("phase"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list relevant context", err, nil)
+	}
+	items := make([]string, 0, len(resp.Msg.GetItems()))
+	for _, item := range resp.Msg.GetItems() {
+		items = append(items, formatContextItem(item))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Relevant context item(s): %d.", len(resp.Msg.GetItems()))},
+		ResultsHeading: "Context",
+		Results:        items,
+		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
+	})
+}
+
+func (h *handlers) contextDiscover(ctx cliapp.RunContext) error {
+	resp, err := h.client.DiscoverContextCandidates(context.Background(), connect.NewRequest(&authoringv1.DiscoverContextCandidatesRequest{
+		SessionId:  ctx.Positional("session"),
+		Concepts:   parseList(ctx.Flag("concepts")),
+		Complexity: ctx.Flag("complexity"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("discover context candidates", err, nil)
+	}
+	candidates := make([]string, 0, len(resp.Msg.GetCandidates()))
+	for _, candidate := range resp.Msg.GetCandidates() {
+		candidates = append(candidates, formatContextCandidate(candidate))
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Discovered %d context candidate(s).", len(resp.Msg.GetCandidates()))},
+		Changes:     append(candidates, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) contextAccept(ctx cliapp.RunContext) error {
+	resp, err := h.client.AcceptContextCandidate(context.Background(), connect.NewRequest(&authoringv1.AcceptContextCandidateRequest{
+		SessionId:   ctx.Positional("session"),
+		CandidateId: ctx.Positional("candidate"),
+		PhaseId:     ctx.Flag("phase"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("accept context candidate", err, nil)
+	}
+	changes := []string{formatContextCandidate(resp.Msg.GetCandidate()), formatContextItem(resp.Msg.GetItem())}
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Accepted context candidate %s (%d violation(s)).", ctx.Positional("candidate"), len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) contextReject(ctx cliapp.RunContext) error {
+	resp, err := h.client.RejectContextCandidate(context.Background(), connect.NewRequest(&authoringv1.RejectContextCandidateRequest{
+		SessionId:   ctx.Positional("session"),
+		CandidateId: ctx.Positional("candidate"),
+		Reason:      ctx.Flag("reason"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("reject context candidate", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Rejected context candidate %s.", ctx.Positional("candidate"))},
+		Changes:     append([]string{formatContextCandidate(resp.Msg.GetCandidate())}, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&authoringv1.AddPhaseRequest{
 		SessionId: ctx.Positional("session"),
@@ -274,6 +385,47 @@ func formatAutofillResult(r *authoringv1.AutofillResult) string {
 	return fmt.Sprintf("%s → filled %s", r.GetSource(), r.GetSectionKey())
 }
 
+func formatContextItem(item *sharedv1.RelevantContextItem) string {
+	if item == nil {
+		return ""
+	}
+	label := firstNonEmpty(item.GetLabel(), item.GetTarget(), item.GetCommand(), item.GetInstruction(), item.GetKind().String())
+	parts := []string{fmt.Sprintf("%s: %s", contextKindLabel(item.GetKind()), label)}
+	if item.GetScope() != sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_UNSPECIFIED {
+		parts = append(parts, "scope="+contextScopeLabel(item.GetScope()))
+	}
+	if item.GetPhaseId() != "" {
+		parts = append(parts, "phase="+item.GetPhaseId())
+	}
+	if item.GetRepeatPolicy() != sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED {
+		parts = append(parts, "repeat="+contextRepeatLabel(item.GetRepeatPolicy()))
+	}
+	if item.GetCommand() != "" {
+		parts = append(parts, "`"+item.GetCommand()+"`")
+	}
+	return strings.Join(parts, " | ")
+}
+
+func formatContextCandidate(candidate *authoringv1.ContextCandidate) string {
+	if candidate == nil {
+		return ""
+	}
+	parts := []string{fmt.Sprintf("%s [%s] %s", candidate.GetId(), candidate.GetStatus(), formatContextItem(candidate.GetItem()))}
+	if candidate.GetConcept() != "" {
+		parts = append(parts, "concept="+candidate.GetConcept())
+	}
+	if candidate.GetSource() != "" {
+		parts = append(parts, "source="+candidate.GetSource())
+	}
+	if candidate.GetDegraded() {
+		parts = append(parts, "degraded="+candidate.GetDetail())
+	}
+	if candidate.GetRejectionReason() != "" {
+		parts = append(parts, "rejected="+candidate.GetRejectionReason())
+	}
+	return strings.Join(parts, " | ")
+}
+
 func formatPhase(phase *authoringv1.PhaseDraft) string {
 	return fmt.Sprintf("Phase %d [%s]: %s — %s", phase.GetOrder(), phase.GetId(), phase.GetTitle(), phase.GetIntent())
 }
@@ -359,6 +511,10 @@ func nextLabel(key string) string {
 // autofill source list. An empty flag yields nil, which the service treats as
 // "run all sources".
 func parseSources(raw string) []string {
+	return parseList(raw)
+}
+
+func parseList(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil
@@ -371,4 +527,81 @@ func parseSources(raw string) []string {
 		}
 	}
 	return out
+}
+
+func parseContextKind(raw string) sharedv1.RelevantContextKind {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "skill":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL
+	case "doc":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC
+	case "command":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND
+	case "search":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SEARCH
+	case "code_ref":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_CODE_REF
+	case "req_ref":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_REQ_REF
+	case "note":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
+	default:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED
+	}
+}
+
+func parseRepeatPolicy(raw string) sharedv1.RelevantContextRepeatPolicy {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "once_per_execution", "":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION
+	case "on_resume":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME
+	case "every_phase":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE
+	case "phase_entry":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY
+	case "as_needed":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED
+	default:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED
+	}
+}
+
+func parseArgv(raw, command string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		if strings.TrimSpace(command) == "" {
+			return nil
+		}
+		return strings.Fields(command)
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func contextKindLabel(kind sharedv1.RelevantContextKind) string {
+	return strings.TrimPrefix(strings.ToLower(kind.String()), "relevant_context_kind_")
+}
+
+func contextScopeLabel(scope sharedv1.RelevantContextScope) string {
+	return strings.TrimPrefix(strings.ToLower(scope.String()), "relevant_context_scope_")
+}
+
+func contextRepeatLabel(policy sharedv1.RelevantContextRepeatPolicy) string {
+	return strings.TrimPrefix(strings.ToLower(policy.String()), "relevant_context_repeat_policy_")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }

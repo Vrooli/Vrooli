@@ -328,10 +328,25 @@ func TestPlansRequestMapping(t *testing.T) {
 		},
 		{
 			name: "phase add maps comma-separated list flags", group: "phase", cmd: "add",
-			argv: []string{"plan-p", "--title", "Ph", "--required-reading", "docs/A.md, docs/B.md", "--reminders", "never stash", "--baseline-scope", "git-control-tower baseline diff --scenario x"},
+			argv: []string{"plan-p", "--title", "Ph", "--context", "kind=doc;label=Testing docs;target=docs/TESTING.md;reason=Use server-owned wait protocol;instruction=Read before running tests,kind=command;command=prompt-manager skill read scientific-debugging;repeat=on_resume", "--reminders", "never stash", "--baseline-scope", "git-control-tower baseline diff --scenario x"},
 			assert: func(t *testing.T, req proto.Message) {
 				ph := req.(*plansv1.AddPhaseRequest).GetPhase()
-				require.Equal(t, []string{"docs/A.md", "docs/B.md"}, ph.GetRequiredReading())
+				require.Empty(t, ph.GetRequiredReading(), "phase CLI should not author legacy required_reading")
+				require.Len(t, ph.GetRelevantContext(), 2)
+				require.Equal(t, sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC, ph.GetRelevantContext()[0].GetKind())
+				require.Equal(t, sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_PHASE, ph.GetRelevantContext()[0].GetScope())
+				require.Equal(t, "Testing docs", ph.GetRelevantContext()[0].GetLabel())
+				require.Equal(t, "docs/TESTING.md", ph.GetRelevantContext()[0].GetTarget())
+				require.Equal(t, "Use server-owned wait protocol", ph.GetRelevantContext()[0].GetReason())
+				require.Equal(t, "Read before running tests", ph.GetRelevantContext()[0].GetInstruction())
+				require.True(t, ph.GetRelevantContext()[0].GetRequired())
+				require.Equal(t, sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY, ph.GetRelevantContext()[0].GetRepeatPolicy())
+				require.Equal(t, sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED, ph.GetRelevantContext()[0].GetSource())
+				require.Equal(t, sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY, ph.GetRelevantContext()[0].GetStatus())
+				require.Equal(t, sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND, ph.GetRelevantContext()[1].GetKind())
+				require.Equal(t, "prompt-manager skill read scientific-debugging", ph.GetRelevantContext()[1].GetCommand())
+				require.Equal(t, []string{"prompt-manager", "skill", "read", "scientific-debugging"}, ph.GetRelevantContext()[1].GetArgv())
+				require.Equal(t, sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME, ph.GetRelevantContext()[1].GetRepeatPolicy())
 				require.Equal(t, []string{"never stash"}, ph.GetReminders())
 				require.Equal(t, []string{"git-control-tower baseline diff --scenario x"}, ph.GetBaselineScope())
 			},

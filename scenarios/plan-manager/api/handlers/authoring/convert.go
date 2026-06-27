@@ -24,6 +24,8 @@ func sessionToProto(s internalauthoring.Session) *authoringv1.AuthoringSession {
 		PlanId:            s.PlanID,
 		PhaseDrafts:       phaseDraftsToProto(s.PhaseDrafts),
 		CurrentPhaseId:    s.CurrentPhaseID,
+		RelevantContext:   planproto.RelevantContextItemsToProto(s.RelevantContext),
+		ContextCandidates: contextCandidatesToProto(s.ContextCandidates),
 	}
 }
 
@@ -78,6 +80,27 @@ func autofillSourcesFromProto(sources []string) []internalauthoring.AutofillSour
 	out := make([]internalauthoring.AutofillSource, 0, len(sources))
 	for _, s := range sources {
 		out = append(out, internalauthoring.AutofillSource(s))
+	}
+	return out
+}
+
+func contextCandidateToProto(candidate internalauthoring.ContextCandidate) *authoringv1.ContextCandidate {
+	return &authoringv1.ContextCandidate{
+		Id:              candidate.ID,
+		Item:            relevantContextItemToProto(candidate.Item),
+		Concept:         candidate.Concept,
+		Source:          candidate.Source,
+		Degraded:        candidate.Degraded,
+		Detail:          candidate.Detail,
+		Status:          string(candidate.Status),
+		RejectionReason: candidate.RejectionReason,
+	}
+}
+
+func contextCandidatesToProto(candidates []internalauthoring.ContextCandidate) []*authoringv1.ContextCandidate {
+	out := make([]*authoringv1.ContextCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, contextCandidateToProto(candidate))
 	}
 	return out
 }
@@ -145,7 +168,28 @@ func phaseDraftToProto(phase internalauthoring.PhaseDraft) *authoringv1.PhaseDra
 		Reminders:        append([]string(nil), phase.Reminders...),
 		Acceptance:       phase.Acceptance,
 		NoCodeRefsReason: phase.NoCodeRefsReason,
+		RelevantContext:  planproto.RelevantContextItemsToProto(phase.RelevantContext),
 	}
+}
+
+func relevantContextItemFromProto(item *sharedv1.RelevantContextItem) planmodel.RelevantContextItem {
+	items := planproto.RelevantContextItemsFromProto([]*sharedv1.RelevantContextItem{item})
+	if len(items) == 0 {
+		return planmodel.RelevantContextItem{}
+	}
+	return items[0]
+}
+
+func relevantContextItemToProto(item planmodel.RelevantContextItem) *sharedv1.RelevantContextItem {
+	items := planproto.RelevantContextItemsToProto([]planmodel.RelevantContextItem{item})
+	if len(items) == 0 {
+		return nil
+	}
+	return items[0]
+}
+
+func relevantContextItemsToProto(items []planmodel.RelevantContextItem) []*sharedv1.RelevantContextItem {
+	return planproto.RelevantContextItemsToProto(items)
 }
 
 // planToProto translates a persisted plans domain Plan into its shared proto wire

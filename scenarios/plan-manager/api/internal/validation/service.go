@@ -274,16 +274,150 @@ func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Re
 		RanAt:       s.now(),
 	}
 	res.Verdict, res.Detail = s.runCommands(ctx, scope.Commands)
+	structureFindings, structureVerdict, structureDetail := validateRelevantContextStructure(p, phaseID)
 	commandFindings, commandVerdict, commandDetail := s.validatePlanCommands(ctx, p, phaseID)
-	res.CommandFindings = commandFindings
+	contextRefFindings, contextRefVerdict, contextRefDetail := s.validateContextReferences(ctx, p, phaseID)
+	res.CommandFindings = append(structureFindings, commandFindings...)
+	res.CommandFindings = append(res.CommandFindings, contextRefFindings...)
+	res.Verdict = combineValidationVerdicts(res.Verdict, structureVerdict)
 	res.Verdict = combineValidationVerdicts(res.Verdict, commandVerdict)
-	res.Detail = joinDetails(res.Detail, commandDetail)
+	res.Verdict = combineValidationVerdicts(res.Verdict, contextRefVerdict)
+	res.Detail = joinDetails(res.Detail, structureDetail, commandDetail, contextRefDetail)
 	// Persist for the cheap-read context path (status/next). Best-effort: a cache
 	// write failure must not fail the live validation the agent asked for.
 	if s.results != nil {
 		_ = s.results.SaveResult(ctx, res)
 	}
 	return res, nil
+}
+
+func validateRelevantContextStructure(p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
+	var findings []CommandFinding
+	if phaseID == "" {
+		findings = append(findings, validateContextItems("plan.relevant_context", p.RelevantContext)...)
+		for _, phase := range p.Phases {
+			findings = append(findings, validatePhaseContextStructure(phase)...)
+		}
+	} else {
+		found := false
+		for _, phase := range p.Phases {
+			if phase.ID != phaseID {
+				continue
+			}
+			found = true
+			findings = append(findings, validatePhaseContextStructure(phase)...)
+			break
+		}
+		if !found {
+			findings = append(findings, CommandFinding{
+				Verdict:  string(VerdictUnknown),
+				Message:  fmt.Sprintf("phase %q was not found for relevant context validation", phaseID),
+				Location: "phase." + phaseID,
+			})
+		}
+	}
+	if len(findings) == 0 {
+		return nil, VerdictPass, ""
+	}
+	verdict := VerdictPass
+	for _, finding := range findings {
+		switch finding.Verdict {
+		case string(VerdictFail):
+			verdict = VerdictFail
+		case string(VerdictUnknown):
+			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
+		}
+	}
+	return findings, verdict, relevantContextFindingsDetail(findings)
+}
+
+func validatePhaseContextStructure(phase planmodel.Phase) []CommandFinding {
+	location := "phase." + phase.ID
+	if strings.TrimSpace(phase.ID) == "" {
+		location = fmt.Sprintf("phase.%d", phase.Order)
+	}
+	findings := validateContextItems(location+".relevant_context", phase.RelevantContext)
+	if !phaseHasContextOrNoContextReason(phase) {
+		findings = append(findings, CommandFinding{
+			Verdict:  string(VerdictFail),
+			Message:  "phase has no relevant context and no explicit NO_CONTEXT reason",
+			Location: location + ".relevant_context",
+			IssueCodes: []string{
+				"missing_phase_context",
+			},
+			Guidance: []string{"Add phase relevant context or an operator note starting with NO_CONTEXT: when no setup is useful."},
+		})
+	}
+	return findings
+}
+
+func phaseHasContextOrNoContextReason(phase planmodel.Phase) bool {
+	if len(phase.RelevantContext) > 0 || len(phase.RequiredReading) > 0 {
+		return true
+	}
+	for _, reminder := range phase.Reminders {
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(reminder)), "NO_CONTEXT:") {
+			return true
+		}
+	}
+	for _, item := range phase.RelevantContext {
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(firstNonEmpty(item.Instruction, item.Label, item.Reason))), "NO_CONTEXT:") {
+			return true
+		}
+	}
+	return false
+}
+
+func validateContextItems(location string, items []planmodel.RelevantContextItem) []CommandFinding {
+	var findings []CommandFinding
+	for i, item := range items {
+		itemLocation := fmt.Sprintf("%s[%d]", location, i)
+		if item.Required && item.RepeatPolicy == "" {
+			findings = append(findings, contextStructureFinding(itemLocation, "missing_repeat_policy", "required context item has no repeat policy"))
+		}
+		if item.Required && !contextItemHasPayload(item) {
+			findings = append(findings, contextStructureFinding(itemLocation, "missing_context_payload", "required context item has no command, argv, target, instruction, or note payload"))
+		}
+		if item.Kind == planmodel.RelevantContextCommand || item.Kind == planmodel.RelevantContextSearch {
+			if strings.TrimSpace(item.Reason) == "" {
+				findings = append(findings, contextStructureFinding(itemLocation+".reason", "missing_context_reason", "command/search context item has no reason"))
+			}
+			if strings.TrimSpace(item.Instruction) == "" {
+				findings = append(findings, contextStructureFinding(itemLocation+".instruction", "missing_context_instruction", "command/search context item has no instruction"))
+			}
+			if strings.TrimSpace(item.Command) == "" && len(item.Argv) == 0 && strings.TrimSpace(item.Target) == "" {
+				findings = append(findings, contextStructureFinding(itemLocation+".command", "missing_context_command", "command/search context item has no runnable command, argv, or target"))
+			}
+		}
+	}
+	return findings
+}
+
+func contextItemHasPayload(item planmodel.RelevantContextItem) bool {
+	if strings.TrimSpace(item.Command) != "" || len(item.Argv) > 0 || strings.TrimSpace(item.Target) != "" {
+		return true
+	}
+	return item.Kind == planmodel.RelevantContextNote && strings.TrimSpace(firstNonEmpty(item.Instruction, item.Label, item.Reason)) != ""
+}
+
+func contextStructureFinding(location, code, message string) CommandFinding {
+	return CommandFinding{
+		Verdict:    string(VerdictFail),
+		Message:    message,
+		Location:   location,
+		IssueCodes: []string{code},
+	}
+}
+
+func relevantContextFindingsDetail(findings []CommandFinding) string {
+	if len(findings) == 0 {
+		return ""
+	}
+	lines := []string{"relevant context structure validation:"}
+	for _, finding := range findings {
+		lines = append(lines, fmt.Sprintf("%s (%s): %s", finding.Verdict, finding.Location, finding.Message))
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (s *service) validatePlanCommands(ctx context.Context, p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
@@ -354,6 +488,7 @@ func commandRefsForScope(p planmodel.Plan, phaseID string) ([]scopedCommandRef, 
 		addCommandRefs(&out, "plan.scope", p.Scope)
 		addCommandRefs(&out, "plan.constraints", p.Constraints)
 		addCommandRefs(&out, "plan.definition_of_done", p.DefinitionOfDone)
+		addContextCommandRefs(&out, "plan.relevant_context", p.RelevantContext)
 		for _, phase := range p.Phases {
 			addCommandRefs(&out, "phase."+phase.ID+".intent", phase.Intent)
 			for i, item := range phase.RequiredReading {
@@ -363,6 +498,7 @@ func commandRefsForScope(p planmodel.Plan, phaseID string) ([]scopedCommandRef, 
 				addCommandRefs(&out, fmt.Sprintf("phase.%s.reminders[%d]", phase.ID, i), item)
 			}
 			addCommandRefs(&out, "phase."+phase.ID+".acceptance", phase.Acceptance)
+			addContextCommandRefs(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
 		}
 		return out, nil
 	}
@@ -378,6 +514,7 @@ func commandRefsForScope(p planmodel.Plan, phaseID string) ([]scopedCommandRef, 
 			addCommandRefs(&out, fmt.Sprintf("phase.%s.reminders[%d]", phase.ID, i), item)
 		}
 		addCommandRefs(&out, "phase."+phase.ID+".acceptance", phase.Acceptance)
+		addContextCommandRefs(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
 		return out, nil
 	}
 	return nil, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
@@ -390,6 +527,32 @@ func addCommandRefs(out *[]scopedCommandRef, location, text string) {
 				*out = append(*out, scopedCommandRef{ref: ref, location: location})
 			}
 		}
+	}
+}
+
+func addContextCommandRefs(out *[]scopedCommandRef, location string, items []planmodel.RelevantContextItem) {
+	for i, item := range items {
+		itemLocation := fmt.Sprintf("%s[%d]", location, i)
+		addCommandRefs(out, itemLocation+".instruction", item.Instruction)
+		addCommandRefs(out, itemLocation+".reason", item.Reason)
+		addCommandRefs(out, itemLocation+".command", item.Command)
+		if item.Kind != planmodel.RelevantContextCommand && item.Kind != planmodel.RelevantContextSearch {
+			continue
+		}
+		command := strings.TrimSpace(item.Command)
+		if command == "" && len(item.Argv) > 0 {
+			command = strings.Join(item.Argv, " ")
+		}
+		if command == "" {
+			continue
+		}
+		*out = append(*out, scopedCommandRef{
+			ref: markedrefs.Reference{
+				Marker: markedrefs.MarkerCLI,
+				Value:  command,
+			},
+			location: itemLocation + ".command",
+		})
 	}
 }
 
@@ -412,6 +575,141 @@ func commandResultMessage(result CommandReferenceResult) string {
 		return strings.TrimSpace(result.Verdict + " " + result.ValidationLevel)
 	}
 	return strings.Join(parts, "; ")
+}
+
+func (s *service) validateContextReferences(ctx context.Context, p planmodel.Plan, phaseID string) ([]CommandFinding, Verdict, string) {
+	refs, err := contextReferencesForScope(p, phaseID)
+	if err != nil {
+		return []CommandFinding{{Verdict: string(VerdictUnknown), Message: err.Error()}}, VerdictUnknown, "relevant context reference validation unknown: " + err.Error()
+	}
+	if len(refs) == 0 {
+		return nil, VerdictPass, ""
+	}
+	if s.resolver == nil {
+		return []CommandFinding{{
+			Verdict:  string(VerdictUnknown),
+			Message:  "reference resolver unavailable",
+			Location: "relevant_context",
+		}}, VerdictUnknown, "relevant context reference validation unknown: reference resolver unavailable"
+	}
+	var findings []CommandFinding
+	verdict := VerdictPass
+	for _, ref := range refs {
+		resolved, err := s.resolver.Resolve(ctx, ref.ref)
+		if err != nil {
+			findings = append(findings, CommandFinding{
+				CommandText: ref.ref.Target,
+				Verdict:     string(VerdictUnknown),
+				Message:     "reference resolver unavailable: " + err.Error(),
+				Location:    ref.location,
+				IssueCodes:  []string{"context_reference_resolver_error"},
+			})
+			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
+			continue
+		}
+		switch resolved.Resolution {
+		case planmodel.ResolutionResolved, planmodel.ResolutionFuture:
+			continue
+		case planmodel.ResolutionMissing, planmodel.ResolutionUnresolved:
+			findings = append(findings, CommandFinding{
+				CommandText: ref.ref.Target,
+				Verdict:     string(VerdictFail),
+				Message:     contextReferenceMessage(resolved),
+				Location:    ref.location,
+				IssueCodes:  []string{"context_reference_unresolved"},
+			})
+			verdict = VerdictFail
+		default:
+			findings = append(findings, CommandFinding{
+				CommandText: ref.ref.Target,
+				Verdict:     string(VerdictUnknown),
+				Message:     contextReferenceMessage(resolved),
+				Location:    ref.location,
+				IssueCodes:  []string{"context_reference_unknown"},
+			})
+			verdict = combineValidationVerdicts(verdict, VerdictUnknown)
+		}
+	}
+	return findings, verdict, contextReferenceFindingsDetail(findings)
+}
+
+type scopedContextReference struct {
+	ref      planmodel.Reference
+	location string
+}
+
+func contextReferencesForScope(p planmodel.Plan, phaseID string) ([]scopedContextReference, error) {
+	var out []scopedContextReference
+	if phaseID == "" {
+		addContextReferences(&out, "plan.relevant_context", p.RelevantContext)
+		for _, phase := range p.Phases {
+			addContextReferences(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
+		}
+		return out, nil
+	}
+	for _, phase := range p.Phases {
+		if phase.ID != phaseID {
+			continue
+		}
+		addContextReferences(&out, "phase."+phase.ID+".relevant_context", phase.RelevantContext)
+		return out, nil
+	}
+	return nil, ErrPhaseNotFound{PlanID: p.ID, PhaseID: phaseID}
+}
+
+func addContextReferences(out *[]scopedContextReference, location string, items []planmodel.RelevantContextItem) {
+	for i, item := range items {
+		kind, ok := contextReferenceKind(item.Kind)
+		if !ok {
+			continue
+		}
+		target := strings.TrimSpace(item.Target)
+		if target == "" {
+			continue
+		}
+		*out = append(*out, scopedContextReference{
+			ref: planmodel.Reference{
+				ID:     item.ID,
+				Kind:   kind,
+				Target: target,
+			},
+			location: fmt.Sprintf("%s[%d].target", location, i),
+		})
+	}
+}
+
+func contextReferenceKind(kind planmodel.RelevantContextKind) (planmodel.ReferenceKind, bool) {
+	switch kind {
+	case planmodel.RelevantContextCodeRef:
+		return planmodel.ReferenceCode, true
+	case planmodel.RelevantContextDoc:
+		return planmodel.ReferenceDoc, true
+	case planmodel.RelevantContextReqRef:
+		return planmodel.ReferenceReq, true
+	default:
+		return "", false
+	}
+}
+
+func contextReferenceMessage(ref planmodel.Reference) string {
+	if strings.TrimSpace(ref.Note) != "" {
+		return ref.Note
+	}
+	if ref.Resolution != "" {
+		return "relevant context reference " + string(ref.Resolution)
+	}
+	return "relevant context reference resolution unknown"
+}
+
+func contextReferenceFindingsDetail(findings []CommandFinding) string {
+	if len(findings) == 0 {
+		return ""
+	}
+	lines := []string{"relevant context reference validation:"}
+	for _, finding := range findings {
+		lines = append(lines, fmt.Sprintf("%s (%s): %s", finding.Verdict, finding.Location, finding.Message))
+	}
+	return strings.Join(lines, "\n")
 }
 
 func commandIssueCodes(issues []CommandIssue) []string {
@@ -454,6 +752,15 @@ func joinDetails(parts ...string) string {
 		}
 	}
 	return strings.Join(nonEmpty, "\n")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // LastValidation returns the most recent STORED validation result for a

@@ -13,10 +13,15 @@ import { setLocale } from "../../i18n";
 import {
   AuthoringSessionSchema,
   AutofillResultSchema,
+  ContextCandidateSchema,
   SectionSchema,
   StructureViolationSchema,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
 import { PlanSchema } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import {
+  RelevantContextItemSchema,
+  RelevantContextKind,
+} from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const startSession = vi.fn();
 const addPhase = vi.fn();
@@ -25,6 +30,10 @@ const submitPhaseField = vi.fn();
 const nextPhase = vi.fn();
 const validateStructure = vi.fn();
 const autofill = vi.fn();
+const submitRelevantContextItem = vi.fn();
+const discoverContextCandidates = vi.fn();
+const acceptContextCandidate = vi.fn();
+const rejectContextCandidate = vi.fn();
 const finalize = vi.fn();
 
 vi.mock("../../api/authoring", () => ({
@@ -35,6 +44,11 @@ vi.mock("../../api/authoring", () => ({
   nextPhase: (...a: unknown[]) => nextPhase(...a),
   validateStructure: (...a: unknown[]) => validateStructure(...a),
   autofill: (...a: unknown[]) => autofill(...a),
+  submitRelevantContextItem: (...a: unknown[]) => submitRelevantContextItem(...a),
+  discoverContextCandidates: (...a: unknown[]) => discoverContextCandidates(...a),
+  acceptContextCandidate: (...a: unknown[]) => acceptContextCandidate(...a),
+  rejectContextCandidate: (...a: unknown[]) => rejectContextCandidate(...a),
+  listRelevantContext: vi.fn(),
   finalize: (...a: unknown[]) => finalize(...a),
   getSection: vi.fn(),
   nextSection: vi.fn(),
@@ -74,6 +88,7 @@ const phase = {
   reminders: [],
   acceptance: "",
   noCodeRefsReason: "",
+  relevantContext: [],
 };
 
 const sessionWithPhase = {
@@ -85,8 +100,26 @@ const sessionWithPhase = {
   finalized: false,
   planId: "",
   currentPhaseId: "phase-1",
+  relevantContext: [],
   phaseDrafts: [phase],
+  contextCandidates: [],
 };
+
+const candidateItem = create(RelevantContextItemSchema, {
+  id: "ctx-candidate",
+  kind: RelevantContextKind.SEARCH,
+  label: "Recall records",
+  reason: "Prior records reduce duplicate planning work.",
+  command: "search-hub query plan-manager --type record",
+});
+
+const candidate = create(ContextCandidateSchema, {
+  id: "cand-1",
+  item: candidateItem,
+  concept: "plan-manager context",
+  source: "search-hub",
+  status: "pending",
+});
 
 describe("AuthoringWizard", () => {
   beforeEach(async () => {
@@ -209,6 +242,127 @@ describe("AuthoringWizard", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.authoring.autofillResults)).toBeInTheDocument();
+    });
+  });
+
+  it("submits global relevant context from the wizard", async () => {
+    const user = userEvent.setup();
+    const contextItem = create(RelevantContextItemSchema, {
+      id: "ctx-1",
+      kind: RelevantContextKind.COMMAND,
+      label: "Recall",
+      command: "search-hub query plan-manager --type record",
+    });
+    startSession.mockResolvedValue({ session: sessionWithPhase, step });
+    submitRelevantContextItem.mockResolvedValue({
+      session: { ...sessionWithPhase, relevantContext: [contextItem] },
+      item: contextItem,
+      violations: [],
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.contextLabelInput);
+    await user.type(screen.getByTestId(selectors.authoring.contextLabelInput), "Recall");
+    await user.type(screen.getByTestId(selectors.authoring.contextCommandInput), "search-hub query plan-manager --type record");
+    await user.click(screen.getByTestId(selectors.authoring.contextSubmitButton));
+
+    await waitFor(() => {
+      expect(submitRelevantContextItem).toHaveBeenCalled();
+      expect(screen.getByTestId(selectors.authoring.contextItems)).toHaveTextContent("Recall");
+    });
+  });
+
+  it("discovers context candidates from concepts", async () => {
+    const user = userEvent.setup();
+    const sessionWithCandidate = { ...sessionWithPhase, contextCandidates: [candidate] };
+    startSession.mockResolvedValue({ session: sessionWithPhase, step });
+    discoverContextCandidates.mockResolvedValue({
+      session: sessionWithCandidate,
+      candidates: [candidate],
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.contextConceptsInput);
+    await user.clear(screen.getByTestId(selectors.authoring.contextComplexityInput));
+    await user.type(screen.getByTestId(selectors.authoring.contextConceptsInput), "plan-manager context, execution resume");
+    await user.type(screen.getByTestId(selectors.authoring.contextComplexityInput), "feature");
+    await user.click(screen.getByTestId(selectors.authoring.contextDiscoverButton));
+
+    await waitFor(() => {
+      expect(discoverContextCandidates).toHaveBeenCalledWith(
+        "sess-1",
+        ["plan-manager context", "execution resume"],
+        "feature",
+      );
+      expect(screen.getByTestId(selectors.authoring.contextCandidates)).toHaveTextContent("Recall records");
+    });
+  });
+
+  it("accepts a discovered context candidate into the current phase", async () => {
+    const user = userEvent.setup();
+    const sessionWithCandidate = { ...sessionWithPhase, contextCandidates: [candidate] };
+    const acceptedCandidate = create(ContextCandidateSchema, { ...candidate, status: "accepted" });
+    startSession.mockResolvedValue({ session: sessionWithCandidate, step });
+    acceptContextCandidate.mockResolvedValue({
+      session: {
+        ...sessionWithPhase,
+        contextCandidates: [acceptedCandidate],
+        phaseDrafts: [{ ...phase, relevantContext: [candidateItem] }],
+      },
+      candidate: acceptedCandidate,
+      item: candidateItem,
+      violations: [],
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.contextPhaseToggle);
+    await user.click(screen.getByTestId(selectors.authoring.contextPhaseToggle));
+    await user.click(screen.getByTestId(selectors.authoring.contextCandidateAcceptButton));
+
+    await waitFor(() => {
+      expect(acceptContextCandidate).toHaveBeenCalledWith("sess-1", "cand-1", "phase-1");
+      expect(screen.getByTestId(selectors.authoring.contextItems)).toHaveTextContent("Recall records");
+    });
+  });
+
+  it("rejects a discovered context candidate with a reason", async () => {
+    const user = userEvent.setup();
+    const sessionWithCandidate = { ...sessionWithPhase, contextCandidates: [candidate] };
+    const rejectedCandidate = create(ContextCandidateSchema, {
+      ...candidate,
+      status: "rejected",
+      rejectionReason: "duplicate",
+    });
+    startSession.mockResolvedValue({ session: sessionWithCandidate, step });
+    rejectContextCandidate.mockResolvedValue({
+      session: { ...sessionWithPhase, contextCandidates: [rejectedCandidate] },
+      candidate: rejectedCandidate,
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.contextRejectReasonInput);
+    await user.type(screen.getByTestId(selectors.authoring.contextRejectReasonInput), "duplicate");
+    await user.click(screen.getByTestId(selectors.authoring.contextCandidateRejectButton));
+
+    await waitFor(() => {
+      expect(rejectContextCandidate).toHaveBeenCalledWith("sess-1", "cand-1", "duplicate");
+      expect(screen.getByTestId(selectors.authoring.contextCandidates)).toHaveTextContent("duplicate");
     });
   });
 

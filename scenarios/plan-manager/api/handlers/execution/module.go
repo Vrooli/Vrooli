@@ -153,6 +153,8 @@ func repoRoot() string {
 var Endpoints = []module.EndpointDescriptor{
 	endpoint("execution_start", executionconnect.ExecutionServiceStartProcedure, "Start a guided run", "Links a run to a plan and returns the execution (OT-P0-003)."),
 	endpoint("execution_get_status", executionconnect.ExecutionServiceGetStatusProcedure, "Get current context", "Returns the just-in-time context for the runner's current phase (OT-P0-003)."),
+	endpoint("execution_get_context", executionconnect.ExecutionServiceGetContextProcedure, "Get setup context", "Returns setup context for the current or requested phase without advancing the runner."),
+	endpoint("execution_resume", executionconnect.ExecutionServiceResumeProcedure, "Resume execution", "Resolves an existing execution or creates one for a plan and returns setup context without advancing."),
 	endpoint("execution_get_next", executionconnect.ExecutionServiceGetNextProcedure, "Advance to next phase", "Advances the runner's pointer to the next actionable phase and returns its injected context."),
 	endpoint("execution_transition_phase", executionconnect.ExecutionServiceTransitionPhaseProcedure, "Transition phase status", "Performs a typed phase-status transition; plan status is recomputed from the phase-status set."),
 	endpoint("execution_record_decision", executionconnect.ExecutionServiceRecordDecisionProcedure, "Record a decision", "Captures an in-flow design decision (feeds the handoff)."),

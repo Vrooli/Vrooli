@@ -30,11 +30,15 @@ func NewConnectHandler(d Deps) *connectHandler {
 }
 
 func (h *connectHandler) Start(ctx context.Context, req *connect.Request[executionv1.StartRequest]) (*connect.Response[executionv1.StartResponse], error) {
-	e, step, err := h.deps.Service.Start(ctx, req.Msg.GetPlanId(), req.Msg.GetRunId())
+	e, pctx, step, err := h.deps.Service.Start(ctx, req.Msg.GetPlanId(), req.Msg.GetRunId())
 	if err != nil {
 		return nil, internalexecution.ToConnectError(err)
 	}
-	return connect.NewResponse(&executionv1.StartResponse{Execution: executionToProto(e), Step: guidedStepToProto(step)}), nil
+	return connect.NewResponse(&executionv1.StartResponse{
+		Execution: executionToProto(e),
+		Step:      guidedStepToProto(step),
+		Context:   phaseContextToProto(pctx),
+	}), nil
 }
 
 func (h *connectHandler) GetStatus(ctx context.Context, req *connect.Request[executionv1.GetStatusRequest]) (*connect.Response[executionv1.GetStatusResponse], error) {
@@ -43,6 +47,30 @@ func (h *connectHandler) GetStatus(ctx context.Context, req *connect.Request[exe
 		return nil, internalexecution.ToConnectError(err)
 	}
 	return connect.NewResponse(&executionv1.GetStatusResponse{
+		Execution: executionToProto(e),
+		Context:   phaseContextToProto(pctx),
+		Step:      guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) GetContext(ctx context.Context, req *connect.Request[executionv1.GetContextRequest]) (*connect.Response[executionv1.GetContextResponse], error) {
+	e, pctx, step, err := h.deps.Service.GetContext(ctx, req.Msg.GetExecutionId(), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.GetContextResponse{
+		Execution: executionToProto(e),
+		Context:   phaseContextToProto(pctx),
+		Step:      guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) Resume(ctx context.Context, req *connect.Request[executionv1.ResumeRequest]) (*connect.Response[executionv1.ResumeResponse], error) {
+	e, pctx, step, err := h.deps.Service.Resume(ctx, req.Msg.GetPlanOrExecution(), req.Msg.GetPhaseId(), req.Msg.GetRunId())
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.ResumeResponse{
 		Execution: executionToProto(e),
 		Context:   phaseContextToProto(pctx),
 		Step:      guidedStepToProto(step),

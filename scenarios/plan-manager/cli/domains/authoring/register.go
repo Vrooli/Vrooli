@@ -19,17 +19,22 @@ const GroupName = "author"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
-		"AuthoringService.StartSession":      h.start,
-		"AuthoringService.GetSection":        h.sectionGet,
-		"AuthoringService.SubmitSection":     h.sectionSubmit,
-		"AuthoringService.Next":              h.next,
-		"AuthoringService.ValidateStructure": h.validate,
-		"AuthoringService.Autofill":          h.autofill,
-		"AuthoringService.AddPhase":          h.phaseAdd,
-		"AuthoringService.GetPhase":          h.phaseGet,
-		"AuthoringService.SubmitPhaseField":  h.phaseSubmit,
-		"AuthoringService.NextPhase":         h.phaseNext,
-		"AuthoringService.Finalize":          h.finalize,
+		"AuthoringService.StartSession":              h.start,
+		"AuthoringService.GetSection":                h.sectionGet,
+		"AuthoringService.SubmitSection":             h.sectionSubmit,
+		"AuthoringService.Next":                      h.next,
+		"AuthoringService.ValidateStructure":         h.validate,
+		"AuthoringService.Autofill":                  h.autofill,
+		"AuthoringService.SubmitRelevantContextItem": h.contextSubmit,
+		"AuthoringService.ListRelevantContext":       h.contextList,
+		"AuthoringService.DiscoverContextCandidates": h.contextDiscover,
+		"AuthoringService.AcceptContextCandidate":    h.contextAccept,
+		"AuthoringService.RejectContextCandidate":    h.contextReject,
+		"AuthoringService.AddPhase":                  h.phaseAdd,
+		"AuthoringService.GetPhase":                  h.phaseGet,
+		"AuthoringService.SubmitPhaseField":          h.phaseSubmit,
+		"AuthoringService.NextPhase":                 h.phaseNext,
+		"AuthoringService.Finalize":                  h.finalize,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("authoring: load author group: %w", err)

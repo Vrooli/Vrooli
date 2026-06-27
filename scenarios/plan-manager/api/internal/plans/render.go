@@ -30,6 +30,12 @@ func RenderMarkdown(p Plan) string {
 	writeSection(&b, "Constraints", p.Constraints)
 	writeSection(&b, "Non-Goals", p.NonGoals)
 
+	if len(p.RelevantContext) > 0 {
+		b.WriteString("## Global Execution Setup\n\n")
+		b.WriteString(renderRelevantContext(p.RelevantContext, RelevantContextScopeGlobal))
+		b.WriteString("\n")
+	}
+
 	if len(p.References) > 0 {
 		b.WriteString("## References\n\n")
 		for _, ref := range p.References {
@@ -83,11 +89,10 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 		fmt.Fprintf(&b, "- Acceptance: %s\n", ph.Acceptance)
 	}
 	b.WriteString("\n")
-	if len(ph.RequiredReading) > 0 {
-		b.WriteString("**Required reading:**\n")
-		for _, r := range ph.RequiredReading {
-			fmt.Fprintf(&b, "- %s\n", r)
-		}
+	context := phaseRelevantContext(ph)
+	if len(context) > 0 {
+		b.WriteString("**Phase Context Setup:**\n\n")
+		b.WriteString(renderRelevantContext(context, RelevantContextScopePhase))
 		b.WriteString("\n")
 	}
 	if len(ph.Reminders) > 0 {
@@ -112,6 +117,181 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 		b.WriteString("\n")
 	}
 	return b.String()
+}
+
+func phaseRelevantContext(ph Phase) []RelevantContextItem {
+	if len(ph.RelevantContext) > 0 {
+		return ph.RelevantContext
+	}
+	if len(ph.RequiredReading) == 0 {
+		return nil
+	}
+	items := make([]RelevantContextItem, 0, len(ph.RequiredReading))
+	for i, raw := range ph.RequiredReading {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		items = append(items, RelevantContextItem{
+			ID:           fmt.Sprintf("%s-required-reading-%d", ph.ID, i+1),
+			Kind:         migratedReadingKind(raw),
+			Scope:        RelevantContextScopePhase,
+			PhaseID:      ph.ID,
+			Label:        raw,
+			Instruction:  raw,
+			Target:       raw,
+			Required:     true,
+			RepeatPolicy: RelevantContextPhaseEntry,
+			Source:       RelevantContextSourceMigrated,
+			Status:       RelevantContextStatusReady,
+		})
+	}
+	return items
+}
+
+func migratedReadingKind(raw string) RelevantContextKind {
+	switch {
+	case strings.HasPrefix(raw, "prompt-manager skill read"):
+		return RelevantContextSkill
+	case strings.HasPrefix(raw, "search-hub query"):
+		return RelevantContextSearch
+	case strings.HasPrefix(raw, "cli:"):
+		return RelevantContextCommand
+	case strings.Contains(raw, ".md") || strings.HasPrefix(raw, "docs/"):
+		return RelevantContextDoc
+	default:
+		return RelevantContextNote
+	}
+}
+
+func renderRelevantContext(items []RelevantContextItem, defaultScope RelevantContextScope) string {
+	var b strings.Builder
+	groups := []struct {
+		heading string
+		kinds   map[RelevantContextKind]bool
+	}{
+		{heading: "Load Skills", kinds: map[RelevantContextKind]bool{RelevantContextSkill: true}},
+		{heading: "Read Docs", kinds: map[RelevantContextKind]bool{RelevantContextDoc: true}},
+		{heading: "Run Discovery Searches", kinds: map[RelevantContextKind]bool{RelevantContextSearch: true}},
+		{heading: "Run Commands", kinds: map[RelevantContextKind]bool{RelevantContextCommand: true}},
+		{heading: "Inspect References", kinds: map[RelevantContextKind]bool{RelevantContextCodeRef: true, RelevantContextReqRef: true}},
+		{heading: "Operator Notes", kinds: map[RelevantContextKind]bool{RelevantContextNote: true, "": true}},
+	}
+	for _, group := range groups {
+		filtered := relevantContextByKind(items, group.kinds, defaultScope)
+		if len(filtered) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "### %s\n\n", group.heading)
+		for _, item := range filtered {
+			b.WriteString(renderRelevantContextItem(item))
+		}
+		b.WriteString("\n")
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n"
+}
+
+func relevantContextByKind(items []RelevantContextItem, kinds map[RelevantContextKind]bool, defaultScope RelevantContextScope) []RelevantContextItem {
+	out := make([]RelevantContextItem, 0, len(items))
+	for _, item := range items {
+		if item.Scope == "" {
+			item.Scope = defaultScope
+		}
+		if kinds[item.Kind] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func renderRelevantContextItem(item RelevantContextItem) string {
+	var b strings.Builder
+	label := firstNonEmpty(item.Label, item.Target, item.Command, item.Instruction, "context")
+	fmt.Fprintf(&b, "- %s", label)
+	annotations := relevantContextAnnotations(item)
+	if len(annotations) > 0 {
+		fmt.Fprintf(&b, " _(%s)_", strings.Join(annotations, ", "))
+	}
+	b.WriteString("\n")
+	if item.Reason != "" {
+		fmt.Fprintf(&b, "  - Reason: %s\n", item.Reason)
+	}
+	if item.Instruction != "" && item.Instruction != label {
+		fmt.Fprintf(&b, "  - Instruction: %s\n", item.Instruction)
+	}
+	command := relevantContextCommand(item)
+	if command != "" {
+		b.WriteString("  ```bash\n")
+		fmt.Fprintf(&b, "  %s\n", command)
+		b.WriteString("  ```\n")
+	}
+	if item.StatusDetail != "" {
+		fmt.Fprintf(&b, "  - Status: %s\n", item.StatusDetail)
+	}
+	return b.String()
+}
+
+func relevantContextAnnotations(item RelevantContextItem) []string {
+	var out []string
+	if item.Required {
+		out = append(out, "required")
+	}
+	if item.RepeatPolicy != "" && item.RepeatPolicy != RelevantContextOncePerExecution && item.RepeatPolicy != RelevantContextPhaseEntry {
+		out = append(out, repeatPolicyLabel(item.RepeatPolicy))
+	}
+	if item.Source != "" && item.Source != RelevantContextSourceAuthored {
+		out = append(out, string(item.Source))
+	}
+	if item.Status != "" && item.Status != RelevantContextStatusReady {
+		out = append(out, string(item.Status))
+	}
+	return out
+}
+
+func relevantContextCommand(item RelevantContextItem) string {
+	if item.Command != "" {
+		return item.Command
+	}
+	if len(item.Argv) > 0 {
+		return strings.Join(item.Argv, " ")
+	}
+	switch item.Kind {
+	case RelevantContextSkill:
+		if item.Target != "" {
+			return "prompt-manager skill read " + item.Target
+		}
+	case RelevantContextDoc, RelevantContextCodeRef, RelevantContextReqRef:
+		if item.Target != "" {
+			return "sed -n '1,220p' " + item.Target
+		}
+	case RelevantContextSearch:
+		if item.Target != "" {
+			return item.Target
+		}
+	}
+	return ""
+}
+
+func repeatPolicyLabel(policy RelevantContextRepeatPolicy) string {
+	switch policy {
+	case RelevantContextOnResume:
+		return "run on resume"
+	case RelevantContextEveryPhase:
+		return "run every phase"
+	case RelevantContextAsNeeded:
+		return "as needed"
+	default:
+		return string(policy)
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func renderReference(ref Reference) string {

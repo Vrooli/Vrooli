@@ -3,11 +3,12 @@ import {
   AuthoringService,
   type AuthoringSession,
   type AutofillResult,
+  type ContextCandidate,
   type PhaseDraft,
   type Section,
   type StructureViolation,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
-import { type GuidedStep, type Plan } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import { type GuidedStep, type Plan, type RelevantContextItem } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 import { transport } from "./client";
 
@@ -69,6 +70,75 @@ export async function autofill(
 ): Promise<{ session: AuthoringSession | undefined; results: AutofillResult[]; step: GuidedStep | undefined }> {
   const resp = await authoringClient.autofill({ sessionId, sources });
   return { session: resp.session, results: resp.results, step: resp.step };
+}
+
+export async function submitRelevantContextItem(
+  sessionId: string,
+  phaseId: string,
+  item: RelevantContextItem,
+): Promise<{
+  session: AuthoringSession | undefined;
+  item: RelevantContextItem | undefined;
+  violations: StructureViolation[];
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.submitRelevantContextItem({ sessionId, phaseId, item });
+  return { session: resp.session, item: resp.item, violations: resp.violations, step: resp.step };
+}
+
+export async function listRelevantContext(
+  sessionId: string,
+  phaseId = "",
+): Promise<{ items: RelevantContextItem[]; step: GuidedStep | undefined }> {
+  const resp = await authoringClient.listRelevantContext({ sessionId, phaseId });
+  return { items: resp.items, step: resp.step };
+}
+
+export async function discoverContextCandidates(
+  sessionId: string,
+  concepts: string[],
+  complexity = "",
+): Promise<{
+  session: AuthoringSession | undefined;
+  candidates: ContextCandidate[];
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.discoverContextCandidates({ sessionId, concepts, complexity });
+  return { session: resp.session, candidates: resp.candidates, step: resp.step };
+}
+
+export async function acceptContextCandidate(
+  sessionId: string,
+  candidateId: string,
+  phaseId = "",
+): Promise<{
+  session: AuthoringSession | undefined;
+  candidate: ContextCandidate | undefined;
+  item: RelevantContextItem | undefined;
+  violations: StructureViolation[];
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.acceptContextCandidate({ sessionId, candidateId, phaseId });
+  return {
+    session: resp.session,
+    candidate: resp.candidate,
+    item: resp.item,
+    violations: resp.violations,
+    step: resp.step,
+  };
+}
+
+export async function rejectContextCandidate(
+  sessionId: string,
+  candidateId: string,
+  reason: string,
+): Promise<{
+  session: AuthoringSession | undefined;
+  candidate: ContextCandidate | undefined;
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.rejectContextCandidate({ sessionId, candidateId, reason });
+  return { session: resp.session, candidate: resp.candidate, step: resp.step };
 }
 
 export async function finalize(sessionId: string): Promise<{ plan: Plan | undefined; step: GuidedStep | undefined }> {

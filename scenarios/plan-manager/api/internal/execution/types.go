@@ -140,6 +140,7 @@ type PhaseContext struct {
 	HasNext         bool
 	RequiredReading []string
 	Reminders       []string
+	RelevantContext []planmodel.RelevantContextItem
 	LastValidation  ValidationResult
 	HasValidation   bool
 	Staleness       planmodel.StalenessTier

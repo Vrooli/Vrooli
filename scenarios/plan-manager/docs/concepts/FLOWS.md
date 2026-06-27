@@ -23,14 +23,16 @@ determine whether a small/local model can drive plan work.
 
 1. Start a plan; the wizard walks sections in order and returns the API-owned
    guided step for the current section.
-2. As each section is reached, the wizard **auto-fills** the mechanical ones —
-   regression anchor (git-control-tower), required-reading (plan-skill-discovery),
-   code references (code-facts) — each behind a seam that degrades to a marked gap
-   if the source is down.
+2. As each section is reached, the wizard captures mechanical context behind
+   seams: regression anchor (git-control-tower), code references (code-facts),
+   and relevant-context candidate discovery (prompt-manager/search-hub/cli-health).
+   Discovery stores pending candidates; the author accepts useful candidates into
+   global or phase-scoped setup, or rejects noisy candidates with a reason. If a
+   source is down, the candidate is marked degraded instead of being false-filled.
 3. The author creates phase drafts through phase-native steps: title/intent,
-   references or an explicit `NO_CODE_REFS:` reason, phase-scoped reading,
-   reminders, and acceptance. Each response returns a guided step so the agent
-   does not need the full authoring skill in context.
+   references or an explicit `NO_CODE_REFS:` reason, phase-scoped relevant
+   context, reminders, and acceptance. Each response returns a guided step so
+   the agent does not need the full authoring skill in context.
 4. The structure-validation gate refuses to finalize while a mandatory section is
    empty, a plan/phase has neither references nor a no-code reason, or a phase's
    acceptance is empty.
@@ -38,9 +40,11 @@ determine whether a small/local model can drive plan work.
 
 ### Phase execution (Runner)
 
-1. `next` returns the earliest non-`done` phase plus its phase-scoped
-   required-reading + reminders, last validation, and current staleness —
-   injected just-in-time so the agent does not carry it.
+1. `start`, `status`, `context`, `resume`, and `next` return the current phase
+   plus relevant-context setup items, reminders, last validation, and current
+   staleness — injected just-in-time so the agent does not carry it. `context`
+   is read-only; `resume` resolves an execution or plan and may move the pointer
+   to an explicit phase without advancing past work.
 2. The agent records decisions/findings via runner commands *as it goes*
    (in-flow capture).
 3. `check` runs the phase's computed baseline/validation set and returns results +
@@ -99,8 +103,10 @@ fresh ──small diff in refs──▶ lightly_stale ──refs moved/deleted�
 - Cross-scenario reads (code-facts, git-control-tower, validation sources) are
   best-effort and degrade gracefully — a flow never hard-fails because a composed
   source is down; it returns a marked gap.
-- Idempotency: `next`/`check`/`status` are safe to repeat; status transitions are
-  legal-move-checked so a retry cannot corrupt phase state.
+- Idempotency: `status`/`context` are safe reads; `resume` is safe to repeat for
+  the same target phase; `next` is the explicit pointer-advance operation.
+  Status transitions are legal-move-checked so a retry cannot corrupt phase
+  state.
 
 ## Deferred / Unmodeled Flows
 

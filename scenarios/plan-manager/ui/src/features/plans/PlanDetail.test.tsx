@@ -18,6 +18,10 @@ import {
   PhaseSchema,
   PhaseStatus,
   ReferenceSchema,
+  RelevantContextItemSchema,
+  RelevantContextKind,
+  RelevantContextRepeatPolicy,
+  RelevantContextStatus,
   RegressionAnchorSchema,
   StalenessTier,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
@@ -51,6 +55,16 @@ const fullPlan = create(PlanSchema, {
   references: [
     create(ReferenceSchema, { id: "r1", target: "api/main.go", staleness: StalenessTier.FRESH }),
   ],
+  relevantContext: [
+    create(RelevantContextItemSchema, {
+      id: "ctx-global",
+      kind: RelevantContextKind.SEARCH,
+      label: "Recall prior plan work",
+      command: "search-hub query plan-manager --type record",
+      repeatPolicy: RelevantContextRepeatPolicy.ON_RESUME,
+      status: RelevantContextStatus.READY,
+    }),
+  ],
   regressionAnchor: create(RegressionAnchorSchema, {
     strategy: "scenario_baseline",
     scenario: "auth",
@@ -63,7 +77,15 @@ const fullPlan = create(PlanSchema, {
       title: "Contracts",
       intent: "define proto",
       status: PhaseStatus.DONE,
-      requiredReading: ["docs/PLAN.md"],
+      relevantContext: [
+        create(RelevantContextItemSchema, {
+          id: "ctx-phase",
+          kind: RelevantContextKind.DOC,
+          label: "Plan model",
+          target: "scenarios/plan-manager/docs/concepts/PLAN-MODEL.md",
+          repeatPolicy: RelevantContextRepeatPolicy.PHASE_ENTRY,
+        }),
+      ],
     }),
   ],
 });
@@ -98,6 +120,7 @@ describe("PlanDetail", () => {
 
     expect(await screen.findByTestId(selectors.pages.planDetail)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.plans.phase({ id: "p1" }))).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.plans.relevantContext).length).toBeGreaterThan(0);
   });
 
   it("renders empty optional plan sections without placeholders leaking", async () => {

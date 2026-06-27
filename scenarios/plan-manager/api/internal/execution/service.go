@@ -18,8 +18,10 @@ const runIDEnv = "VROOLI_AGENT_MANAGER_RUN_ID"
 
 // Service is the execution application surface — the guided runner.
 type Service interface {
-	Start(ctx context.Context, planID, runID string) (Execution, GuidedStep, error)
+	Start(ctx context.Context, planID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error)
+	GetContext(ctx context.Context, executionID, phaseID string) (Execution, PhaseContext, GuidedStep, error)
+	Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error)
 	TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, GuidedStep, error)
 
@@ -76,33 +78,65 @@ func NewService(d Deps) Service {
 
 var _ Service = (*service)(nil)
 
-func (s *service) Start(ctx context.Context, planID, runID string) (Execution, GuidedStep, error) {
+func (s *service) Start(ctx context.Context, planID, runID string) (Execution, PhaseContext, GuidedStep, error) {
 	planID = strings.TrimSpace(planID)
 	if planID == "" {
-		return Execution{}, GuidedStep{}, ErrInvalidExecution{Reason: "plan id is required"}
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "plan id is required"}
 	}
 	// Resolve the plan (id or slug) through the plans SSOT so the linkage stores
 	// the canonical plan id, and so a bad plan fails fast with NotFound.
 	plan, err := s.plans.GetPlan(ctx, planID)
 	if err != nil {
-		return Execution{}, GuidedStep{}, err
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	return s.startAtPhase(ctx, plan, "", runID, contextModeStart)
+}
+
+func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID, runID string, mode contextMode) (Execution, PhaseContext, GuidedStep, error) {
 	if runID == "" {
 		runID = strings.TrimSpace(os.Getenv(runIDEnv))
+	}
+	currentPhaseID, err := resolveExecutionPhaseID(plan, phaseID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	now := s.now()
 	e := Execution{
 		ID:             uuid.NewString(),
 		PlanID:         plan.ID,
 		RunID:          runID,
-		CurrentPhaseID: resumePhaseID(plan.Phases),
+		CurrentPhaseID: currentPhaseID,
 		StartedAt:      now,
 		UpdatedAt:      now,
 	}
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
-		return Execution{}, GuidedStep{}, err
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	return e, stepForStarted(e), nil
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, mode)
+	return e, pctx, stepForStarted(e), nil
+}
+
+func (s *service) resumeExecution(ctx context.Context, e Execution, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	return s.resumeExecutionWithPlan(ctx, e, plan, phaseID)
+}
+
+func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan planmodel.Plan, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
+	currentPhaseID, err := resolveExecutionPhaseID(plan, phaseID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	e.CurrentPhaseID = currentPhaseID
+	e.Complete = currentPhaseID == ""
+	e.UpdatedAt = s.now()
+	if err := s.repo.SaveExecution(ctx, e); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, contextModeResume)
+	return e, pctx, stepForContext(e.ID, pctx, e.Complete), nil
 }
 
 func (s *service) GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -114,8 +148,47 @@ func (s *service) GetStatus(ctx context.Context, executionID string) (Execution,
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID)
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, contextModeStatus)
 	return e, pctx, stepForContext(e.ID, pctx, e.Complete), nil
+}
+
+func (s *service) GetContext(ctx context.Context, executionID, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
+	e, err := s.getExecution(ctx, executionID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	plan, err := s.plans.GetPlan(ctx, e.PlanID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	targetPhaseID := strings.TrimSpace(phaseID)
+	if targetPhaseID == "" {
+		targetPhaseID = e.CurrentPhaseID
+	}
+	pctx := s.buildContext(ctx, plan, targetPhaseID, contextModeContext)
+	return e, pctx, stepForContext(e.ID, pctx, e.Complete), nil
+}
+
+func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error) {
+	planOrExecution = strings.TrimSpace(planOrExecution)
+	if planOrExecution == "" {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "plan or execution id is required"}
+	}
+	if e, ok, err := s.repo.GetExecution(ctx, planOrExecution); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	} else if ok {
+		return s.resumeExecution(ctx, e, phaseID)
+	}
+	plan, err := s.plans.GetPlan(ctx, planOrExecution)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	if e, ok, err := s.repo.LatestExecutionForPlan(ctx, plan.ID); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	} else if ok {
+		return s.resumeExecutionWithPlan(ctx, e, plan, phaseID)
+	}
+	return s.startAtPhase(ctx, plan, strings.TrimSpace(phaseID), runID, contextModeResume)
 }
 
 func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error) {
@@ -141,7 +214,7 @@ func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return PhaseContext{}, false, GuidedStep{}, err
 	}
-	pctx := s.buildContext(ctx, plan, next)
+	pctx := s.buildContext(ctx, plan, next, contextModePhaseEntry)
 	return pctx, e.Complete, stepForContext(e.ID, pctx, e.Complete), nil
 }
 
@@ -429,8 +502,18 @@ func (s *service) getExecution(ctx context.Context, executionID string) (Executi
 	return e, nil
 }
 
+type contextMode string
+
+const (
+	contextModeStart      contextMode = "start"
+	contextModeStatus     contextMode = "status"
+	contextModeContext    contextMode = "context"
+	contextModeResume     contextMode = "resume"
+	contextModePhaseEntry contextMode = "phase_entry"
+)
+
 // buildContext assembles the just-in-time PhaseContext for the named phase.
-func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID string) PhaseContext {
+func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID string, mode contextMode) PhaseContext {
 	pctx := PhaseContext{
 		ResumePhaseID: resumePhaseID(plan.Phases),
 		Completeness:  computeCompleteness(plan.Phases),
@@ -441,6 +524,7 @@ func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID
 		pctx.RequiredReading = cur.RequiredReading
 		pctx.Reminders = cur.Reminders
 	}
+	pctx.RelevantContext = contextForPhase(plan, pctx.CurrentPhase, pctx.HasCurrent, mode)
 	if next, ok := nextPhase(plan.Phases, phaseID); ok {
 		pctx.NextPhase = next
 		pctx.HasNext = true
@@ -450,6 +534,110 @@ func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID
 	pctx.HasValidation = hasVal
 	pctx.Staleness = staleness
 	return pctx
+}
+
+func contextForPhase(plan planmodel.Plan, cur planmodel.Phase, hasCurrent bool, mode contextMode) []planmodel.RelevantContextItem {
+	out := make([]planmodel.RelevantContextItem, 0, len(plan.RelevantContext)+len(cur.RelevantContext)+len(cur.RequiredReading))
+	for _, item := range plan.RelevantContext {
+		if item.Scope == "" {
+			item.Scope = planmodel.RelevantContextScopeGlobal
+		}
+		if !includeGlobalContext(item, mode) {
+			continue
+		}
+		out = append(out, item)
+	}
+	if !hasCurrent {
+		return out
+	}
+	for _, item := range cur.RelevantContext {
+		if item.Scope == "" {
+			item.Scope = planmodel.RelevantContextScopePhase
+		}
+		if item.PhaseID == "" {
+			item.PhaseID = cur.ID
+		}
+		if !includePhaseContext(item, mode) {
+			continue
+		}
+		out = append(out, item)
+	}
+	if len(cur.RelevantContext) == 0 {
+		out = append(out, legacyRequiredReadingContext(cur)...)
+	}
+	return out
+}
+
+func includeGlobalContext(item planmodel.RelevantContextItem, mode contextMode) bool {
+	switch item.RepeatPolicy {
+	case planmodel.RelevantContextOncePerExecution:
+		return mode == contextModeStart
+	case planmodel.RelevantContextOnResume:
+		return mode == contextModeResume || mode == contextModeContext || mode == contextModeStatus
+	case planmodel.RelevantContextEveryPhase, "":
+		return true
+	case planmodel.RelevantContextPhaseEntry:
+		return mode == contextModeStart || mode == contextModeResume || mode == contextModePhaseEntry
+	case planmodel.RelevantContextAsNeeded:
+		return true
+	default:
+		return true
+	}
+}
+
+func includePhaseContext(item planmodel.RelevantContextItem, mode contextMode) bool {
+	switch item.RepeatPolicy {
+	case planmodel.RelevantContextOncePerExecution:
+		return mode == contextModeStart
+	case planmodel.RelevantContextOnResume:
+		return mode == contextModeResume || mode == contextModeContext || mode == contextModeStatus
+	case planmodel.RelevantContextPhaseEntry, "":
+		return true
+	case planmodel.RelevantContextEveryPhase:
+		return true
+	case planmodel.RelevantContextAsNeeded:
+		return true
+	default:
+		return true
+	}
+}
+
+func legacyRequiredReadingContext(ph planmodel.Phase) []planmodel.RelevantContextItem {
+	items := make([]planmodel.RelevantContextItem, 0, len(ph.RequiredReading))
+	for _, raw := range ph.RequiredReading {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		items = append(items, planmodel.RelevantContextItem{
+			Kind:         legacyContextKind(raw),
+			Scope:        planmodel.RelevantContextScopePhase,
+			PhaseID:      ph.ID,
+			Label:        raw,
+			Instruction:  raw,
+			Target:       raw,
+			Required:     true,
+			RepeatPolicy: planmodel.RelevantContextPhaseEntry,
+			Source:       planmodel.RelevantContextSourceMigrated,
+			Status:       planmodel.RelevantContextStatusReady,
+		})
+	}
+	return items
+}
+
+func legacyContextKind(raw string) planmodel.RelevantContextKind {
+	switch {
+	case strings.HasPrefix(raw, "prompt-manager skill read"):
+		return planmodel.RelevantContextSkill
+	case strings.HasPrefix(raw, "search-hub query"):
+		return planmodel.RelevantContextSearch
+	case strings.HasPrefix(raw, "cli:"):
+		return planmodel.RelevantContextCommand
+	case strings.Contains(raw, ".md") || strings.HasPrefix(raw, "docs/"):
+		return planmodel.RelevantContextDoc
+	default:
+		return planmodel.RelevantContextNote
+	}
 }
 
 // lastValidation reads the validation seam for the phase's LAST STORED validation
@@ -566,6 +754,17 @@ func resumePhaseID(phases []planmodel.Phase) string {
 		}
 	}
 	return ""
+}
+
+func resolveExecutionPhaseID(plan planmodel.Plan, phaseID string) (string, error) {
+	phaseID = strings.TrimSpace(phaseID)
+	if phaseID == "" {
+		return resumePhaseID(plan.Phases), nil
+	}
+	if _, ok := findPhase(plan.Phases, phaseID); !ok {
+		return "", planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
+	}
+	return phaseID, nil
 }
 
 // computeCompleteness is FULL iff every phase is done; PARTIAL otherwise. An

@@ -62,6 +62,28 @@ func (r *execRecorder) GetStatus(_ context.Context, req *connect.Request[executi
 	return connect.NewResponse(&executionv1.GetStatusResponse{Execution: &executionv1.Execution{Id: req.Msg.GetExecutionId()}, Context: &executionv1.PhaseContext{}}), nil
 }
 
+func (r *execRecorder) GetContext(_ context.Context, req *connect.Request[executionv1.GetContextRequest]) (*connect.Response[executionv1.GetContextResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.GetContextResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.GetContextResponse{Execution: &executionv1.Execution{Id: req.Msg.GetExecutionId()}, Context: &executionv1.PhaseContext{}}), nil
+}
+
+func (r *execRecorder) Resume(_ context.Context, req *connect.Request[executionv1.ResumeRequest]) (*connect.Response[executionv1.ResumeResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*executionv1.ResumeResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&executionv1.ResumeResponse{Execution: &executionv1.Execution{Id: "exec-1", PlanId: req.Msg.GetPlanOrExecution()}, Context: &executionv1.PhaseContext{}}), nil
+}
+
 func (r *execRecorder) GetNext(_ context.Context, req *connect.Request[executionv1.GetNextRequest]) (*connect.Response[executionv1.GetNextResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -187,6 +209,25 @@ func TestExecRequestMapping(t *testing.T) {
 			argv: []string{"exec-9"},
 			assert: func(t *testing.T, req proto.Message) {
 				require.Equal(t, "exec-9", req.(*executionv1.GetStatusRequest).GetExecutionId())
+			},
+		},
+		{
+			name: "context maps execution positional and phase flag", cmd: "context",
+			argv: []string{"exec-9", "--phase", "phase-2"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.GetContextRequest)
+				require.Equal(t, "exec-9", m.GetExecutionId())
+				require.Equal(t, "phase-2", m.GetPhaseId())
+			},
+		},
+		{
+			name: "resume maps target phase and run-id", cmd: "resume",
+			argv: []string{"plan-1", "--phase", "phase-2", "--run-id", "run-99"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*executionv1.ResumeRequest)
+				require.Equal(t, "plan-1", m.GetPlanOrExecution())
+				require.Equal(t, "phase-2", m.GetPhaseId())
+				require.Equal(t, "run-99", m.GetRunId())
 			},
 		},
 		{
@@ -327,6 +368,14 @@ func TestExecOutputRendering(t *testing.T) {
 				ResumePhaseId:   "phase-2",
 				CurrentPhase:    &sharedv1.Phase{Title: "Build", Status: sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE},
 				RequiredReading: []string{"docs/X.md"},
+				RelevantContext: []*sharedv1.RelevantContextItem{{
+					Kind:        sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND,
+					Label:       "Recall prior work",
+					Reason:      "Recover execution context.",
+					Instruction: "Run before editing.",
+					Command:     "search-hub query plan-manager --type record,doc",
+					Required:    true,
+				}},
 			},
 		}}
 		app, groups := newExecFixture(t, rec)
@@ -335,7 +384,52 @@ func TestExecOutputRendering(t *testing.T) {
 		require.Contains(t, out, "Execution exec-1 on plan plan-1 (completeness partial).")
 		require.Contains(t, out, "Resume point: phase-2; staleness: fresh.")
 		require.Contains(t, out, "Current phase: Build (active).")
+		require.Contains(t, out, "context[command]: Recall prior work (required)")
+		require.Contains(t, out, "command: search-hub query plan-manager --type record,doc")
 		require.Contains(t, out, "read: docs/X.md")
+	})
+
+	t.Run("context renders setup heading", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.GetContextResponse{
+			Execution: &executionv1.Execution{Id: "exec-1", PlanId: "plan-1"},
+			Context: &executionv1.PhaseContext{
+				Completeness:  sharedv1.Completeness_COMPLETENESS_PARTIAL,
+				ResumePhaseId: "phase-2",
+				CurrentPhase:  &sharedv1.Phase{Title: "Build", Status: sharedv1.PhaseStatus_PHASE_STATUS_TODO},
+				RelevantContext: []*sharedv1.RelevantContextItem{{
+					Kind:     sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL,
+					Label:    "Load implementation skill",
+					Command:  "prompt-manager skill read api-steer",
+					Required: true,
+				}},
+			},
+		}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "context"), app, "exec-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "Setup context")
+		require.Contains(t, out, "context[skill]: Load implementation skill (required)")
+		require.Contains(t, out, "command: prompt-manager skill read api-steer")
+	})
+
+	t.Run("resume renders execution and setup", func(t *testing.T) {
+		rec := &execRecorder{resp: &executionv1.ResumeResponse{
+			Execution: &executionv1.Execution{Id: "exec-1", PlanId: "plan-1", CurrentPhaseId: "phase-2"},
+			Context: &executionv1.PhaseContext{
+				CurrentPhase: &sharedv1.Phase{Title: "Build", Status: sharedv1.PhaseStatus_PHASE_STATUS_TODO},
+				RelevantContext: []*sharedv1.RelevantContextItem{{
+					Kind:    sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SEARCH,
+					Label:   "Recall prior work",
+					Command: "search-hub query plan-manager --type record,doc",
+				}},
+			},
+		}}
+		app, groups := newExecFixture(t, rec)
+		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "resume"), app, "plan-1")
+		require.NoError(t, err)
+		require.Contains(t, out, "Resumed execution exec-1 on plan plan-1.")
+		require.Contains(t, out, "Current phase: phase-2.")
+		require.Contains(t, out, "context[search]: Recall prior work")
 	})
 
 	t.Run("transition renders mutation", func(t *testing.T) {

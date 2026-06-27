@@ -266,6 +266,13 @@ func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 			"Fix `cli:knowledge-observatory docs healt cli-health`.",
 			"Document `cli[future]:future-tool launch`.",
 		}, "\n"),
+		RelevantContext: []internalplans.RelevantContextItem{{
+			Kind:         internalplans.RelevantContextCommand,
+			Reason:       "Find relevant setup actions.",
+			Instruction:  "Discover candidate actions before editing.",
+			Command:      "prompt-manager discover plan-manager --type all",
+			RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+		}},
 	}})
 	validator := &fakeCommandValidator{results: map[string]validation.CommandReferenceResult{
 		"vrooli scenario test cli-health": {
@@ -280,6 +287,10 @@ func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 			Suggestions:     []string{"knowledge-observatory docs health"},
 			Guidance:        []string{"Fix the command to a current catalog command."},
 		},
+		"prompt-manager discover plan-manager --type all": {
+			Verdict:         "valid",
+			ValidationLevel: "argument_shape_validated",
+		},
 	}}
 	svc := validation.NewService(validation.Deps{
 		Plans:    fakePlans{plan: plan},
@@ -289,12 +300,119 @@ func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 	res, err := svc.RunValidation(context.Background(), "p1", "ph1")
 	require.NoError(t, err)
 	require.Equal(t, validation.VerdictFail, res.Verdict)
-	require.Len(t, res.CommandFindings, 2, "future refs should be skipped")
+	require.Len(t, res.CommandFindings, 2, "future refs and valid structured context commands should not become findings")
 	require.Equal(t, []string{"unknown_command"}, res.CommandFindings[1].IssueCodes)
 	require.Equal(t, []string{"knowledge-observatory docs health"}, res.CommandFindings[1].Suggestions)
 	require.Equal(t, []string{"Fix the command to a current catalog command."}, res.CommandFindings[1].Guidance)
-	require.Len(t, validator.calls, 2)
+	require.Len(t, validator.calls, 3)
+	require.Equal(t, "prompt-manager discover plan-manager --type all", validator.calls[2].CommandText)
 	require.Contains(t, res.Detail, "command reference validation")
+}
+
+func TestRunValidationFailsMalformedRelevantContextStructure(t *testing.T) {
+	plan := planWith(nil, []internalplans.Phase{{
+		ID:     "ph1",
+		Intent: "Implement the change",
+		RelevantContext: []internalplans.RelevantContextItem{{
+			Kind:     internalplans.RelevantContextCommand,
+			Required: true,
+			Command:  "vrooli help",
+		}},
+	}})
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+
+	res, err := svc.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Equal(t, validation.VerdictFail, res.Verdict)
+	require.Contains(t, res.Detail, "relevant context structure validation")
+	require.Contains(t, res.Detail, "required context item has no repeat policy")
+	require.Contains(t, res.Detail, "command/search context item has no reason")
+	require.Contains(t, res.Detail, "command/search context item has no instruction")
+	require.NotEmpty(t, res.CommandFindings)
+	require.Contains(t, res.CommandFindings[0].IssueCodes, "missing_repeat_policy")
+}
+
+func TestRunValidationRequiresPhaseContextOrExplicitNoContext(t *testing.T) {
+	noContext := planWith(nil, []internalplans.Phase{{
+		ID:     "ph1",
+		Intent: "Implement the change",
+	}})
+	fail := validation.NewService(validation.Deps{Plans: fakePlans{plan: noContext}})
+	res, err := fail.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Equal(t, validation.VerdictFail, res.Verdict)
+	require.Contains(t, res.Detail, "phase has no relevant context")
+
+	explicit := planWith(nil, []internalplans.Phase{{
+		ID:        "ph1",
+		Intent:    "Trivial metadata update",
+		Reminders: []string{"NO_CONTEXT: phase only updates generated labels."},
+	}})
+	pass := validation.NewService(validation.Deps{Plans: fakePlans{plan: explicit}})
+	res, err = pass.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.NotEqual(t, validation.VerdictFail, res.Verdict)
+	require.NotContains(t, res.Detail, "phase has no relevant context")
+}
+
+func TestRunValidationChecksRelevantContextReferences(t *testing.T) {
+	plan := planWith(nil, []internalplans.Phase{{
+		ID:     "ph1",
+		Intent: "Implement the change",
+		RelevantContext: []internalplans.RelevantContextItem{
+			{
+				Kind:         internalplans.RelevantContextDoc,
+				Target:       "docs/concepts/PLAN-MODEL.md",
+				Required:     true,
+				RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+			},
+			{
+				Kind:         internalplans.RelevantContextCodeRef,
+				Target:       "missing.go",
+				Required:     true,
+				RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+			},
+		},
+	}})
+	svc := validation.NewService(validation.Deps{
+		Plans:    fakePlans{plan: plan},
+		Resolver: fakeResolver{resolution: internalplans.ResolutionResolved},
+	})
+	res, err := svc.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.NotEqual(t, validation.VerdictFail, res.Verdict)
+
+	missing := validation.NewService(validation.Deps{
+		Plans:    fakePlans{plan: plan},
+		Resolver: fakeResolver{resolution: internalplans.ResolutionMissing},
+	})
+	res, err = missing.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Equal(t, validation.VerdictFail, res.Verdict)
+	require.Contains(t, res.Detail, "relevant context reference validation")
+	require.Len(t, res.CommandFindings, 2)
+	require.Equal(t, []string{"context_reference_unresolved"}, res.CommandFindings[0].IssueCodes)
+	require.Equal(t, "phase.ph1.relevant_context[0].target", res.CommandFindings[0].Location)
+}
+
+func TestRunValidationUnknownWhenRelevantContextReferenceResolverUnavailable(t *testing.T) {
+	plan := planWith(nil, []internalplans.Phase{{
+		ID:     "ph1",
+		Intent: "Implement the change",
+		RelevantContext: []internalplans.RelevantContextItem{{
+			Kind:         internalplans.RelevantContextReqRef,
+			Target:       "PM-CTX-001",
+			Required:     true,
+			RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+		}},
+	}})
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	res, err := svc.RunValidation(context.Background(), "p1", "ph1")
+	require.NoError(t, err)
+	require.Equal(t, validation.VerdictUnknown, res.Verdict)
+	require.Contains(t, res.Detail, "relevant context reference validation unknown")
+	require.Len(t, res.CommandFindings, 1)
+	require.Equal(t, "reference resolver unavailable", res.CommandFindings[0].Message)
 }
 
 // TestVerdictHonestyByExitClass pins the corrected verdict model: a missing tool

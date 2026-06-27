@@ -36,7 +36,7 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 			ContentPlaceholder: placeholder,
 		},
 	}
-	if sec.Key == SectionRegressionAnchor || sec.Key == SectionRequiredReading || sec.Key == SectionReferences {
+	if sec.Key == SectionRegressionAnchor || sec.Key == SectionReferences {
 		step.NextActions = append(step.NextActions, NextAction{
 			ID:     "autofill-" + string(sec.Key),
 			Kind:   NextActionAlternative,
@@ -44,6 +44,25 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 			Reason: "This section can be populated by a composed dependency when available.",
 			Argv:   []string{"author", "autofill", sess.ID, "--sources", string(sec.Key)},
 		})
+	}
+	if sec.Key == SectionRelevantContext {
+		step.NextActions = []NextAction{
+			{
+				ID:                 "discover-context",
+				Kind:               NextActionRecommended,
+				Label:              "Discover context candidates",
+				Reason:             "Relevant context should come from decomposed discovery concepts before manual acceptance.",
+				Argv:               []string{"author", "context-discover", sess.ID, "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
+				ContentPlaceholder: "<concept one>,<concept two>",
+			},
+			{
+				ID:     "submit-context",
+				Kind:   NextActionAlternative,
+				Label:  "Submit known context directly",
+				Reason: "Use only when the setup item is already known and has a concrete reason.",
+				Argv:   []string{"author", "context-submit", sess.ID, "--kind", "command", "--label", "<label>", "--reason", "<reason>", "--instruction", "<instruction>", "--command", "<command>", "--required"},
+			},
+		}
 	}
 	if sec.Key == SectionPhases {
 		step.NextActions = []NextAction{
@@ -109,6 +128,16 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 			Examples:       []string{"baseline name plan-manager-authoring-hardening", "HEAD sha abc123 with allowlist scenarios/plan-manager/**"},
 			CommonMistakes: []string{"Putting final test results in the anchor.", "Leaving the anchor blank because the dependency was down."},
 		}
+	case SectionRelevantContext:
+		return GuidedStep{
+			StepKind:       "relevant_context",
+			Title:          "Relevant Context",
+			Summary:        "Discover setup context and accept only items with a clear relevance reason.",
+			Instructions:   []string{"Decompose the work into 2-5 search concepts.", "Run context-discover to generate candidate setup commands.", "Accept useful candidates globally or for a phase; reject noisy candidates with a reason."},
+			RequiredInputs: []string{"context concepts or explicit NO_CONTEXT reason in phase scope"},
+			Examples:       []string{"author context-discover <session> --concepts 'plan-manager execution resume,authoring context discovery' --complexity architectural"},
+			CommonMistakes: []string{"Accepting raw discovery output without a reason.", "Putting phase-only setup in global context.", "Relying on the legacy required_reading section as the primary model."},
+		}
 	case SectionDefinitionOfDone:
 		return GuidedStep{
 			StepKind:       "definition_of_done",
@@ -141,6 +170,27 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 	}
 }
 
+func stepForContextDiscovery(sess Session) GuidedStep {
+	return GuidedStep{
+		StepKind:       "context_discovery",
+		Title:          "Context Discovery",
+		Summary:        "Review discovered context candidates and accept or reject each one.",
+		Instructions:   []string{"Accept only candidates that materially reduce implementation ambiguity.", "Assign phase-specific setup to the phase where it is needed.", "Reject noisy or duplicate candidates with a short reason."},
+		RequiredInputs: []string{"candidate decision"},
+		Examples:       []string{"author context-accept " + sess.ID + " <candidate-id>", "author context-reject " + sess.ID + " <candidate-id> --reason 'duplicate of global setup'"},
+		CommonMistakes: []string{"Accepting every candidate.", "Leaving degraded candidates untriaged.", "Accepting a command candidate without inspecting whether it is current."},
+		NextActions: []NextAction{
+			{
+				ID:     "list-context",
+				Kind:   NextActionRecommended,
+				Label:  "List accepted context",
+				Reason: "Use accepted context as the reviewable setup list before finalizing.",
+				Argv:   []string{"author", "context-list", sess.ID},
+			},
+		},
+	}
+}
+
 func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 	field := nextMissingPhaseField(phase)
 	switch field {
@@ -165,8 +215,8 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 		return GuidedStep{
 			StepKind:       "phase_review",
 			Title:          "Phase Review",
-			Summary:        "This phase has the required fields. Add optional required reading or reminders if useful.",
-			Instructions:   []string{"Use required_reading for phase-specific docs or skills.", "Use reminders for constraints the implementation agent must see just-in-time.", "Move to the next incomplete phase when ready."},
+			Summary:        "This phase has the required fields. Add relevant context or reminders if useful.",
+			Instructions:   []string{"Use context-submit or context-accept for phase-specific setup.", "Use reminders for constraints the implementation agent must see just-in-time.", "Move to the next incomplete phase when ready."},
 			Examples:       []string{"author phase-next " + sess.ID},
 			CommonMistakes: []string{"Repeating whole-plan context in every phase.", "Adding generic reminders with no phase-specific value."},
 			NextActions: []NextAction{
@@ -330,7 +380,7 @@ func contentPlaceholderForSection(key SectionKey) string {
 	case SectionRegressionAnchor:
 		return "<regression anchor strategy and commands>"
 	case SectionRequiredReading:
-		return "<required reading commands>"
+		return "<legacy required-reading migration input>"
 	case SectionDefinitionOfDone:
 		return "<objective definition of done>"
 	case SectionPhases:

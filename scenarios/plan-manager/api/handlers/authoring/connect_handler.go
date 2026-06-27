@@ -96,6 +96,68 @@ func (h *connectHandler) Autofill(ctx context.Context, req *connect.Request[auth
 	}), nil
 }
 
+func (h *connectHandler) SubmitRelevantContextItem(ctx context.Context, req *connect.Request[authoringv1.SubmitRelevantContextItemRequest]) (*connect.Response[authoringv1.SubmitRelevantContextItemResponse], error) {
+	sess, item, violations, step, err := h.deps.Service.SubmitRelevantContextItem(ctx, req.Msg.GetSessionId(), req.Msg.GetPhaseId(), relevantContextItemFromProto(req.Msg.GetItem()))
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.SubmitRelevantContextItemResponse{
+		Session:    sessionToProto(sess),
+		Item:       relevantContextItemToProto(item),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) ListRelevantContext(ctx context.Context, req *connect.Request[authoringv1.ListRelevantContextRequest]) (*connect.Response[authoringv1.ListRelevantContextResponse], error) {
+	items, step, err := h.deps.Service.ListRelevantContext(ctx, req.Msg.GetSessionId(), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.ListRelevantContextResponse{
+		Items: relevantContextItemsToProto(items),
+		Step:  guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) DiscoverContextCandidates(ctx context.Context, req *connect.Request[authoringv1.DiscoverContextCandidatesRequest]) (*connect.Response[authoringv1.DiscoverContextCandidatesResponse], error) {
+	sess, candidates, step, err := h.deps.Service.DiscoverContextCandidates(ctx, req.Msg.GetSessionId(), req.Msg.GetConcepts(), req.Msg.GetComplexity())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.DiscoverContextCandidatesResponse{
+		Session:    sessionToProto(sess),
+		Candidates: contextCandidatesToProto(candidates),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) AcceptContextCandidate(ctx context.Context, req *connect.Request[authoringv1.AcceptContextCandidateRequest]) (*connect.Response[authoringv1.AcceptContextCandidateResponse], error) {
+	sess, candidate, item, violations, step, err := h.deps.Service.AcceptContextCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), req.Msg.GetPhaseId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.AcceptContextCandidateResponse{
+		Session:    sessionToProto(sess),
+		Candidate:  contextCandidateToProto(candidate),
+		Item:       relevantContextItemToProto(item),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) RejectContextCandidate(ctx context.Context, req *connect.Request[authoringv1.RejectContextCandidateRequest]) (*connect.Response[authoringv1.RejectContextCandidateResponse], error) {
+	sess, candidate, step, err := h.deps.Service.RejectContextCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), req.Msg.GetReason())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.RejectContextCandidateResponse{
+		Session:   sessionToProto(sess),
+		Candidate: contextCandidateToProto(candidate),
+		Step:      guidedStepToProto(step),
+	}), nil
+}
+
 func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[authoringv1.AddPhaseRequest]) (*connect.Response[authoringv1.AddPhaseResponse], error) {
 	sess, phase, violations, step, err := h.deps.Service.AddPhase(ctx, req.Msg.GetSessionId(), req.Msg.GetTitle(), req.Msg.GetIntent())
 	if err != nil {

@@ -14,7 +14,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "plans",
-      "description": "A plan is stored as a structured record (meta + global sections + ordered phases; each phase owns its required-reading, reminders, baseline scope, acceptance, and status) and exposes CRUD plus a rendered markdown view. Persistence is rooted at the scenario-independent ~/.vrooli home store so plans remain readable when the plan-manager server is down.",
+      "description": "A plan is stored as a structured record (meta + global sections + ordered phases; each phase owns relevant context, reminders, baseline scope, acceptance, and status) and exposes CRUD plus a rendered markdown view. Persistence is rooted at the scenario-independent ~/.vrooli home store so plans remain readable when the plan-manager server is down.",
       "tags": [
         "plans",
         "storage",

@@ -57,6 +57,42 @@
           "notes": "Definition-of-done verification derives a baseline oracle from connected code references."
         }
       ]
+    },
+    {
+      "id": "PM-VALID-003",
+      "title": "Validate relevant-context commands and references",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "Validation checks structured relevant-context setup items so command/search instructions are current and doc/code/requirement reference targets do not silently point at missing context.",
+      "tags": [
+        "validation",
+        "relevant-context",
+        "references"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestRunValidationIncludesCommandReferenceFindings",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Command and search relevant-context items are validated through CLI Health."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestRunValidationChecksRelevantContextReferences",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Doc/code/requirement relevant-context targets resolve through the reference resolver and missing targets fail validation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestRunValidationUnknownWhenRelevantContextReferenceResolverUnavailable",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Unavailable reference resolution reports UNKNOWN instead of fabricating a pass."
+        }
+      ]
     }
   ]
 }

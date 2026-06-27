@@ -202,6 +202,134 @@ func splitCSV(raw string) []string {
 	return out
 }
 
+func parsePhaseContext(raw string) []*sharedv1.RelevantContextItem {
+	entries := splitCSV(raw)
+	if len(entries) == 0 {
+		return nil
+	}
+	out := make([]*sharedv1.RelevantContextItem, 0, len(entries))
+	for _, entry := range entries {
+		item := parseContextEntry(entry)
+		item.Scope = sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_PHASE
+		if item.RepeatPolicy == sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED {
+			item.RepeatPolicy = sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY
+		}
+		if item.Source == sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_UNSPECIFIED {
+			item.Source = sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED
+		}
+		if item.Status == sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_UNSPECIFIED {
+			item.Status = sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func parseContextEntry(entry string) *sharedv1.RelevantContextItem {
+	item := &sharedv1.RelevantContextItem{Required: true}
+	fields := strings.Split(entry, ";")
+	hasKV := false
+	for _, field := range fields {
+		key, value, ok := strings.Cut(field, "=")
+		if !ok {
+			continue
+		}
+		hasKV = true
+		switch strings.TrimSpace(strings.ToLower(key)) {
+		case "kind":
+			item.Kind = parseContextKind(value)
+		case "label":
+			item.Label = strings.TrimSpace(value)
+		case "reason":
+			item.Reason = strings.TrimSpace(value)
+		case "instruction":
+			item.Instruction = strings.TrimSpace(value)
+		case "command":
+			item.Command = strings.TrimSpace(value)
+			if len(item.Argv) == 0 {
+				item.Argv = strings.Fields(item.Command)
+			}
+		case "argv":
+			item.Argv = splitFields(value, "|")
+		case "target":
+			item.Target = strings.TrimSpace(value)
+		case "required":
+			item.Required = strings.TrimSpace(strings.ToLower(value)) != "false"
+		case "repeat":
+			item.RepeatPolicy = parseRepeatPolicy(value)
+		}
+	}
+	if !hasKV {
+		item.Kind = sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
+		item.Instruction = strings.TrimSpace(entry)
+		return item
+	}
+	if item.Kind == sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED {
+		switch {
+		case item.Command != "":
+			item.Kind = sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND
+		case item.Target != "":
+			item.Kind = sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC
+		default:
+			item.Kind = sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
+		}
+	}
+	return item
+}
+
+func splitFields(raw, sep string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, sep)
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func parseContextKind(raw string) sharedv1.RelevantContextKind {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "skill":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL
+	case "doc":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC
+	case "command":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND
+	case "search":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SEARCH
+	case "code_ref":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_CODE_REF
+	case "req_ref":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_REQ_REF
+	case "note":
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
+	default:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED
+	}
+}
+
+func parseRepeatPolicy(raw string) sharedv1.RelevantContextRepeatPolicy {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "once_per_execution":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION
+	case "on_resume":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME
+	case "every_phase":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE
+	case "phase_entry", "":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY
+	case "as_needed":
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED
+	default:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED
+	}
+}
+
 func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&plansv1.AddPhaseRequest{
 		PlanId: ctx.Positional("plan"),
@@ -209,7 +337,7 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 			Title:           ctx.Flag("title"),
 			Intent:          ctx.Flag("intent"),
 			Acceptance:      ctx.Flag("acceptance"),
-			RequiredReading: splitCSV(ctx.Flag("required-reading")),
+			RelevantContext: parsePhaseContext(ctx.Flag("context")),
 			Reminders:       splitCSV(ctx.Flag("reminders")),
 			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
 		},
@@ -229,7 +357,7 @@ func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
 			Intent:          ctx.Flag("intent"),
 			Acceptance:      ctx.Flag("acceptance"),
 			Status:          phaseStatusFlag(ctx.Flag("status")),
-			RequiredReading: splitCSV(ctx.Flag("required-reading")),
+			RelevantContext: parsePhaseContext(ctx.Flag("context")),
 			Reminders:       splitCSV(ctx.Flag("reminders")),
 			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
 		},

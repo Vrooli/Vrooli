@@ -510,14 +510,15 @@ func clonePhases(phases []Phase) []Phase {
 // identical prose + phases hash identically regardless of their assigned ids.
 func contentHash(p Plan) string {
 	payload := struct {
-		Title            string      `json:"title"`
-		Purpose          string      `json:"purpose"`
-		Scope            string      `json:"scope"`
-		Constraints      string      `json:"constraints"`
-		NonGoals         string      `json:"non_goals"`
-		DefinitionOfDone string      `json:"definition_of_done"`
-		References       []Reference `json:"references"`
-		Phases           []Phase     `json:"phases"`
+		Title            string                `json:"title"`
+		Purpose          string                `json:"purpose"`
+		Scope            string                `json:"scope"`
+		Constraints      string                `json:"constraints"`
+		NonGoals         string                `json:"non_goals"`
+		DefinitionOfDone string                `json:"definition_of_done"`
+		References       []Reference           `json:"references"`
+		Phases           []Phase               `json:"phases"`
+		RelevantContext  []RelevantContextItem `json:"relevant_context"`
 	}{
 		Title:            p.Title,
 		Purpose:          p.Purpose,
@@ -527,6 +528,7 @@ func contentHash(p Plan) string {
 		DefinitionOfDone: p.DefinitionOfDone,
 		References:       stripRefIDs(p.References),
 		Phases:           stripPhaseIDs(p.Phases),
+		RelevantContext:  stripRelevantContextIDs(p.RelevantContext),
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {
@@ -543,6 +545,7 @@ func stripPhaseIDs(phases []Phase) []Phase {
 	for i, ph := range phases {
 		ph.ID = ""
 		ph.References = stripRefIDs(ph.References)
+		ph.RelevantContext = stripRelevantContextIDs(ph.RelevantContext)
 		out[i] = ph
 	}
 	return out
@@ -553,6 +556,15 @@ func stripRefIDs(refs []Reference) []Reference {
 	for i, r := range refs {
 		r.ID = ""
 		out[i] = r
+	}
+	return out
+}
+
+func stripRelevantContextIDs(items []RelevantContextItem) []RelevantContextItem {
+	out := make([]RelevantContextItem, len(items))
+	for i, item := range items {
+		item.ID = ""
+		out[i] = item
 	}
 	return out
 }

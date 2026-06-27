@@ -26,11 +26,12 @@ with a matching CLI group:
   graph. Plans persist to the scenario-**independent** `~/.vrooli` home store so
   they stay readable with the server down.
 - **authoring** — the guided composer wizard. Walk a plan's sections in order,
-  validate structure as you go, and **autofill** the mechanical sections (regression
-  anchor, required-reading, code references) behind seams so a small model only
-  supplies genuine prose, then finalize into a structured plan.
+  validate structure as you go, capture the regression anchor and code references
+  behind seams, and discover relevant-context candidates that must be explicitly
+  accepted or rejected before they become execution setup. This keeps a small
+  model focused on prose and context judgment, then finalizes into a structured plan.
 - **execution** — the guided runner. `status`/`next` act as a just-in-time context
-  server (current phase, what's next, phase-scoped reading + reminders, last
+  server (current phase, what's next, setup context + reminders, last
   validation results, staleness); transition phases; capture decisions and candidate
   findings in-flow; `complete` assembles the **canonical** handoff; read per-plan
   velocity.
@@ -73,9 +74,10 @@ Plan Manager **composes** substrate it should not own and degrades gracefully wh
 owner is down: `code-facts` (code references), the freshness engine (content-hash
 staleness), `git-control-tower baseline` (regression anchor + diff), `test-genie` /
 `scenario-validation` (validation results it consumes), `prompt-manager`
-(`plan-skill-discovery` for required-reading autofill), and `meta-optimization-manager`
-(velocity sink). It does **not** own project-level validation, read agent transcripts,
-spawn agents, or promote candidate findings to real bugs — an operator triages those.
+and `search-hub` (relevant-context discovery), and `meta-optimization-manager`
+(velocity sink). It does **not** own project-level validation, read agent
+transcripts, spawn agents, or promote candidate findings to real bugs — an
+operator triages those.
 
 ## Documentation Map
 

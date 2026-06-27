@@ -14,7 +14,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "execution",
-      "description": "The status/next commands return the current phase, what is next, phase-scoped required-reading + reminders, the last validation results, and current staleness — so the agent does not carry that procedural knowledge in context.",
+      "description": "The start/status/context/resume/next commands return the current phase, what is next, structured relevant-context setup items, reminders, the last validation results, and current staleness — so the agent does not carry that procedural knowledge in context.",
       "tags": [
         "execution",
         "context",
@@ -26,7 +26,7 @@
           "ref": "api/internal/execution/execution_test.go::TestGetStatusInjectsPhaseScopedContext",
           "phase": "unit",
           "status": "failing",
-          "notes": "Status injects current phase, required reading, reminders, next phase, staleness, and resume point."
+          "notes": "Status injects current phase, relevant context, reminders, next phase, staleness, and resume point."
         },
         {
           "type": "test",

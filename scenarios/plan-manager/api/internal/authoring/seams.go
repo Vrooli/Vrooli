@@ -11,6 +11,8 @@ import (
 	"time"
 
 	planmodel "plan-manager/internal/planmodel"
+
+	"github.com/google/uuid"
 )
 
 // PlanWriter is the write seam onto the plans SSOT. Finalize maps the session's
@@ -32,12 +34,12 @@ type AnchorAutofiller interface {
 	Anchor(ctx context.Context, title, slug string) (string, error)
 }
 
-// RequiredReadingSource discovers the required-reading set via prompt-manager
-// plan-skill-discovery. A nil seam or an error degrades the required-reading
-// section honestly.
+// RequiredReadingSource is retained for explicit legacy migration input. New
+// setup guidance is discovered through ContextDiscoverer and accepted as typed
+// relevant context.
 type RequiredReadingSource interface {
-	// RequiredReading returns the prose to fill the required-reading section for
-	// the given plan title/intent. An error degrades that section honestly.
+	// RequiredReading returns legacy lines that can be migrated into structured
+	// relevant context when explicitly requested.
 	RequiredReading(ctx context.Context, title string) (string, error)
 }
 
@@ -47,6 +49,13 @@ type ReferenceExtractor interface {
 	// References returns the prose to fill the references section for the given
 	// plan title/scope. An error degrades that section honestly.
 	References(ctx context.Context, title, scope string) (string, error)
+}
+
+// ContextDiscoverer proposes relevant-context setup items from decomposed
+// concepts. It discovers candidates only; acceptance remains an authoring
+// decision in the Service.
+type ContextDiscoverer interface {
+	DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) ([]ContextCandidate, error)
 }
 
 // CommandRunner is the exec seam shared by the production autofill sources (the
@@ -141,13 +150,12 @@ func parseSnapshotStatusBaselineName(out []byte) (string, error) {
 	return name, nil
 }
 
-// cmdRequiredReadingSource discovers required reading via the live
-// prompt-manager discover surface (the executable plan-skill-discovery path)
-// through the CommandRunner seam.
+// cmdRequiredReadingSource discovers legacy migration input via the live
+// prompt-manager discover surface through the CommandRunner seam.
 type cmdRequiredReadingSource struct{ run CommandRunner }
 
-// NewCommandRequiredReadingSource wires the production RequiredReadingSource over
-// the given CommandRunner (prompt-manager). A nil runner always degrades.
+// NewCommandRequiredReadingSource wires the legacy RequiredReadingSource over the
+// given CommandRunner (prompt-manager). A nil runner always degrades.
 func NewCommandRequiredReadingSource(run CommandRunner) RequiredReadingSource {
 	return cmdRequiredReadingSource{run: run}
 }
@@ -194,6 +202,99 @@ func (e cmdReferenceExtractor) References(ctx context.Context, title, scope stri
 		lines = append(lines, "[CODE: "+ref+"]")
 	}
 	return strings.Join(lines, "\n"), nil
+}
+
+type cmdContextDiscoverer struct{ run CommandRunner }
+
+func NewCommandContextDiscoverer(run CommandRunner) ContextDiscoverer {
+	return cmdContextDiscoverer{run: run}
+}
+
+func (d cmdContextDiscoverer) DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) ([]ContextCandidate, error) {
+	if len(concepts) == 0 {
+		concepts = []string{title}
+	}
+	var out []ContextCandidate
+	for _, concept := range concepts {
+		concept = strings.TrimSpace(concept)
+		if concept == "" {
+			continue
+		}
+		out = append(out,
+			d.commandCandidate(ctx, concept, "prompt-manager-skill-discovery", planmodel.RelevantContextSkill, promptManagerSkillDiscoveryArgv(concept, complexity), "Discover and load relevant prompt-manager skills before implementation."),
+			d.commandCandidate(ctx, concept, "prompt-manager-actions", planmodel.RelevantContextCommand, []string{"prompt-manager", "discover", concept, "--type", "all"}, "Find executable actions and operational tools before hand-rolling steps."),
+			d.commandCandidate(ctx, concept, "search-hub-recall", planmodel.RelevantContextSearch, []string{"search-hub", "query", concept, "--type", "record,skill,doc"}, "Recall prior records, skills, and docs connected to this concept."),
+			d.commandCandidate(ctx, concept, "cli-health-search", planmodel.RelevantContextSearch, []string{"cli-health", "search", concept}, "Find current CLI commands related to this concept."),
+		)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no non-empty context concepts supplied")
+	}
+	return out, nil
+}
+
+func (d cmdContextDiscoverer) commandCandidate(ctx context.Context, concept, source string, kind planmodel.RelevantContextKind, argv []string, reason string) ContextCandidate {
+	item := planmodel.RelevantContextItem{
+		ID:           uuid.NewString(),
+		Kind:         kind,
+		Scope:        planmodel.RelevantContextScopeGlobal,
+		Label:        source + ": " + concept,
+		Reason:       reason,
+		Instruction:  "Run this during context setup; inspect the output and keep only relevant findings.",
+		Command:      shellJoin(argv),
+		Argv:         append([]string(nil), argv...),
+		Required:     true,
+		RepeatPolicy: planmodel.RelevantContextOncePerExecution,
+		Source:       planmodel.RelevantContextSourceDiscovered,
+		Status:       planmodel.RelevantContextStatusReady,
+	}
+	candidate := ContextCandidate{
+		ID:      uuid.NewString(),
+		Item:    item,
+		Concept: concept,
+		Source:  source,
+		Status:  ContextCandidatePending,
+	}
+	if d.run == nil {
+		candidate.Degraded = true
+		candidate.Detail = source + " unavailable"
+		candidate.Item.Status = planmodel.RelevantContextStatusDegraded
+		return candidate
+	}
+	if _, err := d.run(ctx, argv[0], argv[1:]...); err != nil {
+		candidate.Degraded = true
+		candidate.Detail = err.Error()
+		candidate.Item.Status = planmodel.RelevantContextStatusDegraded
+	}
+	return candidate
+}
+
+func promptManagerSkillDiscoveryArgv(concept, complexity string) []string {
+	argv := []string{"prompt-manager", "discover", concept}
+	if strings.TrimSpace(complexity) != "" {
+		argv = append(argv, "--complexity", strings.TrimSpace(complexity))
+	}
+	return argv
+}
+
+func shellJoin(argv []string) string {
+	parts := make([]string, 0, len(argv))
+	for _, arg := range argv {
+		parts = append(parts, shellQuote(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+func shellQuote(arg string) string {
+	if arg == "" {
+		return "''"
+	}
+	if strings.IndexFunc(arg, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '\'' || r == '"' || r == '<' || r == '>' || r == '[' || r == ']' || r == ':' || r == ';' || r == '|' || r == '&' || r == ','
+	}) < 0 {
+		return arg
+	}
+	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
 }
 
 func anchorScenarioAndName(title, slug string) (string, string) {

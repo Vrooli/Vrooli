@@ -18,7 +18,7 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | `cli-health` | Scenario | Validate authored `cli:` command references in plans without executing them | Soft |
 | git / freshness engine | Platform | Per-reference drift is git-sourced today; freshness engine remains scenario-artifact scoped | Soft |
 | `test-genie` / `scenario-validation` | Scenario | Validation results consumed (not owned) | Soft |
-| `prompt-manager` | Scenario | `plan-skill-discovery` for required-reading autofill | Soft |
+| `prompt-manager` | Scenario | Relevant-context skill/action discovery for authoring and setup guidance | Soft |
 | `meta-optimization-manager` | Scenario | Velocity signal sink (trials) | Soft |
 | `agent-manager` | Scenario | Run-id attribution contract; owns prose-handoff capture | Soft |
 
@@ -55,8 +55,11 @@ failing the flow:
   remain FRESH and missing references are still DEFINITELY_STALE.
 - **test-genie / scenario-validation** — validation results consumed for plan
   health. plan-manager never re-implements project-level validation; it reads.
-- **prompt-manager** — `plan-skill-discovery` for required-reading autofill. If
-  down: required-reading is left for the author to fill.
+- **prompt-manager** — relevant-context skill/action discovery for authoring and
+  setup guidance. Authoring stores discovered setup as pending candidates; the
+  author must accept useful candidates or reject noisy ones before finalization.
+  If down: context candidates are marked degraded or left for the author to
+  supply explicitly.
 - **meta-optimization-manager** — velocity sink. If down: velocity is retained
   locally and emit is retried/skipped; no flow blocks.
 - **agent-manager** — provides the run-id attribution contract

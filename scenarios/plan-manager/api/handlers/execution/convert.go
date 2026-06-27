@@ -38,6 +38,7 @@ func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseCon
 		Staleness:       stalenessToProto(c.Staleness),
 		ResumePhaseId:   c.ResumePhaseID,
 		Completeness:    completenessToProto(c.Completeness),
+		RelevantContext: planproto.RelevantContextItemsToProto(c.RelevantContext),
 	}
 	if c.HasCurrent {
 		out.CurrentPhase = phaseToProto(c.CurrentPhase)

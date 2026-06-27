@@ -66,10 +66,31 @@ func samplePlan() plans.Plan {
 			Strategy: "scenario_baseline", Scenario: "widget-svc", BaselineName: "impl",
 			Commands: []string{"git-control-tower baseline diff --scenario widget-svc --name impl"},
 		},
+		RelevantContext: []plans.RelevantContextItem{{
+			Kind:         plans.RelevantContextSearch,
+			Scope:        plans.RelevantContextScopeGlobal,
+			Label:        "Recall prior widget work",
+			Reason:       "Recover prior implementation context.",
+			Command:      "search-hub query widget --type record,doc",
+			Required:     true,
+			RepeatPolicy: plans.RelevantContextOnResume,
+			Source:       plans.RelevantContextSourceAuthored,
+			Status:       plans.RelevantContextStatusReady,
+		}},
 		Phases: []plans.Phase{
 			{
 				Title: "Anchor", Intent: "Capture baseline", Acceptance: "Anchor recorded", Status: plans.PhaseStatusTodo,
 				RequiredReading: []string{"docs/TESTING.md"}, Reminders: []string{"Never git stash"},
+				RelevantContext: []plans.RelevantContextItem{{
+					Kind:         plans.RelevantContextDoc,
+					Scope:        plans.RelevantContextScopePhase,
+					Label:        "Testing protocol",
+					Target:       "docs/TESTING.md",
+					Required:     true,
+					RepeatPolicy: plans.RelevantContextPhaseEntry,
+					Source:       plans.RelevantContextSourceAuthored,
+					Status:       plans.RelevantContextStatusReady,
+				}},
 			},
 			{
 				Title: "Implement", Intent: "Build it", Acceptance: "Builds", Status: plans.PhaseStatusTodo,
@@ -102,6 +123,9 @@ func TestRepositorySaveGetRoundTrip(t *testing.T) {
 	require.Len(t, got.References, 2)
 	require.True(t, got.Phases[1].References[0].Future)
 	require.Equal(t, "scenario_baseline", got.RegressionAnchor.Strategy)
+	require.Len(t, got.RelevantContext, 1)
+	require.Equal(t, plans.RelevantContextSearch, got.RelevantContext[0].Kind)
+	require.Equal(t, "Testing protocol", got.Phases[0].RelevantContext[0].Label)
 
 	// Resolves by slug too.
 	bySlug, ok, err := repo.Get(ctx, "improve-widget")
@@ -156,6 +180,12 @@ func TestContentHashStableAndSensitive(t *testing.T) {
 	updated := a
 	updated.Purpose = "Different purpose"
 	got, err := svc.Update(ctx, updated)
+	require.NoError(t, err)
+	require.NotEqual(t, a.ContentHash, got.ContentHash)
+
+	updated = a
+	updated.RelevantContext[0].Reason = "Different context reason"
+	got, err = svc.Update(ctx, updated)
 	require.NoError(t, err)
 	require.NotEqual(t, a.ContentHash, got.ContentHash)
 }

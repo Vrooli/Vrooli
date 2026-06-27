@@ -118,6 +118,8 @@ describe("Connect API wrapper helpers", () => {
     const phase = { id: "phase-1" };
     const violation = { sectionKey: "purpose" };
     const result = { source: "references" };
+    const item = { id: "ctx-1" };
+    const candidate = { id: "candidate-1" };
     const plan = { id: "plan-1" };
     const client = {
       startSession: vi.fn().mockResolvedValue({ session, step }),
@@ -126,6 +128,11 @@ describe("Connect API wrapper helpers", () => {
       next: vi.fn().mockResolvedValue({ section, complete: true, step }),
       validateStructure: vi.fn().mockResolvedValue({ valid: false, violations: [violation], step }),
       autofill: vi.fn().mockResolvedValue({ session, results: [result], step }),
+      submitRelevantContextItem: vi.fn().mockResolvedValue({ session, item, violations: [violation], step }),
+      listRelevantContext: vi.fn().mockResolvedValue({ items: [item], step }),
+      discoverContextCandidates: vi.fn().mockResolvedValue({ session, candidates: [candidate], step }),
+      acceptContextCandidate: vi.fn().mockResolvedValue({ session, candidate, item, violations: [violation], step }),
+      rejectContextCandidate: vi.fn().mockResolvedValue({ session, candidate, step }),
       addPhase: vi.fn().mockResolvedValue({ session, phase, violations: [violation], step }),
       getPhase: vi.fn().mockResolvedValue({ phase, step }),
       submitPhaseField: vi.fn().mockResolvedValue({ session, violations: [violation], step }),
@@ -142,6 +149,11 @@ describe("Connect API wrapper helpers", () => {
     await expect(authoring.nextSection("session-1")).resolves.toEqual({ section, complete: true, step });
     await expect(authoring.validateStructure("session-1")).resolves.toEqual({ valid: false, violations: [violation], step });
     await expect(authoring.autofill("session-1", ["references"])).resolves.toEqual({ session, results: [result], step });
+    await expect(authoring.submitRelevantContextItem("session-1", "phase-1", item as never)).resolves.toEqual({ session, item, violations: [violation], step });
+    await expect(authoring.listRelevantContext("session-1", "phase-1")).resolves.toEqual({ items: [item], step });
+    await expect(authoring.discoverContextCandidates("session-1", ["context"], "architectural")).resolves.toEqual({ session, candidates: [candidate], step });
+    await expect(authoring.acceptContextCandidate("session-1", "candidate-1", "phase-1")).resolves.toEqual({ session, candidate, item, violations: [violation], step });
+    await expect(authoring.rejectContextCandidate("session-1", "candidate-1", "duplicate")).resolves.toEqual({ session, candidate, step });
     await expect(authoring.addPhase("session-1", "Title", "Intent")).resolves.toEqual({ session, phase, violations: [violation], step });
     await expect(authoring.getPhase("session-1", "phase-1")).resolves.toEqual({ phase, step });
     await expect(authoring.submitPhaseField("session-1", "phase-1", "acceptance", "Done")).resolves.toEqual({ session, violations: [violation], step });
@@ -155,6 +167,11 @@ describe("Connect API wrapper helpers", () => {
     expect(client.submitSection).toHaveBeenCalledWith({ sessionId: "session-1", sectionKey: "purpose", content: "Body" });
     expect(client.autofill).toHaveBeenCalledWith({ sessionId: "session-1", sources: ["references"] });
     expect(client.autofill).toHaveBeenCalledWith({ sessionId: "session-1", sources: [] });
+    expect(client.submitRelevantContextItem).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", item });
+    expect(client.listRelevantContext).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1" });
+    expect(client.discoverContextCandidates).toHaveBeenCalledWith({ sessionId: "session-1", concepts: ["context"], complexity: "architectural" });
+    expect(client.acceptContextCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", phaseId: "phase-1" });
+    expect(client.rejectContextCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", reason: "duplicate" });
     expect(client.addPhase).toHaveBeenCalledWith({ sessionId: "session-1", title: "Title", intent: "Intent" });
     expect(client.getPhase).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1" });
     expect(client.submitPhaseField).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", field: "acceptance", content: "Done" });
@@ -170,9 +187,11 @@ describe("Connect API wrapper helpers", () => {
     const point = { id: "velocity-1" };
     const step = { stepKind: "execution" };
     const client = {
-      start: vi.fn().mockResolvedValue({ execution, step }),
+      start: vi.fn().mockResolvedValue({ execution, context, step }),
       getStatus: vi.fn().mockResolvedValue({ execution, context, step }),
       getNext: vi.fn().mockResolvedValue({ context, complete: false, step }),
+      getContext: vi.fn().mockResolvedValue({ execution, context, step }),
+      resume: vi.fn().mockResolvedValue({ execution, context, step }),
       transitionPhase: vi.fn().mockResolvedValue({ execution, step }),
       recordDecision: vi.fn().mockResolvedValue({ decision, step }),
       recordFinding: vi.fn().mockResolvedValue({ finding, step }),
@@ -186,9 +205,11 @@ describe("Connect API wrapper helpers", () => {
 
     const executionApi = await import("./execution");
 
-    await expect(executionApi.startExecution("plan-1", "run-1")).resolves.toEqual({ execution, step });
+    await expect(executionApi.startExecution("plan-1", "run-1")).resolves.toEqual({ execution, context, step });
     await expect(executionApi.getStatus("exec-1")).resolves.toEqual({ execution, context, step });
     await expect(executionApi.getNext("exec-1")).resolves.toEqual({ context, complete: false, step });
+    await expect(executionApi.getContext("exec-1", "phase-1")).resolves.toEqual({ execution, context, step });
+    await expect(executionApi.resumeExecution("plan-1", "phase-1", "run-1")).resolves.toEqual({ execution, context, step });
     await expect(executionApi.transitionPhase("exec-1", "phase-1", PhaseStatus.DONE)).resolves.toEqual({ execution, step });
     await expect(executionApi.recordDecision("exec-1", "phase-1", "summary", "detail")).resolves.toEqual({ decision, step });
     await expect(executionApi.recordFinding("exec-1", "phase-1", "title", "detail")).resolves.toEqual({ finding, step });
@@ -197,7 +218,7 @@ describe("Connect API wrapper helpers", () => {
     await expect(executionApi.listCandidateFindings("exec-1")).resolves.toEqual([finding]);
     await expect(executionApi.triageFinding("finding-1", FindingTriage.PROMOTED)).resolves.toBe(finding);
     await expect(executionApi.getVelocity("plan-1")).resolves.toEqual([point]);
-    await expect(executionApi.startExecution("plan-1")).resolves.toEqual({ execution, step });
+    await expect(executionApi.startExecution("plan-1")).resolves.toEqual({ execution, context, step });
     await expect(executionApi.recordDecision("exec-1", "phase-1", "summary")).resolves.toEqual({ decision, step });
     await expect(executionApi.recordFinding("exec-1", "phase-1", "title")).resolves.toEqual({ finding, step });
     await expect(executionApi.completeExecution("exec-1")).resolves.toEqual({ handoff, nudges: [nudge], step });
@@ -205,6 +226,8 @@ describe("Connect API wrapper helpers", () => {
 
     expect(client.start).toHaveBeenCalledWith({ planId: "plan-1", runId: "run-1" });
     expect(client.start).toHaveBeenCalledWith({ planId: "plan-1", runId: "" });
+    expect(client.getContext).toHaveBeenCalledWith({ executionId: "exec-1", phaseId: "phase-1" });
+    expect(client.resume).toHaveBeenCalledWith({ planOrExecution: "plan-1", phaseId: "phase-1", runId: "run-1" });
     expect(client.recordDecision).toHaveBeenCalledWith({ executionId: "exec-1", phaseId: "phase-1", summary: "summary", detail: "" });
     expect(client.recordFinding).toHaveBeenCalledWith({ executionId: "exec-1", phaseId: "phase-1", title: "title", detail: "" });
     expect(client.complete).toHaveBeenCalledWith({ executionId: "exec-1", tokens: 10n, iterations: 2 });

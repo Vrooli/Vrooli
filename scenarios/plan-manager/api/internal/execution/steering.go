@@ -6,8 +6,8 @@ func stepForStarted(e Execution) GuidedStep {
 	return GuidedStep{
 		StepKind:     "execution_started",
 		Title:        "Execution Started",
-		Summary:      "The run is linked to the plan and ready for just-in-time phase context.",
-		Instructions: []string{"Fetch status before editing so the current phase, required reading, reminders, and validation state are fresh."},
+		Summary:      "The run is linked to the plan and ready for just-in-time setup context.",
+		Instructions: []string{"Fetch context before editing so the current phase, structured setup items, reminders, and validation state are fresh."},
 		NextActions: []NextAction{
 			{
 				ID:     "execution-status",
@@ -45,8 +45,8 @@ func stepForContext(executionID string, ctx PhaseContext, complete bool) GuidedS
 	step := GuidedStep{
 		StepKind:     "phase_context",
 		Title:        "Phase Context",
-		Summary:      "Use the current phase context to implement, capture decisions/findings, and transition status.",
-		Instructions: []string{"Read the phase-scoped required reading and reminders before editing.", "Record decisions or findings as they occur.", "Transition the phase when acceptance is satisfied."},
+		Summary:      "Use the current phase setup context to implement, capture decisions/findings, and transition status.",
+		Instructions: []string{"Run or read the structured setup items before editing.", "Record decisions or findings as they occur.", "Transition the phase when acceptance is satisfied."},
 		NextActions: []NextAction{
 			{
 				ID:     "transition-active",

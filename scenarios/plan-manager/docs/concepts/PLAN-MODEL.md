@@ -55,6 +55,7 @@ A `Plan` is the top-level record.
 | `definition_of_done` | authored + verified | Objective pass/fail criteria; the regression check is mandatory. |
 | `phases[]` | authored | Ordered, first-class phases (see Phase). |
 | `supersedes`, `superseded_by` | authored | Plan graph edges. |
+| `relevant_context[]` | authored + discovered | Plan-wide setup items a fresh/resumed agent should load, inspect, or run before execution. |
 
 ## Phase
 
@@ -66,9 +67,10 @@ runner walks and the unit context is scoped to.
 | `id`, `order` | computed / authored | Identity and sequence. |
 | `title` | authored | Short phase name. |
 | `intent` | authored | What this phase accomplishes. |
-| `required_reading[]` | auto-filled + authored | Skills/docs to load **for this phase**; injected on `next`. |
+| `required_reading[]` | migration input | Legacy phase reading preserved when importing older plans; execution-facing setup uses `relevant_context[]`. |
 | `reminders[]` | authored | General + phase-specific reminders, surfaced just-in-time during the phase. |
 | `references[]` | authored + resolved | Phase-scoped connected-code, requirement, or document references. A phase with no connected references must carry an explicit no-code reason during authoring. |
+| `relevant_context[]` | authored + discovered | Phase-scoped setup items with kind, reason, instruction, command/argv, target, required flag, repeat policy, source, and status. |
 | `baseline_scope` | computed | The set of connected-code locations this phase touches → the exact baseline/validation command set. |
 | `acceptance` | authored | Objective pass/fail for this phase. |
 | `status` | computed | `todo` → `active` → `done` / `blocked`. A typed transition or inferred from acceptance + validation passing. |
@@ -77,6 +79,34 @@ runner walks and the unit context is scoped to.
 
 **Resume point** = the earliest phase whose `status` is not `done`. Full vs.
 partial completion is derived from the phase-status set — never narrated.
+
+## Relevant Context
+
+`RelevantContextItem` is the execution-facing context contract. It replaces a
+flat required-reading list with typed setup instructions that can be rendered by
+API, CLI, UI, and Markdown without asking a small agent to infer intent.
+
+Context items may be global or phase-scoped and are classified as `skill`,
+`doc`, `command`, `search`, `code_ref`, `req_ref`, or `note`. Required items
+carry an explicit repeat policy such as `once_per_execution`, `on_resume`,
+`every_phase`, `phase_entry`, or `as_needed`. Discovery state is auditable via
+source/status fields (`authored`, `discovered`, `migrated`, `autofilled`;
+`ready`, `degraded`, `unresolved`).
+
+During authoring, discovered context starts as `ContextCandidate` session state.
+Candidates carry the proposed `RelevantContextItem`, discovery concept, source,
+degraded detail, and pending/accepted/rejected status. Only accepted candidates
+finalize into plan or phase `relevant_context[]`; rejected candidates remain an
+authoring audit trail and do not affect execution.
+
+Execution injects relevant context through `start`, `status`, `context`,
+`resume`, and `next`. `context` can inspect a requested phase without changing
+the runner pointer; `resume` reuses an existing execution when possible, creates
+one for a plan when needed, and emits on-resume plus phase-entry setup before
+work continues.
+
+`references[]` stays separate. References are the strong validation/staleness
+locator set; relevant context is the setup checklist for execution.
 
 ## References
 

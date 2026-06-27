@@ -14,7 +14,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "authoring",
-      "description": "The wizard walks the plan's sections in order, validates structure as it goes, and refuses to finalize while a mandatory section (or a phase's acceptance) is empty. The flow is followable by a small model with minimal context.",
+      "description": "The wizard walks the plan's sections in order, validates structure as it goes, accepts structured global and phase-scoped relevant context, and refuses to finalize while a mandatory section (or a phase's acceptance) is empty. The flow is followable by a small model with minimal context.",
       "tags": [
         "authoring",
         "wizard",
@@ -25,15 +25,29 @@
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestStructureGateRejectsEmptyMandatoryAndAnchor",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Structure-validation gate rejects empty mandatory sections and missing anchors."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestSessionProgressionToComplete",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Section-by-section progression exposes the next required section until complete."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authoring/authoring_test.go::TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Authoring stores global and phase-scoped relevant context and migrates legacy required-reading lines into structured context on finalize."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authoring/authoring_test.go::TestContextDiscoveryCandidateLifecycle",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Relevant-context discovery persists pending candidates and requires explicit accept/reject decisions."
         }
       ]
     },
@@ -43,7 +57,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "authoring",
-      "description": "The wizard auto-fills the deterministic sections — regression anchor (via git-control-tower baseline), required-reading (via prompt-manager plan-skill-discovery), and code references (via code-facts) — degrading gracefully when a source is unavailable, so genuine prose is the only thing left for the agent.",
+      "description": "The wizard auto-fills deterministic setup where possible — regression anchor (via git-control-tower baseline), relevant-context candidates (via prompt-manager/search-hub/cli-health), and code references (via code-facts) — degrading gracefully when a source is unavailable, so genuine prose and final context judgment are left for the agent.",
       "tags": [
         "authoring",
         "autofill",
@@ -54,15 +68,22 @@
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestAutofillFillsWhenSeamsHealthy",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Autofill fills mechanical sections when substrate seams are healthy."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestAutofilledReferencesSurviveFinalize",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Autofilled references round-trip through finalize into structured plan references."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/authoring/authoring_test.go::TestContextDiscoveryDegradesWhenSeamUnavailable",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Context discovery degrades honestly when the discovery seam is unavailable."
         }
       ]
     }

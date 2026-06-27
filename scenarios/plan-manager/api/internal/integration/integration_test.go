@@ -134,8 +134,12 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	_, plansSvc, validationSvc, _, executionSvc := newStack(t)
 
 	plan, err := plansSvc.Create(ctx, internalplans.Plan{
-		Title:  "Cheap context",
-		Phases: []internalplans.Phase{{Title: "Phase one", Acceptance: "done"}},
+		Title: "Cheap context",
+		Phases: []internalplans.Phase{{
+			Title:      "Phase one",
+			Acceptance: "done",
+			Reminders:  []string{"NO_CONTEXT: validation persistence fixture does not require setup context."},
+		}},
 		References: []internalplans.Reference{
 			{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/api/main.go"},
 		},
@@ -144,7 +148,7 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	require.NotEmpty(t, plan.Phases)
 	phaseID := plan.Phases[0].ID
 
-	exec, _, err := executionSvc.Start(ctx, plan.ID, "run-cheap")
+	exec, _, _, err := executionSvc.Start(ctx, plan.ID, "run-cheap")
 	require.NoError(t, err)
 
 	// Before any explicit validation run: NO validation in the injected context.
@@ -214,7 +218,7 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	_ = scope // derivation must not error; exact commands depend on ref targets
 
 	// 4) Execute the plan phase by phase with just-in-time context injection.
-	exec, _, err := executionSvc.Start(ctx, plan.ID, "run-xyz")
+	exec, _, _, err := executionSvc.Start(ctx, plan.ID, "run-xyz")
 	require.NoError(t, err)
 	require.Equal(t, plan.ID, exec.PlanID)
 	require.Equal(t, "run-xyz", exec.RunID)

@@ -61,6 +61,43 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) context(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetContext(context.Background(), connect.NewRequest(&executionv1.GetContextRequest{
+		ExecutionId: ctx.Positional("execution"),
+		PhaseId:     ctx.Flag("phase"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("get context", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        contextSummary(resp.Msg.GetExecution(), resp.Msg.GetContext()),
+		ResultsHeading: "Setup context",
+		Results:        append(contextLines(resp.Msg.GetContext()), formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) resume(ctx cliapp.RunContext) error {
+	resp, err := h.client.Resume(context.Background(), connect.NewRequest(&executionv1.ResumeRequest{
+		PlanOrExecution: ctx.Positional("plan-or-execution"),
+		PhaseId:         ctx.Flag("phase"),
+		RunId:           ctx.Flag("run-id"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("resume execution", err, nil)
+	}
+	e := resp.Msg.GetExecution()
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Resumed execution %s on plan %s.", e.GetId(), e.GetPlanId()),
+			fmt.Sprintf("Current phase: %s.", orNone(e.GetCurrentPhaseId())),
+		},
+		ResultsHeading: "Setup context",
+		Results:        append(contextLines(resp.Msg.GetContext()), formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) next(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetNext(context.Background(), connect.NewRequest(&executionv1.GetNextRequest{
 		ExecutionId: ctx.Positional("execution"),
@@ -268,6 +305,9 @@ func contextSummary(e *executionv1.Execution, c *executionv1.PhaseContext) []str
 
 func contextLines(c *executionv1.PhaseContext) []string {
 	out := make([]string, 0)
+	for _, item := range c.GetRelevantContext() {
+		out = append(out, formatRelevantContext(item)...)
+	}
 	for _, r := range c.GetRequiredReading() {
 		out = append(out, "read: "+r)
 	}
@@ -281,6 +321,68 @@ func contextLines(c *executionv1.PhaseContext) []string {
 		out = append(out, fmt.Sprintf("last validation: %s", lv.GetDetail()))
 	}
 	return out
+}
+
+func formatRelevantContext(item *sharedv1.RelevantContextItem) []string {
+	if item == nil {
+		return nil
+	}
+	label := firstNonEmpty(item.GetLabel(), item.GetTarget(), item.GetCommand(), item.GetInstruction(), "context")
+	line := fmt.Sprintf("context[%s]: %s", relevantContextKindLabel(item.GetKind()), label)
+	if item.GetRequired() {
+		line += " (required)"
+	}
+	out := []string{line}
+	if item.GetReason() != "" {
+		out = append(out, "  reason: "+item.GetReason())
+	}
+	if item.GetInstruction() != "" && item.GetInstruction() != label {
+		out = append(out, "  instruction: "+item.GetInstruction())
+	}
+	if cmd := relevantContextCommand(item); cmd != "" {
+		out = append(out, "  command: "+cmd)
+	}
+	return out
+}
+
+func relevantContextCommand(item *sharedv1.RelevantContextItem) string {
+	if item.GetCommand() != "" {
+		return item.GetCommand()
+	}
+	if len(item.GetArgv()) > 0 {
+		return shellCommand(item.GetArgv())
+	}
+	return ""
+}
+
+func relevantContextKindLabel(kind sharedv1.RelevantContextKind) string {
+	switch kind {
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL:
+		return "skill"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC:
+		return "doc"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND:
+		return "command"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SEARCH:
+		return "search"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_CODE_REF:
+		return "code_ref"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_REQ_REF:
+		return "req_ref"
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE:
+		return "note"
+	default:
+		return "unspecified"
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func formatStep(step *sharedv1.GuidedStep) []string {

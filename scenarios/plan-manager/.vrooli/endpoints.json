@@ -253,6 +253,46 @@
       "category": "authoring"
     },
     {
+      "id": "authoring_submit_relevant_context_item",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitRelevantContextItem",
+      "method": "POST",
+      "summary": "Submit relevant context",
+      "description": "Records one global or phase-scoped setup item in the authoring session.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_list_relevant_context",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/ListRelevantContext",
+      "method": "POST",
+      "summary": "List relevant context",
+      "description": "Returns accepted context items from the authoring session without changing wizard position.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_discover_context_candidates",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverContextCandidates",
+      "method": "POST",
+      "summary": "Discover context candidates",
+      "description": "Runs guided context discovery for decomposed concepts and stores pending candidates.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_accept_context_candidate",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptContextCandidate",
+      "method": "POST",
+      "summary": "Accept context candidate",
+      "description": "Promotes a pending context candidate into global or phase-scoped relevant context.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_reject_context_candidate",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectContextCandidate",
+      "method": "POST",
+      "summary": "Reject context candidate",
+      "description": "Records why a discovered context candidate is not relevant.",
+      "category": "authoring"
+    },
+    {
       "id": "authoring_add_phase",
       "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase",
       "method": "POST",
@@ -306,6 +346,22 @@
       "method": "POST",
       "summary": "Get current context",
       "description": "Returns the just-in-time context for the runner's current phase (OT-P0-003).",
+      "category": "execution"
+    },
+    {
+      "id": "execution_get_context",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetContext",
+      "method": "POST",
+      "summary": "Get setup context",
+      "description": "Returns setup context for the current or requested phase without advancing the runner.",
+      "category": "execution"
+    },
+    {
+      "id": "execution_resume",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/Resume",
+      "method": "POST",
+      "summary": "Resume execution",
+      "description": "Resolves an existing execution or creates one for a plan and returns setup context without advancing.",
       "category": "execution"
     },
     {

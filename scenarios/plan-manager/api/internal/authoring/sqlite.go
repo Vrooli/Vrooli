@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"plan-manager/internal/clock"
+	planmodel "plan-manager/internal/planmodel"
 )
 
 // sessionTimeFormat matches the rest of the scenario (RFC3339Nano sorts
@@ -41,10 +42,12 @@ var _ SessionStore = (*sqliteStore)(nil)
 // sections[] and the current-section pointer live here because they round-trip
 // with the session and are never queried across sessions.
 type sessionDocument struct {
-	Sections          []Section    `json:"sections"`
-	CurrentSectionKey SectionKey   `json:"current_section_key"`
-	PhaseDrafts       []PhaseDraft `json:"phase_drafts,omitempty"`
-	CurrentPhaseID    string       `json:"current_phase_id,omitempty"`
+	Sections          []Section                       `json:"sections"`
+	CurrentSectionKey SectionKey                      `json:"current_section_key"`
+	PhaseDrafts       []PhaseDraft                    `json:"phase_drafts,omitempty"`
+	CurrentPhaseID    string                          `json:"current_phase_id,omitempty"`
+	RelevantContext   []planmodel.RelevantContextItem `json:"relevant_context,omitempty"`
+	ContextCandidates []ContextCandidate              `json:"context_candidates,omitempty"`
 }
 
 const (
@@ -70,6 +73,8 @@ func (r *sqliteStore) Save(ctx context.Context, s Session) error {
 		CurrentSectionKey: s.CurrentSectionKey,
 		PhaseDrafts:       s.PhaseDrafts,
 		CurrentPhaseID:    s.CurrentPhaseID,
+		RelevantContext:   s.RelevantContext,
+		ContextCandidates: s.ContextCandidates,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -129,5 +134,7 @@ func scanSession(sc rowScanner) (Session, error) {
 	s.CurrentSectionKey = doc.CurrentSectionKey
 	s.PhaseDrafts = doc.PhaseDrafts
 	s.CurrentPhaseID = doc.CurrentPhaseID
+	s.RelevantContext = doc.RelevantContext
+	s.ContextCandidates = doc.ContextCandidates
 	return s, nil
 }

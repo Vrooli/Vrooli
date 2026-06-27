@@ -61,9 +61,9 @@ The structured plan/phase schema every domain operates on lives in
 
 ### authoring
 
-- Purpose: the guided composer wizard (OT-P0-002) — walk the plan's sections in order, then author each phase as a first-class draft object with API-owned guided steps at every transition. The wizard validates structure as it goes and auto-fills the mechanical sections (regression anchor, required-reading, code references) so a small model supplies only genuine prose.
+- Purpose: the guided composer wizard (OT-P0-002) — walk the plan's sections in order, then author each phase as a first-class draft object with API-owned guided steps at every transition. The wizard validates structure as it goes, captures mechanical context where possible (regression anchor, relevant-context candidates, code references), and requires explicit accept/reject decisions for discovered context so a small model supplies only genuine prose and final judgment.
 - Primary archetype: orchestration / workflow.
-- Owns: authoring-session progression, phase-draft progression, API-owned guided-step payloads, the structure-validation gate, authoring-time `cli:` command-reference feedback, autofill orchestration (behind seams to git-control-tower, prompt-manager, code-facts).
+- Owns: authoring-session progression, phase-draft progression, context candidate discovery/accept/reject state, API-owned guided-step payloads, the structure-validation gate, authoring-time `cli:` command-reference feedback, autofill orchestration (behind seams to git-control-tower, prompt-manager, search-hub, cli-health, code-facts).
 - Does not own: the plan record itself (delegates writes to `plans`); command truth (delegates to CLI Health); the actual baseline/reference computation (delegates to `validation`).
 - API: `api/handlers/authoring/`. CLI: `cli/domains/authoring/`. UI: `ui/src/features/authoring/`.
 - Storage: transient authoring-session state; the plan it produces is owned by `plans`.
@@ -72,7 +72,7 @@ The structured plan/phase schema every domain operates on lives in
 
 ### execution
 
-- Purpose: the guided runner (OT-P0-003, OT-P1-001/002) — phase status transitions, just-in-time context injection (`status`/`next`), in-flow capture of decisions/findings, the thin guided completion process, the canonical structured handoff, and per-plan velocity.
+- Purpose: the guided runner (OT-P0-003, OT-P1-001/002) — phase status transitions, just-in-time setup context injection (`start`/`status`/`context`/`resume`/`next`), in-flow capture of decisions/findings, the thin guided completion process, the canonical structured handoff, and per-plan velocity.
 - Primary archetype: orchestration / state machine.
 - Owns: run↔plan linkage, captured decisions/findings, candidate (unvalidated) findings, the canonical handoff record, the velocity series.
 - Does not own: the prose final-message handoff (orchestration-layer concern — see [`INTEGRATIONS.md`](INTEGRATIONS.md)); promotion of candidate findings to real bugs (operator triage); the validation it surfaces (delegates to `validation`).

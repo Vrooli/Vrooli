@@ -16,6 +16,9 @@ import {
   HandoffSchema,
   PhaseSchema,
   PhaseStatus,
+  RelevantContextItemSchema,
+  RelevantContextKind,
+  RelevantContextRepeatPolicy,
   StalenessTier,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import {
@@ -26,6 +29,7 @@ import { PlanSchema } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb"
 
 const startExecution = vi.fn();
 const getStatus = vi.fn();
+const getContext = vi.fn();
 const transitionPhase = vi.fn();
 const recordDecision = vi.fn();
 const recordFinding = vi.fn();
@@ -35,6 +39,7 @@ const listPlans = vi.fn();
 vi.mock("../../api/execution", () => ({
   startExecution: (...a: unknown[]) => startExecution(...a),
   getStatus: (...a: unknown[]) => getStatus(...a),
+  getContext: (...a: unknown[]) => getContext(...a),
   transitionPhase: (...a: unknown[]) => transitionPhase(...a),
   recordDecision: (...a: unknown[]) => recordDecision(...a),
   recordFinding: (...a: unknown[]) => recordFinding(...a),
@@ -68,14 +73,24 @@ const context = create(PhaseContextSchema, {
   currentPhase: create(PhaseSchema, { id: "p1", order: 1, title: "Contracts", status: PhaseStatus.ACTIVE }),
   requiredReading: ["docs/PLAN.md"],
   reminders: ["keep it small"],
+  relevantContext: [
+    create(RelevantContextItemSchema, {
+      id: "ctx-1",
+      kind: RelevantContextKind.COMMAND,
+      label: "Recall",
+      command: "search-hub query plan-manager --type record",
+      repeatPolicy: RelevantContextRepeatPolicy.ON_RESUME,
+    }),
+  ],
   staleness: StalenessTier.FRESH,
 });
 
 const startAndLand = async () => {
   const user = userEvent.setup();
   listPlans.mockResolvedValue([create(PlanSchema, { id: "plan-1", title: "Migrate auth" })]);
-  startExecution.mockResolvedValue({ execution, step });
+  startExecution.mockResolvedValue({ execution, context, step });
   getStatus.mockResolvedValue({ execution, context, step });
+  getContext.mockResolvedValue({ execution, context, step });
 
   renderWithProviders(<ExecutionRunner />);
   await waitFor(() => {
@@ -102,7 +117,16 @@ describe("ExecutionRunner", () => {
     await startAndLand();
     expect(startExecution).toHaveBeenCalledWith("plan-1", "");
     expect(screen.getByTestId(selectors.execution.context)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.execution.setupContext)).toHaveTextContent("Recall");
     expect(screen.getByTestId(selectors.execution.guidedStep)).toHaveTextContent("exec transition exec-1 p1 --status done");
+  });
+
+  it("refreshes setup context without advancing execution", async () => {
+    const user = await startAndLand();
+    await user.click(screen.getByTestId(selectors.execution.contextButton));
+    await waitFor(() => {
+      expect(getContext).toHaveBeenCalledWith("exec-1");
+    });
   });
 
   it("transitions the current phase", async () => {

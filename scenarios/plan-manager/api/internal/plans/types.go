@@ -70,10 +70,65 @@ const (
 	ResolutionMissing     = planmodel.ResolutionMissing
 )
 
+// RelevantContextKind classifies one setup item a fresh/resumed agent should
+// load, inspect, or run before acting on a plan or phase.
+type RelevantContextKind = planmodel.RelevantContextKind
+
+const (
+	RelevantContextSkill   = planmodel.RelevantContextSkill
+	RelevantContextDoc     = planmodel.RelevantContextDoc
+	RelevantContextCommand = planmodel.RelevantContextCommand
+	RelevantContextSearch  = planmodel.RelevantContextSearch
+	RelevantContextCodeRef = planmodel.RelevantContextCodeRef
+	RelevantContextReqRef  = planmodel.RelevantContextReqRef
+	RelevantContextNote    = planmodel.RelevantContextNote
+)
+
+// RelevantContextScope says whether an item applies plan-wide or to one phase.
+type RelevantContextScope = planmodel.RelevantContextScope
+
+const (
+	RelevantContextScopeGlobal = planmodel.RelevantContextScopeGlobal
+	RelevantContextScopePhase  = planmodel.RelevantContextScopePhase
+)
+
+// RelevantContextRepeatPolicy says when execution should re-emit the item.
+type RelevantContextRepeatPolicy = planmodel.RelevantContextRepeatPolicy
+
+const (
+	RelevantContextOncePerExecution = planmodel.RelevantContextOncePerExecution
+	RelevantContextOnResume         = planmodel.RelevantContextOnResume
+	RelevantContextEveryPhase       = planmodel.RelevantContextEveryPhase
+	RelevantContextPhaseEntry       = planmodel.RelevantContextPhaseEntry
+	RelevantContextAsNeeded         = planmodel.RelevantContextAsNeeded
+)
+
+// RelevantContextSource captures how the context item entered the plan.
+type RelevantContextSource = planmodel.RelevantContextSource
+
+const (
+	RelevantContextSourceAuthored   = planmodel.RelevantContextSourceAuthored
+	RelevantContextSourceDiscovered = planmodel.RelevantContextSourceDiscovered
+	RelevantContextSourceMigrated   = planmodel.RelevantContextSourceMigrated
+	RelevantContextSourceAutofilled = planmodel.RelevantContextSourceAutofilled
+)
+
+// RelevantContextStatus records whether the item is usable or degraded.
+type RelevantContextStatus = planmodel.RelevantContextStatus
+
+const (
+	RelevantContextStatusReady      = planmodel.RelevantContextStatusReady
+	RelevantContextStatusDegraded   = planmodel.RelevantContextStatusDegraded
+	RelevantContextStatusUnresolved = planmodel.RelevantContextStatusUnresolved
+)
+
 // Reference is one connected-code locator on a plan or phase. kind/target/future
 // are AUTHORED; resolution/staleness/change_factor are filled by the validation
 // domain.
 type Reference = planmodel.Reference
+
+// RelevantContextItem is the execution-facing setup contract.
+type RelevantContextItem = planmodel.RelevantContextItem
 
 // RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
 // by the authoring wizard (delegating to git-control-tower).

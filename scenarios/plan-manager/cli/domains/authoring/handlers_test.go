@@ -106,6 +106,61 @@ func (r *authRecorder) Autofill(_ context.Context, req *connect.Request[authorin
 	return connect.NewResponse(&authoringv1.AutofillResponse{}), nil
 }
 
+func (r *authRecorder) SubmitRelevantContextItem(_ context.Context, req *connect.Request[authoringv1.SubmitRelevantContextItemRequest]) (*connect.Response[authoringv1.SubmitRelevantContextItemResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.SubmitRelevantContextItemResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.SubmitRelevantContextItemResponse{Item: req.Msg.GetItem()}), nil
+}
+
+func (r *authRecorder) ListRelevantContext(_ context.Context, req *connect.Request[authoringv1.ListRelevantContextRequest]) (*connect.Response[authoringv1.ListRelevantContextResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.ListRelevantContextResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.ListRelevantContextResponse{}), nil
+}
+
+func (r *authRecorder) DiscoverContextCandidates(_ context.Context, req *connect.Request[authoringv1.DiscoverContextCandidatesRequest]) (*connect.Response[authoringv1.DiscoverContextCandidatesResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.DiscoverContextCandidatesResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.DiscoverContextCandidatesResponse{}), nil
+}
+
+func (r *authRecorder) AcceptContextCandidate(_ context.Context, req *connect.Request[authoringv1.AcceptContextCandidateRequest]) (*connect.Response[authoringv1.AcceptContextCandidateResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.AcceptContextCandidateResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.AcceptContextCandidateResponse{Candidate: &authoringv1.ContextCandidate{Id: req.Msg.GetCandidateId(), Status: "accepted"}}), nil
+}
+
+func (r *authRecorder) RejectContextCandidate(_ context.Context, req *connect.Request[authoringv1.RejectContextCandidateRequest]) (*connect.Response[authoringv1.RejectContextCandidateResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.RejectContextCandidateResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.RejectContextCandidateResponse{Candidate: &authoringv1.ContextCandidate{Id: req.Msg.GetCandidateId(), Status: "rejected", RejectionReason: req.Msg.GetReason()}}), nil
+}
+
 func (r *authRecorder) Finalize(_ context.Context, req *connect.Request[authoringv1.FinalizeRequest]) (*connect.Response[authoringv1.FinalizeResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -225,12 +280,21 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "autofill maps session + comma-split sources", cmd: "autofill",
-			argv: []string{"sess-1", "--sources", "regression_anchor, references , required_reading"},
+			name: "autofill maps session + comma-split default sources", cmd: "autofill",
+			argv: []string{"sess-1", "--sources", "regression_anchor, references"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*authoringv1.AutofillRequest)
 				require.Equal(t, "sess-1", m.GetSessionId())
-				require.Equal(t, []string{"regression_anchor", "references", "required_reading"}, m.GetSources())
+				require.Equal(t, []string{"regression_anchor", "references"}, m.GetSources())
+			},
+		},
+		{
+			name: "autofill can still request legacy required reading explicitly", cmd: "autofill",
+			argv: []string{"sess-1", "--sources", "required_reading"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.AutofillRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, []string{"required_reading"}, m.GetSources())
 			},
 		},
 		{
@@ -238,6 +302,58 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			argv: []string{"sess-1"},
 			assert: func(t *testing.T, req proto.Message) {
 				require.Empty(t, req.(*authoringv1.AutofillRequest).GetSources())
+			},
+		},
+		{
+			name: "context-submit maps structured context flags", cmd: "context-submit",
+			argv: []string{"sess-1", "--phase", "ph1", "--kind", "command", "--label", "Recall", "--reason", "prior work", "--instruction", "run recall", "--command", "search-hub query plan-manager", "--required", "--repeat", "phase_entry"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.SubmitRelevantContextItemRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "ph1", m.GetPhaseId())
+				require.Equal(t, sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND, m.GetItem().GetKind())
+				require.Equal(t, "Recall", m.GetItem().GetLabel())
+				require.True(t, m.GetItem().GetRequired())
+				require.Equal(t, sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY, m.GetItem().GetRepeatPolicy())
+			},
+		},
+		{
+			name: "context-list maps session and phase", cmd: "context-list",
+			argv: []string{"sess-1", "--phase", "ph1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.ListRelevantContextRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "ph1", m.GetPhaseId())
+			},
+		},
+		{
+			name: "context-discover maps concepts and complexity", cmd: "context-discover",
+			argv: []string{"sess-1", "--concepts", "a,b", "--complexity", "architectural"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.DiscoverContextCandidatesRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, []string{"a", "b"}, m.GetConcepts())
+				require.Equal(t, "architectural", m.GetComplexity())
+			},
+		},
+		{
+			name: "context-accept maps candidate and phase", cmd: "context-accept",
+			argv: []string{"sess-1", "cand1", "--phase", "ph1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.AcceptContextCandidateRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "cand1", m.GetCandidateId())
+				require.Equal(t, "ph1", m.GetPhaseId())
+			},
+		},
+		{
+			name: "context-reject maps candidate and reason", cmd: "context-reject",
+			argv: []string{"sess-1", "cand1", "--reason", "duplicate"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.RejectContextCandidateRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "cand1", m.GetCandidateId())
+				require.Equal(t, "duplicate", m.GetReason())
 			},
 		},
 		{

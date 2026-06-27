@@ -89,6 +89,16 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 			ChangeFactor: 0.25,
 			Note:         "ok",
 		}},
+		RelevantContext: []planmodel.RelevantContextItem{{
+			Kind:         planmodel.RelevantContextSearch,
+			Scope:        planmodel.RelevantContextScopeGlobal,
+			Label:        "Recall auth work",
+			Command:      "search-hub query auth --type record,doc",
+			Required:     true,
+			RepeatPolicy: planmodel.RelevantContextOnResume,
+			Source:       planmodel.RelevantContextSourceAuthored,
+			Status:       planmodel.RelevantContextStatusReady,
+		}},
 		Phases: []planmodel.Phase{{
 			ID:              "phase-1",
 			Order:           1,
@@ -102,6 +112,15 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 			References: []planmodel.Reference{{
 				Kind:   planmodel.ReferenceCode,
 				Target: "api/main.go",
+			}},
+			RelevantContext: []planmodel.RelevantContextItem{{
+				Kind:         planmodel.RelevantContextDoc,
+				Scope:        planmodel.RelevantContextScopePhase,
+				PhaseID:      "phase-1",
+				Label:        "Model docs",
+				Target:       "docs/concepts/PLAN-MODEL.md",
+				Required:     true,
+				RepeatPolicy: planmodel.RelevantContextPhaseEntry,
 			}},
 		}},
 	})
@@ -127,5 +146,14 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 	}
 	if got := len(phase.GetReferences()); got != 1 {
 		t.Fatalf("len(phase.References) = %d, want 1", got)
+	}
+	if got := len(proto.GetRelevantContext()); got != 1 {
+		t.Fatalf("len(proto.RelevantContext) = %d, want 1", got)
+	}
+	if proto.GetRelevantContext()[0].GetRepeatPolicy() != sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME {
+		t.Fatalf("plan context repeat policy = %v", proto.GetRelevantContext()[0].GetRepeatPolicy())
+	}
+	if got := len(phase.GetRelevantContext()); got != 1 {
+		t.Fatalf("len(phase.RelevantContext) = %d, want 1", got)
 	}
 }

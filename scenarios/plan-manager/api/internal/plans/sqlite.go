@@ -67,16 +67,17 @@ func (r *sqliteRepository) WithTx(ctx context.Context, fn func(Repository) error
 // field that isn't a first-class queryable column. Phases and references live
 // here because they round-trip with the plan and are never queried across plans.
 type planDocument struct {
-	Purpose          string           `json:"purpose"`
-	Scope            string           `json:"scope"`
-	Constraints      string           `json:"constraints"`
-	NonGoals         string           `json:"non_goals"`
-	DefinitionOfDone string           `json:"definition_of_done"`
-	References       []Reference      `json:"references"`
-	RegressionAnchor RegressionAnchor `json:"regression_anchor"`
-	Phases           []Phase          `json:"phases"`
-	Supersedes       []string         `json:"supersedes"`
-	SupersededBy     []string         `json:"superseded_by"`
+	Purpose          string                `json:"purpose"`
+	Scope            string                `json:"scope"`
+	Constraints      string                `json:"constraints"`
+	NonGoals         string                `json:"non_goals"`
+	DefinitionOfDone string                `json:"definition_of_done"`
+	References       []Reference           `json:"references"`
+	RegressionAnchor RegressionAnchor      `json:"regression_anchor"`
+	Phases           []Phase               `json:"phases"`
+	Supersedes       []string              `json:"supersedes"`
+	SupersededBy     []string              `json:"superseded_by"`
+	RelevantContext  []RelevantContextItem `json:"relevant_context"`
 }
 
 const (
@@ -125,6 +126,7 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		Phases:           p.Phases,
 		Supersedes:       p.Supersedes,
 		SupersededBy:     p.SupersededBy,
+		RelevantContext:  p.RelevantContext,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -250,5 +252,6 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.Phases = doc.Phases
 	p.Supersedes = doc.Supersedes
 	p.SupersededBy = doc.SupersededBy
+	p.RelevantContext = doc.RelevantContext
 	return p, nil
 }

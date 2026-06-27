@@ -109,24 +109,36 @@ func threePhasePlan() internalplans.Plan {
 	}
 }
 
+func contextIDs(items []internalplans.RelevantContextItem) []string {
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		out = append(out, item.ID)
+	}
+	return out
+}
+
 // --- tests ---
 
 func TestStartLinksRunAndSetsResumePointer(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, step, err := h.svc.Start(context.Background(), "plan-1", "run-abc")
+	e, pctx, step, err := h.svc.Start(context.Background(), "plan-1", "run-abc")
 	require.NoError(t, err)
 	require.NotEmpty(t, e.ID)
 	require.Equal(t, "plan-1", e.PlanID)
 	require.Equal(t, "run-abc", e.RunID)
 	require.Equal(t, "ph-1", e.CurrentPhaseID, "current pointer starts at the earliest non-done phase")
 	require.False(t, e.Complete)
+	require.True(t, pctx.HasCurrent)
+	require.Equal(t, "ph-1", pctx.CurrentPhase.ID)
+	require.Len(t, pctx.RelevantContext, 1)
+	require.Equal(t, internalplans.RelevantContextDoc, pctx.RelevantContext[0].Kind)
 	require.Equal(t, "execution_started", step.StepKind)
 	require.Equal(t, []string{"exec", "status", e.ID}, step.NextActions[0].Argv)
 }
 
 func TestStartRequiresPlanID(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	_, _, err := h.svc.Start(context.Background(), "  ", "")
+	_, _, _, err := h.svc.Start(context.Background(), "  ", "")
 	require.ErrorAs(t, err, &execution.ErrInvalidExecution{})
 }
 
@@ -161,7 +173,7 @@ func TestResumePointDerivationEarliestNonDone(t *testing.T) {
 	plan := threePhasePlan()
 	plan.Phases[0].Status = internalplans.PhaseStatusDone // ph-1 done
 	h := newHarness(t, plan, nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	require.Equal(t, "ph-2", e.CurrentPhaseID, "resume point skips the done phase to the earliest non-done one")
 }
@@ -169,7 +181,7 @@ func TestResumePointDerivationEarliestNonDone(t *testing.T) {
 // [REQ:PM-EXEC-001]
 func TestGetStatusInjectsPhaseScopedContext(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 
 	_, pctx, step, err := h.svc.GetStatus(context.Background(), e.ID)
@@ -186,9 +198,82 @@ func TestGetStatusInjectsPhaseScopedContext(t *testing.T) {
 	require.Equal(t, []string{"exec", "transition", e.ID, "ph-1", "--status", "active"}, step.NextActions[0].Argv)
 }
 
+func TestGetContextPhaseOverrideDoesNotAdvancePointer(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+
+	got, pctx, _, err := h.svc.GetContext(context.Background(), e.ID, "ph-2")
+	require.NoError(t, err)
+	require.Equal(t, e.ID, got.ID)
+	require.True(t, pctx.HasCurrent)
+	require.Equal(t, "ph-2", pctx.CurrentPhase.ID)
+
+	updated, pctx, _, err := h.svc.GetStatus(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, "ph-1", updated.CurrentPhaseID, "context phase override is read-only")
+	require.Equal(t, "ph-1", pctx.CurrentPhase.ID)
+}
+
+func TestResumeByPlanReusesLatestExecution(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	first, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-1")
+	require.NoError(t, err)
+	_, _, _, err = h.svc.TransitionPhase(context.Background(), first.ID, "ph-1", internalplans.PhaseStatusDone)
+	require.NoError(t, err)
+
+	resumed, pctx, _, err := h.svc.Resume(context.Background(), "plan-1", "", "ignored-new-run")
+	require.NoError(t, err)
+	require.Equal(t, first.ID, resumed.ID, "resume by plan should reuse the latest execution")
+	require.Equal(t, "ph-2", resumed.CurrentPhaseID)
+	require.Equal(t, "ph-2", pctx.CurrentPhase.ID)
+	require.Equal(t, "run-1", resumed.RunID, "run id is only used when creating a new execution")
+}
+
+func TestResumeExplicitPhasePersistsPointer(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil)
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+
+	resumed, pctx, _, err := h.svc.Resume(context.Background(), e.ID, "ph-3", "")
+	require.NoError(t, err)
+	require.Equal(t, "ph-3", resumed.CurrentPhaseID)
+	require.Equal(t, "ph-3", pctx.CurrentPhase.ID)
+
+	updated, pctx, _, err := h.svc.GetStatus(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, "ph-3", updated.CurrentPhaseID)
+	require.Equal(t, "ph-3", pctx.CurrentPhase.ID)
+}
+
+func TestRelevantContextRepeatPolicies(t *testing.T) {
+	plan := threePhasePlan()
+	plan.RelevantContext = []internalplans.RelevantContextItem{
+		{ID: "once", Kind: internalplans.RelevantContextCommand, Label: "once", RepeatPolicy: internalplans.RelevantContextOncePerExecution},
+		{ID: "resume", Kind: internalplans.RelevantContextCommand, Label: "resume", RepeatPolicy: internalplans.RelevantContextOnResume},
+		{ID: "every", Kind: internalplans.RelevantContextCommand, Label: "every", RepeatPolicy: internalplans.RelevantContextEveryPhase},
+	}
+	plan.Phases[0].RelevantContext = []internalplans.RelevantContextItem{
+		{ID: "phase", Kind: internalplans.RelevantContextDoc, Label: "phase", RepeatPolicy: internalplans.RelevantContextPhaseEntry},
+	}
+	h := newHarness(t, plan, nil)
+
+	e, pctx, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"once", "every", "phase"}, contextIDs(pctx.RelevantContext))
+
+	_, pctx, _, err = h.svc.GetStatus(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"resume", "every", "phase"}, contextIDs(pctx.RelevantContext))
+
+	_, pctx, _, err = h.svc.Resume(context.Background(), e.ID, "", "")
+	require.NoError(t, err)
+	require.Equal(t, []string{"resume", "every", "phase"}, contextIDs(pctx.RelevantContext))
+}
+
 func TestGetStatusDegradesToUnknownWhenValidatorNil(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil) // nil validator
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	_, pctx, _, err := h.svc.GetStatus(context.Background(), e.ID)
 	require.NoError(t, err)
@@ -198,7 +283,7 @@ func TestGetStatusDegradesToUnknownWhenValidatorNil(t *testing.T) {
 
 func TestTransitionPhaseDelegatesAndAdvancesPointer(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 
 	updatedE, plan, _, err := h.svc.TransitionPhase(context.Background(), e.ID, "ph-1", internalplans.PhaseStatusDone)
@@ -210,7 +295,7 @@ func TestTransitionPhaseDelegatesAndAdvancesPointer(t *testing.T) {
 
 func TestTransitionPhaseUnknownPhase(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	_, _, _, err = h.svc.TransitionPhase(context.Background(), e.ID, "nope", internalplans.PhaseStatusDone)
 	require.ErrorAs(t, err, &internalplans.ErrPhaseNotFound{})
@@ -218,7 +303,7 @@ func TestTransitionPhaseUnknownPhase(t *testing.T) {
 
 func TestGetNextAdvancesAndReportsComplete(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 
 	// Drive every phase to done, then GetNext reports complete.
@@ -236,7 +321,7 @@ func TestGetNextAdvancesAndReportsComplete(t *testing.T) {
 // [REQ:PM-EXEC-001]
 func TestGetNextAdvancesPastCurrentUnfinishedPhase(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	require.Equal(t, "ph-1", e.CurrentPhaseID)
 
@@ -258,7 +343,7 @@ func TestGetNextKeepsLastUnfinishedPhaseIncomplete(t *testing.T) {
 	plan.Phases[0].Status = internalplans.PhaseStatusDone
 	plan.Phases[1].Status = internalplans.PhaseStatusDone
 	h := newHarness(t, plan, nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	require.Equal(t, "ph-3", e.CurrentPhaseID)
 
@@ -271,7 +356,7 @@ func TestGetNextKeepsLastUnfinishedPhaseIncomplete(t *testing.T) {
 
 func TestRecordDecisionPersistsForHandoff(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	d, _, err := h.svc.RecordDecision(context.Background(), e.ID, "ph-1", "chose SQLite", "home store")
 	require.NoError(t, err)
@@ -282,7 +367,7 @@ func TestRecordDecisionPersistsForHandoff(t *testing.T) {
 // [REQ:PM-HANDOFF-002]
 func TestRecordFindingAlwaysCandidate(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "run-x")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-x")
 	require.NoError(t, err)
 	f, _, err := h.svc.RecordFinding(context.Background(), e.ID, "ph-1", "maybe a bug", "detail")
 	require.NoError(t, err)
@@ -293,7 +378,7 @@ func TestRecordFindingAlwaysCandidate(t *testing.T) {
 // [REQ:PM-HANDOFF-002]
 func TestRecordFindingDedupByRunIDAndTitle(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "run-dup")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-dup")
 	require.NoError(t, err)
 
 	first, _, err := h.svc.RecordFinding(context.Background(), e.ID, "ph-1", "Same Title", "first detail")
@@ -311,7 +396,7 @@ func TestRecordFindingDedupByTitleWhenNoRunID(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	// Ensure no env run id leaks in; Start with empty run id and no env.
 	t.Setenv("VROOLI_AGENT_MANAGER_RUN_ID", "")
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	require.Empty(t, e.RunID)
 
@@ -327,7 +412,7 @@ func TestCompletenessFullVsPartial(t *testing.T) {
 	require := require.New(t)
 
 	partial := newHarness(t, threePhasePlan(), nil)
-	e, _, err := partial.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := partial.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(err)
 	_, pctx, _, err := partial.svc.GetStatus(context.Background(), e.ID)
 	require.NoError(err)
@@ -338,7 +423,7 @@ func TestCompletenessFullVsPartial(t *testing.T) {
 		allDone.Phases[i].Status = internalplans.PhaseStatusDone
 	}
 	full := newHarness(t, allDone, nil)
-	e2, _, err := full.svc.Start(context.Background(), "plan-1", "")
+	e2, _, _, err := full.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(err)
 	_, pctx2, _, err := full.svc.GetStatus(context.Background(), e2.ID)
 	require.NoError(err)
@@ -356,7 +441,7 @@ func TestCompleteAssemblesHandoffAndCapturesVelocity(t *testing.T) {
 		plan.Phases[i].Status = internalplans.PhaseStatusDone
 	}
 	h := newHarness(t, plan, validator)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "run-c")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-c")
 	require.NoError(t, err)
 	_, _, err = h.svc.RecordDecision(context.Background(), e.ID, "ph-1", "a decision", "")
 	require.NoError(t, err)
@@ -394,7 +479,7 @@ func TestCompleteAssemblesHandoffAndCapturesVelocity(t *testing.T) {
 
 func TestCompleteNudgesUnsatisfiedWhenStatePartial(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil) // no findings, phases still todo
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	_, nudges, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{})
 	require.NoError(t, err)
@@ -412,7 +497,7 @@ func TestGetHandoffReturnsPersistedAfterComplete(t *testing.T) {
 		plan.Phases[i].Status = internalplans.PhaseStatusDone
 	}
 	h := newHarness(t, plan, nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	written, _, _, err := h.svc.Complete(context.Background(), e.ID, execution.CompletionInputs{})
 	require.NoError(t, err)
@@ -425,7 +510,7 @@ func TestGetHandoffReturnsPersistedAfterComplete(t *testing.T) {
 
 func TestGetHandoffLiveViewBeforeComplete(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "")
 	require.NoError(t, err)
 	_, _, err = h.svc.RecordDecision(context.Background(), e.ID, "ph-1", "early decision", "")
 	require.NoError(t, err)
@@ -439,7 +524,7 @@ func TestGetHandoffLiveViewBeforeComplete(t *testing.T) {
 
 func TestTriageFindingPromoteAndDismiss(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e, _, err := h.svc.Start(context.Background(), "plan-1", "run-t")
+	e, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-t")
 	require.NoError(t, err)
 	promote, _, err := h.svc.RecordFinding(context.Background(), e.ID, "ph-1", "promote me", "")
 	require.NoError(t, err)
@@ -467,9 +552,9 @@ func TestTriageFindingNotFound(t *testing.T) {
 
 func TestListCandidateFindingsAcrossExecutions(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
-	e1, _, err := h.svc.Start(context.Background(), "plan-1", "run-1")
+	e1, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-1")
 	require.NoError(t, err)
-	e2, _, err := h.svc.Start(context.Background(), "plan-1", "run-2")
+	e2, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-2")
 	require.NoError(t, err)
 	_, _, err = h.svc.RecordFinding(context.Background(), e1.ID, "ph-1", "f1", "")
 	require.NoError(t, err)

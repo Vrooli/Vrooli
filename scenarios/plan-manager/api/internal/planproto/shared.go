@@ -41,6 +41,7 @@ func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 		Phases:           PhasesToProto(p.Phases),
 		Supersedes:       p.Supersedes,
 		SupersededBy:     p.SupersededBy,
+		RelevantContext:  RelevantContextItemsToProto(p.RelevantContext),
 	}
 }
 
@@ -56,6 +57,7 @@ func PhaseToProto(ph planmodel.Phase) *sharedv1.Phase {
 		Acceptance:      ph.Acceptance,
 		Status:          PhaseStatusToProto(ph.Status),
 		References:      ReferencesToProto(ph.References),
+		RelevantContext: RelevantContextItemsToProto(ph.RelevantContext),
 	}
 }
 
@@ -79,6 +81,63 @@ func ReferencesToProto(refs []planmodel.Reference) []*sharedv1.Reference {
 			Staleness:    StalenessToProto(r.Staleness),
 			ChangeFactor: r.ChangeFactor,
 			Note:         r.Note,
+		})
+	}
+	return out
+}
+
+func RelevantContextItemsToProto(items []planmodel.RelevantContextItem) []*sharedv1.RelevantContextItem {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]*sharedv1.RelevantContextItem, 0, len(items))
+	for _, item := range items {
+		out = append(out, &sharedv1.RelevantContextItem{
+			Id:           item.ID,
+			Kind:         RelevantContextKindToProto(item.Kind),
+			Scope:        RelevantContextScopeToProto(item.Scope),
+			PhaseId:      item.PhaseID,
+			Label:        item.Label,
+			Reason:       item.Reason,
+			Instruction:  item.Instruction,
+			Command:      item.Command,
+			Argv:         item.Argv,
+			Target:       item.Target,
+			Required:     item.Required,
+			RepeatPolicy: RelevantContextRepeatPolicyToProto(item.RepeatPolicy),
+			Source:       RelevantContextSourceToProto(item.Source),
+			Status:       RelevantContextStatusToProto(item.Status),
+			StatusDetail: item.StatusDetail,
+		})
+	}
+	return out
+}
+
+func RelevantContextItemsFromProto(items []*sharedv1.RelevantContextItem) []planmodel.RelevantContextItem {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]planmodel.RelevantContextItem, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		out = append(out, planmodel.RelevantContextItem{
+			ID:           item.GetId(),
+			Kind:         RelevantContextKindFromProto(item.GetKind()),
+			Scope:        RelevantContextScopeFromProto(item.GetScope()),
+			PhaseID:      item.GetPhaseId(),
+			Label:        item.GetLabel(),
+			Reason:       item.GetReason(),
+			Instruction:  item.GetInstruction(),
+			Command:      item.GetCommand(),
+			Argv:         item.GetArgv(),
+			Target:       item.GetTarget(),
+			Required:     item.GetRequired(),
+			RepeatPolicy: RelevantContextRepeatPolicyFromProto(item.GetRepeatPolicy()),
+			Source:       RelevantContextSourceFromProto(item.GetSource()),
+			Status:       RelevantContextStatusFromProto(item.GetStatus()),
+			StatusDetail: item.GetStatusDetail(),
 		})
 	}
 	return out
@@ -218,6 +277,160 @@ func RefResolutionFromProto(r sharedv1.ReferenceResolution) planmodel.ReferenceR
 		return planmodel.ResolutionMissing
 	default:
 		return planmodel.ResolutionUnspecified
+	}
+}
+
+func RelevantContextKindToProto(k planmodel.RelevantContextKind) sharedv1.RelevantContextKind {
+	switch k {
+	case planmodel.RelevantContextSkill:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL
+	case planmodel.RelevantContextDoc:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC
+	case planmodel.RelevantContextCommand:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND
+	case planmodel.RelevantContextSearch:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SEARCH
+	case planmodel.RelevantContextCodeRef:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_CODE_REF
+	case planmodel.RelevantContextReqRef:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_REQ_REF
+	case planmodel.RelevantContextNote:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE
+	default:
+		return sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_UNSPECIFIED
+	}
+}
+
+func RelevantContextKindFromProto(k sharedv1.RelevantContextKind) planmodel.RelevantContextKind {
+	switch k {
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SKILL:
+		return planmodel.RelevantContextSkill
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC:
+		return planmodel.RelevantContextDoc
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_COMMAND:
+		return planmodel.RelevantContextCommand
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_SEARCH:
+		return planmodel.RelevantContextSearch
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_CODE_REF:
+		return planmodel.RelevantContextCodeRef
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_REQ_REF:
+		return planmodel.RelevantContextReqRef
+	case sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE:
+		return planmodel.RelevantContextNote
+	default:
+		return ""
+	}
+}
+
+func RelevantContextScopeToProto(s planmodel.RelevantContextScope) sharedv1.RelevantContextScope {
+	switch s {
+	case planmodel.RelevantContextScopeGlobal:
+		return sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_GLOBAL
+	case planmodel.RelevantContextScopePhase:
+		return sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_PHASE
+	default:
+		return sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_UNSPECIFIED
+	}
+}
+
+func RelevantContextScopeFromProto(s sharedv1.RelevantContextScope) planmodel.RelevantContextScope {
+	switch s {
+	case sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_GLOBAL:
+		return planmodel.RelevantContextScopeGlobal
+	case sharedv1.RelevantContextScope_RELEVANT_CONTEXT_SCOPE_PHASE:
+		return planmodel.RelevantContextScopePhase
+	default:
+		return ""
+	}
+}
+
+func RelevantContextRepeatPolicyToProto(p planmodel.RelevantContextRepeatPolicy) sharedv1.RelevantContextRepeatPolicy {
+	switch p {
+	case planmodel.RelevantContextOncePerExecution:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION
+	case planmodel.RelevantContextOnResume:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME
+	case planmodel.RelevantContextEveryPhase:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE
+	case planmodel.RelevantContextPhaseEntry:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY
+	case planmodel.RelevantContextAsNeeded:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED
+	default:
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED
+	}
+}
+
+func RelevantContextRepeatPolicyFromProto(p sharedv1.RelevantContextRepeatPolicy) planmodel.RelevantContextRepeatPolicy {
+	switch p {
+	case sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION:
+		return planmodel.RelevantContextOncePerExecution
+	case sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME:
+		return planmodel.RelevantContextOnResume
+	case sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE:
+		return planmodel.RelevantContextEveryPhase
+	case sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY:
+		return planmodel.RelevantContextPhaseEntry
+	case sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED:
+		return planmodel.RelevantContextAsNeeded
+	default:
+		return ""
+	}
+}
+
+func RelevantContextSourceToProto(s planmodel.RelevantContextSource) sharedv1.RelevantContextSource {
+	switch s {
+	case planmodel.RelevantContextSourceAuthored:
+		return sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED
+	case planmodel.RelevantContextSourceDiscovered:
+		return sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_DISCOVERED
+	case planmodel.RelevantContextSourceMigrated:
+		return sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_MIGRATED
+	case planmodel.RelevantContextSourceAutofilled:
+		return sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTOFILLED
+	default:
+		return sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_UNSPECIFIED
+	}
+}
+
+func RelevantContextSourceFromProto(s sharedv1.RelevantContextSource) planmodel.RelevantContextSource {
+	switch s {
+	case sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED:
+		return planmodel.RelevantContextSourceAuthored
+	case sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_DISCOVERED:
+		return planmodel.RelevantContextSourceDiscovered
+	case sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_MIGRATED:
+		return planmodel.RelevantContextSourceMigrated
+	case sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTOFILLED:
+		return planmodel.RelevantContextSourceAutofilled
+	default:
+		return ""
+	}
+}
+
+func RelevantContextStatusToProto(s planmodel.RelevantContextStatus) sharedv1.RelevantContextStatus {
+	switch s {
+	case planmodel.RelevantContextStatusReady:
+		return sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY
+	case planmodel.RelevantContextStatusDegraded:
+		return sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_DEGRADED
+	case planmodel.RelevantContextStatusUnresolved:
+		return sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_UNRESOLVED
+	default:
+		return sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_UNSPECIFIED
+	}
+}
+
+func RelevantContextStatusFromProto(s sharedv1.RelevantContextStatus) planmodel.RelevantContextStatus {
+	switch s {
+	case sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY:
+		return planmodel.RelevantContextStatusReady
+	case sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_DEGRADED:
+		return planmodel.RelevantContextStatusDegraded
+	case sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_UNRESOLVED:
+		return planmodel.RelevantContextStatusUnresolved
+	default:
+		return ""
 	}
 }
 

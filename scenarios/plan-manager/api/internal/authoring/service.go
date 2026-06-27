@@ -21,6 +21,11 @@ type Service interface {
 	Next(ctx context.Context, sessionID string) (Section, GuidedStep, bool, error)
 	ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, GuidedStep, error)
 	Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, GuidedStep, error)
+	SubmitRelevantContextItem(ctx context.Context, sessionID, phaseID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
+	ListRelevantContext(ctx context.Context, sessionID, phaseID string) ([]planmodel.RelevantContextItem, GuidedStep, error)
+	DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, []ContextCandidate, GuidedStep, error)
+	AcceptContextCandidate(ctx context.Context, sessionID, candidateID, phaseID string) (Session, ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
+	RejectContextCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ContextCandidate, GuidedStep, error)
 	AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
 	GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error)
 	SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error)
@@ -34,6 +39,7 @@ type service struct {
 	anchor       AnchorAutofiller
 	reading      RequiredReadingSource
 	references   ReferenceExtractor
+	context      ContextDiscoverer
 	commands     CommandReferenceValidator
 	templateSeed TemplateSeeder
 	clock        clock.Clock
@@ -50,6 +56,7 @@ type Deps struct {
 	Anchor         AnchorAutofiller
 	RequiredRead   RequiredReadingSource
 	References     ReferenceExtractor
+	Context        ContextDiscoverer
 	Commands       CommandReferenceValidator
 	TemplateSeeder TemplateSeeder
 	Clock          clock.Clock
@@ -74,6 +81,7 @@ func NewService(d Deps) Service {
 		anchor:       d.Anchor,
 		reading:      d.RequiredRead,
 		references:   d.References,
+		context:      d.Context,
 		commands:     d.Commands,
 		templateSeed: d.TemplateSeeder,
 		clock:        clk,
@@ -173,7 +181,7 @@ func (s *service) Autofill(ctx context.Context, sessionID string, sources []Auto
 		return Session{}, nil, GuidedStep{}, err
 	}
 	if len(sources) == 0 {
-		sources = []AutofillSource{AutofillRegressionAnchor, AutofillRequiredReading, AutofillReferences}
+		sources = []AutofillSource{AutofillRegressionAnchor, AutofillReferences}
 	}
 	results := make([]AutofillResult, 0, len(sources))
 	for _, src := range sources {
@@ -185,6 +193,155 @@ func (s *service) Autofill(ctx context.Context, sessionID string, sources []Auto
 		return Session{}, nil, GuidedStep{}, err
 	}
 	return sess, results, stepForCurrentSessionState(sess), nil
+}
+
+func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phaseID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
+	}
+	item = normalizeContextItem(item, phaseID)
+	var violations []StructureViolation
+	if phaseID != "" {
+		idx := indexOfDraft(sess.PhaseDrafts, phaseID)
+		if idx < 0 {
+			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+		}
+		item.Scope = planmodel.RelevantContextScopePhase
+		item.PhaseID = sess.PhaseDrafts[idx].ID
+		violations = contextItemViolations(item)
+		if len(violations) == 0 {
+			sess.PhaseDrafts[idx].RelevantContext = append(sess.PhaseDrafts[idx].RelevantContext, item)
+		}
+		sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
+		sess = syncPhaseSection(sess)
+	} else {
+		item.Scope = planmodel.RelevantContextScopeGlobal
+		item.PhaseID = ""
+		violations = contextItemViolations(item)
+		if len(violations) == 0 {
+			sess.RelevantContext = append(sess.RelevantContext, item)
+			sess = syncContextSection(sess)
+		}
+	}
+	sess.UpdatedAt = s.now()
+	if len(violations) == 0 {
+		if err := s.store.Save(ctx, sess); err != nil {
+			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
+		}
+	}
+	return sess, item, violations, stepForCurrentSessionState(sess), nil
+}
+
+func (s *service) ListRelevantContext(ctx context.Context, sessionID, phaseID string) ([]planmodel.RelevantContextItem, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return nil, GuidedStep{}, err
+	}
+	if phaseID == "" {
+		return append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...), stepForCurrentSessionState(sess), nil
+	}
+	phase, ok := findDraft(sess.PhaseDrafts, phaseID)
+	if !ok {
+		return nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+	}
+	return append([]planmodel.RelevantContextItem(nil), phase.RelevantContext...), stepForPhase(sess, phase), nil
+}
+
+func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, []ContextCandidate, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	var candidates []ContextCandidate
+	if s.context == nil {
+		candidates = degradedContextCandidates(sess.Title, concepts, "context discovery unavailable")
+	} else {
+		candidates, err = s.context.DiscoverContext(ctx, sess.Title, concepts, complexity)
+		if err != nil {
+			candidates = degradedContextCandidates(sess.Title, concepts, err.Error())
+		}
+	}
+	for i := range candidates {
+		candidates[i] = normalizeContextCandidate(candidates[i])
+	}
+	sess.ContextCandidates = append(sess.ContextCandidates, candidates...)
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	return sess, candidates, stepForContextDiscovery(sess), nil
+}
+
+func (s *service) AcceptContextCandidate(ctx context.Context, sessionID, candidateID, phaseID string) (Session, ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
+	}
+	idx := indexOfCandidate(sess.ContextCandidates, candidateID)
+	if idx < 0 {
+		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "context candidate not found: " + candidateID}
+	}
+	candidate := sess.ContextCandidates[idx]
+	if candidate.Status == ContextCandidateRejected {
+		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "context candidate was rejected: " + candidateID}
+	}
+	item := normalizeContextItem(candidate.Item, phaseID)
+	var violations []StructureViolation
+	if phaseID != "" {
+		phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
+		if phaseIdx < 0 {
+			return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+		}
+		item.Scope = planmodel.RelevantContextScopePhase
+		item.PhaseID = sess.PhaseDrafts[phaseIdx].ID
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+		violations = contextItemViolations(item)
+		if len(violations) == 0 {
+			sess.PhaseDrafts[phaseIdx].RelevantContext = append(sess.PhaseDrafts[phaseIdx].RelevantContext, item)
+			sess = syncPhaseSection(sess)
+		}
+	} else {
+		item.Scope = planmodel.RelevantContextScopeGlobal
+		item.PhaseID = ""
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+		violations = contextItemViolations(item)
+		if len(violations) == 0 {
+			sess.RelevantContext = append(sess.RelevantContext, item)
+			sess = syncContextSection(sess)
+		}
+	}
+	if len(violations) > 0 {
+		return sess, candidate, item, violations, stepForContextDiscovery(sess), nil
+	}
+	candidate.Status = ContextCandidateAccepted
+	candidate.Item = item
+	sess.ContextCandidates[idx] = candidate
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, ContextCandidate{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
+	}
+	return sess, candidate, item, nil, stepForCurrentSessionState(sess), nil
+}
+
+func (s *service) RejectContextCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ContextCandidate, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, ContextCandidate{}, GuidedStep{}, err
+	}
+	idx := indexOfCandidate(sess.ContextCandidates, candidateID)
+	if idx < 0 {
+		return Session{}, ContextCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "context candidate not found: " + candidateID}
+	}
+	candidate := sess.ContextCandidates[idx]
+	candidate.Status = ContextCandidateRejected
+	candidate.RejectionReason = strings.TrimSpace(reason)
+	sess.ContextCandidates[idx] = candidate
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, ContextCandidate{}, GuidedStep{}, err
+	}
+	return sess, candidate, stepForContextDiscovery(sess), nil
 }
 
 // runAutofill runs one source against the session in place. It NEVER fabricates a
@@ -662,6 +819,8 @@ func applyPhaseField(phase *PhaseDraft, field PhaseField, content string) error 
 		if content != "" {
 			phase.References = nil
 		}
+	case PhaseFieldRelevantContext:
+		phase.RelevantContext = append(phase.RelevantContext, contextItemsFromLines(content, planmodel.RelevantContextScopePhase, phase.ID)...)
 	default:
 		return ErrInvalidSession{Reason: "unknown phase field " + string(field)}
 	}
@@ -683,6 +842,17 @@ func syncPhaseSection(sess Session) Session {
 	return sess
 }
 
+func syncContextSection(sess Session) Session {
+	idx := indexOf(sess.Sections, SectionRelevantContext)
+	if idx < 0 {
+		return sess
+	}
+	sess.Sections[idx].Content = renderContextItems(sess.RelevantContext)
+	sess.Sections[idx].Filled = strings.TrimSpace(sess.Sections[idx].Content) != ""
+	sess.Sections[idx].Autofilled = false
+	return sess
+}
+
 func renderPhaseDrafts(phases []PhaseDraft) string {
 	var b strings.Builder
 	for i, ph := range phases {
@@ -697,10 +867,12 @@ func renderPhaseDrafts(phases []PhaseDraft) string {
 		if ph.Acceptance != "" {
 			fmt.Fprintf(&b, "- Acceptance: %s\n", ph.Acceptance)
 		}
-		if len(ph.RequiredReading) > 0 {
-			b.WriteString("- Required reading:\n")
-			for _, item := range ph.RequiredReading {
-				fmt.Fprintf(&b, "  - %s\n", item)
+		context := append([]planmodel.RelevantContextItem(nil), ph.RelevantContext...)
+		context = append(context, contextItemsFromRequiredReading(ph.RequiredReading, ph.ID)...)
+		if len(context) > 0 {
+			b.WriteString("- Relevant context:\n")
+			for _, item := range context {
+				fmt.Fprintf(&b, "  - %s\n", renderContextItemSummary(item))
 			}
 		}
 		if len(ph.Reminders) > 0 {
@@ -792,7 +964,9 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		DefinitionOfDone: contentOf(sess.Sections, SectionDefinitionOfDone),
 		References:       parsed.References,
 		Phases:           parsed.Phases,
+		RelevantContext:  append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...),
 	}
+	p.RelevantContext = append(p.RelevantContext, contextItemsFromLines(contentOf(sess.Sections, SectionRequiredReading), planmodel.RelevantContextScopeGlobal, "")...)
 	if len(sess.PhaseDrafts) > 0 {
 		p.Phases = phaseDraftsToPlanPhases(sess.PhaseDrafts)
 	}
@@ -818,11 +992,19 @@ func phaseDraftsToPlanPhases(drafts []PhaseDraft) []planmodel.Phase {
 		if order <= 0 {
 			order = i + 1
 		}
+		phaseID := strings.TrimSpace(draft.ID)
 		reminders := append([]string(nil), draft.Reminders...)
 		if draft.NoCodeRefsReason != "" {
 			reminders = append(reminders, "No connected code references: "+draft.NoCodeRefsReason)
 		}
+		relevantContext := append([]planmodel.RelevantContextItem(nil), draft.RelevantContext...)
+		relevantContext = append(relevantContext, contextItemsFromRequiredReading(draft.RequiredReading, phaseID)...)
+		for i := range relevantContext {
+			relevantContext[i].Scope = planmodel.RelevantContextScopePhase
+			relevantContext[i].PhaseID = phaseID
+		}
 		out = append(out, planmodel.Phase{
+			ID:              phaseID,
 			Order:           order,
 			Title:           draft.Title,
 			Intent:          draft.Intent,
@@ -830,10 +1012,253 @@ func phaseDraftsToPlanPhases(drafts []PhaseDraft) []planmodel.Phase {
 			Reminders:       reminders,
 			Acceptance:      draft.Acceptance,
 			References:      append([]planmodel.Reference(nil), draft.References...),
+			RelevantContext: relevantContext,
 			Status:          planmodel.PhaseStatusTodo,
 		})
 	}
 	return out
+}
+
+func normalizeContextItem(item planmodel.RelevantContextItem, phaseID string) planmodel.RelevantContextItem {
+	item.ID = strings.TrimSpace(item.ID)
+	if item.ID == "" {
+		item.ID = uuid.NewString()
+	}
+	item.PhaseID = strings.TrimSpace(item.PhaseID)
+	if phaseID != "" {
+		item.PhaseID = strings.TrimSpace(phaseID)
+	}
+	item.Label = strings.TrimSpace(item.Label)
+	item.Reason = strings.TrimSpace(item.Reason)
+	item.Instruction = strings.TrimSpace(item.Instruction)
+	item.Command = strings.TrimSpace(item.Command)
+	item.Target = strings.TrimSpace(item.Target)
+	if item.Scope == "" {
+		if phaseID != "" || item.PhaseID != "" {
+			item.Scope = planmodel.RelevantContextScopePhase
+		} else {
+			item.Scope = planmodel.RelevantContextScopeGlobal
+		}
+	}
+	if item.RepeatPolicy == "" {
+		if item.Scope == planmodel.RelevantContextScopePhase {
+			item.RepeatPolicy = planmodel.RelevantContextPhaseEntry
+		} else {
+			item.RepeatPolicy = planmodel.RelevantContextOncePerExecution
+		}
+	}
+	if item.Source == "" {
+		item.Source = planmodel.RelevantContextSourceAuthored
+	}
+	if item.Status == "" {
+		item.Status = planmodel.RelevantContextStatusReady
+	}
+	if item.Label == "" {
+		item.Label = firstNonEmpty(item.Target, item.Command, item.Instruction, string(item.Kind))
+	}
+	return item
+}
+
+func normalizeContextCandidate(candidate ContextCandidate) ContextCandidate {
+	candidate.ID = strings.TrimSpace(candidate.ID)
+	if candidate.ID == "" {
+		candidate.ID = uuid.NewString()
+	}
+	candidate.Concept = strings.TrimSpace(candidate.Concept)
+	candidate.Source = strings.TrimSpace(candidate.Source)
+	candidate.Detail = strings.TrimSpace(candidate.Detail)
+	candidate.RejectionReason = strings.TrimSpace(candidate.RejectionReason)
+	if candidate.Status == "" {
+		candidate.Status = ContextCandidatePending
+	}
+	candidate.Item = normalizeContextItem(candidate.Item, "")
+	if candidate.Degraded && candidate.Item.Status == planmodel.RelevantContextStatusReady {
+		candidate.Item.Status = planmodel.RelevantContextStatusDegraded
+	}
+	return candidate
+}
+
+func degradedContextCandidates(title string, concepts []string, detail string) []ContextCandidate {
+	if len(concepts) == 0 {
+		concepts = []string{title}
+	}
+	out := make([]ContextCandidate, 0, len(concepts))
+	for _, concept := range concepts {
+		concept = strings.TrimSpace(concept)
+		if concept == "" {
+			continue
+		}
+		item := planmodel.RelevantContextItem{
+			ID:           uuid.NewString(),
+			Kind:         planmodel.RelevantContextNote,
+			Scope:        planmodel.RelevantContextScopeGlobal,
+			Label:        "Context discovery degraded: " + concept,
+			Reason:       "Automated relevant-context discovery could not run.",
+			Instruction:  "Manually run prompt-manager/search-hub/cli-health discovery for this concept before accepting setup context.",
+			Required:     false,
+			RepeatPolicy: planmodel.RelevantContextAsNeeded,
+			Source:       planmodel.RelevantContextSourceDiscovered,
+			Status:       planmodel.RelevantContextStatusDegraded,
+		}
+		out = append(out, ContextCandidate{
+			ID:       uuid.NewString(),
+			Item:     item,
+			Concept:  concept,
+			Source:   "context-discovery",
+			Degraded: true,
+			Detail:   strings.TrimSpace(detail),
+			Status:   ContextCandidatePending,
+		})
+	}
+	return out
+}
+
+func defaultRepeatForScope(scope planmodel.RelevantContextScope, current planmodel.RelevantContextRepeatPolicy) planmodel.RelevantContextRepeatPolicy {
+	if current != "" && !(scope == planmodel.RelevantContextScopePhase && current == planmodel.RelevantContextOncePerExecution) {
+		return current
+	}
+	if scope == planmodel.RelevantContextScopePhase {
+		return planmodel.RelevantContextPhaseEntry
+	}
+	return planmodel.RelevantContextOncePerExecution
+}
+
+func indexOfCandidate(candidates []ContextCandidate, id string) int {
+	id = strings.TrimSpace(id)
+	for i := range candidates {
+		if candidates[i].ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+func contextItemViolations(item planmodel.RelevantContextItem) []StructureViolation {
+	var out []StructureViolation
+	add := func(msg string) {
+		out = append(out, StructureViolation{SectionKey: SectionRelevantContext, Message: msg})
+	}
+	if item.Kind == "" {
+		add("relevant context kind is required")
+	}
+	if item.Scope == planmodel.RelevantContextScopePhase && strings.TrimSpace(item.PhaseID) == "" {
+		add("phase-scoped relevant context requires a phase id")
+	}
+	if item.Required && item.RepeatPolicy == "" {
+		add("required relevant context requires a repeat policy")
+	}
+	switch item.Kind {
+	case planmodel.RelevantContextCommand, planmodel.RelevantContextSearch:
+		if strings.TrimSpace(item.Command) == "" && len(item.Argv) == 0 {
+			add("command/search context requires command or argv")
+		}
+		if strings.TrimSpace(item.Instruction) == "" {
+			add("command/search context requires an instruction")
+		}
+		if strings.TrimSpace(item.Reason) == "" {
+			add("command/search context requires a reason")
+		}
+	case planmodel.RelevantContextSkill, planmodel.RelevantContextDoc, planmodel.RelevantContextCodeRef, planmodel.RelevantContextReqRef:
+		if strings.TrimSpace(item.Target) == "" && strings.TrimSpace(item.Command) == "" && len(item.Argv) == 0 {
+			add("reference context requires a target, command, or argv")
+		}
+	case planmodel.RelevantContextNote:
+		if strings.TrimSpace(item.Instruction) == "" && strings.TrimSpace(item.Reason) == "" {
+			add("note context requires an instruction or reason")
+		}
+	}
+	return out
+}
+
+func contextItemsFromLines(content string, scope planmodel.RelevantContextScope, phaseID string) []planmodel.RelevantContextItem {
+	var out []planmodel.RelevantContextItem
+	for _, line := range splitLines(content) {
+		item := migratedContextItem(line, scope, phaseID)
+		if item.Label != "" || item.Target != "" || item.Command != "" || item.Instruction != "" {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func contextItemsFromRequiredReading(lines []string, phaseID string) []planmodel.RelevantContextItem {
+	out := make([]planmodel.RelevantContextItem, 0, len(lines))
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		out = append(out, migratedContextItem(line, planmodel.RelevantContextScopePhase, phaseID))
+	}
+	return out
+}
+
+func migratedContextItem(line string, scope planmodel.RelevantContextScope, phaseID string) planmodel.RelevantContextItem {
+	line = strings.TrimSpace(strings.TrimPrefix(line, "-"))
+	item := planmodel.RelevantContextItem{
+		ID:           uuid.NewString(),
+		Scope:        scope,
+		PhaseID:      phaseID,
+		Label:        line,
+		Reason:       "Migrated from required-reading authoring input.",
+		Instruction:  "Load or inspect this context before implementation work.",
+		Target:       line,
+		Required:     true,
+		RepeatPolicy: planmodel.RelevantContextPhaseEntry,
+		Source:       planmodel.RelevantContextSourceMigrated,
+		Status:       planmodel.RelevantContextStatusReady,
+	}
+	if scope == planmodel.RelevantContextScopeGlobal {
+		item.RepeatPolicy = planmodel.RelevantContextOncePerExecution
+	}
+	lower := strings.ToLower(line)
+	switch {
+	case strings.HasPrefix(lower, "prompt-manager skill read "):
+		item.Kind = planmodel.RelevantContextSkill
+		item.Command = line
+		item.Argv = strings.Fields(line)
+		item.Target = strings.TrimSpace(strings.TrimPrefix(line, "prompt-manager skill read "))
+		item.Instruction = "Load this internal skill before implementation."
+	case strings.HasPrefix(lower, "search-hub "):
+		item.Kind = planmodel.RelevantContextSearch
+		item.Command = line
+		item.Argv = strings.Fields(line)
+		item.Instruction = "Run this discovery search before implementation."
+	case strings.HasPrefix(lower, "cli:"):
+		item.Kind = planmodel.RelevantContextCommand
+		item.Command = strings.TrimSpace(line[len("cli:"):])
+		item.Argv = strings.Fields(item.Command)
+		item.Target = ""
+		item.Instruction = "Run this setup command before implementation."
+	case strings.Contains(lower, "docs/") || strings.HasSuffix(lower, ".md"):
+		item.Kind = planmodel.RelevantContextDoc
+	default:
+		item.Kind = planmodel.RelevantContextNote
+		item.Instruction = line
+		item.Target = ""
+	}
+	return item
+}
+
+func renderContextItems(items []planmodel.RelevantContextItem) string {
+	var b strings.Builder
+	for _, item := range items {
+		fmt.Fprintf(&b, "- %s\n", renderContextItemSummary(item))
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func renderContextItemSummary(item planmodel.RelevantContextItem) string {
+	label := firstNonEmpty(item.Label, item.Target, item.Command, item.Instruction, string(item.Kind))
+	return fmt.Sprintf("%s: %s", item.Kind, label)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func appendNoCodeRefsReason(constraints, reason string) string {
