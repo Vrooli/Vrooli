@@ -161,6 +161,10 @@ func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID strin
 		return baseline.ExecResult{}, err
 	}
 	info := got.Msg.GetRun()
+	switch info.GetStatus() {
+	case "aborted", "timeout", "errored", "queued", "in_progress":
+		return baseline.ExecResult{}, fmt.Errorf("run %s ended without comparable baseline artifacts (status=%s)", runID, info.GetStatus())
+	}
 	out := baseline.ExecResult{RunID: info.GetRunId(), Success: info.GetStatus() == "passed"}
 	for _, p := range info.GetPhases() {
 		out.Phases = append(out.Phases, baseline.PhaseStatus{Name: p.GetName(), Status: p.GetStatus()})

@@ -87,10 +87,24 @@ type AppendLogRetention struct {
 }
 
 type Validation struct {
-	RequiredHeadings      []string `json:"requiredHeadings,omitempty"`
-	ForbiddenPlaceholders []string `json:"forbiddenPlaceholders,omitempty"`
-	RequiredLinks         []string `json:"requiredLinks,omitempty"`
-	AllowNotApplicable    bool     `json:"allowNotApplicable,omitempty"`
+	RequiredHeadings      []string        `json:"requiredHeadings,omitempty"`
+	ForbiddenPlaceholders []string        `json:"forbiddenPlaceholders,omitempty"`
+	RequiredLinks         []string        `json:"requiredLinks,omitempty"`
+	TableContracts        []TableContract `json:"tableContracts,omitempty"`
+	AllowNotApplicable    bool            `json:"allowNotApplicable,omitempty"`
+}
+
+type TableContract struct {
+	AnchorHeading string                `json:"anchorHeading"`
+	Columns       []TableColumnContract `json:"columns"`
+}
+
+type TableColumnContract struct {
+	Name       string   `json:"name"`
+	Required   bool     `json:"required,omitempty"`
+	Type       string   `json:"type"`
+	EnumValues []string `json:"enumValues,omitempty"`
+	Aliases    []string `json:"aliases,omitempty"`
 }
 
 type ResolvedContract struct {

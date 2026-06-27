@@ -68,7 +68,7 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 // engagement.go + promote.go).
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	subcommands := []cliapp.Command{
-		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason]); Ctrl-C detaches (re-attach via test-genie runs wait --json), never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
+		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run, or inspect it with `snapshot status` (--scenario --name [--run] [--branch]); Ctrl-C detaches, never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
 		{Name: "diff", NeedsAPI: true, Description: "Start a durable diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--surface] [--wait]); `diff status --run R` resolves the verdict (exit 1 regression, 2 not-comparable, 3 not-ready); `diff wait-all --run s:name:R …` resolves several started diffs in one call; reuses a clean-tree run when possible; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
@@ -117,6 +117,10 @@ func newFlagSet(name string) *flag.FlagSet {
 }
 
 func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
+	if len(args) > 0 && args[0] == "status" {
+		return runSnapshotStatus(core, args[1:])
+	}
+
 	var c commonFlags
 	var include, reason string
 	var fast, full bool
@@ -166,6 +170,49 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	return nil
 }
 
+func runSnapshotStatus(core *cliapp.ScenarioApp, args []string) error {
+	var c commonFlags
+	var run string
+	var wait bool
+	fs := newFlagSet("baseline snapshot status")
+	c.bind(fs)
+	fs.StringVar(&run, "run", "", "Snapshot run id (optional; narrows to one returned run)")
+	fs.BoolVar(&wait, "wait", false, "Block server-side until the snapshot run is terminal before reconciling")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := c.requireScenarioName(); err != nil {
+		return err
+	}
+
+	timeout := snapshotStartCeiling
+	if wait {
+		timeout = baselineClientTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	client := clientFactory(core)
+	resp, err := client.GetSnapshotStatus(ctx, connect.NewRequest(&baselinesv1.GetSnapshotStatusRequest{
+		Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Wait: wait,
+	}))
+	if err != nil {
+		return err
+	}
+	if c.json {
+		return printJSON(resp.Msg)
+	}
+	printSnapshotStatus(resp.Msg)
+	switch resp.Msg.GetStatus() {
+	case "ready":
+		return nil
+	case "pending":
+		os.Exit(exitNotReady)
+	default:
+		os.Exit(exitNotComparable)
+	}
+	return nil
+}
+
 // runDiff STARTS a durable diff and returns immediately with the run handle +
 // re-attach banner (mirror snapshot) — it never silently blocks (the
 // anti-polling contract). `baseline diff status --run R` (dispatched here)
@@ -204,6 +251,9 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		if handled, code := renderRunBusy(err, c.scenario); handled {
 			os.Exit(code)
+		}
+		if handled := renderBaselineNotFound(core, c, "diff", err); handled {
+			os.Exit(exitNotComparable)
 		}
 		return err
 	}
@@ -388,6 +438,9 @@ func runShow(core *cliapp.ScenarioApp, args []string) error {
 		Scenario: c.scenario, Name: c.name, Branch: c.branch,
 	}))
 	if err != nil {
+		if handled := renderBaselineNotFound(core, c, "show", err); handled {
+			os.Exit(exitNotComparable)
+		}
 		return err
 	}
 	if c.json {
@@ -395,6 +448,43 @@ func runShow(core *cliapp.ScenarioApp, args []string) error {
 	}
 	printShow(resp.Msg.GetBaseline())
 	return nil
+}
+
+func renderBaselineNotFound(core *cliapp.ScenarioApp, c commonFlags, op string, cause error) bool {
+	if connect.CodeOf(cause) != connect.CodeNotFound {
+		return false
+	}
+	if strings.TrimSpace(c.scenario) == "" || strings.TrimSpace(c.name) == "" {
+		return false
+	}
+	client := clientFactory(core)
+	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
+	defer cancel()
+	st, err := client.GetSnapshotStatus(ctx, connect.NewRequest(&baselinesv1.GetSnapshotStatusRequest{
+		Scenario: c.scenario, Name: c.name, Branch: c.branch,
+	}))
+	if err != nil && connect.CodeOf(err) != connect.CodeNotFound {
+		return false
+	}
+	fmt.Fprintf(os.Stderr, "✗ baseline %q for %s was not found", c.name, c.scenario)
+	if c.branch != "" {
+		fmt.Fprintf(os.Stderr, " on branch %s", c.branch)
+	}
+	fmt.Fprintln(os.Stderr, ".")
+	if err == nil {
+		printSnapshotStatusDiagnostics(os.Stderr, st.Msg)
+	}
+	fmt.Fprintf(os.Stderr, "  inspect snapshots: git-control-tower baseline snapshot status --scenario %s --name %s", c.scenario, c.name)
+	if c.branch != "" {
+		fmt.Fprintf(os.Stderr, " --branch %s", c.branch)
+	}
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintf(os.Stderr, "  list baselines:    git-control-tower baseline list --scenario %s --all-branches\n", c.scenario)
+	fmt.Fprintf(os.Stderr, "  recent runs:       test-genie runs list --scenario %s --json --limit 10\n", c.scenario)
+	if op == "diff" {
+		fmt.Fprintln(os.Stderr, "  diff skipped because there is no resolved baseline manifest to compare.")
+	}
+	return true
 }
 
 func runDelete(core *cliapp.ScenarioApp, args []string) error {

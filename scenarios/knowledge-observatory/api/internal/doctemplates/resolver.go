@@ -62,6 +62,13 @@ func (r Resolver) ResolveScenario(scenarioPath string) (*Resolved, error) {
 	if err != nil {
 		return nil, err
 	}
+	if scenarioManifestUsed {
+		templateManifest, err := doccontract.LoadManifest(templateManifestPath)
+		if err != nil {
+			return nil, err
+		}
+		inheritTemplateTableContracts(manifest, templateManifest)
+	}
 	contract, findings := doccontract.Resolve(manifest, manifestPath)
 	if contract != nil && contract.TemplateID == "" {
 		contract.TemplateID = templateID
@@ -77,6 +84,33 @@ func (r Resolver) ResolveScenario(scenarioPath string) (*Resolved, error) {
 			ProvenanceFallback:   fallback,
 		},
 	}, nil
+}
+
+func inheritTemplateTableContracts(manifest, template *doccontract.Manifest) {
+	if manifest == nil || template == nil {
+		return
+	}
+	templateDocs := map[string]doccontract.Document{}
+	for _, section := range template.Sections {
+		for _, doc := range section.Documents {
+			key := doccontract.NormalizeManifestPath(doc.Path)
+			if key != "" {
+				templateDocs[key] = doc
+			}
+		}
+	}
+	for sectionIdx := range manifest.Sections {
+		for docIdx := range manifest.Sections[sectionIdx].Documents {
+			doc := &manifest.Sections[sectionIdx].Documents[docIdx]
+			templateDoc, ok := templateDocs[doccontract.NormalizeManifestPath(doc.Path)]
+			if !ok || len(templateDoc.Validation.TableContracts) == 0 {
+				continue
+			}
+			if len(doc.Validation.TableContracts) == 0 {
+				doc.Validation.TableContracts = append([]doccontract.TableContract(nil), templateDoc.Validation.TableContracts...)
+			}
+		}
+	}
 }
 
 func (r Resolver) ResolveTemplate(templateID string) (*doccontract.ResolvedContract, []doccontract.Finding, error) {

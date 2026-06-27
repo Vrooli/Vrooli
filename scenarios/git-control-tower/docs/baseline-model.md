@@ -87,10 +87,16 @@ client disconnect; `GetDiffResult` returns it instantly.
 The CLI:
 
 ```
+git-control-tower baseline snapshot --scenario S --name N        # start, returns a run id
+git-control-tower baseline snapshot status --scenario S --name N --run R  # resolve the pin
 git-control-tower baseline diff   --scenario S --name N        # start, returns a run id
 git-control-tower baseline diff status --scenario S --name N --run R   # resolve the verdict
 git-control-tower baseline diff   --scenario S --name N --wait  # block server-side, print inline
 ```
+
+`snapshot status` exit codes: `0` ready, `2` missing/failed, `3` pending. A
+missing `show`/`diff` now reports snapshot diagnostics and similar baseline names
+instead of only saying the manifest was absent.
 
 `diff status` exit codes: `0` clean/safe, `1` regression, `2` not-comparable,
 `3` not-ready (run still in flight — distinct from a verdict).

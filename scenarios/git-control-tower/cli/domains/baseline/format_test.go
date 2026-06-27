@@ -39,6 +39,7 @@ func TestSnapshotBannerSurfacesHandleAndWait(t *testing.T) {
 		"test-genie runs wait --json --timeout=1050 web 20260615-000000-abcd", // quiet agent re-attach (primary)
 		"recommended wait timeout: 17m30s",
 		"tail --pid=<pid> -f /dev/null",
+		"baseline snapshot status --scenario web --name pre-launch --run 20260615-000000-abcd",
 		"watch live:    test-genie runs follow web 20260615-000000-abcd", // human alt
 		"pins automatically when it completes",                           // durable, no silent block
 	} {

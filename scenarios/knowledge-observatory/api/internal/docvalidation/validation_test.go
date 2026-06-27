@@ -1,8 +1,12 @@
 package docvalidation
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"knowledge-observatory/internal/doccontract"
 )
 
 func TestKnowledgeObservatoryDocumentationContract(t *testing.T) {
@@ -23,6 +27,60 @@ func TestKnowledgeObservatoryDocumentationContract(t *testing.T) {
 	if len(result.ExtraDocs) != 0 {
 		t.Fatalf("extra docs: %#v", result.ExtraDocs)
 	}
+}
+
+func TestValidateContent_TableContracts(t *testing.T) {
+	doc := doccontract.Document{
+		ScenarioPath: "docs/concepts/DOMAINS.md",
+		DocType:      "domains",
+		Validation: doccontract.Validation{
+			TableContracts: []doccontract.TableContract{{
+				AnchorHeading: "Domain Inventory",
+				Columns: []doccontract.TableColumnContract{
+					{Name: "Domain", Required: true, Type: "text"},
+					{Name: "Responsibility", Required: true, Type: "text", Aliases: []string{"Purpose"}},
+					{Name: "Primary Archetype", Required: true, Type: "enum", EnumValues: []string{"service", "reporting"}},
+					{Name: "Source Paths", Required: true, Type: "comma-list", Aliases: []string{"Primary Paths"}},
+				},
+			}},
+		},
+	}
+	content := `# Domains
+
+## Domain Inventory
+
+| Domain | Purpose | Primary Archetype | Primary Paths |
+|---|---|---|---|
+| graph | Build the graph. | service | ` + "`api/internal/graph/`" + ` |
+| drift | Detect drift. | mystery | ` + "`api/internal/drift/`" + ` |
+`
+	scenarioPath := t.TempDir()
+	abs := filepath.Join(scenarioPath, filepath.FromSlash(doc.ScenarioPath))
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		t.Fatalf("mkdir doc dir: %v", err)
+	}
+	if err := os.WriteFile(abs, []byte(content), 0o644); err != nil {
+		t.Fatalf("write doc: %v", err)
+	}
+	issues := validateContent(scenarioPath, doc)
+	if !hasIssueContaining(issues, `uses alias header "Purpose"`) {
+		t.Fatalf("expected Purpose alias issue, got %#v", issues)
+	}
+	if !hasIssueContaining(issues, `uses alias header "Primary Paths"`) {
+		t.Fatalf("expected Primary Paths alias issue, got %#v", issues)
+	}
+	if !hasIssueContaining(issues, `value "mystery" outside enum`) {
+		t.Fatalf("expected enum issue, got %#v", issues)
+	}
+}
+
+func hasIssueContaining(issues []DocContentIssue, needle string) bool {
+	for _, issue := range issues {
+		if strings.Contains(issue.Message, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func repoRootForTest(t *testing.T) string {

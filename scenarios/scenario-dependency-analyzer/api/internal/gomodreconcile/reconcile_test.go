@@ -84,6 +84,31 @@ func TestPlanIgnoresAlreadyReplacedAndThirdParty(t *testing.T) {
 	}
 }
 
+func TestPlanFlagsTransitiveInRepoRequireMissingReplace(t *testing.T) {
+	root := t.TempDir()
+	parentDir := filepath.Join(root, "packages", "parent")
+	leafDir := filepath.Join(root, "packages", "leaf")
+	consumerDir := filepath.Join(root, "scenarios", "demo", "api")
+	writeModule(t, leafDir, "module example.com/leaf\n\ngo 1.25.0\n", nil)
+	writeModule(t, parentDir, "module example.com/parent\n\ngo 1.25.0\n\nrequire example.com/leaf v0.0.0\n\nreplace example.com/leaf => ../leaf\n", nil)
+	writeModule(t, consumerDir, "module demo/api\n\ngo 1.25.0\n\nrequire example.com/parent v0.0.0\n\nreplace example.com/parent => ../../../packages/parent\n", nil)
+	topo := Topology{
+		"example.com/parent": parentDir,
+		"example.com/leaf":   leafDir,
+	}
+
+	missing, err := Plan(context.Background(), filepath.Join(consumerDir, "go.mod"), topo)
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if len(missing) != 1 {
+		t.Fatalf("missing = %#v", missing)
+	}
+	if missing[0].Module != "example.com/leaf" || missing[0].RelPath != "../../../packages/leaf" {
+		t.Fatalf("missing[0] = %#v", missing[0])
+	}
+}
+
 func TestPreviewSurfaceProducesDeterministicAfter(t *testing.T) {
 	root := t.TempDir()
 	leafDir := filepath.Join(root, "packages", "leaf")

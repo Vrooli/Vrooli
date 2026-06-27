@@ -129,6 +129,74 @@ func TestServiceStartThenFinalizeCapture(t *testing.T) {
 	}
 }
 
+func TestSnapshotStatusRecoversPendingIntentAfterRestart(t *testing.T) {
+	exec := &fakeExecutor{result: ExecResult{Success: true, Phases: []PhaseStatus{{"unit", "passed"}}}}
+	runs := &fakeRuns{}
+	svc, store := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	pending, err := svc.StartCapture(context.Background(), CreateRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "p", Capture: true,
+	})
+	if err != nil {
+		t.Fatalf("StartCapture: %v", err)
+	}
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "p"); err == nil {
+		t.Fatal("manifest must not exist before recovery")
+	}
+
+	// Simulate a GCT API restart: the in-memory finalize goroutine is gone, but
+	// storage still carries the pending snapshot intent.
+	recovered := NewService(Deps{
+		Storage:    store,
+		Exec:       exec,
+		Runs:       runs,
+		CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"}),
+	})
+	st, err := recovered.GetSnapshotStatus(context.Background(), SnapshotStatusRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p", RunID: pending.Run.RunID,
+	})
+	if err != nil {
+		t.Fatalf("GetSnapshotStatus: %v", err)
+	}
+	if st.Status != "ready" {
+		t.Fatalf("status = %q, want ready (err=%q)", st.Status, st.Error)
+	}
+	if st.Baseline == nil || st.Baseline.RunID() != pending.Run.RunID {
+		t.Fatalf("baseline not recovered from pending intent: %+v", st.Baseline)
+	}
+	if len(runs.pins) != 1 {
+		t.Fatalf("recovery should pin exactly once, got %+v", runs.pins)
+	}
+}
+
+func TestSnapshotStatusMarksAbortedRunFailed(t *testing.T) {
+	exec := &fakeExecutor{
+		err:        errors.New("run run-1 ended without comparable baseline artifacts (status=aborted)"),
+		statusInfo: &RunStatusInfo{Status: "aborted", Terminal: true, Success: false},
+	}
+	runs := &fakeRuns{}
+	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	pending, err := svc.StartCapture(context.Background(), CreateRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "p", Capture: true,
+	})
+	if err != nil {
+		t.Fatalf("StartCapture: %v", err)
+	}
+	st, err := svc.GetSnapshotStatus(context.Background(), SnapshotStatusRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p", RunID: pending.Run.RunID,
+	})
+	if err != nil {
+		t.Fatalf("GetSnapshotStatus: %v", err)
+	}
+	if st.Status != "failed" || !strings.Contains(st.Error, "aborted") {
+		t.Fatalf("status = %+v, want failed aborted", st)
+	}
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "p"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("aborted snapshot must not create baseline manifest, got %v", err)
+	}
+}
+
 // StartCapture fails fast (no run started) when the baseline already exists.
 func TestServiceStartCaptureRejectsDuplicate(t *testing.T) {
 	exec := &fakeExecutor{result: ExecResult{Success: true, Phases: []PhaseStatus{{"unit", "passed"}}}}

@@ -60,7 +60,9 @@ func NewServer(d Deps) *Server {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
-	return &Server{svc: d.Service, repos: d.Repos, logger: d.Logger}
+	s := &Server{svc: d.Service, repos: d.Repos, logger: d.Logger}
+	s.reattachPendingSnapshots()
+	return s
 }
 
 // NewHandler returns the (procedure-prefix, http.Handler) pair the router
@@ -200,6 +202,30 @@ func (s *Server) finalizeAsync(ctx context.Context, pending bl.PendingCapture) {
 	}()
 }
 
+func (s *Server) reattachPendingSnapshots() {
+	if s.svc == nil || s.repos == nil {
+		return
+	}
+	go func() {
+		ctx := context.Background()
+		rid, repoDir, err := s.repos.Resolve(ctx, 0)
+		if err != nil {
+			s.logger.Printf("baselines.SnapshotForBaseline: pending reattach skipped: %v", err)
+			return
+		}
+		pending, err := s.svc.PendingSnapshotCaptures(rid, repoDir)
+		if err != nil {
+			s.logger.Printf("baselines.SnapshotForBaseline: pending reattach failed: %v", err)
+			return
+		}
+		for _, p := range pending {
+			s.logger.Printf("baselines.SnapshotForBaseline: reattaching pending snapshot scenario=%s name=%s run=%s",
+				p.Manifest.Scenario, p.Manifest.Name, p.Run.RunID)
+			s.finalizeSnapshot(ctx, p)
+		}
+	}()
+}
+
 func (s *Server) GetBaseline(ctx context.Context, req *connect.Request[baselinesv1.GetBaselineRequest]) (*connect.Response[baselinesv1.GetBaselineResponse], error) {
 	m := req.Msg
 	rid, _, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
@@ -211,6 +237,36 @@ func (s *Server) GetBaseline(ctx context.Context, req *connect.Request[baselines
 		return nil, s.wrap("GetBaseline", err)
 	}
 	return connect.NewResponse(&baselinesv1.GetBaselineResponse{Baseline: manifestToProto(manifest)}), nil
+}
+
+func (s *Server) GetSnapshotStatus(ctx context.Context, req *connect.Request[baselinesv1.GetSnapshotStatusRequest]) (*connect.Response[baselinesv1.GetSnapshotStatusResponse], error) {
+	m := req.Msg
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("GetSnapshotStatus", err)
+	}
+	st, err := s.svc.GetSnapshotStatus(ctx, bl.SnapshotStatusRequest{
+		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(),
+		Branch: branch, Name: m.GetName(), RunID: m.GetRunId(), Wait: m.GetWait(),
+	})
+	if err != nil {
+		return nil, s.wrap("GetSnapshotStatus", err)
+	}
+	out := &baselinesv1.GetSnapshotStatusResponse{
+		Status:                      st.Status,
+		Scenario:                    st.Scenario,
+		Name:                        st.Name,
+		Branch:                      st.Branch,
+		RunId:                       st.RunID,
+		RunStatus:                   st.RunStatus,
+		Error:                       st.Error,
+		SimilarBaselines:            st.SimilarBaselines,
+		RecommendedNextCheckSeconds: int32(st.RecommendedNextCheckSeconds),
+	}
+	if st.Baseline != nil {
+		out.Baseline = manifestToProto(*st.Baseline)
+	}
+	return connect.NewResponse(out), nil
 }
 
 func (s *Server) ListBaselines(ctx context.Context, req *connect.Request[baselinesv1.ListBaselinesRequest]) (*connect.Response[baselinesv1.ListBaselinesResponse], error) {

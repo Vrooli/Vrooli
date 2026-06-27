@@ -111,6 +111,9 @@ func TestInstallDependencyDryRunDoesNotInstall(t *testing.T) {
 	if !installer.called || !resp.Msg.GetInstalled() {
 		t.Fatalf("apply should install: called=%v resp=%#v", installer.called, resp.Msg)
 	}
+	if installer.plan.SurfaceRoot != uiDir {
+		t.Fatalf("installer surface root = %q, want %q", installer.plan.SurfaceRoot, uiDir)
+	}
 }
 
 func TestInstallDependencyBlockedNeverInstalls(t *testing.T) {

@@ -2,6 +2,8 @@ package baseline
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -112,7 +114,7 @@ func snapshotBanner(resp *baselinesv1.SnapshotForBaselineResponse) string {
 	fmt.Fprintf(&b, "  estimated %s — the run is durable server-side; the baseline pins automatically when it completes.\n", eta)
 	b.WriteString(agentWaitBlock(resp.GetScenario(), resp.GetRunId(), resp.GetEstimatedTotalSeconds(), resp.GetEtaKnown()))
 	fmt.Fprintf(&b, "  watch live:    test-genie runs follow %s %s\n", resp.GetScenario(), resp.GetRunId())
-	fmt.Fprintf(&b, "  then inspect:  git-control-tower baseline show --scenario %s --name %s\n", resp.GetScenario(), resp.GetName())
+	fmt.Fprintf(&b, "  then inspect:  git-control-tower baseline snapshot status --scenario %s --name %s --run %s\n", resp.GetScenario(), resp.GetName(), resp.GetRunId())
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Fprintf(&b, "⚠ %s\n", w)
 	}
@@ -163,6 +165,43 @@ func printDiffPending(scenario, name, run string, nextCheckSeconds int) {
 	fmt.Printf("  (watch live:   test-genie runs follow %s %s)\n", scenario, run)
 	if nextCheckSeconds > 0 {
 		fmt.Printf("  if you must re-check instead, wait ~%ds (do not poll faster)\n", nextCheckSeconds)
+	}
+}
+
+func printSnapshotStatus(resp *baselinesv1.GetSnapshotStatusResponse) {
+	fmt.Printf("Snapshot: %s/%s", resp.GetScenario(), resp.GetName())
+	if resp.GetBranch() != "" {
+		fmt.Printf(" branch=%s", resp.GetBranch())
+	}
+	if resp.GetRunId() != "" {
+		fmt.Printf(" run=%s", resp.GetRunId())
+	}
+	fmt.Printf(" status=%s", resp.GetStatus())
+	if resp.GetRunStatus() != "" {
+		fmt.Printf(" run_status=%s", resp.GetRunStatus())
+	}
+	fmt.Println()
+	if b := resp.GetBaseline(); b != nil {
+		fmt.Printf("  baseline ready: git-control-tower baseline show --scenario %s --name %s --branch %s\n", b.GetScenario(), b.GetName(), b.GetBranch())
+	}
+	printSnapshotStatusDiagnostics(os.Stdout, resp)
+	if resp.GetStatus() == "pending" {
+		if n := resp.GetRecommendedNextCheckSeconds(); n > 0 {
+			fmt.Printf("  still running; if you re-check manually, wait ~%ds first\n", n)
+		}
+		fmt.Printf("  block: git-control-tower baseline snapshot status --scenario %s --name %s --run %s --wait\n", resp.GetScenario(), resp.GetName(), resp.GetRunId())
+	}
+}
+
+func printSnapshotStatusDiagnostics(w io.Writer, resp *baselinesv1.GetSnapshotStatusResponse) {
+	if resp == nil {
+		return
+	}
+	if errText := resp.GetError(); errText != "" {
+		fmt.Fprintf(w, "  detail: %s\n", errText)
+	}
+	if names := resp.GetSimilarBaselines(); len(names) > 0 {
+		fmt.Fprintf(w, "  similar baselines: %s\n", strings.Join(names, ", "))
 	}
 }
 

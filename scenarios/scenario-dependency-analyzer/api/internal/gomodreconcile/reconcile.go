@@ -144,10 +144,12 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 	for _, r := range view.Replace {
 		replaced[r.Old.Path] = struct{}{}
 	}
+	required, err := requiredInRepoModules(ctx, view, topo)
+	if err != nil {
+		return nil, err
+	}
 	var missing []MissingReplace
-	seen := make(map[string]struct{})
-	for _, req := range view.Require {
-		path := req.Path
+	for _, path := range required {
 		if path == view.Module.Path {
 			continue
 		}
@@ -158,10 +160,6 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 		if _, ok := replaced[path]; ok {
 			continue
 		}
-		if _, dup := seen[path]; dup {
-			continue
-		}
-		seen[path] = struct{}{}
 		rel, err := filepath.Rel(moduleDir, dir)
 		if err != nil {
 			// Unambiguous in-repo module whose relative path cannot be derived:
@@ -172,6 +170,48 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 	}
 	sort.Slice(missing, func(i, j int) bool { return missing[i].Module < missing[j].Module })
 	return missing, nil
+}
+
+func requiredInRepoModules(ctx context.Context, view goModView, topo Topology) ([]string, error) {
+	seen := map[string]struct{}{}
+	var walk func(string) error
+	walk = func(path string) error {
+		if _, ok := seen[path]; ok {
+			return nil
+		}
+		dir, inRepo := topo[path]
+		if !inRepo {
+			return nil
+		}
+		seen[path] = struct{}{}
+		child, err := parseGoMod(ctx, filepath.Join(dir, "go.mod"))
+		if err != nil {
+			return err
+		}
+		for _, req := range child.Require {
+			if req.Path == child.Module.Path {
+				continue
+			}
+			if err := walk(req.Path); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, req := range view.Require {
+		if req.Path == view.Module.Path {
+			continue
+		}
+		if err := walk(req.Path); err != nil {
+			return nil, err
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for path := range seen {
+		out = append(out, path)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 // PreviewSurface returns the deterministic before/after for adding the currently

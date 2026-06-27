@@ -3,6 +3,7 @@ package baseline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -194,6 +195,9 @@ func (s *Service) StartCapture(ctx context.Context, req CreateRequest) (PendingC
 	if manifest.Git.Dirty {
 		pending.DirtyWarning = dirtyCaptureWarning(manifest.Git.DirtySummary)
 	}
+	if err := s.saveSnapshotIntent(ctx, pending, "pending", ""); err != nil {
+		return PendingCapture{}, err
+	}
 	return pending, nil
 }
 
@@ -206,9 +210,9 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 
 	res, err := s.exec.AwaitResult(ctx, pending.Req.Scenario, pending.Run.RunID)
 	if err != nil {
-		for _, id := range pending.Want {
-			skipped[id] = "comprehensive run failed: " + err.Error()
-		}
+		msg := "comprehensive run failed: " + err.Error()
+		_ = s.saveSnapshotIntent(ctx, pending, "failed", msg)
+		return CreateResult{}, errors.New(msg)
 	} else {
 		s.fillSurfaces(ctx, &manifest, pending.Req, pending.Want, skipped, res)
 	}
@@ -217,10 +221,39 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 	}
 	if err := s.storage.Save(pending.Req.RepoID, manifest, CreateOnly); err != nil {
 		s.unpinRun(ctx, manifest)
+		_ = s.saveSnapshotIntent(ctx, pending, "failed", err.Error())
 		return CreateResult{}, err
 	}
 	out := CreateResult{Manifest: manifest, Skipped: skipped, DirtyWarning: pending.DirtyWarning}
+	_ = s.saveSnapshotIntent(ctx, pending, "ready", "")
 	return out, nil
+}
+
+func (s *Service) saveSnapshotIntent(_ context.Context, pending PendingCapture, status, errMsg string) error {
+	now := s.now().UTC()
+	intent := SnapshotIntent{
+		Status:       status,
+		Error:        errMsg,
+		RepoID:       pending.Req.RepoID,
+		RepoDir:      pending.Req.RepoDir,
+		Scenario:     pending.Req.Scenario,
+		Branch:       pending.Manifest.Branch,
+		Name:         pending.Req.Name,
+		Include:      pending.Req.Include,
+		Fast:         pending.Req.Fast,
+		CreatedBy:    pending.Req.CreatedBy,
+		Reason:       pending.Req.Reason,
+		Want:         pending.Want,
+		Manifest:     pending.Manifest,
+		Run:          pending.Run,
+		DirtyWarning: pending.DirtyWarning,
+		CreatedAt:    pending.Manifest.CreatedAt,
+		UpdatedAt:    now,
+	}
+	if intent.CreatedAt.IsZero() {
+		intent.CreatedAt = now
+	}
+	return s.storage.SaveSnapshotIntent(pending.Req.RepoID, intent)
 }
 
 // buildManifestSkeleton validates the request, reads git state, resolves the
@@ -394,6 +427,177 @@ func (s *Service) Get(ctx context.Context, repoID int64, scenario, branch, name 
 // List returns baselines for a scenario; empty branch lists all branches.
 func (s *Service) List(ctx context.Context, repoID int64, scenario, branch string) ([]BaselineManifest, error) {
 	return s.storage.List(repoID, scenario, branch)
+}
+
+// SnapshotStatusRequest parameterizes GetSnapshotStatus.
+type SnapshotStatusRequest struct {
+	RepoID   int64
+	RepoDir  string
+	Scenario string
+	Branch   string
+	Name     string
+	RunID    string
+	Wait     bool
+}
+
+// SnapshotStatus reports the lifecycle of a return-fast snapshot capture.
+type SnapshotStatus struct {
+	Status                      string // pending | ready | failed | missing
+	Scenario                    string
+	Name                        string
+	Branch                      string
+	RunID                       string
+	RunStatus                   string
+	Baseline                    *BaselineManifest
+	Error                       string
+	SimilarBaselines            []string
+	RecommendedNextCheckSeconds int
+}
+
+// GetSnapshotStatus reconciles a durable snapshot intent with test-genie's run
+// state. It is intentionally able to finish a pending snapshot after a GCT API
+// restart by replaying FinalizeCapture from the persisted intent.
+func (s *Service) GetSnapshotStatus(ctx context.Context, req SnapshotStatusRequest) (SnapshotStatus, error) {
+	out := SnapshotStatus{Status: "missing", Scenario: req.Scenario, Name: req.Name, Branch: req.Branch, RunID: req.RunID}
+	if manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name); err == nil {
+		m := manifest
+		out.Status = "ready"
+		out.Baseline = &m
+		out.RunID = m.RunID()
+		return out, nil
+	} else if !errors.Is(err, ErrNotFound) {
+		return SnapshotStatus{}, err
+	}
+
+	intents, err := s.storage.ListSnapshotIntents(req.RepoID, req.Scenario, req.Branch, req.Name)
+	if err != nil {
+		return SnapshotStatus{}, err
+	}
+	intent, ok := selectSnapshotIntent(intents, req.RunID)
+	if !ok {
+		out.SimilarBaselines = similarBaselineNames(s.storage, req.RepoID, req.Scenario, req.Branch, req.Name)
+		out.Error = "baseline manifest and snapshot intent not found"
+		return out, nil
+	}
+
+	out.Status = intent.Status
+	out.RunID = intent.Run.RunID
+	out.RunStatus = intent.Status
+	out.Error = intent.Error
+	pending := intent.PendingCapture()
+
+	st, serr := s.exec.RunStatus(ctx, intent.Scenario, intent.Run.RunID)
+	if serr == nil {
+		out.RunStatus = st.Status
+		out.RecommendedNextCheckSeconds = st.RecommendedNextCheckSeconds
+		if !st.Terminal && !req.Wait {
+			out.Status = "pending"
+			return out, nil
+		}
+	} else if req.Wait || intent.Status == "pending" {
+		return SnapshotStatus{}, serr
+	}
+
+	if intent.Status == "ready" {
+		if manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name); err == nil {
+			m := manifest
+			out.Baseline = &m
+			out.RunID = m.RunID()
+			return out, nil
+		}
+		out.Status = "failed"
+		out.Error = "snapshot intent says ready but baseline manifest is missing"
+		return out, nil
+	}
+	if intent.Status == "failed" {
+		return out, nil
+	}
+
+	res, ferr := s.FinalizeCapture(ctx, pending)
+	if ferr != nil {
+		out.Status = "failed"
+		out.Error = ferr.Error()
+		return out, nil
+	}
+	out.Status = "ready"
+	out.Error = ""
+	out.RunStatus = "passed"
+	out.Baseline = &res.Manifest
+	out.RunID = res.Manifest.RunID()
+	return out, nil
+}
+
+// PendingSnapshotCaptures reconstructs pending snapshot finalizers after an API
+// restart. The handler reattaches these to server-owned goroutines so
+// return-fast snapshots remain durable across process lifetimes, not just client
+// disconnects.
+func (s *Service) PendingSnapshotCaptures(repoID int64, repoDir string) ([]PendingCapture, error) {
+	intents, err := s.storage.ListAllSnapshotIntents(repoID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PendingCapture, 0, len(intents))
+	for _, intent := range intents {
+		if intent.Status != "pending" {
+			continue
+		}
+		if _, err := s.storage.Load(repoID, intent.Scenario, intent.Branch, intent.Name); err == nil {
+			continue
+		} else if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		intent.RepoID = repoID
+		if intent.RepoDir == "" {
+			intent.RepoDir = repoDir
+		}
+		out = append(out, intent.PendingCapture())
+	}
+	return out, nil
+}
+
+func selectSnapshotIntent(intents []SnapshotIntent, runID string) (SnapshotIntent, bool) {
+	for _, intent := range intents {
+		if runID == "" || intent.Run.RunID == runID {
+			return intent, true
+		}
+	}
+	return SnapshotIntent{}, false
+}
+
+func similarBaselineNames(st *Storage, repoID int64, scenario, branch, want string) []string {
+	manifests, err := st.List(repoID, scenario, "")
+	if err != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var names []string
+	for _, m := range manifests {
+		if m.Name == want {
+			continue
+		}
+		if branch != "" && m.Branch != branch {
+			// Still keep cross-branch names when there are no same-branch names.
+			continue
+		}
+		if !seen[m.Name] {
+			seen[m.Name] = true
+			names = append(names, m.Name)
+		}
+	}
+	if len(names) == 0 && branch != "" {
+		for _, m := range manifests {
+			if m.Name == want || seen[m.Name] {
+				continue
+			}
+			seen[m.Name] = true
+			names = append(names, m.Name)
+		}
+	}
+	sort.Strings(names)
+	if len(names) > 5 {
+		names = names[:5]
+	}
+	return names
 }
 
 // DiffResult is the cross-surface comparison of a baseline against the current

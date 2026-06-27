@@ -104,6 +104,14 @@ func (s *Storage) scenarioDir(repoID int64, scenario string) (string, error) {
 	)
 }
 
+func (s *Storage) baselinesDir(repoID int64) (string, error) {
+	return s.resolver.Path(
+		s.opts(),
+		storage.ClassData,
+		fmt.Sprintf("%d/baselines", repoID),
+	)
+}
+
 func (s *Storage) manifestPath(dir, name string) string {
 	return filepath.Join(dir, sanitizeSegment(name)+".json")
 }
@@ -115,6 +123,10 @@ func (s *Storage) diffCachePath(dir, name, runID string) string {
 	return filepath.Join(dir, ".diffs", sanitizeSegment(name)+"__"+sanitizeSegment(runID)+".json")
 }
 
+func (s *Storage) snapshotIntentPath(dir, name, runID string) string {
+	return filepath.Join(dir, ".snapshots", sanitizeSegment(name)+"__"+sanitizeSegment(runID)+".json")
+}
+
 // CachedDiff is the persisted outcome of a finalized diff: the computed result
 // (ready) or the failure reason (failed). Cached so GetDiffResult returns the
 // verdict instantly, surviving client disconnect and server restart.
@@ -124,6 +136,197 @@ type CachedDiff struct {
 	Error      string      `json:"error,omitempty"`
 	RunID      string      `json:"run_id"`
 	ComputedAt time.Time   `json:"computed_at"`
+}
+
+// SnapshotIntent is the durable handoff between SnapshotForBaseline's
+// return-fast start and the later pin+manifest finalize. It exists so a GCT API
+// restart cannot lose the only in-memory goroutine that knew which run should
+// become which baseline.
+type SnapshotIntent struct {
+	Status       string           `json:"status"` // pending | ready | failed
+	Error        string           `json:"error,omitempty"`
+	RepoID       int64            `json:"repo_id"`
+	RepoDir      string           `json:"repo_dir"`
+	Scenario     string           `json:"scenario"`
+	Branch       string           `json:"branch"`
+	Name         string           `json:"name"`
+	Include      []string         `json:"include,omitempty"`
+	Fast         bool             `json:"fast"`
+	CreatedBy    string           `json:"created_by,omitempty"`
+	Reason       string           `json:"reason,omitempty"`
+	Want         []string         `json:"want,omitempty"`
+	Manifest     BaselineManifest `json:"manifest"`
+	Run          RunHandle        `json:"run"`
+	DirtyWarning string           `json:"dirty_warning,omitempty"`
+	CreatedAt    time.Time        `json:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
+}
+
+// PendingCapture reconstructs the finalize input from the durable intent.
+func (i SnapshotIntent) PendingCapture() PendingCapture {
+	return PendingCapture{
+		Manifest: i.Manifest,
+		Req: CreateRequest{
+			RepoID:    i.RepoID,
+			RepoDir:   i.RepoDir,
+			Scenario:  i.Scenario,
+			Name:      i.Name,
+			Branch:    i.Branch,
+			Include:   i.Include,
+			Fast:      i.Fast,
+			Capture:   true,
+			CreatedBy: i.CreatedBy,
+			Reason:    i.Reason,
+		},
+		Want:         i.Want,
+		Run:          i.Run,
+		DirtyWarning: i.DirtyWarning,
+	}
+}
+
+// SaveSnapshotIntent persists a snapshot intent. It overwrites the status for
+// the same (baseline name, run id), which lets finalize mark a pending intent
+// ready/failed without changing its identity.
+func (s *Storage) SaveSnapshotIntent(repoID int64, intent SnapshotIntent) error {
+	dir, err := s.branchDir(repoID, intent.Scenario, intent.Branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, intent.Name, func() error {
+		path := s.snapshotIntentPath(dir, intent.Name, intent.Run.RunID)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return fmt.Errorf("create snapshot intent dir: %w", err)
+		}
+		data, err := json.MarshalIndent(intent, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal snapshot intent: %w", err)
+		}
+		tmp := path + ".tmp"
+		if err := os.WriteFile(tmp, data, 0o644); err != nil {
+			return fmt.Errorf("write snapshot intent tmp: %w", err)
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			return fmt.Errorf("replace snapshot intent: %w", err)
+		}
+		return nil
+	})
+}
+
+// LoadSnapshotIntent reads one durable snapshot intent.
+func (s *Storage) LoadSnapshotIntent(repoID int64, scenario, branch, name, runID string) (SnapshotIntent, bool, error) {
+	dir, err := s.branchDir(repoID, scenario, branch)
+	if err != nil {
+		return SnapshotIntent{}, false, err
+	}
+	var intent SnapshotIntent
+	found := false
+	err = s.withLock(dir, name, func() error {
+		data, rerr := os.ReadFile(s.snapshotIntentPath(dir, name, runID))
+		if rerr != nil {
+			if os.IsNotExist(rerr) {
+				return nil
+			}
+			return fmt.Errorf("read snapshot intent: %w", rerr)
+		}
+		found = true
+		return json.Unmarshal(data, &intent)
+	})
+	if err != nil {
+		return SnapshotIntent{}, false, err
+	}
+	return intent, found, nil
+}
+
+// ListSnapshotIntents lists durable snapshot intents for a scenario. Empty
+// branch lists across every branch; empty name lists every baseline name.
+func (s *Storage) ListSnapshotIntents(repoID int64, scenario, branch, name string) ([]SnapshotIntent, error) {
+	var dirs []string
+	if branch != "" {
+		dir, err := s.branchDir(repoID, scenario, branch)
+		if err != nil {
+			return nil, err
+		}
+		dirs = append(dirs, dir)
+	} else {
+		root, err := s.scenarioDir(repoID, scenario)
+		if err != nil {
+			return nil, err
+		}
+		entries, rerr := os.ReadDir(root)
+		if rerr != nil {
+			if os.IsNotExist(rerr) {
+				return []SnapshotIntent{}, nil
+			}
+			return nil, fmt.Errorf("read scenario baselines: %w", rerr)
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				dirs = append(dirs, filepath.Join(root, e.Name()))
+			}
+		}
+	}
+
+	var out []SnapshotIntent
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(filepath.Join(dir, ".snapshots"))
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("read snapshot intents: %w", err)
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+				continue
+			}
+			data, rerr := os.ReadFile(filepath.Join(dir, ".snapshots", e.Name()))
+			if rerr != nil {
+				continue
+			}
+			var intent SnapshotIntent
+			if json.Unmarshal(data, &intent) != nil {
+				continue
+			}
+			if name != "" && intent.Name != name {
+				continue
+			}
+			out = append(out, intent)
+		}
+	}
+	sort.SliceStable(out, func(a, b int) bool {
+		return out[a].UpdatedAt.After(out[b].UpdatedAt)
+	})
+	return out, nil
+}
+
+// ListAllSnapshotIntents lists every durable snapshot intent for a repository.
+func (s *Storage) ListAllSnapshotIntents(repoID int64) ([]SnapshotIntent, error) {
+	root, err := s.baselinesDir(repoID)
+	if err != nil {
+		return nil, err
+	}
+	scenarios, rerr := os.ReadDir(root)
+	if rerr != nil {
+		if os.IsNotExist(rerr) {
+			return []SnapshotIntent{}, nil
+		}
+		return nil, fmt.Errorf("read baselines root: %w", rerr)
+	}
+	var out []SnapshotIntent
+	for _, sc := range scenarios {
+		if !sc.IsDir() {
+			continue
+		}
+		intents, err := s.ListSnapshotIntents(repoID, sc.Name(), "", "")
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, intents...)
+	}
+	sort.SliceStable(out, func(a, b int) bool {
+		return out[a].UpdatedAt.After(out[b].UpdatedAt)
+	})
+	return out, nil
 }
 
 // SaveDiffResult persists a finalized diff under (repoID, scenario, branch,

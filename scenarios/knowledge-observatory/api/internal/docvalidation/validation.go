@@ -168,9 +168,98 @@ func validateContent(scenarioPath string, doc doccontract.Document) []DocContent
 			issues = append(issues, DocContentIssue{Path: doc.ScenarioPath, DocType: doc.DocType, Severity: "warning", Message: "missing required link: " + link})
 		}
 	}
+	for _, contract := range doc.Validation.TableContracts {
+		issues = append(issues, validateTableContract(content, doc, contract)...)
+	}
 	if op := doc.Operations.AppendLog; op != nil && op.Enabled && op.TargetHeading != "" {
 		if !hasMarkdownHeading(content, op.TargetHeading) {
 			issues = append(issues, DocContentIssue{Path: doc.ScenarioPath, DocType: doc.DocType, Severity: "warning", Message: "missing append-log heading: " + op.TargetHeading})
+		}
+	}
+	return issues
+}
+
+func validateTableContract(content string, doc doccontract.Document, contract doccontract.TableContract) []DocContentIssue {
+	heading := strings.TrimSpace(contract.AnchorHeading)
+	if heading == "" {
+		return nil
+	}
+	table, ok := markdownTableUnderHeading(content, heading)
+	if !ok {
+		return []DocContentIssue{{Path: doc.ScenarioPath, DocType: doc.DocType, Severity: "error", Message: "missing table under heading: " + heading}}
+	}
+	if len(table) == 0 {
+		return []DocContentIssue{{Path: doc.ScenarioPath, DocType: doc.DocType, Severity: "error", Message: "empty table under heading: " + heading}}
+	}
+	header := table[0]
+	headerByName := map[string]int{}
+	for i, cell := range header {
+		headerByName[normalizeTableHeader(cell)] = i
+	}
+	var issues []DocContentIssue
+	for _, col := range contract.Columns {
+		name := strings.TrimSpace(col.Name)
+		if name == "" {
+			continue
+		}
+		idx, exact := headerByName[normalizeTableHeader(name)]
+		if !exact {
+			for _, alias := range col.Aliases {
+				if aliasIdx, ok := headerByName[normalizeTableHeader(alias)]; ok {
+					idx = aliasIdx
+					exact = true
+					issues = append(issues, DocContentIssue{
+						Path:     doc.ScenarioPath,
+						DocType:  doc.DocType,
+						Severity: "warning",
+						Message:  fmt.Sprintf("table %q uses alias header %q; canonical header is %q", heading, header[idx], name),
+					})
+					break
+				}
+			}
+		}
+		if !exact {
+			if col.Required {
+				issues = append(issues, DocContentIssue{Path: doc.ScenarioPath, DocType: doc.DocType, Severity: "error", Message: fmt.Sprintf("table %q missing required column: %s", heading, name)})
+			}
+			continue
+		}
+		issues = append(issues, validateTableColumnValues(doc, heading, table[1:], idx, col)...)
+	}
+	return issues
+}
+
+func validateTableColumnValues(doc doccontract.Document, heading string, rows [][]string, idx int, col doccontract.TableColumnContract) []DocContentIssue {
+	if col.Type != "enum" && col.Type != "enum-list" {
+		return nil
+	}
+	allowed := map[string]struct{}{}
+	for _, value := range col.EnumValues {
+		if normalized := normalizeEnumValue(value); normalized != "" {
+			allowed[normalized] = struct{}{}
+		}
+	}
+	if len(allowed) == 0 {
+		return nil
+	}
+	var issues []DocContentIssue
+	for rowIdx, row := range rows {
+		if idx >= len(row) {
+			continue
+		}
+		for _, value := range tableCellValues(row[idx], col.Type == "enum-list") {
+			if value == "" || value == "-" || value == "—" {
+				continue
+			}
+			if _, ok := allowed[normalizeEnumValue(value)]; ok {
+				continue
+			}
+			issues = append(issues, DocContentIssue{
+				Path:     doc.ScenarioPath,
+				DocType:  doc.DocType,
+				Severity: "warning",
+				Message:  fmt.Sprintf("table %q row %d column %q has value %q outside enum", heading, rowIdx+1, col.Name, value),
+			})
 		}
 	}
 	return issues
@@ -250,6 +339,127 @@ func hasMarkdownHeading(content string, heading string) bool {
 		}
 	}
 	return false
+}
+
+func markdownTableUnderHeading(content, heading string) ([][]string, bool) {
+	section, ok := markdownSection(content, heading)
+	if !ok {
+		return nil, false
+	}
+	var table [][]string
+	seenHeader := false
+	for _, raw := range strings.Split(section, "\n") {
+		line := strings.TrimSpace(raw)
+		if !strings.HasPrefix(line, "|") {
+			if seenHeader {
+				break
+			}
+			continue
+		}
+		cells := splitMarkdownTableRow(line)
+		if len(cells) == 0 || isMarkdownSeparatorRow(cells) {
+			continue
+		}
+		table = append(table, cells)
+		seenHeader = true
+	}
+	return table, len(table) > 0
+}
+
+func markdownSection(content, heading string) (string, bool) {
+	lines := strings.Split(content, "\n")
+	start := -1
+	startLevel := 0
+	for i, line := range lines {
+		level, title, ok := parseMarkdownHeading(line)
+		if ok && strings.EqualFold(title, heading) {
+			start = i + 1
+			startLevel = level
+			break
+		}
+	}
+	if start < 0 {
+		return "", false
+	}
+	end := len(lines)
+	for i := start; i < len(lines); i++ {
+		level, _, ok := parseMarkdownHeading(lines[i])
+		if ok && level <= startLevel {
+			end = i
+			break
+		}
+	}
+	return strings.Join(lines[start:end], "\n"), true
+}
+
+func parseMarkdownHeading(line string) (int, string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "#") {
+		return 0, "", false
+	}
+	level := 0
+	for level < len(trimmed) && trimmed[level] == '#' {
+		level++
+	}
+	if level == 0 || level == len(trimmed) || trimmed[level] != ' ' {
+		return 0, "", false
+	}
+	return level, strings.TrimSpace(trimmed[level:]), true
+}
+
+func splitMarkdownTableRow(line string) []string {
+	line = strings.TrimSpace(line)
+	line = strings.TrimPrefix(line, "|")
+	line = strings.TrimSuffix(line, "|")
+	parts := strings.Split(line, "|")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		out = append(out, strings.TrimSpace(part))
+	}
+	return out
+}
+
+func isMarkdownSeparatorRow(cells []string) bool {
+	for _, cell := range cells {
+		c := strings.Trim(cell, " :-")
+		if c != "" {
+			return false
+		}
+	}
+	return len(cells) > 0
+}
+
+func normalizeTableHeader(header string) string {
+	header = strings.TrimSpace(strings.ToLower(header))
+	if i := strings.Index(header, "("); i >= 0 {
+		header = strings.TrimSpace(header[:i])
+	}
+	return strings.Join(strings.Fields(header), " ")
+}
+
+func tableCellValues(cell string, list bool) []string {
+	cell = strings.TrimSpace(strings.Trim(cell, "`"))
+	if cell == "" {
+		return nil
+	}
+	separators := func(r rune) bool {
+		return r == ',' || (list && r == '/')
+	}
+	parts := strings.FieldsFunc(cell, separators)
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(strings.Trim(part, "`"))
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func normalizeEnumValue(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	value = strings.Trim(value, "`")
+	return strings.Join(strings.Fields(value), " ")
 }
 
 func isDocFile(name string) bool {

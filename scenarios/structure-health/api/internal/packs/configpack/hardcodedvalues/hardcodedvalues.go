@@ -32,6 +32,17 @@ func connectDB() *sql.DB {
   <expected-message>Hardcoded</expected-message>
 </test-case>
 
+<test-case id="config-key-names-not-secrets" should-fail="false">
+  <description>Constants naming an env var or HTTP header are names, not secrets</description>
+  <input language="go">
+const (
+    EnvQdrantAPIKey          = "QDRANT_API_KEY"
+    headerAgentIdentityToken = "X-Agent-Identity-Token"
+    headerContentType        = "Content-Type"
+)
+  </input>
+</test-case>
+
 <test-case id="hardcoded-ports-urls" should-fail="true">
   <description>Hardcoded ports and URLs</description>
   <input language="go">
@@ -142,7 +153,26 @@ var (
 	portFallbackPattern     = regexp.MustCompile(`(?i)([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=|:=)\s*"(\d{2,5})"`)
 	bashPortFallbackPattern = regexp.MustCompile(`(?i)\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*[:?][-=]\s*"?(\d{2,5})"?\s*\}`)
 	jsPortFallbackPattern   = regexp.MustCompile(`(?i)process\.env\.([A-Za-z_][A-Za-z0-9_]*)\s*(?:\|\||\?\?)\s*['"]?(\d{2,5})['"]?`)
+
+	// envVarNameValue matches SCREAMING_SNAKE_CASE identifiers — env-var / config-key
+	// NAMES such as "QDRANT_API_KEY" or "DB_PASSWORD". A literal secret value is
+	// effectively never spelled this way.
+	envVarNameValue = regexp.MustCompile(`^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$`)
+	// httpHeaderNameValue matches canonical HTTP header NAMES such as
+	// "X-Agent-Identity-Token" or "Content-Type": each dash-separated segment is a
+	// capitalized word. A high-entropy secret like "sk-1234567890abcdef" has a
+	// lowercase prefix and therefore does NOT match.
+	httpHeaderNameValue = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*(-[A-Z][A-Za-z0-9]*)+$`)
 )
+
+// looksLikeConfigName reports whether v is plainly the NAME of a configuration key
+// (an env-var name or an HTTP header name) rather than a literal secret VALUE.
+// The credential detectors match on the left-hand identifier, so a constant such as
+// `headerAgentIdentityToken = "X-Agent-Identity-Token"` would otherwise be flagged
+// even though its value is a header name, not a credential.
+func looksLikeConfigName(v string) bool {
+	return envVarNameValue.MatchString(v) || httpHeaderNameValue.MatchString(v)
+}
 
 // CheckHardcodedValues detects hardcoded configuration values
 func CheckHardcodedValues(content []byte, filePath string) []Violation {
@@ -171,12 +201,12 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 	patterns := []patternDef{
 		{
 			name:     "hardcoded_api_key",
-			re:       regexp.MustCompile(`(?i)(api[_-]?key|apikey)\s*(?::=|=|:=)\s*"[^"]+"`),
+			re:       regexp.MustCompile(`(?i)(api[_-]?key|apikey)\s*(?::=|=|:=)\s*"([^"]+)"`),
 			severity: "critical",
 		},
 		{
 			name:     "hardcoded_password",
-			re:       regexp.MustCompile(`(?i)(password|passwd|pwd|secret|token)\s*(?::=|=|:=)\s*"[^"]+"`),
+			re:       regexp.MustCompile(`(?i)(password|passwd|pwd|secret|token)\s*(?::=|=|:=)\s*"([^"]+)"`),
 			severity: "critical",
 		},
 		{
@@ -303,6 +333,17 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 			}
 			if pattern.name == "hardcoded_ip" && strings.Contains(line, "127.0.0.1") {
 				continue
+			}
+
+			// The credential detectors match on the left-hand identifier (e.g. a const
+			// named "headerAgentIdentityToken" or "EnvQdrantAPIKey"). Skip when the
+			// right-hand VALUE is plainly the NAME of a config key — an env-var name or
+			// an HTTP header name — rather than a literal secret. This avoids flagging
+			// the idiomatic `const X = "HEADER-NAME"` / `const X = "ENV_VAR_NAME"`.
+			if pattern.name == "hardcoded_api_key" || pattern.name == "hardcoded_password" {
+				if m := pattern.re.FindStringSubmatch(line); len(m) >= 3 && looksLikeConfigName(m[2]) {
+					continue
+				}
 			}
 
 			if _, ok := lineMatches[i]; !ok {

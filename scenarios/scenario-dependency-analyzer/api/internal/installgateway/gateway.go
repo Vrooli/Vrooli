@@ -99,7 +99,14 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 			argv = []string{"yarn", "add", spec}
 		default:
 			manager = "pnpm"
-			argv = []string{"pnpm", "add", spec}
+			argv = []string{"pnpm", "add"}
+			// Many scenario surfaces are intentionally standalone pnpm
+			// workspaces. ExecInstaller runs from the surface root, so this flag
+			// confirms the surface workspace root rather than the repo root.
+			if fileExists(filepath.Join(surfaceRoot, "pnpm-workspace.yaml")) {
+				argv = append(argv, "--workspace-root")
+			}
+			argv = append(argv, spec)
 		}
 	case "go", "golang":
 		manager = "go"

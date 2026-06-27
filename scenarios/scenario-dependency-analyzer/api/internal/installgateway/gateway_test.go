@@ -1,6 +1,7 @@
 package installgateway
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,6 +48,57 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 		if r.Command() != tc.wantArgv {
 			t.Errorf("%s/%s argv = %q, want %q", tc.ecosystem, tc.pkg, r.Command(), tc.wantArgv)
 		}
+	}
+}
+
+func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{
+		"package.json":        "{}",
+		"pnpm-lock.yaml":      "",
+		"pnpm-workspace.yaml": "packages:\n  - .\n",
+	})
+
+	r, err := Resolve(repoRoot, "demo", "ui", "npm", "helmet", "^6.1.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Command() != "pnpm add --workspace-root helmet@^6.1.0" {
+		t.Fatalf("command = %q", r.Command())
+	}
+}
+
+func TestExecInstallerRunsInSurfaceRoot(t *testing.T) {
+	dir := t.TempDir()
+	binDir := filepath.Join(dir, "bin")
+	surfaceRoot := filepath.Join(dir, "surface")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(surfaceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cwdFile := filepath.Join(dir, "cwd.txt")
+	fakeTool := filepath.Join(binDir, "fake-tool")
+	if err := os.WriteFile(fakeTool, []byte("#!/bin/sh\npwd > \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	_, err := (ExecInstaller{}).Install(context.Background(), Resolution{
+		SurfaceRoot: surfaceRoot,
+		Argv:        []string{"fake-tool", cwdFile},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := os.ReadFile(cwdFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(got)) != surfaceRoot {
+		t.Fatalf("installer cwd = %q, want %q", strings.TrimSpace(string(got)), surfaceRoot)
 	}
 }
 
