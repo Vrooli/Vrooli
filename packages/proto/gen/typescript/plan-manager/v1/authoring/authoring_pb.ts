@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Plan } from "../shared/model_pb";
+import type { GuidedStep, Plan, Reference } from "../shared/model_pb";
 import { file_plan_manager_v1_shared_model } from "../shared/model_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/authoring/authoring.proto.
  */
 export const file_plan_manager_v1_authoring_authoring: GenFile = /*@__PURE__*/
-  fileDesc("CilwbGFuLW1hbmFnZXIvdjEvYXV0aG9yaW5nL2F1dGhvcmluZy5wcm90bxIgdnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcibQoHU2VjdGlvbhILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAkSDwoHY29udGVudBgDIAEoCRIRCgltYW5kYXRvcnkYBCABKAgSDgoGZmlsbGVkGAUgASgIEhIKCmF1dG9maWxsZWQYBiABKAgivgEKEEF1dGhvcmluZ1Nlc3Npb24SCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEQoJcGxhbl9zbHVnGAMgASgJEjsKCHNlY3Rpb25zGAQgAygLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuU2VjdGlvbhIbChNjdXJyZW50X3NlY3Rpb25fa2V5GAUgASgJEhEKCWZpbmFsaXplZBgGIAEoCBIPCgdwbGFuX2lkGAcgASgJIjoKElN0cnVjdHVyZVZpb2xhdGlvbhITCgtzZWN0aW9uX2tleRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJImcKDkF1dG9maWxsUmVzdWx0Eg4KBnNvdXJjZRgBIAEoCRITCgtzZWN0aW9uX2tleRgCIAEoCRIOCgZmaWxsZWQYAyABKAgSEAoIZGVncmFkZWQYBCABKAgSDgoGZGV0YWlsGAUgASgJIkcKE1N0YXJ0U2Vzc2lvblJlcXVlc3QSDQoFdGl0bGUYASABKAkSDAoEc2x1ZxgCIAEoCRITCgt0ZW1wbGF0ZV9pZBgDIAEoCSJbChRTdGFydFNlc3Npb25SZXNwb25zZRJDCgdzZXNzaW9uGAEgASgLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuQXV0aG9yaW5nU2Vzc2lvbiI8ChFHZXRTZWN0aW9uUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhMKC3NlY3Rpb25fa2V5GAIgASgJIlAKEkdldFNlY3Rpb25SZXNwb25zZRI6CgdzZWN0aW9uGAEgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuU2VjdGlvbiJQChRTdWJtaXRTZWN0aW9uUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhMKC3NlY3Rpb25fa2V5GAIgASgJEg8KB2NvbnRlbnQYAyABKAkipgEKFVN1Ym1pdFNlY3Rpb25SZXNwb25zZRJDCgdzZXNzaW9uGAEgASgLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuQXV0aG9yaW5nU2Vzc2lvbhJICgp2aW9sYXRpb25zGAIgAygLMjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuU3RydWN0dXJlVmlvbGF0aW9uIiEKC05leHRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiXAoMTmV4dFJlc3BvbnNlEjoKB3NlY3Rpb24YASABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TZWN0aW9uEhAKCGNvbXBsZXRlGAIgASgIIi4KGFZhbGlkYXRlU3RydWN0dXJlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJInQKGVZhbGlkYXRlU3RydWN0dXJlUmVzcG9uc2USDQoFdmFsaWQYASABKAgSSAoKdmlvbGF0aW9ucxgCIAMoCzI0LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlN0cnVjdHVyZVZpb2xhdGlvbiI2Cg9BdXRvZmlsbFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIPCgdzb3VyY2VzGAIgAygJIpoBChBBdXRvZmlsbFJlc3BvbnNlEkMKB3Nlc3Npb24YASABKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5BdXRob3JpbmdTZXNzaW9uEkEKB3Jlc3VsdHMYAiADKAsyMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5BdXRvZmlsbFJlc3VsdCIlCg9GaW5hbGl6ZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCSJFChBGaW5hbGl6ZVJlc3BvbnNlEjEKBHBsYW4YASABKAsyIy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuMukGChBBdXRob3JpbmdTZXJ2aWNlEn0KDFN0YXJ0U2Vzc2lvbhI1LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlN0YXJ0U2Vzc2lvblJlcXVlc3QaNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TdGFydFNlc3Npb25SZXNwb25zZRJ3CgpHZXRTZWN0aW9uEjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuR2V0U2VjdGlvblJlcXVlc3QaNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5HZXRTZWN0aW9uUmVzcG9uc2USgAEKDVN1Ym1pdFNlY3Rpb24SNi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TdWJtaXRTZWN0aW9uUmVxdWVzdBo3LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlN1Ym1pdFNlY3Rpb25SZXNwb25zZRJlCgROZXh0Ei0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuTmV4dFJlcXVlc3QaLi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5OZXh0UmVzcG9uc2USjAEKEVZhbGlkYXRlU3RydWN0dXJlEjoudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuVmFsaWRhdGVTdHJ1Y3R1cmVSZXF1ZXN0GjsudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuVmFsaWRhdGVTdHJ1Y3R1cmVSZXNwb25zZRJxCghBdXRvZmlsbBIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLkF1dG9maWxsUmVxdWVzdBoyLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLkF1dG9maWxsUmVzcG9uc2UScQoIRmluYWxpemUSMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5GaW5hbGl6ZVJlcXVlc3QaMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5GaW5hbGl6ZVJlc3BvbnNlQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGxhbi1tYW5hZ2VyL3YxL2F1dGhvcmluZzthdXRob3JpbmdfdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
+  fileDesc("CilwbGFuLW1hbmFnZXIvdjEvYXV0aG9yaW5nL2F1dGhvcmluZy5wcm90bxIgdnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcibQoHU2VjdGlvbhILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAkSDwoHY29udGVudBgDIAEoCRIRCgltYW5kYXRvcnkYBCABKAgSDgoGZmlsbGVkGAUgASgIEhIKCmF1dG9maWxsZWQYBiABKAginAIKEEF1dGhvcmluZ1Nlc3Npb24SCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEQoJcGxhbl9zbHVnGAMgASgJEjsKCHNlY3Rpb25zGAQgAygLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuU2VjdGlvbhIbChNjdXJyZW50X3NlY3Rpb25fa2V5GAUgASgJEhEKCWZpbmFsaXplZBgGIAEoCBIPCgdwbGFuX2lkGAcgASgJEkIKDHBoYXNlX2RyYWZ0cxgIIAMoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlBoYXNlRHJhZnQSGAoQY3VycmVudF9waGFzZV9pZBgJIAEoCSI6ChJTdHJ1Y3R1cmVWaW9sYXRpb24SEwoLc2VjdGlvbl9rZXkYASABKAkSDwoHbWVzc2FnZRgCIAEoCSJnCg5BdXRvZmlsbFJlc3VsdBIOCgZzb3VyY2UYASABKAkSEwoLc2VjdGlvbl9rZXkYAiABKAkSDgoGZmlsbGVkGAMgASgIEhAKCGRlZ3JhZGVkGAQgASgIEg4KBmRldGFpbBgFIAEoCSLiAQoKUGhhc2VEcmFmdBIKCgJpZBgBIAEoCRINCgVvcmRlchgCIAEoBRINCgV0aXRsZRgDIAEoCRIOCgZpbnRlbnQYBCABKAkSPAoKcmVmZXJlbmNlcxgFIAMoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZRIYChByZXF1aXJlZF9yZWFkaW5nGAYgAygJEhEKCXJlbWluZGVycxgHIAMoCRISCgphY2NlcHRhbmNlGAggASgJEhsKE25vX2NvZGVfcmVmc19yZWFzb24YCSABKAkiRwoTU3RhcnRTZXNzaW9uUmVxdWVzdBINCgV0aXRsZRgBIAEoCRIMCgRzbHVnGAIgASgJEhMKC3RlbXBsYXRlX2lkGAMgASgJIpQBChRTdGFydFNlc3Npb25SZXNwb25zZRJDCgdzZXNzaW9uGAEgASgLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuQXV0aG9yaW5nU2Vzc2lvbhI3CgRzdGVwGAIgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCI8ChFHZXRTZWN0aW9uUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhMKC3NlY3Rpb25fa2V5GAIgASgJIokBChJHZXRTZWN0aW9uUmVzcG9uc2USOgoHc2VjdGlvbhgBIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlNlY3Rpb24SNwoEc3RlcBgCIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiUAoUU3VibWl0U2VjdGlvblJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRITCgtzZWN0aW9uX2tleRgCIAEoCRIPCgdjb250ZW50GAMgASgJIt8BChVTdWJtaXRTZWN0aW9uUmVzcG9uc2USQwoHc2Vzc2lvbhgBIAEoCzIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLkF1dGhvcmluZ1Nlc3Npb24SSAoKdmlvbGF0aW9ucxgCIAMoCzI0LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlN0cnVjdHVyZVZpb2xhdGlvbhI3CgRzdGVwGAMgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCIhCgtOZXh0UmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJIpUBCgxOZXh0UmVzcG9uc2USOgoHc2VjdGlvbhgBIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlNlY3Rpb24SEAoIY29tcGxldGUYAiABKAgSNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiLgoYVmFsaWRhdGVTdHJ1Y3R1cmVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkirQEKGVZhbGlkYXRlU3RydWN0dXJlUmVzcG9uc2USDQoFdmFsaWQYASABKAgSSAoKdmlvbGF0aW9ucxgCIAMoCzI0LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlN0cnVjdHVyZVZpb2xhdGlvbhI3CgRzdGVwGAMgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCI2Cg9BdXRvZmlsbFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIPCgdzb3VyY2VzGAIgAygJItMBChBBdXRvZmlsbFJlc3BvbnNlEkMKB3Nlc3Npb24YASABKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5BdXRob3JpbmdTZXNzaW9uEkEKB3Jlc3VsdHMYAiADKAsyMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5BdXRvZmlsbFJlc3VsdBI3CgRzdGVwGAMgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcCJECg9BZGRQaGFzZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIOCgZpbnRlbnQYAyABKAkilwIKEEFkZFBoYXNlUmVzcG9uc2USQwoHc2Vzc2lvbhgBIAEoCzIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLkF1dGhvcmluZ1Nlc3Npb24SOwoFcGhhc2UYAiABKAsyLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5QaGFzZURyYWZ0EkgKCnZpb2xhdGlvbnMYAyADKAsyNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TdHJ1Y3R1cmVWaW9sYXRpb24SNwoEc3RlcBgEIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiNwoPR2V0UGhhc2VSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkiiAEKEEdldFBoYXNlUmVzcG9uc2USOwoFcGhhc2UYASABKAsyLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5QaGFzZURyYWZ0EjcKBHN0ZXAYAiABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5HdWlkZWRTdGVwIl8KF1N1Ym1pdFBoYXNlRmllbGRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSEAoIcGhhc2VfaWQYAiABKAkSDQoFZmllbGQYAyABKAkSDwoHY29udGVudBgEIAEoCSLiAQoYU3VibWl0UGhhc2VGaWVsZFJlc3BvbnNlEkMKB3Nlc3Npb24YASABKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5BdXRob3JpbmdTZXNzaW9uEkgKCnZpb2xhdGlvbnMYAiADKAsyNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TdHJ1Y3R1cmVWaW9sYXRpb24SNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiJgoQTmV4dFBoYXNlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJIpsBChFOZXh0UGhhc2VSZXNwb25zZRI7CgVwaGFzZRgBIAEoCzIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlBoYXNlRHJhZnQSEAoIY29tcGxldGUYAiABKAgSNwoEc3RlcBgDIAEoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkd1aWRlZFN0ZXAiJQoPRmluYWxpemVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkifgoQRmluYWxpemVSZXNwb25zZRIxCgRwbGFuGAEgASgLMiMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGxhbhI3CgRzdGVwGAIgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuR3VpZGVkU3RlcDLRCgoQQXV0aG9yaW5nU2VydmljZRJ9CgxTdGFydFNlc3Npb24SNS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TdGFydFNlc3Npb25SZXF1ZXN0GjYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuU3RhcnRTZXNzaW9uUmVzcG9uc2USdwoKR2V0U2VjdGlvbhIzLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLkdldFNlY3Rpb25SZXF1ZXN0GjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuR2V0U2VjdGlvblJlc3BvbnNlEoABCg1TdWJtaXRTZWN0aW9uEjYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuU3VibWl0U2VjdGlvblJlcXVlc3QaNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TdWJtaXRTZWN0aW9uUmVzcG9uc2USZQoETmV4dBItLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLk5leHRSZXF1ZXN0Gi4udnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuTmV4dFJlc3BvbnNlEowBChFWYWxpZGF0ZVN0cnVjdHVyZRI6LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlZhbGlkYXRlU3RydWN0dXJlUmVxdWVzdBo7LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlZhbGlkYXRlU3RydWN0dXJlUmVzcG9uc2UScQoIQXV0b2ZpbGwSMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5BdXRvZmlsbFJlcXVlc3QaMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5BdXRvZmlsbFJlc3BvbnNlEnEKCEFkZFBoYXNlEjEudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuQWRkUGhhc2VSZXF1ZXN0GjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuQWRkUGhhc2VSZXNwb25zZRJxCghHZXRQaGFzZRIxLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLkdldFBoYXNlUmVxdWVzdBoyLnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLkdldFBoYXNlUmVzcG9uc2USiQEKEFN1Ym1pdFBoYXNlRmllbGQSOS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5TdWJtaXRQaGFzZUZpZWxkUmVxdWVzdBo6LnZyb29saS5wbGFuX21hbmFnZXIudjEuYXV0aG9yaW5nLlN1Ym1pdFBoYXNlRmllbGRSZXNwb25zZRJ0CglOZXh0UGhhc2USMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5OZXh0UGhhc2VSZXF1ZXN0GjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5hdXRob3JpbmcuTmV4dFBoYXNlUmVzcG9uc2UScQoIRmluYWxpemUSMS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5GaW5hbGl6ZVJlcXVlc3QaMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLmF1dGhvcmluZy5GaW5hbGl6ZVJlc3BvbnNlQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGxhbi1tYW5hZ2VyL3YxL2F1dGhvcmluZzthdXRob3JpbmdfdjFiBnByb3RvMw", [file_plan_manager_v1_shared_model]);
 
 /**
  * Section is one authored or auto-filled section of a plan-in-progress.
@@ -109,6 +109,16 @@ export type AuthoringSession = Message<"vrooli.plan_manager.v1.authoring.Authori
    * @generated from field: string plan_id = 7;
    */
   planId: string;
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.authoring.PhaseDraft phase_drafts = 8;
+   */
+  phaseDrafts: PhaseDraft[];
+
+  /**
+   * @generated from field: string current_phase_id = 9;
+   */
+  currentPhaseId: string;
 };
 
 /**
@@ -188,6 +198,66 @@ export const AutofillResultSchema: GenMessage<AutofillResult> = /*@__PURE__*/
   messageDesc(file_plan_manager_v1_authoring_authoring, 3);
 
 /**
+ * PhaseDraft is the structured pre-finalize phase object owned by an authoring
+ * session. Finalize maps these into shared.Phase records in the plans domain.
+ *
+ * @generated from message vrooli.plan_manager.v1.authoring.PhaseDraft
+ */
+export type PhaseDraft = Message<"vrooli.plan_manager.v1.authoring.PhaseDraft"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: int32 order = 2;
+   */
+  order: number;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string intent = 4;
+   */
+  intent: string;
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.Reference references = 5;
+   */
+  references: Reference[];
+
+  /**
+   * @generated from field: repeated string required_reading = 6;
+   */
+  requiredReading: string[];
+
+  /**
+   * @generated from field: repeated string reminders = 7;
+   */
+  reminders: string[];
+
+  /**
+   * @generated from field: string acceptance = 8;
+   */
+  acceptance: string;
+
+  /**
+   * @generated from field: string no_code_refs_reason = 9;
+   */
+  noCodeRefsReason: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.PhaseDraft.
+ * Use `create(PhaseDraftSchema)` to create a new message.
+ */
+export const PhaseDraftSchema: GenMessage<PhaseDraft> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 4);
+
+/**
  * @generated from message vrooli.plan_manager.v1.authoring.StartSessionRequest
  */
 export type StartSessionRequest = Message<"vrooli.plan_manager.v1.authoring.StartSessionRequest"> & {
@@ -214,7 +284,7 @@ export type StartSessionRequest = Message<"vrooli.plan_manager.v1.authoring.Star
  * Use `create(StartSessionRequestSchema)` to create a new message.
  */
 export const StartSessionRequestSchema: GenMessage<StartSessionRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 4);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 5);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.StartSessionResponse
@@ -224,6 +294,11 @@ export type StartSessionResponse = Message<"vrooli.plan_manager.v1.authoring.Sta
    * @generated from field: vrooli.plan_manager.v1.authoring.AuthoringSession session = 1;
    */
   session?: AuthoringSession | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
+   */
+  step?: GuidedStep | undefined;
 };
 
 /**
@@ -231,7 +306,7 @@ export type StartSessionResponse = Message<"vrooli.plan_manager.v1.authoring.Sta
  * Use `create(StartSessionResponseSchema)` to create a new message.
  */
 export const StartSessionResponseSchema: GenMessage<StartSessionResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 5);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 6);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.GetSectionRequest
@@ -253,7 +328,7 @@ export type GetSectionRequest = Message<"vrooli.plan_manager.v1.authoring.GetSec
  * Use `create(GetSectionRequestSchema)` to create a new message.
  */
 export const GetSectionRequestSchema: GenMessage<GetSectionRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 6);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 7);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.GetSectionResponse
@@ -263,6 +338,11 @@ export type GetSectionResponse = Message<"vrooli.plan_manager.v1.authoring.GetSe
    * @generated from field: vrooli.plan_manager.v1.authoring.Section section = 1;
    */
   section?: Section | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
+   */
+  step?: GuidedStep | undefined;
 };
 
 /**
@@ -270,7 +350,7 @@ export type GetSectionResponse = Message<"vrooli.plan_manager.v1.authoring.GetSe
  * Use `create(GetSectionResponseSchema)` to create a new message.
  */
 export const GetSectionResponseSchema: GenMessage<GetSectionResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 7);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 8);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.SubmitSectionRequest
@@ -297,7 +377,7 @@ export type SubmitSectionRequest = Message<"vrooli.plan_manager.v1.authoring.Sub
  * Use `create(SubmitSectionRequestSchema)` to create a new message.
  */
 export const SubmitSectionRequestSchema: GenMessage<SubmitSectionRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 8);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 9);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.SubmitSectionResponse
@@ -314,6 +394,11 @@ export type SubmitSectionResponse = Message<"vrooli.plan_manager.v1.authoring.Su
    * @generated from field: repeated vrooli.plan_manager.v1.authoring.StructureViolation violations = 2;
    */
   violations: StructureViolation[];
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
 };
 
 /**
@@ -321,7 +406,7 @@ export type SubmitSectionResponse = Message<"vrooli.plan_manager.v1.authoring.Su
  * Use `create(SubmitSectionResponseSchema)` to create a new message.
  */
 export const SubmitSectionResponseSchema: GenMessage<SubmitSectionResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 9);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 10);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.NextRequest
@@ -338,7 +423,7 @@ export type NextRequest = Message<"vrooli.plan_manager.v1.authoring.NextRequest"
  * Use `create(NextRequestSchema)` to create a new message.
  */
 export const NextRequestSchema: GenMessage<NextRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 10);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 11);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.NextResponse
@@ -355,6 +440,11 @@ export type NextResponse = Message<"vrooli.plan_manager.v1.authoring.NextRespons
    * @generated from field: bool complete = 2;
    */
   complete: boolean;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
 };
 
 /**
@@ -362,7 +452,7 @@ export type NextResponse = Message<"vrooli.plan_manager.v1.authoring.NextRespons
  * Use `create(NextResponseSchema)` to create a new message.
  */
 export const NextResponseSchema: GenMessage<NextResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 11);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 12);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.ValidateStructureRequest
@@ -379,7 +469,7 @@ export type ValidateStructureRequest = Message<"vrooli.plan_manager.v1.authoring
  * Use `create(ValidateStructureRequestSchema)` to create a new message.
  */
 export const ValidateStructureRequestSchema: GenMessage<ValidateStructureRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 12);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 13);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.ValidateStructureResponse
@@ -394,6 +484,11 @@ export type ValidateStructureResponse = Message<"vrooli.plan_manager.v1.authorin
    * @generated from field: repeated vrooli.plan_manager.v1.authoring.StructureViolation violations = 2;
    */
   violations: StructureViolation[];
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
 };
 
 /**
@@ -401,7 +496,7 @@ export type ValidateStructureResponse = Message<"vrooli.plan_manager.v1.authorin
  * Use `create(ValidateStructureResponseSchema)` to create a new message.
  */
 export const ValidateStructureResponseSchema: GenMessage<ValidateStructureResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 13);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 14);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.AutofillRequest
@@ -425,7 +520,7 @@ export type AutofillRequest = Message<"vrooli.plan_manager.v1.authoring.Autofill
  * Use `create(AutofillRequestSchema)` to create a new message.
  */
 export const AutofillRequestSchema: GenMessage<AutofillRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 14);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 15);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.AutofillResponse
@@ -440,6 +535,11 @@ export type AutofillResponse = Message<"vrooli.plan_manager.v1.authoring.Autofil
    * @generated from field: repeated vrooli.plan_manager.v1.authoring.AutofillResult results = 2;
    */
   results: AutofillResult[];
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
 };
 
 /**
@@ -447,7 +547,220 @@ export type AutofillResponse = Message<"vrooli.plan_manager.v1.authoring.Autofil
  * Use `create(AutofillResponseSchema)` to create a new message.
  */
 export const AutofillResponseSchema: GenMessage<AutofillResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 15);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 16);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.AddPhaseRequest
+ */
+export type AddPhaseRequest = Message<"vrooli.plan_manager.v1.authoring.AddPhaseRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string intent = 3;
+   */
+  intent: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.AddPhaseRequest.
+ * Use `create(AddPhaseRequestSchema)` to create a new message.
+ */
+export const AddPhaseRequestSchema: GenMessage<AddPhaseRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 17);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.AddPhaseResponse
+ */
+export type AddPhaseResponse = Message<"vrooli.plan_manager.v1.authoring.AddPhaseResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.authoring.AuthoringSession session = 1;
+   */
+  session?: AuthoringSession | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.authoring.PhaseDraft phase = 2;
+   */
+  phase?: PhaseDraft | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.authoring.StructureViolation violations = 3;
+   */
+  violations: StructureViolation[];
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 4;
+   */
+  step?: GuidedStep | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.AddPhaseResponse.
+ * Use `create(AddPhaseResponseSchema)` to create a new message.
+ */
+export const AddPhaseResponseSchema: GenMessage<AddPhaseResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 18);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.GetPhaseRequest
+ */
+export type GetPhaseRequest = Message<"vrooli.plan_manager.v1.authoring.GetPhaseRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Phase id or authored order number.
+   *
+   * @generated from field: string phase_id = 2;
+   */
+  phaseId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.GetPhaseRequest.
+ * Use `create(GetPhaseRequestSchema)` to create a new message.
+ */
+export const GetPhaseRequestSchema: GenMessage<GetPhaseRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 19);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.GetPhaseResponse
+ */
+export type GetPhaseResponse = Message<"vrooli.plan_manager.v1.authoring.GetPhaseResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.authoring.PhaseDraft phase = 1;
+   */
+  phase?: PhaseDraft | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
+   */
+  step?: GuidedStep | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.GetPhaseResponse.
+ * Use `create(GetPhaseResponseSchema)` to create a new message.
+ */
+export const GetPhaseResponseSchema: GenMessage<GetPhaseResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 20);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest
+ */
+export type SubmitPhaseFieldRequest = Message<"vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * Phase id or authored order number.
+   *
+   * @generated from field: string phase_id = 2;
+   */
+  phaseId: string;
+
+  /**
+   * title | intent | references | required_reading | reminders | acceptance |
+   * no_code_refs_reason
+   *
+   * @generated from field: string field = 3;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string content = 4;
+   */
+  content: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest.
+ * Use `create(SubmitPhaseFieldRequestSchema)` to create a new message.
+ */
+export const SubmitPhaseFieldRequestSchema: GenMessage<SubmitPhaseFieldRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 21);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
+ */
+export type SubmitPhaseFieldResponse = Message<"vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.authoring.AuthoringSession session = 1;
+   */
+  session?: AuthoringSession | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.authoring.StructureViolation violations = 2;
+   */
+  violations: StructureViolation[];
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.
+ * Use `create(SubmitPhaseFieldResponseSchema)` to create a new message.
+ */
+export const SubmitPhaseFieldResponseSchema: GenMessage<SubmitPhaseFieldResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 22);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.NextPhaseRequest
+ */
+export type NextPhaseRequest = Message<"vrooli.plan_manager.v1.authoring.NextPhaseRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.NextPhaseRequest.
+ * Use `create(NextPhaseRequestSchema)` to create a new message.
+ */
+export const NextPhaseRequestSchema: GenMessage<NextPhaseRequest> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 23);
+
+/**
+ * @generated from message vrooli.plan_manager.v1.authoring.NextPhaseResponse
+ */
+export type NextPhaseResponse = Message<"vrooli.plan_manager.v1.authoring.NextPhaseResponse"> & {
+  /**
+   * @generated from field: vrooli.plan_manager.v1.authoring.PhaseDraft phase = 1;
+   */
+  phase?: PhaseDraft | undefined;
+
+  /**
+   * @generated from field: bool complete = 2;
+   */
+  complete: boolean;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 3;
+   */
+  step?: GuidedStep | undefined;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.authoring.NextPhaseResponse.
+ * Use `create(NextPhaseResponseSchema)` to create a new message.
+ */
+export const NextPhaseResponseSchema: GenMessage<NextPhaseResponse> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_authoring_authoring, 24);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.FinalizeRequest
@@ -464,7 +777,7 @@ export type FinalizeRequest = Message<"vrooli.plan_manager.v1.authoring.Finalize
  * Use `create(FinalizeRequestSchema)` to create a new message.
  */
 export const FinalizeRequestSchema: GenMessage<FinalizeRequest> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 16);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 25);
 
 /**
  * @generated from message vrooli.plan_manager.v1.authoring.FinalizeResponse
@@ -474,6 +787,11 @@ export type FinalizeResponse = Message<"vrooli.plan_manager.v1.authoring.Finaliz
    * @generated from field: vrooli.plan_manager.v1.shared.Plan plan = 1;
    */
   plan?: Plan | undefined;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.GuidedStep step = 2;
+   */
+  step?: GuidedStep | undefined;
 };
 
 /**
@@ -481,7 +799,7 @@ export type FinalizeResponse = Message<"vrooli.plan_manager.v1.authoring.Finaliz
  * Use `create(FinalizeResponseSchema)` to create a new message.
  */
 export const FinalizeResponseSchema: GenMessage<FinalizeResponse> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_authoring_authoring, 17);
+  messageDesc(file_plan_manager_v1_authoring_authoring, 26);
 
 /**
  * @generated from service vrooli.plan_manager.v1.authoring.AuthoringService
@@ -549,6 +867,48 @@ export const AuthoringService: GenService<{
     methodKind: "unary";
     input: typeof AutofillRequestSchema;
     output: typeof AutofillResponseSchema;
+  },
+  /**
+   * AddPhase appends one structured phase draft to the session.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase
+   */
+  addPhase: {
+    methodKind: "unary";
+    input: typeof AddPhaseRequestSchema;
+    output: typeof AddPhaseResponseSchema;
+  },
+  /**
+   * GetPhase returns one structured phase draft plus the API-owned guided step
+   * for its next missing field.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase
+   */
+  getPhase: {
+    methodKind: "unary";
+    input: typeof GetPhaseRequestSchema;
+    output: typeof GetPhaseResponseSchema;
+  },
+  /**
+   * SubmitPhaseField records one structured phase field and validates that
+   * phase immediately.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField
+   */
+  submitPhaseField: {
+    methodKind: "unary";
+    input: typeof SubmitPhaseFieldRequestSchema;
+    output: typeof SubmitPhaseFieldResponseSchema;
+  },
+  /**
+   * NextPhase returns the first structured phase that still needs input.
+   *
+   * @generated from rpc vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase
+   */
+  nextPhase: {
+    methodKind: "unary";
+    input: typeof NextPhaseRequestSchema;
+    output: typeof NextPhaseResponseSchema;
   },
   /**
    * Finalize validates structure then writes the produced plan through the plans

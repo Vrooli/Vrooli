@@ -47,18 +47,17 @@ service RunsService {
   // round-trip through proto); the rel_path here is the handle that route
   // takes. Consumed by git-control-tower's WorkflowReplayService.
   rpc ListRunVideos(ListRunVideosRequest) returns (ListRunVideosResponse);
-  // ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
-  // + optional video) captured by a run under the baseline capture profile. The
+  // ListRunVisuals enumerates the per-page UI visual artifacts (screenshot +
+  // optional video) captured by a run under the baseline capture profile. The
   // bytes are served over the same binary REST artifact route (rel_path is the
   // handle); the structured page set + screenshot count is what git-control-tower
   // diffs at the metadata level between two baselines.
   rpc ListRunVisuals(ListRunVisualsRequest) returns (ListRunVisualsResponse);
   // CompareRunVisuals returns the per-page pixel-level comparison of two runs'
-  // captures. test-genie owns the visual analyzer (internal/visualcheck) and its
-  // thresholds, so consumers (git-control-tower's baseline visuals surface) get
-  // neutral per-page deltas rather than re-deriving pixel math. Every delta is
-  // advisory: a difference is never a verdict here — a clearly-broken render
-  // fails earlier, at smoke time.
+  // captures by delegating analysis to ui-health. Test Genie owns run
+  // orchestration and artifact enumeration only; ui-health owns visual-health
+  // analysis and thresholds. Every delta is advisory: a difference is never a
+  // verdict here.
   rpc CompareRunVisuals(CompareRunVisualsRequest) returns (CompareRunVisualsResponse);
   // FindRun returns the newest completed run matching a shape filter (scenario +
   // optional git_sha / tree_digest / preset / capture_profile / status). It is
@@ -190,9 +189,9 @@ message StartRunRequest {
   string logical_scenario_rel_path = 12;
   string suite_request_id = 13;
   // capture_profile is the capture-depth dial (orthogonal to the phase set). ""
-  // is the default depth (single-page smoke, unchanged cost). "baseline" enables
-  // all-pages visual capture + video + full diagnostics for the smoke phase
-  // (used by git-control-tower baseline snapshots).
+  // is the default depth with no extra all-pages visual capture. "baseline"
+  // enables all-pages visual capture + video + full diagnostics for
+  // git-control-tower baseline snapshots.
   string capture_profile = 14;
 }
 
@@ -434,7 +433,7 @@ message ListRunVideosResponse {
   repeated RunVideo videos = 1;
 }
 
-// RunVisual describes one page's UI smoke visual capture, addressable by paths
+// RunVisual describes one page's baseline visual capture, addressable by paths
 // relative to the run's artifact root (handles for the binary artifact route).
 message RunVisual {
   // page is the captured route (e.g. "/", "/backlog").

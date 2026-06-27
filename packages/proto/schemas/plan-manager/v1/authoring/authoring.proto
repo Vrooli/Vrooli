@@ -39,6 +39,16 @@ service AuthoringService {
   rpc ValidateStructure(ValidateStructureRequest) returns (ValidateStructureResponse);
   // Autofill orchestrates the mechanical-section autofill behind seams.
   rpc Autofill(AutofillRequest) returns (AutofillResponse);
+  // AddPhase appends one structured phase draft to the session.
+  rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
+  // GetPhase returns one structured phase draft plus the API-owned guided step
+  // for its next missing field.
+  rpc GetPhase(GetPhaseRequest) returns (GetPhaseResponse);
+  // SubmitPhaseField records one structured phase field and validates that
+  // phase immediately.
+  rpc SubmitPhaseField(SubmitPhaseFieldRequest) returns (SubmitPhaseFieldResponse);
+  // NextPhase returns the first structured phase that still needs input.
+  rpc NextPhase(NextPhaseRequest) returns (NextPhaseResponse);
   // Finalize validates structure then writes the produced plan through the plans
   // domain, returning the persisted plan.
   rpc Finalize(FinalizeRequest) returns (FinalizeResponse);
@@ -69,6 +79,8 @@ message AuthoringSession {
   bool finalized = 6;
   // Set after Finalize: the id of the persisted plan in the plans domain.
   string plan_id = 7;
+  repeated PhaseDraft phase_drafts = 8;
+  string current_phase_id = 9;
 }
 
 // StructureViolation is one structure-gate failure (e.g. empty mandatory section
@@ -90,6 +102,20 @@ message AutofillResult {
   string detail = 5;
 }
 
+// PhaseDraft is the structured pre-finalize phase object owned by an authoring
+// session. Finalize maps these into shared.Phase records in the plans domain.
+message PhaseDraft {
+  string id = 1;
+  int32 order = 2;
+  string title = 3;
+  string intent = 4;
+  repeated shared.Reference references = 5;
+  repeated string required_reading = 6;
+  repeated string reminders = 7;
+  string acceptance = 8;
+  string no_code_refs_reason = 9;
+}
+
 message StartSessionRequest {
   string title = 1;
   string slug = 2;
@@ -99,6 +125,7 @@ message StartSessionRequest {
 
 message StartSessionResponse {
   AuthoringSession session = 1;
+  shared.GuidedStep step = 2;
 }
 
 message GetSectionRequest {
@@ -108,6 +135,7 @@ message GetSectionRequest {
 
 message GetSectionResponse {
   Section section = 1;
+  shared.GuidedStep step = 2;
 }
 
 message SubmitSectionRequest {
@@ -120,6 +148,7 @@ message SubmitSectionResponse {
   AuthoringSession session = 1;
   // Violations specific to the submitted section (empty when it passes).
   repeated StructureViolation violations = 2;
+  shared.GuidedStep step = 3;
 }
 
 message NextRequest {
@@ -130,6 +159,7 @@ message NextResponse {
   Section section = 1;
   // True when no section still needs author input.
   bool complete = 2;
+  shared.GuidedStep step = 3;
 }
 
 message ValidateStructureRequest {
@@ -139,6 +169,7 @@ message ValidateStructureRequest {
 message ValidateStructureResponse {
   bool valid = 1;
   repeated StructureViolation violations = 2;
+  shared.GuidedStep step = 3;
 }
 
 message AutofillRequest {
@@ -150,6 +181,57 @@ message AutofillRequest {
 message AutofillResponse {
   AuthoringSession session = 1;
   repeated AutofillResult results = 2;
+  shared.GuidedStep step = 3;
+}
+
+message AddPhaseRequest {
+  string session_id = 1;
+  string title = 2;
+  string intent = 3;
+}
+
+message AddPhaseResponse {
+  AuthoringSession session = 1;
+  PhaseDraft phase = 2;
+  repeated StructureViolation violations = 3;
+  shared.GuidedStep step = 4;
+}
+
+message GetPhaseRequest {
+  string session_id = 1;
+  // Phase id or authored order number.
+  string phase_id = 2;
+}
+
+message GetPhaseResponse {
+  PhaseDraft phase = 1;
+  shared.GuidedStep step = 2;
+}
+
+message SubmitPhaseFieldRequest {
+  string session_id = 1;
+  // Phase id or authored order number.
+  string phase_id = 2;
+  // title | intent | references | required_reading | reminders | acceptance |
+  // no_code_refs_reason
+  string field = 3;
+  string content = 4;
+}
+
+message SubmitPhaseFieldResponse {
+  AuthoringSession session = 1;
+  repeated StructureViolation violations = 2;
+  shared.GuidedStep step = 3;
+}
+
+message NextPhaseRequest {
+  string session_id = 1;
+}
+
+message NextPhaseResponse {
+  PhaseDraft phase = 1;
+  bool complete = 2;
+  shared.GuidedStep step = 3;
 }
 
 message FinalizeRequest {
@@ -158,4 +240,5 @@ message FinalizeRequest {
 
 message FinalizeResponse {
   shared.Plan plan = 1;
+  shared.GuidedStep step = 2;
 }

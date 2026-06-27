@@ -19,6 +19,12 @@ class DomainSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DOMAIN_SOURCE_CLI_GROUPS: _ClassVar[DomainSource]
     DOMAIN_SOURCE_UI_FEATURES: _ClassVar[DomainSource]
 
+class ArchetypeSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ARCHETYPE_SOURCE_UNSPECIFIED: _ClassVar[ArchetypeSource]
+    ARCHETYPE_SOURCE_DECLARED: _ClassVar[ArchetypeSource]
+    ARCHETYPE_SOURCE_INFERRED: _ClassVar[ArchetypeSource]
+
 class AuthorityConfidence(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     AUTHORITY_CONFIDENCE_UNSPECIFIED: _ClassVar[AuthorityConfidence]
@@ -36,6 +42,9 @@ DOMAIN_SOURCE_DOMAINS_DOC: DomainSource
 DOMAIN_SOURCE_API_FOLDERS: DomainSource
 DOMAIN_SOURCE_CLI_GROUPS: DomainSource
 DOMAIN_SOURCE_UI_FEATURES: DomainSource
+ARCHETYPE_SOURCE_UNSPECIFIED: ArchetypeSource
+ARCHETYPE_SOURCE_DECLARED: ArchetypeSource
+ARCHETYPE_SOURCE_INFERRED: ArchetypeSource
 AUTHORITY_CONFIDENCE_UNSPECIFIED: AuthorityConfidence
 AUTHORITY_CONFIDENCE_HIGH: AuthorityConfidence
 AUTHORITY_CONFIDENCE_LOW: AuthorityConfidence
@@ -44,18 +53,40 @@ CONVERGENCE_SEVERITY_INFO: ConvergenceSeverity
 CONVERGENCE_SEVERITY_WARN: ConvergenceSeverity
 
 class DerivedDomain(_message.Message):
-    __slots__ = ("name", "paths", "glossary", "archetype", "provenance")
+    __slots__ = ("name", "paths", "glossary", "responsibility", "purpose", "owns_data", "secondary_traits", "surfaces", "archetypes", "provenance")
     NAME_FIELD_NUMBER: _ClassVar[int]
     PATHS_FIELD_NUMBER: _ClassVar[int]
     GLOSSARY_FIELD_NUMBER: _ClassVar[int]
-    ARCHETYPE_FIELD_NUMBER: _ClassVar[int]
+    RESPONSIBILITY_FIELD_NUMBER: _ClassVar[int]
+    PURPOSE_FIELD_NUMBER: _ClassVar[int]
+    OWNS_DATA_FIELD_NUMBER: _ClassVar[int]
+    SECONDARY_TRAITS_FIELD_NUMBER: _ClassVar[int]
+    SURFACES_FIELD_NUMBER: _ClassVar[int]
+    ARCHETYPES_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     name: str
     paths: _containers.RepeatedScalarFieldContainer[str]
     glossary: _containers.RepeatedScalarFieldContainer[str]
-    archetype: str
+    responsibility: str
+    purpose: str
+    owns_data: str
+    secondary_traits: _containers.RepeatedScalarFieldContainer[str]
+    surfaces: _containers.RepeatedScalarFieldContainer[str]
+    archetypes: _containers.RepeatedCompositeFieldContainer[DomainArchetype]
     provenance: _containers.RepeatedScalarFieldContainer[DomainSource]
-    def __init__(self, name: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., glossary: _Optional[_Iterable[str]] = ..., archetype: _Optional[str] = ..., provenance: _Optional[_Iterable[_Union[DomainSource, str]]] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., glossary: _Optional[_Iterable[str]] = ..., responsibility: _Optional[str] = ..., purpose: _Optional[str] = ..., owns_data: _Optional[str] = ..., secondary_traits: _Optional[_Iterable[str]] = ..., surfaces: _Optional[_Iterable[str]] = ..., archetypes: _Optional[_Iterable[_Union[DomainArchetype, _Mapping]]] = ..., provenance: _Optional[_Iterable[_Union[DomainSource, str]]] = ...) -> None: ...
+
+class DomainArchetype(_message.Message):
+    __slots__ = ("name", "source", "confidence", "evidence")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    source: ArchetypeSource
+    confidence: float
+    evidence: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., source: _Optional[_Union[ArchetypeSource, str]] = ..., confidence: _Optional[float] = ..., evidence: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DomainDeclaration(_message.Message):
     __slots__ = ("source", "domain_names", "authoritative")

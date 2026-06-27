@@ -285,9 +285,9 @@ export type StartRunRequest = Message<"vrooli.test_genie.v1.runs.StartRunRequest
 
   /**
    * capture_profile is the capture-depth dial (orthogonal to the phase set). ""
-   * is the default depth (single-page smoke, unchanged cost). "baseline" enables
-   * all-pages visual capture + video + full diagnostics for the smoke phase
-   * (used by git-control-tower baseline snapshots).
+   * is the default depth with no extra all-pages visual capture. "baseline"
+   * enables all-pages visual capture + video + full diagnostics for
+   * git-control-tower baseline snapshots.
    *
    * @generated from field: string capture_profile = 14;
    */
@@ -1297,7 +1297,7 @@ export const ListRunVideosResponseSchema: GenMessage<ListRunVideosResponse> = /*
   messageDesc(file_test_genie_v1_runs_runs, 34);
 
 /**
- * RunVisual describes one page's UI smoke visual capture, addressable by paths
+ * RunVisual describes one page's baseline visual capture, addressable by paths
  * relative to the run's artifact root (handles for the binary artifact route).
  *
  * @generated from message vrooli.test_genie.v1.runs.RunVisual
@@ -2656,8 +2656,8 @@ export const RunsService: GenService<{
     output: typeof ListRunVideosResponseSchema;
   },
   /**
-   * ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
-   * + optional video) captured by a run under the baseline capture profile. The
+   * ListRunVisuals enumerates the per-page UI visual artifacts (screenshot +
+   * optional video) captured by a run under the baseline capture profile. The
    * bytes are served over the same binary REST artifact route (rel_path is the
    * handle); the structured page set + screenshot count is what git-control-tower
    * diffs at the metadata level between two baselines.
@@ -2671,11 +2671,10 @@ export const RunsService: GenService<{
   },
   /**
    * CompareRunVisuals returns the per-page pixel-level comparison of two runs'
-   * captures. test-genie owns the visual analyzer (internal/visualcheck) and its
-   * thresholds, so consumers (git-control-tower's baseline visuals surface) get
-   * neutral per-page deltas rather than re-deriving pixel math. Every delta is
-   * advisory: a difference is never a verdict here — a clearly-broken render
-   * fails earlier, at smoke time.
+   * captures by delegating analysis to ui-health. Test Genie owns run
+   * orchestration and artifact enumeration only; ui-health owns visual-health
+   * analysis and thresholds. Every delta is advisory: a difference is never a
+   * verdict here.
    *
    * @generated from rpc vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals
    */

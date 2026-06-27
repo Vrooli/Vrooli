@@ -39,6 +39,9 @@ const (
 	// BaselinesServiceSnapshotForBaselineProcedure is the fully-qualified name of the
 	// BaselinesService's SnapshotForBaseline RPC.
 	BaselinesServiceSnapshotForBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/SnapshotForBaseline"
+	// BaselinesServiceGetSnapshotStatusProcedure is the fully-qualified name of the BaselinesService's
+	// GetSnapshotStatus RPC.
+	BaselinesServiceGetSnapshotStatusProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/GetSnapshotStatus"
 	// BaselinesServiceGetBaselineProcedure is the fully-qualified name of the BaselinesService's
 	// GetBaseline RPC.
 	BaselinesServiceGetBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/GetBaseline"
@@ -68,6 +71,10 @@ type BaselinesServiceClient interface {
 	// SnapshotForBaseline creates a baseline AND captures every requested
 	// surface (the agent path).
 	SnapshotForBaseline(context.Context, *connect.Request[baselines.SnapshotForBaselineRequest]) (*connect.Response[baselines.SnapshotForBaselineResponse], error)
+	// GetSnapshotStatus reports the durable snapshot-finalization state for a
+	// snapshot run. It is the operator-facing way to distinguish "still pending",
+	// "baseline ready", "run failed/aborted", and "no such snapshot intent".
+	GetSnapshotStatus(context.Context, *connect.Request[baselines.GetSnapshotStatusRequest]) (*connect.Response[baselines.GetSnapshotStatusResponse], error)
 	// GetBaseline returns a single baseline manifest.
 	GetBaseline(context.Context, *connect.Request[baselines.GetBaselineRequest]) (*connect.Response[baselines.GetBaselineResponse], error)
 	// ListBaselines enumerates baselines for a scenario (optionally one branch).
@@ -110,6 +117,12 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+BaselinesServiceSnapshotForBaselineProcedure,
 			connect.WithSchema(baselinesServiceMethods.ByName("SnapshotForBaseline")),
+			connect.WithClientOptions(opts...),
+		),
+		getSnapshotStatus: connect.NewClient[baselines.GetSnapshotStatusRequest, baselines.GetSnapshotStatusResponse](
+			httpClient,
+			baseURL+BaselinesServiceGetSnapshotStatusProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("GetSnapshotStatus")),
 			connect.WithClientOptions(opts...),
 		),
 		getBaseline: connect.NewClient[baselines.GetBaselineRequest, baselines.GetBaselineResponse](
@@ -155,6 +168,7 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type baselinesServiceClient struct {
 	createBaseline      *connect.Client[baselines.CreateBaselineRequest, baselines.CreateBaselineResponse]
 	snapshotForBaseline *connect.Client[baselines.SnapshotForBaselineRequest, baselines.SnapshotForBaselineResponse]
+	getSnapshotStatus   *connect.Client[baselines.GetSnapshotStatusRequest, baselines.GetSnapshotStatusResponse]
 	getBaseline         *connect.Client[baselines.GetBaselineRequest, baselines.GetBaselineResponse]
 	listBaselines       *connect.Client[baselines.ListBaselinesRequest, baselines.ListBaselinesResponse]
 	startDiff           *connect.Client[baselines.StartDiffRequest, baselines.StartDiffResponse]
@@ -172,6 +186,11 @@ func (c *baselinesServiceClient) CreateBaseline(ctx context.Context, req *connec
 // vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline.
 func (c *baselinesServiceClient) SnapshotForBaseline(ctx context.Context, req *connect.Request[baselines.SnapshotForBaselineRequest]) (*connect.Response[baselines.SnapshotForBaselineResponse], error) {
 	return c.snapshotForBaseline.CallUnary(ctx, req)
+}
+
+// GetSnapshotStatus calls vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus.
+func (c *baselinesServiceClient) GetSnapshotStatus(ctx context.Context, req *connect.Request[baselines.GetSnapshotStatusRequest]) (*connect.Response[baselines.GetSnapshotStatusResponse], error) {
+	return c.getSnapshotStatus.CallUnary(ctx, req)
 }
 
 // GetBaseline calls vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline.
@@ -213,6 +232,10 @@ type BaselinesServiceHandler interface {
 	// SnapshotForBaseline creates a baseline AND captures every requested
 	// surface (the agent path).
 	SnapshotForBaseline(context.Context, *connect.Request[baselines.SnapshotForBaselineRequest]) (*connect.Response[baselines.SnapshotForBaselineResponse], error)
+	// GetSnapshotStatus reports the durable snapshot-finalization state for a
+	// snapshot run. It is the operator-facing way to distinguish "still pending",
+	// "baseline ready", "run failed/aborted", and "no such snapshot intent".
+	GetSnapshotStatus(context.Context, *connect.Request[baselines.GetSnapshotStatusRequest]) (*connect.Response[baselines.GetSnapshotStatusResponse], error)
 	// GetBaseline returns a single baseline manifest.
 	GetBaseline(context.Context, *connect.Request[baselines.GetBaselineRequest]) (*connect.Response[baselines.GetBaselineResponse], error)
 	// ListBaselines enumerates baselines for a scenario (optionally one branch).
@@ -250,6 +273,12 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 		BaselinesServiceSnapshotForBaselineProcedure,
 		svc.SnapshotForBaseline,
 		connect.WithSchema(baselinesServiceMethods.ByName("SnapshotForBaseline")),
+		connect.WithHandlerOptions(opts...),
+	)
+	baselinesServiceGetSnapshotStatusHandler := connect.NewUnaryHandler(
+		BaselinesServiceGetSnapshotStatusProcedure,
+		svc.GetSnapshotStatus,
+		connect.WithSchema(baselinesServiceMethods.ByName("GetSnapshotStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
 	baselinesServiceGetBaselineHandler := connect.NewUnaryHandler(
@@ -294,6 +323,8 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 			baselinesServiceCreateBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceSnapshotForBaselineProcedure:
 			baselinesServiceSnapshotForBaselineHandler.ServeHTTP(w, r)
+		case BaselinesServiceGetSnapshotStatusProcedure:
+			baselinesServiceGetSnapshotStatusHandler.ServeHTTP(w, r)
 		case BaselinesServiceGetBaselineProcedure:
 			baselinesServiceGetBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceListBaselinesProcedure:
@@ -321,6 +352,10 @@ func (UnimplementedBaselinesServiceHandler) CreateBaseline(context.Context, *con
 
 func (UnimplementedBaselinesServiceHandler) SnapshotForBaseline(context.Context, *connect.Request[baselines.SnapshotForBaselineRequest]) (*connect.Response[baselines.SnapshotForBaselineResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline is not implemented"))
+}
+
+func (UnimplementedBaselinesServiceHandler) GetSnapshotStatus(context.Context, *connect.Request[baselines.GetSnapshotStatusRequest]) (*connect.Response[baselines.GetSnapshotStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus is not implemented"))
 }
 
 func (UnimplementedBaselinesServiceHandler) GetBaseline(context.Context, *connect.Request[baselines.GetBaselineRequest]) (*connect.Response[baselines.GetBaselineResponse], error) {

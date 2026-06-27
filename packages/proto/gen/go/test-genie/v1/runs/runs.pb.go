@@ -376,9 +376,9 @@ type StartRunRequest struct {
 	LogicalScenarioRelPath string                 `protobuf:"bytes,12,opt,name=logical_scenario_rel_path,json=logicalScenarioRelPath,proto3" json:"logical_scenario_rel_path,omitempty"`
 	SuiteRequestId         string                 `protobuf:"bytes,13,opt,name=suite_request_id,json=suiteRequestId,proto3" json:"suite_request_id,omitempty"`
 	// capture_profile is the capture-depth dial (orthogonal to the phase set). ""
-	// is the default depth (single-page smoke, unchanged cost). "baseline" enables
-	// all-pages visual capture + video + full diagnostics for the smoke phase
-	// (used by git-control-tower baseline snapshots).
+	// is the default depth with no extra all-pages visual capture. "baseline"
+	// enables all-pages visual capture + video + full diagnostics for
+	// git-control-tower baseline snapshots.
 	CaptureProfile string `protobuf:"bytes,14,opt,name=capture_profile,json=captureProfile,proto3" json:"capture_profile,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -2513,7 +2513,7 @@ func (x *ListRunVideosResponse) GetVideos() []*RunVideo {
 	return nil
 }
 
-// RunVisual describes one page's UI smoke visual capture, addressable by paths
+// RunVisual describes one page's baseline visual capture, addressable by paths
 // relative to the run's artifact root (handles for the binary artifact route).
 type RunVisual struct {
 	state protoimpl.MessageState `protogen:"open.v1"`

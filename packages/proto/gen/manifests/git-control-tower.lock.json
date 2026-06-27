@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "git-control-tower",
-  "input_digest": "sha256:6d711ed85bf8bf2e89b0b3727bf37443fcc092b97f320884c2704deb7c54c0f1",
+  "input_digest": "sha256:54a8742e952308ac5269b8045362f7f46b809490a3b693d1d54041f203966b7c",
   "input_files": [
     "schemas/git-control-tower/v1/baselines/baselines.proto",
     "schemas/git-control-tower/v1/repo/repo.proto",
@@ -20,8 +20,8 @@
     }
   },
   "outputs": {
-    "gen/go/git-control-tower/v1/baselines/baselines.pb.go": "sha256:a6c823cdb23eceab6045aa9da0a1b918519c5985026a8aece95417737539f75d",
-    "gen/go/git-control-tower/v1/baselines/baselines_v1connect/baselines.connect.go": "sha256:b36df089bf1ef12678d658c2874e363253a4a12c7f88f691fc7dd0b88a2c390e",
+    "gen/go/git-control-tower/v1/baselines/baselines.pb.go": "sha256:4d1f1dbf4f6ecc403177e7b6ff26084460a19f811c5ce0773590690c6603f55e",
+    "gen/go/git-control-tower/v1/baselines/baselines_v1connect/baselines.connect.go": "sha256:44c277b00c1a41d6ae402bd46aff08e4a3deccf8ef0071c297633700decdfd26",
     "gen/go/git-control-tower/v1/repo/repo.pb.go": "sha256:f2ddd3df9b98480ee7844aceb562d66998a5e68cd1221ec05d992a9e404c299d",
     "gen/go/git-control-tower/v1/repo/repo_v1connect/repo.connect.go": "sha256:a19eaf2e4b92beb3827c5425e96a61216bb905e7f9b0cce5d214b77ed1d8cd56",
     "gen/go/git-control-tower/v1/workflowreplay/workflowreplay.pb.go": "sha256:05bbdbdda634f715b0f65f2e00bcc99765206addce8908b2bd860f9cff6b3ad2",
@@ -29,8 +29,8 @@
     "gen/go/git-control-tower/v1/worktree/worktree.pb.go": "sha256:6643bed34badef917c1521a3fe6a9521aa5c731e84923cf35f44a09e64152e3a",
     "gen/go/git-control-tower/v1/worktree/worktree_v1connect/worktree.connect.go": "sha256:a05b6ad80b6e3204c2685d60df4c05d7b783c159622b5ca24b62ab2cf0038a1d",
     "gen/python/git_control_tower/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/git_control_tower/v1/baselines/baselines_pb2.py": "sha256:9b8b5bbf48dbb6be14394d14367f298926e7c1b0417233fcdec6f396e7ff0dec",
-    "gen/python/git_control_tower/v1/baselines/baselines_pb2.pyi": "sha256:95e7a475a0bcf1b83edd93719f72b46604056373e67d5289aec8ce93d263c392",
+    "gen/python/git_control_tower/v1/baselines/baselines_pb2.py": "sha256:8129be0e527de1c3e78a73fd58efcdd52ed619a341585d6a601c9843e76faed0",
+    "gen/python/git_control_tower/v1/baselines/baselines_pb2.pyi": "sha256:2a34335ca3c643bdab463a8d78dd7c006daff4799f2146023be4ae492fc404fa",
     "gen/python/git_control_tower/v1/baselines/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/git_control_tower/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/git_control_tower/v1/repo/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -42,11 +42,11 @@
     "gen/python/git_control_tower/v1/worktree/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/git_control_tower/v1/worktree/worktree_pb2.py": "sha256:65eb25ad4c9ee00da7a3f430da6b682b1cf6c5b866c044ad3c32586b8922eaca",
     "gen/python/git_control_tower/v1/worktree/worktree_pb2.pyi": "sha256:ddb3cfd168ee79c6e384eed181a9b6aa9d64fadb5b9df48ca668658a70a163ae",
-    "gen/typescript/git-control-tower/v1/baselines/baselines_pb.ts": "sha256:3f15195a8d65c5fe2e1202e4ce2fa0399115676895fb2c788565248cd7d3c3f1",
+    "gen/typescript/git-control-tower/v1/baselines/baselines_pb.ts": "sha256:3c9a82391ec31475be3d74d958e48d62009b0f2369a2109d349459424f4cae3e",
     "gen/typescript/git-control-tower/v1/repo/repo_pb.ts": "sha256:a3acf1b4c14649d349efb85ff17efd74a1c6581a424ac4a5da88a812d0d29851",
     "gen/typescript/git-control-tower/v1/workflowreplay/workflowreplay_pb.ts": "sha256:fed7270e70a05bf463a1d329f9cde5b70076390c34747a9be9f3b0967bf9b93d",
     "gen/typescript/git-control-tower/v1/worktree/worktree_pb.ts": "sha256:9d7e2747bed2a09718803102df69f56086ea44d7c43c0dfa6a2226d8ac6ddb15",
-    "gen/typescript/js/git-control-tower/v1/baselines/baselines_pb.js": "sha256:59e7f5199f26f00263df17f3bba4f396f1242254644fdc29bda533bd36a2893d",
+    "gen/typescript/js/git-control-tower/v1/baselines/baselines_pb.js": "sha256:1eda47c263c22ef4c17689895c4b2ed3b53461d62a56be20fa234f63076a7be7",
     "gen/typescript/js/git-control-tower/v1/repo/repo_pb.js": "sha256:a62e6291d88ade5ef9c0db7dc96ac322729de492ef7937241570cc695dc2b044",
     "gen/typescript/js/git-control-tower/v1/workflowreplay/workflowreplay_pb.js": "sha256:d7677cc4b541befc30fdb42d789178a287fbc8f8809fdef6485d5050a1680a1c",
     "gen/typescript/js/git-control-tower/v1/worktree/worktree_pb.js": "sha256:b2bfc86c44e08e679c5609dc86be1e52f3f5bff563ffe2b65c92635beb728c11"

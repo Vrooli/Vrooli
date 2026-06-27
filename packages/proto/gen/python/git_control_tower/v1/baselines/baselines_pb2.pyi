@@ -185,6 +185,46 @@ class SnapshotForBaselineResponse(_message.Message):
     coalesced: bool
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., dirty_warning: _Optional[str] = ..., coalesced: _Optional[bool] = ...) -> None: ...
 
+class GetSnapshotStatusRequest(_message.Message):
+    __slots__ = ("scenario", "name", "branch", "run_id", "repo_id", "wait")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    name: str
+    branch: str
+    run_id: str
+    repo_id: int
+    wait: bool
+    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., run_id: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
+
+class GetSnapshotStatusResponse(_message.Message):
+    __slots__ = ("status", "scenario", "name", "branch", "run_id", "run_status", "baseline", "error", "similar_baselines", "recommended_next_check_seconds")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_STATUS_FIELD_NUMBER: _ClassVar[int]
+    BASELINE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    SIMILAR_BASELINES_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDED_NEXT_CHECK_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    scenario: str
+    name: str
+    branch: str
+    run_id: str
+    run_status: str
+    baseline: BaselineManifest
+    error: str
+    similar_baselines: _containers.RepeatedScalarFieldContainer[str]
+    recommended_next_check_seconds: int
+    def __init__(self, status: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., run_id: _Optional[str] = ..., run_status: _Optional[str] = ..., baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., error: _Optional[str] = ..., similar_baselines: _Optional[_Iterable[str]] = ..., recommended_next_check_seconds: _Optional[int] = ...) -> None: ...
+
 class GetBaselineRequest(_message.Message):
     __slots__ = ("scenario", "name", "branch", "repo_id")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

@@ -57,6 +57,9 @@ const (
 	// PlansServiceLinkSupersessionProcedure is the fully-qualified name of the PlansService's
 	// LinkSupersession RPC.
 	PlansServiceLinkSupersessionProcedure = "/vrooli.plan_manager.v1.plans.PlansService/LinkSupersession"
+	// PlansServiceLinkDependencyProcedure is the fully-qualified name of the PlansService's
+	// LinkDependency RPC.
+	PlansServiceLinkDependencyProcedure = "/vrooli.plan_manager.v1.plans.PlansService/LinkDependency"
 	// PlansServiceImportPlanProcedure is the fully-qualified name of the PlansService's ImportPlan RPC.
 	PlansServiceImportPlanProcedure = "/vrooli.plan_manager.v1.plans.PlansService/ImportPlan"
 	// PlansServiceMigratePlanProcedure is the fully-qualified name of the PlansService's MigratePlan
@@ -97,6 +100,8 @@ type PlansServiceClient interface {
 	GetGraph(context.Context, *connect.Request[plans.GetGraphRequest]) (*connect.Response[plans.GetGraphResponse], error)
 	// LinkSupersession records that one plan supersedes another (PM-GRAPH-001).
 	LinkSupersession(context.Context, *connect.Request[plans.LinkSupersessionRequest]) (*connect.Response[plans.LinkSupersessionResponse], error)
+	// LinkDependency records that one plan depends on another.
+	LinkDependency(context.Context, *connect.Request[plans.LinkDependencyRequest]) (*connect.Response[plans.LinkDependencyResponse], error)
 	// ImportPlan adopts a markdown plan from a fallback read location into the
 	// structured model (references parsed from the [CODE:]/[REQ:] grammar).
 	ImportPlan(context.Context, *connect.Request[plans.ImportPlanRequest]) (*connect.Response[plans.ImportPlanResponse], error)
@@ -180,6 +185,12 @@ func NewPlansServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(plansServiceMethods.ByName("LinkSupersession")),
 			connect.WithClientOptions(opts...),
 		),
+		linkDependency: connect.NewClient[plans.LinkDependencyRequest, plans.LinkDependencyResponse](
+			httpClient,
+			baseURL+PlansServiceLinkDependencyProcedure,
+			connect.WithSchema(plansServiceMethods.ByName("LinkDependency")),
+			connect.WithClientOptions(opts...),
+		),
 		importPlan: connect.NewClient[plans.ImportPlanRequest, plans.ImportPlanResponse](
 			httpClient,
 			baseURL+PlansServiceImportPlanProcedure,
@@ -219,6 +230,7 @@ type plansServiceClient struct {
 	updatePhase        *connect.Client[plans.UpdatePhaseRequest, plans.UpdatePhaseResponse]
 	getGraph           *connect.Client[plans.GetGraphRequest, plans.GetGraphResponse]
 	linkSupersession   *connect.Client[plans.LinkSupersessionRequest, plans.LinkSupersessionResponse]
+	linkDependency     *connect.Client[plans.LinkDependencyRequest, plans.LinkDependencyResponse]
 	importPlan         *connect.Client[plans.ImportPlanRequest, plans.ImportPlanResponse]
 	migratePlan        *connect.Client[plans.MigratePlanRequest, plans.MigratePlanResponse]
 	listTemplates      *connect.Client[plans.ListTemplatesRequest, plans.ListTemplatesResponse]
@@ -275,6 +287,11 @@ func (c *plansServiceClient) LinkSupersession(ctx context.Context, req *connect.
 	return c.linkSupersession.CallUnary(ctx, req)
 }
 
+// LinkDependency calls vrooli.plan_manager.v1.plans.PlansService.LinkDependency.
+func (c *plansServiceClient) LinkDependency(ctx context.Context, req *connect.Request[plans.LinkDependencyRequest]) (*connect.Response[plans.LinkDependencyResponse], error) {
+	return c.linkDependency.CallUnary(ctx, req)
+}
+
 // ImportPlan calls vrooli.plan_manager.v1.plans.PlansService.ImportPlan.
 func (c *plansServiceClient) ImportPlan(ctx context.Context, req *connect.Request[plans.ImportPlanRequest]) (*connect.Response[plans.ImportPlanResponse], error) {
 	return c.importPlan.CallUnary(ctx, req)
@@ -323,6 +340,8 @@ type PlansServiceHandler interface {
 	GetGraph(context.Context, *connect.Request[plans.GetGraphRequest]) (*connect.Response[plans.GetGraphResponse], error)
 	// LinkSupersession records that one plan supersedes another (PM-GRAPH-001).
 	LinkSupersession(context.Context, *connect.Request[plans.LinkSupersessionRequest]) (*connect.Response[plans.LinkSupersessionResponse], error)
+	// LinkDependency records that one plan depends on another.
+	LinkDependency(context.Context, *connect.Request[plans.LinkDependencyRequest]) (*connect.Response[plans.LinkDependencyResponse], error)
 	// ImportPlan adopts a markdown plan from a fallback read location into the
 	// structured model (references parsed from the [CODE:]/[REQ:] grammar).
 	ImportPlan(context.Context, *connect.Request[plans.ImportPlanRequest]) (*connect.Response[plans.ImportPlanResponse], error)
@@ -402,6 +421,12 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(plansServiceMethods.ByName("LinkSupersession")),
 		connect.WithHandlerOptions(opts...),
 	)
+	plansServiceLinkDependencyHandler := connect.NewUnaryHandler(
+		PlansServiceLinkDependencyProcedure,
+		svc.LinkDependency,
+		connect.WithSchema(plansServiceMethods.ByName("LinkDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
 	plansServiceImportPlanHandler := connect.NewUnaryHandler(
 		PlansServiceImportPlanProcedure,
 		svc.ImportPlan,
@@ -448,6 +473,8 @@ func NewPlansServiceHandler(svc PlansServiceHandler, opts ...connect.HandlerOpti
 			plansServiceGetGraphHandler.ServeHTTP(w, r)
 		case PlansServiceLinkSupersessionProcedure:
 			plansServiceLinkSupersessionHandler.ServeHTTP(w, r)
+		case PlansServiceLinkDependencyProcedure:
+			plansServiceLinkDependencyHandler.ServeHTTP(w, r)
 		case PlansServiceImportPlanProcedure:
 			plansServiceImportPlanHandler.ServeHTTP(w, r)
 		case PlansServiceMigratePlanProcedure:
@@ -503,6 +530,10 @@ func (UnimplementedPlansServiceHandler) GetGraph(context.Context, *connect.Reque
 
 func (UnimplementedPlansServiceHandler) LinkSupersession(context.Context, *connect.Request[plans.LinkSupersessionRequest]) (*connect.Response[plans.LinkSupersessionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.LinkSupersession is not implemented"))
+}
+
+func (UnimplementedPlansServiceHandler) LinkDependency(context.Context, *connect.Request[plans.LinkDependencyRequest]) (*connect.Response[plans.LinkDependencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.plans.PlansService.LinkDependency is not implemented"))
 }
 
 func (UnimplementedPlansServiceHandler) ImportPlan(context.Context, *connect.Request[plans.ImportPlanRequest]) (*connect.Response[plans.ImportPlanResponse], error) {

@@ -58,12 +58,34 @@ message DerivedDomain {
   // Optional canonical vocabulary (type/function names) for the
   // symbol-glossary signal. Empty when the authority source declares none.
   repeated string glossary = 3;
-  // Optional primary archetype (e.g., "service", "reporting",
-  // "composition-root"); drives archetype-aware heuristic exemptions.
-  string archetype = 4;
+  // Human-authored responsibility from DOMAINS.md.
+  string responsibility = 4;
+  // Human-authored purpose from DOMAINS.md.
+  string purpose = 5;
+  // Human-authored data ownership note from DOMAINS.md.
+  string owns_data = 6;
+  // Additional archetype traits declared in DOMAINS.md.
+  repeated string secondary_traits = 7;
+  // Surfaces derived from code evidence. Filled by the slice walker.
+  repeated string surfaces = 8;
+  // Declared and inferred archetypes for this domain.
+  repeated DomainArchetype archetypes = 9;
   // Every source that declared a domain with this name (the authority rung
   // plus any lower rungs that agree). Used by convergence reporting.
-  repeated DomainSource provenance = 5;
+  repeated DomainSource provenance = 10;
+}
+
+message DomainArchetype {
+  string name = 1;
+  ArchetypeSource source = 2;
+  double confidence = 3;
+  repeated string evidence = 4;
+}
+
+enum ArchetypeSource {
+  ARCHETYPE_SOURCE_UNSPECIFIED = 0;
+  ARCHETYPE_SOURCE_DECLARED = 1;
+  ARCHETYPE_SOURCE_INFERRED = 2;
 }
 
 // DomainDeclaration is one ladder rung's raw view of the domain set,

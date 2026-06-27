@@ -102,18 +102,17 @@ type RunsServiceClient interface {
 	// round-trip through proto); the rel_path here is the handle that route
 	// takes. Consumed by git-control-tower's WorkflowReplayService.
 	ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error)
-	// ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
-	// + optional video) captured by a run under the baseline capture profile. The
+	// ListRunVisuals enumerates the per-page UI visual artifacts (screenshot +
+	// optional video) captured by a run under the baseline capture profile. The
 	// bytes are served over the same binary REST artifact route (rel_path is the
 	// handle); the structured page set + screenshot count is what git-control-tower
 	// diffs at the metadata level between two baselines.
 	ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error)
 	// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
-	// captures. test-genie owns the visual analyzer (internal/visualcheck) and its
-	// thresholds, so consumers (git-control-tower's baseline visuals surface) get
-	// neutral per-page deltas rather than re-deriving pixel math. Every delta is
-	// advisory: a difference is never a verdict here — a clearly-broken render
-	// fails earlier, at smoke time.
+	// captures by delegating analysis to ui-health. Test Genie owns run
+	// orchestration and artifact enumeration only; ui-health owns visual-health
+	// analysis and thresholds. Every delta is advisory: a difference is never a
+	// verdict here.
 	CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error)
 	// FindRun returns the newest completed run matching a shape filter (scenario +
 	// optional git_sha / tree_digest / preset / capture_profile / status). It is
@@ -437,18 +436,17 @@ type RunsServiceHandler interface {
 	// round-trip through proto); the rel_path here is the handle that route
 	// takes. Consumed by git-control-tower's WorkflowReplayService.
 	ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error)
-	// ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
-	// + optional video) captured by a run under the baseline capture profile. The
+	// ListRunVisuals enumerates the per-page UI visual artifacts (screenshot +
+	// optional video) captured by a run under the baseline capture profile. The
 	// bytes are served over the same binary REST artifact route (rel_path is the
 	// handle); the structured page set + screenshot count is what git-control-tower
 	// diffs at the metadata level between two baselines.
 	ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error)
 	// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
-	// captures. test-genie owns the visual analyzer (internal/visualcheck) and its
-	// thresholds, so consumers (git-control-tower's baseline visuals surface) get
-	// neutral per-page deltas rather than re-deriving pixel math. Every delta is
-	// advisory: a difference is never a verdict here — a clearly-broken render
-	// fails earlier, at smoke time.
+	// captures by delegating analysis to ui-health. Test Genie owns run
+	// orchestration and artifact enumeration only; ui-health owns visual-health
+	// analysis and thresholds. Every delta is advisory: a difference is never a
+	// verdict here.
 	CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error)
 	// FindRun returns the newest completed run matching a shape filter (scenario +
 	// optional git_sha / tree_digest / preset / capture_profile / status). It is

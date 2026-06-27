@@ -703,10 +703,39 @@ message ParkRunResponse {
   // The parked run.
   Run run = 2;
 
-  // Clean tool-result text the in-run command prints before agent-manager ends
-  // the turn (so the agent sees an explicit "parked, resuming later" outcome
-  // rather than an abrupt kill).
+  // Tool-result text the in-run command prints. On a successful park it is the
+  // clean "parked, resuming later" message; on a refusal it is the steer message
+  // (which embeds the cached result) so the agent stops re-running the work.
   string message = 3;
+
+  // Whether agent-manager REFUSED to park because this is a no-progress re-park
+  // on the same await key (the degenerate wake→re-run loop). When true the run is
+  // NOT parked and the turn is NOT ended — the agent keeps running and should use
+  // the cached result rather than re-running the blocking producer.
+  bool refused = 4;
+
+  // The cached awaited result, echoed back on a refusal so the agent has the data
+  // inline even if it never saw the original wake injection.
+  string result = 5;
+}
+
+// GetAwaitResultResponse returns a run's most recently resolved await result —
+// the durable re-fetch path that lets a woken agent re-read what it parked on
+// without re-running the blocking producer. Pure read; never parks or blocks.
+//
+// @usage GET /api/v1/runs/{id}/await-result response
+message GetAwaitResultResponse {
+  // Whether a resolved await result is recorded for the run.
+  bool found = 1;
+
+  // The "producer:key" identity of the resolved await.
+  string key = 2;
+
+  // The full result string that was injected into the woken turn.
+  string result = 3;
+
+  // When the await resolved (RFC3339). Empty when none recorded.
+  string resolved_at = 4;
 }
 
 // WakeRunRequest resumes a parked run with the awaited result injected as the

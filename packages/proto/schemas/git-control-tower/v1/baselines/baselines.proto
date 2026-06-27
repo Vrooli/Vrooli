@@ -39,6 +39,10 @@ service BaselinesService {
   // SnapshotForBaseline creates a baseline AND captures every requested
   // surface (the agent path).
   rpc SnapshotForBaseline(SnapshotForBaselineRequest) returns (SnapshotForBaselineResponse);
+  // GetSnapshotStatus reports the durable snapshot-finalization state for a
+  // snapshot run. It is the operator-facing way to distinguish "still pending",
+  // "baseline ready", "run failed/aborted", and "no such snapshot intent".
+  rpc GetSnapshotStatus(GetSnapshotStatusRequest) returns (GetSnapshotStatusResponse);
   // GetBaseline returns a single baseline manifest.
   rpc GetBaseline(GetBaselineRequest) returns (GetBaselineResponse);
   // ListBaselines enumerates baselines for a scenario (optionally one branch).
@@ -173,6 +177,36 @@ message SnapshotForBaselineResponse {
   // starting a second suite — the one-run-per-scenario guard. run_id is then the
   // in-flight run's id, which the baseline pins on completion.
   bool coalesced = 8;
+}
+
+message GetSnapshotStatusRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3; // empty = current branch
+  string run_id = 4; // optional; narrows to one snapshot run
+  int64 repo_id = 5;
+  // wait, when true, blocks SERVER-SIDE until the run is terminal before
+  // reconciling status. When false, an in-flight run returns status=pending.
+  bool wait = 6;
+}
+
+message GetSnapshotStatusResponse {
+  // status: pending | ready | failed | missing
+  string status = 1;
+  string scenario = 2;
+  string name = 3;
+  string branch = 4;
+  string run_id = 5;
+  // run_status mirrors test-genie's lifecycle status when known.
+  string run_status = 6;
+  // baseline is populated when status=ready.
+  BaselineManifest baseline = 7;
+  // error is populated when status=failed or missing carries a diagnostic.
+  string error = 8;
+  // similar_baselines lists visible baseline names for this scenario when an
+  // exact name is absent, so callers can render "did you mean ..." guidance.
+  repeated string similar_baselines = 9;
+  int32 recommended_next_check_seconds = 10;
 }
 
 message GetBaselineRequest {

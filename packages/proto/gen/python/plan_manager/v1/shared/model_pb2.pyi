@@ -45,6 +45,47 @@ class ReferenceResolution(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     REFERENCE_RESOLUTION_FUTURE: _ClassVar[ReferenceResolution]
     REFERENCE_RESOLUTION_MISSING: _ClassVar[ReferenceResolution]
 
+class RelevantContextKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RELEVANT_CONTEXT_KIND_UNSPECIFIED: _ClassVar[RelevantContextKind]
+    RELEVANT_CONTEXT_KIND_SKILL: _ClassVar[RelevantContextKind]
+    RELEVANT_CONTEXT_KIND_DOC: _ClassVar[RelevantContextKind]
+    RELEVANT_CONTEXT_KIND_COMMAND: _ClassVar[RelevantContextKind]
+    RELEVANT_CONTEXT_KIND_SEARCH: _ClassVar[RelevantContextKind]
+    RELEVANT_CONTEXT_KIND_CODE_REF: _ClassVar[RelevantContextKind]
+    RELEVANT_CONTEXT_KIND_REQ_REF: _ClassVar[RelevantContextKind]
+    RELEVANT_CONTEXT_KIND_NOTE: _ClassVar[RelevantContextKind]
+
+class RelevantContextScope(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RELEVANT_CONTEXT_SCOPE_UNSPECIFIED: _ClassVar[RelevantContextScope]
+    RELEVANT_CONTEXT_SCOPE_GLOBAL: _ClassVar[RelevantContextScope]
+    RELEVANT_CONTEXT_SCOPE_PHASE: _ClassVar[RelevantContextScope]
+
+class RelevantContextRepeatPolicy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED: _ClassVar[RelevantContextRepeatPolicy]
+    RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION: _ClassVar[RelevantContextRepeatPolicy]
+    RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME: _ClassVar[RelevantContextRepeatPolicy]
+    RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE: _ClassVar[RelevantContextRepeatPolicy]
+    RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY: _ClassVar[RelevantContextRepeatPolicy]
+    RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED: _ClassVar[RelevantContextRepeatPolicy]
+
+class RelevantContextSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RELEVANT_CONTEXT_SOURCE_UNSPECIFIED: _ClassVar[RelevantContextSource]
+    RELEVANT_CONTEXT_SOURCE_AUTHORED: _ClassVar[RelevantContextSource]
+    RELEVANT_CONTEXT_SOURCE_DISCOVERED: _ClassVar[RelevantContextSource]
+    RELEVANT_CONTEXT_SOURCE_MIGRATED: _ClassVar[RelevantContextSource]
+    RELEVANT_CONTEXT_SOURCE_AUTOFILLED: _ClassVar[RelevantContextSource]
+
+class RelevantContextStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RELEVANT_CONTEXT_STATUS_UNSPECIFIED: _ClassVar[RelevantContextStatus]
+    RELEVANT_CONTEXT_STATUS_READY: _ClassVar[RelevantContextStatus]
+    RELEVANT_CONTEXT_STATUS_DEGRADED: _ClassVar[RelevantContextStatus]
+    RELEVANT_CONTEXT_STATUS_UNRESOLVED: _ClassVar[RelevantContextStatus]
+
 class FindingTriage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     FINDING_TRIAGE_UNSPECIFIED: _ClassVar[FindingTriage]
@@ -64,6 +105,14 @@ class ValidationVerdict(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALIDATION_VERDICT_PASS: _ClassVar[ValidationVerdict]
     VALIDATION_VERDICT_FAIL: _ClassVar[ValidationVerdict]
     VALIDATION_VERDICT_UNKNOWN: _ClassVar[ValidationVerdict]
+
+class NextActionKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NEXT_ACTION_KIND_UNSPECIFIED: _ClassVar[NextActionKind]
+    NEXT_ACTION_KIND_RECOMMENDED: _ClassVar[NextActionKind]
+    NEXT_ACTION_KIND_ALTERNATIVE: _ClassVar[NextActionKind]
+    NEXT_ACTION_KIND_OPTIONAL: _ClassVar[NextActionKind]
+    NEXT_ACTION_KIND_RECOVERY: _ClassVar[NextActionKind]
 PLAN_STATUS_UNSPECIFIED: PlanStatus
 PLAN_STATUS_DRAFT: PlanStatus
 PLAN_STATUS_ACTIVE: PlanStatus
@@ -87,6 +136,32 @@ REFERENCE_RESOLUTION_RESOLVED: ReferenceResolution
 REFERENCE_RESOLUTION_UNRESOLVED: ReferenceResolution
 REFERENCE_RESOLUTION_FUTURE: ReferenceResolution
 REFERENCE_RESOLUTION_MISSING: ReferenceResolution
+RELEVANT_CONTEXT_KIND_UNSPECIFIED: RelevantContextKind
+RELEVANT_CONTEXT_KIND_SKILL: RelevantContextKind
+RELEVANT_CONTEXT_KIND_DOC: RelevantContextKind
+RELEVANT_CONTEXT_KIND_COMMAND: RelevantContextKind
+RELEVANT_CONTEXT_KIND_SEARCH: RelevantContextKind
+RELEVANT_CONTEXT_KIND_CODE_REF: RelevantContextKind
+RELEVANT_CONTEXT_KIND_REQ_REF: RelevantContextKind
+RELEVANT_CONTEXT_KIND_NOTE: RelevantContextKind
+RELEVANT_CONTEXT_SCOPE_UNSPECIFIED: RelevantContextScope
+RELEVANT_CONTEXT_SCOPE_GLOBAL: RelevantContextScope
+RELEVANT_CONTEXT_SCOPE_PHASE: RelevantContextScope
+RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED: RelevantContextRepeatPolicy
+RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION: RelevantContextRepeatPolicy
+RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME: RelevantContextRepeatPolicy
+RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE: RelevantContextRepeatPolicy
+RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY: RelevantContextRepeatPolicy
+RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED: RelevantContextRepeatPolicy
+RELEVANT_CONTEXT_SOURCE_UNSPECIFIED: RelevantContextSource
+RELEVANT_CONTEXT_SOURCE_AUTHORED: RelevantContextSource
+RELEVANT_CONTEXT_SOURCE_DISCOVERED: RelevantContextSource
+RELEVANT_CONTEXT_SOURCE_MIGRATED: RelevantContextSource
+RELEVANT_CONTEXT_SOURCE_AUTOFILLED: RelevantContextSource
+RELEVANT_CONTEXT_STATUS_UNSPECIFIED: RelevantContextStatus
+RELEVANT_CONTEXT_STATUS_READY: RelevantContextStatus
+RELEVANT_CONTEXT_STATUS_DEGRADED: RelevantContextStatus
+RELEVANT_CONTEXT_STATUS_UNRESOLVED: RelevantContextStatus
 FINDING_TRIAGE_UNSPECIFIED: FindingTriage
 FINDING_TRIAGE_CANDIDATE: FindingTriage
 FINDING_TRIAGE_PROMOTED: FindingTriage
@@ -98,6 +173,49 @@ VALIDATION_VERDICT_UNSPECIFIED: ValidationVerdict
 VALIDATION_VERDICT_PASS: ValidationVerdict
 VALIDATION_VERDICT_FAIL: ValidationVerdict
 VALIDATION_VERDICT_UNKNOWN: ValidationVerdict
+NEXT_ACTION_KIND_UNSPECIFIED: NextActionKind
+NEXT_ACTION_KIND_RECOMMENDED: NextActionKind
+NEXT_ACTION_KIND_ALTERNATIVE: NextActionKind
+NEXT_ACTION_KIND_OPTIONAL: NextActionKind
+NEXT_ACTION_KIND_RECOVERY: NextActionKind
+
+class NextAction(_message.Message):
+    __slots__ = ("id", "kind", "label", "reason", "argv", "content_placeholder", "blocked_by")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ARGV_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_PLACEHOLDER_FIELD_NUMBER: _ClassVar[int]
+    BLOCKED_BY_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    kind: NextActionKind
+    label: str
+    reason: str
+    argv: _containers.RepeatedScalarFieldContainer[str]
+    content_placeholder: str
+    blocked_by: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[NextActionKind, str]] = ..., label: _Optional[str] = ..., reason: _Optional[str] = ..., argv: _Optional[_Iterable[str]] = ..., content_placeholder: _Optional[str] = ..., blocked_by: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GuidedStep(_message.Message):
+    __slots__ = ("step_kind", "title", "summary", "instructions", "required_inputs", "examples", "common_mistakes", "next_actions")
+    STEP_KIND_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    INSTRUCTIONS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_INPUTS_FIELD_NUMBER: _ClassVar[int]
+    EXAMPLES_FIELD_NUMBER: _ClassVar[int]
+    COMMON_MISTAKES_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    step_kind: str
+    title: str
+    summary: str
+    instructions: _containers.RepeatedScalarFieldContainer[str]
+    required_inputs: _containers.RepeatedScalarFieldContainer[str]
+    examples: _containers.RepeatedScalarFieldContainer[str]
+    common_mistakes: _containers.RepeatedScalarFieldContainer[str]
+    next_actions: _containers.RepeatedCompositeFieldContainer[NextAction]
+    def __init__(self, step_kind: _Optional[str] = ..., title: _Optional[str] = ..., summary: _Optional[str] = ..., instructions: _Optional[_Iterable[str]] = ..., required_inputs: _Optional[_Iterable[str]] = ..., examples: _Optional[_Iterable[str]] = ..., common_mistakes: _Optional[_Iterable[str]] = ..., next_actions: _Optional[_Iterable[_Union[NextAction, _Mapping]]] = ...) -> None: ...
 
 class Reference(_message.Message):
     __slots__ = ("id", "kind", "target", "future", "resolution", "staleness", "change_factor", "note")
@@ -118,6 +236,40 @@ class Reference(_message.Message):
     change_factor: float
     note: str
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[ReferenceKind, str]] = ..., target: _Optional[str] = ..., future: _Optional[bool] = ..., resolution: _Optional[_Union[ReferenceResolution, str]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., change_factor: _Optional[float] = ..., note: _Optional[str] = ...) -> None: ...
+
+class RelevantContextItem(_message.Message):
+    __slots__ = ("id", "kind", "scope", "phase_id", "label", "reason", "instruction", "command", "argv", "target", "required", "repeat_policy", "source", "status", "status_detail")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    INSTRUCTION_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    ARGV_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    REPEAT_POLICY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    STATUS_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    kind: RelevantContextKind
+    scope: RelevantContextScope
+    phase_id: str
+    label: str
+    reason: str
+    instruction: str
+    command: str
+    argv: _containers.RepeatedScalarFieldContainer[str]
+    target: str
+    required: bool
+    repeat_policy: RelevantContextRepeatPolicy
+    source: RelevantContextSource
+    status: RelevantContextStatus
+    status_detail: str
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[RelevantContextKind, str]] = ..., scope: _Optional[_Union[RelevantContextScope, str]] = ..., phase_id: _Optional[str] = ..., label: _Optional[str] = ..., reason: _Optional[str] = ..., instruction: _Optional[str] = ..., command: _Optional[str] = ..., argv: _Optional[_Iterable[str]] = ..., target: _Optional[str] = ..., required: _Optional[bool] = ..., repeat_policy: _Optional[_Union[RelevantContextRepeatPolicy, str]] = ..., source: _Optional[_Union[RelevantContextSource, str]] = ..., status: _Optional[_Union[RelevantContextStatus, str]] = ..., status_detail: _Optional[str] = ...) -> None: ...
 
 class RegressionAnchor(_message.Message):
     __slots__ = ("strategy", "scenario", "baseline_name", "head_sha", "allowlist_paths", "commands", "captured_at", "unavailable")
@@ -172,7 +324,7 @@ class Finding(_message.Message):
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ..., triage: _Optional[_Union[FindingTriage, str]] = ..., phase_id: _Optional[str] = ..., recorded_at: _Optional[str] = ..., attribution_run_id: _Optional[str] = ...) -> None: ...
 
 class ValidationResult(_message.Message):
-    __slots__ = ("id", "plan_id", "phase_id", "verdict", "staleness", "commands_run", "detail", "ran_at")
+    __slots__ = ("id", "plan_id", "phase_id", "verdict", "staleness", "commands_run", "detail", "ran_at", "command_findings")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -181,6 +333,7 @@ class ValidationResult(_message.Message):
     COMMANDS_RUN_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
     RAN_AT_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     phase_id: str
@@ -189,10 +342,31 @@ class ValidationResult(_message.Message):
     commands_run: _containers.RepeatedScalarFieldContainer[str]
     detail: str
     ran_at: str
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., verdict: _Optional[_Union[ValidationVerdict, str]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., commands_run: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ..., ran_at: _Optional[str] = ...) -> None: ...
+    command_findings: _containers.RepeatedCompositeFieldContainer[CommandValidationFinding]
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., verdict: _Optional[_Union[ValidationVerdict, str]] = ..., staleness: _Optional[_Union[StalenessTier, str]] = ..., commands_run: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ..., ran_at: _Optional[str] = ..., command_findings: _Optional[_Iterable[_Union[CommandValidationFinding, _Mapping]]] = ...) -> None: ...
+
+class CommandValidationFinding(_message.Message):
+    __slots__ = ("command_text", "verdict", "validation_level", "message", "location", "issue_codes", "suggestions", "guidance")
+    COMMAND_TEXT_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_LEVEL_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    ISSUE_CODES_FIELD_NUMBER: _ClassVar[int]
+    SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
+    GUIDANCE_FIELD_NUMBER: _ClassVar[int]
+    command_text: str
+    verdict: str
+    validation_level: str
+    message: str
+    location: str
+    issue_codes: _containers.RepeatedScalarFieldContainer[str]
+    suggestions: _containers.RepeatedScalarFieldContainer[str]
+    guidance: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, command_text: _Optional[str] = ..., verdict: _Optional[str] = ..., validation_level: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., issue_codes: _Optional[_Iterable[str]] = ..., suggestions: _Optional[_Iterable[str]] = ..., guidance: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Phase(_message.Message):
-    __slots__ = ("id", "order", "title", "intent", "required_reading", "reminders", "baseline_scope", "acceptance", "status", "last_validation", "decisions", "findings", "references")
+    __slots__ = ("id", "order", "title", "intent", "required_reading", "reminders", "baseline_scope", "acceptance", "status", "last_validation", "decisions", "findings", "references", "relevant_context")
     ID_FIELD_NUMBER: _ClassVar[int]
     ORDER_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -206,6 +380,7 @@ class Phase(_message.Message):
     DECISIONS_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
     REFERENCES_FIELD_NUMBER: _ClassVar[int]
+    RELEVANT_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     id: str
     order: int
     title: str
@@ -219,10 +394,11 @@ class Phase(_message.Message):
     decisions: _containers.RepeatedCompositeFieldContainer[Decision]
     findings: _containers.RepeatedCompositeFieldContainer[Finding]
     references: _containers.RepeatedCompositeFieldContainer[Reference]
-    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[Decision, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[Finding, _Mapping]]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ...) -> None: ...
+    relevant_context: _containers.RepeatedCompositeFieldContainer[RelevantContextItem]
+    def __init__(self, id: _Optional[str] = ..., order: _Optional[int] = ..., title: _Optional[str] = ..., intent: _Optional[str] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., baseline_scope: _Optional[_Iterable[str]] = ..., acceptance: _Optional[str] = ..., status: _Optional[_Union[PhaseStatus, str]] = ..., last_validation: _Optional[_Union[ValidationResult, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[Decision, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[Finding, _Mapping]]] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ...) -> None: ...
 
 class Plan(_message.Message):
-    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by")
+    __slots__ = ("id", "slug", "title", "status", "content_hash", "created_at", "updated_at", "purpose", "scope", "constraints", "non_goals", "references", "regression_anchor", "definition_of_done", "phases", "supersedes", "superseded_by", "relevant_context")
     ID_FIELD_NUMBER: _ClassVar[int]
     SLUG_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -240,6 +416,7 @@ class Plan(_message.Message):
     PHASES_FIELD_NUMBER: _ClassVar[int]
     SUPERSEDES_FIELD_NUMBER: _ClassVar[int]
     SUPERSEDED_BY_FIELD_NUMBER: _ClassVar[int]
+    RELEVANT_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     id: str
     slug: str
     title: str
@@ -257,7 +434,8 @@ class Plan(_message.Message):
     phases: _containers.RepeatedCompositeFieldContainer[Phase]
     supersedes: _containers.RepeatedScalarFieldContainer[str]
     superseded_by: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ...) -> None: ...
+    relevant_context: _containers.RepeatedCompositeFieldContainer[RelevantContextItem]
+    def __init__(self, id: _Optional[str] = ..., slug: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[_Union[PlanStatus, str]] = ..., content_hash: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., purpose: _Optional[str] = ..., scope: _Optional[str] = ..., constraints: _Optional[str] = ..., non_goals: _Optional[str] = ..., references: _Optional[_Iterable[_Union[Reference, _Mapping]]] = ..., regression_anchor: _Optional[_Union[RegressionAnchor, _Mapping]] = ..., definition_of_done: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[Phase, _Mapping]]] = ..., supersedes: _Optional[_Iterable[str]] = ..., superseded_by: _Optional[_Iterable[str]] = ..., relevant_context: _Optional[_Iterable[_Union[RelevantContextItem, _Mapping]]] = ...) -> None: ...
 
 class PlanEdge(_message.Message):
     __slots__ = ("from_plan_id", "to_plan_id", "kind")

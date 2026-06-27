@@ -127,10 +127,11 @@ type PhaseContext struct {
 	LastValidation  *shared.ValidationResult `protobuf:"bytes,5,opt,name=last_validation,json=lastValidation,proto3" json:"last_validation,omitempty"`
 	Staleness       shared.StalenessTier     `protobuf:"varint,6,opt,name=staleness,proto3,enum=vrooli.plan_manager.v1.shared.StalenessTier" json:"staleness,omitempty"`
 	// The earliest non-done phase (the resume point).
-	ResumePhaseId string              `protobuf:"bytes,7,opt,name=resume_phase_id,json=resumePhaseId,proto3" json:"resume_phase_id,omitempty"`
-	Completeness  shared.Completeness `protobuf:"varint,8,opt,name=completeness,proto3,enum=vrooli.plan_manager.v1.shared.Completeness" json:"completeness,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ResumePhaseId   string                        `protobuf:"bytes,7,opt,name=resume_phase_id,json=resumePhaseId,proto3" json:"resume_phase_id,omitempty"`
+	Completeness    shared.Completeness           `protobuf:"varint,8,opt,name=completeness,proto3,enum=vrooli.plan_manager.v1.shared.Completeness" json:"completeness,omitempty"`
+	RelevantContext []*shared.RelevantContextItem `protobuf:"bytes,9,rep,name=relevant_context,json=relevantContext,proto3" json:"relevant_context,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PhaseContext) Reset() {
@@ -217,6 +218,13 @@ func (x *PhaseContext) GetCompleteness() shared.Completeness {
 		return x.Completeness
 	}
 	return shared.Completeness(0)
+}
+
+func (x *PhaseContext) GetRelevantContext() []*shared.RelevantContextItem {
+	if x != nil {
+		return x.RelevantContext
+	}
+	return nil
 }
 
 // CompletionNudge is one item in the thin guided completion process.
@@ -339,6 +347,8 @@ func (x *StartRequest) GetRunId() string {
 type StartResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Execution     *Execution             `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
+	Context       *PhaseContext          `protobuf:"bytes,3,opt,name=context,proto3" json:"context,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -376,6 +386,20 @@ func (*StartResponse) Descriptor() ([]byte, []int) {
 func (x *StartResponse) GetExecution() *Execution {
 	if x != nil {
 		return x.Execution
+	}
+	return nil
+}
+
+func (x *StartResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
+func (x *StartResponse) GetContext() *PhaseContext {
+	if x != nil {
+		return x.Context
 	}
 	return nil
 }
@@ -428,6 +452,7 @@ type GetStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Execution     *Execution             `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
 	Context       *PhaseContext          `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -472,6 +497,13 @@ func (x *GetStatusResponse) GetExecution() *Execution {
 func (x *GetStatusResponse) GetContext() *PhaseContext {
 	if x != nil {
 		return x.Context
+	}
+	return nil
+}
+
+func (x *GetStatusResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -524,7 +556,8 @@ type GetNextResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Context *PhaseContext          `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// True when no actionable phase remains.
-	Complete      bool `protobuf:"varint,2,opt,name=complete,proto3" json:"complete,omitempty"`
+	Complete      bool               `protobuf:"varint,2,opt,name=complete,proto3" json:"complete,omitempty"`
+	Step          *shared.GuidedStep `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,6 +604,13 @@ func (x *GetNextResponse) GetComplete() bool {
 		return x.Complete
 	}
 	return false
+}
+
+func (x *GetNextResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
 }
 
 type TransitionPhaseRequest struct {
@@ -637,6 +677,7 @@ type TransitionPhaseResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Execution     *Execution             `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
 	Plan          *shared.Plan           `protobuf:"bytes,2,opt,name=plan,proto3" json:"plan,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -681,6 +722,13 @@ func (x *TransitionPhaseResponse) GetExecution() *Execution {
 func (x *TransitionPhaseResponse) GetPlan() *shared.Plan {
 	if x != nil {
 		return x.Plan
+	}
+	return nil
+}
+
+func (x *TransitionPhaseResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -756,6 +804,7 @@ func (x *RecordDecisionRequest) GetDetail() string {
 type RecordDecisionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Decision      *shared.Decision       `protobuf:"bytes,1,opt,name=decision,proto3" json:"decision,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -793,6 +842,13 @@ func (*RecordDecisionResponse) Descriptor() ([]byte, []int) {
 func (x *RecordDecisionResponse) GetDecision() *shared.Decision {
 	if x != nil {
 		return x.Decision
+	}
+	return nil
+}
+
+func (x *RecordDecisionResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -868,6 +924,7 @@ func (x *RecordFindingRequest) GetDetail() string {
 type RecordFindingResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Finding       *shared.Finding        `protobuf:"bytes,1,opt,name=finding,proto3" json:"finding,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -905,6 +962,13 @@ func (*RecordFindingResponse) Descriptor() ([]byte, []int) {
 func (x *RecordFindingResponse) GetFinding() *shared.Finding {
 	if x != nil {
 		return x.Finding
+	}
+	return nil
+}
+
+func (x *RecordFindingResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -976,6 +1040,7 @@ type CompleteResponse struct {
 	// Unsatisfied nudges the agent should address; an empty list means the
 	// completion process is clean.
 	Nudges        []*CompletionNudge `protobuf:"bytes,2,rep,name=nudges,proto3" json:"nudges,omitempty"`
+	Step          *shared.GuidedStep `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1020,6 +1085,13 @@ func (x *CompleteResponse) GetHandoff() *shared.Handoff {
 func (x *CompleteResponse) GetNudges() []*CompletionNudge {
 	if x != nil {
 		return x.Nudges
+	}
+	return nil
+}
+
+func (x *CompleteResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -1071,6 +1143,7 @@ func (x *GetHandoffRequest) GetExecutionId() string {
 type GetHandoffResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Handoff       *shared.Handoff        `protobuf:"bytes,1,opt,name=handoff,proto3" json:"handoff,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1108,6 +1181,13 @@ func (*GetHandoffResponse) Descriptor() ([]byte, []int) {
 func (x *GetHandoffResponse) GetHandoff() *shared.Handoff {
 	if x != nil {
 		return x.Handoff
+	}
+	return nil
+}
+
+func (x *GetHandoffResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -1160,6 +1240,7 @@ func (x *ListCandidateFindingsRequest) GetExecutionId() string {
 type ListCandidateFindingsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Findings      []*shared.Finding      `protobuf:"bytes,1,rep,name=findings,proto3" json:"findings,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1197,6 +1278,13 @@ func (*ListCandidateFindingsResponse) Descriptor() ([]byte, []int) {
 func (x *ListCandidateFindingsResponse) GetFindings() []*shared.Finding {
 	if x != nil {
 		return x.Findings
+	}
+	return nil
+}
+
+func (x *ListCandidateFindingsResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -1256,6 +1344,7 @@ func (x *TriageFindingRequest) GetTriage() shared.FindingTriage {
 type TriageFindingResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Finding       *shared.Finding        `protobuf:"bytes,1,opt,name=finding,proto3" json:"finding,omitempty"`
+	Step          *shared.GuidedStep     `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1293,6 +1382,13 @@ func (*TriageFindingResponse) Descriptor() ([]byte, []int) {
 func (x *TriageFindingResponse) GetFinding() *shared.Finding {
 	if x != nil {
 		return x.Finding
+	}
+	return nil
+}
+
+func (x *TriageFindingResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
 	}
 	return nil
 }
@@ -1344,6 +1440,7 @@ func (x *GetVelocityRequest) GetPlanId() string {
 type GetVelocityResponse struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
 	Points        []*shared.VelocityPoint `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
+	Step          *shared.GuidedStep      `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1385,6 +1482,13 @@ func (x *GetVelocityResponse) GetPoints() []*shared.VelocityPoint {
 	return nil
 }
 
+func (x *GetVelocityResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
 var File_plan_manager_v1_execution_execution_proto protoreflect.FileDescriptor
 
 const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
@@ -1399,7 +1503,7 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x06 \x01(\tR\tstartedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\tR\tupdatedAt\"\x86\x04\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\"\xe5\x04\n" +
 	"\fPhaseContext\x12I\n" +
 	"\rcurrent_phase\x18\x01 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\fcurrentPhase\x12C\n" +
 	"\n" +
@@ -1409,74 +1513,87 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x0flast_validation\x18\x05 \x01(\v2/.vrooli.plan_manager.v1.shared.ValidationResultR\x0elastValidation\x12J\n" +
 	"\tstaleness\x18\x06 \x01(\x0e2,.vrooli.plan_manager.v1.shared.StalenessTierR\tstaleness\x12&\n" +
 	"\x0fresume_phase_id\x18\a \x01(\tR\rresumePhaseId\x12O\n" +
-	"\fcompleteness\x18\b \x01(\x0e2+.vrooli.plan_manager.v1.shared.CompletenessR\fcompleteness\"]\n" +
+	"\fcompleteness\x18\b \x01(\x0e2+.vrooli.plan_manager.v1.shared.CompletenessR\fcompleteness\x12]\n" +
+	"\x10relevant_context\x18\t \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x0frelevantContext\"]\n" +
 	"\x0fCompletionNudge\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
 	"\tsatisfied\x18\x03 \x01(\bR\tsatisfied\">\n" +
 	"\fStartRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"Z\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\"\xe3\x01\n" +
 	"\rStartResponse\x12I\n" +
-	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\"5\n" +
+	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\x12H\n" +
+	"\acontext\x18\x03 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\"5\n" +
 	"\x10GetStatusRequest\x12!\n" +
-	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\xa8\x01\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\xe7\x01\n" +
 	"\x11GetStatusResponse\x12I\n" +
 	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x12H\n" +
-	"\acontext\x18\x02 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\"3\n" +
+	"\acontext\x18\x02 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"3\n" +
 	"\x0eGetNextRequest\x12!\n" +
-	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"w\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\xb6\x01\n" +
 	"\x0fGetNextResponse\x12H\n" +
 	"\acontext\x18\x01 \x01(\v2..vrooli.plan_manager.v1.execution.PhaseContextR\acontext\x12\x1a\n" +
-	"\bcomplete\x18\x02 \x01(\bR\bcomplete\"\x9f\x01\n" +
+	"\bcomplete\x18\x02 \x01(\bR\bcomplete\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"\x9f\x01\n" +
 	"\x16TransitionPhaseRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12G\n" +
-	"\tto_status\x18\x03 \x01(\x0e2*.vrooli.plan_manager.v1.shared.PhaseStatusR\btoStatus\"\x9d\x01\n" +
+	"\tto_status\x18\x03 \x01(\x0e2*.vrooli.plan_manager.v1.shared.PhaseStatusR\btoStatus\"\xdc\x01\n" +
 	"\x17TransitionPhaseResponse\x12I\n" +
 	"\texecution\x18\x01 \x01(\v2+.vrooli.plan_manager.v1.execution.ExecutionR\texecution\x127\n" +
-	"\x04plan\x18\x02 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\"\x87\x01\n" +
+	"\x04plan\x18\x02 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"\x87\x01\n" +
 	"\x15RecordDecisionRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12\x18\n" +
 	"\asummary\x18\x03 \x01(\tR\asummary\x12\x16\n" +
-	"\x06detail\x18\x04 \x01(\tR\x06detail\"]\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"\x9c\x01\n" +
 	"\x16RecordDecisionResponse\x12C\n" +
-	"\bdecision\x18\x01 \x01(\v2'.vrooli.plan_manager.v1.shared.DecisionR\bdecision\"\x82\x01\n" +
+	"\bdecision\x18\x01 \x01(\v2'.vrooli.plan_manager.v1.shared.DecisionR\bdecision\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"\x82\x01\n" +
 	"\x14RecordFindingRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x19\n" +
 	"\bphase_id\x18\x02 \x01(\tR\aphaseId\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x16\n" +
-	"\x06detail\x18\x04 \x01(\tR\x06detail\"Y\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"\x98\x01\n" +
 	"\x15RecordFindingResponse\x12@\n" +
-	"\afinding\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.FindingR\afinding\"l\n" +
+	"\afinding\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.FindingR\afinding\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"l\n" +
 	"\x0fCompleteRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x16\n" +
 	"\x06tokens\x18\x02 \x01(\x03R\x06tokens\x12\x1e\n" +
 	"\n" +
 	"iterations\x18\x03 \x01(\x05R\n" +
-	"iterations\"\x9f\x01\n" +
+	"iterations\"\xde\x01\n" +
 	"\x10CompleteResponse\x12@\n" +
 	"\ahandoff\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.HandoffR\ahandoff\x12I\n" +
-	"\x06nudges\x18\x02 \x03(\v21.vrooli.plan_manager.v1.execution.CompletionNudgeR\x06nudges\"6\n" +
+	"\x06nudges\x18\x02 \x03(\v21.vrooli.plan_manager.v1.execution.CompletionNudgeR\x06nudges\x12=\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"6\n" +
 	"\x11GetHandoffRequest\x12!\n" +
-	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"V\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\x95\x01\n" +
 	"\x12GetHandoffResponse\x12@\n" +
-	"\ahandoff\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.HandoffR\ahandoff\"A\n" +
+	"\ahandoff\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.HandoffR\ahandoff\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"A\n" +
 	"\x1cListCandidateFindingsRequest\x12!\n" +
-	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"c\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"\xa2\x01\n" +
 	"\x1dListCandidateFindingsResponse\x12B\n" +
-	"\bfindings\x18\x01 \x03(\v2&.vrooli.plan_manager.v1.shared.FindingR\bfindings\"{\n" +
+	"\bfindings\x18\x01 \x03(\v2&.vrooli.plan_manager.v1.shared.FindingR\bfindings\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"{\n" +
 	"\x14TriageFindingRequest\x12\x1d\n" +
 	"\n" +
 	"finding_id\x18\x01 \x01(\tR\tfindingId\x12D\n" +
-	"\x06triage\x18\x02 \x01(\x0e2,.vrooli.plan_manager.v1.shared.FindingTriageR\x06triage\"Y\n" +
+	"\x06triage\x18\x02 \x01(\x0e2,.vrooli.plan_manager.v1.shared.FindingTriageR\x06triage\"\x98\x01\n" +
 	"\x15TriageFindingResponse\x12@\n" +
-	"\afinding\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.FindingR\afinding\"-\n" +
+	"\afinding\x18\x01 \x01(\v2&.vrooli.plan_manager.v1.shared.FindingR\afinding\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"-\n" +
 	"\x12GetVelocityRequest\x12\x17\n" +
-	"\aplan_id\x18\x01 \x01(\tR\x06planId\"[\n" +
+	"\aplan_id\x18\x01 \x01(\tR\x06planId\"\x9a\x01\n" +
 	"\x13GetVelocityResponse\x12D\n" +
-	"\x06points\x18\x01 \x03(\v2,.vrooli.plan_manager.v1.shared.VelocityPointR\x06points2\xfa\n" +
+	"\x06points\x18\x01 \x03(\v2,.vrooli.plan_manager.v1.shared.VelocityPointR\x06points\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step2\xfa\n" +
 	"\n" +
 	"\x10ExecutionService\x12h\n" +
 	"\x05Start\x12..vrooli.plan_manager.v1.execution.StartRequest\x1a/.vrooli.plan_manager.v1.execution.StartResponse\x12t\n" +
@@ -1535,13 +1652,15 @@ var file_plan_manager_v1_execution_execution_proto_goTypes = []any{
 	(*shared.ValidationResult)(nil),       // 26: vrooli.plan_manager.v1.shared.ValidationResult
 	(shared.StalenessTier)(0),             // 27: vrooli.plan_manager.v1.shared.StalenessTier
 	(shared.Completeness)(0),              // 28: vrooli.plan_manager.v1.shared.Completeness
-	(shared.PhaseStatus)(0),               // 29: vrooli.plan_manager.v1.shared.PhaseStatus
-	(*shared.Plan)(nil),                   // 30: vrooli.plan_manager.v1.shared.Plan
-	(*shared.Decision)(nil),               // 31: vrooli.plan_manager.v1.shared.Decision
-	(*shared.Finding)(nil),                // 32: vrooli.plan_manager.v1.shared.Finding
-	(*shared.Handoff)(nil),                // 33: vrooli.plan_manager.v1.shared.Handoff
-	(shared.FindingTriage)(0),             // 34: vrooli.plan_manager.v1.shared.FindingTriage
-	(*shared.VelocityPoint)(nil),          // 35: vrooli.plan_manager.v1.shared.VelocityPoint
+	(*shared.RelevantContextItem)(nil),    // 29: vrooli.plan_manager.v1.shared.RelevantContextItem
+	(*shared.GuidedStep)(nil),             // 30: vrooli.plan_manager.v1.shared.GuidedStep
+	(shared.PhaseStatus)(0),               // 31: vrooli.plan_manager.v1.shared.PhaseStatus
+	(*shared.Plan)(nil),                   // 32: vrooli.plan_manager.v1.shared.Plan
+	(*shared.Decision)(nil),               // 33: vrooli.plan_manager.v1.shared.Decision
+	(*shared.Finding)(nil),                // 34: vrooli.plan_manager.v1.shared.Finding
+	(*shared.Handoff)(nil),                // 35: vrooli.plan_manager.v1.shared.Handoff
+	(shared.FindingTriage)(0),             // 36: vrooli.plan_manager.v1.shared.FindingTriage
+	(*shared.VelocityPoint)(nil),          // 37: vrooli.plan_manager.v1.shared.VelocityPoint
 }
 var file_plan_manager_v1_execution_execution_proto_depIdxs = []int32{
 	25, // 0: vrooli.plan_manager.v1.execution.PhaseContext.current_phase:type_name -> vrooli.plan_manager.v1.shared.Phase
@@ -1549,49 +1668,62 @@ var file_plan_manager_v1_execution_execution_proto_depIdxs = []int32{
 	26, // 2: vrooli.plan_manager.v1.execution.PhaseContext.last_validation:type_name -> vrooli.plan_manager.v1.shared.ValidationResult
 	27, // 3: vrooli.plan_manager.v1.execution.PhaseContext.staleness:type_name -> vrooli.plan_manager.v1.shared.StalenessTier
 	28, // 4: vrooli.plan_manager.v1.execution.PhaseContext.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
-	0,  // 5: vrooli.plan_manager.v1.execution.StartResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	0,  // 6: vrooli.plan_manager.v1.execution.GetStatusResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	1,  // 7: vrooli.plan_manager.v1.execution.GetStatusResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	1,  // 8: vrooli.plan_manager.v1.execution.GetNextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	29, // 9: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.to_status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
-	0,  // 10: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	30, // 11: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	31, // 12: vrooli.plan_manager.v1.execution.RecordDecisionResponse.decision:type_name -> vrooli.plan_manager.v1.shared.Decision
-	32, // 13: vrooli.plan_manager.v1.execution.RecordFindingResponse.finding:type_name -> vrooli.plan_manager.v1.shared.Finding
-	33, // 14: vrooli.plan_manager.v1.execution.CompleteResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
-	2,  // 15: vrooli.plan_manager.v1.execution.CompleteResponse.nudges:type_name -> vrooli.plan_manager.v1.execution.CompletionNudge
-	33, // 16: vrooli.plan_manager.v1.execution.GetHandoffResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
-	32, // 17: vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse.findings:type_name -> vrooli.plan_manager.v1.shared.Finding
-	34, // 18: vrooli.plan_manager.v1.execution.TriageFindingRequest.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
-	32, // 19: vrooli.plan_manager.v1.execution.TriageFindingResponse.finding:type_name -> vrooli.plan_manager.v1.shared.Finding
-	35, // 20: vrooli.plan_manager.v1.execution.GetVelocityResponse.points:type_name -> vrooli.plan_manager.v1.shared.VelocityPoint
-	3,  // 21: vrooli.plan_manager.v1.execution.ExecutionService.Start:input_type -> vrooli.plan_manager.v1.execution.StartRequest
-	5,  // 22: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:input_type -> vrooli.plan_manager.v1.execution.GetStatusRequest
-	7,  // 23: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:input_type -> vrooli.plan_manager.v1.execution.GetNextRequest
-	9,  // 24: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:input_type -> vrooli.plan_manager.v1.execution.TransitionPhaseRequest
-	11, // 25: vrooli.plan_manager.v1.execution.ExecutionService.RecordDecision:input_type -> vrooli.plan_manager.v1.execution.RecordDecisionRequest
-	13, // 26: vrooli.plan_manager.v1.execution.ExecutionService.RecordFinding:input_type -> vrooli.plan_manager.v1.execution.RecordFindingRequest
-	15, // 27: vrooli.plan_manager.v1.execution.ExecutionService.Complete:input_type -> vrooli.plan_manager.v1.execution.CompleteRequest
-	17, // 28: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:input_type -> vrooli.plan_manager.v1.execution.GetHandoffRequest
-	19, // 29: vrooli.plan_manager.v1.execution.ExecutionService.ListCandidateFindings:input_type -> vrooli.plan_manager.v1.execution.ListCandidateFindingsRequest
-	21, // 30: vrooli.plan_manager.v1.execution.ExecutionService.TriageFinding:input_type -> vrooli.plan_manager.v1.execution.TriageFindingRequest
-	23, // 31: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:input_type -> vrooli.plan_manager.v1.execution.GetVelocityRequest
-	4,  // 32: vrooli.plan_manager.v1.execution.ExecutionService.Start:output_type -> vrooli.plan_manager.v1.execution.StartResponse
-	6,  // 33: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:output_type -> vrooli.plan_manager.v1.execution.GetStatusResponse
-	8,  // 34: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:output_type -> vrooli.plan_manager.v1.execution.GetNextResponse
-	10, // 35: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:output_type -> vrooli.plan_manager.v1.execution.TransitionPhaseResponse
-	12, // 36: vrooli.plan_manager.v1.execution.ExecutionService.RecordDecision:output_type -> vrooli.plan_manager.v1.execution.RecordDecisionResponse
-	14, // 37: vrooli.plan_manager.v1.execution.ExecutionService.RecordFinding:output_type -> vrooli.plan_manager.v1.execution.RecordFindingResponse
-	16, // 38: vrooli.plan_manager.v1.execution.ExecutionService.Complete:output_type -> vrooli.plan_manager.v1.execution.CompleteResponse
-	18, // 39: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:output_type -> vrooli.plan_manager.v1.execution.GetHandoffResponse
-	20, // 40: vrooli.plan_manager.v1.execution.ExecutionService.ListCandidateFindings:output_type -> vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse
-	22, // 41: vrooli.plan_manager.v1.execution.ExecutionService.TriageFinding:output_type -> vrooli.plan_manager.v1.execution.TriageFindingResponse
-	24, // 42: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:output_type -> vrooli.plan_manager.v1.execution.GetVelocityResponse
-	32, // [32:43] is the sub-list for method output_type
-	21, // [21:32] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	29, // 5: vrooli.plan_manager.v1.execution.PhaseContext.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	0,  // 6: vrooli.plan_manager.v1.execution.StartResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	30, // 7: vrooli.plan_manager.v1.execution.StartResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 8: vrooli.plan_manager.v1.execution.StartResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	0,  // 9: vrooli.plan_manager.v1.execution.GetStatusResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	1,  // 10: vrooli.plan_manager.v1.execution.GetStatusResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	30, // 11: vrooli.plan_manager.v1.execution.GetStatusResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 12: vrooli.plan_manager.v1.execution.GetNextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	30, // 13: vrooli.plan_manager.v1.execution.GetNextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	31, // 14: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.to_status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
+	0,  // 15: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	32, // 16: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	30, // 17: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	33, // 18: vrooli.plan_manager.v1.execution.RecordDecisionResponse.decision:type_name -> vrooli.plan_manager.v1.shared.Decision
+	30, // 19: vrooli.plan_manager.v1.execution.RecordDecisionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	34, // 20: vrooli.plan_manager.v1.execution.RecordFindingResponse.finding:type_name -> vrooli.plan_manager.v1.shared.Finding
+	30, // 21: vrooli.plan_manager.v1.execution.RecordFindingResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	35, // 22: vrooli.plan_manager.v1.execution.CompleteResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
+	2,  // 23: vrooli.plan_manager.v1.execution.CompleteResponse.nudges:type_name -> vrooli.plan_manager.v1.execution.CompletionNudge
+	30, // 24: vrooli.plan_manager.v1.execution.CompleteResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	35, // 25: vrooli.plan_manager.v1.execution.GetHandoffResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
+	30, // 26: vrooli.plan_manager.v1.execution.GetHandoffResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	34, // 27: vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse.findings:type_name -> vrooli.plan_manager.v1.shared.Finding
+	30, // 28: vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	36, // 29: vrooli.plan_manager.v1.execution.TriageFindingRequest.triage:type_name -> vrooli.plan_manager.v1.shared.FindingTriage
+	34, // 30: vrooli.plan_manager.v1.execution.TriageFindingResponse.finding:type_name -> vrooli.plan_manager.v1.shared.Finding
+	30, // 31: vrooli.plan_manager.v1.execution.TriageFindingResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	37, // 32: vrooli.plan_manager.v1.execution.GetVelocityResponse.points:type_name -> vrooli.plan_manager.v1.shared.VelocityPoint
+	30, // 33: vrooli.plan_manager.v1.execution.GetVelocityResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	3,  // 34: vrooli.plan_manager.v1.execution.ExecutionService.Start:input_type -> vrooli.plan_manager.v1.execution.StartRequest
+	5,  // 35: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:input_type -> vrooli.plan_manager.v1.execution.GetStatusRequest
+	7,  // 36: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:input_type -> vrooli.plan_manager.v1.execution.GetNextRequest
+	9,  // 37: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:input_type -> vrooli.plan_manager.v1.execution.TransitionPhaseRequest
+	11, // 38: vrooli.plan_manager.v1.execution.ExecutionService.RecordDecision:input_type -> vrooli.plan_manager.v1.execution.RecordDecisionRequest
+	13, // 39: vrooli.plan_manager.v1.execution.ExecutionService.RecordFinding:input_type -> vrooli.plan_manager.v1.execution.RecordFindingRequest
+	15, // 40: vrooli.plan_manager.v1.execution.ExecutionService.Complete:input_type -> vrooli.plan_manager.v1.execution.CompleteRequest
+	17, // 41: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:input_type -> vrooli.plan_manager.v1.execution.GetHandoffRequest
+	19, // 42: vrooli.plan_manager.v1.execution.ExecutionService.ListCandidateFindings:input_type -> vrooli.plan_manager.v1.execution.ListCandidateFindingsRequest
+	21, // 43: vrooli.plan_manager.v1.execution.ExecutionService.TriageFinding:input_type -> vrooli.plan_manager.v1.execution.TriageFindingRequest
+	23, // 44: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:input_type -> vrooli.plan_manager.v1.execution.GetVelocityRequest
+	4,  // 45: vrooli.plan_manager.v1.execution.ExecutionService.Start:output_type -> vrooli.plan_manager.v1.execution.StartResponse
+	6,  // 46: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:output_type -> vrooli.plan_manager.v1.execution.GetStatusResponse
+	8,  // 47: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:output_type -> vrooli.plan_manager.v1.execution.GetNextResponse
+	10, // 48: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:output_type -> vrooli.plan_manager.v1.execution.TransitionPhaseResponse
+	12, // 49: vrooli.plan_manager.v1.execution.ExecutionService.RecordDecision:output_type -> vrooli.plan_manager.v1.execution.RecordDecisionResponse
+	14, // 50: vrooli.plan_manager.v1.execution.ExecutionService.RecordFinding:output_type -> vrooli.plan_manager.v1.execution.RecordFindingResponse
+	16, // 51: vrooli.plan_manager.v1.execution.ExecutionService.Complete:output_type -> vrooli.plan_manager.v1.execution.CompleteResponse
+	18, // 52: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:output_type -> vrooli.plan_manager.v1.execution.GetHandoffResponse
+	20, // 53: vrooli.plan_manager.v1.execution.ExecutionService.ListCandidateFindings:output_type -> vrooli.plan_manager.v1.execution.ListCandidateFindingsResponse
+	22, // 54: vrooli.plan_manager.v1.execution.ExecutionService.TriageFinding:output_type -> vrooli.plan_manager.v1.execution.TriageFindingResponse
+	24, // 55: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:output_type -> vrooli.plan_manager.v1.execution.GetVelocityResponse
+	45, // [45:56] is the sub-list for method output_type
+	34, // [34:45] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_execution_execution_proto_init() }

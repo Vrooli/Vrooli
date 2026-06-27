@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/models/models.proto.
  */
 export const file_image_tools_v1_models_models: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiPQoWU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiPgoXU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJIkAKCU9wRGVmYXVsdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDgoGc291cmNlGAMgASgJIhUKE0xpc3REZWZhdWx0c1JlcXVlc3QiUQoUTGlzdERlZmF1bHRzUmVzcG9uc2USOQoIZGVmYXVsdHMYASADKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk9wRGVmYXVsdCKcAQoOQ2F0YWxvZ0ZpbmRpbmcSRgoIc2V2ZXJpdHkYASABKA4yNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghtb2RlbF9pZBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSDwoHbWVzc2FnZRgFIAEoCSIWChREb2N0b3JDYXRhbG9nUmVxdWVzdCJjChVEb2N0b3JDYXRhbG9nUmVzcG9uc2USCgoCb2sYASABKAgSPgoIZmluZGluZ3MYAiADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nIuABCg1CYWNrZW5kU3RhdHVzEgwKBG5hbWUYASABKAkSEgoKb3BlcmF0aW9ucxgCIAMoCRIRCglhdmFpbGFibGUYAyABKAgSEgoKc3RhbmRhbG9uZRgEIAEoCBINCgVjbG91ZBgFIAEoCBITCgtncHVfY2FwYWJsZRgGIAEoCBIOCgZkZXRhaWwYByABKAkSEQoJcHJvdmlzaW9uGAggASgJEhEKCWhvc3RfdG9vbBgJIAEoCRIXCg9ob3N0X3Rvb2xfcmVhZHkYCiABKAgSEwoLcmVtZWRpYXRpb24YCyABKAkiFwoVRG9jdG9yQmFja2VuZHNSZXF1ZXN0ImMKFkRvY3RvckJhY2tlbmRzUmVzcG9uc2USCgoCb2sYASABKAgSPQoIYmFja2VuZHMYAiADKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkJhY2tlbmRTdGF0dXMiSAoURW5zdXJlQmFja2VuZFJlcXVlc3QSDAoEdG9vbBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDwoHZHJ5X3J1bhgDIAEoCCKUAQoVRW5zdXJlQmFja2VuZFJlc3BvbnNlEgwKBHRvb2wYASABKAkSDgoGam9iX2lkGAIgASgJEhMKC2V0YV9zZWNvbmRzGAMgASgFEhkKEWFscmVhZHlfaW5zdGFsbGVkGAQgASgIEg4KBm1hbnVhbBgFIAEoCBINCgVzdGF0ZRgGIAEoCRIOCgZkZXRhaWwYByABKAkiFwoVR2V0SG9zdFN1bW1hcnlSZXF1ZXN0IlEKFkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USNwoEaG9zdBgBIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSG9zdFN1bW1hcnkiLwoaTGlzdE9wZXJhdGlvbk1vZGVsc1JlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJIsEBCgtIb3N0U3VtbWFyeRIPCgdoYXNfZ3B1GAEgASgIEhAKCGdwdV9uYW1lGAIgASgJEhEKCWdwdV9jb3VudBgDIAEoBRIVCg12cmFtX3RvdGFsX2diGAQgASgFEhQKDHZyYW1fZnJlZV9nYhgFIAEoBRISCgp2cmFtX2tub3duGAYgASgIEg4KBnJhbV9nYhgHIAEoBRIRCgljcHVfY29yZXMYCCABKAUSCgoCb3MYCSABKAkSDAoEYXJjaBgKIAEoCSJwCghNb2RlbEZpdBIQCghydW5uYWJsZRgBIAEoCBISCgpncHVfdmlhYmxlGAIgASgIEhEKCWZpdF9jbGFzcxgDIAEoCRIZChF2cmFtX3Nob3J0ZmFsbF9nYhgEIAEoBRIQCgh3YXJuaW5ncxgFIAMoCSKVAQoQQmFja2VuZFJlYWRpbmVzcxIPCgdiYWNrZW5kGAEgASgJEhEKCWhvc3RfdG9vbBgCIAEoCRINCgVyZWFkeRgDIAEoCBIUCgxpbnN0YWxsX3RpZXIYBCABKAkSEwoLcmVtZWRpYXRpb24YBSABKAkSEwoLbWFudWFsX2hpbnQYBiABKAkSDgoGZGV0YWlsGAcgASgJIuEBCg5DYW5kaWRhdGVNb2RlbBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSMwoDZml0GAIgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbEZpdBI/CgdiYWNrZW5kGAMgASgLMi4udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CYWNrZW5kUmVhZGluZXNzEhMKC3JlYWR5X3N0YXRlGAQgASgJEhAKCHNlbGVjdGVkGAUgASgIItkBChtMaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEjcKBGhvc3QYAiABKAsyKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkhvc3RTdW1tYXJ5EkAKCmNhbmRpZGF0ZXMYAyADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhbmRpZGF0ZU1vZGVsEhMKC3NlbGVjdGVkX2lkGAQgASgJEhcKD3NlbGVjdGVkX3JlYXNvbhgFIAEoCSp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADKowBChZDYXRhbG9nRmluZGluZ1NldmVyaXR5EigKJENBVEFMT0dfRklORElOR19TRVZFUklUWV9VTlNQRUNJRklFRBAAEiIKHkNBVEFMT0dfRklORElOR19TRVZFUklUWV9FUlJPUhABEiQKIENBVEFMT0dfRklORElOR19TRVZFUklUWV9XQVJOSU5HEAIysA8KDU1vZGVsc1NlcnZpY2USbwoKTGlzdE1vZGVscxIvLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE1vZGVsc1JlcXVlc3QaMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXNwb25zZRJpCghHZXRNb2RlbBItLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXF1ZXN0Gi4udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRNb2RlbFJlc3BvbnNlEnsKDkxpc3RPcGVyYXRpb25zEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2UScgoLU2VsZWN0TW9kZWwSMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVxdWVzdBoxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2VsZWN0TW9kZWxSZXNwb25zZRJ+Cg9TZXRNb2RlbEVuYWJsZWQSNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlcXVlc3QaNS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlc3BvbnNlEngKDUxpc3RCbG9ja2xpc3QSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RCbG9ja2xpc3RSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVzcG9uc2USdQoMSW5zdGFsbE1vZGVsEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXNwb25zZRJyCgtSZW1vdmVNb2RlbBIwLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVtb3ZlTW9kZWxSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5SZW1vdmVNb2RlbFJlc3BvbnNlEnsKDkFkZEN1c3RvbU1vZGVsEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5BZGRDdXN0b21Nb2RlbFJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkFkZEN1c3RvbU1vZGVsUmVzcG9uc2USfgoPU2V0RGVmYXVsdE1vZGVsEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXNwb25zZRJ1CgxMaXN0RGVmYXVsdHMSMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1JlcXVlc3QaMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1Jlc3BvbnNlEngKDURvY3RvckNhdGFsb2cSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckNhdGFsb2dSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JDYXRhbG9nUmVzcG9uc2USewoORG9jdG9yQmFja2VuZHMSMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckJhY2tlbmRzUmVxdWVzdBo0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRG9jdG9yQmFja2VuZHNSZXNwb25zZRJ4Cg1FbnN1cmVCYWNrZW5kEjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5FbnN1cmVCYWNrZW5kUmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRW5zdXJlQmFja2VuZFJlc3BvbnNlEnsKDkdldEhvc3RTdW1tYXJ5EjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRIb3N0U3VtbWFyeVJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USigEKE0xpc3RPcGVyYXRpb25Nb2RlbHMSOC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25Nb2RlbHNSZXF1ZXN0GjkudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2VCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9tb2RlbHM7bW9kZWxzX3YxYgZwcm90bzM");
+  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiPQoWU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiPgoXU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJIkAKCU9wRGVmYXVsdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDgoGc291cmNlGAMgASgJIhUKE0xpc3REZWZhdWx0c1JlcXVlc3QiUQoUTGlzdERlZmF1bHRzUmVzcG9uc2USOQoIZGVmYXVsdHMYASADKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk9wRGVmYXVsdCKcAQoOQ2F0YWxvZ0ZpbmRpbmcSRgoIc2V2ZXJpdHkYASABKA4yNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghtb2RlbF9pZBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSDwoHbWVzc2FnZRgFIAEoCSIWChREb2N0b3JDYXRhbG9nUmVxdWVzdCJjChVEb2N0b3JDYXRhbG9nUmVzcG9uc2USCgoCb2sYASABKAgSPgoIZmluZGluZ3MYAiADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhdGFsb2dGaW5kaW5nIuABCg1CYWNrZW5kU3RhdHVzEgwKBG5hbWUYASABKAkSEgoKb3BlcmF0aW9ucxgCIAMoCRIRCglhdmFpbGFibGUYAyABKAgSEgoKc3RhbmRhbG9uZRgEIAEoCBINCgVjbG91ZBgFIAEoCBITCgtncHVfY2FwYWJsZRgGIAEoCBIOCgZkZXRhaWwYByABKAkSEQoJcHJvdmlzaW9uGAggASgJEhEKCWhvc3RfdG9vbBgJIAEoCRIXCg9ob3N0X3Rvb2xfcmVhZHkYCiABKAgSEwoLcmVtZWRpYXRpb24YCyABKAkiFwoVRG9jdG9yQmFja2VuZHNSZXF1ZXN0ImMKFkRvY3RvckJhY2tlbmRzUmVzcG9uc2USCgoCb2sYASABKAgSPQoIYmFja2VuZHMYAiADKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkJhY2tlbmRTdGF0dXMiSAoURW5zdXJlQmFja2VuZFJlcXVlc3QSDAoEdG9vbBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDwoHZHJ5X3J1bhgDIAEoCCKUAQoVRW5zdXJlQmFja2VuZFJlc3BvbnNlEgwKBHRvb2wYASABKAkSDgoGam9iX2lkGAIgASgJEhMKC2V0YV9zZWNvbmRzGAMgASgFEhkKEWFscmVhZHlfaW5zdGFsbGVkGAQgASgIEg4KBm1hbnVhbBgFIAEoCBINCgVzdGF0ZRgGIAEoCRIOCgZkZXRhaWwYByABKAkiFwoVR2V0SG9zdFN1bW1hcnlSZXF1ZXN0IlEKFkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USNwoEaG9zdBgBIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSG9zdFN1bW1hcnkiLwoaTGlzdE9wZXJhdGlvbk1vZGVsc1JlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJItUBCgpSZXNvbHV0aW9uEhEKCW9wZXJhdGlvbhgBIAEoCRIQCghtb2RlbF9pZBgCIAEoCRISCgptb2RlbF9uYW1lGAMgASgJEg8KB3N1cHBvcnQYBCABKAkSEQoJdGVjaG5pcXVlGAUgASgJEhYKDnBpcGVsaW5lX2NsYXNzGAYgASgJEg4KBmNhdmVhdBgHIAEoCRIOCgZ3ZWlnaHQYCCABKAkSDAoEdGllchgJIAEoCRISCgpncHVfdmlhYmxlGAogASgIEhAKCHdhcm5pbmdzGAsgAygJIlMKGEV4cGxhaW5SZXNvbHV0aW9uUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSEgoKYWxsb3dfYnlvaxgDIAEoCCJZChlFeHBsYWluUmVzb2x1dGlvblJlc3BvbnNlEjwKCnJlc29sdXRpb24YASABKAsyKC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlJlc29sdXRpb24iwQEKC0hvc3RTdW1tYXJ5Eg8KB2hhc19ncHUYASABKAgSEAoIZ3B1X25hbWUYAiABKAkSEQoJZ3B1X2NvdW50GAMgASgFEhUKDXZyYW1fdG90YWxfZ2IYBCABKAUSFAoMdnJhbV9mcmVlX2diGAUgASgFEhIKCnZyYW1fa25vd24YBiABKAgSDgoGcmFtX2diGAcgASgFEhEKCWNwdV9jb3JlcxgIIAEoBRIKCgJvcxgJIAEoCRIMCgRhcmNoGAogASgJInAKCE1vZGVsRml0EhAKCHJ1bm5hYmxlGAEgASgIEhIKCmdwdV92aWFibGUYAiABKAgSEQoJZml0X2NsYXNzGAMgASgJEhkKEXZyYW1fc2hvcnRmYWxsX2diGAQgASgFEhAKCHdhcm5pbmdzGAUgAygJIpUBChBCYWNrZW5kUmVhZGluZXNzEg8KB2JhY2tlbmQYASABKAkSEQoJaG9zdF90b29sGAIgASgJEg0KBXJlYWR5GAMgASgIEhQKDGluc3RhbGxfdGllchgEIAEoCRITCgtyZW1lZGlhdGlvbhgFIAEoCRITCgttYW51YWxfaGludBgGIAEoCRIOCgZkZXRhaWwYByABKAkilQIKDkNhbmRpZGF0ZU1vZGVsEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBIzCgNmaXQYAiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsRml0Ej8KB2JhY2tlbmQYAyABKAsyLi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkJhY2tlbmRSZWFkaW5lc3MSEwoLcmVhZHlfc3RhdGUYBCABKAkSEAoIc2VsZWN0ZWQYBSABKAgSDwoHc3VwcG9ydBgGIAEoCRIRCgl0ZWNobmlxdWUYByABKAkSDgoGY2F2ZWF0GAggASgJItkBChtMaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEjcKBGhvc3QYAiABKAsyKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkhvc3RTdW1tYXJ5EkAKCmNhbmRpZGF0ZXMYAyADKAsyLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNhbmRpZGF0ZU1vZGVsEhMKC3NlbGVjdGVkX2lkGAQgASgJEhcKD3NlbGVjdGVkX3JlYXNvbhgFIAEoCSp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADKowBChZDYXRhbG9nRmluZGluZ1NldmVyaXR5EigKJENBVEFMT0dfRklORElOR19TRVZFUklUWV9VTlNQRUNJRklFRBAAEiIKHkNBVEFMT0dfRklORElOR19TRVZFUklUWV9FUlJPUhABEiQKIENBVEFMT0dfRklORElOR19TRVZFUklUWV9XQVJOSU5HEAIytxAKDU1vZGVsc1NlcnZpY2USbwoKTGlzdE1vZGVscxIvLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE1vZGVsc1JlcXVlc3QaMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXNwb25zZRJpCghHZXRNb2RlbBItLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXF1ZXN0Gi4udnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRNb2RlbFJlc3BvbnNlEnsKDkxpc3RPcGVyYXRpb25zEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1JlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25zUmVzcG9uc2UScgoLU2VsZWN0TW9kZWwSMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVxdWVzdBoxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2VsZWN0TW9kZWxSZXNwb25zZRJ+Cg9TZXRNb2RlbEVuYWJsZWQSNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlcXVlc3QaNS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNldE1vZGVsRW5hYmxlZFJlc3BvbnNlEngKDUxpc3RCbG9ja2xpc3QSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RCbG9ja2xpc3RSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVzcG9uc2USdQoMSW5zdGFsbE1vZGVsEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5JbnN0YWxsTW9kZWxSZXNwb25zZRJyCgtSZW1vdmVNb2RlbBIwLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVtb3ZlTW9kZWxSZXF1ZXN0GjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5SZW1vdmVNb2RlbFJlc3BvbnNlEnsKDkFkZEN1c3RvbU1vZGVsEjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5BZGRDdXN0b21Nb2RlbFJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkFkZEN1c3RvbU1vZGVsUmVzcG9uc2USfgoPU2V0RGVmYXVsdE1vZGVsEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXREZWZhdWx0TW9kZWxSZXNwb25zZRJ1CgxMaXN0RGVmYXVsdHMSMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1JlcXVlc3QaMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3REZWZhdWx0c1Jlc3BvbnNlEngKDURvY3RvckNhdGFsb2cSMi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckNhdGFsb2dSZXF1ZXN0GjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Eb2N0b3JDYXRhbG9nUmVzcG9uc2USewoORG9jdG9yQmFja2VuZHMSMy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkRvY3RvckJhY2tlbmRzUmVxdWVzdBo0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRG9jdG9yQmFja2VuZHNSZXNwb25zZRJ4Cg1FbnN1cmVCYWNrZW5kEjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5FbnN1cmVCYWNrZW5kUmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuRW5zdXJlQmFja2VuZFJlc3BvbnNlEnsKDkdldEhvc3RTdW1tYXJ5EjMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5HZXRIb3N0U3VtbWFyeVJlcXVlc3QaNC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldEhvc3RTdW1tYXJ5UmVzcG9uc2USigEKE0xpc3RPcGVyYXRpb25Nb2RlbHMSOC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RPcGVyYXRpb25Nb2RlbHNSZXF1ZXN0GjkudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uTW9kZWxzUmVzcG9uc2UShAEKEUV4cGxhaW5SZXNvbHV0aW9uEjYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5FeHBsYWluUmVzb2x1dGlvblJlcXVlc3QaNy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkV4cGxhaW5SZXNvbHV0aW9uUmVzcG9uc2VCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9tb2RlbHM7bW9kZWxzX3YxYgZwcm90bzM");
 
 /**
  * Hardware captures a model's host requirements.
@@ -1115,6 +1115,156 @@ export const ListOperationModelsRequestSchema: GenMessage<ListOperationModelsReq
   messageDesc(file_image_tools_v1_models_models, 38);
 
 /**
+ * Resolution is the explicit, inspectable answer to "what would run for this
+ * operation on this host" (mirrors api/internal/resolver.Resolution). Producing
+ * it executes nothing.
+ *
+ * @generated from message vrooli.image_tools.v1.models.Resolution
+ */
+export type Resolution = Message<"vrooli.image_tools.v1.models.Resolution"> & {
+  /**
+   * operation is the resolved operation.
+   *
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * model_id / model_name identify the chosen registry entry.
+   *
+   * @generated from field: string model_id = 2;
+   */
+  modelId: string;
+
+  /**
+   * @generated from field: string model_name = 3;
+   */
+  modelName: string;
+
+  /**
+   * support is "native" (the model declares the op) or "derived" (the model's
+   * architecture derives it through a named technique).
+   *
+   * @generated from field: string support = 4;
+   */
+  support: string;
+
+  /**
+   * technique names the derived technique that yields the op ("" for native ops,
+   * which the backend's own builder resolves).
+   *
+   * @generated from field: string technique = 5;
+   */
+  technique: string;
+
+  /**
+   * pipeline_class is the model's declared diffusers pipeline class when it has
+   * one (informational; "" for backends with no such dispatch).
+   *
+   * @generated from field: string pipeline_class = 6;
+   */
+  pipelineClass: string;
+
+  /**
+   * caveat is the derived-op quality note ("" for native ops).
+   *
+   * @generated from field: string caveat = 7;
+   */
+  caveat: string;
+
+  /**
+   * weight is the operation's safety consent weight (none|low|high). It is
+   * operation-keyed and invariant to native-vs-derived (decision 113).
+   *
+   * @generated from field: string weight = 8;
+   */
+  weight: string;
+
+  /**
+   * tier is the backend tier the op would run on (local-gpu|local-cpu|byok).
+   *
+   * @generated from field: string tier = 9;
+   */
+  tier: string;
+
+  /**
+   * gpu_viable is true when the chosen model would run on a detected GPU with
+   * known, sufficient VRAM.
+   *
+   * @generated from field: bool gpu_viable = 10;
+   */
+  gpuViable: boolean;
+
+  /**
+   * warnings carries the selection + backend cautions (CPU-slow, VRAM shortfall,
+   * derived-op caveat, …).
+   *
+   * @generated from field: repeated string warnings = 11;
+   */
+  warnings: string[];
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.Resolution.
+ * Use `create(ResolutionSchema)` to create a new message.
+ */
+export const ResolutionSchema: GenMessage<Resolution> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 39);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ExplainResolutionRequest
+ */
+export type ExplainResolutionRequest = Message<"vrooli.image_tools.v1.models.ExplainResolutionRequest"> & {
+  /**
+   * Operation to resolve (must be in the vocabulary).
+   *
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * Optional: force a specific model id (still validated for op-support,
+   * enabled-state, and host-runnability). Empty resolves the model selection
+   * would pick.
+   *
+   * @generated from field: string model_id = 2;
+   */
+  modelId: string;
+
+  /**
+   * allow_byok permits a paid BYOK cloud tier when no local backend is available
+   * (the resolution then reports that tier).
+   *
+   * @generated from field: bool allow_byok = 3;
+   */
+  allowByok: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ExplainResolutionRequest.
+ * Use `create(ExplainResolutionRequestSchema)` to create a new message.
+ */
+export const ExplainResolutionRequestSchema: GenMessage<ExplainResolutionRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 40);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ExplainResolutionResponse
+ */
+export type ExplainResolutionResponse = Message<"vrooli.image_tools.v1.models.ExplainResolutionResponse"> & {
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.Resolution resolution = 1;
+   */
+  resolution?: Resolution | undefined;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ExplainResolutionResponse.
+ * Use `create(ExplainResolutionResponseSchema)` to create a new message.
+ */
+export const ExplainResolutionResponseSchema: GenMessage<ExplainResolutionResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 41);
+
+/**
  * HostSummary is a compact, user-facing snapshot of the host's AI-relevant
  * hardware — the transparency layer for the picker ("you have an RTX 4070 Ti
  * SUPER, 16 GB / 3 GB free", so the operator understands fit verdicts).
@@ -1188,7 +1338,7 @@ export type HostSummary = Message<"vrooli.image_tools.v1.models.HostSummary"> & 
  * Use `create(HostSummarySchema)` to create a new message.
  */
 export const HostSummarySchema: GenMessage<HostSummary> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 39);
+  messageDesc(file_image_tools_v1_models_models, 42);
 
 /**
  * ModelFit is the host-aware runnability verdict for one model (mirrors
@@ -1244,7 +1394,7 @@ export type ModelFit = Message<"vrooli.image_tools.v1.models.ModelFit"> & {
  * Use `create(ModelFitSchema)` to create a new message.
  */
 export const ModelFitSchema: GenMessage<ModelFit> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 40);
+  messageDesc(file_image_tools_v1_models_models, 43);
 
 /**
  * BackendReadiness is the provisioning posture of the host program a model needs
@@ -1313,7 +1463,7 @@ export type BackendReadiness = Message<"vrooli.image_tools.v1.models.BackendRead
  * Use `create(BackendReadinessSchema)` to create a new message.
  */
 export const BackendReadinessSchema: GenMessage<BackendReadiness> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 41);
+  messageDesc(file_image_tools_v1_models_models, 44);
 
 /**
  * CandidateModel is one model in the picker menu, fully annotated for this host.
@@ -1346,6 +1496,9 @@ export type CandidateModel = Message<"vrooli.image_tools.v1.models.CandidateMode
    *   "insufficient"         hardware cannot run it (no CPU path; GPU absent/short)
    *   "unsupported"          no build for this os/arch
    *   "disabled"             disabled in settings (operator can re-enable)
+   *   "derived_pipeline_unproven" the model can serve this op only via a derived
+   *                          technique that is not yet proven runnable (Ready);
+   *                          surfaced honestly, never offered for execution
    *
    * @generated from field: string ready_state = 4;
    */
@@ -1357,6 +1510,30 @@ export type CandidateModel = Message<"vrooli.image_tools.v1.models.CandidateMode
    * @generated from field: bool selected = 5;
    */
   selected: boolean;
+
+  /**
+   * support is how this model serves the REQUESTED operation:
+   *   "native"  the model declares the op (the backend's own builder runs it)
+   *   "derived" the model's architecture derives it through a named technique
+   *
+   * @generated from field: string support = 6;
+   */
+  support: string;
+
+  /**
+   * technique names the derived technique that yields the op ("" for native).
+   *
+   * @generated from field: string technique = 7;
+   */
+  technique: string;
+
+  /**
+   * caveat is the derived-op quality note ("" for native ops). The picker shows
+   * it as a "via workflow" warning chip / banner.
+   *
+   * @generated from field: string caveat = 8;
+   */
+  caveat: string;
 };
 
 /**
@@ -1364,7 +1541,7 @@ export type CandidateModel = Message<"vrooli.image_tools.v1.models.CandidateMode
  * Use `create(CandidateModelSchema)` to create a new message.
  */
 export const CandidateModelSchema: GenMessage<CandidateModel> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 42);
+  messageDesc(file_image_tools_v1_models_models, 45);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListOperationModelsResponse
@@ -1409,7 +1586,7 @@ export type ListOperationModelsResponse = Message<"vrooli.image_tools.v1.models.
  * Use `create(ListOperationModelsResponseSchema)` to create a new message.
  */
 export const ListOperationModelsResponseSchema: GenMessage<ListOperationModelsResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 43);
+  messageDesc(file_image_tools_v1_models_models, 46);
 
 /**
  * CommercialUse classifies a model's commercial-use license posture.
@@ -1667,6 +1844,21 @@ export const ModelsService: GenService<{
     methodKind: "unary";
     input: typeof ListOperationModelsRequestSchema;
     output: typeof ListOperationModelsResponseSchema;
+  },
+  /**
+   * ExplainResolution returns the explicit Resolution for an operation on this
+   * host — which model would run, whether it serves the op natively or via a
+   * derived technique (with the quality caveat), the backend tier, and the
+   * operation's safety consent weight — WITHOUT executing anything. It is the
+   * read-only `--explain` / dry-run surface over the same resolution the AI
+   * submit edge pins into a job.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.ExplainResolution
+   */
+  explainResolution: {
+    methodKind: "unary";
+    input: typeof ExplainResolutionRequestSchema;
+    output: typeof ExplainResolutionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_image_tools_v1_models_models, 0);

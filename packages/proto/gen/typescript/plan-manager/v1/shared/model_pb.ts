@@ -10,7 +10,117 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/shared/model.proto.
  */
 export const file_plan_manager_v1_shared_model: GenFile = /*@__PURE__*/
-  fileDesc("CiJwbGFuLW1hbmFnZXIvdjEvc2hhcmVkL21vZGVsLnByb3RvEh12cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZCKhAgoJUmVmZXJlbmNlEgoKAmlkGAEgASgJEjoKBGtpbmQYAiABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWZlcmVuY2VLaW5kEg4KBnRhcmdldBgDIAEoCRIOCgZmdXR1cmUYBCABKAgSRgoKcmVzb2x1dGlvbhgFIAEoDjIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZVJlc29sdXRpb24SPwoJc3RhbGVuZXNzGAYgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuU3RhbGVuZXNzVGllchIVCg1jaGFuZ2VfZmFjdG9yGAcgASgBEgwKBG5vdGUYCCABKAkitAEKEFJlZ3Jlc3Npb25BbmNob3ISEAoIc3RyYXRlZ3kYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFQoNYmFzZWxpbmVfbmFtZRgDIAEoCRIQCghoZWFkX3NoYRgEIAEoCRIXCg9hbGxvd2xpc3RfcGF0aHMYBSADKAkSEAoIY29tbWFuZHMYBiADKAkSEwoLY2FwdHVyZWRfYXQYByABKAkSEwoLdW5hdmFpbGFibGUYCCABKAgiXgoIRGVjaXNpb24SCgoCaWQYASABKAkSDwoHc3VtbWFyeRgCIAEoCRIOCgZkZXRhaWwYAyABKAkSEAoIcGhhc2VfaWQYBCABKAkSEwoLcmVjb3JkZWRfYXQYBSABKAkitQEKB0ZpbmRpbmcSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDgoGZGV0YWlsGAMgASgJEjwKBnRyaWFnZRgEIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmdUcmlhZ2USEAoIcGhhc2VfaWQYBSABKAkSEwoLcmVjb3JkZWRfYXQYBiABKAkSGgoSYXR0cmlidXRpb25fcnVuX2lkGAcgASgJIvsBChBWYWxpZGF0aW9uUmVzdWx0EgoKAmlkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSEAoIcGhhc2VfaWQYAyABKAkSQQoHdmVyZGljdBgEIAEoDjIwLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25WZXJkaWN0Ej8KCXN0YWxlbmVzcxgFIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFAoMY29tbWFuZHNfcnVuGAYgAygJEg4KBmRldGFpbBgHIAEoCRIOCgZyYW5fYXQYCCABKAki1AMKBVBoYXNlEgoKAmlkGAEgASgJEg0KBW9yZGVyGAIgASgFEg0KBXRpdGxlGAMgASgJEg4KBmludGVudBgEIAEoCRIYChByZXF1aXJlZF9yZWFkaW5nGAUgAygJEhEKCXJlbWluZGVycxgGIAMoCRIWCg5iYXNlbGluZV9zY29wZRgHIAMoCRISCgphY2NlcHRhbmNlGAggASgJEjoKBnN0YXR1cxgJIAEoDjIqLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlU3RhdHVzEkgKD2xhc3RfdmFsaWRhdGlvbhgKIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25SZXN1bHQSOgoJZGVjaXNpb25zGAsgAygLMicudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRGVjaXNpb24SOAoIZmluZGluZ3MYDCADKAsyJi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5GaW5kaW5nEjwKCnJlZmVyZW5jZXMYDSADKAsyKC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWZlcmVuY2Ui9wMKBFBsYW4SCgoCaWQYASABKAkSDAoEc2x1ZxgCIAEoCRINCgV0aXRsZRgDIAEoCRI5CgZzdGF0dXMYBCABKA4yKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuU3RhdHVzEhQKDGNvbnRlbnRfaGFzaBgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJEhIKCnVwZGF0ZWRfYXQYByABKAkSDwoHcHVycG9zZRgIIAEoCRINCgVzY29wZRgJIAEoCRITCgtjb25zdHJhaW50cxgKIAEoCRIRCglub25fZ29hbHMYCyABKAkSPAoKcmVmZXJlbmNlcxgMIAMoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZRJKChFyZWdyZXNzaW9uX2FuY2hvchgNIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZ3Jlc3Npb25BbmNob3ISGgoSZGVmaW5pdGlvbl9vZl9kb25lGA4gASgJEjQKBnBoYXNlcxgPIAMoCzIkLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlEhIKCnN1cGVyc2VkZXMYECADKAkSFQoNc3VwZXJzZWRlZF9ieRgRIAMoCSJCCghQbGFuRWRnZRIUCgxmcm9tX3BsYW5faWQYASABKAkSEgoKdG9fcGxhbl9pZBgCIAEoCRIMCgRraW5kGAMgASgJItMBCg1WZWxvY2l0eVBvaW50EgoKAmlkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEhkKEXdhbGxfdGltZV9zZWNvbmRzGAQgASgDEg4KBnRva2VucxgFIAEoAxISCgppdGVyYXRpb25zGAYgASgFEkEKDGNvbXBsZXRlbmVzcxgHIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbXBsZXRlbmVzcxITCgtyZWNvcmRlZF9hdBgIIAEoCSLUAwoHSGFuZG9mZhIKCgJpZBgBIAEoCRIUCgxleGVjdXRpb25faWQYAiABKAkSDwoHcGxhbl9pZBgDIAEoCRJBCgxjb21wbGV0ZW5lc3MYBCABKA4yKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Db21wbGV0ZW5lc3MSFwoPcmVzdW1lX3BoYXNlX2lkGAUgASgJEjoKCWRlY2lzaW9ucxgGIAMoCzInLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkRlY2lzaW9uEkIKEmNhbmRpZGF0ZV9maW5kaW5ncxgHIAMoCzImLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmcSSAoPbGFzdF92YWxpZGF0aW9uGAggASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI/CglzdGFsZW5lc3MYCSABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5TdGFsZW5lc3NUaWVyEhkKEXByb3NlX2hhbmRvZmZfcmVmGAogASgJEhQKDGFzc2VtYmxlZF9hdBgLIAEoCSqMAQoKUGxhblN0YXR1cxIbChdQTEFOX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEVBMQU5fU1RBVFVTX0RSQUZUEAESFgoSUExBTl9TVEFUVVNfQUNUSVZFEAISGAoUUExBTl9TVEFUVVNfQ09NUExFVEUQAxIYChRQTEFOX1NUQVRVU19BUkNISVZFRBAEKowBCgtQaGFzZVN0YXR1cxIcChhQSEFTRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIVChFQSEFTRV9TVEFUVVNfVE9ETxABEhcKE1BIQVNFX1NUQVRVU19BQ1RJVkUQAhIVChFQSEFTRV9TVEFUVVNfRE9ORRADEhgKFFBIQVNFX1NUQVRVU19CTE9DS0VEEAQqkAEKDVN0YWxlbmVzc1RpZXISHgoaU1RBTEVORVNTX1RJRVJfVU5TUEVDSUZJRUQQABIYChRTVEFMRU5FU1NfVElFUl9GUkVTSBABEiAKHFNUQUxFTkVTU19USUVSX0xJR0hUTFlfU1RBTEUQAhIjCh9TVEFMRU5FU1NfVElFUl9ERUZJTklURUxZX1NUQUxFEAMqeAoNUmVmZXJlbmNlS2luZBIeChpSRUZFUkVOQ0VfS0lORF9VTlNQRUNJRklFRBAAEhcKE1JFRkVSRU5DRV9LSU5EX0NPREUQARIWChJSRUZFUkVOQ0VfS0lORF9SRVEQAhIWChJSRUZFUkVOQ0VfS0lORF9ET0MQAyrGAQoTUmVmZXJlbmNlUmVzb2x1dGlvbhIkCiBSRUZFUkVOQ0VfUkVTT0xVVElPTl9VTlNQRUNJRklFRBAAEiEKHVJFRkVSRU5DRV9SRVNPTFVUSU9OX1JFU09MVkVEEAESIwofUkVGRVJFTkNFX1JFU09MVVRJT05fVU5SRVNPTFZFRBACEh8KG1JFRkVSRU5DRV9SRVNPTFVUSU9OX0ZVVFVSRRADEiAKHFJFRkVSRU5DRV9SRVNPTFVUSU9OX01JU1NJTkcQBCqIAQoNRmluZGluZ1RyaWFnZRIeChpGSU5ESU5HX1RSSUFHRV9VTlNQRUNJRklFRBAAEhwKGEZJTkRJTkdfVFJJQUdFX0NBTkRJREFURRABEhsKF0ZJTkRJTkdfVFJJQUdFX1BST01PVEVEEAISHAoYRklORElOR19UUklBR0VfRElTTUlTU0VEEAMqXQoMQ29tcGxldGVuZXNzEhwKGENPTVBMRVRFTkVTU19VTlNQRUNJRklFRBAAEhUKEUNPTVBMRVRFTkVTU19GVUxMEAESGAoUQ09NUExFVEVORVNTX1BBUlRJQUwQAiqRAQoRVmFsaWRhdGlvblZlcmRpY3QSIgoeVkFMSURBVElPTl9WRVJESUNUX1VOU1BFQ0lGSUVEEAASGwoXVkFMSURBVElPTl9WRVJESUNUX1BBU1MQARIbChdWQUxJREFUSU9OX1ZFUkRJQ1RfRkFJTBACEh4KGlZBTElEQVRJT05fVkVSRElDVF9VTktOT1dOEANCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiJwbGFuLW1hbmFnZXIvdjEvc2hhcmVkL21vZGVsLnByb3RvEh12cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZCKzAQoKTmV4dEFjdGlvbhIKCgJpZBgBIAEoCRI7CgRraW5kGAIgASgOMi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTmV4dEFjdGlvbktpbmQSDQoFbGFiZWwYAyABKAkSDgoGcmVhc29uGAQgASgJEgwKBGFyZ3YYBSADKAkSGwoTY29udGVudF9wbGFjZWhvbGRlchgGIAEoCRISCgpibG9ja2VkX2J5GAcgAygJItoBCgpHdWlkZWRTdGVwEhEKCXN0ZXBfa2luZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhQKDGluc3RydWN0aW9ucxgEIAMoCRIXCg9yZXF1aXJlZF9pbnB1dHMYBSADKAkSEAoIZXhhbXBsZXMYBiADKAkSFwoPY29tbW9uX21pc3Rha2VzGAcgAygJEj8KDG5leHRfYWN0aW9ucxgIIAMoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLk5leHRBY3Rpb24ioQIKCVJlZmVyZW5jZRIKCgJpZBgBIAEoCRI6CgRraW5kGAIgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlS2luZBIOCgZ0YXJnZXQYAyABKAkSDgoGZnV0dXJlGAQgASgIEkYKCnJlc29sdXRpb24YBSABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWZlcmVuY2VSZXNvbHV0aW9uEj8KCXN0YWxlbmVzcxgGIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFQoNY2hhbmdlX2ZhY3RvchgHIAEoARIMCgRub3RlGAggASgJIqQEChNSZWxldmFudENvbnRleHRJdGVtEgoKAmlkGAEgASgJEkAKBGtpbmQYAiABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRLaW5kEkIKBXNjb3BlGAMgASgOMjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U2NvcGUSEAoIcGhhc2VfaWQYBCABKAkSDQoFbGFiZWwYBSABKAkSDgoGcmVhc29uGAYgASgJEhMKC2luc3RydWN0aW9uGAcgASgJEg8KB2NvbW1hbmQYCCABKAkSDAoEYXJndhgJIAMoCRIOCgZ0YXJnZXQYCiABKAkSEAoIcmVxdWlyZWQYCyABKAgSUQoNcmVwZWF0X3BvbGljeRgMIAEoDjI6LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dFJlcGVhdFBvbGljeRJECgZzb3VyY2UYDSABKA4yNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRTb3VyY2USRAoGc3RhdHVzGA4gASgOMjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U3RhdHVzEhUKDXN0YXR1c19kZXRhaWwYDyABKAkitAEKEFJlZ3Jlc3Npb25BbmNob3ISEAoIc3RyYXRlZ3kYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFQoNYmFzZWxpbmVfbmFtZRgDIAEoCRIQCghoZWFkX3NoYRgEIAEoCRIXCg9hbGxvd2xpc3RfcGF0aHMYBSADKAkSEAoIY29tbWFuZHMYBiADKAkSEwoLY2FwdHVyZWRfYXQYByABKAkSEwoLdW5hdmFpbGFibGUYCCABKAgiXgoIRGVjaXNpb24SCgoCaWQYASABKAkSDwoHc3VtbWFyeRgCIAEoCRIOCgZkZXRhaWwYAyABKAkSEAoIcGhhc2VfaWQYBCABKAkSEwoLcmVjb3JkZWRfYXQYBSABKAkitQEKB0ZpbmRpbmcSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDgoGZGV0YWlsGAMgASgJEjwKBnRyaWFnZRgEIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmdUcmlhZ2USEAoIcGhhc2VfaWQYBSABKAkSEwoLcmVjb3JkZWRfYXQYBiABKAkSGgoSYXR0cmlidXRpb25fcnVuX2lkGAcgASgJIs4CChBWYWxpZGF0aW9uUmVzdWx0EgoKAmlkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSEAoIcGhhc2VfaWQYAyABKAkSQQoHdmVyZGljdBgEIAEoDjIwLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25WZXJkaWN0Ej8KCXN0YWxlbmVzcxgFIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFAoMY29tbWFuZHNfcnVuGAYgAygJEg4KBmRldGFpbBgHIAEoCRIOCgZyYW5fYXQYCCABKAkSUQoQY29tbWFuZF9maW5kaW5ncxgJIAMoCzI3LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbW1hbmRWYWxpZGF0aW9uRmluZGluZyK6AQoYQ29tbWFuZFZhbGlkYXRpb25GaW5kaW5nEhQKDGNvbW1hbmRfdGV4dBgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEhgKEHZhbGlkYXRpb25fbGV2ZWwYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRITCgtpc3N1ZV9jb2RlcxgGIAMoCRITCgtzdWdnZXN0aW9ucxgHIAMoCRIQCghndWlkYW5jZRgIIAMoCSKiBAoFUGhhc2USCgoCaWQYASABKAkSDQoFb3JkZXIYAiABKAUSDQoFdGl0bGUYAyABKAkSDgoGaW50ZW50GAQgASgJEhgKEHJlcXVpcmVkX3JlYWRpbmcYBSADKAkSEQoJcmVtaW5kZXJzGAYgAygJEhYKDmJhc2VsaW5lX3Njb3BlGAcgAygJEhIKCmFjY2VwdGFuY2UYCCABKAkSOgoGc3RhdHVzGAkgASgOMioudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2VTdGF0dXMSSAoPbGFzdF92YWxpZGF0aW9uGAogASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI6CglkZWNpc2lvbnMYCyADKAsyJy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5EZWNpc2lvbhI4CghmaW5kaW5ncxgMIAMoCzImLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmcSPAoKcmVmZXJlbmNlcxgNIAMoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZRJMChByZWxldmFudF9jb250ZXh0GA4gAygLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0SXRlbSLFBAoEUGxhbhIKCgJpZBgBIAEoCRIMCgRzbHVnGAIgASgJEg0KBXRpdGxlGAMgASgJEjkKBnN0YXR1cxgEIAEoDjIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW5TdGF0dXMSFAoMY29udGVudF9oYXNoGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCRIPCgdwdXJwb3NlGAggASgJEg0KBXNjb3BlGAkgASgJEhMKC2NvbnN0cmFpbnRzGAogASgJEhEKCW5vbl9nb2FscxgLIAEoCRI8CgpyZWZlcmVuY2VzGAwgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEkoKEXJlZ3Jlc3Npb25fYW5jaG9yGA0gASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVncmVzc2lvbkFuY2hvchIaChJkZWZpbml0aW9uX29mX2RvbmUYDiABKAkSNAoGcGhhc2VzGA8gAygLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2USEgoKc3VwZXJzZWRlcxgQIAMoCRIVCg1zdXBlcnNlZGVkX2J5GBEgAygJEkwKEHJlbGV2YW50X2NvbnRleHQYEiADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRJdGVtIkIKCFBsYW5FZGdlEhQKDGZyb21fcGxhbl9pZBgBIAEoCRISCgp0b19wbGFuX2lkGAIgASgJEgwKBGtpbmQYAyABKAki0wEKDVZlbG9jaXR5UG9pbnQSCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSGQoRd2FsbF90aW1lX3NlY29uZHMYBCABKAMSDgoGdG9rZW5zGAUgASgDEhIKCml0ZXJhdGlvbnMYBiABKAUSQQoMY29tcGxldGVuZXNzGAcgASgOMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuQ29tcGxldGVuZXNzEhMKC3JlY29yZGVkX2F0GAggASgJItQDCgdIYW5kb2ZmEgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIPCgdwbGFuX2lkGAMgASgJEkEKDGNvbXBsZXRlbmVzcxgEIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbXBsZXRlbmVzcxIXCg9yZXN1bWVfcGhhc2VfaWQYBSABKAkSOgoJZGVjaXNpb25zGAYgAygLMicudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRGVjaXNpb24SQgoSY2FuZGlkYXRlX2ZpbmRpbmdzGAcgAygLMiYudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRmluZGluZxJICg9sYXN0X3ZhbGlkYXRpb24YCCABKAsyLy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uUmVzdWx0Ej8KCXN0YWxlbmVzcxgJIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISGQoRcHJvc2VfaGFuZG9mZl9yZWYYCiABKAkSFAoMYXNzZW1ibGVkX2F0GAsgASgJKowBCgpQbGFuU3RhdHVzEhsKF1BMQU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRUExBTl9TVEFUVVNfRFJBRlQQARIWChJQTEFOX1NUQVRVU19BQ1RJVkUQAhIYChRQTEFOX1NUQVRVU19DT01QTEVURRADEhgKFFBMQU5fU1RBVFVTX0FSQ0hJVkVEEAQqjAEKC1BoYXNlU3RhdHVzEhwKGFBIQVNFX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEVBIQVNFX1NUQVRVU19UT0RPEAESFwoTUEhBU0VfU1RBVFVTX0FDVElWRRACEhUKEVBIQVNFX1NUQVRVU19ET05FEAMSGAoUUEhBU0VfU1RBVFVTX0JMT0NLRUQQBCqQAQoNU3RhbGVuZXNzVGllchIeChpTVEFMRU5FU1NfVElFUl9VTlNQRUNJRklFRBAAEhgKFFNUQUxFTkVTU19USUVSX0ZSRVNIEAESIAocU1RBTEVORVNTX1RJRVJfTElHSFRMWV9TVEFMRRACEiMKH1NUQUxFTkVTU19USUVSX0RFRklOSVRFTFlfU1RBTEUQAyp4Cg1SZWZlcmVuY2VLaW5kEh4KGlJFRkVSRU5DRV9LSU5EX1VOU1BFQ0lGSUVEEAASFwoTUkVGRVJFTkNFX0tJTkRfQ09ERRABEhYKElJFRkVSRU5DRV9LSU5EX1JFURACEhYKElJFRkVSRU5DRV9LSU5EX0RPQxADKsYBChNSZWZlcmVuY2VSZXNvbHV0aW9uEiQKIFJFRkVSRU5DRV9SRVNPTFVUSU9OX1VOU1BFQ0lGSUVEEAASIQodUkVGRVJFTkNFX1JFU09MVVRJT05fUkVTT0xWRUQQARIjCh9SRUZFUkVOQ0VfUkVTT0xVVElPTl9VTlJFU09MVkVEEAISHwobUkVGRVJFTkNFX1JFU09MVVRJT05fRlVUVVJFEAMSIAocUkVGRVJFTkNFX1JFU09MVVRJT05fTUlTU0lORxAEKqgCChNSZWxldmFudENvbnRleHRLaW5kEiUKIVJFTEVWQU5UX0NPTlRFWFRfS0lORF9VTlNQRUNJRklFRBAAEh8KG1JFTEVWQU5UX0NPTlRFWFRfS0lORF9TS0lMTBABEh0KGVJFTEVWQU5UX0NPTlRFWFRfS0lORF9ET0MQAhIhCh1SRUxFVkFOVF9DT05URVhUX0tJTkRfQ09NTUFORBADEiAKHFJFTEVWQU5UX0NPTlRFWFRfS0lORF9TRUFSQ0gQBBIiCh5SRUxFVkFOVF9DT05URVhUX0tJTkRfQ09ERV9SRUYQBRIhCh1SRUxFVkFOVF9DT05URVhUX0tJTkRfUkVRX1JFRhAGEh4KGlJFTEVWQU5UX0NPTlRFWFRfS0lORF9OT1RFEAcqgwEKFFJlbGV2YW50Q29udGV4dFNjb3BlEiYKIlJFTEVWQU5UX0NPTlRFWFRfU0NPUEVfVU5TUEVDSUZJRUQQABIhCh1SRUxFVkFOVF9DT05URVhUX1NDT1BFX0dMT0JBTBABEiAKHFJFTEVWQU5UX0NPTlRFWFRfU0NPUEVfUEhBU0UQAirAAgobUmVsZXZhbnRDb250ZXh0UmVwZWF0UG9saWN5Ei4KKlJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9VTlNQRUNJRklFRBAAEjUKMVJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9PTkNFX1BFUl9FWEVDVVRJT04QARIsCihSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfT05fUkVTVU1FEAISLgoqUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX0VWRVJZX1BIQVNFEAMSLgoqUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX1BIQVNFX0VOVFJZEAQSLAooUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX0FTX05FRURFRBAFKtwBChVSZWxldmFudENvbnRleHRTb3VyY2USJwojUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfVU5TUEVDSUZJRUQQABIkCiBSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9BVVRIT1JFRBABEiYKIlJFTEVWQU5UX0NPTlRFWFRfU09VUkNFX0RJU0NPVkVSRUQQAhIkCiBSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9NSUdSQVRFRBADEiYKIlJFTEVWQU5UX0NPTlRFWFRfU09VUkNFX0FVVE9GSUxMRUQQBCqxAQoVUmVsZXZhbnRDb250ZXh0U3RhdHVzEicKI1JFTEVWQU5UX0NPTlRFWFRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIQodUkVMRVZBTlRfQ09OVEVYVF9TVEFUVVNfUkVBRFkQARIkCiBSRUxFVkFOVF9DT05URVhUX1NUQVRVU19ERUdSQURFRBACEiYKIlJFTEVWQU5UX0NPTlRFWFRfU1RBVFVTX1VOUkVTT0xWRUQQAyqIAQoNRmluZGluZ1RyaWFnZRIeChpGSU5ESU5HX1RSSUFHRV9VTlNQRUNJRklFRBAAEhwKGEZJTkRJTkdfVFJJQUdFX0NBTkRJREFURRABEhsKF0ZJTkRJTkdfVFJJQUdFX1BST01PVEVEEAISHAoYRklORElOR19UUklBR0VfRElTTUlTU0VEEAMqXQoMQ29tcGxldGVuZXNzEhwKGENPTVBMRVRFTkVTU19VTlNQRUNJRklFRBAAEhUKEUNPTVBMRVRFTkVTU19GVUxMEAESGAoUQ09NUExFVEVORVNTX1BBUlRJQUwQAiqRAQoRVmFsaWRhdGlvblZlcmRpY3QSIgoeVkFMSURBVElPTl9WRVJESUNUX1VOU1BFQ0lGSUVEEAASGwoXVkFMSURBVElPTl9WRVJESUNUX1BBU1MQARIbChdWQUxJREFUSU9OX1ZFUkRJQ1RfRkFJTBACEh4KGlZBTElEQVRJT05fVkVSRElDVF9VTktOT1dOEAMqtAEKDk5leHRBY3Rpb25LaW5kEiAKHE5FWFRfQUNUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIgChxORVhUX0FDVElPTl9LSU5EX1JFQ09NTUVOREVEEAESIAocTkVYVF9BQ1RJT05fS0lORF9BTFRFUk5BVElWRRACEh0KGU5FWFRfQUNUSU9OX0tJTkRfT1BUSU9OQUwQAxIdChlORVhUX0FDVElPTl9LSU5EX1JFQ09WRVJZEARCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+
+/**
+ * NextAction is one concrete command/action the API recommends for the current
+ * guided step. argv is canonical; shell strings are presentation-only.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.NextAction
+ */
+export type NextAction = Message<"vrooli.plan_manager.v1.shared.NextAction"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.NextActionKind kind = 2;
+   */
+  kind: NextActionKind;
+
+  /**
+   * @generated from field: string label = 3;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: repeated string argv = 5;
+   */
+  argv: string[];
+
+  /**
+   * Filled only when the action needs agent-authored content.
+   *
+   * @generated from field: string content_placeholder = 6;
+   */
+  contentPlaceholder: string;
+
+  /**
+   * Human-readable blockers that must be resolved before this action can run.
+   *
+   * @generated from field: repeated string blocked_by = 7;
+   */
+  blockedBy: string[];
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.NextAction.
+ * Use `create(NextActionSchema)` to create a new message.
+ */
+export const NextActionSchema: GenMessage<NextAction> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 0);
+
+/**
+ * GuidedStep is the API-owned steering contract for Plan Manager wizard flows.
+ * Authoring, execution, CLI, UI, and future scenario consumers all read this
+ * shape instead of re-deriving workflow order.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.GuidedStep
+ */
+export type GuidedStep = Message<"vrooli.plan_manager.v1.shared.GuidedStep"> & {
+  /**
+   * @generated from field: string step_kind = 1;
+   */
+  stepKind: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string summary = 3;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: repeated string instructions = 4;
+   */
+  instructions: string[];
+
+  /**
+   * @generated from field: repeated string required_inputs = 5;
+   */
+  requiredInputs: string[];
+
+  /**
+   * @generated from field: repeated string examples = 6;
+   */
+  examples: string[];
+
+  /**
+   * @generated from field: repeated string common_mistakes = 7;
+   */
+  commonMistakes: string[];
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.NextAction next_actions = 8;
+   */
+  nextActions: NextAction[];
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.GuidedStep.
+ * Use `create(GuidedStepSchema)` to create a new message.
+ */
+export const GuidedStepSchema: GenMessage<GuidedStep> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 1);
 
 /**
  * Reference is one connected-code locator on a plan or phase. AUTHORED (kind +
@@ -76,7 +186,105 @@ export type Reference = Message<"vrooli.plan_manager.v1.shared.Reference"> & {
  * Use `create(ReferenceSchema)` to create a new message.
  */
 export const ReferenceSchema: GenMessage<Reference> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 0);
+  messageDesc(file_plan_manager_v1_shared_model, 2);
+
+/**
+ * RelevantContextItem is the execution-facing setup contract. It replaces flat
+ * required-reading prose with typed, ordered context that CLI/UI/execution can
+ * render without re-inferring what an agent should do.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.RelevantContextItem
+ */
+export type RelevantContextItem = Message<"vrooli.plan_manager.v1.shared.RelevantContextItem"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RelevantContextKind kind = 2;
+   */
+  kind: RelevantContextKind;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RelevantContextScope scope = 3;
+   */
+  scope: RelevantContextScope;
+
+  /**
+   * Filled when scope=PHASE. For phase-owned items this mirrors the parent
+   * phase id so consumers can merge global and phase context deterministically.
+   *
+   * @generated from field: string phase_id = 4;
+   */
+  phaseId: string;
+
+  /**
+   * @generated from field: string label = 5;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string reason = 6;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string instruction = 7;
+   */
+  instruction: string;
+
+  /**
+   * Presentation shell command. argv is canonical when both are present.
+   *
+   * @generated from field: string command = 8;
+   */
+  command: string;
+
+  /**
+   * @generated from field: repeated string argv = 9;
+   */
+  argv: string[];
+
+  /**
+   * Locator for docs/code/requirements/skills/search terms.
+   *
+   * @generated from field: string target = 10;
+   */
+  target: string;
+
+  /**
+   * @generated from field: bool required = 11;
+   */
+  required: boolean;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RelevantContextRepeatPolicy repeat_policy = 12;
+   */
+  repeatPolicy: RelevantContextRepeatPolicy;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RelevantContextSource source = 13;
+   */
+  source: RelevantContextSource;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.RelevantContextStatus status = 14;
+   */
+  status: RelevantContextStatus;
+
+  /**
+   * @generated from field: string status_detail = 15;
+   */
+  statusDetail: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.RelevantContextItem.
+ * Use `create(RelevantContextItemSchema)` to create a new message.
+ */
+export const RelevantContextItemSchema: GenMessage<RelevantContextItem> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 3);
 
 /**
  * RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
@@ -149,7 +357,7 @@ export type RegressionAnchor = Message<"vrooli.plan_manager.v1.shared.Regression
  * Use `create(RegressionAnchorSchema)` to create a new message.
  */
 export const RegressionAnchorSchema: GenMessage<RegressionAnchor> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 1);
+  messageDesc(file_plan_manager_v1_shared_model, 4);
 
 /**
  * Decision is an in-flow recorded design decision (captured during execution via
@@ -189,7 +397,7 @@ export type Decision = Message<"vrooli.plan_manager.v1.shared.Decision"> & {
  * Use `create(DecisionSchema)` to create a new message.
  */
 export const DecisionSchema: GenMessage<Decision> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 2);
+  messageDesc(file_plan_manager_v1_shared_model, 5);
 
 /**
  * Finding is an in-flow recorded candidate finding (possible bug). Always filed
@@ -241,7 +449,7 @@ export type Finding = Message<"vrooli.plan_manager.v1.shared.Finding"> & {
  * Use `create(FindingSchema)` to create a new message.
  */
 export const FindingSchema: GenMessage<Finding> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 3);
+  messageDesc(file_plan_manager_v1_shared_model, 6);
 
 /**
  * ValidationResult is the most recent validation/baseline outcome for a plan or
@@ -290,6 +498,13 @@ export type ValidationResult = Message<"vrooli.plan_manager.v1.shared.Validation
    * @generated from field: string ran_at = 8;
    */
   ranAt: string;
+
+  /**
+   * COMPUTED: authored cli: command references checked through CLI Health.
+   *
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.CommandValidationFinding command_findings = 9;
+   */
+  commandFindings: CommandValidationFinding[];
 };
 
 /**
@@ -297,7 +512,70 @@ export type ValidationResult = Message<"vrooli.plan_manager.v1.shared.Validation
  * Use `create(ValidationResultSchema)` to create a new message.
  */
 export const ValidationResultSchema: GenMessage<ValidationResult> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 4);
+  messageDesc(file_plan_manager_v1_shared_model, 7);
+
+/**
+ * CommandValidationFinding is one CLI Health-backed finding for an authored
+ * command reference in a plan or phase. It validates references, not runtime
+ * execution.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.CommandValidationFinding
+ */
+export type CommandValidationFinding = Message<"vrooli.plan_manager.v1.shared.CommandValidationFinding"> & {
+  /**
+   * @generated from field: string command_text = 1;
+   */
+  commandText: string;
+
+  /**
+   * @generated from field: string verdict = 2;
+   */
+  verdict: string;
+
+  /**
+   * @generated from field: string validation_level = 3;
+   */
+  validationLevel: string;
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string location = 5;
+   */
+  location: string;
+
+  /**
+   * CLI Health issue codes preserved for clients that need structured policy
+   * mapping instead of parsing message text.
+   *
+   * @generated from field: repeated string issue_codes = 6;
+   */
+  issueCodes: string[];
+
+  /**
+   * CLI Health command suggestions, ordered by CLI Health confidence.
+   *
+   * @generated from field: repeated string suggestions = 7;
+   */
+  suggestions: string[];
+
+  /**
+   * CLI Health-authored remediation guidance.
+   *
+   * @generated from field: repeated string guidance = 8;
+   */
+  guidance: string[];
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.CommandValidationFinding.
+ * Use `create(CommandValidationFindingSchema)` to create a new message.
+ */
+export const CommandValidationFindingSchema: GenMessage<CommandValidationFinding> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 8);
 
 /**
  * Phase is a first-class phase — the unit the runner walks and context is scoped
@@ -375,6 +653,11 @@ export type Phase = Message<"vrooli.plan_manager.v1.shared.Phase"> & {
    * @generated from field: repeated vrooli.plan_manager.v1.shared.Reference references = 13;
    */
   references: Reference[];
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem relevant_context = 14;
+   */
+  relevantContext: RelevantContextItem[];
 };
 
 /**
@@ -382,7 +665,7 @@ export type Phase = Message<"vrooli.plan_manager.v1.shared.Phase"> & {
  * Use `create(PhaseSchema)` to create a new message.
  */
 export const PhaseSchema: GenMessage<Phase> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 5);
+  messageDesc(file_plan_manager_v1_shared_model, 9);
 
 /**
  * Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
@@ -485,6 +768,11 @@ export type Plan = Message<"vrooli.plan_manager.v1.shared.Plan"> & {
    * @generated from field: repeated string superseded_by = 17;
    */
   supersededBy: string[];
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem relevant_context = 18;
+   */
+  relevantContext: RelevantContextItem[];
 };
 
 /**
@@ -492,7 +780,7 @@ export type Plan = Message<"vrooli.plan_manager.v1.shared.Plan"> & {
  * Use `create(PlanSchema)` to create a new message.
  */
 export const PlanSchema: GenMessage<Plan> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 6);
+  messageDesc(file_plan_manager_v1_shared_model, 10);
 
 /**
  * PlanEdge is one supersession/dependency edge between two plans (the plan
@@ -524,7 +812,7 @@ export type PlanEdge = Message<"vrooli.plan_manager.v1.shared.PlanEdge"> & {
  * Use `create(PlanEdgeSchema)` to create a new message.
  */
 export const PlanEdgeSchema: GenMessage<PlanEdge> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 7);
+  messageDesc(file_plan_manager_v1_shared_model, 11);
 
 /**
  * VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
@@ -580,7 +868,7 @@ export type VelocityPoint = Message<"vrooli.plan_manager.v1.shared.VelocityPoint
  * Use `create(VelocityPointSchema)` to create a new message.
  */
 export const VelocityPointSchema: GenMessage<VelocityPoint> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 8);
+  messageDesc(file_plan_manager_v1_shared_model, 12);
 
 /**
  * Handoff is the canonical, structured handoff assembled from state captured
@@ -659,7 +947,7 @@ export type Handoff = Message<"vrooli.plan_manager.v1.shared.Handoff"> & {
  * Use `create(HandoffSchema)` to create a new message.
  */
 export const HandoffSchema: GenMessage<Handoff> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 9);
+  messageDesc(file_plan_manager_v1_shared_model, 13);
 
 /**
  * PlanStatus is the lifecycle state of a plan. COMPUTED: derived from phase
@@ -873,6 +1161,202 @@ export const ReferenceResolutionSchema: GenEnum<ReferenceResolution> = /*@__PURE
   enumDesc(file_plan_manager_v1_shared_model, 4);
 
 /**
+ * RelevantContextKind classifies one setup item a fresh/resumed agent should
+ * load, inspect, or run before acting on a plan or phase.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.RelevantContextKind
+ */
+export enum RelevantContextKind {
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_SKILL = 1;
+   */
+  SKILL = 1,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_DOC = 2;
+   */
+  DOC = 2,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_COMMAND = 3;
+   */
+  COMMAND = 3,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_SEARCH = 4;
+   */
+  SEARCH = 4,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_CODE_REF = 5;
+   */
+  CODE_REF = 5,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_REQ_REF = 6;
+   */
+  REQ_REF = 6,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_KIND_NOTE = 7;
+   */
+  NOTE = 7,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.RelevantContextKind.
+ */
+export const RelevantContextKindSchema: GenEnum<RelevantContextKind> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 5);
+
+/**
+ * RelevantContextScope says whether an item applies plan-wide or to one phase.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.RelevantContextScope
+ */
+export enum RelevantContextScope {
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SCOPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SCOPE_GLOBAL = 1;
+   */
+  GLOBAL = 1,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SCOPE_PHASE = 2;
+   */
+  PHASE = 2,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.RelevantContextScope.
+ */
+export const RelevantContextScopeSchema: GenEnum<RelevantContextScope> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 6);
+
+/**
+ * RelevantContextRepeatPolicy says when execution should re-emit the item.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.RelevantContextRepeatPolicy
+ */
+export enum RelevantContextRepeatPolicy {
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION = 1;
+   */
+  ONCE_PER_EXECUTION = 1,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME = 2;
+   */
+  ON_RESUME = 2,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE = 3;
+   */
+  EVERY_PHASE = 3,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY = 4;
+   */
+  PHASE_ENTRY = 4,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED = 5;
+   */
+  AS_NEEDED = 5,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.RelevantContextRepeatPolicy.
+ */
+export const RelevantContextRepeatPolicySchema: GenEnum<RelevantContextRepeatPolicy> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 7);
+
+/**
+ * RelevantContextSource captures how the context item entered the plan.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.RelevantContextSource
+ */
+export enum RelevantContextSource {
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SOURCE_AUTHORED = 1;
+   */
+  AUTHORED = 1,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SOURCE_DISCOVERED = 2;
+   */
+  DISCOVERED = 2,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SOURCE_MIGRATED = 3;
+   */
+  MIGRATED = 3,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_SOURCE_AUTOFILLED = 4;
+   */
+  AUTOFILLED = 4,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.RelevantContextSource.
+ */
+export const RelevantContextSourceSchema: GenEnum<RelevantContextSource> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 8);
+
+/**
+ * RelevantContextStatus records whether the item is usable or degraded.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.RelevantContextStatus
+ */
+export enum RelevantContextStatus {
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_STATUS_READY = 1;
+   */
+  READY = 1,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_STATUS_DEGRADED = 2;
+   */
+  DEGRADED = 2,
+
+  /**
+   * @generated from enum value: RELEVANT_CONTEXT_STATUS_UNRESOLVED = 3;
+   */
+  UNRESOLVED = 3,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.RelevantContextStatus.
+ */
+export const RelevantContextStatusSchema: GenEnum<RelevantContextStatus> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 9);
+
+/**
  * FindingTriage is the operator-triage state of a candidate finding. Findings
  * are filed as CANDIDATE (unvalidated) and never auto-promoted to real bugs.
  *
@@ -910,7 +1394,7 @@ export enum FindingTriage {
  * Describes the enum vrooli.plan_manager.v1.shared.FindingTriage.
  */
 export const FindingTriageSchema: GenEnum<FindingTriage> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 5);
+  enumDesc(file_plan_manager_v1_shared_model, 10);
 
 /**
  * Completeness distinguishes a full run from a partial one. COMPUTED from the
@@ -939,7 +1423,7 @@ export enum Completeness {
  * Describes the enum vrooli.plan_manager.v1.shared.Completeness.
  */
 export const CompletenessSchema: GenEnum<Completeness> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 6);
+  enumDesc(file_plan_manager_v1_shared_model, 11);
 
 /**
  * ValidationVerdict is the outcome of a validation/DoD check. UNKNOWN is the
@@ -974,5 +1458,44 @@ export enum ValidationVerdict {
  * Describes the enum vrooli.plan_manager.v1.shared.ValidationVerdict.
  */
 export const ValidationVerdictSchema: GenEnum<ValidationVerdict> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 7);
+  enumDesc(file_plan_manager_v1_shared_model, 12);
+
+/**
+ * NextActionKind classifies the role of a wizard action in the current guided
+ * step. Clients should treat RECOMMENDED as the default action to execute next.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.NextActionKind
+ */
+export enum NextActionKind {
+  /**
+   * @generated from enum value: NEXT_ACTION_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: NEXT_ACTION_KIND_RECOMMENDED = 1;
+   */
+  RECOMMENDED = 1,
+
+  /**
+   * @generated from enum value: NEXT_ACTION_KIND_ALTERNATIVE = 2;
+   */
+  ALTERNATIVE = 2,
+
+  /**
+   * @generated from enum value: NEXT_ACTION_KIND_OPTIONAL = 3;
+   */
+  OPTIONAL = 3,
+
+  /**
+   * @generated from enum value: NEXT_ACTION_KIND_RECOVERY = 4;
+   */
+  RECOVERY = 4,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.NextActionKind.
+ */
+export const NextActionKindSchema: GenEnum<NextActionKind> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 13);
 

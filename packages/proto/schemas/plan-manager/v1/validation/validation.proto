@@ -13,7 +13,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 // @stability draft
 //
 // ValidationService is the verification surface: it resolves code references
-// against code-facts, computes staleness tiers from referenced-code change,
+// against code-facts, computes staleness tiers from filesystem existence plus
+// git-sourced referenced-code change,
 // derives each phase's exact baseline/validation command set across all affected
 // locations, runs those baselines on request (compute + run, the agent in the
 // loop), and verifies Definition-of-Done against the regression anchor as an
@@ -23,8 +24,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 //
 // This service does NOT own project-level validation of resources/packages —
 // that is consumed from test-genie / scenario-validation. It composes
-// git-control-tower (baseline) and code-facts + the freshness engine (staleness)
-// rather than re-implementing them.
+// git-control-tower (baseline), code-facts (reference evidence), and the
+// platform freshness engine where it can express the needed scope rather than
+// re-implementing scenario-wide health.
 // =============================================================================
 
 service ValidationService {

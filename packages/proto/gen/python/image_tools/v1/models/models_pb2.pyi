@@ -389,6 +389,48 @@ class ListOperationModelsRequest(_message.Message):
     operation: str
     def __init__(self, operation: _Optional[str] = ...) -> None: ...
 
+class Resolution(_message.Message):
+    __slots__ = ("operation", "model_id", "model_name", "support", "technique", "pipeline_class", "caveat", "weight", "tier", "gpu_viable", "warnings")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    MODEL_NAME_FIELD_NUMBER: _ClassVar[int]
+    SUPPORT_FIELD_NUMBER: _ClassVar[int]
+    TECHNIQUE_FIELD_NUMBER: _ClassVar[int]
+    PIPELINE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    CAVEAT_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    TIER_FIELD_NUMBER: _ClassVar[int]
+    GPU_VIABLE_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    model_id: str
+    model_name: str
+    support: str
+    technique: str
+    pipeline_class: str
+    caveat: str
+    weight: str
+    tier: str
+    gpu_viable: bool
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., model_name: _Optional[str] = ..., support: _Optional[str] = ..., technique: _Optional[str] = ..., pipeline_class: _Optional[str] = ..., caveat: _Optional[str] = ..., weight: _Optional[str] = ..., tier: _Optional[str] = ..., gpu_viable: _Optional[bool] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ExplainResolutionRequest(_message.Message):
+    __slots__ = ("operation", "model_id", "allow_byok")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    model_id: str
+    allow_byok: bool
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., allow_byok: _Optional[bool] = ...) -> None: ...
+
+class ExplainResolutionResponse(_message.Message):
+    __slots__ = ("resolution",)
+    RESOLUTION_FIELD_NUMBER: _ClassVar[int]
+    resolution: Resolution
+    def __init__(self, resolution: _Optional[_Union[Resolution, _Mapping]] = ...) -> None: ...
+
 class HostSummary(_message.Message):
     __slots__ = ("has_gpu", "gpu_name", "gpu_count", "vram_total_gb", "vram_free_gb", "vram_known", "ram_gb", "cpu_cores", "os", "arch")
     HAS_GPU_FIELD_NUMBER: _ClassVar[int]
@@ -446,18 +488,24 @@ class BackendReadiness(_message.Message):
     def __init__(self, backend: _Optional[str] = ..., host_tool: _Optional[str] = ..., ready: _Optional[bool] = ..., install_tier: _Optional[str] = ..., remediation: _Optional[str] = ..., manual_hint: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class CandidateModel(_message.Message):
-    __slots__ = ("model", "fit", "backend", "ready_state", "selected")
+    __slots__ = ("model", "fit", "backend", "ready_state", "selected", "support", "technique", "caveat")
     MODEL_FIELD_NUMBER: _ClassVar[int]
     FIT_FIELD_NUMBER: _ClassVar[int]
     BACKEND_FIELD_NUMBER: _ClassVar[int]
     READY_STATE_FIELD_NUMBER: _ClassVar[int]
     SELECTED_FIELD_NUMBER: _ClassVar[int]
+    SUPPORT_FIELD_NUMBER: _ClassVar[int]
+    TECHNIQUE_FIELD_NUMBER: _ClassVar[int]
+    CAVEAT_FIELD_NUMBER: _ClassVar[int]
     model: Model
     fit: ModelFit
     backend: BackendReadiness
     ready_state: str
     selected: bool
-    def __init__(self, model: _Optional[_Union[Model, _Mapping]] = ..., fit: _Optional[_Union[ModelFit, _Mapping]] = ..., backend: _Optional[_Union[BackendReadiness, _Mapping]] = ..., ready_state: _Optional[str] = ..., selected: _Optional[bool] = ...) -> None: ...
+    support: str
+    technique: str
+    caveat: str
+    def __init__(self, model: _Optional[_Union[Model, _Mapping]] = ..., fit: _Optional[_Union[ModelFit, _Mapping]] = ..., backend: _Optional[_Union[BackendReadiness, _Mapping]] = ..., ready_state: _Optional[str] = ..., selected: _Optional[bool] = ..., support: _Optional[str] = ..., technique: _Optional[str] = ..., caveat: _Optional[str] = ...) -> None: ...
 
 class ListOperationModelsResponse(_message.Message):
     __slots__ = ("operation", "host", "candidates", "selected_id", "selected_reason")

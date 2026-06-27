@@ -412,14 +412,30 @@ class ParkRunRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., producer: _Optional[str] = ..., key: _Optional[str] = ..., deadline_unix: _Optional[int] = ..., identity_token: _Optional[str] = ...) -> None: ...
 
 class ParkRunResponse(_message.Message):
-    __slots__ = ("success", "run", "message")
+    __slots__ = ("success", "run", "message", "refused", "result")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     RUN_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    REFUSED_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
     success: bool
     run: Run
     message: str
-    def __init__(self, success: _Optional[bool] = ..., run: _Optional[_Union[Run, _Mapping]] = ..., message: _Optional[str] = ...) -> None: ...
+    refused: bool
+    result: str
+    def __init__(self, success: _Optional[bool] = ..., run: _Optional[_Union[Run, _Mapping]] = ..., message: _Optional[str] = ..., refused: _Optional[bool] = ..., result: _Optional[str] = ...) -> None: ...
+
+class GetAwaitResultResponse(_message.Message):
+    __slots__ = ("found", "key", "result", "resolved_at")
+    FOUND_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_AT_FIELD_NUMBER: _ClassVar[int]
+    found: bool
+    key: str
+    result: str
+    resolved_at: str
+    def __init__(self, found: _Optional[bool] = ..., key: _Optional[str] = ..., result: _Optional[str] = ..., resolved_at: _Optional[str] = ...) -> None: ...
 
 class WakeRunRequest(_message.Message):
     __slots__ = ("run_id", "result", "timed_out")

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file architecture-cartographer/v1/domains/domains.proto.
  */
 export const file_architecture_cartographer_v1_domains_domains: GenFile = /*@__PURE__*/
-  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2RvbWFpbnMvZG9tYWlucy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucyKgAQoNRGVyaXZlZERvbWFpbhIMCgRuYW1lGAEgASgJEg0KBXBhdGhzGAIgAygJEhAKCGdsb3NzYXJ5GAMgAygJEhEKCWFyY2hldHlwZRgEIAEoCRJNCgpwcm92ZW5hbmNlGAUgAygOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2UiiwEKEURvbWFpbkRlY2xhcmF0aW9uEkkKBnNvdXJjZRgBIAEoDjI5LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluU291cmNlEhQKDGRvbWFpbl9uYW1lcxgCIAMoCRIVCg1hdXRob3JpdGF0aXZlGAMgASgIItQDChBEZXJpdmVkRG9tYWluTWFwEhAKCHNjZW5hcmlvGAEgASgJEksKB2RvbWFpbnMYAiADKAsyOi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRlcml2ZWREb21haW4SGAoQc2hhcmVkX3N1YnN0cmF0ZRgDIAMoCRITCgtub25fZG9tYWlucxgEIAMoCRJMCglhdXRob3JpdHkYBSABKA4yOS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpblNvdXJjZRJUCgxkZWNsYXJhdGlvbnMYBiADKAsyPi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpbkRlY2xhcmF0aW9uEi4KCmRlcml2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEl4KFGF1dGhvcml0eV9jb25maWRlbmNlGAggASgOMkAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5BdXRob3JpdHlDb25maWRlbmNlIikKFUV4dHJhY3REb21haW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJrChZFeHRyYWN0RG9tYWluc1Jlc3BvbnNlElEKCmRvbWFpbl9tYXAYASABKAsyPS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRlcml2ZWREb21haW5NYXAiJwoTR2V0RG9tYWluTWFwUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJpChRHZXREb21haW5NYXBSZXNwb25zZRJRCgpkb21haW5fbWFwGAEgASgLMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5EZXJpdmVkRG9tYWluTWFwIv4BChJDb252ZXJnZW5jZUZpbmRpbmcSDAoEa2luZBgBIAEoCRIOCgZkb21haW4YAiABKAkSUgoIc2V2ZXJpdHkYAyABKA4yQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkNvbnZlcmdlbmNlU2V2ZXJpdHkSDwoHbWVzc2FnZRgEIAEoCRJKCgdzb3VyY2VzGAUgAygOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2USGQoRcm9sbGVkX3VwX2RvbWFpbnMYBiADKAkiLAoYQ29udmVyZ2VuY2VSZXBvcnRSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJIq4CChlDb252ZXJnZW5jZVJlcG9ydFJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkwKCWF1dGhvcml0eRgCIAEoDjI5LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluU291cmNlElEKCGZpbmRpbmdzGAMgAygLMj8udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Db252ZXJnZW5jZUZpbmRpbmcSXgoUYXV0aG9yaXR5X2NvbmZpZGVuY2UYBCABKA4yQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkF1dGhvcml0eUNvbmZpZGVuY2UiJwoTRHJhZnREb21haW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJ4Cg5Qcm9wb3NlZERvbWFpbhIMCgRuYW1lGAEgASgJEg0KBXBhdGhzGAIgAygJEhEKCWFyY2hldHlwZRgDIAEoCRIQCghnbG9zc2FyeRgEIAMoCRISCgpjb25maWRlbmNlGAUgASgJEhAKCGV2aWRlbmNlGAYgAygJIogBChREcmFmdERvbWFpbnNSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRJMCgdkb21haW5zGAIgAygLMjsudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Qcm9wb3NlZERvbWFpbhIQCghtYXJrZG93bhgDIAEoCSrIAQoMRG9tYWluU291cmNlEh0KGURPTUFJTl9TT1VSQ0VfVU5TUEVDSUZJRUQQABIeChpET01BSU5fU09VUkNFX0FQSV9NQU5JRkVTVBABEh0KGURPTUFJTl9TT1VSQ0VfRE9NQUlOU19ET0MQAhIdChlET01BSU5fU09VUkNFX0FQSV9GT0xERVJTEAMSHAoYRE9NQUlOX1NPVVJDRV9DTElfR1JPVVBTEAQSHQoZRE9NQUlOX1NPVVJDRV9VSV9GRUFUVVJFUxAFKngKE0F1dGhvcml0eUNvbmZpZGVuY2USJAogQVVUSE9SSVRZX0NPTkZJREVOQ0VfVU5TUEVDSUZJRUQQABIdChlBVVRIT1JJVFlfQ09ORklERU5DRV9ISUdIEAESHAoYQVVUSE9SSVRZX0NPTkZJREVOQ0VfTE9XEAIqeQoTQ29udmVyZ2VuY2VTZXZlcml0eRIkCiBDT05WRVJHRU5DRV9TRVZFUklUWV9VTlNQRUNJRklFRBAAEh0KGUNPTlZFUkdFTkNFX1NFVkVSSVRZX0lORk8QARIdChlDT05WRVJHRU5DRV9TRVZFUklUWV9XQVJOEAIy/QQKDkRvbWFpbnNTZXJ2aWNlEpkBCg5FeHRyYWN0RG9tYWlucxJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRXh0cmFjdERvbWFpbnNSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5FeHRyYWN0RG9tYWluc1Jlc3BvbnNlEpMBCgxHZXREb21haW5NYXASQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkdldERvbWFpbk1hcFJlcXVlc3QaQS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkdldERvbWFpbk1hcFJlc3BvbnNlEqIBChFDb252ZXJnZW5jZVJlcG9ydBJFLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuQ29udmVyZ2VuY2VSZXBvcnRSZXF1ZXN0GkYudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Db252ZXJnZW5jZVJlcG9ydFJlc3BvbnNlEpMBCgxEcmFmdERvbWFpbnMSQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRyYWZ0RG9tYWluc1JlcXVlc3QaQS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRyYWZ0RG9tYWluc1Jlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9kb21haW5zO2RvbWFpbnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2RvbWFpbnMvZG9tYWlucy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucyLHAgoNRGVyaXZlZERvbWFpbhIMCgRuYW1lGAEgASgJEg0KBXBhdGhzGAIgAygJEhAKCGdsb3NzYXJ5GAMgAygJEhYKDnJlc3BvbnNpYmlsaXR5GAQgASgJEg8KB3B1cnBvc2UYBSABKAkSEQoJb3duc19kYXRhGAYgASgJEhgKEHNlY29uZGFyeV90cmFpdHMYByADKAkSEAoIc3VyZmFjZXMYCCADKAkSUAoKYXJjaGV0eXBlcxgJIAMoCzI8LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluQXJjaGV0eXBlEk0KCnByb3ZlbmFuY2UYCiADKA4yOS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpblNvdXJjZSKTAQoPRG9tYWluQXJjaGV0eXBlEgwKBG5hbWUYASABKAkSTAoGc291cmNlGAIgASgOMjwudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5BcmNoZXR5cGVTb3VyY2USEgoKY29uZmlkZW5jZRgDIAEoARIQCghldmlkZW5jZRgEIAMoCSKLAQoRRG9tYWluRGVjbGFyYXRpb24SSQoGc291cmNlGAEgASgOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2USFAoMZG9tYWluX25hbWVzGAIgAygJEhUKDWF1dGhvcml0YXRpdmUYAyABKAgi1AMKEERlcml2ZWREb21haW5NYXASEAoIc2NlbmFyaW8YASABKAkSSwoHZG9tYWlucxgCIAMoCzI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRGVyaXZlZERvbWFpbhIYChBzaGFyZWRfc3Vic3RyYXRlGAMgAygJEhMKC25vbl9kb21haW5zGAQgAygJEkwKCWF1dGhvcml0eRgFIAEoDjI5LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluU291cmNlElQKDGRlY2xhcmF0aW9ucxgGIAMoCzI+LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRG9tYWluRGVjbGFyYXRpb24SLgoKZGVyaXZlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASXgoUYXV0aG9yaXR5X2NvbmZpZGVuY2UYCCABKA4yQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkF1dGhvcml0eUNvbmZpZGVuY2UiKQoVRXh0cmFjdERvbWFpbnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImsKFkV4dHJhY3REb21haW5zUmVzcG9uc2USUQoKZG9tYWluX21hcBgBIAEoCzI9LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRGVyaXZlZERvbWFpbk1hcCInChNHZXREb21haW5NYXBSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImkKFEdldERvbWFpbk1hcFJlc3BvbnNlElEKCmRvbWFpbl9tYXAYASABKAsyPS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRlcml2ZWREb21haW5NYXAi/gEKEkNvbnZlcmdlbmNlRmluZGluZxIMCgRraW5kGAEgASgJEg4KBmRvbWFpbhgCIAEoCRJSCghzZXZlcml0eRgDIAEoDjJALnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuQ29udmVyZ2VuY2VTZXZlcml0eRIPCgdtZXNzYWdlGAQgASgJEkoKB3NvdXJjZXMYBSADKA4yOS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRvbWFpblNvdXJjZRIZChFyb2xsZWRfdXBfZG9tYWlucxgGIAMoCSIsChhDb252ZXJnZW5jZVJlcG9ydFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkirgIKGUNvbnZlcmdlbmNlUmVwb3J0UmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSTAoJYXV0aG9yaXR5GAIgASgOMjkudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Eb21haW5Tb3VyY2USUQoIZmluZGluZ3MYAyADKAsyPy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkNvbnZlcmdlbmNlRmluZGluZxJeChRhdXRob3JpdHlfY29uZmlkZW5jZRgEIAEoDjJALnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuQXV0aG9yaXR5Q29uZmlkZW5jZSInChNEcmFmdERvbWFpbnNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJIngKDlByb3Bvc2VkRG9tYWluEgwKBG5hbWUYASABKAkSDQoFcGF0aHMYAiADKAkSEQoJYXJjaGV0eXBlGAMgASgJEhAKCGdsb3NzYXJ5GAQgAygJEhIKCmNvbmZpZGVuY2UYBSABKAkSEAoIZXZpZGVuY2UYBiADKAkiiAEKFERyYWZ0RG9tYWluc1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEkwKB2RvbWFpbnMYAiADKAsyOy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLlByb3Bvc2VkRG9tYWluEhAKCG1hcmtkb3duGAMgASgJKsgBCgxEb21haW5Tb3VyY2USHQoZRE9NQUlOX1NPVVJDRV9VTlNQRUNJRklFRBAAEh4KGkRPTUFJTl9TT1VSQ0VfQVBJX01BTklGRVNUEAESHQoZRE9NQUlOX1NPVVJDRV9ET01BSU5TX0RPQxACEh0KGURPTUFJTl9TT1VSQ0VfQVBJX0ZPTERFUlMQAxIcChhET01BSU5fU09VUkNFX0NMSV9HUk9VUFMQBBIdChlET01BSU5fU09VUkNFX1VJX0ZFQVRVUkVTEAUqcQoPQXJjaGV0eXBlU291cmNlEiAKHEFSQ0hFVFlQRV9TT1VSQ0VfVU5TUEVDSUZJRUQQABIdChlBUkNIRVRZUEVfU09VUkNFX0RFQ0xBUkVEEAESHQoZQVJDSEVUWVBFX1NPVVJDRV9JTkZFUlJFRBACKngKE0F1dGhvcml0eUNvbmZpZGVuY2USJAogQVVUSE9SSVRZX0NPTkZJREVOQ0VfVU5TUEVDSUZJRUQQABIdChlBVVRIT1JJVFlfQ09ORklERU5DRV9ISUdIEAESHAoYQVVUSE9SSVRZX0NPTkZJREVOQ0VfTE9XEAIqeQoTQ29udmVyZ2VuY2VTZXZlcml0eRIkCiBDT05WRVJHRU5DRV9TRVZFUklUWV9VTlNQRUNJRklFRBAAEh0KGUNPTlZFUkdFTkNFX1NFVkVSSVRZX0lORk8QARIdChlDT05WRVJHRU5DRV9TRVZFUklUWV9XQVJOEAIy/QQKDkRvbWFpbnNTZXJ2aWNlEpkBCg5FeHRyYWN0RG9tYWlucxJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuRXh0cmFjdERvbWFpbnNSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5FeHRyYWN0RG9tYWluc1Jlc3BvbnNlEpMBCgxHZXREb21haW5NYXASQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkdldERvbWFpbk1hcFJlcXVlc3QaQS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkdldERvbWFpbk1hcFJlc3BvbnNlEqIBChFDb252ZXJnZW5jZVJlcG9ydBJFLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmRvbWFpbnMuQ29udmVyZ2VuY2VSZXBvcnRSZXF1ZXN0GkYudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuZG9tYWlucy5Db252ZXJnZW5jZVJlcG9ydFJlc3BvbnNlEpMBCgxEcmFmdERvbWFpbnMSQC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRyYWZ0RG9tYWluc1JlcXVlc3QaQS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5kb21haW5zLkRyYWZ0RG9tYWluc1Jlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9kb21haW5zO2RvbWFpbnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * DerivedDomain is one domain in the resolved map.
@@ -44,18 +44,52 @@ export type DerivedDomain = Message<"vrooli.architecture_cartographer.v1.domains
   glossary: string[];
 
   /**
-   * Optional primary archetype (e.g., "service", "reporting",
-   * "composition-root"); drives archetype-aware heuristic exemptions.
+   * Human-authored responsibility from DOMAINS.md.
    *
-   * @generated from field: string archetype = 4;
+   * @generated from field: string responsibility = 4;
    */
-  archetype: string;
+  responsibility: string;
+
+  /**
+   * Human-authored purpose from DOMAINS.md.
+   *
+   * @generated from field: string purpose = 5;
+   */
+  purpose: string;
+
+  /**
+   * Human-authored data ownership note from DOMAINS.md.
+   *
+   * @generated from field: string owns_data = 6;
+   */
+  ownsData: string;
+
+  /**
+   * Additional archetype traits declared in DOMAINS.md.
+   *
+   * @generated from field: repeated string secondary_traits = 7;
+   */
+  secondaryTraits: string[];
+
+  /**
+   * Surfaces derived from code evidence. Filled by the slice walker.
+   *
+   * @generated from field: repeated string surfaces = 8;
+   */
+  surfaces: string[];
+
+  /**
+   * Declared and inferred archetypes for this domain.
+   *
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.domains.DomainArchetype archetypes = 9;
+   */
+  archetypes: DomainArchetype[];
 
   /**
    * Every source that declared a domain with this name (the authority rung
    * plus any lower rungs that agree). Used by convergence reporting.
    *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.domains.DomainSource provenance = 5;
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.domains.DomainSource provenance = 10;
    */
   provenance: DomainSource[];
 };
@@ -66,6 +100,38 @@ export type DerivedDomain = Message<"vrooli.architecture_cartographer.v1.domains
  */
 export const DerivedDomainSchema: GenMessage<DerivedDomain> = /*@__PURE__*/
   messageDesc(file_architecture_cartographer_v1_domains_domains, 0);
+
+/**
+ * @generated from message vrooli.architecture_cartographer.v1.domains.DomainArchetype
+ */
+export type DomainArchetype = Message<"vrooli.architecture_cartographer.v1.domains.DomainArchetype"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: vrooli.architecture_cartographer.v1.domains.ArchetypeSource source = 2;
+   */
+  source: ArchetypeSource;
+
+  /**
+   * @generated from field: double confidence = 3;
+   */
+  confidence: number;
+
+  /**
+   * @generated from field: repeated string evidence = 4;
+   */
+  evidence: string[];
+};
+
+/**
+ * Describes the message vrooli.architecture_cartographer.v1.domains.DomainArchetype.
+ * Use `create(DomainArchetypeSchema)` to create a new message.
+ */
+export const DomainArchetypeSchema: GenMessage<DomainArchetype> = /*@__PURE__*/
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 1);
 
 /**
  * DomainDeclaration is one ladder rung's raw view of the domain set,
@@ -99,7 +165,7 @@ export type DomainDeclaration = Message<"vrooli.architecture_cartographer.v1.dom
  * Use `create(DomainDeclarationSchema)` to create a new message.
  */
 export const DomainDeclarationSchema: GenMessage<DomainDeclaration> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 1);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 2);
 
 /**
  * DerivedDomainMap is the canonical resolved domain map for a scenario.
@@ -174,7 +240,7 @@ export type DerivedDomainMap = Message<"vrooli.architecture_cartographer.v1.doma
  * Use `create(DerivedDomainMapSchema)` to create a new message.
  */
 export const DerivedDomainMapSchema: GenMessage<DerivedDomainMap> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 2);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 3);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.ExtractDomainsRequest
@@ -193,7 +259,7 @@ export type ExtractDomainsRequest = Message<"vrooli.architecture_cartographer.v1
  * Use `create(ExtractDomainsRequestSchema)` to create a new message.
  */
 export const ExtractDomainsRequestSchema: GenMessage<ExtractDomainsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 3);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 4);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.ExtractDomainsResponse
@@ -210,7 +276,7 @@ export type ExtractDomainsResponse = Message<"vrooli.architecture_cartographer.v
  * Use `create(ExtractDomainsResponseSchema)` to create a new message.
  */
 export const ExtractDomainsResponseSchema: GenMessage<ExtractDomainsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 4);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 5);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.GetDomainMapRequest
@@ -227,7 +293,7 @@ export type GetDomainMapRequest = Message<"vrooli.architecture_cartographer.v1.d
  * Use `create(GetDomainMapRequestSchema)` to create a new message.
  */
 export const GetDomainMapRequestSchema: GenMessage<GetDomainMapRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 5);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 6);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.GetDomainMapResponse
@@ -244,7 +310,7 @@ export type GetDomainMapResponse = Message<"vrooli.architecture_cartographer.v1.
  * Use `create(GetDomainMapResponseSchema)` to create a new message.
  */
 export const GetDomainMapResponseSchema: GenMessage<GetDomainMapResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 6);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 7);
 
 /**
  * ConvergenceFinding is one cross-surface disagreement about the domain set.
@@ -303,7 +369,7 @@ export type ConvergenceFinding = Message<"vrooli.architecture_cartographer.v1.do
  * Use `create(ConvergenceFindingSchema)` to create a new message.
  */
 export const ConvergenceFindingSchema: GenMessage<ConvergenceFinding> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 7);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 8);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.ConvergenceReportRequest
@@ -320,7 +386,7 @@ export type ConvergenceReportRequest = Message<"vrooli.architecture_cartographer
  * Use `create(ConvergenceReportRequestSchema)` to create a new message.
  */
 export const ConvergenceReportRequestSchema: GenMessage<ConvergenceReportRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 8);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 9);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.ConvergenceReportResponse
@@ -362,7 +428,7 @@ export type ConvergenceReportResponse = Message<"vrooli.architecture_cartographe
  * Use `create(ConvergenceReportResponseSchema)` to create a new message.
  */
 export const ConvergenceReportResponseSchema: GenMessage<ConvergenceReportResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 9);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 10);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.DraftDomainsRequest
@@ -379,7 +445,7 @@ export type DraftDomainsRequest = Message<"vrooli.architecture_cartographer.v1.d
  * Use `create(DraftDomainsRequestSchema)` to create a new message.
  */
 export const DraftDomainsRequestSchema: GenMessage<DraftDomainsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 10);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 11);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.ProposedDomain
@@ -421,7 +487,7 @@ export type ProposedDomain = Message<"vrooli.architecture_cartographer.v1.domain
  * Use `create(ProposedDomainSchema)` to create a new message.
  */
 export const ProposedDomainSchema: GenMessage<ProposedDomain> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 11);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 12);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.domains.DraftDomainsResponse
@@ -448,7 +514,7 @@ export type DraftDomainsResponse = Message<"vrooli.architecture_cartographer.v1.
  * Use `create(DraftDomainsResponseSchema)` to create a new message.
  */
 export const DraftDomainsResponseSchema: GenMessage<DraftDomainsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_domains_domains, 12);
+  messageDesc(file_architecture_cartographer_v1_domains_domains, 13);
 
 /**
  * DomainSource identifies which ladder rung contributed a declaration.
@@ -507,6 +573,32 @@ export const DomainSourceSchema: GenEnum<DomainSource> = /*@__PURE__*/
   enumDesc(file_architecture_cartographer_v1_domains_domains, 0);
 
 /**
+ * @generated from enum vrooli.architecture_cartographer.v1.domains.ArchetypeSource
+ */
+export enum ArchetypeSource {
+  /**
+   * @generated from enum value: ARCHETYPE_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ARCHETYPE_SOURCE_DECLARED = 1;
+   */
+  DECLARED = 1,
+
+  /**
+   * @generated from enum value: ARCHETYPE_SOURCE_INFERRED = 2;
+   */
+  INFERRED = 2,
+}
+
+/**
+ * Describes the enum vrooli.architecture_cartographer.v1.domains.ArchetypeSource.
+ */
+export const ArchetypeSourceSchema: GenEnum<ArchetypeSource> = /*@__PURE__*/
+  enumDesc(file_architecture_cartographer_v1_domains_domains, 1);
+
+/**
  * AuthorityConfidence grades how trustworthy the resolved authority is.
  * See DerivedDomainMap.authority_confidence for the semantics.
  *
@@ -533,7 +625,7 @@ export enum AuthorityConfidence {
  * Describes the enum vrooli.architecture_cartographer.v1.domains.AuthorityConfidence.
  */
 export const AuthorityConfidenceSchema: GenEnum<AuthorityConfidence> = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_domains_domains, 1);
+  enumDesc(file_architecture_cartographer_v1_domains_domains, 2);
 
 /**
  * ConvergenceSeverity grades how much a convergence finding matters.
@@ -565,7 +657,7 @@ export enum ConvergenceSeverity {
  * Describes the enum vrooli.architecture_cartographer.v1.domains.ConvergenceSeverity.
  */
 export const ConvergenceSeveritySchema: GenEnum<ConvergenceSeverity> = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_domains_domains, 2);
+  enumDesc(file_architecture_cartographer_v1_domains_domains, 3);
 
 /**
  * @generated from service vrooli.architecture_cartographer.v1.domains.DomainsService

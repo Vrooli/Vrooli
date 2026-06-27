@@ -112,6 +112,14 @@ service ModelsService {
   // host) so the in-product model picker is transparent about why a model was
   // chosen and what each alternative needs to become usable.
   rpc ListOperationModels(ListOperationModelsRequest) returns (ListOperationModelsResponse);
+
+  // ExplainResolution returns the explicit Resolution for an operation on this
+  // host — which model would run, whether it serves the op natively or via a
+  // derived technique (with the quality caveat), the backend tier, and the
+  // operation's safety consent weight — WITHOUT executing anything. It is the
+  // read-only `--explain` / dry-run surface over the same resolution the AI
+  // submit edge pins into a job.
+  rpc ExplainResolution(ExplainResolutionRequest) returns (ExplainResolutionResponse);
 }
 
 // CommercialUse classifies a model's commercial-use license posture.
@@ -407,6 +415,55 @@ message ListOperationModelsRequest {
   string operation = 1;
 }
 
+// Resolution is the explicit, inspectable answer to "what would run for this
+// operation on this host" (mirrors api/internal/resolver.Resolution). Producing
+// it executes nothing.
+message Resolution {
+  // operation is the resolved operation.
+  string operation = 1;
+  // model_id / model_name identify the chosen registry entry.
+  string model_id = 2;
+  string model_name = 3;
+  // support is "native" (the model declares the op) or "derived" (the model's
+  // architecture derives it through a named technique).
+  string support = 4;
+  // technique names the derived technique that yields the op ("" for native ops,
+  // which the backend's own builder resolves).
+  string technique = 5;
+  // pipeline_class is the model's declared diffusers pipeline class when it has
+  // one (informational; "" for backends with no such dispatch).
+  string pipeline_class = 6;
+  // caveat is the derived-op quality note ("" for native ops).
+  string caveat = 7;
+  // weight is the operation's safety consent weight (none|low|high). It is
+  // operation-keyed and invariant to native-vs-derived (decision 113).
+  string weight = 8;
+  // tier is the backend tier the op would run on (local-gpu|local-cpu|byok).
+  string tier = 9;
+  // gpu_viable is true when the chosen model would run on a detected GPU with
+  // known, sufficient VRAM.
+  bool gpu_viable = 10;
+  // warnings carries the selection + backend cautions (CPU-slow, VRAM shortfall,
+  // derived-op caveat, …).
+  repeated string warnings = 11;
+}
+
+message ExplainResolutionRequest {
+  // Operation to resolve (must be in the vocabulary).
+  string operation = 1;
+  // Optional: force a specific model id (still validated for op-support,
+  // enabled-state, and host-runnability). Empty resolves the model selection
+  // would pick.
+  string model_id = 2;
+  // allow_byok permits a paid BYOK cloud tier when no local backend is available
+  // (the resolution then reports that tier).
+  bool allow_byok = 3;
+}
+
+message ExplainResolutionResponse {
+  Resolution resolution = 1;
+}
+
 // HostSummary is a compact, user-facing snapshot of the host's AI-relevant
 // hardware — the transparency layer for the picker ("you have an RTX 4070 Ti
 // SUPER, 16 GB / 3 GB free", so the operator understands fit verdicts).
@@ -488,9 +545,21 @@ message CandidateModel {
   //   "insufficient"         hardware cannot run it (no CPU path; GPU absent/short)
   //   "unsupported"          no build for this os/arch
   //   "disabled"             disabled in settings (operator can re-enable)
+  //   "derived_pipeline_unproven" the model can serve this op only via a derived
+  //                          technique that is not yet proven runnable (Ready);
+  //                          surfaced honestly, never offered for execution
   string ready_state = 4;
   // selected: this is the model SelectModel would currently choose.
   bool selected = 5;
+  // support is how this model serves the REQUESTED operation:
+  //   "native"  the model declares the op (the backend's own builder runs it)
+  //   "derived" the model's architecture derives it through a named technique
+  string support = 6;
+  // technique names the derived technique that yields the op ("" for native).
+  string technique = 7;
+  // caveat is the derived-op quality note ("" for native ops). The picker shows
+  // it as a "via workflow" warning chip / banner.
+  string caveat = 8;
 }
 
 message ListOperationModelsResponse {

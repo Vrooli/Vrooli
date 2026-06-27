@@ -135,6 +135,20 @@ class LinkSupersessionResponse(_message.Message):
     plan: _model_pb2.Plan
     def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
 
+class LinkDependencyRequest(_message.Message):
+    __slots__ = ("depending_plan_id", "dependency_plan_id")
+    DEPENDING_PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    DEPENDENCY_PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    depending_plan_id: str
+    dependency_plan_id: str
+    def __init__(self, depending_plan_id: _Optional[str] = ..., dependency_plan_id: _Optional[str] = ...) -> None: ...
+
+class LinkDependencyResponse(_message.Message):
+    __slots__ = ("plan",)
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    plan: _model_pb2.Plan
+    def __init__(self, plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+
 class ImportPlanRequest(_message.Message):
     __slots__ = ("source_path", "markdown")
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]

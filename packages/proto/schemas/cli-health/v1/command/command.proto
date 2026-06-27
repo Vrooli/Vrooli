@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package vrooli.cli_health.v1.command;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/command;command_v1";
+
+// CommandReferenceValidationService validates Vrooli-owned command references
+// without executing the referenced command.
+service CommandReferenceValidationService {
+  rpc ValidateCommandReference(ValidateCommandReferenceRequest) returns (ValidateCommandReferenceResponse);
+  rpc ValidateCommandReferences(ValidateCommandReferencesRequest) returns (ValidateCommandReferencesResponse);
+}
+
+enum CommandReferencePolicy {
+  COMMAND_REFERENCE_POLICY_UNSPECIFIED = 0;
+  COMMAND_REFERENCE_POLICY_DOCS = 1;
+  COMMAND_REFERENCE_POLICY_SKILL = 2;
+  COMMAND_REFERENCE_POLICY_PLAN = 3;
+  COMMAND_REFERENCE_POLICY_ACTION = 4;
+}
+
+enum CommandReferenceVerdict {
+  COMMAND_REFERENCE_VERDICT_UNSPECIFIED = 0;
+  COMMAND_REFERENCE_VERDICT_VALID = 1;
+  COMMAND_REFERENCE_VERDICT_INVALID = 2;
+  COMMAND_REFERENCE_VERDICT_PARTIAL = 3;
+  COMMAND_REFERENCE_VERDICT_SKIPPED = 4;
+  COMMAND_REFERENCE_VERDICT_UNKNOWN = 5;
+  COMMAND_REFERENCE_VERDICT_UNSUPPORTED = 6;
+}
+
+enum CommandReferenceValidationLevel {
+  COMMAND_REFERENCE_VALIDATION_LEVEL_UNSPECIFIED = 0;
+  COMMAND_REFERENCE_VALIDATION_LEVEL_PARSED = 1;
+  COMMAND_REFERENCE_VALIDATION_LEVEL_OWNER_IDENTIFIED = 2;
+  COMMAND_REFERENCE_VALIDATION_LEVEL_COMMAND_EXISTS = 3;
+  COMMAND_REFERENCE_VALIDATION_LEVEL_ARGUMENT_SHAPE_VALIDATED = 4;
+  COMMAND_REFERENCE_VALIDATION_LEVEL_SKIPPED_BY_QUALIFIER = 5;
+  COMMAND_REFERENCE_VALIDATION_LEVEL_UNSUPPORTED_SYNTAX = 6;
+}
+
+enum CommandReferenceRefreshPolicy {
+  COMMAND_REFERENCE_REFRESH_POLICY_UNSPECIFIED = 0;
+  COMMAND_REFERENCE_REFRESH_POLICY_NEVER = 1;
+  COMMAND_REFERENCE_REFRESH_POLICY_ON_MISS = 2;
+}
+
+message ValidateCommandReferenceRequest {
+  string command_text = 1;
+  CommandReferencePolicy policy = 2;
+  repeated string qualifiers = 3;
+  CommandReferenceRefreshPolicy refresh_policy = 4;
+}
+
+message ValidateCommandReferenceResponse {
+  CommandReferenceValidationResult result = 1;
+}
+
+message ValidateCommandReferencesRequest {
+  repeated ValidateCommandReferenceRequest requests = 1;
+}
+
+message ValidateCommandReferencesResponse {
+  repeated CommandReferenceValidationResult results = 1;
+}
+
+message CommandReferenceValidationResult {
+  string command_text = 1;
+  CommandReferenceVerdict verdict = 2;
+  CommandReferenceValidationLevel validation_level = 3;
+  string canonical_command = 4;
+  string owner = 5;
+  string source = 6;
+  repeated CommandReferenceIssue issues = 7;
+  repeated CommandReferenceSuggestion suggestions = 8;
+  repeated string guidance = 9;
+}
+
+message CommandReferenceIssue {
+  string code = 1;
+  string message = 2;
+  string severity = 3;
+}
+
+message CommandReferenceSuggestion {
+  string command = 1;
+  string reason = 2;
+}

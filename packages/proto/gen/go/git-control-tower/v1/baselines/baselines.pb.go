@@ -861,6 +861,214 @@ func (x *SnapshotForBaselineResponse) GetCoalesced() bool {
 	return false
 }
 
+type GetSnapshotStatusRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Branch   string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`            // empty = current branch
+	RunId    string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"` // optional; narrows to one snapshot run
+	RepoId   int64                  `protobuf:"varint,5,opt,name=repo_id,json=repoId,proto3" json:"repo_id,omitempty"`
+	// wait, when true, blocks SERVER-SIDE until the run is terminal before
+	// reconciling status. When false, an in-flight run returns status=pending.
+	Wait          bool `protobuf:"varint,6,opt,name=wait,proto3" json:"wait,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSnapshotStatusRequest) Reset() {
+	*x = GetSnapshotStatusRequest{}
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSnapshotStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSnapshotStatusRequest) ProtoMessage() {}
+
+func (x *GetSnapshotStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSnapshotStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetSnapshotStatusRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetSnapshotStatusRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusRequest) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusRequest) GetRepoId() int64 {
+	if x != nil {
+		return x.RepoId
+	}
+	return 0
+}
+
+func (x *GetSnapshotStatusRequest) GetWait() bool {
+	if x != nil {
+		return x.Wait
+	}
+	return false
+}
+
+type GetSnapshotStatusResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// status: pending | ready | failed | missing
+	Status   string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name     string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Branch   string `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	RunId    string `protobuf:"bytes,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// run_status mirrors test-genie's lifecycle status when known.
+	RunStatus string `protobuf:"bytes,6,opt,name=run_status,json=runStatus,proto3" json:"run_status,omitempty"`
+	// baseline is populated when status=ready.
+	Baseline *BaselineManifest `protobuf:"bytes,7,opt,name=baseline,proto3" json:"baseline,omitempty"`
+	// error is populated when status=failed or missing carries a diagnostic.
+	Error string `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	// similar_baselines lists visible baseline names for this scenario when an
+	// exact name is absent, so callers can render "did you mean ..." guidance.
+	SimilarBaselines            []string `protobuf:"bytes,9,rep,name=similar_baselines,json=similarBaselines,proto3" json:"similar_baselines,omitempty"`
+	RecommendedNextCheckSeconds int32    `protobuf:"varint,10,opt,name=recommended_next_check_seconds,json=recommendedNextCheckSeconds,proto3" json:"recommended_next_check_seconds,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *GetSnapshotStatusResponse) Reset() {
+	*x = GetSnapshotStatusResponse{}
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSnapshotStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSnapshotStatusResponse) ProtoMessage() {}
+
+func (x *GetSnapshotStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSnapshotStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetSnapshotStatusResponse) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetSnapshotStatusResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusResponse) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusResponse) GetRunStatus() string {
+	if x != nil {
+		return x.RunStatus
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusResponse) GetBaseline() *BaselineManifest {
+	if x != nil {
+		return x.Baseline
+	}
+	return nil
+}
+
+func (x *GetSnapshotStatusResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *GetSnapshotStatusResponse) GetSimilarBaselines() []string {
+	if x != nil {
+		return x.SimilarBaselines
+	}
+	return nil
+}
+
+func (x *GetSnapshotStatusResponse) GetRecommendedNextCheckSeconds() int32 {
+	if x != nil {
+		return x.RecommendedNextCheckSeconds
+	}
+	return 0
+}
+
 type GetBaselineRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -873,7 +1081,7 @@ type GetBaselineRequest struct {
 
 func (x *GetBaselineRequest) Reset() {
 	*x = GetBaselineRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[9]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -885,7 +1093,7 @@ func (x *GetBaselineRequest) String() string {
 func (*GetBaselineRequest) ProtoMessage() {}
 
 func (x *GetBaselineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[9]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -898,7 +1106,7 @@ func (x *GetBaselineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBaselineRequest.ProtoReflect.Descriptor instead.
 func (*GetBaselineRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{9}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetBaselineRequest) GetScenario() string {
@@ -938,7 +1146,7 @@ type GetBaselineResponse struct {
 
 func (x *GetBaselineResponse) Reset() {
 	*x = GetBaselineResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[10]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -950,7 +1158,7 @@ func (x *GetBaselineResponse) String() string {
 func (*GetBaselineResponse) ProtoMessage() {}
 
 func (x *GetBaselineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[10]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -963,7 +1171,7 @@ func (x *GetBaselineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBaselineResponse.ProtoReflect.Descriptor instead.
 func (*GetBaselineResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{10}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetBaselineResponse) GetBaseline() *BaselineManifest {
@@ -985,7 +1193,7 @@ type ListBaselinesRequest struct {
 
 func (x *ListBaselinesRequest) Reset() {
 	*x = ListBaselinesRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[11]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -997,7 +1205,7 @@ func (x *ListBaselinesRequest) String() string {
 func (*ListBaselinesRequest) ProtoMessage() {}
 
 func (x *ListBaselinesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[11]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1010,7 +1218,7 @@ func (x *ListBaselinesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBaselinesRequest.ProtoReflect.Descriptor instead.
 func (*ListBaselinesRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{11}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListBaselinesRequest) GetScenario() string {
@@ -1050,7 +1258,7 @@ type ListBaselinesResponse struct {
 
 func (x *ListBaselinesResponse) Reset() {
 	*x = ListBaselinesResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[12]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1270,7 @@ func (x *ListBaselinesResponse) String() string {
 func (*ListBaselinesResponse) ProtoMessage() {}
 
 func (x *ListBaselinesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[12]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1283,7 @@ func (x *ListBaselinesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBaselinesResponse.ProtoReflect.Descriptor instead.
 func (*ListBaselinesResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{12}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListBaselinesResponse) GetBaselines() []*BaselineManifest {
@@ -1098,7 +1306,7 @@ type StartDiffRequest struct {
 
 func (x *StartDiffRequest) Reset() {
 	*x = StartDiffRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[13]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1110,7 +1318,7 @@ func (x *StartDiffRequest) String() string {
 func (*StartDiffRequest) ProtoMessage() {}
 
 func (x *StartDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[13]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1123,7 +1331,7 @@ func (x *StartDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartDiffRequest.ProtoReflect.Descriptor instead.
 func (*StartDiffRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{13}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StartDiffRequest) GetScenario() string {
@@ -1192,7 +1400,7 @@ type StartDiffResponse struct {
 
 func (x *StartDiffResponse) Reset() {
 	*x = StartDiffResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[14]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1204,7 +1412,7 @@ func (x *StartDiffResponse) String() string {
 func (*StartDiffResponse) ProtoMessage() {}
 
 func (x *StartDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[14]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1217,7 +1425,7 @@ func (x *StartDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartDiffResponse.ProtoReflect.Descriptor instead.
 func (*StartDiffResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{14}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *StartDiffResponse) GetRunId() string {
@@ -1308,7 +1516,7 @@ type GetDiffResultRequest struct {
 
 func (x *GetDiffResultRequest) Reset() {
 	*x = GetDiffResultRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[15]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1320,7 +1528,7 @@ func (x *GetDiffResultRequest) String() string {
 func (*GetDiffResultRequest) ProtoMessage() {}
 
 func (x *GetDiffResultRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[15]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1333,7 +1541,7 @@ func (x *GetDiffResultRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiffResultRequest.ProtoReflect.Descriptor instead.
 func (*GetDiffResultRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{15}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetDiffResultRequest) GetScenario() string {
@@ -1404,7 +1612,7 @@ type GetDiffResultResponse struct {
 
 func (x *GetDiffResultResponse) Reset() {
 	*x = GetDiffResultResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[16]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1416,7 +1624,7 @@ func (x *GetDiffResultResponse) String() string {
 func (*GetDiffResultResponse) ProtoMessage() {}
 
 func (x *GetDiffResultResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[16]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1429,7 +1637,7 @@ func (x *GetDiffResultResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiffResultResponse.ProtoReflect.Descriptor instead.
 func (*GetDiffResultResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{16}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetDiffResultResponse) GetStatus() string {
@@ -1485,7 +1693,7 @@ type DiffResult struct {
 
 func (x *DiffResult) Reset() {
 	*x = DiffResult{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[17]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1497,7 +1705,7 @@ func (x *DiffResult) String() string {
 func (*DiffResult) ProtoMessage() {}
 
 func (x *DiffResult) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[17]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1510,7 +1718,7 @@ func (x *DiffResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiffResult.ProtoReflect.Descriptor instead.
 func (*DiffResult) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{17}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DiffResult) GetBaseline() *BaselineManifest {
@@ -1571,7 +1779,7 @@ type RunBusyInfo struct {
 
 func (x *RunBusyInfo) Reset() {
 	*x = RunBusyInfo{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[18]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1583,7 +1791,7 @@ func (x *RunBusyInfo) String() string {
 func (*RunBusyInfo) ProtoMessage() {}
 
 func (x *RunBusyInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[18]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1596,7 +1804,7 @@ func (x *RunBusyInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunBusyInfo.ProtoReflect.Descriptor instead.
 func (*RunBusyInfo) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{18}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RunBusyInfo) GetScenario() string {
@@ -1632,7 +1840,7 @@ type DeleteBaselineRequest struct {
 
 func (x *DeleteBaselineRequest) Reset() {
 	*x = DeleteBaselineRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[19]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1644,7 +1852,7 @@ func (x *DeleteBaselineRequest) String() string {
 func (*DeleteBaselineRequest) ProtoMessage() {}
 
 func (x *DeleteBaselineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[19]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1657,7 +1865,7 @@ func (x *DeleteBaselineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBaselineRequest.ProtoReflect.Descriptor instead.
 func (*DeleteBaselineRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{19}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DeleteBaselineRequest) GetScenario() string {
@@ -1697,7 +1905,7 @@ type DeleteBaselineResponse struct {
 
 func (x *DeleteBaselineResponse) Reset() {
 	*x = DeleteBaselineResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[20]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1709,7 +1917,7 @@ func (x *DeleteBaselineResponse) String() string {
 func (*DeleteBaselineResponse) ProtoMessage() {}
 
 func (x *DeleteBaselineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[20]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1722,7 +1930,7 @@ func (x *DeleteBaselineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBaselineResponse.ProtoReflect.Descriptor instead.
 func (*DeleteBaselineResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{20}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeleteBaselineResponse) GetDeleted() bool {
@@ -1747,7 +1955,7 @@ type EditBaselineRequest struct {
 
 func (x *EditBaselineRequest) Reset() {
 	*x = EditBaselineRequest{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[21]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1759,7 +1967,7 @@ func (x *EditBaselineRequest) String() string {
 func (*EditBaselineRequest) ProtoMessage() {}
 
 func (x *EditBaselineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[21]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1772,7 +1980,7 @@ func (x *EditBaselineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditBaselineRequest.ProtoReflect.Descriptor instead.
 func (*EditBaselineRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{21}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *EditBaselineRequest) GetScenario() string {
@@ -1833,7 +2041,7 @@ type EditBaselineResponse struct {
 
 func (x *EditBaselineResponse) Reset() {
 	*x = EditBaselineResponse{}
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[22]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1845,7 +2053,7 @@ func (x *EditBaselineResponse) String() string {
 func (*EditBaselineResponse) ProtoMessage() {}
 
 func (x *EditBaselineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[22]
+	mi := &file_git_control_tower_v1_baselines_baselines_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1858,7 +2066,7 @@ func (x *EditBaselineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditBaselineResponse.ProtoReflect.Descriptor instead.
 func (*EditBaselineResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{22}
+	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *EditBaselineResponse) GetBaseline() *BaselineManifest {
@@ -1959,7 +2167,27 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x17estimated_total_seconds\x18\x05 \x01(\x05R\x15estimatedTotalSeconds\x12\x1b\n" +
 	"\teta_known\x18\x06 \x01(\bR\betaKnown\x12#\n" +
 	"\rdirty_warning\x18\a \x01(\tR\fdirtyWarning\x12\x1c\n" +
-	"\tcoalesced\x18\b \x01(\bR\tcoalesced\"u\n" +
+	"\tcoalesced\x18\b \x01(\bR\tcoalesced\"\xa6\x01\n" +
+	"\x18GetSnapshotStatusRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\x12\x15\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x17\n" +
+	"\arepo_id\x18\x05 \x01(\x03R\x06repoId\x12\x12\n" +
+	"\x04wait\x18\x06 \x01(\bR\x04wait\"\x8e\x03\n" +
+	"\x19GetSnapshotStatusResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
+	"\x06branch\x18\x04 \x01(\tR\x06branch\x12\x15\n" +
+	"\x06run_id\x18\x05 \x01(\tR\x05runId\x12\x1d\n" +
+	"\n" +
+	"run_status\x18\x06 \x01(\tR\trunStatus\x12S\n" +
+	"\bbaseline\x18\a \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12+\n" +
+	"\x11similar_baselines\x18\t \x03(\tR\x10similarBaselines\x12C\n" +
+	"\x1erecommended_next_check_seconds\x18\n" +
+	" \x01(\x05R\x1brecommendedNextCheckSeconds\"u\n" +
 	"\x12GetBaselineRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -2038,10 +2266,12 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x06reason\x18\x06 \x01(\tR\x06reason\x12\x17\n" +
 	"\arepo_id\x18\a \x01(\x03R\x06repoId\"k\n" +
 	"\x14EditBaselineResponse\x12S\n" +
-	"\bbaseline\x18\x01 \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline2\xfc\b\n" +
+	"\bbaseline\x18\x01 \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline2\x95\n" +
+	"\n" +
 	"\x10BaselinesService\x12\x8d\x01\n" +
 	"\x0eCreateBaseline\x12<.vrooli.git_control_tower.v1.baselines.CreateBaselineRequest\x1a=.vrooli.git_control_tower.v1.baselines.CreateBaselineResponse\x12\x9c\x01\n" +
-	"\x13SnapshotForBaseline\x12A.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest\x1aB.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse\x12\x84\x01\n" +
+	"\x13SnapshotForBaseline\x12A.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest\x1aB.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse\x12\x96\x01\n" +
+	"\x11GetSnapshotStatus\x12?.vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest\x1a@.vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse\x12\x84\x01\n" +
 	"\vGetBaseline\x129.vrooli.git_control_tower.v1.baselines.GetBaselineRequest\x1a:.vrooli.git_control_tower.v1.baselines.GetBaselineResponse\x12\x8a\x01\n" +
 	"\rListBaselines\x12;.vrooli.git_control_tower.v1.baselines.ListBaselinesRequest\x1a<.vrooli.git_control_tower.v1.baselines.ListBaselinesResponse\x12~\n" +
 	"\tStartDiff\x127.vrooli.git_control_tower.v1.baselines.StartDiffRequest\x1a8.vrooli.git_control_tower.v1.baselines.StartDiffResponse\x12\x8a\x01\n" +
@@ -2061,7 +2291,7 @@ func file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP() []byte {
 	return file_git_control_tower_v1_baselines_baselines_proto_rawDescData
 }
 
-var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*GitState)(nil),                    // 0: vrooli.git_control_tower.v1.baselines.GitState
 	(*SurfacePointer)(nil),              // 1: vrooli.git_control_tower.v1.baselines.SurfacePointer
@@ -2072,60 +2302,65 @@ var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*CreateBaselineResponse)(nil),      // 6: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
 	(*SnapshotForBaselineRequest)(nil),  // 7: vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
 	(*SnapshotForBaselineResponse)(nil), // 8: vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
-	(*GetBaselineRequest)(nil),          // 9: vrooli.git_control_tower.v1.baselines.GetBaselineRequest
-	(*GetBaselineResponse)(nil),         // 10: vrooli.git_control_tower.v1.baselines.GetBaselineResponse
-	(*ListBaselinesRequest)(nil),        // 11: vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
-	(*ListBaselinesResponse)(nil),       // 12: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
-	(*StartDiffRequest)(nil),            // 13: vrooli.git_control_tower.v1.baselines.StartDiffRequest
-	(*StartDiffResponse)(nil),           // 14: vrooli.git_control_tower.v1.baselines.StartDiffResponse
-	(*GetDiffResultRequest)(nil),        // 15: vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
-	(*GetDiffResultResponse)(nil),       // 16: vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
-	(*DiffResult)(nil),                  // 17: vrooli.git_control_tower.v1.baselines.DiffResult
-	(*RunBusyInfo)(nil),                 // 18: vrooli.git_control_tower.v1.baselines.RunBusyInfo
-	(*DeleteBaselineRequest)(nil),       // 19: vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
-	(*DeleteBaselineResponse)(nil),      // 20: vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	(*EditBaselineRequest)(nil),         // 21: vrooli.git_control_tower.v1.baselines.EditBaselineRequest
-	(*EditBaselineResponse)(nil),        // 22: vrooli.git_control_tower.v1.baselines.EditBaselineResponse
-	nil,                                 // 23: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry
-	nil,                                 // 24: vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
-	nil,                                 // 25: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
+	(*GetSnapshotStatusRequest)(nil),    // 9: vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
+	(*GetSnapshotStatusResponse)(nil),   // 10: vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
+	(*GetBaselineRequest)(nil),          // 11: vrooli.git_control_tower.v1.baselines.GetBaselineRequest
+	(*GetBaselineResponse)(nil),         // 12: vrooli.git_control_tower.v1.baselines.GetBaselineResponse
+	(*ListBaselinesRequest)(nil),        // 13: vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
+	(*ListBaselinesResponse)(nil),       // 14: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
+	(*StartDiffRequest)(nil),            // 15: vrooli.git_control_tower.v1.baselines.StartDiffRequest
+	(*StartDiffResponse)(nil),           // 16: vrooli.git_control_tower.v1.baselines.StartDiffResponse
+	(*GetDiffResultRequest)(nil),        // 17: vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
+	(*GetDiffResultResponse)(nil),       // 18: vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
+	(*DiffResult)(nil),                  // 19: vrooli.git_control_tower.v1.baselines.DiffResult
+	(*RunBusyInfo)(nil),                 // 20: vrooli.git_control_tower.v1.baselines.RunBusyInfo
+	(*DeleteBaselineRequest)(nil),       // 21: vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
+	(*DeleteBaselineResponse)(nil),      // 22: vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
+	(*EditBaselineRequest)(nil),         // 23: vrooli.git_control_tower.v1.baselines.EditBaselineRequest
+	(*EditBaselineResponse)(nil),        // 24: vrooli.git_control_tower.v1.baselines.EditBaselineResponse
+	nil,                                 // 25: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry
+	nil,                                 // 26: vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
+	nil,                                 // 27: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
 }
 var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	0,  // 0: vrooli.git_control_tower.v1.baselines.BaselineManifest.git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
-	23, // 1: vrooli.git_control_tower.v1.baselines.BaselineManifest.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry
-	24, // 2: vrooli.git_control_tower.v1.baselines.BaselineManifest.skipped:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
+	25, // 1: vrooli.git_control_tower.v1.baselines.BaselineManifest.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry
+	26, // 2: vrooli.git_control_tower.v1.baselines.BaselineManifest.skipped:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
 	2,  // 3: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	25, // 4: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.skipped:type_name -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
-	2,  // 5: vrooli.git_control_tower.v1.baselines.GetBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	2,  // 6: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse.baselines:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	17, // 7: vrooli.git_control_tower.v1.baselines.GetDiffResultResponse.diff:type_name -> vrooli.git_control_tower.v1.baselines.DiffResult
-	2,  // 8: vrooli.git_control_tower.v1.baselines.DiffResult.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	0,  // 9: vrooli.git_control_tower.v1.baselines.DiffResult.current_git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
-	4,  // 10: vrooli.git_control_tower.v1.baselines.DiffResult.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
-	3,  // 11: vrooli.git_control_tower.v1.baselines.DiffResult.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.SurfaceDiff
-	2,  // 12: vrooli.git_control_tower.v1.baselines.EditBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	1,  // 13: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry.value:type_name -> vrooli.git_control_tower.v1.baselines.SurfacePointer
-	5,  // 14: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:input_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
-	7,  // 15: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
-	9,  // 16: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
-	11, // 17: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
-	13, // 18: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartDiffRequest
-	15, // 19: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:input_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
-	19, // 20: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
-	21, // 21: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:input_type -> vrooli.git_control_tower.v1.baselines.EditBaselineRequest
-	6,  // 22: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:output_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
-	8,  // 23: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
-	10, // 24: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
-	12, // 25: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
-	14, // 26: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
-	16, // 27: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
-	20, // 28: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	22, // 29: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:output_type -> vrooli.git_control_tower.v1.baselines.EditBaselineResponse
-	22, // [22:30] is the sub-list for method output_type
-	14, // [14:22] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	27, // 4: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.skipped:type_name -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
+	2,  // 5: vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	2,  // 6: vrooli.git_control_tower.v1.baselines.GetBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	2,  // 7: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse.baselines:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	19, // 8: vrooli.git_control_tower.v1.baselines.GetDiffResultResponse.diff:type_name -> vrooli.git_control_tower.v1.baselines.DiffResult
+	2,  // 9: vrooli.git_control_tower.v1.baselines.DiffResult.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	0,  // 10: vrooli.git_control_tower.v1.baselines.DiffResult.current_git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
+	4,  // 11: vrooli.git_control_tower.v1.baselines.DiffResult.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
+	3,  // 12: vrooli.git_control_tower.v1.baselines.DiffResult.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.SurfaceDiff
+	2,  // 13: vrooli.git_control_tower.v1.baselines.EditBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	1,  // 14: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry.value:type_name -> vrooli.git_control_tower.v1.baselines.SurfacePointer
+	5,  // 15: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:input_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
+	7,  // 16: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
+	9,  // 17: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:input_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusRequest
+	11, // 18: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
+	13, // 19: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
+	15, // 20: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:input_type -> vrooli.git_control_tower.v1.baselines.StartDiffRequest
+	17, // 21: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:input_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultRequest
+	21, // 22: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
+	23, // 23: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:input_type -> vrooli.git_control_tower.v1.baselines.EditBaselineRequest
+	6,  // 24: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:output_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
+	8,  // 25: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
+	10, // 26: vrooli.git_control_tower.v1.baselines.BaselinesService.GetSnapshotStatus:output_type -> vrooli.git_control_tower.v1.baselines.GetSnapshotStatusResponse
+	12, // 27: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
+	14, // 28: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
+	16, // 29: vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff:output_type -> vrooli.git_control_tower.v1.baselines.StartDiffResponse
+	18, // 30: vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult:output_type -> vrooli.git_control_tower.v1.baselines.GetDiffResultResponse
+	22, // 31: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
+	24, // 32: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:output_type -> vrooli.git_control_tower.v1.baselines.EditBaselineResponse
+	24, // [24:33] is the sub-list for method output_type
+	15, // [15:24] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_baselines_baselines_proto_init() }
@@ -2139,7 +2374,7 @@ func file_git_control_tower_v1_baselines_baselines_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_baselines_baselines_proto_rawDesc), len(file_git_control_tower_v1_baselines_baselines_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

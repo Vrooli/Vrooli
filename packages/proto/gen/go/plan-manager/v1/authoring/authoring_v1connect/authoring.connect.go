@@ -50,6 +50,18 @@ const (
 	// AuthoringServiceAutofillProcedure is the fully-qualified name of the AuthoringService's Autofill
 	// RPC.
 	AuthoringServiceAutofillProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/Autofill"
+	// AuthoringServiceAddPhaseProcedure is the fully-qualified name of the AuthoringService's AddPhase
+	// RPC.
+	AuthoringServiceAddPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase"
+	// AuthoringServiceGetPhaseProcedure is the fully-qualified name of the AuthoringService's GetPhase
+	// RPC.
+	AuthoringServiceGetPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/GetPhase"
+	// AuthoringServiceSubmitPhaseFieldProcedure is the fully-qualified name of the AuthoringService's
+	// SubmitPhaseField RPC.
+	AuthoringServiceSubmitPhaseFieldProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SubmitPhaseField"
+	// AuthoringServiceNextPhaseProcedure is the fully-qualified name of the AuthoringService's
+	// NextPhase RPC.
+	AuthoringServiceNextPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/NextPhase"
 	// AuthoringServiceFinalizeProcedure is the fully-qualified name of the AuthoringService's Finalize
 	// RPC.
 	AuthoringServiceFinalizeProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/Finalize"
@@ -73,6 +85,16 @@ type AuthoringServiceClient interface {
 	ValidateStructure(context.Context, *connect.Request[authoring.ValidateStructureRequest]) (*connect.Response[authoring.ValidateStructureResponse], error)
 	// Autofill orchestrates the mechanical-section autofill behind seams.
 	Autofill(context.Context, *connect.Request[authoring.AutofillRequest]) (*connect.Response[authoring.AutofillResponse], error)
+	// AddPhase appends one structured phase draft to the session.
+	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
+	// GetPhase returns one structured phase draft plus the API-owned guided step
+	// for its next missing field.
+	GetPhase(context.Context, *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error)
+	// SubmitPhaseField records one structured phase field and validates that
+	// phase immediately.
+	SubmitPhaseField(context.Context, *connect.Request[authoring.SubmitPhaseFieldRequest]) (*connect.Response[authoring.SubmitPhaseFieldResponse], error)
+	// NextPhase returns the first structured phase that still needs input.
+	NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error)
 	// Finalize validates structure then writes the produced plan through the plans
 	// domain, returning the persisted plan.
 	Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error)
@@ -126,6 +148,30 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(authoringServiceMethods.ByName("Autofill")),
 			connect.WithClientOptions(opts...),
 		),
+		addPhase: connect.NewClient[authoring.AddPhaseRequest, authoring.AddPhaseResponse](
+			httpClient,
+			baseURL+AuthoringServiceAddPhaseProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("AddPhase")),
+			connect.WithClientOptions(opts...),
+		),
+		getPhase: connect.NewClient[authoring.GetPhaseRequest, authoring.GetPhaseResponse](
+			httpClient,
+			baseURL+AuthoringServiceGetPhaseProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("GetPhase")),
+			connect.WithClientOptions(opts...),
+		),
+		submitPhaseField: connect.NewClient[authoring.SubmitPhaseFieldRequest, authoring.SubmitPhaseFieldResponse](
+			httpClient,
+			baseURL+AuthoringServiceSubmitPhaseFieldProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("SubmitPhaseField")),
+			connect.WithClientOptions(opts...),
+		),
+		nextPhase: connect.NewClient[authoring.NextPhaseRequest, authoring.NextPhaseResponse](
+			httpClient,
+			baseURL+AuthoringServiceNextPhaseProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("NextPhase")),
+			connect.WithClientOptions(opts...),
+		),
 		finalize: connect.NewClient[authoring.FinalizeRequest, authoring.FinalizeResponse](
 			httpClient,
 			baseURL+AuthoringServiceFinalizeProcedure,
@@ -143,6 +189,10 @@ type authoringServiceClient struct {
 	next              *connect.Client[authoring.NextRequest, authoring.NextResponse]
 	validateStructure *connect.Client[authoring.ValidateStructureRequest, authoring.ValidateStructureResponse]
 	autofill          *connect.Client[authoring.AutofillRequest, authoring.AutofillResponse]
+	addPhase          *connect.Client[authoring.AddPhaseRequest, authoring.AddPhaseResponse]
+	getPhase          *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
+	submitPhaseField  *connect.Client[authoring.SubmitPhaseFieldRequest, authoring.SubmitPhaseFieldResponse]
+	nextPhase         *connect.Client[authoring.NextPhaseRequest, authoring.NextPhaseResponse]
 	finalize          *connect.Client[authoring.FinalizeRequest, authoring.FinalizeResponse]
 }
 
@@ -176,6 +226,26 @@ func (c *authoringServiceClient) Autofill(ctx context.Context, req *connect.Requ
 	return c.autofill.CallUnary(ctx, req)
 }
 
+// AddPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase.
+func (c *authoringServiceClient) AddPhase(ctx context.Context, req *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error) {
+	return c.addPhase.CallUnary(ctx, req)
+}
+
+// GetPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase.
+func (c *authoringServiceClient) GetPhase(ctx context.Context, req *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error) {
+	return c.getPhase.CallUnary(ctx, req)
+}
+
+// SubmitPhaseField calls vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField.
+func (c *authoringServiceClient) SubmitPhaseField(ctx context.Context, req *connect.Request[authoring.SubmitPhaseFieldRequest]) (*connect.Response[authoring.SubmitPhaseFieldResponse], error) {
+	return c.submitPhaseField.CallUnary(ctx, req)
+}
+
+// NextPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase.
+func (c *authoringServiceClient) NextPhase(ctx context.Context, req *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error) {
+	return c.nextPhase.CallUnary(ctx, req)
+}
+
 // Finalize calls vrooli.plan_manager.v1.authoring.AuthoringService.Finalize.
 func (c *authoringServiceClient) Finalize(ctx context.Context, req *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error) {
 	return c.finalize.CallUnary(ctx, req)
@@ -199,6 +269,16 @@ type AuthoringServiceHandler interface {
 	ValidateStructure(context.Context, *connect.Request[authoring.ValidateStructureRequest]) (*connect.Response[authoring.ValidateStructureResponse], error)
 	// Autofill orchestrates the mechanical-section autofill behind seams.
 	Autofill(context.Context, *connect.Request[authoring.AutofillRequest]) (*connect.Response[authoring.AutofillResponse], error)
+	// AddPhase appends one structured phase draft to the session.
+	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
+	// GetPhase returns one structured phase draft plus the API-owned guided step
+	// for its next missing field.
+	GetPhase(context.Context, *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error)
+	// SubmitPhaseField records one structured phase field and validates that
+	// phase immediately.
+	SubmitPhaseField(context.Context, *connect.Request[authoring.SubmitPhaseFieldRequest]) (*connect.Response[authoring.SubmitPhaseFieldResponse], error)
+	// NextPhase returns the first structured phase that still needs input.
+	NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error)
 	// Finalize validates structure then writes the produced plan through the plans
 	// domain, returning the persisted plan.
 	Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error)
@@ -247,6 +327,30 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		connect.WithSchema(authoringServiceMethods.ByName("Autofill")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authoringServiceAddPhaseHandler := connect.NewUnaryHandler(
+		AuthoringServiceAddPhaseProcedure,
+		svc.AddPhase,
+		connect.WithSchema(authoringServiceMethods.ByName("AddPhase")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceGetPhaseHandler := connect.NewUnaryHandler(
+		AuthoringServiceGetPhaseProcedure,
+		svc.GetPhase,
+		connect.WithSchema(authoringServiceMethods.ByName("GetPhase")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceSubmitPhaseFieldHandler := connect.NewUnaryHandler(
+		AuthoringServiceSubmitPhaseFieldProcedure,
+		svc.SubmitPhaseField,
+		connect.WithSchema(authoringServiceMethods.ByName("SubmitPhaseField")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceNextPhaseHandler := connect.NewUnaryHandler(
+		AuthoringServiceNextPhaseProcedure,
+		svc.NextPhase,
+		connect.WithSchema(authoringServiceMethods.ByName("NextPhase")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authoringServiceFinalizeHandler := connect.NewUnaryHandler(
 		AuthoringServiceFinalizeProcedure,
 		svc.Finalize,
@@ -267,6 +371,14 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceValidateStructureHandler.ServeHTTP(w, r)
 		case AuthoringServiceAutofillProcedure:
 			authoringServiceAutofillHandler.ServeHTTP(w, r)
+		case AuthoringServiceAddPhaseProcedure:
+			authoringServiceAddPhaseHandler.ServeHTTP(w, r)
+		case AuthoringServiceGetPhaseProcedure:
+			authoringServiceGetPhaseHandler.ServeHTTP(w, r)
+		case AuthoringServiceSubmitPhaseFieldProcedure:
+			authoringServiceSubmitPhaseFieldHandler.ServeHTTP(w, r)
+		case AuthoringServiceNextPhaseProcedure:
+			authoringServiceNextPhaseHandler.ServeHTTP(w, r)
 		case AuthoringServiceFinalizeProcedure:
 			authoringServiceFinalizeHandler.ServeHTTP(w, r)
 		default:
@@ -300,6 +412,22 @@ func (UnimplementedAuthoringServiceHandler) ValidateStructure(context.Context, *
 
 func (UnimplementedAuthoringServiceHandler) Autofill(context.Context, *connect.Request[authoring.AutofillRequest]) (*connect.Response[authoring.AutofillResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.Autofill is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) GetPhase(context.Context, *connect.Request[authoring.GetPhaseRequest]) (*connect.Response[authoring.GetPhaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) SubmitPhaseField(context.Context, *connect.Request[authoring.SubmitPhaseFieldRequest]) (*connect.Response[authoring.SubmitPhaseFieldResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error) {

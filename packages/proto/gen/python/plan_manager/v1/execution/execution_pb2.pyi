@@ -26,7 +26,7 @@ class Execution(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class PhaseContext(_message.Message):
-    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness")
+    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness", "relevant_context")
     CURRENT_PHASE_FIELD_NUMBER: _ClassVar[int]
     NEXT_PHASE_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_READING_FIELD_NUMBER: _ClassVar[int]
@@ -35,6 +35,7 @@ class PhaseContext(_message.Message):
     STALENESS_FIELD_NUMBER: _ClassVar[int]
     RESUME_PHASE_ID_FIELD_NUMBER: _ClassVar[int]
     COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
+    RELEVANT_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     current_phase: _model_pb2.Phase
     next_phase: _model_pb2.Phase
     required_reading: _containers.RepeatedScalarFieldContainer[str]
@@ -43,7 +44,8 @@ class PhaseContext(_message.Message):
     staleness: _model_pb2.StalenessTier
     resume_phase_id: str
     completeness: _model_pb2.Completeness
-    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ...) -> None: ...
+    relevant_context: _containers.RepeatedCompositeFieldContainer[_model_pb2.RelevantContextItem]
+    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ...) -> None: ...
 
 class CompletionNudge(_message.Message):
     __slots__ = ("kind", "message", "satisfied")
@@ -64,10 +66,14 @@ class StartRequest(_message.Message):
     def __init__(self, plan_id: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class StartResponse(_message.Message):
-    __slots__ = ("execution",)
+    __slots__ = ("execution", "step", "context")
     EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
     execution: Execution
-    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    context: PhaseContext
+    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ..., context: _Optional[_Union[PhaseContext, _Mapping]] = ...) -> None: ...
 
 class GetStatusRequest(_message.Message):
     __slots__ = ("execution_id",)
@@ -76,12 +82,14 @@ class GetStatusRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
 
 class GetStatusResponse(_message.Message):
-    __slots__ = ("execution", "context")
+    __slots__ = ("execution", "context", "step")
     EXECUTION_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     execution: Execution
     context: PhaseContext
-    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., context: _Optional[_Union[PhaseContext, _Mapping]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., context: _Optional[_Union[PhaseContext, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class GetNextRequest(_message.Message):
     __slots__ = ("execution_id",)
@@ -90,12 +98,14 @@ class GetNextRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
 
 class GetNextResponse(_message.Message):
-    __slots__ = ("context", "complete")
+    __slots__ = ("context", "complete", "step")
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
     COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     context: PhaseContext
     complete: bool
-    def __init__(self, context: _Optional[_Union[PhaseContext, _Mapping]] = ..., complete: _Optional[bool] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, context: _Optional[_Union[PhaseContext, _Mapping]] = ..., complete: _Optional[bool] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class TransitionPhaseRequest(_message.Message):
     __slots__ = ("execution_id", "phase_id", "to_status")
@@ -108,12 +118,14 @@ class TransitionPhaseRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., to_status: _Optional[_Union[_model_pb2.PhaseStatus, str]] = ...) -> None: ...
 
 class TransitionPhaseResponse(_message.Message):
-    __slots__ = ("execution", "plan")
+    __slots__ = ("execution", "plan", "step")
     EXECUTION_FIELD_NUMBER: _ClassVar[int]
     PLAN_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     execution: Execution
     plan: _model_pb2.Plan
-    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, execution: _Optional[_Union[Execution, _Mapping]] = ..., plan: _Optional[_Union[_model_pb2.Plan, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class RecordDecisionRequest(_message.Message):
     __slots__ = ("execution_id", "phase_id", "summary", "detail")
@@ -128,10 +140,12 @@ class RecordDecisionRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., summary: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class RecordDecisionResponse(_message.Message):
-    __slots__ = ("decision",)
+    __slots__ = ("decision", "step")
     DECISION_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     decision: _model_pb2.Decision
-    def __init__(self, decision: _Optional[_Union[_model_pb2.Decision, _Mapping]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, decision: _Optional[_Union[_model_pb2.Decision, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class RecordFindingRequest(_message.Message):
     __slots__ = ("execution_id", "phase_id", "title", "detail")
@@ -146,10 +160,12 @@ class RecordFindingRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., phase_id: _Optional[str] = ..., title: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class RecordFindingResponse(_message.Message):
-    __slots__ = ("finding",)
+    __slots__ = ("finding", "step")
     FINDING_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     finding: _model_pb2.Finding
-    def __init__(self, finding: _Optional[_Union[_model_pb2.Finding, _Mapping]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, finding: _Optional[_Union[_model_pb2.Finding, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class CompleteRequest(_message.Message):
     __slots__ = ("execution_id", "tokens", "iterations")
@@ -162,12 +178,14 @@ class CompleteRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ..., tokens: _Optional[int] = ..., iterations: _Optional[int] = ...) -> None: ...
 
 class CompleteResponse(_message.Message):
-    __slots__ = ("handoff", "nudges")
+    __slots__ = ("handoff", "nudges", "step")
     HANDOFF_FIELD_NUMBER: _ClassVar[int]
     NUDGES_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     handoff: _model_pb2.Handoff
     nudges: _containers.RepeatedCompositeFieldContainer[CompletionNudge]
-    def __init__(self, handoff: _Optional[_Union[_model_pb2.Handoff, _Mapping]] = ..., nudges: _Optional[_Iterable[_Union[CompletionNudge, _Mapping]]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, handoff: _Optional[_Union[_model_pb2.Handoff, _Mapping]] = ..., nudges: _Optional[_Iterable[_Union[CompletionNudge, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class GetHandoffRequest(_message.Message):
     __slots__ = ("execution_id",)
@@ -176,10 +194,12 @@ class GetHandoffRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
 
 class GetHandoffResponse(_message.Message):
-    __slots__ = ("handoff",)
+    __slots__ = ("handoff", "step")
     HANDOFF_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     handoff: _model_pb2.Handoff
-    def __init__(self, handoff: _Optional[_Union[_model_pb2.Handoff, _Mapping]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, handoff: _Optional[_Union[_model_pb2.Handoff, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class ListCandidateFindingsRequest(_message.Message):
     __slots__ = ("execution_id",)
@@ -188,10 +208,12 @@ class ListCandidateFindingsRequest(_message.Message):
     def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
 
 class ListCandidateFindingsResponse(_message.Message):
-    __slots__ = ("findings",)
+    __slots__ = ("findings", "step")
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     findings: _containers.RepeatedCompositeFieldContainer[_model_pb2.Finding]
-    def __init__(self, findings: _Optional[_Iterable[_Union[_model_pb2.Finding, _Mapping]]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, findings: _Optional[_Iterable[_Union[_model_pb2.Finding, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class TriageFindingRequest(_message.Message):
     __slots__ = ("finding_id", "triage")
@@ -202,10 +224,12 @@ class TriageFindingRequest(_message.Message):
     def __init__(self, finding_id: _Optional[str] = ..., triage: _Optional[_Union[_model_pb2.FindingTriage, str]] = ...) -> None: ...
 
 class TriageFindingResponse(_message.Message):
-    __slots__ = ("finding",)
+    __slots__ = ("finding", "step")
     FINDING_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     finding: _model_pb2.Finding
-    def __init__(self, finding: _Optional[_Union[_model_pb2.Finding, _Mapping]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, finding: _Optional[_Union[_model_pb2.Finding, _Mapping]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
 class GetVelocityRequest(_message.Message):
     __slots__ = ("plan_id",)
@@ -214,7 +238,9 @@ class GetVelocityRequest(_message.Message):
     def __init__(self, plan_id: _Optional[str] = ...) -> None: ...
 
 class GetVelocityResponse(_message.Message):
-    __slots__ = ("points",)
+    __slots__ = ("points", "step")
     POINTS_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
     points: _containers.RepeatedCompositeFieldContainer[_model_pb2.VelocityPoint]
-    def __init__(self, points: _Optional[_Iterable[_Union[_model_pb2.VelocityPoint, _Mapping]]] = ...) -> None: ...
+    step: _model_pb2.GuidedStep
+    def __init__(self, points: _Optional[_Iterable[_Union[_model_pb2.VelocityPoint, _Mapping]]] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...

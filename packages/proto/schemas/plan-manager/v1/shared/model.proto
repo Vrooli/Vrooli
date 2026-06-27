@@ -32,10 +32,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 // status plus lifecycle actions, never free-text edited.
 enum PlanStatus {
   PLAN_STATUS_UNSPECIFIED = 0;
-  PLAN_STATUS_DRAFT = 1;     // being authored; not yet executable
-  PLAN_STATUS_ACTIVE = 2;    // at least one phase has left todo
-  PLAN_STATUS_COMPLETE = 3;  // every phase done
-  PLAN_STATUS_ARCHIVED = 4;  // soft-hidden; retained
+  PLAN_STATUS_DRAFT = 1; // being authored; not yet executable
+  PLAN_STATUS_ACTIVE = 2; // at least one phase has left todo
+  PLAN_STATUS_COMPLETE = 3; // every phase done
+  PLAN_STATUS_ARCHIVED = 4; // soft-hidden; retained
 }
 
 // PhaseStatus is the state of a single first-class phase. COMPUTED via a typed
@@ -51,36 +51,83 @@ enum PhaseStatus {
 // StalenessTier is the computed validity of referenced code since authoring.
 enum StalenessTier {
   STALENESS_TIER_UNSPECIFIED = 0;
-  STALENESS_TIER_FRESH = 1;             // no relevant change
-  STALENESS_TIER_LIGHTLY_STALE = 2;     // small diffs in referenced code
-  STALENESS_TIER_DEFINITELY_STALE = 3;  // referenced locations moved or deleted
+  STALENESS_TIER_FRESH = 1; // no relevant change
+  STALENESS_TIER_LIGHTLY_STALE = 2; // small diffs in referenced code
+  STALENESS_TIER_DEFINITELY_STALE = 3; // referenced locations moved or deleted
 }
 
 // ReferenceKind is the machine-readable locator family from
 // docs/reference/machine-readable-references.md.
 enum ReferenceKind {
   REFERENCE_KIND_UNSPECIFIED = 0;
-  REFERENCE_KIND_CODE = 1;  // [CODE: path/to/file.go]
-  REFERENCE_KIND_REQ = 2;   // [REQ: OT-...]
-  REFERENCE_KIND_DOC = 3;   // [DOC: path/to/doc.md]
+  REFERENCE_KIND_CODE = 1; // [CODE: path/to/file.go]
+  REFERENCE_KIND_REQ = 2; // [REQ: OT-...]
+  REFERENCE_KIND_DOC = 3; // [DOC: path/to/doc.md]
 }
 
 // ReferenceResolution is whether a reference resolves against code-facts.
 enum ReferenceResolution {
   REFERENCE_RESOLUTION_UNSPECIFIED = 0;
-  REFERENCE_RESOLUTION_RESOLVED = 1;    // located in code today
-  REFERENCE_RESOLUTION_UNRESOLVED = 2;  // recorded but code-facts could not resolve (degraded)
-  REFERENCE_RESOLUTION_FUTURE = 3;      // proposed not-yet-existing location (not flagged as deleted)
-  REFERENCE_RESOLUTION_MISSING = 4;     // resolved before but the location moved or was deleted
+  REFERENCE_RESOLUTION_RESOLVED = 1; // located in code today
+  REFERENCE_RESOLUTION_UNRESOLVED = 2; // recorded but code-facts could not resolve (degraded)
+  REFERENCE_RESOLUTION_FUTURE = 3; // proposed not-yet-existing location (not flagged as deleted)
+  REFERENCE_RESOLUTION_MISSING = 4; // resolved before but the location moved or was deleted
+}
+
+// RelevantContextKind classifies one setup item a fresh/resumed agent should
+// load, inspect, or run before acting on a plan or phase.
+enum RelevantContextKind {
+  RELEVANT_CONTEXT_KIND_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_KIND_SKILL = 1;
+  RELEVANT_CONTEXT_KIND_DOC = 2;
+  RELEVANT_CONTEXT_KIND_COMMAND = 3;
+  RELEVANT_CONTEXT_KIND_SEARCH = 4;
+  RELEVANT_CONTEXT_KIND_CODE_REF = 5;
+  RELEVANT_CONTEXT_KIND_REQ_REF = 6;
+  RELEVANT_CONTEXT_KIND_NOTE = 7;
+}
+
+// RelevantContextScope says whether an item applies plan-wide or to one phase.
+enum RelevantContextScope {
+  RELEVANT_CONTEXT_SCOPE_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_SCOPE_GLOBAL = 1;
+  RELEVANT_CONTEXT_SCOPE_PHASE = 2;
+}
+
+// RelevantContextRepeatPolicy says when execution should re-emit the item.
+enum RelevantContextRepeatPolicy {
+  RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION = 1;
+  RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME = 2;
+  RELEVANT_CONTEXT_REPEAT_POLICY_EVERY_PHASE = 3;
+  RELEVANT_CONTEXT_REPEAT_POLICY_PHASE_ENTRY = 4;
+  RELEVANT_CONTEXT_REPEAT_POLICY_AS_NEEDED = 5;
+}
+
+// RelevantContextSource captures how the context item entered the plan.
+enum RelevantContextSource {
+  RELEVANT_CONTEXT_SOURCE_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_SOURCE_AUTHORED = 1;
+  RELEVANT_CONTEXT_SOURCE_DISCOVERED = 2;
+  RELEVANT_CONTEXT_SOURCE_MIGRATED = 3;
+  RELEVANT_CONTEXT_SOURCE_AUTOFILLED = 4;
+}
+
+// RelevantContextStatus records whether the item is usable or degraded.
+enum RelevantContextStatus {
+  RELEVANT_CONTEXT_STATUS_UNSPECIFIED = 0;
+  RELEVANT_CONTEXT_STATUS_READY = 1;
+  RELEVANT_CONTEXT_STATUS_DEGRADED = 2;
+  RELEVANT_CONTEXT_STATUS_UNRESOLVED = 3;
 }
 
 // FindingTriage is the operator-triage state of a candidate finding. Findings
 // are filed as CANDIDATE (unvalidated) and never auto-promoted to real bugs.
 enum FindingTriage {
   FINDING_TRIAGE_UNSPECIFIED = 0;
-  FINDING_TRIAGE_CANDIDATE = 1;  // unvalidated; awaiting operator triage
-  FINDING_TRIAGE_PROMOTED = 2;   // operator promoted to a real bug
-  FINDING_TRIAGE_DISMISSED = 3;  // operator dismissed
+  FINDING_TRIAGE_CANDIDATE = 1; // unvalidated; awaiting operator triage
+  FINDING_TRIAGE_PROMOTED = 2; // operator promoted to a real bug
+  FINDING_TRIAGE_DISMISSED = 3; // operator dismissed
 }
 
 // Completeness distinguishes a full run from a partial one. COMPUTED from the
@@ -99,6 +146,44 @@ enum ValidationVerdict {
   VALIDATION_VERDICT_PASS = 1;
   VALIDATION_VERDICT_FAIL = 2;
   VALIDATION_VERDICT_UNKNOWN = 3;
+}
+
+// NextActionKind classifies the role of a wizard action in the current guided
+// step. Clients should treat RECOMMENDED as the default action to execute next.
+enum NextActionKind {
+  NEXT_ACTION_KIND_UNSPECIFIED = 0;
+  NEXT_ACTION_KIND_RECOMMENDED = 1;
+  NEXT_ACTION_KIND_ALTERNATIVE = 2;
+  NEXT_ACTION_KIND_OPTIONAL = 3;
+  NEXT_ACTION_KIND_RECOVERY = 4;
+}
+
+// NextAction is one concrete command/action the API recommends for the current
+// guided step. argv is canonical; shell strings are presentation-only.
+message NextAction {
+  string id = 1;
+  NextActionKind kind = 2;
+  string label = 3;
+  string reason = 4;
+  repeated string argv = 5;
+  // Filled only when the action needs agent-authored content.
+  string content_placeholder = 6;
+  // Human-readable blockers that must be resolved before this action can run.
+  repeated string blocked_by = 7;
+}
+
+// GuidedStep is the API-owned steering contract for Plan Manager wizard flows.
+// Authoring, execution, CLI, UI, and future scenario consumers all read this
+// shape instead of re-deriving workflow order.
+message GuidedStep {
+  string step_kind = 1;
+  string title = 2;
+  string summary = 3;
+  repeated string instructions = 4;
+  repeated string required_inputs = 5;
+  repeated string examples = 6;
+  repeated string common_mistakes = 7;
+  repeated NextAction next_actions = 8;
 }
 
 // Reference is one connected-code locator on a plan or phase. AUTHORED (kind +
@@ -121,6 +206,31 @@ message Reference {
   string note = 8;
 }
 
+// RelevantContextItem is the execution-facing setup contract. It replaces flat
+// required-reading prose with typed, ordered context that CLI/UI/execution can
+// render without re-inferring what an agent should do.
+message RelevantContextItem {
+  string id = 1;
+  RelevantContextKind kind = 2;
+  RelevantContextScope scope = 3;
+  // Filled when scope=PHASE. For phase-owned items this mirrors the parent
+  // phase id so consumers can merge global and phase context deterministically.
+  string phase_id = 4;
+  string label = 5;
+  string reason = 6;
+  string instruction = 7;
+  // Presentation shell command. argv is canonical when both are present.
+  string command = 8;
+  repeated string argv = 9;
+  // Locator for docs/code/requirements/skills/search terms.
+  string target = 10;
+  bool required = 11;
+  RelevantContextRepeatPolicy repeat_policy = 12;
+  RelevantContextSource source = 13;
+  RelevantContextStatus status = 14;
+  string status_detail = 15;
+}
+
 // RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
 // by the authoring wizard (delegating to git-control-tower) and stored on the
 // plan. Two strategies: a scenario baseline snapshot, or a HEAD sha + file
@@ -128,13 +238,13 @@ message Reference {
 message RegressionAnchor {
   // "scenario_baseline" or "head_sha_allowlist".
   string strategy = 1;
-  string scenario = 2;        // scenario-baseline strategy: the scenario name
-  string baseline_name = 3;   // scenario-baseline strategy: the named snapshot
-  string head_sha = 4;        // head-sha strategy: the recorded commit
-  repeated string allowlist_paths = 5;  // head-sha strategy: paths allowed to change
+  string scenario = 2; // scenario-baseline strategy: the scenario name
+  string baseline_name = 3; // scenario-baseline strategy: the named snapshot
+  string head_sha = 4; // head-sha strategy: the recorded commit
+  repeated string allowlist_paths = 5; // head-sha strategy: paths allowed to change
   // The exact baseline/diff command set this anchor implies.
   repeated string commands = 6;
-  string captured_at = 7;     // RFC3339; empty when autofill was skipped/degraded
+  string captured_at = 7; // RFC3339; empty when autofill was skipped/degraded
   // True when anchor autofill was attempted but the dependency was down.
   bool unavailable = 8;
 }
@@ -174,6 +284,26 @@ message ValidationResult {
   repeated string commands_run = 6;
   string detail = 7;
   string ran_at = 8;
+  // COMPUTED: authored cli: command references checked through CLI Health.
+  repeated CommandValidationFinding command_findings = 9;
+}
+
+// CommandValidationFinding is one CLI Health-backed finding for an authored
+// command reference in a plan or phase. It validates references, not runtime
+// execution.
+message CommandValidationFinding {
+  string command_text = 1;
+  string verdict = 2;
+  string validation_level = 3;
+  string message = 4;
+  string location = 5;
+  // CLI Health issue codes preserved for clients that need structured policy
+  // mapping instead of parsing message text.
+  repeated string issue_codes = 6;
+  // CLI Health command suggestions, ordered by CLI Health confidence.
+  repeated string suggestions = 7;
+  // CLI Health-authored remediation guidance.
+  repeated string guidance = 8;
 }
 
 // Phase is a first-class phase — the unit the runner walks and context is scoped
@@ -196,6 +326,7 @@ message Phase {
   repeated Decision decisions = 11;
   repeated Finding findings = 12;
   repeated Reference references = 13;
+  repeated RelevantContextItem relevant_context = 14;
 }
 
 // Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
@@ -204,8 +335,8 @@ message Plan {
   string id = 1;
   string slug = 2;
   string title = 3;
-  PlanStatus status = 4;        // COMPUTED
-  string content_hash = 5;      // COMPUTED; powers supersession/dependency edges
+  PlanStatus status = 4; // COMPUTED
+  string content_hash = 5; // COMPUTED; powers supersession/dependency edges
   string created_at = 6;
   string updated_at = 7;
   string purpose = 8;
@@ -213,11 +344,12 @@ message Plan {
   string constraints = 10;
   string non_goals = 11;
   repeated Reference references = 12;
-  RegressionAnchor regression_anchor = 13;  // AUTO-FILLED
+  RegressionAnchor regression_anchor = 13; // AUTO-FILLED
   string definition_of_done = 14;
   repeated Phase phases = 15;
-  repeated string supersedes = 16;     // plan-graph edges
-  repeated string superseded_by = 17;  // plan-graph edges
+  repeated string supersedes = 16; // plan-graph edges
+  repeated string superseded_by = 17; // plan-graph edges
+  repeated RelevantContextItem relevant_context = 18;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan
@@ -225,7 +357,7 @@ message Plan {
 message PlanEdge {
   string from_plan_id = 1;
   string to_plan_id = 2;
-  string kind = 3;  // "supersedes" | "depends_on"
+  string kind = 3; // "supersedes" | "depends_on"
 }
 
 // VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
@@ -250,8 +382,8 @@ message Handoff {
   string id = 1;
   string execution_id = 2;
   string plan_id = 3;
-  Completeness completeness = 4;     // COMPUTED from the phase-status set
-  string resume_phase_id = 5;        // COMPUTED: earliest non-done phase
+  Completeness completeness = 4; // COMPUTED from the phase-status set
+  string resume_phase_id = 5; // COMPUTED: earliest non-done phase
   repeated Decision decisions = 6;
   repeated Finding candidate_findings = 7;
   ValidationResult last_validation = 8;

@@ -80,6 +80,9 @@ const (
 	// ModelsServiceListOperationModelsProcedure is the fully-qualified name of the ModelsService's
 	// ListOperationModels RPC.
 	ModelsServiceListOperationModelsProcedure = "/vrooli.image_tools.v1.models.ModelsService/ListOperationModels"
+	// ModelsServiceExplainResolutionProcedure is the fully-qualified name of the ModelsService's
+	// ExplainResolution RPC.
+	ModelsServiceExplainResolutionProcedure = "/vrooli.image_tools.v1.models.ModelsService/ExplainResolution"
 )
 
 // ModelsServiceClient is a client for the vrooli.image_tools.v1.models.ModelsService service.
@@ -148,6 +151,13 @@ type ModelsServiceClient interface {
 	// host) so the in-product model picker is transparent about why a model was
 	// chosen and what each alternative needs to become usable.
 	ListOperationModels(context.Context, *connect.Request[models.ListOperationModelsRequest]) (*connect.Response[models.ListOperationModelsResponse], error)
+	// ExplainResolution returns the explicit Resolution for an operation on this
+	// host — which model would run, whether it serves the op natively or via a
+	// derived technique (with the quality caveat), the backend tier, and the
+	// operation's safety consent weight — WITHOUT executing anything. It is the
+	// read-only `--explain` / dry-run surface over the same resolution the AI
+	// submit edge pins into a job.
+	ExplainResolution(context.Context, *connect.Request[models.ExplainResolutionRequest]) (*connect.Response[models.ExplainResolutionResponse], error)
 }
 
 // NewModelsServiceClient constructs a client for the vrooli.image_tools.v1.models.ModelsService
@@ -257,6 +267,12 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("ListOperationModels")),
 			connect.WithClientOptions(opts...),
 		),
+		explainResolution: connect.NewClient[models.ExplainResolutionRequest, models.ExplainResolutionResponse](
+			httpClient,
+			baseURL+ModelsServiceExplainResolutionProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("ExplainResolution")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -278,6 +294,7 @@ type modelsServiceClient struct {
 	ensureBackend       *connect.Client[models.EnsureBackendRequest, models.EnsureBackendResponse]
 	getHostSummary      *connect.Client[models.GetHostSummaryRequest, models.GetHostSummaryResponse]
 	listOperationModels *connect.Client[models.ListOperationModelsRequest, models.ListOperationModelsResponse]
+	explainResolution   *connect.Client[models.ExplainResolutionRequest, models.ExplainResolutionResponse]
 }
 
 // ListModels calls vrooli.image_tools.v1.models.ModelsService.ListModels.
@@ -360,6 +377,11 @@ func (c *modelsServiceClient) ListOperationModels(ctx context.Context, req *conn
 	return c.listOperationModels.CallUnary(ctx, req)
 }
 
+// ExplainResolution calls vrooli.image_tools.v1.models.ModelsService.ExplainResolution.
+func (c *modelsServiceClient) ExplainResolution(ctx context.Context, req *connect.Request[models.ExplainResolutionRequest]) (*connect.Response[models.ExplainResolutionResponse], error) {
+	return c.explainResolution.CallUnary(ctx, req)
+}
+
 // ModelsServiceHandler is an implementation of the vrooli.image_tools.v1.models.ModelsService
 // service.
 type ModelsServiceHandler interface {
@@ -427,6 +449,13 @@ type ModelsServiceHandler interface {
 	// host) so the in-product model picker is transparent about why a model was
 	// chosen and what each alternative needs to become usable.
 	ListOperationModels(context.Context, *connect.Request[models.ListOperationModelsRequest]) (*connect.Response[models.ListOperationModelsResponse], error)
+	// ExplainResolution returns the explicit Resolution for an operation on this
+	// host — which model would run, whether it serves the op natively or via a
+	// derived technique (with the quality caveat), the backend tier, and the
+	// operation's safety consent weight — WITHOUT executing anything. It is the
+	// read-only `--explain` / dry-run surface over the same resolution the AI
+	// submit edge pins into a job.
+	ExplainResolution(context.Context, *connect.Request[models.ExplainResolutionRequest]) (*connect.Response[models.ExplainResolutionResponse], error)
 }
 
 // NewModelsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -532,6 +561,12 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("ListOperationModels")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceExplainResolutionHandler := connect.NewUnaryHandler(
+		ModelsServiceExplainResolutionProcedure,
+		svc.ExplainResolution,
+		connect.WithSchema(modelsServiceMethods.ByName("ExplainResolution")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.image_tools.v1.models.ModelsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ModelsServiceListModelsProcedure:
@@ -566,6 +601,8 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceGetHostSummaryHandler.ServeHTTP(w, r)
 		case ModelsServiceListOperationModelsProcedure:
 			modelsServiceListOperationModelsHandler.ServeHTTP(w, r)
+		case ModelsServiceExplainResolutionProcedure:
+			modelsServiceExplainResolutionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -637,4 +674,8 @@ func (UnimplementedModelsServiceHandler) GetHostSummary(context.Context, *connec
 
 func (UnimplementedModelsServiceHandler) ListOperationModels(context.Context, *connect.Request[models.ListOperationModelsRequest]) (*connect.Response[models.ListOperationModelsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ListOperationModels is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) ExplainResolution(context.Context, *connect.Request[models.ExplainResolutionRequest]) (*connect.Response[models.ExplainResolutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ExplainResolution is not implemented"))
 }
