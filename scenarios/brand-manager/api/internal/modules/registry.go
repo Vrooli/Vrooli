@@ -25,6 +25,7 @@ import (
 	assetsH "brand-manager/handlers/assets"
 	assignmentsH "brand-manager/handlers/assignments"
 	brandsH "brand-manager/handlers/brands"
+	generationH "brand-manager/handlers/generation"
 	healthH "brand-manager/handlers/health"
 	notesH "brand-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "brand-manager/internal/database"
@@ -32,6 +33,7 @@ import (
 	assetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/assets"
 	assignmentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/assignments"
 	brandsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/brands"
+	generationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/generation"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
@@ -45,6 +47,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, assetsH.Endpoints...)
 	out = append(out, assignmentsH.Endpoints...)
 	out = append(out, brandsH.Endpoints...)
+	out = append(out, generationH.Endpoints...)
 	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }
@@ -75,6 +78,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "assets", File: assetsv1.File_brand_manager_v1_assets_assets_proto},
 		{Module: "assignments", File: assignmentsv1.File_brand_manager_v1_assignments_assignments_proto},
 		{Module: "brands", File: brandsv1.File_brand_manager_v1_brands_brands_proto},
+		{Module: "generation", File: generationv1.File_brand_manager_v1_generation_generation_proto},
 		{Module: "notes", File: notesv1.File_brand_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 	}
 }

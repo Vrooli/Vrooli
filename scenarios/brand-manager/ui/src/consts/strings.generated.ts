@@ -27,6 +27,7 @@ export const strings = {
       brands: "layout.nav.brands",
       assignments: "layout.nav.assignments",
       assets: "layout.nav.assets",
+      generation: "layout.nav.generation",
     },
   },
   theme: {
@@ -59,6 +60,9 @@ export const strings = {
     },
     assets: {
       title: "pages.assets.title",
+    },
+    generation: {
+      title: "pages.generation.title",
     },
   },
   health: {
@@ -141,6 +145,15 @@ export const strings = {
     empty: "assets.empty",
     brandLabel: "assets.brandLabel",
     typeLabel: "assets.typeLabel",
+  },
+  generation: {
+    title: "generation.title",
+    loading: "generation.loading",
+    empty: "generation.empty",
+    availableLabel: "generation.availableLabel",
+    unavailableLabel: "generation.unavailableLabel",
+    summaryAvailable: "generation.summaryAvailable",
+    summaryUnavailable: "generation.summaryUnavailable",
   },
 } as const;
 

@@ -604,6 +604,92 @@
           }
         }
       ]
+    },
+    {
+      "name": "generation",
+      "description": "Generate brand text facets and images with the AI provider chain (Ollama → OpenRouter)",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Report which AI providers are currently available",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GetProviderStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "elements",
+          "description": "Generate brand text facets (colors, typography, voice) and apply them to a brand",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to generate facets for"
+            },
+            {
+              "name": "elements",
+              "required": true,
+              "description": "Comma-separated facets: colors,typography,voice"
+            },
+            {
+              "name": "model",
+              "description": "Provider model/role override (optional)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GenerateBrandElements"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "image",
+          "description": "Generate a brand image (logo or favicon) and store it as a brand asset",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to generate the image for"
+            },
+            {
+              "name": "type",
+              "required": true,
+              "description": "Image type: logo or favicon"
+            },
+            {
+              "name": "model",
+              "description": "Provider model override (optional)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GenerateBrandImage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "measures": {

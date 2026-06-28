@@ -600,6 +600,139 @@
       ]
     },
     {
+      "id": "generation_provider_status",
+      "path": "/vrooli.brand_manager.v1.generation.GenerationService/GetProviderStatus",
+      "method": "POST",
+      "summary": "Report AI provider availability",
+      "description": "Returns whether at least one AI provider in the chain is reachable, plus per-provider status (Ollama first, then OpenRouter).",
+      "category": "generation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "bool (at least one provider reachable)",
+          "providers": "array<ProviderStatus>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Provider status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/GetProviderStatus -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "generation_elements",
+      "path": "/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandElements",
+      "method": "POST",
+      "summary": "Generate brand text facets",
+      "description": "Generates the requested facets (colors, typography, voice) via the AI chain and merges them onto the brand (partial-merge; each apply bumps the version). Per-element provider/parse failures are reported per-element, not as a call error.",
+      "category": "generation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (subset of colors, typography, voice)",
+          "model": "string (optional provider model/role override)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "array<string>",
+          "brand_version": "int32 (0 when nothing applied)",
+          "model": "string",
+          "provider": "string",
+          "results": "array<ElementResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or empty elements"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "No AI provider is currently reachable"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Applying generated facets failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Generate colors",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandElements -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"elements\":[\"colors\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "generation_image",
+      "path": "/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandImage",
+      "method": "POST",
+      "summary": "Generate a brand image",
+      "description": "Generates a logo or favicon via the AI chain and stores it as a brand asset (upsert by brand_id + derived filename, so regenerating replaces the bytes in place).",
+      "category": "generation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "model": "string (optional provider model override)",
+          "type": "string (logo | favicon)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset_id": "string",
+          "filename": "string",
+          "mime_type": "string",
+          "model": "string",
+          "provider": "string",
+          "size": "int64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or type not in {logo, favicon}"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "No AI provider is currently reachable"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Image generation or asset write failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Generate logo",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.generation.GenerationService/GenerateBrandImage -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"type\":\"logo\"}'"
+        }
+      ]
+    },
+    {
       "id": "notes_list",
       "path": "/vrooli.brand_manager.v1.notes.NotesService/ListNotes",
       "method": "POST",

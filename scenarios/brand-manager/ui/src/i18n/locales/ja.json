@@ -14,7 +14,8 @@
       "settings": "設定",
       "brands": "ブランド",
       "assignments": "割り当て",
-      "assets": "アセット"
+      "assets": "アセット",
+      "generation": "生成"
     }
   },
   "theme": {
@@ -47,6 +48,9 @@
     },
     "assets": {
       "title": "アセット"
+    },
+    "generation": {
+      "title": "生成"
     }
   },
   "health": {
@@ -125,5 +129,14 @@
     "empty": "ブランドアセットはまだありません。",
     "brandLabel": "ブランド:",
     "typeLabel": "種類:"
+  },
+  "generation": {
+    "title": "AIプロバイダー",
+    "loading": "プロバイダーの可用性を確認しています…",
+    "empty": "AIプロバイダーが構成されていません。",
+    "availableLabel": "利用可能",
+    "unavailableLabel": "利用不可",
+    "summaryAvailable": "少なくとも1つのAIプロバイダーが利用可能です。",
+    "summaryUnavailable": "現在利用可能なAIプロバイダーはありません。"
   }
 }

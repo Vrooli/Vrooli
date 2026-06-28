@@ -10,6 +10,7 @@ import { AssetsPage } from "../pages/AssetsPage";
 import { AssignmentsPage } from "../pages/AssignmentsPage";
 import { BrandsPage } from "../pages/BrandsPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { GenerationPage } from "../pages/GenerationPage";
 import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
 
@@ -29,6 +30,7 @@ export const routes: RouteObject[] = [
       { path: "brands", element: <BrandsPage /> },
       { path: "assignments", element: <AssignmentsPage /> },
       { path: "assets", element: <AssetsPage /> },
+      { path: "generation", element: <GenerationPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

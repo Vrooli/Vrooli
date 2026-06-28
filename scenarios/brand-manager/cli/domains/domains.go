@@ -4,6 +4,7 @@ import (
 	"brand-manager/cli/domains/assets"
 	"brand-manager/cli/domains/assignments"
 	"brand-manager/cli/domains/brands"
+	"brand-manager/cli/domains/generation"
 	"brand-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -55,6 +56,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, assetsGroup)
+	generationGroup, err := generation.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, generationGroup)
 	// EXAMPLE-DOMAIN:notes START
 	notesGroup, err := notes.Register(core, manifest)
 	if err != nil {

@@ -24,6 +24,7 @@ import (
 	assetsH "brand-manager/handlers/assets"
 	assignmentsH "brand-manager/handlers/assignments"
 	brandsH "brand-manager/handlers/brands"
+	generationH "brand-manager/handlers/generation"
 	healthH "brand-manager/handlers/health"
 	notesH "brand-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	validationH "brand-manager/handlers/validation"
@@ -162,6 +163,11 @@ func main() {
 		assetsH.Module(db, clock.System{}, log.Default(), assetsDir),
 		assignmentsH.Module(db, clock.System{}, log.Default()),
 		brandsH.Module(db, clock.System{}, log.Default()),
+		// Generation owns no table; it composes the brands + assets domains
+		// behind two adapters and writes generated images into the same assets
+		// tree (hence assetsDir). The provider chain is built from the
+		// environment (OLLAMA_ROLE, OPENROUTER_API_KEY, …).
+		generationH.Module(db, clock.System{}, log.Default(), assetsDir),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 		// Branding validation: the served ScenarioValidationService test-genie's
 		// `branding` delegated phase calls. brand-manager both authors and

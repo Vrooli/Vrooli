@@ -14,7 +14,8 @@
       "settings": "Settings",
       "brands": "Brands",
       "assignments": "Assignments",
-      "assets": "Assets"
+      "assets": "Assets",
+      "generation": "Generation"
     }
   },
   "theme": {
@@ -47,6 +48,9 @@
     },
     "assets": {
       "title": "Assets"
+    },
+    "generation": {
+      "title": "Generation"
     }
   },
   "health": {
@@ -129,5 +133,14 @@
     "empty": "No brand assets yet.",
     "brandLabel": "Brand:",
     "typeLabel": "Type:"
+  },
+  "generation": {
+    "title": "AI Providers",
+    "loading": "Checking provider availability…",
+    "empty": "No AI providers are configured.",
+    "availableLabel": "Available",
+    "unavailableLabel": "Unavailable",
+    "summaryAvailable": "At least one AI provider is available.",
+    "summaryUnavailable": "No AI providers are currently available."
   }
 }
