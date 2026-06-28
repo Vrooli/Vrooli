@@ -30,7 +30,6 @@ import (
 	discoveryH "brand-manager/handlers/discovery"
 	generationH "brand-manager/handlers/generation"
 	healthH "brand-manager/handlers/health"
-	notesH "brand-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "brand-manager/internal/database"
 
 	applyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/apply"
@@ -40,7 +39,6 @@ import (
 	designv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/design"
 	discoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/discovery"
 	generationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/generation"
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -57,7 +55,6 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, designH.Endpoints...)
 	out = append(out, discoveryH.Endpoints...)
 	out = append(out, generationH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }
 
@@ -91,7 +88,6 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "design", File: designv1.File_brand_manager_v1_design_design_proto},
 		{Module: "discovery", File: discoveryv1.File_brand_manager_v1_discovery_discovery_proto},
 		{Module: "generation", File: generationv1.File_brand_manager_v1_generation_generation_proto},
-		{Module: "notes", File: notesv1.File_brand_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 	}
 }
 
@@ -109,6 +105,5 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(assetsH.Schema),
 		apidb.SchemaProviderFunc(assignmentsH.Schema),
 		apidb.SchemaProviderFunc(brandsH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 	}
 }

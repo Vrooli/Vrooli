@@ -2,6 +2,7 @@ package modeltest_test
 
 import (
 	"testing"
+
 	"brand-manager/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "generation",
     "description": "AI generation of brand text and imagery via the AIProviderChain (Ollama-first, OpenRouter fallback), degrading gracefully when providers are absent.",
+    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "module": "generation",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "GEN-001",
       "title": "Generate brand text via the Ollama-first provider chain",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -24,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/aigen/chain_test.go once the AIProviderChain is ported."
         }
       ]
@@ -32,7 +33,7 @@
     {
       "id": "GEN-002",
       "title": "Generate brand imagery (logo, favicon, icon)",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -45,7 +46,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/aigen/image_test.go once image generation is ported."
         }
       ]
@@ -53,7 +54,7 @@
     {
       "id": "GEN-003",
       "title": "Generation degrades gracefully when no provider is reachable",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "generation",
       "criticality": "P0",
@@ -66,7 +67,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/aigen/degrade_test.go once graceful degradation is ported."
         }
       ]

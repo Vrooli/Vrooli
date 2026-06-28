@@ -23,10 +23,17 @@ const readStoredChoice = (): ThemeChoice => {
   return "system";
 };
 
+// matchMedia is absent under SSR and some test environments, but the DOM lib
+// types it as always-present — read it through an optional-typed view of
+// globalThis so the presence check is a real branch, not a lint-flagged
+// always-falsy condition.
+type MatchMediaHost = { matchMedia?: (query: string) => MediaQueryList };
+
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const host = globalThis as MatchMediaHost;
+  if (!host.matchMedia) return "light";
+  return host.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
@@ -55,9 +62,9 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
-    if (choice !== "system") return undefined;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const host = globalThis as MatchMediaHost;
+    if (choice !== "system" || !host.matchMedia) return undefined;
+    const mq = host.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);

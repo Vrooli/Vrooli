@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "apply",
     "description": "Programmatic application of brand elements into a target scenario (CSS markers, manifest _brand keys, asset copy) plus DESIGN.md export.",
+    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "module": "apply",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,11 +11,11 @@
     {
       "id": "APPLY-001",
       "title": "Apply colors and typography via marked CSS custom properties",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "apply",
       "criticality": "P0",
-      "description": "Apply writes brand colors and typography as CSS custom properties delimited by /* brand-manager:<element> */ markers, replacing only the marked region so unrelated CSS is preserved.",
+      "description": "Apply writes brand colors and typography as CSS custom properties delimited by /* brand-manager:\u003celement\u003e */ markers, replacing only the marked region so unrelated CSS is preserved.",
       "tags": [
         "apply",
         "css",
@@ -24,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/apply/css_test.go once the marker-based apply engine is ported."
         }
       ]
@@ -32,7 +33,7 @@
     {
       "id": "APPLY-002",
       "title": "Apply manifest _brand keys and copy static assets atomically",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "apply",
       "criticality": "P0",
@@ -46,7 +47,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/apply/manifest_test.go once manifest/asset apply is ported."
         }
       ]
@@ -54,7 +55,7 @@
     {
       "id": "APPLY-003",
       "title": "Re-applying an unchanged brand is idempotent",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "apply",
       "criticality": "P0",
@@ -67,7 +68,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/apply/idempotency_test.go once apply idempotency is ported."
         }
       ]
@@ -75,7 +76,7 @@
     {
       "id": "APPLY-004",
       "title": "Export a root-level DESIGN.md during apply",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "apply",
       "criticality": "P0",
@@ -88,7 +89,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/apply/designdoc_test.go once DESIGN.md export is ported."
         }
       ]

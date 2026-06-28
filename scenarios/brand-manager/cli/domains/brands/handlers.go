@@ -183,10 +183,12 @@ func colorsFromFlags(ctx cliapp.RunContext) *brandsv1.Colors {
 	return c
 }
 
-// atoiOrZero parses s as an int, returning 0 for empty or unparseable input.
-// The server clamps/validates ranges, so the CLI stays a thin pass-through.
+// atoiOrZero parses s as a 32-bit int, returning 0 for empty, unparseable, or
+// out-of-range input. ParseInt with bitSize 32 bounds the result so the int32
+// conversion can't overflow (gosec G109). The server clamps/validates ranges,
+// so the CLI stays a thin pass-through.
 func atoiOrZero(s string) int32 {
-	n, err := strconv.Atoi(strings.TrimSpace(s))
+	n, err := strconv.ParseInt(strings.TrimSpace(s), 10, 32)
 	if err != nil {
 		return 0
 	}

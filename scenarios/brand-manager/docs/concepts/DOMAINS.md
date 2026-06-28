@@ -37,34 +37,6 @@ belong in [`DATA.md`](DATA.md).
 | discovery | Scan an existing scenario's state (service.json, theme/token files, static assets, manifests, DESIGN.md) and propose a draft brand with confidence scores; pluggable per-framework scanners. | Bootstrap brands from what scenarios already have. | No data (proposes drafts). | analysis | service | Scanner, DiscoveryResult | `api/internal/discovery/`, `packages/proto/schemas/brand-manager/v1/discovery/` |
 | validation | **Headline.** Serve `ScenarioValidationService` (ValidateScenario/PreviewFix/ApplyFix) so test-genie runs a `branding` delegated phase: severity-gated branding findings + maturity ladder + deterministic auto-fix. Findings flow on `FINDING_SOURCE_BRANDING`. | Every scenario's branding is continuously validated + auto-fixed inside the standard test loop. | No data (scans targets). | validation | service | BrandingRule, MaturityLadder | `api/internal/validation/`, `api/validation_connect.go`, `packages/proto/schemas/brand-manager/v1/validation/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/brand-manager/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Domain Details
 
 ### health

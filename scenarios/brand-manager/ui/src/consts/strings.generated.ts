@@ -14,15 +14,13 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   layout: {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
+    mainContent: "layout.mainContent",
     nav: {
       dashboard: "layout.nav.dashboard",
-      notes: "layout.nav.notes",
       settings: "layout.nav.settings",
       brands: "layout.nav.brands",
       assignments: "layout.nav.assignments",
@@ -46,9 +44,6 @@ export const strings = {
       title: "pages.dashboard.title",
       description: "pages.dashboard.description",
       statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
-    },
-    notes: {
-      title: "pages.notes.title",
     },
     settings: {
       title: "pages.settings.title",
@@ -92,24 +87,6 @@ export const strings = {
     summary: "notifications.summary",
     summary_zero: "notifications.summary_zero",
     summary_one: "notifications.summary_one",
-  },
-  notes: {
-    title: "notes.title",
-    loading: "notes.loading",
-    empty: "notes.empty",
-    create: "notes.create",
-    createdAtLabel: "notes.createdAtLabel",
-    attachmentsLabel: "notes.attachmentsLabel",
-    attachmentsLabel_one: "notes.attachmentsLabel_one",
-    uploadAttachment: "notes.uploadAttachment",
-    attachmentFileLabel: "notes.attachmentFileLabel",
-    uploadSuccess: "notes.uploadSuccess",
-    noFileSelected: "notes.noFileSelected",
-    measure: {
-      title: "notes.measure.title",
-      loading: "notes.measure.loading",
-      thisWeek: "notes.measure.thisWeek",
-    },
   },
   errors: {
     canceled: "errors.canceled",

@@ -1,16 +1,14 @@
 {
   "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل Brand Manager هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `vrooli scenario generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
   "app": {
-    "title": "Brand Manager",
-    "eyebrow": "قالب السيناريو",
-    "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
+    "title": "Brand Manager"
   },
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
     "bottomNavLabel": "شريط التنقل السفلي",
+    "mainContent": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
       "settings": "الإعدادات",
       "brands": "العلامات التجارية",
       "assignments": "التعيينات",
@@ -34,9 +32,6 @@
       "title": "لوحة التحكم",
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
-    },
-    "notes": {
-      "title": "الملاحظات"
     },
     "settings": {
       "title": "الإعدادات",
@@ -80,24 +75,6 @@
     "summary": "{{count}} إشعارات",
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
-  },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

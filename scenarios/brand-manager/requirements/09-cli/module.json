@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "cli",
     "description": "Manifest-driven CLI surface: every command is a declared Connect-RPC binding, no programmatic shell layer.",
+    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "module": "cli",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "CLI-001",
       "title": "Expose the full brand-manager command set via the manifest",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "cli",
       "criticality": "P0",
@@ -24,7 +25,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at cli/manifest_test.go once the manifest-driven CLI is ported."
         }
       ]
@@ -32,7 +33,7 @@
     {
       "id": "CLI-002",
       "title": "Every CLI command maps to an RPC with no programmatic shell",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "cli",
       "criticality": "P0",
@@ -45,7 +46,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at cli/bindings_test.go once the Connect-RPC bindings are ported."
         }
       ]

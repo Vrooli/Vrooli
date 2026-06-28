@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "assignments",
     "description": "Brand-to-scenario assignment ledger: which brand (at which version) is linked to which scenario and what was actually applied.",
+    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "module": "assignments",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "ASSIGN-001",
       "title": "Link a brand at a specific version to a scenario",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "assignments",
       "criticality": "P0",
@@ -23,7 +24,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/assignments/service_test.go once the assignments domain is ported."
         }
       ]
@@ -31,7 +32,7 @@
     {
       "id": "ASSIGN-002",
       "title": "Track which elements were applied, when, and at what version",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "assignments",
       "criticality": "P0",
@@ -44,7 +45,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/assignments/applied_test.go once applied-element tracking is ported."
         }
       ]
@@ -52,7 +53,7 @@
     {
       "id": "ASSIGN-003",
       "title": "Report per-scenario branding assignment status",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "assignments",
       "criticality": "P0",
@@ -65,7 +66,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Planned unit coverage at api/internal/assignments/status_test.go once scenario-status is ported."
         }
       ]

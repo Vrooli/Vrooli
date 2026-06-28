@@ -29,7 +29,6 @@ import (
 	discoveryH "brand-manager/handlers/discovery"
 	generationH "brand-manager/handlers/generation"
 	healthH "brand-manager/handlers/health"
-	notesH "brand-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	validationH "brand-manager/handlers/validation"
 )
 
@@ -204,7 +203,6 @@ func main() {
 		// Design owns no table; it composes the brands domain behind one adapter
 		// and renders a brand into a canonical DESIGN.md document (read-only).
 		designH.Module(db, clock.System{}, log.Default()),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 		// Branding validation: the served ScenarioValidationService test-genie's
 		// `branding` delegated phase calls. brand-manager both authors and
 		// validates branding, so the provider lives in this one scenario.
@@ -216,19 +214,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

@@ -15,8 +15,8 @@ const BRANDS_QUERY_KEY = ["brands"] as const;
 
 /**
  * BrandsCard is the brands-domain CRUD surface: it lists brands (newest-updated
- * first) and creates new ones via mutation. Mirrors the canonical NotesCard
- * reference but is wired to the BrandsService Connect client.
+ * first) and creates new ones via mutation, wired to the BrandsService Connect
+ * client. It is the canonical reference card the other domain cards mirror.
  */
 export function BrandsCard() {
   const { t } = useTranslation();

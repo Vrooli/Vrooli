@@ -88,8 +88,6 @@ func sourceLines(sources []*discoveryv1.DiscoverySource) []string {
 // suggestionLines renders each suggestion as a hint line.
 func suggestionLines(suggestions []string) []string {
 	out := make([]string, 0, len(suggestions))
-	for _, s := range suggestions {
-		out = append(out, s)
-	}
+	out = append(out, suggestions...)
 	return out
 }
