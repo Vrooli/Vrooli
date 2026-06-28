@@ -2,6 +2,7 @@
   "name": "Brand Manager",
   "short_name": "brand-manager",
   "description": "Full branding lifecycle — generate, manage, apply, and validate brand identity across all Vrooli scenarios",
+  "id": "/",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

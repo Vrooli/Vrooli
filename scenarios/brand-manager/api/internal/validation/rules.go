@@ -4,14 +4,14 @@
 // the shared scenario-validation/v1.ScenarioValidationService so test-genie can
 // run it as the `branding` delegated phase.
 //
-// The rules here re-express (and expand) the branding concepts the prior REST
-// build encoded in its orphaned audit provider — but they validate a scenario's
-// REAL files (display name, color tokens, typography, logo, favicon, applied
-// brand markers, WCAG-AA contrast) rather than a brand record's fields.
+// Rules are registered in registry.go with the surfaces they require and an
+// optional deterministic fixer. A finding's AutofixAvailable flag is not set by
+// the rule; it is computed centrally from whether the registered fixer can
+// produce a candidate, so the advertised flag and the implemented fixer can
+// never drift.
 package validation
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -48,32 +48,26 @@ type ScanResult struct {
 	Findings []Finding
 }
 
-// ScanScenario evaluates every branding rule against the scenario rooted at
-// root and returns the findings (empty when the branding is fully compliant).
-// A missing/unreadable root is the caller's responsibility (resolve first); an
-// empty findings slice means "passed".
+// ScanScenario evaluates every applicable branding rule against the scenario
+// rooted at root and returns the findings (empty when fully compliant). A rule
+// is skipped silently when a surface it requires (ui/, cli/) is absent, so a
+// CLI/API-only scenario never collects false-positive UI findings.
 func ScanScenario(scenario, root string) *ScanResult {
+	c := newScanContext(scenario, root)
 	res := &ScanResult{Scenario: scenario}
-	for _, rule := range allRules {
-		if f, fired := rule(root); fired {
-			res.Findings = append(res.Findings, f)
+	for _, spec := range specs {
+		if !c.hasAll(spec.surfaces) {
+			continue
 		}
+		f, fired := spec.eval(c)
+		if !fired {
+			continue
+		}
+		f.RuleID = spec.id
+		f.AutofixAvailable = autofixAvailable(spec.id, root)
+		res.Findings = append(res.Findings, f)
 	}
 	return res
-}
-
-// rule evaluates one branding rule against a scenario root. It returns the
-// finding and true when the rule is violated, or false when satisfied.
-type rule func(root string) (Finding, bool)
-
-var allRules = []rule{
-	ruleHasDisplayName,
-	ruleHasColorSystem,
-	ruleHasTypography,
-	ruleHasLogo,
-	ruleHasFavicon,
-	ruleWCAGContrast,
-	ruleBrandMarkersApplied,
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -86,16 +80,30 @@ func readFile(root, rel string) (string, bool) {
 	return string(b), true
 }
 
-// designTokensPath is where the react-vite design kit installs CSS custom
+// designSystemCSSRel is where the react-vite design kit installs CSS custom
 // properties; it is the canonical color/typography source for a generated
 // scenario.
 const designSystemCSSRel = "ui/src/design-tokens.css"
 
+// scheme selects which color scheme's custom-property values to read.
+type scheme int
+
+const (
+	schemeLight scheme = iota
+	schemeDark
+)
+
 var cssVarRe = regexp.MustCompile(`(?m)^\s*(--[a-zA-Z0-9-]+)\s*:\s*([^;]+);`)
 
-// firstCSSVars returns the first-declared value of each CSS custom property in
-// the given content (the light :root block wins, matching render default).
-func firstCSSVars(content string) map[string]string {
+// cssVarsForScheme returns the effective value of each CSS custom property for
+// the requested scheme. For light it is the first-declared value of each
+// property (the :root block, which precedes any dark override). For dark it is
+// the values declared inside dark-scheme blocks (.dark, [data-theme="dark"],
+// @media (prefers-color-scheme: dark)); an empty map means no dark block ships.
+func cssVarsForScheme(content string, s scheme) map[string]string {
+	if s == schemeDark {
+		content = darkSchemeBlocks(content)
+	}
 	out := map[string]string{}
 	for _, m := range cssVarRe.FindAllStringSubmatch(content, -1) {
 		name := strings.TrimSpace(m[1])
@@ -105,6 +113,50 @@ func firstCSSVars(content string) map[string]string {
 		out[name] = strings.TrimSpace(m[2])
 	}
 	return out
+}
+
+var darkSelectorRe = regexp.MustCompile(`(?i)(\.dark\b|\[data-theme\s*[~|]?=\s*['"]?dark['"]?\]|@media[^{]*prefers-color-scheme\s*:\s*dark)`)
+
+// darkSchemeBlocks returns the concatenated bodies of every dark-scheme rule in
+// content (so cssVarsForScheme can read dark overrides). It performs balanced
+// brace matching from each dark selector's opening brace.
+func darkSchemeBlocks(content string) string {
+	var b strings.Builder
+	for _, loc := range darkSelectorRe.FindAllStringIndex(content, -1) {
+		body, ok := braceBody(content, loc[1])
+		if ok {
+			b.WriteString(body)
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+// braceBody returns the text inside the first balanced {...} at or after start.
+func braceBody(content string, start int) (string, bool) {
+	open := strings.IndexByte(content[start:], '{')
+	if open < 0 {
+		return "", false
+	}
+	open += start
+	depth := 0
+	for i := open; i < len(content); i++ {
+		switch content[i] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return content[open+1 : i], true
+			}
+		}
+	}
+	return "", false
+}
+
+// hasDarkScheme reports whether the design tokens ship any dark-scheme block.
+func hasDarkScheme(content string) bool {
+	return len(cssVarsForScheme(content, schemeDark)) > 0
 }
 
 func anyFileMatches(root string, dirs []string, patterns []string) (string, bool) {
@@ -122,13 +174,11 @@ func anyFileMatches(root string, dirs []string, patterns []string) (string, bool
 	return "", false
 }
 
-// --- rules -----------------------------------------------------------------
+// --- rules: identity + visual system + assets + applied --------------------
 
-func ruleHasDisplayName(root string) (Finding, bool) {
-	content, ok := readFile(root, ".vrooli/service.json")
-	if !ok {
+func ruleHasDisplayName(c *scanContext) (Finding, bool) {
+	if _, ok := c.read(".vrooli/service.json"); !ok {
 		return Finding{
-			RuleID:                 "has-display-name",
 			Severity:               SeverityError,
 			Title:                  "No service.json to declare a brand display name",
 			Description:            "The scenario has no .vrooli/service.json, so it cannot declare a brand display name.",
@@ -137,30 +187,16 @@ func ruleHasDisplayName(root string) (Finding, bool) {
 			RecommendedRemediation: "Add .vrooli/service.json with a service.displayName.",
 		}, true
 	}
-	var svc struct {
-		Service struct {
-			Name        string `json:"name"`
-			DisplayName string `json:"displayName"`
-		} `json:"service"`
-	}
-	_ = json.Unmarshal([]byte(content), &svc)
-	display := strings.TrimSpace(svc.Service.DisplayName)
-	// A title-cased slug (e.g. "Widget Shop" for "widget-shop") is a perfectly
-	// good display name, so only the raw slug itself, an empty value, or a
-	// template bracket placeholder counts as missing.
-	placeholder := display == "" ||
-		strings.Contains(display, "[") ||
-		strings.EqualFold(display, svc.Service.Name)
-	if placeholder {
+	id := c.identity()
+	if !id.HasIdentity() {
 		return Finding{
-			RuleID:                 "has-display-name",
 			Severity:               SeverityError,
 			Title:                  "Brand display name is missing or a placeholder",
 			Description:            "service.displayName is empty, a template placeholder, or just the raw scenario id.",
 			FilePath:               ".vrooli/service.json",
 			WhyItMatters:           "The display name is the minimum brand identity every API/CLI/UI surface renders.",
 			RecommendedRemediation: "Set service.displayName to a meaningful product name.",
-			Evidence:               map[string]any{"display_name": display, "scenario_id": svc.Service.Name},
+			Evidence:               map[string]any{"display_name": id.DisplayName, "scenario_id": id.Slug},
 		}, true
 	}
 	return Finding{}, false
@@ -169,12 +205,8 @@ func ruleHasDisplayName(root string) (Finding, bool) {
 // coreColorTokens are the design-token names a coherent color system defines.
 var coreColorTokens = []string{"--color-background", "--color-foreground", "--color-primary"}
 
-func ruleHasColorSystem(root string) (Finding, bool) {
-	content, ok := readFile(root, designSystemCSSRel)
-	vars := map[string]string{}
-	if ok {
-		vars = firstCSSVars(content)
-	}
+func ruleHasColorSystem(c *scanContext) (Finding, bool) {
+	vars, ok := c.tokens()
 	var missing []string
 	for _, t := range coreColorTokens {
 		if strings.TrimSpace(vars[t]) == "" {
@@ -183,7 +215,6 @@ func ruleHasColorSystem(root string) (Finding, bool) {
 	}
 	if !ok || len(missing) > 0 {
 		return Finding{
-			RuleID:                 "has-color-system",
 			Severity:               SeverityWarning,
 			Title:                  "Core color system is incomplete",
 			Description:            "The design tokens do not define the core color tokens (background, foreground, primary).",
@@ -191,48 +222,36 @@ func ruleHasColorSystem(root string) (Finding, bool) {
 			WhyItMatters:           "A defined color system keeps every surface visually coherent and themeable.",
 			RecommendedRemediation: "Define the core --color-* custom properties in the design tokens.",
 			Evidence:               map[string]any{"missing_tokens": missing, "tokens_file_present": ok},
-			AutofixAvailable:       true,
 		}, true
 	}
 	return Finding{}, false
 }
 
-func ruleHasTypography(root string) (Finding, bool) {
-	content, ok := readFile(root, designSystemCSSRel)
-	vars := map[string]string{}
-	if ok {
-		vars = firstCSSVars(content)
-	}
-	hasFont := false
+func ruleHasTypography(c *scanContext) (Finding, bool) {
+	vars, _ := c.tokens()
 	for name, v := range vars {
 		if strings.HasPrefix(name, "--font-") && strings.TrimSpace(v) != "" {
-			hasFont = true
-			break
+			return Finding{}, false
 		}
 	}
-	if !hasFont {
-		return Finding{
-			RuleID:                 "has-typography",
-			Severity:               SeverityInfo,
-			Title:                  "Typography tokens are not defined",
-			Description:            "No --font-* design tokens define the scenario's heading/body typography.",
-			FilePath:               designSystemCSSRel,
-			WhyItMatters:           "Shared typography tokens keep text consistent across the scenario's surfaces.",
-			RecommendedRemediation: "Define --font-sans (and optionally --font-mono) in the design tokens.",
-		}, true
-	}
-	return Finding{}, false
+	return Finding{
+		Severity:               SeverityInfo,
+		Title:                  "Typography tokens are not defined",
+		Description:            "No --font-* design tokens define the scenario's heading/body typography.",
+		FilePath:               designSystemCSSRel,
+		WhyItMatters:           "Shared typography tokens keep text consistent across the scenario's surfaces.",
+		RecommendedRemediation: "Define --font-sans (and optionally --font-mono) in the design tokens.",
+	}, true
 }
 
-func ruleHasLogo(root string) (Finding, bool) {
-	if _, ok := anyFileMatches(root,
+func ruleHasLogo(c *scanContext) (Finding, bool) {
+	if _, ok := anyFileMatches(c.root,
 		[]string{"ui/public", "ui/src/assets", "public", "assets", "ui/public/brand"},
 		[]string{"logo.*", "logo-*.*", "*-logo.*"},
 	); ok {
 		return Finding{}, false
 	}
 	return Finding{
-		RuleID:                 "has-logo",
 		Severity:               SeverityWarning,
 		Title:                  "No brand logo asset found",
 		Description:            "No logo.* asset was found under the scenario's public/asset directories.",
@@ -242,77 +261,48 @@ func ruleHasLogo(root string) (Finding, bool) {
 	}, true
 }
 
-func ruleHasFavicon(root string) (Finding, bool) {
-	if _, ok := anyFileMatches(root,
-		[]string{"ui/public", "public", "ui"},
-		[]string{"favicon.*", "favicon-*.*"},
-	); ok {
+func ruleHasFavicon(c *scanContext) (Finding, bool) {
+	if hasFaviconAsset(c.root) || headReferencesIcon(c.head()) {
 		return Finding{}, false
 	}
-	// Fall back to an index.html <link rel="icon"> reference.
-	if html, ok := readFile(root, "ui/index.html"); ok {
-		if strings.Contains(html, `rel="icon"`) || strings.Contains(html, "rel='icon'") || strings.Contains(strings.ToLower(html), "apple-touch-icon") {
-			return Finding{}, false
-		}
-	}
 	return Finding{
-		RuleID:                 "has-favicon",
 		Severity:               SeverityWarning,
 		Title:                  "No favicon found",
 		Description:            "No favicon asset or <link rel=\"icon\"> reference was found.",
 		FilePath:               "ui/public",
 		WhyItMatters:           "The favicon is the brand mark shown in browser tabs and bookmarks.",
-		RecommendedRemediation: "Add a favicon (e.g. ui/public/favicon.png) and reference it from ui/index.html.",
-		AutofixAvailable:       true,
+		RecommendedRemediation: "Add a favicon (e.g. ui/public/favicon.svg) and reference it from ui/index.html.",
 	}, true
 }
 
-func ruleWCAGContrast(root string) (Finding, bool) {
-	content, ok := readFile(root, designSystemCSSRel)
+func hasFaviconAsset(root string) bool {
+	_, ok := anyFileMatches(root, []string{"ui/public", "public", "ui"}, []string{"favicon.*", "favicon-*.*"})
+	return ok
+}
+
+func headReferencesIcon(h *headDoc) bool {
+	if _, ok := h.linkByRel("icon"); ok {
+		return true
+	}
+	if _, ok := h.linkByRel("shortcut icon"); ok {
+		return true
+	}
+	if _, ok := h.linkByRel("apple-touch-icon"); ok {
+		return true
+	}
+	return false
+}
+
+func ruleWCAGContrast(c *scanContext) (Finding, bool) {
+	vars, ok := c.tokens()
 	if !ok {
-		// No tokens to check — covered by has-color-system, not a contrast finding.
-		return Finding{}, false
+		return Finding{}, false // covered by has-color-system
 	}
-	vars := firstCSSVars(content)
-	fg := vars["--color-foreground"]
-	bg := vars["--color-background"]
-	surface := vars["--color-surface"]
-	primary := vars["--color-primary"]
-	if fg == "" || bg == "" {
-		return Finding{}, false // uncheckable without the core pair
-	}
-	type pair struct {
-		name   string
-		fg, bg string
-	}
-	pairs := []pair{{"foreground-on-background", fg, bg}}
-	if surface != "" {
-		pairs = append(pairs, pair{"foreground-on-surface", fg, surface})
-	}
-	if primary != "" {
-		pairs = append(pairs, pair{"primary-on-background", primary, bg})
-	}
-	var failures []map[string]any
-	worst := 999.0
-	for _, p := range pairs {
-		pr, err := contrast.CheckPair(p.fg, p.bg)
-		if err != nil {
-			continue // unparseable color value; skip this pair
-		}
-		if !pr.AANormal {
-			failures = append(failures, map[string]any{
-				"pair": p.name, "foreground": p.fg, "background": p.bg, "ratio": pr.Ratio, "required": contrast.DefaultAANormalText,
-			})
-			if pr.Ratio < worst {
-				worst = pr.Ratio
-			}
-		}
-	}
+	failures, worst := contrastFailures(vars)
 	if len(failures) == 0 {
 		return Finding{}, false
 	}
 	return Finding{
-		RuleID:                 "wcag-aa-contrast",
 		Severity:               SeverityWarning,
 		Title:                  "Color pairings fail WCAG AA contrast",
 		Description:            "One or more core color pairings do not meet the WCAG 2.1 AA normal-text contrast ratio of 4.5:1.",
@@ -323,27 +313,79 @@ func ruleWCAGContrast(root string) (Finding, bool) {
 	}, true
 }
 
-func ruleBrandMarkersApplied(root string) (Finding, bool) {
-	// Look for applied brand-manager CSS markers in any UI stylesheet.
-	if hasMarker(filepath.Join(root, "ui", "src")) {
+// contrastPairs lists the foreground→background token pairings a readable UI
+// must satisfy. Pairs whose tokens are absent are skipped (uncheckable), so a
+// minimal token set checks only what it declares.
+//
+// Tier choice is deliberate: the core reading surfaces (body/primary text and
+// the primary button label) are held to AA normal-text (4.5:1). Accent and
+// semantic state colors are predominantly used for emphasis, icons, badges,
+// borders, and large text, where the applicable WCAG bar is 3:1 (large-text /
+// non-text contrast 1.4.11). Checking those at 4.5 would over-report on standard
+// vivid palettes; 3:1 still catches a genuinely unusable color.
+var contrastPairs = []struct {
+	name, fg, bg string
+	largeOK      bool // true ⇒ emphasis/non-text color, AA bar is 3:1 not 4.5:1
+}{
+	{name: "foreground-on-background", fg: "--color-foreground", bg: "--color-background"},
+	{name: "foreground-on-surface", fg: "--color-foreground", bg: "--color-surface"},
+	{name: "primary-on-background", fg: "--color-primary", bg: "--color-background"},
+	{name: "primary-foreground-on-primary", fg: "--color-primary-foreground", bg: "--color-primary"},
+	{name: "accent-on-background", fg: "--color-accent", bg: "--color-background", largeOK: true},
+	{name: "error-on-background", fg: "--color-error", bg: "--color-background", largeOK: true},
+	{name: "success-on-background", fg: "--color-success", bg: "--color-background", largeOK: true},
+	{name: "warning-on-background", fg: "--color-warning", bg: "--color-background", largeOK: true},
+	{name: "info-on-background", fg: "--color-info", bg: "--color-background", largeOK: true},
+}
+
+// contrastFailures runs every applicable pairing in vars and returns the failing
+// ones plus the worst ratio seen. fg/bg must both resolve to a parseable color.
+func contrastFailures(vars map[string]string) ([]map[string]any, float64) {
+	var failures []map[string]any
+	worst := 999.0
+	for _, p := range contrastPairs {
+		fg, bg := vars[p.fg], vars[p.bg]
+		if fg == "" || bg == "" {
+			continue
+		}
+		pr, err := contrast.CheckPair(fg, bg)
+		if err != nil {
+			continue
+		}
+		required := contrast.DefaultAANormalText
+		passed := pr.AANormal
+		if p.largeOK {
+			required, passed = contrast.DefaultAALargeText, pr.AALarge
+		}
+		if !passed {
+			failures = append(failures, map[string]any{
+				"pair": p.name, "foreground": fg, "background": bg,
+				"ratio": pr.Ratio, "required": required,
+			})
+			if pr.Ratio < worst {
+				worst = pr.Ratio
+			}
+		}
+	}
+	return failures, worst
+}
+
+func ruleBrandMarkersApplied(c *scanContext) (Finding, bool) {
+	if hasMarker(filepath.Join(c.root, "ui", "src")) {
 		return Finding{}, false
 	}
-	// Or a manifest.json _brand key.
-	if manifest, ok := readFile(root, "ui/manifest.json"); ok && strings.Contains(manifest, "_brand") {
-		return Finding{}, false
-	}
-	if manifest, ok := readFile(root, "manifest.json"); ok && strings.Contains(manifest, "_brand") {
-		return Finding{}, false
+	for _, rel := range []string{"ui/manifest.json", "ui/public/manifest.json", "manifest.json"} {
+		if manifest, ok := c.read(rel); ok && strings.Contains(manifest, "_brand") {
+			return Finding{}, false
+		}
 	}
 	return Finding{
-		RuleID:                 "brand-markers-applied",
 		Severity:               SeverityInfo,
 		Title:                  "No brand-manager markers applied",
 		Description:            "No /* brand-manager:* */ CSS markers or manifest _brand keys were found — the scenario has not adopted a brand-manager-applied brand.",
 		FilePath:               "ui/src",
 		WhyItMatters:           "Applied markers let brand-manager re-apply, diff, and validate the assigned brand idempotently.",
 		RecommendedRemediation: "Assign and apply a brand via `brand-manager apply` to inject managed markers.",
-		AutofixAvailable:       true,
 	}, true
 }
 

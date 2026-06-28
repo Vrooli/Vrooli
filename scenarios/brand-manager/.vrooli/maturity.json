@@ -1,7 +1,7 @@
 {
   "provider": "brand-manager",
   "phase": "branding",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "levels": [
     {
       "id": "L0",
@@ -34,16 +34,23 @@
     {
       "id": "L4",
       "name": "Brand assets present",
-      "description": "The scenario ships the brand imagery (logo, favicon) users and tabs actually see.",
+      "description": "The scenario ships real brand imagery (logo, favicon, valid non-template assets) users and tabs actually see.",
       "entry_criteria": ["Visual system is defined"],
-      "exit_criteria": ["No missing logo or favicon finding blocks brand assets"]
+      "exit_criteria": ["No missing/invalid logo, favicon, or template-residue finding blocks brand assets"]
     },
     {
       "id": "L5",
       "name": "Accessible and applied",
-      "description": "Core color pairings meet WCAG AA and the brand is actually applied (markers + manifest keys) — fleet-ready branding.",
+      "description": "Core (light + dark) color pairings meet WCAG AA and the brand is actually applied (markers + manifest keys) — fleet-ready branding.",
       "entry_criteria": ["Brand assets are present"],
-      "exit_criteria": ["No contrast or unapplied-markers finding blocks fleet-ready branding"]
+      "exit_criteria": ["No contrast (light/dark) or unapplied-markers finding blocks fleet-ready branding"]
+    },
+    {
+      "id": "L6",
+      "name": "Installable and shareable",
+      "description": "The scenario is an installable, consistently-branded PWA: complete manifest (icons 192/512 + maskable), theme-color + color-scheme, mobile status-bar safe-area handling, social/link-preview metadata, and a name that agrees across every surface.",
+      "entry_criteria": ["Branding is accessible and applied"],
+      "exit_criteria": ["No PWA/manifest, theme-color, safe-area, social-metadata, cross-surface consistency, or CLI/API branding finding blocks installability"]
     }
   ],
   "findings": {
@@ -62,7 +69,8 @@
       "dimension": "branding",
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
-      "fixer_status": "pending",
+      "fixer_status": "implemented",
+      "reason": "A complete baseline token set is only created when none exists; an existing-but-incomplete file is left to a human (not advertised as auto-fixable).",
       "recommended_skill_ids": ["branding"]
     },
     "has-typography": {
@@ -89,8 +97,28 @@
       "dimension": "branding",
       "severity_default": "SEVERITY_WARNING",
       "fix_class": "auto",
-      "fixer_status": "pending",
+      "fixer_status": "implemented",
+      "reason": "Self-contained: derived from an existing logo. When no logo exists it is honestly guidance-only (autofix not advertised).",
       "recommended_skill_ids": ["branding"]
+    },
+    "no-template-residue": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "reason": "Default Vite favicon/title residue is removed deterministically; lorem-ipsum copy stays a manual finding.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "asset-validity": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "Flattening/re-encoding an icon or generating an icon set is an image transform left to the brand-projection path.",
+      "recommended_skill_ids": ["branding", "accessibility"]
     },
     "wcag-aa-contrast": {
       "local_level_impact": "L5",
@@ -101,13 +129,124 @@
       "reason": "Re-balancing a palette to pass AA requires design judgment, not a mechanical edit.",
       "recommended_skill_ids": ["branding", "accessibility"]
     },
+    "dark-mode-contrast": {
+      "local_level_impact": "L5",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "Re-balancing the dark palette to pass AA requires design judgment.",
+      "recommended_skill_ids": ["branding", "accessibility"]
+    },
     "brand-markers-applied": {
       "local_level_impact": "L5",
       "global_impact": "hardening_gap",
       "dimension": "branding",
       "severity_default": "SEVERITY_INFO",
+      "fix_class": "manual",
+      "reason": "Applying markers is brand-projection: it needs an assigned brand via the apply domain, which the served validation path has no input for, so it is guidance-only here.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "color-scheme-declared": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
       "fix_class": "auto",
-      "fixer_status": "pending",
+      "fixer_status": "implemented",
+      "recommended_skill_ids": ["branding", "accessibility"]
+    },
+    "name-consistency": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "recommended_skill_ids": ["branding"]
+    },
+    "theme-color-consistency": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "recommended_skill_ids": ["branding"]
+    },
+    "theme-color-present": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "reason": "The missing-entirely case is auto-injected; deriving a dark-scheme variant value is left guidance-only.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "standalone-capable": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "recommended_skill_ids": ["branding"]
+    },
+    "ios-statusbar-safe-area": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "reason": "Injects viewport-fit=cover + a safe-area-inset token deterministically; the runtime render is out of scope (ui-health/device harness).",
+      "recommended_skill_ids": ["branding"]
+    },
+    "manifest-completeness": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "reason": "Scalar fields are filled from identity + house defaults; missing icons require a logo and stay guidance-only.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "open-graph": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "recommended_skill_ids": ["branding"]
+    },
+    "twitter-card": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "recommended_skill_ids": ["branding"]
+    },
+    "cli-branding": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "manual",
+      "reason": "Human-facing CLI help copy is a writing decision, not a deterministic default.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "api-branding": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "manual",
+      "reason": "The API/OpenAPI title (service.description) is human-authored product copy.",
       "recommended_skill_ids": ["branding"]
     }
   },
