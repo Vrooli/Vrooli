@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scenario": "prompt-manager",
+  "input_digest": "sha256:0300a82cc96db7a665eb71d29de2d44bf3f7bc18ab1d3efff78864d33a7f1b5c",
+  "input_files": [
+    "schemas/prompt-manager/v1/graph/graph.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/prompt-manager/v1/graph/graph.pb.go": "sha256:d73087b652ce5f2c5d782f7fc36578c949ba8d5d252393fa16df86bc5a4ad6f2",
+    "gen/go/prompt-manager/v1/graph/graph_v1connect/graph.connect.go": "sha256:51c0d9ff5dbe6fea7a762b1c33b8676f7c2bf804824622f605415ec0cbeb2e79",
+    "gen/python/prompt_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/prompt_manager/v1/graph/graph_pb2.py": "sha256:6e80a831d1b2f569cbf66cb0e86728b1eb9cee362a4368b8a97759ee774bb06e",
+    "gen/python/prompt_manager/v1/graph/graph_pb2.pyi": "sha256:9f047866c68d558697d00c075f43eb949e288af4f49fbf5141f24f829ef95244",
+    "gen/python/prompt_manager/v1/graph/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/prompt_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/prompt-manager/v1/graph/graph_pb.js": "sha256:dcf4540030fc2bf3dd9e59b461fb59ebd4cd8be7df7544c9fa5b9b5f089c1176",
+    "gen/typescript/prompt-manager/v1/graph/graph_pb.ts": "sha256:c90b902439db6a3eefb41e4bd846c7fa8d8b1f5f454bdcb0bdb185770f819568"
+  }
+}

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-
+	"resource-grok/cli/internal/permissionscli"
 	"resource-grok/cli/internal/upstream"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -58,6 +58,8 @@ func newApp() (*cliapp.ResourceApp, error) {
 			// text pointer at https://x.ai/cli/<channel>, so we override the
 			// upstream-check fetcher (see internal/upstream).
 			upstreamverb.Commands(upstream.Handlers(appName, upstreamPinnedVersion)),
+			// Manage Grok's native [permission] rules + PreToolUse deny hook.
+			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 		},
 	)
 	return app, nil

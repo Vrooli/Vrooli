@@ -42,6 +42,7 @@ type FreshnessManifest struct {
 	// per-file entries directly (so it can name the precise offender), never the
 	// aggregate. Retained as a single human-legible "what was this build" handle.
 	Digest    string              `json:"digest"`
+	Inputs    []string            `json:"inputs,omitempty"`
 	KeyInputs map[string]string   `json:"key_inputs,omitempty"`
 	Files     []FileManifestEntry `json:"files"`
 }
@@ -72,6 +73,7 @@ func ComputeFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs ma
 		CheckType:   strings.TrimSpace(checkType),
 		WrittenAtNS: writtenAtNS,
 		Digest:      aggregateManifestDigest(entries, keyInputs),
+		Inputs:      append([]string(nil), spec.Inputs...),
 		KeyInputs:   copyStringMap(keyInputs),
 		Files:       entries,
 	}, nil

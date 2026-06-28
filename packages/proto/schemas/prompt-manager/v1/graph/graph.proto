@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.graph;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph;graph_v1";
+
+// =============================================================================
+// PROMPT-MANAGER GRAPH DOMAIN — health-score read contract
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain graph
+// @stability beta
+//
+// First Connect-RPC contract for prompt-manager, which is otherwise a
+// hand-rolled gorilla/mux REST API with no proto. This contract covers ONLY
+// the single read MoM (meta-optimization-manager) consumes for its Guide
+// numerator: the per-node graph health scores. It is mounted additively
+// alongside the legacy REST GET /api/v1/graph/health route; full proto/Connect
+// adoption of the other graph + prompt-manager domains is deferred to a
+// dedicated adoption plan.
+//
+// Wire parity: the message fields below mirror the legacy REST JSON shape
+// (api/graph/models.go HealthScore/HealthMessage). proto snake_case fields
+// serialize to the same camelCase keys (nodeId, score, factors, messages)
+// under default protojson, so the additive Connect surface does not diverge
+// from the REST surface.
+//
+// Consumed by:
+//   - API: scenarios/prompt-manager/api/handlers/graph/connect_handler.go
+//          implements the generated GraphServiceHandler interface, delegating
+//          to the existing graph index/scoring logic.
+//   - meta-optimization-manager: its Guide numerator joiner calls the generated
+//          GraphServiceClient.GetHealthScores over a discovery-resolved base URL.
+// =============================================================================
+
+service GraphService {
+  // GetHealthScores returns the computed per-node health scores from the
+  // current graph index. Read-only; the response mirrors the legacy REST
+  // GET /api/v1/graph/health body.
+  rpc GetHealthScores(GetHealthScoresRequest) returns (GetHealthScoresResponse);
+}
+
+// GetHealthScoresRequest currently carries no parameters; add filters here.
+message GetHealthScoresRequest {}
+
+// GetHealthScoresResponse is the body returned by GraphService.GetHealthScores.
+message GetHealthScoresResponse {
+  // Health scores for every scored node in the current graph index.
+  repeated HealthScore scores = 1;
+}
+
+// HealthScore contains computed health metrics for a single graph node.
+message HealthScore {
+  // Stable graph node id (e.g. "skill:scientific-debugging").
+  string node_id = 1;
+
+  // Composite health score in [0,1]; higher is healthier.
+  double score = 2;
+
+  // Per-factor contributions keyed by factor name.
+  map<string, double> factors = 3;
+
+  // Human-readable diagnostics and recommendations.
+  repeated HealthMessage messages = 4;
+}
+
+// HealthMessage explains why a node's health was scored a certain way and
+// suggests concrete follow-up actions.
+message HealthMessage {
+  // Stable message key for deduplication / UI grouping.
+  string key = 1;
+
+  // Severity: info | warning | critical.
+  string severity = 2;
+
+  // The health factor this message pertains to (optional).
+  string factor = 3;
+
+  // Short one-line summary.
+  string summary = 4;
+
+  // Longer free-form detail (optional).
+  string detail = 5;
+
+  // Recommended concrete follow-up action (optional).
+  string recommendation = 6;
+
+  // The numeric metric value behind this message (optional).
+  double metric_value = 7;
+
+  // A target/threshold the metric is compared against (optional).
+  string target = 8;
+}

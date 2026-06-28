@@ -306,9 +306,9 @@ func (a *App) SetStaleChecker(checker *cliutil.StaleChecker) {
 // PrintHelp renders grouped command help plus global options.
 func (a *App) PrintHelp() {
 	fmt.Printf("%s CLI\n\n", a.opts.Name)
-	fmt.Printf("Usage:\n  %s <command> [options]\n\n", a.opts.Name)
+	fmt.Printf("Usage:\n  %s [global options] <command> [options]\n\n", a.opts.Name)
 
-	fmt.Print("Global Options:\n")
+	fmt.Print("Global Options (must be placed BEFORE the command):\n")
 	fmt.Println("  --api-base <url>   Override API base URL (default: auto-detected)")
 	fmt.Println("  --instance <name>  Target a scenario variant (e.g. shadow); default: live")
 	fmt.Println("  --auto-start       Auto-start the scenario if not running")
@@ -395,6 +395,19 @@ func (a *App) buildCommands() {
 func (a *App) applyColor() {
 	if a.opts.OnColor != nil {
 		a.opts.OnColor(a.global.ColorEnabled)
+	}
+}
+
+// isGlobalFlagName reports whether name (without leading dashes) is a shared
+// global flag. Global flags are parsed only before the subcommand; when one is
+// misplaced after it, the subcommand parser uses this to emit a placement hint
+// instead of a bare "unknown option".
+func isGlobalFlagName(name string) bool {
+	switch name {
+	case "api-base", "instance", "auto-start", "dry-run", "no-color", "color":
+		return true
+	default:
+		return false
 	}
 }
 

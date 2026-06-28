@@ -2,7 +2,10 @@ module resource-grok/cli
 
 go 1.25.0
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/pelletier/go-toml/v2 v2.3.1
+	github.com/vrooli/cli-core v0.0.0
+)
 
 require (
 	connectrpc.com/connect v1.19.2 // indirect

@@ -33,9 +33,9 @@ and an upstream update-check.
   mutating the operator's shell rc.
 
 > **Not yet wired as an agent-manager runner.** This resource deliberately stops
-> at install + update + backup parity with the other coding agents. Registering
-> Grok as an `agent-manager` runner is a separate, later phase — see
-> `docs/OPERATIONS.md`.
+> at install + update + backup + command-permission parity with the other coding
+> agents. Registering Grok as an `agent-manager` runner is a separate, later
+> phase — see `docs/OPERATIONS.md`.
 
 ## Install / update / uninstall
 
@@ -69,6 +69,46 @@ credentials beyond documenting how to provide them.
   `grok` (takes precedence over `auth.json`).
 
 Inspect what Grok discovers for a directory (read-only): `grok inspect`.
+
+## Permissions (command allow/deny)
+
+`resource-grok permissions` manages which shell commands Grok may run — the same
+uniform allow/ask/deny surface the `claude-code` and `codex` resources expose.
+Unlike Codex (whose rules are intent-only), **Grok enforces these natively**:
+
+- Rules are written into Grok's native `[permission]` table in
+  `~/.grok/config.toml` (user scope) or `~/.grok/requirements.toml` (`--scope
+  admin`, higher precedence). Grok evaluates them `deny > ask > allow`.
+- Every `Bash(...)` deny rule is also paired with a **PreToolUse backstop hook**
+  under `~/.grok/hooks/` that hard-denies the matching command *before* any other
+  check and applies even under `grok --always-approve`. (Grok runs PreToolUse
+  hooks earliest and honours an explicit `{"decision":"deny"}`.)
+
+```bash
+# Block a dangerous pattern (note: flags come BEFORE the pattern).
+resource-grok permissions deny 'Bash(rm -rf *)'
+
+# Keep common dev commands allowed.
+resource-grok permissions allow 'Bash(git *)'
+
+# Inspect / audit.
+resource-grok permissions list
+resource-grok permissions doctor        # confirms version + enforcement wiring
+resource-grok permissions drift-check   # detects hand-edits since the last write
+```
+
+Mutating verbs (`deny/allow/ask/remove/reset`) are gated by the shared
+`agentpolicy` substrate: a **detected coding-agent caller is refused** so an agent
+cannot disarm its own gate. A human re-runs with `--i-was-explicitly-authorized`
+(placed before the pattern). Rule patterns use the Claude/Grok vocabulary
+(`Bash(git *)`, `Read(src/**)`, `Grep`, …). See
+`~/.grok/docs/user-guide/22-permissions-and-safety.md` for Grok's native model.
+
+> **Agent self-detection caveat.** The gate classifies grok-as-caller via the
+> Vrooli-spawned signals (sandbox / agent-manager / swarm-manager) and the
+> `VROOLI_CALLER=agent` override. A standalone-grok self-signal row is still
+> pending live `/proc` env-diff verification — see
+> `packages/cli-core/docs/reference/agent-detection-signals.md`.
 
 ## Data locations (declared for backup)
 

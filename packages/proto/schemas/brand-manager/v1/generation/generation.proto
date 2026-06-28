@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.generation;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/generation;generation_v1";
+
+// =============================================================================
+// GENERATION DOMAIN — AI-assisted brand element + image generation
+// =============================================================================
+//
+// @layer 5
+// @domain generation
+// @stability stable
+//
+// Wire contract for the GenerationService Connect-RPC service. Generation is a
+// stateless orchestration domain: it owns no table of its own. It reads a brand
+// (brands domain), asks an AI provider chain to produce brand facets or images,
+// then writes the results back through the brands domain (text facets) and the
+// assets domain (images). The cross-domain wiring lives only at the composition
+// root (handlers/generation/module.go); the internal domains never import each
+// other.
+//
+// Provider chain (replacing the old REST AIProviderChain): Ollama is tried
+// first (local, free, routed through the resource-ollama gateway CLI so the
+// host-wide semaphore bounds parallelism), then OpenRouter (cloud, when
+// OPENROUTER_API_KEY is set). The first available provider that succeeds wins.
+//
+// Idempotency / safety re-expressed Connect-native:
+//   - GenerateBrandElements applies generated facets via the brands domain's
+//     partial-merge UpdateBrand: regenerating one facet (e.g. colors) never
+//     wipes the siblings, and each successful apply bumps the brand version and
+//     snapshots it. An unknown brand_id → NOT_FOUND. No provider available →
+//     UNAVAILABLE.
+//   - GenerateBrandImage writes the image through the assets domain's upsert by
+//     (brand_id, filename): the filename is derived from the image type
+//     ("logo.png" / "favicon.png"), so regenerating replaces the bytes in place
+//     and keeps the asset id stable.
+//   - GetProviderStatus is a read: it reports which providers are currently
+//     reachable so a UI/CLI can tell the user before they spend a generation.
+//
+// Consumed by:
+//   - API: handlers/generation/connect_handler.go implements the generated
+//          GenerationServiceHandler interface.
+//   - UI:  ui/src/api/generation.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/generation/handlers.go calls the generated Connect-Go
+//          client.
+// =============================================================================
+
+service GenerationService {
+  rpc GetProviderStatus(GetProviderStatusRequest) returns (GetProviderStatusResponse);
+  rpc GenerateBrandElements(GenerateBrandElementsRequest) returns (GenerateBrandElementsResponse);
+  rpc GenerateBrandImage(GenerateBrandImageRequest) returns (GenerateBrandImageResponse);
+}
+
+// ProviderStatus reports one AI provider's current reachability.
+message ProviderStatus {
+  // The provider identifier (e.g. "ollama", "openrouter").
+  string name = 1;
+  // Whether the provider is currently reachable / configured.
+  bool available = 2;
+}
+
+// GetProviderStatusRequest takes no arguments.
+message GetProviderStatusRequest {}
+
+// GetProviderStatusResponse reports the configured provider chain's readiness.
+message GetProviderStatusResponse {
+  // True when at least one provider in the chain is available.
+  bool available = 1;
+  // Per-provider status, in chain order (Ollama first, then OpenRouter).
+  repeated ProviderStatus providers = 2;
+}
+
+// GenerateBrandElementsRequest asks the AI chain to generate one or more text
+// brand facets and apply them to the brand.
+message GenerateBrandElementsRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The facets to generate: any of "colors", "typography", "voice".
+  // Unknown element names are reported per-element as "unsupported".
+  repeated string elements = 2;
+  // Optional. Provider model/role override (e.g. an Ollama role or an
+  // OpenRouter model id). Empty uses the chain's defaults.
+  string model = 3;
+}
+
+// ElementResult is the per-element outcome of a GenerateBrandElements call.
+message ElementResult {
+  // The requested element name.
+  string element = 1;
+  // One of "applied" (generated and merged onto the brand), "failed" (provider
+  // or parse error; detail explains), or "unsupported" (unknown element name).
+  string status = 2;
+  // Human-readable detail: empty on "applied", an error message otherwise.
+  string detail = 3;
+}
+
+// GenerateBrandElementsResponse reports each element's outcome plus the brand
+// version after the applied facets were merged.
+message GenerateBrandElementsResponse {
+  // Per-element outcomes, in request order.
+  repeated ElementResult results = 1;
+  // The element names that were successfully applied to the brand.
+  repeated string applied = 2;
+  // The provider that produced the last successful generation (e.g. "ollama").
+  string provider = 3;
+  // The model the provider reported using.
+  string model = 4;
+  // The brand version after applying the generated facets. 0 when nothing was
+  // applied (the brand was left unchanged).
+  int32 brand_version = 5;
+}
+
+// GenerateBrandImageRequest asks the AI chain to generate a brand image and
+// store it as a brand asset.
+message GenerateBrandImageRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The image type: "logo" or "favicon".
+  string type = 2;
+  // Optional. Provider model override. Empty uses the chain's defaults.
+  string model = 3;
+}
+
+// GenerateBrandImageResponse returns the stored asset's catalog metadata.
+message GenerateBrandImageResponse {
+  // The brand the image belongs to.
+  string brand_id = 1;
+  // The id of the asset row the image was stored as.
+  string asset_id = 2;
+  // The image type that was generated ("logo" or "favicon").
+  string type = 3;
+  // The stored asset filename (e.g. "logo.png").
+  string filename = 4;
+  // The image mime type (e.g. "image/png").
+  string mime_type = 5;
+  // The stored image size in bytes.
+  int64 size = 6;
+  // The provider that produced the image (e.g. "openrouter").
+  string provider = 7;
+  // The model the provider reported using.
+  string model = 8;
+}

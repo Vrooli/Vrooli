@@ -208,6 +208,9 @@ func TestFreshnessManifestRoundTrip(t *testing.T) {
 	if got.Digest != m.Digest || len(got.Files) != len(m.Files) {
 		t.Fatalf("round-trip mismatch: %+v vs %+v", got, m)
 	}
+	if len(got.Inputs) != 1 || got.Inputs[0] != "." {
+		t.Fatalf("round-trip inputs = %v, want [.]", got.Inputs)
+	}
 
 	missing, ok, err := ReadFreshnessManifest(FreshnessManifestPath(filepath.Join(root, "bin", "absent")))
 	if err != nil {

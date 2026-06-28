@@ -11,6 +11,16 @@ import (
 // the declarative ArgSchema path. Handlers see it via RunContext.JSON().
 const jsonFlagName = "json"
 
+// ValidateArgs checks args against schema using the same parser rules as
+// command execution, without invoking a command handler.
+func ValidateArgs(schema ArgSchema, args []string) error {
+	_, err := parseArgs(schema, args, nil, io.Discard, io.Discard)
+	if err == ErrHelpRequested {
+		return nil
+	}
+	return err
+}
+
 // parseArgs turns ([]string) into a RunContext using the ArgSchema. Returns
 // ErrHelpRequested when the user passes --help or -h.
 func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stderr io.Writer) (RunContext, error) {
@@ -80,6 +90,9 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 
 		flag, ok := schema.flagByName(canonical)
 		if !ok {
+			if isGlobalFlagName(canonical) {
+				return nil, fmt.Errorf("unknown option: %s (this is a global flag — place it BEFORE the command, e.g. `--%s <command> ...`)", arg, canonical)
+			}
 			return nil, fmt.Errorf("unknown option: %s", arg)
 		}
 

@@ -43,7 +43,7 @@ collect the evidence so the next person can re-verify.
 |---|---|
 | **Cursor (background agent)** | No Cursor runner exists in agent-manager today. Same verification path applies once a harness is available. |
 | **Gemini CLI** | No Gemini CLI runner in agent-manager. Defer until one ships. |
-| **Grok CLI** | Not released as of 2026-05-21. |
+| **Grok CLI** | Released and wired as a resource (`resources/grok`) on 2026-06-28, with a `permissions` command gated by this detector. The external-agent *self*-signal is still unconfirmed: the gate currently classifies grok via the Vrooli-spawned signals (sandbox / agent-manager / swarm-manager) and the `VROOLI_CALLER=agent` override, which covers grok run under Vrooli. To add a standalone-grok row, capture the signal with the env-diff method below and document the run. Candidate vars to test (must appear in a grok *tool* shell and be ABSENT from the `grok` runtime's own env): `GROK_SESSION_ID` / `GROK_WORKSPACE_ROOT` are injected for **hook** processes only (per `~/.grok/docs/user-guide/10-hooks.md`) — verify whether grok also sets a stable marker on general `run_terminal_command` subprocesses before trusting one. Do NOT add an unverified row. |
 
 ## Excluded signals (do NOT use)
 
