@@ -1190,9 +1190,171 @@
           }
         }
       ]
+    },
+    {
+      "name": "search",
+      "description": "Term-agnostic semantic search over the derived domain map of every scenario (AI-first, text fallback)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search scenario domains by natural-language intent (e.g. \"how does authoring work in plan-manager\")",
+          "positionals": [
+            {
+              "name": "text",
+              "required": true,
+              "description": "Natural-language query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "default": "10",
+              "description": "Maximum number of results to return"
+            },
+            {
+              "name": "mode",
+              "description": "Force a retrieval mode: ai | text"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Report domain-map search backend availability (ollama/qdrant reachability, indexed count)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "reindex",
+      "description": "Reconcile the domain-map search corpus: rebuild Qdrant points from the derived domains (token-gated)",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Start a reindex job",
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Limit to a provider sub-scope; empty means the whole corpus"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Compute planned upserts/deletes without writing"
+            },
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set ARCHITECTURE_CARTOGRAPHER_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "Reindex"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Poll a reindex job's progress",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set ARCHITECTURE_CARTOGRAPHER_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "ReindexStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Request cooperative cancellation of an in-flight reindex job",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Job id returned by `reindex run`"
+            }
+          ],
+          "flags": [
+            {
+              "name": "control-token",
+              "description": "Control token for the token-gated control plane (or set ARCHITECTURE_CARTOGRAPHER_SEARCH_CONTROL_TOKEN)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SearchControlService",
+            "method": "ReindexCancel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "omitted": [
+    {
+      "service": "SearchControlService",
+      "method": "WriteConfig",
+      "reason": "Internal search-tuning write API consumed programmatically by the search-hub sweep (token-gated); no standalone operator CLI command."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteCorpus",
+      "reason": "Internal eval-corpus write API consumed programmatically by the search-hub optimizer (token-gated); no standalone operator CLI command."
+    },
     {
       "service": "GraphService",
       "method": "GetGraphSnapshot",

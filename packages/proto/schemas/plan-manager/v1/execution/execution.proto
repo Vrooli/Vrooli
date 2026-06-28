@@ -93,6 +93,15 @@ message PhaseContext {
   // decisions/findings/bugs/records without reading every entry. Assembled from
   // the log domain through an internal seam.
   shared.LogSummary log_summary = 10;
+  // Execution-start "freshen inputs" status. The runner captures the
+  // regression-anchor's baseline snapshot fresh and recomputes reference
+  // staleness ONCE on first start/resume (delegated to the validation domain).
+  // inputs_freshened is true once the step has run; freshen_status is "captured"
+  // or "degraded"; freshen_detail carries the captured baseline / staleness
+  // summary or the honest degradation reason. Never blocks phase work.
+  bool inputs_freshened = 11;
+  string freshen_status = 12;
+  string freshen_detail = 13;
 }
 
 // CompletionNudge is one item in the thin guided completion process. Nudges are

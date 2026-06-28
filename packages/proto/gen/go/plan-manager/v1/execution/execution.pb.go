@@ -134,9 +134,18 @@ type PhaseContext struct {
 	// Compact roll-up of the execution's log ledger so a resumed agent sees
 	// decisions/findings/bugs/records without reading every entry. Assembled from
 	// the log domain through an internal seam.
-	LogSummary    *shared.LogSummary `protobuf:"bytes,10,opt,name=log_summary,json=logSummary,proto3" json:"log_summary,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LogSummary *shared.LogSummary `protobuf:"bytes,10,opt,name=log_summary,json=logSummary,proto3" json:"log_summary,omitempty"`
+	// Execution-start "freshen inputs" status. The runner captures the
+	// regression-anchor's baseline snapshot fresh and recomputes reference
+	// staleness ONCE on first start/resume (delegated to the validation domain).
+	// inputs_freshened is true once the step has run; freshen_status is "captured"
+	// or "degraded"; freshen_detail carries the captured baseline / staleness
+	// summary or the honest degradation reason. Never blocks phase work.
+	InputsFreshened bool   `protobuf:"varint,11,opt,name=inputs_freshened,json=inputsFreshened,proto3" json:"inputs_freshened,omitempty"`
+	FreshenStatus   string `protobuf:"bytes,12,opt,name=freshen_status,json=freshenStatus,proto3" json:"freshen_status,omitempty"`
+	FreshenDetail   string `protobuf:"bytes,13,opt,name=freshen_detail,json=freshenDetail,proto3" json:"freshen_detail,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PhaseContext) Reset() {
@@ -237,6 +246,27 @@ func (x *PhaseContext) GetLogSummary() *shared.LogSummary {
 		return x.LogSummary
 	}
 	return nil
+}
+
+func (x *PhaseContext) GetInputsFreshened() bool {
+	if x != nil {
+		return x.InputsFreshened
+	}
+	return false
+}
+
+func (x *PhaseContext) GetFreshenStatus() string {
+	if x != nil {
+		return x.FreshenStatus
+	}
+	return ""
+}
+
+func (x *PhaseContext) GetFreshenDetail() string {
+	if x != nil {
+		return x.FreshenDetail
+	}
+	return ""
 }
 
 // CompletionNudge is one item in the thin guided completion process. Nudges are
@@ -1491,7 +1521,7 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x06 \x01(\tR\tstartedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\tR\tupdatedAt\"\xb1\x05\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\"\xaa\x06\n" +
 	"\fPhaseContext\x12I\n" +
 	"\rcurrent_phase\x18\x01 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\fcurrentPhase\x12C\n" +
 	"\n" +
@@ -1505,7 +1535,10 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\x10relevant_context\x18\t \x03(\v22.vrooli.plan_manager.v1.shared.RelevantContextItemR\x0frelevantContext\x12J\n" +
 	"\vlog_summary\x18\n" +
 	" \x01(\v2).vrooli.plan_manager.v1.shared.LogSummaryR\n" +
-	"logSummary\"]\n" +
+	"logSummary\x12)\n" +
+	"\x10inputs_freshened\x18\v \x01(\bR\x0finputsFreshened\x12%\n" +
+	"\x0efreshen_status\x18\f \x01(\tR\rfreshenStatus\x12%\n" +
+	"\x0efreshen_detail\x18\r \x01(\tR\rfreshenDetail\"]\n" +
 	"\x0fCompletionNudge\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +

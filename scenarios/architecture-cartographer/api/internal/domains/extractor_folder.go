@@ -22,6 +22,16 @@ var defaultNonDomainFolders = map[string]struct{}{
 	"git":        {},
 	"httpc":      {},
 	"httpx":      {},
+	// Shared search substrate that recurs identically across every
+	// search-provider scenario, owned by the scenario's `search` product
+	// domain rather than being products themselves:
+	//   - aisearch: the thin adapter over the shared packages/ai-go/search
+	//     engine (embedding/vector-store/reconcile binding).
+	//   - searchcontrol: the transport handler for the SHARED
+	//     search-hub.v1.control.SearchControlService (reindex + config-write),
+	//     identical wherever a provider exposes the control plane.
+	"aisearch":      {},
+	"searchcontrol": {},
 }
 
 // FolderExtractor derives de-facto domains from api/internal/<domain>/

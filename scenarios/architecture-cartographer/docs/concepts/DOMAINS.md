@@ -68,6 +68,7 @@ The parser is header-driven (columns may be reordered):
 | analytics | Persist conflict events, resolutions, verdicts, overrides, and build deltas; serve history and stats. | Make architecture repair outcomes measurable and calibratable over time. | Append-only SQLite event log. | reporting | query | Event, EventKind, Placement, Override, StatsSummary | `api/internal/analytics/`, `api/handlers/analytics/`, `cli/domains/analytics/`, `ui/src/features/analytics/`, `packages/proto/schemas/architecture-cartographer/v1/analytics/` |
 | audit | CI-shaped orchestrator: one call runs graph extract → domains derivation → conflicts detection and returns a deterministic exit-code summary. | Give CI and operators one stable architecture validation call. | None; orchestrates graph, domains, and conflicts on demand. | service | orchestration | Outcome, Report, RunInput, ConflictSummary, DerivedDomainSummary, GraphSummary, CoverageSummary | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `packages/proto/schemas/architecture-cartographer/v1/audit/` |
 | campaign | Stateful tracker for a scenario-improvement effort: ingest a findings audit, drive each finding through a lifecycle, and reconcile re-audits by stable id (ingest only — never detects). | Handhold long-running architecture repair efforts without re-running detectors itself. | Campaigns and campaign items in SQLite. | service | orchestration | Campaign, Finding, FindingStatus, CampaignLifecycle, ReauditResult, Repository, AnalyticsRecorder | `api/internal/campaign/`, `api/handlers/campaign/`, `cli/domains/campaign/`, `packages/proto/schemas/architecture-cartographer/v1/campaign/` |
+| search | Term-agnostic semantic search over the derived domain map of every scenario: index each domain's responsibility/purpose prose into Qdrant and answer natural-language intent (federated to Search Hub). | Let a user or agent who does not know Vrooli's vocabulary find the domain that owns a responsibility (e.g. "how does authoring work in plan-manager"). | None; the index lives in Qdrant and the tuning SSOT in `.vrooli/search.json`. | service | query | DomainRecord, DomainHit, SearchService, domain-map | `api/internal/aisearch/`, `api/handlers/search/`, `api/handlers/searchcontrol/`, `cli/domains/search/`, `cli/domains/reindex/`, `packages/proto/schemas/architecture-cartographer/v1/search/` |
 
 ## Surface Exceptions
 
@@ -83,6 +84,7 @@ nudged but never gate.
 | signals | UI | permanent | Scoring is an internal/CLI capability; there is no human dashboard. |
 | audit | UI | deferred | CI surface; the report UI is a later cut (the greenfield rule forbids a placeholder page). |
 | campaign | UI | deferred | The lifecycle UI is a separate cut. |
+| search | UI | permanent | Domain-map search is an agent / CLI / federated-Search-Hub capability; results are consumed through the SearchService RPC and the `search` CLI verb, not a dedicated page. |
 
 ## Domain Details
 
@@ -329,6 +331,41 @@ nudged but never gate.
 - Tests: unit (ingest / reconcile / regression-detection / profile
   worklist ordering / cosmetic-stable reconciliation), plus a live
   create → next → resolve → reaudit → close loop.
+
+### search
+
+- Purpose: make every scenario's **domains** answerable through Search Hub in
+  natural language. A caller who does not know Vrooli's terminology asks "how
+  does authoring work in plan-manager?" and gets the `plan-manager/authoring`
+  domain back — matched on the domain's responsibility/purpose prose, never on
+  the literal word "domain".
+- Primary archetype: service / query.
+- Owns: the cross-fleet domain corpus Source (one document per scenario domain,
+  derived in-process from the `domains` domain — never by shelling the CLI), the
+  intent-shaped embedding-text composition, the AI-first / text-fallback search
+  surface, and the token-gated reindex + config-write control plane that lets
+  Search Hub's sweep tune and reindex this provider.
+- Does not own: domain derivation itself (the `domains` domain); the shared
+  retrieval engine (`packages/ai-go/search`); the federation router (`search-hub`).
+- API: `api/internal/aisearch/` (engine adapter substrate), `api/handlers/search/`
+  (`SearchService.Search` / `Status`), `api/handlers/searchcontrol/` (the shared
+  `SearchControlService` transport substrate).
+- CLI: `cli/domains/search/` — `arch-cart search "<query>"`, `arch-cart search
+  status`; `cli/domains/reindex/` — `arch-cart reindex {run,status,cancel}`.
+- Federation: self-registers `architecture-cartographer.domain-map` with
+  Search Hub at boot from `.vrooli/search.json` (the descriptor + tuning + eval
+  corpus SSOT); the Search Hub sweep auto-optimizes tuning and writes it back
+  through the token-gated `WriteConfig` RPC.
+- Storage: none in SQLite; the vector index lives in the `qdrant` resource
+  (collection `architecture-cartographer-domains`) and the tuning/tests SSOT in
+  `.vrooli/search.json`.
+- Tests: unit (Source mapping, embedding-text composition, ContentHash drift,
+  payload projection, text-fallback scoring), descriptor guard (the committed
+  `search.json` parses + validates + carries the headline term-agnostic case),
+  handler projection, and the Search Hub eval corpus graded by the shared runner.
+- Related docs: `packages/ai-go/search/README.md`,
+  `packages/ai-go/search/docs/reference/search-json.md`,
+  `scenarios/search-hub/docs/spaces/answer-space.md`.
 
 ## Shared Concepts
 

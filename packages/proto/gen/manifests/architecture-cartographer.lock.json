@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "architecture-cartographer",
-  "input_digest": "sha256:08902e12b17e61e1ee9b3723794cdd91ab5ef81e8656920215bca39ca1750a60",
+  "input_digest": "sha256:b19a7205fcfef0326b17f3ea944555d8596e4cb2730df3e29601d7e3fcdddab3",
   "input_files": [
     "schemas/architecture-cartographer/v1/analytics/analytics.proto",
     "schemas/architecture-cartographer/v1/apply/apply.proto",
@@ -12,6 +12,7 @@
     "schemas/architecture-cartographer/v1/errors/errors.proto",
     "schemas/architecture-cartographer/v1/graph/graph.proto",
     "schemas/architecture-cartographer/v1/health/health.proto",
+    "schemas/architecture-cartographer/v1/search/search.proto",
     "schemas/architecture-cartographer/v1/shared/shared.proto",
     "schemas/architecture-cartographer/v1/signals/signals.proto",
     "schemas/architecture/v1/findings.proto",
@@ -45,6 +46,8 @@
     "gen/go/architecture-cartographer/v1/graph/graph.pb.go": "sha256:2aad6eab33af36c0e9ed9d9c23d18356d5d97bf0aa15c2fc0bae4c5e918d6d04",
     "gen/go/architecture-cartographer/v1/graph/graph_v1connect/graph.connect.go": "sha256:ed4a7031d2343409863ec26c1241ed3c001cf7905c728199d1e83afba8bf30ef",
     "gen/go/architecture-cartographer/v1/health/health.pb.go": "sha256:e8ca28f579f9f7509146b6d5c62fd93e8a83be21a108806b14d7d7ef423f66fb",
+    "gen/go/architecture-cartographer/v1/search/search.pb.go": "sha256:75c2699cba79efcaea80a1a4f2b44c7002bfbbb440cd97aef10186ede33e4717",
+    "gen/go/architecture-cartographer/v1/search/search_v1connect/search.connect.go": "sha256:87d6cbbb0687db912545eafc7c5ae8ca9f1cf52d991ef3b6ba0d0f9680dcb981",
     "gen/go/architecture-cartographer/v1/shared/shared.pb.go": "sha256:8d29d95d110dbb8c93c6d163f9c67439e2e841098c9d70159acadca7867ac971",
     "gen/go/architecture-cartographer/v1/signals/signals.pb.go": "sha256:810150c3472b42d11fda3997418e5e9f073f3d405b7eceedf20d1e54cfea0954",
     "gen/go/architecture-cartographer/v1/signals/signals_v1connect/signals.connect.go": "sha256:7c3087c68c2674ee99db2506b3da0bb7f4fef6ab548b68f3b4b680ef8d44ed01",
@@ -77,6 +80,9 @@
     "gen/python/architecture_cartographer/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/architecture_cartographer/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/architecture_cartographer/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/architecture_cartographer/v1/search/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/architecture_cartographer/v1/search/search_pb2.py": "sha256:1683fd5163c7c6165348441997d961a4aa178942d17f357af49f1131c0b5e013",
+    "gen/python/architecture_cartographer/v1/search/search_pb2.pyi": "sha256:5072d19dd814a654ade2aee042e55984a460b5cec4b93bbd50db68ff29ae8bc0",
     "gen/python/architecture_cartographer/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/architecture_cartographer/v1/shared/shared_pb2.py": "sha256:ae125bbf70b9e0f042264c2d6dcfbc0c2be06b40d2e54cc26bc820dce8d1ede1",
     "gen/python/architecture_cartographer/v1/shared/shared_pb2.pyi": "sha256:77f0880cd49bcbdb1050e2864fb515fa84f2a0159af0833941b46b1132bc6fb9",
@@ -92,6 +98,7 @@
     "gen/typescript/architecture-cartographer/v1/errors/errors_pb.ts": "sha256:43ec6920eb50bd383b36d4984469ad1e2e24d2e93e2865a464da358eefd41eef",
     "gen/typescript/architecture-cartographer/v1/graph/graph_pb.ts": "sha256:1ea6441f33b54f4eaff3d2348aadcbb7442815a78355f557d489ebb768af45d8",
     "gen/typescript/architecture-cartographer/v1/health/health_pb.ts": "sha256:88fd7367d1335f6d069033621be98c2b8001f59c680ebdabe0665aad0759bb3e",
+    "gen/typescript/architecture-cartographer/v1/search/search_pb.ts": "sha256:1b274012bb6c3956b5628537a1faf557a7b273a1a045f388074d88eb880f4595",
     "gen/typescript/architecture-cartographer/v1/shared/shared_pb.ts": "sha256:35a2fbeb2a170ee504ea4ba444e4ae96c4fcf88e8f49f14312c20838b7b0ac7f",
     "gen/typescript/architecture-cartographer/v1/signals/signals_pb.ts": "sha256:b5aa932588048e639e9200f0ed83dd96e9e5349ec2b27bd2ce53b7df5e2debe8",
     "gen/typescript/js/architecture-cartographer/v1/analytics/analytics_pb.js": "sha256:3af401b055f03da22c6ddf25aec2202587e37a94d625a485d2997a0dc299f290",
@@ -103,6 +110,7 @@
     "gen/typescript/js/architecture-cartographer/v1/errors/errors_pb.js": "sha256:b8abb011851f7becc876d380112ce102de444323c2a9cda432e9de06abbeffda",
     "gen/typescript/js/architecture-cartographer/v1/graph/graph_pb.js": "sha256:73143e83b5c338538990faf0511e94c80d21bd818fc992c9862b554384564fb6",
     "gen/typescript/js/architecture-cartographer/v1/health/health_pb.js": "sha256:0cd5ab04f10c943a2bea392ad367e97661274f5289028f4510e0534283ba844a",
+    "gen/typescript/js/architecture-cartographer/v1/search/search_pb.js": "sha256:ed767b43ee3ec383d7378e8ce9d1c320f9961dacd9b3afba69359597e7bbb1e5",
     "gen/typescript/js/architecture-cartographer/v1/shared/shared_pb.js": "sha256:7ff4be3e22f1c69f1992a6930c49c2303d1c9efd7e2ee3780733b1d82db60911",
     "gen/typescript/js/architecture-cartographer/v1/signals/signals_pb.js": "sha256:dbdfb1b404a08fda661030ec7dae7a1d118c666b63a22073121bb1c5c096b854"
   }

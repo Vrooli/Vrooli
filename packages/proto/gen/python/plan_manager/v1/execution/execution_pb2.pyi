@@ -26,7 +26,7 @@ class Execution(_message.Message):
     def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., run_id: _Optional[str] = ..., current_phase_id: _Optional[str] = ..., complete: _Optional[bool] = ..., started_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class PhaseContext(_message.Message):
-    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness", "relevant_context", "log_summary")
+    __slots__ = ("current_phase", "next_phase", "required_reading", "reminders", "last_validation", "staleness", "resume_phase_id", "completeness", "relevant_context", "log_summary", "inputs_freshened", "freshen_status", "freshen_detail")
     CURRENT_PHASE_FIELD_NUMBER: _ClassVar[int]
     NEXT_PHASE_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_READING_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +37,9 @@ class PhaseContext(_message.Message):
     COMPLETENESS_FIELD_NUMBER: _ClassVar[int]
     RELEVANT_CONTEXT_FIELD_NUMBER: _ClassVar[int]
     LOG_SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    INPUTS_FRESHENED_FIELD_NUMBER: _ClassVar[int]
+    FRESHEN_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FRESHEN_DETAIL_FIELD_NUMBER: _ClassVar[int]
     current_phase: _model_pb2.Phase
     next_phase: _model_pb2.Phase
     required_reading: _containers.RepeatedScalarFieldContainer[str]
@@ -47,7 +50,10 @@ class PhaseContext(_message.Message):
     completeness: _model_pb2.Completeness
     relevant_context: _containers.RepeatedCompositeFieldContainer[_model_pb2.RelevantContextItem]
     log_summary: _model_pb2.LogSummary
-    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., log_summary: _Optional[_Union[_model_pb2.LogSummary, _Mapping]] = ...) -> None: ...
+    inputs_freshened: bool
+    freshen_status: str
+    freshen_detail: str
+    def __init__(self, current_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., next_phase: _Optional[_Union[_model_pb2.Phase, _Mapping]] = ..., required_reading: _Optional[_Iterable[str]] = ..., reminders: _Optional[_Iterable[str]] = ..., last_validation: _Optional[_Union[_model_pb2.ValidationResult, _Mapping]] = ..., staleness: _Optional[_Union[_model_pb2.StalenessTier, str]] = ..., resume_phase_id: _Optional[str] = ..., completeness: _Optional[_Union[_model_pb2.Completeness, str]] = ..., relevant_context: _Optional[_Iterable[_Union[_model_pb2.RelevantContextItem, _Mapping]]] = ..., log_summary: _Optional[_Union[_model_pb2.LogSummary, _Mapping]] = ..., inputs_freshened: _Optional[bool] = ..., freshen_status: _Optional[str] = ..., freshen_detail: _Optional[str] = ...) -> None: ...
 
 class CompletionNudge(_message.Message):
     __slots__ = ("kind", "message", "satisfied")

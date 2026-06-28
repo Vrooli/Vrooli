@@ -13,6 +13,8 @@ import (
 	"architecture-cartographer/cli/domains/conflicts"
 	domainsdomain "architecture-cartographer/cli/domains/domains"
 	"architecture-cartographer/cli/domains/graph"
+	"architecture-cartographer/cli/domains/reindex"
+	"architecture-cartographer/cli/domains/search"
 	"architecture-cartographer/cli/domains/signals"
 	slicedomain "architecture-cartographer/cli/domains/slice"
 	"architecture-cartographer/cli/domains/zones"
@@ -109,6 +111,18 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, fmt.Errorf("register campaign: %w", err)
 	}
 	out = append(out, campaignGroup)
+
+	searchGroup, err := search.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register search: %w", err)
+	}
+	out = append(out, searchGroup)
+
+	reindexGroup, err := reindex.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register reindex: %w", err)
+	}
+	out = append(out, reindexGroup)
 
 	return out, nil
 }

@@ -195,6 +195,10 @@
           "name": {
             "type": "string"
           },
+          "host_ip": {
+            "type": "string",
+            "description": "Optional host interface address for Docker port publishing, rendered as host_ip:host:container. Leave empty to bind all interfaces."
+          },
           "container": {
             "type": "integer",
             "minimum": 0

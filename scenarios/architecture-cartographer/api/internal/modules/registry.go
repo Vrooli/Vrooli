@@ -30,6 +30,8 @@ import (
 	domainsH "architecture-cartographer/handlers/domains"
 	graphH "architecture-cartographer/handlers/graph"
 	healthH "architecture-cartographer/handlers/health"
+	searchH "architecture-cartographer/handlers/search"
+	searchcontrolH "architecture-cartographer/handlers/searchcontrol"
 	signalsH "architecture-cartographer/handlers/signals"
 
 	localdb "architecture-cartographer/internal/database"
@@ -41,8 +43,10 @@ import (
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	domainsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph"
+	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -57,6 +61,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, conflictsH.Endpoints...)
 	out = append(out, domainsH.Endpoints...)
 	out = append(out, graphH.Endpoints...)
+	out = append(out, searchH.Endpoints...)
+	out = append(out, searchcontrolH.Endpoints...)
 	out = append(out, signalsH.Endpoints...)
 	return out
 }
@@ -80,6 +86,8 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "conflicts", File: conflictsv1.File_architecture_cartographer_v1_conflicts_conflicts_proto},
 		{Module: "domains", File: domainsv1.File_architecture_cartographer_v1_domains_domains_proto},
 		{Module: "graph", File: graphv1.File_architecture_cartographer_v1_graph_graph_proto},
+		{Module: "search", File: searchv1.File_architecture_cartographer_v1_search_search_proto},
+		{Module: "searchcontrol", File: controlv1.File_search_hub_v1_control_control_proto},
 		{Module: "signals", File: signalsv1.File_architecture_cartographer_v1_signals_signals_proto},
 	}
 }

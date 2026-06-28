@@ -19,9 +19,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 // small model supplies only genuine prose and context judgment (OT-P0-002). The
 // produced plan is written through the plans domain; this service does not own
 // the record.
-// Default autofill covers only mechanical anchor/reference sources. Relevant
-// context flows through candidate discovery and explicit acceptance; legacy
-// required_reading is retained only as migration input. See
+// Autofill covers only the mechanical regression-anchor intent. References are
+// discovered from search-hub (SuggestReferences) as reviewable candidates, and
+// relevant context flows through candidate discovery and explicit acceptance. See
 // docs/concepts/DOMAINS.md (authoring) and docs/concepts/FLOWS.md.
 // =============================================================================
 
@@ -29,6 +29,12 @@ service AuthoringService {
   // StartSession begins a new authoring session for a plan title/slug
   // (PM-AUTHOR-001).
   rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+  // GetSession returns the full authoring session state. This is the explicit
+  // full-state read endpoint: normal mutations return only focused progress and
+  // a mutation summary, so a UI/operator that needs the whole session graph must
+  // ask for it deliberately (read-after-write) rather than relying on a session
+  // echo from every mutation.
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
   // GetSection returns one section's current state.
   rpc GetSection(GetSectionRequest) returns (GetSectionResponse);
   // SubmitSection records authored content for a section and re-validates it.
@@ -51,6 +57,16 @@ service AuthoringService {
   // ListRelevantContext returns accepted context items from the session without
   // changing wizard position.
   rpc ListRelevantContext(ListRelevantContextRequest) returns (ListRelevantContextResponse);
+  // UpdateRelevantContextItem replaces one accepted global or phase-scoped
+  // context item in place (by item id) so a bad accepted item discovered in
+  // preview is corrected without deleting the whole phase/session. Legal only
+  // before finalize.
+  rpc UpdateRelevantContextItem(UpdateRelevantContextItemRequest) returns (UpdateRelevantContextItemResponse);
+  // RemoveRelevantContextItem deletes one accepted global or phase-scoped context
+  // item (by item id) before finalize, recomputing structure violations so a
+  // resulting gate (e.g. removing the only phase context) is reported with its
+  // recovery action.
+  rpc RemoveRelevantContextItem(RemoveRelevantContextItemRequest) returns (RemoveRelevantContextItemResponse);
   // DiscoverContextCandidates runs the guided context-discovery seams for one
   // or more concepts and stores pending candidates on the authoring session.
   rpc DiscoverContextCandidates(DiscoverContextCandidatesRequest) returns (DiscoverContextCandidatesResponse);
@@ -59,6 +75,21 @@ service AuthoringService {
   rpc AcceptContextCandidate(AcceptContextCandidateRequest) returns (AcceptContextCandidateResponse);
   // RejectContextCandidate records why a discovered candidate is not relevant.
   rpc RejectContextCandidate(RejectContextCandidateRequest) returns (RejectContextCandidateResponse);
+  // SuggestReferences queries search-hub's Answer projection from the session's
+  // title + scope + technical approach and stores reviewable reference candidates
+  // (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
+  // locator are kept) on the session. Degrades honestly to no candidates when
+  // search-hub is down/empty; suggestions never auto-fill the references section.
+  rpc SuggestReferences(SuggestReferencesRequest) returns (SuggestReferencesResponse);
+  // ListReferenceCandidates returns the session's reference candidates without
+  // changing wizard position.
+  rpc ListReferenceCandidates(ListReferenceCandidatesRequest) returns (ListReferenceCandidatesResponse);
+  // AcceptReferenceCandidate promotes one pending reference candidate into the
+  // references section (with an optional inline edit of the locator). Only
+  // accepted candidates satisfy the references gate.
+  rpc AcceptReferenceCandidate(AcceptReferenceCandidateRequest) returns (AcceptReferenceCandidateResponse);
+  // RejectReferenceCandidate records why a suggested reference is not relevant.
+  rpc RejectReferenceCandidate(RejectReferenceCandidateRequest) returns (RejectReferenceCandidateResponse);
   // AddPhase appends one structured phase draft to the session.
   rpc AddPhase(AddPhaseRequest) returns (AddPhaseResponse);
   // GetPhase returns one structured phase draft plus the API-owned guided step
@@ -107,6 +138,7 @@ message AuthoringSession {
   string current_phase_id = 9;
   repeated shared.RelevantContextItem relevant_context = 10;
   repeated ContextCandidate context_candidates = 11;
+  repeated ReferenceCandidate reference_candidates = 12;
 }
 
 // StructureViolation is one structure-gate failure (e.g. empty mandatory section
@@ -118,8 +150,8 @@ message StructureViolation {
 
 // AutofillResult reports the outcome of one autofill source.
 message AutofillResult {
-  // "regression_anchor" | "references"; "required_reading" is legacy
-  // migration input and must be requested explicitly.
+  // "regression_anchor" — the only mechanical autofill source. References are
+  // discovered through SuggestReferences (reviewable candidates), not autofill.
   string source = 1;
   string section_key = 2;
   bool filled = 3;
@@ -143,8 +175,31 @@ message ContextCandidate {
   string rejection_reason = 8;
 }
 
+// ReferenceCandidate is a discovered but not-yet-accepted code/doc/req reference.
+// Like ContextCandidate, candidates are reviewable: the suggester proposes a
+// locator discovered from search-hub's Answer projection (routed by locator
+// shape) plus its provider provenance and retrieval score, but the author must
+// accept or reject it. Only accepted candidates finalize into references[].
+message ReferenceCandidate {
+  string id = 1;
+  // The proposed locator ([CODE:]/[DOC:]/[REQ:]). Authored kind/target only;
+  // resolution/staleness are filled later by the validation domain.
+  shared.Reference reference = 2;
+  // Originating search-hub provider id (provenance).
+  string source = 3;
+  // Normalized retrieval score in [0,1] (provenance; never a gate).
+  double confidence = 4;
+  string status = 5; // pending | accepted | rejected
+  bool degraded = 6;
+  string detail = 7;
+  string rejection_reason = 8;
+}
+
 // PhaseDraft is the structured pre-finalize phase object owned by an authoring
 // session. Finalize maps these into shared.Phase records in the plans domain.
+// The canonical phase fields (affected_areas/steps/expected_outputs/validation/
+// risks_hazards/handoff_notes) are carried on the wire so GetPhase and the
+// SubmitPhaseField acknowledgement echo exactly what was parsed.
 message PhaseDraft {
   string id = 1;
   int32 order = 2;
@@ -157,6 +212,46 @@ message PhaseDraft {
   string acceptance = 8;
   string no_code_refs_reason = 9;
   repeated shared.RelevantContextItem relevant_context = 10;
+  repeated string affected_areas = 11;
+  repeated string steps = 12;
+  repeated string expected_outputs = 13;
+  string validation = 14;
+  repeated string risks_hazards = 15;
+  string handoff_notes = 16;
+}
+
+// AuthoringProgress is the compact navigation snapshot returned by every normal
+// wizard mutation so a small-context agent can choose its next action WITHOUT
+// the full session graph. Full state is available only via GetSession/
+// PreviewPlan.
+message AuthoringProgress {
+  string session_id = 1;
+  string current_section_key = 2;
+  string current_phase_id = 3;
+  int32 mandatory_sections_total = 4;
+  int32 mandatory_sections_filled = 5;
+  int32 phases_total = 6;
+  int32 phases_complete = 7;
+  // Human-readable labels of the inputs still required before the structure gate
+  // would pass (mandatory sections, references/no-code-refs, global context
+  // checkpoint, and per-phase completeness).
+  repeated string remaining_required_inputs = 8;
+  // True when no remaining_required_inputs block finalize (command-reference
+  // validation still runs at Finalize and may surface late issues).
+  bool ready_to_finalize = 9;
+}
+
+// AuthoringMutationSummary acknowledges exactly what one mutation changed without
+// echoing accumulated session state.
+message AuthoringMutationSummary {
+  // section | phase | context | candidate | autofill
+  string object_kind = 1;
+  // section key, phase id, or item/candidate id.
+  string object_id = 2;
+  // field name when the mutation targeted one field (e.g. "steps").
+  string field = 3;
+  // short human summary, e.g. "parsed 4 steps" or "references parsed: 6".
+  string summary = 4;
 }
 
 message StartSessionRequest {
@@ -167,6 +262,15 @@ message StartSessionRequest {
 }
 
 message StartSessionResponse {
+  AuthoringSession session = 1;
+  shared.GuidedStep step = 2;
+}
+
+message GetSessionRequest {
+  string session_id = 1;
+}
+
+message GetSessionResponse {
   AuthoringSession session = 1;
   shared.GuidedStep step = 2;
 }
@@ -188,10 +292,11 @@ message SubmitSectionRequest {
 }
 
 message SubmitSectionResponse {
-  AuthoringSession session = 1;
+  AuthoringMutationSummary summary = 1;
+  AuthoringProgress progress = 2;
   // Violations specific to the submitted section (empty when it passes).
-  repeated StructureViolation violations = 2;
-  shared.GuidedStep step = 3;
+  repeated StructureViolation violations = 3;
+  shared.GuidedStep step = 4;
 }
 
 message NextRequest {
@@ -210,9 +315,12 @@ message ContinueAuthoringRequest {
 }
 
 message ContinueAuthoringResponse {
-  AuthoringSession session = 1;
-  Section section = 2;
-  PhaseDraft phase = 3;
+  // The single focused current work item — exactly one of section/phase is set
+  // (both empty at the review/finalize step). The full session is NOT returned;
+  // call GetSession for the whole graph.
+  Section section = 1;
+  PhaseDraft phase = 2;
+  AuthoringProgress progress = 3;
   bool ready_to_finalize = 4;
   repeated StructureViolation violations = 5;
   shared.GuidedStep step = 6;
@@ -235,8 +343,8 @@ message AutofillRequest {
 }
 
 message AutofillResponse {
-  AuthoringSession session = 1;
-  repeated AutofillResult results = 2;
+  repeated AutofillResult results = 1;
+  AuthoringProgress progress = 2;
   shared.GuidedStep step = 3;
 }
 
@@ -249,10 +357,11 @@ message SubmitRelevantContextItemRequest {
 }
 
 message SubmitRelevantContextItemResponse {
-  AuthoringSession session = 1;
-  shared.RelevantContextItem item = 2;
-  repeated StructureViolation violations = 3;
-  shared.GuidedStep step = 4;
+  shared.RelevantContextItem item = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
 }
 
 message ListRelevantContextRequest {
@@ -266,6 +375,36 @@ message ListRelevantContextResponse {
   shared.GuidedStep step = 2;
 }
 
+message UpdateRelevantContextItemRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. Empty targets global context.
+  string phase_id = 2;
+  string item_id = 3;
+  shared.RelevantContextItem item = 4;
+}
+
+message UpdateRelevantContextItemResponse {
+  shared.RelevantContextItem item = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message RemoveRelevantContextItemRequest {
+  string session_id = 1;
+  // Optional phase id or authored order number. Empty targets global context.
+  string phase_id = 2;
+  string item_id = 3;
+}
+
+message RemoveRelevantContextItemResponse {
+  AuthoringMutationSummary summary = 1;
+  AuthoringProgress progress = 2;
+  repeated StructureViolation violations = 3;
+  shared.GuidedStep step = 4;
+}
+
 message DiscoverContextCandidatesRequest {
   string session_id = 1;
   // Decomposed concepts from plan-skill-discovery methodology. Empty uses the
@@ -276,8 +415,8 @@ message DiscoverContextCandidatesRequest {
 }
 
 message DiscoverContextCandidatesResponse {
-  AuthoringSession session = 1;
-  repeated ContextCandidate candidates = 2;
+  repeated ContextCandidate candidates = 1;
+  AuthoringProgress progress = 2;
   shared.GuidedStep step = 3;
 }
 
@@ -289,11 +428,12 @@ message AcceptContextCandidateRequest {
 }
 
 message AcceptContextCandidateResponse {
-  AuthoringSession session = 1;
-  ContextCandidate candidate = 2;
-  shared.RelevantContextItem item = 3;
-  repeated StructureViolation violations = 4;
-  shared.GuidedStep step = 5;
+  ContextCandidate candidate = 1;
+  shared.RelevantContextItem item = 2;
+  AuthoringMutationSummary summary = 3;
+  AuthoringProgress progress = 4;
+  repeated StructureViolation violations = 5;
+  shared.GuidedStep step = 6;
 }
 
 message RejectContextCandidateRequest {
@@ -303,8 +443,55 @@ message RejectContextCandidateRequest {
 }
 
 message RejectContextCandidateResponse {
-  AuthoringSession session = 1;
-  ContextCandidate candidate = 2;
+  ContextCandidate candidate = 1;
+  AuthoringProgress progress = 2;
+  shared.GuidedStep step = 3;
+}
+
+message SuggestReferencesRequest {
+  string session_id = 1;
+}
+
+message SuggestReferencesResponse {
+  repeated ReferenceCandidate candidates = 1;
+  AuthoringProgress progress = 2;
+  shared.GuidedStep step = 3;
+}
+
+message ListReferenceCandidatesRequest {
+  string session_id = 1;
+}
+
+message ListReferenceCandidatesResponse {
+  repeated ReferenceCandidate candidates = 1;
+  shared.GuidedStep step = 2;
+}
+
+message AcceptReferenceCandidateRequest {
+  string session_id = 1;
+  string candidate_id = 2;
+  // Optional inline edit: when set, overrides the candidate's locator before it
+  // is finalized into the references section.
+  shared.Reference reference = 3;
+}
+
+message AcceptReferenceCandidateResponse {
+  ReferenceCandidate candidate = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
+}
+
+message RejectReferenceCandidateRequest {
+  string session_id = 1;
+  string candidate_id = 2;
+  string reason = 3;
+}
+
+message RejectReferenceCandidateResponse {
+  ReferenceCandidate candidate = 1;
+  AuthoringProgress progress = 2;
   shared.GuidedStep step = 3;
 }
 
@@ -315,10 +502,12 @@ message AddPhaseRequest {
 }
 
 message AddPhaseResponse {
-  AuthoringSession session = 1;
-  PhaseDraft phase = 2;
-  repeated StructureViolation violations = 3;
-  shared.GuidedStep step = 4;
+  // The single new phase draft (existing phases are not echoed).
+  PhaseDraft phase = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
 }
 
 message GetPhaseRequest {
@@ -344,9 +533,13 @@ message SubmitPhaseFieldRequest {
 }
 
 message SubmitPhaseFieldResponse {
-  AuthoringSession session = 1;
-  repeated StructureViolation violations = 2;
-  shared.GuidedStep step = 3;
+  // The single updated phase draft so the caller can read exactly what was
+  // parsed (other phases are not echoed).
+  PhaseDraft phase = 1;
+  AuthoringMutationSummary summary = 2;
+  AuthoringProgress progress = 3;
+  repeated StructureViolation violations = 4;
+  shared.GuidedStep step = 5;
 }
 
 message NextPhaseRequest {

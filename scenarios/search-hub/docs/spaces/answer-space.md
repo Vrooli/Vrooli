@@ -40,7 +40,7 @@ column doubles as the gap registry.
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
 | 1 | Surfaces · Inventory — "What surfaces (API/CLI/UI) does X expose?" | `ui-health.surfaces` + `cli-health.commands` + `code-facts` (API) | NOW (UI, CLI) / IN-REACH (API) | DERIVED | UI + CLI live; API surfaces via code-facts `SURFACES` need a search surface + attestation. |
-| 2 | Domains · Inventory + Anatomy — "What domains does X have and what does each own?" | `architecture-cartographer.domain-map` | IN-REACH (gap stub) | DERIVED / VALIDATED | **First-slice provider.** Reads `file_domain` + `ExtractDomains` + `DOMAINS.md`. |
+| 2 | Domains · Inventory + Anatomy — "What domains does X have and what does each own?" | `architecture-cartographer.domain-map` | NOW | DERIVED / VALIDATED | **First-slice provider, live.** Semantic search over the derived domain map (`ExtractDomains` responsibility/purpose/glossary) — term-agnostic: "how does authoring work in plan-manager" → `plan-manager/authoring`. |
 | 3 | Doc-set · Conformance — "Do X's docs match its code? Where's the drift?" | `architecture-cartographer` (drift detectors) | IN-REACH | VALIDATED / CONTRADICTED | Cartographer's core job; expose drift findings as attested answers. |
 | 4 | Requirements/maturity · State — "What's X's maturity rung + requirements status?" | `completeness-scoring` (`GetScore`) | IN-REACH | DERIVED | Read `GetScore`, wrap in attestation. |
 | 5 | Dependencies · Connection — "What resources + scenarios does X depend on?" | `scenario-dependency-analyzer` (`.scenarios` / `.resources`) | IN-REACH (gap stubs) | DERIVED | Interface graph + `service.json`. |
@@ -50,7 +50,7 @@ column doubles as the gap registry.
 
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
-| 7 | Zones · Anatomy — "What are X's zones (handlers / domain / substrate / composition root)?" | `architecture-cartographer` | IN-REACH | DERIVED / VALIDATED | Zone Map (`ARCHITECTURE.md`) cross-checked against the import graph. |
+| 7 | Zones · Anatomy — "What are X's zones (handlers / domain / substrate / composition root)?" | `architecture-cartographer` (`GetZoneMap`) | NOW | DERIVED / VALIDATED | Zone Map (`ARCHITECTURE.md`) cross-checked against the import graph — live via `GetZoneMap`. A dedicated `architecture-cartographer.zones` search leaf is a follow-on sibling (same engine/recipe as domain-map). |
 | 8 | Shared substrate · Inventory — "What non-domain/shared packages exist (server, module, clock, httputil…)?" | `code-facts` / code-graph | IN-REACH | DERIVED | No provider yet; derive from code-graph + the domain-vs-substrate zone rule. |
 | 9 | ⭐ Shared substrate · Connection — "How do non-domain packages connect to domains? Who wires them (composition root / `Deps`)?" | _(none)_ → cartographer / code-graph | MISSING | DERIVED | Needs a provider; approach: `Deps`-struct + import-edge analysis. |
 | 10 | Seams · Inventory + Connection — "Where are the ambient seams (clock/http/env/logger); who wires prod vs test?" | `SEAMS.md` + static grep | IN-REACH | DECLARED_UNVERIFIED → DERIVED | `SEAMS.md` is declared; cross-check vs grep for `time.Now`/`os.Getenv`/`http.DefaultClient`. |
@@ -58,17 +58,17 @@ column doubles as the gap registry.
 | 12 | CLI substrate · Anatomy — "How is X's CLI composed (cli-core `ScenarioApp`, command groups)?" | `cli-health` / `code-facts` | IN-REACH | DERIVED | Partial today; extend. |
 | 13 | UI substrate · Inventory + Anatomy — "What shared UI substrate exists (components/hooks/contexts/client layer)?" | `ui-health` | IN-REACH (surfaces/widgets NOW) | DERIVED | `surfaces` + `widgets` live; substrate anatomy needs extension. |
 | 14 | ⭐ Testing entities · Anatomy — "How is X's testing set up (phases, test data, mocks/fakes, fixtures)?" | `test-genie` (`health`) + bas `registry.json` + `SEAMS.md` | IN-REACH | DERIVED | Compose test-genie health + bas registry + seams. |
-| 15 | Coupling graph · Connection — "What's X's internal import/coupling graph; any cycles or layering violations?" | `architecture-cartographer` (`BoundaryHealth` + cycle/layering detectors) | IN-REACH | DERIVED | Expose `BoundaryHealth` as an attested answer. |
+| 15 | Coupling graph · Connection — "What's X's internal import/coupling graph; any cycles or layering violations?" | `architecture-cartographer` (`BoundaryHealth` + cycle/layering detectors) | NOW | DERIVED | `BoundaryHealth` + the cycle/layering detectors are live. A dedicated `architecture-cartographer.coupling` search leaf is a follow-on sibling. |
 
 ### G3 — Domain (single slice)
 
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
-| 16 | ⭐ Slice · Anatomy — "How is domain X implemented end-to-end (proto→handler→internal→cli→ui)?" | `architecture-cartographer` / code-graph | MISSING | DERIVED / PARTIAL | Needs a slice-walker provider over the vertical slice. |
-| 17 | ⭐ Feature · Flow — "Visualize how feature X works at runtime (control/data flow)." | code-graph (call/ref graph) | MISSING | PARTIAL (reconstructed) | Flow is reconstructed → lower basis; render as sequence/mermaid. |
+| 16 | ⭐ Slice · Anatomy — "How is domain X implemented end-to-end (proto→handler→internal→cli→ui)?" | `architecture-cartographer` (`GetSlice`) | NOW (PARTIAL) | DERIVED / PARTIAL | `GetSlice` is live but self-attests `DERIVED/PARTIAL` (UI rung + cross-rung wired edges incomplete); hardening is a separate plan. |
+| 17 | ⭐ Feature · Flow — "Visualize how feature X works at runtime (control/data flow)." | code-graph (call/ref graph) | MISSING | PARTIAL (reconstructed) | **Call-graph-blocked**: needs a call/ref graph that exists on neither architecture-cartographer nor code-graph (net-new substrate, separate plan) — not merely provider-missing. Flow is reconstructed → lower basis; render as sequence/mermaid. |
 | 18 | Proto · Conformance — "Does domain X's code match its proto contract?" | `proto-health` / cartographer | IN-REACH | DERIVED | Proto adoption + endpoint proofs. |
 | 19 | Invariants · Verification — "What invariants does X enforce, and how?" | `INVARIANTS.md` + `// INVARIANT` tags + proto validation | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Basis depends on the enforcement mechanism (type/db/test/runtime). |
-| 20 | Archetype · Inventory / Anatomy — "What's domain X's archetype (one of the canonical fleet vocabulary: reporting / service / mutation / classification / orchestration / scoring / query)?" | `architecture-cartographer` | IN-REACH | HEURISTIC → DECLARED | Inferred from code shape and converged with the declared DOMAINS.md value; confidence from signal specificity; declared-vs-inferred disagreement reported as drift, never silently overridden. |
+| 20 | Archetype · Inventory / Anatomy — "What's domain X's archetype (one of the canonical fleet vocabulary: reporting / service / mutation / classification / orchestration / scoring / query)?" | `architecture-cartographer` (`InferArchetype`) | NOW | HEURISTIC → DECLARED | Live via `InferArchetype` (also folded into the domain-map provider's corpus as a metadata filter). Inferred from code shape and converged with the declared DOMAINS.md value; confidence from signal specificity; declared-vs-inferred disagreement reported as drift, never silently overridden. |
 | 21 | Persistence · Anatomy — "What's X's storage/persistence pattern (schema, migrations, seams)?" | `storage-health` + code-graph | IN-REACH | DERIVED | Read storage-health, attest. |
 | 22 | Intent · Provenance — "Why does domain X exist / when should it change?" | `PRD.md` + code comments | MISSING (pointer-only) | ABSENT | Judgment; contract forces pointer-only to PRD/comments. |
 

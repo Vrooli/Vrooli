@@ -36,6 +36,9 @@ const (
 	// AuthoringServiceStartSessionProcedure is the fully-qualified name of the AuthoringService's
 	// StartSession RPC.
 	AuthoringServiceStartSessionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/StartSession"
+	// AuthoringServiceGetSessionProcedure is the fully-qualified name of the AuthoringService's
+	// GetSession RPC.
+	AuthoringServiceGetSessionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/GetSession"
 	// AuthoringServiceGetSectionProcedure is the fully-qualified name of the AuthoringService's
 	// GetSection RPC.
 	AuthoringServiceGetSectionProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/GetSection"
@@ -59,6 +62,12 @@ const (
 	// AuthoringServiceListRelevantContextProcedure is the fully-qualified name of the
 	// AuthoringService's ListRelevantContext RPC.
 	AuthoringServiceListRelevantContextProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ListRelevantContext"
+	// AuthoringServiceUpdateRelevantContextItemProcedure is the fully-qualified name of the
+	// AuthoringService's UpdateRelevantContextItem RPC.
+	AuthoringServiceUpdateRelevantContextItemProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/UpdateRelevantContextItem"
+	// AuthoringServiceRemoveRelevantContextItemProcedure is the fully-qualified name of the
+	// AuthoringService's RemoveRelevantContextItem RPC.
+	AuthoringServiceRemoveRelevantContextItemProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RemoveRelevantContextItem"
 	// AuthoringServiceDiscoverContextCandidatesProcedure is the fully-qualified name of the
 	// AuthoringService's DiscoverContextCandidates RPC.
 	AuthoringServiceDiscoverContextCandidatesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverContextCandidates"
@@ -68,6 +77,18 @@ const (
 	// AuthoringServiceRejectContextCandidateProcedure is the fully-qualified name of the
 	// AuthoringService's RejectContextCandidate RPC.
 	AuthoringServiceRejectContextCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectContextCandidate"
+	// AuthoringServiceSuggestReferencesProcedure is the fully-qualified name of the AuthoringService's
+	// SuggestReferences RPC.
+	AuthoringServiceSuggestReferencesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/SuggestReferences"
+	// AuthoringServiceListReferenceCandidatesProcedure is the fully-qualified name of the
+	// AuthoringService's ListReferenceCandidates RPC.
+	AuthoringServiceListReferenceCandidatesProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/ListReferenceCandidates"
+	// AuthoringServiceAcceptReferenceCandidateProcedure is the fully-qualified name of the
+	// AuthoringService's AcceptReferenceCandidate RPC.
+	AuthoringServiceAcceptReferenceCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptReferenceCandidate"
+	// AuthoringServiceRejectReferenceCandidateProcedure is the fully-qualified name of the
+	// AuthoringService's RejectReferenceCandidate RPC.
+	AuthoringServiceRejectReferenceCandidateProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectReferenceCandidate"
 	// AuthoringServiceAddPhaseProcedure is the fully-qualified name of the AuthoringService's AddPhase
 	// RPC.
 	AuthoringServiceAddPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase"
@@ -94,6 +115,12 @@ type AuthoringServiceClient interface {
 	// StartSession begins a new authoring session for a plan title/slug
 	// (PM-AUTHOR-001).
 	StartSession(context.Context, *connect.Request[authoring.StartSessionRequest]) (*connect.Response[authoring.StartSessionResponse], error)
+	// GetSession returns the full authoring session state. This is the explicit
+	// full-state read endpoint: normal mutations return only focused progress and
+	// a mutation summary, so a UI/operator that needs the whole session graph must
+	// ask for it deliberately (read-after-write) rather than relying on a session
+	// echo from every mutation.
+	GetSession(context.Context, *connect.Request[authoring.GetSessionRequest]) (*connect.Response[authoring.GetSessionResponse], error)
 	// GetSection returns one section's current state.
 	GetSection(context.Context, *connect.Request[authoring.GetSectionRequest]) (*connect.Response[authoring.GetSectionResponse], error)
 	// SubmitSection records authored content for a section and re-validates it.
@@ -116,6 +143,16 @@ type AuthoringServiceClient interface {
 	// ListRelevantContext returns accepted context items from the session without
 	// changing wizard position.
 	ListRelevantContext(context.Context, *connect.Request[authoring.ListRelevantContextRequest]) (*connect.Response[authoring.ListRelevantContextResponse], error)
+	// UpdateRelevantContextItem replaces one accepted global or phase-scoped
+	// context item in place (by item id) so a bad accepted item discovered in
+	// preview is corrected without deleting the whole phase/session. Legal only
+	// before finalize.
+	UpdateRelevantContextItem(context.Context, *connect.Request[authoring.UpdateRelevantContextItemRequest]) (*connect.Response[authoring.UpdateRelevantContextItemResponse], error)
+	// RemoveRelevantContextItem deletes one accepted global or phase-scoped context
+	// item (by item id) before finalize, recomputing structure violations so a
+	// resulting gate (e.g. removing the only phase context) is reported with its
+	// recovery action.
+	RemoveRelevantContextItem(context.Context, *connect.Request[authoring.RemoveRelevantContextItemRequest]) (*connect.Response[authoring.RemoveRelevantContextItemResponse], error)
 	// DiscoverContextCandidates runs the guided context-discovery seams for one
 	// or more concepts and stores pending candidates on the authoring session.
 	DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error)
@@ -124,6 +161,21 @@ type AuthoringServiceClient interface {
 	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
 	// RejectContextCandidate records why a discovered candidate is not relevant.
 	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
+	// SuggestReferences queries search-hub's Answer projection from the session's
+	// title + scope + technical approach and stores reviewable reference candidates
+	// (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
+	// locator are kept) on the session. Degrades honestly to no candidates when
+	// search-hub is down/empty; suggestions never auto-fill the references section.
+	SuggestReferences(context.Context, *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error)
+	// ListReferenceCandidates returns the session's reference candidates without
+	// changing wizard position.
+	ListReferenceCandidates(context.Context, *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error)
+	// AcceptReferenceCandidate promotes one pending reference candidate into the
+	// references section (with an optional inline edit of the locator). Only
+	// accepted candidates satisfy the references gate.
+	AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error)
+	// RejectReferenceCandidate records why a suggested reference is not relevant.
+	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// GetPhase returns one structured phase draft plus the API-owned guided step
@@ -158,6 +210,12 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AuthoringServiceStartSessionProcedure,
 			connect.WithSchema(authoringServiceMethods.ByName("StartSession")),
+			connect.WithClientOptions(opts...),
+		),
+		getSession: connect.NewClient[authoring.GetSessionRequest, authoring.GetSessionResponse](
+			httpClient,
+			baseURL+AuthoringServiceGetSessionProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("GetSession")),
 			connect.WithClientOptions(opts...),
 		),
 		getSection: connect.NewClient[authoring.GetSectionRequest, authoring.GetSectionResponse](
@@ -208,6 +266,18 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(authoringServiceMethods.ByName("ListRelevantContext")),
 			connect.WithClientOptions(opts...),
 		),
+		updateRelevantContextItem: connect.NewClient[authoring.UpdateRelevantContextItemRequest, authoring.UpdateRelevantContextItemResponse](
+			httpClient,
+			baseURL+AuthoringServiceUpdateRelevantContextItemProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("UpdateRelevantContextItem")),
+			connect.WithClientOptions(opts...),
+		),
+		removeRelevantContextItem: connect.NewClient[authoring.RemoveRelevantContextItemRequest, authoring.RemoveRelevantContextItemResponse](
+			httpClient,
+			baseURL+AuthoringServiceRemoveRelevantContextItemProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("RemoveRelevantContextItem")),
+			connect.WithClientOptions(opts...),
+		),
 		discoverContextCandidates: connect.NewClient[authoring.DiscoverContextCandidatesRequest, authoring.DiscoverContextCandidatesResponse](
 			httpClient,
 			baseURL+AuthoringServiceDiscoverContextCandidatesProcedure,
@@ -224,6 +294,30 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+AuthoringServiceRejectContextCandidateProcedure,
 			connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
+			connect.WithClientOptions(opts...),
+		),
+		suggestReferences: connect.NewClient[authoring.SuggestReferencesRequest, authoring.SuggestReferencesResponse](
+			httpClient,
+			baseURL+AuthoringServiceSuggestReferencesProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("SuggestReferences")),
+			connect.WithClientOptions(opts...),
+		),
+		listReferenceCandidates: connect.NewClient[authoring.ListReferenceCandidatesRequest, authoring.ListReferenceCandidatesResponse](
+			httpClient,
+			baseURL+AuthoringServiceListReferenceCandidatesProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("ListReferenceCandidates")),
+			connect.WithClientOptions(opts...),
+		),
+		acceptReferenceCandidate: connect.NewClient[authoring.AcceptReferenceCandidateRequest, authoring.AcceptReferenceCandidateResponse](
+			httpClient,
+			baseURL+AuthoringServiceAcceptReferenceCandidateProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("AcceptReferenceCandidate")),
+			connect.WithClientOptions(opts...),
+		),
+		rejectReferenceCandidate: connect.NewClient[authoring.RejectReferenceCandidateRequest, authoring.RejectReferenceCandidateResponse](
+			httpClient,
+			baseURL+AuthoringServiceRejectReferenceCandidateProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("RejectReferenceCandidate")),
 			connect.WithClientOptions(opts...),
 		),
 		addPhase: connect.NewClient[authoring.AddPhaseRequest, authoring.AddPhaseResponse](
@@ -268,6 +362,7 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 // authoringServiceClient implements AuthoringServiceClient.
 type authoringServiceClient struct {
 	startSession              *connect.Client[authoring.StartSessionRequest, authoring.StartSessionResponse]
+	getSession                *connect.Client[authoring.GetSessionRequest, authoring.GetSessionResponse]
 	getSection                *connect.Client[authoring.GetSectionRequest, authoring.GetSectionResponse]
 	submitSection             *connect.Client[authoring.SubmitSectionRequest, authoring.SubmitSectionResponse]
 	next                      *connect.Client[authoring.NextRequest, authoring.NextResponse]
@@ -276,9 +371,15 @@ type authoringServiceClient struct {
 	autofill                  *connect.Client[authoring.AutofillRequest, authoring.AutofillResponse]
 	submitRelevantContextItem *connect.Client[authoring.SubmitRelevantContextItemRequest, authoring.SubmitRelevantContextItemResponse]
 	listRelevantContext       *connect.Client[authoring.ListRelevantContextRequest, authoring.ListRelevantContextResponse]
+	updateRelevantContextItem *connect.Client[authoring.UpdateRelevantContextItemRequest, authoring.UpdateRelevantContextItemResponse]
+	removeRelevantContextItem *connect.Client[authoring.RemoveRelevantContextItemRequest, authoring.RemoveRelevantContextItemResponse]
 	discoverContextCandidates *connect.Client[authoring.DiscoverContextCandidatesRequest, authoring.DiscoverContextCandidatesResponse]
 	acceptContextCandidate    *connect.Client[authoring.AcceptContextCandidateRequest, authoring.AcceptContextCandidateResponse]
 	rejectContextCandidate    *connect.Client[authoring.RejectContextCandidateRequest, authoring.RejectContextCandidateResponse]
+	suggestReferences         *connect.Client[authoring.SuggestReferencesRequest, authoring.SuggestReferencesResponse]
+	listReferenceCandidates   *connect.Client[authoring.ListReferenceCandidatesRequest, authoring.ListReferenceCandidatesResponse]
+	acceptReferenceCandidate  *connect.Client[authoring.AcceptReferenceCandidateRequest, authoring.AcceptReferenceCandidateResponse]
+	rejectReferenceCandidate  *connect.Client[authoring.RejectReferenceCandidateRequest, authoring.RejectReferenceCandidateResponse]
 	addPhase                  *connect.Client[authoring.AddPhaseRequest, authoring.AddPhaseResponse]
 	getPhase                  *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
 	submitPhaseField          *connect.Client[authoring.SubmitPhaseFieldRequest, authoring.SubmitPhaseFieldResponse]
@@ -290,6 +391,11 @@ type authoringServiceClient struct {
 // StartSession calls vrooli.plan_manager.v1.authoring.AuthoringService.StartSession.
 func (c *authoringServiceClient) StartSession(ctx context.Context, req *connect.Request[authoring.StartSessionRequest]) (*connect.Response[authoring.StartSessionResponse], error) {
 	return c.startSession.CallUnary(ctx, req)
+}
+
+// GetSession calls vrooli.plan_manager.v1.authoring.AuthoringService.GetSession.
+func (c *authoringServiceClient) GetSession(ctx context.Context, req *connect.Request[authoring.GetSessionRequest]) (*connect.Response[authoring.GetSessionResponse], error) {
+	return c.getSession.CallUnary(ctx, req)
 }
 
 // GetSection calls vrooli.plan_manager.v1.authoring.AuthoringService.GetSection.
@@ -333,6 +439,18 @@ func (c *authoringServiceClient) ListRelevantContext(ctx context.Context, req *c
 	return c.listRelevantContext.CallUnary(ctx, req)
 }
 
+// UpdateRelevantContextItem calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.UpdateRelevantContextItem.
+func (c *authoringServiceClient) UpdateRelevantContextItem(ctx context.Context, req *connect.Request[authoring.UpdateRelevantContextItemRequest]) (*connect.Response[authoring.UpdateRelevantContextItemResponse], error) {
+	return c.updateRelevantContextItem.CallUnary(ctx, req)
+}
+
+// RemoveRelevantContextItem calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.RemoveRelevantContextItem.
+func (c *authoringServiceClient) RemoveRelevantContextItem(ctx context.Context, req *connect.Request[authoring.RemoveRelevantContextItemRequest]) (*connect.Response[authoring.RemoveRelevantContextItemResponse], error) {
+	return c.removeRelevantContextItem.CallUnary(ctx, req)
+}
+
 // DiscoverContextCandidates calls
 // vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates.
 func (c *authoringServiceClient) DiscoverContextCandidates(ctx context.Context, req *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error) {
@@ -349,6 +467,29 @@ func (c *authoringServiceClient) AcceptContextCandidate(ctx context.Context, req
 // vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate.
 func (c *authoringServiceClient) RejectContextCandidate(ctx context.Context, req *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error) {
 	return c.rejectContextCandidate.CallUnary(ctx, req)
+}
+
+// SuggestReferences calls vrooli.plan_manager.v1.authoring.AuthoringService.SuggestReferences.
+func (c *authoringServiceClient) SuggestReferences(ctx context.Context, req *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error) {
+	return c.suggestReferences.CallUnary(ctx, req)
+}
+
+// ListReferenceCandidates calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.ListReferenceCandidates.
+func (c *authoringServiceClient) ListReferenceCandidates(ctx context.Context, req *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error) {
+	return c.listReferenceCandidates.CallUnary(ctx, req)
+}
+
+// AcceptReferenceCandidate calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.AcceptReferenceCandidate.
+func (c *authoringServiceClient) AcceptReferenceCandidate(ctx context.Context, req *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error) {
+	return c.acceptReferenceCandidate.CallUnary(ctx, req)
+}
+
+// RejectReferenceCandidate calls
+// vrooli.plan_manager.v1.authoring.AuthoringService.RejectReferenceCandidate.
+func (c *authoringServiceClient) RejectReferenceCandidate(ctx context.Context, req *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error) {
+	return c.rejectReferenceCandidate.CallUnary(ctx, req)
 }
 
 // AddPhase calls vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase.
@@ -387,6 +528,12 @@ type AuthoringServiceHandler interface {
 	// StartSession begins a new authoring session for a plan title/slug
 	// (PM-AUTHOR-001).
 	StartSession(context.Context, *connect.Request[authoring.StartSessionRequest]) (*connect.Response[authoring.StartSessionResponse], error)
+	// GetSession returns the full authoring session state. This is the explicit
+	// full-state read endpoint: normal mutations return only focused progress and
+	// a mutation summary, so a UI/operator that needs the whole session graph must
+	// ask for it deliberately (read-after-write) rather than relying on a session
+	// echo from every mutation.
+	GetSession(context.Context, *connect.Request[authoring.GetSessionRequest]) (*connect.Response[authoring.GetSessionResponse], error)
 	// GetSection returns one section's current state.
 	GetSection(context.Context, *connect.Request[authoring.GetSectionRequest]) (*connect.Response[authoring.GetSectionResponse], error)
 	// SubmitSection records authored content for a section and re-validates it.
@@ -409,6 +556,16 @@ type AuthoringServiceHandler interface {
 	// ListRelevantContext returns accepted context items from the session without
 	// changing wizard position.
 	ListRelevantContext(context.Context, *connect.Request[authoring.ListRelevantContextRequest]) (*connect.Response[authoring.ListRelevantContextResponse], error)
+	// UpdateRelevantContextItem replaces one accepted global or phase-scoped
+	// context item in place (by item id) so a bad accepted item discovered in
+	// preview is corrected without deleting the whole phase/session. Legal only
+	// before finalize.
+	UpdateRelevantContextItem(context.Context, *connect.Request[authoring.UpdateRelevantContextItemRequest]) (*connect.Response[authoring.UpdateRelevantContextItemResponse], error)
+	// RemoveRelevantContextItem deletes one accepted global or phase-scoped context
+	// item (by item id) before finalize, recomputing structure violations so a
+	// resulting gate (e.g. removing the only phase context) is reported with its
+	// recovery action.
+	RemoveRelevantContextItem(context.Context, *connect.Request[authoring.RemoveRelevantContextItemRequest]) (*connect.Response[authoring.RemoveRelevantContextItemResponse], error)
 	// DiscoverContextCandidates runs the guided context-discovery seams for one
 	// or more concepts and stores pending candidates on the authoring session.
 	DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error)
@@ -417,6 +574,21 @@ type AuthoringServiceHandler interface {
 	AcceptContextCandidate(context.Context, *connect.Request[authoring.AcceptContextCandidateRequest]) (*connect.Response[authoring.AcceptContextCandidateResponse], error)
 	// RejectContextCandidate records why a discovered candidate is not relevant.
 	RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error)
+	// SuggestReferences queries search-hub's Answer projection from the session's
+	// title + scope + technical approach and stores reviewable reference candidates
+	// (routed by locator shape — only hits resolving to a [CODE:]/[DOC:]/[REQ:]
+	// locator are kept) on the session. Degrades honestly to no candidates when
+	// search-hub is down/empty; suggestions never auto-fill the references section.
+	SuggestReferences(context.Context, *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error)
+	// ListReferenceCandidates returns the session's reference candidates without
+	// changing wizard position.
+	ListReferenceCandidates(context.Context, *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error)
+	// AcceptReferenceCandidate promotes one pending reference candidate into the
+	// references section (with an optional inline edit of the locator). Only
+	// accepted candidates satisfy the references gate.
+	AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error)
+	// RejectReferenceCandidate records why a suggested reference is not relevant.
+	RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error)
 	// AddPhase appends one structured phase draft to the session.
 	AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error)
 	// GetPhase returns one structured phase draft plus the API-owned guided step
@@ -446,6 +618,12 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		AuthoringServiceStartSessionProcedure,
 		svc.StartSession,
 		connect.WithSchema(authoringServiceMethods.ByName("StartSession")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceGetSessionHandler := connect.NewUnaryHandler(
+		AuthoringServiceGetSessionProcedure,
+		svc.GetSession,
+		connect.WithSchema(authoringServiceMethods.ByName("GetSession")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authoringServiceGetSectionHandler := connect.NewUnaryHandler(
@@ -496,6 +674,18 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		connect.WithSchema(authoringServiceMethods.ByName("ListRelevantContext")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authoringServiceUpdateRelevantContextItemHandler := connect.NewUnaryHandler(
+		AuthoringServiceUpdateRelevantContextItemProcedure,
+		svc.UpdateRelevantContextItem,
+		connect.WithSchema(authoringServiceMethods.ByName("UpdateRelevantContextItem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceRemoveRelevantContextItemHandler := connect.NewUnaryHandler(
+		AuthoringServiceRemoveRelevantContextItemProcedure,
+		svc.RemoveRelevantContextItem,
+		connect.WithSchema(authoringServiceMethods.ByName("RemoveRelevantContextItem")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authoringServiceDiscoverContextCandidatesHandler := connect.NewUnaryHandler(
 		AuthoringServiceDiscoverContextCandidatesProcedure,
 		svc.DiscoverContextCandidates,
@@ -512,6 +702,30 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		AuthoringServiceRejectContextCandidateProcedure,
 		svc.RejectContextCandidate,
 		connect.WithSchema(authoringServiceMethods.ByName("RejectContextCandidate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceSuggestReferencesHandler := connect.NewUnaryHandler(
+		AuthoringServiceSuggestReferencesProcedure,
+		svc.SuggestReferences,
+		connect.WithSchema(authoringServiceMethods.ByName("SuggestReferences")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceListReferenceCandidatesHandler := connect.NewUnaryHandler(
+		AuthoringServiceListReferenceCandidatesProcedure,
+		svc.ListReferenceCandidates,
+		connect.WithSchema(authoringServiceMethods.ByName("ListReferenceCandidates")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceAcceptReferenceCandidateHandler := connect.NewUnaryHandler(
+		AuthoringServiceAcceptReferenceCandidateProcedure,
+		svc.AcceptReferenceCandidate,
+		connect.WithSchema(authoringServiceMethods.ByName("AcceptReferenceCandidate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authoringServiceRejectReferenceCandidateHandler := connect.NewUnaryHandler(
+		AuthoringServiceRejectReferenceCandidateProcedure,
+		svc.RejectReferenceCandidate,
+		connect.WithSchema(authoringServiceMethods.ByName("RejectReferenceCandidate")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authoringServiceAddPhaseHandler := connect.NewUnaryHandler(
@@ -554,6 +768,8 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case AuthoringServiceStartSessionProcedure:
 			authoringServiceStartSessionHandler.ServeHTTP(w, r)
+		case AuthoringServiceGetSessionProcedure:
+			authoringServiceGetSessionHandler.ServeHTTP(w, r)
 		case AuthoringServiceGetSectionProcedure:
 			authoringServiceGetSectionHandler.ServeHTTP(w, r)
 		case AuthoringServiceSubmitSectionProcedure:
@@ -570,12 +786,24 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceSubmitRelevantContextItemHandler.ServeHTTP(w, r)
 		case AuthoringServiceListRelevantContextProcedure:
 			authoringServiceListRelevantContextHandler.ServeHTTP(w, r)
+		case AuthoringServiceUpdateRelevantContextItemProcedure:
+			authoringServiceUpdateRelevantContextItemHandler.ServeHTTP(w, r)
+		case AuthoringServiceRemoveRelevantContextItemProcedure:
+			authoringServiceRemoveRelevantContextItemHandler.ServeHTTP(w, r)
 		case AuthoringServiceDiscoverContextCandidatesProcedure:
 			authoringServiceDiscoverContextCandidatesHandler.ServeHTTP(w, r)
 		case AuthoringServiceAcceptContextCandidateProcedure:
 			authoringServiceAcceptContextCandidateHandler.ServeHTTP(w, r)
 		case AuthoringServiceRejectContextCandidateProcedure:
 			authoringServiceRejectContextCandidateHandler.ServeHTTP(w, r)
+		case AuthoringServiceSuggestReferencesProcedure:
+			authoringServiceSuggestReferencesHandler.ServeHTTP(w, r)
+		case AuthoringServiceListReferenceCandidatesProcedure:
+			authoringServiceListReferenceCandidatesHandler.ServeHTTP(w, r)
+		case AuthoringServiceAcceptReferenceCandidateProcedure:
+			authoringServiceAcceptReferenceCandidateHandler.ServeHTTP(w, r)
+		case AuthoringServiceRejectReferenceCandidateProcedure:
+			authoringServiceRejectReferenceCandidateHandler.ServeHTTP(w, r)
 		case AuthoringServiceAddPhaseProcedure:
 			authoringServiceAddPhaseHandler.ServeHTTP(w, r)
 		case AuthoringServiceGetPhaseProcedure:
@@ -599,6 +827,10 @@ type UnimplementedAuthoringServiceHandler struct{}
 
 func (UnimplementedAuthoringServiceHandler) StartSession(context.Context, *connect.Request[authoring.StartSessionRequest]) (*connect.Response[authoring.StartSessionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.StartSession is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) GetSession(context.Context, *connect.Request[authoring.GetSessionRequest]) (*connect.Response[authoring.GetSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.GetSession is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) GetSection(context.Context, *connect.Request[authoring.GetSectionRequest]) (*connect.Response[authoring.GetSectionResponse], error) {
@@ -633,6 +865,14 @@ func (UnimplementedAuthoringServiceHandler) ListRelevantContext(context.Context,
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext is not implemented"))
 }
 
+func (UnimplementedAuthoringServiceHandler) UpdateRelevantContextItem(context.Context, *connect.Request[authoring.UpdateRelevantContextItemRequest]) (*connect.Response[authoring.UpdateRelevantContextItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.UpdateRelevantContextItem is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) RemoveRelevantContextItem(context.Context, *connect.Request[authoring.RemoveRelevantContextItemRequest]) (*connect.Response[authoring.RemoveRelevantContextItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RemoveRelevantContextItem is not implemented"))
+}
+
 func (UnimplementedAuthoringServiceHandler) DiscoverContextCandidates(context.Context, *connect.Request[authoring.DiscoverContextCandidatesRequest]) (*connect.Response[authoring.DiscoverContextCandidatesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates is not implemented"))
 }
@@ -643,6 +883,22 @@ func (UnimplementedAuthoringServiceHandler) AcceptContextCandidate(context.Conte
 
 func (UnimplementedAuthoringServiceHandler) RejectContextCandidate(context.Context, *connect.Request[authoring.RejectContextCandidateRequest]) (*connect.Response[authoring.RejectContextCandidateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) SuggestReferences(context.Context, *connect.Request[authoring.SuggestReferencesRequest]) (*connect.Response[authoring.SuggestReferencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.SuggestReferences is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) ListReferenceCandidates(context.Context, *connect.Request[authoring.ListReferenceCandidatesRequest]) (*connect.Response[authoring.ListReferenceCandidatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.ListReferenceCandidates is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) AcceptReferenceCandidate(context.Context, *connect.Request[authoring.AcceptReferenceCandidateRequest]) (*connect.Response[authoring.AcceptReferenceCandidateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.AcceptReferenceCandidate is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) RejectReferenceCandidate(context.Context, *connect.Request[authoring.RejectReferenceCandidateRequest]) (*connect.Response[authoring.RejectReferenceCandidateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.RejectReferenceCandidate is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) AddPhase(context.Context, *connect.Request[authoring.AddPhaseRequest]) (*connect.Response[authoring.AddPhaseResponse], error) {
