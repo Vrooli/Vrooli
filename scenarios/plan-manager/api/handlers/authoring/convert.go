@@ -169,6 +169,43 @@ func phaseDraftToProto(phase internalauthoring.PhaseDraft) *authoringv1.PhaseDra
 		Acceptance:       phase.Acceptance,
 		NoCodeRefsReason: phase.NoCodeRefsReason,
 		RelevantContext:  planproto.RelevantContextItemsToProto(phase.RelevantContext),
+		AffectedAreas:    append([]string(nil), phase.AffectedAreas...),
+		Steps:            append([]string(nil), phase.Steps...),
+		ExpectedOutputs:  append([]string(nil), phase.ExpectedOutputs...),
+		Validation:       phase.Validation,
+		RisksHazards:     append([]string(nil), phase.RisksHazards...),
+		HandoffNotes:     phase.HandoffNotes,
+	}
+}
+
+// progressToProto maps the compact navigation snapshot to the wire. Every normal
+// mutation returns this in place of the full session graph.
+func progressToProto(p internalauthoring.AuthoringProgress) *authoringv1.AuthoringProgress {
+	return &authoringv1.AuthoringProgress{
+		SessionId:               p.SessionID,
+		CurrentSectionKey:       p.CurrentSectionKey,
+		CurrentPhaseId:          p.CurrentPhaseID,
+		MandatorySectionsTotal:  int32Of(p.MandatorySectionsTotal),
+		MandatorySectionsFilled: int32Of(p.MandatorySectionsFilled),
+		PhasesTotal:             int32Of(p.PhasesTotal),
+		PhasesComplete:          int32Of(p.PhasesComplete),
+		RemainingRequiredInputs: append([]string(nil), p.RemainingRequiredInputs...),
+		ReadyToFinalize:         p.ReadyToFinalize,
+	}
+}
+
+// progressOf is the handler-edge shortcut: compute and map progress from a saved
+// session in one step.
+func progressOf(sess internalauthoring.Session) *authoringv1.AuthoringProgress {
+	return progressToProto(internalauthoring.ComputeProgress(sess))
+}
+
+func mutationSummary(kind, objectID, field, summary string) *authoringv1.AuthoringMutationSummary {
+	return &authoringv1.AuthoringMutationSummary{
+		ObjectKind: kind,
+		ObjectId:   objectID,
+		Field:      field,
+		Summary:    summary,
 	}
 }
 

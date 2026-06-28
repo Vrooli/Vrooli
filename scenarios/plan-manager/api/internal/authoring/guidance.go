@@ -37,7 +37,7 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 			ContentPlaceholder: placeholder,
 		},
 	}
-	if sec.Key == SectionRegressionAnchor || sec.Key == SectionReferences {
+	if sec.Key == SectionReferences {
 		step.NextActions = append(step.NextActions, NextAction{
 			ID:     "autofill-" + string(sec.Key),
 			Kind:   NextActionAlternative,
@@ -45,6 +45,13 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 			Reason: "This section can be populated by a composed dependency when available.",
 			Argv:   []string{"author", "autofill", sess.ID, "--sources", string(sec.Key)},
 		})
+	}
+	if sec.Key == SectionRegressionAnchor {
+		// The anchor carries concrete recovery actions (autofill, capture a
+		// baseline snapshot, or submit a structured fallback block) so a degraded
+		// autofill never leaves the agent without an exact next command.
+		step.NextActions = regressionAnchorRecoveryActions(sess)
+		step.Examples = append(step.Examples, RegressionAnchorFallbackTemplate(sess))
 	}
 	if sec.Key == SectionRelevantContext {
 		step.NextActions = []NextAction{
@@ -190,12 +197,16 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 		}
 	case SectionRegressionAnchor:
 		return GuidedStep{
-			StepKind:       "regression_anchor",
-			Title:          "Regression Anchor",
-			Summary:        "Record the before-state used to detect regressions.",
-			Instructions:   []string{"Prefer autofill so git-control-tower supplies the anchor.", "If autofill is unavailable, record the fallback sha/baseline strategy clearly.", "Do not claim validation passed here; this is only the before anchor."},
-			RequiredInputs: []string{"anchor strategy"},
-			Examples:       []string{"baseline name plan-manager-authoring-hardening", "HEAD sha abc123 with allowlist scenarios/plan-manager/**"},
+			StepKind: "regression_anchor",
+			Title:    "Regression Anchor",
+			Summary:  "Record the before-state used to detect regressions.",
+			Instructions: []string{
+				"Prefer autofill so git-control-tower supplies the anchor.",
+				"If autofill degraded (git-control-tower/baseline unavailable), capture a baseline snapshot yourself or submit the structured fallback block — never leave it blank.",
+				"Do not claim validation passed here; this is only the before anchor.",
+			},
+			RequiredInputs: []string{"anchor strategy (autofilled, snapshot, or structured fallback block)"},
+			Examples:       []string{"baseline name <slug>-baseline", "HEAD sha abc123 with allowlist scenarios/<scenario>/**"},
 			CommonMistakes: []string{"Putting final test results in the anchor.", "Leaving the anchor blank because the dependency was down."},
 		}
 	case SectionRelevantContext:
@@ -238,6 +249,62 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 			CommonMistakes: []string{"Adding broad reminders that belong in phase guidance."},
 		}
 	}
+}
+
+// regressionAnchorRecoveryActions are the concrete recovery commands surfaced
+// when the anchor still needs input (including after a degraded autofill).
+func regressionAnchorRecoveryActions(sess Session) []NextAction {
+	name := anchorBaselineName(sess)
+	reason := firstNonEmpty(sess.Title, "regression baseline before implementation")
+	return []NextAction{
+		{
+			ID:     "autofill-anchor",
+			Kind:   NextActionRecommended,
+			Label:  "Autofill the regression anchor",
+			Reason: "Let git-control-tower supply the baseline anchor mechanically.",
+			Argv:   []string{"author", "autofill", sess.ID, "--sources", "regression_anchor"},
+		},
+		{
+			ID:                 "capture-baseline-snapshot",
+			Kind:               NextActionRecovery,
+			Label:              "Capture a baseline snapshot, then re-run autofill",
+			Reason:             "Run when autofill degraded because the baseline snapshot/manifest intent was missing.",
+			Argv:               []string{"git-control-tower", "baseline", "snapshot", "--scenario", "<scenario>", "--name", name, "--reason", reason},
+			ContentPlaceholder: "<scenario>",
+		},
+		{
+			ID:                 "submit-fallback-anchor",
+			Kind:               NextActionRecovery,
+			Label:              "Submit the structured fallback anchor block",
+			Reason:             "Use when git-control-tower cannot run at all; record an honest SHA/allowlist strategy instead of leaving the anchor blank.",
+			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionRegressionAnchor), "--content", RegressionAnchorFallbackTemplate(sess)},
+			ContentPlaceholder: RegressionAnchorFallbackTemplate(sess),
+		},
+	}
+}
+
+// RegressionAnchorFallbackTemplate returns the structured fallback anchor block
+// an agent can submit verbatim when autofill degrades. Its field keys match the
+// plans-domain anchor parser (Strategy / Scenario baseline / Baseline name /
+// HEAD sha / Allowlist / Diff command), so a fallback anchor parses into typed
+// fields rather than degrading to legacy prose.
+func RegressionAnchorFallbackTemplate(sess Session) string {
+	name := anchorBaselineName(sess)
+	return strings.Join([]string{
+		"Strategy: scenario-baseline",
+		"Scenario baseline: <scenario>",
+		"Baseline name: " + name,
+		"HEAD sha: <output of `git rev-parse HEAD`>",
+		"Allowlist: scenarios/<scenario>/**",
+		"`git-control-tower baseline diff --scenario <scenario> --name " + name + " --branch <branch> --wait`",
+	}, "\n")
+}
+
+func anchorBaselineName(sess Session) string {
+	base := firstNonEmpty(sess.Slug, sess.Title, "plan")
+	base = strings.ToLower(strings.TrimSpace(base))
+	base = strings.ReplaceAll(base, " ", "-")
+	return base + "-baseline"
 }
 
 // stepForGlobalContextCheckpoint is the explicit plan-wide relevant-context

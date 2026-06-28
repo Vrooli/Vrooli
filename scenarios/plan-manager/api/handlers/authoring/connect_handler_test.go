@@ -46,6 +46,7 @@ type fakeAuthoringService struct {
 	gotPhaseID     string
 	gotPhaseField  internalauthoring.PhaseField
 	gotContextItem internalplans.RelevantContextItem
+	gotItemID      string
 	gotCandidateID string
 	gotConcepts    []string
 	gotComplexity  string
@@ -54,6 +55,11 @@ type fakeAuthoringService struct {
 
 func (f *fakeAuthoringService) StartSession(_ context.Context, title, slug, templateID string) (internalauthoring.Session, internalauthoring.GuidedStep, error) {
 	f.gotTitle, f.gotSlug, f.gotTemplateID = title, slug, templateID
+	return f.session, f.step, f.err
+}
+
+func (f *fakeAuthoringService) GetSession(_ context.Context, sessionID string) (internalauthoring.Session, internalauthoring.GuidedStep, error) {
+	f.gotSessionID = sessionID
 	return f.session, f.step, f.err
 }
 
@@ -95,6 +101,16 @@ func (f *fakeAuthoringService) SubmitRelevantContextItem(_ context.Context, sess
 func (f *fakeAuthoringService) ListRelevantContext(_ context.Context, sessionID, phaseID string) ([]internalplans.RelevantContextItem, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotPhaseID = sessionID, phaseID
 	return f.contextItems, f.step, f.err
+}
+
+func (f *fakeAuthoringService) UpdateRelevantContextItem(_ context.Context, sessionID, phaseID, itemID string, item internalplans.RelevantContextItem) (internalauthoring.Session, internalplans.RelevantContextItem, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotPhaseID, f.gotItemID, f.gotContextItem = sessionID, phaseID, itemID, item
+	return f.session, f.contextItem, f.violations, f.step, f.err
+}
+
+func (f *fakeAuthoringService) RemoveRelevantContextItem(_ context.Context, sessionID, phaseID, itemID string) (internalauthoring.Session, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotPhaseID, f.gotItemID = sessionID, phaseID, itemID
+	return f.session, f.violations, f.step, f.err
 }
 
 func (f *fakeAuthoringService) DiscoverContextCandidates(_ context.Context, sessionID string, concepts []string, complexity string) (internalauthoring.Session, []internalauthoring.ContextCandidate, internalauthoring.GuidedStep, error) {
@@ -165,6 +181,17 @@ func TestStartSessionSuccess(t *testing.T) {
 	require.Equal(t, "cli", svc.gotTemplateID)
 }
 
+func TestGetSessionReturnsFullState(t *testing.T) {
+	svc := &fakeAuthoringService{session: internalauthoring.Session{ID: "s1", Title: "My Plan"}}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.GetSession(context.Background(), connect.NewRequest(&authoringv1.GetSessionRequest{SessionId: "s1"}))
+	require.NoError(t, err)
+	require.Equal(t, "s1", resp.Msg.GetSession().GetId())
+	require.Equal(t, "My Plan", resp.Msg.GetSession().GetTitle())
+	require.Equal(t, "s1", svc.gotSessionID)
+}
+
 func TestGetSectionSuccess(t *testing.T) {
 	svc := &fakeAuthoringService{section: internalauthoring.Section{Key: internalauthoring.SectionPurpose, Label: "Purpose", Content: "why"}}
 	h := newAuthoringHandler(svc)
@@ -193,7 +220,11 @@ func TestSubmitSectionSuccess(t *testing.T) {
 		Content:    "the purpose",
 	}))
 	require.NoError(t, err)
-	require.Equal(t, "s1", resp.Msg.GetSession().GetId())
+	// Focused contract: no full session is echoed; the response carries a
+	// mutation summary + compact progress instead.
+	require.Equal(t, "s1", resp.Msg.GetProgress().GetSessionId())
+	require.Equal(t, "section", resp.Msg.GetSummary().GetObjectKind())
+	require.Equal(t, "purpose", resp.Msg.GetSummary().GetObjectId())
 	require.Len(t, resp.Msg.GetViolations(), 1)
 	require.Equal(t, "purpose", resp.Msg.GetViolations()[0].GetSectionKey())
 	require.Equal(t, "the purpose", svc.gotContent)
@@ -276,6 +307,45 @@ func TestRelevantContextHandlers(t *testing.T) {
 		require.Len(t, resp.Msg.GetItems(), 1)
 		require.Equal(t, "docs/concepts/PLAN-MODEL.md", resp.Msg.GetItems()[0].GetTarget())
 		require.Equal(t, "s1", svc.gotSessionID)
+	})
+
+	t.Run("update context item", func(t *testing.T) {
+		svc := &fakeAuthoringService{
+			session: internalauthoring.Session{ID: "s1"},
+			contextItem: internalplans.RelevantContextItem{
+				ID:    "ctx1",
+				Kind:  internalplans.RelevantContextDoc,
+				Scope: internalplans.RelevantContextScopeGlobal,
+				Label: "Updated label",
+			},
+		}
+		h := newAuthoringHandler(svc)
+		resp, err := h.UpdateRelevantContextItem(context.Background(), connect.NewRequest(&authoringv1.UpdateRelevantContextItemRequest{
+			SessionId: "s1",
+			ItemId:    "ctx1",
+			Item:      &sharedv1.RelevantContextItem{Kind: sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_DOC, Label: "Updated label"},
+		}))
+		require.NoError(t, err)
+		require.Equal(t, "ctx1", resp.Msg.GetItem().GetId())
+		require.Equal(t, "context", resp.Msg.GetSummary().GetObjectKind())
+		require.Equal(t, "s1", resp.Msg.GetProgress().GetSessionId())
+		require.Equal(t, "ctx1", svc.gotItemID)
+	})
+
+	t.Run("remove context item", func(t *testing.T) {
+		svc := &fakeAuthoringService{session: internalauthoring.Session{ID: "s1"}}
+		h := newAuthoringHandler(svc)
+		resp, err := h.RemoveRelevantContextItem(context.Background(), connect.NewRequest(&authoringv1.RemoveRelevantContextItemRequest{
+			SessionId: "s1",
+			PhaseId:   "ph1",
+			ItemId:    "ctx1",
+		}))
+		require.NoError(t, err)
+		require.Equal(t, "context", resp.Msg.GetSummary().GetObjectKind())
+		require.Equal(t, "ctx1", resp.Msg.GetSummary().GetObjectId())
+		require.Equal(t, "s1", resp.Msg.GetProgress().GetSessionId())
+		require.Equal(t, "ph1", svc.gotPhaseID)
+		require.Equal(t, "ctx1", svc.gotItemID)
 	})
 
 	t.Run("discover context candidates", func(t *testing.T) {
@@ -374,9 +444,13 @@ func TestPhaseNativeHandlers(t *testing.T) {
 
 	t.Run("submit phase field", func(t *testing.T) {
 		svc := &fakeAuthoringService{
-			session: internalauthoring.Session{ID: "s1"},
-			phase:   internalauthoring.PhaseDraft{ID: "ph1"},
-			step:    internalauthoring.GuidedStep{StepKind: "phase_acceptance"},
+			// The session carries the changed phase draft so the handler can echo
+			// the single updated phase (read from the returned session).
+			session: internalauthoring.Session{ID: "s1", PhaseDrafts: []internalauthoring.PhaseDraft{{
+				ID: "ph1", Order: 1, Title: "Contract",
+				References: []internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "x.go"}},
+			}}},
+			step: internalauthoring.GuidedStep{StepKind: "phase_acceptance"},
 		}
 		h := newAuthoringHandler(svc)
 		resp, err := h.SubmitPhaseField(context.Background(), connect.NewRequest(&authoringv1.SubmitPhaseFieldRequest{
@@ -386,7 +460,11 @@ func TestPhaseNativeHandlers(t *testing.T) {
 			Content:   "[CODE: x.go]",
 		}))
 		require.NoError(t, err)
-		require.Equal(t, "s1", resp.Msg.GetSession().GetId())
+		// Focused contract: the single updated phase + progress, never a full session.
+		require.Equal(t, "ph1", resp.Msg.GetPhase().GetId())
+		require.Equal(t, "s1", resp.Msg.GetProgress().GetSessionId())
+		require.Equal(t, "phase", resp.Msg.GetSummary().GetObjectKind())
+		require.Equal(t, "references", resp.Msg.GetSummary().GetField())
 		require.Equal(t, internalauthoring.PhaseFieldReferences, svc.gotPhaseField)
 		require.Equal(t, "[CODE: x.go]", svc.gotContent)
 	})
@@ -416,7 +494,9 @@ func TestContinueAuthoringSuccess(t *testing.T) {
 	resp, err := h.ContinueAuthoring(context.Background(), connect.NewRequest(&authoringv1.ContinueAuthoringRequest{SessionId: "s1"}))
 	require.NoError(t, err)
 	require.Equal(t, "s1", svc.gotSessionID)
-	require.Equal(t, "s1", resp.Msg.GetSession().GetId())
+	// continue returns focused progress + the single current work item, not the
+	// full session graph.
+	require.Equal(t, "s1", resp.Msg.GetProgress().GetSessionId())
 	require.Equal(t, "ph1", resp.Msg.GetPhase().GetId())
 	require.Equal(t, "phase_relevant_context", resp.Msg.GetStep().GetStepKind())
 }

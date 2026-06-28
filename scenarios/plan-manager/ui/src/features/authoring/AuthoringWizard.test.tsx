@@ -27,6 +27,7 @@ import {
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const startSession = vi.fn();
+const getSession = vi.fn();
 const addPhase = vi.fn();
 const submitSection = vi.fn();
 const submitPhaseField = vi.fn();
@@ -34,6 +35,8 @@ const nextPhase = vi.fn();
 const validateStructure = vi.fn();
 const autofill = vi.fn();
 const submitRelevantContextItem = vi.fn();
+const updateRelevantContextItem = vi.fn();
+const removeRelevantContextItem = vi.fn();
 const discoverContextCandidates = vi.fn();
 const acceptContextCandidate = vi.fn();
 const rejectContextCandidate = vi.fn();
@@ -41,6 +44,7 @@ const finalize = vi.fn();
 
 vi.mock("../../api/authoring", () => ({
   startSession: (...a: unknown[]) => startSession(...a),
+  getSession: (...a: unknown[]) => getSession(...a),
   addPhase: (...a: unknown[]) => addPhase(...a),
   submitSection: (...a: unknown[]) => submitSection(...a),
   submitPhaseField: (...a: unknown[]) => submitPhaseField(...a),
@@ -48,6 +52,8 @@ vi.mock("../../api/authoring", () => ({
   validateStructure: (...a: unknown[]) => validateStructure(...a),
   autofill: (...a: unknown[]) => autofill(...a),
   submitRelevantContextItem: (...a: unknown[]) => submitRelevantContextItem(...a),
+  updateRelevantContextItem: (...a: unknown[]) => updateRelevantContextItem(...a),
+  removeRelevantContextItem: (...a: unknown[]) => removeRelevantContextItem(...a),
   discoverContextCandidates: (...a: unknown[]) => discoverContextCandidates(...a),
   acceptContextCandidate: (...a: unknown[]) => acceptContextCandidate(...a),
   rejectContextCandidate: (...a: unknown[]) => rejectContextCandidate(...a),
@@ -133,6 +139,10 @@ const candidate = create(ContextCandidateSchema, {
 describe("AuthoringWizard", () => {
   beforeEach(async () => {
     await setLocale("en");
+    // Mutations no longer echo the session; the wizard re-hydrates via getSession
+    // (read-after-write). Default to the base session; tests that change state
+    // override this with the expected post-mutation session.
+    getSession.mockResolvedValue({ session, step });
   });
   afterEach(() => {
     cleanup();
@@ -230,14 +240,16 @@ describe("AuthoringWizard", () => {
   it("adds phases and submits phase fields with guidance", async () => {
     const user = userEvent.setup();
     startSession.mockResolvedValue({ session, step });
+    getSession.mockResolvedValue({ session: sessionWithPhase, step });
     addPhase.mockResolvedValue({
-      session: sessionWithPhase,
       phase,
+      progress: { sessionId: "sess-1", currentPhaseId: "phase-1" },
       violations: [],
       step,
     });
     submitPhaseField.mockResolvedValue({
-      session: sessionWithPhase,
+      phase,
+      progress: { sessionId: "sess-1", currentPhaseId: "phase-1" },
       violations: [],
       step,
     });
@@ -297,9 +309,10 @@ describe("AuthoringWizard", () => {
       command: "search-hub query plan-manager --type record",
     });
     startSession.mockResolvedValue({ session: sessionWithPhase, step });
+    getSession.mockResolvedValue({ session: { ...sessionWithPhase, relevantContext: [contextItem] }, step });
     submitRelevantContextItem.mockResolvedValue({
-      session: { ...sessionWithPhase, relevantContext: [contextItem] },
       item: contextItem,
+      progress: { sessionId: "sess-1" },
       violations: [],
       step,
     });
@@ -331,9 +344,13 @@ describe("AuthoringWizard", () => {
       repeatPolicy: RelevantContextRepeatPolicy.PHASE_ENTRY,
     });
     startSession.mockResolvedValue({ session: sessionWithPhase, step });
-    submitRelevantContextItem.mockResolvedValue({
+    getSession.mockResolvedValue({
       session: { ...sessionWithPhase, phaseDrafts: [{ ...phase, relevantContext: [contextItem] }] },
+      step,
+    });
+    submitRelevantContextItem.mockResolvedValue({
       item: contextItem,
+      progress: { sessionId: "sess-1" },
       violations: [],
       step,
     });
@@ -368,9 +385,10 @@ describe("AuthoringWizard", () => {
     const user = userEvent.setup();
     const sessionWithCandidate = { ...sessionWithPhase, contextCandidates: [candidate] };
     startSession.mockResolvedValue({ session: sessionWithPhase, step });
+    getSession.mockResolvedValue({ session: sessionWithCandidate, step });
     discoverContextCandidates.mockResolvedValue({
-      session: sessionWithCandidate,
       candidates: [candidate],
+      progress: { sessionId: "sess-1" },
       step,
     });
 
@@ -399,14 +417,18 @@ describe("AuthoringWizard", () => {
     const sessionWithCandidate = { ...sessionWithPhase, contextCandidates: [candidate] };
     const acceptedCandidate = create(ContextCandidateSchema, { ...candidate, status: "accepted" });
     startSession.mockResolvedValue({ session: sessionWithCandidate, step });
-    acceptContextCandidate.mockResolvedValue({
+    getSession.mockResolvedValue({
       session: {
         ...sessionWithPhase,
         contextCandidates: [acceptedCandidate],
         phaseDrafts: [{ ...phase, relevantContext: [candidateItem] }],
       },
+      step,
+    });
+    acceptContextCandidate.mockResolvedValue({
       candidate: acceptedCandidate,
       item: candidateItem,
+      progress: { sessionId: "sess-1" },
       violations: [],
       step,
     });
@@ -434,9 +456,10 @@ describe("AuthoringWizard", () => {
       rejectionReason: "duplicate",
     });
     startSession.mockResolvedValue({ session: sessionWithCandidate, step });
+    getSession.mockResolvedValue({ session: { ...sessionWithPhase, contextCandidates: [rejectedCandidate] }, step });
     rejectContextCandidate.mockResolvedValue({
-      session: { ...sessionWithPhase, contextCandidates: [rejectedCandidate] },
       candidate: rejectedCandidate,
+      progress: { sessionId: "sess-1" },
       step,
     });
 
@@ -451,6 +474,42 @@ describe("AuthoringWizard", () => {
     await waitFor(() => {
       expect(rejectContextCandidate).toHaveBeenCalledWith("sess-1", "cand-1", "duplicate");
       expect(screen.getByTestId(selectors.authoring.contextCandidates)).toHaveTextContent("duplicate");
+    });
+  });
+
+  it("removes an accepted global context item before finalize", async () => {
+    const user = userEvent.setup();
+    const globalItem = create(RelevantContextItemSchema, {
+      id: "ctx-remove",
+      kind: RelevantContextKind.NOTE,
+      label: "Bad accepted note",
+      instruction: "this turned out to be wrong",
+      scope: RelevantContextScope.GLOBAL,
+    });
+    startSession.mockResolvedValue({
+      session: { ...sessionWithPhase, relevantContext: [globalItem] },
+      step,
+    });
+    // After removal the read-after-write hydration returns an empty context list.
+    getSession.mockResolvedValue({ session: { ...sessionWithPhase, relevantContext: [] }, step });
+    removeRelevantContextItem.mockResolvedValue({
+      summary: { objectKind: "context", objectId: "ctx-remove" },
+      progress: { sessionId: "sess-1" },
+      violations: [],
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.contextItems);
+    expect(screen.getByTestId(selectors.authoring.contextItems)).toHaveTextContent("Bad accepted note");
+    await user.click(screen.getByTestId(selectors.authoring.contextRemoveButton));
+
+    await waitFor(() => {
+      expect(removeRelevantContextItem).toHaveBeenCalledWith("sess-1", "", "ctx-remove");
+      expect(screen.queryByTestId(selectors.authoring.contextItems)).not.toBeInTheDocument();
     });
   });
 

@@ -150,6 +150,15 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	// not free-form update payload fields.
 	p.Supersedes = existing.Supersedes
 	p.SupersededBy = existing.SupersededBy
+	// Import provenance and preserved legacy sections are governance lineage, not
+	// authored fields: a normal authored-field update that omits them must not drop
+	// them. They are preserved unless the caller explicitly supplies a replacement.
+	if p.ImportProvenance == nil {
+		p.ImportProvenance = existing.ImportProvenance
+	}
+	if len(p.PreservedLegacySections) == 0 {
+		p.PreservedLegacySections = existing.PreservedLegacySections
+	}
 	s.applyPosture(ctx, &p)
 	p.ContentHash = contentHash(p)
 	hashMatches, err := s.contentHashMatches(ctx, p)

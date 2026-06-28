@@ -213,6 +213,14 @@
       "category": "authoring"
     },
     {
+      "id": "authoring_get_session",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/GetSession",
+      "method": "POST",
+      "summary": "Get full session state",
+      "description": "Explicit full-state read: returns the whole authoring session graph. Normal mutations return only focused progress + a mutation summary, so callers hydrate full state deliberately here.",
+      "category": "authoring"
+    },
+    {
       "id": "authoring_get_section",
       "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/GetSection",
       "method": "POST",
@@ -277,6 +285,22 @@
       "category": "authoring"
     },
     {
+      "id": "authoring_update_relevant_context_item",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/UpdateRelevantContextItem",
+      "method": "POST",
+      "summary": "Update relevant context item",
+      "description": "Replaces one accepted global or phase-scoped context item in place (by id) so a bad item found in preview is corrected without deleting the phase/session. Legal only before finalize.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_remove_relevant_context_item",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/RemoveRelevantContextItem",
+      "method": "POST",
+      "summary": "Remove relevant context item",
+      "description": "Deletes one accepted context item (by id) before finalize, recomputing structure violations so a resulting gate is reported with its recovery step.",
+      "category": "authoring"
+    },
+    {
       "id": "authoring_discover_context_candidates",
       "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/DiscoverContextCandidates",
       "method": "POST",
@@ -330,6 +354,14 @@
       "method": "POST",
       "summary": "Next phase draft",
       "description": "Returns the first structured phase draft that still needs author input.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_preview_plan",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/PreviewPlan",
+      "method": "POST",
+      "summary": "Preview the rendered plan",
+      "description": "Renders the in-progress session to its markdown review artifact without persisting, so the plan can be reviewed before finalize.",
       "category": "authoring"
     },
     {

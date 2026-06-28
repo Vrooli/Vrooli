@@ -150,6 +150,22 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api/internal/authoring/authoring_test.go` uses fake anchor/reference/reading/context sources and a recording command runner to exercise healthy and degraded paths. |
 | **Why it exists** | The authoring wizard may ask other capabilities for setup context, code references, and regression anchors, but it must never fabricate a filled section when a dependency is absent. A nil seam or command error produces degraded guidance / pending author input, while accepted context stays structured as `relevant_context[]`. Legacy required-reading discovery remains explicit migration input only. |
 
+### Authoring PlanRenderer + PosturePreparer (preview parity)
+
+| | |
+|---|---|
+| **Seam** | The authoring wizard renders and posture-stamps an in-progress draft for `PreviewPlan` without persisting it. |
+| **Interface** | `api/internal/authoring/seams.go::PlanRenderer` (render-only) and `api/internal/authoring/service.go::PosturePreparer` (`PreparePosture(ctx, Plan) Plan`). |
+| **Production wiring** | `api/handlers/authoring/module.go` wires `planRenderer{}` over the SAME `internalplans.RenderMarkdown` the plans domain uses, and `posturePreparer{maturity}` over `internalplans.ResolvePosture` using the SAME `MaturityReader` the plans service uses. |
+| **Test fake** | `api/internal/authoring/authoring_test.go` substitutes a `brownfieldPosture` preparer (and a fake renderer) to prove preview stamps the derived posture. |
+| **Why it exists** | `PreviewPlan` must agree with finalize / `plans render`. Before the `PosturePreparer` seam, preview left the draft's default posture and so disagreed with the persisted render for brownfield scenarios; stamping the SAME derivation (greenfield default OR brownfield from scenario maturity) before the render makes preview and persisted output identical. A nil renderer disables preview (typed "preview unavailable"); a nil preparer leaves the default review-marker posture. |
+
+Note: the authoring service's explicit full-state read (`GetSession`) and the
+accepted-context recovery methods (`UpdateRelevantContextItem`,
+`RemoveRelevantContextItem`) are RPC methods on the existing Connect-router
+seam, not new seams — see [`../concepts/FLOWS.md`](../concepts/FLOWS.md)
+(authoring response contract).
+
 ### Validation dependency seams
 
 | | |

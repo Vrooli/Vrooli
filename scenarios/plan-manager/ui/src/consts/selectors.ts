@@ -382,6 +382,7 @@ const literalSelectors = {
     contextCommandInput: "authoring-context-command-input",
     contextTargetInput: "authoring-context-target-input",
     contextSubmitButton: "authoring-context-submit-button",
+    contextRemoveButton: "authoring-context-remove-button",
     contextConceptsInput: "authoring-context-concepts-input",
     contextComplexityInput: "authoring-context-complexity-input",
     contextDiscoverButton: "authoring-context-discover-button",

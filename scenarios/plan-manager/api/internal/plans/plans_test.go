@@ -317,6 +317,41 @@ func TestUpdatePreservesPhaseIdentityOnReKey(t *testing.T) {
 	require.Equal(t, implementID, got.Phases[1].ID)
 }
 
+// TestUpdatePreservesImportProvenance proves a normal authored-field update that
+// omits governance lineage does not drop it: import provenance and preserved
+// legacy sections survive when the caller does not echo them.
+func TestUpdatePreservesImportProvenance(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	seed := samplePlan()
+	seed.ImportProvenance = &plans.ImportProvenance{
+		SourcePath:     "docs/plans/legacy.md",
+		OriginalFormat: plans.OriginalFormatLegacyMarkdown,
+		Note:           "Adopted from legacy 13-section markdown.",
+	}
+	seed.PreservedLegacySections = []plans.LegacySection{{
+		Heading:            "Open Questions",
+		Content:            "Q: do we need X?",
+		PreservationReason: plans.PreservationReasonUnmapped,
+	}}
+	p, err := svc.Create(ctx, seed)
+	require.NoError(t, err)
+	require.NotNil(t, p.ImportProvenance)
+
+	// A normal update that edits an authored field but omits provenance fields.
+	updated := p
+	updated.ImportProvenance = nil
+	updated.PreservedLegacySections = nil
+	updated.Purpose = "An edited purpose."
+	got, err := svc.Update(ctx, updated)
+	require.NoError(t, err)
+	require.Equal(t, "An edited purpose.", got.Purpose)
+	require.NotNil(t, got.ImportProvenance, "import provenance must survive an authored-field update")
+	require.Equal(t, "docs/plans/legacy.md", got.ImportProvenance.SourcePath)
+	require.Len(t, got.PreservedLegacySections, 1, "preserved legacy sections must survive an authored-field update")
+	require.Equal(t, "Open Questions", got.PreservedLegacySections[0].Heading)
+}
+
 func TestAddPhaseAppendsAndOrders(t *testing.T) {
 	svc, _ := newService(t)
 	ctx := context.Background()

@@ -202,6 +202,27 @@ func splitCSV(raw string) []string {
 	return out
 }
 
+// splitLinesOrCSV parses a list flag for the canonical phase fields: it splits on
+// newlines when the value is multi-line (so a step can contain commas), and falls
+// back to comma-separated otherwise. Used by direct phase add/update so the direct
+// CLI reaches full phase parity with the authoring wizard.
+func splitLinesOrCSV(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	if strings.Contains(raw, "\n") {
+		var out []string
+		for _, line := range strings.Split(raw, "\n") {
+			if v := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-")); v != "" {
+				out = append(out, v)
+			}
+		}
+		return out
+	}
+	return splitCSV(raw)
+}
+
 func parsePhaseContext(raw string) []*sharedv1.RelevantContextItem {
 	entries := splitCSV(raw)
 	if len(entries) == 0 {
@@ -336,7 +357,13 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 		Phase: &sharedv1.Phase{
 			Title:           ctx.Flag("title"),
 			Intent:          ctx.Flag("intent"),
+			AffectedAreas:   splitLinesOrCSV(ctx.Flag("affected-areas")),
+			Steps:           splitLinesOrCSV(ctx.Flag("steps")),
+			ExpectedOutputs: splitLinesOrCSV(ctx.Flag("expected-outputs")),
+			Validation:      ctx.Flag("validation"),
 			Acceptance:      ctx.Flag("acceptance"),
+			RisksHazards:    splitLinesOrCSV(ctx.Flag("risks-hazards")),
+			HandoffNotes:    ctx.Flag("handoff-notes"),
 			RelevantContext: parsePhaseContext(ctx.Flag("context")),
 			Reminders:       splitCSV(ctx.Flag("reminders")),
 			BaselineScope:   splitCSV(ctx.Flag("baseline-scope")),
@@ -355,7 +382,13 @@ func (h *handlers) phaseUpdate(ctx cliapp.RunContext) error {
 			Id:              ctx.Positional("phase"),
 			Title:           ctx.Flag("title"),
 			Intent:          ctx.Flag("intent"),
+			AffectedAreas:   splitLinesOrCSV(ctx.Flag("affected-areas")),
+			Steps:           splitLinesOrCSV(ctx.Flag("steps")),
+			ExpectedOutputs: splitLinesOrCSV(ctx.Flag("expected-outputs")),
+			Validation:      ctx.Flag("validation"),
 			Acceptance:      ctx.Flag("acceptance"),
+			RisksHazards:    splitLinesOrCSV(ctx.Flag("risks-hazards")),
+			HandoffNotes:    ctx.Flag("handoff-notes"),
 			Status:          phaseStatusFlag(ctx.Flag("status")),
 			RelevantContext: parsePhaseContext(ctx.Flag("context")),
 			Reminders:       splitCSV(ctx.Flag("reminders")),

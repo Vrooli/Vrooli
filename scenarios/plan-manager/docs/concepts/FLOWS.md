@@ -67,6 +67,40 @@ validation. Optional sections stay optional only when omission is genuinely safe
    derived work posture.
 6. On finalize the plan moves `draft → active` and is persisted by `plans`.
 
+#### Authoring response contract (small/local-model shaped)
+
+Authoring commands fall into three response classes so a small-context agent
+never has to carry the whole session graph:
+
+1. **Mutation acknowledgement → focused progress + summary.** Normal mutations
+   (`section-submit`, `phase-submit`, `phase-add`, `autofill`, `context-submit`,
+   `context-update`, `context-remove`, `context-accept`, `context-reject`,
+   `context-discover`) **no longer return the full `AuthoringSession`**. They
+   return a compact `AuthoringProgress` (session id, current section/phase,
+   mandatory-sections filled/total, phases complete/total,
+   `remaining_required_inputs[]`, `ready_to_finalize`), an
+   `AuthoringMutationSummary` that names exactly what changed (object kind/id,
+   field, a short human summary like "parsed 4 ordered steps"), the single
+   changed object (the item/phase/candidate that was touched), any structure
+   violations the change surfaced, and the next `GuidedStep`. `ready_to_finalize`
+   is a *structurally ready* hint only — the command-reference seam still runs at
+   Finalize and may surface late issues.
+2. **Continue / resume orientation.** `author continue` (`ContinueAuthoring`)
+   returns the single current work item — exactly one of section *or* phase
+   (both empty at the review/finalize step) — plus progress, violations, and the
+   guided step. It does **not** return the full session.
+3. **Explicit full-state reads.** `author get-session` (`GetSession`) returns the
+   whole `AuthoringSession` graph; `author preview` (`PreviewPlan`) and
+   `plans render` return the full rendered markdown. `author start`
+   (`StartSession`) still returns the full session for initial hydration. The UI
+   uses **read-after-write** — it issues a mutation, then calls `GetSession` to
+   re-hydrate — instead of relying on a session echo from every mutation.
+
+`author preview` applies the **same work-posture derivation** as finalize and
+`plans render` (greenfield default, or brownfield from scenario maturity), so the
+preview render and the persisted render agree (see
+[`../internal/SEAMS.md`](../internal/SEAMS.md) — PosturePreparer).
+
 ### Phase execution (Runner)
 
 1. `start`, `status`, `context`, `resume`, `continue`, and `next` return the

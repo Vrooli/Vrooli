@@ -69,13 +69,14 @@ func (h *handlers) sectionSubmit(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("submit section", err, nil)
 	}
-	changes := []string{fmt.Sprintf("Next: %s.", nextLabel(resp.Msg.GetSession().GetCurrentSectionKey()))}
+	changes := []string{fmt.Sprintf("Next: %s.", nextLabel(resp.Msg.GetProgress().GetCurrentSectionKey()))}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
 		changes = append(changes, formatViolations(v)...)
 	}
 	changes = append(changes, formatStep(resp.Msg.GetStep())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Submitted section %q (%d violation(s)).", ctx.Flag("section"), len(resp.Msg.GetViolations()))},
+		Result:      []string{fmt.Sprintf("%s (%d violation(s)).", summaryLine(resp.Msg.GetSummary()), len(resp.Msg.GetViolations()))},
 		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
@@ -154,6 +155,7 @@ func (h *handlers) autofill(ctx cliapp.RunContext) error {
 			filled++
 		}
 	}
+	results = append(results, formatProgress(resp.Msg.GetProgress())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Autofilled %d of %d source(s).", filled, len(resp.Msg.GetResults()))},
 		Changes:     append(results, formatStep(resp.Msg.GetStep())...),
@@ -184,6 +186,7 @@ func (h *handlers) contextSubmit(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("submit relevant context", err, nil)
 	}
 	changes := []string{formatContextItem(resp.Msg.GetItem())}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
 		changes = append(changes, formatViolations(v)...)
 	}
@@ -215,6 +218,84 @@ func (h *handlers) contextList(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) contextUpdate(ctx cliapp.RunContext) error {
+	item := &sharedv1.RelevantContextItem{
+		Id:           ctx.Positional("item"),
+		Kind:         parseContextKind(ctx.Flag("kind")),
+		Label:        ctx.Flag("label"),
+		Reason:       ctx.Flag("reason"),
+		Instruction:  ctx.Flag("instruction"),
+		Command:      ctx.Flag("command"),
+		Argv:         parseArgv(ctx.Flag("argv"), ctx.Flag("command")),
+		Target:       ctx.Flag("target"),
+		Required:     ctx.BoolFlag("required"),
+		RepeatPolicy: parseRepeatPolicy(ctx.Flag("repeat")),
+		Source:       sharedv1.RelevantContextSource_RELEVANT_CONTEXT_SOURCE_AUTHORED,
+		Status:       sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_READY,
+	}
+	resp, err := h.client.UpdateRelevantContextItem(context.Background(), connect.NewRequest(&authoringv1.UpdateRelevantContextItemRequest{
+		SessionId: ctx.Positional("session"),
+		PhaseId:   ctx.Flag("phase"),
+		ItemId:    ctx.Positional("item"),
+		Item:      item,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("update relevant context", err, nil)
+	}
+	changes := []string{formatContextItem(resp.Msg.GetItem())}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("%s (%d violation(s)).", summaryLine(resp.Msg.GetSummary()), len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) contextRemove(ctx cliapp.RunContext) error {
+	resp, err := h.client.RemoveRelevantContextItem(context.Background(), connect.NewRequest(&authoringv1.RemoveRelevantContextItemRequest{
+		SessionId: ctx.Positional("session"),
+		PhaseId:   ctx.Flag("phase"),
+		ItemId:    ctx.Positional("item"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("remove relevant context", err, nil)
+	}
+	changes := formatProgress(resp.Msg.GetProgress())
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("%s (%d violation(s)).", summaryLine(resp.Msg.GetSummary()), len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) getSession(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetSession(context.Background(), connect.NewRequest(&authoringv1.GetSessionRequest{
+		SessionId: ctx.Positional("session"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("get session", err, nil)
+	}
+	sess := resp.Msg.GetSession()
+	sections := make([]string, 0, len(sess.GetSections()))
+	for _, sec := range sess.GetSections() {
+		sections = append(sections, formatSection(sec))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Session %s (%q): %d section(s), %d phase(s), %d context item(s).", sess.GetId(), sess.GetTitle(), len(sess.GetSections()), len(sess.GetPhaseDrafts()), len(sess.GetRelevantContext()))},
+		ResultsHeading: "Sections",
+		Results:        sections,
+		RetrievalHints: formatStep(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) contextDiscover(ctx cliapp.RunContext) error {
 	resp, err := h.client.DiscoverContextCandidates(context.Background(), connect.NewRequest(&authoringv1.DiscoverContextCandidatesRequest{
 		SessionId:  ctx.Positional("session"),
@@ -228,6 +309,7 @@ func (h *handlers) contextDiscover(ctx cliapp.RunContext) error {
 	for _, candidate := range resp.Msg.GetCandidates() {
 		candidates = append(candidates, formatContextCandidate(candidate))
 	}
+	candidates = append(candidates, formatProgress(resp.Msg.GetProgress())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Discovered %d context candidate(s).", len(resp.Msg.GetCandidates()))},
 		Changes:     append(candidates, formatStep(resp.Msg.GetStep())...),
@@ -245,6 +327,7 @@ func (h *handlers) contextAccept(ctx cliapp.RunContext) error {
 		return cliapp.WrapAPIError("accept context candidate", err, nil)
 	}
 	changes := []string{formatContextCandidate(resp.Msg.GetCandidate()), formatContextItem(resp.Msg.GetItem())}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
 		changes = append(changes, formatViolations(v)...)
 	}
@@ -265,9 +348,10 @@ func (h *handlers) contextReject(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("reject context candidate", err, nil)
 	}
+	changes := append([]string{formatContextCandidate(resp.Msg.GetCandidate())}, formatProgress(resp.Msg.GetProgress())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Rejected context candidate %s.", ctx.Positional("candidate"))},
-		Changes:     append([]string{formatContextCandidate(resp.Msg.GetCandidate())}, formatStep(resp.Msg.GetStep())...),
+		Changes:     append(changes, formatStep(resp.Msg.GetStep())...),
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
@@ -283,6 +367,7 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	}
 	phase := resp.Msg.GetPhase()
 	changes := []string{formatPhase(phase)}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
 		changes = append(changes, formatViolations(v)...)
 	}
@@ -320,13 +405,14 @@ func (h *handlers) phaseSubmit(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("submit phase field", err, nil)
 	}
-	changes := []string{fmt.Sprintf("Submitted phase field %q.", ctx.Flag("field"))}
+	changes := []string{formatPhase(resp.Msg.GetPhase())}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
 	if v := resp.Msg.GetViolations(); len(v) > 0 {
 		changes = append(changes, formatViolations(v)...)
 	}
 	changes = append(changes, formatStep(resp.Msg.GetStep())...)
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Phase field submitted (%d violation(s)).", len(resp.Msg.GetViolations()))},
+		Result:      []string{fmt.Sprintf("%s (%d violation(s)).", summaryLine(resp.Msg.GetSummary()), len(resp.Msg.GetViolations()))},
 		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
@@ -397,6 +483,34 @@ func formatSection(sec *authoringv1.Section) string {
 		tag = "mandatory"
 	}
 	return fmt.Sprintf("[%s] %s (%s, %s)", sec.GetKey(), sec.GetLabel(), tag, state)
+}
+
+// formatProgress renders the compact navigation snapshot every mutation returns
+// in place of the full session graph: filled/total counts plus the remaining
+// required inputs the agent still owes before finalize.
+func formatProgress(p *authoringv1.AuthoringProgress) []string {
+	if p == nil {
+		return nil
+	}
+	ready := ""
+	if p.GetReadyToFinalize() {
+		ready = " — ready to finalize"
+	}
+	out := []string{fmt.Sprintf("Progress: %d/%d mandatory section(s), %d/%d phase(s)%s.",
+		p.GetMandatorySectionsFilled(), p.GetMandatorySectionsTotal(),
+		p.GetPhasesComplete(), p.GetPhasesTotal(), ready)}
+	for _, r := range p.GetRemainingRequiredInputs() {
+		out = append(out, "Remaining: "+r)
+	}
+	return out
+}
+
+// summaryLine renders the one-line mutation acknowledgement.
+func summaryLine(s *authoringv1.AuthoringMutationSummary) string {
+	if s == nil {
+		return ""
+	}
+	return s.GetSummary()
 }
 
 func formatViolations(violations []*authoringv1.StructureViolation) []string {
@@ -557,6 +671,7 @@ func formatContinueAuthoring(resp *authoringv1.ContinueAuthoringResponse) []stri
 	if v := resp.GetViolations(); len(v) > 0 {
 		out = append(out, formatViolations(v)...)
 	}
+	out = append(out, formatProgress(resp.GetProgress())...)
 	if len(out) == 0 {
 		out = append(out, "no additional authoring object returned")
 	}

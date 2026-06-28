@@ -205,6 +205,7 @@
       "contextRejectReasonLabel": "Reject reason",
       "contextRejectReasonPlaceholder": "Reason for rejecting candidates",
       "contextSubmit": "Add context",
+      "contextRemove": "Remove",
       "contextEmpty": "No context items yet.",
       "globalContext": "Global",
       "phaseContext": "Current phase",

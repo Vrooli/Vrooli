@@ -123,21 +123,28 @@ describe("Connect API wrapper helpers", () => {
     const item = { id: "ctx-1" };
     const candidate = { id: "candidate-1" };
     const plan = { id: "plan-1" };
+    // Focused response contract: mutations return progress + a summary, never the
+    // full session. Full state is read explicitly via getSession.
+    const progress = { sessionId: "session-1" };
+    const summary = { objectKind: "section" };
     const client = {
       startSession: vi.fn().mockResolvedValue({ session, step }),
+      getSession: vi.fn().mockResolvedValue({ session, step }),
       getSection: vi.fn().mockResolvedValue({ section, step }),
-      submitSection: vi.fn().mockResolvedValue({ session, violations: [violation], step }),
+      submitSection: vi.fn().mockResolvedValue({ summary, progress, violations: [violation], step }),
       next: vi.fn().mockResolvedValue({ section, complete: true, step }),
       validateStructure: vi.fn().mockResolvedValue({ valid: false, violations: [violation], step }),
-      autofill: vi.fn().mockResolvedValue({ session, results: [result], step }),
-      submitRelevantContextItem: vi.fn().mockResolvedValue({ session, item, violations: [violation], step }),
+      autofill: vi.fn().mockResolvedValue({ results: [result], progress, step }),
+      submitRelevantContextItem: vi.fn().mockResolvedValue({ item, summary, progress, violations: [violation], step }),
       listRelevantContext: vi.fn().mockResolvedValue({ items: [item], step }),
-      discoverContextCandidates: vi.fn().mockResolvedValue({ session, candidates: [candidate], step }),
-      acceptContextCandidate: vi.fn().mockResolvedValue({ session, candidate, item, violations: [violation], step }),
-      rejectContextCandidate: vi.fn().mockResolvedValue({ session, candidate, step }),
-      addPhase: vi.fn().mockResolvedValue({ session, phase, violations: [violation], step }),
+      updateRelevantContextItem: vi.fn().mockResolvedValue({ item, summary, progress, violations: [violation], step }),
+      removeRelevantContextItem: vi.fn().mockResolvedValue({ summary, progress, violations: [violation], step }),
+      discoverContextCandidates: vi.fn().mockResolvedValue({ candidates: [candidate], progress, step }),
+      acceptContextCandidate: vi.fn().mockResolvedValue({ candidate, item, summary, progress, violations: [violation], step }),
+      rejectContextCandidate: vi.fn().mockResolvedValue({ candidate, progress, step }),
+      addPhase: vi.fn().mockResolvedValue({ phase, summary, progress, violations: [violation], step }),
       getPhase: vi.fn().mockResolvedValue({ phase, step }),
-      submitPhaseField: vi.fn().mockResolvedValue({ session, violations: [violation], step }),
+      submitPhaseField: vi.fn().mockResolvedValue({ phase, summary, progress, violations: [violation], step }),
       nextPhase: vi.fn().mockResolvedValue({ phase, complete: true, step }),
       finalize: vi.fn().mockResolvedValue({ plan, step }),
     };
@@ -146,23 +153,26 @@ describe("Connect API wrapper helpers", () => {
     const authoring = await import("./authoring");
 
     await expect(authoring.startSession("Title", "slug", "cli")).resolves.toEqual({ session, step });
+    await expect(authoring.getSession("session-1")).resolves.toEqual({ session, step });
     await expect(authoring.getSection("session-1", "purpose")).resolves.toEqual({ section, step });
-    await expect(authoring.submitSection("session-1", "purpose", "Body")).resolves.toEqual({ session, violations: [violation], step });
+    await expect(authoring.submitSection("session-1", "purpose", "Body")).resolves.toEqual({ summary, progress, violations: [violation], step });
     await expect(authoring.nextSection("session-1")).resolves.toEqual({ section, complete: true, step });
     await expect(authoring.validateStructure("session-1")).resolves.toEqual({ valid: false, violations: [violation], step });
-    await expect(authoring.autofill("session-1", ["references"])).resolves.toEqual({ session, results: [result], step });
-    await expect(authoring.submitRelevantContextItem("session-1", "phase-1", item as never)).resolves.toEqual({ session, item, violations: [violation], step });
+    await expect(authoring.autofill("session-1", ["references"])).resolves.toEqual({ results: [result], progress, step });
+    await expect(authoring.submitRelevantContextItem("session-1", "phase-1", item as never)).resolves.toEqual({ item, summary, progress, violations: [violation], step });
     await expect(authoring.listRelevantContext("session-1", "phase-1")).resolves.toEqual({ items: [item], step });
-    await expect(authoring.discoverContextCandidates("session-1", ["context"], "architectural")).resolves.toEqual({ session, candidates: [candidate], step });
-    await expect(authoring.acceptContextCandidate("session-1", "candidate-1", "phase-1")).resolves.toEqual({ session, candidate, item, violations: [violation], step });
-    await expect(authoring.rejectContextCandidate("session-1", "candidate-1", "duplicate")).resolves.toEqual({ session, candidate, step });
-    await expect(authoring.addPhase("session-1", "Title", "Intent")).resolves.toEqual({ session, phase, violations: [violation], step });
+    await expect(authoring.updateRelevantContextItem("session-1", "phase-1", "ctx-1", item as never)).resolves.toEqual({ item, summary, progress, violations: [violation], step });
+    await expect(authoring.removeRelevantContextItem("session-1", "phase-1", "ctx-1")).resolves.toEqual({ summary, progress, violations: [violation], step });
+    await expect(authoring.discoverContextCandidates("session-1", ["context"], "architectural")).resolves.toEqual({ candidates: [candidate], progress, step });
+    await expect(authoring.acceptContextCandidate("session-1", "candidate-1", "phase-1")).resolves.toEqual({ candidate, item, summary, progress, violations: [violation], step });
+    await expect(authoring.rejectContextCandidate("session-1", "candidate-1", "duplicate")).resolves.toEqual({ candidate, progress, step });
+    await expect(authoring.addPhase("session-1", "Title", "Intent")).resolves.toEqual({ phase, summary, progress, violations: [violation], step });
     await expect(authoring.getPhase("session-1", "phase-1")).resolves.toEqual({ phase, step });
-    await expect(authoring.submitPhaseField("session-1", "phase-1", "acceptance", "Done")).resolves.toEqual({ session, violations: [violation], step });
+    await expect(authoring.submitPhaseField("session-1", "phase-1", "acceptance", "Done")).resolves.toEqual({ phase, summary, progress, violations: [violation], step });
     await expect(authoring.nextPhase("session-1")).resolves.toEqual({ phase, complete: true, step });
     await expect(authoring.finalize("session-1")).resolves.toEqual({ plan, step });
     await expect(authoring.startSession("Bare")).resolves.toEqual({ session, step });
-    await expect(authoring.autofill("session-1")).resolves.toEqual({ session, results: [result], step });
+    await expect(authoring.autofill("session-1")).resolves.toEqual({ results: [result], progress, step });
 
     expect(client.startSession).toHaveBeenCalledWith({ title: "Title", slug: "slug", templateId: "cli" });
     expect(client.startSession).toHaveBeenCalledWith({ title: "Bare", slug: "", templateId: "" });
@@ -171,6 +181,9 @@ describe("Connect API wrapper helpers", () => {
     expect(client.autofill).toHaveBeenCalledWith({ sessionId: "session-1", sources: [] });
     expect(client.submitRelevantContextItem).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", item });
     expect(client.listRelevantContext).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1" });
+    expect(client.getSession).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(client.updateRelevantContextItem).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", itemId: "ctx-1", item });
+    expect(client.removeRelevantContextItem).toHaveBeenCalledWith({ sessionId: "session-1", phaseId: "phase-1", itemId: "ctx-1" });
     expect(client.discoverContextCandidates).toHaveBeenCalledWith({ sessionId: "session-1", concepts: ["context"], complexity: "architectural" });
     expect(client.acceptContextCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", phaseId: "phase-1" });
     expect(client.rejectContextCandidate).toHaveBeenCalledWith({ sessionId: "session-1", candidateId: "candidate-1", reason: "duplicate" });

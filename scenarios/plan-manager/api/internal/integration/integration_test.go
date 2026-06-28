@@ -336,6 +336,12 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "In: Plan Manager authoring and execution loop. Out: consumer inversion.")
 			require.NoError(t, err)
 			require.Empty(t, violations)
+		case "references":
+			// References is mandatory (satisfiable by NO_CODE_REFS); the continue
+			// loop surfaces it as a first-class step now.
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "[CODE: scenarios/plan-manager/api/internal/integration/integration_test.go]")
+			require.NoError(t, err)
+			require.Empty(t, violations)
 		case "regression_anchor":
 			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Baseline: plan-manager-hardening-readiness; head sha captured by test fixture.")
 			require.NoError(t, err)

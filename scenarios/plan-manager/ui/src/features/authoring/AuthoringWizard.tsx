@@ -9,8 +9,10 @@ import {
   autofill,
   discoverContextCandidates,
   finalize,
+  getSession,
   nextPhase,
   rejectContextCandidate,
+  removeRelevantContextItem,
   startSession,
   submitRelevantContextItem,
   submitPhaseField,
@@ -26,6 +28,7 @@ import { strings } from "../../consts/strings";
 import { errorMessage } from "../../lib/errorMessage";
 import { useTranslation } from "../../i18n";
 import type {
+  AuthoringProgress,
   AuthoringSession,
   AutofillResult,
   ContextCandidate,
@@ -44,9 +47,15 @@ import {
   type RelevantContextItem,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
-/** Local wizard state. The session is the source of truth once started. */
+/**
+ * Local wizard state. The session is the source of truth once started. Because
+ * mutations no longer echo the full session (focused response contract), the
+ * session is re-hydrated explicitly via getSession after each mutation
+ * (read-after-write); progress carries the compact navigation snapshot.
+ */
 interface WizardState {
   session?: AuthoringSession;
+  progress?: AuthoringProgress;
   violations: StructureViolation[];
   autofillResults: AutofillResult[];
   step?: GuidedStep;
@@ -83,7 +92,15 @@ const contextKindLabels: Record<RelevantContextKind, string> = {
   [RelevantContextKind.NOTE]: "note",
 };
 
-function ContextList({ items }: { items: readonly RelevantContextItem[] }) {
+function ContextList({
+  items,
+  onRemove,
+  busy,
+}: {
+  items: readonly RelevantContextItem[];
+  onRemove?: (item: RelevantContextItem) => void;
+  busy?: boolean;
+}) {
   const { t } = useTranslation();
   if (items.length === 0) {
     return <p className="text-sm text-app-muted-foreground">{t(strings.pages.authoring.contextEmpty)}</p>;
@@ -100,6 +117,19 @@ function ContextList({ items }: { items: readonly RelevantContextItem[] }) {
               {contextKindLabels[item.kind]}
             </span>
             <span className="font-medium text-app-foreground">{item.label || item.target || item.command}</span>
+            {onRemove && item.id ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                data-testid={selectors.authoring.contextRemoveButton}
+                disabled={busy}
+                onClick={() => onRemove(item)}
+                className="ms-auto"
+              >
+                {t(strings.pages.authoring.contextRemove)}
+              </Button>
+            ) : null}
           </div>
           {item.reason ? <p className="mt-1 text-xs text-app-muted-foreground">{item.reason}</p> : null}
           {item.instruction ? <p className="mt-1 text-xs text-app-foreground">{item.instruction}</p> : null}
@@ -379,18 +409,31 @@ export function AuthoringWizard() {
     setDraft(section.content);
   };
 
+  // hydrate re-reads the full session (read-after-write) and folds in the
+  // mutation's own violations/progress/step. Mutations no longer echo the
+  // session, so this explicit read is how the wizard stays current.
+  const hydrate = async (mutation?: {
+    violations?: StructureViolation[];
+    progress?: AuthoringProgress;
+    step?: GuidedStep;
+  }) => {
+    if (!session) return undefined;
+    const fresh = await getSession(session.id);
+    setState((prev) => ({
+      ...prev,
+      session: fresh.session ?? prev.session,
+      progress: mutation?.progress ?? prev.progress,
+      violations: mutation?.violations ?? prev.violations,
+      step: mutation?.step ?? fresh.step ?? prev.step,
+    }));
+    return fresh.session;
+  };
+
   const handleSubmitSection = () => {
     if (!session || !activeSection) return;
     void run(async () => {
       const res = await submitSection(session.id, activeSection.key, draft);
-      if (res.session) {
-        setState((prev) => ({
-          ...prev,
-          session: res.session,
-          violations: res.violations,
-          step: res.step,
-        }));
-      }
+      await hydrate(res);
     });
   };
 
@@ -398,34 +441,21 @@ export function AuthoringWizard() {
     if (!session || phaseTitle.trim().length === 0) return;
     void run(async () => {
       const res = await addPhase(session.id, phaseTitle.trim(), phaseIntent.trim());
-      if (res.session) {
-        setState((prev) => ({
-          ...prev,
-          session: res.session,
-          violations: res.violations,
-          step: res.step,
-        }));
-        setActivePhaseId(res.phase?.id || res.session.currentPhaseId || "");
-        setPhaseTitle("");
-        setPhaseIntent("");
-      }
+      await hydrate(res);
+      setActivePhaseId(res.phase?.id || res.progress?.currentPhaseId || "");
+      setPhaseTitle("");
+      setPhaseIntent("");
     });
   };
 
   const handleSubmitPhaseField = () => {
     if (!session || !activePhase) return;
+    const phaseId = activePhase.id;
     void run(async () => {
-      const res = await submitPhaseField(session.id, activePhase.id, phaseField, phaseDraft);
-      if (res.session) {
-        setState((prev) => ({
-          ...prev,
-          session: res.session,
-          violations: res.violations,
-          step: res.step,
-        }));
-        setActivePhaseId(res.session.currentPhaseId || activePhase.id);
-        setPhaseDraft("");
-      }
+      const res = await submitPhaseField(session.id, phaseId, phaseField, phaseDraft);
+      await hydrate(res);
+      setActivePhaseId(res.progress?.currentPhaseId || phaseId);
+      setPhaseDraft("");
     });
   };
 
@@ -452,9 +482,8 @@ export function AuthoringWizard() {
     if (!session) return;
     void run(async () => {
       const res = await autofill(session.id);
-      if (res.session) {
-        setState((prev) => ({ ...prev, session: res.session, autofillResults: res.results, step: res.step }));
-      }
+      await hydrate(res);
+      setState((prev) => ({ ...prev, autofillResults: res.results }));
     });
   };
 
@@ -480,19 +509,25 @@ export function AuthoringWizard() {
         status: RelevantContextStatus.READY,
       });
       const res = await submitRelevantContextItem(session.id, phaseId, item);
-      if (res.session) {
-        setState((prev) => ({
-          ...prev,
-          session: res.session,
-          violations: res.violations,
-          step: res.step,
-        }));
+      await hydrate(res);
+      // Only clear inputs when the item was accepted (no violations); a rejected
+      // item keeps its draft so the operator can correct it.
+      if (res.violations.length === 0) {
         setContextLabel("");
         setContextReason("");
         setContextInstruction("");
         setContextCommand("");
         setContextTarget("");
       }
+    });
+  };
+
+  const handleRemoveContext = (item: RelevantContextItem) => {
+    if (!session || !item.id) return;
+    const phaseId = item.scope === RelevantContextScope.PHASE ? item.phaseId : "";
+    void run(async () => {
+      const res = await removeRelevantContextItem(session.id, phaseId, item.id);
+      await hydrate(res);
     });
   };
 
@@ -504,9 +539,7 @@ export function AuthoringWizard() {
       .filter(Boolean);
     void run(async () => {
       const res = await discoverContextCandidates(session.id, concepts, contextComplexity.trim());
-      if (res.session) {
-        setState((prev) => ({ ...prev, session: res.session, step: res.step }));
-      }
+      await hydrate(res);
     });
   };
 
@@ -516,14 +549,7 @@ export function AuthoringWizard() {
     if (contextPhaseScoped && phaseId.length === 0) return;
     void run(async () => {
       const res = await acceptContextCandidate(session.id, candidateId, phaseId);
-      if (res.session) {
-        setState((prev) => ({
-          ...prev,
-          session: res.session,
-          violations: res.violations,
-          step: res.step,
-        }));
-      }
+      await hydrate(res);
     });
   };
 
@@ -535,10 +561,8 @@ export function AuthoringWizard() {
         candidateId,
         contextRejectReason.trim() || "not relevant",
       );
-      if (res.session) {
-        setState((prev) => ({ ...prev, session: res.session, step: res.step }));
-        setContextRejectReason("");
-      }
+      await hydrate(res);
+      setContextRejectReason("");
     });
   };
 
@@ -976,13 +1000,13 @@ export function AuthoringWizard() {
                 <p className="mb-1 text-xs font-medium uppercase tracking-wide text-app-muted-foreground">
                   {t(strings.pages.authoring.globalContext)}
                 </p>
-                <ContextList items={session.relevantContext} />
+                <ContextList items={session.relevantContext} onRemove={handleRemoveContext} busy={busy} />
               </div>
               <div>
                 <p className="mb-1 text-xs font-medium uppercase tracking-wide text-app-muted-foreground">
                   {t(strings.pages.authoring.phaseContext)}
                 </p>
-                <ContextList items={activePhase?.relevantContext ?? []} />
+                <ContextList items={activePhase?.relevantContext ?? []} onRemove={handleRemoveContext} busy={busy} />
               </div>
             </div>
           </div>

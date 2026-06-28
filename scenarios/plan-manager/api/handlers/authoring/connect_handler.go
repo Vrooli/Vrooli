@@ -37,6 +37,16 @@ func (h *connectHandler) StartSession(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&authoringv1.StartSessionResponse{Session: sessionToProto(sess), Step: guidedStepToProto(step)}), nil
 }
 
+// GetSession is the explicit full-state read; mutations no longer echo the
+// session graph, so the UI/operator hydrates here deliberately.
+func (h *connectHandler) GetSession(ctx context.Context, req *connect.Request[authoringv1.GetSessionRequest]) (*connect.Response[authoringv1.GetSessionResponse], error) {
+	sess, step, err := h.deps.Service.GetSession(ctx, req.Msg.GetSessionId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.GetSessionResponse{Session: sessionToProto(sess), Step: guidedStepToProto(step)}), nil
+}
+
 func (h *connectHandler) GetSection(ctx context.Context, req *connect.Request[authoringv1.GetSectionRequest]) (*connect.Response[authoringv1.GetSectionResponse], error) {
 	sec, step, err := h.deps.Service.GetSection(ctx, req.Msg.GetSessionId(), internalauthoring.SectionKey(req.Msg.GetSectionKey()))
 	if err != nil {
@@ -53,8 +63,10 @@ func (h *connectHandler) SubmitSection(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, internalauthoring.ToConnectError(err)
 	}
+	sec := internalauthoring.Section{Key: internalauthoring.SectionKey(req.Msg.GetSectionKey()), Content: req.Msg.GetContent()}
 	return connect.NewResponse(&authoringv1.SubmitSectionResponse{
-		Session:    sessionToProto(sess),
+		Summary:    mutationSummary("section", req.Msg.GetSectionKey(), "", internalauthoring.SectionSummary(sec)),
+		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),
 	}), nil
@@ -78,7 +90,7 @@ func (h *connectHandler) ContinueAuthoring(ctx context.Context, req *connect.Req
 		return nil, internalauthoring.ToConnectError(err)
 	}
 	resp := &authoringv1.ContinueAuthoringResponse{
-		Session:         sessionToProto(sess),
+		Progress:        progressOf(sess),
 		ReadyToFinalize: ready,
 		Violations:      violationsToProto(violations),
 		Step:            guidedStepToProto(step),
@@ -110,9 +122,9 @@ func (h *connectHandler) Autofill(ctx context.Context, req *connect.Request[auth
 		return nil, internalauthoring.ToConnectError(err)
 	}
 	return connect.NewResponse(&authoringv1.AutofillResponse{
-		Session: sessionToProto(sess),
-		Results: autofillResultsToProto(results),
-		Step:    guidedStepToProto(step),
+		Results:  autofillResultsToProto(results),
+		Progress: progressOf(sess),
+		Step:     guidedStepToProto(step),
 	}), nil
 }
 
@@ -122,8 +134,9 @@ func (h *connectHandler) SubmitRelevantContextItem(ctx context.Context, req *con
 		return nil, internalauthoring.ToConnectError(err)
 	}
 	return connect.NewResponse(&authoringv1.SubmitRelevantContextItemResponse{
-		Session:    sessionToProto(sess),
 		Item:       relevantContextItemToProto(item),
+		Summary:    mutationSummary("context", item.ID, "", internalauthoring.ContextItemSummary(item)),
+		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),
 	}), nil
@@ -140,14 +153,41 @@ func (h *connectHandler) ListRelevantContext(ctx context.Context, req *connect.R
 	}), nil
 }
 
+func (h *connectHandler) UpdateRelevantContextItem(ctx context.Context, req *connect.Request[authoringv1.UpdateRelevantContextItemRequest]) (*connect.Response[authoringv1.UpdateRelevantContextItemResponse], error) {
+	sess, item, violations, step, err := h.deps.Service.UpdateRelevantContextItem(ctx, req.Msg.GetSessionId(), req.Msg.GetPhaseId(), req.Msg.GetItemId(), relevantContextItemFromProto(req.Msg.GetItem()))
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.UpdateRelevantContextItemResponse{
+		Item:       relevantContextItemToProto(item),
+		Summary:    mutationSummary("context", item.ID, "", "updated "+internalauthoring.ContextItemSummary(item)),
+		Progress:   progressOf(sess),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) RemoveRelevantContextItem(ctx context.Context, req *connect.Request[authoringv1.RemoveRelevantContextItemRequest]) (*connect.Response[authoringv1.RemoveRelevantContextItemResponse], error) {
+	sess, violations, step, err := h.deps.Service.RemoveRelevantContextItem(ctx, req.Msg.GetSessionId(), req.Msg.GetPhaseId(), req.Msg.GetItemId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.RemoveRelevantContextItemResponse{
+		Summary:    mutationSummary("context", req.Msg.GetItemId(), "", "removed context item"),
+		Progress:   progressOf(sess),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
 func (h *connectHandler) DiscoverContextCandidates(ctx context.Context, req *connect.Request[authoringv1.DiscoverContextCandidatesRequest]) (*connect.Response[authoringv1.DiscoverContextCandidatesResponse], error) {
 	sess, candidates, step, err := h.deps.Service.DiscoverContextCandidates(ctx, req.Msg.GetSessionId(), req.Msg.GetConcepts(), req.Msg.GetComplexity())
 	if err != nil {
 		return nil, internalauthoring.ToConnectError(err)
 	}
 	return connect.NewResponse(&authoringv1.DiscoverContextCandidatesResponse{
-		Session:    sessionToProto(sess),
 		Candidates: contextCandidatesToProto(candidates),
+		Progress:   progressOf(sess),
 		Step:       guidedStepToProto(step),
 	}), nil
 }
@@ -158,9 +198,10 @@ func (h *connectHandler) AcceptContextCandidate(ctx context.Context, req *connec
 		return nil, internalauthoring.ToConnectError(err)
 	}
 	return connect.NewResponse(&authoringv1.AcceptContextCandidateResponse{
-		Session:    sessionToProto(sess),
 		Candidate:  contextCandidateToProto(candidate),
 		Item:       relevantContextItemToProto(item),
+		Summary:    mutationSummary("candidate", candidate.ID, "", "accepted "+internalauthoring.ContextItemSummary(item)),
+		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),
 	}), nil
@@ -172,8 +213,8 @@ func (h *connectHandler) RejectContextCandidate(ctx context.Context, req *connec
 		return nil, internalauthoring.ToConnectError(err)
 	}
 	return connect.NewResponse(&authoringv1.RejectContextCandidateResponse{
-		Session:   sessionToProto(sess),
 		Candidate: contextCandidateToProto(candidate),
+		Progress:  progressOf(sess),
 		Step:      guidedStepToProto(step),
 	}), nil
 }
@@ -184,8 +225,9 @@ func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[auth
 		return nil, internalauthoring.ToConnectError(err)
 	}
 	return connect.NewResponse(&authoringv1.AddPhaseResponse{
-		Session:    sessionToProto(sess),
 		Phase:      phaseDraftToProto(phase),
+		Summary:    mutationSummary("phase", phase.ID, "", internalauthoring.PhaseFieldSummary(internalauthoring.PhaseFieldTitle, phase)),
+		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),
 	}), nil
@@ -207,8 +249,12 @@ func (h *connectHandler) SubmitPhaseField(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, internalauthoring.ToConnectError(err)
 	}
+	field := internalauthoring.PhaseField(req.Msg.GetField())
+	phase, _ := internalauthoring.FindPhaseDraft(sess, req.Msg.GetPhaseId())
 	return connect.NewResponse(&authoringv1.SubmitPhaseFieldResponse{
-		Session:    sessionToProto(sess),
+		Phase:      phaseDraftToProto(phase),
+		Summary:    mutationSummary("phase", phase.ID, req.Msg.GetField(), internalauthoring.PhaseFieldSummary(field, phase)),
+		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),
 	}), nil

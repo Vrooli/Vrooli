@@ -70,7 +70,10 @@ func (r *authRecorder) SubmitSection(_ context.Context, req *connect.Request[aut
 	if m, ok := r.resp.(*authoringv1.SubmitSectionResponse); ok && m != nil {
 		return connect.NewResponse(m), nil
 	}
-	return connect.NewResponse(&authoringv1.SubmitSectionResponse{Session: &authoringv1.AuthoringSession{CurrentSectionKey: "next-key"}}), nil
+	return connect.NewResponse(&authoringv1.SubmitSectionResponse{
+		Summary:  &authoringv1.AuthoringMutationSummary{ObjectKind: "section", ObjectId: req.Msg.GetSectionKey(), Summary: "submitted section"},
+		Progress: &authoringv1.AuthoringProgress{SessionId: req.Msg.GetSessionId(), CurrentSectionKey: "next-key"},
+	}), nil
 }
 
 func (r *authRecorder) Next(_ context.Context, req *connect.Request[authoringv1.NextRequest]) (*connect.Response[authoringv1.NextResponse], error) {
@@ -126,6 +129,39 @@ func (r *authRecorder) ListRelevantContext(_ context.Context, req *connect.Reque
 		return connect.NewResponse(m), nil
 	}
 	return connect.NewResponse(&authoringv1.ListRelevantContextResponse{}), nil
+}
+
+func (r *authRecorder) GetSession(_ context.Context, req *connect.Request[authoringv1.GetSessionRequest]) (*connect.Response[authoringv1.GetSessionResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.GetSessionResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.GetSessionResponse{Session: &authoringv1.AuthoringSession{Id: req.Msg.GetSessionId()}}), nil
+}
+
+func (r *authRecorder) UpdateRelevantContextItem(_ context.Context, req *connect.Request[authoringv1.UpdateRelevantContextItemRequest]) (*connect.Response[authoringv1.UpdateRelevantContextItemResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.UpdateRelevantContextItemResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.UpdateRelevantContextItemResponse{Item: req.Msg.GetItem(), Summary: &authoringv1.AuthoringMutationSummary{ObjectKind: "context"}}), nil
+}
+
+func (r *authRecorder) RemoveRelevantContextItem(_ context.Context, req *connect.Request[authoringv1.RemoveRelevantContextItemRequest]) (*connect.Response[authoringv1.RemoveRelevantContextItemResponse], error) {
+	r.record(req.Msg)
+	if r.err != nil {
+		return nil, r.err
+	}
+	if m, ok := r.resp.(*authoringv1.RemoveRelevantContextItemResponse); ok && m != nil {
+		return connect.NewResponse(m), nil
+	}
+	return connect.NewResponse(&authoringv1.RemoveRelevantContextItemResponse{Summary: &authoringv1.AuthoringMutationSummary{ObjectKind: "context", ObjectId: req.Msg.GetItemId()}}), nil
 }
 
 func (r *authRecorder) DiscoverContextCandidates(_ context.Context, req *connect.Request[authoringv1.DiscoverContextCandidatesRequest]) (*connect.Response[authoringv1.DiscoverContextCandidatesResponse], error) {
@@ -202,7 +238,11 @@ func (r *authRecorder) SubmitPhaseField(_ context.Context, req *connect.Request[
 	if m, ok := r.resp.(*authoringv1.SubmitPhaseFieldResponse); ok && m != nil {
 		return connect.NewResponse(m), nil
 	}
-	return connect.NewResponse(&authoringv1.SubmitPhaseFieldResponse{Session: &authoringv1.AuthoringSession{Id: req.Msg.GetSessionId()}}), nil
+	return connect.NewResponse(&authoringv1.SubmitPhaseFieldResponse{
+		Phase:    &authoringv1.PhaseDraft{Id: req.Msg.GetPhaseId()},
+		Summary:  &authoringv1.AuthoringMutationSummary{ObjectKind: "phase", ObjectId: req.Msg.GetPhaseId(), Field: req.Msg.GetField(), Summary: "submitted phase field"},
+		Progress: &authoringv1.AuthoringProgress{SessionId: req.Msg.GetSessionId()},
+	}), nil
 }
 
 func (r *authRecorder) NextPhase(_ context.Context, req *connect.Request[authoringv1.NextPhaseRequest]) (*connect.Response[authoringv1.NextPhaseResponse], error) {
@@ -354,6 +394,36 @@ func TestAuthoringRequestMapping(t *testing.T) {
 				require.Equal(t, "sess-1", m.GetSessionId())
 				require.Equal(t, "cand1", m.GetCandidateId())
 				require.Equal(t, "duplicate", m.GetReason())
+			},
+		},
+		{
+			name: "get-session maps session positional", cmd: "get-session",
+			argv: []string{"sess-1"},
+			assert: func(t *testing.T, req proto.Message) {
+				require.Equal(t, "sess-1", req.(*authoringv1.GetSessionRequest).GetSessionId())
+			},
+		},
+		{
+			name: "context-update maps session/item/phase and structured flags", cmd: "context-update",
+			argv: []string{"sess-1", "ctx-9", "--phase", "ph1", "--kind", "note", "--label", "fixed", "--instruction", "do the right thing"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.UpdateRelevantContextItemRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "ctx-9", m.GetItemId())
+				require.Equal(t, "ph1", m.GetPhaseId())
+				require.Equal(t, "ctx-9", m.GetItem().GetId())
+				require.Equal(t, sharedv1.RelevantContextKind_RELEVANT_CONTEXT_KIND_NOTE, m.GetItem().GetKind())
+				require.Equal(t, "fixed", m.GetItem().GetLabel())
+			},
+		},
+		{
+			name: "context-remove maps session/item/phase", cmd: "context-remove",
+			argv: []string{"sess-1", "ctx-9", "--phase", "ph1"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.RemoveRelevantContextItemRequest)
+				require.Equal(t, "sess-1", m.GetSessionId())
+				require.Equal(t, "ctx-9", m.GetItemId())
+				require.Equal(t, "ph1", m.GetPhaseId())
 			},
 		},
 		{

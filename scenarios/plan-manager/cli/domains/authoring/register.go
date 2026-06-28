@@ -20,6 +20,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"AuthoringService.StartSession":              h.start,
+		"AuthoringService.GetSession":                h.getSession,
 		"AuthoringService.GetSection":                h.sectionGet,
 		"AuthoringService.SubmitSection":             h.sectionSubmit,
 		"AuthoringService.Next":                      h.next,
@@ -28,6 +29,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AuthoringService.Autofill":                  h.autofill,
 		"AuthoringService.SubmitRelevantContextItem": h.contextSubmit,
 		"AuthoringService.ListRelevantContext":       h.contextList,
+		"AuthoringService.UpdateRelevantContextItem": h.contextUpdate,
+		"AuthoringService.RemoveRelevantContextItem": h.contextRemove,
 		"AuthoringService.DiscoverContextCandidates": h.contextDiscover,
 		"AuthoringService.AcceptContextCandidate":    h.contextAccept,
 		"AuthoringService.RejectContextCandidate":    h.contextReject,

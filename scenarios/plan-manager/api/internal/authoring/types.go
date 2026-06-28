@@ -258,7 +258,7 @@ var defaultSkeleton = []sectionSpec{
 	{Key: SectionTechnicalApproach, Label: "Technical Approach", Mandatory: true},
 	{Key: SectionConstraints, Label: "Constraints", Mandatory: false},
 	{Key: SectionProhibitedApproaches, Label: "Prohibited Approaches", Mandatory: false},
-	{Key: SectionReferences, Label: "References", Mandatory: false},
+	{Key: SectionReferences, Label: "References", Mandatory: true},
 	{Key: SectionRegressionAnchor, Label: "Regression anchor", Mandatory: true},
 	{Key: SectionRelevantContext, Label: "Relevant context", Mandatory: false},
 	{Key: SectionValidationStrategy, Label: "Validation Strategy", Mandatory: true},

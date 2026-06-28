@@ -353,6 +353,30 @@
               "description": "What the phase accomplishes"
             },
             {
+              "name": "affected-areas",
+              "description": "Areas/files this phase touches (newline- or comma-separated)"
+            },
+            {
+              "name": "steps",
+              "description": "Ordered implementation steps (newline- or comma-separated)"
+            },
+            {
+              "name": "expected-outputs",
+              "description": "Expected outputs/artifacts (newline- or comma-separated)"
+            },
+            {
+              "name": "validation",
+              "description": "How this phase is validated (the checking method)"
+            },
+            {
+              "name": "risks-hazards",
+              "description": "Risks/hazards for this phase (newline- or comma-separated)"
+            },
+            {
+              "name": "handoff-notes",
+              "description": "Handoff notes for the next agent"
+            },
+            {
               "name": "acceptance",
               "description": "Objective pass/fail"
             },
@@ -405,6 +429,30 @@
             {
               "name": "intent",
               "description": "What the phase accomplishes"
+            },
+            {
+              "name": "affected-areas",
+              "description": "Areas/files this phase touches (newline- or comma-separated)"
+            },
+            {
+              "name": "steps",
+              "description": "Ordered implementation steps (newline- or comma-separated)"
+            },
+            {
+              "name": "expected-outputs",
+              "description": "Expected outputs/artifacts (newline- or comma-separated)"
+            },
+            {
+              "name": "validation",
+              "description": "How this phase is validated (the checking method)"
+            },
+            {
+              "name": "risks-hazards",
+              "description": "Risks/hazards for this phase (newline- or comma-separated)"
+            },
+            {
+              "name": "handoff-notes",
+              "description": "Handoff notes for the next agent"
             },
             {
               "name": "acceptance",
@@ -679,6 +727,29 @@
           }
         },
         {
+          "name": "get-session",
+          "description": "Read the full authoring session state (explicit full-state read; mutations return only focused progress)",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "GetSession"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "section-get",
           "description": "Get one section's current state",
           "positionals": [
@@ -932,6 +1003,112 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-update",
+          "description": "Replace one accepted relevant-context item in place (by id) to fix a bad item before finalize",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Accepted relevant-context item id (from author context-list)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for global context"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "Context kind: skill, doc, command, search, code_ref, req_ref, note"
+            },
+            {
+              "name": "label",
+              "description": "Short label for the context item"
+            },
+            {
+              "name": "reason",
+              "description": "Why this context is relevant"
+            },
+            {
+              "name": "instruction",
+              "description": "What the execution agent should do with this context"
+            },
+            {
+              "name": "command",
+              "description": "Exact command for command/search/skill setup items"
+            },
+            {
+              "name": "argv",
+              "description": "Comma-separated canonical argv; defaults from command when omitted"
+            },
+            {
+              "name": "target",
+              "description": "Doc/code/requirement/skill target locator"
+            },
+            {
+              "name": "required",
+              "description": "Mark the context item required",
+              "bool": true
+            },
+            {
+              "name": "repeat",
+              "description": "Repeat policy: once_per_execution, on_resume, every_phase, phase_entry, as_needed"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "UpdateRelevantContextItem"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "context-remove",
+          "description": "Remove one accepted relevant-context item (by id) before finalize",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "item",
+              "required": true,
+              "description": "Accepted relevant-context item id (from author context-list)"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id or order number; omit for global context"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "RemoveRelevantContextItem"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]

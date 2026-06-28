@@ -327,6 +327,39 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			name: "phase add maps the canonical rich phase fields", group: "phase", cmd: "add",
+			argv: []string{
+				"plan-p", "--title", "Contract",
+				"--affected-areas", "render.go,parse.go",
+				"--steps", "Add section\nWire parser",
+				"--expected-outputs", "comprehensive markdown",
+				"--validation", "go test ./internal/plans",
+				"--risks-hazards", "parser drift",
+				"--handoff-notes", "rebuild ui/dist after",
+			},
+			assert: func(t *testing.T, req proto.Message) {
+				ph := req.(*plansv1.AddPhaseRequest).GetPhase()
+				require.Equal(t, []string{"render.go", "parse.go"}, ph.GetAffectedAreas())
+				require.Equal(t, []string{"Add section", "Wire parser"}, ph.GetSteps())
+				require.Equal(t, []string{"comprehensive markdown"}, ph.GetExpectedOutputs())
+				require.Equal(t, "go test ./internal/plans", ph.GetValidation())
+				require.Equal(t, []string{"parser drift"}, ph.GetRisksHazards())
+				require.Equal(t, "rebuild ui/dist after", ph.GetHandoffNotes())
+			},
+		},
+		{
+			name: "phase update maps the canonical rich phase fields", group: "phase", cmd: "update",
+			argv: []string{
+				"plan-p", "phase-1", "--steps", "Only step", "--validation", "go test ./...",
+			},
+			assert: func(t *testing.T, req proto.Message) {
+				ph := req.(*plansv1.UpdatePhaseRequest).GetPhase()
+				require.Equal(t, "phase-1", ph.GetId())
+				require.Equal(t, []string{"Only step"}, ph.GetSteps())
+				require.Equal(t, "go test ./...", ph.GetValidation())
+			},
+		},
+		{
 			name: "phase add maps comma-separated list flags", group: "phase", cmd: "add",
 			argv: []string{"plan-p", "--title", "Ph", "--context", "kind=doc;label=Testing docs;target=docs/TESTING.md;reason=Use server-owned wait protocol;instruction=Read before running tests,kind=command;command=prompt-manager skill read scientific-debugging;repeat=on_resume", "--reminders", "never stash", "--baseline-scope", "git-control-tower baseline diff --scenario x"},
 			assert: func(t *testing.T, req proto.Message) {

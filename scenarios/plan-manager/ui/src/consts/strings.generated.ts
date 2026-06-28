@@ -217,6 +217,7 @@ export const strings = {
       contextRejectReasonLabel: "pages.authoring.contextRejectReasonLabel",
       contextRejectReasonPlaceholder: "pages.authoring.contextRejectReasonPlaceholder",
       contextSubmit: "pages.authoring.contextSubmit",
+      contextRemove: "pages.authoring.contextRemove",
       contextEmpty: "pages.authoring.contextEmpty",
       globalContext: "pages.authoring.globalContext",
       phaseContext: "pages.authoring.phaseContext",

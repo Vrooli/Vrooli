@@ -126,6 +126,59 @@ tests land, treat `PLAN-MODEL.md` as the source of truth for section names.
 **Status:** Tracked by the plan's phases; resolved when golden tests assert the
 renderer/parser/wizard match this document.
 
+### 2026-06-28 — Authoring response contract too heavy for small/local agents — RESOLVED
+
+**Symptom:** Small/local-model authoring was failing on adoption blockers: every
+mutation echoed the full `AuthoringSession` (blowing the context window); a bad
+accepted relevant-context item found in `author preview` could only be fixed by
+deleting the phase/session; free-form phase `relevant_context` prose was turned
+into executable `prompt-manager skill read …` commands with malformed argv;
+`References` was effectively optional in the skeleton; `author preview` rendered a
+different work posture than finalize for brownfield scenarios; degraded anchor
+autofill gave no recovery path; direct `phase add/update` lacked the canonical
+phase fields; `plans update` dropped import lineage; and a misplaced `--auto-start`
+produced a bare "unknown option".
+
+**Root cause:** The wizard contract was designed around a full-session echo and a
+prose-to-command heuristic; preview did not apply the plans-domain posture
+derivation; and several CLI surfaces lagged the canonical phase/governance model.
+
+**Resolution (known behavior now):**
+
+- **Focused responses.** Normal authoring mutations return a compact
+  `AuthoringProgress` + an `AuthoringMutationSummary` + the single changed object
+  + violations + the next guided step — never the accumulated session. Full state
+  is read explicitly via `GetSession` (`author get-session`); the UI uses
+  read-after-write. `ContinueAuthoring` returns the single current work item;
+  `PreviewPlan` / `plans render` return full markdown.
+- **Accepted-context recovery.** `UpdateRelevantContextItem` /
+  `RemoveRelevantContextItem` (`author context-update` / `context-remove`) edit or
+  drop one accepted item by id before finalize; removal recomputes structure
+  violations so a resulting gate is reported with its recovery action.
+- **Free-form prose → notes only.** `author phase-submit --field relevant_context`
+  records prose as notes (`NO_CONTEXT:` preserved); executable setup context must
+  use typed `context-submit` / candidate acceptance.
+- **References is a mandatory skeleton section**, satisfiable by a `NO_CODE_REFS:`
+  reason, communicated from the start.
+- **Preview posture parity.** `author preview` stamps the same posture derivation
+  as finalize via the `PosturePreparer` seam (see [`SEAMS.md`](SEAMS.md)).
+- **Anchor recovery NextActions.** The `regression_anchor` guided step carries a
+  retry, a `git-control-tower baseline snapshot …` command, and a verbatim
+  fallback anchor block template.
+- **Direct phase CLI parity.** `phase add/update` expose `--affected-areas`,
+  `--steps`, `--expected-outputs`, `--validation`, `--risks-hazards`,
+  `--handoff-notes`; `phase update` is full-replace.
+- **Import provenance durability.** `plans update` preserves `import_provenance`
+  and `preserved_legacy_sections` when omitted.
+- **Global-flag placement.** Global flags (e.g. `--auto-start`) must precede the
+  subcommand; a misplaced one now yields a clear placement hint.
+
+**Refs:** `packages/proto/schemas/plan-manager/v1/authoring/authoring.proto`;
+`api/handlers/authoring/{connect_handler.go,convert.go,module.go}`;
+`api/internal/authoring/progress.go`; `cli/manifest.json`;
+[`../concepts/FLOWS.md`](../concepts/FLOWS.md) (authoring response contract);
+[`../reference/cli-commands.md`](../reference/cli-commands.md).
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

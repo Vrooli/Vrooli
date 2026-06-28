@@ -16,6 +16,7 @@ import (
 // Service is the authoring application surface — the guided composer wizard.
 type Service interface {
 	StartSession(ctx context.Context, title, slug, templateID string) (Session, GuidedStep, error)
+	GetSession(ctx context.Context, sessionID string) (Session, GuidedStep, error)
 	GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, GuidedStep, error)
 	SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, GuidedStep, error)
 	Next(ctx context.Context, sessionID string) (Section, GuidedStep, bool, error)
@@ -24,6 +25,8 @@ type Service interface {
 	Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, GuidedStep, error)
 	SubmitRelevantContextItem(ctx context.Context, sessionID, phaseID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
 	ListRelevantContext(ctx context.Context, sessionID, phaseID string) ([]planmodel.RelevantContextItem, GuidedStep, error)
+	UpdateRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
+	RemoveRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string) (Session, []StructureViolation, GuidedStep, error)
 	DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, []ContextCandidate, GuidedStep, error)
 	AcceptContextCandidate(ctx context.Context, sessionID, candidateID, phaseID string) (Session, ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
 	RejectContextCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ContextCandidate, GuidedStep, error)
@@ -45,7 +48,17 @@ type service struct {
 	commands     CommandReferenceValidator
 	templateSeed TemplateSeeder
 	renderer     PlanRenderer
+	posture      PosturePreparer
 	clock        clock.Clock
+}
+
+// PosturePreparer stamps the derived work posture onto a draft plan before
+// preview renders it, so the preview render matches the persisted render (which
+// applies the SAME derivation on Create). A nil preparer leaves the draft's
+// default posture (the wizard's review marker), which is why preview previously
+// disagreed with finalize for brownfield scenarios.
+type PosturePreparer interface {
+	PreparePosture(ctx context.Context, p planmodel.Plan) planmodel.Plan
 }
 
 // Deps wires the authoring Service. Store + Writer are required (a nil store
@@ -63,6 +76,7 @@ type Deps struct {
 	Commands       CommandReferenceValidator
 	TemplateSeeder TemplateSeeder
 	Renderer       PlanRenderer
+	Posture        PosturePreparer
 	Clock          clock.Clock
 }
 
@@ -89,6 +103,7 @@ func NewService(d Deps) Service {
 		commands:     d.Commands,
 		templateSeed: d.TemplateSeeder,
 		renderer:     d.Renderer,
+		posture:      d.Posture,
 		clock:        clk,
 	}
 }
@@ -121,6 +136,17 @@ func (s *service) StartSession(ctx context.Context, title, slug, templateID stri
 		return Session{}, GuidedStep{}, err
 	}
 	return sess, stepForSession(sess), nil
+}
+
+// GetSession is the explicit full-state read. Mutations return only focused
+// progress/summary, so a UI/operator that needs the whole session graph asks for
+// it deliberately here (read-after-write) rather than relying on a session echo.
+func (s *service) GetSession(ctx context.Context, sessionID string) (Session, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, GuidedStep{}, err
+	}
+	return sess, stepForCurrentSessionState(sess), nil
 }
 
 func (s *service) GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, GuidedStep, error) {
@@ -290,6 +316,110 @@ func (s *service) ListRelevantContext(ctx context.Context, sessionID, phaseID st
 		return nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
 	}
 	return append([]planmodel.RelevantContextItem(nil), phase.RelevantContext...), stepForPhase(sess, phase), nil
+}
+
+// UpdateRelevantContextItem replaces one accepted context item in place (by id)
+// so a bad item discovered in preview is corrected without deleting the whole
+// phase/session. Legal only before finalize. On a content violation the session
+// is left unchanged (mirrors SubmitRelevantContextItem).
+func (s *service) UpdateRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
+	}
+	if sess.Finalized {
+		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "relevant context cannot be edited after finalize"}
+	}
+	itemID = strings.TrimSpace(itemID)
+	if itemID == "" {
+		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "item_id is required"}
+	}
+	item.ID = itemID
+	item = normalizeContextItem(item, phaseID)
+	if phaseID != "" {
+		phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
+		if phaseIdx < 0 {
+			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+		}
+		item.Scope = planmodel.RelevantContextScopePhase
+		item.PhaseID = sess.PhaseDrafts[phaseIdx].ID
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+		pos := indexOfContextItem(sess.PhaseDrafts[phaseIdx].RelevantContext, itemID)
+		if pos < 0 {
+			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "phase context item not found: " + itemID}
+		}
+		if violations := contextItemViolations(item); len(violations) > 0 {
+			return sess, item, violations, stepForCurrentSessionState(sess), nil
+		}
+		sess.PhaseDrafts[phaseIdx].RelevantContext[pos] = item
+		sess = syncPhaseSection(sess)
+	} else {
+		item.Scope = planmodel.RelevantContextScopeGlobal
+		item.PhaseID = ""
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
+		pos := indexOfContextItem(sess.RelevantContext, itemID)
+		if pos < 0 {
+			return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "global context item not found: " + itemID}
+		}
+		if violations := contextItemViolations(item); len(violations) > 0 {
+			return sess, item, violations, stepForCurrentSessionState(sess), nil
+		}
+		sess.RelevantContext[pos] = item
+		sess = syncContextSection(sess)
+	}
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, planmodel.RelevantContextItem{}, nil, GuidedStep{}, err
+	}
+	return sess, item, nil, stepForCurrentSessionState(sess), nil
+}
+
+// RemoveRelevantContextItem deletes one accepted context item (by id) before
+// finalize, recomputing structure violations so a resulting gate (e.g. a phase
+// left with no context) is reported with its recovery step.
+func (s *service) RemoveRelevantContextItem(ctx context.Context, sessionID, phaseID, itemID string) (Session, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	if sess.Finalized {
+		return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "relevant context cannot be edited after finalize"}
+	}
+	itemID = strings.TrimSpace(itemID)
+	if itemID == "" {
+		return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "item_id is required"}
+	}
+	var violations []StructureViolation
+	if phaseID != "" {
+		phaseIdx := indexOfDraft(sess.PhaseDrafts, phaseID)
+		if phaseIdx < 0 {
+			return Session{}, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + phaseID}
+		}
+		pos := indexOfContextItem(sess.PhaseDrafts[phaseIdx].RelevantContext, itemID)
+		if pos < 0 {
+			return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "phase context item not found: " + itemID}
+		}
+		sess.PhaseDrafts[phaseIdx].RelevantContext = removeContextItemAt(sess.PhaseDrafts[phaseIdx].RelevantContext, pos)
+		sess.CurrentPhaseID = nextIncompletePhaseID(sess.PhaseDrafts)
+		sess = syncPhaseSection(sess)
+		violations = phaseViolations(sess.PhaseDrafts[phaseIdx])
+	} else {
+		pos := indexOfContextItem(sess.RelevantContext, itemID)
+		if pos < 0 {
+			return Session{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "global context item not found: " + itemID}
+		}
+		sess.RelevantContext = removeContextItemAt(sess.RelevantContext, pos)
+		sess = syncContextSection(sess)
+	}
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	step := stepForCurrentSessionState(sess)
+	if phaseID == "" && !globalContextResolved(sess) {
+		step = stepForGlobalContextCheckpoint(sess)
+	}
+	return sess, violations, step, nil
 }
 
 func (s *service) DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, []ContextCandidate, GuidedStep, error) {
@@ -529,6 +659,12 @@ func (s *service) PreviewPlan(ctx context.Context, sessionID string) (string, Gu
 	if err != nil {
 		return "", GuidedStep{}, err
 	}
+	// Apply the same posture derivation finalize/Create uses so the preview render
+	// agrees with the persisted render (greenfield default OR brownfield from
+	// scenario maturity) instead of always showing the default greenfield block.
+	if s.posture != nil {
+		draft = s.posture.PreparePosture(ctx, draft)
+	}
 	return s.renderer.Render(draft), stepForReview(sess), nil
 }
 
@@ -612,9 +748,20 @@ func stepForNextPhaseState(sess Session, fallback PhaseDraft) GuidedStep {
 // structureViolations is the structure-validation gate (PM-AUTHOR-002): every
 // mandatory section must be non-empty, and the regression-anchor section must not
 // be empty (it is a distinct violation even when not otherwise mandatory).
+// referencesGateMessage is the single message for the references requirement.
+// References is mandatory but satisfiable by a NO_CODE_REFS: reason, so its
+// requirement is enforced by this gate (not the generic empty-mandatory message),
+// which keeps the "unless NO_CODE_REFS" escape in the same sentence.
+const referencesGateMessage = "references must include at least one [CODE:], [REQ:], or [DOC:] reference, or a NO_CODE_REFS: reason"
+
 func structureViolations(sections []Section) []StructureViolation {
 	var out []StructureViolation
 	for _, sec := range sections {
+		// References is mandatory, but its gate (allowing NO_CODE_REFS) owns the
+		// message — skip the generic empty-mandatory one to avoid double-reporting.
+		if sec.Key == SectionReferences {
+			continue
+		}
 		if sec.Mandatory && strings.TrimSpace(sec.Content) == "" {
 			out = append(out, StructureViolation{
 				SectionKey: sec.Key,
@@ -636,10 +783,7 @@ func sessionViolations(sess Session) []StructureViolation {
 	out := structureViolations(sess.Sections)
 	refsContent := contentOf(sess.Sections, SectionReferences)
 	if !hasReferencesOrNoCodeReason(refsContent) {
-		out = append(out, StructureViolation{
-			SectionKey: SectionReferences,
-			Message:    "references must include at least one [CODE:], [REQ:], or [DOC:] reference, or a NO_CODE_REFS: reason",
-		})
+		out = append(out, StructureViolation{SectionKey: SectionReferences, Message: referencesGateMessage})
 	}
 	out = append(out, postureConflictViolations(sess)...)
 	for _, phase := range sess.PhaseDrafts {
@@ -736,6 +880,14 @@ func phaseViolations(phase PhaseDraft) []StructureViolation {
 func violationsForSection(sec Section) []StructureViolation {
 	var out []StructureViolation
 	empty := strings.TrimSpace(sec.Content) == ""
+	if sec.Key == SectionReferences {
+		// References uses its own gate (which allows a NO_CODE_REFS: reason)
+		// rather than the generic empty-mandatory message.
+		if !hasReferencesOrNoCodeReason(sec.Content) {
+			out = append(out, StructureViolation{SectionKey: SectionReferences, Message: referencesGateMessage})
+		}
+		return out
+	}
 	if sec.Mandatory && empty {
 		out = append(out, StructureViolation{
 			SectionKey: sec.Key,
@@ -1018,7 +1170,10 @@ func applyPhaseField(phase *PhaseDraft, field PhaseField, content string) error 
 			phase.References = nil
 		}
 	case PhaseFieldRelevantContext:
-		phase.RelevantContext = append(phase.RelevantContext, contextItemsFromLines(content, planmodel.RelevantContextScopePhase, phase.ID)...)
+		// Free-form phase context lines are classified as notes only — prose must
+		// never become an executable command argv. Executable setup context flows
+		// through typed context-submit/candidate acceptance.
+		phase.RelevantContext = append(phase.RelevantContext, noteContextItemsFromLines(content, phase.ID)...)
 	default:
 		return ErrInvalidSession{Reason: "unknown phase field " + string(field)}
 	}
@@ -1335,6 +1490,51 @@ func indexOfCandidate(candidates []ContextCandidate, id string) int {
 		}
 	}
 	return -1
+}
+
+func indexOfContextItem(items []planmodel.RelevantContextItem, id string) int {
+	id = strings.TrimSpace(id)
+	for i := range items {
+		if strings.TrimSpace(items[i].ID) == id {
+			return i
+		}
+	}
+	return -1
+}
+
+func removeContextItemAt(items []planmodel.RelevantContextItem, pos int) []planmodel.RelevantContextItem {
+	out := make([]planmodel.RelevantContextItem, 0, len(items)-1)
+	out = append(out, items[:pos]...)
+	out = append(out, items[pos+1:]...)
+	return out
+}
+
+// noteContextItemsFromLines classifies every free-form line of a phase
+// relevant_context submission as a NOTE (never an executable skill/command), so
+// prose can no longer silently become a bad `prompt-manager skill read ...` argv.
+// Executable setup context must flow through typed context-submit/candidate
+// acceptance, which carries an explicit kind/command (contract decision §6). A
+// NO_CONTEXT: line is preserved verbatim so the no-context checkpoint still
+// recognizes it.
+func noteContextItemsFromLines(content, phaseID string) []planmodel.RelevantContextItem {
+	var out []planmodel.RelevantContextItem
+	for _, line := range splitLines(content) {
+		item := planmodel.RelevantContextItem{
+			ID:           uuid.NewString(),
+			Kind:         planmodel.RelevantContextNote,
+			Scope:        planmodel.RelevantContextScopePhase,
+			PhaseID:      phaseID,
+			Label:        line,
+			Reason:       "Authored phase note.",
+			Instruction:  line,
+			Required:     false,
+			RepeatPolicy: planmodel.RelevantContextPhaseEntry,
+			Source:       planmodel.RelevantContextSourceAuthored,
+			Status:       planmodel.RelevantContextStatusReady,
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 func contextItemViolations(item planmodel.RelevantContextItem) []StructureViolation {

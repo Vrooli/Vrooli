@@ -27,10 +27,11 @@ import (
 // THROUGH the plans domain. All wired here at the production edge; never imported
 // into internal/authoring.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+	maturity := internalplans.NewFilesystemMaturityReader()
 	plansSvc := internalplans.NewService(internalplans.Deps{
 		Repo:     internalplans.NewSQLiteRepository(db, clk),
 		Clock:    clk,
-		Maturity: internalplans.NewFilesystemMaturityReader(),
+		Maturity: maturity,
 	})
 	runner := internalauthoring.DefaultRunner()
 	svc := internalauthoring.NewService(internalauthoring.Deps{
@@ -42,6 +43,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Context:      internalauthoring.NewCommandContextDiscoverer(runner),
 		Commands:     newCLIHealthCommandValidator(),
 		Renderer:     planRenderer{},
+		Posture:      posturePreparer{maturity: maturity},
 		Clock:        clk,
 	})
 	connectPath, connectHandler := authoringconnect.NewAuthoringServiceHandler(NewConnectHandler(Deps{
@@ -81,10 +83,26 @@ func (planRenderer) Render(p internalplans.Plan) string {
 	return internalplans.RenderMarkdown(p)
 }
 
+// posturePreparer adapts the plans-domain posture resolver to authoring's
+// PosturePreparer seam so the wizard's PreviewPlan stamps the SAME work posture
+// (greenfield default OR brownfield from scenario maturity) that finalize/Create
+// applies — preview and persisted render agree. It uses the same MaturityReader
+// the plans service uses.
+type posturePreparer struct{ maturity internalplans.MaturityReader }
+
+func (p posturePreparer) PreparePosture(ctx context.Context, plan internalplans.Plan) internalplans.Plan {
+	posture, source, detail := internalplans.ResolvePosture(ctx, plan, p.maturity)
+	plan.WorkPosture = posture
+	plan.WorkPostureSource = source
+	plan.WorkPostureDetail = detail
+	return plan
+}
+
 // Endpoints is the machine-readable description of the authoring module's public
 // surface; one entry per RPC (the global parity test enforces this).
 var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_start_session", authoringconnect.AuthoringServiceStartSessionProcedure, "Start an authoring session", "Begins a guided authoring session for a plan title/slug, seeding the section skeleton (PM-AUTHOR-001)."),
+	endpoint("authoring_get_session", authoringconnect.AuthoringServiceGetSessionProcedure, "Get full session state", "Explicit full-state read: returns the whole authoring session graph. Normal mutations return only focused progress + a mutation summary, so callers hydrate full state deliberately here."),
 	endpoint("authoring_get_section", authoringconnect.AuthoringServiceGetSectionProcedure, "Get a section", "Returns one section's current state."),
 	endpoint("authoring_submit_section", authoringconnect.AuthoringServiceSubmitSectionProcedure, "Submit a section", "Records authored content for a section and re-validates it (PM-AUTHOR-002)."),
 	endpoint("authoring_next", authoringconnect.AuthoringServiceNextProcedure, "Next section", "Returns the next section that still needs author input, or signals the session is structurally complete."),
@@ -93,6 +111,8 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_autofill", authoringconnect.AuthoringServiceAutofillProcedure, "Autofill mechanical sections", "Orchestrates the mechanical-section autofill behind seams (regression anchor / required reading / references). Degrades gracefully, never a false fill (OT-P0-002)."),
 	endpoint("authoring_submit_relevant_context_item", authoringconnect.AuthoringServiceSubmitRelevantContextItemProcedure, "Submit relevant context", "Records one global or phase-scoped setup item in the authoring session."),
 	endpoint("authoring_list_relevant_context", authoringconnect.AuthoringServiceListRelevantContextProcedure, "List relevant context", "Returns accepted context items from the authoring session without changing wizard position."),
+	endpoint("authoring_update_relevant_context_item", authoringconnect.AuthoringServiceUpdateRelevantContextItemProcedure, "Update relevant context item", "Replaces one accepted global or phase-scoped context item in place (by id) so a bad item found in preview is corrected without deleting the phase/session. Legal only before finalize."),
+	endpoint("authoring_remove_relevant_context_item", authoringconnect.AuthoringServiceRemoveRelevantContextItemProcedure, "Remove relevant context item", "Deletes one accepted context item (by id) before finalize, recomputing structure violations so a resulting gate is reported with its recovery step."),
 	endpoint("authoring_discover_context_candidates", authoringconnect.AuthoringServiceDiscoverContextCandidatesProcedure, "Discover context candidates", "Runs guided context discovery for decomposed concepts and stores pending candidates."),
 	endpoint("authoring_accept_context_candidate", authoringconnect.AuthoringServiceAcceptContextCandidateProcedure, "Accept context candidate", "Promotes a pending context candidate into global or phase-scoped relevant context."),
 	endpoint("authoring_reject_context_candidate", authoringconnect.AuthoringServiceRejectContextCandidateProcedure, "Reject context candidate", "Records why a discovered context candidate is not relevant."),

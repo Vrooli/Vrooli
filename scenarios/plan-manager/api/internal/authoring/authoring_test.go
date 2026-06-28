@@ -1152,3 +1152,126 @@ func TestUnknownSessionIsNotFound(t *testing.T) {
 	require.Error(t, err)
 	_ = sql.ErrNoRows
 }
+
+// brownfieldPosture is a PosturePreparer that stamps brownfield, standing in for
+// the production resolver reading a pilot/production scenario's maturity.
+type brownfieldPosture struct{}
+
+func (brownfieldPosture) PreparePosture(_ context.Context, p internalplans.Plan) internalplans.Plan {
+	p.WorkPosture = internalplans.WorkPostureBrownfield
+	p.WorkPostureSource = internalplans.WorkPostureSourceServiceMaturity
+	p.WorkPostureDetail = "Scenario is in production; preserve external contracts."
+	return p
+}
+
+// TestPreviewAppliesPostureSeam proves preview uses the same posture derivation as
+// finalize/render: with a brownfield-resolving seam, the preview shows the
+// brownfield block, not the default greenfield block (the prior parity bug).
+func TestPreviewAppliesPostureSeam(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Renderer: testRenderer{}, Posture: brownfieldPosture{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Preview posture", "preview-posture", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	md, _, err := svc.PreviewPlan(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Contains(t, md, "deployed or limited-live", "brownfield posture block must appear in preview")
+	require.NotContains(t, md, "**This is greenfield work.**", "preview must not show greenfield when the scenario resolves brownfield")
+}
+
+// TestUpdateAndRemoveRelevantContextItem covers the accepted-context recovery
+// path: a bad accepted item is corrected (update) or deleted (remove) before
+// finalize without dropping the whole session.
+func TestUpdateAndRemoveRelevantContextItem(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Context edit", "", "")
+	require.NoError(t, err)
+
+	_, saved, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
+		Kind: internalplans.RelevantContextNote, Label: "bad note", Instruction: "do X",
+	})
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.NotEmpty(t, saved.ID)
+
+	_, got, vios, _, err := svc.UpdateRelevantContextItem(ctx, sess.ID, "", saved.ID, internalplans.RelevantContextItem{
+		Kind: internalplans.RelevantContextNote, Label: "fixed note", Instruction: "do Y",
+	})
+	require.NoError(t, err)
+	require.Empty(t, vios)
+	require.Equal(t, saved.ID, got.ID, "update preserves the item id")
+	require.Equal(t, "fixed note", got.Label)
+
+	items, _, err := svc.ListRelevantContext(ctx, sess.ID, "")
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, "fixed note", items[0].Label)
+
+	_, _, _, err = svc.RemoveRelevantContextItem(ctx, sess.ID, "", saved.ID)
+	require.NoError(t, err)
+	items, _, err = svc.ListRelevantContext(ctx, sess.ID, "")
+	require.NoError(t, err)
+	require.Empty(t, items)
+
+	_, _, _, err = svc.RemoveRelevantContextItem(ctx, sess.ID, "", "does-not-exist")
+	require.Error(t, err, "removing an unknown item id is an error")
+}
+
+// TestPhaseFreeFormContextStaysNoteNotCommand reproduces the friction-run failure:
+// a free-form phase relevant_context line that looks like a skill-read command
+// mixed with prose must be classified as a NOTE, never an executable command with
+// bad argv — so preview/render never contains an invalid migrated command.
+func TestPhaseFreeFormContextStaysNoteNotCommand(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Notes", "", "")
+	require.NoError(t, err)
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Build", "Do the work")
+	require.NoError(t, err)
+
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRelevantContext,
+		"prompt-manager skill read api-steer then also do the migration carefully")
+	require.NoError(t, err)
+
+	items, _, err := svc.ListRelevantContext(ctx, sess.ID, phase.ID)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, internalplans.RelevantContextNote, items[0].Kind, "free-form phase context must be a note, never an executable command")
+	require.Empty(t, items[0].Argv, "a note must not carry executable argv")
+	require.Empty(t, items[0].Command, "a note must not carry a command")
+}
+
+// TestRegressionAnchorStepOffersRecovery proves a degraded anchor autofill leaves
+// the agent a concrete recovery path: the regression-anchor guided step carries a
+// baseline-snapshot recovery action and a structured fallback block.
+func TestRegressionAnchorStepOffersRecovery(t *testing.T) {
+	// A nil anchor seam degrades the regression_anchor source honestly (the
+	// dependency is "down"), exactly the friction-run condition.
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Anchor recovery", "anchor-recovery", "")
+	require.NoError(t, err)
+
+	_, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillRegressionAnchor})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.True(t, results[0].Degraded, "anchor autofill degrades honestly")
+
+	_, step, err := svc.GetSection(ctx, sess.ID, authoring.SectionRegressionAnchor)
+	require.NoError(t, err)
+	var hasSnapshot, hasFallback bool
+	for _, a := range step.NextActions {
+		if a.ID == "capture-baseline-snapshot" {
+			hasSnapshot = true
+			require.Contains(t, strings.Join(a.Argv, " "), "git-control-tower baseline snapshot")
+		}
+		if a.ID == "submit-fallback-anchor" {
+			hasFallback = true
+			require.Contains(t, a.ContentPlaceholder, "Scenario baseline:")
+		}
+	}
+	require.True(t, hasSnapshot, "anchor step must offer a baseline-snapshot recovery action")
+	require.True(t, hasFallback, "anchor step must offer a structured fallback block")
+}

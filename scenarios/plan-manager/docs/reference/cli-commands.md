@@ -61,6 +61,11 @@ in scenario commands.**
 | `--help`, `-h` | Show command help |
 | `--version`, `-v` | Show the CLI version |
 
+**Placement:** global flags must come **before** the subcommand, e.g.
+`plan-manager --auto-start author start --title …` (not
+`plan-manager author start --auto-start …`). A global flag placed after the
+subcommand now yields a clear placement hint instead of a bare "unknown option".
+
 ## Built-in commands (auto-provided by `cli-core`)
 
 ### `plan-manager status`
@@ -118,6 +123,49 @@ the execution service: it requires the last stored phase validation to be
 `pass` + `fresh`, or an explicit `--validation-override-reason` for degraded or
 offline completion. Prefer `exec continue` so the API recommends validation
 before the done transition.
+
+## `author` — the guided composer wizard
+
+The authoring response contract is **focused for small/local models**: normal
+mutations (`section-submit`, `phase-submit`, `phase-add`, `autofill`,
+`context-submit`, `context-update`, `context-remove`, `context-accept`,
+`context-reject`, `context-discover`) **do not echo the full session**. With
+`--json` you get a compact `AuthoringProgress` (current section/phase,
+mandatory-sections + phases counts, `remaining_required_inputs[]`,
+`ready_to_finalize`), an `AuthoringMutationSummary` (what changed), the single
+changed object, any structure violations, and the next guided step — not the
+whole `AuthoringSession`. To read the whole session graph, ask for it explicitly:
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `plan-manager author get-session <session>` | `AuthoringService.GetSession` | **Explicit full-state read.** Returns the whole `AuthoringSession`; use it for read-after-write when you need the full graph (mutations no longer echo it). `author preview` / `plans render` return the full rendered markdown. |
+| `plan-manager author context-update <session> <item> --kind <k> [--phase --label --reason --instruction --command --argv --target --required --repeat]` | `AuthoringService.UpdateRelevantContextItem` | Replace one accepted relevant-context item in place (by id from `author context-list`) so a bad item discovered in `author preview` is corrected **without deleting the phase/session**. Legal only before finalize. |
+| `plan-manager author context-remove <session> <item> [--phase]` | `AuthoringService.RemoveRelevantContextItem` | Remove one accepted relevant-context item (by id) before finalize; removal recomputes structure violations so any resulting gate (e.g. removing the only phase context) is reported with its recovery action. |
+
+Free-form phase `relevant_context` is classified as **notes only**:
+`author phase-submit <session> <phase> --field relevant_context` records every
+prose line as a note (`NO_CONTEXT:` reasons preserved) — it never turns prose
+into an executable `prompt-manager skill read …` command. Executable setup
+context must go through typed `author context-submit` / candidate acceptance.
+
+When anchor autofill degrades, the `regression_anchor` guided step carries
+concrete recovery `NextActions`: an `author autofill <session> --sources
+regression_anchor` retry, a `git-control-tower baseline snapshot …` recovery
+command, and a fallback anchor block template (Strategy / Scenario baseline /
+Baseline name / HEAD sha / Allowlist / diff command) the agent can submit verbatim.
+
+## `phase` — direct phases on a persisted plan
+
+`plan-manager phase add` and `phase update` expose the **canonical phase fields**
+directly (not only via the authoring wizard): `--affected-areas`, `--steps`,
+`--expected-outputs`, `--validation`, `--risks-hazards`, `--handoff-notes`, in
+addition to `--title`, `--intent`, `--acceptance`, `--context`, `--reminders`,
+`--baseline-scope`, and (on `update`) `--status`. `phase update` is
+**full-replace**: the caller owns all fields it sends.
+
+`plans update` preserves a plan's `import_provenance` and
+`preserved_legacy_sections` when the caller omits them, so a routine
+authored-field update never drops governance lineage.
 
 ## `log` — the execution-log ledger
 

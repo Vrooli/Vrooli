@@ -1,6 +1,8 @@
 import { createClient } from "@connectrpc/connect";
 import {
   AuthoringService,
+  type AuthoringMutationSummary,
+  type AuthoringProgress,
   type AuthoringSession,
   type AutofillResult,
   type ContextCandidate,
@@ -14,11 +16,24 @@ import { transport } from "./client";
 
 /**
  * Connect-Web client for the AuthoringService — the guided composer wizard. The
- * operator console (Phase 7) walks a plan's sections, runs the structure gate,
- * autofills the mechanical sections, and finalizes into a structured plan. Each
- * helper returns the proto-typed shape so callers branch on typed fields.
+ * operator console walks a plan's sections, runs the structure gate, autofills the
+ * mechanical sections, and finalizes into a structured plan.
+ *
+ * Response contract: normal mutations return only a compact {@link AuthoringProgress}
+ * snapshot plus a mutation summary, violations, and the next guided step — never
+ * the full {@link AuthoringSession}. The UI hydrates full state explicitly through
+ * {@link getSession} (read-after-write), so a growing plan never echoes its whole
+ * graph on every keystroke.
  */
 export const authoringClient = createClient(AuthoringService, transport);
+
+/** getSession is the explicit full-state read used for read-after-write hydration. */
+export async function getSession(
+  sessionId: string,
+): Promise<{ session: AuthoringSession | undefined; step: GuidedStep | undefined }> {
+  const resp = await authoringClient.getSession({ sessionId });
+  return { session: resp.session, step: resp.step };
+}
 
 export async function startSession(
   title: string,
@@ -42,12 +57,13 @@ export async function submitSection(
   sectionKey: string,
   content: string,
 ): Promise<{
-  session: AuthoringSession | undefined;
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
   violations: StructureViolation[];
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.submitSection({ sessionId, sectionKey, content });
-  return { session: resp.session, violations: resp.violations, step: resp.step };
+  return { summary: resp.summary, progress: resp.progress, violations: resp.violations, step: resp.step };
 }
 
 export async function nextSection(
@@ -67,9 +83,9 @@ export async function validateStructure(
 export async function autofill(
   sessionId: string,
   sources: string[] = [],
-): Promise<{ session: AuthoringSession | undefined; results: AutofillResult[]; step: GuidedStep | undefined }> {
+): Promise<{ results: AutofillResult[]; progress: AuthoringProgress | undefined; step: GuidedStep | undefined }> {
   const resp = await authoringClient.autofill({ sessionId, sources });
-  return { session: resp.session, results: resp.results, step: resp.step };
+  return { results: resp.results, progress: resp.progress, step: resp.step };
 }
 
 export async function submitRelevantContextItem(
@@ -77,13 +93,44 @@ export async function submitRelevantContextItem(
   phaseId: string,
   item: RelevantContextItem,
 ): Promise<{
-  session: AuthoringSession | undefined;
   item: RelevantContextItem | undefined;
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
   violations: StructureViolation[];
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.submitRelevantContextItem({ sessionId, phaseId, item });
-  return { session: resp.session, item: resp.item, violations: resp.violations, step: resp.step };
+  return { item: resp.item, summary: resp.summary, progress: resp.progress, violations: resp.violations, step: resp.step };
+}
+
+export async function updateRelevantContextItem(
+  sessionId: string,
+  phaseId: string,
+  itemId: string,
+  item: RelevantContextItem,
+): Promise<{
+  item: RelevantContextItem | undefined;
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
+  violations: StructureViolation[];
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.updateRelevantContextItem({ sessionId, phaseId, itemId, item });
+  return { item: resp.item, summary: resp.summary, progress: resp.progress, violations: resp.violations, step: resp.step };
+}
+
+export async function removeRelevantContextItem(
+  sessionId: string,
+  phaseId: string,
+  itemId: string,
+): Promise<{
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
+  violations: StructureViolation[];
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.removeRelevantContextItem({ sessionId, phaseId, itemId });
+  return { summary: resp.summary, progress: resp.progress, violations: resp.violations, step: resp.step };
 }
 
 export async function listRelevantContext(
@@ -99,12 +146,12 @@ export async function discoverContextCandidates(
   concepts: string[],
   complexity = "",
 ): Promise<{
-  session: AuthoringSession | undefined;
   candidates: ContextCandidate[];
+  progress: AuthoringProgress | undefined;
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.discoverContextCandidates({ sessionId, concepts, complexity });
-  return { session: resp.session, candidates: resp.candidates, step: resp.step };
+  return { candidates: resp.candidates, progress: resp.progress, step: resp.step };
 }
 
 export async function acceptContextCandidate(
@@ -112,17 +159,19 @@ export async function acceptContextCandidate(
   candidateId: string,
   phaseId = "",
 ): Promise<{
-  session: AuthoringSession | undefined;
   candidate: ContextCandidate | undefined;
   item: RelevantContextItem | undefined;
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
   violations: StructureViolation[];
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.acceptContextCandidate({ sessionId, candidateId, phaseId });
   return {
-    session: resp.session,
     candidate: resp.candidate,
     item: resp.item,
+    summary: resp.summary,
+    progress: resp.progress,
     violations: resp.violations,
     step: resp.step,
   };
@@ -133,12 +182,12 @@ export async function rejectContextCandidate(
   candidateId: string,
   reason: string,
 ): Promise<{
-  session: AuthoringSession | undefined;
   candidate: ContextCandidate | undefined;
+  progress: AuthoringProgress | undefined;
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.rejectContextCandidate({ sessionId, candidateId, reason });
-  return { session: resp.session, candidate: resp.candidate, step: resp.step };
+  return { candidate: resp.candidate, progress: resp.progress, step: resp.step };
 }
 
 export async function finalize(sessionId: string): Promise<{ plan: Plan | undefined; step: GuidedStep | undefined }> {
@@ -151,15 +200,17 @@ export async function addPhase(
   title: string,
   intent = "",
 ): Promise<{
-  session: AuthoringSession | undefined;
   phase: PhaseDraft | undefined;
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
   violations: StructureViolation[];
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.addPhase({ sessionId, title, intent });
   return {
-    session: resp.session,
     phase: resp.phase,
+    summary: resp.summary,
+    progress: resp.progress,
     violations: resp.violations,
     step: resp.step,
   };
@@ -179,12 +230,14 @@ export async function submitPhaseField(
   field: string,
   content: string,
 ): Promise<{
-  session: AuthoringSession | undefined;
+  phase: PhaseDraft | undefined;
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
   violations: StructureViolation[];
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.submitPhaseField({ sessionId, phaseId, field, content });
-  return { session: resp.session, violations: resp.violations, step: resp.step };
+  return { phase: resp.phase, summary: resp.summary, progress: resp.progress, violations: resp.violations, step: resp.step };
 }
 
 export async function nextPhase(
