@@ -1,0 +1,5 @@
+package install
+
+// Package install owns Grok bootstrap helpers when the declarative install
+// contract (lib/install.sh) is not sufficient on its own. Reserved for future
+// runner-integration work; intentionally empty today.

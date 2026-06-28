@@ -1,0 +1,146 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "grok",
+  "display_name": "Grok Build CLI",
+  "description": "xAI Grok Build coding CLI resource: a thin Go entrypoint wiring lifecycle and an upstream update-check; agent-manager (when later wired) invokes the raw grok binary directly.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-grok",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-grok"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
+  },
+  "template": "external-cli",
+  "driver": "external-cli",
+  "binary": "grok",
+  "version_args": [
+    "--version"
+  ],
+  "portability_tier": "partial",
+  "category": "developer-tooling",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "partial"
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "command": [
+        "grok",
+        "--version"
+      ],
+      "timeout_seconds": 15
+    }
+  ],
+  "environment_exports": {
+    "static": {
+      "GROK_PATH": "grok"
+    }
+  },
+  "orchestration": {
+    "startup_order": 540,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "bash",
+        "-lc",
+        "source resources/grok/lib/install.sh && grok::install::execute"
+      ],
+      "macos": [
+        "bash",
+        "-lc",
+        "source resources/grok/lib/install.sh && grok::install::execute"
+      ]
+    }
+  },
+  "durable_data": {
+    "base": "$HOME/.grok",
+    "entries": {
+      "sessions": {
+        "path": "sessions",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Grok persisted sessions (conversation transcripts, organized by working directory) — the primary conversation record for later analysis."
+      },
+      "memory": {
+        "path": "memory",
+        "kind": "dir",
+        "regenerable": false,
+        "rationale": "Grok cross-session memory files and index carried across sessions."
+      },
+      "config": {
+        "path": "config.toml",
+        "kind": "file",
+        "regenerable": false,
+        "rationale": "Grok main configuration (channel, model preferences, UI hints/opt-outs, marketplace sources)."
+      },
+      "auth": {
+        "path": "auth.json",
+        "kind": "file",
+        "regenerable": false,
+        "sensitive": true,
+        "rationale": "Grok authentication credentials (OIDC / legacy sign-in tokens, auto-managed) — live secrets; back up only deliberately."
+      }
+    }
+  },
+  "capabilities": {
+    "supports_logs": false
+  },
+  "upstream_cli": {
+    "version_command": [
+      "grok",
+      "--version"
+    ],
+    "version_pinned": "0.2.72",
+    "docs_source": "https://x.ai/cli",
+    "docs_pinned_at": "2026-06-28",
+    "schema_version": 1
+  },
+  "template_version": "2"
+}

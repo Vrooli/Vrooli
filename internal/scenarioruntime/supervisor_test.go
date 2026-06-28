@@ -64,10 +64,12 @@ func TestSQLiteStoreClaimSupervisionAndHeartbeatBatch(t *testing.T) {
 	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	store := newTestStore(t, clk)
 
+	launcherPID := 4242
 	instance, err := store.CreateLease(ctx, Instance{
 		InstanceID:    "inst-alpha",
 		Scenario:      "alpha",
 		Status:        StatusRunning,
+		OwnerPID:      &launcherPID,
 		HostBootID:    "boot-current",
 		HostSessionID: "session-current",
 	}, time.Minute)
@@ -81,6 +83,9 @@ func TestSQLiteStoreClaimSupervisionAndHeartbeatBatch(t *testing.T) {
 	}
 	if claimed.SupervisorID != "sup-alpha" || claimed.OwnerKind != OwnerKindSupervisor || claimed.SupervisedAt == nil {
 		t.Fatalf("claimed = %#v, want supervisor ownership", claimed)
+	}
+	if claimed.OwnerPID != nil {
+		t.Fatalf("claimed.OwnerPID = %v, want nil after supervisor claim", *claimed.OwnerPID)
 	}
 
 	clk.Advance(15 * time.Second)
@@ -96,6 +101,9 @@ func TestSQLiteStoreClaimSupervisionAndHeartbeatBatch(t *testing.T) {
 	}
 	if renewed[0].HeartbeatDeadlineAt == nil || !renewed[0].HeartbeatDeadlineAt.Equal(clk.Now().Add(90*time.Second)) {
 		t.Fatalf("renewed deadline = %#v, want %s", renewed[0].HeartbeatDeadlineAt, clk.Now().Add(90*time.Second))
+	}
+	if renewed[0].OwnerPID != nil {
+		t.Fatalf("renewed.OwnerPID = %v, want nil after supervised heartbeat", *renewed[0].OwnerPID)
 	}
 
 	updated, err := store.UpdateInstanceReconciliation(ctx, instance.InstanceID, instance.Generation, string(ReconcileVerifiedRunning), "current")

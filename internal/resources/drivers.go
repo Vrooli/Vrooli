@@ -134,6 +134,21 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 			status.Message = health.Message
 		}
 	}
+	if companions, err := companionStatuses(manifest.Name, manifest.Companions); err != nil {
+		status.StatusCode = StatusCodeCommandError
+		status.Message = "companion status failed"
+		status.ProbeError = err.Error()
+		return status, nil
+	} else if down := downCompanions(companions); len(down) > 0 {
+		status.Raw = statusRawWithCompanions(status.Raw, companions)
+		healthy = false
+		status.Healthy = &healthy
+		status.Health = "unhealthy"
+		status.Message = companionDownMessage(manifest.Name, down)
+		return status, nil
+	} else if len(companions) > 0 {
+		status.Raw = statusRawWithCompanions(status.Raw, companions)
+	}
 	if healthy {
 		status.Health = "healthy"
 		status.Message = "healthy"
@@ -142,6 +157,19 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		status.Message = "unhealthy"
 	}
 	return status, nil
+}
+
+func statusRawWithCompanions(raw json.RawMessage, companions []CompanionStatus) json.RawMessage {
+	payload := make(map[string]any)
+	if len(raw) > 0 {
+		_ = json.Unmarshal(raw, &payload)
+	}
+	payload["companions"] = companions
+	out, err := json.Marshal(payload)
+	if err != nil {
+		return raw
+	}
+	return out
 }
 
 func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
@@ -162,12 +190,14 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 			return err
 		}
 		if containsString(args, "--format") && nextArgValue(args, "--format") == "json" {
+			companions, _ := companionStatuses(manifest.Name, manifest.Companions)
 			return json.NewEncoder(stdout).Encode(map[string]any{
-				"installed": status.Installed,
-				"running":   status.Running,
-				"healthy":   status.Healthy,
-				"health":    status.Health,
-				"message":   status.Message,
+				"installed":  status.Installed,
+				"running":    status.Running,
+				"healthy":    status.Healthy,
+				"health":     status.Health,
+				"message":    status.Message,
+				"companions": companions,
 			})
 		}
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
@@ -181,13 +211,13 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d"); err != nil {
 			return err
 		}
-		startCompanions(manifest.Name, manifest.Companions, stderr)
+		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, stderr)
 		return nil
 	case "restart":
 		if err := composeCommand(ctx, controller, manifest, io.Discard, io.Discard, "up", "-d", "--force-recreate"); err != nil {
 			return err
 		}
-		startCompanions(manifest.Name, manifest.Companions, stderr)
+		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, stderr)
 		return nil
 	case "stop":
 		stopCompanions(manifest.Name, manifest.Companions, stderr)

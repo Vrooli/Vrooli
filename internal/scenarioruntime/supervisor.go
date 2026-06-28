@@ -139,7 +139,7 @@ func (s *SQLiteStore) ClaimSupervision(ctx context.Context, claim SupervisionCla
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
 		result, err := tx.ExecContext(ctx, `
 UPDATE runtime_instances
-SET supervisor_id = ?, supervised_at = ?, owner_kind = ?, updated_at = ?
+SET supervisor_id = ?, supervised_at = ?, owner_kind = ?, owner_pid = NULL, updated_at = ?
 WHERE instance_id = ? AND generation = ? AND status = ?`,
 			claim.SupervisorID, formatTime(now), OwnerKindSupervisor, formatTime(now),
 			claim.InstanceID, claim.Generation, StatusRunning)
