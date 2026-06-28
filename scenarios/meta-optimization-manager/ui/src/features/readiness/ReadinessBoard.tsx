@@ -56,19 +56,32 @@ export function ReadinessBoard() {
               {projectionLabel(p.projection)}
             </p>
             <p className="mt-1 text-3xl font-semibold">
-              {pct(p.coverageRatio)}
-              <span className="ms-1 text-sm font-normal text-app-muted-foreground">
-                % {t(strings.pages.dashboard.coverageLabel)}
-              </span>
+              {p.available ? (
+                <>
+                  {pct(p.coverageRatio)}
+                  <span className="ms-1 text-sm font-normal text-app-muted-foreground">
+                    % {t(strings.pages.dashboard.coverageLabel)}
+                  </span>
+                </>
+              ) : (
+                // The live numerator join failed; a coverage % here would read
+                // as "measured" when it was not. Show a dash; the honest reason
+                // renders below.
+                <span className="text-app-muted-foreground" title={p.unavailableReason}>
+                  {"—"}
+                </span>
+              )}
             </p>
-            <p className="mt-2 text-sm text-app-muted-foreground">
-              {t(strings.pages.dashboard.cellsLabel, {
-                now: p.nowCount,
-                total: p.totalCells,
-                inReach: p.inReachCount,
-                missing: p.missingCount,
-              })}
-            </p>
+            {p.available && (
+              <p className="mt-2 text-sm text-app-muted-foreground">
+                {t(strings.pages.dashboard.cellsLabel, {
+                  now: p.nowCount,
+                  total: p.totalCells,
+                  inReach: p.inReachCount,
+                  missing: p.missingCount,
+                })}
+              </p>
+            )}
             <p className="mt-1 text-xs text-app-muted-foreground">
               {t(strings.pages.dashboard.confidenceLabel)}: {confidenceLabel(p.denominatorConfidence)}
             </p>

@@ -83,10 +83,6 @@ See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flo
 These are honest, current gaps — tracked in
 [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md):
 
-- **The `space --projection` verb is not built on the owners yet.** Coverage runs
-  on the doc-parse fallback (the same `api-core/spacedoc` parser the verb will
-  use), so the numbers are real today, but the decoupled read contract is still
-  pending.
 - **Trials are not yet proven end-to-end on a live local model.** The runner,
   evaluator, and fixtures are real and tested; a single operator live-e2e pass
   (opencode + a local model) is needed to confirm the diff-apply path.

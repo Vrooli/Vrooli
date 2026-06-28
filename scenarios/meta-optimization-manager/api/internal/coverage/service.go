@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"meta-optimization-manager/internal/clock"
@@ -84,10 +85,23 @@ func (s *service) GetStatus(ctx context.Context, projection Projection) (Status,
 		targets = []Projection{projection}
 	}
 
+	// Compute the projections concurrently: each owner read is independent and
+	// never returns an error (an unreachable/slow owner degrades to an honest
+	// Available=false), so one slow owner can never fail or stall the others.
+	// Total board latency is the slowest single projection, capped by the
+	// per-owner read deadlines — not the serial sum that let one ~30s hang stall
+	// the whole scoreboard.
 	out := Status{ComputedAt: s.clock.Now().UTC()}
-	for _, p := range targets {
-		out.Projections = append(out.Projections, s.coverageFor(ctx, p))
+	out.Projections = make([]ProjectionCoverage, len(targets))
+	var wg sync.WaitGroup
+	for i, p := range targets {
+		wg.Add(1)
+		go func(i int, p Projection) {
+			defer wg.Done()
+			out.Projections[i] = s.coverageFor(ctx, p)
+		}(i, p)
 	}
+	wg.Wait()
 	if s.trend != nil {
 		if t, ok := s.trend.LatestTrend(ctx); ok {
 			out.LatestTrialTrend = t

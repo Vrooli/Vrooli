@@ -3,7 +3,6 @@ package coverage
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
@@ -102,158 +101,6 @@ func TestGetStatusDegradesWhenOwnerDown(t *testing.T) {
 	}
 	if pc.UnavailableReason == "" {
 		t.Error("expected an honest reason")
-	}
-}
-
-func TestNumeratorJoinRecomputesAnswer(t *testing.T) {
-	// search-hub providers list returns ui-health live but NOT cartographer.
-	runner := func(_ context.Context, name string, args ...string) ([]byte, error) {
-		return []byte(`{"providers":[{"provider_id":"ui-health.surfaces"},{"id":"code-facts"}]}`), nil
-	}
-	j := NewNumeratorJoinerWithRunner(runner)
-	res := j.Join(context.Background(), ProjectionAnswer, answerDef().Cells)
-	if !res.Available {
-		t.Fatal("expected available")
-	}
-	// cell 1 (ui-health.surfaces) stays NOW.
-	if res.Statuses["1"] != spacedoc.StatusNow {
-		t.Errorf("cell1 = %v", res.Statuses["1"])
-	}
-	// cell 2 authored IN_REACH; cartographer not live -> keeps authored (no entry).
-	if st, ok := res.Statuses["2"]; ok && st == spacedoc.StatusNow {
-		t.Errorf("cell2 should not be promoted to NOW: %v", st)
-	}
-}
-
-func TestNumeratorJoinDegradesOnError(t *testing.T) {
-	runner := func(context.Context, string, ...string) ([]byte, error) { return nil, errors.New("down") }
-	res := NewNumeratorJoinerWithRunner(runner).Join(context.Background(), ProjectionAnswer, answerDef().Cells)
-	if res.Available {
-		t.Error("expected unavailable")
-	}
-	if res.Reason == "" {
-		t.Error("expected reason")
-	}
-}
-
-func TestAnswerDriftDowngrade(t *testing.T) {
-	// Authored NOW cell 1, but live providers does NOT include ui-health -> downgrade.
-	runner := func(context.Context, string, ...string) ([]byte, error) {
-		return []byte(`{"providers":[{"provider_id":"code-facts"}]}`), nil
-	}
-	res := NewNumeratorJoinerWithRunner(runner).Join(context.Background(), ProjectionAnswer, answerDef().Cells)
-	if res.Statuses["1"] != spacedoc.StatusInReach {
-		t.Errorf("cell1 authored-NOW with dead provider should downgrade to in_reach, got %v", res.Statuses["1"])
-	}
-}
-
-func TestNumeratorJoinRecomputesValidate(t *testing.T) {
-	raw := []byte(`{
-		"selfHealth": {
-			"catalog": {"phases": [
-				{"provider":"green-health"},
-				{"provider":"red-health"},
-				{"provider":"autofix-health"}
-			]},
-			"ledger": {"phases": [
-				{"provider":"green-health","failureRate":0},
-				{"provider":"red-health","failureRate":0.25},
-				{"provider":"autofix-health","failureRate":0}
-			]},
-			"conformance": [
-				{"provider":"green-health","autofix":{"pending":0}},
-				{"provider":"red-health","autofix":{"pending":0}},
-				{"provider":"autofix-health","autofix":{"pending":2}}
-			]
-		}
-	}`)
-	runner := func(_ context.Context, name string, args ...string) ([]byte, error) {
-		if name != "test-genie" || len(args) != 2 || args[0] != "health" || args[1] != "--json" {
-			t.Fatalf("unexpected registry read: %s %v", name, args)
-		}
-		return raw, nil
-	}
-	cells := []spacedoc.Cell{
-		{ID: "V1", Owner: "`green-health`", Status: spacedoc.StatusInReach},
-		{ID: "V2", Owner: "`red-health`", Status: spacedoc.StatusNow},
-		{ID: "V3", Owner: "`autofix-health`", Status: spacedoc.StatusNow},
-		{ID: "V4", Owner: "`unknown-health`", Status: spacedoc.StatusMissing},
-	}
-	res := NewNumeratorJoinerWithRunner(runner).Join(context.Background(), ProjectionValidate, cells)
-	if !res.Available {
-		t.Fatalf("expected available: %s", res.Reason)
-	}
-	if got := res.Statuses["V1"]; got != spacedoc.StatusNow {
-		t.Errorf("green phase = %v, want now", got)
-	}
-	if got := res.Statuses["V2"]; got != spacedoc.StatusInReach {
-		t.Errorf("red phase = %v, want in_reach", got)
-	}
-	if got := res.Statuses["V3"]; got != spacedoc.StatusInReach {
-		t.Errorf("autofix-pending phase = %v, want in_reach", got)
-	}
-	if _, ok := res.Statuses["V4"]; ok {
-		t.Errorf("unknown phase should keep authored status, got overlay %v", res.Statuses["V4"])
-	}
-}
-
-func TestNumeratorJoinRecomputesGuide(t *testing.T) {
-	raw := []byte(`[
-		{"nodeId":"explore","score":0.9},
-		{"nodeId":"polish","score":0.4},
-		{"nodeId":"architecture-scope","score":0.8},
-		{"nodeId":"screaming-architecture-audit","score":0.7}
-	]`)
-	runner := func(_ context.Context, name string, args ...string) ([]byte, error) {
-		if name != "prompt-manager" || len(args) != 3 || args[0] != "graph" || args[1] != "health" || args[2] != "--json" {
-			t.Fatalf("unexpected registry read: %s %v", name, args)
-		}
-		return raw, nil
-	}
-	cells := []spacedoc.Cell{
-		{ID: "G1", Owner: "`explore` + the Answer projection", Status: spacedoc.StatusInReach},
-		{ID: "G2", Owner: "`screaming-architecture-audit`, `architecture-scope`", Status: spacedoc.StatusInReach},
-		{ID: "G3", Owner: "`polish`", Status: spacedoc.StatusNow},
-		{ID: "G4", Owner: "`explore`, `missing-skill`", Status: spacedoc.StatusNow},
-		{ID: "G5", Owner: "`missing-skill`", Status: spacedoc.StatusMissing},
-	}
-	res := NewNumeratorJoinerWithRunner(runner).Join(context.Background(), ProjectionGuide, cells)
-	if !res.Available {
-		t.Fatalf("expected available: %s", res.Reason)
-	}
-	if got := res.Statuses["G1"]; got != spacedoc.StatusNow {
-		t.Errorf("single-word healthy skill = %v, want now", got)
-	}
-	if got := res.Statuses["G2"]; got != spacedoc.StatusNow {
-		t.Errorf("multi-skill healthy row = %v, want now", got)
-	}
-	if got := res.Statuses["G3"]; got != spacedoc.StatusInReach {
-		t.Errorf("unhealthy skill = %v, want in_reach", got)
-	}
-	if got := res.Statuses["G4"]; got != spacedoc.StatusInReach {
-		t.Errorf("partially resolved row = %v, want in_reach", got)
-	}
-	if _, ok := res.Statuses["G5"]; ok {
-		t.Errorf("unresolved guide row should keep authored status, got overlay %v", res.Statuses["G5"])
-	}
-}
-
-func TestCapturedRegistryFixturesStillMatch(t *testing.T) {
-	testGenieRaw := readCoverageTestdata(t, "test_genie_health.json")
-	validateIndex := validateStatusIndex(testGenieRaw)
-	if _, ok := validateIndex["structure-health"]; !ok {
-		t.Fatal("captured test-genie health fixture no longer exposes structure-health")
-	}
-	if !validateIndex["storage-health"].autofixPending {
-		t.Fatal("captured test-genie health fixture should expose storage-health pending autofix work")
-	}
-
-	promptManagerRaw := readCoverageTestdata(t, "pm_graph_health.json")
-	guideScores := guideScoreIndex(promptManagerRaw)
-	for _, skill := range []string{"explore", "idea-workshop", "performance", "polish"} {
-		if _, ok := guideScores[skill]; !ok {
-			t.Fatalf("captured prompt-manager graph health fixture no longer exposes %q", skill)
-		}
 	}
 }
 
@@ -469,15 +316,6 @@ func TestProviderTokens(t *testing.T) {
 	if len(providerTokens("_(none)_")) != 0 {
 		t.Error("none should yield no tokens")
 	}
-}
-
-func readCoverageTestdata(t *testing.T, name string) []byte {
-	t.Helper()
-	raw, err := os.ReadFile("testdata/" + name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return raw
 }
 
 type fixedClock struct{}

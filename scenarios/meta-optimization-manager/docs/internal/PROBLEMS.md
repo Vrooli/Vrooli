@@ -54,17 +54,17 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-24 — `space --projection` verb not built on owners; coverage uses the doc-parse fallback
+### 2026-06-28 — numerator substrate moved CLI shell-out → typed API↔API
 
-**Symptom:** Coverage does not read denominators through the decoupled shared contract; it parses the owner space docs directly.
+**Change:** The live **numerator** reads (Answer/Validate/Guide) no longer shell out to the owner CLIs. `NumeratorJoiner` (`api/internal/coverage/numeratorclient.go`) now resolves each owner's API base URL through `api-core/discovery` and calls a typed Connect-RPC client — search-hub `RegistryService.ListProviders`, test-genie `RunsService.GetSelfHealth`, prompt-manager `GraphService.GetHealthScores` (a contract added in the same change; prompt-manager had no proto before) — concurrently, each bounded by a short ~3s deadline. A slow/unreachable owner degrades to an honest per-projection `UNAVAILABLE` instead of stalling the whole board on a serial ~30s CLI timeout.
 
-**Root cause:** The shared read contract (a `space --projection <p> --json` verb on search-hub/test-genie/prompt-manager) is a design dependency that has not been built yet.
+**Why:** `test-genie health --json` (the old shell-out) could hang ~25s while the scenario was `running/healthy`, and MoM's serial per-owner 30s timeout let one slow owner stall the whole scoreboard (`unavailable: unexpected EOF`). The shell-out substrate — each read spawning a process doing its own resolution/retries with no deadline MoM controls — was the root cause; typed API↔API with a MoM-controlled deadline is the correct fix. The test-genie hang itself is owner-owned (filed to test-genie QA), not fixed here.
 
-**Workaround (in place, working):** `SpaceReader` (`api/internal/coverage/spacereader.go`) prefers the owner `space` verb but **falls back to parsing `scenarios/<owner>/docs/spaces/<p>-space.md` with the same `api-core/spacedoc` parser the verb will use** — guaranteed-consistent output. The scoreboard numbers are real today; only the decoupling is pending. `status` is fully implemented.
+**Note:** the **denominator** path (`SpaceReader`) still uses the owner `space --projection` verb (with a doc-parse fallback); only its timeout was tightened (5s). See the resolved entry below.
 
-**Real fix:** Add the `space` verb (schema-validated JSON) to each owner; `SpaceReader` then takes the preferred path automatically with no MoM change.
+### 2026-06-24 — `space --projection` verb (RESOLVED)
 
-**Owner:** unassigned.
+**Status:** RESOLVED. The shared read contract — a `space --projection <p> --json` verb on search-hub/test-genie/prompt-manager — **is built** (shared `api-core/spacecli`, registered in all three owners' CLI domains) and works live. `SpaceReader` (`api/internal/coverage/spacereader.go`) now takes the preferred verb path, falling back to the direct `api-core/spacedoc` doc parse only when an owner CLI is unreachable. (This entry previously claimed the verb was unbuilt — stale; corrected 2026-06-28.)
 
 **Refs:** `api/internal/coverage/spacereader.go`; `../concepts/ARCHITECTURE.md` (Contracts And Data Flow); the three `*/docs/spaces/*-space.md` docs.
 

@@ -52,16 +52,38 @@ The live join is per-cell for every projection. A cell absent from a live join
 keeps its authored denominator status: "can't resolve" is not fabricated as
 `MISSING`.
 
-| Projection | Live join rule |
-|---|---|
-| **Answer** | Extract provider ids from `search-hub providers list`; a declared provider match yields `NOW`. An authored-`NOW` cell whose provider is absent downgrades to `IN-REACH`; other unresolved cells keep authored status. |
-| **Validate** | Extract phase providers from `test-genie health`. A provider is `NOW` only when it exists in the catalog, has no ledger `failureRate > 0`, and has no `autofix.pending > 0`; red ledger or pending autofix yields `IN-REACH`. |
-| **Guide** | Extract skill ids from the Guide row and scores from `prompt-manager graph health`. `NOW` requires **all** referenced skills to be present and healthy; any partially resolved or unhealthy row is `IN-REACH`; fully unresolved rows keep authored status. |
+The numerator is read **live over typed API↔API calls**, not CLI shell-outs:
+each owner's API base URL is resolved through `api-core/discovery` and called via
+a typed Connect-RPC client, concurrently, each bounded by a short ~3s deadline
+(`numeratorDeadline`, `api/internal/coverage/numeratorclient.go`). A slow or
+unreachable owner degrades to an honest per-projection `UNAVAILABLE` rather than
+stalling the board.
 
-Guide health currently uses `guideHealthyScore = 0.5` in
-`api/internal/coverage/numerator.go`. Keeping that as one documented constant
-makes the judgment auditable and easy to revisit once graph-health scores have a
-longer production distribution.
+| Projection | Owner RPC | Live join rule |
+|---|---|---|
+| **Answer** | search-hub `RegistryService.ListProviders` | A declared provider match yields `NOW`. An authored-`NOW` cell whose provider is absent downgrades to `IN-REACH`; other unresolved cells keep authored status. |
+| **Validate** | test-genie `RunsService.GetSelfHealth` | A provider is `NOW` only when it exists in the catalog, has no ledger `failureRate > 0`, and has no `autofix.pending > 0`; red ledger or pending autofix yields `IN-REACH`. |
+| **Guide** | prompt-manager `GraphService.GetHealthScores` | Resolve the Guide row's skill ids against the graph health scores. `NOW` requires **all** referenced skills to be present and at/above `guideHealthyScore`; any partially resolved or unhealthy row is `IN-REACH`; fully unresolved rows keep authored status. |
+
+### Load-bearing constants
+
+These judgment constants drive the headline numbers; they are kept as named,
+documented constants so the judgment is auditable and easy to revisit:
+
+- **`guideHealthyScore = 0.5`** (`api/internal/coverage/numerator.go`) — the
+  prompt-manager graph health-score threshold at/above which a Guide skill counts
+  as healthy. `0.5` = "more healthy than not", a deliberately lenient bar:
+  a skill existing and scoring at least neutral is the signal that the Guide cell
+  is served at all. Revisit once graph-health scores have a longer production
+  distribution.
+- **`numeratorDeadline = 3s`** (`api/internal/coverage/numeratorclient.go`) — the
+  per-owner live-read deadline; a slower owner is an honest `UNAVAILABLE`, not a
+  hang. **`spaceReadTimeout = 5s`** (`exec.go`) bounds the denominator space-verb
+  read (cheaper, has a doc-parse fallback).
+- **Focus weights** (`api/internal/focus/prioritize.go`) and **convergence
+  tier thresholds** (`api/internal/convergence/tiers.go`) — the prioritization
+  and tiering cut-points; see those files' comment blocks for the per-constant
+  rationale.
 
 ## The Generative Question Model (Answer Projection)
 

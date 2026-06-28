@@ -172,13 +172,18 @@ func statusFlag(ctx cliapp.RunContext) (sharedv1.CellStatus, error) {
 }
 
 func formatProjection(pc *coveragev1.ProjectionCoverage) string {
-	avail := ""
+	label := projectionLabel(pc.GetProjection())
 	if !pc.GetAvailable() {
-		avail = fmt.Sprintf(" [UNAVAILABLE: %s]", pc.GetUnavailableReason())
+		// The live numerator join failed, so NowCount/CoverageRatio are an
+		// authored fallback, not a measurement. Printing a coverage % here reads
+		// as "measured" when it was not — show a dash and the honest reason. The
+		// denominator (authored cell count) is still real, so surface it.
+		return fmt.Sprintf("%s: — (denominator=%d, confidence=%s) [UNAVAILABLE: %s]",
+			label, pc.GetTotalCells(), confidenceLabel(pc.GetDenominatorConfidence()), pc.GetUnavailableReason())
 	}
-	return fmt.Sprintf("%s: %.0f%% NOW (%d/%d) — in_reach=%d missing=%d — confidence=%s%s",
-		projectionLabel(pc.GetProjection()), pc.GetCoverageRatio()*100, pc.GetNowCount(), pc.GetTotalCells(),
-		pc.GetInReachCount(), pc.GetMissingCount(), confidenceLabel(pc.GetDenominatorConfidence()), avail)
+	return fmt.Sprintf("%s: %.0f%% NOW (%d/%d) — in_reach=%d missing=%d — confidence=%s",
+		label, pc.GetCoverageRatio()*100, pc.GetNowCount(), pc.GetTotalCells(),
+		pc.GetInReachCount(), pc.GetMissingCount(), confidenceLabel(pc.GetDenominatorConfidence()))
 }
 
 func formatCell(c *coveragev1.Cell) string {

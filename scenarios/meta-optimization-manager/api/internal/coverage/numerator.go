@@ -2,17 +2,23 @@ package coverage
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
 	"github.com/vrooli/api-core/spacedoc"
 )
 
 // NumeratorJoiner computes the live numerator for a projection: it joins the
-// denominator cells against the owner's live registry (search-hub providers
-// list / test-genie health / prompt-manager graph health) and returns the
-// effective per-cell status, whether the registry was reachable, and an honest
-// reason when it was not. The numerator is computed live and never stored.
+// denominator cells against the owner's live registry (search-hub provider
+// registry / test-genie self-health / prompt-manager graph health) and returns
+// the effective per-cell status, whether the registry was reachable, and an
+// honest reason when it was not. The numerator is computed live and never
+// stored.
+//
+// The production joiner (numeratorclient.go) reads each owner over a typed
+// Connect-RPC client resolved through api-core/discovery, bounded by a short
+// per-owner deadline. This file holds the transport-independent join logic: the
+// pure per-cell recompute functions and the token helpers they share, so the
+// same matching rules are unit-testable without any owner reachable.
 type NumeratorJoiner interface {
 	Join(ctx context.Context, p Projection, cells []spacedoc.Cell) JoinResult
 }
@@ -29,129 +35,18 @@ type JoinResult struct {
 	Reason string
 }
 
-// execNumeratorJoiner is the production joiner. It reads the owner's live
-// registry over its CLI (behind the shared CommandRunner seam), then delegates
-// per-cell status derivation to the projection's matcher.
-type execNumeratorJoiner struct {
-	run CommandRunner
-}
-
-// seam: cellMatcher is the per-projection numerator join strategy. Production
-// wires one matcher per projection; tests exercise the same matchers with
-// captured registry JSON so a cell absent from the returned map keeps its
-// authored status ("can't resolve" is not fabricated as missing).
-type cellMatcher interface {
-	registryArgs() []string
-	recompute(cells []spacedoc.Cell, raw []byte) map[string]spacedoc.CellStatus
-}
-
-type (
-	answerMatcher   struct{}
-	validateMatcher struct{}
-	guideMatcher    struct{}
-)
-
-var (
-	_ cellMatcher = answerMatcher{}
-	_ cellMatcher = validateMatcher{}
-	_ cellMatcher = guideMatcher{}
-)
-
+// guideHealthyScore is the prompt-manager graph health-score threshold at or
+// above which a Guide skill node counts as "now" (healthy enough to answer a
+// Guide question). It is the load-bearing cut that drives the headline Guide
+// numerator; see docs/concepts/COVERAGE-MODEL.md. 0.5 means "more healthy than
+// not" — a deliberately lenient bar, because a skill existing and scoring at
+// least neutral is the signal that the Guide cell is served at all.
 const guideHealthyScore = 0.5
 
-// NewNumeratorJoiner returns the production NumeratorJoiner.
-func NewNumeratorJoiner() NumeratorJoiner { return &execNumeratorJoiner{run: execRunner} }
-
-// NewNumeratorJoinerWithRunner returns a joiner using the given runner (tests).
-func NewNumeratorJoinerWithRunner(run CommandRunner) NumeratorJoiner {
-	return &execNumeratorJoiner{run: run}
-}
-
-func (j *execNumeratorJoiner) Join(ctx context.Context, p Projection, cells []spacedoc.Cell) JoinResult {
-	owner := OwnerFor(p)
-	matcher := matcherFor(p)
-	if owner == "" || matcher == nil {
-		return JoinResult{Available: false, Reason: "unknown coverage projection: " + string(p)}
-	}
-	out, err := j.run(ctx, owner, matcher.registryArgs()...)
-	if err != nil {
-		return JoinResult{Available: false, Reason: owner + " registry unreachable: " + err.Error()}
-	}
-	return JoinResult{Available: true, Statuses: matcher.recompute(cells, out)}
-}
-
-func matcherFor(p Projection) cellMatcher {
-	switch p {
-	case ProjectionAnswer:
-		return answerMatcher{}
-	case ProjectionValidate:
-		return validateMatcher{}
-	case ProjectionGuide:
-		return guideMatcher{}
-	default:
-		return nil
-	}
-}
-
-func (answerMatcher) registryArgs() []string { return []string{"providers", "list", "--json"} }
-
-func (answerMatcher) recompute(cells []spacedoc.Cell, raw []byte) map[string]spacedoc.CellStatus {
-	live := collectStringValues(raw, "provider_id", "id", "name", "type")
-	return recomputeAnswer(cells, live)
-}
-
-func (validateMatcher) registryArgs() []string { return []string{"health", "--json"} }
-
-func (validateMatcher) recompute(cells []spacedoc.Cell, raw []byte) map[string]spacedoc.CellStatus {
-	index := validateStatusIndex(raw)
-	out := make(map[string]spacedoc.CellStatus, len(cells))
-	for _, c := range cells {
-		for _, tok := range providerTokens(c.Owner) {
-			status, ok := index[tok]
-			if !ok {
-				continue
-			}
-			if status.failing || status.autofixPending {
-				out[c.ID] = spacedoc.StatusInReach
-			} else {
-				out[c.ID] = spacedoc.StatusNow
-			}
-			break
-		}
-	}
-	return out
-}
-
-func (guideMatcher) registryArgs() []string { return []string{"graph", "health", "--json"} }
-
-func (guideMatcher) recompute(cells []spacedoc.Cell, raw []byte) map[string]spacedoc.CellStatus {
-	scores := guideScoreIndex(raw)
-	out := make(map[string]spacedoc.CellStatus, len(cells))
-	for _, c := range cells {
-		toks := skillTokens(c.Owner)
-		if len(toks) == 0 {
-			continue
-		}
-		resolved := 0
-		healthy := 0
-		for _, tok := range toks {
-			score, ok := resolveGuideScore(tok, scores)
-			if !ok {
-				continue
-			}
-			resolved++
-			if score >= guideHealthyScore {
-				healthy++
-			}
-		}
-		switch {
-		case resolved == len(toks) && healthy == len(toks):
-			out[c.ID] = spacedoc.StatusNow
-		case resolved > 0:
-			out[c.ID] = spacedoc.StatusInReach
-		}
-	}
-	return out
+// validateProviderStatus is one test-genie provider's distilled Validate signal.
+type validateProviderStatus struct {
+	failing        bool
+	autofixPending bool
 }
 
 // recomputeAnswer re-derives each Answer cell's status from the live provider
@@ -181,6 +76,63 @@ func recomputeAnswer(cells []spacedoc.Cell, live map[string]bool) map[string]spa
 		}
 		// else: authored IN_REACH/MISSING with an unmatched declared provider —
 		// keep authored status (no map entry).
+	}
+	return out
+}
+
+// recomputeValidate re-derives each Validate cell's status from the live
+// test-genie provider index: a matched provider that is failing or has pending
+// autofix work degrades to IN_REACH; a matched healthy provider is NOW; an
+// unmatched cell keeps its authored status (no map entry).
+func recomputeValidate(cells []spacedoc.Cell, index map[string]validateProviderStatus) map[string]spacedoc.CellStatus {
+	out := make(map[string]spacedoc.CellStatus, len(cells))
+	for _, c := range cells {
+		for _, tok := range providerTokens(c.Owner) {
+			status, ok := index[tok]
+			if !ok {
+				continue
+			}
+			if status.failing || status.autofixPending {
+				out[c.ID] = spacedoc.StatusInReach
+			} else {
+				out[c.ID] = spacedoc.StatusNow
+			}
+			break
+		}
+	}
+	return out
+}
+
+// recomputeGuide re-derives each Guide cell's status from the live
+// prompt-manager graph score index: a cell is NOW iff every declared skill
+// resolves to a score at or above guideHealthyScore; IN_REACH if at least one
+// declared skill resolves (the capability exists but is not all-healthy); an
+// unresolved cell keeps its authored status (no map entry).
+func recomputeGuide(cells []spacedoc.Cell, scores map[string]float64) map[string]spacedoc.CellStatus {
+	out := make(map[string]spacedoc.CellStatus, len(cells))
+	for _, c := range cells {
+		toks := skillTokens(c.Owner)
+		if len(toks) == 0 {
+			continue
+		}
+		resolved := 0
+		healthy := 0
+		for _, tok := range toks {
+			score, ok := resolveGuideScore(tok, scores)
+			if !ok {
+				continue
+			}
+			resolved++
+			if score >= guideHealthyScore {
+				healthy++
+			}
+		}
+		switch {
+		case resolved == len(toks) && healthy == len(toks):
+			out[c.ID] = spacedoc.StatusNow
+		case resolved > 0:
+			out[c.ID] = spacedoc.StatusInReach
+		}
 	}
 	return out
 }
@@ -300,83 +252,6 @@ func matchesLive(token string, live map[string]bool) bool {
 	return false
 }
 
-type validateProviderStatus struct {
-	failing        bool
-	autofixPending bool
-}
-
-func validateStatusIndex(raw []byte) map[string]validateProviderStatus {
-	var root map[string]any
-	if err := json.Unmarshal(raw, &root); err != nil {
-		return map[string]validateProviderStatus{}
-	}
-	health := objectValue(root, "selfHealth")
-	if health == nil {
-		health = root
-	}
-	out := map[string]validateProviderStatus{}
-	for _, phase := range arrayValue(objectValue(health, "catalog"), "phases") {
-		provider := strings.ToLower(stringValue(phase, "provider"))
-		if provider == "" {
-			continue
-		}
-		out[provider] = validateProviderStatus{}
-	}
-	for _, phase := range arrayValue(objectValue(health, "ledger"), "phases") {
-		provider := strings.ToLower(stringValue(phase, "provider"))
-		if provider == "" {
-			continue
-		}
-		status := out[provider]
-		if numberValue(phase, "failureRate") > 0 || numberValue(phase, "failure_rate") > 0 {
-			status.failing = true
-		}
-		out[provider] = status
-	}
-	for _, conformance := range arrayValue(health, "conformance") {
-		provider := strings.ToLower(stringValue(conformance, "provider"))
-		if provider == "" {
-			continue
-		}
-		status := out[provider]
-		autofix := objectValue(conformance, "autofix")
-		if numberValue(autofix, "pending") > 0 {
-			status.autofixPending = true
-		}
-		out[provider] = status
-	}
-	return out
-}
-
-func guideScoreIndex(raw []byte) map[string]float64 {
-	var root any
-	if err := json.Unmarshal(raw, &root); err != nil {
-		return map[string]float64{}
-	}
-	out := map[string]float64{}
-	var walk func(any)
-	walk = func(node any) {
-		switch v := node.(type) {
-		case []any:
-			for _, e := range v {
-				walk(e)
-			}
-		case map[string]any:
-			id := firstString(v, "nodeId", "node_id", "id")
-			if id != "" {
-				if score, ok := firstNumber(v, "score", "healthScore", "health_score"); ok {
-					out[strings.ToLower(id)] = score
-				}
-			}
-			for _, e := range v {
-				walk(e)
-			}
-		}
-	}
-	walk(root)
-	return out
-}
-
 func resolveGuideScore(token string, scores map[string]float64) (float64, bool) {
 	if score, ok := scores[token]; ok {
 		return score, true
@@ -385,100 +260,4 @@ func resolveGuideScore(token string, scores map[string]float64) (float64, bool) 
 		return score, true
 	}
 	return 0, false
-}
-
-func objectValue(node any, key string) map[string]any {
-	obj, ok := node.(map[string]any)
-	if !ok {
-		return nil
-	}
-	child, ok := obj[key].(map[string]any)
-	if !ok {
-		return nil
-	}
-	return child
-}
-
-func arrayValue(node any, key string) []any {
-	obj, ok := node.(map[string]any)
-	if !ok {
-		return nil
-	}
-	arr, ok := obj[key].([]any)
-	if !ok {
-		return nil
-	}
-	return arr
-}
-
-func stringValue(node any, key string) string {
-	obj, ok := node.(map[string]any)
-	if !ok {
-		return ""
-	}
-	val, _ := obj[key].(string)
-	return val
-}
-
-func numberValue(node any, key string) float64 {
-	obj, ok := node.(map[string]any)
-	if !ok {
-		return 0
-	}
-	n, _ := obj[key].(float64)
-	return n
-}
-
-func firstString(obj map[string]any, keys ...string) string {
-	for _, key := range keys {
-		if s, ok := obj[key].(string); ok {
-			return s
-		}
-	}
-	return ""
-}
-
-func firstNumber(obj map[string]any, keys ...string) (float64, bool) {
-	for _, key := range keys {
-		if n, ok := obj[key].(float64); ok {
-			return n, true
-		}
-	}
-	return 0, false
-}
-
-// collectStringValues walks arbitrary decoded JSON and collects the lower-cased
-// string values stored under any of the given keys, into a set. Tolerant of the
-// exact registry response shape (objects, nested arrays) so a shape tweak in the
-// owner's `providers list --json` does not silently zero the numerator.
-func collectStringValues(raw []byte, keys ...string) map[string]bool {
-	var root any
-	if err := json.Unmarshal(raw, &root); err != nil {
-		return map[string]bool{}
-	}
-	want := make(map[string]bool, len(keys))
-	for _, k := range keys {
-		want[k] = true
-	}
-	out := map[string]bool{}
-	var walk func(node any)
-	walk = func(node any) {
-		switch v := node.(type) {
-		case map[string]any:
-			for k, val := range v {
-				if want[k] {
-					if s, ok := val.(string); ok && s != "" {
-						out[strings.ToLower(s)] = true
-					}
-				}
-				walk(val)
-			}
-		case []any:
-			for _, e := range v {
-				walk(e)
-			}
-		}
-	}
-	walk(root)
-	return out
 }
