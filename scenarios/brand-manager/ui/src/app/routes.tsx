@@ -6,10 +6,13 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { ApplyPage } from "../pages/ApplyPage";
 import { AssetsPage } from "../pages/AssetsPage";
 import { AssignmentsPage } from "../pages/AssignmentsPage";
 import { BrandsPage } from "../pages/BrandsPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { DesignPage } from "../pages/DesignPage";
+import { DiscoveryPage } from "../pages/DiscoveryPage";
 import { GenerationPage } from "../pages/GenerationPage";
 import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
@@ -31,6 +34,9 @@ export const routes: RouteObject[] = [
       { path: "assignments", element: <AssignmentsPage /> },
       { path: "assets", element: <AssetsPage /> },
       { path: "generation", element: <GenerationPage /> },
+      { path: "apply", element: <ApplyPage /> },
+      { path: "discovery", element: <DiscoveryPage /> },
+      { path: "design", element: <DesignPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

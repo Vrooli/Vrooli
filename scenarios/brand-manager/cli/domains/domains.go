@@ -1,9 +1,12 @@
 package domains
 
 import (
+	"brand-manager/cli/domains/apply"
 	"brand-manager/cli/domains/assets"
 	"brand-manager/cli/domains/assignments"
 	"brand-manager/cli/domains/brands"
+	"brand-manager/cli/domains/design"
+	"brand-manager/cli/domains/discovery"
 	"brand-manager/cli/domains/generation"
 	"brand-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 
@@ -61,6 +64,21 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, generationGroup)
+	applyGroup, err := apply.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, applyGroup)
+	discoveryGroup, err := discovery.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, discoveryGroup)
+	designGroup, err := design.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, designGroup)
 	// EXAMPLE-DOMAIN:notes START
 	notesGroup, err := notes.Register(core, manifest)
 	if err != nil {

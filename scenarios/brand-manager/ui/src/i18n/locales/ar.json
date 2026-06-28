@@ -15,7 +15,10 @@
       "brands": "العلامات التجارية",
       "assignments": "التعيينات",
       "assets": "الأصول",
-      "generation": "التوليد"
+      "generation": "التوليد",
+      "apply": "تطبيق",
+      "discovery": "الاكتشاف",
+      "design": "التصميم"
     }
   },
   "theme": {
@@ -51,6 +54,15 @@
     },
     "generation": {
       "title": "التوليد"
+    },
+    "apply": {
+      "title": "التطبيق"
+    },
+    "discovery": {
+      "title": "الاكتشاف"
+    },
+    "design": {
+      "title": "التصميم"
     }
   },
   "health": {
@@ -142,5 +154,40 @@
     "unavailableLabel": "غير متاح",
     "summaryAvailable": "يتوفّر مزوّد ذكاء اصطناعي واحد على الأقل.",
     "summaryUnavailable": "لا يتوفّر أي مزوّد ذكاء اصطناعي حاليًا."
+  },
+  "apply": {
+    "title": "تطبيق العلامة",
+    "description": "اعرض الملفات التي سيكتبها تطبيق علامة على سيناريو. التطبيق إجراء يتم عبر سطر الأوامر.",
+    "brandPlaceholder": "معرّف العلامة…",
+    "scenarioPlaceholder": "اسم السيناريو…",
+    "previewButton": "معاينة",
+    "previewing": "جارٍ المعاينة…",
+    "previewFor": "معاينة لـ",
+    "appliedHeading": "الملفات المراد كتابتها",
+    "skippedHeading": "تم التخطي",
+    "empty": "لا توجد تغييرات."
+  },
+  "discovery": {
+    "title": "اكتشاف الهوية",
+    "description": "افحص سيناريو بحثًا عن حالة الهوية الموجودة. الاستيراد إجراء عبر سطر الأوامر.",
+    "scenarioPlaceholder": "اسم السيناريو…",
+    "scanButton": "فحص",
+    "scanning": "جارٍ الفحص…",
+    "scanFor": "فحص لـ",
+    "sourcesHeading": "المصادر المكتشفة",
+    "draftHeading": "مسودة العلامة",
+    "suggestionsHeading": "اقتراحات",
+    "confidenceLabel": "الثقة",
+    "empty": "لم يتم العثور على حالة هوية.",
+    "displayNameLabel": "الاسم",
+    "primaryLabel": "أساسي"
+  },
+  "design": {
+    "title": "لغة التصميم",
+    "description": "اعرض علامة كمستند DESIGN.md قياسي. الإنشاء لا يُجري أي تغييرات.",
+    "brandPlaceholder": "معرّف العلامة…",
+    "generateButton": "إنشاء",
+    "generating": "جارٍ الإنشاء…",
+    "resultHeading": "DESIGN.md للعلامة"
   }
 }

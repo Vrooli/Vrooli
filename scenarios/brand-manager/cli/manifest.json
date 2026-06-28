@@ -466,7 +466,7 @@
     },
     {
       "name": "assets",
-      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, …)",
+      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, \u2026)",
       "commands": [
         {
           "name": "list",
@@ -607,7 +607,7 @@
     },
     {
       "name": "generation",
-      "description": "Generate brand text facets and images with the AI provider chain (Ollama → OpenRouter)",
+      "description": "Generate brand text facets and images with the AI provider chain (Ollama \u2192 OpenRouter)",
       "commands": [
         {
           "name": "status",
@@ -683,6 +683,158 @@
           },
           "governance": {
             "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "apply",
+      "description": "Apply a brand identity into a target scenario source tree (CSS, manifest.json, logo/favicon)",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview which files applying a brand to a scenario would write (makes no changes)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to apply"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name (its directory must exist)"
+            },
+            {
+              "name": "elements",
+              "description": "Comma-separated elements: colors,typography,identity,favicon,logo (default: all)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "PreviewApply"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Apply a brand to a scenario source tree and record the assignment",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to apply"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name (its directory must exist)"
+            },
+            {
+              "name": "elements",
+              "description": "Comma-separated elements: colors,typography,identity,favicon,logo (default: all)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ApplyService",
+            "method": "ApplyBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "discovery",
+      "description": "Scan an existing scenario for branding state and import it as a brand",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Scan a scenario for branding state and show the draft brand it would import (makes no changes)",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name to scan (its directory must exist)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "DiscoverScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Scan a scenario and create a new brand from the discovered branding state",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name to scan and import from (its directory must exist)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiscoveryService",
+            "method": "ImportBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "design",
+      "description": "Render a brand's identity as a canonical DESIGN.md document",
+      "commands": [
+        {
+          "name": "generate",
+          "description": "Render a brand as a DESIGN.md document and print the markdown (makes no changes)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to render"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DesignService",
+            "method": "GenerateDesignLanguage"
+          },
+          "governance": {
+            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal"

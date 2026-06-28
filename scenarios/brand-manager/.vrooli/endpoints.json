@@ -45,6 +45,99 @@
       }
     },
     {
+      "id": "apply_preview",
+      "path": "/vrooli.brand_manager.v1.apply.ApplyService/PreviewApply",
+      "method": "POST",
+      "summary": "Preview applying a brand to a scenario",
+      "description": "Computes exactly which files applying a brand to a scenario would write (CSS, manifest.json, copied logo/favicon), WITHOUT touching the filesystem or recording an assignment.",
+      "category": "apply",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (subset of colors, typography, identity, favicon, logo; empty = all)",
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "array<ApplyAction>",
+          "brand_version": "int32",
+          "dry_run": "bool (always true)",
+          "scenario": "string",
+          "skipped": "array<SkipReason>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such brand, or the scenario directory does not exist"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preview apply",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.apply.ApplyService/PreviewApply -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"scenario_name\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
+      "id": "apply_brand",
+      "path": "/vrooli.brand_manager.v1.apply.ApplyService/ApplyBrand",
+      "method": "POST",
+      "summary": "Apply a brand to a scenario",
+      "description": "Writes the requested brand elements into the scenario's source tree (CSS custom properties, a manifest.json merge, copied logo/favicon bytes) and records the brand↔scenario assignment. Convergent: re-applying overwrites the same managed files.",
+      "category": "apply",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (subset of colors, typography, identity, favicon, logo; empty = all)",
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "array<ApplyAction>",
+          "brand_version": "int32",
+          "dry_run": "bool (always false)",
+          "scenario": "string",
+          "skipped": "array<SkipReason>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id or scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such brand, or the scenario directory does not exist"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Writing a file or recording the assignment failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Apply brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.apply.ApplyService/ApplyBrand -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"scenario_name\":\"web-console\",\"elements\":[\"colors\",\"logo\"]}'"
+        }
+      ]
+    },
+    {
       "id": "assets_list",
       "path": "/vrooli.brand_manager.v1.assets.AssetsService/ListAssets",
       "method": "POST",
@@ -596,6 +689,139 @@
         {
           "name": "List versions",
           "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "design_generate",
+      "path": "/vrooli.brand_manager.v1.design.DesignService/GenerateDesignLanguage",
+      "method": "POST",
+      "summary": "Render a brand as a DESIGN.md document",
+      "description": "Reads a brand and renders a canonical DESIGN.md document — front matter, identity, a color-system table, typography, voice, derived visual patterns, and notes. Read-only: writes nothing; the markdown is returned in the response.",
+      "category": "design",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, brand must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (echoes the request)",
+          "markdown": "string (the complete DESIGN.md document)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand matches the id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Generate DESIGN.md",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.design.DesignService/GenerateDesignLanguage -H 'Content-Type: application/json' -d '{\"brand_id\":\"brand-1\"}'"
+        }
+      ]
+    },
+    {
+      "id": "discovery_scan",
+      "path": "/vrooli.brand_manager.v1.discovery.DiscoveryService/DiscoverScenario",
+      "method": "POST",
+      "summary": "Scan a scenario for branding state",
+      "description": "Reads a scenario's .vrooli/service.json, .vrooli/branding.json, ui/public/manifest.json, theme CSS, and ui/public assets, infers a draft brand from whatever it finds, and reports each source with a confidence score. Read-only: creates nothing.",
+      "category": "discovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "confidence": "double (0.0-1.0)",
+          "draft_brand": "DraftBrand (null when no sources matched)",
+          "scenario": "string",
+          "sources": "array<DiscoverySource>",
+          "suggestions": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The scenario directory does not exist"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Discover scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.discovery.DiscoveryService/DiscoverScenario -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
+      "id": "discovery_import",
+      "path": "/vrooli.brand_manager.v1.discovery.DiscoveryService/ImportBrand",
+      "method": "POST",
+      "summary": "Import a brand from discovered state",
+      "description": "Re-scans a scenario and persists the inferred draft as a new brand through the brands domain. A scenario with no branding state yields FAILED_PRECONDITION (nothing to import).",
+      "category": "discovery",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required, scenario directory must exist)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string",
+          "brand_name": "string",
+          "brand_version": "int32 (always 1)",
+          "confidence": "double (0.0-1.0)",
+          "sources": "array<DiscoverySource>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "The scenario directory does not exist"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "No branding state found to import"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Creating the brand failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Import brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.discovery.DiscoveryService/ImportBrand -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
         }
       ]
     },

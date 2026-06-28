@@ -21,9 +21,12 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	applyH "brand-manager/handlers/apply"
 	assetsH "brand-manager/handlers/assets"
 	assignmentsH "brand-manager/handlers/assignments"
 	brandsH "brand-manager/handlers/brands"
+	designH "brand-manager/handlers/design"
+	discoveryH "brand-manager/handlers/discovery"
 	generationH "brand-manager/handlers/generation"
 	healthH "brand-manager/handlers/health"
 	notesH "brand-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
@@ -126,6 +129,27 @@ func assetsBaseDir() (string, error) {
 	return path, nil
 }
 
+// scenariosBaseDir resolves the directory that contains scenario source trees
+// the apply domain writes brand files into (one subdirectory per scenario).
+// Resolution order:
+//
+//  1. SCENARIOS_PATH env — the canonical override.
+//  2. SCENARIOS_DIR env — alias accepted for symmetry with the old REST surface.
+//  3. "scenarios" relative to the working directory — the repo's scenarios root
+//     when the control plane runs apply from the repository root.
+//
+// Apply guards every write to stay within the resolved target scenario's
+// directory (see internal/apply/workspace.go), so a missing or misconfigured
+// root simply yields "scenario not found" rather than an unsafe write.
+func scenariosBaseDir() string {
+	for _, key := range []string{"SCENARIOS_PATH", "SCENARIOS_DIR"} {
+		if dir := strings.TrimSpace(os.Getenv(key)); dir != "" {
+			return dir
+		}
+	}
+	return "scenarios"
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -168,6 +192,18 @@ func main() {
 		// tree (hence assetsDir). The provider chain is built from the
 		// environment (OLLAMA_ROLE, OPENROUTER_API_KEY, …).
 		generationH.Module(db, clock.System{}, log.Default(), assetsDir),
+		// Apply owns no table; it composes the brands + assets + assignments
+		// domains and writes brand files into a target scenario's source tree
+		// (scenariosDir) using the same assets blob root (assetsDir) for image
+		// bytes.
+		applyH.Module(db, clock.System{}, log.Default(), scenariosBaseDir(), assetsDir),
+		// Discovery owns no table; it scans a scenario's source tree
+		// (scenariosDir) for branding state and imports the inferred draft as a
+		// new brand through the brands domain.
+		discoveryH.Module(db, clock.System{}, log.Default(), scenariosBaseDir()),
+		// Design owns no table; it composes the brands domain behind one adapter
+		// and renders a brand into a canonical DESIGN.md document (read-only).
+		designH.Module(db, clock.System{}, log.Default()),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 		// Branding validation: the served ScenarioValidationService test-genie's
 		// `branding` delegated phase calls. brand-manager both authors and

@@ -15,6 +15,9 @@ export interface NavItem {
     | "assignments"
     | "assets"
     | "generation"
+    | "apply"
+    | "discovery"
+    | "design"
     | "settings";
   /** Router path. */
   path: string;
@@ -31,5 +34,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "assignments", path: "/assignments", labelKey: strings.layout.nav.assignments },
   { key: "assets", path: "/assets", labelKey: strings.layout.nav.assets },
   { key: "generation", path: "/generation", labelKey: strings.layout.nav.generation },
+  { key: "apply", path: "/apply", labelKey: strings.layout.nav.apply },
+  { key: "discovery", path: "/discovery", labelKey: strings.layout.nav.discovery },
+  { key: "design", path: "/design", labelKey: strings.layout.nav.design },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

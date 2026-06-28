@@ -28,6 +28,9 @@ export const strings = {
       assignments: "layout.nav.assignments",
       assets: "layout.nav.assets",
       generation: "layout.nav.generation",
+      apply: "layout.nav.apply",
+      discovery: "layout.nav.discovery",
+      design: "layout.nav.design",
     },
   },
   theme: {
@@ -63,6 +66,15 @@ export const strings = {
     },
     generation: {
       title: "pages.generation.title",
+    },
+    apply: {
+      title: "pages.apply.title",
+    },
+    discovery: {
+      title: "pages.discovery.title",
+    },
+    design: {
+      title: "pages.design.title",
     },
   },
   health: {
@@ -154,6 +166,41 @@ export const strings = {
     unavailableLabel: "generation.unavailableLabel",
     summaryAvailable: "generation.summaryAvailable",
     summaryUnavailable: "generation.summaryUnavailable",
+  },
+  apply: {
+    title: "apply.title",
+    description: "apply.description",
+    brandPlaceholder: "apply.brandPlaceholder",
+    scenarioPlaceholder: "apply.scenarioPlaceholder",
+    previewButton: "apply.previewButton",
+    previewing: "apply.previewing",
+    previewFor: "apply.previewFor",
+    appliedHeading: "apply.appliedHeading",
+    skippedHeading: "apply.skippedHeading",
+    empty: "apply.empty",
+  },
+  discovery: {
+    title: "discovery.title",
+    description: "discovery.description",
+    scenarioPlaceholder: "discovery.scenarioPlaceholder",
+    scanButton: "discovery.scanButton",
+    scanning: "discovery.scanning",
+    scanFor: "discovery.scanFor",
+    sourcesHeading: "discovery.sourcesHeading",
+    draftHeading: "discovery.draftHeading",
+    suggestionsHeading: "discovery.suggestionsHeading",
+    confidenceLabel: "discovery.confidenceLabel",
+    empty: "discovery.empty",
+    displayNameLabel: "discovery.displayNameLabel",
+    primaryLabel: "discovery.primaryLabel",
+  },
+  design: {
+    title: "design.title",
+    description: "design.description",
+    brandPlaceholder: "design.brandPlaceholder",
+    generateButton: "design.generateButton",
+    generating: "design.generating",
+    resultHeading: "design.resultHeading",
   },
 } as const;
 

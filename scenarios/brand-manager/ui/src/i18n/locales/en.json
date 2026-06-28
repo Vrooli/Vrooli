@@ -15,7 +15,10 @@
       "brands": "Brands",
       "assignments": "Assignments",
       "assets": "Assets",
-      "generation": "Generation"
+      "generation": "Generation",
+      "apply": "Apply",
+      "discovery": "Discovery",
+      "design": "Design"
     }
   },
   "theme": {
@@ -51,6 +54,15 @@
     },
     "generation": {
       "title": "Generation"
+    },
+    "apply": {
+      "title": "Apply"
+    },
+    "discovery": {
+      "title": "Discovery"
+    },
+    "design": {
+      "title": "Design"
     }
   },
   "health": {
@@ -142,5 +154,40 @@
     "unavailableLabel": "Unavailable",
     "summaryAvailable": "At least one AI provider is available.",
     "summaryUnavailable": "No AI providers are currently available."
+  },
+  "apply": {
+    "title": "Apply Brand",
+    "description": "Preview which files applying a brand to a scenario would write. Applying is a CLI action.",
+    "brandPlaceholder": "Brand id…",
+    "scenarioPlaceholder": "Scenario name…",
+    "previewButton": "Preview",
+    "previewing": "Previewing…",
+    "previewFor": "Preview for",
+    "appliedHeading": "Files to write",
+    "skippedHeading": "Skipped",
+    "empty": "No changes detected."
+  },
+  "discovery": {
+    "title": "Discover Branding",
+    "description": "Scan a scenario for existing branding state. Importing is a CLI action.",
+    "scenarioPlaceholder": "Scenario name…",
+    "scanButton": "Scan",
+    "scanning": "Scanning…",
+    "scanFor": "Scan for",
+    "sourcesHeading": "Sources found",
+    "draftHeading": "Draft brand",
+    "suggestionsHeading": "Suggestions",
+    "confidenceLabel": "Confidence",
+    "empty": "No branding state found.",
+    "displayNameLabel": "Name",
+    "primaryLabel": "Primary"
+  },
+  "design": {
+    "title": "Design Language",
+    "description": "Render a brand as a canonical DESIGN.md document. Generating makes no changes.",
+    "brandPlaceholder": "Brand id…",
+    "generateButton": "Generate",
+    "generating": "Generating…",
+    "resultHeading": "DESIGN.md for brand"
   }
 }

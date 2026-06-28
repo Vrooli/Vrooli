@@ -15,7 +15,10 @@
       "brands": "ブランド",
       "assignments": "割り当て",
       "assets": "アセット",
-      "generation": "生成"
+      "generation": "生成",
+      "apply": "適用",
+      "discovery": "検出",
+      "design": "デザイン"
     }
   },
   "theme": {
@@ -51,6 +54,15 @@
     },
     "generation": {
       "title": "生成"
+    },
+    "apply": {
+      "title": "適用"
+    },
+    "discovery": {
+      "title": "検出"
+    },
+    "design": {
+      "title": "デザイン"
     }
   },
   "health": {
@@ -138,5 +150,40 @@
     "unavailableLabel": "利用不可",
     "summaryAvailable": "少なくとも1つのAIプロバイダーが利用可能です。",
     "summaryUnavailable": "現在利用可能なAIプロバイダーはありません。"
+  },
+  "apply": {
+    "title": "ブランドを適用",
+    "description": "ブランドをシナリオに適用したときに書き込まれるファイルをプレビューします。適用は CLI の操作です。",
+    "brandPlaceholder": "ブランド ID…",
+    "scenarioPlaceholder": "シナリオ名…",
+    "previewButton": "プレビュー",
+    "previewing": "プレビュー中…",
+    "previewFor": "プレビュー対象",
+    "appliedHeading": "書き込むファイル",
+    "skippedHeading": "スキップ",
+    "empty": "変更はありません。"
+  },
+  "discovery": {
+    "title": "ブランディングの検出",
+    "description": "シナリオの既存ブランディング状態をスキャンします。インポートはCLI操作です。",
+    "scenarioPlaceholder": "シナリオ名…",
+    "scanButton": "スキャン",
+    "scanning": "スキャン中…",
+    "scanFor": "スキャン対象",
+    "sourcesHeading": "検出されたソース",
+    "draftHeading": "ドラフトブランド",
+    "suggestionsHeading": "提案",
+    "confidenceLabel": "信頼度",
+    "empty": "ブランディング状態が見つかりません。",
+    "displayNameLabel": "名前",
+    "primaryLabel": "プライマリ"
+  },
+  "design": {
+    "title": "デザイン言語",
+    "description": "ブランドを標準のDESIGN.mdドキュメントとして生成します。生成しても変更は加えられません。",
+    "brandPlaceholder": "ブランドID…",
+    "generateButton": "生成",
+    "generating": "生成中…",
+    "resultHeading": "ブランドのDESIGN.md"
   }
 }
