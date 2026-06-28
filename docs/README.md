@@ -20,15 +20,17 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 
 - [QUICKSTART.md](QUICKSTART.md) for the first-touch setup and command flow
 - [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md) for the current platform mental model
+- [concepts/RECURSIVE_SELF_IMPROVEMENT.md](concepts/RECURSIVE_SELF_IMPROVEMENT.md) for the self-improvement loop and the three projections (Answer/Validate/Guide)
 - [concepts/GLOSSARY.md](concepts/GLOSSARY.md) for shared vocabulary
 - [reference/cli-commands.md](reference/cli-commands.md) for the current CLI surface
+- [reference/health-maturity-assessments.md](reference/health-maturity-assessments.md) for provider-owned health maturity reports and the human-output-first contract
 - [reference/machine-readable-references.md](reference/machine-readable-references.md) for `[CODE:]` / `[DOC:]` traceability references and marked inline references such as `path:...` and `topic:...`
 
 ## How docs/ is organized: three pillars
 
 Most folders here are one of three canon types. Knowing which you're in tells you who may edit it and how:
 
-1. **Identity & concept canon** — *what Vrooli is and how its pieces fit.* [`../VISION.md`](../VISION.md) (the why), [`narrative/`](narrative/) (the story), and [`concepts/`](concepts/): [`ARCHITECTURE.md`](concepts/ARCHITECTURE.md) (technical how), [`ECOSYSTEM.md`](concepts/ECOSYSTEM.md) (how a scenario fits the whole), [`PAID_FEATURES.md`](concepts/PAID_FEATURES.md) (paid-feature contract), [`GLOSSARY.md`](concepts/GLOSSARY.md). Operator-curated.
+1. **Identity & concept canon** — *what Vrooli is and how its pieces fit.* [`../VISION.md`](../VISION.md) (the why), [`narrative/`](narrative/) (the story), and [`concepts/`](concepts/): [`ARCHITECTURE.md`](concepts/ARCHITECTURE.md) (technical how), [`RECURSIVE_SELF_IMPROVEMENT.md`](concepts/RECURSIVE_SELF_IMPROVEMENT.md) (the self-improvement loop that ties the why and how together), [`ECOSYSTEM.md`](concepts/ECOSYSTEM.md) (how a scenario fits the whole), [`PAID_FEATURES.md`](concepts/PAID_FEATURES.md) (paid-feature contract), [`GLOSSARY.md`](concepts/GLOSSARY.md). Operator-curated.
 
 2. **Team plan-of-records (PoR)** — *each agent team's durable, accepted truth.* One folder per team, all following the shared contract in [`agent-system/team-plan-of-record.manifest.json`](agent-system/team-plan-of-record.manifest.json): a README hub → `operating/` → optional `strategy/` `evidence/` `catalogs/` `taxonomies/` → `governance/`. **Agents never edit PoR canon directly** — changes flow through operator-approved decisions; see [`agent-system/TEAM_DOCS_PATTERNS.md`](agent-system/TEAM_DOCS_PATTERNS.md) for the write boundary. The teams with a PoR (authoritative set: the `docs/<team>/` folders carrying a `manifest.json`):
    - [`monetization/`](monetization/README.md) — revenue, SKUs, delivery tiers, pricing, funnel
@@ -49,6 +51,7 @@ Everything else (`guides/`, `reference/`, `operations/`, `deployment/`, `scenari
 - [design/](design/) — canonical `DESIGN.md` governance for scenario UI design languages and generation adapters
 - [guides/README.md](guides/README.md) for contributor and operator workflows
 - [reference/cli-commands.md](reference/cli-commands.md) for CLI and control-plane reference
+- [reference/health-maturity-assessments.md](reference/health-maturity-assessments.md) for health-provider maturity assessment ownership and JSON automation rules
 - [reference/machine-readable-references.md](reference/machine-readable-references.md) for machine-readable reference syntax used by docs scanners and agent instructions
 - [operations/README.md](operations/README.md) for live operational guidance
 - [deployment/README.md](deployment/README.md) for deployment tiers and maturity

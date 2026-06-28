@@ -391,6 +391,12 @@ If this loop does not produce measurable downstream change, the correct response
 
 ## Current Implementation Gaps
 
+- **Readiness measurement + prioritization is now programmatic** via the `meta-optimization-manager` scenario (the fleet-readiness control plane, "EM one altitude up"). Instead of hand-running `test-genie health --json`, `prompt-manager graph health --json`, and `search-hub providers list --json` and synthesizing the picture in prose, the team reads it directly:
+  - `meta-optimization-manager coverage status --json` — per-projection (Answer/Validate/Guide) coverage joined live against each owner, paired with denominator-confidence.
+  - `meta-optimization-manager focus next --json` / `gaps list --json` — the ranked next-best gaps (impact × importance) and the gaps registry (with `gaps note <id> --add` to store explored-but-unbuilt approaches).
+  - `meta-optimization-manager convergence status --json` — per-template four-lens fitness + gold-star reference-scenario health.
+  - `meta-optimization-manager trials run` / `trials history --json` / `trials coverage --json` — the empirical local-model gate (explicit-invocation only) and its success/tokens/time trend + Guide-gate coverage.
+  The aggregator only *measures and directs*; the *improvement* stays agentic (the loops above). It never stores numerators — coverage is computed live and only short-TTL snapshots are cached. The manual multi-CLI scorekeeping this team used previously is superseded by these commands.
 - The operating graph and topic catalog are now explicit for this team; validation should be used to keep the graph, `team.json::topicCatalog`, and member `topics.json` files aligned.
 - `Decision context` rows are structurally registered, but accepted decision effects are still mostly prose. A later validator should compare the decision catalog against downstream implementation/routing contracts the same way topic validation compares topic flows.
 - `friction-report/*` routing is deterministic today. If routed scopes stop fitting the current members, add a decision-backed routing context rather than letting the curator become an analyst.

@@ -4,6 +4,7 @@ import (
 	internalcoverage "meta-optimization-manager/internal/coverage"
 
 	"github.com/vrooli/api-core/spacedoc"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/shared"
 )
 
@@ -63,20 +64,20 @@ func statusToProto(s spacedoc.CellStatus) sharedv1.CellStatus {
 	}
 }
 
-func basisToProto(b spacedoc.Basis) sharedv1.Basis {
+func basisToProto(b spacedoc.Basis) commonv1.Basis {
 	switch b {
 	case spacedoc.BasisDerived:
-		return sharedv1.Basis_BASIS_DERIVED
+		return commonv1.Basis_BASIS_DERIVED
 	case spacedoc.BasisValidated:
-		return sharedv1.Basis_BASIS_VALIDATED
+		return commonv1.Basis_BASIS_VALIDATED
 	case spacedoc.BasisDeclaredUnverified:
-		return sharedv1.Basis_BASIS_DECLARED_UNVERIFIED
+		return commonv1.Basis_BASIS_DECLARED_UNVERIFIED
 	case spacedoc.BasisContradicted:
-		return sharedv1.Basis_BASIS_CONTRADICTED
+		return commonv1.Basis_BASIS_CONTRADICTED
 	case spacedoc.BasisAbsent:
-		return sharedv1.Basis_BASIS_ABSENT
+		return commonv1.Basis_BASIS_ABSENT
 	default:
-		return sharedv1.Basis_BASIS_UNSPECIFIED
+		return commonv1.Basis_BASIS_UNSPECIFIED
 	}
 }
 
@@ -93,16 +94,16 @@ func confToProto(c spacedoc.DenominatorConfidence) sharedv1.DenominatorConfidenc
 	}
 }
 
-func sufficiencyToProto(s string) sharedv1.Sufficiency {
+func sufficiencyToProto(s string) commonv1.Sufficiency {
 	switch s {
 	case "full":
-		return sharedv1.Sufficiency_SUFFICIENCY_FULL
+		return commonv1.Sufficiency_SUFFICIENCY_FULL
 	case "partial":
-		return sharedv1.Sufficiency_SUFFICIENCY_PARTIAL
+		return commonv1.Sufficiency_SUFFICIENCY_PARTIAL
 	case "insufficient":
-		return sharedv1.Sufficiency_SUFFICIENCY_INSUFFICIENT
+		return commonv1.Sufficiency_SUFFICIENCY_INSUFFICIENT
 	default:
-		return sharedv1.Sufficiency_SUFFICIENCY_UNSPECIFIED
+		return commonv1.Sufficiency_SUFFICIENCY_UNSPECIFIED
 	}
 }
 
