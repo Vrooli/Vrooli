@@ -121,9 +121,9 @@ func (s *Summarizer) Summarize(ctx context.Context, text, selector, level string
 	if selector == "" {
 		selector = DefaultSummarizeModel
 	}
-	selectorFlag := "--role"
-	if strings.Contains(selector, ":") {
-		selectorFlag = "--model"
+	selectorFlag := "--model"
+	if SelectorIsRole(selector) {
+		selectorFlag = "--role"
 	}
 	args := []string{
 		"gateway", "chat",

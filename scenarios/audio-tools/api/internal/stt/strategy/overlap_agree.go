@@ -44,6 +44,7 @@ import (
 //     happens in this much audio, force-advance the cursor so per-call
 //     latency stays bounded (default 25 000ms, matches faster-whisper's
 //     preferred chunk size).
+//
 // TriggerVAD makes the strategy run a settle attempt on silence
 // boundaries detected from frame RMS analysis (production default).
 // Whisper sees clean audio edges, transcripts are more stable, and
@@ -548,12 +549,12 @@ func (o *OverlapAgree) applyDefaults() {
 //
 // Returns (newCommit, tail, ok).
 //
-// - ok=false: divergence — agreed is non-empty, does not extend committed
-//   as a prefix, AND shares no word-suffix↔prefix overlap with
-//   committed. Caller emits Partial only.
-// - newCommit > committed: caller emits Segment with `tail` and stores
-//   newCommit.
-// - newCommit unchanged: caller may emit Partial.
+//   - ok=false: divergence — agreed is non-empty, does not extend committed
+//     as a prefix, AND shares no word-suffix↔prefix overlap with
+//     committed. Caller emits Partial only.
+//   - newCommit > committed: caller emits Segment with `tail` and stores
+//     newCommit.
+//   - newCommit unchanged: caller may emit Partial.
 //
 // Three accepted cases (ok=true):
 //

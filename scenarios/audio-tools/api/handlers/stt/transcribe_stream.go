@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
+	"audio-tools/internal/logx"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/stt/segmenter"
 	"audio-tools/internal/sttengine"
@@ -168,18 +169,28 @@ func (h *connectHandler) TranscribeStream(
 		}
 	default:
 	}
-	if e := <-runErrCh; e != nil && !errors.Is(e, context.Canceled) {
+	if e := <-runErrCh; e != nil {
 		// Selector typed errors surface here when the Segmenter could
 		// not produce a strategy; data-plane errors are already on the
-		// wire as StreamError events.
-		if mapped := mapChainError(e); mapped != nil {
-			// Preserve the pre-existing parity test contract: the
-			// Connect handler should not return a hard error after
-			// having emitted a Done event. Only surface typed
-			// selector errors when no Done was emitted; for now we
-			// log-and-swallow because the strategy guaranteed Done.
-			_ = mapped
-		}
+		// wire as StreamError events. We never return a hard error after
+		// a Done event was emitted (the streaming parity contract), but a
+		// late Segmenter/Selector failure must still leave a trace.
+		logPostDoneStreamError(h.deps.Logger, startCfg.Language, e)
 	}
 	return nil
+}
+
+// logPostDoneStreamError records a Segmenter/Selector error that surfaced
+// after the events channel closed — i.e. after the stream already emitted a
+// Done event. Per the streaming parity contract the Connect handler must NOT
+// return a hard Connect error once Done was sent, so the error is logged-and-
+// swallowed here rather than returned. context.Canceled is normal teardown
+// and is ignored. lg is a required seam (NewConnectHandler guarantees non-nil).
+func logPostDoneStreamError(lg logx.Logger, language string, err error) {
+	if err == nil || errors.Is(err, context.Canceled) {
+		return
+	}
+	mapped := mapChainError(err)
+	lg.Printf("event=stt_stream_post_done_error language=%q code=%s err=%v",
+		language, connect.CodeOf(mapped), err)
 }

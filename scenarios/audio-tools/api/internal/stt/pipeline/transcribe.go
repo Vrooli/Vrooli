@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"audio-tools/internal/audioformat"
 	"audio-tools/internal/envx"
@@ -128,6 +130,13 @@ func TranscribeBytes(
 	initialPrompt string,
 	vadFilter bool,
 ) (TranscriptionResult, error) {
+	// Entry trace: when a transcription hangs or comes back empty, this is
+	// the breadcrumb that tells operators which Whisper endpoint was hit and
+	// how much audio went in. Paired with the event=whisper_response /
+	// event=whisper_error completion lines below.
+	packageLogger.Printf("event=whisper_request audio_bytes=%d format=%q language=%q vad_filter=%t whisper_url=%q",
+		len(audio), format, language, vadFilter, whisperURL)
+
 	if engine == nil {
 		engine = audioformat.New()
 	}
@@ -198,13 +207,26 @@ func TranscribeBytes(
 	if httpClient == nil {
 		return TranscriptionResult{}, fmt.Errorf("voice transcription HTTP client is not configured")
 	}
+	httpStart := time.Now()
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		latencyMS := time.Since(httpStart).Milliseconds()
+		reason := "transport"
+		if errors.Is(err, context.DeadlineExceeded) {
+			reason = "deadline_exceeded"
+		} else if errors.Is(err, context.Canceled) {
+			reason = "canceled"
+		}
+		packageLogger.Printf("event=whisper_error reason=%s latency_ms=%d whisper_url=%q err=%v",
+			reason, latencyMS, whisperURL, err)
 		return TranscriptionResult{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		latencyMS := time.Since(httpStart).Milliseconds()
+		packageLogger.Printf("event=whisper_error reason=non_200 status=%d latency_ms=%d whisper_url=%q",
+			resp.StatusCode, latencyMS, whisperURL)
 		return TranscriptionResult{}, fmt.Errorf("whisper returned status %d", resp.StatusCode)
 	}
 
@@ -227,8 +249,19 @@ func TranscribeBytes(
 		} `json:"segments"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		latencyMS := time.Since(httpStart).Milliseconds()
+		packageLogger.Printf("event=whisper_error reason=decode status=%d latency_ms=%d err=%v",
+			resp.StatusCode, latencyMS, err)
 		return TranscriptionResult{}, err
 	}
+
+	// Completion trace: latency, status, transcript size, and an explicit
+	// empty flag. An empty/whitespace transcript on a 200 OK is the exact
+	// silent-loss failure mode this logging exists to make visible.
+	latencyMS := time.Since(httpStart).Milliseconds()
+	empty := strings.TrimSpace(result.Text) == ""
+	packageLogger.Printf("event=whisper_response status=%d latency_ms=%d chars=%d empty=%t",
+		resp.StatusCode, latencyMS, len([]rune(result.Text)), empty)
 
 	out := TranscriptionResult{Text: result.Text}
 	if n := len(result.Segments); n > 0 {

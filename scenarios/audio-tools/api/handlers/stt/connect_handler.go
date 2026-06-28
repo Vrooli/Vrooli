@@ -76,6 +76,10 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 	if h.deps.Chain == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("stt chain not configured"))
 	}
+	if audioExceedsLimit(len(req.Msg.Audio)) {
+		return nil, connect.NewError(connect.CodeInvalidArgument,
+			fmt.Errorf("audio exceeds maximum size of %d bytes", sttpipeline.MaxAudioSize))
+	}
 	env := envelope.FromConnectRequest(req)
 	chainReq := sttchain.Request{
 		Audio:                   req.Msg.Audio,

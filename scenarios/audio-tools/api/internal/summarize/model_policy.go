@@ -110,6 +110,46 @@ func ResolveDefaultSummarizeModel(installed []OllamaModel) string {
 	return DefaultSummarizeModel
 }
 
+// SelectorIsRole reports whether a summarize selector names a logical policy
+// role (resolved by resource-ollama) rather than a concrete Ollama model tag.
+// A concrete tag always carries a ":" version separator (e.g. "qwen3.5:9b");
+// a role does not (e.g. "summarize.default"). This is the single source of
+// truth for the role-vs-model distinction shared by the summarizer (which
+// passes --role vs --model to the gateway) and the capability health checker
+// (which decides whether to resolve a role before verifying installation).
+// Keeping both call sites on this one rule is what prevents the work path and
+// the health path from diverging.
+func SelectorIsRole(selector string) bool {
+	selector = strings.TrimSpace(selector)
+	return selector != "" && !strings.Contains(selector, ":")
+}
+
+// ResolveRoleModel resolves a logical role selector (e.g. "summarize.default")
+// to the concrete Ollama model tag via resource-ollama's policy SSOT — the same
+// authority the gateway consults at chat time. It lets the health checker verify
+// the model that summarization would actually use, instead of comparing a role
+// name against installed tags (which never matches).
+func ResolveRoleModel(ctx context.Context, role string) (string, error) {
+	return resolveRoleModel(ctx, defaultOllamaGatewayBin, role)
+}
+
+func resolveRoleModel(ctx context.Context, bin, role string) (string, error) {
+	out, err := runGatewayCLI(ctx, bin, []string{"policy", "resolve", "--role", role, "--json"}, "")
+	if err != nil {
+		return "", fmt.Errorf("resource-ollama policy resolve: %w", err)
+	}
+	var res struct {
+		Model string `json:"model"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return "", fmt.Errorf("decode policy resolve response: %w", err)
+	}
+	if strings.TrimSpace(res.Model) == "" {
+		return "", fmt.Errorf("policy resolve returned no model for role %q", role)
+	}
+	return res.Model, nil
+}
+
 func ListSummarizeModels(ctx context.Context, baseURL string, doer httpc.Doer) ([]SummarizeModelInfo, error) {
 	installed, err := FetchOllamaModels(ctx, baseURL, doer)
 	return MergeSummarizeModels(installed), err

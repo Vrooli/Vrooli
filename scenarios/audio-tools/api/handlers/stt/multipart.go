@@ -6,15 +6,30 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/byok/envelope"
 	"audio-tools/internal/protomap"
+	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
+
+// transcribeTimeout bounds a single buffered transcription. It matches the
+// documented Whisper /asr API timeout (resources/whisper/docs/API.md, 300s)
+// so a hung sidecar fails the request instead of pinning the connection open
+// indefinitely. Shared by every buffered entrypoint (multipart + Connect
+// unary Transcribe).
+const transcribeTimeout = 300 * time.Second
+
+// audioExceedsLimit reports whether n audio bytes exceeds the documented
+// MaxAudioSize ceiling. Enforced on every buffered transcription entrypoint
+// (multipart upload + Connect unary Transcribe) so oversize payloads are
+// rejected before they reach the Whisper sidecar.
+func audioExceedsLimit(n int) bool { return n > sttpipeline.MaxAudioSize }
 
 // MultipartTranscribeHandler exposes a thin multipart endpoint that
 // shares the Connect Transcribe codepath. Required because the UI's
@@ -41,6 +56,10 @@ func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if audioExceedsLimit(len(audio)) {
+			http.Error(w, fmt.Sprintf("audio exceeds maximum size of %d bytes", sttpipeline.MaxAudioSize), http.StatusRequestEntityTooLarge)
+			return
+		}
 
 		env := envelope.FromHTTP(r.Header)
 		format := r.FormValue("format")
@@ -57,7 +76,13 @@ func MultipartTranscribeHandler(chain *sttchain.Chain) http.Handler {
 			LPBSToken:     env.LPBSToken,
 			UserIdentity:  env.UserIdentity,
 		}
-		res, err := chain.Execute(context.Background(), req)
+		// Derive from the request context so a client disconnect cancels the
+		// in-flight transcription, and cap it at transcribeTimeout so a hung
+		// Whisper sidecar can't pin this handler open forever (the original
+		// context.Background() had neither cancellation nor a deadline).
+		ctx, cancel := context.WithTimeout(r.Context(), transcribeTimeout)
+		defer cancel()
+		res, err := chain.Execute(ctx, req)
 		if err != nil {
 			httpFromChainErr(w, err)
 			return

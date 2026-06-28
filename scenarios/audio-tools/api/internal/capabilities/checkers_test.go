@@ -3,6 +3,7 @@ package capabilities
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -111,13 +112,96 @@ func TestOllamaChecker_ModelMissing(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client(), Model: "fixture-summarize-model"}
+	// A concrete tag (carries a ":") that is absent stays on the physical
+	// path and reports "not installed" without consulting role policy.
+	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client(), Model: "fixture-summarize-model:latest"}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
 		t.Errorf("status = %q, want %q", status, StatusUnavailable)
 	}
-	if msg != `Ollama is running but summarize model "fixture-summarize-model" is not installed` {
+	if msg != `Ollama is running but summarize model "fixture-summarize-model:latest" is not installed` {
+		t.Errorf("message = %q", msg)
+	}
+}
+
+// TestOllamaChecker_RoleResolvesToInstalledModel is the regression guard for the
+// degraded-health bug: the configured selector is a logical role
+// ("summarize.default"), which never appears verbatim in /api/tags. The checker
+// must resolve it through the policy SSOT to the physical model and verify THAT
+// is installed, rather than literally matching the role name and falsely
+// reporting it uninstalled.
+func TestOllamaChecker_RoleResolvesToInstalledModel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"models": []map[string]string{{"name": "qwen3.5:9b"}},
+		})
+	}))
+	defer srv.Close()
+
+	checker := &OllamaChecker{
+		BaseURL: srv.URL, Doer: srv.Client(),
+		Model:       "summarize.default",
+		ResolveRole: func(_ context.Context, role string) (string, error) { return "qwen3.5:9b", nil },
+	}
+	status, msg := checker.Check(context.Background())
+
+	if status != StatusAvailable {
+		t.Fatalf("status = %q, want %q (msg=%q)", status, StatusAvailable, msg)
+	}
+	if msg != `Ollama is running and summarize model "qwen3.5:9b" (role "summarize.default") is available` {
+		t.Errorf("message = %q", msg)
+	}
+}
+
+// TestOllamaChecker_RoleResolvesToMissingModel covers a genuinely degraded
+// state: the role resolves to a model that is not pulled. The message names the
+// resolved physical model so an operator knows exactly what to pull.
+func TestOllamaChecker_RoleResolvesToMissingModel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"models": []map[string]string{{"name": "qwen3.5:4b"}},
+		})
+	}))
+	defer srv.Close()
+
+	checker := &OllamaChecker{
+		BaseURL: srv.URL, Doer: srv.Client(),
+		Model:       "summarize.default",
+		ResolveRole: func(_ context.Context, role string) (string, error) { return "qwen3.5:9b", nil },
+	}
+	status, msg := checker.Check(context.Background())
+
+	if status != StatusUnavailable {
+		t.Fatalf("status = %q, want %q", status, StatusUnavailable)
+	}
+	if msg != `Ollama is running but summarize model "qwen3.5:9b" (role "summarize.default") is not installed` {
+		t.Errorf("message = %q", msg)
+	}
+}
+
+// TestOllamaChecker_RoleResolutionFails covers the policy SSOT being
+// unreachable: the summarize capability genuinely cannot be planned, so the
+// checker reports unavailable with a clear, role-named message.
+func TestOllamaChecker_RoleResolutionFails(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"models": []map[string]string{{"name": "qwen3.5:9b"}},
+		})
+	}))
+	defer srv.Close()
+
+	checker := &OllamaChecker{
+		BaseURL: srv.URL, Doer: srv.Client(),
+		Model:       "summarize.default",
+		ResolveRole: func(_ context.Context, role string) (string, error) { return "", errors.New("policy unavailable") },
+	}
+	status, msg := checker.Check(context.Background())
+
+	if status != StatusUnavailable {
+		t.Fatalf("status = %q, want %q", status, StatusUnavailable)
+	}
+	if msg != `Ollama is running but summarize role "summarize.default" could not be resolved: policy unavailable` {
 		t.Errorf("message = %q", msg)
 	}
 }

@@ -420,8 +420,8 @@ func normalizeWS(s string) string {
 // never commit on real audio.
 func TestOverlapAgree_NormalizesCaseAndPunctuationForAgreement(t *testing.T) {
 	prov := scriptedProvider(-1,
-		"Hello world",  // capitalized, no punct
-		"hello world.", // lowercased, trailing period
+		"Hello world",   // capitalized, no punct
+		"hello world.",  // lowercased, trailing period
 		"hello, World.", // mixed case + punct again
 	)
 	strat := &strategy.OverlapAgree{Provider: prov, Trigger: strategy.TriggerStopwatch, WindowMs: useWindowMs, AdvanceMs: useWindowMs, CommitRuns: 2}

@@ -58,3 +58,23 @@ func TestModelPolicy_MergeSummarizeModelsMarksStatus(t *testing.T) {
 		t.Fatalf("all-minilm status = %+v, want installed but not default-eligible", embedding)
 	}
 }
+
+func TestSelectorIsRole(t *testing.T) {
+	cases := []struct {
+		selector string
+		want     bool
+	}{
+		{"summarize.default", true}, // logical role
+		{"chat.small", true},        // logical role
+		{"qwen3.5:9b", false},       // concrete tag
+		{"nomic-embed-text:latest", false},
+		{"  summarize.default  ", true}, // trimmed
+		{"", false},                     // empty is not a role
+		{"   ", false},
+	}
+	for _, tc := range cases {
+		if got := SelectorIsRole(tc.selector); got != tc.want {
+			t.Errorf("SelectorIsRole(%q) = %v, want %v", tc.selector, got, tc.want)
+		}
+	}
+}
