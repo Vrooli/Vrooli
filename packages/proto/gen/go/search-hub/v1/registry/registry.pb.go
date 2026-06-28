@@ -564,8 +564,20 @@ type ResultMapping struct {
 	// architecture-cartographer, meta-optimization-manager) set it; the
 	// conformance lint enforces that.
 	AttestationField string `protobuf:"bytes,12,opt,name=attestation_field,json=attestationField,proto3" json:"attestation_field,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Optional confidence carrier path. When set, the adapter decodes the object
+	// at this JSON path into SearchHit.confidence (keys: weak, regime). Providers
+	// that still expose bare fields can instead set weak_field/regime_field below.
+	ConfidenceField string `protobuf:"bytes,13,opt,name=confidence_field,json=confidenceField,proto3" json:"confidence_field,omitempty"`
+	// Optional repeated-string locations path. These are transported to
+	// SearchHit.locations and the first location becomes SearchHit.path when
+	// path_field is empty or maps to no value.
+	LocationsField string `protobuf:"bytes,14,opt,name=locations_field,json=locationsField,proto3" json:"locations_field,omitempty"`
+	// Compatibility mapping for providers that emit a top-level weak bool.
+	WeakField string `protobuf:"bytes,15,opt,name=weak_field,json=weakField,proto3" json:"weak_field,omitempty"`
+	// Compatibility mapping for providers that emit a top-level regime string.
+	RegimeField   string `protobuf:"bytes,16,opt,name=regime_field,json=regimeField,proto3" json:"regime_field,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResultMapping) Reset() {
@@ -678,6 +690,34 @@ func (x *ResultMapping) GetMeasureField() string {
 func (x *ResultMapping) GetAttestationField() string {
 	if x != nil {
 		return x.AttestationField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetConfidenceField() string {
+	if x != nil {
+		return x.ConfidenceField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetLocationsField() string {
+	if x != nil {
+		return x.LocationsField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetWeakField() string {
+	if x != nil {
+		return x.WeakField
+	}
+	return ""
+}
+
+func (x *ResultMapping) GetRegimeField() string {
+	if x != nil {
+		return x.RegimeField
 	}
 	return ""
 }
@@ -1360,7 +1400,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"2\n" +
 	"\vCliEndpoint\x12#\n" +
-	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xde\x03\n" +
+	"\rargv_template\x18\x01 \x03(\tR\fargvTemplate\"\xf4\x04\n" +
 	"\rResultMapping\x12!\n" +
 	"\fresults_path\x18\x01 \x01(\tR\vresultsPath\x12\x19\n" +
 	"\bid_field\x18\x02 \x01(\tR\aidField\x12\x1f\n" +
@@ -1378,7 +1418,12 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x0epresence_field\x18\n" +
 	" \x01(\tR\rpresenceField\x12#\n" +
 	"\rmeasure_field\x18\v \x01(\tR\fmeasureField\x12+\n" +
-	"\x11attestation_field\x18\f \x01(\tR\x10attestationField\"E\n" +
+	"\x11attestation_field\x18\f \x01(\tR\x10attestationField\x12)\n" +
+	"\x10confidence_field\x18\r \x01(\tR\x0fconfidenceField\x12'\n" +
+	"\x0flocations_field\x18\x0e \x01(\tR\x0elocationsField\x12\x1d\n" +
+	"\n" +
+	"weak_field\x18\x0f \x01(\tR\tweakField\x12!\n" +
+	"\fregime_field\x18\x10 \x01(\tR\vregimeField\"E\n" +
 	"\vFloorConfig\x12\x17\n" +
 	"\amax_gap\x18\x01 \x01(\x01R\x06maxGap\x12\x1d\n" +
 	"\n" +

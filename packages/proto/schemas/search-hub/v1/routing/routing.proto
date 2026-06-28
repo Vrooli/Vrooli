@@ -5,6 +5,7 @@ package vrooli.search_hub.v1.routing;
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
 
 import "common/v1/attestation.proto";
+import "common/v1/confidence.proto";
 
 // =============================================================================
 // SEARCH-HUB ROUTING DOMAIN — federated query + status
@@ -95,6 +96,13 @@ message SearchHit {
   // sufficiency), never folded into `score`. Optional for any provider; the
   // conformance lint requires architectural providers to populate it.
   common.v1.AttestedAnswer attestation = 11;
+  // Regime-aware confidence from the producing provider. Scores are not
+  // thresholdable across regimes; consumers render this instead of treating
+  // `score` as a universal confidence value.
+  common.v1.Confidence confidence = 12;
+  // Project-root-relative code locations or other concrete source locations
+  // behind this hit. `path` remains the primary/first locator for back-compat.
+  repeated string locations = 13;
 }
 
 // MeasureHit is the structured payload of a measure match: the resolved measure,

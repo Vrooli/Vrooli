@@ -37,7 +37,11 @@
         "title_field": "id",
         "score_field": "score",
         "snippet_field": "responsibility",
-        "path_field": "id",
+        "path_field": "paths.0",
+        "locations_field": "paths",
+        "weak_field": "weak",
+        "regime_field": "regime",
+        "confidence_field": "confidence",
         "score_scale": "SCORE_SCALE_COSINE_0_1"
       },
       "reindex_endpoint": {

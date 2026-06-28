@@ -16,6 +16,7 @@ import (
 	"architecture-cartographer/internal/aisearch"
 	pkg "github.com/vrooli/ai-go/search"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Searcher is the seam between the Connect handler and the aisearch service.
@@ -89,6 +90,8 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[search
 			Paths:          hit.Paths,
 			Score:          hit.Score,
 			Weak:           hit.Weak,
+			Confidence:     &commonv1.Confidence{Weak: hit.Weak, Regime: hit.Regime},
+			Regime:         hit.Regime,
 		})
 	}
 	return connect.NewResponse(wire), nil

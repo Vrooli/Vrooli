@@ -120,6 +120,9 @@ func renderGroups(groups []*routingv1.ProviderResultGroup) []string {
 			out = append(out, "    (no matches)")
 			continue
 		}
+		if allWeak(g.GetHits()) {
+			out = append(out, "    (no confident match — all returned hits are weak)")
+		}
 		for i, hit := range g.GetHits() {
 			out = append(out, formatHit(i+1, hit))
 		}
@@ -144,11 +147,7 @@ func renderRanked(hits []*routingv1.SearchHit) []string {
 		if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
 			line += " — " + snippet
 		}
-		provenance := strings.TrimSpace(hit.GetPath())
-		if provenance == "" {
-			provenance = hit.GetId()
-		}
-		line += fmt.Sprintf(" [rerank=%.3f %s/%s]", hit.GetRerankScore(), hit.GetProviderId(), provenance)
+		line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), hit.GetProviderId(), provenance(hit))
 		out = append(out, line)
 	}
 	return out
@@ -165,12 +164,67 @@ func formatHit(n int, hit *routingv1.SearchHit) string {
 	if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
 		line += " — " + snippet
 	}
-	provenance := strings.TrimSpace(hit.GetPath())
-	if provenance == "" {
-		provenance = hit.GetId()
+	line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), hit.GetProviderGroup(), provenance(hit))
+	if locs := locationSummary(hit.GetLocations()); locs != "" {
+		line += " locations: " + locs
 	}
-	line += fmt.Sprintf(" [score=%.3f %s/%s]", hit.GetScore(), hit.GetProviderGroup(), provenance)
 	return line
+}
+
+func allWeak(hits []*routingv1.SearchHit) bool {
+	if len(hits) == 0 {
+		return false
+	}
+	for _, hit := range hits {
+		if hit.GetConfidence() == nil || !hit.GetConfidence().GetWeak() {
+			return false
+		}
+	}
+	return true
+}
+
+func confidenceBand(hit *routingv1.SearchHit) string {
+	c := hit.GetConfidence()
+	if c == nil {
+		return "confidence=unknown"
+	}
+	if c.GetWeak() {
+		if regime := strings.TrimSpace(c.GetRegime()); regime != "" {
+			return "confidence=weak/" + regime
+		}
+		return "confidence=weak"
+	}
+	if regime := strings.TrimSpace(c.GetRegime()); regime != "" {
+		return "confidence=strong/" + regime
+	}
+	return "confidence=strong"
+}
+
+func provenance(hit *routingv1.SearchHit) string {
+	if locs := hit.GetLocations(); len(locs) > 0 && strings.TrimSpace(locs[0]) != "" {
+		return strings.TrimSpace(locs[0])
+	}
+	if path := strings.TrimSpace(hit.GetPath()); path != "" {
+		return path
+	}
+	return hit.GetId()
+}
+
+func locationSummary(locations []string) string {
+	clean := make([]string, 0, len(locations))
+	for _, loc := range locations {
+		loc = strings.TrimSpace(loc)
+		if loc != "" {
+			clean = append(clean, loc)
+		}
+	}
+	if len(clean) == 0 {
+		return ""
+	}
+	if len(clean) <= 2 {
+		return strings.Join(clean, ", ")
+	}
+	return strings.Join(clean[:2], ", ") + fmt.Sprintf(" (+%d more)", len(clean)-2)
 }
 
 // splitTypes parses a comma-separated --type value into trimmed, non-empty

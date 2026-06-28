@@ -1,3 +1,4 @@
+from common.v1 import confidence_pb2 as _confidence_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -27,7 +28,7 @@ class SearchRequest(_message.Message):
     def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., mode: _Optional[_Union[Mode, str]] = ...) -> None: ...
 
 class SearchResult(_message.Message):
-    __slots__ = ("id", "scenario", "name", "responsibility", "purpose", "archetype", "paths", "score", "weak")
+    __slots__ = ("id", "scenario", "name", "responsibility", "purpose", "archetype", "paths", "score", "weak", "confidence", "regime")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +38,8 @@ class SearchResult(_message.Message):
     PATHS_FIELD_NUMBER: _ClassVar[int]
     SCORE_FIELD_NUMBER: _ClassVar[int]
     WEAK_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    REGIME_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     name: str
@@ -46,7 +49,9 @@ class SearchResult(_message.Message):
     paths: _containers.RepeatedScalarFieldContainer[str]
     score: float
     weak: bool
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., responsibility: _Optional[str] = ..., purpose: _Optional[str] = ..., archetype: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., score: _Optional[float] = ..., weak: _Optional[bool] = ...) -> None: ...
+    confidence: _confidence_pb2.Confidence
+    regime: str
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., responsibility: _Optional[str] = ..., purpose: _Optional[str] = ..., archetype: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., score: _Optional[float] = ..., weak: _Optional[bool] = ..., confidence: _Optional[_Union[_confidence_pb2.Confidence, _Mapping]] = ..., regime: _Optional[str] = ...) -> None: ...
 
 class SearchResponse(_message.Message):
     __slots__ = ("results", "mode_used", "reranker")

@@ -71,7 +71,7 @@
         },
         "result_mapping": {
           "type": "object",
-          "description": "How to map the provider's response into normalized hits",
+          "description": "How to map the provider's response into normalized hits. Core keys mirror search-hub.v1.registry.ResultMapping: results_path, id_field, title_field, score_field, snippet_field, path_field, score_scale, filter_field/filter_value, presence_field, measure_field, attestation_field, confidence_field (object with weak/regime), locations_field (array of project-root-relative locations), weak_field, and regime_field.",
           "additionalProperties": true
         },
         "tuning": { "$ref": "#/definitions/tuning" },

@@ -115,6 +115,58 @@ func TestMapResultsPresenceField(t *testing.T) {
 	require.Equal(t, "Chat widget", hits[0].Title)
 }
 
+func TestMapResultsConfidenceAndLocations(t *testing.T) {
+	d := &registryv1.ProviderDescriptor{
+		ProviderId:    "architecture-cartographer.domain-map",
+		ProviderGroup: "architecture-cartographer",
+		Type:          "domain",
+		ResultMapping: &registryv1.ResultMapping{
+			ResultsPath:     "results",
+			IdField:         "id",
+			TitleField:      "id",
+			SnippetField:    "responsibility",
+			ScoreField:      "score",
+			ScoreScale:      registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
+			ConfidenceField: "confidence",
+			LocationsField:  "paths",
+		},
+	}
+	body := []byte(`{"results":[{
+		"id":"plan-manager/authoring",
+		"responsibility":"Turn intent into plans.",
+		"score":0.033,
+		"paths":["scenarios/plan-manager/api/internal/authoring/","packages/proto/schemas/plan-manager/v1/authoring/"],
+		"confidence":{"weak":true,"regime":"fused"}
+	}]}`)
+
+	hits, err := providers.MapResults(d, body)
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+
+	h := hits[0]
+	require.Equal(t, "scenarios/plan-manager/api/internal/authoring/", h.Path, "first location becomes back-compatible path")
+	require.Equal(t, []string{
+		"scenarios/plan-manager/api/internal/authoring/",
+		"packages/proto/schemas/plan-manager/v1/authoring/",
+	}, h.Locations)
+	require.NotNil(t, h.GetConfidence())
+	require.True(t, h.GetConfidence().GetWeak())
+	require.Equal(t, "fused", h.GetConfidence().GetRegime())
+}
+
+func TestMapResultsBareWeakRegimeCompatibility(t *testing.T) {
+	d := mappingDescriptor(registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1, "", "")
+	d.ResultMapping.WeakField = "weak"
+	d.ResultMapping.RegimeField = "regime"
+	body := []byte(`{"results":[{"id":"x","title":"X","score":0.5,"weak":true,"regime":"cosine"}]}`)
+
+	hits, err := providers.MapResults(d, body)
+	require.NoError(t, err)
+	require.Len(t, hits, 1)
+	require.True(t, hits[0].GetConfidence().GetWeak())
+	require.Equal(t, "cosine", hits[0].GetConfidence().GetRegime())
+}
+
 func TestMapResultsRecordsLessonCarried(t *testing.T) {
 	// swarm-manager.records now federates through the RICH POST
 	// /api/v1/records/search endpoint, whose response is

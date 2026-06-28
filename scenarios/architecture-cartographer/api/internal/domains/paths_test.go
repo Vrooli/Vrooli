@@ -44,3 +44,17 @@ func TestNormalizePath(t *testing.T) {
 		}
 	}
 }
+
+func TestRebaseToRepoRoot(t *testing.T) {
+	cases := map[string]string{
+		"api/internal/authoring/":                        "scenarios/plan-manager/api/internal/authoring/",
+		"cli/domains/authoring/":                         "scenarios/plan-manager/cli/domains/authoring/",
+		"packages/proto/schemas/plan-manager/v1/api/":    "packages/proto/schemas/plan-manager/v1/api/",
+		"scenarios/plan-manager/api/handlers/authoring/": "scenarios/plan-manager/api/handlers/authoring/",
+	}
+	for in, want := range cases {
+		if got := rebaseToRepoRoot("plan-manager", in); got != want {
+			t.Fatalf("rebaseToRepoRoot(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

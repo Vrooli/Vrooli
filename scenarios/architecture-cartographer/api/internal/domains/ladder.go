@@ -14,12 +14,14 @@ import (
 // an absent source contributes an empty extraction.
 func RunLadder(ctx context.Context, scenarioDir string, extractors []DomainSourceExtractor) ([]Extraction, error) {
 	out := make([]Extraction, 0, len(extractors))
+	scenario := scenarioNameFromDir(scenarioDir)
 	for _, ex := range extractors {
 		extraction, err := ex.Extract(ctx, scenarioDir)
 		if err != nil {
 			return nil, err
 		}
 		extraction.Source = ex.Source()
+		extraction = rebaseExtractionToRepoRoot(scenario, extraction)
 		out = append(out, extraction)
 	}
 	return out, nil

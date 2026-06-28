@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
@@ -62,6 +63,8 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 	presenceField := strings.TrimSpace(m.GetPresenceField())
 	measureField := strings.TrimSpace(m.GetMeasureField())
 	attestationField := strings.TrimSpace(m.GetAttestationField())
+	confidenceField := strings.TrimSpace(m.GetConfidenceField())
+	locationsField := strings.TrimSpace(m.GetLocationsField())
 	hits := make([]*routingv1.SearchHit, 0, len(items))
 	for _, raw := range items {
 		item, ok := raw.(map[string]any)
@@ -76,6 +79,11 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 		if presenceField != "" && !isPresent(lookupPath(item, presenceField)) {
 			continue // keep only items where the presence_field is populated
 		}
+		locations := stringSliceField(item, locationsField)
+		path := stringField(item, m.GetPathField())
+		if path == "" && len(locations) > 0 {
+			path = locations[0]
+		}
 		hits = append(hits, &routingv1.SearchHit{
 			ProviderId:    d.GetProviderId(),
 			ProviderGroup: d.GetProviderGroup(),
@@ -83,8 +91,9 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 			Id:            stringField(item, m.GetIdField()),
 			Title:         stringField(item, m.GetTitleField()),
 			Snippet:       stringField(item, m.GetSnippetField()),
-			Path:          stringField(item, m.GetPathField()),
+			Path:          path,
 			Score:         normalizeScore(numberField(item, m.GetScoreField()), m.GetScoreScale()),
+			Locations:     locations,
 			// Measure carrier: nil for every retrieval provider (measure_field
 			// unset); populated only for the measures provider, generically.
 			Measure: decodeMeasureHit(item, measureField),
@@ -93,9 +102,35 @@ func MapResults(d *registryv1.ProviderDescriptor, body []byte) ([]*routingv1.Sea
 			// providers, generically. A non-conformant attested answer (e.g.
 			// DERIVED with no citations) is dropped, not trusted.
 			Attestation: decodeAttestation(item, attestationField),
+			// Confidence carrier: populated from a structured object when present,
+			// or from bare weak/regime fields for legacy provider responses.
+			Confidence: decodeConfidence(item, confidenceField, m.GetWeakField(), m.GetRegimeField()),
 		})
 	}
 	return hits, nil
+}
+
+// decodeConfidence decodes either a structured confidence object or bare
+// weak/regime fields from a result item. It returns nil when no confidence
+// mapping is configured so providers without this capability remain compatible.
+func decodeConfidence(item map[string]any, confidencePath, weakPath, regimePath string) *commonv1.Confidence {
+	if confidencePath != "" {
+		if obj, ok := lookupPath(item, confidencePath).(map[string]any); ok && len(obj) > 0 {
+			return &commonv1.Confidence{
+				Weak:   coerceBool(obj["weak"]),
+				Regime: coerceString(obj["regime"]),
+			}
+		}
+	}
+	weakPath = strings.TrimSpace(weakPath)
+	regimePath = strings.TrimSpace(regimePath)
+	if weakPath == "" && regimePath == "" {
+		return nil
+	}
+	return &commonv1.Confidence{
+		Weak:   coerceBool(lookupPath(item, weakPath)),
+		Regime: coerceString(lookupPath(item, regimePath)),
+	}
 }
 
 // decodeMeasureHit decodes the per-item measure object at `path` into a
@@ -211,6 +246,20 @@ func coerceString(v any) string {
 	}
 }
 
+// coerceBool renders a decoded JSON value as a bool. Strings accept the same
+// values as strconv.ParseBool; missing or invalid values yield false.
+func coerceBool(v any) bool {
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		if b, err := strconv.ParseBool(t); err == nil {
+			return b
+		}
+	}
+	return false
+}
+
 // coerceNumber renders a decoded JSON value as a float (number verbatim, numeric
 // string parsed; otherwise 0). Shared by numberField and the measure decoder.
 func coerceNumber(v any) float64 {
@@ -253,4 +302,23 @@ func numberField(item map[string]any, path string) float64 {
 		return 0
 	}
 	return coerceNumber(lookupPath(item, path))
+}
+
+// stringSliceField extracts a repeated string field at the given dot path.
+// Non-string scalars inside the array are coerced the same way stringField does.
+func stringSliceField(item map[string]any, path string) []string {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
+	raw, ok := lookupPath(item, path).([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if s := strings.TrimSpace(coerceString(v)); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }

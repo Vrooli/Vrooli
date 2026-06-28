@@ -102,6 +102,10 @@ message PhaseContext {
   bool inputs_freshened = 11;
   string freshen_status = 12;
   string freshen_detail = 13;
+  // The plan's (or phase's narrowing) change boundary, surfaced so a fresh or
+  // resumed agent sees the allowed/denied paths and oracle coverage without
+  // reading the full plan markdown.
+  shared.ChangeBoundary change_boundary = 14;
 }
 
 // CompletionNudge is one item in the thin guided completion process. Nudges are

@@ -224,10 +224,13 @@ type ProposedDomain struct {
 // domain in Domains order wins; callers keep Domains sorted by name for
 // determinism.
 func (m DerivedDomainMap) DomainFor(path string) string {
+	candidates := m.pathCandidates(path)
 	for _, d := range m.Domains {
 		for _, p := range d.Paths {
-			if PathMatches(path, p) {
-				return d.Name
+			for _, candidate := range candidates {
+				if PathMatches(candidate, p) {
+					return d.Name
+				}
 			}
 		}
 	}
@@ -246,12 +249,30 @@ func (m DerivedDomainMap) Names() []string {
 // IsSharedSubstrate reports whether the path falls under a declared
 // shared-substrate prefix.
 func (m DerivedDomainMap) IsSharedSubstrate(path string) bool {
+	candidates := m.pathCandidates(path)
 	for _, p := range m.SharedSubstrate {
-		if PathMatches(path, p) {
-			return true
+		for _, candidate := range candidates {
+			if PathMatches(candidate, p) {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+func (m DerivedDomainMap) pathCandidates(path string) []string {
+	path = NormalizePath(path)
+	if path == "" {
+		return nil
+	}
+	candidates := []string{path}
+	if m.Scenario != "" && !isRepoRootRelative(path) {
+		rebased := rebaseToRepoRoot(m.Scenario, path)
+		if rebased != path {
+			candidates = append(candidates, rebased)
+		}
+	}
+	return candidates
 }
 
 // ExtractedDomain is one source's raw declaration of a single domain,

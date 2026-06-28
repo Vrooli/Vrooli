@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from common.v1 import confidence_pb2 as common_dot_v1_dot_confidence__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0architecture-cartographer/v1/search/search.proto\x12*vrooli.architecture_cartographer.v1.search\"\x81\x01\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x44\n\x04mode\x18\x03 \x01(\x0e\x32\x30.vrooli.architecture_cartographer.v1.search.ModeR\x04mode\"\xee\x01\n\x0cSearchResult\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12&\n\x0eresponsibility\x18\x04 \x01(\tR\x0eresponsibility\x12\x18\n\x07purpose\x18\x05 \x01(\tR\x07purpose\x12\x1c\n\tarchetype\x18\x06 \x01(\tR\tarchetype\x12\x14\n\x05paths\x18\x07 \x03(\tR\x05paths\x12\x14\n\x05score\x18\x08 \x01(\x01R\x05score\x12\x12\n\x04weak\x18\t \x01(\x08R\x04weak\"\xcf\x01\n\x0eSearchResponse\x12R\n\x07results\x18\x01 \x03(\x0b\x32\x38.vrooli.architecture_cartographer.v1.search.SearchResultR\x07results\x12M\n\tmode_used\x18\x02 \x01(\x0e\x32\x30.vrooli.architecture_cartographer.v1.search.ModeR\x08modeUsed\x12\x1a\n\x08reranker\x18\x03 \x01(\tR\x08reranker\"\x0f\n\rStatusRequest\"\x81\x02\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12\x16\n\x06ollama\x18\x02 \x01(\x08R\x06ollama\x12\x16\n\x06qdrant\x18\x03 \x01(\x08R\x06qdrant\x12#\n\rindexed_count\x18\x04 \x01(\x05R\x0cindexedCount\x12*\n\x11last_reconcile_at\x18\x05 \x01(\tR\x0flastReconcileAt\x12\x34\n\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome\x12\x1a\n\x08reranker\x18\x07 \x01(\tR\x08reranker*8\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0b\n\x07MODE_AI\x10\x01\x12\r\n\tMODE_TEXT\x10\x02\x32\x91\x02\n\rSearchService\x12\x7f\n\x06Search\x12\x39.vrooli.architecture_cartographer.v1.search.SearchRequest\x1a:.vrooli.architecture_cartographer.v1.search.SearchResponse\x12\x7f\n\x06Status\x12\x39.vrooli.architecture_cartographer.v1.search.StatusRequest\x1a:.vrooli.architecture_cartographer.v1.search.StatusResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search;search_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0architecture-cartographer/v1/search/search.proto\x12*vrooli.architecture_cartographer.v1.search\x1a\x1a\x63ommon/v1/confidence.proto\"\x81\x01\n\rSearchRequest\x12\x14\n\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x44\n\x04mode\x18\x03 \x01(\x0e\x32\x30.vrooli.architecture_cartographer.v1.search.ModeR\x04mode\"\xbd\x02\n\x0cSearchResult\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12&\n\x0eresponsibility\x18\x04 \x01(\tR\x0eresponsibility\x12\x18\n\x07purpose\x18\x05 \x01(\tR\x07purpose\x12\x1c\n\tarchetype\x18\x06 \x01(\tR\tarchetype\x12\x14\n\x05paths\x18\x07 \x03(\tR\x05paths\x12\x14\n\x05score\x18\x08 \x01(\x01R\x05score\x12\x12\n\x04weak\x18\t \x01(\x08R\x04weak\x12\x35\n\nconfidence\x18\n \x01(\x0b\x32\x15.common.v1.ConfidenceR\nconfidence\x12\x16\n\x06regime\x18\x0b \x01(\tR\x06regime\"\xcf\x01\n\x0eSearchResponse\x12R\n\x07results\x18\x01 \x03(\x0b\x32\x38.vrooli.architecture_cartographer.v1.search.SearchResultR\x07results\x12M\n\tmode_used\x18\x02 \x01(\x0e\x32\x30.vrooli.architecture_cartographer.v1.search.ModeR\x08modeUsed\x12\x1a\n\x08reranker\x18\x03 \x01(\tR\x08reranker\"\x0f\n\rStatusRequest\"\x81\x02\n\x0eStatusResponse\x12\x1c\n\tavailable\x18\x01 \x01(\x08R\tavailable\x12\x16\n\x06ollama\x18\x02 \x01(\x08R\x06ollama\x12\x16\n\x06qdrant\x18\x03 \x01(\x08R\x06qdrant\x12#\n\rindexed_count\x18\x04 \x01(\x05R\x0cindexedCount\x12*\n\x11last_reconcile_at\x18\x05 \x01(\tR\x0flastReconcileAt\x12\x34\n\x16last_reconcile_outcome\x18\x06 \x01(\tR\x14lastReconcileOutcome\x12\x1a\n\x08reranker\x18\x07 \x01(\tR\x08reranker*8\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0b\n\x07MODE_AI\x10\x01\x12\r\n\tMODE_TEXT\x10\x02\x32\x91\x02\n\rSearchService\x12\x7f\n\x06Search\x12\x39.vrooli.architecture_cartographer.v1.search.SearchRequest\x1a:.vrooli.architecture_cartographer.v1.search.SearchResponse\x12\x7f\n\x06Status\x12\x39.vrooli.architecture_cartographer.v1.search.StatusRequest\x1a:.vrooli.architecture_cartographer.v1.search.StatusResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search;search_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,18 +33,18 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'architecture_cartographer.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z\\github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search;search_v1'
-  _globals['_MODE']._serialized_start=956
-  _globals['_MODE']._serialized_end=1012
-  _globals['_SEARCHREQUEST']._serialized_start=97
-  _globals['_SEARCHREQUEST']._serialized_end=226
-  _globals['_SEARCHRESULT']._serialized_start=229
-  _globals['_SEARCHRESULT']._serialized_end=467
-  _globals['_SEARCHRESPONSE']._serialized_start=470
-  _globals['_SEARCHRESPONSE']._serialized_end=677
-  _globals['_STATUSREQUEST']._serialized_start=679
-  _globals['_STATUSREQUEST']._serialized_end=694
-  _globals['_STATUSRESPONSE']._serialized_start=697
-  _globals['_STATUSRESPONSE']._serialized_end=954
-  _globals['_SEARCHSERVICE']._serialized_start=1015
-  _globals['_SEARCHSERVICE']._serialized_end=1288
+  _globals['_MODE']._serialized_start=1063
+  _globals['_MODE']._serialized_end=1119
+  _globals['_SEARCHREQUEST']._serialized_start=125
+  _globals['_SEARCHREQUEST']._serialized_end=254
+  _globals['_SEARCHRESULT']._serialized_start=257
+  _globals['_SEARCHRESULT']._serialized_end=574
+  _globals['_SEARCHRESPONSE']._serialized_start=577
+  _globals['_SEARCHRESPONSE']._serialized_end=784
+  _globals['_STATUSREQUEST']._serialized_start=786
+  _globals['_STATUSREQUEST']._serialized_end=801
+  _globals['_STATUSRESPONSE']._serialized_start=804
+  _globals['_STATUSRESPONSE']._serialized_end=1061
+  _globals['_SEARCHSERVICE']._serialized_start=1122
+  _globals['_SEARCHSERVICE']._serialized_end=1395
 # @@protoc_insertion_point(module_scope)

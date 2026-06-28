@@ -1,13 +1,18 @@
 package staleness
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // Environment variable names
@@ -38,6 +43,15 @@ type CheckerConfig struct {
 	// SkipRebuild only logs staleness without attempting rebuild.
 	// Useful for debugging or when rebuild should be handled externally.
 	SkipRebuild bool
+
+	// LifecycleManaged means the binary is supervised by the Vrooli lifecycle.
+	// In this mode a lifecycle freshness manifest, when present, is authoritative:
+	// preflight verifies it but does not rebuild/re-exec behind the supervisor.
+	LifecycleManaged bool
+
+	// ManifestPath overrides the lifecycle freshness manifest location.
+	// Default: <BinaryPath>.freshness.json.
+	ManifestPath string
 
 	// CommandRunner overrides exec.Cmd.Run() for testing.
 	CommandRunner func(cmd *exec.Cmd) error
@@ -92,6 +106,16 @@ func (c *Checker) CheckAndMaybeRebuild() bool {
 	}
 
 	// Check staleness
+	if c.cfg.LifecycleManaged {
+		handled, stale, reason := c.checkLifecycleFreshnessManifest(binaryPath, apiDir)
+		if handled {
+			if stale {
+				c.log("api-core: lifecycle-managed binary is stale per freshness manifest (%s); deferring rebuild to Vrooli lifecycle\n", reason)
+			}
+			return false
+		}
+	}
+
 	isStale, reason := c.checkStaleness(binaryPath, apiDir, binaryTime)
 	if !isStale {
 		return false
@@ -113,6 +137,175 @@ func (c *Checker) CheckAndMaybeRebuild() bool {
 
 	// Attempt auto-rebuild
 	return c.autoRebuild(binaryPath, apiDir)
+}
+
+func (c *Checker) checkLifecycleFreshnessManifest(binaryPath, apiDir string) (handled bool, stale bool, reason string) {
+	manifestPath := strings.TrimSpace(c.cfg.ManifestPath)
+	if manifestPath == "" {
+		manifestPath = cliutil.FreshnessManifestPath(binaryPath)
+	}
+	manifest, ok, err := cliutil.ReadFreshnessManifest(manifestPath)
+	if err != nil {
+		c.log("api-core: lifecycle freshness manifest unreadable (%v); deferring rebuild to Vrooli lifecycle\n", err)
+		return true, false, ""
+	}
+	if !ok {
+		return false, false, ""
+	}
+
+	spec, keyInputs, err := c.lifecycleFreshnessSpec(binaryPath, apiDir, manifest)
+	if err != nil {
+		c.log("api-core: lifecycle freshness manifest could not be evaluated (%v); deferring rebuild to Vrooli lifecycle\n", err)
+		return true, false, ""
+	}
+	verdict, err := cliutil.EvaluateFreshness(spec, manifest, keyInputs)
+	if err != nil {
+		c.log("api-core: lifecycle freshness evaluation failed (%v); deferring rebuild to Vrooli lifecycle\n", err)
+		return true, false, ""
+	}
+	if !verdict.Stale {
+		return true, false, ""
+	}
+	return true, true, formatLifecycleFreshnessReason(verdict)
+}
+
+func (c *Checker) lifecycleFreshnessSpec(binaryPath, apiDir string, manifest cliutil.FreshnessManifest) (cliutil.FreshnessSpec, map[string]string, error) {
+	contextRoot, err := inferManifestContextRoot(apiDir, manifest)
+	if err != nil {
+		return cliutil.FreshnessSpec{}, nil, err
+	}
+	inputs := manifestInputs(manifest)
+	if len(inputs) == 0 {
+		return cliutil.FreshnessSpec{}, nil, fmt.Errorf("freshness manifest has no file inputs")
+	}
+	return cliutil.FreshnessSpec{
+		SourceRoot:   apiDir,
+		ContextRoot:  contextRoot,
+		Inputs:       inputs,
+		SkipFiles:    []string{filepath.Base(binaryPath)},
+		SkipSuffixes: []string{"_test.go", cliutil.FreshnessManifestSuffix},
+	}, c.currentLifecycleKeyInputs(manifest.KeyInputs), nil
+}
+
+func inferManifestContextRoot(apiDir string, manifest cliutil.FreshnessManifest) (string, error) {
+	var sample string
+	for _, entry := range manifest.Files {
+		if rel := strings.TrimSpace(entry.Rel); rel != "" {
+			sample = filepath.FromSlash(rel)
+			break
+		}
+	}
+	if sample == "" {
+		return "", fmt.Errorf("freshness manifest has no file inputs")
+	}
+	for dir := filepath.Clean(apiDir); ; dir = filepath.Dir(dir) {
+		if _, err := os.Stat(filepath.Join(dir, sample)); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+	return "", fmt.Errorf("could not infer freshness context root from %s", sample)
+}
+
+func manifestInputs(manifest cliutil.FreshnessManifest) []string {
+	if len(manifest.Inputs) > 0 {
+		inputs := append([]string(nil), manifest.Inputs...)
+		sort.Strings(inputs)
+		return inputs
+	}
+
+	seen := map[string]struct{}{}
+	for _, entry := range manifest.Files {
+		rel := filepath.ToSlash(strings.TrimSpace(entry.Rel))
+		if rel == "" {
+			continue
+		}
+		dir := filepath.ToSlash(filepath.Dir(rel))
+		if dir == "." {
+			dir = rel
+		}
+		seen[dir] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for dir := range seen {
+		out = append(out, dir)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (c *Checker) currentLifecycleKeyInputs(recorded map[string]string) map[string]string {
+	if len(recorded) == 0 {
+		return nil
+	}
+	current := map[string]string{}
+	for key := range recorded {
+		current[key] = recorded[key]
+	}
+	for key, value := range currentGoEnvInputs(c.cfg.LookPath) {
+		if _, ok := recorded[key]; ok {
+			current[key] = value
+		}
+	}
+	if _, ok := recorded["toolchain"]; ok {
+		toolchain := currentGoToolchain(c.cfg.LookPath)
+		if toolchain != "" {
+			current["toolchain"] = toolchain
+		}
+	}
+	return current
+}
+
+func currentGoEnvInputs(lookPath func(string) (string, error)) map[string]string {
+	goBin, ok := resolveGoBinary(lookPath)
+	if !ok {
+		return nil
+	}
+	out, err := exec.Command(goBin, "env", "-json").Output()
+	if err != nil {
+		return nil
+	}
+	var parsed map[string]string
+	if err := json.Unmarshal(out, &parsed); err != nil {
+		return nil
+	}
+	current := map[string]string{}
+	for _, key := range []string{"GOOS", "GOARCH", "CGO_ENABLED", "GOFLAGS", "GOEXPERIMENT", "GOAMD64", "GOARM"} {
+		if value := strings.TrimSpace(parsed[key]); value != "" {
+			current[strings.ToLower(key)] = value
+		}
+	}
+	return current
+}
+
+func currentGoToolchain(lookPath func(string) (string, error)) string {
+	goBin, ok := resolveGoBinary(lookPath)
+	if !ok {
+		return ""
+	}
+	out, err := exec.Command(goBin, "version").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func resolveGoBinary(lookPath func(string) (string, error)) (string, bool) {
+	if lookPath == nil {
+		lookPath = exec.LookPath
+	}
+	goBin, err := lookPath("go")
+	return goBin, err == nil && strings.TrimSpace(goBin) != ""
+}
+
+func formatLifecycleFreshnessReason(verdict cliutil.FreshnessVerdict) string {
+	if strings.TrimSpace(verdict.File) == "" {
+		return verdict.Reason
+	}
+	return verdict.Reason + ": " + verdict.File
 }
 
 // resolvePaths determines the binary path and API source directory.

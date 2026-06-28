@@ -4,6 +4,8 @@ package vrooli.architecture_cartographer.v1.search;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/search;search_v1";
 
+import "common/v1/confidence.proto";
+
 // =============================================================================
 // SEARCH DOMAIN — cross-scenario domain-map semantic discovery
 // =============================================================================
@@ -83,6 +85,12 @@ message SearchResult {
   // via the shared engine's regime-aware weak labeling so every client renders
   // an identical "(weak)" badge without re-deriving a threshold.
   bool weak = 9;
+  // Shared confidence carrier for federated search consumers. Mirrors `weak`
+  // for compatibility and adds the score regime.
+  common.v1.Confidence confidence = 10;
+  // Score regime that produced `score` ("cosine", "cross-encoder", "llm",
+  // "fused"). Kept as a flat field for declarative search-hub result_mapping.
+  string regime = 11;
 }
 
 // SearchResponse echoes which Mode actually served the request so the caller

@@ -90,6 +90,9 @@ type DomainHit struct {
 	// Weak is the regime-aware weak-match flag, computed once in Service.Search
 	// via the shared engine's regime-aware weak labeling (pkg.LabelWeakForMethod).
 	Weak bool `json:"weak"`
+	// Regime is the score regime that produced Score ("cosine", "cross-encoder",
+	// "llm", or "fused").
+	Regime string `json:"regime,omitempty"`
 }
 
 // SearchResponse wraps results with the request echo + retrieval method.

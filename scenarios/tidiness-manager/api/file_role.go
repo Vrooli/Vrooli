@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -56,6 +57,51 @@ func (rc *roleCache) readHead(relPath string) []byte {
 	buf := make([]byte, roleHeadBytes)
 	n, _ := file.Read(buf)
 	return buf[:n]
+}
+
+// duplicationFindings converts detected duplicate blocks into tidiness findings,
+// applying role-aware severity. Generated files are excluded entirely; structural
+// duplication in a cappable role (test/test-support/declarative-wiring) is
+// downgraded to a warning, while genuine logic keeps its base severity.
+func duplicationFindings(scenarioName, scenarioPath string, roles *roleCache, dup *DuplicateResult) []TidinessFinding {
+	if dup == nil || dup.Skipped {
+		return nil
+	}
+	findings := make([]TidinessFinding, 0, len(dup.DuplicateBlocks))
+	for i, block := range dup.DuplicateBlocks {
+		primaryPath := ""
+		line := 0
+		if len(block.Files) > 0 {
+			primaryPath = block.Files[0].Path
+			line = block.Files[0].StartLine
+		}
+		primaryRole := roles.role(primaryPath)
+		// Generated code is fully excluded.
+		if primaryRole == FileRoleGenerated {
+			continue
+		}
+		// Cap structural duplication at warning: a uniform descriptor list or
+		// test-scaffolding block is enforced consistency, not logic debt.
+		// Content-confirm (IsStructuralBlock) guards against masking — a genuine
+		// logic block in a role-named file keeps its normal severity.
+		var blockLines []string
+		if roleAllowsStructuralCap(primaryRole) && primaryPath != "" {
+			blockLines, _ = readBlockLines(filepath.Join(scenarioPath, primaryPath), line, block.Lines)
+		}
+		severity, structural := resolveDuplicationSeverity(severityForDuplication(float64(block.Lines), 10), primaryRole, blockLines)
+		evidence := map[string]any{"lines": block.Lines, "locations": block.Files, "tool": dup.Tool, "file_role": primaryRole.String()}
+		if structural {
+			evidence["structural"] = true
+		}
+		findings = append(findings, newTidinessFinding(scenarioName, "duplicated-code", "duplication", severity, primaryPath, "", line,
+			fmt.Sprintf("Duplicated block spans %d lines", block.Lines),
+			fmt.Sprintf("Duplicated code block #%d spans %d lines across %d locations.", i+1, block.Lines, len(block.Files)),
+			evidence,
+			"Duplicated code multiplies future fixes and makes behavior drift likely.",
+			"Extract the shared behavior or intentionally document why the copies must diverge.",
+			"duplication"))
+	}
+	return findings
 }
 
 // resolveDuplicationSeverity returns the final severity for a duplicated block

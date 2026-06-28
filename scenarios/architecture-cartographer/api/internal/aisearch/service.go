@@ -274,6 +274,10 @@ func (s *Service) Search(ctx context.Context, query string, limit int, mode Sear
 	if method == "dense" || method == "hybrid" {
 		method = "ai" // wire vocab
 	}
+	regime := pkg.RegimeForMethod(presp.Method, presp.Reranker)
+	for i := range hits {
+		hits[i].Regime = regime
+	}
 	return &SearchResponse{
 		Results:  hits,
 		Total:    len(hits),

@@ -3,6 +3,7 @@ package domains_test
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -56,6 +57,11 @@ func TestDogfood_OwnDomainsDocParses(t *testing.T) {
 	for _, d := range m.Domains {
 		if len(d.Paths) == 0 {
 			t.Fatalf("domain %q has no source paths", d.Name)
+		}
+		for _, path := range d.Paths {
+			if !strings.HasPrefix(path, "scenarios/") && !strings.HasPrefix(path, "packages/") {
+				t.Fatalf("domain %q path %q is not project-root-relative", d.Name, path)
+			}
 		}
 	}
 

@@ -144,8 +144,12 @@ type PhaseContext struct {
 	InputsFreshened bool   `protobuf:"varint,11,opt,name=inputs_freshened,json=inputsFreshened,proto3" json:"inputs_freshened,omitempty"`
 	FreshenStatus   string `protobuf:"bytes,12,opt,name=freshen_status,json=freshenStatus,proto3" json:"freshen_status,omitempty"`
 	FreshenDetail   string `protobuf:"bytes,13,opt,name=freshen_detail,json=freshenDetail,proto3" json:"freshen_detail,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The plan's (or phase's narrowing) change boundary, surfaced so a fresh or
+	// resumed agent sees the allowed/denied paths and oracle coverage without
+	// reading the full plan markdown.
+	ChangeBoundary *shared.ChangeBoundary `protobuf:"bytes,14,opt,name=change_boundary,json=changeBoundary,proto3" json:"change_boundary,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PhaseContext) Reset() {
@@ -267,6 +271,13 @@ func (x *PhaseContext) GetFreshenDetail() string {
 		return x.FreshenDetail
 	}
 	return ""
+}
+
+func (x *PhaseContext) GetChangeBoundary() *shared.ChangeBoundary {
+	if x != nil {
+		return x.ChangeBoundary
+	}
+	return nil
 }
 
 // CompletionNudge is one item in the thin guided completion process. Nudges are
@@ -1521,7 +1532,7 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x06 \x01(\tR\tstartedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\tR\tupdatedAt\"\xaa\x06\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\"\x82\a\n" +
 	"\fPhaseContext\x12I\n" +
 	"\rcurrent_phase\x18\x01 \x01(\v2$.vrooli.plan_manager.v1.shared.PhaseR\fcurrentPhase\x12C\n" +
 	"\n" +
@@ -1538,7 +1549,8 @@ const file_plan_manager_v1_execution_execution_proto_rawDesc = "" +
 	"logSummary\x12)\n" +
 	"\x10inputs_freshened\x18\v \x01(\bR\x0finputsFreshened\x12%\n" +
 	"\x0efreshen_status\x18\f \x01(\tR\rfreshenStatus\x12%\n" +
-	"\x0efreshen_detail\x18\r \x01(\tR\rfreshenDetail\"]\n" +
+	"\x0efreshen_detail\x18\r \x01(\tR\rfreshenDetail\x12V\n" +
+	"\x0fchange_boundary\x18\x0e \x01(\v2-.vrooli.plan_manager.v1.shared.ChangeBoundaryR\x0echangeBoundary\"]\n" +
 	"\x0fCompletionNudge\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
@@ -1674,11 +1686,12 @@ var file_plan_manager_v1_execution_execution_proto_goTypes = []any{
 	(shared.Completeness)(0),           // 27: vrooli.plan_manager.v1.shared.Completeness
 	(*shared.RelevantContextItem)(nil), // 28: vrooli.plan_manager.v1.shared.RelevantContextItem
 	(*shared.LogSummary)(nil),          // 29: vrooli.plan_manager.v1.shared.LogSummary
-	(*shared.GuidedStep)(nil),          // 30: vrooli.plan_manager.v1.shared.GuidedStep
-	(shared.PhaseStatus)(0),            // 31: vrooli.plan_manager.v1.shared.PhaseStatus
-	(*shared.Plan)(nil),                // 32: vrooli.plan_manager.v1.shared.Plan
-	(*shared.Handoff)(nil),             // 33: vrooli.plan_manager.v1.shared.Handoff
-	(*shared.VelocityPoint)(nil),       // 34: vrooli.plan_manager.v1.shared.VelocityPoint
+	(*shared.ChangeBoundary)(nil),      // 30: vrooli.plan_manager.v1.shared.ChangeBoundary
+	(*shared.GuidedStep)(nil),          // 31: vrooli.plan_manager.v1.shared.GuidedStep
+	(shared.PhaseStatus)(0),            // 32: vrooli.plan_manager.v1.shared.PhaseStatus
+	(*shared.Plan)(nil),                // 33: vrooli.plan_manager.v1.shared.Plan
+	(*shared.Handoff)(nil),             // 34: vrooli.plan_manager.v1.shared.Handoff
+	(*shared.VelocityPoint)(nil),       // 35: vrooli.plan_manager.v1.shared.VelocityPoint
 }
 var file_plan_manager_v1_execution_execution_proto_depIdxs = []int32{
 	24, // 0: vrooli.plan_manager.v1.execution.PhaseContext.current_phase:type_name -> vrooli.plan_manager.v1.shared.Phase
@@ -1688,60 +1701,61 @@ var file_plan_manager_v1_execution_execution_proto_depIdxs = []int32{
 	27, // 4: vrooli.plan_manager.v1.execution.PhaseContext.completeness:type_name -> vrooli.plan_manager.v1.shared.Completeness
 	28, // 5: vrooli.plan_manager.v1.execution.PhaseContext.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
 	29, // 6: vrooli.plan_manager.v1.execution.PhaseContext.log_summary:type_name -> vrooli.plan_manager.v1.shared.LogSummary
-	0,  // 7: vrooli.plan_manager.v1.execution.StartResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	30, // 8: vrooli.plan_manager.v1.execution.StartResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	1,  // 9: vrooli.plan_manager.v1.execution.StartResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	0,  // 10: vrooli.plan_manager.v1.execution.GetStatusResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	1,  // 11: vrooli.plan_manager.v1.execution.GetStatusResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	30, // 12: vrooli.plan_manager.v1.execution.GetStatusResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 13: vrooli.plan_manager.v1.execution.GetContextResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	1,  // 14: vrooli.plan_manager.v1.execution.GetContextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	30, // 15: vrooli.plan_manager.v1.execution.GetContextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 16: vrooli.plan_manager.v1.execution.ResumeResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	1,  // 17: vrooli.plan_manager.v1.execution.ResumeResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	30, // 18: vrooli.plan_manager.v1.execution.ResumeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	0,  // 19: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	1,  // 20: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	30, // 21: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	1,  // 22: vrooli.plan_manager.v1.execution.GetNextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
-	30, // 23: vrooli.plan_manager.v1.execution.GetNextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	31, // 24: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.to_status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
-	17, // 25: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.validation_override:type_name -> vrooli.plan_manager.v1.execution.ValidationOverride
-	0,  // 26: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
-	32, // 27: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	30, // 28: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	33, // 29: vrooli.plan_manager.v1.execution.CompleteResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
-	2,  // 30: vrooli.plan_manager.v1.execution.CompleteResponse.nudges:type_name -> vrooli.plan_manager.v1.execution.CompletionNudge
-	30, // 31: vrooli.plan_manager.v1.execution.CompleteResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	33, // 32: vrooli.plan_manager.v1.execution.GetHandoffResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
-	30, // 33: vrooli.plan_manager.v1.execution.GetHandoffResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	34, // 34: vrooli.plan_manager.v1.execution.GetVelocityResponse.points:type_name -> vrooli.plan_manager.v1.shared.VelocityPoint
-	30, // 35: vrooli.plan_manager.v1.execution.GetVelocityResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	3,  // 36: vrooli.plan_manager.v1.execution.ExecutionService.Start:input_type -> vrooli.plan_manager.v1.execution.StartRequest
-	5,  // 37: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:input_type -> vrooli.plan_manager.v1.execution.GetStatusRequest
-	7,  // 38: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:input_type -> vrooli.plan_manager.v1.execution.GetContextRequest
-	9,  // 39: vrooli.plan_manager.v1.execution.ExecutionService.Resume:input_type -> vrooli.plan_manager.v1.execution.ResumeRequest
-	11, // 40: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:input_type -> vrooli.plan_manager.v1.execution.ContinueExecutionRequest
-	13, // 41: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:input_type -> vrooli.plan_manager.v1.execution.GetNextRequest
-	15, // 42: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:input_type -> vrooli.plan_manager.v1.execution.TransitionPhaseRequest
-	18, // 43: vrooli.plan_manager.v1.execution.ExecutionService.Complete:input_type -> vrooli.plan_manager.v1.execution.CompleteRequest
-	20, // 44: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:input_type -> vrooli.plan_manager.v1.execution.GetHandoffRequest
-	22, // 45: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:input_type -> vrooli.plan_manager.v1.execution.GetVelocityRequest
-	4,  // 46: vrooli.plan_manager.v1.execution.ExecutionService.Start:output_type -> vrooli.plan_manager.v1.execution.StartResponse
-	6,  // 47: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:output_type -> vrooli.plan_manager.v1.execution.GetStatusResponse
-	8,  // 48: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:output_type -> vrooli.plan_manager.v1.execution.GetContextResponse
-	10, // 49: vrooli.plan_manager.v1.execution.ExecutionService.Resume:output_type -> vrooli.plan_manager.v1.execution.ResumeResponse
-	12, // 50: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:output_type -> vrooli.plan_manager.v1.execution.ContinueExecutionResponse
-	14, // 51: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:output_type -> vrooli.plan_manager.v1.execution.GetNextResponse
-	16, // 52: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:output_type -> vrooli.plan_manager.v1.execution.TransitionPhaseResponse
-	19, // 53: vrooli.plan_manager.v1.execution.ExecutionService.Complete:output_type -> vrooli.plan_manager.v1.execution.CompleteResponse
-	21, // 54: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:output_type -> vrooli.plan_manager.v1.execution.GetHandoffResponse
-	23, // 55: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:output_type -> vrooli.plan_manager.v1.execution.GetVelocityResponse
-	46, // [46:56] is the sub-list for method output_type
-	36, // [36:46] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	30, // 7: vrooli.plan_manager.v1.execution.PhaseContext.change_boundary:type_name -> vrooli.plan_manager.v1.shared.ChangeBoundary
+	0,  // 8: vrooli.plan_manager.v1.execution.StartResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	31, // 9: vrooli.plan_manager.v1.execution.StartResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 10: vrooli.plan_manager.v1.execution.StartResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	0,  // 11: vrooli.plan_manager.v1.execution.GetStatusResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	1,  // 12: vrooli.plan_manager.v1.execution.GetStatusResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	31, // 13: vrooli.plan_manager.v1.execution.GetStatusResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 14: vrooli.plan_manager.v1.execution.GetContextResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	1,  // 15: vrooli.plan_manager.v1.execution.GetContextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	31, // 16: vrooli.plan_manager.v1.execution.GetContextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 17: vrooli.plan_manager.v1.execution.ResumeResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	1,  // 18: vrooli.plan_manager.v1.execution.ResumeResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	31, // 19: vrooli.plan_manager.v1.execution.ResumeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	0,  // 20: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	1,  // 21: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	31, // 22: vrooli.plan_manager.v1.execution.ContinueExecutionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	1,  // 23: vrooli.plan_manager.v1.execution.GetNextResponse.context:type_name -> vrooli.plan_manager.v1.execution.PhaseContext
+	31, // 24: vrooli.plan_manager.v1.execution.GetNextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	32, // 25: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.to_status:type_name -> vrooli.plan_manager.v1.shared.PhaseStatus
+	17, // 26: vrooli.plan_manager.v1.execution.TransitionPhaseRequest.validation_override:type_name -> vrooli.plan_manager.v1.execution.ValidationOverride
+	0,  // 27: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.execution:type_name -> vrooli.plan_manager.v1.execution.Execution
+	33, // 28: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	31, // 29: vrooli.plan_manager.v1.execution.TransitionPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	34, // 30: vrooli.plan_manager.v1.execution.CompleteResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
+	2,  // 31: vrooli.plan_manager.v1.execution.CompleteResponse.nudges:type_name -> vrooli.plan_manager.v1.execution.CompletionNudge
+	31, // 32: vrooli.plan_manager.v1.execution.CompleteResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	34, // 33: vrooli.plan_manager.v1.execution.GetHandoffResponse.handoff:type_name -> vrooli.plan_manager.v1.shared.Handoff
+	31, // 34: vrooli.plan_manager.v1.execution.GetHandoffResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	35, // 35: vrooli.plan_manager.v1.execution.GetVelocityResponse.points:type_name -> vrooli.plan_manager.v1.shared.VelocityPoint
+	31, // 36: vrooli.plan_manager.v1.execution.GetVelocityResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	3,  // 37: vrooli.plan_manager.v1.execution.ExecutionService.Start:input_type -> vrooli.plan_manager.v1.execution.StartRequest
+	5,  // 38: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:input_type -> vrooli.plan_manager.v1.execution.GetStatusRequest
+	7,  // 39: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:input_type -> vrooli.plan_manager.v1.execution.GetContextRequest
+	9,  // 40: vrooli.plan_manager.v1.execution.ExecutionService.Resume:input_type -> vrooli.plan_manager.v1.execution.ResumeRequest
+	11, // 41: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:input_type -> vrooli.plan_manager.v1.execution.ContinueExecutionRequest
+	13, // 42: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:input_type -> vrooli.plan_manager.v1.execution.GetNextRequest
+	15, // 43: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:input_type -> vrooli.plan_manager.v1.execution.TransitionPhaseRequest
+	18, // 44: vrooli.plan_manager.v1.execution.ExecutionService.Complete:input_type -> vrooli.plan_manager.v1.execution.CompleteRequest
+	20, // 45: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:input_type -> vrooli.plan_manager.v1.execution.GetHandoffRequest
+	22, // 46: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:input_type -> vrooli.plan_manager.v1.execution.GetVelocityRequest
+	4,  // 47: vrooli.plan_manager.v1.execution.ExecutionService.Start:output_type -> vrooli.plan_manager.v1.execution.StartResponse
+	6,  // 48: vrooli.plan_manager.v1.execution.ExecutionService.GetStatus:output_type -> vrooli.plan_manager.v1.execution.GetStatusResponse
+	8,  // 49: vrooli.plan_manager.v1.execution.ExecutionService.GetContext:output_type -> vrooli.plan_manager.v1.execution.GetContextResponse
+	10, // 50: vrooli.plan_manager.v1.execution.ExecutionService.Resume:output_type -> vrooli.plan_manager.v1.execution.ResumeResponse
+	12, // 51: vrooli.plan_manager.v1.execution.ExecutionService.ContinueExecution:output_type -> vrooli.plan_manager.v1.execution.ContinueExecutionResponse
+	14, // 52: vrooli.plan_manager.v1.execution.ExecutionService.GetNext:output_type -> vrooli.plan_manager.v1.execution.GetNextResponse
+	16, // 53: vrooli.plan_manager.v1.execution.ExecutionService.TransitionPhase:output_type -> vrooli.plan_manager.v1.execution.TransitionPhaseResponse
+	19, // 54: vrooli.plan_manager.v1.execution.ExecutionService.Complete:output_type -> vrooli.plan_manager.v1.execution.CompleteResponse
+	21, // 55: vrooli.plan_manager.v1.execution.ExecutionService.GetHandoff:output_type -> vrooli.plan_manager.v1.execution.GetHandoffResponse
+	23, // 56: vrooli.plan_manager.v1.execution.ExecutionService.GetVelocity:output_type -> vrooli.plan_manager.v1.execution.GetVelocityResponse
+	47, // [47:57] is the sub-list for method output_type
+	37, // [37:47] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_execution_execution_proto_init() }

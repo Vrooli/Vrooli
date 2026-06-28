@@ -244,7 +244,14 @@ type SearchHit struct {
 	// ResultMapping.attestation_field. Trust rides INSIDE the result (basis +
 	// sufficiency), never folded into `score`. Optional for any provider; the
 	// conformance lint requires architectural providers to populate it.
-	Attestation   *v1.AttestedAnswer `protobuf:"bytes,11,opt,name=attestation,proto3" json:"attestation,omitempty"`
+	Attestation *v1.AttestedAnswer `protobuf:"bytes,11,opt,name=attestation,proto3" json:"attestation,omitempty"`
+	// Regime-aware confidence from the producing provider. Scores are not
+	// thresholdable across regimes; consumers render this instead of treating
+	// `score` as a universal confidence value.
+	Confidence *v1.Confidence `protobuf:"bytes,12,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	// Project-root-relative code locations or other concrete source locations
+	// behind this hit. `path` remains the primary/first locator for back-compat.
+	Locations     []string `protobuf:"bytes,13,rep,name=locations,proto3" json:"locations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -352,6 +359,20 @@ func (x *SearchHit) GetMeasure() *MeasureHit {
 func (x *SearchHit) GetAttestation() *v1.AttestedAnswer {
 	if x != nil {
 		return x.Attestation
+	}
+	return nil
+}
+
+func (x *SearchHit) GetConfidence() *v1.Confidence {
+	if x != nil {
+		return x.Confidence
+	}
+	return nil
+}
+
+func (x *SearchHit) GetLocations() []string {
+	if x != nil {
+		return x.Locations
 	}
 	return nil
 }
@@ -842,7 +863,7 @@ var File_search_hub_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\x1a\x1bcommon/v1/attestation.proto\"\x84\x02\n" +
+	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\x1a\x1bcommon/v1/attestation.proto\x1a\x1acommon/v1/confidence.proto\"\x84\x02\n" +
 	"\fQueryRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n" +
@@ -862,7 +883,7 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\r_rerank_blendB\x13\n" +
 	"\x11_rerank_shortlistB\x10\n" +
 	"\x0e_floor_max_gapB\x13\n" +
-	"\x11_floor_hard_floor\"\xf5\x02\n" +
+	"\x11_floor_hard_floor\"\xca\x03\n" +
 	"\tSearchHit\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12%\n" +
@@ -876,7 +897,11 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\frerank_score\x18\t \x01(\x01R\vrerankScore\x12B\n" +
 	"\ameasure\x18\n" +
 	" \x01(\v2(.vrooli.search_hub.v1.routing.MeasureHitR\ameasure\x12;\n" +
-	"\vattestation\x18\v \x01(\v2\x19.common.v1.AttestedAnswerR\vattestation\"\xdd\x02\n" +
+	"\vattestation\x18\v \x01(\v2\x19.common.v1.AttestedAnswerR\vattestation\x125\n" +
+	"\n" +
+	"confidence\x18\f \x01(\v2\x15.common.v1.ConfidenceR\n" +
+	"confidence\x12\x1c\n" +
+	"\tlocations\x18\r \x03(\tR\tlocations\"\xdd\x02\n" +
 	"\n" +
 	"MeasureHit\x12\x1d\n" +
 	"\n" +
@@ -951,25 +976,27 @@ var file_search_hub_v1_routing_routing_proto_goTypes = []any{
 	(*StatusResponse)(nil),      // 8: vrooli.search_hub.v1.routing.StatusResponse
 	nil,                         // 9: vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
 	(*v1.AttestedAnswer)(nil),   // 10: common.v1.AttestedAnswer
+	(*v1.Confidence)(nil),       // 11: common.v1.Confidence
 }
 var file_search_hub_v1_routing_routing_proto_depIdxs = []int32{
 	1,  // 0: vrooli.search_hub.v1.routing.QueryRequest.overrides:type_name -> vrooli.search_hub.v1.routing.SearchOverrides
 	3,  // 1: vrooli.search_hub.v1.routing.SearchHit.measure:type_name -> vrooli.search_hub.v1.routing.MeasureHit
 	10, // 2: vrooli.search_hub.v1.routing.SearchHit.attestation:type_name -> common.v1.AttestedAnswer
-	9,  // 3: vrooli.search_hub.v1.routing.MeasureHit.params:type_name -> vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
-	2,  // 4: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	2,  // 5: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
-	4,  // 6: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
-	7,  // 7: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
-	0,  // 8: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
-	6,  // 9: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
-	5,  // 10: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
-	8,  // 11: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
-	10, // [10:12] is the sub-list for method output_type
-	8,  // [8:10] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	11, // 3: vrooli.search_hub.v1.routing.SearchHit.confidence:type_name -> common.v1.Confidence
+	9,  // 4: vrooli.search_hub.v1.routing.MeasureHit.params:type_name -> vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
+	2,  // 5: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	2,  // 6: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
+	4,  // 7: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
+	7,  // 8: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
+	0,  // 9: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
+	6,  // 10: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
+	5,  // 11: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
+	8,  // 12: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_routing_routing_proto_init() }

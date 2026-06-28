@@ -1,4 +1,5 @@
 from common.v1 import attestation_pb2 as _attestation_pb2
+from common.v1 import confidence_pb2 as _confidence_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -42,7 +43,7 @@ class SearchOverrides(_message.Message):
     def __init__(self, rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor_max_gap: _Optional[float] = ..., floor_hard_floor: _Optional[float] = ...) -> None: ...
 
 class SearchHit(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score", "measure", "attestation")
+    __slots__ = ("provider_id", "provider_group", "type", "id", "title", "snippet", "path", "score", "rerank_score", "measure", "attestation", "confidence", "locations")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -54,6 +55,8 @@ class SearchHit(_message.Message):
     RERANK_SCORE_FIELD_NUMBER: _ClassVar[int]
     MEASURE_FIELD_NUMBER: _ClassVar[int]
     ATTESTATION_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    LOCATIONS_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     type: str
@@ -65,7 +68,9 @@ class SearchHit(_message.Message):
     rerank_score: float
     measure: MeasureHit
     attestation: _attestation_pb2.AttestedAnswer
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ..., measure: _Optional[_Union[MeasureHit, _Mapping]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ...) -> None: ...
+    confidence: _confidence_pb2.Confidence
+    locations: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., type: _Optional[str] = ..., id: _Optional[str] = ..., title: _Optional[str] = ..., snippet: _Optional[str] = ..., path: _Optional[str] = ..., score: _Optional[float] = ..., rerank_score: _Optional[float] = ..., measure: _Optional[_Union[MeasureHit, _Mapping]] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ..., confidence: _Optional[_Union[_confidence_pb2.Confidence, _Mapping]] = ..., locations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class MeasureHit(_message.Message):
     __slots__ = ("measure_id", "scenario", "params", "answer", "needs", "effect", "executed_query", "confidence")

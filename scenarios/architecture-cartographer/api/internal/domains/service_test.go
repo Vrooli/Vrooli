@@ -62,13 +62,13 @@ func TestService_LocatorError(t *testing.T) {
 func TestService_DomainFor(t *testing.T) {
 	m := domains.DerivedDomainMap{
 		Domains: []domains.DerivedDomain{
-			{Name: "graph", Paths: []string{"api/internal/graph/"}},
+			{Name: "graph", Paths: []string{"scenarios/demo/api/internal/graph/"}},
 		},
 	}
-	if got := m.DomainFor("api/internal/graph/service.go"); got != "graph" {
+	if got := m.DomainFor("scenarios/demo/api/internal/graph/service.go"); got != "graph" {
 		t.Fatalf("DomainFor = %q, want graph", got)
 	}
-	if got := m.DomainFor("api/internal/other/x.go"); got != "" {
+	if got := m.DomainFor("scenarios/demo/api/internal/other/x.go"); got != "" {
 		t.Fatalf("DomainFor = %q, want empty", got)
 	}
 }

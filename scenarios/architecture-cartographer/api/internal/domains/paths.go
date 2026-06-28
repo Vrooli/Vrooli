@@ -1,6 +1,9 @@
 package domains
 
-import "strings"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // PathMatches reports whether a repo-relative path is covered by a path
 // pattern. It accepts the three shapes domain sources use:
@@ -48,4 +51,55 @@ func NormalizePath(token string) string {
 	token = strings.TrimSpace(token)
 	token = strings.TrimPrefix(token, "./")
 	return token
+}
+
+func scenarioNameFromDir(scenarioDir string) string {
+	return filepath.Base(filepath.Clean(scenarioDir))
+}
+
+func rebaseExtractionToRepoRoot(scenario string, in Extraction) Extraction {
+	for i := range in.Domains {
+		in.Domains[i].Paths = rebasePathListToRepoRoot(scenario, in.Domains[i].Paths)
+	}
+	in.SharedSubstrate = rebasePathListToRepoRoot(scenario, in.SharedSubstrate)
+	return in
+}
+
+func rebasePathListToRepoRoot(scenario string, paths []string) []string {
+	out := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if rebased := rebaseToRepoRoot(scenario, path); rebased != "" {
+			out = append(out, rebased)
+		}
+	}
+	return out
+}
+
+func rebaseToRepoRoot(scenario, path string) string {
+	path = NormalizePath(path)
+	if path == "" {
+		return ""
+	}
+	if isRepoRootRelative(path) {
+		return path
+	}
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" || scenario == "." {
+		return path
+	}
+	return "scenarios/" + scenario + "/" + path
+}
+
+func isRepoRootRelative(path string) bool {
+	switch {
+	case strings.HasPrefix(path, "scenarios/"),
+		strings.HasPrefix(path, "packages/"),
+		strings.HasPrefix(path, "internal/"),
+		strings.HasPrefix(path, "cmd/"),
+		strings.HasPrefix(path, "docs/"),
+		strings.HasPrefix(path, ".vrooli/"):
+		return true
+	default:
+		return false
+	}
 }

@@ -32,7 +32,7 @@ export function SearchResults({ data }: { data: QueryResponse }) {
         <ol className="flex flex-col gap-2">
           {data.ranked.map((hit, i) => (
             <li key={`${hit.providerId}-${hit.id}-${i}`}>
-              <HitRow hit={hit} reranked />
+              <HitRow hit={hit} />
             </li>
           ))}
         </ol>
@@ -66,31 +66,42 @@ function GroupBlock({ group }: { group: ProviderResultGroup }) {
       ) : group.hits.length === 0 ? (
         <p className="text-xs text-app-muted-foreground">{t(strings.search.groupEmpty)}</p>
       ) : (
-        <ol className="flex flex-col gap-2">
-          {group.hits.map((hit, i) => (
-            <li key={`${hit.id}-${i}`}>
-              <HitRow hit={hit} reranked={false} />
-            </li>
-          ))}
-        </ol>
+        <div className="flex flex-col gap-2">
+          {group.hits.every((hit) => hit.confidence?.weak) ? (
+            <p className="text-xs font-medium text-app-muted-foreground">{t(strings.search.noConfidentMatch)}</p>
+          ) : null}
+          <ol className="flex flex-col gap-2">
+            {group.hits.map((hit, i) => (
+              <li key={`${hit.id}-${i}`}>
+                <HitRow hit={hit} />
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
     </section>
   );
 }
 
-function HitRow({ hit, reranked }: { hit: SearchHit; reranked: boolean }) {
+function HitRow({ hit }: { hit: SearchHit }) {
   const { t } = useTranslation();
   const title = hit.title.trim() || hit.id;
-  const provenancePath = hit.path.trim() || hit.id;
-  const scoreText = reranked
-    ? t(strings.search.rerank, { value: hit.rerankScore.toFixed(3) })
-    : t(strings.search.score, { value: hit.score.toFixed(3) });
+  const locations = (hit.locations ?? []).map((location) => location.trim()).filter(Boolean);
+  const provenancePath = locations[0] ?? (hit.path.trim() || hit.id);
+  const confidenceText = confidenceLabel(hit);
 
   return (
     <div className="rounded-md border border-app-border bg-app-surface-muted p-2">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-medium">{title}</span>
-        <span className="shrink-0 text-xs text-app-muted-foreground">{scoreText}</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="font-medium">{title}</span>
+          {hit.confidence?.weak ? (
+            <span className="rounded-full border border-app-warning/40 px-2 py-0.5 text-xs text-app-warning">
+              {t(strings.search.weak)}
+            </span>
+          ) : null}
+        </div>
+        <span className="shrink-0 text-xs text-app-muted-foreground">{confidenceText}</span>
       </div>
       {hit.snippet.trim() ? (
         <p className="mt-1 line-clamp-2 text-sm text-app-muted-foreground">{hit.snippet}</p>
@@ -98,6 +109,28 @@ function HitRow({ hit, reranked }: { hit: SearchHit; reranked: boolean }) {
       <p className="mt-1 text-xs text-app-muted-foreground">
         {t(strings.search.provenance, { group: hit.providerGroup || hit.providerId, path: provenancePath })}
       </p>
+      {locations.length > 0 ? (
+        <p className="mt-1 text-xs text-app-muted-foreground">
+          {t(strings.search.locations, { value: locationSummary(locations) })}
+        </p>
+      ) : null}
     </div>
   );
+
+  function confidenceLabel(hit: SearchHit) {
+    const regime = hit.confidence?.regime?.trim();
+    if (!hit.confidence) {
+      return t(strings.search.confidenceUnknown);
+    }
+    return t(hit.confidence.weak ? strings.search.confidenceWeak : strings.search.confidenceStrong, {
+      regime: regime ? `/${regime}` : "",
+    });
+  }
+}
+
+function locationSummary(locations: string[]) {
+  if (locations.length <= 2) {
+    return locations.join(", ");
+  }
+  return `${locations.slice(0, 2).join(", ")} (+${locations.length - 2} more)`;
 }

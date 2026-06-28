@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -27,6 +28,8 @@ type dependencyDecision struct {
 const (
 	resourceDependencyReadyTimeout  = 30 * time.Second
 	resourceDependencyReadyInterval = 500 * time.Millisecond
+	dependencyLockWaitTimeout       = 2 * time.Minute
+	dependencyLockWaitInterval      = 500 * time.Millisecond
 )
 
 // dependencyRestartReason explains why a dependency is being (re)started rather
@@ -198,6 +201,18 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		// variant too so the "deps are always live" invariant is explicit.
 		dependencyOpts.Variant = ""
 
+		dependencyReadyForReuse := func() (bool, error) {
+			view, err := r.lookupRegistryRuntime(context.Background(), dependencyItem)
+			if err != nil {
+				return false, err
+			}
+			stale, _, err := r.freshnessStaleCached(dependencyItem, dependencyForceSetup, make(setupCheckCache))
+			if err != nil {
+				return false, err
+			}
+			return view.Authoritative && r.isRegistryRuntimeHealthy(dependencyItem, view) && !stale, nil
+		}
+
 		// Acquire the per-scenario single-flight lock for this transitive
 		// dependency. Without it, two top-level scenario starts that
 		// share a dependency (e.g. our swarm-manager start and autoheal's
@@ -208,7 +223,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		// scoped to this dep call and released as soon as the dep is
 		// running, before its siblings are started, so DAG fan-out is
 		// not held under a single lock.
-		depRelease, lockErr := r.acquireScenarioLock(dependencyName)
+		depRelease, reusedAfterWait, lockErr := r.acquireDependencyScenarioLock(dependencyName, dependencyReadyForReuse)
 		if lockErr != nil {
 			if decision.continueOnFailure {
 				r.logWarn("Dependency lock contention in best-effort mode",
@@ -221,6 +236,11 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 				continue
 			}
 			return nil, lockErr
+		}
+		if reusedAfterWait {
+			r.progressf("%s: dependency %s became ready while another invocation held its lifecycle lock; reusing existing process", item.Slug, dependencyName)
+			ready[dependencyName] = struct{}{}
+			continue
 		}
 
 		_, depErr := r.startScenario(dependencyItem, dependencyOpts, ready, setupCache, append(stack, dependencyName))
@@ -241,6 +261,57 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 	}
 
 	return failed, nil
+}
+
+func (r *Runner) acquireDependencyScenarioLock(dependencyName string, dependencyReady func() (bool, error)) (func(), bool, error) {
+	release, err := r.acquireScenarioLock(dependencyName)
+	if err == nil {
+		return release, false, nil
+	}
+	if !errors.Is(err, ErrScenarioBusy) {
+		return nil, false, err
+	}
+
+	deps := r.runtimeDeps()
+	deadline := deps.now().Add(dependencyLockWaitTimeout)
+	lastErr := err
+	r.logInfo("Dependency lifecycle lock is busy; waiting for concurrent invocation to finish",
+		logx.AttrDependency, dependencyName,
+		"wait_timeout", dependencyLockWaitTimeout.String(),
+		"error", err.Error(),
+	)
+
+	for {
+		if dependencyReady != nil {
+			ready, readyErr := dependencyReady()
+			if readyErr == nil && ready {
+				r.logInfo("Dependency became ready while lifecycle lock was held",
+					logx.AttrDependency, dependencyName,
+				)
+				return nil, true, nil
+			}
+			if readyErr != nil {
+				r.logDebug("Dependency readiness check failed while waiting for lifecycle lock",
+					logx.AttrDependency, dependencyName,
+					"error", readyErr.Error(),
+				)
+			}
+		}
+
+		if !deps.now().Before(deadline) {
+			return nil, false, fmt.Errorf("dependency %q lifecycle lock remained busy for %s: %w", dependencyName, dependencyLockWaitTimeout, lastErr)
+		}
+		deps.sleep(dependencyLockWaitInterval)
+
+		release, err = r.acquireScenarioLock(dependencyName)
+		if err == nil {
+			return release, false, nil
+		}
+		if !errors.Is(err, ErrScenarioBusy) {
+			return nil, false, err
+		}
+		lastErr = err
+	}
 }
 
 // applyDependencyFreshnessPolicy handles a running, healthy, but stale

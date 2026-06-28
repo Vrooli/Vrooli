@@ -62,6 +62,21 @@ const (
 	WeakThresholdFusion = 0.20
 )
 
+// RegimeForMethod returns the stable display/wire label for the score regime
+// produced by method + reranker leg.
+func RegimeForMethod(method, leg string) string {
+	switch regimeFor(method, leg) {
+	case regimeCrossEncoder:
+		return "cross-encoder"
+	case regimeLLM:
+		return "llm"
+	case regimeFusion:
+		return "fused"
+	default:
+		return "cosine"
+	}
+}
+
 // regimeFor determines the scoring regime from the retrieval method
 // ("dense"/"hybrid"/"text") and the active reranker leg. A reranker, when it
 // ran, dictates the regime regardless of method (it rescored every hit). With no
