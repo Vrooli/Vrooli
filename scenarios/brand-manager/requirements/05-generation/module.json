@@ -1,0 +1,75 @@
+{
+  "_metadata": {
+    "module": "generation",
+    "description": "AI generation of brand text and imagery via the AIProviderChain (Ollama-first, OpenRouter fallback), degrading gracefully when providers are absent.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "GEN-001",
+      "title": "Generate brand text via the Ollama-first provider chain",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "generation",
+      "criticality": "P0",
+      "description": "Palette, typography, and copy are generated through the AIProviderChain, trying Ollama first and falling back to OpenRouter, returning a structured draft brand.",
+      "tags": [
+        "ai",
+        "aiproviderchain",
+        "text"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/aigen/chain_test.go once the AIProviderChain is ported."
+        }
+      ]
+    },
+    {
+      "id": "GEN-002",
+      "title": "Generate brand imagery (logo, favicon, icon)",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "generation",
+      "criticality": "P0",
+      "description": "Image assets (logo, favicon, icon) are generated through the provider chain and stored as brand assets, referenced from the draft brand.",
+      "tags": [
+        "ai",
+        "image"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/aigen/image_test.go once image generation is ported."
+        }
+      ]
+    },
+    {
+      "id": "GEN-003",
+      "title": "Generation degrades gracefully when no provider is reachable",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "generation",
+      "criticality": "P0",
+      "description": "When neither OLLAMA_URL nor OPENROUTER_API_KEY resolves to a reachable provider, generation returns a clear degraded result/error rather than crashing, and other domains remain usable.",
+      "tags": [
+        "graceful-degradation",
+        "resilience"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/aigen/degrade_test.go once graceful degradation is ported."
+        }
+      ]
+    }
+  ]
+}

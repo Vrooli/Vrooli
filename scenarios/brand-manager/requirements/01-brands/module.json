@@ -1,0 +1,97 @@
+{
+  "_metadata": {
+    "module": "brands",
+    "description": "Brand CRUD + versioning, persisted in the single SQLite (WAL) brand-manager database. The authoring core every other domain reads from.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRAND-001",
+      "title": "Create, read, update, and delete brands with full identity payload",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "brands",
+      "criticality": "P0",
+      "description": "The API supports create/read/update/delete of a brand carrying identity (display name, slug, notes), visuals (logo/favicon/icon refs), colors, typography, and voice, exposed over Connect-RPC and surfaced through the CLI.",
+      "tags": [
+        "crud",
+        "brands",
+        "connect-rpc"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/brands/service_test.go once the brands domain is ported."
+        }
+      ]
+    },
+    {
+      "id": "BRAND-002",
+      "title": "Each brand mutation produces an immutable brand version",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "brands",
+      "criticality": "P0",
+      "description": "Updating a brand appends an immutable brand_versions row capturing the full prior snapshot, so any historical version can be read back and re-applied without data loss.",
+      "tags": [
+        "versioning",
+        "history"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/brands/versions_test.go once versioning is ported."
+        }
+      ]
+    },
+    {
+      "id": "BRAND-003",
+      "title": "Mutations enforce optimistic concurrency and idempotency",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "brands",
+      "criticality": "P0",
+      "description": "Update/delete reject a stale expected-version with a conflict error, and a repeated mutation carrying the same idempotency key returns the original result rather than applying twice.",
+      "tags": [
+        "concurrency",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/brands/concurrency_test.go once concurrency control is ported."
+        }
+      ]
+    },
+    {
+      "id": "BRAND-004",
+      "title": "Brands persist in a single SQLite (WAL) database that survives restart",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "Brands, brand_versions, and assignments are stored in a single WAL-mode SQLite database at ~/.vrooli/brand-manager/brand-manager.db, and records survive an API process restart.",
+      "tags": [
+        "sqlite",
+        "storage",
+        "persistence"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/repository/sqlite_test.go once the SQLite repository is ported."
+        }
+      ]
+    }
+  ]
+}

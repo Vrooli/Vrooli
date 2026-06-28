@@ -1,238 +1,205 @@
-# API Reference
+# API Endpoints — Brand Manager
 
-All endpoints are served under the API port allocated by Vrooli. Routes are registered in [CODE: api/handlers/brands.go#RegisterRoutes].
+Human-readable reference for the API. The machine-readable
+source of truth is [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) —
+doc generators, Postman collection builders, and SDK stubs read it
+directly. The CI gate fails if the JSON drifts from the registered
+handlers or from the CLI commands it claims to mirror.
 
-## Health
+Wire shapes for every endpoint live in
+`packages/proto/schemas/brand-manager/v1/<domain>/<file>.proto`.
+Proto-typed calls use generated Connect-RPC handlers and clients.
+Tests, handlers, UI clients, and CLI handlers all consume generated
+types — no hand-written struct mirror exists to drift.
+
+Connect-RPC errors use Connect's canonical error envelope and code set.
+REST exceptions, such as multipart uploads, use the template error
+envelope (`packages/proto/schemas/brand-manager/v1/shared/errors.proto`):
+
+```json
+{ "code": "<canonical_code>", "message": "<human readable>", "details": [...] }
+```
+
+Canonical REST codes used today: `invalid_request` (400),
+`not_found` (404), `internal` (500). Add to the proto enum when a new
+REST-exception failure mode appears.
+
+---
+
+## System
 
 ### `GET /health`
 
-Returns service health status including database connectivity.
+Service health check. Returns API readiness plus dependency status.
+Also mounted at `/api/v1/health` for client callers.
+This is an operational REST exception by design: lifecycle systems,
+load balancers, and curl probes must be able to read it without a Connect
+client.
 
-**Implementation**: [CODE: api/main.go] (health handler via `api-core/health`)
+| | |
+|---|---|
+| **Auth** | None |
+| **Response** | `Response { status: string, readiness: bool, service: string, timestamp: string, version: string, uptime_seconds: int64, dependencies: map<string, DependencyStatus> }` |
+| **Errors** | None — always returns 200 with `status: "unhealthy"` if a dependency fails |
+| **CLI** | `brand-manager status` |
 
-**Response** (200):
-```json
-{
-  "status": "healthy",
-  "service": "brand-manager",
-  "version": "1.0.0",
-  "readiness": true,
-  "timestamp": "2026-03-26T12:00:00Z",
-  "dependencies": {
-    "sqlite": "healthy"
-  }
-}
+```bash
+curl "http://localhost:${API_PORT}/health"
 ```
+
+The proto type lives at `packages/proto/schemas/brand-manager/v1/shared/health.proto`
+and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Brands
+## Domain endpoints — `<domain>`
 
-### `POST /api/v1/brands`
+Each product domain exposes its endpoints under
+`POST /vrooli.brand_manager.v1.<domain>.<Domain>Service/<Method>`
+for proto-typed Connect-RPC calls, with REST exceptions (such as
+multipart uploads) mounted at explicit REST paths. Document your
+domain's endpoints here as you build them — one section per RPC, with
+its auth, request/response proto shapes, error codes, and CLI mirror.
 
-Create a new brand. [REQ: BM-REQ-CRUD-CREATE]
+The scaffold ships one fully worked CRUD vertical slice as a copyable
+reference (see the fenced example below); `vrooli scenario detemplate
+<scenario>` removes it once your real domains are green.
 
-**Implementation**: [CODE: api/handlers/brands.go#CreateBrand]
+<!-- EXAMPLE-DOMAIN:notes START -->
+### Example domain — `notes` (removed by `vrooli scenario detemplate`)
 
-**Request Body**:
-```json
-{
-  "name": "My Brand",
-  "description": "Optional description",
-  "identity": { "display_name": "My Brand", "tagline": "..." },
-  "colors": { "primary": "#3B82F6", "background": "#0F172A" },
-  "typography": { "heading_font": "Inter", "body_font": "Inter" },
-  "voice": { "tone": "professional", "style": "concise" }
-}
+The `notes` domain is the canonical worked example. Copy its layering
+when adding the first non-trivial mutation in your scenario, then
+remove it.
+
+#### `POST /vrooli.brand_manager.v1.notes.NotesService/ListNotes`
+
+List notes through the generated Connect-RPC service, newest-first.
+
+| | |
+|---|---|
+| **Auth** | None (template default; scenarios add auth as needed) |
+| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
+| **Errors** | `500 internal` — repository read failure |
+| **CLI** | `brand-manager notes list` |
+
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.brand_manager.v1.notes.NotesService/ListNotes" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
 ```
 
-**Required fields**: `name`
+UI and CLI code should normally use the generated client instead of
+calling this path by hand.
 
-**Response** (201): Created brand with `id`, `version: 1`, timestamps.
+#### `POST /vrooli.brand_manager.v1.notes.NotesService/CreateNote`
 
-### `GET /api/v1/brands`
+Create a note through the generated Connect-RPC service.
 
-List all brands with optional filtering. [REQ: BM-REQ-CRUD-READ]
+| | |
+|---|---|
+| **Auth** | None (template default) |
+| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
+| **Response** | `CreateNoteResponse { note: Note }` |
+| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
+| **CLI** | `brand-manager notes create --title <title> [--body <body>]` |
 
-**Implementation**: [CODE: api/handlers/brands.go#ListBrands]
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.brand_manager.v1.notes.NotesService/CreateNote" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"first","body":"hello"}'
+```
 
-**Query Parameters**:
-| Param | Type | Description |
-|-------|------|-------------|
-| `name` | string | Filter by name (contains match) |
-| `limit` | int | Max results to return |
-| `offset` | int | Skip N results for pagination |
+Title validation (non-empty after whitespace trim) lives in
+`internal/notes/service.go`, **not** the handler. The Connect handler
+only translates `notes.ErrInvalidNote` into `invalid_argument`.
 
-**Response** (200): Array of brand objects.
+#### `POST /vrooli.brand_manager.v1.notes.NotesService/GetNote`
 
-### `GET /api/v1/brands/{id}`
+Fetch a note by id through the generated Connect-RPC service.
 
-Get a single brand by ID. [REQ: BM-REQ-CRUD-READ]
+| | |
+|---|---|
+| **Auth** | None (template default) |
+| **Request** | `GetNoteRequest { id: string }` |
+| **Response** | `GetNoteResponse { note: Note }` |
+| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
+| **CLI** | `brand-manager notes get <id>` |
 
-**Implementation**: [CODE: api/handlers/brands.go#GetBrand]
+```bash
+curl -X POST "http://localhost:${API_PORT}/vrooli.brand_manager.v1.notes.NotesService/GetNote" \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"abc123"}'
+```
 
-**Response** (200): Brand object. (404 if not found.)
+`notes.ErrNoteNotFound` returned by the service is translated into the
+typed `not_found` Connect error at the handler edge.
 
-### `PUT /api/v1/brands/{id}`
+#### `POST /api/v1/notes/{id}/attachments`
 
-Update a brand. Only non-zero fields are merged. [REQ: BM-REQ-CRUD-UPDATE]
+Upload opaque file bytes through the documented REST multipart exception.
+The response is still proto-typed metadata.
 
-**Implementation**: [CODE: api/handlers/brands.go#UpdateBrand]
+| | |
+|---|---|
+| **Auth** | None (template default) |
+| **Path params** | `id` — note identifier |
+| **Request** | `multipart/form-data` with `file` part |
+| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
+| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
+| **CLI** | `brand-manager notes attach <id> --file <path>` |
 
-**Request Body**: Same structure as create. Only provided fields are updated.
+```bash
+curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
+  -F file=@./example.png
+```
 
-**Response** (200): Updated brand with incremented `version`. A new version snapshot is created automatically.
+#### `Note` shape
 
-### `DELETE /api/v1/brands/{id}`
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string (UUID) | Server-generated |
+| `title` | string | Required, non-empty after trim |
+| `body` | string | Optional |
+| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
+| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
+| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
 
-Delete a brand and all associated versions and assignments (CASCADE).
-
-**Implementation**: [CODE: api/handlers/brands.go#DeleteBrand]
-
-**Response** (204): No content. (404 if not found.)
+Defined in `packages/proto/schemas/brand-manager/v1/notes/notes.proto`.
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ---
 
-## Versions
+## Adding a new endpoint
 
-### `GET /api/v1/brands/{id}/versions`
+For a new domain, copy the worked vertical slice in the fenced example
+above first, then replace it once your real domain is green.
 
-List all version snapshots for a brand, ordered newest first. [REQ: BM-REQ-CRUD-VERSION]
+For an endpoint inside an existing domain:
 
-**Implementation**: [CODE: api/handlers/brands.go#ListVersions]
+1. Add or extend the `.proto` messages and service in
+   `packages/proto/schemas/brand-manager/v1/<domain>/`, then run
+   `make generate`.
+2. Implement the generated handler method in
+   `handlers/<domain>/connect_handler.go`; keep it thin.
+3. Update endpoint metadata in `handlers/<domain>/module.go`.
+4. If the endpoint has a CLI mirror, bind it (or list it in `omitted[]`
+   with a reason) in `cli/manifest.json` — the single source of truth for
+   the CLI surface.
+5. Run `make endpoints`; do not edit
+   [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) by hand.
+6. Update this document and add tests for the touched layers.
+7. Add a row to [`internal/SEAMS.md`](../internal/SEAMS.md) if you
+   introduced a new interface that production wires once and tests
+   substitute.
 
-**Response** (200):
-```json
-[
-  {
-    "id": "uuid",
-    "brand_id": "uuid",
-    "version": 2,
-    "snapshot": "{...full brand JSON...}",
-    "created_at": "2026-03-26T12:00:00Z"
-  }
-]
-```
+The CI gate enforces endpoint-manifest freshness and the API↔CLI mapping
+contract (every Connect endpoint is bound or omitted in `cli/manifest.json`).
 
----
+## Cross-references
 
-## Assignments
-
-### `POST /api/v1/assignments`
-
-Assign a brand to a scenario. One brand per scenario (upserts). [REQ: BM-REQ-ASSIGN-LINK]
-
-**Implementation**: [CODE: api/handlers/brands.go#CreateAssignment]
-
-**Request Body**:
-```json
-{
-  "brand_id": "uuid",
-  "scenario_name": "my-scenario",
-  "elements": ["colors", "typography"]
-}
-```
-
-**Required fields**: `brand_id`, `scenario_name`
-
-**Response** (201): Assignment with captured `brand_version`.
-
-### `DELETE /api/v1/assignments/{id}`
-
-Remove a brand assignment.
-
-**Implementation**: [CODE: api/handlers/brands.go#DeleteAssignment]
-
-**Response** (204): No content. (404 if not found.)
-
----
-
-## Scenario Status
-
-### `GET /api/v1/scenarios/{name}/status`
-
-Check branding status for a scenario. [REQ: BM-REQ-API-STATUS]
-
-**Implementation**: [CODE: api/handlers/brands.go#GetScenarioStatus]
-
-**Response** (200) — branded:
-```json
-{
-  "scenario": "my-scenario",
-  "has_brand": true,
-  "brand_id": "uuid",
-  "brand_version": 2,
-  "elements": ["colors", "typography"],
-  "applied_at": "2026-03-26T12:00:00Z"
-}
-```
-
-**Response** (200) — unbranded:
-```json
-{
-  "scenario": "my-scenario",
-  "has_brand": false,
-  "brand_id": null,
-  "brand_version": null
-}
-```
-
----
-
-## WCAG Contrast Validation
-
-### `POST /api/v1/contrast/check`
-
-Check WCAG AA contrast ratio for a single foreground/background color pair. [REQ: BM-REQ-WCAG-CALC] [REQ: BM-REQ-WCAG-VALIDATE]
-
-**Implementation**: [CODE: api/handlers/contrast.go#CheckContrast]
-
-**Request Body**:
-```json
-{
-  "foreground": "#1A202C",
-  "background": "#FFFFFF"
-}
-```
-
-**Response** (200):
-```json
-{
-  "foreground": "#1A202C",
-  "background": "#FFFFFF",
-  "ratio": 16.32,
-  "aa_normal": true,
-  "aa_large": true
-}
-```
-
-### `POST /api/v1/contrast/brand`
-
-Validate all standard WCAG AA pairings for a brand's color palette. [REQ: BM-REQ-WCAG-VALIDATE] [REQ: BM-REQ-WCAG-REJECT]
-
-**Implementation**: [CODE: api/handlers/contrast.go#CheckBrandContrast]
-
-**Request Body**:
-```json
-{
-  "primary": "#1a365d",
-  "secondary": "#2d3748",
-  "accent": "#8B0000",
-  "background": "#FFFFFF",
-  "surface": "#F7FAFC",
-  "text": "#1A202C"
-}
-```
-
-**Pairings checked**: text-on-background, text-on-surface, primary-on-background, primary-on-surface, accent-on-background.
-
-**Response** (200):
-```json
-{
-  "pairs": [
-    { "foreground": "#1A202C", "background": "#FFFFFF", "ratio": 16.32, "aa_normal": true, "aa_large": true },
-    { "foreground": "#1a365d", "background": "#FFFFFF", "ratio": 12.14, "aa_normal": true, "aa_large": true }
-  ],
-  "pass_all": true
-}
-```
+- [`cli-commands.md`](cli-commands.md) — CLI commands that mirror these endpoints
+- [`configuration.md`](configuration.md) — env vars (e.g., `API_PORT`)
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — handler/service/repository seams
+- [`../internal/TESTING.md`](../internal/TESTING.md) — endpoint test patterns

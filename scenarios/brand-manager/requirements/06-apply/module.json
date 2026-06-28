@@ -1,0 +1,97 @@
+{
+  "_metadata": {
+    "module": "apply",
+    "description": "Programmatic application of brand elements into a target scenario (CSS markers, manifest _brand keys, asset copy) plus DESIGN.md export.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "APPLY-001",
+      "title": "Apply colors and typography via marked CSS custom properties",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Apply writes brand colors and typography as CSS custom properties delimited by /* brand-manager:<element> */ markers, replacing only the marked region so unrelated CSS is preserved.",
+      "tags": [
+        "apply",
+        "css",
+        "markers"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/apply/css_test.go once the marker-based apply engine is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-002",
+      "title": "Apply manifest _brand keys and copy static assets atomically",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Apply sets manifest.json _brand keys and favicon paths and copies brand static assets into the target scenario atomically, so a failed apply does not leave the target half-branded.",
+      "tags": [
+        "apply",
+        "manifest",
+        "assets"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/apply/manifest_test.go once manifest/asset apply is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-003",
+      "title": "Re-applying an unchanged brand is idempotent",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Applying the same brand version twice produces no second diff: marked regions, manifest keys, and copied assets are byte-identical on the second run.",
+      "tags": [
+        "idempotency",
+        "apply"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/apply/idempotency_test.go once apply idempotency is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-004",
+      "title": "Export a root-level DESIGN.md during apply",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "Apply renders a root-level DESIGN.md for the target scenario from structured brand data plus user notes, regenerating it deterministically on each apply.",
+      "tags": [
+        "design-doc",
+        "export"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/apply/designdoc_test.go once DESIGN.md export is ported."
+        }
+      ]
+    }
+  ]
+}

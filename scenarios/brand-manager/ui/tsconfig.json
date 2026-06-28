@@ -1,8 +1,21 @@
 {
-  "extends": "./tsconfig.node.json",
   "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "ES2021.Intl", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
+
+    /* Linting */
     // ╔══════════════════════════════════════════════════════════════════════════╗
     // ║  SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN                         ║
     // ║                                                                          ║
@@ -25,8 +38,23 @@
     // ║  the type errors they produce at compile time.                           ║
     // ╚══════════════════════════════════════════════════════════════════════════╝
     "strict": true,
-    "noUncheckedIndexedAccess": true
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    /*
+     * STABILITY CRITICAL: noUncheckedIndexedAccess
+     * This setting makes array/object indexing return T | undefined.
+     * It prevents silent null crashes when accessing array[i] or obj[key].
+     * DO NOT REMOVE - see react-stability skill Section 0 for rationale.
+     */
+    "noUncheckedIndexedAccess": true,
+
+    /* Paths */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src", "vite.config.ts"],
-  "exclude": ["dist"]
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

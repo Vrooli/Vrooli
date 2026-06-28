@@ -1,85 +1,129 @@
-# Brand Manager – Full Branding Lifecycle for All Scenarios
+# Brand Manager
 
-Manages the full branding lifecycle for all Vrooli scenarios — generating, storing, applying, and validating brand identity. Serves both human designers (via UI wizard) and autonomous agents (via CLI/API) equally.
+Full branding lifecycle — generate, manage, apply, and validate brand identity across all Vrooli scenarios
 
-## Architecture
+This scenario was generated from the `react-vite` template and packages
+the standard full-stack Vrooli scenario shape:
 
-**Two-layer branding:**
-1. **Design Contract Export** (`DESIGN.md` at the scenario root) — generated design contract from structured brand data + user notes
-2. **Brand Manager DB + Assets** — SQLite for metadata, filesystem for binary assets
+- Go API (`api/`)
+- React + TypeScript + Vite UI (`ui/`)
+- CLI wrapper (`cli/`)
+- Lifecycle + health wiring (`.vrooli/service.json`)
+- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
 
-**Three surfaces:** UI (React dashboard + wizard), CLI, REST API
+> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
+> owns the first-session initialization protocol — charter, requirements,
+> domain map, design language, placeholder replacement, and first real
+> vertical slice. Run `make orient` for a machine-readable gate status.
 
-See [Architecture](docs/concepts/ARCHITECTURE.md) for detailed system design and data flow.
+## What's In This Scenario
 
-## Tech Stack
-- **API**: Go with SQLite (WAL mode)
-- **UI**: React + Vite + Tailwind
-- **CLI**: Go
-- **AI**: Ollama-first with OpenRouter fallback (AIProviderChain pattern)
-- **Storage**: `~/.vrooli/brand-manager/brand-manager.db` + `~/.vrooli/brand-manager/assets/{brand_id}/`
+- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
+  coordinated through generated proto contracts.
+- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
+  metadata, testing config, and CLI install wiring.
+- Domain-first API shape with per-domain service, repository, schema,
+  handler module, mocks, and tests.
+- SQLite by default. Add external resources to `.vrooli/service.json`
+  only when this scenario actually needs them.
+- UI/CLI guardrails for i18n, accessibility, API base resolution,
+  declarative command args, generated Connect clients, and report-shaped
+  output.
+- Baseline PWA branding metadata: web app manifest, standalone-mode
+  mobile tags, and generic placeholder icons ready for scenario-specific
+  replacement.
+- Root-level `DESIGN.md` plus generated UI token assets from the
+  selected design kit.
+- A documentation contract in `docs/manifest.json`, with stubs for
+  domains, flows, data, integrations, monetization, deployment,
+  runbooks, observability, security, performance, and durable
+  decisions.
 
-## Quick Start
+## Placeholders vs. Durable Scaffolding
+
+The generated scaffold is intentionally not the product. When you build
+the real UX, treat these as **placeholders** to replace:
+
+- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
+  slice meant to be copied once and then deleted.
+- The `AppShell` and the centered single-panel home page in `ui/src/`.
+- The bare-minimum settings surface (currently just locale switching).
+
+Treat these as **durable seams** to preserve, even as you rewrite the
+visual layout:
+
+- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
+- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
+- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
+- The feature-folder pattern under `ui/src/features/<name>/`.
+- The proto → API → CLI → UI vertical-slice shape.
+
+**Connect-RPC is the default transport.** Every domain endpoint goes
+through a proto service and generated Connect handlers/clients. If
+you find yourself writing `Path: "/api/v1/..."` as a literal string in
+an `EndpointDescriptor`, stop — use a proto service method instead.
+Codegen rejects literal Paths that lack an explicit `RESTException`
+tag; the four allowed REST reasons (multipart upload, webhook
+receiver, third-party shape, ops probe) are enumerated in
+`api/internal/module/module.go`. The notes attachments endpoint is
+the worked REST example.
+
+[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
+workflow in full.
+
+## Running The Scenario
+
 ```bash
-cd scenarios/brand-manager
-make start    # Start via lifecycle
-make test     # Run tests
-make logs     # View logs
-make stop     # Stop
+# Build API + UI, install pnpm deps, install scenario CLI
+make setup   # wraps `vrooli scenario setup`
+
+# Start API + UI in the background
+make start   # wraps `vrooli scenario start`
 ```
 
-See [Quick Start Guide](docs/QUICKSTART.md) for a complete walkthrough.
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-## CLI Commands
-```bash
-# Health
-brand-manager status                           # Check API health
+Run tests with `make test` (which runs `vrooli scenario test`) or invoke
+`test-genie execute brand-manager --preset comprehensive` directly for
+finer-grained presets.
 
-# Brand CRUD
-brand-manager create --name "Name"             # Create a new brand
-brand-manager list [--name FILTER] [--limit N] # List brands with filtering
-brand-manager get <id>                         # Get brand details
-brand-manager update <id> --name "New"         # Update a brand
-brand-manager delete <id>                      # Delete a brand
-brand-manager versions <id>                    # View version history
+## Documentation Map
 
-# Assignments
-brand-manager assign --brand <id> --scenario <name>  # Assign brand to scenario
-brand-manager unassign <assignment-id>               # Remove assignment
-brand-manager scenario-status <name>                 # Check scenario branding
+| Need | Start Here |
+|---|---|
+| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Establish UI design language | `DESIGN.md` at this scenario's root |
+| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
+| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
+| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
+| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
+| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
+| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
+| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
+| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
+| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
+| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
 
-# All commands support --json for machine-readable output
-```
+## Working Rules
 
-See [CLI Reference](docs/reference/cli-commands.md) for full documentation.
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
+2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
+3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
+5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
+6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
+7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
+8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+9. **Keep boundaries**: only edit within this scenario's directory.
 
-## API Endpoints
-- `GET/POST /api/v1/brands` — Brand CRUD
-- `GET/PUT/DELETE /api/v1/brands/{id}` — Single brand operations
-- `GET /api/v1/brands/{id}/versions` — Version history
-- `POST/DELETE /api/v1/assignments` — Brand-to-scenario assignments
-- `GET /api/v1/scenarios/{name}/status` — Per-scenario branding status
-- `POST /api/v1/contrast/check` — WCAG AA contrast ratio check (pair)
-- `POST /api/v1/contrast/brand` — WCAG AA contrast validation (full palette)
+## pnpm Everywhere
 
-**Features:**
-- All mutating endpoints support `X-Dry-Run: true` header (runs validation without persisting)
-- Request IDs via `X-Request-ID` header (auto-generated if not provided)
-- Structured error responses: `{code, message, recovery}` on all errors
+This scenario assumes pnpm. If you run another package manager, convert
+lockfiles yourself before committing. Scripts use `pnpm` directly (no
+`npm` fallbacks) to reduce drift.
 
-See [API Reference](docs/reference/api-endpoints.md) for full documentation.
+## Need Inspiration?
 
-## Documentation
-- [Quick Start](docs/QUICKSTART.md) — Get running in 5 minutes
-- [Architecture](docs/concepts/ARCHITECTURE.md) — System design and data flow
-- [API Reference](docs/reference/api-endpoints.md) — REST API documentation
-- [CLI Reference](docs/reference/cli-commands.md) — CLI commands
-- [Configuration](docs/reference/configuration.md) — Environment variables and settings
-- [PRD](PRD.md) — Product requirements and operational targets
-
-### Internal (Developer/Agent)
-- [Seams](docs/internal/SEAMS.md) — Module boundaries and testability zones
-- [Storage Audit](docs/internal/STORAGE_AUDIT.md) — SQLite architecture assessment
-- [Progress](docs/internal/PROGRESS.md) — Development history
-- [Problems](docs/internal/PROBLEMS.md) — Open issues and deferred ideas
-- [Research](docs/internal/RESEARCH.md) — Background research and references
+Open `scenarios/browser-automation-studio/` to see the same template
+shape taken to completion.

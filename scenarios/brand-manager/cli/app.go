@@ -1,5 +1,3 @@
-// DOC: docs/reference/cli-commands.md
-// DOC: docs/internal/SEAMS.md#4-cli--api-network-seam
 package main
 
 import (
@@ -25,10 +23,22 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
+	app := &App{}
+	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+		groups, err := domains.SubcommandGroups(core, manifestBytes)
+		if err != nil {
+			// Manifest parse / binding wiring is a programmer error caught
+			// at NewApp time; surface it as a panic so misconfigured builds
+			// fail loudly during the first CLI invocation rather than after
+			// a user actually runs a command.
+			panic(err)
+		}
+		return groups
+	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
-		Description:      "Brand Manager – Full Branding Lifecycle for All Scenarios CLI",
+		Description:      "Brand Manager CLI",
 		DefaultAPIBase:   defaultAPIBase,
 		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 		BuildFingerprint: buildFingerprint,
@@ -36,11 +46,13 @@ func NewApp() (*App, error) {
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
 		CommandGroups:    domains.CommandGroups,
+		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &App{core: core}, nil
+	app.core = core
+	return app, nil
 }
 
 func (a *App) Run(args []string) error {

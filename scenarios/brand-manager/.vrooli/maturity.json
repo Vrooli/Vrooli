@@ -1,0 +1,120 @@
+{
+  "provider": "brand-manager",
+  "phase": "branding",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No branding target",
+      "description": "Brand Manager cannot resolve a scenario or readable source tree to assess branding.",
+      "entry_criteria": ["Scenario name or path is provided"],
+      "exit_criteria": ["The target scenario resolves to a readable tree"]
+    },
+    {
+      "id": "L1",
+      "name": "Branding scan available",
+      "description": "The provider can scan the target and return normalized branding findings for Test Genie and agents.",
+      "entry_criteria": ["Target tree is readable"],
+      "exit_criteria": ["Branding scan completes with structured findings and summary counts"]
+    },
+    {
+      "id": "L2",
+      "name": "Brand identity declared",
+      "description": "The scenario declares a non-placeholder brand display name — the minimum identity every surface renders.",
+      "entry_criteria": ["Branding scan completes"],
+      "exit_criteria": ["No missing display-name finding blocks branding identity"]
+    },
+    {
+      "id": "L3",
+      "name": "Visual system defined",
+      "description": "The scenario defines a core color system and typography so its surfaces share one coherent look.",
+      "entry_criteria": ["Brand identity is declared"],
+      "exit_criteria": ["No missing color-system or typography finding blocks the visual system"]
+    },
+    {
+      "id": "L4",
+      "name": "Brand assets present",
+      "description": "The scenario ships the brand imagery (logo, favicon) users and tabs actually see.",
+      "entry_criteria": ["Visual system is defined"],
+      "exit_criteria": ["No missing logo or favicon finding blocks brand assets"]
+    },
+    {
+      "id": "L5",
+      "name": "Accessible and applied",
+      "description": "Core color pairings meet WCAG AA and the brand is actually applied (markers + manifest keys) — fleet-ready branding.",
+      "entry_criteria": ["Brand assets are present"],
+      "exit_criteria": ["No contrast or unapplied-markers finding blocks fleet-ready branding"]
+    }
+  ],
+  "findings": {
+    "has-display-name": {
+      "local_level_impact": "L2",
+      "global_impact": "capability_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_ERROR",
+      "fix_class": "manual",
+      "reason": "A meaningful display name requires human/product judgment, not a deterministic default.",
+      "recommended_skill_ids": ["branding", "ecosystem-fit"]
+    },
+    "has-color-system": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "pending",
+      "recommended_skill_ids": ["branding"]
+    },
+    "has-typography": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "manual",
+      "reason": "Font selection is a design choice, not a deterministic default.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "has-logo": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "Logo image generation is non-deterministic and requires AI or a human asset.",
+      "recommended_skill_ids": ["branding"]
+    },
+    "has-favicon": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "pending",
+      "recommended_skill_ids": ["branding"]
+    },
+    "wcag-aa-contrast": {
+      "local_level_impact": "L5",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "manual",
+      "reason": "Re-balancing a palette to pass AA requires design judgment, not a mechanical edit.",
+      "recommended_skill_ids": ["branding", "accessibility"]
+    },
+    "brand-markers-applied": {
+      "local_level_impact": "L5",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_INFO",
+      "fix_class": "auto",
+      "fixer_status": "pending",
+      "recommended_skill_ids": ["branding"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L1",
+    "global_impact": "hardening_gap",
+    "dimension": "branding",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

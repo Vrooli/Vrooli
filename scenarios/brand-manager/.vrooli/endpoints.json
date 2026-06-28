@@ -7,14 +7,14 @@
       "path": "/health",
       "method": "GET",
       "summary": "Service health check",
-      "description": "Returns API readiness plus dependency status",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
-          "status": "string",
+          "dependencies": "object",
           "readiness": "boolean",
-          "dependencies": "object"
+          "status": "string"
         }
       },
       "examples": [
@@ -23,111 +23,461 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "brand-manager status"
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.brand_manager.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.brand_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
-      "id": "brands-list",
-      "path": "/api/v1/brands",
-      "method": "GET",
-      "summary": "List all brands",
-      "description": "Returns all brands with optional name filter, limit, and offset",
+      "id": "brands_list",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/ListBrands",
+      "method": "POST",
+      "summary": "List brands",
+      "description": "Returns brands ordered newest-updated-first, optionally filtered by a case-insensitive name substring and paginated.",
       "category": "brands",
-      "parameters": [
-        { "name": "name", "in": "query", "type": "string", "description": "Filter by name (contains)" },
-        { "name": "limit", "in": "query", "type": "integer", "description": "Max results" },
-        { "name": "offset", "in": "query", "type": "integer", "description": "Pagination offset" }
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (<= 0 → server default 100, max 500)",
+          "name_contains": "string (optional substring filter)",
+          "offset": "int32 (pagination offset)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brands": "array<Brand>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
       ],
-      "cli_mapping": { "command": "brand-manager list" }
+      "examples": [
+        {
+          "name": "List brands",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/ListBrands -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
     },
     {
-      "id": "brands-create",
-      "path": "/api/v1/brands",
+      "id": "brands_create",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/CreateBrand",
       "method": "POST",
-      "summary": "Create a new brand",
-      "description": "Creates a brand with identity, colors, typography, voice, and notes",
+      "summary": "Create a brand",
+      "description": "Persists a new brand at version 1 and snapshots it. Name is required and validated server-side; identity/colors/typography/voice facets are optional.",
       "category": "brands",
-      "cli_mapping": { "command": "brand-manager create --name <name>" }
+      "request": {
+        "type": "object",
+        "properties": {
+          "colors": "Colors",
+          "description": "string",
+          "identity": "Identity",
+          "name": "string (required, non-whitespace)",
+          "notes": "string",
+          "typography": "Typography",
+          "voice": "Voice"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand": "Brand"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or whitespace-only name"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/CreateBrand -H 'Content-Type: application/json' -d '{\"name\":\"Acme\",\"colors\":{\"primary\":\"#1f2937\"}}'"
+        }
+      ]
     },
     {
-      "id": "brands-get",
-      "path": "/api/v1/brands/{id}",
-      "method": "GET",
-      "summary": "Get a brand by ID",
-      "description": "Returns a single brand with all facets",
+      "id": "brands_get",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/GetBrand",
+      "method": "POST",
+      "summary": "Get a brand by id",
+      "description": "Returns the brand matching the request id.",
       "category": "brands",
-      "cli_mapping": { "command": "brand-manager get <id>" }
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand": "Brand"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/GetBrand -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
     },
     {
-      "id": "brands-update",
-      "path": "/api/v1/brands/{id}",
-      "method": "PUT",
+      "id": "brands_update",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/UpdateBrand",
+      "method": "POST",
       "summary": "Update a brand",
-      "description": "Updates brand fields and increments version, creating a version snapshot",
-      "category": "brands"
+      "description": "Applies a partial update (only provided fields overwrite existing values), bumps the version, and snapshots the result. Set expected_version > 0 for optimistic locking.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "expected_version": "int32 (> 0 enables optimistic lock)",
+          "id": "string (required)",
+          "name": "string (empty = unchanged)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "brand": "Brand"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Resulting name would be empty"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No brand with that id exists"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "expected_version no longer matches"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Update brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/UpdateBrand -H 'Content-Type: application/json' -d '{\"id\":\"abc123\",\"description\":\"updated\"}'"
+        }
+      ]
     },
     {
-      "id": "brands-delete",
-      "path": "/api/v1/brands/{id}",
-      "method": "DELETE",
-      "summary": "Delete a brand",
-      "description": "Deletes a brand and all associated versions and assignments",
-      "category": "brands"
-    },
-    {
-      "id": "versions-list",
-      "path": "/api/v1/brands/{id}/versions",
-      "method": "GET",
-      "summary": "List brand versions",
-      "description": "Returns all version snapshots for a brand",
-      "category": "brands"
-    },
-    {
-      "id": "assignments-create",
-      "path": "/api/v1/assignments",
+      "id": "brands_delete",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/DeleteBrand",
       "method": "POST",
-      "summary": "Assign a brand to a scenario",
-      "description": "Links a brand to a scenario name with element selection",
-      "category": "assignments"
+      "summary": "Delete a brand",
+      "description": "Removes the brand by id. Idempotent: deleting a missing brand succeeds. Version history is retained as an audit trail.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/DeleteBrand -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
     },
     {
-      "id": "assignments-delete",
-      "path": "/api/v1/assignments/{id}",
-      "method": "DELETE",
-      "summary": "Remove a brand assignment",
-      "description": "Removes the brand assignment from a scenario",
-      "category": "assignments"
+      "id": "brands_versions_list",
+      "path": "/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions",
+      "method": "POST",
+      "summary": "List a brand's version history",
+      "description": "Returns the immutable version snapshots for a brand, newest-first. Each snapshot is the full JSON-encoded brand state at the time the version was cut.",
+      "category": "brands",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "versions": "array<BrandVersion>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List versions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\"}'"
+        }
+      ]
     },
     {
-      "id": "scenario-status",
-      "path": "/api/v1/scenarios/{name}/status",
-      "method": "GET",
-      "summary": "Get scenario branding status",
-      "description": "Returns whether a scenario has a brand assigned and which version",
-      "category": "assignments"
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
+      "id": "notes_list",
+      "path": "/vrooli.brand_manager.v1.notes.NotesService/ListNotes",
+      "method": "POST",
+      "summary": "List notes",
+      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
+      "category": "notes",
+      "response": {
+        "type": "object",
+        "properties": {
+          "notes": "array<Note>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List notes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
     },
     {
-      "name": "create",
-      "description": "Create a new brand",
-      "endpoint_id": "brands-create"
+      "id": "notes_create",
+      "path": "/vrooli.brand_manager.v1.notes.NotesService/CreateNote",
+      "method": "POST",
+      "summary": "Create a note",
+      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "body": "string",
+          "title": "string (required, non-whitespace)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "note": "Note"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or whitespace-only title"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create note",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
+        }
+      ]
     },
     {
-      "name": "list",
-      "description": "List all brands",
-      "endpoint_id": "brands-list"
+      "id": "notes_get",
+      "path": "/vrooli.brand_manager.v1.notes.NotesService/GetNote",
+      "method": "POST",
+      "summary": "Get a note by id",
+      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "note": "Note"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No note with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get note",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
     },
     {
-      "name": "get",
-      "description": "Get a brand by ID",
-      "endpoint_id": "brands-get"
+      "id": "notes_count",
+      "path": "/vrooli.brand_manager.v1.notes.NotesService/CountNotes",
+      "method": "POST",
+      "summary": "Count notes in a time window",
+      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
+      "category": "notes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "count": "int64 (notes created in the window)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unresolvable or malformed time window"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Count this week",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "notes_attach",
+      "path": "/api/v1/notes/{id}/attachments",
+      "method": "POST",
+      "summary": "Upload a note attachment",
+      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
+      "category": "notes",
+      "request": {
+        "type": "multipart/form-data",
+        "properties": {
+          "file": "file (required)"
+        }
+      },
+      "response": {
+        "type": "UploadAttachmentResponse",
+        "properties": {
+          "attachment": "Attachment"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Missing file or invalid multipart upload"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No note with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "BlobStore or metadata persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Attach file",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+        }
+      ],
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.brand_manager.v1.notes.UploadAttachmentResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.brand_manager.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
     }
   ]
 }

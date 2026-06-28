@@ -1,0 +1,74 @@
+{
+  "_metadata": {
+    "module": "assignments",
+    "description": "Brand-to-scenario assignment ledger: which brand (at which version) is linked to which scenario and what was actually applied.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "ASSIGN-001",
+      "title": "Link a brand at a specific version to a scenario",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "assignments",
+      "criticality": "P0",
+      "description": "An assignment record links a scenario to a brand at a pinned brand version, and re-assigning updates the link rather than creating a duplicate.",
+      "tags": [
+        "assignment",
+        "linking"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/assignments/service_test.go once the assignments domain is ported."
+        }
+      ]
+    },
+    {
+      "id": "ASSIGN-002",
+      "title": "Track which elements were applied, when, and at what version",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "assignments",
+      "criticality": "P0",
+      "description": "Each assignment records the set of applied elements (colors, typography, logo, favicon, design-doc), the applied-at timestamp, and the brand version applied, supporting partial (per-element) application.",
+      "tags": [
+        "audit",
+        "partial-apply"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/assignments/applied_test.go once applied-element tracking is ported."
+        }
+      ]
+    },
+    {
+      "id": "ASSIGN-003",
+      "title": "Report per-scenario branding assignment status",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "assignments",
+      "criticality": "P0",
+      "description": "A scenario-status query returns whether a scenario has an assigned brand, which version is assigned, and whether the applied version is behind the brand's current version (drift).",
+      "tags": [
+        "status",
+        "drift"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned unit coverage at api/internal/assignments/status_test.go once scenario-status is ported."
+        }
+      ]
+    }
+  ]
+}

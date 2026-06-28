@@ -1,55 +1,22 @@
+@import "./design-tokens.css";
+@import "./theme/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Design tokens for Brand Manager UI.
- *
- * All visual values flow through these custom properties so a theme refresh
- * only touches this block. Surfaces and components reference tokens via
- * Tailwind arbitrary values — e.g. `bg-[rgb(var(--color-surface-base))]` —
- * or through the extended Tailwind theme in tailwind.config.js.
- *
- * Token naming follows: --{category}-{semantic}-{modifier}
- */
 :root {
-  color-scheme: dark;
-
-  /* ── Text ─────────────────────────────────────────── */
-  --color-text-primary: 248 250 252;       /* slate-50  */
-  --color-text-muted: 148 163 184;         /* slate-400 */
-  --color-text-faint: 100 116 139;         /* slate-500 */
-
-  /* ── Surface ──────────────────────────────────────── */
-  --color-surface-base: 2 6 23;            /* slate-950 */
-  --color-surface-raised: 255 255 255;     /* white at 5% opacity via bg-white/5 */
-  --color-surface-hover: 255 255 255;      /* white at 10% opacity via bg-white/10 */
-
-  /* ── Border ───────────────────────────────────────── */
-  --color-border-default: 255 255 255;     /* white at 10% opacity */
-  --color-border-focus: 255 255 255;       /* white at 30% opacity */
-
-  /* ── Feedback ─────────────────────────────────────── */
-  --color-success: 16 185 129;             /* emerald-500 */
-  --color-danger: 239 68 68;              /* red-500 */
-  --color-danger-text: 248 113 113;        /* red-400 */
-
-  /* ── Radius ───────────────────────────────────────── */
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-
-  /* ── Motion ───────────────────────────────────────── */
-  --motion-fast: 150ms;
-}
-
-/* Height chain required for iframe compatibility.
-   h-full (100%) inherits correctly from parent elements,
-   while h-screen (100vh) can refer to the outer window in an iframe. */
-html, body, #root {
-  height: 100%;
-  margin: 0;
+  color-scheme: light;
 }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }

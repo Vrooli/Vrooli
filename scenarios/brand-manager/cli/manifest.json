@@ -1,0 +1,372 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "brand-manager",
+  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "brands",
+      "description": "Manage brand identities (CRUD + immutable version history)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List brands (newest-updated first)",
+          "flags": [
+            {
+              "name": "name",
+              "description": "Filter by case-insensitive name substring"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows to return (default 100, max 500)"
+            },
+            {
+              "name": "offset",
+              "description": "Rows to skip (pagination)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "ListBrands"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a brand",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Brand name"
+            },
+            {
+              "name": "description",
+              "description": "Brand description"
+            },
+            {
+              "name": "notes",
+              "description": "Authoring notes"
+            },
+            {
+              "name": "display-name",
+              "description": "Identity: display name"
+            },
+            {
+              "name": "tagline",
+              "description": "Identity: tagline"
+            },
+            {
+              "name": "primary",
+              "description": "Colors: primary (CSS color)"
+            },
+            {
+              "name": "secondary",
+              "description": "Colors: secondary (CSS color)"
+            },
+            {
+              "name": "accent",
+              "description": "Colors: accent (CSS color)"
+            },
+            {
+              "name": "background",
+              "description": "Colors: background (CSS color)"
+            },
+            {
+              "name": "surface",
+              "description": "Colors: surface (CSS color)"
+            },
+            {
+              "name": "text",
+              "description": "Colors: text (CSS color)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "CreateBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a brand by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "GetBrand"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a brand (partial; only provided fields change)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Brand name"
+            },
+            {
+              "name": "description",
+              "description": "Brand description"
+            },
+            {
+              "name": "notes",
+              "description": "Authoring notes"
+            },
+            {
+              "name": "display-name",
+              "description": "Identity: display name"
+            },
+            {
+              "name": "tagline",
+              "description": "Identity: tagline"
+            },
+            {
+              "name": "primary",
+              "description": "Colors: primary (CSS color)"
+            },
+            {
+              "name": "secondary",
+              "description": "Colors: secondary (CSS color)"
+            },
+            {
+              "name": "accent",
+              "description": "Colors: accent (CSS color)"
+            },
+            {
+              "name": "background",
+              "description": "Colors: background (CSS color)"
+            },
+            {
+              "name": "surface",
+              "description": "Colors: surface (CSS color)"
+            },
+            {
+              "name": "text",
+              "description": "Colors: text (CSS color)"
+            },
+            {
+              "name": "expected-version",
+              "description": "Optimistic lock: reject unless this matches the current version"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "UpdateBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a brand (idempotent)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "DeleteBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "versions",
+          "description": "List a brand's immutable version history",
+          "positionals": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BrandsService",
+            "method": "ListBrandVersions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "notes",
+      "description": "Manage notes (CRUD reference)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List all notes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "ListNotes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a note",
+          "flags": [
+            {
+              "name": "title",
+              "required": true,
+              "description": "Note title"
+            },
+            {
+              "name": "body",
+              "description": "Note body"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "CreateNote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a note by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Note id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "GetNote"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "count",
+          "description": "Count notes created in a time window (the reference measure)",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "CountNotes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "intent": "How many notes were created in a given time window.",
+            "questions": [
+              "how many notes were created this week",
+              "notes created last month",
+              "how many notes did we add in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "count",
+              "unit": "notes",
+              "summary_template": "{count} notes created ({window})"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "notes",
+        "stateful": true,
+        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
+      }
+    ]
+  },
+  "omitted": []
+}

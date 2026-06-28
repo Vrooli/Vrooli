@@ -1,124 +1,167 @@
-# Configuration
+# Configuration — Brand Manager
 
-Brand Manager exposes a small, intentional set of tunable levers. All levers have sane defaults that work out of the box. Override via environment variables when you need to adapt to different workloads or environments.
+How this scenario is configured — env vars consumed by the binaries,
+the `.vrooli/service.json` manifest, and the per-user CLI config file.
 
-## Control Surface Overview
+The lifecycle (`vrooli scenario start`, `make start`) sets every
+required variable automatically. You only need this reference when
+running a binary by hand or when a scenario adds a new variable.
 
-| Group | Lever | Env Var | Default | Impact |
-|-------|-------|---------|---------|--------|
-| Database | SQLite path | `BM_SQLITE_PATH` | `~/.vrooli/brand-manager/brand-manager.db` | Where brand data lives |
-| Database | Busy timeout | `BM_BUSY_TIMEOUT_MS` | `10000` (10s) | Higher = more tolerant of contention |
-| Database | Cache size | `BM_CACHE_SIZE_KB` | `2000` (~2 MB) | Higher = faster reads, more memory |
-| API | Default list limit | `BM_DEFAULT_LIST_LIMIT` | `100` | Items returned when no `?limit=` |
-| API | Max list limit | `BM_MAX_LIST_LIMIT` | `1000` | Absolute ceiling for `?limit=` |
-| Contrast | AA normal threshold | `BM_CONTRAST_AA_NORMAL` | `4.5` | WCAG AA for normal text |
-| Contrast | AA large threshold | `BM_CONTRAST_AA_LARGE` | `3.0` | WCAG AA for large text |
-| Contrast | Display precision | `BM_CONTRAST_PRECISION` | `2` | Decimal places in ratio output |
+## Environment variables
 
-## Database Configuration
+### Required at runtime (set by the lifecycle)
 
-### SQLite Path
+| Variable | Range / format | Purpose |
+|---|---|---|
+| `API_PORT` | `15000-19999` | Port for the Go API server |
+| `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
 
-The database path is resolved in priority order:
+If the scenario adds WebSocket channels on the existing API or UI server, do
+not add another `ports` entry. Declare an additional port only when the
+scenario starts a separate listener process.
 
-1. `BM_SQLITE_PATH` (primary, scenario-specific)
-2. `SQLITE_PATH` (shared fallback)
-3. `SQLITE_DB` (shared fallback)
-4. Default: `~/.vrooli/brand-manager/brand-manager.db`
+The canonical bands all sit below 32768 so Linux never hands out the
+ports as outbound source ports. See the project-level
+[port-allocation reference](../../../../docs/reference/port-allocation.md)
+for the full policy.
 
-See [CODE: api/config/config.go#Load] for the resolution chain.
+### Optional overrides
 
-### SQLite Pragmas
+| Variable | Default | Purpose |
+|---|---|---|
+| `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/brand-manager.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
+| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
-The database connection applies these pragmas for performance (see [CODE: api/config/config.go#DSN]):
+The browser UI does not read `API_PORT` directly. It resolves API calls through
+the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
+RPC namespace to the API process using the lifecycle-provided `API_PORT`.
 
-| Pragma | Value | Tunable? | Purpose |
-|--------|-------|----------|---------|
-| `foreign_keys` | ON | No | Enforce referential integrity (non-negotiable) |
-| `journal_mode` | WAL | No | Write-ahead logging for concurrent reads |
-| `busy_timeout` | `BM_BUSY_TIMEOUT_MS` (default 10000ms) | **Yes** | Wait before returning SQLITE_BUSY |
-| `cache_size` | `-BM_CACHE_SIZE_KB` (default -2000, ~2 MB) | **Yes** | In-memory page cache |
-| `synchronous` | NORMAL | No | Balance durability and speed |
-| `temp_store` | MEMORY | No | Keep temp tables in RAM |
+### Scenario-prefixed CLI variables
 
-**Why `busy_timeout` is tunable:** Under high write contention (many concurrent API requests), increasing this avoids SQLITE_BUSY errors. Under low load, the default 10s is generous.
+`cli-core` derives a standard set of env vars from the scenario name.
+For `brand-manager` the prefix is the scenario id upper-cased with
+hyphens replaced by underscores (so `my-scenario` → `MY_SCENARIO`).
+The following are recognised, in precedence order (first-found wins);
+substitute your scenario's prefix for `<PREFIX>`:
 
-**Why `cache_size` is tunable:** Memory-constrained environments (e.g., small VPS) may want to reduce this; high-traffic deployments benefit from more cache.
+| Purpose | Variables |
+|---|---|
+| API base URL | `<PREFIX>_API_BASE`, `<PREFIX>_API_URL`, `VROOLI_API_BASE` |
+| API port | `<PREFIX>_API_PORT` |
+| API token | `<PREFIX>_API_TOKEN`, `VROOLI_API_TOKEN` |
+| Config dir | `<PREFIX>_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
+| HTTP timeout | `<PREFIX>_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
 
-**Why `journal_mode`, `synchronous`, and `foreign_keys` are NOT tunable:** These affect data integrity and correctness. Changing them could cause data loss or constraint violations.
+> **Do not** set the un-prefixed `API_PORT` for a CLI invocation —
+> when CLIs run inside web-console terminals it leaks across scenarios.
+> Use the scenario-prefixed form or the `--api-base` flag.
 
-### Connection Limits
+## Service manifest (`.vrooli/service.json`)
 
-`MaxOpenConns` is fixed at 1. SQLite's single-writer architecture means additional connections add overhead without benefit. This is intentionally not exposed.
+Single source of truth for everything the lifecycle needs to know.
 
-## API Configuration
+| Section | Owns |
+|---|---|
+| `service` | name, display name, description, version, category, maintainers, repository URL |
+| `ports` | port-name → env-var + range mapping (lifecycle allocates from these) |
+| `cli` | command name, install scripts (per OS), invoke shape, freshness inputs |
+| `lifecycle.health` | `/health` endpoint, startup grace period, periodic checks |
+| `lifecycle.setup` | build steps + idempotency conditions (binary present, UI bundle fresh) |
+| `lifecycle.develop` | how to start the running scenario |
+| `lifecycle.test` | which test command to invoke |
+| `lifecycle.stop` | how to shut down cleanly |
+| `environment` | static env vars set for every lifecycle step |
+| `dependencies.resources` | shared local resources (postgres, redis, qdrant, …) |
 
-### List Pagination
+The template ships with `dependencies.resources: {}` — SQLite is
+in-process, so no resource is required. Scenarios add resources here
+when they need shared infrastructure.
 
-| Lever | Env Var | Default | Min | Max | Impact |
-|-------|---------|---------|-----|-----|--------|
-| Default list limit | `BM_DEFAULT_LIST_LIMIT` | 100 | 1 | — | Applied when caller omits `?limit=` |
-| Max list limit | `BM_MAX_LIST_LIMIT` | 1000 | ≥ default | — | Caps `?limit=` to prevent unbounded queries |
+## Schema bootstrap
 
-When a caller provides `?limit=5000` and `BM_MAX_LIST_LIMIT=1000`, the response silently caps at 1000 items.
+Schema is owned per-domain. `api/internal/<dom>/schema.sql` declares
+each domain's tables and is embedded into the binary via `go:embed`
+from `api/internal/<dom>/schema.go::Schema()`. Cross-cutting
+infrastructure (postgres extensions, custom types, cross-domain views)
+lives in `api/internal/database/system.sql` — empty by default in
+SQLite scenarios.
 
-### API Version
+The shared registry at `api/internal/modules/registry.go::AllSchemas()`
+collects them in order (system first, then domains alphabetical), and
+`apidb.EnsureSchemas(ctx, db, modules.AllSchemas()...)` from
+`api-core/database` applies them at startup. The path is idempotent —
+all DDL uses `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … ADD COLUMN
+IF NOT EXISTS`, so re-runs on every boot are no-ops.
 
-The version reported at `/health` is set at build time (`1.0.0`). It is not currently tunable via environment — change it in `config.Default()` when releasing a new version.
+Adding a column lands in the same diff as the Go struct field, the
+repository scan, and the proto wire shape — single location, single
+edit. Drops/renames in production data need the brownfield
+versioned-migration helpers (`Migrate` / `MigrationProvider` in
+`api-core/database`, deferred until the first scenario hits the pain).
 
-## WCAG Contrast Configuration
+See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
+for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
+for the per-seam table including each domain's `<domain>.Schema` and
+`database.SystemSchema`.
 
-| Lever | Env Var | Default | Min | Max | Use Case |
-|-------|---------|---------|-----|-----|----------|
-| AA normal text | `BM_CONTRAST_AA_NORMAL` | 4.5 | 1.0 | — | Override to 7.0 for AAA testing |
-| AA large text | `BM_CONTRAST_AA_LARGE` | 3.0 | 1.0 | — | Override to 4.5 for AAA testing |
-| Display precision | `BM_CONTRAST_PRECISION` | 2 | 0 | 6 | More decimals = more precise ratios |
+## CLI config file
 
-**Why these are tunable:** WCAG AA (4.5/3.0) are the spec defaults. Some organizations require AAA compliance (7.0/4.5). The threshold levers let operators enforce stricter or custom standards without code changes.
+The scenario CLI persists per-user configuration to a JSON file.
+Resolution order (first match wins):
 
-**Guardrails:** Thresholds below 1.0 are clamped to 1.0 (the mathematical minimum for a contrast ratio). Precision above 6 is capped to prevent floating-point noise.
+1. `${<PREFIX>_CONFIG_DIR}/config.json` (the scenario-prefixed env var; see "Scenario-prefixed CLI variables" above)
+2. `${XDG_CONFIG_HOME}/vrooli/brand-manager/config.json`
+3. `~/.vrooli/config/brand-manager/config.json`
+4. `~/.config/vrooli/brand-manager/config.json`
 
-## UI Constants
+File shape:
 
-UI tunable values live in [CODE: ui/src/config/constants.ts]:
+```json
+{
+  "api_base": "http://localhost:15001/api/v1",
+  "token": "optional-auth-token"
+}
+```
 
-| Constant | Default | Purpose |
-|----------|---------|---------|
-| `HEALTH_CHECK_RETRY` | 2 | How many times to retry a failed health check |
-| `HEALTH_CHECK_INTERVAL_MS` | 30,000 (30s) | Polling interval for API health |
-| `WCAG_AA_NORMAL` | 4.5 | Display threshold for contrast badges |
-| `WCAG_AA_LARGE` | 3.0 | Display threshold for contrast badges |
-| `DEFAULT_PAGE_SIZE` | 20 | Brands per page (future pagination) |
+Set values via the CLI rather than editing the file directly:
 
-These are compile-time constants. To change them, edit the file and rebuild the UI.
+```bash
+brand-manager configure api_base http://localhost:15001/api/v1
+brand-manager configure token <token>
+```
 
-## CLI Configuration
+## API-base resolution precedence
 
-The CLI resolves the API base URL from multiple sources:
+When the CLI calls the API, the base URL is resolved in this order
+(first match wins):
 
-1. `--api-base` flag
-2. `API_BASE_URL` / `VITE_API_BASE_URL` environment variables
-3. Vrooli port detection (`vrooli scenario port brand-manager API_PORT`)
+1. `--api-base <url>` flag
+2. Scenario-prefixed env vars (above)
+3. CLI config file (`api_base` field)
+4. Vrooli lifecycle port detection (`vrooli scenario port brand-manager API_PORT`)
+5. Compile-time default (only set if explicitly configured in `app.go`)
 
-See [CODE: cli/app.go#NewApp] for the full resolution chain.
+If none of these resolve, the command exits with an actionable error
+("API not available — try `--auto-start` or `vrooli scenario start
+brand-manager`").
 
-## Service Configuration
+## Test/CI configuration
 
-The service lifecycle is configured via [CODE: .vrooli/service.json]:
+| File | Owns |
+|---|---|
+| `.vrooli/testing.json` | Test categories — lint, unit, business checks (endpoints, CLI commands), Lighthouse, bundle size |
+| `.vrooli/lighthouse.json` | Lighthouse pages, thresholds, Chrome flags |
+| `.vrooli/endpoints.json` | API endpoint manifest (path, method, status codes, request/response shapes, CLI mapping) |
+| `.github/workflows/test.yml` | CI gate — UI lint + test, Go vet + race + coverage, E2E binary smoke |
 
-- **Ports**: API and UI listener ports allocated from Vrooli's port ranges
-- **Health checks**: HTTP checks on `/health` for both API and UI
-- **Resources**: SQLite (embedded, no daemon required)
-- **Lifecycle**: Setup builds Go API and React UI; develop starts both servers
+These files are read by tooling (`vrooli scenario test`, `test-genie`,
+the doc viewer) — keep them in sync with the code they describe.
 
-## What Is Intentionally NOT Configurable
+## Cross-references
 
-| Setting | Value | Reason |
-|---------|-------|--------|
-| SQLite `journal_mode` | WAL | Changing from WAL risks data corruption under concurrent access |
-| SQLite `foreign_keys` | ON | Disabling would allow orphaned records |
-| SQLite `synchronous` | NORMAL | FULL is too slow; OFF risks data loss on crash |
-| SQLite `MaxOpenConns` | 1 | SQLite single-writer; more connections add overhead, not throughput |
-| API version string | `1.0.0` | Compile-time constant; versioned with releases |
-| Initial brand version | 1 | Semantic: first version is always 1 |
-| WCAG color pairing set | 5 pairings | Defined by brand color semantics (text/primary/accent on background/surface) |
+- [`QUICKSTART.md`](../QUICKSTART.md) — boot the scenario in 5 minutes
+- [`api-endpoints.md`](api-endpoints.md) — endpoint reference
+- [`cli-commands.md`](cli-commands.md) — CLI command reference
+- [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist

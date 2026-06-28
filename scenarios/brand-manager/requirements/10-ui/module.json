@@ -1,0 +1,76 @@
+{
+  "_metadata": {
+    "module": "ui",
+    "description": "React UI: a scenario-centric branding dashboard and a brand creation/editing wizard with live, theme-aware preview.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UI-001",
+      "title": "Dashboard shows branding status across all scenarios",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The dashboard presents a scenario-centric view of branding status across all scenarios with brand-library browsing and search.",
+      "tags": [
+        "ui",
+        "dashboard"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned UI coverage at ui/src/components/Dashboard/Dashboard.test.tsx once the dashboard is built."
+        }
+      ]
+    },
+    {
+      "id": "UI-002",
+      "title": "Wizard creates and edits brands with application preview",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The wizard supports brand creation/editing with live preview, generation-option selection, and an application preview shown before applying to a scenario.",
+      "tags": [
+        "ui",
+        "wizard",
+        "preview"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned UI coverage at ui/src/components/Wizard/Wizard.test.tsx once the wizard is built."
+        }
+      ]
+    },
+    {
+      "id": "UI-003",
+      "title": "Preview brand application in both dark and light themes",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "The preview renders the applied brand in both dark and light theme modes before the user commits the apply.",
+      "tags": [
+        "ui",
+        "theme",
+        "preview"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned UI coverage at ui/src/components/Preview/ThemePreview.test.tsx once theme preview is built."
+        }
+      ]
+    }
+  ]
+}
