@@ -46,8 +46,10 @@ All tests pass.
 	if plan.DefinitionOfDone != "All tests pass." {
 		t.Fatalf("DefinitionOfDone = %q", plan.DefinitionOfDone)
 	}
-	if got := len(plan.References); got != 3 {
-		t.Fatalf("len(References) = %d, want 3", got)
+	// Plan-level references are scoped to the pre-phases body; the phase's
+	// [DOC:] reference belongs to the phase, not the plan (see phase.References).
+	if got := len(plan.References); got != 2 {
+		t.Fatalf("len(References) = %d, want 2", got)
 	}
 	if plan.References[0].Kind != ReferenceCode || plan.References[0].Target != "api/main.go" {
 		t.Fatalf("first reference = %#v", plan.References[0])

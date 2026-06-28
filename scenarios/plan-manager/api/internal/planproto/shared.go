@@ -24,24 +24,76 @@ func OrderToInt32(n int) int32 {
 
 func PlanToProto(p planmodel.Plan) *sharedv1.Plan {
 	return &sharedv1.Plan{
-		Id:               p.ID,
-		Slug:             p.Slug,
-		Title:            p.Title,
-		Status:           PlanStatusToProto(p.Status),
-		ContentHash:      p.ContentHash,
-		CreatedAt:        p.CreatedAt,
-		UpdatedAt:        p.UpdatedAt,
-		Purpose:          p.Purpose,
-		Scope:            p.Scope,
-		Constraints:      p.Constraints,
-		NonGoals:         p.NonGoals,
-		References:       ReferencesToProto(p.References),
-		RegressionAnchor: AnchorToProto(p.RegressionAnchor),
-		DefinitionOfDone: p.DefinitionOfDone,
-		Phases:           PhasesToProto(p.Phases),
-		Supersedes:       p.Supersedes,
-		SupersededBy:     p.SupersededBy,
-		RelevantContext:  RelevantContextItemsToProto(p.RelevantContext),
+		Id:                      p.ID,
+		Slug:                    p.Slug,
+		Title:                   p.Title,
+		Status:                  PlanStatusToProto(p.Status),
+		ContentHash:             p.ContentHash,
+		CreatedAt:               p.CreatedAt,
+		UpdatedAt:               p.UpdatedAt,
+		Purpose:                 p.Purpose,
+		Scope:                   p.Scope,
+		Constraints:             p.Constraints,
+		NonGoals:                p.NonGoals,
+		References:              ReferencesToProto(p.References),
+		RegressionAnchor:        AnchorToProto(p.RegressionAnchor),
+		DefinitionOfDone:        p.DefinitionOfDone,
+		Phases:                  PhasesToProto(p.Phases),
+		Supersedes:              p.Supersedes,
+		SupersededBy:            p.SupersededBy,
+		RelevantContext:         RelevantContextItemsToProto(p.RelevantContext),
+		ProblemStatement:        p.ProblemStatement,
+		TargetOutcome:           p.TargetOutcome,
+		Assumptions:             p.Assumptions,
+		TechnicalApproach:       p.TechnicalApproach,
+		ValidationStrategy:      p.ValidationStrategy,
+		FinalValidationCommands: p.FinalValidationCommands,
+		RisksHazards:            p.RisksHazards,
+		ProhibitedApproaches:    p.ProhibitedApproaches,
+		WorkPosture:             WorkPostureToProto(p.WorkPosture),
+		WorkPostureSource:       WorkPostureSourceToProto(p.WorkPostureSource),
+		WorkPostureDetail:       p.WorkPostureDetail,
+		ImportProvenance:        ImportProvenanceToProto(p.ImportProvenance),
+		PreservedLegacySections: LegacySectionsToProto(p.PreservedLegacySections),
+	}
+}
+
+func PlanFromProto(p *sharedv1.Plan) planmodel.Plan {
+	if p == nil {
+		return planmodel.Plan{}
+	}
+	return planmodel.Plan{
+		ID:                      p.GetId(),
+		Slug:                    p.GetSlug(),
+		Title:                   p.GetTitle(),
+		Status:                  PlanStatusFromProto(p.GetStatus()),
+		ContentHash:             p.GetContentHash(),
+		CreatedAt:               p.GetCreatedAt(),
+		UpdatedAt:               p.GetUpdatedAt(),
+		Purpose:                 p.GetPurpose(),
+		Scope:                   p.GetScope(),
+		Constraints:             p.GetConstraints(),
+		NonGoals:                p.GetNonGoals(),
+		References:              ReferencesFromProto(p.GetReferences()),
+		RegressionAnchor:        AnchorFromProto(p.GetRegressionAnchor()),
+		DefinitionOfDone:        p.GetDefinitionOfDone(),
+		Phases:                  PhasesFromProto(p.GetPhases()),
+		Supersedes:              p.GetSupersedes(),
+		SupersededBy:            p.GetSupersededBy(),
+		RelevantContext:         RelevantContextItemsFromProto(p.GetRelevantContext()),
+		ProblemStatement:        p.GetProblemStatement(),
+		TargetOutcome:           p.GetTargetOutcome(),
+		Assumptions:             p.GetAssumptions(),
+		TechnicalApproach:       p.GetTechnicalApproach(),
+		ValidationStrategy:      p.GetValidationStrategy(),
+		FinalValidationCommands: p.GetFinalValidationCommands(),
+		RisksHazards:            p.GetRisksHazards(),
+		ProhibitedApproaches:    p.GetProhibitedApproaches(),
+		WorkPosture:             WorkPostureFromProto(p.GetWorkPosture()),
+		WorkPostureSource:       WorkPostureSourceFromProto(p.GetWorkPostureSource()),
+		WorkPostureDetail:       p.GetWorkPostureDetail(),
+		ImportProvenance:        ImportProvenanceFromProto(p.GetImportProvenance()),
+		PreservedLegacySections: LegacySectionsFromProto(p.GetPreservedLegacySections()),
 	}
 }
 
@@ -58,6 +110,204 @@ func PhaseToProto(ph planmodel.Phase) *sharedv1.Phase {
 		Status:          PhaseStatusToProto(ph.Status),
 		References:      ReferencesToProto(ph.References),
 		RelevantContext: RelevantContextItemsToProto(ph.RelevantContext),
+		AffectedAreas:   ph.AffectedAreas,
+		Steps:           ph.Steps,
+		ExpectedOutputs: ph.ExpectedOutputs,
+		Validation:      ph.Validation,
+		HandoffNotes:    ph.HandoffNotes,
+		RisksHazards:    ph.RisksHazards,
+	}
+}
+
+// PhaseFromProto converts a wire Phase into the neutral kernel. Computed/joined
+// fields (last_validation) are intentionally not carried back here; the plans
+// write path rejects them at the handler edge before calling this.
+func PhaseFromProto(ph *sharedv1.Phase) planmodel.Phase {
+	if ph == nil {
+		return planmodel.Phase{}
+	}
+	return planmodel.Phase{
+		ID:              ph.GetId(),
+		Order:           int(ph.GetOrder()),
+		Title:           ph.GetTitle(),
+		Intent:          ph.GetIntent(),
+		RequiredReading: ph.GetRequiredReading(),
+		Reminders:       ph.GetReminders(),
+		BaselineScope:   ph.GetBaselineScope(),
+		Acceptance:      ph.GetAcceptance(),
+		Status:          PhaseStatusFromProto(ph.GetStatus()),
+		References:      ReferencesFromProto(ph.GetReferences()),
+		RelevantContext: RelevantContextItemsFromProto(ph.GetRelevantContext()),
+		AffectedAreas:   ph.GetAffectedAreas(),
+		Steps:           ph.GetSteps(),
+		ExpectedOutputs: ph.GetExpectedOutputs(),
+		Validation:      ph.GetValidation(),
+		HandoffNotes:    ph.GetHandoffNotes(),
+		RisksHazards:    ph.GetRisksHazards(),
+	}
+}
+
+func PhasesFromProto(phases []*sharedv1.Phase) []planmodel.Phase {
+	if len(phases) == 0 {
+		return nil
+	}
+	out := make([]planmodel.Phase, 0, len(phases))
+	for _, ph := range phases {
+		if ph == nil {
+			continue
+		}
+		out = append(out, PhaseFromProto(ph))
+	}
+	return out
+}
+
+func ReferencesFromProto(refs []*sharedv1.Reference) []planmodel.Reference {
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]planmodel.Reference, 0, len(refs))
+	for _, r := range refs {
+		if r == nil {
+			continue
+		}
+		out = append(out, planmodel.Reference{
+			ID:           r.GetId(),
+			Kind:         RefKindFromProto(r.GetKind()),
+			Target:       r.GetTarget(),
+			Future:       r.GetFuture(),
+			Resolution:   RefResolutionFromProto(r.GetResolution()),
+			Staleness:    StalenessFromProto(r.GetStaleness()),
+			ChangeFactor: r.GetChangeFactor(),
+			Note:         r.GetNote(),
+		})
+	}
+	return out
+}
+
+func AnchorFromProto(a *sharedv1.RegressionAnchor) planmodel.RegressionAnchor {
+	if a == nil {
+		return planmodel.RegressionAnchor{}
+	}
+	return planmodel.RegressionAnchor{
+		Strategy:       a.GetStrategy(),
+		Scenario:       a.GetScenario(),
+		BaselineName:   a.GetBaselineName(),
+		HeadSha:        a.GetHeadSha(),
+		AllowlistPaths: a.GetAllowlistPaths(),
+		Commands:       a.GetCommands(),
+		CapturedAt:     a.GetCapturedAt(),
+		Unavailable:    a.GetUnavailable(),
+	}
+}
+
+func WorkPostureToProto(p planmodel.WorkPosture) sharedv1.WorkPosture {
+	switch p {
+	case planmodel.WorkPostureGreenfield:
+		return sharedv1.WorkPosture_WORK_POSTURE_GREENFIELD
+	case planmodel.WorkPostureBrownfield:
+		return sharedv1.WorkPosture_WORK_POSTURE_BROWNFIELD
+	default:
+		return sharedv1.WorkPosture_WORK_POSTURE_UNSPECIFIED
+	}
+}
+
+func WorkPostureFromProto(p sharedv1.WorkPosture) planmodel.WorkPosture {
+	switch p {
+	case sharedv1.WorkPosture_WORK_POSTURE_GREENFIELD:
+		return planmodel.WorkPostureGreenfield
+	case sharedv1.WorkPosture_WORK_POSTURE_BROWNFIELD:
+		return planmodel.WorkPostureBrownfield
+	default:
+		return planmodel.WorkPostureUnspecified
+	}
+}
+
+func WorkPostureSourceToProto(s planmodel.WorkPostureSource) sharedv1.WorkPostureSource {
+	switch s {
+	case planmodel.WorkPostureSourceDefault:
+		return sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_DEFAULT
+	case planmodel.WorkPostureSourceServiceMaturity:
+		return sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_SERVICE_MATURITY
+	case planmodel.WorkPostureSourceExplicitOverride:
+		return sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_EXPLICIT_OVERRIDE
+	case planmodel.WorkPostureSourceImportLegacy:
+		return sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_IMPORT_LEGACY
+	default:
+		return sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_UNSPECIFIED
+	}
+}
+
+func WorkPostureSourceFromProto(s sharedv1.WorkPostureSource) planmodel.WorkPostureSource {
+	switch s {
+	case sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_DEFAULT:
+		return planmodel.WorkPostureSourceDefault
+	case sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_SERVICE_MATURITY:
+		return planmodel.WorkPostureSourceServiceMaturity
+	case sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_EXPLICIT_OVERRIDE:
+		return planmodel.WorkPostureSourceExplicitOverride
+	case sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_IMPORT_LEGACY:
+		return planmodel.WorkPostureSourceImportLegacy
+	default:
+		return planmodel.WorkPostureSourceUnspecified
+	}
+}
+
+func LegacySectionsToProto(sections []planmodel.LegacySection) []*sharedv1.LegacySection {
+	if len(sections) == 0 {
+		return nil
+	}
+	out := make([]*sharedv1.LegacySection, 0, len(sections))
+	for _, s := range sections {
+		out = append(out, &sharedv1.LegacySection{
+			Heading:            s.Heading,
+			Content:            s.Content,
+			MappedTo:           s.MappedTo,
+			PreservationReason: s.PreservationReason,
+		})
+	}
+	return out
+}
+
+func LegacySectionsFromProto(sections []*sharedv1.LegacySection) []planmodel.LegacySection {
+	if len(sections) == 0 {
+		return nil
+	}
+	out := make([]planmodel.LegacySection, 0, len(sections))
+	for _, s := range sections {
+		if s == nil {
+			continue
+		}
+		out = append(out, planmodel.LegacySection{
+			Heading:            s.GetHeading(),
+			Content:            s.GetContent(),
+			MappedTo:           s.GetMappedTo(),
+			PreservationReason: s.GetPreservationReason(),
+		})
+	}
+	return out
+}
+
+func ImportProvenanceToProto(p *planmodel.ImportProvenance) *sharedv1.ImportProvenance {
+	if p == nil {
+		return nil
+	}
+	return &sharedv1.ImportProvenance{
+		SourcePath:     p.SourcePath,
+		ImportedAt:     p.ImportedAt,
+		OriginalFormat: p.OriginalFormat,
+		Note:           p.Note,
+	}
+}
+
+func ImportProvenanceFromProto(p *sharedv1.ImportProvenance) *planmodel.ImportProvenance {
+	if p == nil {
+		return nil
+	}
+	return &planmodel.ImportProvenance{
+		SourcePath:     p.GetSourcePath(),
+		ImportedAt:     p.GetImportedAt(),
+		OriginalFormat: p.GetOriginalFormat(),
+		Note:           p.GetNote(),
 	}
 }
 

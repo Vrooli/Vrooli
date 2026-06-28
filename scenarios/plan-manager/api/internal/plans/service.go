@@ -38,17 +38,21 @@ type Service interface {
 }
 
 type service struct {
-	repo   Repository
-	clock  clock.Clock
-	reader SourceReader
+	repo     Repository
+	clock    clock.Clock
+	reader   SourceReader
+	maturity MaturityReader
 }
 
 // Deps wires the plans Service. Reader is optional (nil disables reading
-// markdown from disk; Import then requires inline markdown).
+// markdown from disk; Import then requires inline markdown). Maturity is optional
+// (nil resolves every plan's work posture to Greenfield by default — never a
+// false Brownfield).
 type Deps struct {
-	Repo   Repository
-	Clock  clock.Clock
-	Reader SourceReader
+	Repo     Repository
+	Clock    clock.Clock
+	Reader   SourceReader
+	Maturity MaturityReader
 }
 
 // NewService constructs the plans Service.
@@ -57,7 +61,17 @@ func NewService(d Deps) Service {
 	if clk == nil {
 		clk = clock.System{}
 	}
-	return &service{repo: d.Repo, clock: clk, reader: d.Reader}
+	return &service{repo: d.Repo, clock: clk, reader: d.Reader, maturity: d.Maturity}
+}
+
+// applyPosture derives and stamps the work posture onto a plan (autofilled;
+// never agent-authored). It is idempotent and honors an explicit override or an
+// imported posture via ResolvePosture.
+func (s *service) applyPosture(ctx context.Context, p *Plan) {
+	posture, source, detail := ResolvePosture(ctx, *p, s.maturity)
+	p.WorkPosture = posture
+	p.WorkPostureSource = source
+	p.WorkPostureDetail = detail
 }
 
 var _ Service = (*service)(nil)
@@ -78,6 +92,7 @@ func (s *service) Create(ctx context.Context, p Plan) (Plan, error) {
 	p.UpdatedAt = now
 	p.Phases = normalizePhases(p.Phases)
 	p.Status = computePlanStatus(p.Phases)
+	s.applyPosture(ctx, &p)
 	p.ContentHash = contentHash(p)
 	hashMatches, err := s.contentHashMatches(ctx, p)
 	if err != nil {
@@ -135,6 +150,7 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	// not free-form update payload fields.
 	p.Supersedes = existing.Supersedes
 	p.SupersededBy = existing.SupersededBy
+	s.applyPosture(ctx, &p)
 	p.ContentHash = contentHash(p)
 	hashMatches, err := s.contentHashMatches(ctx, p)
 	if err != nil {
@@ -332,6 +348,7 @@ func (s *service) saveRecomputed(ctx context.Context, p Plan) (Plan, error) {
 	if p.Status != PlanStatusArchived {
 		p.Status = computePlanStatus(p.Phases)
 	}
+	s.applyPosture(ctx, &p)
 	p.UpdatedAt = s.now()
 	p.ContentHash = contentHash(p)
 	hashMatches, err := s.contentHashMatches(ctx, p)
@@ -510,25 +527,41 @@ func clonePhases(phases []Phase) []Phase {
 // identical prose + phases hash identically regardless of their assigned ids.
 func contentHash(p Plan) string {
 	payload := struct {
-		Title            string                `json:"title"`
-		Purpose          string                `json:"purpose"`
-		Scope            string                `json:"scope"`
-		Constraints      string                `json:"constraints"`
-		NonGoals         string                `json:"non_goals"`
-		DefinitionOfDone string                `json:"definition_of_done"`
-		References       []Reference           `json:"references"`
-		Phases           []Phase               `json:"phases"`
-		RelevantContext  []RelevantContextItem `json:"relevant_context"`
+		Title                   string                `json:"title"`
+		Purpose                 string                `json:"purpose"`
+		ProblemStatement        string                `json:"problem_statement"`
+		TargetOutcome           string                `json:"target_outcome"`
+		Scope                   string                `json:"scope"`
+		NonGoals                string                `json:"non_goals"`
+		Assumptions             string                `json:"assumptions"`
+		Constraints             string                `json:"constraints"`
+		ProhibitedApproaches    string                `json:"prohibited_approaches"`
+		TechnicalApproach       string                `json:"technical_approach"`
+		ValidationStrategy      string                `json:"validation_strategy"`
+		FinalValidationCommands []string              `json:"final_validation_commands"`
+		RisksHazards            string                `json:"risks_hazards"`
+		DefinitionOfDone        string                `json:"definition_of_done"`
+		References              []Reference           `json:"references"`
+		Phases                  []Phase               `json:"phases"`
+		RelevantContext         []RelevantContextItem `json:"relevant_context"`
 	}{
-		Title:            p.Title,
-		Purpose:          p.Purpose,
-		Scope:            p.Scope,
-		Constraints:      p.Constraints,
-		NonGoals:         p.NonGoals,
-		DefinitionOfDone: p.DefinitionOfDone,
-		References:       stripRefIDs(p.References),
-		Phases:           stripPhaseIDs(p.Phases),
-		RelevantContext:  stripRelevantContextIDs(p.RelevantContext),
+		Title:                   p.Title,
+		Purpose:                 p.Purpose,
+		ProblemStatement:        p.ProblemStatement,
+		TargetOutcome:           p.TargetOutcome,
+		Scope:                   p.Scope,
+		NonGoals:                p.NonGoals,
+		Assumptions:             p.Assumptions,
+		Constraints:             p.Constraints,
+		ProhibitedApproaches:    p.ProhibitedApproaches,
+		TechnicalApproach:       p.TechnicalApproach,
+		ValidationStrategy:      p.ValidationStrategy,
+		FinalValidationCommands: p.FinalValidationCommands,
+		RisksHazards:            p.RisksHazards,
+		DefinitionOfDone:        p.DefinitionOfDone,
+		References:              stripRefIDs(p.References),
+		Phases:                  stripPhaseIDs(p.Phases),
+		RelevantContext:         stripRelevantContextIDs(p.RelevantContext),
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

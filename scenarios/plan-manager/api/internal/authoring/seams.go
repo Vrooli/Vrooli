@@ -24,6 +24,14 @@ type PlanWriter interface {
 	CreatePlan(ctx context.Context, p planmodel.Plan) (planmodel.Plan, error)
 }
 
+// PlanRenderer renders an in-progress plan to its markdown review artifact so the
+// wizard can offer a render-preview before finalize. Production wires
+// plans.RenderMarkdown; a nil renderer disables preview (the service returns a
+// typed "preview unavailable" error). The renderer is pure — no persistence.
+type PlanRenderer interface {
+	Render(p planmodel.Plan) string
+}
+
 // AnchorAutofiller captures the regression anchor for a plan-in-progress. The
 // production impl shells git-control-tower (LookPath-guarded, timeout-bounded);
 // a nil seam or an error degrades the regression-anchor section to "left for the

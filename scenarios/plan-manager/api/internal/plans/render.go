@@ -25,10 +25,24 @@ func RenderMarkdown(p Plan) string {
 	}
 	b.WriteString("\n\n")
 
+	// Overview.
 	writeSection(&b, "Purpose", p.Purpose)
+	writeSection(&b, "Problem / Need", p.ProblemStatement)
+	writeSection(&b, "Target Outcome", p.TargetOutcome)
+
+	// Work Posture — ALWAYS rendered (autofilled; default greenfield).
+	b.WriteString("## Work Posture\n\n")
+	b.WriteString(renderWorkPosture(p))
+	b.WriteString("\n")
+
 	writeSection(&b, "Scope", p.Scope)
-	writeSection(&b, "Constraints", p.Constraints)
 	writeSection(&b, "Non-Goals", p.NonGoals)
+	writeSection(&b, "Assumptions", p.Assumptions)
+
+	// Execution Model.
+	writeSection(&b, "Technical Approach", p.TechnicalApproach)
+	writeSection(&b, "Constraints", p.Constraints)
+	writeSection(&b, "Prohibited Approaches", p.ProhibitedApproaches)
 
 	if len(p.RelevantContext) > 0 {
 		b.WriteString("## Global Execution Setup\n\n")
@@ -44,13 +58,31 @@ func RenderMarkdown(p Plan) string {
 		b.WriteString("\n")
 	}
 
+	// Validation Model.
 	if anchorPresent(p.RegressionAnchor) {
 		b.WriteString("## Regression Anchor\n\n")
 		b.WriteString(renderAnchor(p.RegressionAnchor))
 		b.WriteString("\n")
 	}
 
+	if strings.TrimSpace(p.ValidationStrategy) != "" || len(p.FinalValidationCommands) > 0 {
+		b.WriteString("## Validation Strategy\n\n")
+		if strings.TrimSpace(p.ValidationStrategy) != "" {
+			b.WriteString(strings.TrimRight(p.ValidationStrategy, "\n"))
+			b.WriteString("\n")
+		}
+		if len(p.FinalValidationCommands) > 0 {
+			b.WriteString("\n**Final validation commands:**\n")
+			for _, c := range p.FinalValidationCommands {
+				fmt.Fprintf(&b, "- `%s`\n", c)
+			}
+		}
+		b.WriteString("\n")
+	}
+
 	writeSection(&b, "Definition of Done", p.DefinitionOfDone)
+
+	writeSection(&b, "Risks / Hazards", p.RisksHazards)
 
 	if len(p.Phases) > 0 {
 		b.WriteString("## Phases\n\n")
@@ -58,6 +90,9 @@ func RenderMarkdown(p Plan) string {
 			b.WriteString(renderPhase(ph, i+1))
 		}
 	}
+
+	// Governance: import provenance + preserved legacy sections (only when present).
+	b.WriteString(renderImportGovernance(p))
 
 	// Plan-graph edges as a trailing footnote when present.
 	if len(p.Supersedes) > 0 || len(p.SupersededBy) > 0 {
@@ -74,6 +109,94 @@ func RenderMarkdown(p Plan) string {
 	return b.String()
 }
 
+// renderWorkPosture renders the always-present Work Posture section: a source/
+// detail line plus the exact guidance block for the posture. An unset posture
+// falls back to greenfield so the block is never contradictory or missing.
+func renderWorkPosture(p Plan) string {
+	posture := p.WorkPosture
+	if posture == WorkPostureUnspecified {
+		posture = WorkPostureGreenfield
+	}
+	var b strings.Builder
+	source := p.WorkPostureSource
+	if source == WorkPostureSourceUnspecified {
+		source = WorkPostureSourceDefault
+	}
+	fmt.Fprintf(&b, "- Posture: **%s**\n", posture)
+	fmt.Fprintf(&b, "- Source: %s\n", source)
+	if strings.TrimSpace(p.WorkPostureDetail) != "" {
+		fmt.Fprintf(&b, "- Detail: %s\n", strings.TrimSpace(p.WorkPostureDetail))
+	}
+	b.WriteString("\n")
+	b.WriteString(PostureBlock(posture))
+	b.WriteString("\n")
+	return b.String()
+}
+
+// renderImportGovernance renders the Import Provenance and Preserved Legacy
+// Sections blocks, only when the plan was imported.
+func renderImportGovernance(p Plan) string {
+	if p.ImportProvenance == nil && len(p.PreservedLegacySections) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	if p.ImportProvenance != nil {
+		b.WriteString("## Import Provenance\n\n")
+		if p.ImportProvenance.SourcePath != "" {
+			fmt.Fprintf(&b, "- Source: `%s`\n", p.ImportProvenance.SourcePath)
+		}
+		if p.ImportProvenance.OriginalFormat != "" {
+			fmt.Fprintf(&b, "- Original format: %s\n", p.ImportProvenance.OriginalFormat)
+		}
+		if p.ImportProvenance.ImportedAt != "" {
+			fmt.Fprintf(&b, "- Imported at: `%s`\n", p.ImportProvenance.ImportedAt)
+		}
+		if p.ImportProvenance.Note != "" {
+			fmt.Fprintf(&b, "- Note: %s\n", p.ImportProvenance.Note)
+		}
+		b.WriteString("\n")
+	}
+	if len(p.PreservedLegacySections) > 0 {
+		b.WriteString("## Preserved Legacy Sections\n\n")
+		b.WriteString("_Imported sections that did not map to a canonical field, kept verbatim so nothing is lost._\n\n")
+		for _, sec := range p.PreservedLegacySections {
+			fmt.Fprintf(&b, "### %s\n\n", sec.Heading)
+			if sec.MappedTo != "" {
+				fmt.Fprintf(&b, "- Mapped to: %s\n", sec.MappedTo)
+			}
+			reason := sec.PreservationReason
+			if reason == "" {
+				reason = PreservationReasonUnmapped
+			}
+			fmt.Fprintf(&b, "- Preservation reason: %s\n\n", reason)
+			if strings.TrimSpace(sec.Content) != "" {
+				b.WriteString(strings.TrimRight(sec.Content, "\n"))
+				b.WriteString("\n\n")
+			}
+		}
+	}
+	return b.String()
+}
+
+// renderStringList renders a bold-header block of bullet (or numbered) items.
+func renderStringList(b *strings.Builder, header string, items []string, numbered bool) {
+	if len(items) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "**%s:**\n", header)
+	for i, item := range items {
+		if strings.TrimSpace(item) == "" {
+			continue
+		}
+		if numbered {
+			fmt.Fprintf(b, "%d. %s\n", i+1, item)
+		} else {
+			fmt.Fprintf(b, "- %s\n", item)
+		}
+	}
+	b.WriteString("\n")
+}
+
 func renderPhase(ph Phase, fallbackOrder int) string {
 	var b strings.Builder
 	order := ph.Order
@@ -85,15 +208,29 @@ func renderPhase(ph Phase, fallbackOrder int) string {
 	if ph.Intent != "" {
 		fmt.Fprintf(&b, "- Intent: %s\n", ph.Intent)
 	}
-	if ph.Acceptance != "" {
-		fmt.Fprintf(&b, "- Acceptance: %s\n", ph.Acceptance)
-	}
 	b.WriteString("\n")
+	renderStringList(&b, "Affected Areas", ph.AffectedAreas, false)
 	context := phaseRelevantContext(ph)
 	if len(context) > 0 {
 		b.WriteString("**Phase Context Setup:**\n\n")
 		b.WriteString(renderRelevantContext(context, RelevantContextScopePhase))
 		b.WriteString("\n")
+	}
+	renderStringList(&b, "Ordered Steps", ph.Steps, true)
+	renderStringList(&b, "Expected Outputs", ph.ExpectedOutputs, false)
+	if strings.TrimSpace(ph.Validation) != "" {
+		b.WriteString("**Phase Validation:**\n\n")
+		b.WriteString(strings.TrimRight(ph.Validation, "\n"))
+		b.WriteString("\n\n")
+	}
+	if ph.Acceptance != "" {
+		fmt.Fprintf(&b, "- Acceptance: %s\n\n", ph.Acceptance)
+	}
+	renderStringList(&b, "Risks / Hazards", ph.RisksHazards, false)
+	if strings.TrimSpace(ph.HandoffNotes) != "" {
+		b.WriteString("**Handoff Notes:**\n\n")
+		b.WriteString(strings.TrimRight(ph.HandoffNotes, "\n"))
+		b.WriteString("\n\n")
 	}
 	if len(ph.Reminders) > 0 {
 		b.WriteString("**Reminders:**\n")

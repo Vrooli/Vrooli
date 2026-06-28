@@ -65,6 +65,16 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown string) (Plan
 	if err != nil {
 		return Plan{}, err
 	}
+	// Record import provenance (adoption bookkeeping) unless the markdown already
+	// carried it. Import is non-destructive: the source file is never mutated.
+	if parsed.ImportProvenance == nil {
+		parsed.ImportProvenance = &ImportProvenance{
+			SourcePath:     strings.TrimSpace(sourcePath),
+			ImportedAt:     s.now(),
+			OriginalFormat: OriginalFormatLegacyMarkdown,
+			Note:           "Adopted from markdown via plans import (non-destructive).",
+		}
+	}
 	return s.Create(ctx, parsed)
 }
 

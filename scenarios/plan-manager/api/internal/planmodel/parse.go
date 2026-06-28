@@ -9,6 +9,7 @@ import (
 var (
 	titleRe              = regexp.MustCompile(`(?m)^#\s+(.+?)\s*$`)
 	sectionRe            = regexp.MustCompile(`(?m)^##\s+(.+?)\s*$`)
+	subHeadingRe         = regexp.MustCompile(`(?m)^###\s+(.+?)\s*$`)
 	phaseRe              = regexp.MustCompile(`(?m)^###\s+Phase\s+(\d+)\s*[—:-]\s*(.+?)\s*$`)
 	referenceRe          = regexp.MustCompile(`\[(CODE|REQ|DOC):\s*([^\]]+?)\]`)
 	malformedReferenceRe = regexp.MustCompile(`\[(CODE|REQ|DOC)(?:\s*:)?\s*(?:\]|$)`)
@@ -34,7 +35,11 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 		return Plan{}, err
 	}
 
-	sections := extractSections(markdown)
+	ordered := extractOrderedSections(markdown)
+	sections := map[string]string{}
+	for _, entry := range ordered {
+		sections[entry.lower] = entry.body
+	}
 	p.Purpose = sections["purpose"]
 	p.Scope = sections["scope"]
 	p.Constraints = sections["constraints"]
@@ -42,7 +47,25 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	p.DefinitionOfDone = firstNonEmpty(sections["definition of done"], sections["definition-of-done"])
 	p.RegressionAnchor = ParseRegressionAnchorBlock(sections["regression anchor"])
 
-	p.References = parseReferences(markdown)
+	// Professional plan structure (see docs/concepts/PLAN-MODEL.md).
+	p.ProblemStatement = firstNonEmpty(sections["problem / need"], sections["problem/need"], sections["problem need"])
+	p.TargetOutcome = sections["target outcome"]
+	p.Assumptions = sections["assumptions"]
+	p.TechnicalApproach = firstNonEmpty(sections["technical approach"], sections["technical approach / design rationale"])
+	p.ProhibitedApproaches = sections["prohibited approaches"]
+	p.RisksHazards = firstNonEmpty(sections["risks / hazards"], sections["risks/hazards"])
+	p.ValidationStrategy, p.FinalValidationCommands = parseValidationStrategy(firstNonEmpty(sections["validation strategy"], sections["validation model"]))
+	p.WorkPosture, p.WorkPostureSource, p.WorkPostureDetail = parseWorkPostureBlock(sections["work posture"])
+	p.ImportProvenance = parseImportProvenanceBlock(sections["import provenance"])
+	p.PreservedLegacySections = parsePreservedLegacyBlock(sections["preserved legacy sections"])
+
+	// Legacy adoption: map known legacy headings into canonical fields and
+	// preserve every other unrecognized section so import is never lossy.
+	applyLegacyImport(&p, ordered)
+
+	// Plan-level references are those before the first phase; phase references
+	// are recovered per-phase so they do not leak into the plan-level list.
+	p.References = parseReferences(prePhaseMarkdown(markdown))
 	var err error
 	p.RelevantContext, err = parseRelevantContextBlock(sections["global execution setup"], RelevantContextScopeGlobal, "")
 	if err != nil {
@@ -222,11 +245,19 @@ func validateMachineReadableMarkup(markdown string) error {
 	return nil
 }
 
-func extractSections(markdown string) map[string]string {
-	out := map[string]string{}
+// sectionEntry is one top-level `##` section with its original-case heading
+// (preserved so legacy import keeps the source heading verbatim) and trimmed body.
+type sectionEntry struct {
+	heading string
+	lower   string
+	body    string
+}
+
+func extractOrderedSections(markdown string) []sectionEntry {
 	locs := sectionRe.FindAllStringSubmatchIndex(markdown, -1)
+	out := make([]sectionEntry, 0, len(locs))
 	for i, loc := range locs {
-		heading := strings.ToLower(strings.TrimSpace(markdown[loc[2]:loc[3]]))
+		heading := strings.TrimSpace(markdown[loc[2]:loc[3]])
 		bodyStart := loc[1]
 		bodyEnd := len(markdown)
 		if i+1 < len(locs) {
@@ -236,9 +267,30 @@ func extractSections(markdown string) map[string]string {
 		if idx := phaseRe.FindStringIndex(body); idx != nil {
 			body = body[:idx[0]]
 		}
-		out[heading] = strings.TrimSpace(body)
+		out = append(out, sectionEntry{
+			heading: heading,
+			lower:   strings.ToLower(heading),
+			body:    strings.TrimSpace(body),
+		})
 	}
 	return out
+}
+
+func extractSections(markdown string) map[string]string {
+	out := map[string]string{}
+	for _, entry := range extractOrderedSections(markdown) {
+		out[entry.lower] = entry.body
+	}
+	return out
+}
+
+// prePhaseMarkdown returns the markdown before the first phase heading, so
+// plan-level reference scanning never absorbs phase-scoped references.
+func prePhaseMarkdown(markdown string) string {
+	if idx := phaseRe.FindStringIndex(markdown); idx != nil {
+		return markdown[:idx[0]]
+	}
+	return markdown
 }
 
 func parseReferences(markdown string) []Reference {
@@ -290,6 +342,12 @@ func parsePhases(markdown string) ([]Phase, error) {
 			}
 		}
 		ph.References = parseReferences(body)
+		ph.AffectedAreas = listItemsFromBlock(extractPhaseBlock(body, markerAffectedAreas))
+		ph.Steps = listItemsFromBlock(extractPhaseBlock(body, markerOrderedSteps))
+		ph.ExpectedOutputs = listItemsFromBlock(extractPhaseBlock(body, markerExpectedOutputs))
+		ph.RisksHazards = listItemsFromBlock(extractPhaseBlock(body, markerRisksHazards))
+		ph.Validation = extractPhaseBlock(body, markerPhaseValidation)
+		ph.HandoffNotes = extractPhaseBlock(body, markerHandoffNotes)
 		contextBody := extractPhaseContextSetup(body)
 		if contextBody != "" {
 			context, err := parseRelevantContextBlock(contextBody, RelevantContextScopePhase, ph.ID)
@@ -307,37 +365,85 @@ func parsePhases(markdown string) ([]Phase, error) {
 	return out, nil
 }
 
-func extractPhaseContextSetup(body string) string {
-	const marker = "**Phase Context Setup:**"
+// Phase block markers — the bold-header blocks the renderer emits inside a phase.
+// extractPhaseBlock cuts a block at the next marker so blocks never bleed.
+const (
+	markerAffectedAreas   = "**Affected Areas:**"
+	markerPhaseContext    = "**Phase Context Setup:**"
+	markerOrderedSteps    = "**Ordered Steps:**"
+	markerExpectedOutputs = "**Expected Outputs:**"
+	markerPhaseValidation = "**Phase Validation:**"
+	markerRisksHazards    = "**Risks / Hazards:**"
+	markerHandoffNotes    = "**Handoff Notes:**"
+	markerReminders       = "**Reminders:**"
+	markerBaselineScope   = "**Baseline scope:**"
+	markerPhaseReferences = "**References:**"
+	markerRequiredReading = "**Required Reading:**"
+)
+
+var phaseBlockMarkers = []string{
+	markerAffectedAreas, markerPhaseContext, markerOrderedSteps, markerExpectedOutputs,
+	markerPhaseValidation, markerRisksHazards, markerHandoffNotes, markerReminders,
+	markerBaselineScope, markerPhaseReferences, markerRequiredReading,
+}
+
+// phaseScalarBulletTerminators are the scalar phase bullets (rendered between
+// blocks, e.g. "- Acceptance:") that must also terminate a preceding text block
+// so a multi-line block (Phase Validation) never absorbs a following bullet.
+var phaseScalarBulletTerminators = []string{"\n- Acceptance:", "\n- Status:", "\n- Intent:"}
+
+// extractPhaseBlock returns the content of one bold-header block in a phase body,
+// terminated by the next phase block marker or scalar bullet (so adjacent
+// fields never merge).
+func extractPhaseBlock(body, marker string) string {
 	idx := strings.Index(body, marker)
 	if idx < 0 {
 		return ""
 	}
-	body = body[idx+len(marker):]
-	end := len(body)
-	for _, next := range []string{"\n**Reminders:**", "\n**Baseline scope:**", "\n**References:**"} {
-		if found := strings.Index(body, next); found >= 0 && found < end {
+	rest := body[idx+len(marker):]
+	end := len(rest)
+	for _, m := range phaseBlockMarkers {
+		if m == marker {
+			continue
+		}
+		if found := strings.Index(rest, m); found >= 0 && found < end {
 			end = found
 		}
 	}
-	return strings.TrimSpace(body[:end])
+	for _, term := range phaseScalarBulletTerminators {
+		if found := strings.Index(rest, term); found >= 0 && found < end {
+			end = found
+		}
+	}
+	return strings.TrimSpace(rest[:end])
+}
+
+func extractPhaseContextSetup(body string) string {
+	return extractPhaseBlock(body, markerPhaseContext)
 }
 
 func extractPhaseRequiredReading(body string) string {
-	const marker = "**Required Reading:**"
-	idx := strings.Index(body, marker)
-	if idx < 0 {
-		return ""
+	return extractPhaseBlock(body, markerRequiredReading)
+}
+
+// listItemsFromBlock parses a bullet/numbered block body into ordered items,
+// stripping a leading "- " or "N. " from each line.
+func listItemsFromBlock(block string) []string {
+	if strings.TrimSpace(block) == "" {
+		return nil
 	}
-	body = body[idx+len(marker):]
-	end := len(body)
-	for _, next := range []string{"\n**Phase Context Setup:**", "\n**Reminders:**", "\n**Baseline scope:**", "\n**References:**"} {
-		if found := strings.Index(body, next); found >= 0 && found < end {
-			end = found
+	var out []string
+	for _, line := range strings.Split(block, "\n") {
+		item := strings.TrimSpace(numberedListPrefix.ReplaceAllString(strings.TrimSpace(line), ""))
+		item = strings.TrimSpace(strings.TrimPrefix(item, "-"))
+		if item != "" {
+			out = append(out, strings.TrimSpace(item))
 		}
 	}
-	return strings.TrimSpace(body[:end])
+	return out
 }
+
+var numberedListPrefix = regexp.MustCompile(`^\d+\.\s+`)
 
 func requiredReadingLines(block string) []string {
 	var out []string
@@ -617,6 +723,172 @@ func referenceKindFromMarker(marker string) ReferenceKind {
 		return ReferenceDoc
 	default:
 		return ReferenceCode
+	}
+}
+
+// parseValidationStrategy splits a Validation Strategy section into its prose and
+// the trailing "**Final validation commands:**" list (backticked commands).
+func parseValidationStrategy(block string) (string, []string) {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return "", nil
+	}
+	const marker = "**Final validation commands:**"
+	idx := strings.Index(block, marker)
+	if idx < 0 {
+		return block, nil
+	}
+	prose := strings.TrimSpace(block[:idx])
+	var commands []string
+	for _, line := range strings.Split(block[idx+len(marker):], "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		if cmd := strings.Trim(strings.TrimSpace(line), "`"); cmd != "" {
+			commands = append(commands, cmd)
+		}
+	}
+	return prose, commands
+}
+
+// parseWorkPostureBlock recovers the autofilled posture from the rendered Work
+// Posture bullets so render -> parse -> render is idempotent.
+func parseWorkPostureBlock(block string) (WorkPosture, WorkPostureSource, string) {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return WorkPostureUnspecified, WorkPostureSourceUnspecified, ""
+	}
+	var posture WorkPosture
+	var source WorkPostureSource
+	var detail string
+	for _, line := range strings.Split(block, "\n") {
+		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		lower := strings.ToLower(trimmed)
+		switch {
+		case strings.HasPrefix(lower, "posture:"):
+			posture = WorkPosture(strings.ToLower(strings.Trim(strings.TrimSpace(trimmed[len("Posture:"):]), "* ")))
+		case strings.HasPrefix(lower, "source:"):
+			source = WorkPostureSource(strings.TrimSpace(trimmed[len("Source:"):]))
+		case strings.HasPrefix(lower, "detail:"):
+			detail = strings.TrimSpace(trimmed[len("Detail:"):])
+		}
+	}
+	return posture, source, detail
+}
+
+func parseImportProvenanceBlock(block string) *ImportProvenance {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return nil
+	}
+	prov := &ImportProvenance{}
+	for _, line := range strings.Split(block, "\n") {
+		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		lower := strings.ToLower(trimmed)
+		switch {
+		case strings.HasPrefix(lower, "source:"):
+			prov.SourcePath = trimMarkdownValue(trimmed[len("Source:"):])
+		case strings.HasPrefix(lower, "original format:"):
+			prov.OriginalFormat = strings.TrimSpace(trimmed[len("Original format:"):])
+		case strings.HasPrefix(lower, "imported at:"):
+			prov.ImportedAt = trimMarkdownValue(trimmed[len("Imported at:"):])
+		case strings.HasPrefix(lower, "note:"):
+			prov.Note = strings.TrimSpace(trimmed[len("Note:"):])
+		}
+	}
+	if prov.SourcePath == "" && prov.OriginalFormat == "" && prov.ImportedAt == "" && prov.Note == "" {
+		return nil
+	}
+	return prov
+}
+
+// parsePreservedLegacyBlock recovers preserved legacy sections from the rendered
+// "Preserved Legacy Sections" block (its `### Heading` subsections plus the
+// Mapped-to / Preservation-reason bullets and verbatim content).
+func parsePreservedLegacyBlock(block string) []LegacySection {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return nil
+	}
+	locs := subHeadingRe.FindAllStringSubmatchIndex(block, -1)
+	if len(locs) == 0 {
+		return nil
+	}
+	var out []LegacySection
+	for i, loc := range locs {
+		heading := strings.TrimSpace(block[loc[2]:loc[3]])
+		bodyStart := loc[1]
+		bodyEnd := len(block)
+		if i+1 < len(locs) {
+			bodyEnd = locs[i+1][0]
+		}
+		body := block[bodyStart:bodyEnd]
+		sec := LegacySection{Heading: heading, PreservationReason: PreservationReasonUnmapped}
+		var content []string
+		for _, line := range strings.Split(body, "\n") {
+			trimmed := strings.TrimSpace(line)
+			lower := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(trimmed, "-")))
+			switch {
+			case strings.HasPrefix(lower, "mapped to:"):
+				sec.MappedTo = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(trimmed, "-")), "Mapped to:"))
+			case strings.HasPrefix(lower, "preservation reason:"):
+				sec.PreservationReason = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(strings.TrimPrefix(trimmed, "-")), "Preservation reason:"))
+			default:
+				content = append(content, line)
+			}
+		}
+		sec.Content = strings.TrimSpace(strings.Join(content, "\n"))
+		out = append(out, sec)
+	}
+	return out
+}
+
+// legacyImportMap maps known legacy 13-section headings to the canonical field
+// they adopt into. Mapped sections become first-class fields; everything else
+// unrecognized is preserved verbatim (never silently dropped).
+var legacyImportMap = map[string]func(*Plan, string){
+	"problem statement":               func(p *Plan, v string) { p.ProblemStatement = firstNonEmpty(p.ProblemStatement, v) },
+	"target end state":                func(p *Plan, v string) { p.TargetOutcome = firstNonEmpty(p.TargetOutcome, v) },
+	"implementation strategy":         func(p *Plan, v string) { p.TechnicalApproach = firstNonEmpty(p.TechnicalApproach, v) },
+	"testing plan":                    func(p *Plan, v string) { p.ValidationStrategy = firstNonEmpty(p.ValidationStrategy, v) },
+	"risks and mitigations":           func(p *Plan, v string) { p.RisksHazards = firstNonEmpty(p.RisksHazards, v) },
+	"risks + mitigations":             func(p *Plan, v string) { p.RisksHazards = firstNonEmpty(p.RisksHazards, v) },
+	"risks & mitigations":             func(p *Plan, v string) { p.RisksHazards = firstNonEmpty(p.RisksHazards, v) },
+	"non-goals / prohibited patterns": func(p *Plan, v string) { p.NonGoals = firstNonEmpty(p.NonGoals, v) },
+}
+
+// canonicalConsumedHeadings is the set of headings the parser already maps into
+// a canonical field or handles structurally; they are never preserved as legacy.
+var canonicalConsumedHeadings = map[string]bool{
+	"purpose": true, "problem / need": true, "problem/need": true, "problem need": true,
+	"target outcome": true, "work posture": true, "scope": true, "non-goals": true,
+	"non goals": true, "assumptions": true, "technical approach": true,
+	"technical approach / design rationale": true, "constraints": true,
+	"prohibited approaches": true, "global execution setup": true, "references": true,
+	"regression anchor": true, "validation strategy": true, "validation model": true,
+	"definition of done": true, "definition-of-done": true, "risks / hazards": true,
+	"risks/hazards": true, "import provenance": true, "preserved legacy sections": true,
+	"plan graph": true, "phases": true, "required reading": true,
+}
+
+// applyLegacyImport maps recognized legacy headings into canonical fields and
+// preserves every other unrecognized, non-empty section as a LegacySection.
+func applyLegacyImport(p *Plan, ordered []sectionEntry) {
+	for _, entry := range ordered {
+		lower := entry.lower
+		if mapper, ok := legacyImportMap[lower]; ok {
+			mapper(p, entry.body)
+			continue
+		}
+		if canonicalConsumedHeadings[lower] {
+			continue
+		}
+		if strings.TrimSpace(entry.body) == "" {
+			continue
+		}
+		p.PreservedLegacySections = append(p.PreservedLegacySections, LegacySection{
+			Heading:            entry.heading,
+			Content:            entry.body,
+			PreservationReason: PreservationReasonUnmapped,
+		})
 	}
 }
 

@@ -24,9 +24,10 @@ import (
 // internal/plans.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	svc := internalplans.NewService(internalplans.Deps{
-		Repo:   internalplans.NewSQLiteRepository(db, clk),
-		Clock:  clk,
-		Reader: internalplans.OSSourceReader{},
+		Repo:     internalplans.NewSQLiteRepository(db, clk),
+		Clock:    clk,
+		Reader:   internalplans.OSSourceReader{},
+		Maturity: internalplans.NewFilesystemMaturityReader(),
 	})
 	connectPath, connectHandler := plansconnect.NewPlansServiceHandler(NewConnectHandler(Deps{
 		Service: svc,

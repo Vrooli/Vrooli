@@ -44,7 +44,7 @@ proto contracts.
 
 - **Business rules live in `api/internal/<domain>/` only.** CLI and UI never own plan logic; they call the API.
 - **Domain isolation.** `authoring`, `execution`, `validation`, and `log` operate *on* plans but do not own the plan record — they delegate persistence to `plans`. `execution` surfaces validation but delegates the computation to `validation`, and reads the typed work-product ledger from `log` (it does not own it).
-- **Composition boundary.** Substrate plan-manager does not own — code-facts, git/git-control-tower baseline, the scenario-artifact freshness engine, test-genie/scenario-validation — is reached through seams (see [`../internal/SEAMS.md`](../internal/SEAMS.md)) and always degrades gracefully.
+- **Composition boundary.** Substrate plan-manager does not own — code-facts, git/git-control-tower baseline, the scenario-artifact freshness engine, test-genie/scenario-validation, and the scenario `.vrooli/service.json` maturity read behind the **work-posture seam** (`api/internal/plans/posture.go`) — is reached through seams (see [`../internal/SEAMS.md`](../internal/SEAMS.md)) and always degrades gracefully (a missing/unreadable maturity defaults the posture to Greenfield).
 - **Hard exclusions.** plan-manager does **not** read agent transcripts, spawn agents, *auto*-promote candidate findings to bugs (promotion is explicit, agent/operator-driven via `log promote`), or own project-level validation. Those are explicitly other owners' jobs (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
 
 ## Contracts And Data Flow

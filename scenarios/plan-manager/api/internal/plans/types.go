@@ -134,6 +134,38 @@ type RelevantContextItem = planmodel.RelevantContextItem
 // by the authoring wizard (delegating to git-control-tower).
 type RegressionAnchor = planmodel.RegressionAnchor
 
+// WorkPosture is the Greenfield/Brownfield stance of a plan. AUTOFILLED from
+// scenario maturity (default greenfield); never agent-authored.
+type WorkPosture = planmodel.WorkPosture
+
+const (
+	WorkPostureUnspecified = planmodel.WorkPostureUnspecified
+	WorkPostureGreenfield  = planmodel.WorkPostureGreenfield
+	WorkPostureBrownfield  = planmodel.WorkPostureBrownfield
+)
+
+// WorkPostureSource records how the posture was decided (audit/explainability).
+type WorkPostureSource = planmodel.WorkPostureSource
+
+const (
+	WorkPostureSourceUnspecified      = planmodel.WorkPostureSourceUnspecified
+	WorkPostureSourceDefault          = planmodel.WorkPostureSourceDefault
+	WorkPostureSourceServiceMaturity  = planmodel.WorkPostureSourceServiceMaturity
+	WorkPostureSourceExplicitOverride = planmodel.WorkPostureSourceExplicitOverride
+	WorkPostureSourceImportLegacy     = planmodel.WorkPostureSourceImportLegacy
+)
+
+// LegacySection is one imported markdown section preserved as provenance.
+type LegacySection = planmodel.LegacySection
+
+// ImportProvenance records that a plan was adopted from a legacy markdown source.
+type ImportProvenance = planmodel.ImportProvenance
+
+const (
+	PreservationReasonUnmapped   = planmodel.PreservationReasonUnmapped
+	OriginalFormatLegacyMarkdown = planmodel.OriginalFormatLegacyMarkdown
+)
+
 // Phase is a first-class phase. order/title/intent/required_reading/reminders/
 // acceptance/references are AUTHORED; baseline_scope/status are COMPUTED.
 // decisions/findings/last_validation are owned by other domains and are joined

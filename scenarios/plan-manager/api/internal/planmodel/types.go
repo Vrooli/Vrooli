@@ -106,6 +106,53 @@ const (
 	RelevantContextStatusUnresolved RelevantContextStatus = "unresolved"
 )
 
+// WorkPosture is the Greenfield/Brownfield stance of a plan. AUTOFILLED from the
+// associated scenario's maturity (default greenfield); never agent-authored.
+type WorkPosture string
+
+const (
+	WorkPostureUnspecified WorkPosture = ""
+	WorkPostureGreenfield  WorkPosture = "greenfield"
+	WorkPostureBrownfield  WorkPosture = "brownfield"
+)
+
+// WorkPostureSource records how the posture was decided (audit/explainability).
+type WorkPostureSource string
+
+const (
+	WorkPostureSourceUnspecified      WorkPostureSource = ""
+	WorkPostureSourceDefault          WorkPostureSource = "default"
+	WorkPostureSourceServiceMaturity  WorkPostureSource = "service_maturity"
+	WorkPostureSourceExplicitOverride WorkPostureSource = "explicit_override"
+	WorkPostureSourceImportLegacy     WorkPostureSource = "import_legacy"
+)
+
+// LegacySection is one imported markdown section preserved as provenance because
+// it could not be mapped to a canonical field — never silently dropped.
+type LegacySection struct {
+	Heading            string
+	Content            string
+	MappedTo           string
+	PreservationReason string
+}
+
+// PreservationReasonUnmapped is the canonical reason for an unmapped legacy
+// section preserved verbatim during import.
+const PreservationReasonUnmapped = "unmapped_legacy_section"
+
+// ImportProvenance records that a plan was adopted from a legacy markdown source
+// rather than authored fresh. Import is non-destructive.
+type ImportProvenance struct {
+	SourcePath     string
+	ImportedAt     string
+	OriginalFormat string
+	Note           string
+}
+
+// OriginalFormatLegacyMarkdown is the original_format tag for legacy 13-section
+// markdown plans adopted through import.
+const OriginalFormatLegacyMarkdown = "legacy_markdown"
+
 // Reference is one connected-code locator on a plan or phase. kind/target/future
 // are AUTHORED; resolution/staleness/change_factor are filled by validation.
 type Reference struct {
@@ -164,6 +211,13 @@ type Phase struct {
 	Status          PhaseStatus
 	References      []Reference
 	RelevantContext []RelevantContextItem
+	// AUTHORED professional phase fields (see docs/concepts/PLAN-MODEL.md).
+	AffectedAreas   []string
+	Steps           []string
+	ExpectedOutputs []string
+	Validation      string
+	HandoffNotes    string
+	RisksHazards    []string
 }
 
 // Plan is the top-level structured record.
@@ -186,6 +240,22 @@ type Plan struct {
 	Supersedes       []string
 	SupersededBy     []string
 	RelevantContext  []RelevantContextItem
+	// AUTHORED professional plan fields (see docs/concepts/PLAN-MODEL.md).
+	ProblemStatement        string
+	TargetOutcome           string
+	Assumptions             string
+	TechnicalApproach       string
+	ValidationStrategy      string
+	FinalValidationCommands []string
+	RisksHazards            string
+	ProhibitedApproaches    string
+	// AUTOFILLED/COMPUTED work posture (never agent-authored).
+	WorkPosture       WorkPosture
+	WorkPostureSource WorkPostureSource
+	WorkPostureDetail string
+	// GOVERNANCE: import bookkeeping (only when imported).
+	ImportProvenance        *ImportProvenance
+	PreservedLegacySections []LegacySection
 }
 
 // PlanEdge is one supersession/dependency edge between two plans.

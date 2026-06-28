@@ -32,16 +32,23 @@ import (
 type SectionKey string
 
 const (
-	SectionPurpose          SectionKey = "purpose"
-	SectionScope            SectionKey = "scope"
-	SectionConstraints      SectionKey = "constraints"
-	SectionNonGoals         SectionKey = "non_goals"
-	SectionReferences       SectionKey = "references"
-	SectionRegressionAnchor SectionKey = "regression_anchor"
-	SectionRequiredReading  SectionKey = "required_reading"
-	SectionDefinitionOfDone SectionKey = "definition_of_done"
-	SectionPhases           SectionKey = "phases"
-	SectionRelevantContext  SectionKey = "relevant_context"
+	SectionPurpose              SectionKey = "purpose"
+	SectionProblemStatement     SectionKey = "problem_statement"
+	SectionTargetOutcome        SectionKey = "target_outcome"
+	SectionScope                SectionKey = "scope"
+	SectionNonGoals             SectionKey = "non_goals"
+	SectionAssumptions          SectionKey = "assumptions"
+	SectionWorkPosture          SectionKey = "work_posture"
+	SectionTechnicalApproach    SectionKey = "technical_approach"
+	SectionConstraints          SectionKey = "constraints"
+	SectionProhibitedApproaches SectionKey = "prohibited_approaches"
+	SectionReferences           SectionKey = "references"
+	SectionRegressionAnchor     SectionKey = "regression_anchor"
+	SectionRequiredReading      SectionKey = "required_reading"
+	SectionRelevantContext      SectionKey = "relevant_context"
+	SectionValidationStrategy   SectionKey = "validation_strategy"
+	SectionDefinitionOfDone     SectionKey = "definition_of_done"
+	SectionPhases               SectionKey = "phases"
 )
 
 // PhaseField is one structured phase-draft field the authoring wizard can ask
@@ -52,10 +59,16 @@ type PhaseField string
 const (
 	PhaseFieldTitle            PhaseField = "title"
 	PhaseFieldIntent           PhaseField = "intent"
+	PhaseFieldAffectedAreas    PhaseField = "affected_areas"
 	PhaseFieldReferences       PhaseField = "references"
+	PhaseFieldSteps            PhaseField = "steps"
+	PhaseFieldExpectedOutputs  PhaseField = "expected_outputs"
+	PhaseFieldValidation       PhaseField = "validation"
+	PhaseFieldAcceptance       PhaseField = "acceptance"
+	PhaseFieldRisksHazards     PhaseField = "risks_hazards"
+	PhaseFieldHandoffNotes     PhaseField = "handoff_notes"
 	PhaseFieldRequiredReading  PhaseField = "required_reading"
 	PhaseFieldReminders        PhaseField = "reminders"
-	PhaseFieldAcceptance       PhaseField = "acceptance"
 	PhaseFieldNoCodeRefsReason PhaseField = "no_code_refs_reason"
 	PhaseFieldRelevantContext  PhaseField = "relevant_context"
 )
@@ -118,10 +131,16 @@ type PhaseDraft struct {
 	Order            int
 	Title            string
 	Intent           string
+	AffectedAreas    []string
 	References       []planmodel.Reference
+	Steps            []string
+	ExpectedOutputs  []string
+	Validation       string
+	Acceptance       string
+	RisksHazards     []string
+	HandoffNotes     string
 	RequiredReading  []string
 	Reminders        []string
-	Acceptance       string
 	NoCodeRefsReason string
 	RelevantContext  []planmodel.RelevantContextItem
 }
@@ -230,12 +249,19 @@ type sectionSpec struct {
 // source supplies it. phases is mandatory so a plan always has work.
 var defaultSkeleton = []sectionSpec{
 	{Key: SectionPurpose, Label: "Purpose", Mandatory: true},
+	{Key: SectionProblemStatement, Label: "Problem / Need", Mandatory: true},
+	{Key: SectionTargetOutcome, Label: "Target Outcome", Mandatory: true},
 	{Key: SectionScope, Label: "Scope", Mandatory: true},
-	{Key: SectionConstraints, Label: "Constraints", Mandatory: false},
 	{Key: SectionNonGoals, Label: "Non-goals", Mandatory: false},
+	{Key: SectionAssumptions, Label: "Assumptions", Mandatory: false},
+	{Key: SectionWorkPosture, Label: "Work Posture", Mandatory: false},
+	{Key: SectionTechnicalApproach, Label: "Technical Approach", Mandatory: true},
+	{Key: SectionConstraints, Label: "Constraints", Mandatory: false},
+	{Key: SectionProhibitedApproaches, Label: "Prohibited Approaches", Mandatory: false},
 	{Key: SectionReferences, Label: "References", Mandatory: false},
 	{Key: SectionRegressionAnchor, Label: "Regression anchor", Mandatory: true},
 	{Key: SectionRelevantContext, Label: "Relevant context", Mandatory: false},
+	{Key: SectionValidationStrategy, Label: "Validation Strategy", Mandatory: true},
 	{Key: SectionDefinitionOfDone, Label: "Definition of Done", Mandatory: true},
 	{Key: SectionPhases, Label: "Phases", Mandatory: true},
 }

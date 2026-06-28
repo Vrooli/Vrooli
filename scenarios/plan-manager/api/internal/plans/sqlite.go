@@ -78,6 +78,21 @@ type planDocument struct {
 	Supersedes       []string              `json:"supersedes"`
 	SupersededBy     []string              `json:"superseded_by"`
 	RelevantContext  []RelevantContextItem `json:"relevant_context"`
+	// Professional plan structure (see docs/concepts/PLAN-MODEL.md). New fields
+	// persist transparently because the whole document is one JSON blob.
+	ProblemStatement        string            `json:"problem_statement,omitempty"`
+	TargetOutcome           string            `json:"target_outcome,omitempty"`
+	Assumptions             string            `json:"assumptions,omitempty"`
+	TechnicalApproach       string            `json:"technical_approach,omitempty"`
+	ValidationStrategy      string            `json:"validation_strategy,omitempty"`
+	FinalValidationCommands []string          `json:"final_validation_commands,omitempty"`
+	RisksHazards            string            `json:"risks_hazards,omitempty"`
+	ProhibitedApproaches    string            `json:"prohibited_approaches,omitempty"`
+	WorkPosture             WorkPosture       `json:"work_posture,omitempty"`
+	WorkPostureSource       WorkPostureSource `json:"work_posture_source,omitempty"`
+	WorkPostureDetail       string            `json:"work_posture_detail,omitempty"`
+	ImportProvenance        *ImportProvenance `json:"import_provenance,omitempty"`
+	PreservedLegacySections []LegacySection   `json:"preserved_legacy_sections,omitempty"`
 }
 
 const (
@@ -127,6 +142,20 @@ func (r *sqliteRepository) Save(ctx context.Context, p Plan) error {
 		Supersedes:       p.Supersedes,
 		SupersededBy:     p.SupersededBy,
 		RelevantContext:  p.RelevantContext,
+
+		ProblemStatement:        p.ProblemStatement,
+		TargetOutcome:           p.TargetOutcome,
+		Assumptions:             p.Assumptions,
+		TechnicalApproach:       p.TechnicalApproach,
+		ValidationStrategy:      p.ValidationStrategy,
+		FinalValidationCommands: p.FinalValidationCommands,
+		RisksHazards:            p.RisksHazards,
+		ProhibitedApproaches:    p.ProhibitedApproaches,
+		WorkPosture:             p.WorkPosture,
+		WorkPostureSource:       p.WorkPostureSource,
+		WorkPostureDetail:       p.WorkPostureDetail,
+		ImportProvenance:        p.ImportProvenance,
+		PreservedLegacySections: p.PreservedLegacySections,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -253,5 +282,18 @@ func scanPlan(s rowScanner) (Plan, error) {
 	p.Supersedes = doc.Supersedes
 	p.SupersededBy = doc.SupersededBy
 	p.RelevantContext = doc.RelevantContext
+	p.ProblemStatement = doc.ProblemStatement
+	p.TargetOutcome = doc.TargetOutcome
+	p.Assumptions = doc.Assumptions
+	p.TechnicalApproach = doc.TechnicalApproach
+	p.ValidationStrategy = doc.ValidationStrategy
+	p.FinalValidationCommands = doc.FinalValidationCommands
+	p.RisksHazards = doc.RisksHazards
+	p.ProhibitedApproaches = doc.ProhibitedApproaches
+	p.WorkPosture = doc.WorkPosture
+	p.WorkPostureSource = doc.WorkPostureSource
+	p.WorkPostureDetail = doc.WorkPostureDetail
+	p.ImportProvenance = doc.ImportProvenance
+	p.PreservedLegacySections = doc.PreservedLegacySections
 	return p, nil
 }

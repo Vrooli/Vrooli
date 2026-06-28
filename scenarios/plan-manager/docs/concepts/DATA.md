@@ -57,12 +57,24 @@ home store. As built:
 
 - `plans` (owned by `plans`) — plan records: first-class queryable columns
   (id, slug, title, status, content_hash, created_at, updated_at) alongside a
-  `document` JSON column carrying the rest of the structured record — purpose/
-  scope/constraints/non_goals/definition_of_done plus the ordered **phases[]**,
-  **references[]**, and the regression anchor. Phases and references persist
-  inside the document (they always load with their plan and are never queried
-  across plans), which keeps round-trips deterministic and avoids the SQLite
-  pool=1 nested-query deadlock. The ownership contract is unchanged.
+  `document` JSON column carrying the rest of the structured record. The document
+  holds every non-queryable structured field: the Overview prose (purpose,
+  problem_statement, target_outcome, scope, non_goals, assumptions), the Work
+  Posture (work_posture/source/detail — autofilled, see
+  [PLAN-MODEL.md](PLAN-MODEL.md#work-posture--greenfieldbrownfield)), the
+  Execution Model (relevant_context[], references[], constraints,
+  prohibited_approaches, technical_approach), the Validation Model
+  (regression_anchor, validation_strategy, final_validation_commands[],
+  definition_of_done), the ordered **phases[]** (each with affected_areas[],
+  steps[], expected_outputs[], validation, acceptance, risks_hazards[],
+  handoff_notes, …), and the governance fields (supersedes/superseded_by,
+  import_provenance, preserved_legacy_sections[]). Because storage is a single
+  JSON document, **adding a structured field flows through automatically** — the
+  `planDocument` struct in `sqlite.go` is the one place a new field must be added
+  to its `Save`/scan mapping. Phases and references persist inside the document
+  (they always load with their plan and are never queried across plans), which
+  keeps round-trips deterministic and avoids the SQLite pool=1 nested-query
+  deadlock. The ownership contract is unchanged.
 - `plan_edges` (owned by `plans`) — supersession/dependency edges between plans
   (queried across plans by `GetGraph`, so a first-class table).
 - `authoring_sessions` (owned by `authoring`) — transient guided-wizard session

@@ -3,6 +3,7 @@ package authoring
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 func stepForSession(sess Session) GuidedStep {
@@ -97,6 +98,75 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 			RequiredInputs: []string{"purpose"},
 			Examples:       []string{"Make plan-manager authoring reliable enough for local agents by replacing large markdown submissions with guided structured steps."},
 			CommonMistakes: []string{"Listing tasks instead of explaining the need.", "Assuming the next agent remembers the originating conversation."},
+		}
+	case SectionProblemStatement:
+		return GuidedStep{
+			StepKind:       "problem_statement",
+			Title:          "Problem / Need",
+			Summary:        "State the concrete problem, gap, or need this plan closes.",
+			Instructions:   []string{"Describe what is wrong or missing today, specifically.", "Name the pain a reviewer or user feels.", "Do not describe the solution here — that is the technical approach."},
+			RequiredInputs: []string{"problem or need"},
+			Examples:       []string{"The current plan model is too thin for a human reviewer or a small implementation agent to trust as the main artifact."},
+			CommonMistakes: []string{"Describing the solution instead of the problem.", "Being so vague the need can't be verified as solved."},
+		}
+	case SectionTargetOutcome:
+		return GuidedStep{
+			StepKind:       "target_outcome",
+			Title:          "Target Outcome",
+			Summary:        "Describe the observable end state once this plan is done.",
+			Instructions:   []string{"State what is observably true when the work is complete.", "Make it concrete enough to check.", "Keep it outcome-focused, not a task list."},
+			RequiredInputs: []string{"target outcome"},
+			Examples:       []string{"A human can run `plan-manager plans render <plan>` and judge plan quality without reading DB JSON."},
+			CommonMistakes: []string{"Listing tasks instead of the end state.", "Restating the purpose."},
+		}
+	case SectionAssumptions:
+		return GuidedStep{
+			StepKind:       "assumptions",
+			Title:          "Assumptions",
+			Summary:        "Record the preconditions taken as given.",
+			Instructions:   []string{"List environment, access, or prior-work assumptions, one per line.", "Only include assumptions that, if false, change the plan."},
+			RequiredInputs: []string{"assumptions (optional)"},
+			Examples:       []string{"The regression baseline is captured before any code change."},
+			CommonMistakes: []string{"Listing requirements instead of assumptions."},
+		}
+	case SectionWorkPosture:
+		return GuidedStep{
+			StepKind:       "work_posture",
+			Title:          "Work Posture (autofilled)",
+			Summary:        "Work posture is derived automatically from scenario maturity (default greenfield). Review only — do not author the Greenfield/Brownfield block.",
+			Instructions:   []string{"You do not write this section.", "The renderer injects the Greenfield (or Brownfield) block based on the associated scenario's maturity.", "Do not put compatibility-shim/legacy-wrapper language in constraints for a greenfield plan; validation will flag the conflict."},
+			RequiredInputs: []string{"(none — autofilled)"},
+			CommonMistakes: []string{"Hand-writing a Greenfield block.", "Authoring constraints that contradict the derived posture."},
+		}
+	case SectionTechnicalApproach:
+		return GuidedStep{
+			StepKind:       "technical_approach",
+			Title:          "Technical Approach",
+			Summary:        "Explain the chosen approach and the design rationale — why this way.",
+			Instructions:   []string{"Describe the strategy at a design level, not a phase-by-phase list.", "Justify the key decisions and name the main alternatives ruled out.", "Keep it concise; the phases carry the step detail."},
+			RequiredInputs: []string{"technical approach"},
+			Examples:       []string{"Model-first contract change: expand the proto/Go plan model, then wire renderer, parser, wizard, CLI, and UI through that single contract."},
+			CommonMistakes: []string{"Turning this into the phase list.", "Stating what without why."},
+		}
+	case SectionProhibitedApproaches:
+		return GuidedStep{
+			StepKind:       "prohibited_approaches",
+			Title:          "Prohibited Approaches",
+			Summary:        "Name approaches that are explicitly off-limits, only when genuinely relevant.",
+			Instructions:   []string{"List approaches a reasonable agent might try but must not.", "Skip this section if nothing is genuinely off-limits."},
+			RequiredInputs: []string{"prohibited approaches (optional)"},
+			Examples:       []string{"Do not clone the legacy 13-section markdown format.", "Do not make markdown the source of truth."},
+			CommonMistakes: []string{"Repeating non-goals.", "Listing obvious bad practice with no plan-specific value."},
+		}
+	case SectionValidationStrategy:
+		return GuidedStep{
+			StepKind:       "validation_strategy",
+			Title:          "Validation Strategy",
+			Summary:        "Describe how the plan proves it works: baseline approach, what evidence counts, and the final validation commands.",
+			Instructions:   []string{"State the baseline/regression approach and the suites/commands that prove success.", "Distinguish per-phase validation from the final end-of-plan validation.", "Reference the exact commands a reviewer runs at the end."},
+			RequiredInputs: []string{"validation strategy"},
+			Examples:       []string{"Run focused Go/CLI/UI suites per phase; finish with `vrooli scenario test plan-manager` and a clean baseline diff against the captured anchor."},
+			CommonMistakes: []string{"Saying 'tests pass' without naming them.", "Confusing the method (validation) with the outcome (definition of done)."},
 		}
 	case SectionScope:
 		return GuidedStep{
@@ -251,8 +321,12 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 			ContentPlaceholder: "NO_CODE_REFS: <reason>",
 		})
 		return step
+	case PhaseFieldSteps:
+		return phaseStep(sess, phase, field, "phase_steps", "Phase Ordered Steps", "List the concrete implementation steps an agent follows, one per line, in order.", []string{"ordered steps"}, []string{"Add proto fields\nRegenerate proto\nWire the converters\nRun go test ./internal/planproto"}, "<step one>\n<step two>")
+	case PhaseFieldValidation:
+		return phaseStep(sess, phase, field, "phase_validation", "Phase Validation", "State the METHOD of checking this phase — the exact commands/checks you run. This is distinct from acceptance (the outcome gate) and must not be identical to it.", []string{"validation method"}, []string{"go test ./internal/planproto ./internal/plans"}, "<commands/checks that verify this phase>")
 	case PhaseFieldAcceptance:
-		return phaseStep(sess, phase, field, "phase_acceptance", "Phase Acceptance", "Define objective pass/fail criteria for this phase.", []string{"acceptance"}, []string{"API and CLI tests cover AddPhase, SubmitPhaseField, and NextPhase."}, "<phase acceptance criteria>")
+		return phaseStep(sess, phase, field, "phase_acceptance", "Phase Acceptance", "Define the objective pass/fail OUTCOME for this phase (not the commands — that is validation).", []string{"acceptance"}, []string{"Generated proto compiles and the converter round-trips every new field."}, "<phase acceptance criteria>")
 	case PhaseFieldRelevantContext:
 		step := phaseStep(sess, phase, field, "phase_relevant_context", "Phase Relevant Context", "Attach phase-scoped setup context or record why no setup context exists.", []string{"relevant_context or NO_CONTEXT reason"}, []string{"prompt-manager skill read api-steer", "NO_CONTEXT: docs-only review phase has no extra setup."}, "NO_CONTEXT: <reason>")
 		step.NextActions = append(step.NextActions, NextAction{
@@ -315,6 +389,10 @@ func nextMissingPhaseField(phase PhaseDraft) PhaseField {
 		return PhaseFieldIntent
 	case len(phase.References) == 0 && phase.NoCodeRefsReason == "":
 		return PhaseFieldReferences
+	case len(phase.Steps) == 0:
+		return PhaseFieldSteps
+	case strings.TrimSpace(phase.Validation) == "":
+		return PhaseFieldValidation
 	case phase.Acceptance == "":
 		return PhaseFieldAcceptance
 	case !hasPhaseContextOrNoContextReason(phase):
@@ -424,6 +502,18 @@ func contentPlaceholderForSection(key SectionKey) string {
 	switch key {
 	case SectionPurpose:
 		return "<one concise purpose paragraph>"
+	case SectionProblemStatement:
+		return "<the concrete problem or need this plan closes>"
+	case SectionTargetOutcome:
+		return "<the observable end state once done>"
+	case SectionAssumptions:
+		return "<preconditions taken as given>"
+	case SectionTechnicalApproach:
+		return "<chosen approach and why>"
+	case SectionProhibitedApproaches:
+		return "<approaches that are off-limits>"
+	case SectionValidationStrategy:
+		return "<how the plan proves it works + final validation commands>"
 	case SectionScope:
 		return "<in scope / out of scope>"
 	case SectionConstraints:

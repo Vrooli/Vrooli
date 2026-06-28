@@ -22,8 +22,24 @@ determine whether a small/local model can drive plan work.
 
 ### Authoring (Composer)
 
+The wizard walks the **professional section sequence** in order, returning one
+guided step at a time so a small/local model never submits a giant blob:
+
+> purpose → problem/need → target outcome → scope → non-goals → assumptions →
+> work posture checkpoint (autofilled, reviewed — not authored) → technical
+> approach → constraints / prohibited approaches → references → regression anchor
+> → global relevant context → validation strategy → definition of done → phases →
+> final review.
+
+Mandatory for implementation plans: problem/need, target outcome, technical
+approach, validation strategy, and — per phase — ordered steps and phase
+validation. Optional sections stay optional only when omission is genuinely safe.
+
 1. Start a plan; the wizard walks sections in order and returns the API-owned
-   guided step for the current section.
+   guided step for the current section. The **work posture** step is autofilled
+   from scenario maturity and only reviewed — the agent never writes the
+   Greenfield block (see
+   [PLAN-MODEL.md](PLAN-MODEL.md#work-posture--greenfieldbrownfield)).
 2. As each section is reached, the wizard captures mechanical context behind
    seams: regression anchor (git-control-tower), code references (code-facts),
    and relevant-context candidate discovery (prompt-manager/search-hub/cli-health).
@@ -31,9 +47,12 @@ determine whether a small/local model can drive plan work.
    global or phase-scoped setup, or rejects noisy candidates with a reason. If a
    source is down, the candidate is marked degraded instead of being false-filled.
 3. The author creates phase drafts through phase-native steps: title/intent,
-   references or an explicit `NO_CODE_REFS:` reason, phase-scoped relevant
-   context, reminders, and acceptance. Each response returns a guided step so
-   the agent does not need the full authoring skill in context.
+   affected areas, ordered steps, expected outputs, references or an explicit
+   `NO_CODE_REFS:` reason, phase-scoped relevant context, phase validation,
+   acceptance, and optional risks/handoff notes. Each response returns a guided
+   step so the agent does not need the full authoring skill in context. The
+   renderer then projects these phase fields in a fixed review order (see
+   [PLAN-MODEL.md](PLAN-MODEL.md#rendered-markdown--stable-review-artifact)).
 4. After the mandatory sections and before phase work, `author continue` surfaces
    an explicit **global relevant-context checkpoint** (step kind
    `global_relevant_context`). The continue loop will not silently bypass
@@ -42,8 +61,10 @@ determine whether a small/local model can drive plan work.
    (`author section-submit <session> --section relevant_context --content
    "NO_CONTEXT: <reason>"`).
 5. The structure-validation gate refuses to finalize while a mandatory section is
-   empty, a plan/phase has neither references nor a no-code reason, or a phase's
-   acceptance is empty.
+   empty, a plan/phase has neither references nor a no-code reason, a phase's
+   acceptance, ordered steps, or phase validation is empty, a phase's acceptance
+   is a verbatim copy of its validation, or authored constraints contradict the
+   derived work posture.
 6. On finalize the plan moves `draft → active` and is persisted by `plans`.
 
 ### Phase execution (Runner)

@@ -37,44 +37,107 @@ always *rendered* from it; the view is never parsed back into truth.
 
 ## Plan
 
-A `Plan` is the top-level record.
+A `Plan` is the top-level record. Its fields form a **professional, execution-grade
+implementation plan** organised into six jobs: Overview, Work Posture, Execution
+Model, Validation Model, Phases, and Plan Governance. This is **not** the legacy
+13-section prose plan — every field below has a concrete job for an authoring
+agent, an implementation agent, or a human reviewer. Legacy concepts only become
+first-class fields when they help execution or review (see [Greenfield
+Posture](#work-posture--greenfieldbrownfield) and [Import
+Provenance](#import-provenance--preserved-legacy-sections)).
 
-| Field | Authored / Computed | Meaning |
+Each field is marked **authored** (a small/local model supplies prose),
+**autofilled/computed** (the runtime derives it; the agent never types it),
+**imported** (recovered from a legacy Markdown import), or **preserved legacy
+provenance** (kept verbatim because it could not be mapped).
+
+**Overview** — why the work exists and what success looks like.
+
+| Field | Origin | Meaning |
 |---|---|---|
 | `id` | computed | Stable identifier. |
 | `title`, `slug` | authored | Human-readable name + filename-safe slug. |
 | `status` | computed | `draft` → `active` → `complete` / `archived`. Derives from phase status + lifecycle actions. |
 | `content_hash` | computed | Hash of the structured content; powers supersession/dependency edges. |
 | `created_at`, `updated_at` | computed | Timestamps (RFC3339). |
-| `purpose` | authored | One-paragraph why. |
+| `purpose` | authored | One-paragraph why this plan exists. |
+| `problem_statement` | authored | The concrete problem / need / gap this plan closes. Mandatory for implementation plans. |
+| `target_outcome` | authored | The end state once the plan is done — what is observably true. Mandatory for implementation plans. |
 | `scope` | authored | In-scope / out-of-scope. |
-| `constraints` | authored | Hard rules (e.g. greenfield) repeated into Definition of Done. |
 | `non_goals` | authored | Explicit exclusions. |
+| `assumptions` | authored | Preconditions taken as given (environment, prior work, access). |
+
+**Work Posture** — automatic Greenfield/Brownfield derivation (never hand-authored).
+
+| Field | Origin | Meaning |
+|---|---|---|
+| `work_posture` | autofilled | `greenfield` or `brownfield`. Derived from scenario maturity; **default greenfield**. |
+| `work_posture_source` | computed | How posture was decided: `default`, `service_maturity`, `explicit_override`, `import_legacy`. |
+| `work_posture_detail` | computed | Human-readable derivation note (e.g. fallback reason, sunset warning). |
+
+**Execution Model** — what to load and how to build.
+
+| Field | Origin | Meaning |
+|---|---|---|
+| `relevant_context[]` | authored + discovered | Plan-wide setup items (skills, docs, discovery searches, commands) a fresh/resumed agent loads before execution. |
 | `references[]` | authored + resolved | Connected code: existing **and** proposed locations (see References). |
-| `regression_anchor` | auto-filled | The "before" anchor strategy + commands (see Validation). |
+| `constraints` | authored | Hard rules. The Greenfield block is **not** authored here — it is injected by posture. |
+| `prohibited_approaches` | authored (optional) | Approaches that are explicitly off-limits, only when genuinely relevant. |
+| `technical_approach` | authored | Design rationale: the chosen approach and why, not a phase list. Mandatory for implementation plans. |
+
+**Validation Model** — how regressions and done-ness are proven.
+
+| Field | Origin | Meaning |
+|---|---|---|
+| `regression_anchor` | autofilled | The "before" anchor strategy + commands (see Validation). |
+| `validation_strategy` | authored | How the plan proves it works: baseline approach, phase validation expectations, what evidence counts. Mandatory for implementation plans. |
+| `final_validation_commands[]` | authored | The exact commands a reviewer runs at the end (scenario test, baseline diff, focused suites). |
 | `definition_of_done` | authored + verified | Objective pass/fail criteria; the regression check is mandatory. |
-| `phases[]` | authored | Ordered, first-class phases (see Phase). |
+
+**Phases** — ordered, first-class units of work (see [Phase](#phase)).
+
+| Field | Origin | Meaning |
+|---|---|---|
+| `phases[]` | authored | Ordered, first-class phases. |
+| `risks_hazards` | authored (optional) | Plan-wide risks/hazards and their controls, only when relevant. |
+
+**Plan Governance** — lineage and import bookkeeping.
+
+| Field | Origin | Meaning |
+|---|---|---|
 | `supersedes`, `superseded_by` | authored | Plan graph edges. |
-| `relevant_context[]` | authored + discovered | Plan-wide setup items a fresh/resumed agent should load, inspect, or run before execution. |
+| `import_provenance` | imported | Where an imported plan came from + original format (see Import Provenance). |
+| `preserved_legacy_sections[]` | preserved legacy | Unmapped legacy import sections kept verbatim, never silently dropped. |
 
 ## Phase
 
 A `Phase` is a **first-class object**, not a checklist line. This is the unit the
 runner walks and the unit context is scoped to.
 
-| Field | Authored / Computed | Meaning |
+| Field | Origin | Meaning |
 |---|---|---|
 | `id`, `order` | computed / authored | Identity and sequence. |
 | `title` | authored | Short phase name. |
 | `intent` | authored | What this phase accomplishes. |
-| `required_reading[]` | migration input | Legacy phase reading preserved when importing older plans; execution-facing setup uses `relevant_context[]`. |
+| `affected_areas[]` | authored | The files/dirs/surfaces this phase touches, as orienting prose lines (complements typed `references[]`). |
+| `relevant_context[]` | authored + discovered | Phase-scoped setup items with kind, reason, instruction, command/argv, target, required flag, repeat policy, source, and status. New authored phases must include at least one phase-scoped relevant-context item or an explicit `NO_CONTEXT: <reason>` note. |
+| `steps[]` | authored | Ordered implementation steps — the concrete sequence an implementation agent follows. Mandatory for implementation phases. |
+| `expected_outputs[]` | authored | The artifacts/outputs this phase should produce (new files, generated code, passing suites). |
+| `validation` | authored | The method of checking this phase — the commands/checks run to confirm it. Distinct from `acceptance` (the outcome gate). |
+| `acceptance` | authored | Objective pass/fail outcome for this phase. |
+| `risks_hazards[]` | authored (optional) | Phase-specific risks/hazards and controls, only when relevant. |
+| `handoff_notes` | authored (optional) | What the next phase depends on / what a resuming agent must know. |
 | `reminders[]` | authored | General + phase-specific reminders, surfaced just-in-time during the phase. |
 | `references[]` | authored + resolved | Phase-scoped connected-code, requirement, or document references. A phase with no connected references must carry an explicit no-code reason during authoring. |
-| `relevant_context[]` | authored + discovered | Phase-scoped setup items with kind, reason, instruction, command/argv, target, required flag, repeat policy, source, and status. New authored phases must include at least one phase-scoped relevant-context item or an explicit `NO_CONTEXT: <reason>` note. |
+| `required_reading[]` | migration input | Legacy phase reading preserved when importing older plans; execution-facing setup uses `relevant_context[]`. |
 | `baseline_scope` | computed | The set of connected-code locations this phase touches → the exact baseline/validation command set. |
-| `acceptance` | authored | Objective pass/fail for this phase. |
 | `status` | computed | `todo` → `active` → `done` / `blocked`. A typed transition or inferred from acceptance + validation passing. |
 | `last_validation` | computed | Most recent validation result + staleness factor for this phase. |
+
+`acceptance` and `validation` are **distinct and must not be identical**:
+`validation` is the *method* (the commands/checks you run); `acceptance` is the
+*outcome gate* (what must be true for the phase to count as done). The authoring
+wizard rejects a phase whose `acceptance` is a verbatim copy of its `validation`.
 
 Decisions, findings, bug reports, records, and notes are **not** phase or
 execution fields — they are typed entries in the `log` execution-log ledger (see
@@ -84,6 +147,104 @@ for context and the canonical handoff; it does not store them on the phase.
 
 **Resume point** = the earliest phase whose `status` is not `done`. Full vs.
 partial completion is derived from the phase-status set — never narrated.
+
+## Work Posture — Greenfield/Brownfield
+
+Every plan carries an automatic **work posture**. Authoring agents do **not** type
+a Greenfield block; the runtime derives the posture and the renderer injects the
+exact block. This guarantees the Greenfield/Brownfield guidance is consistent and
+never contradicts the scenario's real maturity.
+
+**Derivation rules** (centralized; tested for every maturity enum value). The
+signal is the associated scenario's `.vrooli/service.json` `maturity` field,
+resolved through a posture seam:
+
+| Scenario `maturity` | Posture | Source | Detail |
+|---|---|---|---|
+| absent / unrecognized | `greenfield` | `service_maturity` | matches `.vrooli/schemas/service.schema.json` default |
+| `greenfield` | `greenfield` | `service_maturity` | — |
+| `pilot` | `brownfield` | `service_maturity` | limited live use; preserve external contracts |
+| `production` | `brownfield` | `service_maturity` | serving real data; preserve external contracts |
+| `sunset` | `brownfield` | `service_maturity` | sunset detail: scenario is being retired; prefer non-invasive changes |
+| no resolvable scenario | `greenfield` | `default` | fallback detail explaining no scenario was associated |
+| explicit override | as set | `explicit_override` | reserved for a future override signal |
+| legacy import | preserved as imported | `import_legacy` | imported plans keep their stated posture if present |
+
+The **default is Greenfield** unless a scenario maturity proves otherwise. Plan
+Manager's own `.vrooli/service.json` omits `maturity`, so its plans are Greenfield.
+
+When posture is `greenfield`, the renderer **always** emits this exact block (the
+code-like tokens keep their backticks in Markdown):
+
+> **This is greenfield work.** Do not include compatibility shims, legacy
+> wrappers, dead code, unused re-exports, `// removed` comments, or renamed
+> `_unused` variables.
+
+When posture is `brownfield`, the renderer emits a conservative block, e.g.:
+
+> This plan targets a deployed or limited-live scenario. Preserve external
+> contracts and data unless the plan explicitly authorizes a breaking change.
+
+If an author submits constraints that contradict the derived posture (e.g. a
+greenfield plan that asks for compatibility shims), validation **flags the
+conflict** rather than rendering contradictory guidance.
+
+## Import Provenance & Preserved Legacy Sections
+
+Markdown import is an **adoption path**, never a lossy one. When a legacy plan is
+imported:
+
+- `import_provenance` records the `source_path`, `imported_at`, and
+  `original_format` (e.g. `legacy_markdown`) so a reviewer knows the plan was
+  adopted, not authored fresh.
+- Legacy sections that map cleanly become first-class fields (e.g. *Problem
+  Statement* → `problem_statement`, *Target End State* → `target_outcome`,
+  *Testing Plan* → `validation_strategy`, *Risks + Mitigations* → `risks_hazards`).
+- Sections that do **not** map are preserved verbatim in
+  `preserved_legacy_sections[]`, each carrying `heading`, `content`, an optional
+  `mapped_to`, and `preservation_reason = "unmapped_legacy_section"`. They render
+  under a **Preserved Legacy Sections** block so nothing silently disappears.
+
+Import is **non-destructive**: the source Markdown file is never moved or deleted.
+
+## Rendered Markdown — Stable Review Artifact
+
+The rendered Markdown is the **stable human-review artifact**. It must look
+professional, coherent, and complete enough that a human can judge whether the
+plan is better than a legacy plan without reading raw JSON, proto, or authoring
+session internals. It is a deterministic *view* — never parsed back into truth.
+
+**Plan render order** (present sections only; Work Posture is always shown):
+
+1. Title / status / content-hash
+2. Purpose
+3. Problem / Need
+4. Target Outcome
+5. Work Posture
+6. Scope
+7. Non-Goals
+8. Assumptions
+9. Technical Approach
+10. Constraints
+11. Prohibited Approaches
+12. Global Execution Setup
+13. References
+14. Regression Anchor
+15. Validation Strategy
+16. Definition of Done
+17. Phases
+18. Import Provenance / Preserved Legacy Sections (only when present)
+19. Plan Graph
+
+**Phase render order:** heading → status → intent → affected areas → phase context
+setup → ordered steps → expected outputs → phase validation → acceptance criteria →
+risks/hazards (when present) → handoff notes (when present) → baseline scope →
+references.
+
+This order, the automatic Greenfield block, and the import-preservation rule are
+covered by **golden tests** (wizard-authored render, legacy-import render, and
+render → parse → render idempotence) so the renderer, parser, wizard, model, and
+this document cannot silently drift apart.
 
 ## Relevant Context
 
@@ -231,6 +392,37 @@ compact summary through a seam without importing the log package. The wire types
 live in `packages/proto/schemas/plan-manager/v1/shared/model.proto`
 (`LogEntry`/`LogSummary`/`DownstreamRef` + the enums) and the service in
 `packages/proto/schemas/plan-manager/v1/log/log.proto` (`LogService`).
+
+## Invariants
+
+These are load-bearing rules. Tests enforce them; changing them is a deliberate
+contract change, not an incidental edit.
+
+1. **Markdown is a view, not the source of truth.** The structured record is
+   authoritative; rendered Markdown is always projected from it and is never
+   parsed back into truth during normal operation. Import is the only parse path,
+   and it produces a structured record (adoption), not a live edit channel.
+2. **Work posture is runtime-derived, not agent-authored.** The Greenfield/
+   Brownfield block is injected from `work_posture`; the wizard never asks an
+   author to write it. Posture derivation is centralized behind one seam and
+   covered for every `maturity` enum value.
+3. **Unknown imported sections are mapped or preserved, never silently dropped.**
+   Every legacy section either maps to a canonical field or lands in
+   `preserved_legacy_sections[]`.
+4. **Wizard-required sections and renderer sections stay in lockstep.** Every
+   mandatory authoring field has a renderer section (or a documented non-rendered
+   reason), and every renderer section the renderer emits is recoverable by the
+   parser. Golden tests fail if a required field stops rendering or the renderer
+   emits a section the parser cannot recover.
+5. **`acceptance` ≠ `validation`.** A phase's outcome gate and its checking method
+   are distinct fields and must not be identical.
+
+The code/proto surfaces that must stay in lockstep with this document:
+`packages/proto/schemas/plan-manager/v1/shared/model.proto` (wire contract),
+`api/internal/planmodel/types.go` (neutral kernel), `api/internal/planproto`
+(conversion), `api/internal/plans/render.go` (renderer),
+`api/internal/planmodel/parse.go` (parser), `api/internal/plans/posture.go`
+(posture derivation), and `api/internal/authoring` (wizard order + gates).
 
 ## Cross-References
 

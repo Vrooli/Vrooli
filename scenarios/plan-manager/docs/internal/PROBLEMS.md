@@ -107,6 +107,25 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `coverage/runs/20260627-173227-a56f3f9f/phase-results/{architecture,performance,tidiness,standards}.json`; `coverage/logs/20260627-173227-a56f3f9f/`; `git-control-tower baseline diff status --scenario plan-manager --name plan-manager-hardening-readiness --run 20260627-174053-d1c3e988`.
 
+### 2026-06-28 — docs-first contract ahead of code (structured-rendered-plans)
+
+**Symptom:** `PLAN-MODEL.md`, `DATA.md`, `FLOWS.md`, and `ARCHITECTURE.md` now
+describe the professional plan structure (problem_statement, target_outcome,
+assumptions, technical_approach, validation_strategy, final_validation_commands,
+risks_hazards, prohibited_approaches, work_posture/source/detail,
+import_provenance, preserved_legacy_sections, and phase affected_areas/steps/
+expected_outputs/validation/handoff_notes/risks_hazards) plus the automatic
+Greenfield/Brownfield posture and a fixed render order. The proto/model/renderer/
+parser/wizard implement these incrementally across Phases 2–8 of the
+`plan-manager-structured-rendered-plans` plan.
+
+**Root cause:** Intentional. The docs lock the contract first (Phase 1) so
+implementation cannot drift into legacy-section cloning. Until Phase 8 golden
+tests land, treat `PLAN-MODEL.md` as the source of truth for section names.
+
+**Status:** Tracked by the plan's phases; resolved when golden tests assert the
+renderer/parser/wizard match this document.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

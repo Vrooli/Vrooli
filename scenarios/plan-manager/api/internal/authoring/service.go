@@ -31,6 +31,7 @@ type Service interface {
 	GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error)
 	SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error)
 	NextPhase(ctx context.Context, sessionID string) (PhaseDraft, GuidedStep, bool, error)
+	PreviewPlan(ctx context.Context, sessionID string) (string, GuidedStep, error)
 	Finalize(ctx context.Context, sessionID string) (planmodel.Plan, GuidedStep, error)
 }
 
@@ -102,6 +103,7 @@ func (s *service) StartSession(ctx context.Context, title, slug, templateID stri
 			sections = seeded
 		}
 	}
+	prefillWorkPosture(sections)
 	now := s.now()
 	sess := Session{
 		ID:                uuid.NewString(),
@@ -534,6 +536,21 @@ func (s *service) Finalize(ctx context.Context, sessionID string) (planmodel.Pla
 	return plan, stepForFinalizedPlan(sess, plan.ID, plan.Slug), nil
 }
 
+// prefillWorkPosture marks the Work Posture section as autofilled+reviewed (never
+// agent-authored). The actual posture is derived from scenario maturity when the
+// plan is persisted; the section here is an informational review marker so the
+// wizard surfaces posture without asking the author to write the Greenfield block.
+func prefillWorkPosture(sections []Section) {
+	idx := indexOf(sections, SectionWorkPosture)
+	if idx < 0 {
+		return
+	}
+	sections[idx].Content = "Work posture is derived automatically from scenario maturity (default: greenfield). Do not author the Greenfield/Brownfield block — the renderer injects it."
+	sections[idx].Filled = true
+	sections[idx].Autofilled = true
+	sections[idx].Mandatory = false
+}
+
 func (s *service) load(ctx context.Context, sessionID string) (Session, error) {
 	sess, ok, err := s.store.Get(ctx, strings.TrimSpace(sessionID))
 	if err != nil {
@@ -600,10 +617,51 @@ func sessionViolations(sess Session) []StructureViolation {
 			Message:    "references must include at least one [CODE:], [REQ:], or [DOC:] reference, or a NO_CODE_REFS: reason",
 		})
 	}
+	out = append(out, postureConflictViolations(sess)...)
 	for _, phase := range sess.PhaseDrafts {
 		out = append(out, phaseViolations(phase)...)
 	}
 	return out
+}
+
+// greenfieldContradictions are tokens an author should never put in a greenfield
+// plan's constraints/prohibited approaches — the posture already forbids them, so
+// authoring them is a contradiction the renderer must not echo (the Greenfield
+// block is injected by posture, not authored). The default posture is greenfield,
+// so this is the conservative check until a brownfield override exists.
+var greenfieldContradictions = []string{
+	"compatibility shim", "compat shim", "backward compat", "backwards compat",
+	"legacy wrapper", "compatibility layer",
+}
+
+// postureConflictViolations flags authored constraints/prohibited-approaches that
+// contradict the default greenfield posture, so the rendered plan never shows
+// guidance that fights the injected Greenfield block.
+func postureConflictViolations(sess Session) []StructureViolation {
+	var out []StructureViolation
+	for _, key := range []SectionKey{SectionConstraints, SectionProhibitedApproaches} {
+		lower := strings.ToLower(contentOf(sess.Sections, key))
+		if strings.TrimSpace(lower) == "" {
+			continue
+		}
+		for _, token := range greenfieldContradictions {
+			if strings.Contains(lower, token) {
+				out = append(out, StructureViolation{
+					SectionKey: key,
+					Message:    "section " + string(key) + " contradicts the greenfield work posture (mentions \"" + token + "\"); greenfield plans forbid compatibility shims/legacy wrappers — remove it or record a brownfield override",
+				})
+				break
+			}
+		}
+	}
+	return out
+}
+
+// normalizeForCompare lowercases, trims, and collapses internal whitespace so two
+// strings that differ only cosmetically compare equal (used to reject a phase
+// acceptance that merely restates its validation).
+func normalizeForCompare(s string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), " ")
 }
 
 func phaseViolations(phase PhaseDraft) []StructureViolation {
@@ -618,8 +676,20 @@ func phaseViolations(phase PhaseDraft) []StructureViolation {
 	if strings.TrimSpace(phase.Intent) == "" {
 		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " intent must not be empty"})
 	}
+	if len(phase.Steps) == 0 {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " must include at least one ordered implementation step"})
+	}
+	if strings.TrimSpace(phase.Validation) == "" {
+		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " must include phase validation (the method of checking it)"})
+	}
 	if strings.TrimSpace(phase.Acceptance) == "" {
 		out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " acceptance must not be empty"})
+	}
+	if a, v := normalizeForCompare(phase.Acceptance), normalizeForCompare(phase.Validation); a != "" && a == v {
+		out = append(out, StructureViolation{
+			SectionKey: SectionPhases,
+			Message:    prefix + " acceptance must not be identical to its validation: acceptance is the outcome gate, validation is the checking method",
+		})
 	}
 	if len(phase.References) == 0 && strings.TrimSpace(phase.NoCodeRefsReason) == "" {
 		out = append(out, StructureViolation{
@@ -900,6 +970,18 @@ func applyPhaseField(phase *PhaseDraft, field PhaseField, content string) error 
 		if len(refs) > 0 {
 			phase.NoCodeRefsReason = ""
 		}
+	case PhaseFieldAffectedAreas:
+		phase.AffectedAreas = splitLines(content)
+	case PhaseFieldSteps:
+		phase.Steps = splitLines(content)
+	case PhaseFieldExpectedOutputs:
+		phase.ExpectedOutputs = splitLines(content)
+	case PhaseFieldValidation:
+		phase.Validation = content
+	case PhaseFieldRisksHazards:
+		phase.RisksHazards = splitLines(content)
+	case PhaseFieldHandoffNotes:
+		phase.HandoffNotes = content
 	case PhaseFieldRequiredReading:
 		phase.RequiredReading = splitLines(content)
 	case PhaseFieldReminders:
@@ -1047,16 +1129,22 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		return planmodel.Plan{}, err
 	}
 	p := planmodel.Plan{
-		Title:            sess.Title,
-		Slug:             sess.Slug,
-		Purpose:          contentOf(sess.Sections, SectionPurpose),
-		Scope:            contentOf(sess.Sections, SectionScope),
-		Constraints:      contentOf(sess.Sections, SectionConstraints),
-		NonGoals:         contentOf(sess.Sections, SectionNonGoals),
-		DefinitionOfDone: contentOf(sess.Sections, SectionDefinitionOfDone),
-		References:       parsed.References,
-		Phases:           parsed.Phases,
-		RelevantContext:  append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...),
+		Title:                sess.Title,
+		Slug:                 sess.Slug,
+		Purpose:              contentOf(sess.Sections, SectionPurpose),
+		ProblemStatement:     contentOf(sess.Sections, SectionProblemStatement),
+		TargetOutcome:        contentOf(sess.Sections, SectionTargetOutcome),
+		Scope:                contentOf(sess.Sections, SectionScope),
+		NonGoals:             contentOf(sess.Sections, SectionNonGoals),
+		Assumptions:          contentOf(sess.Sections, SectionAssumptions),
+		TechnicalApproach:    contentOf(sess.Sections, SectionTechnicalApproach),
+		Constraints:          contentOf(sess.Sections, SectionConstraints),
+		ProhibitedApproaches: contentOf(sess.Sections, SectionProhibitedApproaches),
+		ValidationStrategy:   contentOf(sess.Sections, SectionValidationStrategy),
+		DefinitionOfDone:     contentOf(sess.Sections, SectionDefinitionOfDone),
+		References:           parsed.References,
+		Phases:               parsed.Phases,
+		RelevantContext:      append([]planmodel.RelevantContextItem(nil), sess.RelevantContext...),
 	}
 	p.RelevantContext = append(p.RelevantContext, contextItemsFromLines(contentOf(sess.Sections, SectionRequiredReading), planmodel.RelevantContextScopeGlobal, "")...)
 	if len(sess.PhaseDrafts) > 0 {
@@ -1094,6 +1182,12 @@ func phaseDraftsToPlanPhases(drafts []PhaseDraft) []planmodel.Phase {
 			Order:           order,
 			Title:           draft.Title,
 			Intent:          draft.Intent,
+			AffectedAreas:   append([]string(nil), draft.AffectedAreas...),
+			Steps:           append([]string(nil), draft.Steps...),
+			ExpectedOutputs: append([]string(nil), draft.ExpectedOutputs...),
+			Validation:      draft.Validation,
+			RisksHazards:    append([]string(nil), draft.RisksHazards...),
+			HandoffNotes:    draft.HandoffNotes,
 			RequiredReading: append([]string(nil), draft.RequiredReading...),
 			Reminders:       reminders,
 			Acceptance:      draft.Acceptance,
