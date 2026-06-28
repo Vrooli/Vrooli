@@ -3,11 +3,13 @@ package lifecycle
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -389,17 +391,17 @@ func uiBundleFreshnessArtifact(appRoot, repoRoot string, check scenario.Conditio
 		watchDeps = *check.WatchFileDependencies
 	}
 	if watchDeps {
-		if specs, err := fileDependencySpecsWithDeps(filepath.Join(uiDir, "package.json"), deps); err == nil {
+		if specs, err := fileDependenciesWithDeps(filepath.Join(uiDir, "package.json"), deps); err == nil {
 			excluded := make(map[string]struct{}, len(check.DependencyExcludes))
 			for _, path := range check.DependencyExcludes {
 				excluded[resolveCheckPath(uiDir, path)] = struct{}{}
 			}
 			for _, spec := range specs {
-				resolved := resolveCheckPath(uiDir, strings.TrimPrefix(spec, "file:"))
+				resolved := resolveCheckPath(uiDir, strings.TrimPrefix(spec.Spec, "file:"))
 				if _, skip := excluded[resolved]; skip {
 					continue
 				}
-				inputs = append(inputs, relUnder(root, resolved))
+				inputs = append(inputs, uiFileDependencyFreshnessInputs(root, sourceDir, spec.Name, resolved, deps)...)
 			}
 		}
 	}
@@ -419,6 +421,138 @@ func uiBundleFreshnessArtifact(appRoot, repoRoot string, check scenario.Conditio
 			SkipSuffixes:    []string{cliutil.FreshnessManifestSuffix},
 			CaseInsensitive: deps.volumeCaseInsensitive(bundlePath),
 		},
+	}
+}
+
+func uiFileDependencyFreshnessInputs(repoRoot, sourceDir, dependencyName, dependencyRoot string, deps hostProbeDeps) []string {
+	if dependencyName == "@vrooli/proto-types" {
+		if inputs, ok := protoTypesFreshnessInputs(repoRoot, sourceDir, dependencyRoot, deps); ok {
+			return inputs
+		}
+	}
+	return []string{relUnder(repoRoot, dependencyRoot)}
+}
+
+var tsImportSourceRE = regexp.MustCompile(`\bfrom\s+["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)`)
+
+func protoTypesFreshnessInputs(repoRoot, sourceDir, dependencyRoot string, deps hostProbeDeps) ([]string, bool) {
+	seen := map[string]struct{}{}
+	queue := []string{}
+	add := func(path string) {
+		path = filepath.Clean(path)
+		if _, ok := seen[path]; ok {
+			return
+		}
+		seen[path] = struct{}{}
+		queue = append(queue, path)
+	}
+
+	ok := true
+	if err := deps.walkDir(sourceDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if name == "node_modules" || name == "dist" || name == ".vite" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !isTypeScriptSource(path) {
+			return nil
+		}
+		data, readErr := deps.readFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		for _, source := range importSources(string(data)) {
+			if !strings.HasPrefix(source, "@vrooli/proto-types/") {
+				continue
+			}
+			resolved, resolvedOK := resolveProtoTypesImport(dependencyRoot, path, source, deps)
+			if !resolvedOK {
+				ok = false
+				return errStopWalk
+			}
+			add(resolved)
+		}
+		return nil
+	}); err != nil && !errors.Is(err, errStopWalk) {
+		return nil, false
+	}
+	if !ok || len(queue) == 0 {
+		return nil, false
+	}
+
+	for idx := 0; idx < len(queue); idx++ {
+		current := queue[idx]
+		data, err := deps.readFile(current)
+		if err != nil {
+			return nil, false
+		}
+		for _, source := range importSources(string(data)) {
+			if !strings.HasPrefix(source, ".") && !strings.HasPrefix(source, "@vrooli/proto-types/") {
+				continue
+			}
+			resolved, resolvedOK := resolveProtoTypesImport(dependencyRoot, current, source, deps)
+			if !resolvedOK {
+				return nil, false
+			}
+			add(resolved)
+		}
+	}
+
+	inputs := make([]string, 0, len(seen))
+	for path := range seen {
+		inputs = append(inputs, relUnder(repoRoot, path))
+	}
+	sort.Strings(inputs)
+	return inputs, true
+}
+
+func importSources(source string) []string {
+	matches := tsImportSourceRE.FindAllStringSubmatch(source, -1)
+	out := make([]string, 0, len(matches))
+	for _, match := range matches {
+		for _, candidate := range match[1:] {
+			if candidate != "" {
+				out = append(out, candidate)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func resolveProtoTypesImport(dependencyRoot, importerPath, source string, deps hostProbeDeps) (string, bool) {
+	switch {
+	case strings.HasPrefix(source, "@vrooli/proto-types/"):
+		rel := strings.TrimPrefix(source, "@vrooli/proto-types/")
+		return resolveGeneratedTypeScriptModule(filepath.Join(dependencyRoot, filepath.FromSlash(rel)), deps)
+	case strings.HasPrefix(source, "."):
+		return resolveGeneratedTypeScriptModule(filepath.Join(filepath.Dir(importerPath), filepath.FromSlash(source)), deps)
+	default:
+		return "", false
+	}
+}
+
+func resolveGeneratedTypeScriptModule(base string, deps hostProbeDeps) (string, bool) {
+	for _, candidate := range []string{base, base + ".ts", base + ".js", filepath.Join(base, "index.ts"), filepath.Join(base, "index.js")} {
+		info, err := deps.stat(candidate)
+		if err == nil && !info.IsDir() {
+			return filepath.Clean(candidate), true
+		}
+	}
+	return "", false
+}
+
+func isTypeScriptSource(path string) bool {
+	switch filepath.Ext(path) {
+	case ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs":
+		return true
+	default:
+		return false
 	}
 }
 

@@ -47,13 +47,24 @@ type ParkRequest struct {
 	Deadline time.Time
 }
 
-// ParkResult is the outcome of a successful park.
+// ParkResult is the outcome of a park call that agent-manager handled (either a
+// successful park or a refused no-progress re-park).
 type ParkResult struct {
-	// Message is the clean tool-result text agent-manager wants the in-run command
-	// to print before the turn ends. Printing it (and exiting 0) records the
-	// "parked" outcome for the agent; agent-manager then terminates the process
-	// group to end the turn.
+	// Message is the tool-result text agent-manager wants the in-run command to
+	// print. On a successful park it is the clean "parked, resuming later" message
+	// (printing it and exiting 0 records the parked outcome; agent-manager then
+	// ends the turn). On a refusal it is the steer message — which embeds the
+	// cached result — that tells the agent to use the result it already has rather
+	// than re-running the blocking work.
 	Message string
+	// Refused is true when agent-manager declined to park because this is a
+	// no-progress re-park on the same await key (the degenerate wake→re-run loop).
+	// The turn is NOT ended; the caller should print Message and exit 0 WITHOUT
+	// performing its normal blocking work — the agent keeps running with the
+	// cached result.
+	Refused bool
+	// Result is the cached awaited result echoed back on a refusal.
+	Result string
 }
 
 // parkResponse mirrors the snake_case protojson of agent-manager's
@@ -61,6 +72,8 @@ type ParkResult struct {
 type parkResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
+	Refused bool   `json:"refused"`
+	Result  string `json:"result"`
 }
 
 // ParkForAwait asks agent-manager to park the current run on the given async
@@ -69,9 +82,14 @@ type parkResponse struct {
 //   - (nil, false, nil): the caller is NOT inside an agent-manager run (no
 //     identity token present). The caller must fall back to its normal blocking
 //     wait — behaviour for human / raw-terminal / non-AM callers is unchanged.
-//   - (result, true, nil): agent-manager accepted the park. The caller should
-//     print result.Message and exit 0; agent-manager ends the turn and will wake
-//     the run with the result.
+//   - (result, true, nil): agent-manager handled the call. The caller should
+//     print result.Message and exit 0 WITHOUT doing its blocking work. When
+//     result.Refused is false the run was parked (agent-manager ends the turn and
+//     will wake it with the result); when result.Refused is true agent-manager
+//     refused a no-progress re-park (the wake→re-run loop) — the run keeps running
+//     and result.Message carries the cached result plus a steer to use it. Either
+//     way the caller must NOT fall back to blocking — that would re-introduce the
+//     loop.
 //   - (nil, true, err): the caller IS inside an agent-manager run but the park
 //     call failed (AM unreachable, run not in a parkable state, auth error, …).
 //     The caller should surface the warning and fall back to blocking — strictly
@@ -127,6 +145,13 @@ func ParkForAwait(in ParkRequest) (*ParkResult, bool, error) {
 	var resp parkResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, true, fmt.Errorf("park: parse response: %w", err)
+	}
+	if resp.Refused {
+		// agent-manager refused a no-progress re-park (the degenerate wake→re-run
+		// loop). This is NOT an error and NOT a fall-back-to-blocking: the run
+		// keeps running, and the caller should print the steer message (which
+		// carries the cached result) and exit WITHOUT doing its blocking work.
+		return &ParkResult{Message: resp.Message, Refused: true, Result: resp.Result}, true, nil
 	}
 	if !resp.Success {
 		return nil, true, fmt.Errorf("park: agent-manager declined to park the run")

@@ -175,7 +175,7 @@ func LoadFromManifest(raw []byte, groupName string, bindings map[string]func(Run
 		}
 		used[key] = struct{}{}
 
-		args, err := manifestArgs(c)
+		args, err := ManifestArgs(c)
 		if err != nil {
 			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s: %w", m.Name, group.Name, c.Name, err)
 		}
@@ -205,10 +205,10 @@ func LoadFromManifest(raw []byte, groupName string, bindings map[string]func(Run
 	}, nil
 }
 
-// manifestArgs converts a ManifestCommand's positionals/flags into an ArgSchema.
+// ManifestArgs converts a ManifestCommand's positionals/flags into an ArgSchema.
 // Validates the resulting schema so contract bugs surface at startup, not on
 // first invocation.
-func manifestArgs(c ManifestCommand) (ArgSchema, error) {
+func ManifestArgs(c ManifestCommand) (ArgSchema, error) {
 	args := ArgSchema{}
 	for _, p := range c.Positionals {
 		args.Positionals = append(args.Positionals, Positional(p))

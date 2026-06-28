@@ -5,6 +5,11 @@
       "--help": {
         "enabled": false
       },
+      "adguard-home": {
+        "description": "Managed AdGuard Home DNS filtering and resolver service for scenarios such as Network Manager",
+        "enabled": false,
+        "required": false
+      },
       "browserless": {
         "enabled": true,
         "healthCheck": {
@@ -35,6 +40,11 @@
       },
       "gemini": {
         "description": "Google Gemini AI API integration",
+        "enabled": true,
+        "required": false
+      },
+      "grok": {
+        "description": "xAI Grok Build coding CLI (optional external-cli; sudo-free install, conversation/credential state backed up)",
         "enabled": true,
         "required": false
       },

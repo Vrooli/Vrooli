@@ -38,6 +38,26 @@
           "description": "Current platform architecture and operating model"
         },
         {
+          "path": "concepts/RECURSIVE_SELF_IMPROVEMENT.md",
+          "title": "Recursive Self-Improvement",
+          "description": "The loop by which Vrooli improves its own ability to build software: the three projections (Answer/Validate/Guide), the maturation gradient, and the operating layer that runs it"
+        },
+        {
+          "path": "concepts/ECOSYSTEM.md",
+          "title": "Ecosystem Fit",
+          "description": "How a single scenario fits the whole: functional role, interfaces, and compound value"
+        },
+        {
+          "path": "concepts/MEASURES.md",
+          "title": "Measures",
+          "description": "Federated metrics layer: scenarios declare named, typed, parameterized analytical queries so questions map to computed, provenance-backed answers"
+        },
+        {
+          "path": "concepts/PAID_FEATURES.md",
+          "title": "Paid Features",
+          "description": "Engineering contract for turning a capability into a paid feature (metered vs gated) and wiring it through LPBS"
+        },
+        {
           "path": "concepts/GLOSSARY.md",
           "title": "Glossary",
           "description": "Shared vocabulary for the platform"
@@ -112,6 +132,11 @@
           "path": "reference/build-and-validation.md",
           "title": "Build And Validation",
           "description": "Project-level build and validation surfaces"
+        },
+        {
+          "path": "reference/health-maturity-assessments.md",
+          "title": "Health Maturity Assessments",
+          "description": "Provider-owned health maturity reports and automation contract"
         },
         {
           "path": "reference/environment-management.md",

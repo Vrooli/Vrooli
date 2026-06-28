@@ -1519,7 +1519,24 @@ func relForReason(base, path string) string {
 
 var errStopWalk = errors.New("stop walk")
 
+type fileDependencySpec struct {
+	Name string
+	Spec string
+}
+
 func fileDependencySpecsWithDeps(packageJSON string, deps hostProbeDeps) ([]string, error) {
+	dependencies, err := fileDependenciesWithDeps(packageJSON, deps)
+	if err != nil {
+		return nil, err
+	}
+	specs := make([]string, 0, len(dependencies))
+	for _, dependency := range dependencies {
+		specs = append(specs, dependency.Spec)
+	}
+	return specs, nil
+}
+
+func fileDependenciesWithDeps(packageJSON string, deps hostProbeDeps) ([]fileDependencySpec, error) {
 	data, err := deps.readFile(packageJSON)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1536,20 +1553,25 @@ func fileDependencySpecsWithDeps(packageJSON string, deps hostProbeDeps) ([]stri
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, err
 	}
-	specs := []string{}
+	specs := []fileDependencySpec{}
 	for _, deps := range []map[string]string{
 		doc.Dependencies,
 		doc.DevDependencies,
 		doc.PeerDependencies,
 		doc.OptionalDependencies,
 	} {
-		for _, value := range deps {
+		for name, value := range deps {
 			if strings.HasPrefix(value, "file:") {
-				specs = append(specs, value)
+				specs = append(specs, fileDependencySpec{Name: name, Spec: value})
 			}
 		}
 	}
-	sort.Strings(specs)
+	sort.Slice(specs, func(i, j int) bool {
+		if specs[i].Spec != specs[j].Spec {
+			return specs[i].Spec < specs[j].Spec
+		}
+		return specs[i].Name < specs[j].Name
+	})
 	return specs, nil
 }
 

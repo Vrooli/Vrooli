@@ -84,7 +84,7 @@
   },
   {
    "id": "branding",
-   "description": "Brand-identity completeness and accessibility — display name, color system, typography, logo, favicon, WCAG-AA contrast, and applied brand markers (brand-manager via the test-genie `branding` phase)."
+   "description": "Brand-identity completeness, accessibility, and installability — display name, color system, typography, logo, favicon, WCAG-AA contrast (light + dark), applied brand markers, cross-surface name/theme consistency, template-residue, PWA/manifest + mobile status-bar safe-area theming, social/link-preview metadata, and CLI/API branding (brand-manager via the test-genie `branding` phase)."
   }
  ],
  "testgenie_source_map": {

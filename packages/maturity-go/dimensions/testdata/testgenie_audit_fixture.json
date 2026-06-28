@@ -20,7 +20,8 @@
     "tidiness",
     "security",
     "measures",
-    "proto"
+    "proto",
+    "branding"
   ],
   "phases": [
     {
@@ -303,6 +304,23 @@
           ],
           "message": "domain proto imports another domain directly",
           "stable_id": "afid:0000000000000012"
+        }
+      ]
+    },
+    {
+      "name": "branding",
+      "status": "failed",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 15,
+          "code": "has-display-name",
+          "severity": 3,
+          "locations": [
+            ".vrooli/service.json"
+          ],
+          "message": "brand display name is missing",
+          "stable_id": "afid:0000000000000015"
         }
       ]
     }
