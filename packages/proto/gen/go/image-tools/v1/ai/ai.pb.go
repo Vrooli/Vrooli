@@ -254,8 +254,15 @@ type AIParams struct {
 	// local/personal tier it is unenforced (personal use is unrestricted). Naturalize
 	// is low-weight and never requires it. See docs/internal/SECURITY.md.
 	ConsentAffirmed bool `protobuf:"varint,16,opt,name=consent_affirmed,json=consentAffirmed,proto3" json:"consent_affirmed,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Adapters is the ordered conditioning stack (LoRA / ControlNet / IP-Adapter)
+	// to compose with the base model for this generation/edit. Typed (never the
+	// params bag — decision C2): the resolver validates each against the chosen
+	// model's architecture, enabled/installed/Ready state, and elevates the consent
+	// weight to max(op, adapters...). An incompatible / not-yet-proven adapter is
+	// rejected before any job runs (no vaporware). Empty for an unconditioned op.
+	Adapters      []*AdapterRef `protobuf:"bytes,17,rep,name=adapters,proto3" json:"adapters,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AIParams) Reset() {
@@ -400,6 +407,91 @@ func (x *AIParams) GetConsentAffirmed() bool {
 	return false
 }
 
+func (x *AIParams) GetAdapters() []*AdapterRef {
+	if x != nil {
+		return x.Adapters
+	}
+	return nil
+}
+
+// AdapterRef is one requested conditioning modifier on a generation.
+type AdapterRef struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// adapter_id is the catalog adapter id (`image-tools adapters list`).
+	AdapterId string `protobuf:"bytes,1,opt,name=adapter_id,json=adapterId,proto3" json:"adapter_id,omitempty"`
+	// scale is the conditioning strength; 0 = the adapter's default (clamped to its
+	// allowed range).
+	Scale float64 `protobuf:"fixed64,2,opt,name=scale,proto3" json:"scale,omitempty"`
+	// conditioning_image_key is the blob key of the control / reference image
+	// (ControlNet / IP-Adapter). Empty for a LoRA, or for a ControlNet whose
+	// conditioning map is auto-derived from the generation input via a preprocessor.
+	ConditioningImageKey string `protobuf:"bytes,3,opt,name=conditioning_image_key,json=conditioningImageKey,proto3" json:"conditioning_image_key,omitempty"`
+	// preprocessor_override forces a specific ControlNet preprocessor
+	// (canny|depth|pose|segment|none) instead of the adapter's declared one. Ignored
+	// for non-ControlNet kinds.
+	PreprocessorOverride string `protobuf:"bytes,4,opt,name=preprocessor_override,json=preprocessorOverride,proto3" json:"preprocessor_override,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *AdapterRef) Reset() {
+	*x = AdapterRef{}
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdapterRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdapterRef) ProtoMessage() {}
+
+func (x *AdapterRef) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdapterRef.ProtoReflect.Descriptor instead.
+func (*AdapterRef) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AdapterRef) GetAdapterId() string {
+	if x != nil {
+		return x.AdapterId
+	}
+	return ""
+}
+
+func (x *AdapterRef) GetScale() float64 {
+	if x != nil {
+		return x.Scale
+	}
+	return 0
+}
+
+func (x *AdapterRef) GetConditioningImageKey() string {
+	if x != nil {
+		return x.ConditioningImageKey
+	}
+	return ""
+}
+
+func (x *AdapterRef) GetPreprocessorOverride() string {
+	if x != nil {
+		return x.PreprocessorOverride
+	}
+	return ""
+}
+
 // SubmitAIResponse is the protojson body returned by the REST submit edge. The
 // op runs asynchronously; this carries the durable job's id + initial ETA plus
 // the selection verdict so the caller can surface the chosen model/tier and any
@@ -423,7 +515,7 @@ type SubmitAIResponse struct {
 
 func (x *SubmitAIResponse) Reset() {
 	*x = SubmitAIResponse{}
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[4]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -435,7 +527,7 @@ func (x *SubmitAIResponse) String() string {
 func (*SubmitAIResponse) ProtoMessage() {}
 
 func (x *SubmitAIResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[4]
+	mi := &file_image_tools_v1_ai_ai_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -448,7 +540,7 @@ func (x *SubmitAIResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitAIResponse.ProtoReflect.Descriptor instead.
 func (*SubmitAIResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{4}
+	return file_image_tools_v1_ai_ai_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SubmitAIResponse) GetJobId() string {
@@ -503,7 +595,7 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x18ListAIOperationsResponse\x12I\n" +
 	"\n" +
 	"operations\x18\x01 \x03(\v2).vrooli.image_tools.v1.ai.AIOperationInfoR\n" +
-	"operations\"\xe2\x03\n" +
+	"operations\"\xa4\x04\n" +
 	"\bAIParams\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12'\n" +
 	"\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n" +
@@ -525,7 +617,15 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\arealism\x18\x0e \x01(\x01R\arealism\x12\x1d\n" +
 	"\n" +
 	"face_aware\x18\x0f \x01(\bR\tfaceAware\x12)\n" +
-	"\x10consent_affirmed\x18\x10 \x01(\bR\x0fconsentAffirmed\"\xa1\x01\n" +
+	"\x10consent_affirmed\x18\x10 \x01(\bR\x0fconsentAffirmed\x12@\n" +
+	"\badapters\x18\x11 \x03(\v2$.vrooli.image_tools.v1.ai.AdapterRefR\badapters\"\xac\x01\n" +
+	"\n" +
+	"AdapterRef\x12\x1d\n" +
+	"\n" +
+	"adapter_id\x18\x01 \x01(\tR\tadapterId\x12\x14\n" +
+	"\x05scale\x18\x02 \x01(\x01R\x05scale\x124\n" +
+	"\x16conditioning_image_key\x18\x03 \x01(\tR\x14conditioningImageKey\x123\n" +
+	"\x15preprocessor_override\x18\x04 \x01(\tR\x14preprocessorOverride\"\xa1\x01\n" +
 	"\x10SubmitAIResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12+\n" +
 	"\x11estimated_seconds\x18\x02 \x01(\x05R\x10estimatedSeconds\x12\x19\n" +
@@ -547,23 +647,25 @@ func file_image_tools_v1_ai_ai_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_ai_ai_proto_rawDescData
 }
 
-var file_image_tools_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_image_tools_v1_ai_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_image_tools_v1_ai_ai_proto_goTypes = []any{
 	(*AIOperationInfo)(nil),          // 0: vrooli.image_tools.v1.ai.AIOperationInfo
 	(*ListAIOperationsRequest)(nil),  // 1: vrooli.image_tools.v1.ai.ListAIOperationsRequest
 	(*ListAIOperationsResponse)(nil), // 2: vrooli.image_tools.v1.ai.ListAIOperationsResponse
 	(*AIParams)(nil),                 // 3: vrooli.image_tools.v1.ai.AIParams
-	(*SubmitAIResponse)(nil),         // 4: vrooli.image_tools.v1.ai.SubmitAIResponse
+	(*AdapterRef)(nil),               // 4: vrooli.image_tools.v1.ai.AdapterRef
+	(*SubmitAIResponse)(nil),         // 5: vrooli.image_tools.v1.ai.SubmitAIResponse
 }
 var file_image_tools_v1_ai_ai_proto_depIdxs = []int32{
 	0, // 0: vrooli.image_tools.v1.ai.ListAIOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ai.AIOperationInfo
-	1, // 1: vrooli.image_tools.v1.ai.AIService.ListAIOperations:input_type -> vrooli.image_tools.v1.ai.ListAIOperationsRequest
-	2, // 2: vrooli.image_tools.v1.ai.AIService.ListAIOperations:output_type -> vrooli.image_tools.v1.ai.ListAIOperationsResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	4, // 1: vrooli.image_tools.v1.ai.AIParams.adapters:type_name -> vrooli.image_tools.v1.ai.AdapterRef
+	1, // 2: vrooli.image_tools.v1.ai.AIService.ListAIOperations:input_type -> vrooli.image_tools.v1.ai.ListAIOperationsRequest
+	2, // 3: vrooli.image_tools.v1.ai.AIService.ListAIOperations:output_type -> vrooli.image_tools.v1.ai.ListAIOperationsResponse
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_ai_ai_proto_init() }
@@ -577,7 +679,7 @@ func file_image_tools_v1_ai_ai_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_ai_ai_proto_rawDesc), len(file_image_tools_v1_ai_ai_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,0 +1,198 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.brands;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/brands;brands_v1";
+
+// =============================================================================
+// BRANDS DOMAIN — brand identity CRUD + immutable version history
+// =============================================================================
+//
+// @layer 5
+// @domain brands
+// @stability stable
+//
+// Wire contract for the BrandsService Connect-RPC service. Brand is the root
+// aggregate of a complete brand identity (name + facets: identity, colors,
+// typography, voice). Every mutation snapshots the post-mutation state into an
+// immutable BrandVersion so the authoring history is auditable.
+//
+// Idempotency / concurrency are re-expressed Connect-native (replacing the old
+// REST Idempotency-Key / If-Match headers):
+//   - UpdateBrand.expected_version is optimistic locking: when > 0 the update is
+//     rejected with FAILED_PRECONDITION unless it equals the brand's current
+//     version.
+//   - DeleteBrand is idempotent: deleting a missing brand returns success.
+//
+// Consumed by:
+//   - API: handlers/brands/connect_handler.go implements the generated
+//          BrandsServiceHandler interface from the brands_v1connect Go package.
+//   - UI:  ui/src/api/brands.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/brands/handlers.go calls the generated Connect-Go client.
+// =============================================================================
+
+service BrandsService {
+  rpc ListBrands(ListBrandsRequest) returns (ListBrandsResponse);
+  rpc CreateBrand(CreateBrandRequest) returns (CreateBrandResponse);
+  rpc GetBrand(GetBrandRequest) returns (GetBrandResponse);
+  rpc UpdateBrand(UpdateBrandRequest) returns (UpdateBrandResponse);
+  rpc DeleteBrand(DeleteBrandRequest) returns (DeleteBrandResponse);
+  rpc ListBrandVersions(ListBrandVersionsRequest) returns (ListBrandVersionsResponse);
+}
+
+// Brand is the root aggregate for a complete brand identity.
+message Brand {
+  // UUID assigned by the API on create.
+  string id = 1;
+  // Human-supplied name. Required on create; non-empty enforced server-side.
+  string name = 2;
+  // Optional free-text description.
+  string description = 3;
+  // Visual identity facets (display name, tagline, logo/favicon/icon paths).
+  Identity identity = 4;
+  // Color system.
+  Colors colors = 5;
+  // Font + text-style definitions.
+  Typography typography = 6;
+  // Communication tone + style.
+  Voice voice = 7;
+  // Free-text authoring notes.
+  string notes = 8;
+  // Monotonically-increasing version, incremented on every successful update.
+  // 1 on first create.
+  int32 version = 9;
+  // Server time the brand was first persisted.
+  google.protobuf.Timestamp created_at = 10;
+  // Server time the brand was last persisted. Equals created_at on insert.
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// Identity holds the visual-identity facets of a brand.
+message Identity {
+  string display_name = 1;
+  string tagline = 2;
+  string logo_path = 3;
+  string favicon_path = 4;
+  string icon_path = 5;
+}
+
+// Colors holds the color system for a brand. Values are CSS colors.
+message Colors {
+  string primary = 1;
+  string secondary = 2;
+  string accent = 3;
+  string background = 4;
+  string surface = 5;
+  string text = 6;
+  string error = 7;
+}
+
+// Typography holds font and text-style definitions.
+message Typography {
+  string heading_font = 1;
+  string body_font = 2;
+  string mono_font = 3;
+  string base_font_size = 4;
+}
+
+// Voice describes the brand's communication tone and style.
+message Voice {
+  string tone = 1;
+  string style = 2;
+  repeated string keywords = 3;
+}
+
+// BrandVersion is an immutable snapshot of a brand at a point in time.
+message BrandVersion {
+  string id = 1;
+  string brand_id = 2;
+  int32 version = 3;
+  // JSON-encoded full brand state at this version.
+  string snapshot = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// ListBrandsRequest filters and paginates the brand list.
+message ListBrandsRequest {
+  // Case-insensitive substring filter on name. Empty matches all.
+  string name_contains = 1;
+  // Maximum rows to return. <= 0 applies the server default (100).
+  int32 limit = 2;
+  // Rows to skip (pagination).
+  int32 offset = 3;
+}
+
+// ListBrandsResponse returns brands ordered newest-updated first.
+message ListBrandsResponse {
+  repeated Brand brands = 1;
+}
+
+// CreateBrandRequest is the body accepted by BrandsService.CreateBrand.
+message CreateBrandRequest {
+  string name = 1;
+  string description = 2;
+  string notes = 3;
+  Identity identity = 4;
+  Colors colors = 5;
+  Typography typography = 6;
+  Voice voice = 7;
+}
+
+// CreateBrandResponse returns the persisted brand (version 1).
+message CreateBrandResponse {
+  Brand brand = 1;
+}
+
+// GetBrandRequest identifies the brand to read.
+message GetBrandRequest {
+  string id = 1;
+}
+
+// GetBrandResponse returns the requested brand.
+message GetBrandResponse {
+  Brand brand = 1;
+}
+
+// UpdateBrandRequest applies a partial update: only non-empty scalar fields and
+// non-empty facet sub-fields overwrite the stored value. A nil facet leaves
+// that facet unchanged; a facet with some fields set merges those fields.
+message UpdateBrandRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string notes = 4;
+  Identity identity = 5;
+  Colors colors = 6;
+  Typography typography = 7;
+  Voice voice = 8;
+  // expected_version: when > 0, reject with FAILED_PRECONDITION unless it equals
+  // the brand's current version (optimistic locking). 0 disables the check.
+  int32 expected_version = 9;
+}
+
+// UpdateBrandResponse returns the brand at its new version.
+message UpdateBrandResponse {
+  Brand brand = 1;
+}
+
+// DeleteBrandRequest identifies the brand to delete. Idempotent.
+message DeleteBrandRequest {
+  string id = 1;
+}
+
+// DeleteBrandResponse is empty; a successful call means the brand no longer
+// exists (whether or not it existed before).
+message DeleteBrandResponse {
+}
+
+// ListBrandVersionsRequest identifies the brand whose history to read.
+message ListBrandVersionsRequest {
+  string brand_id = 1;
+}
+
+// ListBrandVersionsResponse returns versions newest-first.
+message ListBrandVersionsResponse {
+  repeated BrandVersion versions = 1;
+}

@@ -419,6 +419,20 @@ class NextPhaseResponse(_message.Message):
     step: _model_pb2.GuidedStep
     def __init__(self, phase: _Optional[_Union[PhaseDraft, _Mapping]] = ..., complete: _Optional[bool] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
 
+class PreviewPlanRequest(_message.Message):
+    __slots__ = ("session_id",)
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    def __init__(self, session_id: _Optional[str] = ...) -> None: ...
+
+class PreviewPlanResponse(_message.Message):
+    __slots__ = ("markdown", "step")
+    MARKDOWN_FIELD_NUMBER: _ClassVar[int]
+    STEP_FIELD_NUMBER: _ClassVar[int]
+    markdown: str
+    step: _model_pb2.GuidedStep
+    def __init__(self, markdown: _Optional[str] = ..., step: _Optional[_Union[_model_pb2.GuidedStep, _Mapping]] = ...) -> None: ...
+
 class FinalizeRequest(_message.Message):
     __slots__ = ("session_id",)
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]

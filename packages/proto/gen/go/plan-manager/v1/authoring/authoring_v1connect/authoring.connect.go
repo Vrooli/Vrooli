@@ -80,6 +80,9 @@ const (
 	// AuthoringServiceNextPhaseProcedure is the fully-qualified name of the AuthoringService's
 	// NextPhase RPC.
 	AuthoringServiceNextPhaseProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/NextPhase"
+	// AuthoringServicePreviewPlanProcedure is the fully-qualified name of the AuthoringService's
+	// PreviewPlan RPC.
+	AuthoringServicePreviewPlanProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/PreviewPlan"
 	// AuthoringServiceFinalizeProcedure is the fully-qualified name of the AuthoringService's Finalize
 	// RPC.
 	AuthoringServiceFinalizeProcedure = "/vrooli.plan_manager.v1.authoring.AuthoringService/Finalize"
@@ -133,6 +136,9 @@ type AuthoringServiceClient interface {
 	NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error)
 	// Finalize validates structure then writes the produced plan through the plans
 	// domain, returning the persisted plan.
+	// PreviewPlan renders the in-progress session to its markdown review artifact
+	// WITHOUT persisting, so a human/agent can review the plan before finalize.
+	PreviewPlan(context.Context, *connect.Request[authoring.PreviewPlanRequest]) (*connect.Response[authoring.PreviewPlanResponse], error)
 	Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error)
 }
 
@@ -244,6 +250,12 @@ func NewAuthoringServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(authoringServiceMethods.ByName("NextPhase")),
 			connect.WithClientOptions(opts...),
 		),
+		previewPlan: connect.NewClient[authoring.PreviewPlanRequest, authoring.PreviewPlanResponse](
+			httpClient,
+			baseURL+AuthoringServicePreviewPlanProcedure,
+			connect.WithSchema(authoringServiceMethods.ByName("PreviewPlan")),
+			connect.WithClientOptions(opts...),
+		),
 		finalize: connect.NewClient[authoring.FinalizeRequest, authoring.FinalizeResponse](
 			httpClient,
 			baseURL+AuthoringServiceFinalizeProcedure,
@@ -271,6 +283,7 @@ type authoringServiceClient struct {
 	getPhase                  *connect.Client[authoring.GetPhaseRequest, authoring.GetPhaseResponse]
 	submitPhaseField          *connect.Client[authoring.SubmitPhaseFieldRequest, authoring.SubmitPhaseFieldResponse]
 	nextPhase                 *connect.Client[authoring.NextPhaseRequest, authoring.NextPhaseResponse]
+	previewPlan               *connect.Client[authoring.PreviewPlanRequest, authoring.PreviewPlanResponse]
 	finalize                  *connect.Client[authoring.FinalizeRequest, authoring.FinalizeResponse]
 }
 
@@ -358,6 +371,11 @@ func (c *authoringServiceClient) NextPhase(ctx context.Context, req *connect.Req
 	return c.nextPhase.CallUnary(ctx, req)
 }
 
+// PreviewPlan calls vrooli.plan_manager.v1.authoring.AuthoringService.PreviewPlan.
+func (c *authoringServiceClient) PreviewPlan(ctx context.Context, req *connect.Request[authoring.PreviewPlanRequest]) (*connect.Response[authoring.PreviewPlanResponse], error) {
+	return c.previewPlan.CallUnary(ctx, req)
+}
+
 // Finalize calls vrooli.plan_manager.v1.authoring.AuthoringService.Finalize.
 func (c *authoringServiceClient) Finalize(ctx context.Context, req *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error) {
 	return c.finalize.CallUnary(ctx, req)
@@ -411,6 +429,9 @@ type AuthoringServiceHandler interface {
 	NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error)
 	// Finalize validates structure then writes the produced plan through the plans
 	// domain, returning the persisted plan.
+	// PreviewPlan renders the in-progress session to its markdown review artifact
+	// WITHOUT persisting, so a human/agent can review the plan before finalize.
+	PreviewPlan(context.Context, *connect.Request[authoring.PreviewPlanRequest]) (*connect.Response[authoring.PreviewPlanResponse], error)
 	Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error)
 }
 
@@ -517,6 +538,12 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 		connect.WithSchema(authoringServiceMethods.ByName("NextPhase")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authoringServicePreviewPlanHandler := connect.NewUnaryHandler(
+		AuthoringServicePreviewPlanProcedure,
+		svc.PreviewPlan,
+		connect.WithSchema(authoringServiceMethods.ByName("PreviewPlan")),
+		connect.WithHandlerOptions(opts...),
+	)
 	authoringServiceFinalizeHandler := connect.NewUnaryHandler(
 		AuthoringServiceFinalizeProcedure,
 		svc.Finalize,
@@ -557,6 +584,8 @@ func NewAuthoringServiceHandler(svc AuthoringServiceHandler, opts ...connect.Han
 			authoringServiceSubmitPhaseFieldHandler.ServeHTTP(w, r)
 		case AuthoringServiceNextPhaseProcedure:
 			authoringServiceNextPhaseHandler.ServeHTTP(w, r)
+		case AuthoringServicePreviewPlanProcedure:
+			authoringServicePreviewPlanHandler.ServeHTTP(w, r)
 		case AuthoringServiceFinalizeProcedure:
 			authoringServiceFinalizeHandler.ServeHTTP(w, r)
 		default:
@@ -630,6 +659,10 @@ func (UnimplementedAuthoringServiceHandler) SubmitPhaseField(context.Context, *c
 
 func (UnimplementedAuthoringServiceHandler) NextPhase(context.Context, *connect.Request[authoring.NextPhaseRequest]) (*connect.Response[authoring.NextPhaseResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase is not implemented"))
+}
+
+func (UnimplementedAuthoringServiceHandler) PreviewPlan(context.Context, *connect.Request[authoring.PreviewPlanRequest]) (*connect.Response[authoring.PreviewPlanResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.plan_manager.v1.authoring.AuthoringService.PreviewPlan is not implemented"))
 }
 
 func (UnimplementedAuthoringServiceHandler) Finalize(context.Context, *connect.Request[authoring.FinalizeRequest]) (*connect.Response[authoring.FinalizeResponse], error) {

@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.assets;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/assets;assets_v1";
+
+// =============================================================================
+// ASSETS DOMAIN — brand asset files (logo, favicon, icon, …)
+// =============================================================================
+//
+// @layer 5
+// @domain assets
+// @stability stable
+//
+// Wire contract for the AssetsService Connect-RPC service. An Asset is a binary
+// file (image) owned by a brand. Files live on disk under the scenario's data
+// directory (`<data>/assets/<brand_id>/<filename>`); the database row is the
+// catalog entry. (brand_id, filename) is the natural key — a brand cannot hold
+// two files of the same name — so UploadAsset is an upsert: re-uploading the
+// same filename replaces the bytes in place and keeps the asset id stable.
+//
+// Idempotency / safety re-expressed Connect-native (replacing the old REST
+// multipart upload + path handling):
+//   - UploadAsset upserts by (brand_id, filename): a re-upload overwrites the
+//     stored bytes and metadata without minting a new asset id.
+//   - UploadAsset validates the referenced brand exists (unknown brand_id →
+//     INVALID_ARGUMENT), the mime type is in the image whitelist, the filename
+//     is a safe basename, and the payload is non-empty and within the size cap.
+//   - DeleteAsset is idempotent: deleting a missing asset returns success and
+//     best-effort removes the on-disk file.
+//   - DownloadAsset streams the stored bytes back (unary; the file is small).
+//
+// Consumed by:
+//   - API: handlers/assets/connect_handler.go implements the generated
+//          AssetsServiceHandler interface.
+//   - UI:  ui/src/api/assets.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/assets/handlers.go calls the generated Connect-Go client.
+// =============================================================================
+
+service AssetsService {
+  rpc ListAssets(ListAssetsRequest) returns (ListAssetsResponse);
+  rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse);
+  rpc GetAsset(GetAssetRequest) returns (GetAssetResponse);
+  rpc DownloadAsset(DownloadAssetRequest) returns (DownloadAssetResponse);
+  rpc DeleteAsset(DeleteAssetRequest) returns (DeleteAssetResponse);
+}
+
+// Asset is the catalog entry for a brand asset file. The on-disk path is a
+// server-internal detail and is intentionally absent from the wire shape;
+// callers fetch bytes via DownloadAsset.
+message Asset {
+  // UUID assigned by the API on first upload of a (brand_id, filename).
+  string id = 1;
+  // The brand that owns the asset.
+  string brand_id = 2;
+  // The file's basename (e.g. "logo.png"). Unique within a brand.
+  string filename = 3;
+  // The validated image mime type (e.g. "image/png").
+  string mime_type = 4;
+  // The stored file's size in bytes.
+  int64 size = 5;
+  // Server time the asset was first uploaded (preserved across re-uploads).
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// ListAssetsRequest optionally filters by brand.
+message ListAssetsRequest {
+  // When non-empty, only assets for this brand are returned. Empty matches all
+  // assets across brands.
+  string brand_id = 1;
+}
+
+// ListAssetsResponse returns assets ordered newest-uploaded first.
+message ListAssetsResponse {
+  repeated Asset assets = 1;
+}
+
+// UploadAssetRequest uploads (or replaces) a brand asset file.
+message UploadAssetRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The file basename; path separators are rejected.
+  string filename = 2;
+  // Optional. The mime type; when empty the server infers it from the filename
+  // extension. The resolved type must be in the image whitelist.
+  string mime_type = 3;
+  // Required. The raw file bytes. Non-empty and within the size cap.
+  bytes content = 4;
+}
+
+// UploadAssetResponse returns the persisted asset catalog entry.
+message UploadAssetResponse {
+  Asset asset = 1;
+}
+
+// GetAssetRequest identifies the asset to read.
+message GetAssetRequest {
+  string id = 1;
+}
+
+// GetAssetResponse returns the requested asset catalog entry.
+message GetAssetResponse {
+  Asset asset = 1;
+}
+
+// DownloadAssetRequest identifies the asset whose bytes to fetch.
+message DownloadAssetRequest {
+  string id = 1;
+}
+
+// DownloadAssetResponse returns the stored file bytes plus the metadata needed
+// to save or render them.
+message DownloadAssetResponse {
+  string filename = 1;
+  string mime_type = 2;
+  bytes content = 3;
+}
+
+// DeleteAssetRequest identifies the asset to delete. Idempotent.
+message DeleteAssetRequest {
+  string id = 1;
+}
+
+// DeleteAssetResponse is empty; a successful call means the asset no longer
+// exists (whether or not it existed before).
+message DeleteAssetResponse {
+}

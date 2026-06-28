@@ -170,6 +170,7 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Measures, Runner: noOp, Optional: true})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Proto, Runner: noOp, Optional: true})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Branding, Runner: noOp, Optional: true})
 }
 
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {

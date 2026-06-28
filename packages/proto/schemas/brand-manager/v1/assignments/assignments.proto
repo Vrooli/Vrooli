@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package vrooli.brand_manager.v1.assignments;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/brand-manager/v1/assignments;assignments_v1";
+
+// =============================================================================
+// ASSIGNMENTS DOMAIN — links a brand to a scenario
+// =============================================================================
+//
+// @layer 5
+// @domain assignments
+// @stability stable
+//
+// Wire contract for the AssignmentsService Connect-RPC service. An Assignment
+// records that a scenario is branded by a specific brand, pinning the brand's
+// version at assignment time and the set of elements (logo, colors, …) that
+// were applied. A scenario carries at most one assignment — scenario_name is
+// the natural key — so AssignBrand is an upsert and re-assigning replaces the
+// prior link.
+//
+// Idempotency / concurrency re-expressed Connect-native (replacing the old REST
+// Idempotency-Key / X-Dry-Run headers):
+//   - AssignBrand upserts by scenario_name: assigning a scenario that already
+//     has a brand replaces the link and re-pins the brand version.
+//   - UnassignScenario is idempotent: unassigning a scenario with no brand
+//     returns success.
+//   - AssignBrand pins the brand's CURRENT version, so the referenced brand
+//     must exist (an unknown brand_id is rejected with INVALID_ARGUMENT).
+//
+// Consumed by:
+//   - API: handlers/assignments/connect_handler.go implements the generated
+//          AssignmentsServiceHandler interface.
+//   - UI:  ui/src/api/assignments.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/assignments/handlers.go calls the generated Connect-Go
+//          client.
+// =============================================================================
+
+service AssignmentsService {
+  rpc ListAssignments(ListAssignmentsRequest) returns (ListAssignmentsResponse);
+  rpc AssignBrand(AssignBrandRequest) returns (AssignBrandResponse);
+  rpc GetScenarioStatus(GetScenarioStatusRequest) returns (GetScenarioStatusResponse);
+  rpc UnassignScenario(UnassignScenarioRequest) returns (UnassignScenarioResponse);
+}
+
+// Assignment links a brand to a scenario at a pinned brand version.
+message Assignment {
+  // UUID assigned by the API on first assignment of a scenario.
+  string id = 1;
+  // The brand applied to the scenario.
+  string brand_id = 2;
+  // The scenario the brand is applied to. Natural key — one per scenario.
+  string scenario_name = 3;
+  // The brand's version at assignment time (pinned; does not float).
+  int32 brand_version = 4;
+  // Which brand elements were applied (e.g. "logo", "colors", "typography").
+  repeated string elements = 5;
+  // Server time the assignment was last (re)applied.
+  google.protobuf.Timestamp applied_at = 6;
+}
+
+// ScenarioStatus reports whether a scenario has a brand assigned and, if so,
+// which brand version and elements were applied.
+message ScenarioStatus {
+  string scenario = 1;
+  // True when an assignment exists for the scenario.
+  bool has_brand = 2;
+  // The assigned brand id; empty when has_brand is false.
+  string brand_id = 3;
+  // The pinned brand version; 0 when has_brand is false.
+  int32 brand_version = 4;
+  // The applied elements; empty when has_brand is false.
+  repeated string elements = 5;
+  // The applied-at time; unset when has_brand is false.
+  google.protobuf.Timestamp applied_at = 6;
+}
+
+// ListAssignmentsRequest optionally filters by brand.
+message ListAssignmentsRequest {
+  // When non-empty, only assignments for this brand are returned. Empty matches
+  // all assignments.
+  string brand_id = 1;
+}
+
+// ListAssignmentsResponse returns assignments ordered newest-applied first.
+message ListAssignmentsResponse {
+  repeated Assignment assignments = 1;
+}
+
+// AssignBrandRequest assigns (or re-assigns) a brand to a scenario.
+message AssignBrandRequest {
+  // Required. Must reference an existing brand.
+  string brand_id = 1;
+  // Required. The scenario to brand.
+  string scenario_name = 2;
+  // Optional. Which elements were applied. Empty is allowed.
+  repeated string elements = 3;
+}
+
+// AssignBrandResponse returns the persisted assignment.
+message AssignBrandResponse {
+  Assignment assignment = 1;
+}
+
+// GetScenarioStatusRequest identifies the scenario to read.
+message GetScenarioStatusRequest {
+  string scenario_name = 1;
+}
+
+// GetScenarioStatusResponse returns the scenario's branding status. A scenario
+// with no assignment yields has_brand=false rather than an error.
+message GetScenarioStatusResponse {
+  ScenarioStatus status = 1;
+}
+
+// UnassignScenarioRequest removes a scenario's brand assignment. Idempotent.
+message UnassignScenarioRequest {
+  string scenario_name = 1;
+}
+
+// UnassignScenarioResponse is empty; a successful call means the scenario has no
+// brand assignment (whether or not it had one before).
+message UnassignScenarioResponse {
+}

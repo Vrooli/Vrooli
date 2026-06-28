@@ -101,6 +101,13 @@ enum FindingSource {
   // `playbooks` phase; feeds the ecosystem-manager `storage` ladder
   // dimension.
   FINDING_SOURCE_STORAGE = 14;
+  // BRANDING: test-genie `branding` phase — delegates to the brand-manager
+  // scenario (ScenarioValidationService) and emits normalized branding
+  // findings (display-name, color-system, typography, logo, favicon, WCAG-AA
+  // contrast, applied brand markers) climbing a branding maturity ladder.
+  // Deterministic rules offer PreviewFix/ApplyFix auto-fixes. Feeds the
+  // ecosystem-manager `branding` ladder dimension.
+  FINDING_SOURCE_BRANDING = 15;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

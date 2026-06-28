@@ -4,7 +4,9 @@
   "title": "Vrooli Testing Configuration",
   "description": "Configuration for scenario testing phases",
   "type": "object",
-  "required": ["version"],
+  "required": [
+    "version"
+  ],
   "properties": {
     "$schema": {
       "type": "string",
@@ -45,7 +47,9 @@
             "type": "string"
           },
           "examples": [
-            ["cli/install.sh"]
+            [
+              "cli/install.sh"
+            ]
           ]
         },
         "exclude_dirs": {
@@ -55,7 +59,9 @@
             "type": "string"
           },
           "examples": [
-            ["ui"]
+            [
+              "ui"
+            ]
           ]
         },
         "additional_files": {
@@ -70,7 +76,9 @@
               {
                 "type": "object",
                 "description": "File check with options",
-                "required": ["path"],
+                "required": [
+                  "path"
+                ],
                 "properties": {
                   "path": {
                     "type": "string",
@@ -90,7 +98,10 @@
             ]
           },
           "examples": [
-            ["ui/tsconfig.json", "initialization/sqlite/schema.sql"]
+            [
+              "ui/tsconfig.json",
+              "initialization/sqlite/schema.sql"
+            ]
           ]
         },
         "additional_dirs": {
@@ -105,7 +116,9 @@
               {
                 "type": "object",
                 "description": "Directory check with options",
-                "required": ["path"],
+                "required": [
+                  "path"
+                ],
                 "properties": {
                   "path": {
                     "type": "string",
@@ -121,7 +134,10 @@
             ]
           },
           "examples": [
-            ["ui", "initialization"]
+            [
+              "ui",
+              "initialization"
+            ]
           ]
         },
         "ui_smoke": {
@@ -299,7 +315,9 @@
         },
         "workflow_filter": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Restrict execution to the named workflows (by file/registry key). Empty means run all."
         },
         "execution": {
@@ -372,9 +390,15 @@
               "type": "object",
               "description": "Severity to use when common top-level components exist without a supported lint quality contract.",
               "properties": {
-                "api": { "$ref": "#/definitions/lint_policy_severity" },
-                "ui": { "$ref": "#/definitions/lint_policy_severity" },
-                "cli": { "$ref": "#/definitions/lint_policy_severity" }
+                "api": {
+                  "$ref": "#/definitions/lint_policy_severity"
+                },
+                "ui": {
+                  "$ref": "#/definitions/lint_policy_severity"
+                },
+                "cli": {
+                  "$ref": "#/definitions/lint_policy_severity"
+                }
               },
               "additionalProperties": {
                 "$ref": "#/definitions/lint_policy_severity"
@@ -404,7 +428,7 @@
     },
     "unit": {
       "type": "object",
-      "description": "Unit test phase configuration. Uses convention: only define languages you want to test. Defaults: go→api, node→ui, python→api",
+      "description": "Unit test phase configuration. Uses convention: only define languages you want to test. Defaults: go\u2192api, node\u2192ui, python\u2192api",
       "properties": {
         "languages": {
           "type": "object",
@@ -639,7 +663,7 @@
       "properties": {
         "budgets": {
           "type": "object",
-          "description": "Per-scenario performance budgets — the single source of truth the performance-health budgets domain gates on (and that the benchmark runner reads for its build thresholds). All durations are milliseconds; sizes are bytes. Zero or absent means the axis is unset (never a violation). A breach of any declared axis fails baseline-diff exactly like any other health regression.",
+          "description": "Per-scenario performance budgets \u2014 the single source of truth the performance-health budgets domain gates on (and that the benchmark runner reads for its build thresholds). All durations are milliseconds; sizes are bytes. Zero or absent means the axis is unset (never a violation). A breach of any declared axis fails baseline-diff exactly like any other health regression.",
           "additionalProperties": false,
           "properties": {
             "go_build_max_ms": {
@@ -684,7 +708,7 @@
             },
             "flows": {
               "type": "object",
-              "description": "Per-interaction-flow budgets keyed by flow slug (a bas/flows/<slug>.json marked intent:performance). Each gates a specific targeted journey — driven by `performance-health audit run <scenario> --workflow <slug>` and measured by the continuous capture-sweep — independently of the scenario aggregate. Only the Tier-1/web-vitals axes apply per-flow; build/bundle/startup stay scenario-level.",
+              "description": "Per-interaction-flow budgets keyed by flow slug (a bas/flows/<slug>.json marked intent:performance). Each gates a specific targeted journey \u2014 driven by `performance-health audit run <scenario> --workflow <slug>` and measured by the continuous capture-sweep \u2014 independently of the scenario aggregate. Only the Tier-1/web-vitals axes apply per-flow; build/bundle/startup stay scenario-level.",
               "additionalProperties": {
                 "$ref": "#/definitions/flow_budget"
               }
@@ -766,25 +790,64 @@
       "type": "object",
       "description": "Per-phase execution overrides such as timeout targets",
       "properties": {
-        "structure": { "$ref": "#/definitions/phase_options" },
-        "contracts": { "$ref": "#/definitions/phase_options" },
-        "ui-health": { "$ref": "#/definitions/phase_options" },
-        "standards": { "$ref": "#/definitions/phase_options" },
-        "architecture": { "$ref": "#/definitions/phase_options" },
-        "dependencies": { "$ref": "#/definitions/phase_options" },
-        "quality": { "$ref": "#/definitions/phase_options" },
-        "docs": { "$ref": "#/definitions/phase_options" },
-        "unit": { "$ref": "#/definitions/phase_options" },
-        "storage": { "$ref": "#/definitions/phase_options" },
-        "playbooks": { "$ref": "#/definitions/phase_options" },
-        "business": { "$ref": "#/definitions/phase_options" },
-        "performance": { "$ref": "#/definitions/phase_options" },
-        "tidiness": { "$ref": "#/definitions/phase_options" },
-        "security": { "$ref": "#/definitions/phase_options" },
-        "measures": { "$ref": "#/definitions/phase_options" },
-        "proto": { "$ref": "#/definitions/phase_options" }
+        "structure": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "contracts": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "ui-health": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "standards": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "architecture": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "dependencies": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "quality": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "docs": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "unit": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "storage": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "playbooks": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "business": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "performance": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "tidiness": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "security": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "measures": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "proto": {
+          "$ref": "#/definitions/phase_options"
+        },
+        "branding": {
+          "$ref": "#/definitions/phase_options"
+        }
       },
-      "additionalProperties": { "$ref": "#/definitions/phase_options" }
+      "additionalProperties": {
+        "$ref": "#/definitions/phase_options"
+      }
     }
   },
   "definitions": {
@@ -849,31 +912,67 @@
             "pattern": "^$|^>=\\s*[0-9]+(\\.[0-9]+){0,2}$"
           },
           "properties": {
-            "go": { "type": "string", "default": ">=1.21" },
-            "node": { "type": "string", "default": ">=18.0.0" },
-            "python3": { "type": "string", "default": ">=3.10.0" },
-            "pnpm": { "type": "string" },
-            "npm": { "type": "string" },
-            "yarn": { "type": "string" }
+            "go": {
+              "type": "string",
+              "default": ">=1.21"
+            },
+            "node": {
+              "type": "string",
+              "default": ">=18.0.0"
+            },
+            "python3": {
+              "type": "string",
+              "default": ">=3.10.0"
+            },
+            "pnpm": {
+              "type": "string"
+            },
+            "npm": {
+              "type": "string"
+            },
+            "yarn": {
+              "type": "string"
+            }
           }
         },
         "go_modules": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean", "default": true },
-            "tidy_diff": { "type": "boolean", "default": true },
-            "build": { "type": "boolean", "default": false },
-            "local_replace_resolution": { "type": "boolean", "default": true }
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "tidy_diff": {
+              "type": "boolean",
+              "default": true
+            },
+            "build": {
+              "type": "boolean",
+              "default": false
+            },
+            "local_replace_resolution": {
+              "type": "boolean",
+              "default": true
+            }
           }
         },
         "node_packages": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean", "default": true },
-            "require_node_modules": { "type": "boolean", "default": true },
-            "lockfile_required": { "type": "boolean", "default": true }
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "require_node_modules": {
+              "type": "boolean",
+              "default": true
+            },
+            "lockfile_required": {
+              "type": "boolean",
+              "default": true
+            }
           }
         },
         "resources": {
@@ -882,7 +981,11 @@
           "properties": {
             "health_policy": {
               "type": "string",
-              "enum": ["fail", "warn", "skip"],
+              "enum": [
+                "fail",
+                "warn",
+                "skip"
+              ],
               "default": "fail"
             },
             "allow_unknown_health_when_running": {
@@ -891,7 +994,9 @@
             },
             "skip": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             }
           }
         },
@@ -899,10 +1004,17 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "enabled": { "type": "boolean", "default": true },
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
             "health_policy": {
               "type": "string",
-              "enum": ["fail", "warn", "skip"],
+              "enum": [
+                "fail",
+                "warn",
+                "skip"
+              ],
               "default": "fail"
             }
           }
@@ -944,7 +1056,12 @@
     },
     "lint_policy_severity": {
       "type": "string",
-      "enum": ["ignore", "info", "warning", "error"]
+      "enum": [
+        "ignore",
+        "info",
+        "warning",
+        "error"
+      ]
     },
     "language_config": {
       "type": "object",
@@ -1011,7 +1128,11 @@
           "description": "Bundle targets to validate",
           "items": {
             "type": "object",
-            "required": ["name", "path", "max_size_kb"],
+            "required": [
+              "name",
+              "path",
+              "max_size_kb"
+            ],
             "properties": {
               "name": {
                 "type": "string",
@@ -1037,7 +1158,12 @@
                 "items": {
                   "type": "string"
                 },
-                "examples": [["*.map", "*.LICENSE.txt"]]
+                "examples": [
+                  [
+                    "*.map",
+                    "*.LICENSE.txt"
+                  ]
+                ]
               },
               "requirement": {
                 "type": "string",
@@ -1059,7 +1185,11 @@
         },
         "language": {
           "type": "string",
-          "enum": ["go", "node", "python"],
+          "enum": [
+            "go",
+            "node",
+            "python"
+          ],
           "default": "go",
           "description": "Language for benchmark tests"
         },
@@ -1094,7 +1224,10 @@
           "description": "Endpoints to test",
           "items": {
             "type": "object",
-            "required": ["path", "max_ms"],
+            "required": [
+              "path",
+              "max_ms"
+            ],
             "properties": {
               "path": {
                 "type": "string",

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/ai/ai.proto.
  */
 export const file_image_tools_v1_ai_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyK6AgoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIEg8KB3JlYWxpc20YDiABKAESEgoKZmFjZV9hd2FyZRgPIAEoCBIYChBjb25zZW50X2FmZmlybWVkGBAgASgIIm8KEFN1Ym1pdEFJUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAIgASgFEhAKCG1vZGVsX2lkGAMgASgJEgwKBHRpZXIYBCABKAkSEAoId2FybmluZ3MYBSADKAkyhgEKCUFJU2VydmljZRJ5ChBMaXN0QUlPcGVyYXRpb25zEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXNwb25zZUJIWkZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2FpO2FpX3YxYgZwcm90bzM");
+  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyLyAgoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIEg8KB3JlYWxpc20YDiABKAESEgoKZmFjZV9hd2FyZRgPIAEoCBIYChBjb25zZW50X2FmZmlybWVkGBAgASgIEjYKCGFkYXB0ZXJzGBEgAygLMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFkYXB0ZXJSZWYibgoKQWRhcHRlclJlZhISCgphZGFwdGVyX2lkGAEgASgJEg0KBXNjYWxlGAIgASgBEh4KFmNvbmRpdGlvbmluZ19pbWFnZV9rZXkYAyABKAkSHQoVcHJlcHJvY2Vzc29yX292ZXJyaWRlGAQgASgJIm8KEFN1Ym1pdEFJUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAIgASgFEhAKCG1vZGVsX2lkGAMgASgJEgwKBHRpZXIYBCABKAkSEAoId2FybmluZ3MYBSADKAkyhgEKCUFJU2VydmljZRJ5ChBMaXN0QUlPcGVyYXRpb25zEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXNwb25zZUJIWkZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2FpO2FpX3YxYgZwcm90bzM");
 
 /**
  * AIOperationInfo describes one model-backed operation for discovery.
@@ -239,6 +239,18 @@ export type AIParams = Message<"vrooli.image_tools.v1.ai.AIParams"> & {
    * @generated from field: bool consent_affirmed = 16;
    */
   consentAffirmed: boolean;
+
+  /**
+   * Adapters is the ordered conditioning stack (LoRA / ControlNet / IP-Adapter)
+   * to compose with the base model for this generation/edit. Typed (never the
+   * params bag — decision C2): the resolver validates each against the chosen
+   * model's architecture, enabled/installed/Ready state, and elevates the consent
+   * weight to max(op, adapters...). An incompatible / not-yet-proven adapter is
+   * rejected before any job runs (no vaporware). Empty for an unconditioned op.
+   *
+   * @generated from field: repeated vrooli.image_tools.v1.ai.AdapterRef adapters = 17;
+   */
+  adapters: AdapterRef[];
 };
 
 /**
@@ -247,6 +259,53 @@ export type AIParams = Message<"vrooli.image_tools.v1.ai.AIParams"> & {
  */
 export const AIParamsSchema: GenMessage<AIParams> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_ai_ai, 3);
+
+/**
+ * AdapterRef is one requested conditioning modifier on a generation.
+ *
+ * @generated from message vrooli.image_tools.v1.ai.AdapterRef
+ */
+export type AdapterRef = Message<"vrooli.image_tools.v1.ai.AdapterRef"> & {
+  /**
+   * adapter_id is the catalog adapter id (`image-tools adapters list`).
+   *
+   * @generated from field: string adapter_id = 1;
+   */
+  adapterId: string;
+
+  /**
+   * scale is the conditioning strength; 0 = the adapter's default (clamped to its
+   * allowed range).
+   *
+   * @generated from field: double scale = 2;
+   */
+  scale: number;
+
+  /**
+   * conditioning_image_key is the blob key of the control / reference image
+   * (ControlNet / IP-Adapter). Empty for a LoRA, or for a ControlNet whose
+   * conditioning map is auto-derived from the generation input via a preprocessor.
+   *
+   * @generated from field: string conditioning_image_key = 3;
+   */
+  conditioningImageKey: string;
+
+  /**
+   * preprocessor_override forces a specific ControlNet preprocessor
+   * (canny|depth|pose|segment|none) instead of the adapter's declared one. Ignored
+   * for non-ControlNet kinds.
+   *
+   * @generated from field: string preprocessor_override = 4;
+   */
+  preprocessorOverride: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.ai.AdapterRef.
+ * Use `create(AdapterRefSchema)` to create a new message.
+ */
+export const AdapterRefSchema: GenMessage<AdapterRef> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_ai_ai, 4);
 
 /**
  * SubmitAIResponse is the protojson body returned by the REST submit edge. The
@@ -299,7 +358,7 @@ export type SubmitAIResponse = Message<"vrooli.image_tools.v1.ai.SubmitAIRespons
  * Use `create(SubmitAIResponseSchema)` to create a new message.
  */
 export const SubmitAIResponseSchema: GenMessage<SubmitAIResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_ai_ai, 4);
+  messageDesc(file_image_tools_v1_ai_ai, 5);
 
 /**
  * @generated from service vrooli.image_tools.v1.ai.AIService

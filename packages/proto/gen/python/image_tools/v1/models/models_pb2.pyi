@@ -469,7 +469,7 @@ class ListOperationModelsRequest(_message.Message):
     def __init__(self, operation: _Optional[str] = ...) -> None: ...
 
 class Resolution(_message.Message):
-    __slots__ = ("operation", "model_id", "model_name", "support", "technique", "pipeline_class", "caveat", "weight", "tier", "gpu_viable", "warnings")
+    __slots__ = ("operation", "model_id", "model_name", "support", "technique", "pipeline_class", "caveat", "weight", "tier", "gpu_viable", "warnings", "adapters")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -481,6 +481,7 @@ class Resolution(_message.Message):
     TIER_FIELD_NUMBER: _ClassVar[int]
     GPU_VIABLE_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    ADAPTERS_FIELD_NUMBER: _ClassVar[int]
     operation: str
     model_id: str
     model_name: str
@@ -492,17 +493,52 @@ class Resolution(_message.Message):
     tier: str
     gpu_viable: bool
     warnings: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., model_name: _Optional[str] = ..., support: _Optional[str] = ..., technique: _Optional[str] = ..., pipeline_class: _Optional[str] = ..., caveat: _Optional[str] = ..., weight: _Optional[str] = ..., tier: _Optional[str] = ..., gpu_viable: _Optional[bool] = ..., warnings: _Optional[_Iterable[str]] = ...) -> None: ...
+    adapters: _containers.RepeatedCompositeFieldContainer[ResolvedAdapter]
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., model_name: _Optional[str] = ..., support: _Optional[str] = ..., technique: _Optional[str] = ..., pipeline_class: _Optional[str] = ..., caveat: _Optional[str] = ..., weight: _Optional[str] = ..., tier: _Optional[str] = ..., gpu_viable: _Optional[bool] = ..., warnings: _Optional[_Iterable[str]] = ..., adapters: _Optional[_Iterable[_Union[ResolvedAdapter, _Mapping]]] = ...) -> None: ...
+
+class AdapterRef(_message.Message):
+    __slots__ = ("adapter_id", "scale", "conditioning_image_key", "preprocessor_override")
+    ADAPTER_ID_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
+    CONDITIONING_IMAGE_KEY_FIELD_NUMBER: _ClassVar[int]
+    PREPROCESSOR_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
+    adapter_id: str
+    scale: float
+    conditioning_image_key: str
+    preprocessor_override: str
+    def __init__(self, adapter_id: _Optional[str] = ..., scale: _Optional[float] = ..., conditioning_image_key: _Optional[str] = ..., preprocessor_override: _Optional[str] = ...) -> None: ...
+
+class ResolvedAdapter(_message.Message):
+    __slots__ = ("id", "name", "kind", "architecture", "scale", "weight", "preprocessor", "conditioning_image_key")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
+    SCALE_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    PREPROCESSOR_FIELD_NUMBER: _ClassVar[int]
+    CONDITIONING_IMAGE_KEY_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    name: str
+    kind: str
+    architecture: str
+    scale: float
+    weight: str
+    preprocessor: str
+    conditioning_image_key: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., architecture: _Optional[str] = ..., scale: _Optional[float] = ..., weight: _Optional[str] = ..., preprocessor: _Optional[str] = ..., conditioning_image_key: _Optional[str] = ...) -> None: ...
 
 class ExplainResolutionRequest(_message.Message):
-    __slots__ = ("operation", "model_id", "allow_byok")
+    __slots__ = ("operation", "model_id", "allow_byok", "adapters")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
+    ADAPTERS_FIELD_NUMBER: _ClassVar[int]
     operation: str
     model_id: str
     allow_byok: bool
-    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., allow_byok: _Optional[bool] = ...) -> None: ...
+    adapters: _containers.RepeatedCompositeFieldContainer[AdapterRef]
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ...) -> None: ...
 
 class ExplainResolutionResponse(_message.Message):
     __slots__ = ("resolution",)

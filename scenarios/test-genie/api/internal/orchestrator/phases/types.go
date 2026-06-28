@@ -35,6 +35,7 @@ const (
 	Security     Name = "security"
 	Measures     Name = "measures"
 	Proto        Name = "proto"
+	Branding     Name = "branding"
 )
 
 const (

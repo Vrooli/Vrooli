@@ -2467,6 +2467,103 @@ func (x *NextPhaseResponse) GetStep() *shared.GuidedStep {
 	return nil
 }
 
+type PreviewPlanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewPlanRequest) Reset() {
+	*x = PreviewPlanRequest{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewPlanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewPlanRequest) ProtoMessage() {}
+
+func (x *PreviewPlanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewPlanRequest.ProtoReflect.Descriptor instead.
+func (*PreviewPlanRequest) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *PreviewPlanRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type PreviewPlanResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The rendered markdown review artifact for the in-progress plan.
+	Markdown      string             `protobuf:"bytes,1,opt,name=markdown,proto3" json:"markdown,omitempty"`
+	Step          *shared.GuidedStep `protobuf:"bytes,2,opt,name=step,proto3" json:"step,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewPlanResponse) Reset() {
+	*x = PreviewPlanResponse{}
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewPlanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewPlanResponse) ProtoMessage() {}
+
+func (x *PreviewPlanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewPlanResponse.ProtoReflect.Descriptor instead.
+func (*PreviewPlanResponse) Descriptor() ([]byte, []int) {
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *PreviewPlanResponse) GetMarkdown() string {
+	if x != nil {
+		return x.Markdown
+	}
+	return ""
+}
+
+func (x *PreviewPlanResponse) GetStep() *shared.GuidedStep {
+	if x != nil {
+		return x.Step
+	}
+	return nil
+}
+
 type FinalizeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -2476,7 +2573,7 @@ type FinalizeRequest struct {
 
 func (x *FinalizeRequest) Reset() {
 	*x = FinalizeRequest{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[38]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2488,7 +2585,7 @@ func (x *FinalizeRequest) String() string {
 func (*FinalizeRequest) ProtoMessage() {}
 
 func (x *FinalizeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[38]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2501,7 +2598,7 @@ func (x *FinalizeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinalizeRequest.ProtoReflect.Descriptor instead.
 func (*FinalizeRequest) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{38}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *FinalizeRequest) GetSessionId() string {
@@ -2521,7 +2618,7 @@ type FinalizeResponse struct {
 
 func (x *FinalizeResponse) Reset() {
 	*x = FinalizeResponse{}
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[39]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2533,7 +2630,7 @@ func (x *FinalizeResponse) String() string {
 func (*FinalizeResponse) ProtoMessage() {}
 
 func (x *FinalizeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[39]
+	mi := &file_plan_manager_v1_authoring_authoring_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2546,7 +2643,7 @@ func (x *FinalizeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinalizeResponse.ProtoReflect.Descriptor instead.
 func (*FinalizeResponse) Descriptor() ([]byte, []int) {
-	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{39}
+	return file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *FinalizeResponse) GetPlan() *shared.Plan {
@@ -2782,13 +2879,19 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\x11NextPhaseResponse\x12B\n" +
 	"\x05phase\x18\x01 \x01(\v2,.vrooli.plan_manager.v1.authoring.PhaseDraftR\x05phase\x12\x1a\n" +
 	"\bcomplete\x18\x02 \x01(\bR\bcomplete\x12=\n" +
-	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"0\n" +
+	"\x04step\x18\x03 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"3\n" +
+	"\x12PreviewPlanRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"p\n" +
+	"\x13PreviewPlanResponse\x12\x1a\n" +
+	"\bmarkdown\x18\x01 \x01(\tR\bmarkdown\x12=\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step\"0\n" +
 	"\x0fFinalizeRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\x8a\x01\n" +
 	"\x10FinalizeResponse\x127\n" +
 	"\x04plan\x18\x01 \x01(\v2#.vrooli.plan_manager.v1.shared.PlanR\x04plan\x12=\n" +
-	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step2\xff\x11\n" +
+	"\x04step\x18\x02 \x01(\v2).vrooli.plan_manager.v1.shared.GuidedStepR\x04step2\xfb\x12\n" +
 	"\x10AuthoringService\x12}\n" +
 	"\fStartSession\x125.vrooli.plan_manager.v1.authoring.StartSessionRequest\x1a6.vrooli.plan_manager.v1.authoring.StartSessionResponse\x12w\n" +
 	"\n" +
@@ -2806,7 +2909,8 @@ const file_plan_manager_v1_authoring_authoring_proto_rawDesc = "" +
 	"\bAddPhase\x121.vrooli.plan_manager.v1.authoring.AddPhaseRequest\x1a2.vrooli.plan_manager.v1.authoring.AddPhaseResponse\x12q\n" +
 	"\bGetPhase\x121.vrooli.plan_manager.v1.authoring.GetPhaseRequest\x1a2.vrooli.plan_manager.v1.authoring.GetPhaseResponse\x12\x89\x01\n" +
 	"\x10SubmitPhaseField\x129.vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest\x1a:.vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse\x12t\n" +
-	"\tNextPhase\x122.vrooli.plan_manager.v1.authoring.NextPhaseRequest\x1a3.vrooli.plan_manager.v1.authoring.NextPhaseResponse\x12q\n" +
+	"\tNextPhase\x122.vrooli.plan_manager.v1.authoring.NextPhaseRequest\x1a3.vrooli.plan_manager.v1.authoring.NextPhaseResponse\x12z\n" +
+	"\vPreviewPlan\x124.vrooli.plan_manager.v1.authoring.PreviewPlanRequest\x1a5.vrooli.plan_manager.v1.authoring.PreviewPlanResponse\x12q\n" +
 	"\bFinalize\x121.vrooli.plan_manager.v1.authoring.FinalizeRequest\x1a2.vrooli.plan_manager.v1.authoring.FinalizeResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/authoring;authoring_v1b\x06proto3"
 
 var (
@@ -2821,7 +2925,7 @@ func file_plan_manager_v1_authoring_authoring_proto_rawDescGZIP() []byte {
 	return file_plan_manager_v1_authoring_authoring_proto_rawDescData
 }
 
-var file_plan_manager_v1_authoring_authoring_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_plan_manager_v1_authoring_authoring_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_plan_manager_v1_authoring_authoring_proto_goTypes = []any{
 	(*Section)(nil),                           // 0: vrooli.plan_manager.v1.authoring.Section
 	(*AuthoringSession)(nil),                  // 1: vrooli.plan_manager.v1.authoring.AuthoringSession
@@ -2861,110 +2965,115 @@ var file_plan_manager_v1_authoring_authoring_proto_goTypes = []any{
 	(*SubmitPhaseFieldResponse)(nil),          // 35: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
 	(*NextPhaseRequest)(nil),                  // 36: vrooli.plan_manager.v1.authoring.NextPhaseRequest
 	(*NextPhaseResponse)(nil),                 // 37: vrooli.plan_manager.v1.authoring.NextPhaseResponse
-	(*FinalizeRequest)(nil),                   // 38: vrooli.plan_manager.v1.authoring.FinalizeRequest
-	(*FinalizeResponse)(nil),                  // 39: vrooli.plan_manager.v1.authoring.FinalizeResponse
-	(*shared.RelevantContextItem)(nil),        // 40: vrooli.plan_manager.v1.shared.RelevantContextItem
-	(*shared.Reference)(nil),                  // 41: vrooli.plan_manager.v1.shared.Reference
-	(*shared.GuidedStep)(nil),                 // 42: vrooli.plan_manager.v1.shared.GuidedStep
-	(*shared.Plan)(nil),                       // 43: vrooli.plan_manager.v1.shared.Plan
+	(*PreviewPlanRequest)(nil),                // 38: vrooli.plan_manager.v1.authoring.PreviewPlanRequest
+	(*PreviewPlanResponse)(nil),               // 39: vrooli.plan_manager.v1.authoring.PreviewPlanResponse
+	(*FinalizeRequest)(nil),                   // 40: vrooli.plan_manager.v1.authoring.FinalizeRequest
+	(*FinalizeResponse)(nil),                  // 41: vrooli.plan_manager.v1.authoring.FinalizeResponse
+	(*shared.RelevantContextItem)(nil),        // 42: vrooli.plan_manager.v1.shared.RelevantContextItem
+	(*shared.Reference)(nil),                  // 43: vrooli.plan_manager.v1.shared.Reference
+	(*shared.GuidedStep)(nil),                 // 44: vrooli.plan_manager.v1.shared.GuidedStep
+	(*shared.Plan)(nil),                       // 45: vrooli.plan_manager.v1.shared.Plan
 }
 var file_plan_manager_v1_authoring_authoring_proto_depIdxs = []int32{
 	0,  // 0: vrooli.plan_manager.v1.authoring.AuthoringSession.sections:type_name -> vrooli.plan_manager.v1.authoring.Section
 	5,  // 1: vrooli.plan_manager.v1.authoring.AuthoringSession.phase_drafts:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
-	40, // 2: vrooli.plan_manager.v1.authoring.AuthoringSession.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	42, // 2: vrooli.plan_manager.v1.authoring.AuthoringSession.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
 	4,  // 3: vrooli.plan_manager.v1.authoring.AuthoringSession.context_candidates:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
-	40, // 4: vrooli.plan_manager.v1.authoring.ContextCandidate.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
-	41, // 5: vrooli.plan_manager.v1.authoring.PhaseDraft.references:type_name -> vrooli.plan_manager.v1.shared.Reference
-	40, // 6: vrooli.plan_manager.v1.authoring.PhaseDraft.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	42, // 4: vrooli.plan_manager.v1.authoring.ContextCandidate.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	43, // 5: vrooli.plan_manager.v1.authoring.PhaseDraft.references:type_name -> vrooli.plan_manager.v1.shared.Reference
+	42, // 6: vrooli.plan_manager.v1.authoring.PhaseDraft.relevant_context:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
 	1,  // 7: vrooli.plan_manager.v1.authoring.StartSessionResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
-	42, // 8: vrooli.plan_manager.v1.authoring.StartSessionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 8: vrooli.plan_manager.v1.authoring.StartSessionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	0,  // 9: vrooli.plan_manager.v1.authoring.GetSectionResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
-	42, // 10: vrooli.plan_manager.v1.authoring.GetSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 10: vrooli.plan_manager.v1.authoring.GetSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 11: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	2,  // 12: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	42, // 13: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 13: vrooli.plan_manager.v1.authoring.SubmitSectionResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	0,  // 14: vrooli.plan_manager.v1.authoring.NextResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
-	42, // 15: vrooli.plan_manager.v1.authoring.NextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 15: vrooli.plan_manager.v1.authoring.NextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 16: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	0,  // 17: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.section:type_name -> vrooli.plan_manager.v1.authoring.Section
 	5,  // 18: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
 	2,  // 19: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	42, // 20: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 20: vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	2,  // 21: vrooli.plan_manager.v1.authoring.ValidateStructureResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	42, // 22: vrooli.plan_manager.v1.authoring.ValidateStructureResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 22: vrooli.plan_manager.v1.authoring.ValidateStructureResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 23: vrooli.plan_manager.v1.authoring.AutofillResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	3,  // 24: vrooli.plan_manager.v1.authoring.AutofillResponse.results:type_name -> vrooli.plan_manager.v1.authoring.AutofillResult
-	42, // 25: vrooli.plan_manager.v1.authoring.AutofillResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	40, // 26: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	44, // 25: vrooli.plan_manager.v1.authoring.AutofillResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	42, // 26: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
 	1,  // 27: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
-	40, // 28: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	42, // 28: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
 	2,  // 29: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	42, // 30: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	40, // 31: vrooli.plan_manager.v1.authoring.ListRelevantContextResponse.items:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
-	42, // 32: vrooli.plan_manager.v1.authoring.ListRelevantContextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 30: vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	42, // 31: vrooli.plan_manager.v1.authoring.ListRelevantContextResponse.items:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	44, // 32: vrooli.plan_manager.v1.authoring.ListRelevantContextResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 33: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	4,  // 34: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse.candidates:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
-	42, // 35: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 35: vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 36: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	4,  // 37: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.candidate:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
-	40, // 38: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
+	42, // 38: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.item:type_name -> vrooli.plan_manager.v1.shared.RelevantContextItem
 	2,  // 39: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	42, // 40: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 40: vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 41: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	4,  // 42: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse.candidate:type_name -> vrooli.plan_manager.v1.authoring.ContextCandidate
-	42, // 43: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 43: vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 44: vrooli.plan_manager.v1.authoring.AddPhaseResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	5,  // 45: vrooli.plan_manager.v1.authoring.AddPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
 	2,  // 46: vrooli.plan_manager.v1.authoring.AddPhaseResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	42, // 47: vrooli.plan_manager.v1.authoring.AddPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 47: vrooli.plan_manager.v1.authoring.AddPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	5,  // 48: vrooli.plan_manager.v1.authoring.GetPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
-	42, // 49: vrooli.plan_manager.v1.authoring.GetPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 49: vrooli.plan_manager.v1.authoring.GetPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	1,  // 50: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.session:type_name -> vrooli.plan_manager.v1.authoring.AuthoringSession
 	2,  // 51: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.violations:type_name -> vrooli.plan_manager.v1.authoring.StructureViolation
-	42, // 52: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 52: vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
 	5,  // 53: vrooli.plan_manager.v1.authoring.NextPhaseResponse.phase:type_name -> vrooli.plan_manager.v1.authoring.PhaseDraft
-	42, // 54: vrooli.plan_manager.v1.authoring.NextPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	43, // 55: vrooli.plan_manager.v1.authoring.FinalizeResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
-	42, // 56: vrooli.plan_manager.v1.authoring.FinalizeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
-	6,  // 57: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:input_type -> vrooli.plan_manager.v1.authoring.StartSessionRequest
-	8,  // 58: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:input_type -> vrooli.plan_manager.v1.authoring.GetSectionRequest
-	10, // 59: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:input_type -> vrooli.plan_manager.v1.authoring.SubmitSectionRequest
-	12, // 60: vrooli.plan_manager.v1.authoring.AuthoringService.Next:input_type -> vrooli.plan_manager.v1.authoring.NextRequest
-	14, // 61: vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring:input_type -> vrooli.plan_manager.v1.authoring.ContinueAuthoringRequest
-	16, // 62: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:input_type -> vrooli.plan_manager.v1.authoring.ValidateStructureRequest
-	18, // 63: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:input_type -> vrooli.plan_manager.v1.authoring.AutofillRequest
-	20, // 64: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem:input_type -> vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest
-	22, // 65: vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext:input_type -> vrooli.plan_manager.v1.authoring.ListRelevantContextRequest
-	24, // 66: vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates:input_type -> vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesRequest
-	26, // 67: vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate:input_type -> vrooli.plan_manager.v1.authoring.AcceptContextCandidateRequest
-	28, // 68: vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate:input_type -> vrooli.plan_manager.v1.authoring.RejectContextCandidateRequest
-	30, // 69: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:input_type -> vrooli.plan_manager.v1.authoring.AddPhaseRequest
-	32, // 70: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:input_type -> vrooli.plan_manager.v1.authoring.GetPhaseRequest
-	34, // 71: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:input_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest
-	36, // 72: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:input_type -> vrooli.plan_manager.v1.authoring.NextPhaseRequest
-	38, // 73: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:input_type -> vrooli.plan_manager.v1.authoring.FinalizeRequest
-	7,  // 74: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:output_type -> vrooli.plan_manager.v1.authoring.StartSessionResponse
-	9,  // 75: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:output_type -> vrooli.plan_manager.v1.authoring.GetSectionResponse
-	11, // 76: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:output_type -> vrooli.plan_manager.v1.authoring.SubmitSectionResponse
-	13, // 77: vrooli.plan_manager.v1.authoring.AuthoringService.Next:output_type -> vrooli.plan_manager.v1.authoring.NextResponse
-	15, // 78: vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring:output_type -> vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse
-	17, // 79: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:output_type -> vrooli.plan_manager.v1.authoring.ValidateStructureResponse
-	19, // 80: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:output_type -> vrooli.plan_manager.v1.authoring.AutofillResponse
-	21, // 81: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem:output_type -> vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse
-	23, // 82: vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext:output_type -> vrooli.plan_manager.v1.authoring.ListRelevantContextResponse
-	25, // 83: vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates:output_type -> vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse
-	27, // 84: vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate:output_type -> vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse
-	29, // 85: vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate:output_type -> vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse
-	31, // 86: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:output_type -> vrooli.plan_manager.v1.authoring.AddPhaseResponse
-	33, // 87: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:output_type -> vrooli.plan_manager.v1.authoring.GetPhaseResponse
-	35, // 88: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:output_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
-	37, // 89: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:output_type -> vrooli.plan_manager.v1.authoring.NextPhaseResponse
-	39, // 90: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:output_type -> vrooli.plan_manager.v1.authoring.FinalizeResponse
-	74, // [74:91] is the sub-list for method output_type
-	57, // [57:74] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	44, // 54: vrooli.plan_manager.v1.authoring.NextPhaseResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	44, // 55: vrooli.plan_manager.v1.authoring.PreviewPlanResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	45, // 56: vrooli.plan_manager.v1.authoring.FinalizeResponse.plan:type_name -> vrooli.plan_manager.v1.shared.Plan
+	44, // 57: vrooli.plan_manager.v1.authoring.FinalizeResponse.step:type_name -> vrooli.plan_manager.v1.shared.GuidedStep
+	6,  // 58: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:input_type -> vrooli.plan_manager.v1.authoring.StartSessionRequest
+	8,  // 59: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:input_type -> vrooli.plan_manager.v1.authoring.GetSectionRequest
+	10, // 60: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:input_type -> vrooli.plan_manager.v1.authoring.SubmitSectionRequest
+	12, // 61: vrooli.plan_manager.v1.authoring.AuthoringService.Next:input_type -> vrooli.plan_manager.v1.authoring.NextRequest
+	14, // 62: vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring:input_type -> vrooli.plan_manager.v1.authoring.ContinueAuthoringRequest
+	16, // 63: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:input_type -> vrooli.plan_manager.v1.authoring.ValidateStructureRequest
+	18, // 64: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:input_type -> vrooli.plan_manager.v1.authoring.AutofillRequest
+	20, // 65: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem:input_type -> vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemRequest
+	22, // 66: vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext:input_type -> vrooli.plan_manager.v1.authoring.ListRelevantContextRequest
+	24, // 67: vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates:input_type -> vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesRequest
+	26, // 68: vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate:input_type -> vrooli.plan_manager.v1.authoring.AcceptContextCandidateRequest
+	28, // 69: vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate:input_type -> vrooli.plan_manager.v1.authoring.RejectContextCandidateRequest
+	30, // 70: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:input_type -> vrooli.plan_manager.v1.authoring.AddPhaseRequest
+	32, // 71: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:input_type -> vrooli.plan_manager.v1.authoring.GetPhaseRequest
+	34, // 72: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:input_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldRequest
+	36, // 73: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:input_type -> vrooli.plan_manager.v1.authoring.NextPhaseRequest
+	38, // 74: vrooli.plan_manager.v1.authoring.AuthoringService.PreviewPlan:input_type -> vrooli.plan_manager.v1.authoring.PreviewPlanRequest
+	40, // 75: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:input_type -> vrooli.plan_manager.v1.authoring.FinalizeRequest
+	7,  // 76: vrooli.plan_manager.v1.authoring.AuthoringService.StartSession:output_type -> vrooli.plan_manager.v1.authoring.StartSessionResponse
+	9,  // 77: vrooli.plan_manager.v1.authoring.AuthoringService.GetSection:output_type -> vrooli.plan_manager.v1.authoring.GetSectionResponse
+	11, // 78: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitSection:output_type -> vrooli.plan_manager.v1.authoring.SubmitSectionResponse
+	13, // 79: vrooli.plan_manager.v1.authoring.AuthoringService.Next:output_type -> vrooli.plan_manager.v1.authoring.NextResponse
+	15, // 80: vrooli.plan_manager.v1.authoring.AuthoringService.ContinueAuthoring:output_type -> vrooli.plan_manager.v1.authoring.ContinueAuthoringResponse
+	17, // 81: vrooli.plan_manager.v1.authoring.AuthoringService.ValidateStructure:output_type -> vrooli.plan_manager.v1.authoring.ValidateStructureResponse
+	19, // 82: vrooli.plan_manager.v1.authoring.AuthoringService.Autofill:output_type -> vrooli.plan_manager.v1.authoring.AutofillResponse
+	21, // 83: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitRelevantContextItem:output_type -> vrooli.plan_manager.v1.authoring.SubmitRelevantContextItemResponse
+	23, // 84: vrooli.plan_manager.v1.authoring.AuthoringService.ListRelevantContext:output_type -> vrooli.plan_manager.v1.authoring.ListRelevantContextResponse
+	25, // 85: vrooli.plan_manager.v1.authoring.AuthoringService.DiscoverContextCandidates:output_type -> vrooli.plan_manager.v1.authoring.DiscoverContextCandidatesResponse
+	27, // 86: vrooli.plan_manager.v1.authoring.AuthoringService.AcceptContextCandidate:output_type -> vrooli.plan_manager.v1.authoring.AcceptContextCandidateResponse
+	29, // 87: vrooli.plan_manager.v1.authoring.AuthoringService.RejectContextCandidate:output_type -> vrooli.plan_manager.v1.authoring.RejectContextCandidateResponse
+	31, // 88: vrooli.plan_manager.v1.authoring.AuthoringService.AddPhase:output_type -> vrooli.plan_manager.v1.authoring.AddPhaseResponse
+	33, // 89: vrooli.plan_manager.v1.authoring.AuthoringService.GetPhase:output_type -> vrooli.plan_manager.v1.authoring.GetPhaseResponse
+	35, // 90: vrooli.plan_manager.v1.authoring.AuthoringService.SubmitPhaseField:output_type -> vrooli.plan_manager.v1.authoring.SubmitPhaseFieldResponse
+	37, // 91: vrooli.plan_manager.v1.authoring.AuthoringService.NextPhase:output_type -> vrooli.plan_manager.v1.authoring.NextPhaseResponse
+	39, // 92: vrooli.plan_manager.v1.authoring.AuthoringService.PreviewPlan:output_type -> vrooli.plan_manager.v1.authoring.PreviewPlanResponse
+	41, // 93: vrooli.plan_manager.v1.authoring.AuthoringService.Finalize:output_type -> vrooli.plan_manager.v1.authoring.FinalizeResponse
+	76, // [76:94] is the sub-list for method output_type
+	58, // [58:76] is the sub-list for method input_type
+	58, // [58:58] is the sub-list for extension type_name
+	58, // [58:58] is the sub-list for extension extendee
+	0,  // [0:58] is the sub-list for field type_name
 }
 
 func init() { file_plan_manager_v1_authoring_authoring_proto_init() }
@@ -2978,7 +3087,7 @@ func file_plan_manager_v1_authoring_authoring_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plan_manager_v1_authoring_authoring_proto_rawDesc), len(file_plan_manager_v1_authoring_authoring_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   40,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -138,6 +138,43 @@ enum Completeness {
   COMPLETENESS_PARTIAL = 2;
 }
 
+// WorkPosture is the Greenfield/Brownfield stance of a plan. AUTOFILLED from the
+// associated scenario's maturity (default GREENFIELD); never agent-authored. The
+// renderer injects the matching guidance block. See docs/concepts/PLAN-MODEL.md.
+enum WorkPosture {
+  WORK_POSTURE_UNSPECIFIED = 0;
+  WORK_POSTURE_GREENFIELD = 1; // net-new work; no compatibility shims/dead code
+  WORK_POSTURE_BROWNFIELD = 2; // deployed/limited-live; preserve external contracts
+}
+
+// WorkPostureSource records HOW the posture was decided (audit/explainability).
+enum WorkPostureSource {
+  WORK_POSTURE_SOURCE_UNSPECIFIED = 0;
+  WORK_POSTURE_SOURCE_DEFAULT = 1; // no resolvable scenario; defaulted to greenfield
+  WORK_POSTURE_SOURCE_SERVICE_MATURITY = 2; // derived from scenario .vrooli/service.json maturity
+  WORK_POSTURE_SOURCE_EXPLICIT_OVERRIDE = 3; // a future explicit override signal
+  WORK_POSTURE_SOURCE_IMPORT_LEGACY = 4; // carried in from a legacy markdown import
+}
+
+// LegacySection is one imported markdown section preserved as provenance because
+// it could not be mapped to a canonical field — never silently dropped.
+message LegacySection {
+  string heading = 1; // the original markdown heading text
+  string content = 2; // the verbatim section body
+  string mapped_to = 3; // canonical field it partially informed, when any
+  string preservation_reason = 4; // e.g. "unmapped_legacy_section"
+}
+
+// ImportProvenance records that a plan was adopted from a legacy markdown source
+// rather than authored fresh. Import is non-destructive (the source is never
+// moved/deleted); this is the bookkeeping that records where it came from.
+message ImportProvenance {
+  string source_path = 1; // path the markdown was imported from (informational)
+  string imported_at = 2; // RFC3339
+  string original_format = 3; // e.g. "legacy_markdown"
+  string note = 4; // human-readable adoption note
+}
+
 // ValidationVerdict is the outcome of a validation/DoD check. UNKNOWN is the
 // honest degraded result when a composed dependency (code-facts /
 // git-control-tower) is unavailable — never a false PASS.
@@ -420,6 +457,20 @@ message Phase {
   ValidationResult last_validation = 10;
   repeated Reference references = 11;
   repeated RelevantContextItem relevant_context = 12;
+  // AUTHORED professional phase fields (see docs/concepts/PLAN-MODEL.md).
+  // Orienting prose lines for the files/dirs/surfaces this phase touches.
+  repeated string affected_areas = 13;
+  // Ordered implementation steps an agent follows. Mandatory for impl phases.
+  repeated string steps = 14;
+  // Artifacts/outputs this phase should produce.
+  repeated string expected_outputs = 15;
+  // The METHOD of checking this phase (commands/checks). Distinct from
+  // acceptance (the outcome gate); the two must not be identical.
+  string validation = 16;
+  // What the next phase depends on / what a resuming agent must know.
+  string handoff_notes = 17;
+  // Phase-specific risks/hazards and controls, only when relevant.
+  repeated string risks_hazards = 18;
 }
 
 // Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
@@ -443,6 +494,22 @@ message Plan {
   repeated string supersedes = 16; // plan-graph edges
   repeated string superseded_by = 17; // plan-graph edges
   repeated RelevantContextItem relevant_context = 18;
+  // AUTHORED professional plan fields (see docs/concepts/PLAN-MODEL.md).
+  string problem_statement = 19; // the concrete problem/need/gap this closes
+  string target_outcome = 20; // the observable end state once done
+  string assumptions = 21; // preconditions taken as given
+  string technical_approach = 22; // design rationale: the chosen approach + why
+  string validation_strategy = 23; // how the plan proves it works
+  repeated string final_validation_commands = 24; // exact end-of-plan review commands
+  string risks_hazards = 25; // plan-wide risks/hazards + controls, when relevant
+  string prohibited_approaches = 26; // off-limits approaches, only when relevant
+  // AUTOFILLED/COMPUTED work posture (never agent-authored).
+  WorkPosture work_posture = 27;
+  WorkPostureSource work_posture_source = 28;
+  string work_posture_detail = 29; // derivation note (fallback reason, sunset warning)
+  // GOVERNANCE: import bookkeeping (only when imported).
+  ImportProvenance import_provenance = 30;
+  repeated LegacySection preserved_legacy_sections = 31;
 }
 
 // PlanEdge is one supersession/dependency edge between two plans (the plan

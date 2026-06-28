@@ -128,6 +128,30 @@ message AIParams {
   // local/personal tier it is unenforced (personal use is unrestricted). Naturalize
   // is low-weight and never requires it. See docs/internal/SECURITY.md.
   bool consent_affirmed = 16;
+  // Adapters is the ordered conditioning stack (LoRA / ControlNet / IP-Adapter)
+  // to compose with the base model for this generation/edit. Typed (never the
+  // params bag — decision C2): the resolver validates each against the chosen
+  // model's architecture, enabled/installed/Ready state, and elevates the consent
+  // weight to max(op, adapters...). An incompatible / not-yet-proven adapter is
+  // rejected before any job runs (no vaporware). Empty for an unconditioned op.
+  repeated AdapterRef adapters = 17;
+}
+
+// AdapterRef is one requested conditioning modifier on a generation.
+message AdapterRef {
+  // adapter_id is the catalog adapter id (`image-tools adapters list`).
+  string adapter_id = 1;
+  // scale is the conditioning strength; 0 = the adapter's default (clamped to its
+  // allowed range).
+  double scale = 2;
+  // conditioning_image_key is the blob key of the control / reference image
+  // (ControlNet / IP-Adapter). Empty for a LoRA, or for a ControlNet whose
+  // conditioning map is auto-derived from the generation input via a preprocessor.
+  string conditioning_image_key = 3;
+  // preprocessor_override forces a specific ControlNet preprocessor
+  // (canny|depth|pose|segment|none) instead of the adapter's declared one. Ignored
+  // for non-ControlNet kinds.
+  string preprocessor_override = 4;
 }
 
 // SubmitAIResponse is the protojson body returned by the REST submit edge. The

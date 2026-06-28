@@ -46,6 +46,9 @@ The most important source-of-truth rule is:
 - `deprecated-resources.schema.json`
   Defines the schema for `.vrooli/deprecated-resources.json`.
 
+- `space-definition.schema.json`
+  Defines the cross-scenario coverage-space *denominator* contract (`space-definition/v1`). Each projection owner (search-hub=Answer, test-genie=Validate, prompt-manager=Guide) emits its curated space doc as schema-valid JSON via the `space --projection <p> --json` verb (shared impl: `packages/api-core/spacecli` + parser `packages/api-core/spacedoc`). Consumed by `meta-optimization-manager` to compute coverage — the denominator only; the live numerator is never carried here.
+
 - `scenario-ui-manifest.schema.json`
   Defines `templates/scenarios/<id>/ui/manifest.json` (and any scenario-level overrides) — the contract that declares where UI building blocks (`layout-shell`, `page`, `ui-primitive`, etc.) live inside a scenario's UI source tree. Owned by the template the scenario was generated from. Consumed by `react-component-library`'s adoptions resolver to compute canonical filesystem paths for adopted components. `$id: scenario-ui-manifest/v1`.
 

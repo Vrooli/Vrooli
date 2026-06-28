@@ -10,7 +10,94 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file plan-manager/v1/shared/model.proto.
  */
 export const file_plan_manager_v1_shared_model: GenFile = /*@__PURE__*/
-  fileDesc("CiJwbGFuLW1hbmFnZXIvdjEvc2hhcmVkL21vZGVsLnByb3RvEh12cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZCKzAQoKTmV4dEFjdGlvbhIKCgJpZBgBIAEoCRI7CgRraW5kGAIgASgOMi0udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTmV4dEFjdGlvbktpbmQSDQoFbGFiZWwYAyABKAkSDgoGcmVhc29uGAQgASgJEgwKBGFyZ3YYBSADKAkSGwoTY29udGVudF9wbGFjZWhvbGRlchgGIAEoCRISCgpibG9ja2VkX2J5GAcgAygJItoBCgpHdWlkZWRTdGVwEhEKCXN0ZXBfa2luZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhQKDGluc3RydWN0aW9ucxgEIAMoCRIXCg9yZXF1aXJlZF9pbnB1dHMYBSADKAkSEAoIZXhhbXBsZXMYBiADKAkSFwoPY29tbW9uX21pc3Rha2VzGAcgAygJEj8KDG5leHRfYWN0aW9ucxgIIAMoCzIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLk5leHRBY3Rpb24ioQIKCVJlZmVyZW5jZRIKCgJpZBgBIAEoCRI6CgRraW5kGAIgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlS2luZBIOCgZ0YXJnZXQYAyABKAkSDgoGZnV0dXJlGAQgASgIEkYKCnJlc29sdXRpb24YBSABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWZlcmVuY2VSZXNvbHV0aW9uEj8KCXN0YWxlbmVzcxgGIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFQoNY2hhbmdlX2ZhY3RvchgHIAEoARIMCgRub3RlGAggASgJIqQEChNSZWxldmFudENvbnRleHRJdGVtEgoKAmlkGAEgASgJEkAKBGtpbmQYAiABKA4yMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRLaW5kEkIKBXNjb3BlGAMgASgOMjMudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U2NvcGUSEAoIcGhhc2VfaWQYBCABKAkSDQoFbGFiZWwYBSABKAkSDgoGcmVhc29uGAYgASgJEhMKC2luc3RydWN0aW9uGAcgASgJEg8KB2NvbW1hbmQYCCABKAkSDAoEYXJndhgJIAMoCRIOCgZ0YXJnZXQYCiABKAkSEAoIcmVxdWlyZWQYCyABKAgSUQoNcmVwZWF0X3BvbGljeRgMIAEoDjI6LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dFJlcGVhdFBvbGljeRJECgZzb3VyY2UYDSABKA4yNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRTb3VyY2USRAoGc3RhdHVzGA4gASgOMjQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0U3RhdHVzEhUKDXN0YXR1c19kZXRhaWwYDyABKAkitAEKEFJlZ3Jlc3Npb25BbmNob3ISEAoIc3RyYXRlZ3kYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSFQoNYmFzZWxpbmVfbmFtZRgDIAEoCRIQCghoZWFkX3NoYRgEIAEoCRIXCg9hbGxvd2xpc3RfcGF0aHMYBSADKAkSEAoIY29tbWFuZHMYBiADKAkSEwoLY2FwdHVyZWRfYXQYByABKAkSEwoLdW5hdmFpbGFibGUYCCABKAgiYwoNRG93bnN0cmVhbVJlZhIOCgZzeXN0ZW0YASABKAkSDAoEa2luZBgCIAEoCRIRCglyZWZlcmVuY2UYAyABKAkSDgoGZGV0YWlsGAQgASgJEhEKCXN5bmNlZF9hdBgFIAEoCSLiBAoITG9nRW50cnkSCgoCaWQYASABKAkSOQoEdHlwZRgCIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkxvZ0VudHJ5VHlwZRIPCgdwbGFuX2lkGAMgASgJEhQKDGV4ZWN1dGlvbl9pZBgEIAEoCRIQCghwaGFzZV9pZBgFIAEoCRINCgV0aXRsZRgGIAEoCRIOCgZkZXRhaWwYByABKAkSPAoIc2V2ZXJpdHkYCCABKA4yKi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTZXZlcml0eRI8CgZ0cmlhZ2UYCSABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5GaW5kaW5nVHJpYWdlEkEKC3N5bmNfc3RhdHVzGAogASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTG9nU3luY1N0YXR1cxJACgpkb3duc3RyZWFtGAsgASgLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRG93bnN0cmVhbVJlZhIWCg5zb3VyY2VfY29tbWFuZBgMIAEoCRIQCghldmlkZW5jZRgNIAMoCRIaChJhdHRyaWJ1dGlvbl9ydW5faWQYDiABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GA8gASgJEhUKDXN1cGVyc2VkZXNfaWQYECABKAkSGAoQcHJvbW90ZWRfZnJvbV9pZBgRIAEoCRISCgpjcmVhdGVkX2F0GBIgASgJEhIKCnVwZGF0ZWRfYXQYEyABKAki+QEKDkxvZ1N1bW1hcnlJdGVtEgoKAmlkGAEgASgJEjkKBHR5cGUYAiABKA4yKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dFbnRyeVR5cGUSDQoFdGl0bGUYAyABKAkSQQoLc3luY19zdGF0dXMYBCABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTeW5jU3RhdHVzEjwKBnRyaWFnZRgFIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmdUcmlhZ2USEAoIcGhhc2VfaWQYBiABKAki+wEKCkxvZ1N1bW1hcnkSDQoFdG90YWwYASABKAUSEQoJZGVjaXNpb25zGAIgASgFEhAKCGZpbmRpbmdzGAMgASgFEhMKC2J1Z19yZXBvcnRzGAQgASgFEg8KB3JlY29yZHMYBSABKAUSDQoFbm90ZXMYBiABKAUSGgoSY2FuZGlkYXRlX2ZpbmRpbmdzGAcgASgFEhQKDHBlbmRpbmdfc3luYxgIIAEoBRITCgtmYWlsZWRfc3luYxgJIAEoBRI9CgZyZWNlbnQYCiADKAsyLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTdW1tYXJ5SXRlbSLOAgoQVmFsaWRhdGlvblJlc3VsdBIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEhAKCHBoYXNlX2lkGAMgASgJEkEKB3ZlcmRpY3QYBCABKA4yMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5WYWxpZGF0aW9uVmVyZGljdBI/CglzdGFsZW5lc3MYBSABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5TdGFsZW5lc3NUaWVyEhQKDGNvbW1hbmRzX3J1bhgGIAMoCRIOCgZkZXRhaWwYByABKAkSDgoGcmFuX2F0GAggASgJElEKEGNvbW1hbmRfZmluZGluZ3MYCSADKAsyNy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Db21tYW5kVmFsaWRhdGlvbkZpbmRpbmciugEKGENvbW1hbmRWYWxpZGF0aW9uRmluZGluZxIUCgxjb21tYW5kX3RleHQYASABKAkSDwoHdmVyZGljdBgCIAEoCRIYChB2YWxpZGF0aW9uX2xldmVsGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSEAoIbG9jYXRpb24YBSABKAkSEwoLaXNzdWVfY29kZXMYBiADKAkSEwoLc3VnZ2VzdGlvbnMYByADKAkSEAoIZ3VpZGFuY2UYCCADKAkirAMKBVBoYXNlEgoKAmlkGAEgASgJEg0KBW9yZGVyGAIgASgFEg0KBXRpdGxlGAMgASgJEg4KBmludGVudBgEIAEoCRIYChByZXF1aXJlZF9yZWFkaW5nGAUgAygJEhEKCXJlbWluZGVycxgGIAMoCRIWCg5iYXNlbGluZV9zY29wZRgHIAMoCRISCgphY2NlcHRhbmNlGAggASgJEjoKBnN0YXR1cxgJIAEoDjIqLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlU3RhdHVzEkgKD2xhc3RfdmFsaWRhdGlvbhgKIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25SZXN1bHQSPAoKcmVmZXJlbmNlcxgLIAMoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZRJMChByZWxldmFudF9jb250ZXh0GAwgAygLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0SXRlbSLFBAoEUGxhbhIKCgJpZBgBIAEoCRIMCgRzbHVnGAIgASgJEg0KBXRpdGxlGAMgASgJEjkKBnN0YXR1cxgEIAEoDjIpLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBsYW5TdGF0dXMSFAoMY29udGVudF9oYXNoGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCRIPCgdwdXJwb3NlGAggASgJEg0KBXNjb3BlGAkgASgJEhMKC2NvbnN0cmFpbnRzGAogASgJEhEKCW5vbl9nb2FscxgLIAEoCRI8CgpyZWZlcmVuY2VzGAwgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEkoKEXJlZ3Jlc3Npb25fYW5jaG9yGA0gASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVncmVzc2lvbkFuY2hvchIaChJkZWZpbml0aW9uX29mX2RvbmUYDiABKAkSNAoGcGhhc2VzGA8gAygLMiQudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2USEgoKc3VwZXJzZWRlcxgQIAMoCRIVCg1zdXBlcnNlZGVkX2J5GBEgAygJEkwKEHJlbGV2YW50X2NvbnRleHQYEiADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRJdGVtIkIKCFBsYW5FZGdlEhQKDGZyb21fcGxhbl9pZBgBIAEoCRISCgp0b19wbGFuX2lkGAIgASgJEgwKBGtpbmQYAyABKAki0wEKDVZlbG9jaXR5UG9pbnQSCgoCaWQYASABKAkSDwoHcGxhbl9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSGQoRd2FsbF90aW1lX3NlY29uZHMYBCABKAMSDgoGdG9rZW5zGAUgASgDEhIKCml0ZXJhdGlvbnMYBiABKAUSQQoMY29tcGxldGVuZXNzGAcgASgOMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuQ29tcGxldGVuZXNzEhMKC3JlY29yZGVkX2F0GAggASgJItIDCgdIYW5kb2ZmEgoKAmlkGAEgASgJEhQKDGV4ZWN1dGlvbl9pZBgCIAEoCRIPCgdwbGFuX2lkGAMgASgJEkEKDGNvbXBsZXRlbmVzcxgEIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbXBsZXRlbmVzcxIXCg9yZXN1bWVfcGhhc2VfaWQYBSABKAkSPgoLbG9nX3N1bW1hcnkYBiABKAsyKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTdW1tYXJ5EjwKC2xvZ19lbnRyaWVzGAcgAygLMicudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTG9nRW50cnkSSAoPbGFzdF92YWxpZGF0aW9uGAggASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI/CglzdGFsZW5lc3MYCSABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5TdGFsZW5lc3NUaWVyEhkKEXByb3NlX2hhbmRvZmZfcmVmGAogASgJEhQKDGFzc2VtYmxlZF9hdBgLIAEoCSqMAQoKUGxhblN0YXR1cxIbChdQTEFOX1NUQVRVU19VTlNQRUNJRklFRBAAEhUKEVBMQU5fU1RBVFVTX0RSQUZUEAESFgoSUExBTl9TVEFUVVNfQUNUSVZFEAISGAoUUExBTl9TVEFUVVNfQ09NUExFVEUQAxIYChRQTEFOX1NUQVRVU19BUkNISVZFRBAEKowBCgtQaGFzZVN0YXR1cxIcChhQSEFTRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIVChFQSEFTRV9TVEFUVVNfVE9ETxABEhcKE1BIQVNFX1NUQVRVU19BQ1RJVkUQAhIVChFQSEFTRV9TVEFUVVNfRE9ORRADEhgKFFBIQVNFX1NUQVRVU19CTE9DS0VEEAQqkAEKDVN0YWxlbmVzc1RpZXISHgoaU1RBTEVORVNTX1RJRVJfVU5TUEVDSUZJRUQQABIYChRTVEFMRU5FU1NfVElFUl9GUkVTSBABEiAKHFNUQUxFTkVTU19USUVSX0xJR0hUTFlfU1RBTEUQAhIjCh9TVEFMRU5FU1NfVElFUl9ERUZJTklURUxZX1NUQUxFEAMqeAoNUmVmZXJlbmNlS2luZBIeChpSRUZFUkVOQ0VfS0lORF9VTlNQRUNJRklFRBAAEhcKE1JFRkVSRU5DRV9LSU5EX0NPREUQARIWChJSRUZFUkVOQ0VfS0lORF9SRVEQAhIWChJSRUZFUkVOQ0VfS0lORF9ET0MQAyrGAQoTUmVmZXJlbmNlUmVzb2x1dGlvbhIkCiBSRUZFUkVOQ0VfUkVTT0xVVElPTl9VTlNQRUNJRklFRBAAEiEKHVJFRkVSRU5DRV9SRVNPTFVUSU9OX1JFU09MVkVEEAESIwofUkVGRVJFTkNFX1JFU09MVVRJT05fVU5SRVNPTFZFRBACEh8KG1JFRkVSRU5DRV9SRVNPTFVUSU9OX0ZVVFVSRRADEiAKHFJFRkVSRU5DRV9SRVNPTFVUSU9OX01JU1NJTkcQBCqoAgoTUmVsZXZhbnRDb250ZXh0S2luZBIlCiFSRUxFVkFOVF9DT05URVhUX0tJTkRfVU5TUEVDSUZJRUQQABIfChtSRUxFVkFOVF9DT05URVhUX0tJTkRfU0tJTEwQARIdChlSRUxFVkFOVF9DT05URVhUX0tJTkRfRE9DEAISIQodUkVMRVZBTlRfQ09OVEVYVF9LSU5EX0NPTU1BTkQQAxIgChxSRUxFVkFOVF9DT05URVhUX0tJTkRfU0VBUkNIEAQSIgoeUkVMRVZBTlRfQ09OVEVYVF9LSU5EX0NPREVfUkVGEAUSIQodUkVMRVZBTlRfQ09OVEVYVF9LSU5EX1JFUV9SRUYQBhIeChpSRUxFVkFOVF9DT05URVhUX0tJTkRfTk9URRAHKoMBChRSZWxldmFudENvbnRleHRTY29wZRImCiJSRUxFVkFOVF9DT05URVhUX1NDT1BFX1VOU1BFQ0lGSUVEEAASIQodUkVMRVZBTlRfQ09OVEVYVF9TQ09QRV9HTE9CQUwQARIgChxSRUxFVkFOVF9DT05URVhUX1NDT1BFX1BIQVNFEAIqwAIKG1JlbGV2YW50Q29udGV4dFJlcGVhdFBvbGljeRIuCipSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfVU5TUEVDSUZJRUQQABI1CjFSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfT05DRV9QRVJfRVhFQ1VUSU9OEAESLAooUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX09OX1JFU1VNRRACEi4KKlJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9FVkVSWV9QSEFTRRADEi4KKlJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9QSEFTRV9FTlRSWRAEEiwKKFJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9BU19ORUVERUQQBSrcAQoVUmVsZXZhbnRDb250ZXh0U291cmNlEicKI1JFTEVWQU5UX0NPTlRFWFRfU09VUkNFX1VOU1BFQ0lGSUVEEAASJAogUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfQVVUSE9SRUQQARImCiJSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9ESVNDT1ZFUkVEEAISJAogUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfTUlHUkFURUQQAxImCiJSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9BVVRPRklMTEVEEAQqsQEKFVJlbGV2YW50Q29udGV4dFN0YXR1cxInCiNSRUxFVkFOVF9DT05URVhUX1NUQVRVU19VTlNQRUNJRklFRBAAEiEKHVJFTEVWQU5UX0NPTlRFWFRfU1RBVFVTX1JFQURZEAESJAogUkVMRVZBTlRfQ09OVEVYVF9TVEFUVVNfREVHUkFERUQQAhImCiJSRUxFVkFOVF9DT05URVhUX1NUQVRVU19VTlJFU09MVkVEEAMqiAEKDUZpbmRpbmdUcmlhZ2USHgoaRklORElOR19UUklBR0VfVU5TUEVDSUZJRUQQABIcChhGSU5ESU5HX1RSSUFHRV9DQU5ESURBVEUQARIbChdGSU5ESU5HX1RSSUFHRV9QUk9NT1RFRBACEhwKGEZJTkRJTkdfVFJJQUdFX0RJU01JU1NFRBADKl0KDENvbXBsZXRlbmVzcxIcChhDT01QTEVURU5FU1NfVU5TUEVDSUZJRUQQABIVChFDT01QTEVURU5FU1NfRlVMTBABEhgKFENPTVBMRVRFTkVTU19QQVJUSUFMEAIqkQEKEVZhbGlkYXRpb25WZXJkaWN0EiIKHlZBTElEQVRJT05fVkVSRElDVF9VTlNQRUNJRklFRBAAEhsKF1ZBTElEQVRJT05fVkVSRElDVF9QQVNTEAESGwoXVkFMSURBVElPTl9WRVJESUNUX0ZBSUwQAhIeChpWQUxJREFUSU9OX1ZFUkRJQ1RfVU5LTk9XThADKrQBCg5OZXh0QWN0aW9uS2luZBIgChxORVhUX0FDVElPTl9LSU5EX1VOU1BFQ0lGSUVEEAASIAocTkVYVF9BQ1RJT05fS0lORF9SRUNPTU1FTkRFRBABEiAKHE5FWFRfQUNUSU9OX0tJTkRfQUxURVJOQVRJVkUQAhIdChlORVhUX0FDVElPTl9LSU5EX09QVElPTkFMEAMSHQoZTkVYVF9BQ1RJT05fS0lORF9SRUNPVkVSWRAEKroBCgxMb2dFbnRyeVR5cGUSHgoaTE9HX0VOVFJZX1RZUEVfVU5TUEVDSUZJRUQQABIbChdMT0dfRU5UUllfVFlQRV9ERUNJU0lPThABEhoKFkxPR19FTlRSWV9UWVBFX0ZJTkRJTkcQAhIdChlMT0dfRU5UUllfVFlQRV9CVUdfUkVQT1JUEAMSGQoVTE9HX0VOVFJZX1RZUEVfUkVDT1JEEAQSFwoTTE9HX0VOVFJZX1RZUEVfTk9URRAFKqABCg1Mb2dTeW5jU3RhdHVzEh8KG0xPR19TWU5DX1NUQVRVU19VTlNQRUNJRklFRBAAEhkKFUxPR19TWU5DX1NUQVRVU19MT0NBTBABEhsKF0xPR19TWU5DX1NUQVRVU19QRU5ESU5HEAISGgoWTE9HX1NZTkNfU1RBVFVTX1NZTkNFRBADEhoKFkxPR19TWU5DX1NUQVRVU19GQUlMRUQQBCqjAQoLTG9nU2V2ZXJpdHkSHAoYTE9HX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASFQoRTE9HX1NFVkVSSVRZX0lORk8QARIUChBMT0dfU0VWRVJJVFlfTE9XEAISFwoTTE9HX1NFVkVSSVRZX01FRElVTRADEhUKEUxPR19TRVZFUklUWV9ISUdIEAQSGQoVTE9HX1NFVkVSSVRZX0NSSVRJQ0FMEAVCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wbGFuLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiJwbGFuLW1hbmFnZXIvdjEvc2hhcmVkL21vZGVsLnByb3RvEh12cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZCJhCg1MZWdhY3lTZWN0aW9uEg8KB2hlYWRpbmcYASABKAkSDwoHY29udGVudBgCIAEoCRIRCgltYXBwZWRfdG8YAyABKAkSGwoTcHJlc2VydmF0aW9uX3JlYXNvbhgEIAEoCSJjChBJbXBvcnRQcm92ZW5hbmNlEhMKC3NvdXJjZV9wYXRoGAEgASgJEhMKC2ltcG9ydGVkX2F0GAIgASgJEhcKD29yaWdpbmFsX2Zvcm1hdBgDIAEoCRIMCgRub3RlGAQgASgJIrMBCgpOZXh0QWN0aW9uEgoKAmlkGAEgASgJEjsKBGtpbmQYAiABKA4yLS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5OZXh0QWN0aW9uS2luZBINCgVsYWJlbBgDIAEoCRIOCgZyZWFzb24YBCABKAkSDAoEYXJndhgFIAMoCRIbChNjb250ZW50X3BsYWNlaG9sZGVyGAYgASgJEhIKCmJsb2NrZWRfYnkYByADKAki2gEKCkd1aWRlZFN0ZXASEQoJc3RlcF9raW5kGAEgASgJEg0KBXRpdGxlGAIgASgJEg8KB3N1bW1hcnkYAyABKAkSFAoMaW5zdHJ1Y3Rpb25zGAQgAygJEhcKD3JlcXVpcmVkX2lucHV0cxgFIAMoCRIQCghleGFtcGxlcxgGIAMoCRIXCg9jb21tb25fbWlzdGFrZXMYByADKAkSPwoMbmV4dF9hY3Rpb25zGAggAygLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTmV4dEFjdGlvbiKhAgoJUmVmZXJlbmNlEgoKAmlkGAEgASgJEjoKBGtpbmQYAiABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWZlcmVuY2VLaW5kEg4KBnRhcmdldBgDIAEoCRIOCgZmdXR1cmUYBCABKAgSRgoKcmVzb2x1dGlvbhgFIAEoDjIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZVJlc29sdXRpb24SPwoJc3RhbGVuZXNzGAYgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuU3RhbGVuZXNzVGllchIVCg1jaGFuZ2VfZmFjdG9yGAcgASgBEgwKBG5vdGUYCCABKAkipAQKE1JlbGV2YW50Q29udGV4dEl0ZW0SCgoCaWQYASABKAkSQAoEa2luZBgCIAEoDjIyLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dEtpbmQSQgoFc2NvcGUYAyABKA4yMy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRTY29wZRIQCghwaGFzZV9pZBgEIAEoCRINCgVsYWJlbBgFIAEoCRIOCgZyZWFzb24YBiABKAkSEwoLaW5zdHJ1Y3Rpb24YByABKAkSDwoHY29tbWFuZBgIIAEoCRIMCgRhcmd2GAkgAygJEg4KBnRhcmdldBgKIAEoCRIQCghyZXF1aXJlZBgLIAEoCBJRCg1yZXBlYXRfcG9saWN5GAwgASgOMjoudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0UmVwZWF0UG9saWN5EkQKBnNvdXJjZRgNIAEoDjI0LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlbGV2YW50Q29udGV4dFNvdXJjZRJECgZzdGF0dXMYDiABKA4yNC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRTdGF0dXMSFQoNc3RhdHVzX2RldGFpbBgPIAEoCSK0AQoQUmVncmVzc2lvbkFuY2hvchIQCghzdHJhdGVneRgBIAEoCRIQCghzY2VuYXJpbxgCIAEoCRIVCg1iYXNlbGluZV9uYW1lGAMgASgJEhAKCGhlYWRfc2hhGAQgASgJEhcKD2FsbG93bGlzdF9wYXRocxgFIAMoCRIQCghjb21tYW5kcxgGIAMoCRITCgtjYXB0dXJlZF9hdBgHIAEoCRITCgt1bmF2YWlsYWJsZRgIIAEoCCJjCg1Eb3duc3RyZWFtUmVmEg4KBnN5c3RlbRgBIAEoCRIMCgRraW5kGAIgASgJEhEKCXJlZmVyZW5jZRgDIAEoCRIOCgZkZXRhaWwYBCABKAkSEQoJc3luY2VkX2F0GAUgASgJIuIECghMb2dFbnRyeRIKCgJpZBgBIAEoCRI5CgR0eXBlGAIgASgOMisudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTG9nRW50cnlUeXBlEg8KB3BsYW5faWQYAyABKAkSFAoMZXhlY3V0aW9uX2lkGAQgASgJEhAKCHBoYXNlX2lkGAUgASgJEg0KBXRpdGxlGAYgASgJEg4KBmRldGFpbBgHIAEoCRI8CghzZXZlcml0eRgIIAEoDjIqLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkxvZ1NldmVyaXR5EjwKBnRyaWFnZRgJIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkZpbmRpbmdUcmlhZ2USQQoLc3luY19zdGF0dXMYCiABKA4yLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Mb2dTeW5jU3RhdHVzEkAKCmRvd25zdHJlYW0YCyABKAsyLC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Eb3duc3RyZWFtUmVmEhYKDnNvdXJjZV9jb21tYW5kGAwgASgJEhAKCGV2aWRlbmNlGA0gAygJEhoKEmF0dHJpYnV0aW9uX3J1bl9pZBgOIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYDyABKAkSFQoNc3VwZXJzZWRlc19pZBgQIAEoCRIYChBwcm9tb3RlZF9mcm9tX2lkGBEgASgJEhIKCmNyZWF0ZWRfYXQYEiABKAkSEgoKdXBkYXRlZF9hdBgTIAEoCSL5AQoOTG9nU3VtbWFyeUl0ZW0SCgoCaWQYASABKAkSOQoEdHlwZRgCIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkxvZ0VudHJ5VHlwZRINCgV0aXRsZRgDIAEoCRJBCgtzeW5jX3N0YXR1cxgEIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkxvZ1N5bmNTdGF0dXMSPAoGdHJpYWdlGAUgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuRmluZGluZ1RyaWFnZRIQCghwaGFzZV9pZBgGIAEoCSL7AQoKTG9nU3VtbWFyeRINCgV0b3RhbBgBIAEoBRIRCglkZWNpc2lvbnMYAiABKAUSEAoIZmluZGluZ3MYAyABKAUSEwoLYnVnX3JlcG9ydHMYBCABKAUSDwoHcmVjb3JkcxgFIAEoBRINCgVub3RlcxgGIAEoBRIaChJjYW5kaWRhdGVfZmluZGluZ3MYByABKAUSFAoMcGVuZGluZ19zeW5jGAggASgFEhMKC2ZhaWxlZF9zeW5jGAkgASgFEj0KBnJlY2VudBgKIAMoCzItLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkxvZ1N1bW1hcnlJdGVtIs4CChBWYWxpZGF0aW9uUmVzdWx0EgoKAmlkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSEAoIcGhhc2VfaWQYAyABKAkSQQoHdmVyZGljdBgEIAEoDjIwLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25WZXJkaWN0Ej8KCXN0YWxlbmVzcxgFIAEoDjIsLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlN0YWxlbmVzc1RpZXISFAoMY29tbWFuZHNfcnVuGAYgAygJEg4KBmRldGFpbBgHIAEoCRIOCgZyYW5fYXQYCCABKAkSUQoQY29tbWFuZF9maW5kaW5ncxgJIAMoCzI3LnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbW1hbmRWYWxpZGF0aW9uRmluZGluZyK6AQoYQ29tbWFuZFZhbGlkYXRpb25GaW5kaW5nEhQKDGNvbW1hbmRfdGV4dBgBIAEoCRIPCgd2ZXJkaWN0GAIgASgJEhgKEHZhbGlkYXRpb25fbGV2ZWwYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRITCgtpc3N1ZV9jb2RlcxgGIAMoCRITCgtzdWdnZXN0aW9ucxgHIAMoCRIQCghndWlkYW5jZRgIIAMoCSKvBAoFUGhhc2USCgoCaWQYASABKAkSDQoFb3JkZXIYAiABKAUSDQoFdGl0bGUYAyABKAkSDgoGaW50ZW50GAQgASgJEhgKEHJlcXVpcmVkX3JlYWRpbmcYBSADKAkSEQoJcmVtaW5kZXJzGAYgAygJEhYKDmJhc2VsaW5lX3Njb3BlGAcgAygJEhIKCmFjY2VwdGFuY2UYCCABKAkSOgoGc3RhdHVzGAkgASgOMioudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUGhhc2VTdGF0dXMSSAoPbGFzdF92YWxpZGF0aW9uGAogASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuVmFsaWRhdGlvblJlc3VsdBI8CgpyZWZlcmVuY2VzGAsgAygLMigudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVmZXJlbmNlEkwKEHJlbGV2YW50X2NvbnRleHQYDCADKAsyMi52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5SZWxldmFudENvbnRleHRJdGVtEhYKDmFmZmVjdGVkX2FyZWFzGA0gAygJEg0KBXN0ZXBzGA4gAygJEhgKEGV4cGVjdGVkX291dHB1dHMYDyADKAkSEgoKdmFsaWRhdGlvbhgQIAEoCRIVCg1oYW5kb2ZmX25vdGVzGBEgASgJEhUKDXJpc2tzX2hhemFyZHMYEiADKAki6ggKBFBsYW4SCgoCaWQYASABKAkSDAoEc2x1ZxgCIAEoCRINCgV0aXRsZRgDIAEoCRI5CgZzdGF0dXMYBCABKA4yKS52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5QbGFuU3RhdHVzEhQKDGNvbnRlbnRfaGFzaBgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJEhIKCnVwZGF0ZWRfYXQYByABKAkSDwoHcHVycG9zZRgIIAEoCRINCgVzY29wZRgJIAEoCRITCgtjb25zdHJhaW50cxgKIAEoCRIRCglub25fZ29hbHMYCyABKAkSPAoKcmVmZXJlbmNlcxgMIAMoCzIoLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZmVyZW5jZRJKChFyZWdyZXNzaW9uX2FuY2hvchgNIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlJlZ3Jlc3Npb25BbmNob3ISGgoSZGVmaW5pdGlvbl9vZl9kb25lGA4gASgJEjQKBnBoYXNlcxgPIAMoCzIkLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlBoYXNlEhIKCnN1cGVyc2VkZXMYECADKAkSFQoNc3VwZXJzZWRlZF9ieRgRIAMoCRJMChByZWxldmFudF9jb250ZXh0GBIgAygLMjIudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuUmVsZXZhbnRDb250ZXh0SXRlbRIZChFwcm9ibGVtX3N0YXRlbWVudBgTIAEoCRIWCg50YXJnZXRfb3V0Y29tZRgUIAEoCRITCgthc3N1bXB0aW9ucxgVIAEoCRIaChJ0ZWNobmljYWxfYXBwcm9hY2gYFiABKAkSGwoTdmFsaWRhdGlvbl9zdHJhdGVneRgXIAEoCRIhChlmaW5hbF92YWxpZGF0aW9uX2NvbW1hbmRzGBggAygJEhUKDXJpc2tzX2hhemFyZHMYGSABKAkSHQoVcHJvaGliaXRlZF9hcHByb2FjaGVzGBogASgJEkAKDHdvcmtfcG9zdHVyZRgbIAEoDjIqLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLldvcmtQb3N0dXJlEk0KE3dvcmtfcG9zdHVyZV9zb3VyY2UYHCABKA4yMC52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Xb3JrUG9zdHVyZVNvdXJjZRIbChN3b3JrX3Bvc3R1cmVfZGV0YWlsGB0gASgJEkoKEWltcG9ydF9wcm92ZW5hbmNlGB4gASgLMi8udnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuSW1wb3J0UHJvdmVuYW5jZRJPChlwcmVzZXJ2ZWRfbGVnYWN5X3NlY3Rpb25zGB8gAygLMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTGVnYWN5U2VjdGlvbiJCCghQbGFuRWRnZRIUCgxmcm9tX3BsYW5faWQYASABKAkSEgoKdG9fcGxhbl9pZBgCIAEoCRIMCgRraW5kGAMgASgJItMBCg1WZWxvY2l0eVBvaW50EgoKAmlkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEhkKEXdhbGxfdGltZV9zZWNvbmRzGAQgASgDEg4KBnRva2VucxgFIAEoAxISCgppdGVyYXRpb25zGAYgASgFEkEKDGNvbXBsZXRlbmVzcxgHIAEoDjIrLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkNvbXBsZXRlbmVzcxITCgtyZWNvcmRlZF9hdBgIIAEoCSLSAwoHSGFuZG9mZhIKCgJpZBgBIAEoCRIUCgxleGVjdXRpb25faWQYAiABKAkSDwoHcGxhbl9pZBgDIAEoCRJBCgxjb21wbGV0ZW5lc3MYBCABKA4yKy52cm9vbGkucGxhbl9tYW5hZ2VyLnYxLnNoYXJlZC5Db21wbGV0ZW5lc3MSFwoPcmVzdW1lX3BoYXNlX2lkGAUgASgJEj4KC2xvZ19zdW1tYXJ5GAYgASgLMikudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuTG9nU3VtbWFyeRI8Cgtsb2dfZW50cmllcxgHIAMoCzInLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLkxvZ0VudHJ5EkgKD2xhc3RfdmFsaWRhdGlvbhgIIAEoCzIvLnZyb29saS5wbGFuX21hbmFnZXIudjEuc2hhcmVkLlZhbGlkYXRpb25SZXN1bHQSPwoJc3RhbGVuZXNzGAkgASgOMiwudnJvb2xpLnBsYW5fbWFuYWdlci52MS5zaGFyZWQuU3RhbGVuZXNzVGllchIZChFwcm9zZV9oYW5kb2ZmX3JlZhgKIAEoCRIUCgxhc3NlbWJsZWRfYXQYCyABKAkqjAEKClBsYW5TdGF0dXMSGwoXUExBTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIVChFQTEFOX1NUQVRVU19EUkFGVBABEhYKElBMQU5fU1RBVFVTX0FDVElWRRACEhgKFFBMQU5fU1RBVFVTX0NPTVBMRVRFEAMSGAoUUExBTl9TVEFUVVNfQVJDSElWRUQQBCqMAQoLUGhhc2VTdGF0dXMSHAoYUEhBU0VfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFQoRUEhBU0VfU1RBVFVTX1RPRE8QARIXChNQSEFTRV9TVEFUVVNfQUNUSVZFEAISFQoRUEhBU0VfU1RBVFVTX0RPTkUQAxIYChRQSEFTRV9TVEFUVVNfQkxPQ0tFRBAEKpABCg1TdGFsZW5lc3NUaWVyEh4KGlNUQUxFTkVTU19USUVSX1VOU1BFQ0lGSUVEEAASGAoUU1RBTEVORVNTX1RJRVJfRlJFU0gQARIgChxTVEFMRU5FU1NfVElFUl9MSUdIVExZX1NUQUxFEAISIwofU1RBTEVORVNTX1RJRVJfREVGSU5JVEVMWV9TVEFMRRADKngKDVJlZmVyZW5jZUtpbmQSHgoaUkVGRVJFTkNFX0tJTkRfVU5TUEVDSUZJRUQQABIXChNSRUZFUkVOQ0VfS0lORF9DT0RFEAESFgoSUkVGRVJFTkNFX0tJTkRfUkVREAISFgoSUkVGRVJFTkNFX0tJTkRfRE9DEAMqxgEKE1JlZmVyZW5jZVJlc29sdXRpb24SJAogUkVGRVJFTkNFX1JFU09MVVRJT05fVU5TUEVDSUZJRUQQABIhCh1SRUZFUkVOQ0VfUkVTT0xVVElPTl9SRVNPTFZFRBABEiMKH1JFRkVSRU5DRV9SRVNPTFVUSU9OX1VOUkVTT0xWRUQQAhIfChtSRUZFUkVOQ0VfUkVTT0xVVElPTl9GVVRVUkUQAxIgChxSRUZFUkVOQ0VfUkVTT0xVVElPTl9NSVNTSU5HEAQqqAIKE1JlbGV2YW50Q29udGV4dEtpbmQSJQohUkVMRVZBTlRfQ09OVEVYVF9LSU5EX1VOU1BFQ0lGSUVEEAASHwobUkVMRVZBTlRfQ09OVEVYVF9LSU5EX1NLSUxMEAESHQoZUkVMRVZBTlRfQ09OVEVYVF9LSU5EX0RPQxACEiEKHVJFTEVWQU5UX0NPTlRFWFRfS0lORF9DT01NQU5EEAMSIAocUkVMRVZBTlRfQ09OVEVYVF9LSU5EX1NFQVJDSBAEEiIKHlJFTEVWQU5UX0NPTlRFWFRfS0lORF9DT0RFX1JFRhAFEiEKHVJFTEVWQU5UX0NPTlRFWFRfS0lORF9SRVFfUkVGEAYSHgoaUkVMRVZBTlRfQ09OVEVYVF9LSU5EX05PVEUQByqDAQoUUmVsZXZhbnRDb250ZXh0U2NvcGUSJgoiUkVMRVZBTlRfQ09OVEVYVF9TQ09QRV9VTlNQRUNJRklFRBAAEiEKHVJFTEVWQU5UX0NPTlRFWFRfU0NPUEVfR0xPQkFMEAESIAocUkVMRVZBTlRfQ09OVEVYVF9TQ09QRV9QSEFTRRACKsACChtSZWxldmFudENvbnRleHRSZXBlYXRQb2xpY3kSLgoqUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX1VOU1BFQ0lGSUVEEAASNQoxUkVMRVZBTlRfQ09OVEVYVF9SRVBFQVRfUE9MSUNZX09OQ0VfUEVSX0VYRUNVVElPThABEiwKKFJFTEVWQU5UX0NPTlRFWFRfUkVQRUFUX1BPTElDWV9PTl9SRVNVTUUQAhIuCipSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfRVZFUllfUEhBU0UQAxIuCipSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfUEhBU0VfRU5UUlkQBBIsCihSRUxFVkFOVF9DT05URVhUX1JFUEVBVF9QT0xJQ1lfQVNfTkVFREVEEAUq3AEKFVJlbGV2YW50Q29udGV4dFNvdXJjZRInCiNSRUxFVkFOVF9DT05URVhUX1NPVVJDRV9VTlNQRUNJRklFRBAAEiQKIFJFTEVWQU5UX0NPTlRFWFRfU09VUkNFX0FVVEhPUkVEEAESJgoiUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfRElTQ09WRVJFRBACEiQKIFJFTEVWQU5UX0NPTlRFWFRfU09VUkNFX01JR1JBVEVEEAMSJgoiUkVMRVZBTlRfQ09OVEVYVF9TT1VSQ0VfQVVUT0ZJTExFRBAEKrEBChVSZWxldmFudENvbnRleHRTdGF0dXMSJwojUkVMRVZBTlRfQ09OVEVYVF9TVEFUVVNfVU5TUEVDSUZJRUQQABIhCh1SRUxFVkFOVF9DT05URVhUX1NUQVRVU19SRUFEWRABEiQKIFJFTEVWQU5UX0NPTlRFWFRfU1RBVFVTX0RFR1JBREVEEAISJgoiUkVMRVZBTlRfQ09OVEVYVF9TVEFUVVNfVU5SRVNPTFZFRBADKogBCg1GaW5kaW5nVHJpYWdlEh4KGkZJTkRJTkdfVFJJQUdFX1VOU1BFQ0lGSUVEEAASHAoYRklORElOR19UUklBR0VfQ0FORElEQVRFEAESGwoXRklORElOR19UUklBR0VfUFJPTU9URUQQAhIcChhGSU5ESU5HX1RSSUFHRV9ESVNNSVNTRUQQAypdCgxDb21wbGV0ZW5lc3MSHAoYQ09NUExFVEVORVNTX1VOU1BFQ0lGSUVEEAASFQoRQ09NUExFVEVORVNTX0ZVTEwQARIYChRDT01QTEVURU5FU1NfUEFSVElBTBACKmUKC1dvcmtQb3N0dXJlEhwKGFdPUktfUE9TVFVSRV9VTlNQRUNJRklFRBAAEhsKF1dPUktfUE9TVFVSRV9HUkVFTkZJRUxEEAESGwoXV09SS19QT1NUVVJFX0JST1dORklFTEQQAirVAQoRV29ya1Bvc3R1cmVTb3VyY2USIwofV09SS19QT1NUVVJFX1NPVVJDRV9VTlNQRUNJRklFRBAAEh8KG1dPUktfUE9TVFVSRV9TT1VSQ0VfREVGQVVMVBABEigKJFdPUktfUE9TVFVSRV9TT1VSQ0VfU0VSVklDRV9NQVRVUklUWRACEikKJVdPUktfUE9TVFVSRV9TT1VSQ0VfRVhQTElDSVRfT1ZFUlJJREUQAxIlCiFXT1JLX1BPU1RVUkVfU09VUkNFX0lNUE9SVF9MRUdBQ1kQBCqRAQoRVmFsaWRhdGlvblZlcmRpY3QSIgoeVkFMSURBVElPTl9WRVJESUNUX1VOU1BFQ0lGSUVEEAASGwoXVkFMSURBVElPTl9WRVJESUNUX1BBU1MQARIbChdWQUxJREFUSU9OX1ZFUkRJQ1RfRkFJTBACEh4KGlZBTElEQVRJT05fVkVSRElDVF9VTktOT1dOEAMqtAEKDk5leHRBY3Rpb25LaW5kEiAKHE5FWFRfQUNUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIgChxORVhUX0FDVElPTl9LSU5EX1JFQ09NTUVOREVEEAESIAocTkVYVF9BQ1RJT05fS0lORF9BTFRFUk5BVElWRRACEh0KGU5FWFRfQUNUSU9OX0tJTkRfT1BUSU9OQUwQAxIdChlORVhUX0FDVElPTl9LSU5EX1JFQ09WRVJZEAQqugEKDExvZ0VudHJ5VHlwZRIeChpMT0dfRU5UUllfVFlQRV9VTlNQRUNJRklFRBAAEhsKF0xPR19FTlRSWV9UWVBFX0RFQ0lTSU9OEAESGgoWTE9HX0VOVFJZX1RZUEVfRklORElORxACEh0KGUxPR19FTlRSWV9UWVBFX0JVR19SRVBPUlQQAxIZChVMT0dfRU5UUllfVFlQRV9SRUNPUkQQBBIXChNMT0dfRU5UUllfVFlQRV9OT1RFEAUqoAEKDUxvZ1N5bmNTdGF0dXMSHwobTE9HX1NZTkNfU1RBVFVTX1VOU1BFQ0lGSUVEEAASGQoVTE9HX1NZTkNfU1RBVFVTX0xPQ0FMEAESGwoXTE9HX1NZTkNfU1RBVFVTX1BFTkRJTkcQAhIaChZMT0dfU1lOQ19TVEFUVVNfU1lOQ0VEEAMSGgoWTE9HX1NZTkNfU1RBVFVTX0ZBSUxFRBAEKqMBCgtMb2dTZXZlcml0eRIcChhMT0dfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIVChFMT0dfU0VWRVJJVFlfSU5GTxABEhQKEExPR19TRVZFUklUWV9MT1cQAhIXChNMT0dfU0VWRVJJVFlfTUVESVVNEAMSFQoRTE9HX1NFVkVSSVRZX0hJR0gQBBIZChVMT0dfU0VWRVJJVFlfQ1JJVElDQUwQBUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3BsYW4tbWFuYWdlci92MS9zaGFyZWQ7c2hhcmVkX3YxYgZwcm90bzM");
+
+/**
+ * LegacySection is one imported markdown section preserved as provenance because
+ * it could not be mapped to a canonical field — never silently dropped.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.LegacySection
+ */
+export type LegacySection = Message<"vrooli.plan_manager.v1.shared.LegacySection"> & {
+  /**
+   * the original markdown heading text
+   *
+   * @generated from field: string heading = 1;
+   */
+  heading: string;
+
+  /**
+   * the verbatim section body
+   *
+   * @generated from field: string content = 2;
+   */
+  content: string;
+
+  /**
+   * canonical field it partially informed, when any
+   *
+   * @generated from field: string mapped_to = 3;
+   */
+  mappedTo: string;
+
+  /**
+   * e.g. "unmapped_legacy_section"
+   *
+   * @generated from field: string preservation_reason = 4;
+   */
+  preservationReason: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.LegacySection.
+ * Use `create(LegacySectionSchema)` to create a new message.
+ */
+export const LegacySectionSchema: GenMessage<LegacySection> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 0);
+
+/**
+ * ImportProvenance records that a plan was adopted from a legacy markdown source
+ * rather than authored fresh. Import is non-destructive (the source is never
+ * moved/deleted); this is the bookkeeping that records where it came from.
+ *
+ * @generated from message vrooli.plan_manager.v1.shared.ImportProvenance
+ */
+export type ImportProvenance = Message<"vrooli.plan_manager.v1.shared.ImportProvenance"> & {
+  /**
+   * path the markdown was imported from (informational)
+   *
+   * @generated from field: string source_path = 1;
+   */
+  sourcePath: string;
+
+  /**
+   * RFC3339
+   *
+   * @generated from field: string imported_at = 2;
+   */
+  importedAt: string;
+
+  /**
+   * e.g. "legacy_markdown"
+   *
+   * @generated from field: string original_format = 3;
+   */
+  originalFormat: string;
+
+  /**
+   * human-readable adoption note
+   *
+   * @generated from field: string note = 4;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.plan_manager.v1.shared.ImportProvenance.
+ * Use `create(ImportProvenanceSchema)` to create a new message.
+ */
+export const ImportProvenanceSchema: GenMessage<ImportProvenance> = /*@__PURE__*/
+  messageDesc(file_plan_manager_v1_shared_model, 1);
 
 /**
  * NextAction is one concrete command/action the API recommends for the current
@@ -64,7 +151,7 @@ export type NextAction = Message<"vrooli.plan_manager.v1.shared.NextAction"> & {
  * Use `create(NextActionSchema)` to create a new message.
  */
 export const NextActionSchema: GenMessage<NextAction> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 0);
+  messageDesc(file_plan_manager_v1_shared_model, 2);
 
 /**
  * GuidedStep is the API-owned steering contract for Plan Manager wizard flows.
@@ -120,7 +207,7 @@ export type GuidedStep = Message<"vrooli.plan_manager.v1.shared.GuidedStep"> & {
  * Use `create(GuidedStepSchema)` to create a new message.
  */
 export const GuidedStepSchema: GenMessage<GuidedStep> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 1);
+  messageDesc(file_plan_manager_v1_shared_model, 3);
 
 /**
  * Reference is one connected-code locator on a plan or phase. AUTHORED (kind +
@@ -186,7 +273,7 @@ export type Reference = Message<"vrooli.plan_manager.v1.shared.Reference"> & {
  * Use `create(ReferenceSchema)` to create a new message.
  */
 export const ReferenceSchema: GenMessage<Reference> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 2);
+  messageDesc(file_plan_manager_v1_shared_model, 4);
 
 /**
  * RelevantContextItem is the execution-facing setup contract. It replaces flat
@@ -284,7 +371,7 @@ export type RelevantContextItem = Message<"vrooli.plan_manager.v1.shared.Relevan
  * Use `create(RelevantContextItemSchema)` to create a new message.
  */
 export const RelevantContextItemSchema: GenMessage<RelevantContextItem> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 3);
+  messageDesc(file_plan_manager_v1_shared_model, 5);
 
 /**
  * RegressionAnchor is the "before" anchor captured prior to changes. AUTO-FILLED
@@ -357,7 +444,7 @@ export type RegressionAnchor = Message<"vrooli.plan_manager.v1.shared.Regression
  * Use `create(RegressionAnchorSchema)` to create a new message.
  */
 export const RegressionAnchorSchema: GenMessage<RegressionAnchor> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 4);
+  messageDesc(file_plan_manager_v1_shared_model, 6);
 
 /**
  * DownstreamRef records the result of forwarding a log entry to a downstream
@@ -407,7 +494,7 @@ export type DownstreamRef = Message<"vrooli.plan_manager.v1.shared.DownstreamRef
  * Use `create(DownstreamRefSchema)` to create a new message.
  */
 export const DownstreamRefSchema: GenMessage<DownstreamRef> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 5);
+  messageDesc(file_plan_manager_v1_shared_model, 7);
 
 /**
  * LogEntry is one typed execution-log ledger entry — the unified record for
@@ -532,7 +619,7 @@ export type LogEntry = Message<"vrooli.plan_manager.v1.shared.LogEntry"> & {
  * Use `create(LogEntrySchema)` to create a new message.
  */
 export const LogEntrySchema: GenMessage<LogEntry> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 6);
+  messageDesc(file_plan_manager_v1_shared_model, 8);
 
 /**
  * LogSummaryItem is one compact line in a LogSummary.
@@ -576,7 +663,7 @@ export type LogSummaryItem = Message<"vrooli.plan_manager.v1.shared.LogSummaryIt
  * Use `create(LogSummaryItemSchema)` to create a new message.
  */
 export const LogSummaryItemSchema: GenMessage<LogSummaryItem> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 7);
+  messageDesc(file_plan_manager_v1_shared_model, 9);
 
 /**
  * LogSummary is a compact roll-up of an execution's (or plan's) log ledger,
@@ -644,7 +731,7 @@ export type LogSummary = Message<"vrooli.plan_manager.v1.shared.LogSummary"> & {
  * Use `create(LogSummarySchema)` to create a new message.
  */
 export const LogSummarySchema: GenMessage<LogSummary> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 8);
+  messageDesc(file_plan_manager_v1_shared_model, 10);
 
 /**
  * ValidationResult is the most recent validation/baseline outcome for a plan or
@@ -707,7 +794,7 @@ export type ValidationResult = Message<"vrooli.plan_manager.v1.shared.Validation
  * Use `create(ValidationResultSchema)` to create a new message.
  */
 export const ValidationResultSchema: GenMessage<ValidationResult> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 9);
+  messageDesc(file_plan_manager_v1_shared_model, 11);
 
 /**
  * CommandValidationFinding is one CLI Health-backed finding for an authored
@@ -770,7 +857,7 @@ export type CommandValidationFinding = Message<"vrooli.plan_manager.v1.shared.Co
  * Use `create(CommandValidationFindingSchema)` to create a new message.
  */
 export const CommandValidationFindingSchema: GenMessage<CommandValidationFinding> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 10);
+  messageDesc(file_plan_manager_v1_shared_model, 12);
 
 /**
  * Phase is a first-class phase — the unit the runner walks and context is scoped
@@ -847,6 +934,50 @@ export type Phase = Message<"vrooli.plan_manager.v1.shared.Phase"> & {
    * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem relevant_context = 12;
    */
   relevantContext: RelevantContextItem[];
+
+  /**
+   * AUTHORED professional phase fields (see docs/concepts/PLAN-MODEL.md).
+   * Orienting prose lines for the files/dirs/surfaces this phase touches.
+   *
+   * @generated from field: repeated string affected_areas = 13;
+   */
+  affectedAreas: string[];
+
+  /**
+   * Ordered implementation steps an agent follows. Mandatory for impl phases.
+   *
+   * @generated from field: repeated string steps = 14;
+   */
+  steps: string[];
+
+  /**
+   * Artifacts/outputs this phase should produce.
+   *
+   * @generated from field: repeated string expected_outputs = 15;
+   */
+  expectedOutputs: string[];
+
+  /**
+   * The METHOD of checking this phase (commands/checks). Distinct from
+   * acceptance (the outcome gate); the two must not be identical.
+   *
+   * @generated from field: string validation = 16;
+   */
+  validation: string;
+
+  /**
+   * What the next phase depends on / what a resuming agent must know.
+   *
+   * @generated from field: string handoff_notes = 17;
+   */
+  handoffNotes: string;
+
+  /**
+   * Phase-specific risks/hazards and controls, only when relevant.
+   *
+   * @generated from field: repeated string risks_hazards = 18;
+   */
+  risksHazards: string[];
 };
 
 /**
@@ -854,7 +985,7 @@ export type Phase = Message<"vrooli.plan_manager.v1.shared.Phase"> & {
  * Use `create(PhaseSchema)` to create a new message.
  */
 export const PhaseSchema: GenMessage<Phase> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 11);
+  messageDesc(file_plan_manager_v1_shared_model, 13);
 
 /**
  * Plan is the top-level structured record. See docs/concepts/PLAN-MODEL.md for
@@ -962,6 +1093,95 @@ export type Plan = Message<"vrooli.plan_manager.v1.shared.Plan"> & {
    * @generated from field: repeated vrooli.plan_manager.v1.shared.RelevantContextItem relevant_context = 18;
    */
   relevantContext: RelevantContextItem[];
+
+  /**
+   * AUTHORED professional plan fields (see docs/concepts/PLAN-MODEL.md).
+   *
+   * the concrete problem/need/gap this closes
+   *
+   * @generated from field: string problem_statement = 19;
+   */
+  problemStatement: string;
+
+  /**
+   * the observable end state once done
+   *
+   * @generated from field: string target_outcome = 20;
+   */
+  targetOutcome: string;
+
+  /**
+   * preconditions taken as given
+   *
+   * @generated from field: string assumptions = 21;
+   */
+  assumptions: string;
+
+  /**
+   * design rationale: the chosen approach + why
+   *
+   * @generated from field: string technical_approach = 22;
+   */
+  technicalApproach: string;
+
+  /**
+   * how the plan proves it works
+   *
+   * @generated from field: string validation_strategy = 23;
+   */
+  validationStrategy: string;
+
+  /**
+   * exact end-of-plan review commands
+   *
+   * @generated from field: repeated string final_validation_commands = 24;
+   */
+  finalValidationCommands: string[];
+
+  /**
+   * plan-wide risks/hazards + controls, when relevant
+   *
+   * @generated from field: string risks_hazards = 25;
+   */
+  risksHazards: string;
+
+  /**
+   * off-limits approaches, only when relevant
+   *
+   * @generated from field: string prohibited_approaches = 26;
+   */
+  prohibitedApproaches: string;
+
+  /**
+   * AUTOFILLED/COMPUTED work posture (never agent-authored).
+   *
+   * @generated from field: vrooli.plan_manager.v1.shared.WorkPosture work_posture = 27;
+   */
+  workPosture: WorkPosture;
+
+  /**
+   * @generated from field: vrooli.plan_manager.v1.shared.WorkPostureSource work_posture_source = 28;
+   */
+  workPostureSource: WorkPostureSource;
+
+  /**
+   * derivation note (fallback reason, sunset warning)
+   *
+   * @generated from field: string work_posture_detail = 29;
+   */
+  workPostureDetail: string;
+
+  /**
+   * GOVERNANCE: import bookkeeping (only when imported).
+   *
+   * @generated from field: vrooli.plan_manager.v1.shared.ImportProvenance import_provenance = 30;
+   */
+  importProvenance?: ImportProvenance | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.plan_manager.v1.shared.LegacySection preserved_legacy_sections = 31;
+   */
+  preservedLegacySections: LegacySection[];
 };
 
 /**
@@ -969,7 +1189,7 @@ export type Plan = Message<"vrooli.plan_manager.v1.shared.Plan"> & {
  * Use `create(PlanSchema)` to create a new message.
  */
 export const PlanSchema: GenMessage<Plan> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 12);
+  messageDesc(file_plan_manager_v1_shared_model, 14);
 
 /**
  * PlanEdge is one supersession/dependency edge between two plans (the plan
@@ -1001,7 +1221,7 @@ export type PlanEdge = Message<"vrooli.plan_manager.v1.shared.PlanEdge"> & {
  * Use `create(PlanEdgeSchema)` to create a new message.
  */
 export const PlanEdgeSchema: GenMessage<PlanEdge> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 13);
+  messageDesc(file_plan_manager_v1_shared_model, 15);
 
 /**
  * VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
@@ -1057,7 +1277,7 @@ export type VelocityPoint = Message<"vrooli.plan_manager.v1.shared.VelocityPoint
  * Use `create(VelocityPointSchema)` to create a new message.
  */
 export const VelocityPointSchema: GenMessage<VelocityPoint> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 14);
+  messageDesc(file_plan_manager_v1_shared_model, 16);
 
 /**
  * Handoff is the canonical, structured handoff assembled from state captured
@@ -1141,7 +1361,7 @@ export type Handoff = Message<"vrooli.plan_manager.v1.shared.Handoff"> & {
  * Use `create(HandoffSchema)` to create a new message.
  */
 export const HandoffSchema: GenMessage<Handoff> = /*@__PURE__*/
-  messageDesc(file_plan_manager_v1_shared_model, 15);
+  messageDesc(file_plan_manager_v1_shared_model, 17);
 
 /**
  * PlanStatus is the lifecycle state of a plan. COMPUTED: derived from phase
@@ -1620,6 +1840,86 @@ export const CompletenessSchema: GenEnum<Completeness> = /*@__PURE__*/
   enumDesc(file_plan_manager_v1_shared_model, 11);
 
 /**
+ * WorkPosture is the Greenfield/Brownfield stance of a plan. AUTOFILLED from the
+ * associated scenario's maturity (default GREENFIELD); never agent-authored. The
+ * renderer injects the matching guidance block. See docs/concepts/PLAN-MODEL.md.
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.WorkPosture
+ */
+export enum WorkPosture {
+  /**
+   * @generated from enum value: WORK_POSTURE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * net-new work; no compatibility shims/dead code
+   *
+   * @generated from enum value: WORK_POSTURE_GREENFIELD = 1;
+   */
+  GREENFIELD = 1,
+
+  /**
+   * deployed/limited-live; preserve external contracts
+   *
+   * @generated from enum value: WORK_POSTURE_BROWNFIELD = 2;
+   */
+  BROWNFIELD = 2,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.WorkPosture.
+ */
+export const WorkPostureSchema: GenEnum<WorkPosture> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 12);
+
+/**
+ * WorkPostureSource records HOW the posture was decided (audit/explainability).
+ *
+ * @generated from enum vrooli.plan_manager.v1.shared.WorkPostureSource
+ */
+export enum WorkPostureSource {
+  /**
+   * @generated from enum value: WORK_POSTURE_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * no resolvable scenario; defaulted to greenfield
+   *
+   * @generated from enum value: WORK_POSTURE_SOURCE_DEFAULT = 1;
+   */
+  DEFAULT = 1,
+
+  /**
+   * derived from scenario .vrooli/service.json maturity
+   *
+   * @generated from enum value: WORK_POSTURE_SOURCE_SERVICE_MATURITY = 2;
+   */
+  SERVICE_MATURITY = 2,
+
+  /**
+   * a future explicit override signal
+   *
+   * @generated from enum value: WORK_POSTURE_SOURCE_EXPLICIT_OVERRIDE = 3;
+   */
+  EXPLICIT_OVERRIDE = 3,
+
+  /**
+   * carried in from a legacy markdown import
+   *
+   * @generated from enum value: WORK_POSTURE_SOURCE_IMPORT_LEGACY = 4;
+   */
+  IMPORT_LEGACY = 4,
+}
+
+/**
+ * Describes the enum vrooli.plan_manager.v1.shared.WorkPostureSource.
+ */
+export const WorkPostureSourceSchema: GenEnum<WorkPostureSource> = /*@__PURE__*/
+  enumDesc(file_plan_manager_v1_shared_model, 13);
+
+/**
  * ValidationVerdict is the outcome of a validation/DoD check. UNKNOWN is the
  * honest degraded result when a composed dependency (code-facts /
  * git-control-tower) is unavailable — never a false PASS.
@@ -1652,7 +1952,7 @@ export enum ValidationVerdict {
  * Describes the enum vrooli.plan_manager.v1.shared.ValidationVerdict.
  */
 export const ValidationVerdictSchema: GenEnum<ValidationVerdict> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 12);
+  enumDesc(file_plan_manager_v1_shared_model, 14);
 
 /**
  * NextActionKind classifies the role of a wizard action in the current guided
@@ -1691,7 +1991,7 @@ export enum NextActionKind {
  * Describes the enum vrooli.plan_manager.v1.shared.NextActionKind.
  */
 export const NextActionKindSchema: GenEnum<NextActionKind> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 13);
+  enumDesc(file_plan_manager_v1_shared_model, 15);
 
 /**
  * LogEntryType is the typed kind of an execution-log ledger entry.
@@ -1734,7 +2034,7 @@ export enum LogEntryType {
  * Describes the enum vrooli.plan_manager.v1.shared.LogEntryType.
  */
 export const LogEntryTypeSchema: GenEnum<LogEntryType> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 14);
+  enumDesc(file_plan_manager_v1_shared_model, 16);
 
 /**
  * LogSyncStatus is the downstream-integration state of a log entry. LOCAL means
@@ -1775,7 +2075,7 @@ export enum LogSyncStatus {
  * Describes the enum vrooli.plan_manager.v1.shared.LogSyncStatus.
  */
 export const LogSyncStatusSchema: GenEnum<LogSyncStatus> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 15);
+  enumDesc(file_plan_manager_v1_shared_model, 17);
 
 /**
  * LogSeverity is the optional severity of a finding or bug-report entry.
@@ -1818,5 +2118,5 @@ export enum LogSeverity {
  * Describes the enum vrooli.plan_manager.v1.shared.LogSeverity.
  */
 export const LogSeveritySchema: GenEnum<LogSeverity> = /*@__PURE__*/
-  enumDesc(file_plan_manager_v1_shared_model, 16);
+  enumDesc(file_plan_manager_v1_shared_model, 18);
 

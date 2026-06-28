@@ -71,6 +71,10 @@ service AuthoringService {
   rpc NextPhase(NextPhaseRequest) returns (NextPhaseResponse);
   // Finalize validates structure then writes the produced plan through the plans
   // domain, returning the persisted plan.
+  // PreviewPlan renders the in-progress session to its markdown review artifact
+  // WITHOUT persisting, so a human/agent can review the plan before finalize.
+  rpc PreviewPlan(PreviewPlanRequest) returns (PreviewPlanResponse);
+
   rpc Finalize(FinalizeRequest) returns (FinalizeResponse);
 }
 
@@ -353,6 +357,16 @@ message NextPhaseResponse {
   PhaseDraft phase = 1;
   bool complete = 2;
   shared.GuidedStep step = 3;
+}
+
+message PreviewPlanRequest {
+  string session_id = 1;
+}
+
+message PreviewPlanResponse {
+  // The rendered markdown review artifact for the in-progress plan.
+  string markdown = 1;
+  shared.GuidedStep step = 2;
 }
 
 message FinalizeRequest {

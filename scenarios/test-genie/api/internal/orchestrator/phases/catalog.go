@@ -238,6 +238,23 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Timeout:          120 * time.Second,
 		Description:      "Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension.",
 	}))
+	// Branding delegates brand-identity validation to the brand-manager scenario
+	// (the single scenario that both authors and validates branding) through
+	// ScenarioValidationService, mapping per-rule findings (display-name,
+	// color-system, typography, logo, favicon, WCAG-AA contrast, applied brand
+	// markers) into the FINDING_SOURCE_BRANDING channel and climbing a branding
+	// maturity ladder. Deterministic rules expose PreviewFix/ApplyFix auto-fixes.
+	// Optional so an absent brand-manager skips (never fails) the phase.
+	register(delegatedSpec(Delegated{
+		Name:             Branding,
+		ProviderScenario: "brand-manager",
+		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
+		Emoji:            "🎨",
+		DetailCommand:    "brand-manager validate {{scenario}}",
+		Optional:         true,
+		Timeout:          120 * time.Second,
+		Description:      "Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, color-system, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension.",
+	}))
 	return catalog
 }
 

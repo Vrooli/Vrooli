@@ -16,12 +16,13 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager
 // phases via typed status transitions, and acts as a just-in-time context server
 // (Start / GetStatus / GetContext / Resume / GetNext return the current phase,
 // what is next, setup context, reminders, the last validation and staleness) so
-// the agent does not carry that knowledge (OT-P0-003). It captures decisions/findings
-// in-flow, runs a thin guided completion process (nudges), and assembles the
-// canonical structured handoff from captured state — full/partial + resume point
-// COMPUTED from the phase-status set (OT-P1-001). Findings are filed as CANDIDATE
-// (unvalidated); an operator triages them. Velocity is captured LOCAL ONLY; the
-// meta-optimization-manager emit seam is stubbed/deferred (OT-P1-002).
+// the agent does not carry that knowledge (OT-P0-003). It reads compact log
+// summaries (decisions/findings/bugs/records owned by LogService) through an
+// internal seam, runs a thin guided completion process (nudges), and assembles
+// the canonical structured handoff from captured state — full/partial + resume
+// point COMPUTED from the phase-status set (OT-P1-001). Velocity is captured
+// LOCAL ONLY; the meta-optimization-manager emit seam is stubbed/deferred
+// (OT-P1-002).
 //
 // plan-manager owns only the structured handoff; the prose final-message
 // catch-all is owned by the orchestration layer and linked by reference.

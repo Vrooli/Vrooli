@@ -161,6 +161,7 @@ func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
 		Security:     "TEST_GENIE_SKIP_SECURITY",
 		Measures:     "TEST_GENIE_SKIP_MEASURES",
 		Proto:        "TEST_GENIE_SKIP_PROTO",
+		Branding:     "TEST_GENIE_SKIP_BRANDING",
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {
@@ -205,6 +206,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Measures: architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
 		Proto:    architecturev1.FindingSource_FINDING_SOURCE_PROTO,
 		Storage:  architecturev1.FindingSource_FINDING_SOURCE_STORAGE,
+		Branding: architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
 	}
 	catalog := DefaultCatalog()
 	for _, spec := range catalog.All() {

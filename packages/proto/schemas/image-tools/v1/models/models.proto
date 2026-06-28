@@ -533,8 +533,39 @@ message Resolution {
   // known, sufficient VRAM.
   bool gpu_viable = 10;
   // warnings carries the selection + backend cautions (CPU-slow, VRAM shortfall,
-  // derived-op caveat, …).
+  // derived-op caveat, adapter auto-preprocess, …).
   repeated string warnings = 11;
+  // adapters is the validated conditioning stack (LoRA / ControlNet / IP-Adapter)
+  // the request asked for, in canonical application order. Empty for an
+  // unconditioned op. weight (field 8) is ELEVATED to max(op, adapters...) when
+  // present (decision C4).
+  repeated ResolvedAdapter adapters = 12;
+}
+
+// AdapterRef is one requested conditioning modifier on an --explain dry-run
+// (mirrors ai.AdapterRef; duplicated here so the models explain surface is
+// self-contained).
+message AdapterRef {
+  string adapter_id = 1;
+  double scale = 2;
+  string conditioning_image_key = 3;
+  string preprocessor_override = 4;
+}
+
+// ResolvedAdapter is one validated, execution-ready conditioning modifier in a
+// Resolution (mirrors internal/adapters.ResolvedAdapter).
+message ResolvedAdapter {
+  string id = 1;
+  string name = 2;
+  // kind is "lora" | "controlnet" | "ip-adapter".
+  string kind = 3;
+  string architecture = 4;
+  double scale = 5;
+  // weight is the adapter's own consent weight (none|low|high).
+  string weight = 6;
+  // preprocessor is the effective ControlNet preprocessor ("" for other kinds).
+  string preprocessor = 7;
+  string conditioning_image_key = 8;
 }
 
 message ExplainResolutionRequest {
@@ -547,6 +578,9 @@ message ExplainResolutionRequest {
   // allow_byok permits a paid BYOK cloud tier when no local backend is available
   // (the resolution then reports that tier).
   bool allow_byok = 3;
+  // adapters is the conditioning stack to validate + explain (each rejected if
+  // incompatible / disabled / not-installed / not-yet-Ready). Empty = unconditioned.
+  repeated AdapterRef adapters = 4;
 }
 
 message ExplainResolutionResponse {
