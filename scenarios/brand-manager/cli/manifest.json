@@ -245,6 +245,112 @@
       ]
     },
     {
+      "name": "assignments",
+      "description": "Assign brands to scenarios and inspect a scenario's branding status",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List brand assignments (newest-applied first)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "description": "Filter to assignments for one brand"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "ListAssignments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "assign",
+          "description": "Assign a brand to a scenario (upsert; pins the brand's current version)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id to apply"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to brand"
+            },
+            {
+              "name": "elements",
+              "description": "Comma-separated applied elements (e.g. logo,colors)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "AssignBrand"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Show a scenario's branding status",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "GetScenarioStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unassign",
+          "description": "Remove a scenario's brand assignment (idempotent)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssignmentsService",
+            "method": "UnassignScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "notes",
       "description": "Manage notes (CRUD reference)",
       "commands": [
@@ -354,6 +460,147 @@
               "unit": "notes",
               "summary_template": "{count} notes created ({window})"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "assets",
+      "description": "Upload, fetch, and remove brand asset files (logo, favicon, icon, …)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List brand assets (newest-uploaded first)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "description": "Filter to assets for one brand"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "ListAssets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "upload",
+          "description": "Upload (or replace) a brand asset file from local disk",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id that owns the asset"
+            },
+            {
+              "name": "file",
+              "required": true,
+              "description": "Path to the local file to upload"
+            },
+            {
+              "name": "filename",
+              "description": "Override the stored filename (defaults to the file's basename)"
+            },
+            {
+              "name": "mime-type",
+              "description": "Override the mime type (inferred from the extension when unset)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "UploadAsset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show an asset's catalog entry by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Asset id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "GetAsset"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "download",
+          "description": "Download an asset's bytes to a local file",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Asset id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "out",
+              "description": "Output path (defaults to the stored filename in the working directory)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "DownloadAsset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an asset (idempotent)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Asset id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AssetsService",
+            "method": "DeleteAsset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]

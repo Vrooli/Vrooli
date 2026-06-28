@@ -12,7 +12,9 @@
       "dashboard": "Dashboard",
       "notes": "Notes",
       "settings": "Settings",
-      "brands": "Brands"
+      "brands": "Brands",
+      "assignments": "Assignments",
+      "assets": "Assets"
     }
   },
   "theme": {
@@ -39,6 +41,12 @@
     },
     "brands": {
       "title": "Brands"
+    },
+    "assignments": {
+      "title": "Assignments"
+    },
+    "assets": {
+      "title": "Assets"
     }
   },
   "health": {
@@ -107,5 +115,19 @@
     "empty": "No brands yet.",
     "create": "Create brand",
     "primaryLabel": "Primary:"
+  },
+  "assignments": {
+    "title": "Assignments",
+    "loading": "Loading assignments…",
+    "empty": "No brand assignments yet.",
+    "brandLabel": "Brand:",
+    "elementsLabel": "Elements:"
+  },
+  "assets": {
+    "title": "Assets",
+    "loading": "Loading assets…",
+    "empty": "No brand assets yet.",
+    "brandLabel": "Brand:",
+    "typeLabel": "Type:"
   }
 }

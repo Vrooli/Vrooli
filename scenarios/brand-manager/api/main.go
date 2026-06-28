@@ -21,6 +21,8 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	assetsH "brand-manager/handlers/assets"
+	assignmentsH "brand-manager/handlers/assignments"
 	brandsH "brand-manager/handlers/brands"
 	healthH "brand-manager/handlers/health"
 	notesH "brand-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
@@ -89,6 +91,40 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+// assetsBaseDir resolves the root directory under which the assets domain
+// stores uploaded brand asset files (one subdirectory per brand). Resolution
+// mirrors sqliteDSN so the asset tree lands beside the database in the same
+// variant-aware namespace (shadow-safe with zero per-scenario work):
+//
+//  1. ASSETS_PATH env — the canonical override.
+//  2. storage.NewResolver(ProfileAuto) — ClassData/assets, the
+//     filesystem-safe-by-default location.
+func assetsBaseDir() (string, error) {
+	if dir := strings.TrimSpace(os.Getenv("ASSETS_PATH")); dir != "" {
+		return dir, nil
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("brand-manager")
+	if err != nil {
+		return "", fmt.Errorf("resolve brand-manager storage namespace: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenarioID},
+		storage.ClassData,
+		"assets",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve brand-manager assets dir: %w", err)
+	}
+	return path, nil
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -99,6 +135,11 @@ func main() {
 	dsn, err := sqliteDSN()
 	if err != nil {
 		log.Fatalf("sqlite configuration failed: %v", err)
+	}
+
+	assetsDir, err := assetsBaseDir()
+	if err != nil {
+		log.Fatalf("assets configuration failed: %v", err)
 	}
 
 	db, err := database.Open(context.Background(), database.Config{
@@ -118,6 +159,8 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "brand-manager-api", "1.0.0"),
+		assetsH.Module(db, clock.System{}, log.Default(), assetsDir),
+		assignmentsH.Module(db, clock.System{}, log.Default()),
 		brandsH.Module(db, clock.System{}, log.Default()),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 		// Branding validation: the served ScenarioValidationService test-genie's

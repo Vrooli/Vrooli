@@ -12,7 +12,9 @@
       "dashboard": "ダッシュボード",
       "notes": "ノート",
       "settings": "設定",
-      "brands": "ブランド"
+      "brands": "ブランド",
+      "assignments": "割り当て",
+      "assets": "アセット"
     }
   },
   "theme": {
@@ -39,6 +41,12 @@
     },
     "brands": {
       "title": "ブランド"
+    },
+    "assignments": {
+      "title": "割り当て"
+    },
+    "assets": {
+      "title": "アセット"
     }
   },
   "health": {
@@ -103,5 +111,19 @@
     "empty": "ブランドはまだありません。",
     "create": "ブランドを作成",
     "primaryLabel": "プライマリ:"
+  },
+  "assignments": {
+    "title": "割り当て",
+    "loading": "割り当てを読み込み中…",
+    "empty": "ブランドの割り当てはまだありません。",
+    "brandLabel": "ブランド:",
+    "elementsLabel": "要素:"
+  },
+  "assets": {
+    "title": "アセット",
+    "loading": "アセットを読み込み中…",
+    "empty": "ブランドアセットはまだありません。",
+    "brandLabel": "ブランド:",
+    "typeLabel": "種類:"
   }
 }

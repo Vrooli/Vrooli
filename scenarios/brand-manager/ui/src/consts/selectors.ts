@@ -340,6 +340,27 @@ const literalSelectors = {
     updatedAt: "brands-updated-at",
     version: "brands-version",
   },
+  assignments: {
+    card: "assignments-card",
+    list: "assignments-list",
+    loading: "assignments-loading",
+    empty: "assignments-empty",
+    error: "assignments-error",
+    scenario: "assignments-scenario",
+    brand: "assignments-brand",
+    version: "assignments-version",
+  },
+  assets: {
+    card: "assets-card",
+    list: "assets-list",
+    loading: "assets-loading",
+    empty: "assets-empty",
+    error: "assets-error",
+    filename: "assets-filename",
+    brand: "assets-brand",
+    mimeType: "assets-mime-type",
+    size: "assets-size",
+  },
   locale: {
     switcher: "locale-switcher",
   },
@@ -358,6 +379,8 @@ const literalSelectors = {
     dashboard: "page-dashboard",
     notes: "page-notes", // EXAMPLE-DOMAIN:notes
     brands: "page-brands",
+    assignments: "page-assignments",
+    assets: "page-assets",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -393,6 +416,8 @@ const dynamicSelectorDefinitions = {
             "dashboard",
             "notes", // EXAMPLE-DOMAIN:notes
             "brands",
+            "assignments",
+            "assets",
             "settings",
           ] as const,
         },
@@ -408,6 +433,8 @@ const dynamicSelectorDefinitions = {
             "dashboard",
             "notes", // EXAMPLE-DOMAIN:notes
             "brands",
+            "assignments",
+            "assets",
             "settings",
           ] as const,
         },

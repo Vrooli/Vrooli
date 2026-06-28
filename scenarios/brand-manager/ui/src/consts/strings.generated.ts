@@ -25,6 +25,8 @@ export const strings = {
       notes: "layout.nav.notes",
       settings: "layout.nav.settings",
       brands: "layout.nav.brands",
+      assignments: "layout.nav.assignments",
+      assets: "layout.nav.assets",
     },
   },
   theme: {
@@ -51,6 +53,12 @@ export const strings = {
     },
     brands: {
       title: "pages.brands.title",
+    },
+    assignments: {
+      title: "pages.assignments.title",
+    },
+    assets: {
+      title: "pages.assets.title",
     },
   },
   health: {
@@ -119,6 +127,20 @@ export const strings = {
     empty: "brands.empty",
     create: "brands.create",
     primaryLabel: "brands.primaryLabel",
+  },
+  assignments: {
+    title: "assignments.title",
+    loading: "assignments.loading",
+    empty: "assignments.empty",
+    brandLabel: "assignments.brandLabel",
+    elementsLabel: "assignments.elementsLabel",
+  },
+  assets: {
+    title: "assets.title",
+    loading: "assets.loading",
+    empty: "assets.empty",
+    brandLabel: "assets.brandLabel",
+    typeLabel: "assets.typeLabel",
   },
 } as const;
 

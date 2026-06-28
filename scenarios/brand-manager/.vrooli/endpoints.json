@@ -45,6 +45,334 @@
       }
     },
     {
+      "id": "assets_list",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/ListAssets",
+      "method": "POST",
+      "summary": "List brand assets",
+      "description": "Returns asset catalog entries ordered newest-uploaded first, optionally filtered to one brand.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (optional filter; empty = all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assets": "array<Asset>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List assets",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/ListAssets -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "assets_upload",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/UploadAsset",
+      "method": "POST",
+      "summary": "Upload (or replace) a brand asset",
+      "description": "Writes the file bytes and upserts the catalog row keyed by (brand_id, filename). Re-uploading the same filename replaces the bytes and keeps the asset id. The brand must exist, the mime type must be an allowed image type, and the payload must be non-empty and within 32 MiB.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "content": "bytes (required, non-empty, <= 32 MiB)",
+          "filename": "string (required, bare basename)",
+          "mime_type": "string (optional; inferred from extension when empty)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "Asset"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/invalid field, unknown brand, unsupported mime, or oversized payload"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Blob write or repository failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Upload asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/UploadAsset -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"filename\":\"logo.png\",\"content\":\"<base64>\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assets_get",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/GetAsset",
+      "method": "POST",
+      "summary": "Get an asset catalog entry by id",
+      "description": "Returns the asset metadata matching the request id (no bytes; use DownloadAsset for bytes).",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset": "Asset"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/GetAsset -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assets_download",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/DownloadAsset",
+      "method": "POST",
+      "summary": "Download an asset's bytes",
+      "description": "Returns the stored file bytes plus its filename and mime type.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "content": "bytes",
+          "filename": "string",
+          "mime_type": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No asset with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Blob read or repository failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Download asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/DownloadAsset -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assets_delete",
+      "path": "/vrooli.brand_manager.v1.assets.AssetsService/DeleteAsset",
+      "method": "POST",
+      "summary": "Delete an asset (idempotent)",
+      "description": "Removes the catalog row and best-effort removes the on-disk file. Deleting a missing asset returns success.",
+      "category": "assets",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete asset",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assets.AssetsService/DeleteAsset -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assignments_list",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/ListAssignments",
+      "method": "POST",
+      "summary": "List brand assignments",
+      "description": "Returns assignments ordered newest-applied first, optionally filtered to one brand.",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (optional filter; empty = all)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assignments": "array<Assignment>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List assignments",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/ListAssignments -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "assignments_assign",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/AssignBrand",
+      "method": "POST",
+      "summary": "Assign a brand to a scenario",
+      "description": "Upserts a scenario's brand link and pins the brand's current version. Re-assigning replaces the prior link. brand_id and scenario_name are required and the brand must exist.",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "brand_id": "string (required, must exist)",
+          "elements": "array<string> (optional applied elements)",
+          "scenario_name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assignment": "Assignment"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing brand_id/scenario_name or unknown brand"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Assign brand",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/AssignBrand -H 'Content-Type: application/json' -d '{\"brand_id\":\"abc123\",\"scenario_name\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assignments_status",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/GetScenarioStatus",
+      "method": "POST",
+      "summary": "Get a scenario's branding status",
+      "description": "Returns whether a scenario has a brand assigned and, if so, the pinned brand id/version, applied elements, and applied-at time. An unbranded scenario yields has_brand=false (not an error).",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "status": "ScenarioStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Scenario status",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/GetScenarioStatus -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
+      "id": "assignments_unassign",
+      "path": "/vrooli.brand_manager.v1.assignments.AssignmentsService/UnassignScenario",
+      "method": "POST",
+      "summary": "Unassign a scenario's brand (idempotent)",
+      "description": "Removes a scenario's brand assignment. Unassigning a scenario with no brand returns success.",
+      "category": "assignments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario_name": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario_name"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Unassign scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.assignments.AssignmentsService/UnassignScenario -H 'Content-Type: application/json' -d '{\"scenario_name\":\"web-console\"}'"
+        }
+      ]
+    },
+    {
       "id": "brands_list",
       "path": "/vrooli.brand_manager.v1.brands.BrandsService/ListBrands",
       "method": "POST",
