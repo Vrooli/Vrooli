@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	brandsH "brand-manager/handlers/brands"
 	healthH "brand-manager/handlers/health"
 	notesH "brand-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	validationH "brand-manager/handlers/validation"
@@ -117,6 +118,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "brand-manager-api", "1.0.0"),
+		brandsH.Module(db, clock.System{}, log.Default()),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 		// Branding validation: the served ScenarioValidationService test-genie's
 		// `branding` delegated phase calls. brand-manager both authors and

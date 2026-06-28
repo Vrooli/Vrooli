@@ -49,14 +49,14 @@
       "path": "/vrooli.brand_manager.v1.brands.BrandsService/ListBrands",
       "method": "POST",
       "summary": "List brands",
-      "description": "Returns brands ordered newest-updated-first, optionally filtered by a case-insensitive name substring and paginated.",
+      "description": "Returns brands ordered newest-updated first, with optional name-substring filter and pagination.",
       "category": "brands",
       "request": {
         "type": "object",
         "properties": {
-          "limit": "int32 (<= 0 → server default 100, max 500)",
-          "name_contains": "string (optional substring filter)",
-          "offset": "int32 (pagination offset)"
+          "limit": "int32 (default 100, max 500)",
+          "name_contains": "string (case-insensitive substring filter)",
+          "offset": "int32 (rows to skip)"
         }
       },
       "response": {
@@ -84,16 +84,14 @@
       "path": "/vrooli.brand_manager.v1.brands.BrandsService/CreateBrand",
       "method": "POST",
       "summary": "Create a brand",
-      "description": "Persists a new brand at version 1 and snapshots it. Name is required and validated server-side; identity/colors/typography/voice facets are optional.",
+      "description": "Persists a new brand at version 1 and snapshots that version. Name is required.",
       "category": "brands",
       "request": {
         "type": "object",
         "properties": {
           "colors": "Colors",
-          "description": "string",
           "identity": "Identity",
           "name": "string (required, non-whitespace)",
-          "notes": "string",
           "typography": "Typography",
           "voice": "Voice"
         }
@@ -119,7 +117,7 @@
       "examples": [
         {
           "name": "Create brand",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/CreateBrand -H 'Content-Type: application/json' -d '{\"name\":\"Acme\",\"colors\":{\"primary\":\"#1f2937\"}}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.brand_manager.v1.brands.BrandsService/CreateBrand -H 'Content-Type: application/json' -d '{\"name\":\"Acme\"}'"
         }
       ]
     },
@@ -165,15 +163,14 @@
       "id": "brands_update",
       "path": "/vrooli.brand_manager.v1.brands.BrandsService/UpdateBrand",
       "method": "POST",
-      "summary": "Update a brand",
-      "description": "Applies a partial update (only provided fields overwrite existing values), bumps the version, and snapshots the result. Set expected_version > 0 for optimistic locking.",
+      "summary": "Update a brand (partial)",
+      "description": "Merges non-empty fields onto the stored brand, increments the version, and snapshots it. expected_version (when > 0) enforces optimistic locking.",
       "category": "brands",
       "request": {
         "type": "object",
         "properties": {
-          "expected_version": "int32 (> 0 enables optimistic lock)",
-          "id": "string (required)",
-          "name": "string (empty = unchanged)"
+          "expected_version": "int32 (optional optimistic lock)",
+          "id": "string (required)"
         }
       },
       "response": {
@@ -186,7 +183,7 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Resulting name would be empty"
+          "description": "Resulting name is empty"
         },
         {
           "status": 404,
@@ -194,9 +191,9 @@
           "description": "No brand with that id exists"
         },
         {
-          "status": 412,
+          "status": 409,
           "code": "failed_precondition",
-          "description": "expected_version no longer matches"
+          "description": "expected_version does not match current version"
         },
         {
           "status": 500,
@@ -215,8 +212,8 @@
       "id": "brands_delete",
       "path": "/vrooli.brand_manager.v1.brands.BrandsService/DeleteBrand",
       "method": "POST",
-      "summary": "Delete a brand",
-      "description": "Removes the brand by id. Idempotent: deleting a missing brand succeeds. Version history is retained as an audit trail.",
+      "summary": "Delete a brand (idempotent)",
+      "description": "Removes the brand. Deleting a missing brand returns success.",
       "category": "brands",
       "request": {
         "type": "object",
@@ -242,11 +239,11 @@
       ]
     },
     {
-      "id": "brands_versions_list",
+      "id": "brands_versions",
       "path": "/vrooli.brand_manager.v1.brands.BrandsService/ListBrandVersions",
       "method": "POST",
       "summary": "List a brand's version history",
-      "description": "Returns the immutable version snapshots for a brand, newest-first. Each snapshot is the full JSON-encoded brand state at the time the version was cut.",
+      "description": "Returns the brand's immutable version snapshots, newest-first.",
       "category": "brands",
       "request": {
         "type": "object",

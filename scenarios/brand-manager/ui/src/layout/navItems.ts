@@ -11,6 +11,7 @@ export interface NavItem {
   key:
     | "dashboard"
     | "notes" // EXAMPLE-DOMAIN:notes
+    | "brands"
     | "settings";
   /** Router path. */
   path: string;
@@ -23,5 +24,6 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
   { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
+  { key: "brands", path: "/brands", labelKey: strings.layout.nav.brands },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

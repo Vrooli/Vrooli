@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { BrandsPage } from "../pages/BrandsPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
@@ -23,6 +24,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+      { path: "brands", element: <BrandsPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

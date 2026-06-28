@@ -330,6 +330,16 @@ const literalSelectors = {
     },
   },
   // EXAMPLE-DOMAIN:notes END
+  brands: {
+    card: "brands-card",
+    list: "brands-list",
+    loading: "brands-loading",
+    empty: "brands-empty",
+    error: "brands-error",
+    createButton: "brands-create-button",
+    updatedAt: "brands-updated-at",
+    version: "brands-version",
+  },
   locale: {
     switcher: "locale-switcher",
   },
@@ -347,6 +357,7 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     notes: "page-notes", // EXAMPLE-DOMAIN:notes
+    brands: "page-brands",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -381,6 +392,7 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "notes", // EXAMPLE-DOMAIN:notes
+            "brands",
             "settings",
           ] as const,
         },
@@ -395,6 +407,7 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "notes", // EXAMPLE-DOMAIN:notes
+            "brands",
             "settings",
           ] as const,
         },

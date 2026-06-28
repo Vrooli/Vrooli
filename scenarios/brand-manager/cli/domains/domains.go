@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"brand-manager/cli/domains/brands"
 	"brand-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -37,6 +38,11 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	brandsGroup, err := brands.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, brandsGroup)
 	// EXAMPLE-DOMAIN:notes START
 	notesGroup, err := notes.Register(core, manifest)
 	if err != nil {
