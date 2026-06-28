@@ -103,6 +103,58 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `vrooli scenario detemplate
 <scenario>` removes it once your real domains are green.
 
+## Primary Agent Loops
+
+Small agents should prefer the continue-loop commands and use the lower-level
+commands only for the specific action returned by the API-owned `GuidedStep`.
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `plan-manager author continue <session>` | `AuthoringService.ContinueAuthoring` | Returns one recommended next authoring action across section, phase, validation-review, and finalize states. |
+| `plan-manager exec continue <plan-or-execution>` | `ExecutionService.ContinueExecution` | Resumes or starts execution and returns one recommended next runner action without advancing the phase pointer. |
+
+`plan-manager exec transition <execution> <phase> --status done` is guarded by
+the execution service: it requires the last stored phase validation to be
+`pass` + `fresh`, or an explicit `--validation-override-reason` for degraded or
+offline completion. Prefer `exec continue` so the API recommends validation
+before the done transition.
+
+## `log` — the execution-log ledger
+
+The `log` group is the single durable home for the typed work products an agent
+produces while executing a plan: decisions, candidate findings, filed bug
+reports, reusable records, and notes (DISTINCT concepts — a finding is
+unvalidated, a bug report is filed to the issue tracker, a record is reusable
+learning). The CLI is **flat** (`plan-manager log decision-add`, not nested
+`log decision add`). Bugs and records are forwarded downstream **internally** by
+Plan Manager (bug → scenario-qa, record → swarm-manager); agents never invoke an
+external scenario CLI from the plan workflow.
+
+> **Moved from `exec`.** The former `exec decision-add`, `exec finding-add`,
+> `exec findings`, and `exec triage` commands (and the `RecordDecision`/
+> `RecordFinding`/`ListCandidateFindings`/`TriageFinding` RPCs) were **removed**.
+> Use `log decision-add`, `log finding-add`, `log list --type finding`, and
+> `log update --triage` / `log promote` respectively.
+
+| Command | RPC | Purpose |
+|---|---|---|
+| `log decision-add <plan-or-execution> --title <t> [--phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddDecision` | Record an in-flow design decision (feeds the handoff). |
+| `log finding-add <plan-or-execution> --title <t> [--severity --phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddFinding` | Record a CANDIDATE finding (a possible bug; never auto-promoted). |
+| `log bug-add <plan-or-execution> --title <t> [--severity --phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddBug` | File a bug report; forwarded to the issue tracker (scenario-qa) through an internal seam. v1 default is a pending stub (production adapter deferred), so the entry persists `pending` and is retried via `log sync`. |
+| `log record-add <plan-or-execution> --title <t> [--phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddRecord` | Capture a reusable record; forwarded to Swarm Manager through an internal seam. v1 default is a pending stub (production adapter deferred), so the entry persists `pending` and is retried via `log sync`. |
+| `log note-add <plan-or-execution> --title <t> [--phase --detail --evidence --source-command --idempotency-key --run-id]` | `LogService.AddNote` | Record a lightweight progress/context note (local-only). |
+| `log list [<plan-or-execution>] [--phase --type --triage --sync-status]` | `LogService.ListEntries` | List ledger entries with a compact summary. `--type` = `decision\|finding\|bug_report\|record\|note`; `--triage` = `candidate\|promoted\|dismissed`; `--sync-status` = `local\|pending\|synced\|sync_failed`. |
+| `log get <id>` | `LogService.GetEntry` | Get one ledger entry by id, including its downstream reference. |
+| `log update <id> [--title --detail --severity --triage --add-evidence]` | `LogService.UpdateEntry` | Update mutable fields; empty/unspecified leaves a field unchanged; `--add-evidence` appends. |
+| `log promote <id> --to <bug\|record> [--title --detail --severity]` | `LogService.PromoteEntry` | Promote a finding into a bug report or record, preserving the original finding (marked promoted) and linking the new entry back to it. |
+| `log sync <id>` | `LogService.SyncEntry` | Retry downstream forwarding for a `pending`/`sync_failed` bug or record. |
+
+`--idempotency-key` makes retries safe (a retry with the same key returns the
+existing entry); findings/decisions also dedup by
+(execution, attribution run id, type, normalized title). A failed/pending
+downstream sync is never fatal — the entry stays durable and is retried with
+`log sync`.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

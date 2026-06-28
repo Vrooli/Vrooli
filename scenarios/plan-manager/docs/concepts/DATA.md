@@ -40,8 +40,9 @@ scenario-private database.
 |---|---|---|
 | Plans, phases, references, supersession edges, content hashes | `plans` | The structured-record SSOT. |
 | Authoring-session progression + validation findings | `authoring` | Transient; the produced plan is owned by `plans`. |
-| Run↔plan linkage, captured decisions/findings, candidate findings, canonical handoff records, velocity series | `execution` | Candidate findings are explicitly unvalidated. |
+| Run↔plan linkage, canonical handoff records (carry a log summary + entries), velocity series | `execution` | Decisions/findings are no longer stored here — they live in `log`; execution reads a compact summary through the `LogLedger` seam. |
 | Reference resolutions, staleness factors, validation results | `validation` | Derived; never the source of truth for code itself. |
+| Execution-log entries (decisions, candidate findings, bug reports, records, notes) + downstream sync state | `log` | One `log_entries` table; findings are explicitly unvalidated/candidate; bug reports & records carry `sync_status` for internal downstream forwarding. |
 | Health probe state | `health` | No persisted product data. |
 
 Data plan-manager deliberately does **not** own: agent transcripts and the prose
@@ -67,9 +68,17 @@ home store. As built:
 - `authoring_sessions` (owned by `authoring`) — transient guided-wizard session
   state (sections[] + current pointer + finalized + produced plan_id), as a JSON
   document; the produced plan is owned by `plans`.
-- `executions`, `handoffs`, `findings`, `velocity_points` (owned by `execution`)
-  — run↔plan linkage, canonical handoff records, candidate (unvalidated)
-  findings with triage state, and the per-plan/run velocity series.
+- `executions`, `handoffs`, `velocity_points` (owned by `execution`)
+  — run↔plan linkage, canonical handoff records, and the per-plan/run velocity
+  series. Decisions and candidate findings are **not** stored here — they live in
+  the `log` domain; execution reads a compact summary through the `LogLedger` seam.
+- `log_entries` (owned by `log`, `api/internal/planlog/schema.sql`) — the single
+  execution-log ledger: typed entries (decisions, candidate findings, bug reports,
+  records, notes) scoped to a plan/execution/phase, each carrying triage, evidence,
+  downstream sync state, and idempotency/attribution metadata. Two partial UNIQUE
+  indexes enforce dedup: `(plan_id, idempotency_key)` for keyed retries, and
+  `(plan_id, execution_id, attribution_run_id, type, normalized title)` for keyless
+  attribution dedup.
 - `validation` persists **no** tables in v1: reference resolution, staleness, and
   baseline outcomes are computed on demand and returned (execution calls
   `RunValidation`/`ComputeStaleness` when it needs the just-in-time signal).

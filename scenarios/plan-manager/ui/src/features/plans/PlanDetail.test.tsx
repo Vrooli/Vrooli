@@ -51,6 +51,8 @@ const fullPlan = create(PlanSchema, {
   updatedAt: "2026-06-25T10:00:00Z",
   purpose: "Move auth to Connect.",
   scope: "auth scenario only",
+  constraints: "No consumer inversion in this pass.",
+  nonGoals: "Do not rewrite root planning commands.",
   definitionOfDone: "all green",
   references: [
     create(ReferenceSchema, { id: "r1", target: "api/main.go", staleness: StalenessTier.FRESH }),
@@ -63,6 +65,15 @@ const fullPlan = create(PlanSchema, {
       command: "search-hub query plan-manager --type record",
       repeatPolicy: RelevantContextRepeatPolicy.ON_RESUME,
       status: RelevantContextStatus.READY,
+    }),
+    create(RelevantContextItemSchema, {
+      id: "ctx-global-doc",
+      kind: RelevantContextKind.DOC,
+      target: "docs/concepts/PLAN-MODEL.md",
+      reason: "Read model details before changing storage.",
+      instruction: "Confirm typed anchors remain canonical.",
+      repeatPolicy: RelevantContextRepeatPolicy.AS_NEEDED,
+      status: RelevantContextStatus.DEGRADED,
     }),
   ],
   regressionAnchor: create(RegressionAnchorSchema, {
@@ -77,6 +88,9 @@ const fullPlan = create(PlanSchema, {
       title: "Contracts",
       intent: "define proto",
       status: PhaseStatus.DONE,
+      acceptance: "proto fields round-trip",
+      reminders: ["keep CLI thin"],
+      baselineScope: ["packages/proto/schemas/plan-manager/**"],
       relevantContext: [
         create(RelevantContextItemSchema, {
           id: "ctx-phase",
@@ -134,6 +148,48 @@ describe("PlanDetail", () => {
     expect(screen.getByText(i18n.t(strings.pages.plans.detail.noReferences))).toBeInTheDocument();
     expect(screen.getByText(i18n.t(strings.pages.plans.detail.anchorNone))).toBeInTheDocument();
     expect(await screen.findByText(i18n.t(strings.pages.plans.detail.edgeNone))).toBeInTheDocument();
+  });
+
+  it("renders legacy phase setup and complete regression anchor fields", async () => {
+    getPlan.mockResolvedValue(create(PlanSchema, {
+      ...fullPlan,
+      id: "plan-legacy",
+      relevantContext: [],
+      regressionAnchor: create(RegressionAnchorSchema, {
+        strategy: "sha_allowlist",
+        scenario: "plan-manager",
+        baselineName: "plan-manager-hardening-readiness",
+        headSha: "abc123",
+        allowlistPaths: ["scenarios/plan-manager/**"],
+        commands: ["git diff --stat abc123 -- scenarios/plan-manager"],
+        unavailable: true,
+      }),
+      phases: [
+        create(PhaseSchema, {
+          id: "legacy-phase",
+          order: 1,
+          title: "Legacy setup",
+          status: PhaseStatus.TODO,
+          acceptance: "legacy still renders",
+          requiredReading: ["docs/legacy-required-reading.md"],
+          reminders: ["NO_CONTEXT: migrated fixture"],
+          baselineScope: ["scenarios/plan-manager/ui/**"],
+        }),
+      ],
+    }));
+    getGraph.mockResolvedValue([]);
+
+    renderWithProviders(<PlanDetail planId="plan-legacy" />);
+
+    const page = await screen.findByTestId(selectors.pages.planDetail);
+    expect(page).toHaveTextContent("docs/legacy-required-reading.md");
+    expect(page).toHaveTextContent("NO_CONTEXT: migrated fixture");
+    expect(page).toHaveTextContent("scenarios/plan-manager/ui/**");
+    expect(page).toHaveTextContent("plan-manager-hardening-readiness");
+    expect(page).toHaveTextContent("abc123");
+    expect(page).toHaveTextContent("scenarios/plan-manager/**");
+    expect(page).toHaveTextContent("git diff --stat abc123 -- scenarios/plan-manager");
+    expect(page).toHaveTextContent(i18n.t(strings.pages.plans.detail.anchorUnavailable));
   });
 
   it("renders supersession graph directions", async () => {

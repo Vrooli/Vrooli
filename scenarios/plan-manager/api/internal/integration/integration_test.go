@@ -18,6 +18,8 @@ import (
 
 	internalauthoring "plan-manager/internal/authoring"
 	internalexecution "plan-manager/internal/execution"
+	internalplanlog "plan-manager/internal/planlog"
+	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 	"plan-manager/internal/testutil/db"
 	"plan-manager/internal/testutil/mocks"
@@ -70,7 +72,31 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 	}, true, nil
 }
 
-func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.Service, internalauthoring.Service, internalexecution.Service) {
+type logLedger struct{ svc internalplanlog.Service }
+
+func (a logLedger) Summarize(ctx context.Context, executionID string) (planmodel.LogSummary, []planmodel.LogEntry, error) {
+	return a.svc.Summarize(ctx, internalplanlog.Filter{ExecutionID: executionID})
+}
+
+type logResolver struct {
+	plans      internalplans.Service
+	executions internalexecution.Repository
+}
+
+func (a logResolver) Resolve(ctx context.Context, handle string) (string, string, bool, error) {
+	if e, ok, err := a.executions.GetExecution(ctx, handle); err != nil {
+		return "", "", false, err
+	} else if ok {
+		return e.PlanID, e.ID, true, nil
+	}
+	plan, err := a.plans.Get(ctx, handle)
+	if err != nil {
+		return "", "", false, nil
+	}
+	return plan.ID, "", true, nil
+}
+
+func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.Service, internalauthoring.Service, internalexecution.Service, internalplanlog.Service) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
@@ -79,10 +105,17 @@ func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.
 		apidb.SchemaProviderFunc(internalvalidation.Schema),
 		apidb.SchemaProviderFunc(internalauthoring.Schema),
 		apidb.SchemaProviderFunc(internalexecution.Schema),
+		apidb.SchemaProviderFunc(internalplanlog.Schema),
 	))
 	clk := mocks.NewFakeClock(time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC))
 
 	plansSvc := internalplans.NewService(internalplans.Deps{Repo: internalplans.NewSQLiteRepository(d, clk), Clock: clk})
+	execRepo := internalexecution.NewSQLiteRepository(d, clk)
+	logSvc := internalplanlog.NewService(internalplanlog.Deps{
+		Repo:     internalplanlog.NewSQLiteRepository(d, clk),
+		Resolver: logResolver{plans: plansSvc, executions: execRepo},
+		Clock:    clk,
+	})
 	// Validation over a real filesystem resolver rooted at the scenario api dir
 	// (the test runs from there) so references resolve against real files.
 	resolver := internalvalidation.NewFileResolver("")
@@ -101,13 +134,14 @@ func newStack(t *testing.T) (*sql.DB, internalplans.Service, internalvalidation.
 		Clock:  clk,
 	})
 	executionSvc := internalexecution.NewService(internalexecution.Deps{
-		Repo:      internalexecution.NewSQLiteRepository(d, clk),
+		Repo:      execRepo,
 		Plans:     planStore{svc: plansSvc},
 		Validator: validatorAdapter{svc: validationSvc},
+		Log:       logLedger{svc: logSvc},
 		Velocity:  internalexecution.DefaultVelocitySink(),
 		Clock:     clk,
 	})
-	return d, plansSvc, validationSvc, authoringSvc, executionSvc
+	return d, plansSvc, validationSvc, authoringSvc, executionSvc, logSvc
 }
 
 // contentFor returns plausible authored content for a section, tailored so the
@@ -131,7 +165,7 @@ func contentFor(key string) string {
 // in context, and after one the stored result is read back cheaply.
 func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 	ctx := context.Background()
-	_, plansSvc, validationSvc, _, executionSvc := newStack(t)
+	_, plansSvc, validationSvc, _, executionSvc, _ := newStack(t)
 
 	plan, err := plansSvc.Create(ctx, internalplans.Plan{
 		Title: "Cheap context",
@@ -171,7 +205,7 @@ func TestValidationResultPersistsForCheapContextRead(t *testing.T) {
 
 func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	ctx := context.Background()
-	_, plansSvc, validationSvc, authoringSvc, executionSvc := newStack(t)
+	_, plansSvc, validationSvc, authoringSvc, executionSvc, logSvc := newStack(t)
 
 	// 1) Author a plan via the guided wizard: fill every section the wizard asks
 	// for, validate the structure gate, then finalize into the plans SSOT.
@@ -228,15 +262,19 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	require.True(t, phaseCtx.HasCurrent, "context injection returns the current phase")
 	require.NotEmpty(t, phaseCtx.CurrentPhase.ID)
 
-	// Record an in-flow decision + candidate finding (feeds the handoff).
-	_, _, err = executionSvc.RecordDecision(ctx, exec.ID, persisted.Phases[0].ID, "use the SSOT", "")
+	// Record an in-flow decision + candidate finding through the log domain
+	// (feeds the handoff via the LogLedger seam).
+	_, _, _, err = logSvc.AddDecision(ctx, internalplanlog.AddInputs{PlanOrExecution: exec.ID, PhaseID: persisted.Phases[0].ID, Title: "use the SSOT"})
 	require.NoError(t, err)
-	_, _, err = executionSvc.RecordFinding(ctx, exec.ID, persisted.Phases[0].ID, "possible edge case", "")
+	_, _, _, err = logSvc.AddFinding(ctx, internalplanlog.AddInputs{PlanOrExecution: exec.ID, PhaseID: persisted.Phases[0].ID, Title: "possible edge case"})
 	require.NoError(t, err)
 
 	// Drive every phase to done (the runner delegates the transition to plans).
 	for _, ph := range persisted.Phases {
-		_, _, _, transErr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalplans.PhaseStatusDone)
+		_, _, _, transErr := executionSvc.TransitionPhase(ctx, exec.ID, ph.ID, internalexecution.PhaseTransitionInputs{
+			ToStatus:                 internalplans.PhaseStatusDone,
+			ValidationOverrideReason: "integration fixture focuses on author-to-handoff flow; validation is covered separately",
+		})
 		require.NoError(t, transErr)
 	}
 
@@ -250,8 +288,9 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, internalexecution.CompletenessFull, handoff.Completeness, "all phases done => full")
 	require.Empty(t, handoff.ResumePhaseID, "no resume point when complete")
-	require.Len(t, handoff.Decisions, 1)
-	require.Len(t, handoff.CandidateFindings, 1)
+	require.Equal(t, 1, handoff.LogSummary.Decisions, "the decision is rolled into the handoff log summary")
+	require.Equal(t, 1, handoff.LogSummary.Findings, "the candidate finding is rolled into the handoff log summary")
+	require.Len(t, handoff.LogEntries, 2, "the handoff snapshots both captured log entries")
 
 	got, _, err := executionSvc.GetHandoff(ctx, exec.ID)
 	require.NoError(t, err)
@@ -262,4 +301,138 @@ func TestCrossDomainAuthorToExecuteToHandoff(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, points, 1)
 	require.EqualValues(t, 1234, points[0].Tokens)
+}
+
+func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
+	ctx := context.Background()
+	_, plansSvc, _, authoringSvc, executionSvc, _ := newStack(t)
+
+	session, step, err := authoringSvc.StartSession(ctx, "Small-agent loop", "small-agent-loop", "")
+	require.NoError(t, err)
+	require.Equal(t, "author-next", step.NextActions[0].ID)
+
+	var finalized internalplans.Plan
+	for guard := 0; guard < 20 && finalized.ID == ""; guard++ {
+		var section internalauthoring.Section
+		var phase internalauthoring.PhaseDraft
+		var ready bool
+		var violations []internalauthoring.StructureViolation
+
+		session, section, phase, ready, violations, step, err = authoringSvc.ContinueAuthoring(ctx, session.ID)
+		require.NoError(t, err)
+		require.Len(t, step.NextActions, 1, "continue should expose exactly one recommended action")
+		require.Contains(t, []internalauthoring.NextActionKind{internalauthoring.NextActionRecommended, internalauthoring.NextActionRecovery}, step.NextActions[0].Kind)
+
+		switch step.StepKind {
+		case "purpose":
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Prove the continue-loop can guide a small implementation agent.")
+			require.NoError(t, err)
+			require.Empty(t, violations)
+		case "scope":
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "In: Plan Manager authoring and execution loop. Out: consumer inversion.")
+			require.NoError(t, err)
+			require.Empty(t, violations)
+		case "regression_anchor":
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Baseline: plan-manager-hardening-readiness; head sha captured by test fixture.")
+			require.NoError(t, err)
+			require.Empty(t, violations)
+		case "definition_of_done":
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Authoring finalizes and execution handoff completes with structured state.")
+			require.NoError(t, err)
+			require.Empty(t, violations)
+		case "global_relevant_context":
+			// The continue loop surfaces the plan-wide context checkpoint and does
+			// not bypass it silently. A small agent resolves it by accepting a
+			// global setup item (here a known one via context-submit).
+			require.Equal(t, "discover-context", step.NextActions[0].ID)
+			session, _, violations, _, err = authoringSvc.SubmitRelevantContextItem(ctx, session.ID, "", internalplans.RelevantContextItem{
+				Kind:         internalplans.RelevantContextSkill,
+				Label:        "Load the planning runtime steer",
+				Reason:       "Plan-wide setup so any phase agent reorients quickly.",
+				Instruction:  "Load this skill before starting any phase.",
+				Target:       "implementation-plan-authoring",
+				Required:     true,
+				RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+			})
+			require.NoError(t, err)
+			require.Empty(t, violations)
+		case "phase_outline":
+			require.Equal(t, "add-phase", step.NextActions[0].ID)
+			session, phase, violations, _, err = authoringSvc.AddPhase(ctx, session.ID, "Implement loop", "Exercise guided authoring and execution handoff.")
+			require.NoError(t, err)
+			require.NotEmpty(t, phase.ID)
+			require.NotEmpty(t, violations, "new phase still needs references, acceptance, and context")
+		case "phase_references":
+			session, violations, _, err = authoringSvc.SubmitPhaseField(ctx, session.ID, phase.ID, internalauthoring.PhaseFieldReferences, "[CODE: scenarios/plan-manager/api/internal/integration/integration_test.go]")
+			require.NoError(t, err)
+			require.NotEmpty(t, violations, "acceptance/context still missing")
+		case "phase_acceptance":
+			session, violations, _, err = authoringSvc.SubmitPhaseField(ctx, session.ID, phase.ID, internalauthoring.PhaseFieldAcceptance, "The small-agent continue-loop integration test passes.")
+			require.NoError(t, err)
+			require.NotEmpty(t, violations, "context still missing")
+		case "phase_relevant_context":
+			require.Equal(t, "submit-phase-relevant_context", step.NextActions[0].ID)
+			session, _, violations, _, err = authoringSvc.SubmitRelevantContextItem(ctx, session.ID, phase.ID, internalplans.RelevantContextItem{
+				Kind:         internalplans.RelevantContextDoc,
+				Label:        "Integration fixture",
+				Reason:       "The phase changes the cross-domain proof itself.",
+				Instruction:  "Read the integration test before changing the guided loop.",
+				Target:       "scenarios/plan-manager/api/internal/integration/integration_test.go",
+				Required:     true,
+				RepeatPolicy: internalplans.RelevantContextPhaseEntry,
+			})
+			require.NoError(t, err)
+			require.Empty(t, violations)
+		case "validation_recovery":
+			require.NotEmpty(t, violations)
+			require.Equal(t, internalauthoring.SectionReferences, violations[0].SectionKey)
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, internalauthoring.SectionReferences, "NO_CODE_REFS: loop-level test has no separate product code reference beyond the phase reference")
+			require.NoError(t, err)
+			require.Empty(t, violations)
+		case "final_review":
+			require.True(t, ready)
+			valid, violations, step, err := authoringSvc.ValidateStructure(ctx, session.ID)
+			require.NoError(t, err)
+			require.True(t, valid, "continue should only reach final review after structure is valid: %v", violations)
+			require.Equal(t, "finalize-session", step.NextActions[0].ID)
+			finalized, step, err = authoringSvc.Finalize(ctx, session.ID)
+			require.NoError(t, err)
+			require.Equal(t, "finalized", step.StepKind)
+		default:
+			t.Fatalf("unexpected continue step %q action=%v", step.StepKind, step.NextActions)
+		}
+	}
+	require.NotEmpty(t, finalized.ID, "authoring continue loop should finalize within guard")
+	require.Len(t, finalized.Phases, 1)
+	require.Len(t, finalized.Phases[0].RelevantContext, 1)
+
+	exec, pctx, execStep, err := executionSvc.ContinueExecution(ctx, finalized.ID, "", "run-small-agent")
+	require.NoError(t, err)
+	require.True(t, pctx.HasCurrent)
+	require.Equal(t, "transition-active", execStep.NextActions[0].ID)
+
+	exec, _, execStep, err = executionSvc.TransitionPhase(ctx, exec.ID, pctx.CurrentPhase.ID, internalexecution.PhaseTransitionInputs{ToStatus: internalplans.PhaseStatusActive})
+	require.NoError(t, err)
+	require.Equal(t, "execution-next", execStep.NextActions[0].ID)
+
+	exec, pctx, execStep, err = executionSvc.ContinueExecution(ctx, exec.ID, "", "")
+	require.NoError(t, err)
+	require.Equal(t, "run-validation", execStep.NextActions[0].ID, "continue must not recommend done without fresh passing validation")
+	require.NotEmpty(t, execStep.NextActions[0].BlockedBy)
+
+	exec, _, execStep, err = executionSvc.TransitionPhase(ctx, exec.ID, pctx.CurrentPhase.ID, internalexecution.PhaseTransitionInputs{
+		ToStatus:                 internalplans.PhaseStatusDone,
+		ValidationOverrideReason: "small-agent integration fixture validates degraded guidance separately",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "complete-execution", execStep.NextActions[0].ID)
+
+	handoff, _, execStep, err := executionSvc.Complete(ctx, exec.ID, internalexecution.CompletionInputs{Tokens: 321, Iterations: 2})
+	require.NoError(t, err)
+	require.Equal(t, internalexecution.CompletenessFull, handoff.Completeness)
+	require.Equal(t, "execution-handoff", execStep.NextActions[0].ID)
+
+	persisted, err := plansSvc.Get(ctx, finalized.ID)
+	require.NoError(t, err)
+	require.Equal(t, internalplans.PlanStatusComplete, persisted.Status)
 }

@@ -22,17 +22,12 @@ type Service interface {
 	GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error)
 	GetContext(ctx context.Context, executionID, phaseID string) (Execution, PhaseContext, GuidedStep, error)
 	Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
+	ContinueExecution(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error)
 	GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error)
-	TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, GuidedStep, error)
-
-	RecordDecision(ctx context.Context, executionID, phaseID, summary, detail string) (Decision, GuidedStep, error)
-	RecordFinding(ctx context.Context, executionID, phaseID, title, detail string) (Finding, GuidedStep, error)
+	TransitionPhase(ctx context.Context, executionID, phaseID string, inputs PhaseTransitionInputs) (Execution, planmodel.Plan, GuidedStep, error)
 
 	Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error)
 	GetHandoff(ctx context.Context, executionID string) (Handoff, GuidedStep, error)
-
-	ListCandidateFindings(ctx context.Context, executionID string) ([]Finding, GuidedStep, error)
-	TriageFinding(ctx context.Context, findingID string, triage FindingTriage) (Finding, GuidedStep, error)
 
 	GetVelocity(ctx context.Context, planID string) ([]VelocityPoint, GuidedStep, error)
 }
@@ -41,18 +36,21 @@ type service struct {
 	repo      Repository
 	plans     PlanStore
 	validator Validator
+	log       LogLedger
 	velocity  VelocitySink
 	clock     clock.Clock
 }
 
 // Deps wires the execution Service. Repo + Plans are required; Validator is
 // optional (nil => last_validation/staleness degrade to UNKNOWN, never a false
-// pass). VelocitySink is optional (nil => the no-op default; velocity is still
-// persisted locally regardless).
+// pass). LogLedger is optional (nil => empty log summaries; the handoff still
+// assembles). VelocitySink is optional (nil => the no-op default; velocity is
+// still persisted locally regardless).
 type Deps struct {
 	Repo      Repository
 	Plans     PlanStore
 	Validator Validator
+	Log       LogLedger
 	Velocity  VelocitySink
 	Clock     clock.Clock
 }
@@ -71,6 +69,7 @@ func NewService(d Deps) Service {
 		repo:      d.Repo,
 		plans:     d.Plans,
 		validator: d.Validator,
+		log:       d.Log,
 		velocity:  sink,
 		clock:     clk,
 	}
@@ -112,7 +111,7 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, mode)
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, mode)
 	return e, pctx, stepForStarted(e), nil
 }
 
@@ -135,8 +134,8 @@ func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, contextModeResume)
-	return e, pctx, stepForContext(e.ID, pctx, e.Complete), nil
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeResume)
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
 func (s *service) GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -148,8 +147,8 @@ func (s *service) GetStatus(ctx context.Context, executionID string) (Execution,
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, contextModeStatus)
-	return e, pctx, stepForContext(e.ID, pctx, e.Complete), nil
+	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
 func (s *service) GetContext(ctx context.Context, executionID, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -165,8 +164,8 @@ func (s *service) GetContext(ctx context.Context, executionID, phaseID string) (
 	if targetPhaseID == "" {
 		targetPhaseID = e.CurrentPhaseID
 	}
-	pctx := s.buildContext(ctx, plan, targetPhaseID, contextModeContext)
-	return e, pctx, stepForContext(e.ID, pctx, e.Complete), nil
+	pctx := s.buildContext(ctx, plan, targetPhaseID, e.ID, contextModeContext)
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
 func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -188,7 +187,20 @@ func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID st
 	} else if ok {
 		return s.resumeExecutionWithPlan(ctx, e, plan, phaseID)
 	}
-	return s.startAtPhase(ctx, plan, strings.TrimSpace(phaseID), runID, contextModeResume)
+	// No prior execution exists for this plan: resume/continue is creating a NEW
+	// run, so this is a first start — emit once-per-execution setup context exactly
+	// once (contextModeStart), not the resume context mode. This is the fix for
+	// once-per-execution context being skipped on the continue/resume create path.
+	return s.startAtPhase(ctx, plan, strings.TrimSpace(phaseID), runID, contextModeStart)
+}
+
+func (s *service) ContinueExecution(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error) {
+	e, pctx, _, err := s.Resume(ctx, planOrExecution, phaseID, runID)
+	if err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
+	step := stepForContext(e.ID, e.PlanID, pctx, e.Complete)
+	return e, pctx, onlyRecommendedExecutionAction(step), nil
 }
 
 func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error) {
@@ -214,11 +226,11 @@ func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return PhaseContext{}, false, GuidedStep{}, err
 	}
-	pctx := s.buildContext(ctx, plan, next, contextModePhaseEntry)
-	return pctx, e.Complete, stepForContext(e.ID, pctx, e.Complete), nil
+	pctx := s.buildContext(ctx, plan, next, e.ID, contextModePhaseEntry)
+	return pctx, e.Complete, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
-func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID string, to planmodel.PhaseStatus) (Execution, planmodel.Plan, GuidedStep, error) {
+func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID string, inputs PhaseTransitionInputs) (Execution, planmodel.Plan, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
@@ -230,6 +242,15 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	target, ok := findPhase(plan.Phases, phaseID)
 	if !ok {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, planmodel.ErrPhaseNotFound{PlanID: plan.ID, PhaseID: phaseID}
+	}
+	to := inputs.ToStatus
+	if to == "" {
+		return Execution{}, planmodel.Plan{}, GuidedStep{}, ErrInvalidExecution{Reason: "target phase status is required"}
+	}
+	if to == planmodel.PhaseStatusDone {
+		if err := s.requireValidationForDone(ctx, plan, target.ID, inputs.ValidationOverrideReason); err != nil {
+			return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+		}
 	}
 	// Delegate the phase-status change to the plans domain — it stays the single
 	// source of truth for the record (plan status is recomputed there).
@@ -249,103 +270,6 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	return e, updated, stepForTransition(e), nil
 }
 
-func (s *service) RecordDecision(ctx context.Context, executionID, phaseID, summary, detail string) (Decision, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
-	if err != nil {
-		return Decision{}, GuidedStep{}, err
-	}
-	d := Decision{
-		ID:          uuid.NewString(),
-		ExecutionID: e.ID,
-		PhaseID:     phaseID,
-		Summary:     summary,
-		Detail:      detail,
-		RecordedAt:  s.now(),
-	}
-	if err := s.repo.SaveDecision(ctx, d); err != nil {
-		return Decision{}, GuidedStep{}, err
-	}
-	return d, stepForRecorded(e.ID, phaseID), nil
-}
-
-func (s *service) RecordFinding(ctx context.Context, executionID, phaseID, title, detail string) (Finding, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
-	if err != nil {
-		return Finding{}, GuidedStep{}, err
-	}
-	// Attribution-keyed dedup: a finding with the same (attribution_run_id, title)
-	// is not double-filed. When the run id is absent, dedup by title within the
-	// execution (best-effort). Collect the candidate set first (pool=1 safe — no
-	// nested query inside the lookup), then return the existing match if any.
-	existing, err := s.repo.ListFindings(ctx, e.ID, "")
-	if err != nil {
-		return Finding{}, GuidedStep{}, err
-	}
-	for _, f := range existing {
-		if !strings.EqualFold(strings.TrimSpace(f.Title), strings.TrimSpace(title)) {
-			continue
-		}
-		if e.RunID != "" {
-			if f.AttributionRunID == e.RunID {
-				return f, stepForRecorded(e.ID, phaseID), nil
-			}
-			continue
-		}
-		// No run id: dedup by title within the execution.
-		return f, stepForRecorded(e.ID, phaseID), nil
-	}
-	f := Finding{
-		ID:               uuid.NewString(),
-		ExecutionID:      e.ID,
-		PhaseID:          phaseID,
-		Title:            title,
-		Detail:           detail,
-		Triage:           TriageCandidate, // always CANDIDATE; never auto-promoted
-		AttributionRunID: e.RunID,
-		RecordedAt:       s.now(),
-	}
-	if err := s.repo.SaveFinding(ctx, f); err != nil {
-		// The unique dedup index is the cross-process backstop: if a concurrent
-		// process recorded the same (run id, title) between our read above and this
-		// write, return that winner instead of failing the agent's record call.
-		if isUniqueViolation(err) && e.RunID != "" {
-			if winner, ok := s.findByRunAndTitle(ctx, e.ID, e.RunID, title); ok {
-				return winner, stepForRecorded(e.ID, phaseID), nil
-			}
-		}
-		return Finding{}, GuidedStep{}, err
-	}
-	return f, stepForRecorded(e.ID, phaseID), nil
-}
-
-// findByRunAndTitle re-reads the execution's findings to return the one matching
-// (run id, title) — used to recover the concurrent winner after a unique-index
-// race on the dedup key.
-func (s *service) findByRunAndTitle(ctx context.Context, executionID, runID, title string) (Finding, bool) {
-	existing, err := s.repo.ListFindings(ctx, executionID, "")
-	if err != nil {
-		return Finding{}, false
-	}
-	for _, f := range existing {
-		if f.AttributionRunID == runID && strings.EqualFold(strings.TrimSpace(f.Title), strings.TrimSpace(title)) {
-			return f, true
-		}
-	}
-	return Finding{}, false
-}
-
-// isUniqueViolation reports whether err is a SQLite UNIQUE-constraint failure
-// (the modernc.org/sqlite driver surfaces it in the error text). Matched
-// defensively by substring so a driver-version message tweak does not silently
-// turn the dedup race back into a hard error.
-func isUniqueViolation(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "unique constraint") || strings.Contains(msg, "constraint failed")
-}
-
 func (s *service) Complete(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error) {
 	e, err := s.getExecution(ctx, executionID)
 	if err != nil {
@@ -355,36 +279,30 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 	if err != nil {
 		return Handoff{}, nil, GuidedStep{}, err
 	}
-	decisions, err := s.repo.ListDecisions(ctx, e.ID)
-	if err != nil {
-		return Handoff{}, nil, GuidedStep{}, err
-	}
-	candidates, err := s.repo.ListFindings(ctx, e.ID, TriageCandidate)
-	if err != nil {
-		return Handoff{}, nil, GuidedStep{}, err
-	}
+	logSummary, logEntries := s.logLedger(ctx, e.ID)
 
 	// Assemble the canonical handoff from captured state. Completeness + resume
 	// point are COMPUTED from the phase-status set; last_validation/staleness come
-	// from the validation seam (degrade to UNKNOWN, never a false pass).
+	// from the validation seam (degrade to UNKNOWN, never a false pass); the log
+	// summary/entries come from the log domain through the LogLedger seam.
 	completeness := computeCompleteness(plan.Phases)
 	resume := resumePhaseID(plan.Phases)
 	lastVal, hasVal, staleness := s.lastValidation(ctx, plan, e.CurrentPhaseID)
 
 	now := s.now()
 	handoff := Handoff{
-		ID:                uuid.NewString(),
-		ExecutionID:       e.ID,
-		PlanID:            plan.ID,
-		Completeness:      completeness,
-		ResumePhaseID:     resume,
-		Decisions:         decisions,
-		CandidateFindings: candidates,
-		LastValidation:    lastVal,
-		HasValidation:     hasVal,
-		Staleness:         staleness,
-		ProseHandoffRef:   "", // pass-through; the orchestration layer fills this by reference
-		AssembledAt:       now,
+		ID:              uuid.NewString(),
+		ExecutionID:     e.ID,
+		PlanID:          plan.ID,
+		Completeness:    completeness,
+		ResumePhaseID:   resume,
+		LogSummary:      logSummary,
+		LogEntries:      logEntries,
+		LastValidation:  lastVal,
+		HasValidation:   hasVal,
+		Staleness:       staleness,
+		ProseHandoffRef: "", // pass-through; the orchestration layer fills this by reference
+		AssembledAt:     now,
 	}
 	// Capture the velocity point LOCAL ONLY — persisted regardless, then offered
 	// to the (stubbed) MoM emit seam after the durable write commits.
@@ -418,7 +336,7 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 	}
 	_ = s.velocity.Emit(ctx, point) // best-effort; the no-op default never errors
 
-	nudges := s.completionNudges(plan, candidates)
+	nudges := s.completionNudges(plan, logSummary)
 	return handoff, nudges, stepForComplete(e.ID, nudges), nil
 }
 
@@ -438,41 +356,6 @@ func (s *service) GetHandoff(ctx context.Context, executionID string) (Handoff, 
 		return h, stepForHandoff(executionID), err
 	}
 	return h, stepForHandoff(executionID), nil
-}
-
-func (s *service) ListCandidateFindings(ctx context.Context, executionID string) ([]Finding, GuidedStep, error) {
-	findings, err := s.repo.ListFindings(ctx, strings.TrimSpace(executionID), TriageCandidate)
-	return findings, GuidedStep{
-		StepKind: "candidate_findings",
-		Title:    "Candidate Findings",
-		Summary:  "Candidate findings are awaiting operator triage.",
-		NextActions: []NextAction{{
-			ID:                 "triage-finding",
-			Kind:               NextActionRecommended,
-			Label:              "Triage a finding",
-			Reason:             "Promote or dismiss a candidate finding after review.",
-			Argv:               []string{"exec", "triage", "<finding id>", "--status", "promoted"},
-			ContentPlaceholder: "<finding id>",
-		}},
-	}, err
-}
-
-func (s *service) TriageFinding(ctx context.Context, findingID string, triage FindingTriage) (Finding, GuidedStep, error) {
-	f, ok, err := s.repo.GetFinding(ctx, strings.TrimSpace(findingID))
-	if err != nil {
-		return Finding{}, GuidedStep{}, err
-	}
-	if !ok {
-		return Finding{}, GuidedStep{}, ErrFindingNotFound{ID: findingID}
-	}
-	if triage == "" {
-		return Finding{}, GuidedStep{}, ErrInvalidExecution{Reason: "triage state is required"}
-	}
-	f.Triage = triage
-	if err := s.repo.SaveFinding(ctx, f); err != nil {
-		return Finding{}, GuidedStep{}, err
-	}
-	return f, stepForRecorded(f.ExecutionID, f.PhaseID), nil
 }
 
 func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoint, GuidedStep, error) {
@@ -513,10 +396,11 @@ const (
 )
 
 // buildContext assembles the just-in-time PhaseContext for the named phase.
-func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID string, mode contextMode) PhaseContext {
+func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID, executionID string, mode contextMode) PhaseContext {
 	pctx := PhaseContext{
 		ResumePhaseID: resumePhaseID(plan.Phases),
 		Completeness:  computeCompleteness(plan.Phases),
+		LogSummary:    s.logSummary(ctx, executionID),
 	}
 	if cur, ok := findPhase(plan.Phases, phaseID); ok {
 		pctx.CurrentPhase = cur
@@ -534,6 +418,26 @@ func (s *service) buildContext(ctx context.Context, plan planmodel.Plan, phaseID
 	pctx.HasValidation = hasVal
 	pctx.Staleness = staleness
 	return pctx
+}
+
+// logLedger reads the execution's compact log summary + captured entries through
+// the LogLedger seam. Degrades to an empty summary when the seam is nil or
+// errors (never a fabricated count).
+func (s *service) logLedger(ctx context.Context, executionID string) (planmodel.LogSummary, []planmodel.LogEntry) {
+	if s.log == nil {
+		return planmodel.LogSummary{}, nil
+	}
+	summary, entries, err := s.log.Summarize(ctx, executionID)
+	if err != nil {
+		return planmodel.LogSummary{}, nil
+	}
+	return summary, entries
+}
+
+// logSummary reads only the compact summary for the just-in-time context.
+func (s *service) logSummary(ctx context.Context, executionID string) planmodel.LogSummary {
+	summary, _ := s.logLedger(ctx, executionID)
+	return summary
 }
 
 func contextForPhase(plan planmodel.Plan, cur planmodel.Phase, hasCurrent bool, mode contextMode) []planmodel.RelevantContextItem {
@@ -659,6 +563,39 @@ func (s *service) lastValidation(ctx context.Context, plan planmodel.Plan, phase
 	return res, true, staleness
 }
 
+func (s *service) requireValidationForDone(ctx context.Context, plan planmodel.Plan, phaseID, overrideReason string) error {
+	res, hasVal, staleness := s.lastValidation(ctx, plan, phaseID)
+	if validationIsRecentPass(res, hasVal, staleness) {
+		return nil
+	}
+	if strings.TrimSpace(overrideReason) != "" {
+		return nil
+	}
+	return ErrValidationRequired{PhaseID: phaseID, Reason: validationBlockerReason(res, hasVal, staleness)}
+}
+
+func validationIsRecentPass(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier) bool {
+	return hasVal && res.Verdict == "pass" && staleness == planmodel.StalenessFresh
+}
+
+func validationBlockerReason(res ValidationResult, hasVal bool, staleness planmodel.StalenessTier) string {
+	if !hasVal {
+		return "no stored validation result"
+	}
+	if res.Verdict != "pass" {
+		return "last validation verdict is " + orUnknown(res.Verdict)
+	}
+	return "last validation staleness is " + orUnknown(string(staleness))
+}
+
+func orUnknown(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "unknown"
+	}
+	return value
+}
+
 // assembleLiveHandoff builds a handoff view from current captured state without
 // persisting it — used by GetHandoff before Complete has run.
 func (s *service) assembleLiveHandoff(ctx context.Context, executionID string) (Handoff, error) {
@@ -670,32 +607,28 @@ func (s *service) assembleLiveHandoff(ctx context.Context, executionID string) (
 	if err != nil {
 		return Handoff{}, err
 	}
-	decisions, err := s.repo.ListDecisions(ctx, e.ID)
-	if err != nil {
-		return Handoff{}, err
-	}
-	candidates, err := s.repo.ListFindings(ctx, e.ID, TriageCandidate)
-	if err != nil {
-		return Handoff{}, err
-	}
+	logSummary, logEntries := s.logLedger(ctx, e.ID)
 	lastVal, hasVal, staleness := s.lastValidation(ctx, plan, e.CurrentPhaseID)
 	return Handoff{
-		ExecutionID:       e.ID,
-		PlanID:            plan.ID,
-		Completeness:      computeCompleteness(plan.Phases),
-		ResumePhaseID:     resumePhaseID(plan.Phases),
-		Decisions:         decisions,
-		CandidateFindings: candidates,
-		LastValidation:    lastVal,
-		HasValidation:     hasVal,
-		Staleness:         staleness,
-		AssembledAt:       s.now(),
+		ExecutionID:    e.ID,
+		PlanID:         plan.ID,
+		Completeness:   computeCompleteness(plan.Phases),
+		ResumePhaseID:  resumePhaseID(plan.Phases),
+		LogSummary:     logSummary,
+		LogEntries:     logEntries,
+		LastValidation: lastVal,
+		HasValidation:  hasVal,
+		Staleness:      staleness,
+		AssembledAt:    s.now(),
 	}, nil
 }
 
 // completionNudges builds the thin guided-completion checklist. Each nudge is
-// satisfied=true when captured state already covers it.
-func (s *service) completionNudges(plan planmodel.Plan, candidates []Finding) []CompletionNudge {
+// typed and Plan Manager-local, and satisfied=true when the log ledger already
+// covers it. Missing bug reports only matter if defects were encountered;
+// missing records only matter for non-trivial reusable work — so those nudges
+// are conditional on findings present rather than always-on checklist items.
+func (s *service) completionNudges(plan planmodel.Plan, summary planmodel.LogSummary) []CompletionNudge {
 	allTerminal := computeCompleteness(plan.Phases) == CompletenessFull
 	for _, ph := range plan.Phases {
 		st := ph.Status
@@ -705,16 +638,26 @@ func (s *service) completionNudges(plan planmodel.Plan, candidates []Finding) []
 		allTerminal = false
 		break
 	}
+	hasFindings := summary.Findings > 0
 	return []CompletionNudge{
 		{
 			Kind:      "record_finding",
-			Message:   "Record any in-flight findings (possible bugs) before handing off — they file as candidates for operator triage.",
-			Satisfied: len(candidates) > 0,
+			Message:   "Record any in-flight findings (possible bugs) with `plan-manager log finding-add` before handing off.",
+			Satisfied: summary.Findings > 0 || summary.Decisions > 0,
 		},
 		{
-			Kind:      "file_bugs",
-			Message:   "File out-of-scope defects to the issue tracker; candidate findings here stay unvalidated until an operator promotes them.",
-			Satisfied: len(candidates) > 0,
+			Kind: "file_bug",
+			// Only matters if a defect was encountered: a candidate finding that
+			// looks like a real bug should be filed with `plan-manager log bug-add`
+			// (or promoted from the finding) — Plan Manager forwards it downstream.
+			Message:   "If you confirmed a defect, file it with `plan-manager log bug-add` or `plan-manager log promote <finding>` — Plan Manager forwards it for you.",
+			Satisfied: !hasFindings || summary.BugReports > 0,
+		},
+		{
+			Kind: "capture_record",
+			// Only matters for non-trivial reusable learning/completed work.
+			Message:   "Capture reusable learning or completed work with `plan-manager log record-add` so the learning loop benefits.",
+			Satisfied: summary.Records > 0 || !allTerminal,
 		},
 		{
 			Kind:      "confirm_phase_status",

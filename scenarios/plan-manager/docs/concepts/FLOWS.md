@@ -15,7 +15,8 @@ determine whether a small/local model can drive plan work.
 | Authoring | `plan new` / `plan author` | `authoring` | plan `draft` finalized → `active` |
 | Phase execution | `plan next` / `plan check` / phase transition | `execution` + `validation` | all phases `done` (or run ends partial) |
 | Validation / staleness | on request, or on resume | `validation` | results + staleness tier returned |
-| Completion / handoff | `plan complete` | `execution` | canonical handoff assembled; plan `complete` (full) or left resumable (partial) |
+| Execution-log capture | `log decision-add` / `finding-add` / `bug-add` / `record-add` / `note-add` | `log` | typed entry persisted; bugs/records forwarded downstream or left `pending` |
+| Completion / handoff | `plan complete` | `execution` | canonical handoff assembled (with log summary); plan `complete` (full) or left resumable (partial) |
 
 ## Flow Details
 
@@ -33,20 +34,34 @@ determine whether a small/local model can drive plan work.
    references or an explicit `NO_CODE_REFS:` reason, phase-scoped relevant
    context, reminders, and acceptance. Each response returns a guided step so
    the agent does not need the full authoring skill in context.
-4. The structure-validation gate refuses to finalize while a mandatory section is
+4. After the mandatory sections and before phase work, `author continue` surfaces
+   an explicit **global relevant-context checkpoint** (step kind
+   `global_relevant_context`). The continue loop will not silently bypass
+   plan-wide setup context: the agent resolves it by accepting/submitting at
+   least one global context item, or by recording an explicit no-context reason
+   (`author section-submit <session> --section relevant_context --content
+   "NO_CONTEXT: <reason>"`).
+5. The structure-validation gate refuses to finalize while a mandatory section is
    empty, a plan/phase has neither references nor a no-code reason, or a phase's
    acceptance is empty.
-5. On finalize the plan moves `draft → active` and is persisted by `plans`.
+6. On finalize the plan moves `draft → active` and is persisted by `plans`.
 
 ### Phase execution (Runner)
 
-1. `start`, `status`, `context`, `resume`, and `next` return the current phase
-   plus relevant-context setup items, reminders, last validation, and current
-   staleness — injected just-in-time so the agent does not carry it. `context`
-   is read-only; `resume` resolves an execution or plan and may move the pointer
-   to an explicit phase without advancing past work.
-2. The agent records decisions/findings via runner commands *as it goes*
-   (in-flow capture).
+1. `start`, `status`, `context`, `resume`, `continue`, and `next` return the
+   current phase plus relevant-context setup items, reminders, last validation,
+   current staleness, and a compact log summary (read from the `log` domain
+   through the `LogLedger` seam) — injected just-in-time so the agent does not
+   carry it. `context` is read-only; `resume` resolves an execution or plan and
+   may move the pointer to an explicit phase without advancing past work.
+   Once-per-execution first-run context is emitted exactly once even when the run
+   is **created via `continue`/`resume`** (a brand-new run started through that
+   path uses the start context mode, so `once_per_execution` items are not
+   skipped).
+2. The agent records its work products *as it goes* through the `log` domain
+   (`log decision-add`, `log finding-add`, `log bug-add`, `log record-add`,
+   `log note-add`) — these are typed ledger entries, not execution/phase fields.
+   Findings file as candidate; bugs/records are forwarded downstream internally.
 3. `check` runs the phase's computed baseline/validation set and returns results +
    staleness; phase status advances by typed transition or by inference once
    acceptance + validation pass.
@@ -54,12 +69,16 @@ determine whether a small/local model can drive plan work.
 
 ### Completion / handoff
 
-1. `plan complete` runs a **thin** guided completion process: nudges to record a
-   finding, file any bugs, confirm phase status — it does not do heavy lifting.
-2. The finalizer assembles the **canonical** handoff from in-flow captured state
-   (decisions, validation, candidate findings, staleness, full/partial + resume).
-3. Findings are filed as **candidate / unvalidated** for operator triage; the
-   finalizer reconciles against run-id attribution to avoid double-filing.
+1. `plan complete` runs a **thin** guided completion process emitting typed,
+   Plan-Manager-local nudges — `record_finding`, `file_bug`, `capture_record`,
+   `confirm_phase_status` — whose messages point at `plan-manager log ...`
+   commands, never an external scenario CLI. It does not do heavy lifting.
+2. The finalizer assembles the **canonical** handoff from captured state: phase
+   status (full/partial + resume), validation, staleness, and a compact
+   `LogSummary` + the run's `log_entries` read from the `log` domain through the
+   `LogLedger` seam.
+3. Findings are filed as **candidate / unvalidated** for operator triage /
+   `log promote`; idempotency keys and attribution-keyed dedup avoid double-filing.
 4. The agent's prose final message is **not** captured here — that is the
    orchestration layer's job (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
 

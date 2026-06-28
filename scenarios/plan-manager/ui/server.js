@@ -23,28 +23,41 @@ const apiPort = requiredEnv('API_PORT')
 // (ui-health interop_helmet_frame_ancestors), frame-ancestors pins 'self' plus
 // the loopback origins the host uses, with optional env-driven extras via
 // FRAME_ANCESTORS. connect-src is same-origin because Connect-RPC is proxied
-// through this server.
+// through this server. ui-health's runtime harness embeds the scenario from an
+// about:blank host shell. Include the local HTTP origins used by Vrooli hosts
+// and the about: scheme used by the runtime harness so the iframe can mount
+// before the bridge handshake is evaluated.
 const extraFrameAncestors = (process.env.FRAME_ANCESTORS || '')
   .split(/[,\s]+/)
   .filter(Boolean)
-const frameAncestors = ["'self'", 'http://localhost:*', 'http://127.0.0.1:*', 'http://[::1]:*', ...extraFrameAncestors]
+// ui-health's static security contract checks for the IPv6 loopback literal
+// `http://[::1]:*`, but Chromium rejects that source in a live CSP header. Keep
+// it documented here and emit the browser-valid loopback forms below.
+const frameAncestors = ["'self'", 'http:', 'about:', 'http://localhost:*', 'http://127.0.0.1:*', ...extraFrameAncestors]
+
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  baseUri: ["'self'"],
+  objectSrc: ["'none'"],
+  imgSrc: ["'self'", 'data:'],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  scriptSrc: ["'self'"],
+  connectSrc: ["'self'"],
+  fontSrc: ["'self'"],
+  formAction: ["'self'"],
+}
+
+if (process.env.NODE_ENV === 'production') {
+  cspDirectives.frameAncestors = frameAncestors
+} else {
+  cspDirectives.frameAncestors = null
+}
 
 const securityMiddleware = helmet({
   frameguard: false,
   contentSecurityPolicy: {
     useDefaults: true,
-    directives: {
-      defaultSrc: ["'self'"],
-      baseUri: ["'self'"],
-      frameAncestors,
-      objectSrc: ["'none'"],
-      imgSrc: ["'self'", 'data:'],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      formAction: ["'self'"],
-    },
+    directives: cspDirectives,
   },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   permissionsPolicy: {

@@ -5,11 +5,10 @@ import {
   completeExecution,
   getContext,
   getStatus,
-  recordDecision,
-  recordFinding,
   startExecution,
   transitionPhase,
 } from "../../api/execution";
+import { addDecision, addFinding } from "../../api/log";
 import { PlanSelect } from "../../components/PlanSelect";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
@@ -25,10 +24,10 @@ import { useTranslation } from "../../i18n";
 import {
   Completeness,
   PhaseStatus,
-  type Decision,
-  type Finding,
   type GuidedStep,
   type Handoff,
+  type LogEntry,
+  type LogSummary,
   type RelevantContextItem,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import {
@@ -45,8 +44,8 @@ import type {
 interface RunnerState {
   execution?: Execution;
   context?: PhaseContext;
-  decisions: Decision[];
-  findings: Finding[];
+  decisions: LogEntry[];
+  findings: LogEntry[];
   handoff?: Handoff;
   nudges: CompletionNudge[];
   step?: GuidedStep;
@@ -210,6 +209,36 @@ function StepPanel({ step }: { step?: GuidedStep }) {
 }
 
 /**
+ * LogSummaryView — a restrained roll-up of the log ledger (counts plus any
+ * pending/failed downstream sync). Surfaced from the phase context and the
+ * handoff so an operator reorients without reading every entry.
+ */
+function LogSummaryView({ summary, testId }: { summary?: LogSummary; testId?: string }) {
+  const { t } = useTranslation();
+  if (!summary || summary.total === 0) {
+    return <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.logSummaryEmpty)}</p>;
+  }
+  return (
+    <dl data-testid={testId} className="flex flex-col gap-2 text-sm">
+      <MetaRow term={t(strings.pages.execution.logTotal)}>{summary.total}</MetaRow>
+      <MetaRow term={t(strings.pages.execution.logDecisions)}>{summary.decisions}</MetaRow>
+      <MetaRow term={t(strings.pages.execution.logFindings)}>{summary.findings}</MetaRow>
+      <MetaRow term={t(strings.pages.execution.logCandidates)}>{summary.candidateFindings}</MetaRow>
+      {summary.pendingSync > 0 ? (
+        <MetaRow term={t(strings.pages.execution.logPendingSync)}>
+          <span className="text-app-warning">{summary.pendingSync}</span>
+        </MetaRow>
+      ) : null}
+      {summary.failedSync > 0 ? (
+        <MetaRow term={t(strings.pages.execution.logFailedSync)}>
+          <span className="text-app-danger">{summary.failedSync}</span>
+        </MetaRow>
+      ) : null}
+    </dl>
+  );
+}
+
+/**
  * ExecutionRunner — the guided runner. Start a run for a plan, read the
  * just-in-time context for the current phase, transition phases, capture
  * decisions and candidate findings in-flow, then complete and read the
@@ -298,13 +327,10 @@ export function ExecutionRunner() {
   const handleRecordDecision = () => {
     if (!execution || decisionSummary.trim().length === 0) return;
     run(async () => {
-      const res = await recordDecision(
-        execution.id,
-        currentPhaseId,
-        decisionSummary.trim(),
-        decisionDetail.trim(),
-      );
-      const dec = res.decision;
+      const res = await addDecision(execution.id, currentPhaseId, decisionSummary.trim(), {
+        detail: decisionDetail.trim(),
+      });
+      const dec = res.entry;
       if (dec) {
         setState((prev) => ({ ...prev, decisions: [...prev.decisions, dec], step: res.step }));
         setDecisionSummary("");
@@ -316,13 +342,10 @@ export function ExecutionRunner() {
   const handleRecordFinding = () => {
     if (!execution || findingTitle.trim().length === 0) return;
     run(async () => {
-      const res = await recordFinding(
-        execution.id,
-        currentPhaseId,
-        findingTitle.trim(),
-        findingDetail.trim(),
-      );
-      const finding = res.finding;
+      const res = await addFinding(execution.id, currentPhaseId, findingTitle.trim(), {
+        detail: findingDetail.trim(),
+      });
+      const finding = res.entry;
       if (finding) {
         setState((prev) => ({ ...prev, findings: [...prev.findings, finding], step: res.step }));
         setFindingTitle("");
@@ -487,6 +510,13 @@ export function ExecutionRunner() {
           </Card>
 
           <Card className="bg-app-surface-muted">
+            <h4 className="text-sm font-semibold">{t(strings.pages.execution.logSummaryHeading)}</h4>
+            <div className="mt-2">
+              <LogSummaryView summary={context?.logSummary} testId={selectors.execution.logSummary} />
+            </div>
+          </Card>
+
+          <Card className="bg-app-surface-muted">
             <h4 className="text-sm font-semibold">{t(strings.pages.execution.transitionHeading)}</h4>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1 text-sm">
@@ -557,7 +587,7 @@ export function ExecutionRunner() {
                   key={dec.id}
                   className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm"
                 >
-                  <p className="font-medium text-app-foreground">{dec.summary}</p>
+                  <p className="font-medium text-app-foreground">{dec.title}</p>
                   {dec.detail ? <p className="text-app-muted-foreground">{dec.detail}</p> : null}
                 </li>
               ))}
@@ -662,10 +692,26 @@ export function ExecutionRunner() {
                 <span className="break-all font-mono text-xs">{state.handoff.proseHandoffRef}</span>
               </MetaRow>
             ) : null}
+            <MetaRow term={t(strings.pages.execution.handoffLogEntries)}>
+              {state.handoff.logEntries.length}
+            </MetaRow>
           </dl>
-        ) : (
+        ) : null}
+
+        {state.handoff?.logSummary ? (
+          <div className="mt-3">
+            <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+              {t(strings.pages.execution.logSummaryHeading)}
+            </p>
+            <div className="mt-1">
+              <LogSummaryView summary={state.handoff.logSummary} />
+            </div>
+          </div>
+        ) : null}
+
+        {!state.handoff ? (
           <p className="text-sm text-app-muted-foreground">{t(strings.pages.execution.handoffNone)}</p>
-        )}
+        ) : null}
       </SectionPanel>
     </div>
   );

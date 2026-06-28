@@ -61,6 +61,19 @@ const Harness = (props: {
 };
 
 describe("SpatialGroup", () => {
+  it("does nothing when the controller is not ready yet", () => {
+    const ctrl = makeMockSpatialNavController();
+    const ref = { current: null };
+
+    render(
+      <SpatialGroup controllerRef={ref} mode="spatial">
+        <button type="button">child</button>
+      </SpatialGroup>,
+    );
+
+    expect(ctrl.registerGroup).not.toHaveBeenCalled();
+  });
+
   it("registers a spatial focus group on mount and runs the cleanup on unmount", () => {
     const ctrl = makeMockSpatialNavController();
     const { unmount } = render(<Harness controller={ctrl} mode="spatial" options={{ wrap: true }} />);

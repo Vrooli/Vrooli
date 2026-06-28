@@ -23,6 +23,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AuthoringService.GetSection":                h.sectionGet,
 		"AuthoringService.SubmitSection":             h.sectionSubmit,
 		"AuthoringService.Next":                      h.next,
+		"AuthoringService.ContinueAuthoring":         h.continueAuthoring,
 		"AuthoringService.ValidateStructure":         h.validate,
 		"AuthoringService.Autofill":                  h.autofill,
 		"AuthoringService.SubmitRelevantContextItem": h.contextSubmit,

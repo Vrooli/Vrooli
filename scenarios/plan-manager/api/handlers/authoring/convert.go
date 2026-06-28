@@ -199,16 +199,8 @@ func planToProto(p planmodel.Plan) *sharedv1.Plan {
 	return planproto.PlanToProto(p)
 }
 
-func phasesToProto(phases []planmodel.Phase) []*sharedv1.Phase {
-	return planproto.PhasesToProto(phases)
-}
-
 func referencesToProto(refs []planmodel.Reference) []*sharedv1.Reference {
 	return planproto.ReferencesToProto(refs)
-}
-
-func anchorToProto(a planmodel.RegressionAnchor) *sharedv1.RegressionAnchor {
-	return planproto.AnchorToProto(a)
 }
 
 // int32Of narrows a phase order to int32 for the wire. Phase orders are small

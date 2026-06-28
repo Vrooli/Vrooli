@@ -11,17 +11,22 @@ import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 import {
-  DecisionSchema,
   GuidedStepSchema,
   HandoffSchema,
+  LogEntrySchema,
+  LogSummarySchema,
   PhaseSchema,
   PhaseStatus,
   RelevantContextItemSchema,
   RelevantContextKind,
   RelevantContextRepeatPolicy,
+  RelevantContextStatus,
   StalenessTier,
+  ValidationResultSchema,
+  ValidationVerdict,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import {
+  CompletionNudgeSchema,
   ExecutionSchema,
   PhaseContextSchema,
 } from "@vrooli/proto-types/plan-manager/v1/execution/execution_pb";
@@ -31,9 +36,9 @@ const startExecution = vi.fn();
 const getStatus = vi.fn();
 const getContext = vi.fn();
 const transitionPhase = vi.fn();
-const recordDecision = vi.fn();
-const recordFinding = vi.fn();
 const completeExecution = vi.fn();
+const addDecision = vi.fn();
+const addFinding = vi.fn();
 const listPlans = vi.fn();
 
 vi.mock("../../api/execution", () => ({
@@ -41,14 +46,14 @@ vi.mock("../../api/execution", () => ({
   getStatus: (...a: unknown[]) => getStatus(...a),
   getContext: (...a: unknown[]) => getContext(...a),
   transitionPhase: (...a: unknown[]) => transitionPhase(...a),
-  recordDecision: (...a: unknown[]) => recordDecision(...a),
-  recordFinding: (...a: unknown[]) => recordFinding(...a),
   completeExecution: (...a: unknown[]) => completeExecution(...a),
   getNext: vi.fn(),
   getHandoff: vi.fn(),
-  listCandidateFindings: vi.fn(),
-  triageFinding: vi.fn(),
   getVelocity: vi.fn(),
+}));
+vi.mock("../../api/log", () => ({
+  addDecision: (...a: unknown[]) => addDecision(...a),
+  addFinding: (...a: unknown[]) => addFinding(...a),
 }));
 vi.mock("../../api/plans", () => ({
   listPlans: (...a: unknown[]) => listPlans(...a),
@@ -70,7 +75,14 @@ const step = create(GuidedStepSchema, {
   nextActions: [{ label: "Mark done", argv: ["exec", "transition", "exec-1", "p1", "--status", "done"] }],
 });
 const context = create(PhaseContextSchema, {
-  currentPhase: create(PhaseSchema, { id: "p1", order: 1, title: "Contracts", status: PhaseStatus.ACTIVE }),
+  currentPhase: create(PhaseSchema, {
+    id: "p1",
+    order: 1,
+    title: "Contracts",
+    intent: "Lock the execution handoff contract.",
+    status: PhaseStatus.ACTIVE,
+  }),
+  nextPhase: create(PhaseSchema, { id: "p2", order: 2, title: "Validate", status: PhaseStatus.TODO }),
   requiredReading: ["docs/PLAN.md"],
   reminders: ["keep it small"],
   relevantContext: [
@@ -81,8 +93,30 @@ const context = create(PhaseContextSchema, {
       command: "search-hub query plan-manager --type record",
       repeatPolicy: RelevantContextRepeatPolicy.ON_RESUME,
     }),
+    create(RelevantContextItemSchema, {
+      id: "ctx-2",
+      kind: RelevantContextKind.DOC,
+      label: "",
+      target: "docs/context.md",
+      reason: "Read when validation context changes.",
+      instruction: "Check the document before editing.",
+      repeatPolicy: RelevantContextRepeatPolicy.AS_NEEDED,
+      status: RelevantContextStatus.DEGRADED,
+    }),
   ],
+  lastValidation: create(ValidationResultSchema, {
+    id: "val-fresh",
+    verdict: ValidationVerdict.PASS,
+    staleness: StalenessTier.FRESH,
+  }),
   staleness: StalenessTier.FRESH,
+  logSummary: create(LogSummarySchema, {
+    total: 3,
+    decisions: 2,
+    findings: 1,
+    candidateFindings: 1,
+    pendingSync: 1,
+  }),
 });
 
 const startAndLand = async () => {
@@ -119,6 +153,28 @@ describe("ExecutionRunner", () => {
     expect(screen.getByTestId(selectors.execution.context)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.execution.setupContext)).toHaveTextContent("Recall");
     expect(screen.getByTestId(selectors.execution.guidedStep)).toHaveTextContent("exec transition exec-1 p1 --status done");
+    // The phase context surfaces a compact log-ledger roll-up (counts + pending sync).
+    expect(screen.getByTestId(selectors.execution.logSummary)).toHaveTextContent("Pending sync");
+  });
+
+  it("renders start errors without leaving the start gate", async () => {
+    const user = userEvent.setup();
+    listPlans.mockResolvedValue([create(PlanSchema, { id: "plan-1", title: "Migrate auth" })]);
+    startExecution.mockRejectedValue(new Error("start failed"));
+
+    renderWithProviders(<ExecutionRunner />);
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.execution.planSelect).querySelector('option[value="plan-1"]'),
+      ).not.toBeNull();
+    });
+    await user.selectOptions(screen.getByTestId(selectors.execution.planSelect), "plan-1");
+    await user.click(screen.getByTestId(selectors.execution.startButton));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("start failed");
+      expect(screen.getByTestId(selectors.execution.startForm)).toBeInTheDocument();
+    });
   });
 
   it("refreshes setup context without advancing execution", async () => {
@@ -126,6 +182,18 @@ describe("ExecutionRunner", () => {
     await user.click(screen.getByTestId(selectors.execution.contextButton));
     await waitFor(() => {
       expect(getContext).toHaveBeenCalledWith("exec-1");
+    });
+  });
+
+  it("renders context refresh errors after execution has started", async () => {
+    const user = await startAndLand();
+    getContext.mockRejectedValueOnce(new Error("refresh failed"));
+
+    await user.click(screen.getByTestId(selectors.execution.contextButton));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("refresh failed");
+      expect(screen.getByTestId(selectors.execution.context)).toBeInTheDocument();
     });
   });
 
@@ -138,17 +206,99 @@ describe("ExecutionRunner", () => {
     });
   });
 
-  it("records a decision in-flow", async () => {
+  it("records a decision in-flow via the log domain", async () => {
     const user = await startAndLand();
-    recordDecision.mockResolvedValue({
-      decision: create(DecisionSchema, { id: "d1", summary: "chose Connect" }),
+    addDecision.mockResolvedValue({
+      entry: create(LogEntrySchema, { id: "d1", title: "chose Connect" }),
       step,
+      deduplicated: false,
     });
     await user.type(screen.getByTestId(selectors.execution.decisionSummary), "chose Connect");
     await user.click(screen.getByTestId(selectors.execution.recordDecisionButton));
     await waitFor(() => {
-      expect(recordDecision).toHaveBeenCalledWith("exec-1", "p1", "chose Connect", "");
+      expect(addDecision).toHaveBeenCalledWith("exec-1", "p1", "chose Connect", { detail: "" });
     });
+  });
+
+  it("records a candidate finding in-flow via the log domain", async () => {
+    const user = await startAndLand();
+    addFinding.mockResolvedValue({
+      entry: create(LogEntrySchema, { id: "f1", title: "edge case", detail: "needs triage" }),
+      step,
+      deduplicated: false,
+    });
+    await user.type(screen.getByTestId(selectors.execution.findingTitle), "edge case");
+    await user.type(screen.getByTestId(selectors.execution.findingDetail), "needs triage");
+    await user.click(screen.getByTestId(selectors.execution.recordFindingButton));
+    await waitFor(() => {
+      expect(addFinding).toHaveBeenCalledWith("exec-1", "p1", "edge case", { detail: "needs triage" });
+      expect(screen.getByTestId(selectors.execution.recordFindingButton).closest("section")).toHaveTextContent(
+        "edge case",
+      );
+      expect(screen.getByTestId(selectors.execution.recordFindingButton).closest("section")).toHaveTextContent(
+        "needs triage",
+      );
+    });
+  });
+
+  it("renders legacy required reading, no current phase, and last validation fallbacks", async () => {
+    const user = userEvent.setup();
+    const emptyContext = create(PhaseContextSchema, {
+      resumePhaseId: "",
+      requiredReading: ["docs/legacy.md"],
+      reminders: [],
+      lastValidation: create(ValidationResultSchema, {
+        id: "val-1",
+        verdict: ValidationVerdict.UNKNOWN,
+        staleness: StalenessTier.DEFINITELY_STALE,
+      }),
+      staleness: StalenessTier.DEFINITELY_STALE,
+    });
+    listPlans.mockResolvedValue([create(PlanSchema, { id: "plan-1", title: "Migrate auth" })]);
+    startExecution.mockResolvedValue({ execution, context: emptyContext, step });
+    getStatus.mockResolvedValue({ execution, context: emptyContext, step });
+
+    renderWithProviders(<ExecutionRunner />);
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.execution.planSelect).querySelector('option[value="plan-1"]'),
+      ).not.toBeNull();
+    });
+    await user.selectOptions(screen.getByTestId(selectors.execution.planSelect), "plan-1");
+    await user.click(screen.getByTestId(selectors.execution.startButton));
+
+    const contextPanel = await screen.findByTestId(selectors.execution.context);
+    expect(contextPanel).toHaveTextContent("docs/legacy.md");
+    expect(contextPanel).toHaveTextContent(/No current phase|No active phase/i);
+  });
+
+  it("renders a current phase with no previous validation", async () => {
+    const user = userEvent.setup();
+    const noValidationContext = create(PhaseContextSchema, {
+      currentPhase: create(PhaseSchema, {
+        id: "p1",
+        order: 1,
+        title: "Contracts",
+        intent: "Define transition checks.",
+        status: PhaseStatus.ACTIVE,
+      }),
+      staleness: StalenessTier.FRESH,
+    });
+    listPlans.mockResolvedValue([create(PlanSchema, { id: "plan-1", title: "Migrate auth" })]);
+    startExecution.mockResolvedValue({ execution, context: noValidationContext, step });
+
+    renderWithProviders(<ExecutionRunner />);
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.execution.planSelect).querySelector('option[value="plan-1"]'),
+      ).not.toBeNull();
+    });
+    await user.selectOptions(screen.getByTestId(selectors.execution.planSelect), "plan-1");
+    await user.click(screen.getByTestId(selectors.execution.startButton));
+
+    const contextPanel = await screen.findByTestId(selectors.execution.context);
+    expect(contextPanel).toHaveTextContent("Define transition checks.");
+    expect(contextPanel).toHaveTextContent("None");
   });
 
   it("[REQ:PM-HANDOFF-001] completes the run and shows the handoff", async () => {
@@ -161,6 +311,33 @@ describe("ExecutionRunner", () => {
     await user.click(screen.getByTestId(selectors.execution.completeButton));
     await waitFor(() => {
       expect(screen.getByTestId(selectors.execution.handoff)).toBeInTheDocument();
+    });
+  });
+
+  it("renders completion nudges and optional handoff fields", async () => {
+    const user = await startAndLand();
+    completeExecution.mockResolvedValue({
+      handoff: create(HandoffSchema, {
+        id: "h1",
+        executionId: "exec-1",
+        resumePhaseId: "p2",
+        proseHandoffRef: "rec-123",
+        staleness: StalenessTier.DEFINITELY_STALE,
+        logEntries: [create(LogEntrySchema, { id: "e1", title: "chose Connect" })],
+        logSummary: create(LogSummarySchema, { total: 1, decisions: 1 }),
+      }),
+      nudges: [create(CompletionNudgeSchema, { kind: "record_finding", message: "Record candidate findings" })],
+      step,
+    });
+    await user.click(screen.getByTestId(selectors.execution.completeButton));
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.execution.handoff)).toHaveTextContent("p2");
+      expect(screen.getByTestId(selectors.execution.handoff)).toHaveTextContent("rec-123");
+      expect(screen.getByTestId(selectors.execution.handoff).closest("section")).toHaveTextContent(
+        "Record candidate findings",
+      );
+      // The handoff surfaces the log-ledger roll-up assembled at completion.
+      expect(screen.getByTestId(selectors.execution.handoff).closest("section")).toHaveTextContent("Log entries");
     });
   });
 

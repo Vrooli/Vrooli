@@ -1,14 +1,13 @@
--- executions / handoffs / findings / velocity_points — owned by internal/execution/.
--- The guided-runner store (docs/concepts/DATA.md): run↔plan linkage, captured
--- decisions/findings, candidate findings, canonical handoff records, and the
--- per-plan velocity series.
+-- executions / handoffs / velocity_points — owned by internal/execution/.
+-- The guided-runner store (docs/concepts/DATA.md): run↔plan linkage, canonical
+-- handoff records, and the per-plan velocity series.
 --
 -- Unlike the plans store (a single plan document), these rows ARE queried across
--- one another — findings by execution and triage state, velocity by plan, the
--- handoff by execution — so each is a first-class table with queryable columns
--- plus a `document` JSON column for the structured payload that round-trips with
--- the row (e.g. the handoff's assembled decisions/findings snapshot). Phases and
--- references stay owned by the plans domain and are never copied here.
+-- one another — velocity by plan, the handoff by execution — so each is a
+-- first-class table with queryable columns plus a `document` JSON column for the
+-- structured payload that round-trips with the row (the handoff's assembled log
+-- summary snapshot). Decisions/findings/bugs/records live in the log domain;
+-- phases and references stay owned by the plans domain; neither is copied here.
 --
 -- Embedded by schema.go and applied idempotently via database.EnsureSchemas at
 -- boot through the modules.AllSchemas registry. Timestamps are RFC3339Nano. Use
@@ -30,52 +29,13 @@ CREATE TABLE IF NOT EXISTS executions (
 CREATE INDEX IF NOT EXISTS idx_executions_plan ON executions(plan_id);
 CREATE INDEX IF NOT EXISTS idx_executions_run ON executions(run_id);
 
--- decisions — in-flow design decisions captured during a run, FK→execution.
-CREATE TABLE IF NOT EXISTS decisions (
-  id           TEXT PRIMARY KEY,
-  execution_id TEXT NOT NULL,
-  phase_id     TEXT NOT NULL DEFAULT '',
-  summary      TEXT NOT NULL DEFAULT '',
-  detail       TEXT NOT NULL DEFAULT '',
-  recorded_at  TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_decisions_execution ON decisions(execution_id);
-
--- findings — candidate (unvalidated) findings, FK→execution, with triage state.
--- attribution_run_id powers attribution-keyed dedup; the unique index makes the
--- (execution_id, attribution_run_id, title) dedup key authoritative at the store
--- when an attribution run id is present (best-effort dedup-by-title otherwise).
-CREATE TABLE IF NOT EXISTS findings (
-  id                 TEXT PRIMARY KEY,
-  execution_id       TEXT NOT NULL,
-  phase_id           TEXT NOT NULL DEFAULT '',
-  title              TEXT NOT NULL DEFAULT '',
-  detail             TEXT NOT NULL DEFAULT '',
-  triage             TEXT NOT NULL DEFAULT 'candidate',
-  attribution_run_id TEXT NOT NULL DEFAULT '',
-  recorded_at        TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_findings_execution ON findings(execution_id);
-CREATE INDEX IF NOT EXISTS idx_findings_triage ON findings(triage);
-
--- The (execution_id, attribution_run_id, title) dedup key, now authoritative at
--- the store. PARTIAL (only rows that carry an attribution run id) so two
--- concurrent CLI processes recording the same finding cannot both insert, while
--- attribution-less findings still dedup best-effort by title in the service
--- without a hard constraint. This is the index the comment above promised.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_dedup
-  ON findings(execution_id, attribution_run_id, title)
-  WHERE attribution_run_id <> '';
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_findings_dedup_title_norm
-  ON findings(execution_id, attribution_run_id, lower(trim(title)))
-  WHERE attribution_run_id <> '';
+-- Decisions and candidate findings are NOT stored here — they are typed entries
+-- in the log domain's log_entries table (internal/planlog). The handoff snapshots
+-- a compact log summary read from that domain.
 
 -- handoffs — canonical structured handoff records, FK→execution. The assembled
--- decisions/candidate-findings snapshot and the last-validation result live in
--- the `document` JSON column; the queryable columns power lookup by execution.
+-- log-ledger snapshot and the last-validation result live in the `document` JSON
+-- column; the queryable columns power lookup by execution.
 CREATE TABLE IF NOT EXISTS handoffs (
   id             TEXT PRIMARY KEY,
   execution_id   TEXT NOT NULL,

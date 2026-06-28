@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-001 — structured plan + phase record persisted to a durable, scenario-independent home store.",
-    "last_validated_at": "2026-06-26T17:11:03-04:00",
+    "last_validated_at": "2026-06-27T13:35:10-04:00",
     "module": "plan-store",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PM-STORE-001",
       "title": "A plan is a first-class structured record with ordered first-class phases",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "plans",
       "description": "A plan is stored as a structured record (meta + global sections + ordered phases; each phase owns relevant context, reminders, baseline scope, acceptance, and status) and exposes CRUD plus a rendered markdown view. Persistence is rooted at the scenario-independent ~/.vrooli home store so plans remain readable when the plan-manager server is down.",
@@ -25,21 +25,21 @@
           "type": "test",
           "ref": "api/internal/plans/plans_test.go::TestRepositorySaveGetRoundTrip",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Plan + phase round-trip through the SQLite repository."
         },
         {
           "type": "test",
           "ref": "api/internal/plans/plans_test.go::TestRenderMarkdownDeterministic",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Structured plans render to deterministic markdown with machine-readable references."
         },
         {
           "type": "test",
           "ref": "api/internal/plans/plans_test.go::TestImportAndMigrate",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Plans can be imported and migrated through the store-backed service seam."
         }
       ]
@@ -47,7 +47,7 @@
     {
       "id": "PM-STORE-002",
       "title": "Phase status is a computed runtime transition, never agent-edited markdown",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "plans",
       "description": "Phase status (todo / active / done / blocked) changes only through a typed state transition (or inference from acceptance/validation passing). The rendered markdown view reflects status but is never the source of truth, so an agent cannot corrupt plan state by editing prose.",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "api/internal/plans/plans_test.go::TestStatusTransitionLegality",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Typed phase transitions compute plan status and archive remains terminal."
         }
       ]

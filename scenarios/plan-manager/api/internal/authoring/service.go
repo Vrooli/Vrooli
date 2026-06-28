@@ -19,6 +19,7 @@ type Service interface {
 	GetSection(ctx context.Context, sessionID string, key SectionKey) (Section, GuidedStep, error)
 	SubmitSection(ctx context.Context, sessionID string, key SectionKey, content string) (Session, []StructureViolation, GuidedStep, error)
 	Next(ctx context.Context, sessionID string) (Section, GuidedStep, bool, error)
+	ContinueAuthoring(ctx context.Context, sessionID string) (Session, Section, PhaseDraft, bool, []StructureViolation, GuidedStep, error)
 	ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, GuidedStep, error)
 	Autofill(ctx context.Context, sessionID string, sources []AutofillSource) (Session, []AutofillResult, GuidedStep, error)
 	SubmitRelevantContextItem(ctx context.Context, sessionID, phaseID string, item planmodel.RelevantContextItem) (Session, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
@@ -162,6 +163,44 @@ func (s *service) Next(ctx context.Context, sessionID string) (Section, GuidedSt
 	}
 	idx := indexOf(sess.Sections, key)
 	return sess.Sections[idx], stepForSection(sess, sess.Sections[idx]), false, nil
+}
+
+func (s *service) ContinueAuthoring(ctx context.Context, sessionID string) (Session, Section, PhaseDraft, bool, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, Section{}, PhaseDraft{}, false, nil, GuidedStep{}, err
+	}
+	if sess.Finalized {
+		return sess, Section{}, PhaseDraft{}, false, nil, onlyRecommendedAction(stepForFinalizedPlan(sess, sess.PlanID, sess.Slug)), nil
+	}
+	if key := firstUnfilledMandatory(sess.Sections); key != "" {
+		idx := indexOf(sess.Sections, key)
+		return sess, sess.Sections[idx], PhaseDraft{}, false, nil, onlyRecommendedAction(stepForSection(sess, sess.Sections[idx])), nil
+	}
+	// Global relevant-context checkpoint: the continue loop must NOT silently
+	// bypass plan-wide setup context. It is resolved by accepting/adding at least
+	// one global context item, or by explicitly recording a NO_CONTEXT reason.
+	if !globalContextResolved(sess) {
+		idx := indexOf(sess.Sections, SectionRelevantContext)
+		sec := Section{Key: SectionRelevantContext, Label: "Relevant context"}
+		if idx >= 0 {
+			sec = sess.Sections[idx]
+		}
+		return sess, sec, PhaseDraft{}, false, nil, onlyRecommendedAction(stepForGlobalContextCheckpoint(sess)), nil
+	}
+	if id := nextIncompletePhaseID(sess.PhaseDrafts); id != "" {
+		phase, ok := findDraft(sess.PhaseDrafts, id)
+		if !ok {
+			return Session{}, Section{}, PhaseDraft{}, false, nil, GuidedStep{}, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + id}
+		}
+		return sess, Section{}, phase, false, phaseViolations(phase), onlyRecommendedAction(stepForPhase(sess, phase)), nil
+	}
+	violations := sessionViolations(sess)
+	violations = append(violations, s.commandViolationsForSections(ctx, sess.Sections)...)
+	if len(violations) > 0 {
+		return sess, Section{}, PhaseDraft{}, false, violations, onlyRecommendedAction(stepForValidation(sess, false, violations)), nil
+	}
+	return sess, Section{}, PhaseDraft{}, true, nil, onlyRecommendedAction(stepForReview(sess)), nil
 }
 
 func (s *service) ValidateStructure(ctx context.Context, sessionID string) (bool, []StructureViolation, GuidedStep, error) {
@@ -562,9 +601,7 @@ func sessionViolations(sess Session) []StructureViolation {
 		})
 	}
 	for _, phase := range sess.PhaseDrafts {
-		for _, v := range phaseViolations(phase) {
-			out = append(out, v)
-		}
+		out = append(out, phaseViolations(phase)...)
 	}
 	return out
 }
@@ -588,6 +625,12 @@ func phaseViolations(phase PhaseDraft) []StructureViolation {
 		out = append(out, StructureViolation{
 			SectionKey: SectionPhases,
 			Message:    prefix + " must include references or a no_code_refs_reason",
+		})
+	}
+	if !hasPhaseContextOrNoContextReason(phase) {
+		out = append(out, StructureViolation{
+			SectionKey: SectionPhases,
+			Message:    prefix + " must include phase relevant_context or a NO_CONTEXT: reason",
 		})
 	}
 	return out
@@ -749,6 +792,33 @@ func hasReferencesOrNoCodeReason(content string) bool {
 	return hasReferenceMarker(content)
 }
 
+func hasPhaseContextOrNoContextReason(phase PhaseDraft) bool {
+	for _, item := range phase.RelevantContext {
+		if isNoContextItem(item) {
+			return true
+		}
+		if strings.TrimSpace(item.Label) != "" || strings.TrimSpace(item.Target) != "" ||
+			strings.TrimSpace(item.Command) != "" || strings.TrimSpace(item.Instruction) != "" {
+			return true
+		}
+	}
+	for _, raw := range phase.RequiredReading {
+		if strings.TrimSpace(raw) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func isNoContextItem(item planmodel.RelevantContextItem) bool {
+	for _, value := range []string{item.Label, item.Reason, item.Instruction, item.Target} {
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(value)), "NO_CONTEXT:") {
+			return true
+		}
+	}
+	return false
+}
+
 func hasReferenceMarker(content string) bool {
 	upper := strings.ToUpper(content)
 	return strings.Contains(upper, "[CODE:") ||
@@ -764,6 +834,28 @@ func noCodeRefsReason(content string) string {
 		}
 	}
 	return ""
+}
+
+// noContextReason returns the explicit "NO_CONTEXT:" skip reason recorded in the
+// global relevant-context section, or "" when none is present.
+func noContextReason(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToUpper(line), "NO_CONTEXT:") {
+			return strings.TrimSpace(line[len("NO_CONTEXT:"):])
+		}
+	}
+	return ""
+}
+
+// globalContextResolved reports whether the plan-wide relevant-context checkpoint
+// has been addressed: at least one accepted/submitted global context item, or an
+// explicit NO_CONTEXT skip reason recorded in the relevant-context section.
+func globalContextResolved(sess Session) bool {
+	if len(sess.RelevantContext) > 0 {
+		return true
+	}
+	return noContextReason(contentOf(sess.Sections, SectionRelevantContext)) != ""
 }
 
 func parseReferencesContent(content string) ([]planmodel.Reference, error) {
@@ -947,8 +1039,8 @@ func nextIncompletePhaseID(phases []PhaseDraft) string {
 // that grammar — by assembling a minimal markdown view and re-reading the
 // references/phases it recovers. The prose fields are taken verbatim from the
 // sections (not re-extracted) so authored content is never lossily reshaped. The
-// regression anchor is carried as captured prose; the validation domain derives
-// the anchor's commands from the plan's references later.
+// regression anchor section is parsed into typed anchor fields when it uses the
+// rendered structure; legacy prose remains marked as legacy/degraded.
 func sessionToPlan(sess Session) (planmodel.Plan, error) {
 	parsed, err := parseReferencesAndPhases(sess)
 	if err != nil {
@@ -974,13 +1066,7 @@ func sessionToPlan(sess Session) (planmodel.Plan, error) {
 		p.Constraints = appendNoCodeRefsReason(p.Constraints, reason)
 	}
 	if anchor := strings.TrimSpace(contentOf(sess.Sections, SectionRegressionAnchor)); anchor != "" {
-		// The regression-anchor section content is the authored/auto-filled
-		// "before" capture; carry it forward as captured prose. Commands are
-		// derived later by the validation domain from the plan's references.
-		p.RegressionAnchor = planmodel.RegressionAnchor{
-			Strategy:     "captured",
-			BaselineName: anchor,
-		}
+		p.RegressionAnchor = planmodel.ParseRegressionAnchorBlock(anchor)
 	}
 	return p, nil
 }

@@ -4,10 +4,12 @@
 // GetStatus / GetNext assemble the current phase, what is next, the phase-scoped
 // required-reading + reminders, the last validation and staleness, the COMPUTED
 // resume point (earliest non-done phase) and completeness (full iff every phase
-// is done) — so the agent never carries that knowledge. It captures
-// decisions/findings in-flow (findings are always CANDIDATE, never auto-promoted),
-// runs a thin guided completion process (nudges), assembles the canonical
-// structured handoff from captured state, and captures a velocity point LOCAL ONLY.
+// is done) — so the agent never carries that knowledge. Decisions, findings,
+// bug reports, and records are owned by the log domain (LogService); execution
+// reads compact log summaries through the LogLedger seam for its just-in-time
+// context and handoff. It runs a thin guided completion process (nudges),
+// assembles the canonical structured handoff from captured state, and captures a
+// velocity point LOCAL ONLY.
 //
 // Layering mirrors the canonical domain pattern:
 //
@@ -18,10 +20,10 @@
 //	                        never a false PASS)
 //
 // The structured Plan/Phase/Reference Go types live in the neutral planmodel kernel;
-// execution imports that kernel as the shared model. The in-flow
-// records it OWNS (Decision/Finding/Handoff/VelocityPoint/Execution) are defined
-// here, mirroring the shared proto messages, and persisted in the execution home
-// store. The proto wire types live one floor up (handlers/execution) and never
+// execution imports that kernel as the shared model. The records it OWNS
+// (Handoff/VelocityPoint/Execution) are defined here, mirroring the shared proto
+// messages, and persisted in the execution home store. The proto wire types live
+// one floor up (handlers/execution) and never
 // import this package; the handler is the only translation point (api-steer §7).
 package execution
 
@@ -37,17 +39,6 @@ const (
 	CompletenessPartial     Completeness = "partial"
 )
 
-// FindingTriage is the operator-triage state of a candidate finding. Findings
-// are filed as CANDIDATE (unvalidated) and never auto-promoted to real bugs.
-type FindingTriage string
-
-const (
-	TriageUnspecified FindingTriage = ""
-	TriageCandidate   FindingTriage = "candidate"
-	TriagePromoted    FindingTriage = "promoted"
-	TriageDismissed   FindingTriage = "dismissed"
-)
-
 // Execution is a run↔plan linkage with the runner's current-phase pointer.
 type Execution struct {
 	ID             string
@@ -59,49 +50,35 @@ type Execution struct {
 	UpdatedAt      string
 }
 
-// Decision is an in-flow recorded design decision, captured during execution and
-// folded into the handoff.
-type Decision struct {
-	ID          string
-	ExecutionID string
-	PhaseID     string
-	Summary     string
-	Detail      string
-	RecordedAt  string
-}
-
-// Finding is an in-flow recorded candidate finding (a possible bug). Always
-// filed as CANDIDATE; an operator triages it before it becomes a real bug.
-// AttributionRunID powers attribution-keyed dedup (same run_id + title is not
-// double-filed).
-type Finding struct {
-	ID               string
-	ExecutionID      string
-	PhaseID          string
-	Title            string
-	Detail           string
-	Triage           FindingTriage
-	AttributionRunID string
-	RecordedAt       string
+// PhaseTransitionInputs are the typed controls for a phase-status transition.
+// ValidationOverrideReason is required only for done transitions that do not
+// have a recent passing validation result.
+type PhaseTransitionInputs struct {
+	ToStatus                 planmodel.PhaseStatus
+	ValidationOverrideReason string
 }
 
 // Handoff is the canonical, structured handoff assembled from state captured
 // in-flow during a run. plan-manager owns ONLY this structured layer; the prose
 // final-message catch-all is owned by the orchestration layer and linked here by
 // reference (ProseHandoffRef — a pass-through link, never read by plan-manager).
+//
+// Decisions, findings, bug reports, and records are NOT owned here — they are
+// typed entries in the log domain. The handoff snapshots a compact LogSummary
+// plus the entries captured during the run, read through the LogLedger seam.
 type Handoff struct {
-	ID                string
-	ExecutionID       string
-	PlanID            string
-	Completeness      Completeness
-	ResumePhaseID     string
-	Decisions         []Decision
-	CandidateFindings []Finding
-	LastValidation    ValidationResult
-	HasValidation     bool
-	Staleness         planmodel.StalenessTier
-	ProseHandoffRef   string
-	AssembledAt       string
+	ID              string
+	ExecutionID     string
+	PlanID          string
+	Completeness    Completeness
+	ResumePhaseID   string
+	LogSummary      planmodel.LogSummary
+	LogEntries      []planmodel.LogEntry
+	LastValidation  ValidationResult
+	HasValidation   bool
+	Staleness       planmodel.StalenessTier
+	ProseHandoffRef string
+	AssembledAt     string
 }
 
 // VelocityPoint is a per-plan/run velocity sample. Captured LOCAL ONLY in v1;
@@ -146,11 +123,16 @@ type PhaseContext struct {
 	Staleness       planmodel.StalenessTier
 	ResumePhaseID   string
 	Completeness    Completeness
+	// LogSummary is a compact roll-up of the execution's log ledger so a resumed
+	// agent sees decisions/findings/bugs/records without reading every entry.
+	LogSummary planmodel.LogSummary
 }
 
-// CompletionNudge is one item in the thin guided completion process.
+// CompletionNudge is one item in the thin guided completion process. Kinds are
+// typed and Plan Manager-local; the messages point at `plan-manager log ...`
+// commands, never external scenario CLIs.
 type CompletionNudge struct {
-	// "record_finding" | "file_bugs" | "confirm_phase_status".
+	// "record_finding" | "file_bug" | "capture_record" | "confirm_phase_status".
 	Kind      string
 	Message   string
 	Satisfied bool

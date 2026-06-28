@@ -49,7 +49,9 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-25 — Documentation-first; no runtime code yet
+### 2026-06-25 — Documentation-first; no runtime code yet — RESOLVED 2026-06-27
+
+**Status:** RESOLVED. All product domains (`plans`, `authoring`, `execution`, `validation`, `log`) are now implemented as real vertical slices and the fenced `notes` example domain has been removed (see PROGRESS.md). The historical entry is retained for context.
 
 **Symptom:** The scenario validates its PRD/requirements/docs but has no real domains; the fenced `notes` example domain is still present, so the `example-domain-removed` orientation step fails by design.
 
@@ -90,6 +92,20 @@ Use this shape so entries are scannable. Append newest at the bottom.
 **Owner:** unassigned (prd-control-tower).
 
 **Refs:** `PRD.md`; `prd-control-tower prd validate plan-manager --json`.
+
+### 2026-06-27 — Full Test Genie remains blocked by scenario-health gates
+
+**Symptom:** `vrooli scenario test plan-manager` run `20260627-173227-a56f3f9f` completed with 13/17 phases passing. The failing phases were standards, architecture, performance, and tidiness. Baseline diff run `20260627-174053-d1c3e988` resolved the current work as `preexisting`: structure/workflows/visuals unchanged, inherited standards failure, and unit cleared.
+
+**Root cause:** Mixed residual scenario-health debt outside the hardening plan's feature path. Standards times out after 60s with no standards summary. Architecture gates on three deterministic layering findings around `api/internal/plans` importing `api/internal/planmodel`, `api/handlers/plans` importing `api/internal/planproto`, and `api/internal/planproto` being unowned. Performance-health reports Lighthouse performance 0.73 below the 0.75 error threshold for `http://localhost:23015/`. Tidiness still reports duplicated-code and complexity findings across several existing API/CLI files; the hardening-local `ParseRegressionAnchorBlock` complexity finding was addressed by splitting the parser into helpers.
+
+**Workaround:** Use the narrower validated gates for readiness decisions: API `go test ./...`, CLI `go test ./...`, UI `pnpm type-check`, `pnpm test`, `pnpm lint`, `pnpm test:coverage`, requirements validation, `cli-health`, static `ui-health`, live `ui-health`, and `git-control-tower baseline diff` classification.
+
+**Real fix:** Resolve or explicitly campaign the remaining scenario-health gates: stabilize scenario-auditor standards runtime/summary, declare or restructure `planmodel`/`planproto` as owned shared kernels so architecture layering is deterministic-clean, reduce initial UI Lighthouse cost above 0.75, and finish tidiness refactors for duplicated code/complexity hot spots.
+
+**Owner:** unassigned.
+
+**Refs:** `coverage/runs/20260627-173227-a56f3f9f/phase-results/{architecture,performance,tidiness,standards}.json`; `coverage/logs/20260627-173227-a56f3f9f/`; `git-control-tower baseline diff status --scenario plan-manager --name plan-manager-hardening-readiness --run 20260627-174053-d1c3e988`.
 
 ## Architecture Drift
 

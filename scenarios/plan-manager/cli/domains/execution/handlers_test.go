@@ -106,22 +106,6 @@ func (r *execRecorder) TransitionPhase(_ context.Context, req *connect.Request[e
 	}), nil
 }
 
-func (r *execRecorder) RecordDecision(_ context.Context, req *connect.Request[executionv1.RecordDecisionRequest]) (*connect.Response[executionv1.RecordDecisionResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	return connect.NewResponse(&executionv1.RecordDecisionResponse{Decision: &sharedv1.Decision{Id: "dec-1", Summary: req.Msg.GetSummary()}}), nil
-}
-
-func (r *execRecorder) RecordFinding(_ context.Context, req *connect.Request[executionv1.RecordFindingRequest]) (*connect.Response[executionv1.RecordFindingResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	return connect.NewResponse(&executionv1.RecordFindingResponse{Finding: &sharedv1.Finding{Id: "find-1", Title: req.Msg.GetTitle(), Triage: sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE}}), nil
-}
-
 func (r *execRecorder) Complete(_ context.Context, req *connect.Request[executionv1.CompleteRequest]) (*connect.Response[executionv1.CompleteResponse], error) {
 	r.record(req.Msg)
 	if r.err != nil {
@@ -142,25 +126,6 @@ func (r *execRecorder) GetHandoff(_ context.Context, req *connect.Request[execut
 		return connect.NewResponse(m), nil
 	}
 	return connect.NewResponse(&executionv1.GetHandoffResponse{Handoff: &sharedv1.Handoff{ExecutionId: req.Msg.GetExecutionId()}}), nil
-}
-
-func (r *execRecorder) ListCandidateFindings(_ context.Context, req *connect.Request[executionv1.ListCandidateFindingsRequest]) (*connect.Response[executionv1.ListCandidateFindingsResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	if m, ok := r.resp.(*executionv1.ListCandidateFindingsResponse); ok && m != nil {
-		return connect.NewResponse(m), nil
-	}
-	return connect.NewResponse(&executionv1.ListCandidateFindingsResponse{}), nil
-}
-
-func (r *execRecorder) TriageFinding(_ context.Context, req *connect.Request[executionv1.TriageFindingRequest]) (*connect.Response[executionv1.TriageFindingResponse], error) {
-	r.record(req.Msg)
-	if r.err != nil {
-		return nil, r.err
-	}
-	return connect.NewResponse(&executionv1.TriageFindingResponse{Finding: &sharedv1.Finding{Id: req.Msg.GetFindingId(), Triage: req.Msg.GetTriage()}}), nil
 }
 
 func (r *execRecorder) GetVelocity(_ context.Context, req *connect.Request[executionv1.GetVelocityRequest]) (*connect.Response[executionv1.GetVelocityResponse], error) {
@@ -238,13 +203,14 @@ func TestExecRequestMapping(t *testing.T) {
 			},
 		},
 		{
-			name: "transition maps status flag to DONE enum", cmd: "transition",
-			argv: []string{"exec-1", "phase-3", "--status", "done"},
+			name: "transition maps status and validation override", cmd: "transition",
+			argv: []string{"exec-1", "phase-3", "--status", "done", "--validation-override-reason", "offline validation accepted"},
 			assert: func(t *testing.T, req proto.Message) {
 				m := req.(*executionv1.TransitionPhaseRequest)
 				require.Equal(t, "exec-1", m.GetExecutionId())
 				require.Equal(t, "phase-3", m.GetPhaseId())
 				require.Equal(t, sharedv1.PhaseStatus_PHASE_STATUS_DONE, m.GetToStatus())
+				require.Equal(t, "offline validation accepted", m.GetValidationOverride().GetReason())
 			},
 		},
 		{
@@ -252,28 +218,6 @@ func TestExecRequestMapping(t *testing.T) {
 			argv: []string{"exec-1", "phase-3", "--status", "active"},
 			assert: func(t *testing.T, req proto.Message) {
 				require.Equal(t, sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE, req.(*executionv1.TransitionPhaseRequest).GetToStatus())
-			},
-		},
-		{
-			name: "decision-add maps execution positional + flags", cmd: "decision-add",
-			argv: []string{"exec-1", "--phase", "phase-2", "--summary", "chose X", "--detail", "because Y"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*executionv1.RecordDecisionRequest)
-				require.Equal(t, "exec-1", m.GetExecutionId())
-				require.Equal(t, "phase-2", m.GetPhaseId())
-				require.Equal(t, "chose X", m.GetSummary())
-				require.Equal(t, "because Y", m.GetDetail())
-			},
-		},
-		{
-			name: "finding-add maps execution positional + flags", cmd: "finding-add",
-			argv: []string{"exec-1", "--phase", "phase-2", "--title", "leak", "--detail", "in foo.go"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*executionv1.RecordFindingRequest)
-				require.Equal(t, "exec-1", m.GetExecutionId())
-				require.Equal(t, "phase-2", m.GetPhaseId())
-				require.Equal(t, "leak", m.GetTitle())
-				require.Equal(t, "in foo.go", m.GetDetail())
 			},
 		},
 		{
@@ -300,29 +244,6 @@ func TestExecRequestMapping(t *testing.T) {
 			argv: []string{"exec-1"},
 			assert: func(t *testing.T, req proto.Message) {
 				require.Equal(t, "exec-1", req.(*executionv1.GetHandoffRequest).GetExecutionId())
-			},
-		},
-		{
-			name: "findings maps exec flag to execution_id", cmd: "findings",
-			argv: []string{"--exec", "exec-7"},
-			assert: func(t *testing.T, req proto.Message) {
-				require.Equal(t, "exec-7", req.(*executionv1.ListCandidateFindingsRequest).GetExecutionId())
-			},
-		},
-		{
-			name: "triage maps finding positional + status promoted", cmd: "triage",
-			argv: []string{"find-5", "--status", "promoted"},
-			assert: func(t *testing.T, req proto.Message) {
-				m := req.(*executionv1.TriageFindingRequest)
-				require.Equal(t, "find-5", m.GetFindingId())
-				require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED, m.GetTriage())
-			},
-		},
-		{
-			name: "triage maps status dismissed", cmd: "triage",
-			argv: []string{"find-5", "--status", "dismissed"},
-			assert: func(t *testing.T, req proto.Message) {
-				require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED, req.(*executionv1.TriageFindingRequest).GetTriage())
 			},
 		},
 		{
@@ -454,25 +375,6 @@ func TestExecOutputRendering(t *testing.T) {
 		require.Contains(t, out, "[file_bugs] needs attention — open items")
 	})
 
-	t.Run("triage renders mutation", func(t *testing.T) {
-		rec := &execRecorder{}
-		app, groups := newExecFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "triage"), app, "find-5", "--status", "promoted")
-		require.NoError(t, err)
-		require.Contains(t, out, "Finding find-5 triaged to promoted.")
-	})
-
-	t.Run("findings renders awaiting-triage count", func(t *testing.T) {
-		rec := &execRecorder{resp: &executionv1.ListCandidateFindingsResponse{Findings: []*sharedv1.Finding{
-			{Id: "f1", Title: "leak", Triage: sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE},
-		}}}
-		app, groups := newExecFixture(t, rec)
-		out, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "exec", "findings"), app)
-		require.NoError(t, err)
-		require.Contains(t, out, "1 candidate finding(s) awaiting triage.")
-		require.Contains(t, out, "f1 — leak (triage candidate)")
-	})
-
 	t.Run("velocity renders points", func(t *testing.T) {
 		rec := &execRecorder{resp: &executionv1.GetVelocityResponse{Points: []*sharedv1.VelocityPoint{
 			{RecordedAt: "2026-01-01", WallTimeSeconds: 30, Tokens: 100, Iterations: 2, Completeness: sharedv1.Completeness_COMPLETENESS_FULL},
@@ -540,22 +442,6 @@ func TestExecPhaseStatusFlag(t *testing.T) {
 	}
 }
 
-func TestTriageFlag(t *testing.T) {
-	cases := map[string]sharedv1.FindingTriage{
-		"candidate": sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE,
-		"promoted":  sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED,
-		"promote":   sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED,
-		"dismissed": sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED,
-		"dismiss":   sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED,
-		" Promoted": sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED,
-		"":          sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED,
-		"nope":      sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED,
-	}
-	for in, want := range cases {
-		require.Equalf(t, want, triageFlag(in), "triageFlag(%q)", in)
-	}
-}
-
 func TestExecLabels(t *testing.T) {
 	require.Equal(t, "active", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_ACTIVE))
 	require.Equal(t, "unspecified", phaseStatusLabel(sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED))
@@ -563,9 +449,6 @@ func TestExecLabels(t *testing.T) {
 	require.Equal(t, "full", completenessLabel(sharedv1.Completeness_COMPLETENESS_FULL))
 	require.Equal(t, "partial", completenessLabel(sharedv1.Completeness_COMPLETENESS_PARTIAL))
 	require.Equal(t, "unspecified", completenessLabel(sharedv1.Completeness_COMPLETENESS_UNSPECIFIED))
-	require.Equal(t, "promoted", triageLabel(sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED))
-	require.Equal(t, "dismissed", triageLabel(sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED))
-	require.Equal(t, "unspecified", triageLabel(sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED))
 	require.Equal(t, "fresh", stalenessLabel(sharedv1.StalenessTier_STALENESS_TIER_FRESH))
 	require.Equal(t, "lightly_stale", stalenessLabel(sharedv1.StalenessTier_STALENESS_TIER_LIGHTLY_STALE))
 	require.Equal(t, "definitely_stale", stalenessLabel(sharedv1.StalenessTier_STALENESS_TIER_DEFINITELY_STALE))

@@ -105,15 +105,11 @@ func TestPhaseFromProtoCheckedRejectsJoinedFields(t *testing.T) {
 	_, err := phaseFromProtoChecked(&sharedv1.Phase{
 		Title:          "Invalid write",
 		LastValidation: &sharedv1.ValidationResult{Id: "validation-1"},
-		Decisions:      []*sharedv1.Decision{{Id: "decision-1"}},
-		Findings:       []*sharedv1.Finding{{Id: "finding-1"}},
 	})
 	require.Error(t, err)
 	var invalid internalplans.ErrInvalidPlan
 	require.True(t, errors.As(err, &invalid))
 	require.Contains(t, invalid.Reason, "last_validation")
-	require.Contains(t, invalid.Reason, "decisions")
-	require.Contains(t, invalid.Reason, "findings")
 }
 
 func TestAnchorFromProtoNil(t *testing.T) {

@@ -104,6 +104,21 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) continueAuthoring(ctx cliapp.RunContext) error {
+	resp, err := h.client.ContinueAuthoring(context.Background(), connect.NewRequest(&authoringv1.ContinueAuthoringRequest{
+		SessionId: ctx.Positional("session"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("continue authoring", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Authoring session %s next step: %s.", ctx.Positional("session"), resp.Msg.GetStep().GetTitle())},
+		ResultsHeading: "Next action",
+		Results:        append(formatContinueAuthoring(resp.Msg), formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) validate(ctx cliapp.RunContext) error {
 	resp, err := h.client.ValidateStructure(context.Background(), connect.NewRequest(&authoringv1.ValidateStructureRequest{
 		SessionId: ctx.Positional("session"),
@@ -512,6 +527,26 @@ func nextLabel(key string) string {
 // "run all sources".
 func parseSources(raw string) []string {
 	return parseList(raw)
+}
+
+func formatContinueAuthoring(resp *authoringv1.ContinueAuthoringResponse) []string {
+	var out []string
+	if resp.GetReadyToFinalize() {
+		out = append(out, "ready to finalize")
+	}
+	if sec := resp.GetSection(); sec != nil {
+		out = append(out, "section: "+formatSection(sec))
+	}
+	if ph := resp.GetPhase(); ph != nil {
+		out = append(out, fmt.Sprintf("phase: %d %s (%s)", ph.GetOrder(), ph.GetTitle(), ph.GetId()))
+	}
+	if v := resp.GetViolations(); len(v) > 0 {
+		out = append(out, formatViolations(v)...)
+	}
+	if len(out) == 0 {
+		out = append(out, "no additional authoring object returned")
+	}
+	return out
 }
 
 func parseList(raw string) []string {

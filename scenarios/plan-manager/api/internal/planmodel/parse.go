@@ -14,6 +14,7 @@ var (
 	malformedReferenceRe = regexp.MustCompile(`\[(CODE|REQ|DOC)(?:\s*:)?\s*(?:\]|$)`)
 	bulletKeyValueLineRe = regexp.MustCompile(`(?m)^-\s*([A-Za-z ]+):\s*(.+?)\s*$`)
 	contextItemLineRe    = regexp.MustCompile(`^-\s*(.+?)(?:\s+_\((.+)\)_)?\s*$`)
+	backtickValueRe      = regexp.MustCompile("`([^`]+)`")
 )
 
 // ParsePlanMarkdown parses a markdown plan into the structured model. It is a
@@ -39,6 +40,7 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	p.Constraints = sections["constraints"]
 	p.NonGoals = firstNonEmpty(sections["non-goals"], sections["non goals"])
 	p.DefinitionOfDone = firstNonEmpty(sections["definition of done"], sections["definition-of-done"])
+	p.RegressionAnchor = ParseRegressionAnchorBlock(sections["regression anchor"])
 
 	p.References = parseReferences(markdown)
 	var err error
@@ -46,11 +48,165 @@ func ParsePlanMarkdown(markdown string) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
+	p.RelevantContext = append(p.RelevantContext, migratedRelevantContextFromLines(sections["required reading"], RelevantContextScopeGlobal, "")...)
 	p.Phases, err = parsePhases(markdown)
 	if err != nil {
 		return Plan{}, err
 	}
 	return p, nil
+}
+
+// ParseRegressionAnchorBlock converts the rendered Regression Anchor section, or
+// a legacy prose anchor, into typed anchor fields. New plans should render the
+// structured bullet form; legacy prose remains readable but is marked explicitly
+// so validation cannot silently treat arbitrary text as an oracle.
+func ParseRegressionAnchorBlock(block string) RegressionAnchor {
+	block = strings.TrimSpace(block)
+	if block == "" {
+		return RegressionAnchor{}
+	}
+	var anchor RegressionAnchor
+	var legacy []string
+	for _, line := range strings.Split(block, "\n") {
+		applyRegressionAnchorLine(&anchor, &legacy, line)
+	}
+	anchor.Strategy = inferredRegressionAnchorStrategy(anchor)
+	if len(anchor.Commands) == 0 {
+		anchor.Commands = RegressionAnchorCommands(anchor)
+	}
+	if anchorPresent(anchor) {
+		return anchor
+	}
+	return legacyRegressionAnchor(legacy)
+}
+
+// RegressionAnchorCommands derives the canonical check commands implied by a
+// typed anchor. Baseline diffs are verdict oracles; sha allowlist diffs are
+// informational and intentionally still included for operator review.
+func RegressionAnchorCommands(anchor RegressionAnchor) []string {
+	switch anchor.Strategy {
+	case "scenario_baseline":
+		if anchor.Scenario == "" || anchor.BaselineName == "" || strings.ContainsAny(anchor.BaselineName, " \t\r\n") {
+			return nil
+		}
+		return []string{
+			"git-control-tower baseline snapshot status --scenario " + anchor.Scenario + " --name " + anchor.BaselineName,
+			"git-control-tower baseline diff --scenario " + anchor.Scenario + " --name " + anchor.BaselineName,
+		}
+	case "head_sha_allowlist":
+		if anchor.HeadSha == "" {
+			return nil
+		}
+		cmd := "git diff --stat " + anchor.HeadSha
+		if len(anchor.AllowlistPaths) > 0 {
+			cmd += " -- " + strings.Join(anchor.AllowlistPaths, " ")
+		}
+		return []string{cmd}
+	default:
+		return nil
+	}
+}
+
+func anchorPresent(a RegressionAnchor) bool {
+	return a.Strategy != "" || a.Scenario != "" || a.BaselineName != "" || a.HeadSha != "" ||
+		len(a.AllowlistPaths) > 0 || len(a.Commands) > 0 || a.CapturedAt != "" || a.Unavailable
+}
+
+func applyRegressionAnchorLine(anchor *RegressionAnchor, legacy *[]string, line string) {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return
+	}
+	if strings.HasPrefix(trimmed, "- ") {
+		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "- "))
+	}
+	if applyRegressionAnchorField(anchor, trimmed) {
+		return
+	}
+	*legacy = append(*legacy, trimmed)
+}
+
+func applyRegressionAnchorField(anchor *RegressionAnchor, trimmed string) bool {
+	lower := strings.ToLower(trimmed)
+	switch {
+	case strings.Contains(lower, "anchor autofill was unavailable"):
+		anchor.Unavailable = true
+	case strings.HasPrefix(lower, "strategy:"):
+		anchor.Strategy = strings.TrimSpace(trimmed[len("Strategy:"):])
+	case strings.HasPrefix(lower, "scenario baseline:"):
+		applyScenarioBaselineAnchor(anchor, trimmed[len("Scenario baseline:"):])
+	case strings.HasPrefix(lower, "baseline name:"):
+		anchor.BaselineName = trimMarkdownValue(trimmed[len("Baseline name:"):])
+	case strings.HasPrefix(lower, "head sha:"):
+		anchor.HeadSha = trimMarkdownValue(trimmed[len("HEAD sha:"):])
+	case strings.HasPrefix(lower, "allowlist:"):
+		anchor.AllowlistPaths = splitCommaList(trimmed[len("Allowlist:"):])
+	case strings.HasPrefix(lower, "captured at:"):
+		anchor.CapturedAt = trimMarkdownValue(trimmed[len("Captured at:"):])
+	case strings.HasPrefix(trimmed, "`") && strings.HasSuffix(trimmed, "`"):
+		anchor.Commands = append(anchor.Commands, strings.Trim(trimmed, "`"))
+	default:
+		return false
+	}
+	return true
+}
+
+func applyScenarioBaselineAnchor(anchor *RegressionAnchor, raw string) {
+	rest := strings.TrimSpace(raw)
+	values := backtickValueRe.FindAllStringSubmatch(rest, -1)
+	if len(values) > 0 {
+		anchor.Scenario = strings.TrimSpace(values[0][1])
+	} else {
+		anchor.Scenario = strings.TrimSpace(strings.Split(rest, "(")[0])
+	}
+	if len(values) > 1 {
+		anchor.BaselineName = strings.TrimSpace(values[1][1])
+	}
+}
+
+func inferredRegressionAnchorStrategy(anchor RegressionAnchor) string {
+	if anchor.Strategy != "" {
+		return anchor.Strategy
+	}
+	if anchor.Scenario != "" || anchor.BaselineName != "" {
+		return "scenario_baseline"
+	}
+	if anchor.HeadSha != "" || len(anchor.AllowlistPaths) > 0 {
+		return "head_sha_allowlist"
+	}
+	return ""
+}
+
+func legacyRegressionAnchor(legacy []string) RegressionAnchor {
+	legacyText := strings.TrimSpace(strings.Join(legacy, "\n"))
+	if legacyText == "" {
+		return RegressionAnchor{}
+	}
+	anchor := RegressionAnchor{Strategy: "legacy_prose", BaselineName: legacyText}
+	if strings.ContainsAny(legacyText, " \t\r\n") {
+		anchor.Unavailable = true
+	}
+	return anchor
+}
+
+func trimMarkdownValue(v string) string {
+	v = strings.TrimSpace(v)
+	if matches := backtickValueRe.FindStringSubmatch(v); len(matches) == 2 {
+		return strings.TrimSpace(matches[1])
+	}
+	return strings.Trim(v, "` ")
+}
+
+func splitCommaList(v string) []string {
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = trimMarkdownValue(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func validateMachineReadableMarkup(markdown string) error {
@@ -142,6 +298,10 @@ func parsePhases(markdown string) ([]Phase, error) {
 			}
 			ph.RelevantContext = context
 		}
+		if legacyRequiredReading := extractPhaseRequiredReading(body); legacyRequiredReading != "" {
+			ph.RequiredReading = requiredReadingLines(legacyRequiredReading)
+			ph.RelevantContext = append(ph.RelevantContext, migratedRelevantContextFromLines(legacyRequiredReading, RelevantContextScopePhase, ph.ID)...)
+		}
 		out = append(out, ph)
 	}
 	return out, nil
@@ -161,6 +321,96 @@ func extractPhaseContextSetup(body string) string {
 		}
 	}
 	return strings.TrimSpace(body[:end])
+}
+
+func extractPhaseRequiredReading(body string) string {
+	const marker = "**Required Reading:**"
+	idx := strings.Index(body, marker)
+	if idx < 0 {
+		return ""
+	}
+	body = body[idx+len(marker):]
+	end := len(body)
+	for _, next := range []string{"\n**Phase Context Setup:**", "\n**Reminders:**", "\n**Baseline scope:**", "\n**References:**"} {
+		if found := strings.Index(body, next); found >= 0 && found < end {
+			end = found
+		}
+	}
+	return strings.TrimSpace(body[:end])
+}
+
+func requiredReadingLines(block string) []string {
+	var out []string
+	for _, line := range strings.Split(block, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		if line != "" {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func migratedRelevantContextFromLines(block string, scope RelevantContextScope, phaseID string) []RelevantContextItem {
+	lines := requiredReadingLines(block)
+	if len(lines) == 0 {
+		return nil
+	}
+	out := make([]RelevantContextItem, 0, len(lines))
+	for _, line := range lines {
+		out = append(out, migratedRelevantContextItem(line, scope, phaseID))
+	}
+	return out
+}
+
+func migratedRelevantContextItem(line string, scope RelevantContextScope, phaseID string) RelevantContextItem {
+	item := RelevantContextItem{
+		Kind:         RelevantContextNote,
+		Scope:        scope,
+		PhaseID:      phaseID,
+		Label:        line,
+		Reason:       "Migrated from legacy Required Reading.",
+		Instruction:  "Load or inspect this context before implementation work.",
+		Target:       line,
+		Required:     true,
+		RepeatPolicy: defaultRelevantContextRepeatPolicy(scope),
+		Source:       RelevantContextSourceMigrated,
+		Status:       RelevantContextStatusReady,
+	}
+	if scope == RelevantContextScopePhase {
+		item.RepeatPolicy = RelevantContextPhaseEntry
+	}
+	lower := strings.ToLower(line)
+	switch {
+	case strings.HasPrefix(lower, "prompt-manager skill read "):
+		item.Kind = RelevantContextSkill
+		item.Command = line
+		item.Argv = strings.Fields(line)
+		item.Target = strings.TrimSpace(strings.TrimPrefix(line, "prompt-manager skill read "))
+		item.Instruction = "Load this internal skill before implementation."
+	case strings.HasPrefix(lower, "search-hub "):
+		item.Kind = RelevantContextSearch
+		item.Command = line
+		item.Argv = strings.Fields(line)
+		item.Instruction = "Run this discovery search before implementation."
+	case strings.HasPrefix(lower, "cli:"):
+		item.Kind = RelevantContextCommand
+		item.Command = strings.TrimSpace(line[len("cli:"):])
+		item.Argv = strings.Fields(item.Command)
+		item.Target = ""
+		item.Instruction = "Run this command before implementation."
+	case strings.HasPrefix(lower, "docs/") || strings.HasSuffix(lower, ".md"):
+		item.Kind = RelevantContextDoc
+		item.Instruction = "Read this document before implementation."
+	case strings.HasPrefix(lower, "[req:") || strings.HasPrefix(lower, "req:") || strings.Contains(lower, "requirements/"):
+		item.Kind = RelevantContextReqRef
+		item.Target = targetFromReferenceLikeLabel(line)
+		item.Instruction = "Inspect this requirement before implementation."
+	case strings.HasPrefix(lower, "[code:") || strings.HasPrefix(lower, "code:"):
+		item.Kind = RelevantContextCodeRef
+		item.Target = targetFromReferenceLikeLabel(line)
+		item.Instruction = "Inspect this code reference before implementation."
+	}
+	return item
 }
 
 func parseRelevantContextBlock(block string, scope RelevantContextScope, phaseID string) ([]RelevantContextItem, error) {

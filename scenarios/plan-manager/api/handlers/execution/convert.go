@@ -49,6 +49,7 @@ func phaseContextToProto(c internalexecution.PhaseContext) *executionv1.PhaseCon
 	if c.HasValidation {
 		out.LastValidation = validationResultToProto(c.LastValidation)
 	}
+	out.LogSummary = planproto.LogSummaryToProto(c.LogSummary)
 	return out
 }
 
@@ -64,56 +65,18 @@ func nudgesToProto(nudges []internalexecution.CompletionNudge) []*executionv1.Co
 	return out
 }
 
-func decisionToProto(d internalexecution.Decision) *sharedv1.Decision {
-	return &sharedv1.Decision{
-		Id:         d.ID,
-		Summary:    d.Summary,
-		Detail:     d.Detail,
-		PhaseId:    d.PhaseID,
-		RecordedAt: d.RecordedAt,
-	}
-}
-
-func decisionsToProto(ds []internalexecution.Decision) []*sharedv1.Decision {
-	out := make([]*sharedv1.Decision, 0, len(ds))
-	for _, d := range ds {
-		out = append(out, decisionToProto(d))
-	}
-	return out
-}
-
-func findingToProto(f internalexecution.Finding) *sharedv1.Finding {
-	return &sharedv1.Finding{
-		Id:               f.ID,
-		Title:            f.Title,
-		Detail:           f.Detail,
-		Triage:           triageToProto(f.Triage),
-		PhaseId:          f.PhaseID,
-		RecordedAt:       f.RecordedAt,
-		AttributionRunId: f.AttributionRunID,
-	}
-}
-
-func findingsToProto(fs []internalexecution.Finding) []*sharedv1.Finding {
-	out := make([]*sharedv1.Finding, 0, len(fs))
-	for _, f := range fs {
-		out = append(out, findingToProto(f))
-	}
-	return out
-}
-
 func handoffToProto(h internalexecution.Handoff) *sharedv1.Handoff {
 	out := &sharedv1.Handoff{
-		Id:                h.ID,
-		ExecutionId:       h.ExecutionID,
-		PlanId:            h.PlanID,
-		Completeness:      completenessToProto(h.Completeness),
-		ResumePhaseId:     h.ResumePhaseID,
-		Decisions:         decisionsToProto(h.Decisions),
-		CandidateFindings: findingsToProto(h.CandidateFindings),
-		Staleness:         stalenessToProto(h.Staleness),
-		ProseHandoffRef:   h.ProseHandoffRef,
-		AssembledAt:       h.AssembledAt,
+		Id:              h.ID,
+		ExecutionId:     h.ExecutionID,
+		PlanId:          h.PlanID,
+		Completeness:    completenessToProto(h.Completeness),
+		ResumePhaseId:   h.ResumePhaseID,
+		LogSummary:      planproto.LogSummaryToProto(h.LogSummary),
+		LogEntries:      planproto.LogEntriesToProto(h.LogEntries),
+		Staleness:       stalenessToProto(h.Staleness),
+		ProseHandoffRef: h.ProseHandoffRef,
+		AssembledAt:     h.AssembledAt,
 	}
 	if h.HasValidation {
 		out.LastValidation = validationResultToProto(h.LastValidation)
@@ -203,20 +166,8 @@ func phaseToProto(ph planmodel.Phase) *sharedv1.Phase {
 	return planproto.PhaseToProto(ph)
 }
 
-func referencesToProto(refs []planmodel.Reference) []*sharedv1.Reference {
-	return planproto.ReferencesToProto(refs)
-}
-
 func planToProto(p planmodel.Plan) *sharedv1.Plan {
 	return planproto.PlanToProto(p)
-}
-
-func phasesToProto(phases []planmodel.Phase) []*sharedv1.Phase {
-	return planproto.PhasesToProto(phases)
-}
-
-func anchorToProto(a planmodel.RegressionAnchor) *sharedv1.RegressionAnchor {
-	return planproto.AnchorToProto(a)
 }
 
 // --- enum converters ---
@@ -253,32 +204,6 @@ func completenessToProto(c internalexecution.Completeness) sharedv1.Completeness
 		return sharedv1.Completeness_COMPLETENESS_PARTIAL
 	default:
 		return sharedv1.Completeness_COMPLETENESS_UNSPECIFIED
-	}
-}
-
-func triageToProto(t internalexecution.FindingTriage) sharedv1.FindingTriage {
-	switch t {
-	case internalexecution.TriageCandidate:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE
-	case internalexecution.TriagePromoted:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED
-	case internalexecution.TriageDismissed:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED
-	default:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED
-	}
-}
-
-func triageFromProto(t sharedv1.FindingTriage) internalexecution.FindingTriage {
-	switch t {
-	case sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE:
-		return internalexecution.TriageCandidate
-	case sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED:
-		return internalexecution.TriagePromoted
-	case sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED:
-		return internalexecution.TriageDismissed
-	default:
-		return internalexecution.TriageUnspecified
 	}
 }
 

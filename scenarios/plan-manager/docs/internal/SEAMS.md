@@ -140,6 +140,46 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `cli-core/cliapp::RequireProtoServiceCoverage(t, manifest, fd, serviceName)` asserts every RPC on the bound proto service has either a binding or an entry in the manifest's `omitted` array — see each domain's `cli/domains/<domain>/<domain>_manifest_test.go`. `cliapp.ParseManifest` covers structural validation in isolation. |
 | **Why it exists** | Without this seam, adding a new RPC to the proto compiles fine while the CLI silently lacks a corresponding command, and prompt-manager has no governance signal — every action falls back to `CertaintyOwnerOnly` and is rejected. The manifest crystallises both the command surface and the safety properties (effect, run_eligible, permissions, requires_confirmation) so the coverage test fails fast and prompt-manager can derive certainty automatically. |
 
+### Authoring command-backed discovery seams
+
+| | |
+|---|---|
+| **Seam** | Authoring mechanical discovery and autofill dependencies (`git-control-tower`, `prompt-manager`, `code-facts`, `search-hub`, `cli-health`) |
+| **Interface** | `api/internal/authoring/seams.go::{AnchorAutofiller,RequiredReadingSource,ReferenceExtractor,ContextDiscoverer,CommandRunner}` |
+| **Production wiring** | `api/handlers/authoring/module.go::Module` creates one LookPath-guarded `CommandRunner` with `internalauthoring.DefaultRunner()` and wires command-backed implementations into `authoring.NewService`. |
+| **Test fake** | `api/internal/authoring/authoring_test.go` uses fake anchor/reference/reading/context sources and a recording command runner to exercise healthy and degraded paths. |
+| **Why it exists** | The authoring wizard may ask other capabilities for setup context, code references, and regression anchors, but it must never fabricate a filled section when a dependency is absent. A nil seam or command error produces degraded guidance / pending author input, while accepted context stays structured as `relevant_context[]`. Legacy required-reading discovery remains explicit migration input only. |
+
+### Validation dependency seams
+
+| | |
+|---|---|
+| **Seam** | Validation reads plans, resolves references, computes staleness, runs regression oracles, validates CLI command references, and stores last-known results |
+| **Interface** | `api/internal/validation/seams.go::{PlanSource,ReferenceResolver,StalenessComputer,ResultStore,CommandRunner}` plus the command-reference validator consumed by `validation.Service`. |
+| **Production wiring** | `api/handlers/validation/module.go::Module` adapts the plans service as `PlanSource`, wires code-facts-backed reference resolution with a filesystem floor, existence/git staleness, the LookPath-guarded runner for `git-control-tower` / diff commands, the SQLite result store, and CLI-health command validation. |
+| **Test fake** | `api/internal/validation/validation_test.go` uses fake plans, resolver, staleness, command runner, result store behavior, and command validator results; `api/handlers/validation/codefacts_resolver_test.go` exercises the code-facts adapter fallback. |
+| **Why it exists** | Validation is the boundary where external evidence becomes a plan verdict. Missing `code-facts`, unavailable staleness evidence, absent `git-control-tower`, non-comparable baseline diffs, and command-catalog gaps must produce `UNKNOWN`/degraded or explicit failures, never a false `PASS`. The result store is also the cheap handoff to execution: execution reads the last stored result instead of triggering live validation while rendering status. |
+
+### Execution plan / validation / velocity / log seams
+
+| | |
+|---|---|
+| **Seam** | Guided execution reads and mutates the plan SSOT, reads last validation state, reads the execution-log ledger, and emits velocity |
+| **Interface** | `api/internal/execution/seams.go::{PlanStore,Validator,VelocitySink,LogLedger}` |
+| **Production wiring** | `api/handlers/execution/module.go::Module` adapts the plans service as `PlanStore`, adapts the validation service as the cheap `Validator` read over the shared validation result store, adapts the `log` service's `Summarize` as the read-only `LogLedger`, and wires `DefaultVelocitySink()` as the documented no-op sink. |
+| **Test fake** | `api/internal/execution/execution_test.go` uses an in-memory plan store, fake validators for pass/missing/error states, a `fakeLog` returning a canned `LogSummary`/entries, and a recording velocity sink that can fail. |
+| **Why it exists** | Execution owns runner state, handoffs, and local velocity, but plans remain the single source of truth for phase status, validation remains the authority for pass/fresh evidence, and the `log` domain owns the typed work-product ledger. `LogLedger` is read-only: execution reads a compact `LogSummary` + entries for just-in-time context and the canonical handoff without owning or writing the ledger; a nil/erroring `LogLedger` degrades to empty summaries (the handoff still assembles). Validator absence or errors degrade the phase context to unknown and recommend validation; they cannot unlock `done`. Velocity is persisted locally before a best-effort sink emit, so a future meta-optimization-manager outage cannot break local completion. |
+
+### Log domain seams (resolution + downstream forwarding)
+
+| | |
+|---|---|
+| **Seam** | The execution-log ledger resolves plan/execution scope and forwards bug-report/record entries downstream |
+| **Interface** | `api/internal/planlog/seams.go::{Resolver,BugReporter,RecordWriter}` |
+| **Production wiring** | `api/handlers/planlog/module.go` wires the `Resolver` over the plans service (slug→id) and the execution store (execution id → plan id). The downstream sinks default to the documented pending stubs (`DefaultBugReporter()`/`DefaultRecordWriter()`) mirroring the `VelocitySink`/MoM stub pattern; the live bug-filer (scenario-qa) and record-writer (`swarm-manager records create`) land behind these same seams as a deferred follow-up, so the wire is drop-in and never changes the call sites or the durable-local contract. |
+| **Test fake** | `api/internal/planlog/planlog_test.go` injects a fake `Resolver` and fake `BugReporter`/`RecordWriter` (success / unavailable / error). |
+| **Why it exists** | A bug report (→ scenario-qa) and a record (→ swarm-manager) are forwarded INTERNALLY so an agent never shells an external scenario CLI from the plan workflow. Forwarding is **never fatal**: an unavailable downstream leaves the entry `pending`, any other error leaves it `sync_failed`, and the local entry is always durable and retryable via `plan-manager log sync`. A nil `Resolver` degrades to treating the handle verbatim as a plan id (no execution binding). |
+
 ### BlobStore (opaque bytes)
 
 | | |

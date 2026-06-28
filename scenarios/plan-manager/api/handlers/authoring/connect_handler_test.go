@@ -71,6 +71,11 @@ func (f *fakeAuthoringService) Next(_ context.Context, sessionID string) (intern
 	return f.section, f.step, f.complete, f.err
 }
 
+func (f *fakeAuthoringService) ContinueAuthoring(_ context.Context, sessionID string) (internalauthoring.Session, internalauthoring.Section, internalauthoring.PhaseDraft, bool, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID = sessionID
+	return f.session, f.section, f.phase, f.valid, f.violations, f.step, f.err
+}
+
 func (f *fakeAuthoringService) ValidateStructure(_ context.Context, sessionID string) (bool, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
 	f.gotSessionID = sessionID
 	return f.valid, f.violations, f.step, f.err
@@ -392,6 +397,22 @@ func TestPhaseNativeHandlers(t *testing.T) {
 		require.Equal(t, "ph1", resp.Msg.GetPhase().GetId())
 		require.Equal(t, "phase_references", resp.Msg.GetStep().GetStepKind())
 	})
+}
+
+func TestContinueAuthoringSuccess(t *testing.T) {
+	svc := &fakeAuthoringService{
+		session: internalauthoring.Session{ID: "s1", Title: "My Plan"},
+		phase:   internalauthoring.PhaseDraft{ID: "ph1", Order: 1, Title: "Phase"},
+		step:    internalauthoring.GuidedStep{StepKind: "phase_relevant_context", NextActions: []internalauthoring.NextAction{{ID: "submit-context", Kind: internalauthoring.NextActionRecommended}}},
+	}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.ContinueAuthoring(context.Background(), connect.NewRequest(&authoringv1.ContinueAuthoringRequest{SessionId: "s1"}))
+	require.NoError(t, err)
+	require.Equal(t, "s1", svc.gotSessionID)
+	require.Equal(t, "s1", resp.Msg.GetSession().GetId())
+	require.Equal(t, "ph1", resp.Msg.GetPhase().GetId())
+	require.Equal(t, "phase_relevant_context", resp.Msg.GetStep().GetStepKind())
 }
 
 func TestValidateStructureSuccess(t *testing.T) {

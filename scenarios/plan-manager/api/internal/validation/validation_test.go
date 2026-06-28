@@ -226,6 +226,34 @@ func TestDeriveBaselineScopeDoesNotFabricateGCTCommandWithoutName(t *testing.T) 
 	require.Empty(t, scope.Commands, "GCT baseline diff requires a verified --name")
 }
 
+func TestDeriveBaselineScopeUsesTypedAnchorWithoutReferences(t *testing.T) {
+	plan := planWith(nil, nil)
+	plan.RegressionAnchor = internalplans.RegressionAnchor{
+		Strategy:     "scenario_baseline",
+		Scenario:     "plan-manager",
+		BaselineName: "hardening",
+	}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
+	require.NoError(t, err)
+	require.Contains(t, scope.Locations, "scenarios/plan-manager")
+	require.Contains(t, scope.Commands, "git-control-tower baseline diff --scenario plan-manager --name hardening")
+}
+
+func TestDeriveBaselineScopeUsesHeadAllowlistAnchorWithoutReferences(t *testing.T) {
+	plan := planWith(nil, nil)
+	plan.RegressionAnchor = internalplans.RegressionAnchor{
+		Strategy:       "head_sha_allowlist",
+		HeadSha:        "abc123",
+		AllowlistPaths: []string{"packages/proto", "scenarios/plan-manager"},
+	}
+	svc := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	scope, err := svc.DeriveBaselineScope(context.Background(), "p1", "")
+	require.NoError(t, err)
+	require.Contains(t, scope.Locations, "repo")
+	require.Contains(t, scope.Commands, "git diff --stat abc123 -- packages/proto scenarios/plan-manager")
+}
+
 // [REQ:PM-VALID-002]
 func TestRunValidationVerdicts(t *testing.T) {
 	plan := planWith([]internalplans.Reference{{Kind: internalplans.ReferenceCode, Target: "scenarios/foo/x.go"}}, nil)

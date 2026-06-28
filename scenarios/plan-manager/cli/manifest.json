@@ -767,6 +767,29 @@
           }
         },
         {
+          "name": "continue",
+          "description": "Return the single recommended next authoring action across sections, phases, validation review, and finalize",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ContinueAuthoring"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "validate",
           "description": "Run the structure-validation gate over the whole session",
           "positionals": [
@@ -1284,6 +1307,39 @@
           }
         },
         {
+          "name": "continue",
+          "description": "Resume or start an execution and return the single recommended next runner action without advancing",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Optional phase id to move the pointer to"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id when a new execution is created"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExecutionService",
+            "method": "ContinueExecution"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "next",
           "description": "Advance to the next actionable phase and return its context",
           "positionals": [
@@ -1326,88 +1382,16 @@
               "name": "status",
               "description": "Target status (todo|active|done|blocked)",
               "required": true
+            },
+            {
+              "name": "validation-override-reason",
+              "description": "Explicit reason for marking done without a fresh passing validation result"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ExecutionService",
             "method": "TransitionPhase"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "decision-add",
-          "description": "Record an in-flow design decision",
-          "positionals": [
-            {
-              "name": "execution",
-              "required": true,
-              "description": "Execution id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "phase",
-              "description": "Phase id"
-            },
-            {
-              "name": "summary",
-              "description": "One-line decision summary",
-              "required": true
-            },
-            {
-              "name": "detail",
-              "description": "Optional detail"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExecutionService",
-            "method": "RecordDecision"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "finding-add",
-          "description": "Record an in-flow candidate finding (unvalidated)",
-          "positionals": [
-            {
-              "name": "execution",
-              "required": true,
-              "description": "Execution id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "phase",
-              "description": "Phase id"
-            },
-            {
-              "name": "title",
-              "description": "Finding title",
-              "required": true
-            },
-            {
-              "name": "detail",
-              "description": "Optional detail"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExecutionService",
-            "method": "RecordFinding"
           },
           "governance": {
             "effect": "write",
@@ -1474,58 +1458,6 @@
           }
         },
         {
-          "name": "findings",
-          "description": "List candidate findings awaiting triage",
-          "flags": [
-            {
-              "name": "exec",
-              "description": "Scope to one execution id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExecutionService",
-            "method": "ListCandidateFindings"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "triage",
-          "description": "Promote or dismiss a candidate finding",
-          "positionals": [
-            {
-              "name": "finding",
-              "required": true,
-              "description": "Finding id"
-            }
-          ],
-          "flags": [
-            {
-              "name": "status",
-              "description": "Triage decision (promoted|dismissed)",
-              "required": true
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ExecutionService",
-            "method": "TriageFinding"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "velocity",
           "description": "Show the per-plan velocity series",
           "positionals": [
@@ -1543,6 +1475,465 @@
           "governance": {
             "effect": "read",
             "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "log",
+      "description": "Execution-log ledger \u2014 record decisions, candidate findings, filed bug reports, reusable records, and notes; list/inspect/update/promote/sync. Plan Manager forwards bugs/records downstream internally; agents never call external scenario CLIs.",
+      "commands": [
+        {
+          "name": "decision-add",
+          "description": "Record an in-flow design decision",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id this entry is scoped to"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddDecision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "finding-add",
+          "description": "Record a candidate finding (a possible bug)",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id this entry is scoped to"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "severity",
+              "description": "Severity: info|low|medium|high|critical"
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "bug-add",
+          "description": "File a bug report (forwarded to the issue tracker)",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id this entry is scoped to"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "severity",
+              "description": "Severity: info|low|medium|high|critical"
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddBug"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "record-add",
+          "description": "Capture a reusable record (forwarded to Swarm Manager)",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id this entry is scoped to"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddRecord"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "note-add",
+          "description": "Record a lightweight progress/context note",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "required": true,
+              "description": "Plan id/slug or execution id the entry attaches to"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Phase id this entry is scoped to"
+            },
+            {
+              "name": "title",
+              "description": "Entry title/summary",
+              "required": true
+            },
+            {
+              "name": "detail",
+              "description": "Optional detail"
+            },
+            {
+              "name": "evidence",
+              "description": "Comma-separated supporting evidence locators"
+            },
+            {
+              "name": "source-command",
+              "description": "The plan-manager command that produced this entry"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Idempotency key; a retry with the same key returns the existing entry"
+            },
+            {
+              "name": "run-id",
+              "description": "Attribution run id (falls back to VROOLI_AGENT_MANAGER_RUN_ID)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "AddNote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List ledger entries with a compact summary",
+          "positionals": [
+            {
+              "name": "plan-or-execution",
+              "description": "Plan id/slug or execution id to scope the listing"
+            }
+          ],
+          "flags": [
+            {
+              "name": "phase",
+              "description": "Filter by phase id"
+            },
+            {
+              "name": "type",
+              "description": "Filter by type: decision|finding|bug_report|record|note"
+            },
+            {
+              "name": "triage",
+              "description": "Filter findings by triage: candidate|promoted|dismissed"
+            },
+            {
+              "name": "sync-status",
+              "description": "Filter by sync status: local|pending|synced|sync_failed"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "ListEntries"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get one ledger entry by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "GetEntry"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a ledger entry's mutable fields",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "title",
+              "description": "New title (empty leaves unchanged)"
+            },
+            {
+              "name": "detail",
+              "description": "New detail (empty leaves unchanged)"
+            },
+            {
+              "name": "severity",
+              "description": "New severity"
+            },
+            {
+              "name": "triage",
+              "description": "New triage state for a finding: candidate|promoted|dismissed"
+            },
+            {
+              "name": "add-evidence",
+              "description": "Comma-separated evidence locators to append"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "UpdateEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote a finding into a bug report or record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Finding entry id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "to",
+              "description": "Target type: bug|record",
+              "required": true
+            },
+            {
+              "name": "title",
+              "description": "Optional override title"
+            },
+            {
+              "name": "detail",
+              "description": "Optional override detail"
+            },
+            {
+              "name": "severity",
+              "description": "Optional override severity"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "PromoteEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sync",
+          "description": "Retry downstream forwarding for a pending/failed bug or record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Log entry id"
+            }
+          ],
+          "flags": [],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LogService",
+            "method": "SyncEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]

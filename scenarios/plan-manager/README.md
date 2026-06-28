@@ -17,7 +17,7 @@ structured-plan + phase schema.
 
 ## Domains
 
-Plan Manager is organized into four product domains, each a Connect-RPC service
+Plan Manager is organized into five product domains, each a Connect-RPC service
 with a matching CLI group:
 
 - **plans** — the structured-plan SSOT. Create / read / update / archive plans,
@@ -32,19 +32,31 @@ with a matching CLI group:
   model focused on prose and context judgment, then finalizes into a structured plan.
 - **execution** — the guided runner. `status`/`next` act as a just-in-time context
   server (current phase, what's next, setup context + reminders, last
-  validation results, staleness); transition phases; capture decisions and candidate
-  findings in-flow; `complete` assembles the **canonical** handoff; read per-plan
-  velocity.
+  validation results, staleness, a compact log summary); transition phases;
+  `complete` assembles the **canonical** handoff (carrying the log summary); read
+  per-plan velocity. Work products (decisions/findings/bugs/records) are recorded
+  in the `log` domain, not here.
 - **validation** — plan health. Resolve code references against `code-facts`,
   compute staleness tiers (fresh / lightly-stale / definitely-stale), derive the
   exact baseline/validation command set for a plan's connected code, run it with the
   agent in the loop, and verify the Definition of Done against the regression anchor.
+- **log** — the execution-log ledger. The single durable home for the typed work
+  products an agent produces while executing a plan: **decisions**, candidate
+  **findings**, filed **bug reports**, reusable **records**, and **notes** — kept
+  DISTINCT (a finding is unvalidated, a bug report is filed to the issue tracker, a
+  record is reusable learning). List / get / update / promote (finding → bug or
+  record) / sync. Bug reports and records forward downstream
+  (scenario-qa / swarm-manager) **internally** through seams — agents never call an
+  external scenario CLI from the plan workflow. The v1 default sink is a documented
+  pending stub (the production adapters are a deferred follow-up), so a bug/record
+  currently persists as `pending` and is retried via `log sync`; a failed or
+  unavailable forward always leaves the entry durable and retryable.
 
 ## Surfaces
 
 - **CLI (`cli/`)** — the primary, agent- and operator-facing surface. Typed
-  proto-JSON output; groups `plans`, `phase`, `template`, `author`, `exec`, and
-  `validate`. This is the guided surface agents drive when authoring and executing a
+  proto-JSON output; groups `plans`, `phase`, `template`, `author`, `exec`,
+  `validate`, and `log`. This is the guided surface agents drive when authoring and executing a
   plan; the command list is the contract in [`cli/manifest.json`](cli/manifest.json).
 - **API (`api/`)** — Go + Connect-RPC over the proto contracts in
   `packages/proto/schemas/plan-manager`. Storage is SQLite via api-core/storage,
@@ -76,8 +88,8 @@ staleness), `git-control-tower baseline` (regression anchor + diff), `test-genie
 `scenario-validation` (validation results it consumes), `prompt-manager`
 and `search-hub` (relevant-context discovery), and `meta-optimization-manager`
 (velocity sink). It does **not** own project-level validation, read agent
-transcripts, spawn agents, or promote candidate findings to real bugs — an
-operator triages those.
+transcripts, spawn agents, or *auto*-promote candidate findings to bugs —
+promotion is explicit and agent/operator-driven via `log promote`.
 
 ## Documentation Map
 

@@ -73,6 +73,53 @@ All tests pass.
 	}
 }
 
+func TestParsePlanMarkdownExtractsTypedRegressionAnchor(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown("# Harden planner\n\n" +
+		"## Regression Anchor\n\n" +
+		"- Strategy: scenario_baseline\n" +
+		"- Scenario baseline: `plan-manager` (name `plan-manager-hardening-readiness`)\n" +
+		"- HEAD sha: `abc123`\n" +
+		"- Captured at: `2026-06-27T14:00:17Z`\n")
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+
+	anchor := plan.RegressionAnchor
+	if anchor.Strategy != "scenario_baseline" || anchor.Scenario != "plan-manager" || anchor.BaselineName != "plan-manager-hardening-readiness" {
+		t.Fatalf("anchor identity = %#v", anchor)
+	}
+	if anchor.HeadSha != "abc123" || anchor.CapturedAt != "2026-06-27T14:00:17Z" {
+		t.Fatalf("anchor metadata = %#v", anchor)
+	}
+	want := "git-control-tower baseline diff --scenario plan-manager --name plan-manager-hardening-readiness"
+	if !containsString(anchor.Commands, want) {
+		t.Fatalf("anchor.Commands = %#v, want %q", anchor.Commands, want)
+	}
+}
+
+func TestParseRegressionAnchorBlockMarksUnstructuredLegacyProse(t *testing.T) {
+	t.Parallel()
+
+	anchor := ParseRegressionAnchorBlock("baseline captured at HEAD abc123")
+	if anchor.Strategy != "legacy_prose" || !anchor.Unavailable {
+		t.Fatalf("legacy anchor = %#v, want explicit degraded legacy marker", anchor)
+	}
+	if anchor.BaselineName != "baseline captured at HEAD abc123" {
+		t.Fatalf("BaselineName = %q", anchor.BaselineName)
+	}
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestParsePlanMarkdownRejectsMalformedMachineReadableMarkup(t *testing.T) {
 	t.Parallel()
 
@@ -197,6 +244,67 @@ func TestParsePlanMarkdownRecoversRelevantContextSetup(t *testing.T) {
 	}
 	if phaseContext[2].Kind != RelevantContextNote || phaseContext[2].Instruction == "" {
 		t.Fatalf("note context = %#v", phaseContext[2])
+	}
+}
+
+func TestParsePlanMarkdownMigratesLegacyRequiredReading(t *testing.T) {
+	t.Parallel()
+
+	plan, err := ParsePlanMarkdown(`# Legacy setup
+
+## Required Reading
+
+- prompt-manager skill read api-steer
+- search-hub query "plan manager context" --type record,doc
+- docs/concepts/PLAN-MODEL.md
+
+## Phases
+
+### Phase 1 — Implement
+
+- Intent: Make the change.
+- Status: todo
+
+**Required Reading:**
+- [REQ: PM-CTX-001]
+- cli: vrooli scenario requirements validate plan-manager
+`)
+	if err != nil {
+		t.Fatalf("ParsePlanMarkdown() error = %v", err)
+	}
+	if got := len(plan.RelevantContext); got != 3 {
+		t.Fatalf("len(plan.RelevantContext) = %d, want 3", got)
+	}
+	if plan.RelevantContext[0].Kind != RelevantContextSkill ||
+		plan.RelevantContext[0].Target != "api-steer" ||
+		plan.RelevantContext[0].Source != RelevantContextSourceMigrated ||
+		plan.RelevantContext[0].RepeatPolicy != RelevantContextOncePerExecution {
+		t.Fatalf("global skill context = %#v", plan.RelevantContext[0])
+	}
+	if plan.RelevantContext[1].Kind != RelevantContextSearch || plan.RelevantContext[1].Command == "" {
+		t.Fatalf("global search context = %#v", plan.RelevantContext[1])
+	}
+	if plan.RelevantContext[2].Kind != RelevantContextDoc || plan.RelevantContext[2].Target != "docs/concepts/PLAN-MODEL.md" {
+		t.Fatalf("global doc context = %#v", plan.RelevantContext[2])
+	}
+	if got := len(plan.Phases); got != 1 {
+		t.Fatalf("len(plan.Phases) = %d, want 1", got)
+	}
+	phase := plan.Phases[0]
+	if got := len(phase.RequiredReading); got != 2 {
+		t.Fatalf("len(phase.RequiredReading) = %d, want 2", got)
+	}
+	if got := len(phase.RelevantContext); got != 2 {
+		t.Fatalf("len(phase.RelevantContext) = %d, want 2", got)
+	}
+	if phase.RelevantContext[0].Kind != RelevantContextReqRef ||
+		phase.RelevantContext[0].Target != "PM-CTX-001" ||
+		phase.RelevantContext[0].RepeatPolicy != RelevantContextPhaseEntry {
+		t.Fatalf("phase req context = %#v", phase.RelevantContext[0])
+	}
+	if phase.RelevantContext[1].Kind != RelevantContextCommand ||
+		phase.RelevantContext[1].Command != "vrooli scenario requirements validate plan-manager" {
+		t.Fatalf("phase command context = %#v", phase.RelevantContext[1])
 	}
 }
 

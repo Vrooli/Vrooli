@@ -21,6 +21,8 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | `prompt-manager` | Scenario | Relevant-context skill/action discovery for authoring and setup guidance | Soft |
 | `meta-optimization-manager` | Scenario | Velocity signal sink (trials) | Soft |
 | `agent-manager` | Scenario | Run-id attribution contract; owns prose-handoff capture | Soft |
+| `scenario-qa` | Scenario | Downstream sink for `log` **bug_report** entries (issue tracker) | Soft |
+| `swarm-manager` | Scenario | Downstream sink for `log` **record** entries (`records create`) | Soft |
 
 Future consumers to be **inverted** (they will depend on plan-manager, not the
 reverse): `swarm-manager` `phased-plan-drain`, project hygiene plan checks, the
@@ -66,6 +68,28 @@ failing the flow:
   (`VROOLI_AGENT_MANAGER_RUN_ID`) used to dedup handoff actions. **Owns the prose
   final-handoff capture** (it has the transcript); plan-manager links to it by
   reference but never reads transcripts itself.
+- **scenario-qa / swarm-manager** — downstream sinks for `log` `bug_report` and
+  `record` entries. See [Downstream log forwarding](#downstream-log-forwarding)
+  below.
+
+### Downstream log forwarding
+
+The `log` domain owns downstream submission of bug reports and reusable records
+**internally**, behind seams (`BugReporter` → scenario-qa, `RecordWriter` →
+`swarm-manager records create`). This is a hard contract: an agent **must never
+be told to run an external scenario CLI** (`scenario-qa`, `swarm-manager`, or a
+bug-filing skill) from the plan workflow — it records the entry through
+`plan-manager log bug-add` / `log record-add`, and Plan Manager forwards it.
+
+The v1 DEFAULT downstream sinks are documented **pending stubs**, mirroring the
+existing `VelocitySink`/MoM stub pattern: an entry is created and left
+`sync_status = pending`, durable and retryable — there is no API-blocking
+auto-forward to an absent downstream. The live bug-filer (scenario-qa) and
+record-writer (`swarm-manager records create`) land behind the same seams as a
+deferred follow-up (a drop-in wire). Downstream
+failure is **never fatal**: the local entry persists with `sync_status`
+`pending`/`sync_failed`, surfaces in list/status summaries, and is retried with
+`plan-manager log sync <id>` once the downstream is reachable.
 
 ### The handoff ownership split
 
@@ -96,6 +120,9 @@ used at the orchestration layer runs through existing Vrooli runners
   dependency. The store is process-independent, so a downed API server does not
   count as "store unavailable".
 - **Velocity sink down** → velocity retained locally; emit retried later.
+- **Downstream bug/record sink down or unwired** → the `log` entry persists
+  locally with `sync_status` `pending`/`sync_failed`; never blocks execution.
+  Retried via `plan-manager log sync`.
 - **Attribution missing** (non-agent run) → handoff dedup falls back to
   content-based checks; no double-file guarantee weakens to best-effort.
 

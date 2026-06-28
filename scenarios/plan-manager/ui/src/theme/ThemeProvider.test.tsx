@@ -70,4 +70,48 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+
+  it("reads a stored explicit choice when no initial choice is provided", () => {
+    window.localStorage.setItem(STORAGE_KEY, "dark");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("dark");
+    expect(result.current.resolved).toBe("dark");
+  });
+
+  it("falls back to system for an invalid stored choice", () => {
+    window.localStorage.setItem(STORAGE_KEY, "sepia");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("system");
+    expect(result.current.resolved).toBe("light");
+  });
+
+  it("updates the resolved system theme when the media query changes", () => {
+    let listener: (() => void) | undefined;
+    let matches = false;
+    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockImplementation((q) => {
+      const mq = {
+        get matches() {
+          return matches;
+        },
+        media: q,
+        onchange: null,
+        addEventListener: vi.fn((_event, cb) => {
+          listener = cb as () => void;
+        }),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      };
+      return mq;
+    });
+
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+    expect(result.current.resolved).toBe("light");
+    matches = true;
+    act(() => listener?.());
+    expect(result.current.resolved).toBe("dark");
+
+    matchMediaSpy.mockRestore();
+  });
 });

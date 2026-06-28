@@ -141,6 +141,53 @@ func newService(t *testing.T, d authoring.Deps) authoring.Service {
 	return authoring.NewService(d)
 }
 
+// [REQ:PM-AUTHOR-002] The continue loop must surface the plan-wide relevant-
+// context checkpoint and not silently bypass it; an explicit NO_CONTEXT reason
+// (or accepting a global item) resolves it.
+func TestContinueSurfacesGlobalContextCheckpoint(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t, authoring.Deps{})
+	sess, _, err := svc.StartSession(ctx, "Context checkpoint", "context-checkpoint", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, _, _, ready, _, step, err := svc.ContinueAuthoring(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, ready)
+	require.Equal(t, "global_relevant_context", step.StepKind, "continue surfaces the global context checkpoint before finishing")
+
+	// Skip with an explicit reason resolves the checkpoint.
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRelevantContext, "NO_CONTEXT: unit fixture needs no plan-wide setup.")
+	require.NoError(t, err)
+	_, _, _, _, _, step, err = svc.ContinueAuthoring(ctx, sess.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, "global_relevant_context", step.StepKind, "an explicit NO_CONTEXT reason advances past the checkpoint")
+}
+
+func TestContinueGlobalContextResolvedByAcceptedItem(t *testing.T) {
+	ctx := context.Background()
+	svc := newService(t, authoring.Deps{})
+	sess, _, err := svc.StartSession(ctx, "Context accept", "context-accept", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, _, violations, _, err := svc.SubmitRelevantContextItem(ctx, sess.ID, "", internalplans.RelevantContextItem{
+		Kind:         internalplans.RelevantContextSkill,
+		Label:        "Load steer",
+		Reason:       "Plan-wide setup.",
+		Instruction:  "Load before any phase.",
+		Target:       "api-steer",
+		Required:     true,
+		RepeatPolicy: internalplans.RelevantContextOncePerExecution,
+	})
+	require.NoError(t, err)
+	require.Empty(t, violations)
+
+	_, _, _, _, _, step, err := svc.ContinueAuthoring(ctx, sess.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, "global_relevant_context", step.StepKind, "a submitted global context item resolves the checkpoint")
+}
+
 // fillMandatory submits non-empty content to every mandatory section + the
 // regression anchor so the structure gate passes. Returns the final session.
 func fillMandatory(t *testing.T, svc authoring.Service, sessionID string) authoring.Session {
@@ -713,6 +760,47 @@ func TestReferenceGateRequiresReferenceOrExplicitReason(t *testing.T) {
 	require.Empty(t, violations)
 }
 
+func TestPhaseContextGateRequiresContextOrExplicitNoContextReason(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionPurpose, "A purpose.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionScope, "In scope.")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionReferences, "NO_CODE_REFS: fixture")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, "anchor")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionDefinitionOfDone, "done")
+	require.NoError(t, err)
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Implement", "Change code")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldNoCodeRefsReason, "NO_CODE_REFS: fixture")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldAcceptance, "Tests pass.")
+	require.NoError(t, err)
+
+	valid, violations, step, err := svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, valid)
+	require.Contains(t, violations[len(violations)-1].Message, "relevant_context")
+	require.Equal(t, "validation_recovery", step.StepKind)
+
+	_, violations, step, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRelevantContext, "NO_CONTEXT: no additional setup")
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, "phase_review", step.StepKind)
+
+	valid, violations, _, err = svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.True(t, valid)
+	require.Empty(t, violations)
+}
+
 func TestCommandAnchorAutofillerUsesVerifiedGCTShape(t *testing.T) {
 	runner := &recordingRunner{out: []byte(`{"status":"ready","scenario":"plan-manager","name":"plan-manager","baseline":{"name":"impl"}}`)}
 	got, err := authoring.NewCommandAnchorAutofiller(runner.Run).Anchor(context.Background(), "Ignored Title", "plan-manager")
@@ -767,6 +855,30 @@ func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
 	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionPurpose)
 	require.NoError(t, err)
 	require.NotEmpty(t, got.Content)
+}
+
+func TestFinalizeParsesStructuredRegressionAnchor(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+
+	sess, _, err := svc.StartSession(ctx, "Harden plan-manager", "harden-plan-manager", "")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitSection(ctx, sess.ID, authoring.SectionRegressionAnchor, strings.Join([]string{
+		"- Strategy: scenario_baseline",
+		"- Scenario baseline: `plan-manager` (name `plan-manager-hardening-readiness`)",
+		"- HEAD sha: `abc123`",
+	}, "\n"))
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, _, err = svc.Finalize(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Equal(t, "scenario_baseline", writer.created.RegressionAnchor.Strategy)
+	require.Equal(t, "plan-manager", writer.created.RegressionAnchor.Scenario)
+	require.Equal(t, "plan-manager-hardening-readiness", writer.created.RegressionAnchor.BaselineName)
+	require.Contains(t, writer.created.RegressionAnchor.Commands, "git-control-tower baseline diff --scenario plan-manager --name plan-manager-hardening-readiness")
+	require.False(t, writer.created.RegressionAnchor.Unavailable)
 }
 
 func TestFinalizeRejectsMalformedAuthoredReferences(t *testing.T) {

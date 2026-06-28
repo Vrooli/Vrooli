@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FindingTriage,
+  LogEntryType,
+  LogSeverity,
   PhaseStatus,
   PlanStatus,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
@@ -180,8 +182,6 @@ describe("Connect API wrapper helpers", () => {
   it("threads ExecutionService requests and unwraps responses", async () => {
     const execution = { id: "exec-1" };
     const context = { resumePhaseId: "phase-1" };
-    const decision = { id: "decision-1" };
-    const finding = { id: "finding-1" };
     const handoff = { id: "handoff-1" };
     const nudge = { kind: "record_finding" };
     const point = { id: "velocity-1" };
@@ -193,12 +193,8 @@ describe("Connect API wrapper helpers", () => {
       getContext: vi.fn().mockResolvedValue({ execution, context, step }),
       resume: vi.fn().mockResolvedValue({ execution, context, step }),
       transitionPhase: vi.fn().mockResolvedValue({ execution, step }),
-      recordDecision: vi.fn().mockResolvedValue({ decision, step }),
-      recordFinding: vi.fn().mockResolvedValue({ finding, step }),
       complete: vi.fn().mockResolvedValue({ handoff, nudges: [nudge], step }),
       getHandoff: vi.fn().mockResolvedValue({ handoff, step }),
-      listCandidateFindings: vi.fn().mockResolvedValue({ findings: [finding] }),
-      triageFinding: vi.fn().mockResolvedValue({ finding }),
       getVelocity: vi.fn().mockResolvedValue({ points: [point] }),
     };
     createClientMock.mockReturnValue(client);
@@ -211,29 +207,128 @@ describe("Connect API wrapper helpers", () => {
     await expect(executionApi.getContext("exec-1", "phase-1")).resolves.toEqual({ execution, context, step });
     await expect(executionApi.resumeExecution("plan-1", "phase-1", "run-1")).resolves.toEqual({ execution, context, step });
     await expect(executionApi.transitionPhase("exec-1", "phase-1", PhaseStatus.DONE)).resolves.toEqual({ execution, step });
-    await expect(executionApi.recordDecision("exec-1", "phase-1", "summary", "detail")).resolves.toEqual({ decision, step });
-    await expect(executionApi.recordFinding("exec-1", "phase-1", "title", "detail")).resolves.toEqual({ finding, step });
     await expect(executionApi.completeExecution("exec-1", 10n, 2)).resolves.toEqual({ handoff, nudges: [nudge], step });
     await expect(executionApi.getHandoff("exec-1")).resolves.toEqual({ handoff, step });
-    await expect(executionApi.listCandidateFindings("exec-1")).resolves.toEqual([finding]);
-    await expect(executionApi.triageFinding("finding-1", FindingTriage.PROMOTED)).resolves.toBe(finding);
     await expect(executionApi.getVelocity("plan-1")).resolves.toEqual([point]);
     await expect(executionApi.startExecution("plan-1")).resolves.toEqual({ execution, context, step });
-    await expect(executionApi.recordDecision("exec-1", "phase-1", "summary")).resolves.toEqual({ decision, step });
-    await expect(executionApi.recordFinding("exec-1", "phase-1", "title")).resolves.toEqual({ finding, step });
     await expect(executionApi.completeExecution("exec-1")).resolves.toEqual({ handoff, nudges: [nudge], step });
-    await expect(executionApi.listCandidateFindings()).resolves.toEqual([finding]);
 
     expect(client.start).toHaveBeenCalledWith({ planId: "plan-1", runId: "run-1" });
     expect(client.start).toHaveBeenCalledWith({ planId: "plan-1", runId: "" });
     expect(client.getContext).toHaveBeenCalledWith({ executionId: "exec-1", phaseId: "phase-1" });
     expect(client.resume).toHaveBeenCalledWith({ planOrExecution: "plan-1", phaseId: "phase-1", runId: "run-1" });
-    expect(client.recordDecision).toHaveBeenCalledWith({ executionId: "exec-1", phaseId: "phase-1", summary: "summary", detail: "" });
-    expect(client.recordFinding).toHaveBeenCalledWith({ executionId: "exec-1", phaseId: "phase-1", title: "title", detail: "" });
     expect(client.complete).toHaveBeenCalledWith({ executionId: "exec-1", tokens: 10n, iterations: 2 });
     expect(client.complete).toHaveBeenCalledWith({ executionId: "exec-1", tokens: 0n, iterations: 0 });
-    expect(client.listCandidateFindings).toHaveBeenCalledWith({ executionId: "" });
-    expect(client.triageFinding).toHaveBeenCalledWith({ findingId: "finding-1", triage: 2 });
+  });
+
+  it("threads LogService requests and unwraps responses", async () => {
+    const entry = { id: "log-1" };
+    const source = { id: "log-0" };
+    const summary = { total: 1 };
+    const step = { stepKind: "log" };
+    const client = {
+      addDecision: vi.fn().mockResolvedValue({ entry, step, deduplicated: false }),
+      addFinding: vi.fn().mockResolvedValue({ entry, step, deduplicated: false }),
+      addBug: vi.fn().mockResolvedValue({ entry, step, deduplicated: true }),
+      addRecord: vi.fn().mockResolvedValue({ entry, step, deduplicated: false }),
+      addNote: vi.fn().mockResolvedValue({ entry, step, deduplicated: false }),
+      listEntries: vi.fn().mockResolvedValue({ entries: [entry], summary, step }),
+      getEntry: vi.fn().mockResolvedValue({ entry, step }),
+      updateEntry: vi.fn().mockResolvedValue({ entry, step }),
+      promoteEntry: vi.fn().mockResolvedValue({ entry, source, step }),
+      syncEntry: vi.fn().mockResolvedValue({ entry, step }),
+    };
+    createClientMock.mockReturnValue(client);
+
+    const logApi = await import("./log");
+
+    await expect(logApi.addDecision("exec-1", "phase-1", "chose Connect", { detail: "rationale" })).resolves.toEqual({
+      entry,
+      step,
+      deduplicated: false,
+    });
+    await expect(logApi.addFinding("exec-1", "phase-1", "edge case")).resolves.toEqual({ entry, step, deduplicated: false });
+    await expect(
+      logApi.addBug("exec-1", "phase-1", "crash", { severity: LogSeverity.HIGH, evidence: ["log.txt"] }),
+    ).resolves.toEqual({ entry, step, deduplicated: true });
+    await expect(logApi.addRecord("exec-1", "phase-1", "pattern")).resolves.toEqual({ entry, step, deduplicated: false });
+    await expect(logApi.addNote("exec-1", "phase-1", "progress")).resolves.toEqual({ entry, step, deduplicated: false });
+    await expect(
+      logApi.listEntries({ type: LogEntryType.FINDING, triage: FindingTriage.CANDIDATE }),
+    ).resolves.toEqual({ entries: [entry], summary, step });
+    await expect(logApi.listEntries()).resolves.toEqual({ entries: [entry], summary, step });
+    await expect(logApi.getEntry("log-1")).resolves.toEqual({ entry, step });
+    await expect(logApi.updateEntry({ id: "log-1", triage: FindingTriage.DISMISSED })).resolves.toEqual({ entry, step });
+    await expect(logApi.promoteEntry({ id: "log-1", toType: LogEntryType.BUG_REPORT })).resolves.toEqual({
+      entry,
+      source,
+      step,
+    });
+    await expect(logApi.syncEntry("log-1")).resolves.toEqual({ entry, step });
+
+    expect(client.addDecision).toHaveBeenCalledWith({
+      planOrExecution: "exec-1",
+      phaseId: "phase-1",
+      title: "chose Connect",
+      detail: "rationale",
+      evidence: [],
+      sourceCommand: "",
+      idempotencyKey: "",
+      runId: "",
+    });
+    expect(client.addFinding).toHaveBeenCalledWith({
+      planOrExecution: "exec-1",
+      phaseId: "phase-1",
+      title: "edge case",
+      detail: "",
+      severity: LogSeverity.UNSPECIFIED,
+      evidence: [],
+      sourceCommand: "",
+      idempotencyKey: "",
+      runId: "",
+    });
+    expect(client.addBug).toHaveBeenCalledWith({
+      planOrExecution: "exec-1",
+      phaseId: "phase-1",
+      title: "crash",
+      detail: "",
+      severity: LogSeverity.HIGH,
+      evidence: ["log.txt"],
+      sourceCommand: "",
+      idempotencyKey: "",
+      runId: "",
+    });
+    expect(client.listEntries).toHaveBeenCalledWith({
+      planOrExecution: "",
+      phaseId: "",
+      type: LogEntryType.FINDING,
+      triage: FindingTriage.CANDIDATE,
+      syncStatus: 0,
+    });
+    expect(client.listEntries).toHaveBeenCalledWith({
+      planOrExecution: "",
+      phaseId: "",
+      type: LogEntryType.UNSPECIFIED,
+      triage: FindingTriage.UNSPECIFIED,
+      syncStatus: 0,
+    });
+    expect(client.updateEntry).toHaveBeenCalledWith({
+      id: "log-1",
+      title: "",
+      detail: "",
+      severity: LogSeverity.UNSPECIFIED,
+      triage: FindingTriage.DISMISSED,
+      addEvidence: [],
+    });
+    expect(client.promoteEntry).toHaveBeenCalledWith({
+      id: "log-1",
+      toType: LogEntryType.BUG_REPORT,
+      title: "",
+      detail: "",
+      severity: LogSeverity.UNSPECIFIED,
+    });
+    expect(client.getEntry).toHaveBeenCalledWith({ id: "log-1" });
+    expect(client.syncEntry).toHaveBeenCalledWith({ id: "log-1" });
   });
 
   it("threads ValidationService requests and unwraps responses", async () => {

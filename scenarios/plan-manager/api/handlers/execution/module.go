@@ -13,6 +13,8 @@ import (
 	"plan-manager/internal/clock"
 	internalexecution "plan-manager/internal/execution"
 	"plan-manager/internal/module"
+	internalplanlog "plan-manager/internal/planlog"
+	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 	internalvalidation "plan-manager/internal/validation"
 
@@ -25,7 +27,7 @@ import (
 
 // Module returns the execution domain's contribution to the API: the generated
 // ExecutionService Connect-RPC handler, backed by the execution home store (the
-// executions/decisions/findings/handoffs/velocity tables), the plans SSOT (the
+// executions/handoffs/velocity tables), the plans SSOT (the
 // PlanStore seam — read + delegated phase transitions), the validation domain
 // (the Validator seam — last validation + staleness, degrading to UNKNOWN), and
 // the stubbed velocity sink (LOCAL ONLY in v1; no wire to meta-optimization).
@@ -53,10 +55,20 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Clock:   clk,
 	})
 
+	// The log ledger the LogLedger seam reads for just-in-time summaries and the
+	// handoff snapshot. Same store the log handler module writes to; execution
+	// only READS compact summaries here (decisions/findings/bugs/records are
+	// written through `plan-manager log ...`).
+	logSvc := internalplanlog.NewService(internalplanlog.Deps{
+		Repo:  internalplanlog.NewSQLiteRepository(db, clk),
+		Clock: clk,
+	})
+
 	svc := internalexecution.NewService(internalexecution.Deps{
 		Repo:      internalexecution.NewSQLiteRepository(db, clk),
 		Plans:     planStoreAdapter{svc: plansSvc},
 		Validator: validatorAdapter{svc: validationSvc},
+		Log:       logLedgerAdapter{svc: logSvc},
 		Velocity:  internalexecution.DefaultVelocitySink(), // stub; no MoM wire (v1)
 		Clock:     clk,
 	})
@@ -90,6 +102,16 @@ func (a planStoreAdapter) GetPlan(ctx context.Context, idOrSlug string) (interna
 
 func (a planStoreAdapter) UpdatePhase(ctx context.Context, planID string, phase internalplans.Phase) (internalplans.Plan, error) {
 	return a.svc.UpdatePhase(ctx, planID, phase)
+}
+
+// logLedgerAdapter adapts the log domain Service to execution's LogLedger seam.
+// It surfaces compact log summaries + captured entries (a cheap store read) into
+// the just-in-time context and the canonical handoff. Decisions/findings/bugs/
+// records are OWNED by the log domain; execution never writes them.
+type logLedgerAdapter struct{ svc internalplanlog.Service }
+
+func (a logLedgerAdapter) Summarize(ctx context.Context, executionID string) (planmodel.LogSummary, []planmodel.LogEntry, error) {
+	return a.svc.Summarize(ctx, internalplanlog.Filter{ExecutionID: executionID})
 }
 
 // planSourceAdapter adapts the plans domain Service to the validation domain's
@@ -155,14 +177,11 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("execution_get_status", executionconnect.ExecutionServiceGetStatusProcedure, "Get current context", "Returns the just-in-time context for the runner's current phase (OT-P0-003)."),
 	endpoint("execution_get_context", executionconnect.ExecutionServiceGetContextProcedure, "Get setup context", "Returns setup context for the current or requested phase without advancing the runner."),
 	endpoint("execution_resume", executionconnect.ExecutionServiceResumeProcedure, "Resume execution", "Resolves an existing execution or creates one for a plan and returns setup context without advancing."),
+	endpoint("execution_continue", executionconnect.ExecutionServiceContinueExecutionProcedure, "Continue execution", "Resumes or starts an execution and returns the single recommended next runner action without advancing."),
 	endpoint("execution_get_next", executionconnect.ExecutionServiceGetNextProcedure, "Advance to next phase", "Advances the runner's pointer to the next actionable phase and returns its injected context."),
 	endpoint("execution_transition_phase", executionconnect.ExecutionServiceTransitionPhaseProcedure, "Transition phase status", "Performs a typed phase-status transition; plan status is recomputed from the phase-status set."),
-	endpoint("execution_record_decision", executionconnect.ExecutionServiceRecordDecisionProcedure, "Record a decision", "Captures an in-flow design decision (feeds the handoff)."),
-	endpoint("execution_record_finding", executionconnect.ExecutionServiceRecordFindingProcedure, "Record a candidate finding", "Captures an in-flow CANDIDATE finding (never auto-promoted; attribution-keyed dedup)."),
 	endpoint("execution_complete", executionconnect.ExecutionServiceCompleteProcedure, "Complete the run", "Runs the thin guided completion process, assembles the canonical handoff, and captures a velocity point (OT-P1-001/002)."),
 	endpoint("execution_get_handoff", executionconnect.ExecutionServiceGetHandoffProcedure, "Get the handoff", "Returns the assembled canonical handoff for an execution."),
-	endpoint("execution_list_candidate_findings", executionconnect.ExecutionServiceListCandidateFindingsProcedure, "List candidate findings", "Returns candidate findings awaiting operator triage."),
-	endpoint("execution_triage_finding", executionconnect.ExecutionServiceTriageFindingProcedure, "Triage a finding", "Promotes or dismisses a candidate finding (operator action)."),
 	endpoint("execution_get_velocity", executionconnect.ExecutionServiceGetVelocityProcedure, "Get velocity series", "Returns the per-plan velocity series (LOCAL ONLY)."),
 }
 

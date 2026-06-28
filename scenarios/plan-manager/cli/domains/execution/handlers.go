@@ -98,6 +98,27 @@ func (h *handlers) resume(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) continueExecution(ctx cliapp.RunContext) error {
+	resp, err := h.client.ContinueExecution(context.Background(), connect.NewRequest(&executionv1.ContinueExecutionRequest{
+		PlanOrExecution: ctx.Positional("plan-or-execution"),
+		PhaseId:         ctx.Flag("phase"),
+		RunId:           ctx.Flag("run-id"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("continue execution", err, nil)
+	}
+	e := resp.Msg.GetExecution()
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Continuing execution %s on plan %s.", e.GetId(), e.GetPlanId()),
+			fmt.Sprintf("Current phase: %s.", orNone(e.GetCurrentPhaseId())),
+		},
+		ResultsHeading: "Recommended action",
+		Results:        append(contextLines(resp.Msg.GetContext()), formatStep(resp.Msg.GetStep())...),
+		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) next(ctx cliapp.RunContext) error {
 	resp, err := h.client.GetNext(context.Background(), connect.NewRequest(&executionv1.GetNextRequest{
 		ExecutionId: ctx.Positional("execution"),
@@ -122,6 +143,9 @@ func (h *handlers) transition(ctx cliapp.RunContext) error {
 		ExecutionId: ctx.Positional("execution"),
 		PhaseId:     ctx.Positional("phase"),
 		ToStatus:    phaseStatusFlag(ctx.Flag("status")),
+		ValidationOverride: &executionv1.ValidationOverride{
+			Reason: ctx.Flag("validation-override-reason"),
+		},
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("transition phase", err, nil)
@@ -133,42 +157,6 @@ func (h *handlers) transition(ctx cliapp.RunContext) error {
 			fmt.Sprintf("plan status: %s", planStatusLabel(resp.Msg.GetPlan().GetStatus())),
 			fmt.Sprintf("current phase: %s", orNone(e.GetCurrentPhaseId())),
 		}, formatStep(resp.Msg.GetStep())...),
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) decisionAdd(ctx cliapp.RunContext) error {
-	resp, err := h.client.RecordDecision(context.Background(), connect.NewRequest(&executionv1.RecordDecisionRequest{
-		ExecutionId: ctx.Positional("execution"),
-		PhaseId:     ctx.Flag("phase"),
-		Summary:     ctx.Flag("summary"),
-		Detail:      ctx.Flag("detail"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("record decision", err, nil)
-	}
-	d := resp.Msg.GetDecision()
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Recorded decision %s.", d.GetId())},
-		Changes:     append([]string{d.GetSummary()}, formatStep(resp.Msg.GetStep())...),
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) findingAdd(ctx cliapp.RunContext) error {
-	resp, err := h.client.RecordFinding(context.Background(), connect.NewRequest(&executionv1.RecordFindingRequest{
-		ExecutionId: ctx.Positional("execution"),
-		PhaseId:     ctx.Flag("phase"),
-		Title:       ctx.Flag("title"),
-		Detail:      ctx.Flag("detail"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("record finding", err, nil)
-	}
-	f := resp.Msg.GetFinding()
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Filed candidate finding %s (triage %s).", f.GetId(), triageLabel(f.GetTriage()))},
-		Changes:     append([]string{f.GetTitle()}, formatStep(resp.Msg.GetStep())...),
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
@@ -219,55 +207,21 @@ func (h *handlers) handoff(ctx cliapp.RunContext) error {
 	}
 	ho := resp.Msg.GetHandoff()
 	results := make([]string, 0)
-	for _, d := range ho.GetDecisions() {
-		results = append(results, fmt.Sprintf("decision: %s", d.GetSummary()))
-	}
-	for _, f := range ho.GetCandidateFindings() {
-		results = append(results, fmt.Sprintf("candidate finding: %s", f.GetTitle()))
+	for _, e := range ho.GetLogEntries() {
+		line := fmt.Sprintf("%s: %s", logEntryTypeLabel(e.GetType()), e.GetTitle())
+		if e.GetType() == sharedv1.LogEntryType_LOG_ENTRY_TYPE_BUG_REPORT || e.GetType() == sharedv1.LogEntryType_LOG_ENTRY_TYPE_RECORD {
+			line += fmt.Sprintf(" (sync %s)", logSyncStatusLabel(e.GetSyncStatus()))
+		}
+		results = append(results, line)
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{
+		Summary: append([]string{
 			fmt.Sprintf("Handoff for execution %s (completeness %s, staleness %s).", ho.GetExecutionId(), completenessLabel(ho.GetCompleteness()), stalenessLabel(ho.GetStaleness())),
 			fmt.Sprintf("Resume point: %s.", orNone(ho.GetResumePhaseId())),
-		},
-		ResultsHeading: "Captured state",
+		}, logSummaryLines(ho.GetLogSummary())...),
+		ResultsHeading: "Captured log entries",
 		Results:        append(results, formatStep(resp.Msg.GetStep())...),
 		RetrievalHints: formatRecommendedActions(resp.Msg.GetStep()),
-	})
-}
-
-func (h *handlers) findings(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListCandidateFindings(context.Background(), connect.NewRequest(&executionv1.ListCandidateFindingsRequest{
-		ExecutionId: ctx.Flag("exec"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("list candidate findings", err, nil)
-	}
-	results := make([]string, 0, len(resp.Msg.GetFindings()))
-	for _, f := range resp.Msg.GetFindings() {
-		results = append(results, fmt.Sprintf("%s — %s (triage %s)", f.GetId(), f.GetTitle(), triageLabel(f.GetTriage())))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%d candidate finding(s) awaiting triage.", len(resp.Msg.GetFindings()))},
-		ResultsHeading: "Candidate findings",
-		Results:        results,
-		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
-	})
-}
-
-func (h *handlers) triage(ctx cliapp.RunContext) error {
-	resp, err := h.client.TriageFinding(context.Background(), connect.NewRequest(&executionv1.TriageFindingRequest{
-		FindingId: ctx.Positional("finding"),
-		Triage:    triageFlag(ctx.Flag("status")),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("triage finding", err, nil)
-	}
-	f := resp.Msg.GetFinding()
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Finding %s triaged to %s.", f.GetId(), triageLabel(f.GetTriage()))},
-		Changes:     append([]string{f.GetTitle()}, formatStep(resp.Msg.GetStep())...),
-		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
 }
 
@@ -319,6 +273,24 @@ func contextLines(c *executionv1.PhaseContext) []string {
 	}
 	if lv := c.GetLastValidation(); lv != nil {
 		out = append(out, fmt.Sprintf("last validation: %s", lv.GetDetail()))
+	}
+	out = append(out, logSummaryLines(c.GetLogSummary())...)
+	return out
+}
+
+// logSummaryLines renders the compact plan-log roll-up so a resumed agent sees
+// decisions/findings/bugs/records and any degraded downstream sync at a glance.
+func logSummaryLines(s *sharedv1.LogSummary) []string {
+	if s == nil || s.GetTotal() == 0 {
+		return nil
+	}
+	out := []string{fmt.Sprintf("log ledger: %d entries (%d decisions, %d findings, %d bugs, %d records, %d notes)",
+		s.GetTotal(), s.GetDecisions(), s.GetFindings(), s.GetBugReports(), s.GetRecords(), s.GetNotes())}
+	if s.GetCandidateFindings() > 0 {
+		out = append(out, fmt.Sprintf("  %d candidate finding(s) awaiting triage/promotion", s.GetCandidateFindings()))
+	}
+	if s.GetPendingSync()+s.GetFailedSync() > 0 {
+		out = append(out, fmt.Sprintf("  downstream sync: %d pending, %d failed — retry with `plan-manager log sync <id>`", s.GetPendingSync(), s.GetFailedSync()))
 	}
 	return out
 }
@@ -494,19 +466,6 @@ func phaseStatusFlag(s string) sharedv1.PhaseStatus {
 	}
 }
 
-func triageFlag(s string) sharedv1.FindingTriage {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "candidate":
-		return sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE
-	case "promoted", "promote":
-		return sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED
-	case "dismissed", "dismiss":
-		return sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED
-	default:
-		return sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED
-	}
-}
-
 func phaseStatusLabel(s sharedv1.PhaseStatus) string {
 	switch s {
 	case sharedv1.PhaseStatus_PHASE_STATUS_TODO:
@@ -548,14 +507,33 @@ func completenessLabel(c sharedv1.Completeness) string {
 	}
 }
 
-func triageLabel(t sharedv1.FindingTriage) string {
+func logEntryTypeLabel(t sharedv1.LogEntryType) string {
 	switch t {
-	case sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE:
-		return "candidate"
-	case sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED:
-		return "promoted"
-	case sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED:
-		return "dismissed"
+	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_DECISION:
+		return "decision"
+	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_FINDING:
+		return "finding"
+	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_BUG_REPORT:
+		return "bug_report"
+	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_RECORD:
+		return "record"
+	case sharedv1.LogEntryType_LOG_ENTRY_TYPE_NOTE:
+		return "note"
+	default:
+		return "unspecified"
+	}
+}
+
+func logSyncStatusLabel(s sharedv1.LogSyncStatus) string {
+	switch s {
+	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_LOCAL:
+		return "local"
+	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_PENDING:
+		return "pending"
+	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_SYNCED:
+		return "synced"
+	case sharedv1.LogSyncStatus_LOG_SYNC_STATUS_FAILED:
+		return "sync_failed"
 	default:
 		return "unspecified"
 	}

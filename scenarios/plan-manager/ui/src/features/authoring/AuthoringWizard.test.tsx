@@ -21,6 +21,9 @@ import { PlanSchema } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb"
 import {
   RelevantContextItemSchema,
   RelevantContextKind,
+  RelevantContextRepeatPolicy,
+  RelevantContextScope,
+  ReferenceKind,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const startSession = vi.fn();
@@ -75,7 +78,7 @@ const step = {
   requiredInputs: ["acceptance"],
   examples: [],
   commonMistakes: [],
-  nextActions: [],
+  nextActions: [{ id: "submit-phase-acceptance", label: "Submit acceptance", argv: ["author", "phase-submit"] }],
 };
 
 const phase = {
@@ -113,6 +116,12 @@ const candidateItem = create(RelevantContextItemSchema, {
   command: "search-hub query plan-manager --type record",
 });
 
+const completePhase = {
+  ...phase,
+  references: [{ id: "ref-1", target: "api/main.go", kind: ReferenceKind.CODE }],
+  relevantContext: [candidateItem],
+};
+
 const candidate = create(ContextCandidateSchema, {
   id: "cand-1",
   item: candidateItem,
@@ -145,6 +154,19 @@ describe("AuthoringWizard", () => {
     });
   });
 
+  it("renders a start-session error at the start gate", async () => {
+    const user = userEvent.setup();
+    startSession.mockRejectedValue(new Error("cannot start"));
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("cannot start");
+    });
+  });
+
   it("surfaces structure violations after submitting a section", async () => {
     const user = userEvent.setup();
     startSession.mockResolvedValue({ session, step });
@@ -163,6 +185,27 @@ describe("AuthoringWizard", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId(selectors.authoring.violations)).toBeInTheDocument();
+    });
+  });
+
+  it("runs structure validation from the current section", async () => {
+    const user = userEvent.setup();
+    startSession.mockResolvedValue({ session, step });
+    validateStructure.mockResolvedValue({
+      violations: [create(StructureViolationSchema, { sectionKey: "relevant_context", message: "missing context" })],
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.validateButton);
+    await user.click(screen.getByTestId(selectors.authoring.validateButton));
+
+    await waitFor(() => {
+      expect(validateStructure).toHaveBeenCalledWith("sess-1");
+      expect(screen.getByTestId(selectors.authoring.violations)).toHaveTextContent("missing context");
     });
   });
 
@@ -276,6 +319,51 @@ describe("AuthoringWizard", () => {
     });
   });
 
+  it("submits phase-scoped relevant context from the wizard", async () => {
+    const user = userEvent.setup();
+    const contextItem = create(RelevantContextItemSchema, {
+      id: "ctx-phase",
+      kind: RelevantContextKind.DOC,
+      label: "Phase docs",
+      target: "docs/phase.md",
+      scope: RelevantContextScope.PHASE,
+      phaseId: "phase-1",
+      repeatPolicy: RelevantContextRepeatPolicy.PHASE_ENTRY,
+    });
+    startSession.mockResolvedValue({ session: sessionWithPhase, step });
+    submitRelevantContextItem.mockResolvedValue({
+      session: { ...sessionWithPhase, phaseDrafts: [{ ...phase, relevantContext: [contextItem] }] },
+      item: contextItem,
+      violations: [],
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.contextPhaseToggle);
+    await user.click(screen.getByTestId(selectors.authoring.contextPhaseToggle));
+    await user.selectOptions(screen.getByTestId(selectors.authoring.contextKindSelect), String(RelevantContextKind.DOC));
+    await user.type(screen.getByTestId(selectors.authoring.contextLabelInput), "Phase docs");
+    await user.type(screen.getByTestId(selectors.authoring.contextTargetInput), "docs/phase.md");
+    await user.click(screen.getByTestId(selectors.authoring.contextSubmitButton));
+
+    await waitFor(() => {
+      expect(submitRelevantContextItem).toHaveBeenCalledWith(
+        "sess-1",
+        "phase-1",
+        expect.objectContaining({
+          label: "Phase docs",
+          scope: RelevantContextScope.PHASE,
+          phaseId: "phase-1",
+          repeatPolicy: RelevantContextRepeatPolicy.PHASE_ENTRY,
+        }),
+      );
+      expect(screen.getByTestId(selectors.authoring.contextItems)).toHaveTextContent("Phase docs");
+    });
+  });
+
   it("discovers context candidates from concepts", async () => {
     const user = userEvent.setup();
     const sessionWithCandidate = { ...sessionWithPhase, contextCandidates: [candidate] };
@@ -363,6 +451,67 @@ describe("AuthoringWizard", () => {
     await waitFor(() => {
       expect(rejectContextCandidate).toHaveBeenCalledWith("sess-1", "cand-1", "duplicate");
       expect(screen.getByTestId(selectors.authoring.contextCandidates)).toHaveTextContent("duplicate");
+    });
+  });
+
+  it("renders degraded candidates and target-only context items", async () => {
+    const user = userEvent.setup();
+    const targetContext = create(RelevantContextItemSchema, {
+      id: "ctx-doc",
+      kind: RelevantContextKind.DOC,
+      label: "Plan model docs",
+      target: "scenarios/plan-manager/docs/concepts/PLAN-MODEL.md",
+    });
+    const degradedCandidate = create(ContextCandidateSchema, {
+      id: "cand-degraded",
+      item: targetContext,
+      concept: "plan model",
+      source: "prompt-manager",
+      status: "pending",
+      degraded: true,
+      detail: "prompt-manager unavailable",
+    });
+    startSession.mockResolvedValue({
+      session: {
+        ...sessionWithPhase,
+        phaseDrafts: [completePhase],
+        relevantContext: [targetContext],
+        contextCandidates: [degradedCandidate],
+      },
+      step,
+    });
+    rejectContextCandidate.mockResolvedValue({
+      session: {
+        ...sessionWithPhase,
+        phaseDrafts: [completePhase],
+        relevantContext: [targetContext],
+        contextCandidates: [
+          create(ContextCandidateSchema, {
+            ...degradedCandidate,
+            status: "rejected",
+            rejectionReason: "not relevant",
+          }),
+        ],
+      },
+      candidate: degradedCandidate,
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    const candidateList = await screen.findByTestId(selectors.authoring.contextCandidates);
+    expect(candidateList).toHaveTextContent("prompt-manager unavailable");
+    expect(
+      screen
+        .getAllByTestId(selectors.authoring.contextItems)
+        .some((list) => list.textContent.includes("scenarios/plan-manager/docs/concepts/PLAN-MODEL.md")),
+    ).toBe(true);
+
+    await user.click(screen.getByTestId(selectors.authoring.contextCandidateRejectButton));
+    await waitFor(() => {
+      expect(rejectContextCandidate).toHaveBeenCalledWith("sess-1", "cand-degraded", "not relevant");
     });
   });
 

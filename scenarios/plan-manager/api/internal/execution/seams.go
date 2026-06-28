@@ -35,6 +35,21 @@ type Validator interface {
 	LastValidation(ctx context.Context, planID, phaseID string) (ValidationResult, bool, error)
 }
 
+// LogLedger is the read seam onto the log domain for the execution's
+// just-in-time context summaries, completion nudges, and canonical handoff.
+// Production wraps the log Service; tests inject a fake. A nil LogLedger (or one
+// returning an error) degrades to an empty summary — the handoff/context still
+// assemble, they just show no captured entries (never a fabricated count).
+//
+// Decisions, findings, bug reports, and records are OWNED by the log domain;
+// execution only reads compact summaries here. The agent writes them through
+// `plan-manager log ...` commands, never through the runner.
+type LogLedger interface {
+	// Summarize returns the compact roll-up plus the captured entries for an
+	// execution (oldest-first).
+	Summarize(ctx context.Context, executionID string) (planmodel.LogSummary, []planmodel.LogEntry, error)
+}
+
 // VelocitySink is the future meta-optimization-manager emit seam. v1 captures
 // velocity LOCAL ONLY (persisted regardless via the repository); this seam exists
 // so the eventual remote emit lands behind an interface rather than a hard wire.

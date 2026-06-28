@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-005 — baseline-aware validation: compute the exact check set, run on request, verify DoD.",
-    "last_validated_at": "2026-06-26T17:11:03-04:00",
+    "last_validated_at": "2026-06-27T13:35:10-04:00",
     "module": "validation-orchestration",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PM-VALID-001",
       "title": "Compute the exact baseline/validation command set from connected code",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "validation",
       "description": "From a plan's connected code, derive the precise set of baseline/validation commands needed across all affected locations (not just scenarios) — so the agent does not have to reason about which scenarios to baseline.",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestDeriveBaselineScope",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Connected code maps to deduplicated scenario baseline commands and repo diff locations."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "PM-VALID-002",
       "title": "Run validation on request and verify DoD against the regression anchor",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "validation",
       "description": "On request (agent in the loop) the scenario runs the computed checks and returns results + staleness, and verifies Definition-of-Done against the regression anchor as an oracle rather than relying on a narrated claim. Agents may run baselines; they never commit.",
@@ -46,14 +46,14 @@
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestRunValidationVerdicts",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validation verdicts derive from command runner outcomes without false passes."
         },
         {
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestVerifyDoDDerivesFromReferences",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Definition-of-done verification derives a baseline oracle from connected code references."
         }
       ]
@@ -61,7 +61,7 @@
     {
       "id": "PM-VALID-003",
       "title": "Validate relevant-context commands and references",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "validation",
       "description": "Validation checks structured relevant-context setup items so command/search instructions are current and doc/code/requirement reference targets do not silently point at missing context.",
@@ -75,21 +75,21 @@
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestRunValidationIncludesCommandReferenceFindings",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Command and search relevant-context items are validated through CLI Health."
         },
         {
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestRunValidationChecksRelevantContextReferences",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Doc/code/requirement relevant-context targets resolve through the reference resolver and missing targets fail validation."
         },
         {
           "type": "test",
           "ref": "api/internal/validation/validation_test.go::TestRunValidationUnknownWhenRelevantContextReferenceResolverUnavailable",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Unavailable reference resolution reports UNKNOWN instead of fabricating a pass."
         }
       ]

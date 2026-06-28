@@ -236,7 +236,16 @@
       "nudgesHeading": "Before you finish",
       "completenessFull": "Full",
       "completenessPartial": "Partial",
-      "completenessUnspecified": "Unspecified"
+      "completenessUnspecified": "Unspecified",
+      "logSummaryHeading": "Log summary",
+      "logSummaryEmpty": "No log entries yet.",
+      "logTotal": "Entries",
+      "logDecisions": "Decisions",
+      "logFindings": "Findings",
+      "logCandidates": "Candidate findings",
+      "logPendingSync": "Pending sync",
+      "logFailedSync": "Failed sync",
+      "handoffLogEntries": "Log entries"
     },
     "validation": {
       "title": "Validation",

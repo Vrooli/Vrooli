@@ -505,6 +505,53 @@ func TestImportAndMigrate(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestImportMigratesLegacyRequiredReadingToRelevantContext(t *testing.T) {
+	d, clk := newDB(t)
+	reader := fakeReader{files: map[string]string{
+		"docs/plans/legacy-context.md": strings.Join([]string{
+			"# Legacy Context",
+			"",
+			"## Required Reading",
+			"",
+			"- prompt-manager skill read api-steer",
+			"- docs/concepts/PLAN-MODEL.md",
+			"",
+			"## Phases",
+			"",
+			"### Phase 1 — Implement",
+			"- Intent: preserve setup",
+			"",
+			"**Required Reading:**",
+			"- [REQ: PM-CTX-001]",
+			"- cli: vrooli scenario requirements validate plan-manager",
+			"",
+		}, "\n"),
+	}}
+	svc := plans.NewService(plans.Deps{Repo: plans.NewSQLiteRepository(d, clk), Clock: clk, Reader: reader})
+	ctx := context.Background()
+
+	imported, err := svc.Import(ctx, "docs/plans/legacy-context.md", "")
+	require.NoError(t, err)
+	require.Len(t, imported.RelevantContext, 2)
+	require.Equal(t, plans.RelevantContextSkill, imported.RelevantContext[0].Kind)
+	require.Equal(t, plans.RelevantContextSourceMigrated, imported.RelevantContext[0].Source)
+	require.Equal(t, plans.RelevantContextDoc, imported.RelevantContext[1].Kind)
+	require.Len(t, imported.Phases, 1)
+	require.Equal(t, []string{"[REQ: PM-CTX-001]", "cli: vrooli scenario requirements validate plan-manager"}, imported.Phases[0].RequiredReading)
+	require.Len(t, imported.Phases[0].RelevantContext, 2)
+	require.Equal(t, plans.RelevantContextReqRef, imported.Phases[0].RelevantContext[0].Kind)
+	require.Equal(t, "PM-CTX-001", imported.Phases[0].RelevantContext[0].Target)
+	require.Equal(t, plans.RelevantContextCommand, imported.Phases[0].RelevantContext[1].Kind)
+
+	rendered, err := svc.Render(ctx, imported.ID)
+	require.NoError(t, err)
+	require.Contains(t, rendered, "## Global Execution Setup")
+	require.Contains(t, rendered, "**Phase Context Setup:**")
+	require.Contains(t, rendered, "_(required, migrated)_")
+	require.NotContains(t, rendered, "## Required Reading")
+	require.NotContains(t, rendered, "**Required Reading:**")
+}
+
 func TestMigrateImportsIndexedFallbackPlan(t *testing.T) {
 	d, clk := newDB(t)
 	reader := fakeReader{files: map[string]string{

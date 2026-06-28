@@ -3,6 +3,7 @@ package domains
 import (
 	"plan-manager/cli/domains/authoring"
 	"plan-manager/cli/domains/execution"
+	logdomain "plan-manager/cli/domains/log"
 	"plan-manager/cli/domains/plans"
 	"plan-manager/cli/domains/validation"
 
@@ -63,5 +64,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, executionGroup)
+
+	logGroup, err := logdomain.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, logGroup)
 	return groups, nil
 }

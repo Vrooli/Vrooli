@@ -928,17 +928,28 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 
 	locations := make([]string, 0, len(scenarios)+1)
 	commands := make([]string, 0, len(scenarios)+2)
+	for _, c := range planmodel.RegressionAnchorCommands(p.RegressionAnchor) {
+		commands = appendUnique(commands, c)
+	}
+	switch p.RegressionAnchor.Strategy {
+	case "scenario_baseline":
+		if scenario := strings.TrimSpace(p.RegressionAnchor.Scenario); scenario != "" {
+			locations = appendUnique(locations, "scenarios/"+scenario)
+		}
+	case "head_sha_allowlist":
+		locations = appendUnique(locations, "repo")
+	}
 	names := make([]string, 0, len(scenarios))
 	for name := range scenarios {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		locations = append(locations, "scenarios/"+name)
+		locations = appendUnique(locations, "scenarios/"+name)
 		commands = append(commands, baselineCommands(name, p.RegressionAnchor)...)
 	}
 	if repoLevel {
-		locations = append(locations, "repo")
+		locations = appendUnique(locations, "repo")
 		// Repo-level changes have no scenario baseline; emit an INFORMATIONAL diff
 		// (scoped to the anchor's HeadSha when one was captured) so the agent sees
 		// what changed. This is not an oracle — see isOracleCommand — so it never
@@ -953,16 +964,6 @@ func deriveScope(p planmodel.Plan, refs []planmodel.Reference) BaselineScope {
 		commands = appendUnique(commands, c)
 	}
 	return BaselineScope{Commands: commands, Locations: locations}
-}
-
-func baselineDiffCommand(scenario string, anchor planmodel.RegressionAnchor) string {
-	cmds := baselineCommands(scenario, anchor)
-	for _, cmd := range cmds {
-		if isOracleCommand(cmd) {
-			return cmd
-		}
-	}
-	return ""
 }
 
 func baselineCommands(scenario string, anchor planmodel.RegressionAnchor) []string {

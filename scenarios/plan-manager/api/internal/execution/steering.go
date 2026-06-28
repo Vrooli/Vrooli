@@ -20,7 +20,7 @@ func stepForStarted(e Execution) GuidedStep {
 	}
 }
 
-func stepForContext(executionID string, ctx PhaseContext, complete bool) GuidedStep {
+func stepForContext(executionID, planID string, ctx PhaseContext, complete bool) GuidedStep {
 	if complete || ctx.Completeness == CompletenessFull || (!ctx.HasCurrent && strings.TrimSpace(ctx.ResumePhaseID) == "") {
 		return GuidedStep{
 			StepKind:     "execution_complete",
@@ -46,29 +46,23 @@ func stepForContext(executionID string, ctx PhaseContext, complete bool) GuidedS
 		StepKind:     "phase_context",
 		Title:        "Phase Context",
 		Summary:      "Use the current phase setup context to implement, capture decisions/findings, and transition status.",
-		Instructions: []string{"Run or read the structured setup items before editing.", "Record decisions or findings as they occur.", "Transition the phase when acceptance is satisfied."},
+		Instructions: []string{"Run or read the structured setup items before editing.", "Record decisions or findings as they occur.", "Run validation before marking the phase done."},
 		NextActions: []NextAction{
+			phasePrimaryAction(executionID, planID, phaseID, ctx),
 			{
-				ID:     "transition-active",
-				Kind:   NextActionRecommended,
-				Label:  "Mark current phase active",
-				Reason: "This records that work is underway for the current phase.",
-				Argv:   []string{"exec", "transition", executionID, phaseID, "--status", "active"},
-			},
-			{
-				ID:                 "record-decision",
+				ID:                 "log-decision",
 				Kind:               NextActionOptional,
 				Label:              "Record decision",
-				Reason:             "Capture design choices in-flow so the handoff can be assembled from structured state.",
-				Argv:               []string{"exec", "decision", executionID, "--phase", phaseID, "--summary", "<decision summary>", "--detail", "<decision detail>"},
+				Reason:             "Capture design choices in-flow so the handoff can be assembled from the log ledger.",
+				Argv:               []string{"log", "decision-add", executionID, "--phase", phaseID, "--title", "<decision summary>", "--detail", "<decision detail>"},
 				ContentPlaceholder: "<decision summary> / <decision detail>",
 			},
 			{
-				ID:                 "record-finding",
+				ID:                 "log-finding",
 				Kind:               NextActionOptional,
 				Label:              "Record candidate finding",
-				Reason:             "Capture possible bugs as candidates for later operator triage.",
-				Argv:               []string{"exec", "finding", executionID, "--phase", phaseID, "--title", "<finding title>", "--detail", "<finding detail>"},
+				Reason:             "Capture possible bugs as candidate findings for later triage/promotion.",
+				Argv:               []string{"log", "finding-add", executionID, "--phase", phaseID, "--title", "<finding title>", "--detail", "<finding detail>"},
 				ContentPlaceholder: "<finding title> / <finding detail>",
 			},
 		},
@@ -77,6 +71,37 @@ func stepForContext(executionID string, ctx PhaseContext, complete bool) GuidedS
 		step.NextActions[0].BlockedBy = []string{"no current phase id"}
 	}
 	return step
+}
+
+func phasePrimaryAction(executionID, planID, phaseID string, ctx PhaseContext) NextAction {
+	if ctx.CurrentPhase.Status == "todo" || ctx.CurrentPhase.Status == "" {
+		return NextAction{
+			ID:     "transition-active",
+			Kind:   NextActionRecommended,
+			Label:  "Mark current phase active",
+			Reason: "This records that work is underway for the current phase.",
+			Argv:   []string{"exec", "transition", executionID, phaseID, "--status", "active"},
+		}
+	}
+	if validationIsRecentPass(ctx.LastValidation, ctx.HasValidation, ctx.Staleness) {
+		return NextAction{
+			ID:     "transition-done",
+			Kind:   NextActionRecommended,
+			Label:  "Mark phase done",
+			Reason: "The last stored validation result passed and is fresh.",
+			Argv:   []string{"exec", "transition", executionID, phaseID, "--status", "done"},
+		}
+	}
+	return NextAction{
+		ID:     "run-validation",
+		Kind:   NextActionRecommended,
+		Label:  "Run phase validation",
+		Reason: "A recent passing validation result is required before marking the phase done.",
+		Argv:   []string{"validate", "run", planID, "--phase", phaseID},
+		BlockedBy: []string{
+			validationBlockerReason(ctx.LastValidation, ctx.HasValidation, ctx.Staleness),
+		},
+	}
 }
 
 func stepForTransition(e Execution) GuidedStep {
@@ -109,31 +134,6 @@ func stepForTransition(e Execution) GuidedStep {
 				Label:  "Fetch next phase",
 				Reason: "GetNext returns the next actionable phase and its just-in-time context.",
 				Argv:   []string{"exec", "next", e.ID},
-			},
-		},
-	}
-}
-
-func stepForRecorded(executionID, phaseID string) GuidedStep {
-	return GuidedStep{
-		StepKind:     "captured_state_recorded",
-		Title:        "Captured State Recorded",
-		Summary:      "The execution has new structured state for the handoff.",
-		Instructions: []string{"Continue with the current phase or fetch fresh status if the context may have changed."},
-		NextActions: []NextAction{
-			{
-				ID:     "execution-status",
-				Kind:   NextActionRecommended,
-				Label:  "Fetch execution status",
-				Reason: "Refresh the current phase context after recording state.",
-				Argv:   []string{"exec", "status", executionID},
-			},
-			{
-				ID:     "transition-done",
-				Kind:   NextActionAlternative,
-				Label:  "Mark phase done",
-				Reason: "Use when acceptance and validation for the phase are satisfied.",
-				Argv:   []string{"exec", "transition", executionID, phaseID, "--status", "done"},
 			},
 		},
 	}
@@ -186,4 +186,17 @@ func stepForHandoff(executionID string) GuidedStep {
 			},
 		},
 	}
+}
+
+func onlyRecommendedExecutionAction(step GuidedStep) GuidedStep {
+	for _, action := range step.NextActions {
+		if action.Kind == NextActionRecommended {
+			step.NextActions = []NextAction{action}
+			return step
+		}
+	}
+	if len(step.NextActions) > 1 {
+		step.NextActions = step.NextActions[:1]
+	}
+	return step
 }

@@ -328,11 +328,17 @@ func renderAnchor(a RegressionAnchor) string {
 		}
 		b.WriteString("\n")
 	}
+	if a.Scenario == "" && a.BaselineName != "" {
+		fmt.Fprintf(&b, "- Baseline name: `%s`\n", a.BaselineName)
+	}
 	if a.HeadSha != "" {
 		fmt.Fprintf(&b, "- HEAD sha: `%s`\n", a.HeadSha)
 	}
 	if len(a.AllowlistPaths) > 0 {
 		fmt.Fprintf(&b, "- Allowlist: %s\n", strings.Join(a.AllowlistPaths, ", "))
+	}
+	if a.CapturedAt != "" {
+		fmt.Fprintf(&b, "- Captured at: `%s`\n", a.CapturedAt)
 	}
 	for _, c := range a.Commands {
 		fmt.Fprintf(&b, "- `%s`\n", c)

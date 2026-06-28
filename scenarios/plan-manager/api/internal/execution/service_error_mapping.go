@@ -19,13 +19,13 @@ func ToConnectError(err error) error {
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, invalid)
 	}
+	var validationRequired ErrValidationRequired
+	if errors.As(err, &validationRequired) {
+		return connect.NewError(connect.CodeFailedPrecondition, validationRequired)
+	}
 	var execNotFound ErrExecutionNotFound
 	if errors.As(err, &execNotFound) {
 		return connect.NewError(connect.CodeNotFound, execNotFound)
-	}
-	var findingNotFound ErrFindingNotFound
-	if errors.As(err, &findingNotFound) {
-		return connect.NewError(connect.CodeNotFound, findingNotFound)
 	}
 	// Plans-domain sentinels surface through the PlanStore seam (Start resolves a
 	// plan; TransitionPhase mutates one) and must keep their codes.

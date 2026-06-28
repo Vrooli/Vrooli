@@ -1,0 +1,105 @@
+{
+  "_metadata": {
+    "description": "PM-LOG — the execution-log ledger: one durable home for typed decisions/findings/bug reports/records/notes, with internal downstream forwarding.",
+    "last_validated_at": "2026-06-27T00:00:00-04:00",
+    "module": "execution-log",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-LOG-001",
+      "title": "Single typed log ledger with distinct entry types",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "log",
+      "description": "Decisions, candidate findings, bug reports, reusable records, and notes are typed entries in one durable ledger owned by the log domain. Findings (unvalidated), bug reports (filed defects), and records (reusable learning) are distinct concepts and never conflated. Findings file as CANDIDATE and are never auto-promoted.",
+      "tags": ["log", "ledger", "findings"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestAddFindingFilesCandidate",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Findings are filed CANDIDATE; entry types are distinct."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestListEntriesAndSummary",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The ledger lists and summarizes the distinct typed entries."
+        }
+      ]
+    },
+    {
+      "id": "PM-LOG-002",
+      "title": "Downstream bug/record forwarding owned internally via seams",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "log",
+      "description": "Plan Manager forwards bug reports (scenario-qa) and records (swarm-manager) through internal seams/adapters. Agents are never instructed to run external scenario CLIs from the plan workflow.",
+      "tags": ["log", "downstream", "seams"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestAddRecordSyncsViaSink",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Records forward to the downstream sink via the RecordWriter seam."
+        }
+      ]
+    },
+    {
+      "id": "PM-LOG-003",
+      "title": "Durable local entry with degraded, retryable sync state",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "log",
+      "description": "When a downstream system is unavailable or rejects a write, the local entry stays durable with a sync status of pending or sync_failed; failure is never fatal to plan execution, and the agent retries explicitly via log sync.",
+      "tags": ["log", "graceful-degradation", "sync"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestAddBugFailedSyncStaysDurable",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A failed downstream write leaves a durable sync_failed entry."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestSyncEntryRetrySucceeds",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "log sync retries a failed entry to success once the downstream recovers."
+        }
+      ]
+    },
+    {
+      "id": "PM-LOG-004",
+      "title": "Idempotent capture and finding promotion preserve origin",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "log",
+      "description": "Retries with the same idempotency key (or attribution run id + title) return the existing entry instead of duplicating. Promoting a finding to a bug report or record preserves the original finding (marked promoted) and links the new entry back to it.",
+      "tags": ["log", "idempotency", "promotion"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestIdempotencyKeyDedup",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A retry with the same idempotency key returns the existing entry."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/planlog/planlog_test.go::TestPromoteFindingToBugPreservesOrigin",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Promotion preserves and links the original finding."
+        }
+      ]
+    }
+  ]
+}

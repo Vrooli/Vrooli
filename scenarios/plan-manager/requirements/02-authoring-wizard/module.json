@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-002 — guided section-by-section authoring with autofill and a structure-validation gate.",
-    "last_validated_at": "2026-06-26T17:11:03-04:00",
+    "last_validated_at": "2026-06-27T13:35:10-04:00",
     "module": "authoring-wizard",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PM-AUTHOR-001",
       "title": "Guided section-by-section authoring with a structure-validation gate",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "authoring",
       "description": "The wizard walks the plan's sections in order, validates structure as it goes, accepts structured global and phase-scoped relevant context, and refuses to finalize while a mandatory section (or a phase's acceptance) is empty. The flow is followable by a small model with minimal context.",
@@ -25,28 +25,28 @@
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestStructureGateRejectsEmptyMandatoryAndAnchor",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Structure-validation gate rejects empty mandatory sections and missing anchors."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestSessionProgressionToComplete",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Section-by-section progression exposes the next required section until complete."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestPhaseNativeAuthoringValidatesAndFinalizesStructuredPhase",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Authoring stores global and phase-scoped relevant context and migrates legacy required-reading lines into structured context on finalize."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestContextDiscoveryCandidateLifecycle",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Relevant-context discovery persists pending candidates and requires explicit accept/reject decisions."
         }
       ]
@@ -54,7 +54,7 @@
     {
       "id": "PM-AUTHOR-002",
       "title": "Auto-fill the mechanical sections so the model only supplies prose",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "authoring",
       "description": "The wizard auto-fills deterministic setup where possible — regression anchor (via git-control-tower baseline), relevant-context candidates (via prompt-manager/search-hub/cli-health), and code references (via code-facts) — degrading gracefully when a source is unavailable, so genuine prose and final context judgment are left for the agent.",
@@ -68,21 +68,21 @@
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestAutofillFillsWhenSeamsHealthy",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Autofill fills mechanical sections when substrate seams are healthy."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestAutofilledReferencesSurviveFinalize",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Autofilled references round-trip through finalize into structured plan references."
         },
         {
           "type": "test",
           "ref": "api/internal/authoring/authoring_test.go::TestContextDiscoveryDegradesWhenSeamUnavailable",
           "phase": "unit",
-          "status": "passing",
+          "status": "implemented",
           "notes": "Context discovery degrades honestly when the discovery seam is unavailable."
         }
       ]

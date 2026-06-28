@@ -24,7 +24,7 @@ proto contracts.
 - **CLI** (`cli/`): Go, cli-core `ScenarioApp`; thin translation over the API.
 - **UI** (`ui/`): React + Vite + Tailwind; thin translation over the API.
 - **Contracts** (`packages/proto/schemas/plan-manager/v1/<domain>/`): proto authored first; codegen produces Go + TS + Python.
-- **Domains**: `plans` (the structured-record SSOT), `authoring` (Composer), `execution` (Runner), `validation` (Ledger), plus scaffold `health`.
+- **Domains**: `plans` (the structured-record SSOT), `authoring` (Composer), `execution` (Runner), `validation` (Ledger), `log` (the execution-log ledger), plus scaffold `health`.
 
 ## Scenario Shape Diagram
 
@@ -43,16 +43,16 @@ proto contracts.
 ## System Boundaries
 
 - **Business rules live in `api/internal/<domain>/` only.** CLI and UI never own plan logic; they call the API.
-- **Domain isolation.** `authoring`, `execution`, and `validation` operate *on* plans but do not own the plan record — they delegate persistence to `plans`. `execution` surfaces validation but delegates the computation to `validation`.
+- **Domain isolation.** `authoring`, `execution`, `validation`, and `log` operate *on* plans but do not own the plan record — they delegate persistence to `plans`. `execution` surfaces validation but delegates the computation to `validation`, and reads the typed work-product ledger from `log` (it does not own it).
 - **Composition boundary.** Substrate plan-manager does not own — code-facts, git/git-control-tower baseline, the scenario-artifact freshness engine, test-genie/scenario-validation — is reached through seams (see [`../internal/SEAMS.md`](../internal/SEAMS.md)) and always degrades gracefully.
-- **Hard exclusions.** plan-manager does **not** read agent transcripts, spawn agents, promote candidate findings to real bugs, or own project-level validation. Those are explicitly other owners' jobs (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
+- **Hard exclusions.** plan-manager does **not** read agent transcripts, spawn agents, *auto*-promote candidate findings to bugs (promotion is explicit, agent/operator-driven via `log promote`), or own project-level validation. Those are explicitly other owners' jobs (see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
 
 ## Contracts And Data Flow
 
 1. A proto `service` per domain defines the wire contract; handlers implement the generated `*ServiceHandler`.
 2. The CLI binds each command to a `connect-rpc` `service`/`method` via `cliapp.LoadFromManifest`; the UI calls generated Connect clients.
 3. Plan + phase records persist to the durable `~/.vrooli` home store (see [`DATA.md`](DATA.md)) — readable even when the API process is down, which is what lets `vrooli plans` act as a thin client.
-4. Authoring writes a structured plan; execution reads/advances it and captures decisions/findings in-flow; validation resolves references, computes staleness, and runs baselines; the rendered markdown view is always derived from the structured record, never parsed back.
+4. Authoring writes a structured plan; execution reads/advances it (and reads the `log` ledger summary for just-in-time context and the handoff); the `log` domain captures the agent's typed work products (decisions/findings/bugs/records/notes) in-flow; validation resolves references, computes staleness, and runs baselines; the rendered markdown view is always derived from the structured record, never parsed back.
 
 The structured shape of what flows here is defined once in [`PLAN-MODEL.md`](PLAN-MODEL.md).
 
@@ -75,12 +75,15 @@ The structured shape of what flows here is defined once in [`PLAN-MODEL.md`](PLA
 
 ## Architecture Maturity
 
-Documentation-first. The PRD, requirements registry, domain map, this document,
-the [`PLAN-MODEL.md`](PLAN-MODEL.md) keystone, [`DATA.md`](DATA.md),
-[`FLOWS.md`](FLOWS.md), and [`INTEGRATIONS.md`](INTEGRATIONS.md) are authored; the
-code domains are not yet implemented (the scaffold still ships the fenced `notes`
-example). Maturity rises to "implemented" as the first real vertical slice
-(`plans`) lands green and the example domain is removed.
+Implemented. All product domains — `plans`, `authoring`, `execution`,
+`validation`, and `log` — ship as real vertical slices (proto → `api/internal/`
+→ Connect handlers → CLI → UI), backed by the durable `~/.vrooli` home store; the
+scaffold `notes` example has been removed. The PRD, requirements registry, domain
+map, this document, the [`PLAN-MODEL.md`](PLAN-MODEL.md) keystone,
+[`DATA.md`](DATA.md), [`FLOWS.md`](FLOWS.md), and
+[`INTEGRATIONS.md`](INTEGRATIONS.md) track that implemented contract. The remaining
+maturity step is adoption: inverting consumers (root `vrooli plans`, Swarm Manager
+phased execution) and wiring the deferred downstream forwarding adapters.
 
 ## Intentional Deviations
 

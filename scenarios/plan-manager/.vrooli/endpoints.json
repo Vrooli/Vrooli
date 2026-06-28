@@ -237,6 +237,14 @@
       "category": "authoring"
     },
     {
+      "id": "authoring_continue",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/ContinueAuthoring",
+      "method": "POST",
+      "summary": "Continue authoring",
+      "description": "Returns the single recommended next wizard action across sections, phases, validation review, and finalize states.",
+      "category": "authoring"
+    },
+    {
       "id": "authoring_validate_structure",
       "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/ValidateStructure",
       "method": "POST",
@@ -365,6 +373,14 @@
       "category": "execution"
     },
     {
+      "id": "execution_continue",
+      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/ContinueExecution",
+      "method": "POST",
+      "summary": "Continue execution",
+      "description": "Resumes or starts an execution and returns the single recommended next runner action without advancing.",
+      "category": "execution"
+    },
+    {
       "id": "execution_get_next",
       "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetNext",
       "method": "POST",
@@ -378,22 +394,6 @@
       "method": "POST",
       "summary": "Transition phase status",
       "description": "Performs a typed phase-status transition; plan status is recomputed from the phase-status set.",
-      "category": "execution"
-    },
-    {
-      "id": "execution_record_decision",
-      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/RecordDecision",
-      "method": "POST",
-      "summary": "Record a decision",
-      "description": "Captures an in-flow design decision (feeds the handoff).",
-      "category": "execution"
-    },
-    {
-      "id": "execution_record_finding",
-      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/RecordFinding",
-      "method": "POST",
-      "summary": "Record a candidate finding",
-      "description": "Captures an in-flow CANDIDATE finding (never auto-promoted; attribution-keyed dedup).",
       "category": "execution"
     },
     {
@@ -413,28 +413,92 @@
       "category": "execution"
     },
     {
-      "id": "execution_list_candidate_findings",
-      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/ListCandidateFindings",
-      "method": "POST",
-      "summary": "List candidate findings",
-      "description": "Returns candidate findings awaiting operator triage.",
-      "category": "execution"
-    },
-    {
-      "id": "execution_triage_finding",
-      "path": "/vrooli.plan_manager.v1.execution.ExecutionService/TriageFinding",
-      "method": "POST",
-      "summary": "Triage a finding",
-      "description": "Promotes or dismisses a candidate finding (operator action).",
-      "category": "execution"
-    },
-    {
       "id": "execution_get_velocity",
       "path": "/vrooli.plan_manager.v1.execution.ExecutionService/GetVelocity",
       "method": "POST",
       "summary": "Get velocity series",
       "description": "Returns the per-plan velocity series (LOCAL ONLY).",
       "category": "execution"
+    },
+    {
+      "id": "log_add_decision",
+      "path": "/vrooli.plan_manager.v1.log.LogService/AddDecision",
+      "method": "POST",
+      "summary": "Record a decision",
+      "description": "Records an in-flow design decision in the plan log ledger.",
+      "category": "log"
+    },
+    {
+      "id": "log_add_finding",
+      "path": "/vrooli.plan_manager.v1.log.LogService/AddFinding",
+      "method": "POST",
+      "summary": "Record a candidate finding",
+      "description": "Records a CANDIDATE finding (a possible bug; never auto-promoted).",
+      "category": "log"
+    },
+    {
+      "id": "log_add_bug",
+      "path": "/vrooli.plan_manager.v1.log.LogService/AddBug",
+      "method": "POST",
+      "summary": "File a bug report",
+      "description": "Files a bug report and forwards it downstream; the local entry stays durable if sync fails.",
+      "category": "log"
+    },
+    {
+      "id": "log_add_record",
+      "path": "/vrooli.plan_manager.v1.log.LogService/AddRecord",
+      "method": "POST",
+      "summary": "Capture a record",
+      "description": "Captures a reusable record and forwards it to Swarm Manager; durable if sync fails.",
+      "category": "log"
+    },
+    {
+      "id": "log_add_note",
+      "path": "/vrooli.plan_manager.v1.log.LogService/AddNote",
+      "method": "POST",
+      "summary": "Record a note",
+      "description": "Records a lightweight progress/context note (local-only).",
+      "category": "log"
+    },
+    {
+      "id": "log_list",
+      "path": "/vrooli.plan_manager.v1.log.LogService/ListEntries",
+      "method": "POST",
+      "summary": "List log entries",
+      "description": "Lists ledger entries for a plan/execution/phase with a compact summary.",
+      "category": "log"
+    },
+    {
+      "id": "log_get",
+      "path": "/vrooli.plan_manager.v1.log.LogService/GetEntry",
+      "method": "POST",
+      "summary": "Get a log entry",
+      "description": "Returns one ledger entry by id, including its downstream reference.",
+      "category": "log"
+    },
+    {
+      "id": "log_update",
+      "path": "/vrooli.plan_manager.v1.log.LogService/UpdateEntry",
+      "method": "POST",
+      "summary": "Update a log entry",
+      "description": "Edits an entry's title/detail/severity/triage and appends evidence.",
+      "category": "log"
+    },
+    {
+      "id": "log_promote",
+      "path": "/vrooli.plan_manager.v1.log.LogService/PromoteEntry",
+      "method": "POST",
+      "summary": "Promote a finding",
+      "description": "Promotes a finding into a bug report or record, preserving the original finding.",
+      "category": "log"
+    },
+    {
+      "id": "log_sync",
+      "path": "/vrooli.plan_manager.v1.log.LogService/SyncEntry",
+      "method": "POST",
+      "summary": "Retry downstream sync",
+      "description": "Retries downstream forwarding for a pending/failed bug or record entry.",
+      "category": "log"
     }
   ]
 }

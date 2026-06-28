@@ -66,14 +66,16 @@ func (r *sqliteRepository) WithTx(ctx context.Context, fn func(Repository) error
 
 // handoffDocument is the JSON payload stored in handoffs.document — the assembled
 // snapshot that round-trips with the handoff row (the queryable columns carry id/
-// execution/plan/completeness/resume/assembled_at).
+// execution/plan/completeness/resume/assembled_at). The log ledger snapshot
+// (summary + captured entries) is read from the log domain at Complete time and
+// stored here so the handoff is a durable point-in-time record.
 type handoffDocument struct {
-	Decisions         []Decision       `json:"decisions"`
-	CandidateFindings []Finding        `json:"candidate_findings"`
-	LastValidation    ValidationResult `json:"last_validation"`
-	HasValidation     bool             `json:"has_validation"`
-	Staleness         string           `json:"staleness"`
-	ProseHandoffRef   string           `json:"prose_handoff_ref"`
+	LogSummary      planmodel.LogSummary `json:"log_summary"`
+	LogEntries      []planmodel.LogEntry `json:"log_entries"`
+	LastValidation  ValidationResult     `json:"last_validation"`
+	HasValidation   bool                 `json:"has_validation"`
+	Staleness       string               `json:"staleness"`
+	ProseHandoffRef string               `json:"prose_handoff_ref"`
 }
 
 const (
@@ -94,24 +96,6 @@ FROM executions WHERE id = ? LIMIT 1`
 	latestExecutionForPlanSQL = `
 SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at
 FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC LIMIT 1`
-
-	insertDecisionSQL = `
-INSERT INTO decisions (id, execution_id, phase_id, summary, detail, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?)`
-
-	listDecisionsSQL = `
-SELECT id, execution_id, phase_id, summary, detail, recorded_at
-FROM decisions WHERE execution_id = ? ORDER BY recorded_at, id`
-
-	upsertFindingSQL = `
-INSERT INTO findings (id, execution_id, phase_id, title, detail, triage, attribution_run_id, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id) DO UPDATE SET
-  triage=excluded.triage`
-
-	getFindingSQL = `
-SELECT id, execution_id, phase_id, title, detail, triage, attribution_run_id, recorded_at
-FROM findings WHERE id = ? LIMIT 1`
 
 	upsertHandoffSQL = `
 INSERT INTO handoffs (id, execution_id, plan_id, completeness, resume_phase_id, document, assembled_at)
@@ -189,121 +173,14 @@ func (r *sqliteRepository) LatestExecutionForPlan(ctx context.Context, planID st
 	return e, true, nil
 }
 
-func (r *sqliteRepository) SaveDecision(ctx context.Context, d Decision) error {
-	recorded := d.RecordedAt
-	if recorded == "" {
-		recorded = r.now()
-	}
-	if _, err := r.db.ExecContext(ctx, insertDecisionSQL,
-		d.ID, d.ExecutionID, d.PhaseID, d.Summary, d.Detail, recorded,
-	); err != nil {
-		return fmt.Errorf("insert decision %q: %w", d.ID, err)
-	}
-	return nil
-}
-
-func (r *sqliteRepository) ListDecisions(ctx context.Context, executionID string) ([]Decision, error) {
-	rows, err := r.db.QueryContext(ctx, listDecisionsSQL, executionID)
-	if err != nil {
-		return nil, fmt.Errorf("list decisions: %w", err)
-	}
-	defer rows.Close()
-	out := make([]Decision, 0)
-	for rows.Next() {
-		var d Decision
-		if err := rows.Scan(&d.ID, &d.ExecutionID, &d.PhaseID, &d.Summary, &d.Detail, &d.RecordedAt); err != nil {
-			return nil, fmt.Errorf("scan decision: %w", err)
-		}
-		out = append(out, d)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate decisions: %w", err)
-	}
-	return out, nil
-}
-
-func (r *sqliteRepository) SaveFinding(ctx context.Context, f Finding) error {
-	recorded := f.RecordedAt
-	if recorded == "" {
-		recorded = r.now()
-	}
-	triage := f.Triage
-	if triage == "" {
-		triage = TriageCandidate
-	}
-	if _, err := r.db.ExecContext(ctx, upsertFindingSQL,
-		f.ID, f.ExecutionID, f.PhaseID, f.Title, f.Detail, string(triage), f.AttributionRunID, recorded,
-	); err != nil {
-		return fmt.Errorf("upsert finding %q: %w", f.ID, err)
-	}
-	return nil
-}
-
-func (r *sqliteRepository) GetFinding(ctx context.Context, id string) (Finding, bool, error) {
-	f, err := scanFinding(r.db.QueryRowContext(ctx, getFindingSQL, id))
-	if errors.Is(err, sql.ErrNoRows) {
-		return Finding{}, false, nil
-	}
-	if err != nil {
-		return Finding{}, false, fmt.Errorf("get finding %q: %w", id, err)
-	}
-	return f, true, nil
-}
-
-func (r *sqliteRepository) ListFindings(ctx context.Context, executionID string, triage FindingTriage) ([]Finding, error) {
-	// Build the query dynamically so an empty scope/triage means "all". Keeps the
-	// SQL parameterized — no string interpolation of values.
-	query := `
-SELECT id, execution_id, phase_id, title, detail, triage, attribution_run_id, recorded_at
-FROM findings`
-	var (
-		clauses []string
-		args    []any
-	)
-	if executionID != "" {
-		clauses = append(clauses, "execution_id = ?")
-		args = append(args, executionID)
-	}
-	if triage != "" {
-		clauses = append(clauses, "triage = ?")
-		args = append(args, string(triage))
-	}
-	for i, c := range clauses {
-		if i == 0 {
-			query += " WHERE " + c
-		} else {
-			query += " AND " + c
-		}
-	}
-	query += " ORDER BY recorded_at, id"
-
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list findings: %w", err)
-	}
-	defer rows.Close()
-	out := make([]Finding, 0)
-	for rows.Next() {
-		f, err := scanFinding(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan finding: %w", err)
-		}
-		out = append(out, f)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate findings: %w", err)
-	}
-	return out, nil
-}
-
 func (r *sqliteRepository) SaveHandoff(ctx context.Context, h Handoff) error {
 	doc := handoffDocument{
-		Decisions:         h.Decisions,
-		CandidateFindings: h.CandidateFindings,
-		LastValidation:    h.LastValidation,
-		HasValidation:     h.HasValidation,
-		Staleness:         string(h.Staleness),
-		ProseHandoffRef:   h.ProseHandoffRef,
+		LogSummary:      h.LogSummary,
+		LogEntries:      h.LogEntries,
+		LastValidation:  h.LastValidation,
+		HasValidation:   h.HasValidation,
+		Staleness:       string(h.Staleness),
+		ProseHandoffRef: h.ProseHandoffRef,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -341,8 +218,8 @@ func (r *sqliteRepository) GetHandoff(ctx context.Context, executionID string) (
 	if err := json.Unmarshal([]byte(document), &doc); err != nil {
 		return Handoff{}, false, fmt.Errorf("unmarshal handoff document %q: %w", h.ID, err)
 	}
-	h.Decisions = doc.Decisions
-	h.CandidateFindings = doc.CandidateFindings
+	h.LogSummary = doc.LogSummary
+	h.LogEntries = doc.LogEntries
 	h.LastValidation = doc.LastValidation
 	h.HasValidation = doc.HasValidation
 	h.Staleness = stalenessFromString(doc.Staleness)
@@ -385,23 +262,6 @@ func (r *sqliteRepository) ListVelocity(ctx context.Context, planID string) ([]V
 		return nil, fmt.Errorf("iterate velocity: %w", err)
 	}
 	return out, nil
-}
-
-// rowScanner is satisfied by both *sql.Row and *sql.Rows.
-type rowScanner interface {
-	Scan(dest ...any) error
-}
-
-func scanFinding(s rowScanner) (Finding, error) {
-	var (
-		f      Finding
-		triage string
-	)
-	if err := s.Scan(&f.ID, &f.ExecutionID, &f.PhaseID, &f.Title, &f.Detail, &triage, &f.AttributionRunID, &f.RecordedAt); err != nil {
-		return Finding{}, err
-	}
-	f.Triage = FindingTriage(triage)
-	return f, nil
 }
 
 func (r *sqliteRepository) now() string { return r.clock.Now().UTC().Format(execTimeFormat) }

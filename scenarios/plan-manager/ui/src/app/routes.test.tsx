@@ -20,8 +20,14 @@ vi.mock("../api/plans", () => ({
   createFromTemplate: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("../api/execution", () => ({
-  listCandidateFindings: vi.fn().mockResolvedValue([]),
   getVelocity: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("../api/log", () => ({
+  listEntries: vi.fn().mockResolvedValue({ entries: [], summary: undefined, step: undefined }),
+  promoteEntry: vi.fn(),
+  updateEntry: vi.fn(),
+  addDecision: vi.fn(),
+  addFinding: vi.fn(),
 }));
 
 import { TestAppRouter } from "./routes";

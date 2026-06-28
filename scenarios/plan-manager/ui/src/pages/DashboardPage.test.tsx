@@ -18,7 +18,7 @@ import {
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const listPlans = vi.fn();
-const listCandidateFindings = vi.fn();
+const listEntries = vi.fn();
 
 vi.mock("../api/plans", () => ({
   listPlans: (...a: unknown[]) => listPlans(...a),
@@ -29,8 +29,8 @@ vi.mock("../api/plans", () => ({
   archivePlan: vi.fn(),
   createFromTemplate: vi.fn(),
 }));
-vi.mock("../api/execution", () => ({
-  listCandidateFindings: (...a: unknown[]) => listCandidateFindings(...a),
+vi.mock("../api/log", () => ({
+  listEntries: (...a: unknown[]) => listEntries(...a),
 }));
 vi.mock("../api/health", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/health")>();
@@ -60,7 +60,7 @@ describe("DashboardPage", () => {
 
   it("renders real plan-manager stat surfaces and the recent plan", async () => {
     listPlans.mockResolvedValue([activePlan]);
-    listCandidateFindings.mockResolvedValue([]);
+    listEntries.mockResolvedValue({ entries: [], summary: undefined, step: undefined });
 
     renderWithProviders(<DashboardPage />);
 
@@ -73,7 +73,7 @@ describe("DashboardPage", () => {
 
   it("renders without axe violations", async () => {
     listPlans.mockResolvedValue([activePlan]);
-    listCandidateFindings.mockResolvedValue([]);
+    listEntries.mockResolvedValue({ entries: [], summary: undefined, step: undefined });
 
     const { container } = renderWithProviders(<DashboardPage />);
     await waitFor(() => {

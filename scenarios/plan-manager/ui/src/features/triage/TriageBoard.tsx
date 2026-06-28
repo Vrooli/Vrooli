@@ -1,14 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, X } from "lucide-react";
 
-import { listCandidateFindings, triageFinding } from "../../api/execution";
+import { listEntries, promoteEntry, updateEntry } from "../../api/log";
 import { AsyncBoundary } from "../../components/AsyncBoundary";
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
-import { FindingTriage } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import {
+  FindingTriage,
+  LogEntryType,
+} from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const triageKeys = {
   candidates: ["triage", "candidates"] as const,
@@ -17,19 +20,24 @@ const triageKeys = {
 /**
  * TriageBoard — candidate findings awaiting operator triage. Each finding can be
  * promoted to a real bug or dismissed as a false positive. Findings are filed as
- * CANDIDATE in-flow and never auto-promoted, so this is the human gate.
+ * CANDIDATE in-flow and never auto-promoted, so this is the human gate. Data now
+ * comes from the log domain: candidate FINDING entries, promoted to a bug_report
+ * or dismissed via the log client.
  */
 export function TriageBoard() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const findings = useQuery({
     queryKey: triageKeys.candidates,
-    queryFn: () => listCandidateFindings(),
+    queryFn: async () =>
+      (await listEntries({ type: LogEntryType.FINDING, triage: FindingTriage.CANDIDATE })).entries,
   });
 
   const triage = useMutation({
     mutationFn: ({ id, decision }: { id: string; decision: FindingTriage }) =>
-      triageFinding(id, decision),
+      decision === FindingTriage.PROMOTED
+        ? promoteEntry({ id, toType: LogEntryType.BUG_REPORT })
+        : updateEntry({ id, triage: FindingTriage.DISMISSED }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: triageKeys.candidates });
     },
@@ -62,10 +70,10 @@ export function TriageBoard() {
                     <span className="font-mono">{finding.phaseId}</span>
                   </span>
                 ) : null}
-                {finding.recordedAt ? (
+                {finding.createdAt ? (
                   <span>
                     {t(strings.pages.triage.recordedAt)}{" "}
-                    {formatDate(new Date(finding.recordedAt), { dateStyle: "medium", timeStyle: "short" })}
+                    {formatDate(new Date(finding.createdAt), { dateStyle: "medium", timeStyle: "short" })}
                   </span>
                 ) : null}
               </div>

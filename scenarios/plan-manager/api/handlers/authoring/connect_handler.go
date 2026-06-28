@@ -72,6 +72,26 @@ func (h *connectHandler) Next(ctx context.Context, req *connect.Request[authorin
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ContinueAuthoring(ctx context.Context, req *connect.Request[authoringv1.ContinueAuthoringRequest]) (*connect.Response[authoringv1.ContinueAuthoringResponse], error) {
+	sess, sec, phase, ready, violations, step, err := h.deps.Service.ContinueAuthoring(ctx, req.Msg.GetSessionId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	resp := &authoringv1.ContinueAuthoringResponse{
+		Session:         sessionToProto(sess),
+		ReadyToFinalize: ready,
+		Violations:      violationsToProto(violations),
+		Step:            guidedStepToProto(step),
+	}
+	if sec.Key != "" {
+		resp.Section = sectionToProto(sec)
+	}
+	if phase.ID != "" {
+		resp.Phase = phaseDraftToProto(phase)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) ValidateStructure(ctx context.Context, req *connect.Request[authoringv1.ValidateStructureRequest]) (*connect.Response[authoringv1.ValidateStructureResponse], error) {
 	valid, violations, step, err := h.deps.Service.ValidateStructure(ctx, req.Msg.GetSessionId())
 	if err != nil {

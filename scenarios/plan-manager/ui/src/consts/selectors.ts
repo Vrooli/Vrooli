@@ -409,6 +409,7 @@ const literalSelectors = {
     findingTitle: "execution-finding-title",
     findingDetail: "execution-finding-detail",
     recordFindingButton: "execution-record-finding-button",
+    logSummary: "execution-log-summary",
     completeButton: "execution-complete-button",
     handoff: "execution-handoff",
   },

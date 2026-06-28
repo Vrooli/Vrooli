@@ -67,19 +67,6 @@ func planFromProtoChecked(p *sharedv1.Plan) (internalplans.Plan, error) {
 	}, nil
 }
 
-func phasesToProto(phases []internalplans.Phase) []*sharedv1.Phase {
-	return planproto.PhasesToProto(phases)
-}
-
-func phaseToProto(ph internalplans.Phase) *sharedv1.Phase {
-	return planproto.PhaseToProto(ph)
-}
-
-func phasesFromProto(phases []*sharedv1.Phase) []internalplans.Phase {
-	out, _ := phasesFromProtoChecked(phases)
-	return out
-}
-
 func phasesFromProtoChecked(phases []*sharedv1.Phase) ([]internalplans.Phase, error) {
 	out := make([]internalplans.Phase, 0, len(phases))
 	for i, ph := range phases {
@@ -124,20 +111,10 @@ func rejectUnsupportedPhaseFields(ph *sharedv1.Phase) error {
 	if ph.GetLastValidation() != nil {
 		dropped = append(dropped, "last_validation")
 	}
-	if len(ph.GetDecisions()) > 0 {
-		dropped = append(dropped, "decisions")
-	}
-	if len(ph.GetFindings()) > 0 {
-		dropped = append(dropped, "findings")
-	}
 	if len(dropped) == 0 {
 		return nil
 	}
 	return internalplans.ErrInvalidPlan{Reason: "plans write cannot accept computed/joined phase fields: " + strings.Join(dropped, ", ")}
-}
-
-func referencesToProto(refs []internalplans.Reference) []*sharedv1.Reference {
-	return planproto.ReferencesToProto(refs)
 }
 
 func referencesFromProto(refs []*sharedv1.Reference) []internalplans.Reference {
@@ -158,10 +135,6 @@ func referencesFromProto(refs []*sharedv1.Reference) []internalplans.Reference {
 		})
 	}
 	return out
-}
-
-func anchorToProto(a internalplans.RegressionAnchor) *sharedv1.RegressionAnchor {
-	return planproto.AnchorToProto(a)
 }
 
 func anchorFromProto(a *sharedv1.RegressionAnchor) internalplans.RegressionAnchor {

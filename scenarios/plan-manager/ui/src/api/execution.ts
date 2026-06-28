@@ -6,13 +6,10 @@ import {
   type CompletionNudge,
 } from "@vrooli/proto-types/plan-manager/v1/execution/execution_pb";
 import {
-  type Decision,
-  type Finding,
   type GuidedStep,
   type Handoff,
   type VelocityPoint,
   type PhaseStatus,
-  type FindingTriage,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 import { transport } from "./client";
@@ -20,9 +17,10 @@ import { transport } from "./client";
 /**
  * Connect-Web client for the ExecutionService — the guided runner. The operator
  * console (Phase 7) drives a run: start it, fetch the just-in-time context,
- * advance + transition phases, capture decisions/findings in-flow, complete +
- * read the canonical handoff, triage candidate findings, and chart the per-plan
- * velocity series. Each helper returns the proto-typed shape.
+ * advance + transition phases, complete + read the canonical handoff, and chart
+ * the per-plan velocity series. Decisions and findings are now captured through
+ * the log domain (see ./log); the handoff and phase context expose a LogSummary.
+ * Each helper returns the proto-typed shape.
  */
 export const executionClient = createClient(ExecutionService, transport);
 
@@ -86,26 +84,6 @@ export async function transitionPhase(
   return { execution: resp.execution, step: resp.step };
 }
 
-export async function recordDecision(
-  executionId: string,
-  phaseId: string,
-  summary: string,
-  detail = "",
-): Promise<{ decision: Decision | undefined; step: GuidedStep | undefined }> {
-  const resp = await executionClient.recordDecision({ executionId, phaseId, summary, detail });
-  return { decision: resp.decision, step: resp.step };
-}
-
-export async function recordFinding(
-  executionId: string,
-  phaseId: string,
-  title: string,
-  detail = "",
-): Promise<{ finding: Finding | undefined; step: GuidedStep | undefined }> {
-  const resp = await executionClient.recordFinding({ executionId, phaseId, title, detail });
-  return { finding: resp.finding, step: resp.step };
-}
-
 export async function completeExecution(
   executionId: string,
   tokens = 0n,
@@ -120,16 +98,6 @@ export async function getHandoff(
 ): Promise<{ handoff: Handoff | undefined; step: GuidedStep | undefined }> {
   const resp = await executionClient.getHandoff({ executionId });
   return { handoff: resp.handoff, step: resp.step };
-}
-
-export async function listCandidateFindings(executionId = ""): Promise<Finding[]> {
-  const resp = await executionClient.listCandidateFindings({ executionId });
-  return resp.findings;
-}
-
-export async function triageFinding(findingId: string, triage: FindingTriage): Promise<Finding | undefined> {
-  const resp = await executionClient.triageFinding({ findingId, triage });
-  return resp.finding;
 }
 
 export async function getVelocity(planId: string): Promise<VelocityPoint[]> {

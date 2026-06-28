@@ -23,9 +23,6 @@ type fakeExecutionService struct {
 	execution internalexecution.Execution
 	pctx      internalexecution.PhaseContext
 	plan      internalplans.Plan
-	decision  internalexecution.Decision
-	finding   internalexecution.Finding
-	findings  []internalexecution.Finding
 	handoff   internalexecution.Handoff
 	nudges    []internalexecution.CompletionNudge
 	points    []internalexecution.VelocityPoint
@@ -39,12 +36,8 @@ type fakeExecutionService struct {
 	gotExecutionID string
 	gotPhaseID     string
 	gotToStatus    internalplans.PhaseStatus
-	gotSummary     string
-	gotDetail      string
-	gotTitle       string
+	gotOverride    string
 	gotInputs      internalexecution.CompletionInputs
-	gotFindingID   string
-	gotTriage      internalexecution.FindingTriage
 }
 
 func (f *fakeExecutionService) Start(_ context.Context, planID, runID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
@@ -67,24 +60,19 @@ func (f *fakeExecutionService) Resume(_ context.Context, planOrExecution, phaseI
 	return f.execution, f.pctx, f.step, f.err
 }
 
+func (f *fakeExecutionService) ContinueExecution(_ context.Context, planOrExecution, phaseID, runID string) (internalexecution.Execution, internalexecution.PhaseContext, internalexecution.GuidedStep, error) {
+	f.gotPlanOrExec, f.gotPhaseID, f.gotRunID = planOrExecution, phaseID, runID
+	return f.execution, f.pctx, f.step, f.err
+}
+
 func (f *fakeExecutionService) GetNext(_ context.Context, executionID string) (internalexecution.PhaseContext, bool, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
 	return f.pctx, f.complete, f.step, f.err
 }
 
-func (f *fakeExecutionService) TransitionPhase(_ context.Context, executionID, phaseID string, to internalplans.PhaseStatus) (internalexecution.Execution, internalplans.Plan, internalexecution.GuidedStep, error) {
-	f.gotExecutionID, f.gotPhaseID, f.gotToStatus = executionID, phaseID, to
+func (f *fakeExecutionService) TransitionPhase(_ context.Context, executionID, phaseID string, inputs internalexecution.PhaseTransitionInputs) (internalexecution.Execution, internalplans.Plan, internalexecution.GuidedStep, error) {
+	f.gotExecutionID, f.gotPhaseID, f.gotToStatus, f.gotOverride = executionID, phaseID, inputs.ToStatus, inputs.ValidationOverrideReason
 	return f.execution, f.plan, f.step, f.err
-}
-
-func (f *fakeExecutionService) RecordDecision(_ context.Context, executionID, phaseID, summary, detail string) (internalexecution.Decision, internalexecution.GuidedStep, error) {
-	f.gotExecutionID, f.gotPhaseID, f.gotSummary, f.gotDetail = executionID, phaseID, summary, detail
-	return f.decision, f.step, f.err
-}
-
-func (f *fakeExecutionService) RecordFinding(_ context.Context, executionID, phaseID, title, detail string) (internalexecution.Finding, internalexecution.GuidedStep, error) {
-	f.gotExecutionID, f.gotPhaseID, f.gotTitle, f.gotDetail = executionID, phaseID, title, detail
-	return f.finding, f.step, f.err
 }
 
 func (f *fakeExecutionService) Complete(_ context.Context, executionID string, inputs internalexecution.CompletionInputs) (internalexecution.Handoff, []internalexecution.CompletionNudge, internalexecution.GuidedStep, error) {
@@ -95,16 +83,6 @@ func (f *fakeExecutionService) Complete(_ context.Context, executionID string, i
 func (f *fakeExecutionService) GetHandoff(_ context.Context, executionID string) (internalexecution.Handoff, internalexecution.GuidedStep, error) {
 	f.gotExecutionID = executionID
 	return f.handoff, f.step, f.err
-}
-
-func (f *fakeExecutionService) ListCandidateFindings(_ context.Context, executionID string) ([]internalexecution.Finding, internalexecution.GuidedStep, error) {
-	f.gotExecutionID = executionID
-	return f.findings, f.step, f.err
-}
-
-func (f *fakeExecutionService) TriageFinding(_ context.Context, findingID string, triage internalexecution.FindingTriage) (internalexecution.Finding, internalexecution.GuidedStep, error) {
-	f.gotFindingID, f.gotTriage = findingID, triage
-	return f.finding, f.step, f.err
 }
 
 func (f *fakeExecutionService) GetVelocity(_ context.Context, planID string) ([]internalexecution.VelocityPoint, internalexecution.GuidedStep, error) {
@@ -191,6 +169,23 @@ func TestResumeSuccess(t *testing.T) {
 	require.Equal(t, "run-1", svc.gotRunID)
 }
 
+func TestContinueExecutionSuccess(t *testing.T) {
+	svc := &fakeExecutionService{
+		execution: internalexecution.Execution{ID: "e1", PlanID: "plan-1", CurrentPhaseID: "ph-1"},
+		pctx:      internalexecution.PhaseContext{CurrentPhase: internalplans.Phase{ID: "ph-1"}, HasCurrent: true},
+		step:      internalexecution.GuidedStep{StepKind: "phase_context", NextActions: []internalexecution.NextAction{{ID: "transition-active", Kind: internalexecution.NextActionRecommended}}},
+	}
+	h := newExecutionHandler(svc)
+
+	resp, err := h.ContinueExecution(context.Background(), connect.NewRequest(&executionv1.ContinueExecutionRequest{PlanOrExecution: "plan-1", PhaseId: "ph-1", RunId: "run-1"}))
+	require.NoError(t, err)
+	require.Equal(t, "plan-1", svc.gotPlanOrExec)
+	require.Equal(t, "ph-1", svc.gotPhaseID)
+	require.Equal(t, "run-1", svc.gotRunID)
+	require.Equal(t, "e1", resp.Msg.GetExecution().GetId())
+	require.Equal(t, "phase_context", resp.Msg.GetStep().GetStepKind())
+}
+
 func TestGetNextSuccess(t *testing.T) {
 	svc := &fakeExecutionService{complete: true, pctx: internalexecution.PhaseContext{Completeness: internalexecution.CompletenessFull}}
 	h := newExecutionHandler(svc)
@@ -212,44 +207,22 @@ func TestTransitionPhaseForwardsStatus(t *testing.T) {
 		ExecutionId: "e1",
 		PhaseId:     "ph-1",
 		ToStatus:    sharedv1.PhaseStatus_PHASE_STATUS_DONE,
+		ValidationOverride: &executionv1.ValidationOverride{
+			Reason: "validated externally",
+		},
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "e1", resp.Msg.GetExecution().GetId())
 	require.Equal(t, "p1", resp.Msg.GetPlan().GetId())
 	require.Equal(t, "ph-1", svc.gotPhaseID)
 	require.Equal(t, internalplans.PhaseStatusDone, svc.gotToStatus, "proto status must be translated to the domain enum")
-}
-
-func TestRecordDecisionForwardsArgs(t *testing.T) {
-	svc := &fakeExecutionService{decision: internalexecution.Decision{ID: "d1", Summary: "s"}}
-	h := newExecutionHandler(svc)
-
-	resp, err := h.RecordDecision(context.Background(), connect.NewRequest(&executionv1.RecordDecisionRequest{
-		ExecutionId: "e1", PhaseId: "ph-1", Summary: "s", Detail: "det",
-	}))
-	require.NoError(t, err)
-	require.Equal(t, "d1", resp.Msg.GetDecision().GetId())
-	require.Equal(t, "s", svc.gotSummary)
-	require.Equal(t, "det", svc.gotDetail)
-}
-
-func TestRecordFindingForwardsArgs(t *testing.T) {
-	svc := &fakeExecutionService{finding: internalexecution.Finding{ID: "f1", Triage: internalexecution.TriageCandidate}}
-	h := newExecutionHandler(svc)
-
-	resp, err := h.RecordFinding(context.Background(), connect.NewRequest(&executionv1.RecordFindingRequest{
-		ExecutionId: "e1", PhaseId: "ph-1", Title: "bug", Detail: "det",
-	}))
-	require.NoError(t, err)
-	require.Equal(t, "f1", resp.Msg.GetFinding().GetId())
-	require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE, resp.Msg.GetFinding().GetTriage())
-	require.Equal(t, "bug", svc.gotTitle)
+	require.Equal(t, "validated externally", svc.gotOverride)
 }
 
 func TestCompleteForwardsInputs(t *testing.T) {
 	svc := &fakeExecutionService{
 		handoff: internalexecution.Handoff{ID: "h1", Completeness: internalexecution.CompletenessFull},
-		nudges:  []internalexecution.CompletionNudge{{Kind: "file_bugs", Satisfied: true}},
+		nudges:  []internalexecution.CompletionNudge{{Kind: "file_bug", Satisfied: true}},
 	}
 	h := newExecutionHandler(svc)
 
@@ -271,33 +244,6 @@ func TestGetHandoffSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "h1", resp.Msg.GetHandoff().GetId())
 	require.Equal(t, "p1", resp.Msg.GetHandoff().GetPlanId())
-}
-
-func TestListCandidateFindingsSuccess(t *testing.T) {
-	svc := &fakeExecutionService{findings: []internalexecution.Finding{
-		{ID: "f1", Triage: internalexecution.TriageCandidate},
-		{ID: "f2", Triage: internalexecution.TriageCandidate},
-	}}
-	h := newExecutionHandler(svc)
-
-	resp, err := h.ListCandidateFindings(context.Background(), connect.NewRequest(&executionv1.ListCandidateFindingsRequest{ExecutionId: "e1"}))
-	require.NoError(t, err)
-	require.Len(t, resp.Msg.GetFindings(), 2)
-	require.Equal(t, "f1", resp.Msg.GetFindings()[0].GetId())
-}
-
-func TestTriageFindingForwardsTriage(t *testing.T) {
-	svc := &fakeExecutionService{finding: internalexecution.Finding{ID: "f1", Triage: internalexecution.TriagePromoted}}
-	h := newExecutionHandler(svc)
-
-	resp, err := h.TriageFinding(context.Background(), connect.NewRequest(&executionv1.TriageFindingRequest{
-		FindingId: "f1",
-		Triage:    sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED,
-	}))
-	require.NoError(t, err)
-	require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED, resp.Msg.GetFinding().GetTriage())
-	require.Equal(t, "f1", svc.gotFindingID)
-	require.Equal(t, internalexecution.TriagePromoted, svc.gotTriage, "proto triage must be translated to the domain enum")
 }
 
 func TestGetVelocitySuccess(t *testing.T) {
@@ -324,11 +270,6 @@ func TestExecutionErrorMapping(t *testing.T) {
 	t.Run("execution_not_found_is_not_found", func(t *testing.T) {
 		h := newExecutionHandler(&fakeExecutionService{err: internalexecution.ErrExecutionNotFound{ID: "x"}})
 		_, err := h.GetStatus(context.Background(), connect.NewRequest(&executionv1.GetStatusRequest{ExecutionId: "x"}))
-		require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	})
-	t.Run("finding_not_found_is_not_found", func(t *testing.T) {
-		h := newExecutionHandler(&fakeExecutionService{err: internalexecution.ErrFindingNotFound{ID: "f"}})
-		_, err := h.TriageFinding(context.Background(), connect.NewRequest(&executionv1.TriageFindingRequest{FindingId: "f", Triage: sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED}))
 		require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	})
 	t.Run("plan_not_found_is_not_found", func(t *testing.T) {

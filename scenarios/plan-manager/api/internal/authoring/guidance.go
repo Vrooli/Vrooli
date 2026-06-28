@@ -170,6 +170,48 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 	}
 }
 
+// stepForGlobalContextCheckpoint is the explicit plan-wide relevant-context
+// checkpoint the continue loop surfaces before phase work. The agent resolves it
+// by discovering+accepting context, submitting a known item, or recording an
+// explicit NO_CONTEXT skip reason — the loop never silently bypasses it.
+func stepForGlobalContextCheckpoint(sess Session) GuidedStep {
+	return GuidedStep{
+		StepKind:       "global_relevant_context",
+		Title:          "Global Relevant Context",
+		Summary:        "Decide the plan-wide setup context a fresh or resumed agent should load before any phase. This checkpoint cannot be skipped silently.",
+		Instructions:   []string{"Discover context candidates and accept the relevant ones, or submit a known global setup item.", "If this plan genuinely needs no plan-wide setup context, record an explicit NO_CONTEXT reason.", "Phase-specific setup belongs on the phase, not here."},
+		RequiredInputs: []string{"global relevant context item(s) or an explicit NO_CONTEXT reason"},
+		Examples:       []string{"author context-discover " + sess.ID + " --concepts 'plan-manager execution resume' --complexity architectural", "author section-submit " + sess.ID + " --section relevant_context --content 'NO_CONTEXT: single-file docs change needs no plan-wide setup.'"},
+		CommonMistakes: []string{"Skipping plan-wide context by leaving it empty.", "Putting phase-only setup in global context."},
+		NextActions: []NextAction{
+			{
+				ID:                 "discover-context",
+				Kind:               NextActionRecommended,
+				Label:              "Discover global context candidates",
+				Reason:             "Generate candidate plan-wide setup commands to accept or reject.",
+				Argv:               []string{"author", "context-discover", sess.ID, "--concepts", "<concept one>,<concept two>", "--complexity", "architectural"},
+				ContentPlaceholder: "<concept one>,<concept two>",
+			},
+			{
+				ID:                 "submit-global-context",
+				Kind:               NextActionAlternative,
+				Label:              "Submit a known global context item",
+				Reason:             "Use when a plan-wide setup item is already known.",
+				Argv:               []string{"author", "context-submit", sess.ID, "--kind", "command", "--label", "<label>", "--reason", "<reason>", "--instruction", "<instruction>", "--command", "<command>", "--required"},
+				ContentPlaceholder: "<label> / <reason> / <command>",
+			},
+			{
+				ID:                 "skip-global-context",
+				Kind:               NextActionAlternative,
+				Label:              "Record no global context (with reason)",
+				Reason:             "Use only when the plan genuinely needs no plan-wide setup context.",
+				Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionRelevantContext), "--content", "NO_CONTEXT: <reason>"},
+				ContentPlaceholder: "NO_CONTEXT: <reason>",
+			},
+		},
+	}
+}
+
 func stepForContextDiscovery(sess Session) GuidedStep {
 	return GuidedStep{
 		StepKind:       "context_discovery",
@@ -211,6 +253,17 @@ func stepForPhase(sess Session, phase PhaseDraft) GuidedStep {
 		return step
 	case PhaseFieldAcceptance:
 		return phaseStep(sess, phase, field, "phase_acceptance", "Phase Acceptance", "Define objective pass/fail criteria for this phase.", []string{"acceptance"}, []string{"API and CLI tests cover AddPhase, SubmitPhaseField, and NextPhase."}, "<phase acceptance criteria>")
+	case PhaseFieldRelevantContext:
+		step := phaseStep(sess, phase, field, "phase_relevant_context", "Phase Relevant Context", "Attach phase-scoped setup context or record why no setup context exists.", []string{"relevant_context or NO_CONTEXT reason"}, []string{"prompt-manager skill read api-steer", "NO_CONTEXT: docs-only review phase has no extra setup."}, "NO_CONTEXT: <reason>")
+		step.NextActions = append(step.NextActions, NextAction{
+			ID:                 "phase-context-submit",
+			Kind:               NextActionAlternative,
+			Label:              "Submit phase context item",
+			Reason:             "Use when the phase has a concrete setup item with a relevance reason.",
+			Argv:               []string{"author", "context-submit", sess.ID, "--phase", phase.ID, "--kind", "doc", "--label", "<label>", "--reason", "<reason>", "--target", "<target>", "--required"},
+			ContentPlaceholder: "<label> / <reason> / <target>",
+		})
+		return step
 	default:
 		return GuidedStep{
 			StepKind:       "phase_review",
@@ -264,6 +317,8 @@ func nextMissingPhaseField(phase PhaseDraft) PhaseField {
 		return PhaseFieldReferences
 	case phase.Acceptance == "":
 		return PhaseFieldAcceptance
+	case !hasPhaseContextOrNoContextReason(phase):
+		return PhaseFieldRelevantContext
 	default:
 		return ""
 	}
@@ -404,4 +459,17 @@ func firstViolationMessage(violations []StructureViolation) string {
 		return "unknown validation issue"
 	}
 	return violations[0].Message
+}
+
+func onlyRecommendedAction(step GuidedStep) GuidedStep {
+	for _, action := range step.NextActions {
+		if action.Kind == NextActionRecommended {
+			step.NextActions = []NextAction{action}
+			return step
+		}
+	}
+	if len(step.NextActions) > 1 {
+		step.NextActions = step.NextActions[:1]
+	}
+	return step
 }

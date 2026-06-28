@@ -24,6 +24,7 @@ import (
 	authoringH "plan-manager/handlers/authoring"
 	executionH "plan-manager/handlers/execution"
 	healthH "plan-manager/handlers/health"
+	planlogH "plan-manager/handlers/planlog"
 	plansH "plan-manager/handlers/plans"
 	validationH "plan-manager/handlers/validation"
 )
@@ -131,6 +132,7 @@ func main() {
 		validationH.Module(db, clock.System{}, log.Default()),
 		authoringH.Module(db, clock.System{}, log.Default()),
 		executionH.Module(db, clock.System{}, log.Default()),
+		planlogH.Module(db, clock.System{}, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

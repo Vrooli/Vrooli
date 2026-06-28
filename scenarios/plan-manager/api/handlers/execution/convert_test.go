@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	internalexecution "plan-manager/internal/execution"
+	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 
 	"github.com/stretchr/testify/require"
@@ -83,28 +84,6 @@ func TestNudgesToProto(t *testing.T) {
 	require.False(t, got[1].GetSatisfied())
 }
 
-func TestDecisionToProto(t *testing.T) {
-	got := decisionToProto(internalexecution.Decision{
-		ID: "d1", Summary: "s", Detail: "det", PhaseID: "ph-1", RecordedAt: "t",
-	})
-	require.Equal(t, "d1", got.GetId())
-	require.Equal(t, "s", got.GetSummary())
-	require.Equal(t, "det", got.GetDetail())
-	require.Equal(t, "ph-1", got.GetPhaseId())
-	require.Equal(t, "t", got.GetRecordedAt())
-}
-
-func TestFindingToProto(t *testing.T) {
-	got := findingToProto(internalexecution.Finding{
-		ID: "f1", Title: "title", Detail: "det", Triage: internalexecution.TriageCandidate,
-		PhaseID: "ph-1", RecordedAt: "t", AttributionRunID: "run-1",
-	})
-	require.Equal(t, "f1", got.GetId())
-	require.Equal(t, "title", got.GetTitle())
-	require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE, got.GetTriage())
-	require.Equal(t, "run-1", got.GetAttributionRunId())
-}
-
 func TestHandoffToProto(t *testing.T) {
 	h := internalexecution.Handoff{
 		ID:            "h1",
@@ -112,9 +91,12 @@ func TestHandoffToProto(t *testing.T) {
 		PlanID:        "p1",
 		Completeness:  internalexecution.CompletenessFull,
 		ResumePhaseID: "",
-		Decisions:     []internalexecution.Decision{{ID: "d1"}},
-		CandidateFindings: []internalexecution.Finding{
-			{ID: "f1", Triage: internalexecution.TriageCandidate},
+		LogSummary: planmodel.LogSummary{
+			Total: 2, Decisions: 1, Findings: 1, CandidateFindings: 1,
+		},
+		LogEntries: []planmodel.LogEntry{
+			{ID: "le-1", Type: planmodel.LogEntryDecision, Title: "d"},
+			{ID: "le-2", Type: planmodel.LogEntryFinding, Title: "f", Triage: planmodel.TriageCandidate},
 		},
 		HasValidation:   true,
 		LastValidation:  internalexecution.ValidationResult{ID: "v1", Verdict: "fail"},
@@ -125,8 +107,11 @@ func TestHandoffToProto(t *testing.T) {
 	got := handoffToProto(h)
 	require.Equal(t, "h1", got.GetId())
 	require.Equal(t, sharedv1.Completeness_COMPLETENESS_FULL, got.GetCompleteness())
-	require.Len(t, got.GetDecisions(), 1)
-	require.Len(t, got.GetCandidateFindings(), 1)
+	require.NotNil(t, got.GetLogSummary())
+	require.Equal(t, int32(1), got.GetLogSummary().GetDecisions())
+	require.Equal(t, int32(1), got.GetLogSummary().GetFindings())
+	require.Len(t, got.GetLogEntries(), 2)
+	require.Equal(t, sharedv1.LogEntryType_LOG_ENTRY_TYPE_DECISION, got.GetLogEntries()[0].GetType())
 	require.Equal(t, sharedv1.StalenessTier_STALENESS_TIER_DEFINITELY_STALE, got.GetStaleness())
 	require.NotNil(t, got.GetLastValidation())
 	require.Equal(t, sharedv1.ValidationVerdict_VALIDATION_VERDICT_FAIL, got.GetLastValidation().GetVerdict())
@@ -239,23 +224,6 @@ func TestCompletenessToProto(t *testing.T) {
 	require.Equal(t, sharedv1.Completeness_COMPLETENESS_PARTIAL, completenessToProto(internalexecution.CompletenessPartial))
 	require.Equal(t, sharedv1.Completeness_COMPLETENESS_UNSPECIFIED, completenessToProto(internalexecution.CompletenessUnspecified))
 	require.Equal(t, sharedv1.Completeness_COMPLETENESS_UNSPECIFIED, completenessToProto(internalexecution.Completeness("bogus")))
-}
-
-func TestTriageEnumMapping(t *testing.T) {
-	cases := []struct {
-		domain internalexecution.FindingTriage
-		proto  sharedv1.FindingTriage
-	}{
-		{internalexecution.TriageCandidate, sharedv1.FindingTriage_FINDING_TRIAGE_CANDIDATE},
-		{internalexecution.TriagePromoted, sharedv1.FindingTriage_FINDING_TRIAGE_PROMOTED},
-		{internalexecution.TriageDismissed, sharedv1.FindingTriage_FINDING_TRIAGE_DISMISSED},
-	}
-	for _, tc := range cases {
-		require.Equal(t, tc.proto, triageToProto(tc.domain))
-		require.Equal(t, tc.domain, triageFromProto(tc.proto))
-	}
-	require.Equal(t, sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED, triageToProto(internalexecution.FindingTriage("bogus")))
-	require.Equal(t, internalexecution.TriageUnspecified, triageFromProto(sharedv1.FindingTriage_FINDING_TRIAGE_UNSPECIFIED))
 }
 
 func TestVerdictToProto(t *testing.T) {

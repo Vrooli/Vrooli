@@ -77,6 +77,18 @@ func (h *connectHandler) Resume(ctx context.Context, req *connect.Request[execut
 	}), nil
 }
 
+func (h *connectHandler) ContinueExecution(ctx context.Context, req *connect.Request[executionv1.ContinueExecutionRequest]) (*connect.Response[executionv1.ContinueExecutionResponse], error) {
+	e, pctx, step, err := h.deps.Service.ContinueExecution(ctx, req.Msg.GetPlanOrExecution(), req.Msg.GetPhaseId(), req.Msg.GetRunId())
+	if err != nil {
+		return nil, internalexecution.ToConnectError(err)
+	}
+	return connect.NewResponse(&executionv1.ContinueExecutionResponse{
+		Execution: executionToProto(e),
+		Context:   phaseContextToProto(pctx),
+		Step:      guidedStepToProto(step),
+	}), nil
+}
+
 func (h *connectHandler) GetNext(ctx context.Context, req *connect.Request[executionv1.GetNextRequest]) (*connect.Response[executionv1.GetNextResponse], error) {
 	pctx, complete, step, err := h.deps.Service.GetNext(ctx, req.Msg.GetExecutionId())
 	if err != nil {
@@ -90,7 +102,10 @@ func (h *connectHandler) GetNext(ctx context.Context, req *connect.Request[execu
 }
 
 func (h *connectHandler) TransitionPhase(ctx context.Context, req *connect.Request[executionv1.TransitionPhaseRequest]) (*connect.Response[executionv1.TransitionPhaseResponse], error) {
-	e, plan, step, err := h.deps.Service.TransitionPhase(ctx, req.Msg.GetExecutionId(), req.Msg.GetPhaseId(), phaseStatusFromProto(req.Msg.GetToStatus()))
+	e, plan, step, err := h.deps.Service.TransitionPhase(ctx, req.Msg.GetExecutionId(), req.Msg.GetPhaseId(), internalexecution.PhaseTransitionInputs{
+		ToStatus:                 phaseStatusFromProto(req.Msg.GetToStatus()),
+		ValidationOverrideReason: req.Msg.GetValidationOverride().GetReason(),
+	})
 	if err != nil {
 		return nil, internalexecution.ToConnectError(err)
 	}
@@ -99,22 +114,6 @@ func (h *connectHandler) TransitionPhase(ctx context.Context, req *connect.Reque
 		Plan:      planToProto(plan),
 		Step:      guidedStepToProto(step),
 	}), nil
-}
-
-func (h *connectHandler) RecordDecision(ctx context.Context, req *connect.Request[executionv1.RecordDecisionRequest]) (*connect.Response[executionv1.RecordDecisionResponse], error) {
-	d, step, err := h.deps.Service.RecordDecision(ctx, req.Msg.GetExecutionId(), req.Msg.GetPhaseId(), req.Msg.GetSummary(), req.Msg.GetDetail())
-	if err != nil {
-		return nil, internalexecution.ToConnectError(err)
-	}
-	return connect.NewResponse(&executionv1.RecordDecisionResponse{Decision: decisionToProto(d), Step: guidedStepToProto(step)}), nil
-}
-
-func (h *connectHandler) RecordFinding(ctx context.Context, req *connect.Request[executionv1.RecordFindingRequest]) (*connect.Response[executionv1.RecordFindingResponse], error) {
-	f, step, err := h.deps.Service.RecordFinding(ctx, req.Msg.GetExecutionId(), req.Msg.GetPhaseId(), req.Msg.GetTitle(), req.Msg.GetDetail())
-	if err != nil {
-		return nil, internalexecution.ToConnectError(err)
-	}
-	return connect.NewResponse(&executionv1.RecordFindingResponse{Finding: findingToProto(f), Step: guidedStepToProto(step)}), nil
 }
 
 func (h *connectHandler) Complete(ctx context.Context, req *connect.Request[executionv1.CompleteRequest]) (*connect.Response[executionv1.CompleteResponse], error) {
@@ -138,22 +137,6 @@ func (h *connectHandler) GetHandoff(ctx context.Context, req *connect.Request[ex
 		return nil, internalexecution.ToConnectError(err)
 	}
 	return connect.NewResponse(&executionv1.GetHandoffResponse{Handoff: handoffToProto(handoff), Step: guidedStepToProto(step)}), nil
-}
-
-func (h *connectHandler) ListCandidateFindings(ctx context.Context, req *connect.Request[executionv1.ListCandidateFindingsRequest]) (*connect.Response[executionv1.ListCandidateFindingsResponse], error) {
-	findings, step, err := h.deps.Service.ListCandidateFindings(ctx, req.Msg.GetExecutionId())
-	if err != nil {
-		return nil, internalexecution.ToConnectError(err)
-	}
-	return connect.NewResponse(&executionv1.ListCandidateFindingsResponse{Findings: findingsToProto(findings), Step: guidedStepToProto(step)}), nil
-}
-
-func (h *connectHandler) TriageFinding(ctx context.Context, req *connect.Request[executionv1.TriageFindingRequest]) (*connect.Response[executionv1.TriageFindingResponse], error) {
-	f, step, err := h.deps.Service.TriageFinding(ctx, req.Msg.GetFindingId(), triageFromProto(req.Msg.GetTriage()))
-	if err != nil {
-		return nil, internalexecution.ToConnectError(err)
-	}
-	return connect.NewResponse(&executionv1.TriageFindingResponse{Finding: findingToProto(f), Step: guidedStepToProto(step)}), nil
 }
 
 func (h *connectHandler) GetVelocity(ctx context.Context, req *connect.Request[executionv1.GetVelocityRequest]) (*connect.Response[executionv1.GetVelocityResponse], error) {

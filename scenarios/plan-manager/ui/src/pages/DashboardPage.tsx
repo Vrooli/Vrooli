@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ClipboardList, FlaskConical, GaugeCircle, ListChecks } from "lucide-react";
 
-import { listCandidateFindings } from "../api/execution";
+import { listEntries } from "../api/log";
 import { StatusBadge } from "../components/StatusBadge";
 import { Card, SectionPanel } from "../components/Surfaces";
 import { selectors } from "../consts/selectors";
@@ -12,6 +12,8 @@ import { usePlansList } from "../features/plans/usePlans";
 import { useTranslation } from "../i18n";
 import { planStatusDescriptor } from "../lib/planStatus";
 import {
+  FindingTriage,
+  LogEntryType,
   PlanStatus,
   StalenessTier,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
@@ -37,7 +39,8 @@ export function DashboardPage() {
   const plans = usePlansList();
   const candidates = useQuery({
     queryKey: ["triage", "candidates"],
-    queryFn: () => listCandidateFindings(),
+    queryFn: async () =>
+      (await listEntries({ type: LogEntryType.FINDING, triage: FindingTriage.CANDIDATE })).entries,
   });
 
   const all = plans.data ?? [];

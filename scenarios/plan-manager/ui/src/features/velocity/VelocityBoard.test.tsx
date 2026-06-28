@@ -45,6 +45,15 @@ const point = create(VelocityPointSchema, {
   recordedAt: "2026-06-25T10:00:00Z",
 });
 
+const fallbackPoint = create(VelocityPointSchema, {
+  id: "vp2",
+  planId: "plan-1",
+  wallTimeSeconds: 0n,
+  tokens: 0n,
+  iterations: 0,
+  completeness: Completeness.PARTIAL,
+});
+
 const pickPlan = async () => {
   const user = userEvent.setup();
   listPlans.mockResolvedValue([create(PlanSchema, { id: "plan-1", title: "Migrate auth" })]);
@@ -68,7 +77,7 @@ describe("VelocityBoard", () => {
   });
 
   it("[REQ:PM-UI-001] renders the chart and table with bigint values converted safely", async () => {
-    getVelocity.mockResolvedValue([point]);
+    getVelocity.mockResolvedValue([point, fallbackPoint]);
     await pickPlan();
     await waitFor(() => {
       expect(screen.getByTestId(selectors.velocity.chart)).toBeInTheDocument();
@@ -76,6 +85,8 @@ describe("VelocityBoard", () => {
     });
     // 45000 tokens renders formatted, never as a raw bigint literal.
     expect(screen.getByTestId(selectors.velocity.table).textContent).toContain("45");
+    expect(screen.getByTestId(selectors.velocity.table).textContent).toContain("—");
+    expect(screen.getByTestId(selectors.velocity.table).textContent).toContain("Partial");
   });
 
   it("renders the empty state for a plan with no samples", async () => {

@@ -13,6 +13,7 @@
     "06-handoff-finalizer/module.json",
     "07-velocity-graph/module.json",
     "08-ui-console/module.json",
-    "09-consumer-inversion/module.json"
+    "09-consumer-inversion/module.json",
+    "10-execution-log/module.json"
   ]
 }
