@@ -21,8 +21,21 @@ import {
   RelevantContextKind,
   RelevantContextRepeatPolicy,
   RelevantContextStatus,
+  WorkPosture,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 import { useArchivePlan, usePlanDetail, usePlanGraph, usePlanMarkdown } from "./usePlans";
+
+/** Map the autofilled work posture enum to a human label. */
+function workPostureLabel(posture: WorkPosture): string {
+  switch (posture) {
+    case WorkPosture.GREENFIELD:
+      return "greenfield";
+    case WorkPosture.BROWNFIELD:
+      return "brownfield";
+    default:
+      return "greenfield";
+  }
+}
 
 /** Render a list of strings as a bulleted block, or the empty fallback. */
 function StringList({ items, empty }: { items: readonly string[]; empty: string }) {
@@ -135,8 +148,38 @@ function PhaseCard({ phase }: { phase: Phase }) {
         <p className="mt-2 text-sm text-app-muted-foreground">{phase.intent}</p>
       ) : null}
       <dl className="mt-3 flex flex-col gap-2">
+        {phase.affectedAreas.length > 0 ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseAffectedAreas)}>
+            <StringList items={phase.affectedAreas} empty={t(strings.common.none)} />
+          </MetaRow>
+        ) : null}
+        {phase.steps.length > 0 ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseSteps)}>
+            <ol className="ms-4 list-decimal text-xs text-app-foreground">
+              {phase.steps.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ol>
+          </MetaRow>
+        ) : null}
+        {phase.expectedOutputs.length > 0 ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseExpectedOutputs)}>
+            <StringList items={phase.expectedOutputs} empty={t(strings.common.none)} />
+          </MetaRow>
+        ) : null}
+        {phase.validation ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseValidation)}>{phase.validation}</MetaRow>
+        ) : null}
         {phase.acceptance ? (
           <MetaRow term={t(strings.pages.plans.detail.phaseAcceptance)}>{phase.acceptance}</MetaRow>
+        ) : null}
+        {phase.risksHazards.length > 0 ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseRisks)}>
+            <StringList items={phase.risksHazards} empty={t(strings.common.none)} />
+          </MetaRow>
+        ) : null}
+        {phase.handoffNotes ? (
+          <MetaRow term={t(strings.pages.plans.detail.phaseHandoff)}>{phase.handoffNotes}</MetaRow>
         ) : null}
         {phase.relevantContext.length > 0 ? (
           <MetaRow term={t(strings.pages.plans.detail.phaseContext)}>
@@ -277,6 +320,16 @@ function PlanBody({ plan }: { plan: Plan }) {
             <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.purpose}</p>
           </SectionPanel>
         ) : null}
+        {plan.problemStatement ? (
+          <SectionPanel title={t(strings.pages.plans.detail.problemHeading)} headingId="plan-problem">
+            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.problemStatement}</p>
+          </SectionPanel>
+        ) : null}
+        {plan.targetOutcome ? (
+          <SectionPanel title={t(strings.pages.plans.detail.targetOutcomeHeading)} headingId="plan-target-outcome">
+            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.targetOutcome}</p>
+          </SectionPanel>
+        ) : null}
         {plan.scope ? (
           <SectionPanel title={t(strings.pages.plans.detail.scopeHeading)} headingId="plan-scope">
             <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.scope}</p>
@@ -290,6 +343,55 @@ function PlanBody({ plan }: { plan: Plan }) {
         {plan.nonGoals ? (
           <SectionPanel title={t(strings.pages.plans.detail.nonGoalsHeading)} headingId="plan-nongoals">
             <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.nonGoals}</p>
+          </SectionPanel>
+        ) : null}
+        {plan.assumptions ? (
+          <SectionPanel title={t(strings.pages.plans.detail.assumptionsHeading)} headingId="plan-assumptions">
+            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.assumptions}</p>
+          </SectionPanel>
+        ) : null}
+      </div>
+
+      <SectionPanel title={t(strings.pages.plans.detail.workPostureHeading)} headingId="plan-work-posture">
+        <dl className="flex flex-col gap-2">
+          <MetaRow term={t(strings.pages.plans.detail.workPostureHeading)}>
+            <span className="font-mono">{workPostureLabel(plan.workPosture)}</span>
+          </MetaRow>
+          {plan.workPostureDetail ? (
+            <MetaRow term={t(strings.pages.plans.detail.workPostureDetail)}>{plan.workPostureDetail}</MetaRow>
+          ) : null}
+        </dl>
+      </SectionPanel>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {plan.technicalApproach ? (
+          <SectionPanel title={t(strings.pages.plans.detail.technicalApproachHeading)} headingId="plan-technical-approach">
+            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.technicalApproach}</p>
+          </SectionPanel>
+        ) : null}
+        {plan.prohibitedApproaches ? (
+          <SectionPanel title={t(strings.pages.plans.detail.prohibitedApproachesHeading)} headingId="plan-prohibited">
+            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.prohibitedApproaches}</p>
+          </SectionPanel>
+        ) : null}
+        {plan.validationStrategy || plan.finalValidationCommands.length > 0 ? (
+          <SectionPanel title={t(strings.pages.plans.detail.validationStrategyHeading)} headingId="plan-validation-strategy">
+            {plan.validationStrategy ? (
+              <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.validationStrategy}</p>
+            ) : null}
+            {plan.finalValidationCommands.length > 0 ? (
+              <div className="mt-2">
+                <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+                  {t(strings.pages.plans.detail.finalValidationCommands)}
+                </p>
+                <StringList items={plan.finalValidationCommands} empty={t(strings.common.none)} />
+              </div>
+            ) : null}
+          </SectionPanel>
+        ) : null}
+        {plan.risksHazards ? (
+          <SectionPanel title={t(strings.pages.plans.detail.risksHeading)} headingId="plan-risks">
+            <p className="whitespace-pre-wrap text-sm text-app-foreground">{plan.risksHazards}</p>
           </SectionPanel>
         ) : null}
       </div>
@@ -356,6 +458,37 @@ function PlanBody({ plan }: { plan: Plan }) {
           <GraphView planId={plan.id} edges={graph.data ?? []} />
         </AsyncBoundary>
       </SectionPanel>
+
+      {plan.importProvenance || plan.preservedLegacySections.length > 0 ? (
+        <SectionPanel
+          title={t(strings.pages.plans.detail.importProvenanceHeading)}
+          headingId="plan-import-provenance"
+        >
+          {plan.importProvenance ? (
+            <MetaRow term={t(strings.pages.plans.detail.importSource)}>
+              <span className="break-all font-mono text-xs">{plan.importProvenance.sourcePath}</span>
+            </MetaRow>
+          ) : null}
+          {plan.preservedLegacySections.length > 0 ? (
+            <div className="mt-3">
+              <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+                {t(strings.pages.plans.detail.preservedLegacyHeading)}
+              </p>
+              <p className="text-xs text-app-muted-foreground">
+                {t(strings.pages.plans.detail.preservedLegacyNote)}
+              </p>
+              <ul className="mt-2 flex flex-col gap-2">
+                {plan.preservedLegacySections.map((sec, i) => (
+                  <li key={i} className="rounded-control bg-app-surface-muted p-2">
+                    <p className="text-sm font-semibold text-app-foreground">{sec.heading}</p>
+                    <p className="whitespace-pre-wrap text-xs text-app-muted-foreground">{sec.content}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </SectionPanel>
+      ) : null}
 
       <SectionPanel
         title={t(strings.pages.plans.detail.markdownHeading)}

@@ -431,10 +431,57 @@ func planDetail(p *sharedv1.Plan) []string {
 	if p.ContentHash != "" {
 		out = append(out, fmt.Sprintf("content-hash: %s", p.ContentHash))
 	}
+	// Work posture is autofilled; surface it so a reviewer sees it without the
+	// full rendered markdown.
+	if label := workPostureLabel(p.WorkPosture); label != "" {
+		out = append(out, fmt.Sprintf("work posture: %s", label))
+	}
+	out = appendField(out, "problem/need", p.ProblemStatement)
+	out = appendField(out, "target outcome", p.TargetOutcome)
+	out = appendField(out, "technical approach", p.TechnicalApproach)
+	out = appendField(out, "validation strategy", p.ValidationStrategy)
+	if p.GetImportProvenance() != nil {
+		out = append(out, fmt.Sprintf("imported from: %s", p.GetImportProvenance().GetSourcePath()))
+	}
+	if n := len(p.GetPreservedLegacySections()); n > 0 {
+		out = append(out, fmt.Sprintf("preserved legacy sections: %d", n))
+	}
 	for i, ph := range p.Phases {
 		out = append(out, fmt.Sprintf("  phase %d: %s [%s] (id=%s)", i+1, ph.Title, phaseStatusLabel(ph.Status), ph.Id))
+		if len(ph.GetSteps()) > 0 {
+			out = append(out, fmt.Sprintf("    steps: %d · validation: %s", len(ph.GetSteps()), truncateOneLine(ph.GetValidation(), 60)))
+		}
 	}
+	out = append(out, "(run `plan-manager plans render "+p.Slug+"` for the full markdown review artifact)")
 	return out
+}
+
+// appendField appends a "label: value" detail line only when value is non-empty,
+// truncated to one readable line (the full text lives in the rendered markdown).
+func appendField(out []string, label, value string) []string {
+	if strings.TrimSpace(value) == "" {
+		return out
+	}
+	return append(out, fmt.Sprintf("%s: %s", label, truncateOneLine(value, 100)))
+}
+
+func truncateOneLine(s string, max int) string {
+	s = strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
+	if len([]rune(s)) <= max {
+		return s
+	}
+	return string([]rune(s)[:max]) + "…"
+}
+
+func workPostureLabel(p sharedv1.WorkPosture) string {
+	switch p {
+	case sharedv1.WorkPosture_WORK_POSTURE_GREENFIELD:
+		return "greenfield"
+	case sharedv1.WorkPosture_WORK_POSTURE_BROWNFIELD:
+		return "brownfield"
+	default:
+		return ""
+	}
 }
 
 // --- flag → proto enum helpers (unknown values fall through to UNSPECIFIED, a

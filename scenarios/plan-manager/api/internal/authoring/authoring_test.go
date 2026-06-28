@@ -20,6 +20,139 @@ import (
 	localdb "plan-manager/internal/database"
 )
 
+// testRenderer adapts the plans-domain renderer to the authoring PlanRenderer
+// seam for preview tests (the same renderer the production wiring uses).
+type testRenderer struct{}
+
+func (testRenderer) Render(p internalplans.Plan) string { return internalplans.RenderMarkdown(p) }
+
+// TestWizardAuthoredPlanRendersComprehensive is the wizard→render golden guard:
+// a plan authored entirely through the Service finalizes and renders to a
+// comprehensive review artifact with the Work Posture section, the automatic
+// Greenfield block, and the professional plan/phase fields. This proves the
+// wizard, model, and renderer stay aligned end to end.
+func TestWizardAuthoredPlanRendersComprehensive(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Comprehensive", "comprehensive", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	// A phase-native draft overrides the blob phases with the full structure.
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Contract", "Lock the model.")
+	require.NoError(t, err)
+	for field, content := range map[authoring.PhaseField]string{
+		authoring.PhaseFieldReferences:    "[CODE: scenarios/plan-manager/api/internal/plans/render.go]",
+		authoring.PhaseFieldAffectedAreas: "render.go\nparse.go",
+		authoring.PhaseFieldSteps:         "Add the section\nWire the parser",
+		authoring.PhaseFieldValidation:    "go test ./internal/plans ./internal/planmodel",
+		authoring.PhaseFieldAcceptance:    "Rendered markdown is comprehensive.",
+	} {
+		_, _, _, ferr := svc.SubmitPhaseField(ctx, sess.ID, phase.ID, field, content)
+		require.NoError(t, ferr)
+	}
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldRelevantContext, "NO_CONTEXT: covered by global setup.")
+	require.NoError(t, err)
+
+	_, _, err = svc.Finalize(ctx, sess.ID)
+	require.NoError(t, err)
+
+	md := internalplans.RenderMarkdown(writer.created)
+	for _, want := range []string{
+		"## Work Posture",
+		"**This is greenfield work.**",
+		"## Problem / Need",
+		"## Target Outcome",
+		"## Technical Approach",
+		"## Validation Strategy",
+		"**Ordered Steps:**",
+		"**Phase Validation:**",
+		"**Affected Areas:**",
+	} {
+		require.Contains(t, md, want, "wizard-authored plan must render %q", want)
+	}
+}
+
+// TestPreviewPlanRendersWithoutPersisting covers the render-preview path: a
+// complete session previews to the markdown review artifact (with the automatic
+// Work Posture section and Greenfield block) without writing a plan.
+func TestPreviewPlanRendersWithoutPersisting(t *testing.T) {
+	writer := &fakePlanWriter{}
+	svc := newService(t, authoring.Deps{Writer: writer, Renderer: testRenderer{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Preview me", "preview-me", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	md, step, err := svc.PreviewPlan(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Contains(t, md, "## Work Posture")
+	require.Contains(t, md, "**This is greenfield work.**")
+	require.Contains(t, md, "## Problem / Need")
+	require.Equal(t, "final_review", step.StepKind)
+	require.Equal(t, 0, writer.calls, "preview must not persist a plan")
+}
+
+// TestPreviewUnavailableWithoutRenderer asserts preview degrades honestly when no
+// renderer is wired (never a silent empty render).
+func TestPreviewUnavailableWithoutRenderer(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "No renderer", "", "")
+	require.NoError(t, err)
+	_, _, err = svc.PreviewPlan(ctx, sess.ID)
+	require.Error(t, err)
+}
+
+// TestPostureConflictConstraintsAreFlagged covers conflicting-posture constraints:
+// a greenfield plan whose constraints ask for a compatibility shim is rejected so
+// the rendered plan never contradicts the injected Greenfield block.
+func TestPostureConflictConstraintsAreFlagged(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Conflict", "", "")
+	require.NoError(t, err)
+	fillMandatory(t, svc, sess.ID)
+
+	_, violations, _, err := svc.SubmitSection(ctx, sess.ID, authoring.SectionConstraints, "Add a compatibility shim for the old API.")
+	require.NoError(t, err)
+	_ = violations
+
+	valid, violations, _, err := svc.ValidateStructure(ctx, sess.ID)
+	require.NoError(t, err)
+	require.False(t, valid)
+	require.Contains(t, lastViolationMessage(violations), "greenfield work posture")
+}
+
+func lastViolationMessage(violations []authoring.StructureViolation) string {
+	var msgs []string
+	for _, v := range violations {
+		msgs = append(msgs, v.Message)
+	}
+	return strings.Join(msgs, " | ")
+}
+
+// TestPhaseAcceptanceEqualsValidationRejected covers the acceptance≠validation
+// gate: a phase whose acceptance merely restates its validation is rejected.
+func TestPhaseAcceptanceEqualsValidationRejected(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Accept eq valid", "", "")
+	require.NoError(t, err)
+	_, phase, _, _, err := svc.AddPhase(ctx, sess.ID, "Work", "Do work")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldNoCodeRefsReason, "NO_CODE_REFS: fixture")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldSteps, "Run the suite")
+	require.NoError(t, err)
+	_, _, _, err = svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldValidation, "go test ./...")
+	require.NoError(t, err)
+	_, violations, _, err := svc.SubmitPhaseField(ctx, sess.ID, phase.ID, authoring.PhaseFieldAcceptance, "go test ./...")
+	require.NoError(t, err)
+	require.Contains(t, lastViolationMessage(violations), "must not be identical to its validation")
+}
+
 // newStore returns a real SQLite-backed SessionStore (the production persistence
 // path) plus a fake clock — mirroring internal/plans/plans_test.go.
 func newStore(t *testing.T) (authoring.SessionStore, *mocks.FakeClock) {

@@ -276,14 +276,6 @@ func extractOrderedSections(markdown string) []sectionEntry {
 	return out
 }
 
-func extractSections(markdown string) map[string]string {
-	out := map[string]string{}
-	for _, entry := range extractOrderedSections(markdown) {
-		out[entry.lower] = entry.body
-	}
-	return out
-}
-
 // prePhaseMarkdown returns the markdown before the first phase heading, so
 // plan-level reference scanning never absorbs phase-scoped references.
 func prePhaseMarkdown(markdown string) string {

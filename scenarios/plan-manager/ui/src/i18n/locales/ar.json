@@ -124,7 +124,27 @@
         "supersedes": "Supersedes",
         "supersededBy": "Superseded by",
         "edgeNone": "No supersession edges.",
-        "notFound": "Plan not found."
+        "notFound": "Plan not found.",
+        "problemHeading": "Problem / Need",
+        "targetOutcomeHeading": "Target outcome",
+        "assumptionsHeading": "Assumptions",
+        "technicalApproachHeading": "Technical approach",
+        "prohibitedApproachesHeading": "Prohibited approaches",
+        "validationStrategyHeading": "Validation strategy",
+        "finalValidationCommands": "Final validation commands",
+        "risksHeading": "Risks / hazards",
+        "workPostureHeading": "Work posture",
+        "workPostureDetail": "Detail",
+        "importProvenanceHeading": "Import provenance",
+        "importSource": "Imported from",
+        "preservedLegacyHeading": "Preserved legacy sections",
+        "preservedLegacyNote": "Imported sections that did not map to a canonical field, kept verbatim.",
+        "phaseAffectedAreas": "Affected areas",
+        "phaseSteps": "Ordered steps",
+        "phaseExpectedOutputs": "Expected outputs",
+        "phaseValidation": "Phase validation",
+        "phaseRisks": "Risks / hazards",
+        "phaseHandoff": "Handoff notes"
       }
     },
     "authoring": {

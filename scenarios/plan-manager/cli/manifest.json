@@ -279,7 +279,7 @@
         },
         {
           "name": "import",
-          "description": "Adopt a markdown plan from a fallback location",
+          "description": "Adopt a markdown plan from a fallback location (non-destructive: the source file is never moved or deleted; unmapped legacy sections are preserved)",
           "flags": [
             {
               "name": "source",
@@ -1119,7 +1119,7 @@
             {
               "name": "field",
               "required": true,
-              "description": "Phase field: title, intent, references, relevant_context, reminders, acceptance, no_code_refs_reason. required_reading is accepted only as legacy migration input."
+              "description": "Phase field: title, intent, affected_areas, references, steps, expected_outputs, validation, acceptance, risks_hazards, handoff_notes, relevant_context, reminders, no_code_refs_reason. required_reading is accepted only as legacy migration input."
             },
             {
               "name": "content",
@@ -1154,6 +1154,29 @@
             "kind": "connect-rpc",
             "service": "AuthoringService",
             "method": "NextPhase"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "preview",
+          "description": "Render the in-progress plan to its markdown review artifact without persisting",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "PreviewPlan"
           },
           "governance": {
             "effect": "read",

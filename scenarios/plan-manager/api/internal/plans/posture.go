@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -133,19 +134,33 @@ func NewFilesystemMaturityReader() MaturityReader { return fsMaturityReader{} }
 
 func (fsMaturityReader) Maturity(_ context.Context, scenario string) (string, bool, error) {
 	scenario = strings.TrimSpace(scenario)
-	if scenario == "" {
+	// Only a single, safe path element is a valid scenario name — never a path
+	// with separators or traversal. This plus os.Root scoping below makes the
+	// service.json read traversal-proof.
+	if scenario == "" || scenario == "." || scenario == ".." ||
+		strings.ContainsAny(scenario, `/\`) || strings.Contains(scenario, "..") {
 		return "", false, nil
 	}
 	root, ok := findScenariosRoot()
 	if !ok {
 		return "", false, nil
 	}
-	path := filepath.Join(root, "scenarios", scenario, ".vrooli", "service.json")
-	raw, err := os.ReadFile(path)
+	// Scope all reads under <root>/scenarios so a crafted name cannot escape it.
+	scenariosRoot, err := os.OpenRoot(filepath.Join(root, "scenarios"))
+	if err != nil {
+		return "", false, nil
+	}
+	defer func() { _ = scenariosRoot.Close() }()
+	f, err := scenariosRoot.Open(filepath.Join(scenario, ".vrooli", "service.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", false, nil
 		}
+		return "", false, err
+	}
+	defer func() { _ = f.Close() }()
+	raw, err := io.ReadAll(f)
+	if err != nil {
 		return "", false, err
 	}
 	return parseMaturity(raw)

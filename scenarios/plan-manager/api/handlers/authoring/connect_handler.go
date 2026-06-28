@@ -226,6 +226,14 @@ func (h *connectHandler) NextPhase(ctx context.Context, req *connect.Request[aut
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) PreviewPlan(ctx context.Context, req *connect.Request[authoringv1.PreviewPlanRequest]) (*connect.Response[authoringv1.PreviewPlanResponse], error) {
+	markdown, step, err := h.deps.Service.PreviewPlan(ctx, req.Msg.GetSessionId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.PreviewPlanResponse{Markdown: markdown, Step: guidedStepToProto(step)}), nil
+}
+
 func (h *connectHandler) Finalize(ctx context.Context, req *connect.Request[authoringv1.FinalizeRequest]) (*connect.Response[authoringv1.FinalizeResponse], error) {
 	plan, step, err := h.deps.Service.Finalize(ctx, req.Msg.GetSessionId())
 	if err != nil {

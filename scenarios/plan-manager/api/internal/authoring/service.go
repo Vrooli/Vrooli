@@ -44,6 +44,7 @@ type service struct {
 	context      ContextDiscoverer
 	commands     CommandReferenceValidator
 	templateSeed TemplateSeeder
+	renderer     PlanRenderer
 	clock        clock.Clock
 }
 
@@ -61,6 +62,7 @@ type Deps struct {
 	Context        ContextDiscoverer
 	Commands       CommandReferenceValidator
 	TemplateSeeder TemplateSeeder
+	Renderer       PlanRenderer
 	Clock          clock.Clock
 }
 
@@ -86,6 +88,7 @@ func NewService(d Deps) Service {
 		context:      d.Context,
 		commands:     d.Commands,
 		templateSeed: d.TemplateSeeder,
+		renderer:     d.Renderer,
 		clock:        clk,
 	}
 }
@@ -506,6 +509,27 @@ func (s *service) NextPhase(ctx context.Context, sessionID string) (PhaseDraft, 
 		return PhaseDraft{}, GuidedStep{}, false, ErrSectionNotFound{SessionID: sessionID, SectionKey: "phase:" + id}
 	}
 	return phase, stepForPhase(sess, phase), false, nil
+}
+
+// PreviewPlan renders the in-progress session to its markdown review artifact
+// WITHOUT persisting — the render-preview the wizard offers before finalize. It
+// maps the session through the same sessionToPlan path Finalize uses, so the
+// preview matches what will be saved (posture is filled in on save; the preview
+// shows the default greenfield block). Malformed authored markup surfaces as a
+// typed error so the agent fixes it before finalizing.
+func (s *service) PreviewPlan(ctx context.Context, sessionID string) (string, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return "", GuidedStep{}, err
+	}
+	if s.renderer == nil {
+		return "", GuidedStep{}, ErrInvalidSession{Reason: "render preview unavailable: no renderer configured"}
+	}
+	draft, err := sessionToPlan(sess)
+	if err != nil {
+		return "", GuidedStep{}, err
+	}
+	return s.renderer.Render(draft), stepForReview(sess), nil
 }
 
 func (s *service) Finalize(ctx context.Context, sessionID string) (planmodel.Plan, GuidedStep, error) {

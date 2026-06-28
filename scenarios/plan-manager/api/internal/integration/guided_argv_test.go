@@ -101,8 +101,14 @@ func TestGuidedArgvAreValidManifestCommands(t *testing.T) {
 			break
 		}
 		switch step.StepKind {
-		case "purpose", "scope", "regression_anchor", "definition_of_done":
+		case "purpose", "problem_statement", "target_outcome", "scope", "technical_approach", "validation_strategy", "regression_anchor", "definition_of_done":
 			_, _, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Guard fixture content for "+string(section.Key)+".")
+			require.NoError(t, err)
+		case "phase_steps":
+			_, _, _, err = authoringSvc.SubmitPhaseField(ctx, session.ID, phase.ID, internalauthoring.PhaseFieldSteps, "Do the first thing\nThen the second thing")
+			require.NoError(t, err)
+		case "phase_validation":
+			_, _, _, err = authoringSvc.SubmitPhaseField(ctx, session.ID, phase.ID, internalauthoring.PhaseFieldValidation, "go test ./...")
 			require.NoError(t, err)
 		case "global_relevant_context":
 			_, _, _, err = authoringSvc.SubmitSection(ctx, session.ID, internalauthoring.SectionRelevantContext, "NO_CONTEXT: guard fixture needs no plan-wide setup.")

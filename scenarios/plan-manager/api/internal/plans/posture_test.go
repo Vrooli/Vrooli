@@ -122,7 +122,7 @@ func TestResolvePosture_HonorsExplicitAndImport(t *testing.T) {
 func TestScenarioForPlan_PrefersAnchorThenRefs(t *testing.T) {
 	p := Plan{
 		RegressionAnchor: RegressionAnchor{Scenario: "anchor-svc"},
-		References:        []Reference{{Kind: ReferenceCode, Target: "scenarios/ref-svc/x.go"}},
+		References:       []Reference{{Kind: ReferenceCode, Target: "scenarios/ref-svc/x.go"}},
 	}
 	if got := scenarioForPlan(p); got != "anchor-svc" {
 		t.Fatalf("anchor should win: got %q", got)

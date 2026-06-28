@@ -407,9 +407,9 @@ func stepForReview(sess Session) GuidedStep {
 		StepKind:       "final_review",
 		Title:          "Final Review",
 		Summary:        "All mandatory authoring inputs are present. Validate before finalizing.",
-		Instructions:   []string{"Run author validate.", "Resolve every violation instead of finalizing around it.", "Render the plan after finalize and inspect phase order plus references."},
-		Examples:       []string{"author validate " + sess.ID, "author finalize " + sess.ID},
-		CommonMistakes: []string{"Finalizing before phase references and acceptance are objective.", "Ignoring UNKNOWN/degraded autofill gaps."},
+		Instructions:   []string{"Run author validate.", "Preview the rendered markdown to review the plan as a human would, before finalizing.", "Resolve every violation instead of finalizing around it."},
+		Examples:       []string{"author validate " + sess.ID, "author preview " + sess.ID, "author finalize " + sess.ID},
+		CommonMistakes: []string{"Finalizing before phase steps, validation, and acceptance are objective.", "Skipping the render preview and shipping an unreviewed plan."},
 		NextActions: []NextAction{
 			{
 				ID:     "validate-session",
@@ -419,10 +419,17 @@ func stepForReview(sess Session) GuidedStep {
 				Argv:   []string{"author", "validate", sess.ID},
 			},
 			{
+				ID:     "preview-plan",
+				Kind:   NextActionAlternative,
+				Label:  "Preview rendered plan",
+				Reason: "Review the rendered markdown review artifact before finalizing.",
+				Argv:   []string{"author", "preview", sess.ID},
+			},
+			{
 				ID:     "finalize-session",
 				Kind:   NextActionAlternative,
 				Label:  "Finalize plan",
-				Reason: "Use after validation returns valid.",
+				Reason: "Use after validation returns valid and the preview looks right.",
 				Argv:   []string{"author", "finalize", sess.ID},
 			},
 		},

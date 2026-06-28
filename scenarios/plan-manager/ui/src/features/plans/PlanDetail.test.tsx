@@ -24,6 +24,10 @@ import {
   RelevantContextStatus,
   RegressionAnchorSchema,
   StalenessTier,
+  WorkPosture,
+  WorkPostureSource,
+  ImportProvenanceSchema,
+  LegacySectionSchema,
 } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 const getPlan = vi.fn();
@@ -135,6 +139,76 @@ describe("PlanDetail", () => {
     expect(await screen.findByTestId(selectors.pages.planDetail)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.plans.phase({ id: "p1" }))).toBeInTheDocument();
     expect(screen.getAllByTestId(selectors.plans.relevantContext).length).toBeGreaterThan(0);
+  });
+
+  it("renders the professional structured fields and work posture", async () => {
+    getPlan.mockResolvedValue(
+      create(PlanSchema, {
+        id: "plan-pro",
+        slug: "pro-plan",
+        title: "Professional plan",
+        status: PlanStatus.ACTIVE,
+        problemStatement: "The model is too thin to review.",
+        targetOutcome: "A reviewable rendered plan.",
+        assumptions: "Baseline captured first.",
+        technicalApproach: "Model-first contract change.",
+        prohibitedApproaches: "No legacy cloning.",
+        validationStrategy: "Run the suites then the scenario test.",
+        finalValidationCommands: ["vrooli scenario test plan-manager"],
+        risksHazards: "Too many fields makes it heavy.",
+        workPosture: WorkPosture.GREENFIELD,
+        workPostureSource: WorkPostureSource.SERVICE_MATURITY,
+        workPostureDetail: 'Scenario "plan-manager" maturity is greenfield.',
+        importProvenance: create(ImportProvenanceSchema, {
+          sourcePath: "docs/plans/old.md",
+          originalFormat: "legacy_markdown",
+        }),
+        preservedLegacySections: [
+          create(LegacySectionSchema, {
+            heading: "Contract Decisions",
+            content: "REST stays for now.",
+            preservationReason: "unmapped_legacy_section",
+          }),
+        ],
+        phases: [
+          create(PhaseSchema, {
+            id: "pp1",
+            order: 1,
+            title: "Contract",
+            intent: "lock the model",
+            status: PhaseStatus.TODO,
+            affectedAreas: ["model.proto"],
+            steps: ["Add proto fields", "Regenerate"],
+            expectedOutputs: ["Generated code compiles"],
+            validation: "go test ./internal/planproto",
+            acceptance: "round-trips",
+            risksHazards: ["field churn"],
+            handoffNotes: "phase 2 depends on this",
+          }),
+        ],
+      }),
+    );
+    getGraph.mockResolvedValue([]);
+
+    renderWithProviders(<PlanDetail planId="plan-pro" />);
+
+    expect(await screen.findByTestId(selectors.pages.planDetail)).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.problemHeading))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.targetOutcomeHeading))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.technicalApproachHeading))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.validationStrategyHeading))).toBeInTheDocument();
+    expect(screen.getAllByText(i18n.t(strings.pages.plans.detail.workPostureHeading)).length).toBeGreaterThan(0);
+    // Data values (from the plan, not copy) — matched by regex so the no-string-
+    // literal copy lint rule (which targets i18n copy) is satisfied.
+    expect(screen.getByText(/^greenfield$/)).toBeInTheDocument();
+    expect(screen.getByText(/maturity is greenfield/)).toBeInTheDocument();
+    // Phase professional fields render.
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.phaseSteps))).toBeInTheDocument();
+    expect(screen.getByText(/Add proto fields/)).toBeInTheDocument();
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.phaseValidation))).toBeInTheDocument();
+    // Import provenance + preserved legacy.
+    expect(screen.getByText(i18n.t(strings.pages.plans.detail.importProvenanceHeading))).toBeInTheDocument();
+    expect(screen.getByText(/Contract Decisions/)).toBeInTheDocument();
   });
 
   it("renders empty optional plan sections without placeholders leaking", async () => {

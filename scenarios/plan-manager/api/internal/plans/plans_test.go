@@ -41,6 +41,73 @@ func newService(t *testing.T) (plans.Service, *mocks.FakeClock) {
 	return svc, clk
 }
 
+// TestStorageRoundTripsNewProfessionalFields asserts every new professional
+// plan/phase field survives a SQLite save -> get round trip (the JSON document).
+func TestStorageRoundTripsNewProfessionalFields(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+
+	created, err := svc.Create(ctx, plans.Plan{
+		Title:                   "Round trip",
+		ProblemStatement:        "A problem.",
+		TargetOutcome:           "An outcome.",
+		Assumptions:             "Some assumptions.",
+		TechnicalApproach:       "An approach.",
+		ValidationStrategy:      "A strategy.",
+		FinalValidationCommands: []string{"vrooli scenario test plan-manager"},
+		RisksHazards:            "A risk.",
+		ProhibitedApproaches:    "No shims.",
+		Phases: []plans.Phase{{
+			Title:           "P1",
+			Intent:          "do",
+			AffectedAreas:   []string{"a/b.go"},
+			Steps:           []string{"s1", "s2"},
+			ExpectedOutputs: []string{"o1"},
+			Validation:      "go test ./...",
+			Acceptance:      "passes",
+			RisksHazards:    []string{"r1"},
+			HandoffNotes:    "next phase needs this",
+			Status:          plans.PhaseStatusTodo,
+		}},
+	})
+	require.NoError(t, err)
+
+	got, err := svc.Get(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, "A problem.", got.ProblemStatement)
+	require.Equal(t, "An outcome.", got.TargetOutcome)
+	require.Equal(t, "Some assumptions.", got.Assumptions)
+	require.Equal(t, "An approach.", got.TechnicalApproach)
+	require.Equal(t, "A strategy.", got.ValidationStrategy)
+	require.Equal(t, []string{"vrooli scenario test plan-manager"}, got.FinalValidationCommands)
+	require.Equal(t, "A risk.", got.RisksHazards)
+	require.Equal(t, "No shims.", got.ProhibitedApproaches)
+	// Work posture is autofilled on save (default greenfield — no scenario signal).
+	require.Equal(t, plans.WorkPostureGreenfield, got.WorkPosture)
+	require.NotEmpty(t, got.WorkPostureSource)
+
+	require.Len(t, got.Phases, 1)
+	ph := got.Phases[0]
+	require.Equal(t, []string{"a/b.go"}, ph.AffectedAreas)
+	require.Equal(t, []string{"s1", "s2"}, ph.Steps)
+	require.Equal(t, []string{"o1"}, ph.ExpectedOutputs)
+	require.Equal(t, "go test ./...", ph.Validation)
+	require.Equal(t, []string{"r1"}, ph.RisksHazards)
+	require.Equal(t, "next phase needs this", ph.HandoffNotes)
+}
+
+// TestContentHashChangesWithNewFields asserts the content hash incorporates the
+// new authored fields (changing one changes the hash).
+func TestContentHashChangesWithNewFields(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	base, err := svc.Create(ctx, plans.Plan{Title: "Hash A", TechnicalApproach: "approach one"})
+	require.NoError(t, err)
+	other, err := svc.Create(ctx, plans.Plan{Title: "Hash A", TechnicalApproach: "approach two"})
+	require.NoError(t, err)
+	require.NotEqual(t, base.ContentHash, other.ContentHash, "technical_approach must affect the content hash")
+}
+
 type fakeReader struct{ files map[string]string }
 
 func (f fakeReader) ReadFile(path string) ([]byte, error) {

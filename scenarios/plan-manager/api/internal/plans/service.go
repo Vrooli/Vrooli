@@ -333,12 +333,16 @@ func (s *service) CreateFromTemplate(ctx context.Context, templateID, title, slu
 		return Plan{}, ErrTemplateNotFound{ID: templateID}
 	}
 	p := Plan{
-		Title:       title,
-		Slug:        slug,
-		Purpose:     tmpl.Purpose,
-		Scope:       tmpl.Scope,
-		Constraints: tmpl.Constraints,
-		Phases:      clonePhases(tmpl.Phases),
+		Title:              title,
+		Slug:               slug,
+		Purpose:            tmpl.Purpose,
+		ProblemStatement:   tmpl.ProblemStatement,
+		TargetOutcome:      tmpl.TargetOutcome,
+		Scope:              tmpl.Scope,
+		Constraints:        tmpl.Constraints,
+		TechnicalApproach:  tmpl.TechnicalApproach,
+		ValidationStrategy: tmpl.ValidationStrategy,
+		Phases:             clonePhases(tmpl.Phases),
 	}
 	return s.Create(ctx, p)
 }
@@ -515,6 +519,10 @@ func clonePhases(phases []Phase) []Phase {
 		cp.RequiredReading = append([]string(nil), ph.RequiredReading...)
 		cp.Reminders = append([]string(nil), ph.Reminders...)
 		cp.BaselineScope = append([]string(nil), ph.BaselineScope...)
+		cp.AffectedAreas = append([]string(nil), ph.AffectedAreas...)
+		cp.Steps = append([]string(nil), ph.Steps...)
+		cp.ExpectedOutputs = append([]string(nil), ph.ExpectedOutputs...)
+		cp.RisksHazards = append([]string(nil), ph.RisksHazards...)
 		out = append(out, cp)
 	}
 	return out

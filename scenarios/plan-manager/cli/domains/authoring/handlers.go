@@ -355,6 +355,20 @@ func (h *handlers) phaseNext(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) preview(ctx cliapp.RunContext) error {
+	resp, err := h.client.PreviewPlan(context.Background(), connect.NewRequest(&authoringv1.PreviewPlanRequest{
+		SessionId: ctx.Positional("session"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("preview", err, nil)
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{"Rendered preview of the in-progress plan (not persisted)."},
+		ResultsHeading: "Markdown",
+		Results:        []string{resp.Msg.GetMarkdown()},
+	})
+}
+
 func (h *handlers) finalize(ctx cliapp.RunContext) error {
 	resp, err := h.client.Finalize(context.Background(), connect.NewRequest(&authoringv1.FinalizeRequest{
 		SessionId: ctx.Positional("session"),

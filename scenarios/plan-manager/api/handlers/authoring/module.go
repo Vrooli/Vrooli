@@ -28,8 +28,9 @@ import (
 // into internal/authoring.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
 	plansSvc := internalplans.NewService(internalplans.Deps{
-		Repo:  internalplans.NewSQLiteRepository(db, clk),
-		Clock: clk,
+		Repo:     internalplans.NewSQLiteRepository(db, clk),
+		Clock:    clk,
+		Maturity: internalplans.NewFilesystemMaturityReader(),
 	})
 	runner := internalauthoring.DefaultRunner()
 	svc := internalauthoring.NewService(internalauthoring.Deps{
@@ -40,6 +41,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		References:   internalauthoring.NewCommandReferenceExtractor(runner),
 		Context:      internalauthoring.NewCommandContextDiscoverer(runner),
 		Commands:     newCLIHealthCommandValidator(),
+		Renderer:     planRenderer{},
 		Clock:        clk,
 	})
 	connectPath, connectHandler := authoringconnect.NewAuthoringServiceHandler(NewConnectHandler(Deps{
@@ -70,6 +72,15 @@ func (w planWriter) CreatePlan(ctx context.Context, p internalplans.Plan) (inter
 	return w.svc.Create(ctx, p)
 }
 
+// planRenderer adapts the plans-domain deterministic renderer to the authoring
+// PlanRenderer seam so the wizard can offer a render-preview before finalize.
+// It is the SAME renderer the plans domain uses (no second renderer).
+type planRenderer struct{}
+
+func (planRenderer) Render(p internalplans.Plan) string {
+	return internalplans.RenderMarkdown(p)
+}
+
 // Endpoints is the machine-readable description of the authoring module's public
 // surface; one entry per RPC (the global parity test enforces this).
 var Endpoints = []module.EndpointDescriptor{
@@ -89,6 +100,7 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_get_phase", authoringconnect.AuthoringServiceGetPhaseProcedure, "Get phase draft", "Returns one structured phase draft plus the API-owned guided step for the next missing phase field."),
 	endpoint("authoring_submit_phase_field", authoringconnect.AuthoringServiceSubmitPhaseFieldProcedure, "Submit phase field", "Records one phase-native field and validates references/acceptance immediately."),
 	endpoint("authoring_next_phase", authoringconnect.AuthoringServiceNextPhaseProcedure, "Next phase draft", "Returns the first structured phase draft that still needs author input."),
+	endpoint("authoring_preview_plan", authoringconnect.AuthoringServicePreviewPlanProcedure, "Preview the rendered plan", "Renders the in-progress session to its markdown review artifact without persisting, so the plan can be reviewed before finalize."),
 	endpoint("authoring_finalize", authoringconnect.AuthoringServiceFinalizeProcedure, "Finalize the plan", "Runs the structure gate then writes the produced plan through the plans domain, returning the persisted plan."),
 }
 

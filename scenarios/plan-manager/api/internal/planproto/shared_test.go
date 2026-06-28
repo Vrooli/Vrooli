@@ -157,3 +157,61 @@ func TestPlanToProtoMapsNestedStructuredFields(t *testing.T) {
 		t.Fatalf("len(phase.RelevantContext) = %d, want 1", got)
 	}
 }
+
+// TestPlanProtoRoundTripNewFields asserts every new professional plan/phase field
+// survives a model -> proto -> model round trip (the conversion drift guard).
+func TestPlanProtoRoundTripNewFields(t *testing.T) {
+	t.Parallel()
+	in := planmodel.Plan{
+		Title:                   "RT",
+		ProblemStatement:        "prob",
+		TargetOutcome:           "out",
+		Assumptions:             "assume",
+		TechnicalApproach:       "approach",
+		ValidationStrategy:      "valstrat",
+		FinalValidationCommands: []string{"cmd a", "cmd b"},
+		RisksHazards:            "risk",
+		ProhibitedApproaches:    "prohib",
+		WorkPosture:             planmodel.WorkPostureBrownfield,
+		WorkPostureSource:       planmodel.WorkPostureSourceServiceMaturity,
+		WorkPostureDetail:       "pilot",
+		ImportProvenance:        &planmodel.ImportProvenance{SourcePath: "x.md", OriginalFormat: "legacy_markdown"},
+		PreservedLegacySections: []planmodel.LegacySection{
+			{Heading: "Old", Content: "body", PreservationReason: "unmapped_legacy_section"},
+		},
+		Phases: []planmodel.Phase{{
+			Title:           "P1",
+			AffectedAreas:   []string{"a", "b"},
+			Steps:           []string{"s1", "s2"},
+			ExpectedOutputs: []string{"o1"},
+			Validation:      "go test",
+			HandoffNotes:    "handoff",
+			RisksHazards:    []string{"r1"},
+		}},
+	}
+	got := PlanFromProto(PlanToProto(in))
+
+	if got.ProblemStatement != in.ProblemStatement || got.TargetOutcome != in.TargetOutcome ||
+		got.Assumptions != in.Assumptions || got.TechnicalApproach != in.TechnicalApproach ||
+		got.ValidationStrategy != in.ValidationStrategy || got.RisksHazards != in.RisksHazards ||
+		got.ProhibitedApproaches != in.ProhibitedApproaches {
+		t.Fatalf("plan prose fields did not round-trip: %+v", got)
+	}
+	if len(got.FinalValidationCommands) != 2 || got.FinalValidationCommands[1] != "cmd b" {
+		t.Fatalf("final_validation_commands round-trip: %v", got.FinalValidationCommands)
+	}
+	if got.WorkPosture != planmodel.WorkPostureBrownfield || got.WorkPostureSource != planmodel.WorkPostureSourceServiceMaturity || got.WorkPostureDetail != "pilot" {
+		t.Fatalf("work posture round-trip: %q/%q/%q", got.WorkPosture, got.WorkPostureSource, got.WorkPostureDetail)
+	}
+	if got.ImportProvenance == nil || got.ImportProvenance.SourcePath != "x.md" {
+		t.Fatalf("import provenance round-trip: %+v", got.ImportProvenance)
+	}
+	if len(got.PreservedLegacySections) != 1 || got.PreservedLegacySections[0].Heading != "Old" {
+		t.Fatalf("preserved legacy round-trip: %+v", got.PreservedLegacySections)
+	}
+	ph := got.Phases[0]
+	if len(ph.AffectedAreas) != 2 || len(ph.Steps) != 2 || len(ph.ExpectedOutputs) != 1 ||
+		ph.Validation != "go test" || ph.HandoffNotes != "handoff" || len(ph.RisksHazards) != 1 {
+		t.Fatalf("phase fields round-trip: %+v", ph)
+	}
+}

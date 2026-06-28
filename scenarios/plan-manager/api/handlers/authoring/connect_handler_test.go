@@ -20,20 +20,21 @@ import (
 
 // fakeAuthoringService is a minimal stand-in for internalauthoring.Service.
 type fakeAuthoringService struct {
-	session      internalauthoring.Session
-	section      internalauthoring.Section
-	violations   []internalauthoring.StructureViolation
-	results      []internalauthoring.AutofillResult
-	phase        internalauthoring.PhaseDraft
-	contextItem  internalplans.RelevantContextItem
-	contextItems []internalplans.RelevantContextItem
-	candidate    internalauthoring.ContextCandidate
-	candidates   []internalauthoring.ContextCandidate
-	step         internalauthoring.GuidedStep
-	valid        bool
-	complete     bool
-	plan         internalplans.Plan
-	err          error
+	session         internalauthoring.Session
+	section         internalauthoring.Section
+	violations      []internalauthoring.StructureViolation
+	results         []internalauthoring.AutofillResult
+	phase           internalauthoring.PhaseDraft
+	contextItem     internalplans.RelevantContextItem
+	contextItems    []internalplans.RelevantContextItem
+	candidate       internalauthoring.ContextCandidate
+	candidates      []internalauthoring.ContextCandidate
+	step            internalauthoring.GuidedStep
+	valid           bool
+	complete        bool
+	plan            internalplans.Plan
+	previewMarkdown string
+	err             error
 
 	gotTitle       string
 	gotSlug        string
@@ -129,6 +130,11 @@ func (f *fakeAuthoringService) SubmitPhaseField(_ context.Context, sessionID, ph
 func (f *fakeAuthoringService) NextPhase(_ context.Context, sessionID string) (internalauthoring.PhaseDraft, internalauthoring.GuidedStep, bool, error) {
 	f.gotSessionID = sessionID
 	return f.phase, f.step, f.complete, f.err
+}
+
+func (f *fakeAuthoringService) PreviewPlan(_ context.Context, sessionID string) (string, internalauthoring.GuidedStep, error) {
+	f.gotSessionID = sessionID
+	return f.previewMarkdown, f.step, f.err
 }
 
 func (f *fakeAuthoringService) Finalize(_ context.Context, sessionID string) (internalplans.Plan, internalauthoring.GuidedStep, error) {

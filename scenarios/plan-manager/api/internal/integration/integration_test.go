@@ -328,6 +328,10 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Prove the continue-loop can guide a small implementation agent.")
 			require.NoError(t, err)
 			require.Empty(t, violations)
+		case "problem_statement", "target_outcome", "technical_approach", "validation_strategy":
+			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "Continue-loop fixture content for "+string(section.Key)+".")
+			require.NoError(t, err)
+			require.Empty(t, violations)
 		case "scope":
 			session, violations, _, err = authoringSvc.SubmitSection(ctx, session.ID, section.Key, "In: Plan Manager authoring and execution loop. Out: consumer inversion.")
 			require.NoError(t, err)
@@ -364,6 +368,14 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 			require.NotEmpty(t, violations, "new phase still needs references, acceptance, and context")
 		case "phase_references":
 			session, violations, _, err = authoringSvc.SubmitPhaseField(ctx, session.ID, phase.ID, internalauthoring.PhaseFieldReferences, "[CODE: scenarios/plan-manager/api/internal/integration/integration_test.go]")
+			require.NoError(t, err)
+			require.NotEmpty(t, violations, "steps/validation/acceptance/context still missing")
+		case "phase_steps":
+			session, violations, _, err = authoringSvc.SubmitPhaseField(ctx, session.ID, phase.ID, internalauthoring.PhaseFieldSteps, "Wire the handler\nWire the CLI")
+			require.NoError(t, err)
+			require.NotEmpty(t, violations, "validation/acceptance/context still missing")
+		case "phase_validation":
+			session, violations, _, err = authoringSvc.SubmitPhaseField(ctx, session.ID, phase.ID, internalauthoring.PhaseFieldValidation, "go test ./internal/integration")
 			require.NoError(t, err)
 			require.NotEmpty(t, violations, "acceptance/context still missing")
 		case "phase_acceptance":
