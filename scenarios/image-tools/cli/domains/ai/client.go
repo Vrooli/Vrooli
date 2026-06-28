@@ -93,13 +93,14 @@ func submitAI(core *cliapp.ScenarioApp, operation, inputPath, maskPath string, p
 // explainResolution calls ModelsService.ExplainResolution — the read-only
 // dry-run behind `--explain`: it returns the Resolution (which model/technique
 // would run, native-vs-derived, tier, safety weight) without submitting a job.
-func explainResolution(core *cliapp.ScenarioApp, operation, modelOverride string, allowBYOK bool) (*modelsv1.Resolution, error) {
+func explainResolution(core *cliapp.ScenarioApp, operation, modelOverride string, allowBYOK bool, adapters []*modelsv1.AdapterRef) (*modelsv1.Resolution, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	client := modelsconnect.NewModelsServiceClient(httpClient, baseURL)
 	resp, err := client.ExplainResolution(context.Background(), connect.NewRequest(&modelsv1.ExplainResolutionRequest{
 		Operation: operation,
 		ModelId:   modelOverride,
 		AllowByok: allowBYOK,
+		Adapters:  adapters,
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError(fmt.Sprintf("explain resolution for %q", operation), err, nil)

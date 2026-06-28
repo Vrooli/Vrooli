@@ -62,6 +62,7 @@ var registry = func() map[string]Op {
 		{Name: "canvas", Category: CategoryGeometry, Summary: "Pad/extend onto a background canvas", run: pixel(Canvas)},
 		{Name: "adjust", Category: CategoryColor, Summary: "Brightness/contrast/gamma/saturation/hue", run: pixel(Adjust)},
 		{Name: "filter", Category: CategoryColor, Summary: "Grayscale/sepia/invert/blur/sharpen", run: pixel(Filter)},
+		{Name: "canny", Category: CategoryColor, Summary: "Deterministic Canny edge map (ControlNet conditioning preprocessor)", run: pixel(Canny)},
 		{Name: "convert", Category: CategoryFormat, Summary: "Convert to another image format", run: pixel(convertClone)},
 		{Name: "compress", Category: CategoryFormat, Summary: "Re-encode at a quality or to a target file size", run: compressRun},
 		{Name: "overlay", Category: CategoryCompose, Summary: "Composite a watermark image or text", run: pixel(Overlay)},

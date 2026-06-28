@@ -1,6 +1,6 @@
 //go:build !unix
 
-package models
+package fetch
 
 // diskAvail is a no-disk-check fallback on platforms without statfs. It reports a
 // large value so installs are never blocked by an unknown free-space figure; the

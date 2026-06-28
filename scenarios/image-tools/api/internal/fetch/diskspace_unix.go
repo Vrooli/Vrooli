@@ -1,6 +1,6 @@
 //go:build unix
 
-package models
+package fetch
 
 import "golang.org/x/sys/unix"
 

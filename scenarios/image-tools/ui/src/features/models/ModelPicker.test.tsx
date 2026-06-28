@@ -105,6 +105,23 @@ describe("ModelPicker", () => {
     expect(screen.queryByTestId(selectors.models.pickerSelect({ id: "base-sdxl" }))).not.toBeInTheDocument();
   });
 
+  it("labels a proven derived candidate's select button 'Use anyway' (an informed opt-in past the native default)", () => {
+    renderPicker(
+      fakePicker({
+        operation: "inpaint",
+        candidates: [
+          candidate("base-sdxl", "ready", {
+            support: "derived",
+            technique: "diffusers-inpaint",
+            caveat: "derived: a base checkpoint inpaints via the standard pipeline",
+          }),
+        ],
+      }),
+    );
+    const select = screen.getByTestId(selectors.models.pickerSelect({ id: "base-sdxl" }));
+    expect(select).toHaveTextContent("Use anyway");
+  });
+
   it("shows the loading state while the first load is in flight", () => {
     renderPicker(fakePicker({ loading: true, candidates: [] }));
     expect(screen.getByTestId(selectors.models.picker.loading)).toBeInTheDocument();

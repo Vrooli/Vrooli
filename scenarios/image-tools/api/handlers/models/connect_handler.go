@@ -8,8 +8,10 @@ import (
 	"log"
 	"strings"
 
+	internaladapters "image-tools/internal/adapters"
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
+	internalhfmeta "image-tools/internal/hfmeta"
 	internalhosttool "image-tools/internal/hosttool"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
@@ -60,6 +62,17 @@ type Deps struct {
 	// Defaults to a conservative fixed estimate (host-tool sizes are not in the
 	// model catalog).
 	EnsureEtaSeconds int
+	// Hfmeta inspects an import source (HF repo id / URL / local path) for the
+	// guided import flow (InspectModelSource / ImportModel). Defaults to a real
+	// hfmeta.HFClient; tests inject a fake.
+	Hfmeta internalhfmeta.Fetcher
+	// Adapter conditioning seams for ExplainResolution's --explain surface: a merged
+	// (seed + custom) catalog lookup, the enabled overlay, and the install check, so
+	// a dry-run can validate + report the requested conditioning stack (decision
+	// C5). All nil ⇒ ExplainResolution rejects any request that names an adapter.
+	AdapterByID      func(id string) (internaladapters.Adapter, bool)
+	AdapterEnabled   func(ctx context.Context) (func(id string) bool, error)
+	AdapterInstalled func(id string) bool
 	Logger           *log.Logger
 }
 
@@ -78,6 +91,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	}
 	if d.EnsureEtaSeconds <= 0 {
 		d.EnsureEtaSeconds = 90
+	}
+	if d.Hfmeta == nil {
+		d.Hfmeta = &internalhfmeta.HFClient{}
 	}
 	return &connectHandler{deps: d}
 }

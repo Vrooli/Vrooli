@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
 )
@@ -105,6 +106,44 @@ func IntParam(req backends.Request, key string, def int) int {
 // StrParam reads a string param (empty when absent).
 func StrParam(req backends.Request, key string) string { return req.Params[key] }
 
+// LoRAArgs returns the repeatable `--lora <path>:<scale>` flags for the LoRA
+// adapters in the request's conditioning stack (Phase 4). Each adapter's single
+// weight file is resolved inside its installed dir (ResolvedAdapter.Dir, filled by
+// the engine). ControlNet / IP-Adapter adapters are handled by later phases and
+// skipped here. The wire format mirrors the Python parser
+// (_adapters.parse_lora_spec); the parity test asserts they agree. It errors when
+// a LoRA adapter declares no resolvable weight file (fail closed, never silently
+// drop a requested modifier).
+func LoRAArgs(req backends.Request) ([]string, error) {
+	var args []string
+	for _, a := range req.Adapters {
+		if a.Kind != adapters.KindLoRA {
+			continue
+		}
+		path := adapterWeightFile(a.Dir)
+		if path == "" {
+			return nil, fmt.Errorf("technique: lora adapter %q has no weight file in %q", a.ID, a.Dir)
+		}
+		args = append(args, "--lora", path+":"+strconv.FormatFloat(a.Scale, 'g', -1, 64))
+	}
+	return args, nil
+}
+
+// adapterWeightFile resolves the single weight file inside an adapter's installed
+// directory (a LoRA / IP-Adapter ships one .safetensors; some are .bin/.pt/.ckpt).
+// Empty when the dir holds none.
+func adapterWeightFile(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	for _, pattern := range []string{"*.safetensors", "*.ckpt", "*.bin", "*.pt"} {
+		if matches, _ := filepath.Glob(filepath.Join(dir, pattern)); len(matches) > 0 {
+			return matches[0]
+		}
+	}
+	return ""
+}
+
 // =============================================================================
 // Per-technique argument builders. Each mirrors the documented CLI of a real
 // standalone backend; they are pure and unit-tested (arg assembly), while live
@@ -132,6 +171,13 @@ func sdModelArg(modelDir string) string {
 // image_to_image is selected by passing -i <init>; the run mode stays the default
 // img_gen.
 func StableDiffusionCpp(req backends.Request, modelDir string) ([]string, error) {
+	// Conditioning adapters (LoRA/ControlNet/IP-Adapter) run on the diffusers
+	// sidecar, not sd.cpp. Fail closed rather than silently dropping a requested
+	// modifier — the resolver should route a conditioned request to a diffusers
+	// model, but if one reaches here it must not run unconditioned.
+	if len(req.Adapters) > 0 {
+		return nil, fmt.Errorf("stable-diffusion.cpp does not support conditioning adapters; use a diffusers-backed model for LoRA/ControlNet/IP-Adapter")
+	}
 	args := []string{"-m", sdModelArg(modelDir), "-o", req.Output.LocalPath, "-p", StrParam(req, "prompt")}
 	if neg := StrParam(req, "negative_prompt"); neg != "" {
 		args = append(args, "-n", neg)
@@ -192,6 +238,11 @@ func DiffusersInpaint(req backends.Request, modelDir string) ([]string, error) {
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
 	}
+	lora, err := LoRAArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, lora...)
 	if s := StrParam(req, "strength"); s != "" {
 		args = append(args, "--strength", s)
 	}
@@ -248,6 +299,102 @@ func DiffusersEditInstruct(req backends.Request, modelDir string) ([]string, err
 	}
 	if ig := StrParam(req, "strength"); ig != "" {
 		args = append(args, "--image-guidance", ig)
+	}
+	if np := StrParam(req, "negative_prompt"); np != "" {
+		args = append(args, "--negative-prompt", np)
+	}
+	if seed := StrParam(req, "seed"); seed != "" {
+		args = append(args, "--seed", seed)
+	}
+	return args, nil
+}
+
+// DiffusersText2Image assembles a diffusers python-sidecar text2image generate
+// invocation. It serves text_to_image for a base checkpoint on the diffusers
+// backend — the path a diffusers-REPO model takes (sharded weights sd.cpp cannot
+// load); a single-file checkpoint generates via stable-diffusion.cpp instead. The
+// concrete pipeline class is resolved from the model's architecture
+// (--architecture: sd15 → StableDiffusionPipeline, sdxl → StableDiffusionXLPipeline).
+// Shape: python3 -m image_tools_sidecar.text_to_image --model <dir>
+// --architecture <arch> --prompt <p> --out <out> [--width n] [--height n]
+// [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
+func DiffusersText2Image(req backends.Request, modelDir string) ([]string, error) {
+	arch := strings.TrimSpace(string(req.Model.Architecture))
+	if arch == "" {
+		return nil, fmt.Errorf("diffusers text_to_image: model %q has no architecture (cannot resolve pipeline)", req.Model.ID)
+	}
+	args := []string{
+		"-m", "image_tools_sidecar.text_to_image",
+		"--model", modelDir,
+		"--architecture", arch,
+		"--prompt", StrParam(req, "prompt"),
+		"--out", req.Output.LocalPath,
+	}
+	lora, err := LoRAArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, lora...)
+	if w := IntParam(req, "width", 0); w > 0 {
+		args = append(args, "--width", strconv.Itoa(w))
+	}
+	if h := IntParam(req, "height", 0); h > 0 {
+		args = append(args, "--height", strconv.Itoa(h))
+	}
+	if s := IntParam(req, "steps", 0); s > 0 {
+		args = append(args, "--steps", strconv.Itoa(s))
+	}
+	if g := StrParam(req, "cfg_scale"); g != "" {
+		args = append(args, "--guidance", g)
+	}
+	if np := StrParam(req, "negative_prompt"); np != "" {
+		args = append(args, "--negative-prompt", np)
+	}
+	if seed := StrParam(req, "seed"); seed != "" {
+		args = append(args, "--seed", seed)
+	}
+	return args, nil
+}
+
+// DiffusersImg2Img assembles a diffusers python-sidecar img2img transform
+// invocation — the architecture-derived image_to_image for a base checkpoint on
+// the diffusers backend, for diffusers-REPO models (a single-file checkpoint takes
+// the stable-diffusion.cpp sd-img2img path). `strength` controls how far the
+// output may drift from the init image. The concrete pipeline class is resolved
+// from the model's architecture.
+// Shape: python3 -m image_tools_sidecar.image_to_image --model <dir>
+// --architecture <arch> --image <in> --prompt <p> --out <out> [--strength x]
+// [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
+func DiffusersImg2Img(req backends.Request, modelDir string) ([]string, error) {
+	in, err := Input0(req)
+	if err != nil {
+		return nil, err
+	}
+	arch := strings.TrimSpace(string(req.Model.Architecture))
+	if arch == "" {
+		return nil, fmt.Errorf("diffusers image_to_image: model %q has no architecture (cannot resolve pipeline)", req.Model.ID)
+	}
+	args := []string{
+		"-m", "image_tools_sidecar.image_to_image",
+		"--model", modelDir,
+		"--architecture", arch,
+		"--image", in,
+		"--prompt", StrParam(req, "prompt"),
+		"--out", req.Output.LocalPath,
+	}
+	lora, err := LoRAArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, lora...)
+	if s := StrParam(req, "strength"); s != "" {
+		args = append(args, "--strength", s)
+	}
+	if s := IntParam(req, "steps", 0); s > 0 {
+		args = append(args, "--steps", strconv.Itoa(s))
+	}
+	if g := StrParam(req, "cfg_scale"); g != "" {
+		args = append(args, "--guidance", g)
 	}
 	if np := StrParam(req, "negative_prompt"); np != "" {
 		args = append(args, "--negative-prompt", np)

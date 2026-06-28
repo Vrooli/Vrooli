@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"image-tools/internal/fetch"
 	"image-tools/internal/operations"
 )
 
@@ -76,6 +77,11 @@ func (c CommercialUse) valid() bool {
 	}
 }
 
+// Valid reports whether c is a known commercial-use enum member. Exported so the
+// sibling adapter catalog (internal/adapters), which reuses CapabilityLabels, can
+// validate its seed against this SSOT without duplicating the enum.
+func (c CommercialUse) Valid() bool { return c.valid() }
+
 // Hardware captures a model's host requirements. MinVRAMGB == 0 means "no
 // dedicated VRAM required" (a CPU-capable tier), not "unknown".
 type Hardware struct {
@@ -102,7 +108,17 @@ type CapabilityLabels struct {
 	CommercialUseNotes string        `json:"commercial_use_notes"`
 	BaseModelLineage   string        `json:"base_model_lineage"`
 	KnownRisks         string        `json:"known_risks"`
+	// Provenance records how the entry entered the catalog. Empty for seed models;
+	// ProvenanceUserImported for entries added via the guided import flow (plan
+	// capability D). The safety tier gate consults it: a user-imported entry with
+	// an unverified license is refused on the public/BYOK serving tier unless the
+	// operator attested commercial rights (decision D4).
+	Provenance string `json:"provenance,omitempty"`
 }
+
+// ProvenanceUserImported marks a catalog entry added via the guided model-import
+// flow (not part of the license-verified seed). See CapabilityLabels.Provenance.
+const ProvenanceUserImported = "user-imported"
 
 // Checksum integrity record. Value is captured + pinned on first real download
 // (never hand-written); Status flips to "pinned" then.
@@ -112,48 +128,33 @@ type Checksum struct {
 	Status string `json:"status"`
 }
 
-// ArtifactKind classifies a downloadable weight artifact so the installer can
-// validate that the bytes it fetched are actually that kind of file (and not,
-// e.g., an HTML landing page — the install-stub bug). Empty kind means "generic
-// binary"; only HTML rejection + a size floor are enforced for it.
-type ArtifactKind string
+// The downloadable-weight vocabulary (ArtifactKind + Asset) lives in the shared
+// internal/fetch spine so the model and adapter catalogs describe their artifacts
+// with one type. The model catalog re-exports them under their historical names
+// so the seed schema (registry.seed.json) and every consumer are unchanged.
+type (
+	// ArtifactKind classifies a downloadable weight artifact so the installer can
+	// validate the bytes it fetched are actually that kind of file. See fetch.
+	ArtifactKind = fetch.ArtifactKind
+	// Asset is one downloadable artifact a model needs on disk. See fetch.Asset.
+	Asset = fetch.Asset
+)
 
 const (
 	// ArtifactGeneric applies the page/size guards but no format-specific magic.
-	ArtifactGeneric ArtifactKind = ""
+	ArtifactGeneric = fetch.ArtifactGeneric
 	// ArtifactONNX is an ONNX model (protobuf; starts with the ir_version tag).
-	ArtifactONNX ArtifactKind = "onnx"
+	ArtifactONNX = fetch.ArtifactONNX
 	// ArtifactGGUF is a llama.cpp/stable-diffusion.cpp GGUF weight.
-	ArtifactGGUF ArtifactKind = "gguf"
+	ArtifactGGUF = fetch.ArtifactGGUF
 	// ArtifactSafetensors is a safetensors weight file.
-	ArtifactSafetensors ArtifactKind = "safetensors"
+	ArtifactSafetensors = fetch.ArtifactSafetensors
 	// ArtifactNCNNParam / ArtifactNCNNBin are the ncnn model pair (realesrgan).
-	ArtifactNCNNParam ArtifactKind = "ncnn-param"
-	ArtifactNCNNBin   ArtifactKind = "ncnn-bin"
+	ArtifactNCNNParam = fetch.ArtifactNCNNParam
+	ArtifactNCNNBin   = fetch.ArtifactNCNNBin
 	// ArtifactBinary is a standalone executable artifact.
-	ArtifactBinary ArtifactKind = "binary"
+	ArtifactBinary = fetch.ArtifactBinary
 )
-
-// Asset is one downloadable artifact a model needs on disk. A model may require
-// several (e.g. an ncnn .param + .bin pair). URLs MUST be direct, resolvable
-// artifact links — never a landing/release/repo PAGE. A page URL downloads as
-// HTML and was previously recorded as a "model" (the install-stub bug, see
-// docs/internal/PROBLEMS.md 2026-06-18); the installer now validates every
-// downloaded asset against Kind + size before an install is recorded.
-type Asset struct {
-	// URL is the direct, resolvable artifact link (HF resolve/main/<file>, a
-	// GitHub release-asset download URL, etc.).
-	URL string `json:"url"`
-	// Filename is the on-disk name the backend expects under the model dir.
-	Filename string `json:"filename"`
-	// Kind drives artifact validation. Empty = generic binary.
-	Kind ArtifactKind `json:"kind"`
-	// SHA256, when set, is the upstream-published checksum and is enforced. When
-	// empty the freshly computed hash is pinned AFTER artifact validation passes.
-	SHA256 string `json:"sha256,omitempty"`
-	// MinBytes, when >0, is a lower bound used to catch truncated/page downloads.
-	MinBytes int64 `json:"min_bytes,omitempty"`
-}
 
 // Runtime declares HOW a weight-backed model executes, so a single generic
 // sidecar runner can dispatch the correct pipeline class + call kwargs from data
@@ -181,21 +182,9 @@ type Runtime struct {
 }
 
 // RepoSource is a HuggingFace-style multi-file model repository — the install
-// shape diffusers models use (a directory of model_index.json + sharded
-// safetensors across transformer/text_encoder/vae/… subdirs), which cannot be
-// expressed as a handful of discrete Asset URLs without drifting every upstream
-// revision. The installer fetches the whole snapshot, pinned to an immutable
-// Revision, and integrity is a tree-manifest hash over the fetched files.
-type RepoSource struct {
-	// RepoID is the HuggingFace repo (e.g. "Qwen/Qwen-Image-Edit-2509").
-	RepoID string `json:"repo_id"`
-	// Revision pins an IMMUTABLE commit SHA (never a moving branch/tag) so the
-	// fetched tree — and thus the tree-manifest checksum — is reproducible.
-	Revision string `json:"revision"`
-	// AllowPatterns optionally restricts which files are fetched (e.g. skip the
-	// original/ fp32 mirror). Empty fetches the whole repo.
-	AllowPatterns []string `json:"allow_patterns,omitempty"`
-}
+// shape diffusers models use. It is the shared fetch.RepoSpec, re-exported under
+// the catalog's historical name so the seed schema is unchanged.
+type RepoSource = fetch.RepoSpec
 
 // Source records where the model artifact comes from.
 type Source struct {

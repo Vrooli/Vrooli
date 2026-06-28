@@ -310,7 +310,9 @@ function RowAction({
           onClick={onSelect}
           className="px-2 py-1 text-xs"
         >
-          {t(strings.models.picker.action.select)}
+          {/* A derived (via-workflow) candidate reads "Use anyway" — same action,
+              but an explicit opt-in past the default native model. */}
+          {t(view.support ? strings.models.picker.action.useAnyway : strings.models.picker.action.select)}
         </Button>
       );
     case "install-model":

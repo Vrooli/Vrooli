@@ -361,6 +361,7 @@
       "caveatBanner": "派生技術で {{op}} を実行 — {{caveat}}",
       "action": {
         "select": "使用",
+        "useAnyway": "それでも使用",
         "selected": "使用中",
         "installModel": "ダウンロード",
         "installBackend": "エンジンをインストール",
@@ -372,6 +373,27 @@
         "all": "このタスク向けの全 {{count}} モデルを表示 — 実行できないものも理由がわかるように表示しています。",
         "none": "このタスク向けの他のモデルはありません。"
       }
+    },
+    "import": {
+      "title": "モデルをインポート",
+      "sourceLabel": "ソース（Hugging Face リポジトリ ID、URL、またはローカルパス）",
+      "inspect": "検査",
+      "inspecting": "検査中…",
+      "layoutLabel": "レイアウト",
+      "architectureInferred": "アーキテクチャ",
+      "licenseLabel": "ライセンス",
+      "nsfwLabel": "NSFW",
+      "sizeLabel": "推定サイズ",
+      "offeredOpsLabel": "提供される操作",
+      "idLabel": "エントリ ID",
+      "nameLabel": "表示名",
+      "architectureLabel": "アーキテクチャを確認",
+      "selectArchitecture": "アーキテクチャを選択…",
+      "attestLabel": "商用権利を保有しています（公開/BYOK 提供を許可）",
+      "import": "インポートとインストール",
+      "importing": "インポート中…",
+      "success": "インポートを開始しました — ダウンロード完了後にモデルが表示されます。",
+      "needsArchitecture": "アーキテクチャが検出されません — 選択してインポートしてください。"
     }
   },
   "workspace": {

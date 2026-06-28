@@ -42,6 +42,7 @@ type Submitter interface {
 // behaviour: unrestricted).
 type Gate interface {
 	Evaluate(op string, consentAffirmed bool) safety.Decision
+	EvaluateWeight(weight safety.Weight, op string, consentAffirmed bool) safety.Decision
 	AllowRate() bool
 	RecordConsent(ctx context.Context, op string, weight safety.Weight) error
 }
@@ -118,10 +119,28 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		Operation:     op,
 		ModelOverride: params.GetModelOverride(),
 		AllowBYOK:     params.GetAllowByok(),
+		Adapters:      adapterRequests(params),
 	})
 	if err != nil {
 		h.writePlanError(w, err)
 		return
+	}
+
+	// Conditioning weight elevation (decision C4): an adapter stack can raise the
+	// effective consent weight above the bare op's (an IP-Adapter / identity LoRA
+	// makes a none-weight op identity-altering). When the resolver elevated it,
+	// re-check consent under the elevated weight on the public tier.
+	if h.Gate != nil && len(plan.Adapters) > 0 && plan.Weight != "" {
+		decision := h.Gate.EvaluateWeight(safety.Weight(plan.Weight), op, params.GetConsentAffirmed())
+		if !decision.Allowed {
+			httpx.WriteError(w, http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
+			return
+		}
+		if decision.RecordConsent {
+			if err := h.Gate.RecordConsent(r.Context(), op, decision.Weight); err != nil {
+				h.logf("ai.submit consent log (adapter-elevated): %v", err)
+			}
+		}
 	}
 
 	payload := ai.Payload{
@@ -136,6 +155,7 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		AutoScanNSFW: params.GetAutoScanNsfw() || forceScan,
 		Variations:   int(params.GetVariations()),
 		Params:       paramsMap(params),
+		Adapters:     plan.Adapters,
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

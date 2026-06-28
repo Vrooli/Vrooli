@@ -3,6 +3,7 @@ import { strings } from "../consts/strings";
 import { AddCustomModelForm } from "../features/models/AddCustomModelForm";
 import { BackendsCard } from "../features/models/BackendsCard";
 import { BlocklistCard } from "../features/models/BlocklistCard";
+import { ImportModelWizard } from "../features/models/ImportModelWizard";
 import { ModelsCard } from "../features/models/ModelsCard";
 import { useTranslation } from "../i18n";
 
@@ -20,6 +21,7 @@ export function ModelsPage() {
       </h2>
       <ModelsCard />
       <BackendsCard />
+      <ImportModelWizard />
       <AddCustomModelForm />
       <BlocklistCard />
     </section>

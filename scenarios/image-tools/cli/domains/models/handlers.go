@@ -337,6 +337,93 @@ func (h *handlers) addCustom(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) inspect(ctx cliapp.RunContext) error {
+	source := strings.TrimSpace(ctx.Positional("source"))
+	resp, err := h.client.InspectModelSource(context.Background(), connect.NewRequest(&modelsv1.InspectModelSourceRequest{Source: source}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("inspect %q", source), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no inspect response")
+	}
+	m := resp.Msg
+	arch := m.GetArchitecture()
+	lines := []string{
+		fmt.Sprintf("source:        %s", m.GetSource()),
+		fmt.Sprintf("layout:        %s", layoutLabel(m.GetLayout())),
+		fmt.Sprintf("architecture:  %s (%s confidence — %s)", arch.GetArchitecture(), arch.GetConfidence(), arch.GetEvidence()),
+		fmt.Sprintf("license:       %s", m.GetLicense()),
+		fmt.Sprintf("nsfw:          %t", m.GetNsfw()),
+		fmt.Sprintf("size:          ~%d MB", m.GetSizeBytes()>>20),
+		fmt.Sprintf("offers ops:    %s", strings.Join(m.GetOfferedOperations(), ", ")),
+	}
+	if m.GetProposed() != nil {
+		lines = append(lines, fmt.Sprintf("proposed id:   %s", m.GetProposed().GetId()))
+	}
+	next := fmt.Sprintf("`models import %s --architecture %s` — register + install", source, arch.GetArchitecture())
+	if arch.GetConfidence() == "none" {
+		next = fmt.Sprintf("`models import %s --architecture <sd15|sdxl|flux>` — confirm the architecture, then install", source)
+	}
+	lines = append(lines, "", "next: "+next)
+	return cliapp.RenderProtoList(ctx, m, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Inspected %s.", source)},
+		ResultsHeading: "Import preview",
+		Results:        lines,
+	})
+}
+
+func (h *handlers) importModel(ctx cliapp.RunContext) error {
+	source := strings.TrimSpace(ctx.Positional("source"))
+	resp, err := h.client.ImportModel(context.Background(), connect.NewRequest(&modelsv1.ImportModelRequest{
+		Source:                 source,
+		Id:                     strings.TrimSpace(ctx.Flag("id")),
+		Name:                   strings.TrimSpace(ctx.Flag("name")),
+		Architecture:           strings.TrimSpace(ctx.Flag("architecture")),
+		Operations:             ctx.FlagValues("operation"),
+		AttestCommercialRights: ctx.BoolFlag("attest-commercial-rights"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("import %q", source), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Model == nil {
+		return fmt.Errorf("server returned no model")
+	}
+	id := resp.Msg.Model.GetId()
+	if resp.Msg.AlreadyInstalled {
+		return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result:      []string{fmt.Sprintf("Imported %s; weights already present.", id)},
+			Changes:     []string{formatModelDetail(resp.Msg.Model)},
+			NextCommand: []string{fmt.Sprintf("`models get %s` — confirm the entry", id)},
+		})
+	}
+	result := fmt.Sprintf("Registered %s and submitted install job %s (~%ds).", id, resp.Msg.JobId, resp.Msg.EtaSeconds)
+	next := []string{
+		fmt.Sprintf("`jobs wait %s` — block once until the download finishes", resp.Msg.JobId),
+		fmt.Sprintf("`models get %s` — confirm the registered entry + install state", id),
+	}
+	if resp.Msg.JobId == "" {
+		result = fmt.Sprintf("Registered %s (no install job submitted).", id)
+		next = []string{fmt.Sprintf("`models install %s` — install the weights", id)}
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{result},
+		Changes:     []string{formatModelDetail(resp.Msg.Model)},
+		NextCommand: next,
+	})
+}
+
+// layoutLabel renders a ModelLayout enum as a short human label.
+func layoutLabel(l modelsv1.ModelLayout) string {
+	switch l {
+	case modelsv1.ModelLayout_MODEL_LAYOUT_SINGLE_FILE:
+		return "single-file checkpoint"
+	case modelsv1.ModelLayout_MODEL_LAYOUT_DIFFUSERS_REPO:
+		return "diffusers repo"
+	default:
+		return "unknown"
+	}
+}
+
 func (h *handlers) search(ctx cliapp.RunContext) error {
 	query := strings.ToLower(strings.TrimSpace(ctx.Positional("query")))
 	resp, err := h.client.ListModels(context.Background(), connect.NewRequest(&modelsv1.ListModelsRequest{}))

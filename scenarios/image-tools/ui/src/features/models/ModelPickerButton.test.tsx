@@ -17,8 +17,10 @@ import { setLocale } from "../../i18n";
 import { makeModelsMocks } from "./mocks/models";
 import {
   makeCandidateModel,
+  makeExplainResolutionResponse,
   makeListOperationModelsResponse,
   makeModel,
+  makeResolution,
   makeSelectModelResponse,
 } from "./mocks/factories";
 
@@ -102,6 +104,35 @@ describe("ModelPickerButton", () => {
     await waitFor(() =>
       expect(screen.getByTestId(selectors.models.pickerRow({ id: "m1" }))).toBeInTheDocument(),
     );
+  });
+
+  it("surfaces a derived-op caveat under the trigger when the effective model serves the op via a workflow", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.explainResolution).mockResolvedValue(
+      makeExplainResolutionResponse({
+        resolution: makeResolution({
+          operation: "inpaint",
+          support: "derived",
+          technique: "diffusers-inpaint",
+          caveat: "a dedicated inpainting model blends masked edges more cleanly",
+        }),
+      }),
+    );
+    renderButton({ operation: "inpaint", operationLabel: "Inpaint" });
+    const caveat = await screen.findByTestId(selectors.models.pickerTriggerCaveat);
+    expect(caveat.textContent).toContain("blends masked edges more cleanly");
+  });
+
+  it("shows no derived caveat when the effective model serves the op natively", async () => {
+    const { modelsClient } = await import("../../api/models");
+    // Default mock resolution is native; the caveat node must be absent.
+    vi.mocked(modelsClient.explainResolution).mockResolvedValue(
+      makeExplainResolutionResponse({ resolution: makeResolution({ support: "native" }) }),
+    );
+    renderButton();
+    await screen.findByTestId(selectors.models.pickerTrigger);
+    await waitFor(() => expect(modelsClient.explainResolution).toHaveBeenCalled());
+    expect(screen.queryByTestId(selectors.models.pickerTriggerCaveat)).toBeNull();
   });
 
   it("chooses a model from the menu, calling onChange", async () => {

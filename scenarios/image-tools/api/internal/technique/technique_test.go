@@ -1,10 +1,12 @@
 package technique
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
 
+	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
@@ -110,6 +112,32 @@ func TestArgBuilders(t *testing.T) {
 		{
 			name: "diffusers edit_instruct needs a runtime family",
 			err:  argErr(DiffusersEditInstruct, req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "x"})),
+		},
+		{
+			name: "diffusers txt2img",
+			args: mustArgs(t, DiffusersText2Image, req("text_to_image", nil, map[string]string{
+				"prompt": "a castle", "width": "512", "height": "768", "steps": "28", "cfg_scale": "6.0", "negative_prompt": "blurry", "seed": "42",
+			})),
+			want: []string{"-m", "image_tools_sidecar.text_to_image", "--model", "/models/m1", "--architecture", "sd15", "--prompt", "a castle", "--out", "/out.png", "--width", "512", "--height", "768", "--steps", "28", "--guidance", "6.0", "--negative-prompt", "blurry", "--seed", "42"},
+		},
+		{
+			name: "diffusers txt2img needs a model architecture",
+			err: func() bool {
+				r := req("text_to_image", nil, map[string]string{"prompt": "x"})
+				r.Model.Architecture = ""
+				return argErr(DiffusersText2Image, r)
+			}(),
+		},
+		{
+			name: "diffusers img2img threads strength",
+			args: mustArgs(t, DiffusersImg2Img, req("image_to_image", []string{"/in.png"}, map[string]string{
+				"prompt": "make it autumn", "strength": "0.5", "seed": "7",
+			})),
+			want: []string{"-m", "image_tools_sidecar.image_to_image", "--model", "/models/m1", "--architecture", "sd15", "--image", "/in.png", "--prompt", "make it autumn", "--out", "/out.png", "--strength", "0.5", "--seed", "7"},
+		},
+		{
+			name: "diffusers img2img needs input",
+			err:  argErr(DiffusersImg2Img, req("image_to_image", nil, map[string]string{"prompt": "x"})),
 		},
 		{
 			name: "diffusers inpaint",
@@ -267,4 +295,92 @@ func mustArgs(t *testing.T, b ArgBuilder, req backends.Request) []string {
 func argErr(b ArgBuilder, req backends.Request) bool {
 	_, err := b(req, req.ModelDir)
 	return err != nil
+}
+
+// TestLoRAArgs covers the Phase 4 LoRA flag assembly: repeatable --lora
+// <path>:<scale> from the request's conditioning stack, skipping non-LoRA
+// adapters, and failing closed when a LoRA declares no weight file.
+func TestLoRAArgs(t *testing.T) {
+	dir := t.TempDir()
+	weight := filepath.Join(dir, "lcm.safetensors")
+	if err := os.WriteFile(weight, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write weight: %v", err)
+	}
+
+	req := backends.Request{
+		Operation: "text_to_image",
+		Adapters: []adapters.ResolvedAdapter{
+			{ID: "lcm", Kind: adapters.KindLoRA, Scale: 0.8, Dir: dir},
+			{ID: "cn", Kind: adapters.KindControlNet, Scale: 1.0, Dir: dir}, // skipped (not lora)
+		},
+	}
+	args, err := LoRAArgs(req)
+	if err != nil {
+		t.Fatalf("LoRAArgs: %v", err)
+	}
+	want := []string{"--lora", weight + ":0.8"}
+	if !slices.Equal(args, want) {
+		t.Fatalf("LoRAArgs = %v, want %v", args, want)
+	}
+
+	// Fail closed when a LoRA adapter has no weight file in its dir.
+	empty := t.TempDir()
+	_, err = LoRAArgs(backends.Request{Adapters: []adapters.ResolvedAdapter{{ID: "x", Kind: adapters.KindLoRA, Dir: empty}}})
+	if err == nil {
+		t.Fatal("expected error for a LoRA with no weight file")
+	}
+}
+
+// TestStableDiffusionCppRejectsAdapters asserts sd.cpp fails closed on a
+// conditioned request (adapters run on the diffusers sidecar).
+func TestStableDiffusionCppRejectsAdapters(t *testing.T) {
+	req := backends.Request{
+		Operation: "text_to_image",
+		Params:    map[string]string{"prompt": "x"},
+		Adapters:  []adapters.ResolvedAdapter{{ID: "lcm", Kind: adapters.KindLoRA}},
+	}
+	if _, err := StableDiffusionCpp(req, "/models/m"); err == nil {
+		t.Fatal("expected sd.cpp to reject conditioning adapters")
+	}
+}
+
+// TestDiffusersBuildersEmitLoRA asserts the diffusers generate/img2img/inpaint
+// builders thread the --lora flag through.
+func TestDiffusersBuildersEmitLoRA(t *testing.T) {
+	dir := t.TempDir()
+	weight := filepath.Join(dir, "l.safetensors")
+	if err := os.WriteFile(weight, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write weight: %v", err)
+	}
+	mk := func(op string, in []string) backends.Request {
+		return backends.Request{
+			Operation: op,
+			Model:     models.Model{ID: "m", Architecture: "sd15"},
+			InputKeys: in,
+			Params:    map[string]string{"prompt": "p"},
+			Output:    storage.OutputTarget{LocalPath: "/out.png"},
+			Adapters:  []adapters.ResolvedAdapter{{ID: "l", Kind: adapters.KindLoRA, Scale: 1, Dir: dir}},
+		}
+	}
+	t2i, err := DiffusersText2Image(mk("text_to_image", nil), "/models/m")
+	if err != nil {
+		t.Fatalf("t2i: %v", err)
+	}
+	if !slices.Contains(t2i, "--lora") {
+		t.Fatalf("text2image missing --lora: %v", t2i)
+	}
+	i2i, err := DiffusersImg2Img(mk("image_to_image", []string{"/in.png"}), "/models/m")
+	if err != nil {
+		t.Fatalf("i2i: %v", err)
+	}
+	if !slices.Contains(i2i, "--lora") {
+		t.Fatalf("img2img missing --lora: %v", i2i)
+	}
+	inp, err := DiffusersInpaint(mk("inpaint", []string{"/in.png", "/mask.png"}), "/models/m")
+	if err != nil {
+		t.Fatalf("inpaint: %v", err)
+	}
+	if !slices.Contains(inp, "--lora") {
+		t.Fatalf("inpaint missing --lora: %v", inp)
+	}
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	"image-tools/internal/models"
@@ -53,15 +54,21 @@ type Resolution struct {
 	Caveat string
 	// Weight is the safety consent weight of the OPERATION (none|low|high). It is
 	// operation-keyed and invariant to native-vs-derived: a derived inpaint/edit
-	// stays HIGH-weight exactly like a native one (decision 113).
+	// stays HIGH-weight exactly like a native one (decision 113). When the request
+	// carries conditioning adapters it is ELEVATED to max(op, adapters...) — an
+	// IP-Adapter / identity-class LoRA can push a none-weight op to high (C4).
 	Weight string
+	// Adapters is the validated, execution-ready conditioning stack (empty when the
+	// request carried none). Sorted into canonical application order (LoRA →
+	// ControlNet → IP-Adapter).
+	Adapters []adapters.ResolvedAdapter
 	// Tier is the backend tier the op would run on (local-gpu|local-cpu|byok).
 	Tier string
 	// GPUViable is true when the chosen model would run on a detected GPU with
 	// known, sufficient VRAM.
 	GPUViable bool
 	// Warnings carries the selection + backend cautions (CPU-slow, VRAM
-	// shortfall, BYOK cost, derived-op caveat, …).
+	// shortfall, BYOK cost, derived-op caveat, adapter auto-preprocess, …).
 	Warnings []string
 }
 
@@ -75,6 +82,18 @@ type Request struct {
 	Host          capabilities.Host
 	AllowBYOK     bool
 	IsEnabled     models.EnabledFunc
+	// Adapters is the requested conditioning stack (LoRA / ControlNet / IP-Adapter).
+	// Empty for an unconditioned op.
+	Adapters []adapters.AdapterRequest
+	// AdapterByID is the merged (seed + custom) adapter catalog lookup the
+	// conditioning resolver validates each request against. nil when the caller
+	// supplies no adapters; a non-empty Adapters with a nil lookup is rejected.
+	AdapterByID func(id string) (adapters.Adapter, bool)
+	// AdapterEnabled / AdapterInstalled overlay an adapter's runtime state (nil
+	// AdapterEnabled ⇒ seed default; nil AdapterInstalled ⇒ treated as not
+	// installed, so a conditioned request fails honestly until installed).
+	AdapterEnabled   func(id string) bool
+	AdapterInstalled func(id string) bool
 }
 
 // Resolver composes model selection, technique derivation, backend-tier
@@ -122,6 +141,26 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 		if dt.Caveat != "" {
 			res.Warnings = append(res.Warnings, dt.Caveat)
 		}
+	}
+
+	// Conditioning: validate the requested adapter stack against the chosen model's
+	// architecture (fail closed on incompatible/disabled/not-installed/not-Ready),
+	// attach it to the resolution, and elevate the consent weight to
+	// max(op, adapters...) — decision C4. Producing this executes nothing.
+	if len(req.Adapters) > 0 {
+		resolved, warns, cerr := adapters.ResolveConditioning(
+			sel.Model.Architecture,
+			req.Adapters,
+			req.AdapterByID,
+			req.AdapterEnabled,
+			req.AdapterInstalled,
+		)
+		if cerr != nil {
+			return Resolution{}, cerr
+		}
+		res.Adapters = resolved
+		res.Warnings = append(res.Warnings, warns...)
+		res.Weight = string(adapters.EffectiveWeight(safety.OpWeight(req.Operation), resolved))
 	}
 
 	if r.backends != nil {

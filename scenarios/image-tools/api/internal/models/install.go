@@ -2,21 +2,18 @@ package models
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
+
+	"image-tools/internal/fetch"
 )
 
 // =============================================================================
@@ -94,30 +91,20 @@ func EstimateInstallSecondsAt(sizeMBApprox, mbPerSecond int) int {
 	return 1
 }
 
-// Downloader fetches a remote artifact to a local path. It is a seam so the
-// engine is testable without network access; the production implementation is
-// HTTPDownloader. emit reports byte progress (total may be -1 if unknown).
-type Downloader interface {
-	Download(ctx context.Context, rawURL, destPath string, emit func(done, total int64)) error
-}
-
-// RepoFetcher fetches a whole multi-file model repository (a HuggingFace
-// snapshot) at a pinned revision into destDir. It is a seam (like Downloader) so
-// the engine is testable without network/python; the production implementation
-// (HFSnapshotFetcher) shells huggingface_hub.snapshot_download. emit reports
-// byte progress (total may be -1 if unknown).
-type RepoFetcher interface {
-	Snapshot(ctx context.Context, repo RepoSource, destDir string, emit func(done, total int64)) error
-}
-
-// DiskSpaceFunc reports the free bytes available at path's filesystem. The
-// production implementation (diskAvail) wraps statfs; tests inject a fake.
-type DiskSpaceFunc func(path string) (availBytes int64, err error)
-
-// DefaultDiskAvail is the production DiskSpaceFunc (statfs-backed on unix, a
-// large-value fallback elsewhere). Exported so main.go can wire it without a
-// build-tagged reference.
-func DefaultDiskAvail(path string) (int64, error) { return diskAvail(path) }
+// The install I/O seams the Installer depends on (Downloader, RepoFetcher,
+// DiskSpaceFunc) live in the shared internal/fetch spine so the model and adapter
+// catalogs share one audited install path. They are re-exported here under the
+// Installer's field types; the wiring (main.go) supplies the concrete fetch
+// implementations (fetch.HTTPDownloader / fetch.HFSnapshotFetcher /
+// fetch.DefaultDiskAvail).
+type (
+	// Downloader fetches a remote artifact to a local path. See fetch.Downloader.
+	Downloader = fetch.Downloader
+	// RepoFetcher fetches a whole multi-file repo snapshot. See fetch.RepoFetcher.
+	RepoFetcher = fetch.RepoFetcher
+	// DiskSpaceFunc reports free bytes at a path's filesystem. See fetch.
+	DiskSpaceFunc = fetch.DiskSpaceFunc
+)
 
 // InstallRecord is the persisted install state of one model.
 type InstallRecord struct {
@@ -530,11 +517,11 @@ func (in *Installer) downloadAssets(ctx context.Context, id, dir string, assets 
 		}
 
 		emit(base+span, "validating "+a.Filename)
-		if vErr := validateArtifact(dest, a); vErr != nil {
+		if vErr := fetch.ValidateArtifact(dest, a); vErr != nil {
 			return "", 0, vErr
 		}
 
-		sum, size, hErr := hashFile(dest)
+		sum, size, hErr := fetch.HashFile(dest)
 		if hErr != nil {
 			return "", 0, fmt.Errorf("models: hash artifact %q: %w", a.Filename, hErr)
 		}
@@ -589,7 +576,7 @@ func (in *Installer) installRepo(ctx context.Context, id string, m Model, emit f
 		return InstallRecord{}, fmt.Errorf("models: create model dir: %w", err)
 	}
 
-	emit(5, "fetching "+m.Source.Repo.RepoID+"@"+shortRev(m.Source.Repo.Revision))
+	emit(5, "fetching "+m.Source.Repo.RepoID+"@"+fetch.ShortRev(m.Source.Repo.Revision))
 	if err := in.RepoFetch.Snapshot(ctx, m.Source.Repo, dir, func(done, total int64) {
 		if total > 0 {
 			emit(5+int(float64(done)/float64(total)*80), "fetching "+m.Source.Repo.RepoID)
@@ -600,7 +587,7 @@ func (in *Installer) installRepo(ctx context.Context, id string, m Model, emit f
 	}
 
 	emit(88, "verifying snapshot")
-	manifest, totalSize, err := treeManifestHash(dir)
+	manifest, totalSize, err := fetch.TreeManifestHash(dir)
 	if err != nil {
 		_ = os.RemoveAll(dir)
 		return InstallRecord{}, fmt.Errorf("models: hash repo snapshot %q: %w", id, err)
@@ -632,68 +619,6 @@ func (in *Installer) installRepo(ctx context.Context, id string, m Model, emit f
 	}
 	emit(100, "installed")
 	return rec, nil
-}
-
-// treeManifestHash computes a deterministic integrity hash over every regular
-// file under dir: sha256 of the sorted "relpath\x00filesha256\n" lines. It is the
-// multi-file analogue of a single artifact's sha256 — stable across re-fetches of
-// the same immutable revision, sensitive to any changed/added/removed file. The
-// HuggingFace cache bookkeeping dir (.cache) is excluded. Returns the hash and
-// the total bytes of the hashed files.
-func treeManifestHash(dir string) (string, int64, error) {
-	type entry struct {
-		rel string
-		sha string
-	}
-	var entries []entry
-	var total int64
-	walkErr := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if d.Name() == ".cache" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !d.Type().IsRegular() {
-			return nil
-		}
-		sum, size, hErr := hashFile(p)
-		if hErr != nil {
-			return hErr
-		}
-		rel, relErr := filepath.Rel(dir, p)
-		if relErr != nil {
-			return relErr
-		}
-		entries = append(entries, entry{rel: filepath.ToSlash(rel), sha: sum})
-		total += size
-		return nil
-	})
-	if walkErr != nil {
-		return "", 0, walkErr
-	}
-	if len(entries) == 0 {
-		return "", 0, fmt.Errorf("repo snapshot is empty")
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].rel < entries[j].rel })
-	h := sha256.New()
-	for _, e := range entries {
-		_, _ = io.WriteString(h, e.rel)
-		_, _ = h.Write([]byte{0})
-		_, _ = io.WriteString(h, e.sha)
-		_, _ = h.Write([]byte{'\n'})
-	}
-	return hex.EncodeToString(h.Sum(nil)), total, nil
-}
-
-func shortRev(rev string) string {
-	if len(rev) > 12 {
-		return rev[:12]
-	}
-	return rev
 }
 
 // Remove deletes a model's downloaded weights and clears its install record. A
@@ -765,20 +690,6 @@ func artifactName(rawURL string) string {
 	return "model.bin"
 }
 
-func hashFile(p string) (sum string, size int64, err error) {
-	f, err := os.Open(p) //nolint:gosec // path is engine-constructed under Root
-	if err != nil {
-		return "", 0, err
-	}
-	defer f.Close()
-	h := sha256.New()
-	n, err := io.Copy(h, f)
-	if err != nil {
-		return "", 0, err
-	}
-	return hex.EncodeToString(h.Sum(nil)), n, nil
-}
-
 func dirExists(p string) bool {
 	info, err := os.Stat(p)
 	return err == nil && info.IsDir()
@@ -795,58 +706,4 @@ func pathSize(p string) (int64, error) {
 		return 0, err
 	}
 	return info.Size(), nil
-}
-
-// HTTPDownloader is the production Downloader: a streaming HTTP GET.
-type HTTPDownloader struct {
-	Client *http.Client
-}
-
-// Download streams rawURL to destPath, reporting byte progress.
-func (d HTTPDownloader) Download(ctx context.Context, rawURL, destPath string, emit func(done, total int64)) error {
-	client := d.Client
-	if client == nil {
-		client = http.DefaultClient
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download %s: unexpected status %s", rawURL, resp.Status)
-	}
-
-	f, err := os.Create(destPath) //nolint:gosec // destPath is engine-constructed under Root
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	total := resp.ContentLength
-	src := &progressReader{r: resp.Body, total: total, emit: emit}
-	if _, err := io.Copy(f, src); err != nil {
-		return err
-	}
-	return nil
-}
-
-type progressReader struct {
-	r     io.Reader
-	done  int64
-	total int64
-	emit  func(done, total int64)
-}
-
-func (pr *progressReader) Read(p []byte) (int, error) {
-	n, err := pr.r.Read(p)
-	pr.done += int64(n)
-	if pr.emit != nil {
-		pr.emit(pr.done, pr.total)
-	}
-	return n, err
 }

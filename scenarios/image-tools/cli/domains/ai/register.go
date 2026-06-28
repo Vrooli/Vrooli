@@ -36,6 +36,9 @@ func commonFlags() []cliapp.Flag {
 		{Name: "byok", Bool: true, Description: "Allow a paid BYOK cloud provider when no local backend is available"},
 		{Name: "explain", Bool: true, Description: "Print which model/technique would run (native-vs-derived) and exit without submitting"},
 		{Name: "consent", Bool: true, Description: "Affirm you have the right to edit the people in this image (required for identity-altering ops on a public deployment)"},
+		{Name: "lora", Description: "Conditioning LoRA to apply: id[:scale] (repeatable)"},
+		{Name: "controlnet", Description: "Conditioning ControlNet: id[:scale[:conditioning_image_key]] (repeatable)"},
+		{Name: "ip-adapter", Description: "Conditioning IP-Adapter: id[:scale]:reference_image_key (repeatable)"},
 	}
 }
 

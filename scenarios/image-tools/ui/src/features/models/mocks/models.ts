@@ -23,6 +23,8 @@ import {
   makeAddCustomModelResponse,
   makeDoctorBackendsResponse,
   makeEnsureBackendResponse,
+  makeImportModelResponse,
+  makeInspectModelSourceResponse,
   makeInstallModelResponse,
   makeListBlocklistResponse,
   makeListDefaultsResponse,
@@ -32,6 +34,7 @@ import {
   makeListOperationsResponse,
   makeModel,
   makeRemoveModelResponse,
+  makeExplainResolutionResponse,
   makeSelectModelResponse,
   makeSetDefaultModelResponse,
   makeSetModelEnabledResponse,
@@ -45,12 +48,15 @@ export interface ModelsMocks {
     installModel: ReturnType<typeof vi.fn>;
     removeModel: ReturnType<typeof vi.fn>;
     addCustomModel: ReturnType<typeof vi.fn>;
+    inspectModelSource: ReturnType<typeof vi.fn>;
+    importModel: ReturnType<typeof vi.fn>;
     setDefaultModel: ReturnType<typeof vi.fn>;
     listDefaults: ReturnType<typeof vi.fn>;
     listBlocklist: ReturnType<typeof vi.fn>;
     doctorBackends: ReturnType<typeof vi.fn>;
     ensureBackend: ReturnType<typeof vi.fn>;
     selectModel: ReturnType<typeof vi.fn>;
+    explainResolution: ReturnType<typeof vi.fn>;
     listOperationModels: ReturnType<typeof vi.fn>;
     getHostSummary: ReturnType<typeof vi.fn>;
   };
@@ -74,6 +80,8 @@ export const makeModelsMocks = (): ModelsMocks => ({
     installModel: vi.fn().mockResolvedValue(makeInstallModelResponse()),
     removeModel: vi.fn().mockResolvedValue(makeRemoveModelResponse()),
     addCustomModel: vi.fn().mockResolvedValue(makeAddCustomModelResponse()),
+    inspectModelSource: vi.fn().mockResolvedValue(makeInspectModelSourceResponse()),
+    importModel: vi.fn().mockResolvedValue(makeImportModelResponse()),
     setDefaultModel: vi
       .fn()
       .mockImplementation((input: { operation: string; modelId: string }) =>
@@ -88,6 +96,7 @@ export const makeModelsMocks = (): ModelsMocks => ({
         Promise.resolve(makeEnsureBackendResponse({ tool: input.tool })),
       ),
     selectModel: vi.fn().mockResolvedValue(makeSelectModelResponse()),
+    explainResolution: vi.fn().mockResolvedValue(makeExplainResolutionResponse()),
     listOperationModels: vi.fn().mockResolvedValue(makeListOperationModelsResponse()),
     getHostSummary: vi.fn().mockResolvedValue({ host: makeHostSummary() }),
   },

@@ -47,6 +47,41 @@ const (
 	WeightHigh Weight = "high"
 )
 
+// Valid reports whether w is a known consent-weight enum member. Exported so the
+// adapter catalog (internal/adapters), which carries a per-adapter consent weight
+// that elevates the effective op weight, can validate its seed against this SSOT.
+func (w Weight) Valid() bool {
+	switch w {
+	case WeightNone, WeightLow, WeightHigh:
+		return true
+	default:
+		return false
+	}
+}
+
+// MaxWeight returns the most identity-sensitive weight among ws (WeightNone for
+// an empty set). This is the effective-weight elevation rule (decision C4):
+// the consent weight of a conditioned op is max(op weight, adapter weights...).
+func MaxWeight(ws ...Weight) Weight {
+	rank := func(w Weight) int {
+		switch w {
+		case WeightHigh:
+			return 2
+		case WeightLow:
+			return 1
+		default:
+			return 0
+		}
+	}
+	out := WeightNone
+	for _, w := range ws {
+		if rank(w) > rank(out) {
+			out = w
+		}
+	}
+	return out
+}
+
 // TierEnv is the deployment-time environment variable that selects the tier.
 const TierEnv = "IMAGE_TOOLS_DEPLOYMENT_TIER"
 
@@ -135,6 +170,37 @@ func (p Policy) Summary() string {
 	return "Local/personal deployment: unrestricted. Hard non-goals (no recognition/face-swap/deepfake) always enforced."
 }
 
+// ImportServeFacts are the catalog facts the import serve gate keys on (a
+// model's CapabilityLabels). Passed as primitives so safety stays model-free.
+type ImportServeFacts struct {
+	// Provenance is the entry's provenance label ("" for seed entries,
+	// "user-imported" for guided-import entries — mirrors
+	// models.ProvenanceUserImported).
+	Provenance string
+	// CommercialUse is the entry's commercial-use posture ("yes" once the operator
+	// attested commercial rights at import time — mirrors models.CommercialUseYes).
+	CommercialUse string
+}
+
+// AllowImportServe reports whether a model may be SERVED on the given tier given
+// its provenance + commercial posture (decision D4). A user-imported entry whose
+// commercial rights are not attested is refused on the public tier with an
+// actionable reason; local use is always allowed, and seed entries (empty
+// provenance) are unaffected. This is the deployment-tier half of the import gate
+// — the import flow already defaults entries to local-only until attested.
+func AllowImportServe(t Tier, f ImportServeFacts) (bool, string) {
+	if t != TierPublic {
+		return true, ""
+	}
+	if f.Provenance != "user-imported" {
+		return true, ""
+	}
+	if strings.EqualFold(strings.TrimSpace(f.CommercialUse), "yes") {
+		return true, ""
+	}
+	return false, "user-imported model with unverified commercial rights cannot be served on a public/BYOK deployment; re-import with --attest-commercial-rights to confirm you hold the rights"
+}
+
 // Decision is the outcome of evaluating a submit against the policy.
 type Decision struct {
 	// Allowed is false when the gate blocks the submit.
@@ -157,7 +223,15 @@ type Decision struct {
 // allowed (no consent, no forced scan). On the public tier a high-weight op
 // requires consentAffirmed; the NSFW scan is always forced on.
 func (p Policy) Evaluate(op string, consentAffirmed bool) Decision {
-	w := OpWeight(op)
+	return p.EvaluateWeight(OpWeight(op), op, consentAffirmed)
+}
+
+// EvaluateWeight is Evaluate with an explicitly supplied consent weight instead
+// of the op's own — the seam the submit edge uses to enforce the conditioning
+// weight ELEVATION (decision C4): a request whose adapter stack raises the
+// effective weight to high (an IP-Adapter / identity LoRA on a none-weight op)
+// requires consent on the public tier even though the bare op would not.
+func (p Policy) EvaluateWeight(w Weight, op string, consentAffirmed bool) Decision {
 	d := Decision{Allowed: true, Weight: w, ForceNSFWScan: p.ForceNSFWScan}
 	if p.Tier != TierPublic {
 		return d

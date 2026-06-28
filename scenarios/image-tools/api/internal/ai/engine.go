@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
@@ -58,6 +59,18 @@ type Deps struct {
 	// ModelsRoot is the absolute directory model weights live under (per model:
 	// <ModelsRoot>/models/<id>). Threaded to providers as Request.ModelDir.
 	ModelsRoot string
+	// AdapterByID resolves a conditioning adapter by id from the MERGED (seed +
+	// custom) catalog. nil disables conditioning (a request that names an adapter
+	// is then rejected). Required for adapter support.
+	AdapterByID func(id string) (adapters.Adapter, bool)
+	// AdapterEnabled resolves the adapter enabled-state overlay. nil ⇒ seed defaults.
+	AdapterEnabled func(ctx context.Context) (func(id string) bool, error)
+	// AdapterInstalled reports whether an adapter's weights are on disk. nil ⇒
+	// treated as not installed (a conditioned request fails honestly until install).
+	AdapterInstalled func(id string) bool
+	// AdaptersRoot is the absolute directory adapter weights live under (per
+	// adapter: <AdaptersRoot>/adapters/<id>). Filled into each ResolvedAdapter.Dir.
+	AdaptersRoot string
 	// AutoScan classifies generated output when a job requests it. Optional; nil
 	// disables the hook.
 	AutoScan NSFWScanner
@@ -109,6 +122,9 @@ type Payload struct {
 	AutoScanNSFW bool              `json:"auto_scan_nsfw,omitempty"`
 	Variations   int               `json:"variations,omitempty"`
 	Params       map[string]string `json:"params,omitempty"`
+	// Adapters is the validated conditioning stack pinned at submit time (typed,
+	// not in Params — decision C2). Empty for an unconditioned op.
+	Adapters []adapters.ResolvedAdapter `json:"adapters,omitempty"`
 }
 
 // Plan is the selection verdict returned to the submit edge so it can surface
@@ -120,6 +136,12 @@ type Plan struct {
 	Warnings         []string
 	EstimatedSeconds int
 	GPUViable        bool
+	// Weight is the resolved consent weight (none|low|high), ELEVATED to
+	// max(op, adapters...) when the request carries a conditioning stack (C4).
+	Weight string
+	// Adapters is the validated, execution-ready conditioning stack to pin into the
+	// job payload (empty for an unconditioned op).
+	Adapters []adapters.ResolvedAdapter
 }
 
 // PlanRequest drives pre-submit selection.
@@ -127,6 +149,9 @@ type PlanRequest struct {
 	Operation     string
 	ModelOverride string
 	AllowBYOK     bool
+	// Adapters is the requested conditioning stack (resolved + validated here so an
+	// incompatible/not-Ready/uninstalled adapter is rejected before any job).
+	Adapters []adapters.AdapterRequest
 }
 
 // ErrModelNotInstalled is returned by Plan when the selected model's weights are
@@ -161,18 +186,33 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	// (it does model selection + native/derived technique derivation + backend-tier
 	// selection + the consent weight). The engine adds only the install gate and
 	// the ETA, which are submit-edge concerns the read-only explain surface omits.
+	adapterEnabled, err := e.adapterEnabledFunc(ctx)
+	if err != nil {
+		return Plan{}, err
+	}
 	res, err := resolver.New(e.deps.Registry, e.deps.Backends).Resolve(ctx, resolver.Request{
-		Operation:     req.Operation,
-		ModelOverride: override,
-		Host:          host,
-		AllowBYOK:     req.AllowBYOK,
-		IsEnabled:     enabled,
+		Operation:        req.Operation,
+		ModelOverride:    override,
+		Host:             host,
+		AllowBYOK:        req.AllowBYOK,
+		IsEnabled:        enabled,
+		Adapters:         req.Adapters,
+		AdapterByID:      e.deps.AdapterByID,
+		AdapterEnabled:   adapterEnabled,
+		AdapterInstalled: e.deps.AdapterInstalled,
 	})
 	if err != nil {
-		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid / no provider)
+		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid / no provider / adapter incompatible|not-ready|uninstalled)
 	}
 	if !e.deps.ModelInstalled(res.Model.ID) {
 		return Plan{}, fmt.Errorf("%w: %q — run `image-tools models install %s`", ErrModelNotInstalled, res.Model.ID, res.Model.ID)
+	}
+	// Fill each resolved adapter's on-disk dir so the pinned payload is execution-
+	// ready (no second resolution in the runner).
+	resolved := make([]adapters.ResolvedAdapter, len(res.Adapters))
+	for i, a := range res.Adapters {
+		a.Dir = e.absAdapterDir(a.ID)
+		resolved[i] = a
 	}
 	return Plan{
 		ModelID:          res.Model.ID,
@@ -180,7 +220,28 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		Warnings:         res.Warnings,
 		EstimatedSeconds: estimateSeconds(req.Operation, res.GPUViable),
 		GPUViable:        res.GPUViable,
+		Weight:           res.Weight,
+		Adapters:         resolved,
 	}, nil
+}
+
+func (e *Engine) adapterEnabledFunc(ctx context.Context) (func(id string) bool, error) {
+	if e.deps.AdapterEnabled == nil {
+		return nil, nil
+	}
+	fn, err := e.deps.AdapterEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("ai: load adapter enabled overlay: %w", err)
+	}
+	return fn, nil
+}
+
+// absAdapterDir is the absolute directory adapter id's weights live under.
+func (e *Engine) absAdapterDir(adapterID string) string {
+	if e.deps.AdaptersRoot == "" {
+		return ""
+	}
+	return filepath.Join(e.deps.AdaptersRoot, "adapters", adapterID)
 }
 
 func (e *Engine) enabledFunc(ctx context.Context) (models.EnabledFunc, error) {
@@ -423,6 +484,7 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 		InputKeys: collectInputs(in),
 		Output:    storage.OutputTarget{LocalPath: outPath},
 		Params:    params,
+		Adapters:  pl.Adapters,
 		Progress:  progress,
 	}
 	if _, err := bsel.Provider.Execute(ctx, req); err != nil {

@@ -22,6 +22,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	adaptersH "image-tools/handlers/adapters"
 	aiH "image-tools/handlers/ai"
 	analysisH "image-tools/handlers/analysis"
 	diffH "image-tools/handlers/diff"
@@ -35,6 +36,7 @@ import (
 	localdb "image-tools/internal/database"
 	internalmeasures "image-tools/internal/measures"
 
+	adaptersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/adapters"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis"
 	diffv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/diff"
@@ -53,6 +55,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, adaptersH.Endpoints...)
 	out = append(out, aiH.Endpoints...)
 	out = append(out, analysisH.Endpoints...)
 	out = append(out, diffH.Endpoints...)
@@ -88,6 +91,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "adapters", File: adaptersv1.File_image_tools_v1_adapters_adapters_proto},
 		{Module: "ai", File: aiv1.File_image_tools_v1_ai_ai_proto},
 		{Module: "analysis", File: analysisv1.File_image_tools_v1_analysis_analysis_proto},
 		{Module: "diff", File: diffv1.File_image_tools_v1_diff_diff_proto},
@@ -111,6 +115,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(adaptersH.Schema),
 		apidb.SchemaProviderFunc(aiH.Schema),
 		apidb.SchemaProviderFunc(analysisH.Schema),
 		apidb.SchemaProviderFunc(jobsH.Schema),

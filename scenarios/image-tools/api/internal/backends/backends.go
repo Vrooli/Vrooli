@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 
+	"image-tools/internal/adapters"
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
 )
@@ -64,6 +65,12 @@ type Request struct {
 	InputKeys []string
 	// Params carries op-specific parameters (e.g. prompt, scale, seed).
 	Params map[string]string
+	// Adapters is the validated, execution-ready conditioning stack (LoRA /
+	// ControlNet / IP-Adapter) for this op, in canonical application order. Empty
+	// for an unconditioned op. Typed (never smuggled through Params) so the provider
+	// builds adapter flags from structured data (decision C2). Each carries its
+	// on-disk Dir, resolved scale, effective preprocessor, and conditioning image.
+	Adapters []adapters.ResolvedAdapter
 	// Output selects where the result is written.
 	Output storage.OutputTarget
 	// Progress is an optional sink for in-flight execution progress. A provider

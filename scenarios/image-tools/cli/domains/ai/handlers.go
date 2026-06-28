@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai/ai_v1connect"
+	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 )
 
 type handlers struct {
@@ -94,7 +96,7 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 // dry-run): which model/technique would run, native-vs-derived, tier, safety
 // weight — without submitting a job.
 func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) error {
-	r, err := explainResolution(h.core, operation, flagOr(ctx, "model"), boolOr(ctx, "byok"))
+	r, err := explainResolution(h.core, operation, flagOr(ctx, "model"), boolOr(ctx, "byok"), explainAdapterRefs(ctx))
 	if err != nil {
 		return err
 	}
@@ -117,6 +119,9 @@ func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) er
 	)
 	if r.GetCaveat() != "" {
 		results = append(results, "caveat: "+r.GetCaveat())
+	}
+	for _, a := range r.GetAdapters() {
+		results = append(results, fmt.Sprintf("adapter: %s (%s) scale=%.3g", a.GetId(), a.GetKind(), a.GetScale()))
 	}
 	for _, w := range r.GetWarnings() {
 		results = append(results, "warning: "+w)
@@ -147,8 +152,88 @@ func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 		AllowByok:       boolOr(ctx, "byok"),
 		AutoScanNsfw:    boolOr(ctx, "auto-scan"),
 		ConsentAffirmed: boolOr(ctx, "consent"),
+		Adapters:        adapterRefs(ctx),
 	}
 	return p
+}
+
+// adapterRefs parses the repeatable --lora / --controlnet / --ip-adapter flags
+// into the typed conditioning stack (decision C2). Spec forms:
+//
+//	--lora id[:scale]
+//	--controlnet id[:scale[:conditioning_image_key]]
+//	--ip-adapter id[:scale]:reference_image_key
+//
+// The colon-delimited tail is positional: the 2nd field (when numeric) is the
+// scale, and a trailing non-numeric field is the conditioning/reference image key.
+// Order across flags is LoRA → ControlNet → IP-Adapter (the resolver re-sorts into
+// canonical application order regardless).
+type adapterSpec struct {
+	id    string
+	scale float64
+	key   string
+}
+
+func collectAdapterSpecs(ctx cliapp.RunContext) []adapterSpec {
+	var out []adapterSpec
+	collect := func(flag string) {
+		if !ctx.FlagDeclared(flag) {
+			return
+		}
+		for _, spec := range ctx.FlagValues(flag) {
+			spec = strings.TrimSpace(spec)
+			if spec == "" {
+				continue
+			}
+			out = append(out, parseAdapterSpec(spec))
+		}
+	}
+	collect("lora")
+	collect("controlnet")
+	collect("ip-adapter")
+	return out
+}
+
+func parseAdapterSpec(spec string) adapterSpec {
+	parts := strings.Split(spec, ":")
+	out := adapterSpec{id: strings.TrimSpace(parts[0])}
+	for _, raw := range parts[1:] {
+		field := strings.TrimSpace(raw)
+		if field == "" {
+			continue
+		}
+		if v, err := strconv.ParseFloat(field, 64); err == nil {
+			out.scale = v
+			continue
+		}
+		// A non-numeric tail field is the conditioning / reference image key.
+		out.key = field
+	}
+	return out
+}
+
+func adapterRefs(ctx cliapp.RunContext) []*aiv1.AdapterRef {
+	specs := collectAdapterSpecs(ctx)
+	if len(specs) == 0 {
+		return nil
+	}
+	out := make([]*aiv1.AdapterRef, 0, len(specs))
+	for _, s := range specs {
+		out = append(out, &aiv1.AdapterRef{AdapterId: s.id, Scale: s.scale, ConditioningImageKey: s.key})
+	}
+	return out
+}
+
+func explainAdapterRefs(ctx cliapp.RunContext) []*modelsv1.AdapterRef {
+	specs := collectAdapterSpecs(ctx)
+	if len(specs) == 0 {
+		return nil
+	}
+	out := make([]*modelsv1.AdapterRef, 0, len(specs))
+	for _, s := range specs {
+		out = append(out, &modelsv1.AdapterRef{AdapterId: s.id, Scale: s.scale, ConditioningImageKey: s.key})
+	}
+	return out
 }
 
 func warnLines(warnings []string) []string {

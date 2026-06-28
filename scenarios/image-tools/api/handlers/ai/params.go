@@ -3,8 +3,30 @@ package ai
 import (
 	"strconv"
 
+	"image-tools/internal/adapters"
+
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 )
+
+// adapterRequests converts the typed AdapterRef list on AIParams into the
+// resolver's conditioning request shape (decision C2: typed, never the params
+// bag). Empty when no adapters were requested.
+func adapterRequests(p *aiv1.AIParams) []adapters.AdapterRequest {
+	refs := p.GetAdapters()
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]adapters.AdapterRequest, 0, len(refs))
+	for _, r := range refs {
+		out = append(out, adapters.AdapterRequest{
+			ID:                   r.GetAdapterId(),
+			Scale:                r.GetScale(),
+			ConditioningImageKey: r.GetConditioningImageKey(),
+			PreprocessorOverride: adapters.Preprocessor(r.GetPreprocessorOverride()),
+		})
+	}
+	return out
+}
 
 // paramsMap flattens AIParams into the string map the engine threads to the
 // backend providers. Only meaningful (non-zero / non-empty) fields are included

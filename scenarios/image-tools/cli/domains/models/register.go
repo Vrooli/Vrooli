@@ -21,17 +21,19 @@ const GroupName = "models"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ModelsService.ListModels":        h.list,
-		"ModelsService.GetModel":          h.get,
-		"ModelsService.ListOperations":    h.operations,
-		"ModelsService.SelectModel":       h.selectModel,
-		"ModelsService.ExplainResolution": h.explain,
-		"ModelsService.SetModelEnabled":   h.setEnabled,
-		"ModelsService.ListBlocklist":     h.blocklist,
-		"ModelsService.DoctorCatalog":     h.doctor,
-		"ModelsService.InstallModel":      h.install,
-		"ModelsService.RemoveModel":       h.remove,
-		"ModelsService.AddCustomModel":    h.addCustom,
+		"ModelsService.ListModels":         h.list,
+		"ModelsService.GetModel":           h.get,
+		"ModelsService.ListOperations":     h.operations,
+		"ModelsService.SelectModel":        h.selectModel,
+		"ModelsService.ExplainResolution":  h.explain,
+		"ModelsService.SetModelEnabled":    h.setEnabled,
+		"ModelsService.ListBlocklist":      h.blocklist,
+		"ModelsService.DoctorCatalog":      h.doctor,
+		"ModelsService.InstallModel":       h.install,
+		"ModelsService.RemoveModel":        h.remove,
+		"ModelsService.AddCustomModel":     h.addCustom,
+		"ModelsService.InspectModelSource": h.inspect,
+		"ModelsService.ImportModel":        h.importModel,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

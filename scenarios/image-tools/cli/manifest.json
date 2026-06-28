@@ -387,6 +387,328 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "inspect",
+          "description": "Dry-run a guided import: detect layout, infer architecture, and read license/NSFW for a HF repo id, URL, or local path (installs nothing)",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "InspectModelSource"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import a model by source: inspect, confirm architecture/ops, register (add-only, local tier), and install",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "flags": [
+            {
+              "name": "id",
+              "description": "New entry id (must not collide with a seed model; defaults to one derived from the source)"
+            },
+            {
+              "name": "name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "architecture",
+              "description": "Confirmed architecture (sd15|sdxl|flux|…); required when inference is none, overrides otherwise"
+            },
+            {
+              "name": "operation",
+              "description": "An operation the model serves (repeat; defaults to the architecture's base ops)"
+            },
+            {
+              "name": "attest-commercial-rights",
+              "description": "Attest you hold commercial rights, allowing public/BYOK serving (decision D4)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ImportModel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "adapters",
+      "description": "Inspect the conditioning-adapter catalog (LoRA/ControlNet/IP-Adapter), toggle, install, and import adapters",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List adapter catalog entries (--kind and/or --architecture to filter)",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Filter to a kind (lora|controlnet|ip-adapter)"
+            },
+            {
+              "name": "architecture",
+              "description": "Filter to a compatible architecture (e.g. sd15, sdxl)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "ListAdapters"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get an adapter catalog entry by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "GetAdapter"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compatible",
+          "description": "List adapters compatible with a base model (--model ID or --architecture ARCH)",
+          "flags": [
+            {
+              "name": "model",
+              "description": "Resolve compatibility from this model id"
+            },
+            {
+              "name": "architecture",
+              "description": "Architecture to match (alternative to --model)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "ListCompatibleAdapters"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "enable",
+          "description": "Enable or disable an adapter (--disable to turn off); persisted overlay over the seed catalog",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "disable",
+              "description": "Disable the adapter instead of enabling it",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "SetAdapterEnabled"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Diagnose adapter catalog installability and policy integrity",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "DoctorCatalog"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "install",
+          "description": "Install (download) an adapter's weights as a durable job (--wait to block once on completion)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "wait",
+              "description": "Block once until the download job is terminal (no polling)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "InstallAdapter"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Remove an adapter's downloaded weights and clear its install record",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Adapter id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "RemoveAdapter"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Dry-run a guided import: infer kind + architecture and read license/NSFW for a HF repo id, URL, or local path (installs nothing)",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "InspectAdapterSource"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import an adapter by source: inspect, confirm kind/architecture, register (add-only, local tier), and install",
+          "positionals": [
+            {
+              "name": "source",
+              "required": true,
+              "description": "HuggingFace repo id (org/name), direct weight URL, or local path"
+            }
+          ],
+          "flags": [
+            {
+              "name": "id",
+              "description": "New entry id (must not collide with a seed adapter; defaults to one derived from the source)"
+            },
+            {
+              "name": "name",
+              "description": "Human-readable display name"
+            },
+            {
+              "name": "kind",
+              "description": "Confirmed kind (lora|controlnet|ip-adapter); required when inference is ambiguous, overrides otherwise"
+            },
+            {
+              "name": "architecture",
+              "description": "Confirmed compatible architecture (sd15|sdxl|flux|…); required when inference is none, overrides otherwise"
+            },
+            {
+              "name": "preprocessor",
+              "description": "ControlNet preprocessor (canny|depth|pose|segment|none); ignored for other kinds"
+            },
+            {
+              "name": "attest-commercial-rights",
+              "description": "Attest you hold commercial rights, allowing public/BYOK serving (decision D4)",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AdaptersService",
+            "method": "ImportAdapter"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
         }
       ]
     },

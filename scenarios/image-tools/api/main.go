@@ -13,11 +13,13 @@ import (
 	"strings"
 	"time"
 
+	internaladapters "image-tools/internal/adapters"
 	internalai "image-tools/internal/ai"
 	internalanalysis "image-tools/internal/analysis"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	"image-tools/internal/clock"
+	"image-tools/internal/fetch"
 	internalhosttool "image-tools/internal/hosttool"
 	"image-tools/internal/jobrunner"
 	internaljobs "image-tools/internal/jobs"
@@ -38,6 +40,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	adaptersH "image-tools/handlers/adapters"
 	aiH "image-tools/handlers/ai"
 	analysisH "image-tools/handlers/analysis"
 	diffH "image-tools/handlers/diff"
@@ -243,6 +246,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("model registry load failed: %v", err)
 	}
+	// The conditioning-adapter catalog (LoRA / ControlNet / IP-Adapter) is the
+	// sibling of the model registry; its seed-integrity invariants are likewise
+	// asserted at boot so a bad seed fails loud here.
+	adapterRegistry, err := internaladapters.Load()
+	if err != nil {
+		log.Fatalf("adapter registry load failed: %v", err)
+	}
 	runtimeCfg, err := loadRuntimeConfig()
 	if err != nil {
 		log.Fatalf("runtime configuration failed: %v", err)
@@ -359,9 +369,9 @@ func main() {
 		Reg:       registry,
 		Custom:    internalmodels.NewCustomStore(db),
 		State:     internalmodels.NewInstallStore(db),
-		Download:  internalmodels.HTTPDownloader{},
-		RepoFetch: &internalmodels.HFSnapshotFetcher{},
-		DiskAvail: internalmodels.DefaultDiskAvail,
+		Download:  fetch.HTTPDownloader{},
+		RepoFetch: &fetch.HFSnapshotFetcher{},
+		DiskAvail: fetch.DefaultDiskAvail,
 		Smoke: &internalmodels.SmokeConfig{
 			Python:     pythonInterpreter,
 			PythonPath: sidecarPath,
@@ -380,6 +390,61 @@ func main() {
 			return "", fmt.Errorf("decode install payload: %w", err)
 		}
 		rec, err := installer.Install(jobCtx, p.ModelID, emit)
+		if err != nil {
+			return "", err
+		}
+		return rec.Path, nil
+	})
+
+	// Adapter management mirrors model management: the Installer owns checksummed
+	// downloads, disk-space checks, removal, and custom/imported entries, sharing
+	// the same fetch spine and data root (<dataDir>/adapters/<id>). Install state
+	// is DB-backed (adapter_install).
+	adapterInstaller := &internaladapters.Installer{
+		Root:      modelsRoot,
+		Reg:       adapterRegistry,
+		Custom:    internaladapters.NewCustomStore(db),
+		State:     internaladapters.NewInstallStore(db),
+		Download:  fetch.HTTPDownloader{},
+		RepoFetch: &fetch.HFSnapshotFetcher{},
+		DiskAvail: fetch.DefaultDiskAvail,
+	}
+
+	// Conditioning seams the AI engine resolver uses to validate an adapter stack
+	// against the chosen model (decision C2/C5): a merged (seed + custom) catalog
+	// lookup, the enabled-state overlay, and the install check. The same adapter
+	// root the installer uses (<dataDir>/adapters/<id>) is threaded so resolved
+	// adapters carry their on-disk dir.
+	adapterStore := internaladapters.NewStore(db)
+	adapterByID := func(id string) (internaladapters.Adapter, bool) {
+		a, err := adapterInstaller.Resolve(context.Background(), id)
+		return a, err == nil
+	}
+	adapterEnabled := func(ctx context.Context) (func(id string) bool, error) {
+		overlay, lErr := adapterStore.LoadOverlay(ctx)
+		if lErr != nil {
+			return nil, lErr
+		}
+		return func(id string) bool {
+			if a, ok := adapterByID(id); ok {
+				return internaladapters.EffectiveEnabled(a, overlay)
+			}
+			return false
+		}, nil
+	}
+	adapterInstalled := func(id string) bool {
+		return adapterInstaller.Installed(context.Background(), id)
+	}
+
+	// The adapter-download runner: a durable CPU-lane job that fetches + verifies
+	// an adapter's weights, emitting progress. AdaptersService.InstallAdapter
+	// submits it.
+	dispatcher.Register(internaladapters.InstallJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+		var p internaladapters.InstallPayload
+		if err := json.Unmarshal(job.Payload, &p); err != nil {
+			return "", fmt.Errorf("decode adapter install payload: %w", err)
+		}
+		rec, err := adapterInstaller.Install(jobCtx, p.AdapterID, emit)
 		if err != nil {
 			return "", err
 		}
@@ -450,17 +515,21 @@ func main() {
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
 	aiEngine, err := internalai.NewEngine(internalai.Deps{
-		Registry:        registry,
-		Backends:        backendReg,
-		Probe:           probe,
-		Store:           blobStore,
-		Enabled:         enabled,
-		DefaultOverride: opDefaults.Get,
-		ModelInstalled:  modelInstalled,
-		ModelsRoot:      modelsRoot,
-		AutoScan:        analysisService.ScanNSFW,
-		Capacity:        &internalai.CLICapacityBroker{},
-		Logger:          log.Default(),
+		Registry:         registry,
+		Backends:         backendReg,
+		Probe:            probe,
+		Store:            blobStore,
+		Enabled:          enabled,
+		DefaultOverride:  opDefaults.Get,
+		ModelInstalled:   modelInstalled,
+		ModelsRoot:       modelsRoot,
+		AdapterByID:      adapterByID,
+		AdapterEnabled:   adapterEnabled,
+		AdapterInstalled: adapterInstalled,
+		AdaptersRoot:     modelsRoot,
+		AutoScan:         analysisService.ScanNSFW,
+		Capacity:         &internalai.CLICapacityBroker{},
+		Logger:           log.Default(),
 	})
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
@@ -499,6 +568,9 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "image-tools-api", "1.0.0", healthModelRuntime),
+		adaptersH.Module(db, adapterRegistry, registry, adapterInstaller, jobManager, func(sizeMBApprox int) int {
+			return internaladapters.EstimateInstallSeconds(sizeMBApprox)
+		}, log.Default()),
 		aiH.Module(aiEngine, registry, blobStore, jobManager, safetyGate, log.Default()),
 		analysisH.Module(analysisService, jobManager, log.Default()),
 		diffH.Module(blobStore, jobManager, log.Default()),
@@ -506,7 +578,11 @@ func main() {
 		looksH.Module(db, blobStore, log.Default()),
 		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, func(sizeMBApprox int) int {
 			return internalmodels.EstimateInstallSecondsAt(sizeMBApprox, runtimeCfg.InstallMBPerSecond)
-		}, backendEnsurer, log.Default()),
+		}, backendEnsurer, modelsH.AdapterSeams{
+			ByID:      adapterByID,
+			Enabled:   adapterEnabled,
+			Installed: adapterInstalled,
+		}, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
 		safetyH.Module(deployTier),
 		selectionH.Module(blobStore, jobManager, log.Default()),

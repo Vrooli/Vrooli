@@ -21,9 +21,9 @@ Two seams keep this honest:
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, NamedTuple, Optional
+from typing import Any, Callable, NamedTuple, Optional, Sequence
 
-from . import _common
+from . import _adapters, _common
 
 
 class Params(NamedTuple):
@@ -564,10 +564,12 @@ def run_inpaint(
     mask_path: str,
     out_path: str,
     params: "TransformParams",
+    lora_specs: Optional[Sequence[str]] = None,
 ) -> None:
     """Load a base checkpoint into its architecture's inpaint pipeline and run one
     masked regenerate (white mask = repaint, black = keep), writing a PNG. FAILS
-    LOUD on a missing backend or load failure — never a fabricated success."""
+    LOUD on a missing backend or load failure — never a fabricated success.
+    lora_specs are fused before placement."""
     diffusers, torch, Image = _import_diffusers_backend()
 
     try:
@@ -586,6 +588,7 @@ def run_inpaint(
         )
 
     pipe = _load_inpaint_pipe(diffusers, torch, architecture, model_dir, repo_index, single)
+    _adapters.apply_loras(pipe, lora_specs or [])
     use_cuda = torch.cuda.is_available()
     pipe = _place_pipe(pipe, torch, use_cuda, offload=True)
 
@@ -606,6 +609,207 @@ def run_inpaint(
         result = pipe(**kwargs).images[0]
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"inpaint ({architecture}) failed: {exc}", code=8)
+        raise
+    try:
+        result.save(out_path, format="PNG")
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"failed to write output {out_path!r}: {exc}", code=7)
+
+
+# =============================================================================
+# Generic base-checkpoint generate (text2image) + transform (img2img).
+#
+# A *base* text2image checkpoint (any sd15/sdxl/flux model) generates from a
+# prompt and transforms an init image — the two ops a base diffusers REPO serves
+# directly (a single-file checkpoint takes the stable-diffusion.cpp path instead;
+# this runner exists so a diffusers-repo import, which sd.cpp cannot load, still
+# generates). text_to_image is a NATIVE op of the imported base; image_to_image is
+# its architecture-derived transform. Like the inpaint runner these are NOT family
+# adapters — the only knobs are the generic {prompt, negative, steps, guidance,
+# size, strength, seed}, and offerability is gated upstream in Go.
+# =============================================================================
+
+
+class GenerateParams(NamedTuple):
+    """Normalized params for a base-checkpoint generate/transform (the Go
+    DiffusersText2Image / DiffusersImg2Img arg-builders emit exactly these)."""
+
+    prompt: str
+    negative_prompt: Optional[str] = None
+    steps: int = 0  # 0 → default
+    guidance: Optional[float] = None  # text guidance scale (cfg_scale)
+    strength: Optional[float] = None  # img2img only: how far from the init image (0..1)
+    width: int = 0  # 0 → pipeline default
+    height: int = 0  # 0 → pipeline default
+    seed: int = 0
+
+
+# arch → concrete txt2img / img2img pipeline class. from_single_file needs a
+# concrete class; a diffusers repo tree is loaded with the AutoPipeline, which
+# auto-detects the architecture.
+_TXT2IMG_SINGLE_FILE = {
+    "sd15": "StableDiffusionPipeline",
+    "sdxl": "StableDiffusionXLPipeline",
+}
+_IMG2IMG_SINGLE_FILE = {
+    "sd15": "StableDiffusionImg2ImgPipeline",
+    "sdxl": "StableDiffusionXLImg2ImgPipeline",
+}
+
+_GENERATE_DEFAULT_STEPS = 30
+
+
+def build_txt2img_kwargs(params: "GenerateParams") -> dict:
+    """Pure param→kwargs mapping for a base-checkpoint text2image (no torch)."""
+    out = {
+        "prompt": params.prompt,
+        "num_inference_steps": params.steps or _GENERATE_DEFAULT_STEPS,
+        "guidance_scale": 7.5 if params.guidance is None else params.guidance,
+    }
+    if params.negative_prompt:
+        out["negative_prompt"] = params.negative_prompt
+    if params.width:
+        out["width"] = params.width - (params.width % 8)
+    if params.height:
+        out["height"] = params.height - (params.height % 8)
+    return out
+
+
+def build_img2img_kwargs(params: "GenerateParams") -> dict:
+    """Pure param→kwargs mapping for a base-checkpoint img2img (no torch). Carries
+    the generic txt2img knobs plus the init-image strength; width/height are taken
+    from the init image by the pipeline, so they are not emitted here."""
+    out = {
+        "prompt": params.prompt,
+        "num_inference_steps": params.steps or _GENERATE_DEFAULT_STEPS,
+        "guidance_scale": 7.5 if params.guidance is None else params.guidance,
+        "strength": 0.7 if params.strength is None else params.strength,
+    }
+    if params.negative_prompt:
+        out["negative_prompt"] = params.negative_prompt
+    return out
+
+
+def _generate_class(architecture: str, single_file_map: dict, op: str) -> str:
+    cls = single_file_map.get(architecture)
+    if cls is None:
+        _common.fail(
+            f"no {op} pipeline class for architecture {architecture!r}; "
+            f"known: {sorted(single_file_map)}",
+            code=4,
+        )
+    return cls  # type: ignore[return-value]
+
+
+def _load_generate_pipe(diffusers, torch, architecture, model_dir, repo_index, single, auto_cls, single_file_map, op):
+    use_cuda = torch.cuda.is_available()
+    dtype = _resolve_dtype(torch, "float16", use_cuda)
+    load_kwargs = {"torch_dtype": dtype}
+    if architecture == "sd15":
+        # The scenario owns its NSFW gate; disable the in-pipeline SD-1.5 checker.
+        load_kwargs["safety_checker"] = None
+    try:
+        if repo_index:
+            pipe = getattr(diffusers, auto_cls).from_pretrained(model_dir, **load_kwargs)
+        else:
+            cls = getattr(diffusers, _generate_class(architecture, single_file_map, op))
+            pipe = cls.from_single_file(single, **load_kwargs)
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(
+            f"failed to load {op} pipeline for arch {architecture!r} from {model_dir!r}: {exc}",
+            code=5,
+        )
+        raise
+    return pipe
+
+
+def run_txt2img(
+    *,
+    architecture: str,
+    model_dir: str,
+    out_path: str,
+    params: "GenerateParams",
+    lora_specs: Optional[Sequence[str]] = None,
+) -> None:
+    """Load a base checkpoint into its architecture's text2image pipeline and
+    generate one image from the prompt, writing a PNG. FAILS LOUD on a missing
+    backend or load failure — never a fabricated success. lora_specs (the resolved
+    ``--lora <path>:<scale>`` conditioning stack) are fused before placement."""
+    diffusers, torch, _Image = _import_diffusers_backend()
+    single = _find_single_file(model_dir) if os.path.isdir(model_dir) else None
+    repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+    if not repo_index and single is None:
+        _common.fail(
+            f"model dir {model_dir!r} has neither model_index.json (repo) nor a "
+            "single-file .safetensors/.ckpt checkpoint",
+            code=5,
+        )
+    pipe = _load_generate_pipe(
+        diffusers, torch, architecture, model_dir, repo_index, single,
+        "AutoPipelineForText2Image", _TXT2IMG_SINGLE_FILE, "text_to_image",
+    )
+    _adapters.apply_loras(pipe, lora_specs or [])
+    use_cuda = torch.cuda.is_available()
+    pipe = _place_pipe(pipe, torch, use_cuda, offload=True)
+
+    kwargs = build_txt2img_kwargs(params)
+    if params.seed:
+        kwargs["generator"] = torch.Generator(device="cuda" if use_cuda else "cpu").manual_seed(params.seed)
+    try:
+        result = pipe(**kwargs).images[0]
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"text_to_image ({architecture}) failed: {exc}", code=8)
+        raise
+    try:
+        result.save(out_path, format="PNG")
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"failed to write output {out_path!r}: {exc}", code=7)
+
+
+def run_img2img(
+    *,
+    architecture: str,
+    model_dir: str,
+    image_path: str,
+    out_path: str,
+    params: "GenerateParams",
+    lora_specs: Optional[Sequence[str]] = None,
+) -> None:
+    """Load a base checkpoint into its architecture's img2img pipeline and
+    transform the init image guided by the prompt, writing a PNG. FAILS LOUD on a
+    missing backend or load failure — never a fabricated success. lora_specs are
+    fused before placement."""
+    diffusers, torch, Image = _import_diffusers_backend()
+    try:
+        init = Image.open(image_path).convert("RGB")
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"failed to open init image: {exc}", code=6)
+        raise
+
+    single = _find_single_file(model_dir) if os.path.isdir(model_dir) else None
+    repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
+    if not repo_index and single is None:
+        _common.fail(
+            f"model dir {model_dir!r} has neither model_index.json (repo) nor a "
+            "single-file .safetensors/.ckpt checkpoint",
+            code=5,
+        )
+    pipe = _load_generate_pipe(
+        diffusers, torch, architecture, model_dir, repo_index, single,
+        "AutoPipelineForImage2Image", _IMG2IMG_SINGLE_FILE, "image_to_image",
+    )
+    _adapters.apply_loras(pipe, lora_specs or [])
+    use_cuda = torch.cuda.is_available()
+    pipe = _place_pipe(pipe, torch, use_cuda, offload=True)
+
+    kwargs = build_img2img_kwargs(params)
+    kwargs["image"] = init
+    if params.seed:
+        kwargs["generator"] = torch.Generator(device="cuda" if use_cuda else "cpu").manual_seed(params.seed)
+    try:
+        result = pipe(**kwargs).images[0]
+    except Exception as exc:  # noqa: BLE001
+        _common.fail(f"image_to_image ({architecture}) failed: {exc}", code=8)
         raise
     try:
         result.save(out_path, format="PNG")

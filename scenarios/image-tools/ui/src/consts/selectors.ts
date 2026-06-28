@@ -470,6 +470,19 @@ const literalSelectors = {
       success: "models-add-custom-success",
       error: "models-add-custom-error",
     },
+    import: {
+      form: "models-import-form",
+      source: "models-import-source",
+      inspect: "models-import-inspect",
+      preview: "models-import-preview",
+      id: "models-import-id",
+      name: "models-import-name",
+      architecture: "models-import-architecture",
+      attest: "models-import-attest",
+      submit: "models-import-submit",
+      success: "models-import-success",
+      error: "models-import-error",
+    },
     defaults: {
       card: "models-defaults-card",
       list: "models-defaults-list",
@@ -485,6 +498,9 @@ const literalSelectors = {
     // Host-aware model picker (the menu behind every AI action). The static
     // ids live here; the per-model-id dynamic selectors are in the dynamic tree.
     pickerTrigger: "models-picker-trigger",
+    // The always-visible derived-op caveat under the trigger (shown only when the
+    // effective model serves the op via a derived technique).
+    pickerTriggerCaveat: "models-picker-trigger-caveat",
     picker: {
       sheet: "models-picker-sheet",
       host: "models-picker-host",

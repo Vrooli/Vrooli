@@ -114,6 +114,112 @@ def test_inpaint_class_unknown_arch_exits():
     assert raised, "unknown architecture must fail loud (SystemExit)"
 
 
+def test_txt2img_kwargs_defaults():
+    from ._diffusers import GenerateParams, build_txt2img_kwargs
+
+    k = build_txt2img_kwargs(GenerateParams(prompt="a castle"))
+    _eq(k["prompt"], "a castle", "txt2img prompt")
+    _eq(k["num_inference_steps"], 30, "txt2img default steps")
+    _eq(k["guidance_scale"], 7.5, "txt2img default guidance")
+    assert "width" not in k and "height" not in k, "txt2img omits size when unset"
+    assert "negative_prompt" not in k, "txt2img omits negative_prompt when empty"
+
+
+def test_txt2img_kwargs_overrides_and_size_rounding():
+    from ._diffusers import GenerateParams, build_txt2img_kwargs
+
+    k = build_txt2img_kwargs(
+        GenerateParams(prompt="p", negative_prompt="blurry", steps=24, guidance=6.0, width=515, height=768)
+    )
+    _eq(k["num_inference_steps"], 24, "txt2img steps override")
+    _eq(k["guidance_scale"], 6.0, "txt2img guidance override")
+    _eq(k["negative_prompt"], "blurry", "txt2img negative_prompt override")
+    _eq(k["width"], 512, "txt2img width rounded to multiple of 8")
+    _eq(k["height"], 768, "txt2img height unchanged when already a multiple of 8")
+
+
+def test_img2img_kwargs_defaults_and_strength():
+    from ._diffusers import GenerateParams, build_img2img_kwargs
+
+    k = build_img2img_kwargs(GenerateParams(prompt="make it autumn"))
+    _eq(k["prompt"], "make it autumn", "img2img prompt")
+    _eq(k["num_inference_steps"], 30, "img2img default steps")
+    _eq(k["strength"], 0.7, "img2img default strength")
+    assert "width" not in k and "height" not in k, "img2img takes size from the init image"
+
+    k2 = build_img2img_kwargs(GenerateParams(prompt="p", strength=0.4, steps=20))
+    _eq(k2["strength"], 0.4, "img2img strength override")
+    _eq(k2["num_inference_steps"], 20, "img2img steps override")
+
+
+def test_generate_class_known_archs():
+    _eq(_diffusers._generate_class("sdxl", _diffusers._TXT2IMG_SINGLE_FILE, "text_to_image"), "StableDiffusionXLPipeline", "sdxl txt2img class")
+    _eq(_diffusers._generate_class("sd15", _diffusers._IMG2IMG_SINGLE_FILE, "image_to_image"), "StableDiffusionImg2ImgPipeline", "sd15 img2img class")
+
+
+def test_parse_lora_spec():
+    from ._adapters import parse_lora_spec
+
+    s = parse_lora_spec("/models/adapters/lcm/lcm.safetensors:0.8")
+    _eq(s.path, "/models/adapters/lcm/lcm.safetensors", "lora spec path")
+    _eq(s.scale, 0.8, "lora spec scale")
+
+    # A bare path (no scale) defaults to 1.0.
+    bare = parse_lora_spec("/x/y.safetensors")
+    _eq(bare.path, "/x/y.safetensors", "bare lora path")
+    _eq(bare.scale, 1.0, "bare lora default scale")
+
+    # A path whose trailing colon-field is non-numeric stays part of the path.
+    weird = parse_lora_spec("/x/y:name.safetensors")
+    _eq(weird.path, "/x/y:name.safetensors", "non-numeric tail stays in path")
+    _eq(weird.scale, 1.0, "non-numeric tail → default scale")
+
+
+def test_parse_lora_specs_skips_blanks():
+    from ._adapters import parse_lora_specs
+
+    specs = parse_lora_specs(["/a.safetensors:1", "", "  ", "/b.safetensors:0.5"])
+    _eq(len(specs), 2, "blank specs skipped")
+    _eq(specs[0].scale, 1.0, "first scale")
+    _eq(specs[1].scale, 0.5, "second scale")
+
+
+class _FakePipe:
+    """Records load_lora_weights / set_adapters calls (torch-free) so apply_loras
+    is covered without a real pipeline."""
+
+    def __init__(self):
+        self.loaded = []  # (path, adapter_name)
+        self.activated = None  # (names, weights)
+
+    def load_lora_weights(self, path, adapter_name=None):
+        self.loaded.append((path, adapter_name))
+
+    def set_adapters(self, names, adapter_weights=None):
+        self.activated = (list(names), list(adapter_weights or []))
+
+
+def test_apply_loras_stacks_and_activates():
+    from ._adapters import apply_loras
+
+    pipe = _FakePipe()
+    names = apply_loras(pipe, ["/a.safetensors:0.8", "/b.safetensors:0.5"])
+    _eq(names, ["lora_0", "lora_1"], "registered adapter names")
+    _eq(len(pipe.loaded), 2, "two loras loaded")
+    _eq(pipe.loaded[0], ("/a.safetensors", "lora_0"), "first lora load")
+    _eq(pipe.activated[0], ["lora_0", "lora_1"], "activated names")
+    _eq(pipe.activated[1], [0.8, 0.5], "activated weights")
+
+
+def test_apply_loras_empty_is_noop():
+    from ._adapters import apply_loras
+
+    pipe = _FakePipe()
+    _eq(apply_loras(pipe, []), [], "empty specs → no adapters")
+    _eq(len(pipe.loaded), 0, "empty specs load nothing")
+    assert pipe.activated is None, "empty specs do not activate"
+
+
 def main() -> int:
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     for t in tests:

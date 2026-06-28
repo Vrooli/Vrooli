@@ -40,6 +40,19 @@ export function ModelPickerButton({ operation, operationLabel, value, onChange }
     queryFn: () => modelsClient.selectModel({ operation, overrideId: value }),
   });
 
+  // How the effective model serves THIS op (native vs derived) + the quality
+  // caveat — surfaced as an always-visible note so a derived run is an informed
+  // choice before submit, not a silent one. Reuses the Phase-4 ExplainResolution
+  // RPC (read-only); failures just hide the note.
+  const resolution = useQuery({
+    queryKey: ["model-explain", operation, value],
+    enabled: !!operation,
+    retry: false,
+    queryFn: () => modelsClient.explainResolution({ operation, modelId: value }),
+  });
+  const resolved = resolution.data?.resolution;
+  const derivedCaveat = resolved?.support === "derived" ? resolved.caveat : "";
+
   const model = selection.data?.model;
   const gpuViable = selection.data?.gpuViable ?? false;
   const fitKey = model
@@ -81,11 +94,24 @@ export function ModelPickerButton({ operation, operationLabel, value, onChange }
         </span>
       </button>
 
+      {derivedCaveat ? (
+        <p
+          data-testid={selectors.models.pickerTriggerCaveat}
+          className="text-[11px] text-app-warning"
+        >
+          {t(strings.models.picker.caveatBanner, {
+            op: operationLabel,
+            caveat: derivedCaveat,
+          })}
+        </p>
+      ) : null}
+
       <ModelPicker
         open={open}
         onClose={() => {
           setOpen(false);
           void selection.refetch();
+          void resolution.refetch();
         }}
         operation={operation}
         operationLabel={operationLabel}

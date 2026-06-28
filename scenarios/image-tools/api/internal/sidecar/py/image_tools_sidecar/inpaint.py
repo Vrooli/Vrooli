@@ -34,6 +34,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--steps", type=int, default=0, help="sampler steps (0 = default)")
     p.add_argument("--guidance", type=float, default=None, help="text guidance scale (cfg_scale)")
     p.add_argument("--seed", type=int, default=0, help="RNG seed (0 = nondeterministic)")
+    p.add_argument("--lora", action="append", default=[], help="conditioning LoRA as <path>:<scale> (repeatable)")
     return p.parse_args()
 
 
@@ -58,6 +59,7 @@ def main() -> None:
         mask_path=args.mask,
         out_path=args.out,
         params=params,
+        lora_specs=args.lora,
     )
 
 

@@ -1,8 +1,10 @@
 package models
 
 import (
+	"context"
 	"log"
 
+	internaladapters "image-tools/internal/adapters"
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
 	internalmodels "image-tools/internal/models"
@@ -19,7 +21,16 @@ import (
 // ModelsService handler over the declarative registry. The registry (validated
 // seed catalog) is loaded once in main.go and shared; the enabled-state overlay
 // is persisted in SQLite via the models store.
-func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, ensurer BackendEnsurer, logger *log.Logger) module.Module {
+// AdapterSeams supplies the conditioning seams ExplainResolution's --explain
+// surface uses to validate + report a requested adapter stack (decision C5). All
+// fields nil ⇒ ExplainResolution rejects any request that names an adapter.
+type AdapterSeams struct {
+	ByID      func(id string) (internaladapters.Adapter, bool)
+	Enabled   func(ctx context.Context) (func(id string) bool, error)
+	Installed func(id string) bool
+}
+
+func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, ensurer BackendEnsurer, adapterSeams AdapterSeams, logger *log.Logger) module.Module {
 	store := internalmodels.NewStore(db)
 	connectPath, connectHandler := modelsconnect.NewModelsServiceHandler(NewConnectHandler(Deps{
 		Registry:               reg,
@@ -31,6 +42,9 @@ func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalc
 		OpDefaults:             internalmodels.NewOpDefaultStore(db),
 		EstimateInstallSeconds: estimateInstallSeconds,
 		Ensurer:                ensurer,
+		AdapterByID:            adapterSeams.ByID,
+		AdapterEnabled:         adapterSeams.Enabled,
+		AdapterInstalled:       adapterSeams.Installed,
 		Logger:                 logger,
 	}))
 	return module.Module{
@@ -409,6 +423,77 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Register a local upscaler", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/AddCustomModel -H 'Content-Type: application/json' -d '{\"model\":{\"id\":\"my-upscaler\",\"operations\":[\"upscale\"],\"backend\":\"onnxruntime\"},\"local_path\":\"/data/models/my-upscaler\"}'"},
+		},
+	},
+	{
+		ID:          "models_inspect_source",
+		Path:        modelsconnect.ModelsServiceInspectModelSourceProcedure,
+		Method:      "POST",
+		Summary:     "Inspect an import source (dry run)",
+		Description: "Dry-runs a guided import: inspects a HuggingFace repo id, direct weight URL, or local path WITHOUT installing anything, returning the detected layout, inferred architecture (with confidence + evidence the user confirms), license/NSFW, approximate size, the operations the entry would offer, and the proposed registry entry.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"source": "string (HF repo id, URL, or local path)"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"source":             "string",
+				"repo_id":            "string",
+				"revision":           "string",
+				"layout":             "ModelLayout",
+				"architecture":       "ArchitectureInference (architecture, confidence, evidence)",
+				"license":            "string",
+				"nsfw":               "bool",
+				"size_bytes":         "uint64",
+				"pipeline_class":     "string",
+				"offered_operations": "array<string>",
+				"proposed":           "Model",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing/unresolvable source"},
+			{Status: 501, Code: "unimplemented", Description: "Import unavailable (read-only wiring)"},
+		},
+		Examples: []module.Example{
+			{Name: "Inspect an SDXL checkpoint", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/InspectModelSource -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\"}'"},
+		},
+	},
+	{
+		ID:          "models_import",
+		Path:        modelsconnect.ModelsServiceImportModelProcedure,
+		Method:      "POST",
+		Summary:     "Import a model by source (confirm + install)",
+		Description: "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). Imports default to local tier with a user-imported provenance label; public/BYOK serving requires attest_commercial_rights.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"source":                   "string (HF repo id, URL, or local path)",
+				"id":                       "string (new entry id; must not collide with a seed model)",
+				"name":                     "string (optional display name)",
+				"architecture":             "string (required when inference is none; else overrides)",
+				"operations":               "array<string> (optional; defaults to the architecture's base ops)",
+				"attest_commercial_rights": "bool (allow public/BYOK serving — decision D4)",
+			},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"model":             "Model",
+				"job_id":            "string (empty when already installed or no job runner)",
+				"eta_seconds":       "int",
+				"already_installed": "bool",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing source/id, unresolved architecture, or seed-id collision"},
+			{Status: 500, Code: "internal", Description: "Persistence or job submission failure"},
+			{Status: 501, Code: "unimplemented", Description: "Custom models / import unavailable (read-only wiring)"},
+		},
+		Examples: []module.Example{
+			{Name: "Import an SDXL checkpoint", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\"}'"},
 		},
 	},
 	{

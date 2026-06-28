@@ -369,6 +369,7 @@
       "caveatBanner": "يُشغِّل {{op}} عبر تقنية مُشتقّة — {{caveat}}",
       "action": {
         "select": "استخدام",
+        "useAnyway": "استخدامه على أي حال",
         "selected": "قيد الاستخدام",
         "installModel": "تنزيل",
         "installBackend": "تثبيت المحرّك",
@@ -380,6 +381,27 @@
         "all": "عرض كل النماذج ({{count}}) لهذه المهمة — تظهر النماذج التي لا يمكنك تشغيلها لتعرف السبب.",
         "none": "لا توجد نماذج أخرى متاحة لهذه المهمة."
       }
+    },
+    "import": {
+      "title": "استيراد نموذج",
+      "sourceLabel": "المصدر (معرّف مستودع Hugging Face أو رابط أو مسار محلي)",
+      "inspect": "فحص",
+      "inspecting": "جارٍ الفحص…",
+      "layoutLabel": "التخطيط",
+      "architectureInferred": "البنية",
+      "licenseLabel": "الترخيص",
+      "nsfwLabel": "NSFW",
+      "sizeLabel": "الحجم التقريبي",
+      "offeredOpsLabel": "العمليات المتاحة",
+      "idLabel": "معرّف الإدخال",
+      "nameLabel": "اسم العرض",
+      "architectureLabel": "تأكيد البنية",
+      "selectArchitecture": "اختر بنية…",
+      "attestLabel": "أمتلك الحقوق التجارية (السماح بالتقديم العام/BYOK)",
+      "import": "استيراد وتثبيت",
+      "importing": "جارٍ الاستيراد…",
+      "success": "بدأ الاستيراد — سيظهر النموذج بعد اكتمال التنزيل.",
+      "needsArchitecture": "لم يتم اكتشاف بنية — اختر واحدة للاستيراد."
     }
   },
   "workspace": {

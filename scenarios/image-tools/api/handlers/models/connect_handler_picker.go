@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	internaladapters "image-tools/internal/adapters"
 	internalai "image-tools/internal/ai"
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
@@ -170,17 +171,49 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 			override = pinned
 		}
 	}
+	adapterReqs := explainAdapterRequests(req.Msg.GetAdapters())
+	var adapterEnabled func(id string) bool
+	if len(adapterReqs) > 0 && h.deps.AdapterEnabled != nil {
+		fn, aerr := h.deps.AdapterEnabled(ctx)
+		if aerr != nil {
+			h.deps.Logger.Printf("models.ExplainResolution adapter overlay: %v", aerr)
+			return nil, connect.NewError(connect.CodeInternal, errors.New("load adapter state"))
+		}
+		adapterEnabled = fn
+	}
 	res, err := internalresolver.New(h.deps.Registry, h.deps.Backends).Resolve(ctx, internalresolver.Request{
-		Operation:     op,
-		ModelOverride: override,
-		Host:          host,
-		AllowBYOK:     req.Msg.GetAllowByok(),
-		IsEnabled:     h.deps.Registry.EnabledWithOverlay(overlay),
+		Operation:        op,
+		ModelOverride:    override,
+		Host:             host,
+		AllowBYOK:        req.Msg.GetAllowByok(),
+		IsEnabled:        h.deps.Registry.EnabledWithOverlay(overlay),
+		Adapters:         adapterReqs,
+		AdapterByID:      h.deps.AdapterByID,
+		AdapterEnabled:   adapterEnabled,
+		AdapterInstalled: h.deps.AdapterInstalled,
 	})
 	if err != nil {
 		return nil, selectError(err)
 	}
 	return connect.NewResponse(&modelsv1.ExplainResolutionResponse{Resolution: resolutionToProto(res)}), nil
+}
+
+// explainAdapterRequests converts the explain request's AdapterRef list to the
+// resolver's conditioning request shape.
+func explainAdapterRequests(refs []*modelsv1.AdapterRef) []internaladapters.AdapterRequest {
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]internaladapters.AdapterRequest, 0, len(refs))
+	for _, r := range refs {
+		out = append(out, internaladapters.AdapterRequest{
+			ID:                   r.GetAdapterId(),
+			Scale:                r.GetScale(),
+			ConditioningImageKey: r.GetConditioningImageKey(),
+			PreprocessorOverride: internaladapters.Preprocessor(r.GetPreprocessorOverride()),
+		})
+	}
+	return out
 }
 
 func resolutionToProto(r internalresolver.Resolution) *modelsv1.Resolution {
@@ -196,7 +229,28 @@ func resolutionToProto(r internalresolver.Resolution) *modelsv1.Resolution {
 		Tier:          r.Tier,
 		GpuViable:     r.GPUViable,
 		Warnings:      r.Warnings,
+		Adapters:      resolvedAdaptersToProto(r.Adapters),
 	}
+}
+
+func resolvedAdaptersToProto(in []internaladapters.ResolvedAdapter) []*modelsv1.ResolvedAdapter {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]*modelsv1.ResolvedAdapter, 0, len(in))
+	for _, a := range in {
+		out = append(out, &modelsv1.ResolvedAdapter{
+			Id:                   a.ID,
+			Name:                 a.Name,
+			Kind:                 string(a.Kind),
+			Architecture:         string(a.Architecture),
+			Scale:                a.Scale,
+			Weight:               string(a.Weight),
+			Preprocessor:         string(a.Preprocessor),
+			ConditioningImageKey: a.ConditioningImageKey,
+		})
+	}
+	return out
 }
 
 // toolTier is the cached install-posture classification for one host tool.

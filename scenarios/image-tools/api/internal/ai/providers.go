@@ -700,6 +700,8 @@ func providerSpecs() []providerSpec {
 		{
 			name: "diffusers", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"diffusers", "torch", "PIL"},
 			techniques: []technique.Technique{
+				nativeTechnique("diffusers-txt2img", "text_to_image", technique.DiffusersText2Image),
+				nativeTechnique("diffusers-img2img", "image_to_image", technique.DiffusersImg2Img),
 				nativeTechnique("diffusers-inpaint", "inpaint", technique.DiffusersInpaint),
 				nativeTechnique("diffusers-outpaint", "outpaint", technique.DiffusersInpaint),
 				nativeTechnique("diffusers-background-replace", "background_replace", technique.DiffusersInpaint),

@@ -27,6 +27,13 @@ func (g *Gate) Evaluate(op string, consentAffirmed bool) Decision {
 	return g.policy.Evaluate(op, consentAffirmed)
 }
 
+// EvaluateWeight decides whether a submit may proceed under an explicitly
+// supplied consent weight — the conditioning weight-elevation seam (C4). See
+// Policy.EvaluateWeight.
+func (g *Gate) EvaluateWeight(weight Weight, op string, consentAffirmed bool) Decision {
+	return g.policy.EvaluateWeight(weight, op, consentAffirmed)
+}
+
 // AllowRate reports whether the tier's abuse throttle permits one more submit
 // (always true on the local tier / when unlimited).
 func (g *Gate) AllowRate() bool { return g.limiter.Allow() }

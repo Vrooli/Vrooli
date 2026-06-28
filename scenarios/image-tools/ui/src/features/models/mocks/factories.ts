@@ -15,6 +15,9 @@
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import {
   AddCustomModelResponseSchema,
+  ArchitectureInferenceSchema,
+  ImportModelResponseSchema,
+  InspectModelSourceResponseSchema,
   BackendReadinessSchema,
   BackendStatusSchema,
   BlocklistEntrySchema,
@@ -33,13 +36,17 @@ import {
   ListOperationModelsResponseSchema,
   ListOperationsResponseSchema,
   ModelFitSchema,
+  ExplainResolutionResponseSchema,
   ModelSchema,
   OpDefaultSchema,
   RemoveModelResponseSchema,
+  ResolutionSchema,
   SelectModelResponseSchema,
   SetDefaultModelResponseSchema,
   SetModelEnabledResponseSchema,
   type AddCustomModelResponse,
+  type ImportModelResponse,
+  type InspectModelSourceResponse,
   type BackendReadiness,
   type BackendStatus,
   type BlocklistEntry,
@@ -56,7 +63,9 @@ import {
   type Model,
   type ModelFit,
   type OpDefault,
+  type ExplainResolutionResponse,
   type RemoveModelResponse,
+  type Resolution,
   type SelectModelResponse,
   type SetDefaultModelResponse,
   type SetModelEnabledResponse,
@@ -308,3 +317,62 @@ export const makeSelectModelResponse = (
     warnings: [],
     ...overrides,
   });
+
+export const makeResolution = (
+  overrides: MessageInitShape<typeof ResolutionSchema> = {},
+): Resolution =>
+  create(ResolutionSchema, {
+    operation: "upscale",
+    modelId: "cand-1",
+    modelName: "Real-ESRGAN x4",
+    support: "native",
+    technique: "",
+    caveat: "",
+    weight: "none",
+    tier: "local-cpu",
+    gpuViable: false,
+    warnings: [],
+    ...overrides,
+  });
+
+export const makeExplainResolutionResponse = (
+  overrides: MessageInitShape<typeof ExplainResolutionResponseSchema> = {},
+): ExplainResolutionResponse =>
+  create(ExplainResolutionResponseSchema, {
+    resolution: makeResolution(),
+    ...overrides,
+  });
+
+export const makeInspectModelSourceResponse = (
+  overrides: MessageInitShape<typeof InspectModelSourceResponseSchema> = {},
+): InspectModelSourceResponse =>
+  create(InspectModelSourceResponseSchema, {
+    source: "stabilityai/stable-diffusion-xl-base-1.0",
+    repoId: "stabilityai/stable-diffusion-xl-base-1.0",
+    revision: "462165984030d82259a11f4367a4eed129e94a7b",
+    layout: 2,
+    architecture: create(ArchitectureInferenceSchema, {
+      architecture: "sdxl",
+      confidence: "high",
+      evidence: 'pipeline class "StableDiffusionXLPipeline"',
+    }),
+    license: "openrail++",
+    nsfw: false,
+    sizeBytes: BigInt(5_167_000_600),
+    pipelineClass: "StableDiffusionXLPipeline",
+    offeredOperations: ["text_to_image", "image_to_image", "inpaint"],
+    proposed: makeModel({ id: "imported-stable-diffusion-xl-base-1-0", backend: "diffusers", custom: true }),
+    ...overrides,
+  });
+
+export const makeImportModelResponse = (
+  overrides: MessageInitShape<typeof ImportModelResponseSchema> = {},
+): ImportModelResponse =>
+  create(ImportModelResponseSchema, {
+    model: makeModel({ id: "imported-sdxl", backend: "diffusers", custom: true }),
+    jobId: "job-import-1",
+    etaSeconds: 120,
+    alreadyInstalled: false,
+    ...overrides,
+  });
+

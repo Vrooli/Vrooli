@@ -51,6 +51,26 @@ func (a Architecture) valid() bool {
 	return ok
 }
 
+// Valid reports whether a is a known architecture enum member. Exported so the
+// sibling adapter catalog (internal/adapters) can validate the compatibility
+// architecture it shares with this SSOT without duplicating the enum.
+func (a Architecture) Valid() bool { return a.valid() }
+
+// Architectures returns every architecture enum member except ArchNone, sorted —
+// the concrete weight lineages an adapter can declare compatibility with. ArchNone
+// is excluded because it derives nothing and no adapter targets it.
+func Architectures() []Architecture {
+	out := make([]Architecture, 0, len(architectures))
+	for a := range architectures {
+		if a == ArchNone {
+			continue
+		}
+		out = append(out, a)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
 // DerivedTechnique is one architecture-derivable capability: an operation a model
 // of this architecture can run through a named technique, the quality caveat that
 // derivation carries, and a Ready gate. Ready=false means the technique is

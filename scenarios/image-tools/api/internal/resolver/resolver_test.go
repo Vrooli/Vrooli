@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	"image-tools/internal/models"
@@ -116,5 +117,58 @@ func TestResolutionWeightIsOperationKeyed(t *testing.T) {
 	}
 	if safety.OpWeight("edit_instruct") != safety.WeightHigh {
 		t.Fatalf("edit_instruct weight = %q, want high", safety.OpWeight("edit_instruct"))
+	}
+}
+
+// TestResolveConditioningElevatesWeightAndAttaches exercises the Phase 3 wiring:
+// a compatible, Ready, installed IP-Adapter on a none-weight text_to_image
+// elevates the resolution's consent weight to high and attaches the stack.
+func TestResolveConditioningElevatesWeightAndAttaches(t *testing.T) {
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	def, _ := registry.DefaultFor("text_to_image")
+	model, _ := registry.ByID(def.ID)
+	r, _ := newResolver(t, "text_to_image")
+
+	ipa := adapters.Adapter{
+		ID: "test-ipa", Name: "Test IP-Adapter", Kind: adapters.KindIPAdapter,
+		Architecture: model.Architecture, Weight: safety.WeightHigh,
+		ScaleRange: adapters.ScaleRange{Min: 0, Max: 1, Default: 0.6}, Ready: true,
+	}
+	byID := func(id string) (adapters.Adapter, bool) {
+		if id == ipa.ID {
+			return ipa, true
+		}
+		return adapters.Adapter{}, false
+	}
+	res, err := r.Resolve(context.Background(), Request{
+		Operation:        "text_to_image",
+		Host:             cpuHost(),
+		Adapters:         []adapters.AdapterRequest{{ID: "test-ipa", ConditioningImageKey: "ref.png"}},
+		AdapterByID:      byID,
+		AdapterInstalled: func(string) bool { return true },
+	})
+	if err != nil {
+		t.Fatalf("resolve with conditioning: %v", err)
+	}
+	if len(res.Adapters) != 1 || res.Adapters[0].ID != "test-ipa" {
+		t.Fatalf("expected the ip-adapter attached, got %+v", res.Adapters)
+	}
+	if res.Weight != string(safety.WeightHigh) {
+		t.Fatalf("expected elevated weight high, got %q", res.Weight)
+	}
+
+	// Fail closed when the same adapter is not Ready.
+	ipa.Ready = false
+	if _, err := r.Resolve(context.Background(), Request{
+		Operation:        "text_to_image",
+		Host:             cpuHost(),
+		Adapters:         []adapters.AdapterRequest{{ID: "test-ipa", ConditioningImageKey: "ref.png"}},
+		AdapterByID:      byID,
+		AdapterInstalled: func(string) bool { return true },
+	}); err == nil {
+		t.Fatal("expected fail-closed for a not-Ready adapter")
 	}
 }

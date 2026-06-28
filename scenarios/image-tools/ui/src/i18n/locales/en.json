@@ -365,6 +365,7 @@
       "caveatBanner": "Runs {{op}} via a derived technique — {{caveat}}",
       "action": {
         "select": "Use",
+        "useAnyway": "Use anyway",
         "selected": "In use",
         "installModel": "Download",
         "installBackend": "Install engine",
@@ -376,6 +377,27 @@
         "all": "Showing all {{count}} models for this task — ones you can't run yet are shown so you can see why.",
         "none": "No other models available for this task."
       }
+    },
+    "import": {
+      "title": "Import a model",
+      "sourceLabel": "Source (Hugging Face repo id, URL, or local path)",
+      "inspect": "Inspect",
+      "inspecting": "Inspecting…",
+      "layoutLabel": "Layout",
+      "architectureInferred": "Architecture",
+      "licenseLabel": "License",
+      "nsfwLabel": "NSFW",
+      "sizeLabel": "Approx. size",
+      "offeredOpsLabel": "Operations offered",
+      "idLabel": "Entry ID",
+      "nameLabel": "Display name",
+      "architectureLabel": "Confirm architecture",
+      "selectArchitecture": "Select an architecture…",
+      "attestLabel": "I hold commercial rights (allow public/BYOK serving)",
+      "import": "Import & install",
+      "importing": "Importing…",
+      "success": "Import started — the model will appear once its download finishes.",
+      "needsArchitecture": "No architecture detected — select one to import."
     }
   },
   "workspace": {

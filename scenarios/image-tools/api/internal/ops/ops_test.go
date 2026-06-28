@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"bytes"
 	"encoding/json"
 	"image"
 	"image/color"
@@ -29,7 +30,7 @@ func encodePNG(t *testing.T, img image.Image) []byte {
 
 func TestRegistryCoversReq01(t *testing.T) {
 	want := []string{
-		"adjust", "canvas", "compress", "convert", "crop", "deskew",
+		"adjust", "canny", "canvas", "compress", "convert", "crop", "deskew",
 		"filter", "flip", "metadata", "overlay", "resize", "rotate", "thumbnail",
 	}
 	for _, n := range want {
@@ -269,4 +270,49 @@ func TestExecuteBadImage(t *testing.T) {
 func decodeFormat(data []byte) (image.Image, string, error) {
 	img, meta, err := Decode(data)
 	return img, meta.Format, err
+}
+
+// TestCannyDeterministicEdges asserts the canny preprocessor is deterministic and
+// produces a black/white edge map that fires on a high-contrast boundary.
+func TestCannyDeterministicEdges(t *testing.T) {
+	// A 40x40 image split black|white down the middle → a strong vertical edge.
+	img := image.NewNRGBA(image.Rect(0, 0, 40, 40))
+	for y := 0; y < 40; y++ {
+		for x := 0; x < 40; x++ {
+			if x < 20 {
+				img.SetNRGBA(x, y, color.NRGBA{A: 255})
+			} else {
+				img.SetNRGBA(x, y, color.NRGBA{R: 255, G: 255, B: 255, A: 255})
+			}
+		}
+	}
+	out1, err := Canny(img, &Params{})
+	if err != nil {
+		t.Fatalf("canny: %v", err)
+	}
+	out2, _ := Canny(img, &Params{})
+
+	n1, ok := out1.(*image.NRGBA)
+	if !ok {
+		t.Fatalf("canny output is %T, want *image.NRGBA", out1)
+	}
+	n2 := out2.(*image.NRGBA)
+	if !bytes.Equal(n1.Pix, n2.Pix) {
+		t.Fatal("canny is not deterministic")
+	}
+
+	// The boundary column region must contain white edge pixels; a flat corner must not.
+	edges := 0
+	for y := 0; y < 40; y++ {
+		c := n1.NRGBAAt(19, y)
+		if c.R > 200 {
+			edges++
+		}
+	}
+	if edges == 0 {
+		t.Fatal("canny found no edge at the black/white boundary")
+	}
+	if c := n1.NRGBAAt(2, 2); c.R > 200 {
+		t.Fatal("canny fired on a flat region")
+	}
 }

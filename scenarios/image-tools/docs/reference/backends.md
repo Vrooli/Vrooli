@@ -69,7 +69,7 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 <!-- BEGIN GENERATED: host-tool-matrix (regenerate with `make backends-doc`) -->
 | Backend (provider) | Host tool | Operations | Install / remediation |
 |---|---|---|---|
-| `diffusers` | `uv` | `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install uv` |
+| `diffusers` | `uv` | `text_to_image`, `image_to_image`, `inpaint`, `outpaint`, `background_replace`, `edit_instruct` | `vrooli host install uv` |
 | `iopaint` | `iopaint` | `object_removal` | `vrooli host install iopaint` |
 | `llama.cpp` | `llama-cpp` | `caption` | `vrooli host install llama-cpp` |
 | `onnxruntime` | `uv` | `denoise`, `deblur`, `background_removal`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | `vrooli host install uv` |

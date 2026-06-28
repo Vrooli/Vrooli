@@ -1,4 +1,4 @@
-package models
+package fetch
 
 import (
 	"context"
@@ -7,6 +7,33 @@ import (
 	"os/exec"
 	"strings"
 )
+
+// RepoSpec is a HuggingFace-style multi-file model repository — the install shape
+// diffusers models (and many adapters) use (a directory of model_index.json +
+// sharded safetensors across subdirs), which cannot be expressed as a handful of
+// discrete Asset URLs without drifting every upstream revision. The installer
+// fetches the whole snapshot, pinned to an immutable Revision, and integrity is a
+// tree-manifest hash over the fetched files. internal/models re-exports this as
+// RepoSource (its catalog vocabulary) so the seed schema is unchanged.
+type RepoSpec struct {
+	// RepoID is the HuggingFace repo (e.g. "Qwen/Qwen-Image-Edit-2509").
+	RepoID string `json:"repo_id"`
+	// Revision pins an IMMUTABLE commit SHA (never a moving branch/tag) so the
+	// fetched tree — and thus the tree-manifest checksum — is reproducible.
+	Revision string `json:"revision"`
+	// AllowPatterns optionally restricts which files are fetched (e.g. skip the
+	// original/ fp32 mirror). Empty fetches the whole repo.
+	AllowPatterns []string `json:"allow_patterns,omitempty"`
+}
+
+// RepoFetcher fetches a whole multi-file model repository (a HuggingFace
+// snapshot) at a pinned revision into destDir. It is a seam (like Downloader) so
+// a catalog installer is testable without network/python; the production
+// implementation (HFSnapshotFetcher) shells huggingface_hub.snapshot_download.
+// emit reports byte progress (total may be -1 if unknown).
+type RepoFetcher interface {
+	Snapshot(ctx context.Context, repo RepoSpec, destDir string, emit func(done, total int64)) error
+}
 
 // HFSnapshotFetcher is the production RepoFetcher: it fetches a HuggingFace repo
 // snapshot at a pinned revision via huggingface_hub.snapshot_download (the
@@ -34,7 +61,7 @@ snapshot_download(repo_id=repo, revision=revision, local_dir=dest, allow_pattern
 // Snapshot fetches repo into destDir. Progress is reported coarsely (huggingface
 // streams its own progress to stderr); emit is called once at completion so the
 // job layer advances. A non-zero exit surfaces the captured stderr.
-func (f *HFSnapshotFetcher) Snapshot(ctx context.Context, repo RepoSource, destDir string, emit func(done, total int64)) error {
+func (f *HFSnapshotFetcher) Snapshot(ctx context.Context, repo RepoSpec, destDir string, emit func(done, total int64)) error {
 	if strings.TrimSpace(repo.RepoID) == "" {
 		return fmt.Errorf("hf snapshot: empty repo_id")
 	}
@@ -54,10 +81,18 @@ func (f *HFSnapshotFetcher) Snapshot(ctx context.Context, repo RepoSource, destD
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("hf snapshot_download %s@%s: %w: %s", repo.RepoID, shortRev(repo.Revision), err, strings.TrimSpace(string(out)))
+		return fmt.Errorf("hf snapshot_download %s@%s: %w: %s", repo.RepoID, ShortRev(repo.Revision), err, strings.TrimSpace(string(out)))
 	}
 	if emit != nil {
 		emit(1, 1)
 	}
 	return nil
+}
+
+// ShortRev truncates a commit SHA for human-readable progress messages.
+func ShortRev(rev string) string {
+	if len(rev) > 12 {
+		return rev[:12]
+	}
+	return rev
 }

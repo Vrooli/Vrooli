@@ -51,7 +51,12 @@ type Params struct {
 
 	// Filter.
 	Filter string  `json:"filter,omitempty"` // grayscale|sepia|invert|blur|sharpen
-	Amount float64 `json:"amount,omitempty"` // sigma for blur/sharpen
+	Amount float64 `json:"amount,omitempty"` // sigma for blur/sharpen (and canny smoothing)
+
+	// Canny edge-preprocessor hysteresis bounds on the 0..255 gradient magnitude
+	// (0 = defaults 50 / 150). The ControlNet "canny" preprocessor reads these.
+	LowThreshold  float64 `json:"low_threshold,omitempty"`
+	HighThreshold float64 `json:"high_threshold,omitempty"`
 
 	// Canvas / background.
 	Background string `json:"background,omitempty"` // hex (#rrggbb / #rrggbbaa)

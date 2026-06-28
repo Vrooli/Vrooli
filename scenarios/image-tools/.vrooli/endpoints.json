@@ -44,6 +44,362 @@
       }
     },
     {
+      "id": "adapters_list",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/ListAdapters",
+      "method": "POST",
+      "summary": "List adapters",
+      "description": "Returns conditioning-adapter catalog entries, optionally filtered by kind and/or compatible architecture, with effective (overlay-aware) enabled + install state.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "architecture": "string (optional; e.g. sd15, sdxl)",
+          "kind": "string (optional; lora|controlnet|ip-adapter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adapters": "array<Adapter>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List all adapters",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/ListAdapters -H 'Content-Type: application/json' -d '{}'"
+        },
+        {
+          "name": "List sdxl loras",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/ListAdapters -H 'Content-Type: application/json' -d '{\"kind\":\"lora\",\"architecture\":\"sdxl\"}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_get",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/GetAdapter",
+      "method": "POST",
+      "summary": "Get an adapter by id",
+      "description": "Returns one adapter catalog entry by id with effective enabled + install state.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adapter": "Adapter"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adapter with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Adapter-state load failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get an adapter",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/GetAdapter -H 'Content-Type: application/json' -d '{\"id\":\"controlnet-canny-sdxl\"}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_set_enabled",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/SetAdapterEnabled",
+      "method": "POST",
+      "summary": "Enable or disable an adapter",
+      "description": "Toggles an adapter's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "enabled": "bool",
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adapter": "Adapter"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adapter with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Adapter-state persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Enable an adapter",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/SetAdapterEnabled -H 'Content-Type: application/json' -d '{\"id\":\"controlnet-canny-sdxl\",\"enabled\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_install",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/InstallAdapter",
+      "method": "POST",
+      "summary": "Install (download) an adapter",
+      "description": "Downloads an adapter's weights as a durable job (checksum pinned on first download, free disk space checked first). Returns a job id + ETA; block once on jobs wait. An already-installed adapter returns already_installed=true with no job.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "already_installed": "bool",
+          "eta_seconds": "int",
+          "job_id": "string (empty when already installed)",
+          "size_mb_approx": "int"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adapter with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Install job submission failure"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Installation unavailable (read-only wiring)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Install an adapter",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/InstallAdapter -H 'Content-Type: application/json' -d '{\"id\":\"controlnet-canny-sdxl\"}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_remove",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/RemoveAdapter",
+      "method": "POST",
+      "summary": "Remove an adapter's weights",
+      "description": "Deletes an adapter's downloaded weights and clears its install record. A local adapter is unlinked; its referenced path is never deleted.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "removed": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No adapter with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Weight removal failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Remove an adapter",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/RemoveAdapter -H 'Content-Type: application/json' -d '{\"id\":\"controlnet-canny-sdxl\"}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_inspect_source",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/InspectAdapterSource",
+      "method": "POST",
+      "summary": "Inspect an adapter import source (dry run)",
+      "description": "Dry-runs a guided import: inspects a HuggingFace repo id, direct weight URL, or local path WITHOUT installing anything, returning the inferred kind (+evidence), the inferred compatible architecture (with confidence + evidence the user confirms), license/NSFW, approximate size, and the proposed catalog entry.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "source": "string (HF repo id, URL, or local path)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "architecture": "ArchitectureInference (architecture, confidence, evidence)",
+          "kind": "KindInference (kind, evidence)",
+          "license": "string",
+          "nsfw": "bool",
+          "proposed": "Adapter",
+          "repo_id": "string",
+          "revision": "string",
+          "size_bytes": "uint64",
+          "source": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/unresolvable source"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Import unavailable (read-only wiring)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Inspect a ControlNet",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/InspectAdapterSource -H 'Content-Type: application/json' -d '{\"source\":\"diffusers/controlnet-canny-sdxl-1.0\"}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_import",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/ImportAdapter",
+      "method": "POST",
+      "summary": "Import an adapter by source (confirm + install)",
+      "description": "Composes inspect → operator-confirmed fields (kind/architecture/preprocessor/attestation) → an add-only custom entry → a durable install job (mirrors InstallAdapter: returns job id + ETA; block once on jobs wait). Imports default to local tier with a user-imported provenance label; public/BYOK serving requires attest_commercial_rights.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "architecture": "string (required when inference is none; else overrides)",
+          "attest_commercial_rights": "bool (allow public/BYOK serving — decision D4)",
+          "id": "string (new entry id; must not collide with a seed adapter)",
+          "kind": "string (required when inference is ambiguous; else overrides)",
+          "name": "string (optional display name)",
+          "preprocessor": "string (ControlNet preprocessor; ignored for other kinds)",
+          "source": "string (HF repo id, URL, or local path)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adapter": "Adapter",
+          "already_installed": "bool",
+          "eta_seconds": "int",
+          "job_id": "string (empty when already installed or no job runner)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing source/id, unresolved kind/architecture, or seed-id collision"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence or job submission failure"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Custom adapters / import unavailable (read-only wiring)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Import a ControlNet",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/ImportAdapter -H 'Content-Type: application/json' -d '{\"source\":\"diffusers/controlnet-canny-sdxl-1.0\",\"id\":\"imported-canny\",\"kind\":\"controlnet\",\"architecture\":\"sdxl\"}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_compatible",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/ListCompatibleAdapters",
+      "method": "POST",
+      "summary": "List adapters compatible with a base model",
+      "description": "Returns every catalog adapter compatible with a base model (by architecture; resolve via model_id or pass architecture directly), annotated with enabled/installed/ready state so the picker can show why an adapter is or is not yet offerable.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "architecture": "string (alternative to model_id; one is required)",
+          "model_id": "string (resolves the model's architecture)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adapters": "array<Adapter>",
+          "architecture": "string (the architecture compatibility was computed against)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Neither model_id nor architecture supplied"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No model with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Adapter-state load failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Compatible with sdxl",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/ListCompatibleAdapters -H 'Content-Type: application/json' -d '{\"architecture\":\"sdxl\"}'"
+        }
+      ]
+    },
+    {
+      "id": "adapters_doctor",
+      "path": "/vrooli.image_tools.v1.adapters.AdaptersService/DoctorCatalog",
+      "method": "POST",
+      "summary": "Diagnose adapter catalog integrity",
+      "description": "Checks adapter-catalog installability (enabled adapters need a concrete fetch strategy; repo sources pinned), commercial-use policy (conditional adapters not enabled), and checksum metadata coherence.",
+      "category": "adapters",
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "array<CatalogFinding>",
+          "ok": "bool"
+        }
+      },
+      "examples": [
+        {
+          "name": "Doctor catalog",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/DoctorCatalog -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
       "id": "ai_list_operations",
       "path": "/vrooli.image_tools.v1.ai.AIService/ListAIOperations",
       "method": "POST",
@@ -1241,6 +1597,105 @@
         {
           "name": "Register a local upscaler",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/AddCustomModel -H 'Content-Type: application/json' -d '{\"model\":{\"id\":\"my-upscaler\",\"operations\":[\"upscale\"],\"backend\":\"onnxruntime\"},\"local_path\":\"/data/models/my-upscaler\"}'"
+        }
+      ]
+    },
+    {
+      "id": "models_inspect_source",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/InspectModelSource",
+      "method": "POST",
+      "summary": "Inspect an import source (dry run)",
+      "description": "Dry-runs a guided import: inspects a HuggingFace repo id, direct weight URL, or local path WITHOUT installing anything, returning the detected layout, inferred architecture (with confidence + evidence the user confirms), license/NSFW, approximate size, the operations the entry would offer, and the proposed registry entry.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "source": "string (HF repo id, URL, or local path)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "architecture": "ArchitectureInference (architecture, confidence, evidence)",
+          "layout": "ModelLayout",
+          "license": "string",
+          "nsfw": "bool",
+          "offered_operations": "array<string>",
+          "pipeline_class": "string",
+          "proposed": "Model",
+          "repo_id": "string",
+          "revision": "string",
+          "size_bytes": "uint64",
+          "source": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/unresolvable source"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Import unavailable (read-only wiring)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Inspect an SDXL checkpoint",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/InspectModelSource -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\"}'"
+        }
+      ]
+    },
+    {
+      "id": "models_import",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ImportModel",
+      "method": "POST",
+      "summary": "Import a model by source (confirm + install)",
+      "description": "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). Imports default to local tier with a user-imported provenance label; public/BYOK serving requires attest_commercial_rights.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "architecture": "string (required when inference is none; else overrides)",
+          "attest_commercial_rights": "bool (allow public/BYOK serving — decision D4)",
+          "id": "string (new entry id; must not collide with a seed model)",
+          "name": "string (optional display name)",
+          "operations": "array<string> (optional; defaults to the architecture's base ops)",
+          "source": "string (HF repo id, URL, or local path)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "already_installed": "bool",
+          "eta_seconds": "int",
+          "job_id": "string (empty when already installed or no job runner)",
+          "model": "Model"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing source/id, unresolved architecture, or seed-id collision"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence or job submission failure"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Custom models / import unavailable (read-only wiring)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Import an SDXL checkpoint",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\"}'"
         }
       ]
     },
