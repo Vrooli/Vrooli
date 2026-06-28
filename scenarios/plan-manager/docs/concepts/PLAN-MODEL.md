@@ -259,6 +259,15 @@ carry an explicit repeat policy such as `once_per_execution`, `on_resume`,
 source/status fields (`authored`, `discovered`, `migrated`, `autofilled`;
 `ready`, `degraded`, `unresolved`).
 
+The repeat policy **defaults from scope**: a phase-scoped item defaults to
+`phase_entry` (it is loaded each time that phase begins), a global item to
+`once_per_execution`. An unset `--repeat` flag means "let the server pick the
+scope default" — the CLI no longer hard-codes `once_per_execution`, which had
+silently mis-set phase context. `once_per_execution` on a phase-scoped item is
+contradictory and is corrected to `phase_entry`; other explicit policies are
+honored. A `command`/`search` item must carry an `instruction` (and a `reason`)
+before it is accepted, never after.
+
 During authoring, discovered context starts as `ContextCandidate` session state.
 Candidates carry the proposed `RelevantContextItem`, discovery concept, source,
 degraded detail, and pending/accepted/rejected status. Only accepted candidates
@@ -297,22 +306,51 @@ Every connected code location is captured with the machine-readable grammar from
   `future` so staleness does not flag it as "deleted".
 - `[REQ: OT-…]` — links a plan/phase to a requirement.
 
-References are resolved against `code-facts`. The not-yet-built **unified code
-identifier** is a planned drop-in upgrade for the locator; until then `[CODE:]` +
-code-facts is the contract. References are how staleness becomes computable, so
-the authoring wizard makes them mandatory at plan and phase scope. A docs-only
-or process-only plan/phase may use `NO_CODE_REFS: <reason>` instead; the reason
-is stored as authored context rather than pretending the plan has connected code.
+References are **discovered**, not regex-scraped. The authoring wizard suggests
+connected locations from `search-hub`'s **Answer projection** (the
+where-in-the-code projection of the meta-optimization-manager coverage model) and
+routes the hits by locator shape — only a hit that resolves to a
+`[CODE:]/[DOC:]/[REQ:]` locator becomes a reference candidate; every other hit is
+dropped. Suggestions are **reviewable candidates** (`ReferenceCandidate`:
+pending / accepted / rejected), mirroring the relevant-context candidate flow: a
+raw suggestion never enters the plan, and the references gate is satisfied only by
+a **reviewed** state — at least one accepted locator (with an optional inline
+edit) or an explicit `NO_CODE_REFS: <reason>`. Discovery degrades honestly:
+search-hub down/empty ⇒ no candidates, and the references step still offers manual
+locator entry or the `NO_CODE_REFS:` fallback instead of a dead end. As more
+Answer-projection providers (architecture-cartographer AI search, symbol/slice/
+coupling leaves) register with search-hub, discovery silently improves with no
+plan-manager change. The not-yet-built **unified code identifier** is a planned
+drop-in upgrade for the locator; until then `[CODE:]` + the Answer projection is
+the contract. References are how staleness becomes computable, so the wizard makes
+them mandatory at plan and phase scope. A docs-only or process-only plan/phase may
+use `NO_CODE_REFS: <reason>` instead; the reason is stored as authored context
+rather than pretending the plan has connected code.
+
+**Kind/path semantics are validated at submit time.** A reference whose declared
+kind obviously contradicts its target is rejected before it enters session state,
+not silently accepted and surfaced later: a documentation path (`*.md`, a
+`docs/` segment) tagged `[CODE:]`, or a source file (`*.go`, `*.ts`, `*.proto`, …)
+tagged `[DOC:]`, fails with an actionable message naming the right marker. The
+same gate applies to phase references and to `code_ref`/`doc` relevant-context
+items. Ambiguous targets (a `[REQ:]` id, a bare scenario path with no extension)
+are left to the author — only an unambiguous mismatch is blocked. The same gate
+runs when a suggested candidate is accepted with an inline edit, so a mislabeled
+locator never reaches the references section.
 
 ## Validation, Staleness, And The Regression Anchor
 
-- **Regression anchor** — captured *before* changes (a `git-control-tower
-  baseline` snapshot for scenario-scoped work, or a `HEAD` sha + file allowlist
-  for outside-scenario work). Auto-filled by the wizard; stored on the plan as
-  typed fields (`strategy`, `scenario`, `baseline_name`, `head_sha`,
-  `allowlist_paths`, generated `commands`). Rendered markdown is imported back
-  through those fields; unstructured legacy prose is preserved as legacy/degraded
-  and cannot silently become a false validation oracle.
+- **Regression anchor** — typed **intent** at authoring, fresh **snapshot** at
+  execution start. Authoring records only the intent fields (`strategy`,
+  `scenario`, `baseline_name`, `head_sha`, `allowlist_paths`, generated
+  `commands`) — derived deterministically from the plan title/slug (no
+  git-control-tower call, never stale). The actual "before" snapshot is captured
+  fresh when execution *starts* (a plan is often authored days before it runs), so
+  the anchor describes a "before" that is actually true: execution's one-time
+  **freshen inputs** step delegates the `git-control-tower baseline` capture to the
+  validation domain. Rendered markdown is imported back through the typed fields;
+  unstructured legacy prose is preserved as legacy/degraded and cannot silently
+  become a false validation oracle.
 - **Baseline scope** — derived per phase from `references[]`: the exact
   baseline/diff command set across all affected locations (not just scenarios).
   Typed anchor fields can also derive their own command set when stored commands

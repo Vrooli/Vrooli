@@ -64,6 +64,17 @@ type BaselineScope struct {
 	Locations []string
 }
 
+// BaselineCapture reports the outcome of capturing the regression-anchor's
+// baseline snapshot at execution start. It is honest: Captured=false with a
+// Detail when git-control-tower is unavailable or the anchor intent is still a
+// placeholder — never a fabricated capture.
+type BaselineCapture struct {
+	Captured     bool
+	Scenario     string
+	BaselineName string
+	Detail       string
+}
+
 type CommandReferenceValidator interface {
 	ValidateCommandReference(context.Context, CommandReferenceRequest) (CommandReferenceResult, error)
 }

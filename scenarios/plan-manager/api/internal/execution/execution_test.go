@@ -85,6 +85,21 @@ func (f *fakeLog) Summarize(context.Context, string) (planmodel.LogSummary, []pl
 	return f.summary, f.entries, f.err
 }
 
+// fakeFreshener is the InputFreshener seam — the execution-start baseline
+// capture + staleness recompute. The test dials its result/error and counts how
+// many times it is invoked to prove the once-per-start guard and the cheap-poll
+// invariant (status/next never freshen).
+type fakeFreshener struct {
+	result execution.FreshenResult
+	err    error
+	calls  int
+}
+
+func (f *fakeFreshener) FreshenInputs(_ context.Context, _ string) (execution.FreshenResult, error) {
+	f.calls++
+	return f.result, f.err
+}
+
 // --- harness ---
 
 type harness struct {
@@ -118,6 +133,26 @@ func newHarnessWithLog(t *testing.T, plan internalplans.Plan, validator executio
 		Clock:     clk,
 	})
 	return harness{svc: svc, store: store, sink: sink, log: lg, clock: clk}
+}
+
+func newHarnessWithFreshener(t *testing.T, plan internalplans.Plan, freshener execution.InputFreshener) harness {
+	t.Helper()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(execution.Schema),
+	))
+	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	store := &fakePlanStore{plan: plan}
+	sink := &recordingSink{}
+	svc := execution.NewService(execution.Deps{
+		Repo:      execution.NewSQLiteRepository(d, clk),
+		Plans:     store,
+		Velocity:  sink,
+		Freshener: freshener,
+		Clock:     clk,
+	})
+	return harness{svc: svc, store: store, sink: sink, log: &fakeLog{}, clock: clk}
 }
 
 func threePhasePlan() internalplans.Plan {
@@ -609,4 +644,93 @@ func TestExecutionNotFound(t *testing.T) {
 	h := newHarness(t, threePhasePlan(), nil)
 	_, _, _, err := h.svc.GetStatus(context.Background(), "nope")
 	require.ErrorAs(t, err, &execution.ErrExecutionNotFound{})
+}
+
+// --- execution-start freshen inputs (Phase 3) ---
+
+// TestFreshenRunsOnceOnStartNotOnPoll proves the freshen step runs exactly once
+// at start and NEVER on the per-poll status/next path (the cheap-context
+// invariant).
+func TestFreshenRunsOnceOnStartNotOnPoll(t *testing.T) {
+	fr := &fakeFreshener{result: execution.FreshenResult{BaselineCaptured: true, BaselineName: "plan-1-baseline", Detail: "captured baseline plan-1-baseline"}}
+	h := newHarnessWithFreshener(t, threePhasePlan(), fr)
+	ctx := context.Background()
+
+	e, pctx, _, err := h.svc.Start(ctx, "plan-1", "run-1")
+	require.NoError(t, err)
+	require.Equal(t, 1, fr.calls, "freshen runs once on start")
+	require.True(t, pctx.InputsFreshened)
+	require.Equal(t, execution.FreshenStatusCaptured, pctx.FreshenStatus)
+	require.Contains(t, pctx.FreshenDetail, "plan-1-baseline")
+
+	// The per-poll context server must NOT freshen again.
+	_, _, _, err = h.svc.GetStatus(ctx, e.ID)
+	require.NoError(t, err)
+	_, _, _, err = h.svc.GetNext(ctx, e.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, fr.calls, "status/next must never trigger a freshen")
+}
+
+// TestFreshenCapturedNotReRunOnResume proves a successful capture is terminal:
+// resuming the same execution does not re-capture the pinned baseline.
+func TestFreshenCapturedNotReRunOnResume(t *testing.T) {
+	fr := &fakeFreshener{result: execution.FreshenResult{BaselineCaptured: true, BaselineName: "plan-1-baseline"}}
+	h := newHarnessWithFreshener(t, threePhasePlan(), fr)
+	ctx := context.Background()
+
+	e, _, _, err := h.svc.Start(ctx, "plan-1", "run-1")
+	require.NoError(t, err)
+	require.Equal(t, 1, fr.calls)
+
+	_, _, _, err = h.svc.Resume(ctx, e.ID, "", "")
+	require.NoError(t, err)
+	require.Equal(t, 1, fr.calls, "a captured baseline is pinned; resume must not re-capture")
+}
+
+// TestFreshenDegradationIsNonBlocking proves a freshener error is recorded as a
+// degraded status, surfaced in the phase context, and never blocks the start.
+func TestFreshenDegradationIsNonBlocking(t *testing.T) {
+	fr := &fakeFreshener{err: errors.New("git-control-tower unavailable")}
+	h := newHarnessWithFreshener(t, threePhasePlan(), fr)
+	ctx := context.Background()
+
+	e, pctx, _, err := h.svc.Start(ctx, "plan-1", "run-1")
+	require.NoError(t, err, "a degraded freshen must never block phase work")
+	require.True(t, pctx.HasCurrent, "phase work proceeds despite a degraded freshen")
+	require.Equal(t, execution.FreshenStatusDegraded, pctx.FreshenStatus)
+	require.Contains(t, pctx.FreshenDetail, "git-control-tower unavailable")
+
+	// A degraded freshen is re-attempted on the next resume (agent can retry).
+	_, _, _, err = h.svc.Resume(ctx, e.ID, "", "")
+	require.NoError(t, err)
+	require.Equal(t, 2, fr.calls, "a degraded freshen is retried on resume")
+}
+
+// TestFreshenReportsStalenessSummary proves the staleness recompute is surfaced
+// (reported only) in the freshen detail without mutating the authored plan.
+func TestFreshenReportsStalenessSummary(t *testing.T) {
+	fr := &fakeFreshener{result: execution.FreshenResult{
+		BaselineCaptured: true,
+		BaselineName:     "plan-1-baseline",
+		StalenessSummary: "staleness: 2 reference(s), overall=fresh",
+	}}
+	h := newHarnessWithFreshener(t, threePhasePlan(), fr)
+	ctx := context.Background()
+
+	_, pctx, _, err := h.svc.Start(ctx, "plan-1", "run-1")
+	require.NoError(t, err)
+	require.Contains(t, pctx.FreshenDetail, "staleness: 2 reference(s)")
+	// The authored plan references are untouched by the freshen (report-only).
+	require.Empty(t, h.store.plan.References)
+}
+
+// TestFreshenSkippedWhenNoSeam proves a nil freshener is a silent skip (no
+// fabricated capture, no block).
+func TestFreshenSkippedWhenNoSeam(t *testing.T) {
+	h := newHarness(t, threePhasePlan(), nil) // no freshener wired
+	ctx := context.Background()
+	_, pctx, _, err := h.svc.Start(ctx, "plan-1", "run-1")
+	require.NoError(t, err)
+	require.False(t, pctx.InputsFreshened, "no freshener wired => freshen is skipped silently")
+	require.Empty(t, pctx.FreshenStatus)
 }

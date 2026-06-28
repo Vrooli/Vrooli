@@ -30,6 +30,10 @@ type Service interface {
 	DiscoverContextCandidates(ctx context.Context, sessionID string, concepts []string, complexity string) (Session, []ContextCandidate, GuidedStep, error)
 	AcceptContextCandidate(ctx context.Context, sessionID, candidateID, phaseID string) (Session, ContextCandidate, planmodel.RelevantContextItem, []StructureViolation, GuidedStep, error)
 	RejectContextCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ContextCandidate, GuidedStep, error)
+	SuggestReferences(ctx context.Context, sessionID string) (Session, []ReferenceCandidate, GuidedStep, error)
+	ListReferenceCandidates(ctx context.Context, sessionID string) ([]ReferenceCandidate, GuidedStep, error)
+	AcceptReferenceCandidate(ctx context.Context, sessionID, candidateID string, edit *planmodel.Reference) (Session, ReferenceCandidate, []StructureViolation, GuidedStep, error)
+	RejectReferenceCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ReferenceCandidate, GuidedStep, error)
 	AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error)
 	GetPhase(ctx context.Context, sessionID, phaseID string) (PhaseDraft, GuidedStep, error)
 	SubmitPhaseField(ctx context.Context, sessionID, phaseID string, field PhaseField, content string) (Session, []StructureViolation, GuidedStep, error)
@@ -41,9 +45,8 @@ type Service interface {
 type service struct {
 	store        SessionStore
 	writer       PlanWriter
-	anchor       AnchorAutofiller
-	reading      RequiredReadingSource
-	references   ReferenceExtractor
+	anchor       AnchorIntentDeriver
+	suggester    ReferenceSuggester
 	context      ContextDiscoverer
 	commands     CommandReferenceValidator
 	templateSeed TemplateSeeder
@@ -69,9 +72,8 @@ type PosturePreparer interface {
 type Deps struct {
 	Store          SessionStore
 	Writer         PlanWriter
-	Anchor         AnchorAutofiller
-	RequiredRead   RequiredReadingSource
-	References     ReferenceExtractor
+	Anchor         AnchorIntentDeriver
+	Suggester      ReferenceSuggester
 	Context        ContextDiscoverer
 	Commands       CommandReferenceValidator
 	TemplateSeeder TemplateSeeder
@@ -97,8 +99,7 @@ func NewService(d Deps) Service {
 		store:        d.Store,
 		writer:       d.Writer,
 		anchor:       d.Anchor,
-		reading:      d.RequiredRead,
-		references:   d.References,
+		suggester:    d.Suggester,
 		context:      d.Context,
 		commands:     d.Commands,
 		templateSeed: d.TemplateSeeder,
@@ -251,7 +252,7 @@ func (s *service) Autofill(ctx context.Context, sessionID string, sources []Auto
 		return Session{}, nil, GuidedStep{}, err
 	}
 	if len(sources) == 0 {
-		sources = []AutofillSource{AutofillRegressionAnchor, AutofillReferences}
+		sources = []AutofillSource{AutofillRegressionAnchor}
 	}
 	results := make([]AutofillResult, 0, len(sources))
 	for _, src := range sources {
@@ -279,6 +280,10 @@ func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phas
 		}
 		item.Scope = planmodel.RelevantContextScopePhase
 		item.PhaseID = sess.PhaseDrafts[idx].ID
+		// A phase-scoped item repeats on phase entry, not once-per-execution —
+		// apply the scope default here (mirrors AcceptContextCandidate) so an unset
+		// or contradictory once_per_execution policy is corrected at submit time.
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
 		violations = contextItemViolations(item)
 		if len(violations) == 0 {
 			sess.PhaseDrafts[idx].RelevantContext = append(sess.PhaseDrafts[idx].RelevantContext, item)
@@ -288,6 +293,7 @@ func (s *service) SubmitRelevantContextItem(ctx context.Context, sessionID, phas
 	} else {
 		item.Scope = planmodel.RelevantContextScopeGlobal
 		item.PhaseID = ""
+		item.RepeatPolicy = defaultRepeatForScope(item.Scope, item.RepeatPolicy)
 		violations = contextItemViolations(item)
 		if len(violations) == 0 {
 			sess.RelevantContext = append(sess.RelevantContext, item)
@@ -525,32 +531,16 @@ func (s *service) runAutofill(ctx context.Context, sess *Session, src AutofillSo
 	var (
 		key     SectionKey
 		content string
-		err     error
 	)
 	switch src {
 	case AutofillRegressionAnchor:
 		key = SectionRegressionAnchor
 		if s.anchor == nil {
-			return degraded(src, key, "git-control-tower unavailable")
+			return degraded(src, key, "anchor intent deriver unavailable")
 		}
-		content, err = s.anchor.Anchor(ctx, sess.Title, sess.Slug)
-	case AutofillRequiredReading:
-		key = SectionRequiredReading
-		if s.reading == nil {
-			return degraded(src, key, "prompt-manager unavailable")
-		}
-		content, err = s.reading.RequiredReading(ctx, sess.Title)
-	case AutofillReferences:
-		key = SectionReferences
-		if s.references == nil {
-			return degraded(src, key, "code-facts unavailable")
-		}
-		content, err = s.references.References(ctx, sess.Title, contentOf(sess.Sections, SectionScope))
+		content = s.anchor.DeriveAnchorIntent(ctx, sess.Title, sess.Slug)
 	default:
 		return AutofillResult{Source: src, Degraded: true, Detail: "unknown autofill source"}
-	}
-	if err != nil {
-		return degraded(src, key, err.Error())
 	}
 	if strings.TrimSpace(content) == "" {
 		return degraded(src, key, "source returned no content")
@@ -563,6 +553,117 @@ func (s *service) runAutofill(ctx context.Context, sess *Session, src AutofillSo
 	sess.Sections[idx].Filled = true
 	sess.Sections[idx].Autofilled = true
 	return AutofillResult{Source: src, SectionKey: key, Filled: true, Detail: "autofilled"}
+}
+
+// SuggestReferences queries search-hub's Answer projection from the session's
+// title + scope + technical approach and stores reviewable reference candidates
+// (routed by locator shape) on the session. It NEVER writes the references
+// section — only Accept finalizes a reviewed candidate. A nil seam / error /
+// empty result degrades honestly to no candidates (the references step still
+// offers manual entry and NO_CODE_REFS).
+func (s *service) SuggestReferences(ctx context.Context, sessionID string) (Session, []ReferenceCandidate, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	query := referenceSuggestionQuery(sess)
+	var candidates []ReferenceCandidate
+	if s.suggester == nil {
+		candidates = nil
+	} else if found, suggestErr := s.suggester.Suggest(ctx, query); suggestErr == nil {
+		candidates = found
+	}
+	for i := range candidates {
+		candidates[i] = normalizeReferenceCandidate(candidates[i])
+	}
+	sess.ReferenceCandidates = append(sess.ReferenceCandidates, candidates...)
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, nil, GuidedStep{}, err
+	}
+	return sess, candidates, stepForReferenceCandidates(sess), nil
+}
+
+// ListReferenceCandidates returns the session's reference candidates without
+// changing wizard position.
+func (s *service) ListReferenceCandidates(ctx context.Context, sessionID string) ([]ReferenceCandidate, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return nil, GuidedStep{}, err
+	}
+	return append([]ReferenceCandidate(nil), sess.ReferenceCandidates...), stepForReferenceCandidates(sess), nil
+}
+
+// AcceptReferenceCandidate promotes one pending reference candidate into the
+// references section (with an optional inline edit of the locator). The accepted
+// locator is appended to the section so the references gate (which reads the
+// section for [CODE:]/[DOC:]/[REQ:] locators) passes only on reviewed state. A
+// kind/path mismatch is rejected before the locator enters the section.
+func (s *service) AcceptReferenceCandidate(ctx context.Context, sessionID, candidateID string, edit *planmodel.Reference) (Session, ReferenceCandidate, []StructureViolation, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, err
+	}
+	idx := indexOfReferenceCandidate(sess.ReferenceCandidates, candidateID)
+	if idx < 0 {
+		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "reference candidate not found: " + candidateID}
+	}
+	candidate := sess.ReferenceCandidates[idx]
+	if candidate.Status == ReferenceCandidateRejected {
+		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, ErrInvalidSession{Reason: "reference candidate was rejected: " + candidateID}
+	}
+	ref := candidate.Reference
+	if edit != nil {
+		if edit.Kind != "" {
+			ref.Kind = edit.Kind
+		}
+		if strings.TrimSpace(edit.Target) != "" {
+			ref.Target = strings.TrimSpace(edit.Target)
+		}
+		ref.Future = edit.Future
+	}
+	if ref.Kind == "" {
+		ref.Kind = planmodel.ReferenceCode
+	}
+	if strings.TrimSpace(ref.Target) == "" {
+		return sess, candidate, []StructureViolation{{SectionKey: SectionReferences, Message: "reference candidate has no target locator"}}, stepForReferenceCandidates(sess), nil
+	}
+	if msg := referenceKindMismatch(ref.Kind, ref.Target); msg != "" {
+		return sess, candidate, []StructureViolation{{SectionKey: SectionReferences, Message: msg}}, stepForReferenceCandidates(sess), nil
+	}
+	candidate.Reference = ref
+	candidate.Status = ReferenceCandidateAccepted
+	sess.ReferenceCandidates[idx] = candidate
+	appendAcceptedReference(&sess, ref)
+	sess.CurrentSectionKey = firstUnfilledMandatory(sess.Sections)
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, ReferenceCandidate{}, nil, GuidedStep{}, err
+	}
+	return sess, candidate, nil, stepForCurrentSessionState(sess), nil
+}
+
+// RejectReferenceCandidate records why a suggested reference is not relevant. The
+// rejected candidate stays as an authoring audit trail; it never enters the
+// references section.
+func (s *service) RejectReferenceCandidate(ctx context.Context, sessionID, candidateID, reason string) (Session, ReferenceCandidate, GuidedStep, error) {
+	sess, err := s.load(ctx, sessionID)
+	if err != nil {
+		return Session{}, ReferenceCandidate{}, GuidedStep{}, err
+	}
+	idx := indexOfReferenceCandidate(sess.ReferenceCandidates, candidateID)
+	if idx < 0 {
+		return Session{}, ReferenceCandidate{}, GuidedStep{}, ErrInvalidSession{Reason: "reference candidate not found: " + candidateID}
+	}
+	candidate := sess.ReferenceCandidates[idx]
+	candidate.Status = ReferenceCandidateRejected
+	candidate.RejectionReason = strings.TrimSpace(reason)
+	sess.ReferenceCandidates[idx] = candidate
+	sess.UpdatedAt = s.now()
+	if err := s.store.Save(ctx, sess); err != nil {
+		return Session{}, ReferenceCandidate{}, GuidedStep{}, err
+	}
+	return sess, candidate, stepForReferenceCandidates(sess), nil
 }
 
 func (s *service) AddPhase(ctx context.Context, sessionID string, title, intent string) (Session, PhaseDraft, []StructureViolation, GuidedStep, error) {
@@ -726,12 +827,42 @@ func (s *service) now() string { return s.clock.Now().UTC().Format(sessionTimeFo
 
 // --- pure helpers (no I/O) ---
 
+// stepForCurrentSessionState is the guided step a normal mutation returns. It
+// delegates to nextGuidedStep so a mutation never reports final_review while
+// global relevant context is unresolved or a phase is still incomplete — the
+// premature-final-review friction. CurrentSectionKey alone is insufficient
+// because it tracks only mandatory *sections* (the phases section reads "filled"
+// as soon as one draft exists, even an incomplete one), and the global-context
+// checkpoint is not a mandatory section at all.
 func stepForCurrentSessionState(sess Session) GuidedStep {
-	if sess.CurrentSectionKey == "" {
-		return stepForReview(sess)
+	return nextGuidedStep(sess)
+}
+
+// nextGuidedStep selects the guided step for the session's true next required
+// action, mirroring ContinueAuthoring's resolution order: finalized → first
+// unfilled mandatory section → global relevant-context checkpoint → first
+// incomplete phase → outstanding structure violation → final review. It is pure
+// (no command-reference seam); that seam runs only at ValidateStructure/Finalize,
+// so a clean nextGuidedStep is a "structurally ready" hint, never a guarantee.
+func nextGuidedStep(sess Session) GuidedStep {
+	if sess.Finalized {
+		return stepForFinalizedPlan(sess, sess.PlanID, sess.Slug)
 	}
-	if sec, ok := sectionByKey(sess.Sections, sess.CurrentSectionKey); ok {
-		return stepForSection(sess, sec)
+	if key := firstUnfilledMandatory(sess.Sections); key != "" {
+		if sec, ok := sectionByKey(sess.Sections, key); ok {
+			return stepForSection(sess, sec)
+		}
+	}
+	if !globalContextResolved(sess) {
+		return stepForGlobalContextCheckpoint(sess)
+	}
+	if id := nextIncompletePhaseID(sess.PhaseDrafts); id != "" {
+		if phase, ok := findDraft(sess.PhaseDrafts, id); ok {
+			return stepForPhase(sess, phase)
+		}
+	}
+	if violations := sessionViolations(sess); len(violations) > 0 {
+		return stepForValidation(sess, false, violations)
 	}
 	return stepForReview(sess)
 }
@@ -785,6 +916,7 @@ func sessionViolations(sess Session) []StructureViolation {
 	if !hasReferencesOrNoCodeReason(refsContent) {
 		out = append(out, StructureViolation{SectionKey: SectionReferences, Message: referencesGateMessage})
 	}
+	out = append(out, referencesContentKindViolations(refsContent)...)
 	out = append(out, postureConflictViolations(sess)...)
 	for _, phase := range sess.PhaseDrafts {
 		out = append(out, phaseViolations(phase)...)
@@ -865,6 +997,7 @@ func phaseViolations(phase PhaseDraft) []StructureViolation {
 			Message:    prefix + " must include references or a no_code_refs_reason",
 		})
 	}
+	out = append(out, phaseReferenceKindViolations(phase.References, prefix)...)
 	if !hasPhaseContextOrNoContextReason(phase) {
 		out = append(out, StructureViolation{
 			SectionKey: SectionPhases,
@@ -886,6 +1019,9 @@ func violationsForSection(sec Section) []StructureViolation {
 		if !hasReferencesOrNoCodeReason(sec.Content) {
 			out = append(out, StructureViolation{SectionKey: SectionReferences, Message: referencesGateMessage})
 		}
+		// Semantic kind/path gate: a docs path tagged [CODE:] (or vice versa) is
+		// rejected at submit time, not silently accepted into session state.
+		out = append(out, referencesContentKindViolations(sec.Content)...)
 		return out
 	}
 	if sec.Mandatory && empty {
@@ -1031,6 +1167,78 @@ func degraded(src AutofillSource, key SectionKey, detail string) AutofillResult 
 	return AutofillResult{Source: src, SectionKey: key, Filled: false, Degraded: true, Detail: detail}
 }
 
+// referenceSuggestionQuery builds the broad search-hub query for reference
+// discovery from the rich authoring inputs (title + scope + technical approach).
+// Broad on purpose: search-hub federates/ranks and the locator-shape routing is
+// the Answer-projection filter, so we never need a brittle taxonomy gate here.
+func referenceSuggestionQuery(sess Session) string {
+	parts := []string{sess.Title}
+	parts = append(parts, contentOf(sess.Sections, SectionScope))
+	parts = append(parts, contentOf(sess.Sections, SectionTechnicalApproach))
+	var b strings.Builder
+	for _, part := range parts {
+		if p := strings.TrimSpace(part); p != "" {
+			if b.Len() > 0 {
+				b.WriteString(" ")
+			}
+			b.WriteString(p)
+		}
+	}
+	return b.String()
+}
+
+// normalizeReferenceCandidate fills ids and the pending default so a suggester
+// (or test fake) need not set bookkeeping fields.
+func normalizeReferenceCandidate(candidate ReferenceCandidate) ReferenceCandidate {
+	candidate.ID = strings.TrimSpace(candidate.ID)
+	if candidate.ID == "" {
+		candidate.ID = uuid.NewString()
+	}
+	candidate.Reference.ID = strings.TrimSpace(candidate.Reference.ID)
+	if candidate.Reference.ID == "" {
+		candidate.Reference.ID = uuid.NewString()
+	}
+	candidate.Reference.Target = strings.TrimSpace(candidate.Reference.Target)
+	candidate.Source = strings.TrimSpace(candidate.Source)
+	candidate.Detail = strings.TrimSpace(candidate.Detail)
+	candidate.RejectionReason = strings.TrimSpace(candidate.RejectionReason)
+	if candidate.Status == "" {
+		candidate.Status = ReferenceCandidatePending
+	}
+	return candidate
+}
+
+func indexOfReferenceCandidate(candidates []ReferenceCandidate, id string) int {
+	id = strings.TrimSpace(id)
+	for i := range candidates {
+		if candidates[i].ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// appendAcceptedReference appends one reviewed locator line to the references
+// section content and marks it filled (author-reviewed, not autofilled).
+func appendAcceptedReference(sess *Session, ref planmodel.Reference) {
+	idx := indexOf(sess.Sections, SectionReferences)
+	if idx < 0 {
+		return
+	}
+	line := "[" + referenceMarker(ref.Kind) + ": " + ref.Target + "]"
+	existing := strings.TrimRight(sess.Sections[idx].Content, "\n")
+	if strings.Contains(existing, line) {
+		return
+	}
+	if strings.TrimSpace(existing) == "" {
+		sess.Sections[idx].Content = line
+	} else {
+		sess.Sections[idx].Content = existing + "\n" + line
+	}
+	sess.Sections[idx].Filled = true
+	sess.Sections[idx].Autofilled = false
+}
+
 func hasReferencesOrNoCodeReason(content string) bool {
 	if strings.TrimSpace(noCodeRefsReason(content)) != "" {
 		return true
@@ -1070,6 +1278,116 @@ func hasReferenceMarker(content string) bool {
 	return strings.Contains(upper, "[CODE:") ||
 		strings.Contains(upper, "[REQ:") ||
 		strings.Contains(upper, "[DOC:")
+}
+
+// codeFileExts are the source-file extensions used to catch the most common
+// reference-kind mistake. Intentionally narrow — only an obvious mismatch is
+// rejected, so a legitimate edge case (a doc that ends in an unusual extension,
+// a code generator that emits markdown) is never blocked.
+var codeFileExts = []string{
+	".go", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".rs", ".java",
+	".rb", ".c", ".h", ".hpp", ".cc", ".cpp", ".cs", ".kt", ".swift", ".proto",
+	".sql", ".sh", ".bash", ".yaml", ".yml", ".json", ".toml",
+}
+
+func isCodeReferencePath(target string) bool {
+	lower := strings.ToLower(strings.TrimSpace(target))
+	for _, ext := range codeFileExts {
+		if strings.HasSuffix(lower, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+func isDocReferencePath(target string) bool {
+	lower := strings.ToLower(strings.TrimSpace(target))
+	if lower == "" {
+		return false
+	}
+	if strings.HasSuffix(lower, ".md") || strings.HasSuffix(lower, ".mdx") || strings.HasSuffix(lower, ".rst") {
+		return true
+	}
+	// A docs/ path segment that does not also resolve to a source file.
+	if (strings.Contains(lower, "/docs/") || strings.HasPrefix(lower, "docs/")) && !isCodeReferencePath(lower) {
+		return true
+	}
+	return false
+}
+
+// referenceKindMismatch returns an actionable message when a reference's declared
+// kind obviously contradicts its target path (a docs path tagged [CODE:], or a
+// source file tagged [DOC:]). It returns "" when the kind is plausible, so a
+// REQ id, a bare scenario path, or any ambiguous target is left to the author.
+func referenceKindMismatch(kind planmodel.ReferenceKind, target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return ""
+	}
+	switch kind {
+	case planmodel.ReferenceCode:
+		if isDocReferencePath(target) && !isCodeReferencePath(target) {
+			return fmt.Sprintf("reference %q is marked [CODE:] but points at a documentation path; use [DOC:] for docs", target)
+		}
+	case planmodel.ReferenceDoc:
+		if isCodeReferencePath(target) && !isDocReferencePath(target) {
+			return fmt.Sprintf("reference %q is marked [DOC:] but points at a source file; use [CODE:] for code", target)
+		}
+	}
+	return ""
+}
+
+// referenceKindViolations flags every declared reference whose kind contradicts
+// its target path.
+func referenceKindViolations(refs []planmodel.Reference, key SectionKey) []StructureViolation {
+	var out []StructureViolation
+	for _, ref := range refs {
+		if msg := referenceKindMismatch(ref.Kind, ref.Target); msg != "" {
+			out = append(out, StructureViolation{SectionKey: key, Message: msg})
+		}
+	}
+	return out
+}
+
+// phaseReferenceKindViolations flags a phase's reference kind/path mismatches,
+// prefixing each message with the phase label (e.g. "phase 2 reference …").
+func phaseReferenceKindViolations(refs []planmodel.Reference, prefix string) []StructureViolation {
+	var out []StructureViolation
+	for _, ref := range refs {
+		if msg := referenceKindMismatch(ref.Kind, ref.Target); msg != "" {
+			out = append(out, StructureViolation{SectionKey: SectionPhases, Message: prefix + " " + msg})
+		}
+	}
+	return out
+}
+
+// contextItemKindMismatch returns a reference-kind/path mismatch message for a
+// code_ref/doc context item, or "" when the kind is plausible.
+func contextItemKindMismatch(item planmodel.RelevantContextItem) string {
+	switch item.Kind {
+	case planmodel.RelevantContextCodeRef:
+		return referenceKindMismatch(planmodel.ReferenceCode, item.Target)
+	case planmodel.RelevantContextDoc:
+		return referenceKindMismatch(planmodel.ReferenceDoc, item.Target)
+	default:
+		return ""
+	}
+}
+
+// referencesContentKindViolations parses a references-section body and flags any
+// kind/path mismatch. A markup parse error returns no violations here — that case
+// is owned by the authored-markup gate (parseReferencesAndPhases) at finalize, so
+// the same error is never double-reported as both "invalid markup" and "wrong
+// kind".
+func referencesContentKindViolations(content string) []StructureViolation {
+	if strings.TrimSpace(content) == "" {
+		return nil
+	}
+	refs, err := parseReferencesContent(content)
+	if err != nil {
+		return nil
+	}
+	return referenceKindViolations(refs, SectionReferences)
 }
 
 func noCodeRefsReason(content string) string {
@@ -1565,6 +1883,12 @@ func contextItemViolations(item planmodel.RelevantContextItem) []StructureViolat
 	case planmodel.RelevantContextSkill, planmodel.RelevantContextDoc, planmodel.RelevantContextCodeRef, planmodel.RelevantContextReqRef:
 		if strings.TrimSpace(item.Target) == "" && strings.TrimSpace(item.Command) == "" && len(item.Argv) == 0 {
 			add("reference context requires a target, command, or argv")
+		}
+		// A code_ref/doc context item whose target obviously belongs to the other
+		// kind is the same docs-as-CODE mistake at context scope; reject it so the
+		// rendered plan never mislabels a setup reference.
+		if msg := contextItemKindMismatch(item); msg != "" {
+			add(msg)
 		}
 	case planmodel.RelevantContextNote:
 		if strings.TrimSpace(item.Instruction) == "" && strings.TrimSpace(item.Reason) == "" {

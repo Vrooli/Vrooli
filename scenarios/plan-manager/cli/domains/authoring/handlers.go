@@ -356,6 +356,91 @@ func (h *handlers) contextReject(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) suggestReferences(ctx cliapp.RunContext) error {
+	resp, err := h.client.SuggestReferences(context.Background(), connect.NewRequest(&authoringv1.SuggestReferencesRequest{
+		SessionId: ctx.Positional("session"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("suggest references", err, nil)
+	}
+	candidates := make([]string, 0, len(resp.Msg.GetCandidates()))
+	for _, candidate := range resp.Msg.GetCandidates() {
+		candidates = append(candidates, formatReferenceCandidate(candidate))
+	}
+	candidates = append(candidates, formatProgress(resp.Msg.GetProgress())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Suggested %d reference candidate(s) from search-hub.", len(resp.Msg.GetCandidates()))},
+		Changes:     append(candidates, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) referenceCandidates(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListReferenceCandidates(context.Background(), connect.NewRequest(&authoringv1.ListReferenceCandidatesRequest{
+		SessionId: ctx.Positional("session"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list reference candidates", err, nil)
+	}
+	candidates := make([]string, 0, len(resp.Msg.GetCandidates()))
+	for _, candidate := range resp.Msg.GetCandidates() {
+		candidates = append(candidates, formatReferenceCandidate(candidate))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Reference candidate(s): %d.", len(resp.Msg.GetCandidates()))},
+		ResultsHeading: "Candidates",
+		Results:        candidates,
+		RetrievalHints: append(formatRecommendedActions(resp.Msg.GetStep()), formatStep(resp.Msg.GetStep())...),
+	})
+}
+
+func (h *handlers) referenceAccept(ctx cliapp.RunContext) error {
+	var edit *sharedv1.Reference
+	if kind, target := ctx.Flag("kind"), ctx.Flag("target"); strings.TrimSpace(kind) != "" || strings.TrimSpace(target) != "" || ctx.BoolFlag("future") {
+		edit = &sharedv1.Reference{
+			Kind:   parseReferenceKind(kind),
+			Target: strings.TrimSpace(target),
+			Future: ctx.BoolFlag("future"),
+		}
+	}
+	resp, err := h.client.AcceptReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.AcceptReferenceCandidateRequest{
+		SessionId:   ctx.Positional("session"),
+		CandidateId: ctx.Positional("candidate"),
+		Reference:   edit,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("accept reference candidate", err, nil)
+	}
+	changes := []string{formatReferenceCandidate(resp.Msg.GetCandidate())}
+	changes = append(changes, formatProgress(resp.Msg.GetProgress())...)
+	if v := resp.Msg.GetViolations(); len(v) > 0 {
+		changes = append(changes, formatViolations(v)...)
+	}
+	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Accepted reference candidate %s (%d violation(s)).", ctx.Positional("candidate"), len(resp.Msg.GetViolations()))},
+		Changes:     changes,
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
+func (h *handlers) referenceReject(ctx cliapp.RunContext) error {
+	resp, err := h.client.RejectReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.RejectReferenceCandidateRequest{
+		SessionId:   ctx.Positional("session"),
+		CandidateId: ctx.Positional("candidate"),
+		Reason:      ctx.Flag("reason"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("reject reference candidate", err, nil)
+	}
+	changes := append([]string{formatReferenceCandidate(resp.Msg.GetCandidate())}, formatProgress(resp.Msg.GetProgress())...)
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Rejected reference candidate %s.", ctx.Positional("candidate"))},
+		Changes:     append(changes, formatStep(resp.Msg.GetStep())...),
+		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
+	})
+}
+
 func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 	resp, err := h.client.AddPhase(context.Background(), connect.NewRequest(&authoringv1.AddPhaseRequest{
 		SessionId: ctx.Positional("session"),
@@ -372,8 +457,12 @@ func (h *handlers) phaseAdd(ctx cliapp.RunContext) error {
 		changes = append(changes, formatViolations(v)...)
 	}
 	changes = append(changes, formatStep(resp.Msg.GetStep())...)
+	result := fmt.Sprintf("Added phase %d (%s).", phase.GetOrder(), phase.GetId())
+	if s := summaryLine(resp.Msg.GetSummary()); s != "" {
+		result = fmt.Sprintf("%s — %s.", strings.TrimRight(result, "."), s)
+	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Added phase %d (%s).", phase.GetOrder(), phase.GetId())},
+		Result:      []string{result},
 		Changes:     changes,
 		NextCommand: formatRecommendedActions(resp.Msg.GetStep()),
 	})
@@ -569,6 +658,52 @@ func formatContextCandidate(candidate *authoringv1.ContextCandidate) string {
 	return strings.Join(parts, " | ")
 }
 
+func formatReferenceCandidate(candidate *authoringv1.ReferenceCandidate) string {
+	if candidate == nil {
+		return ""
+	}
+	ref := candidate.GetReference()
+	locator := fmt.Sprintf("[%s: %s]", referenceMarkerLabel(ref.GetKind()), ref.GetTarget())
+	parts := []string{fmt.Sprintf("%s [%s] %s", candidate.GetId(), candidate.GetStatus(), locator)}
+	if candidate.GetSource() != "" {
+		parts = append(parts, "source="+candidate.GetSource())
+	}
+	if candidate.GetConfidence() > 0 {
+		parts = append(parts, fmt.Sprintf("score=%.2f", candidate.GetConfidence()))
+	}
+	if candidate.GetDegraded() {
+		parts = append(parts, "degraded="+candidate.GetDetail())
+	}
+	if candidate.GetRejectionReason() != "" {
+		parts = append(parts, "rejected="+candidate.GetRejectionReason())
+	}
+	return strings.Join(parts, " | ")
+}
+
+func referenceMarkerLabel(kind sharedv1.ReferenceKind) string {
+	switch kind {
+	case sharedv1.ReferenceKind_REFERENCE_KIND_REQ:
+		return "REQ"
+	case sharedv1.ReferenceKind_REFERENCE_KIND_DOC:
+		return "DOC"
+	default:
+		return "CODE"
+	}
+}
+
+func parseReferenceKind(raw string) sharedv1.ReferenceKind {
+	switch strings.TrimSpace(strings.ToLower(raw)) {
+	case "req", "req_ref", "requirement":
+		return sharedv1.ReferenceKind_REFERENCE_KIND_REQ
+	case "doc", "docs":
+		return sharedv1.ReferenceKind_REFERENCE_KIND_DOC
+	case "code", "code_ref":
+		return sharedv1.ReferenceKind_REFERENCE_KIND_CODE
+	default:
+		return sharedv1.ReferenceKind_REFERENCE_KIND_UNSPECIFIED
+	}
+}
+
 func formatPhase(phase *authoringv1.PhaseDraft) string {
 	return fmt.Sprintf("Phase %d [%s]: %s — %s", phase.GetOrder(), phase.GetId(), phase.GetTitle(), phase.GetIntent())
 }
@@ -716,7 +851,12 @@ func parseContextKind(raw string) sharedv1.RelevantContextKind {
 
 func parseRepeatPolicy(raw string) sharedv1.RelevantContextRepeatPolicy {
 	switch strings.TrimSpace(strings.ToLower(raw)) {
-	case "once_per_execution", "":
+	case "":
+		// Unset means "let the server pick the scope-appropriate default"
+		// (phase_entry for phase scope, once_per_execution for global) — do NOT
+		// hard-code once_per_execution here, which silently mis-set phase context.
+		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED
+	case "once_per_execution":
 		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ONCE_PER_EXECUTION
 	case "on_resume":
 		return sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_ON_RESUME

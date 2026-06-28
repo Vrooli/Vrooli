@@ -16,14 +16,21 @@
 -- rows loop).
 
 -- executions — run↔plan linkage and the runner's current-phase pointer.
+-- inputs_freshened_at/freshen_status/freshen_detail record the one-time
+-- execution-start "freshen inputs" step (baseline snapshot capture + reference
+-- staleness recompute, delegated to the validation domain). They stay empty until
+-- the first start/resume freshens, and are re-attempted while status != 'captured'.
 CREATE TABLE IF NOT EXISTS executions (
-  id               TEXT PRIMARY KEY,
-  plan_id          TEXT NOT NULL,
-  run_id           TEXT NOT NULL DEFAULT '',
-  current_phase_id TEXT NOT NULL DEFAULT '',
-  complete         INTEGER NOT NULL DEFAULT 0,
-  started_at       TEXT NOT NULL,
-  updated_at       TEXT NOT NULL
+  id                  TEXT PRIMARY KEY,
+  plan_id             TEXT NOT NULL,
+  run_id              TEXT NOT NULL DEFAULT '',
+  current_phase_id    TEXT NOT NULL DEFAULT '',
+  complete            INTEGER NOT NULL DEFAULT 0,
+  started_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL,
+  inputs_freshened_at TEXT NOT NULL DEFAULT '',
+  freshen_status      TEXT NOT NULL DEFAULT '',
+  freshen_detail      TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_executions_plan ON executions(plan_id);

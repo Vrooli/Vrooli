@@ -666,6 +666,28 @@ teamStore.Create(ctx, &store.Team{
 
 **File**: [CODE: api/store/models.go#Team]
 
+### Graph Connect Handler (proto transport seam) {#graph-connect-handler}
+
+`graph.NewConnectMount(indexStore)` builds prompt-manager's first proto/Connect
+contract — `vrooli.prompt_manager.v1.graph.GraphService.GetHealthScores` — and
+returns the `(procedurePath, http.Handler)` pair mounted on the existing
+gorilla/mux router via `connectx.RegisterServices` in `api/main.go`. The handler
+(`api/graph/connect_handler.go`) owns no domain logic: it delegates to the same
+`graphIndexProvider` the REST `GET /api/v1/graph/health` handler reads and maps
+the domain `HealthScore`/`HealthMessage` onto their proto wire shapes.
+
+This is **additive**: the legacy REST route stays live; prompt-manager's own
+CLI/UI are not migrated. The contract exists because
+meta-optimization-manager's Guide numerator consumes it as a typed
+`GraphServiceClient` over a discovery-resolved base URL (replacing a
+`prompt-manager graph health --json` CLI shell-out). Full proto/Connect adoption
+of the other graph + prompt-manager domains — plus the `gen-endpoints` /
+`endpoints.json` drift gate — is deferred to a dedicated adoption plan
+(see [PROBLEMS.md](PROBLEMS.md)).
+
+**Files**: [CODE: api/graph/connect_handler.go], [CODE: api/main.go] (mount),
+[CODE: packages/proto/schemas/prompt-manager/v1/graph/graph.proto] (contract).
+
 ## Related Documentation
 
 - [ARCHITECTURE.md](../concepts/ARCHITECTURE.md) - System architecture overview

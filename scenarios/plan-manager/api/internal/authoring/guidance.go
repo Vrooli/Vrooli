@@ -38,20 +38,18 @@ func stepForSection(sess Session, sec Section) GuidedStep {
 		},
 	}
 	if sec.Key == SectionReferences {
-		step.NextActions = append(step.NextActions, NextAction{
-			ID:     "autofill-" + string(sec.Key),
-			Kind:   NextActionAlternative,
-			Label:  "Autofill " + sec.Label,
-			Reason: "This section can be populated by a composed dependency when available.",
-			Argv:   []string{"author", "autofill", sess.ID, "--sources", string(sec.Key)},
-		})
+		// References carries concrete recovery actions (autofill, manual submit, or
+		// an explicit NO_CODE_REFS fallback) so a degraded references autofill never
+		// leaves the agent without an exact next command — it mirrors the
+		// regression-anchor recovery posture.
+		step.NextActions = referencesRecoveryActions(sess)
 	}
 	if sec.Key == SectionRegressionAnchor {
-		// The anchor carries concrete recovery actions (autofill, capture a
-		// baseline snapshot, or submit a structured fallback block) so a degraded
-		// autofill never leaves the agent without an exact next command.
+		// The anchor carries concrete actions: derive the typed intent
+		// mechanically (no snapshot — the executor captures that at execution
+		// start), or confirm/adjust the derived intent block by hand.
 		step.NextActions = regressionAnchorRecoveryActions(sess)
-		step.Examples = append(step.Examples, RegressionAnchorFallbackTemplate(sess))
+		step.Examples = append(step.Examples, RegressionAnchorIntentTemplate(sess.Title, sess.Slug))
 	}
 	if sec.Key == SectionRelevantContext {
 		step.NextActions = []NextAction{
@@ -199,15 +197,15 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 		return GuidedStep{
 			StepKind: "regression_anchor",
 			Title:    "Regression Anchor",
-			Summary:  "Record the before-state used to detect regressions.",
+			Summary:  "Record the typed INTENT of the before-state (which scenario, allowlist, and diff command). The actual baseline snapshot is captured fresh at execution start — not here.",
 			Instructions: []string{
-				"Prefer autofill so git-control-tower supplies the anchor.",
-				"If autofill degraded (git-control-tower/baseline unavailable), capture a baseline snapshot yourself or submit the structured fallback block — never leave it blank.",
+				"Derive the typed anchor intent (strategy, scenario, baseline name, allowlist, diff command), then confirm or adjust it — the <scenario> placeholder must name the real target scenario.",
+				"Do not capture a baseline snapshot at authoring time; intent never goes stale and the executor snapshots the real 'before' when execution starts.",
 				"Do not claim validation passed here; this is only the before anchor.",
 			},
-			RequiredInputs: []string{"anchor strategy (autofilled, snapshot, or structured fallback block)"},
-			Examples:       []string{"baseline name <slug>-baseline", "HEAD sha abc123 with allowlist scenarios/<scenario>/**"},
-			CommonMistakes: []string{"Putting final test results in the anchor.", "Leaving the anchor blank because the dependency was down."},
+			RequiredInputs: []string{"typed anchor intent (strategy / scenario / baseline name / allowlist / diff command)"},
+			Examples:       []string{"Strategy: scenario-baseline", "Allowlist: scenarios/<scenario>/**"},
+			CommonMistakes: []string{"Putting final test results in the anchor.", "Trying to capture a snapshot at authoring time instead of recording intent.", "Leaving the <scenario> placeholder unconfirmed."},
 		}
 	case SectionRelevantContext:
 		return GuidedStep{
@@ -251,57 +249,119 @@ func sectionBaseStep(key SectionKey) GuidedStep {
 	}
 }
 
-// regressionAnchorRecoveryActions are the concrete recovery commands surfaced
-// when the anchor still needs input (including after a degraded autofill).
-func regressionAnchorRecoveryActions(sess Session) []NextAction {
-	name := anchorBaselineName(sess)
-	reason := firstNonEmpty(sess.Title, "regression baseline before implementation")
+// referencesRecoveryActions are the concrete actions surfaced for the references
+// section. Suggesting from search-hub is recommended (the Answer projection
+// discovers connected locations); manual submission is the alternative when the
+// author already knows the touched files; and an explicit NO_CODE_REFS fallback
+// ensures an empty suggestion result or a genuinely doc-only plan still has an
+// exact next command instead of a dead end.
+func referencesRecoveryActions(sess Session) []NextAction {
 	return []NextAction{
 		{
-			ID:     "autofill-anchor",
+			ID:     "suggest-references",
 			Kind:   NextActionRecommended,
-			Label:  "Autofill the regression anchor",
-			Reason: "Let git-control-tower supply the baseline anchor mechanically.",
-			Argv:   []string{"author", "autofill", sess.ID, "--sources", "regression_anchor"},
+			Label:  "Suggest references",
+			Reason: "Discover connected [CODE:]/[DOC:]/[REQ:] locators from search-hub, then accept/reject each suggestion.",
+			Argv:   []string{"author", "suggest-references", sess.ID},
 		},
 		{
-			ID:                 "capture-baseline-snapshot",
-			Kind:               NextActionRecovery,
-			Label:              "Capture a baseline snapshot, then re-run autofill",
-			Reason:             "Run when autofill degraded because the baseline snapshot/manifest intent was missing.",
-			Argv:               []string{"git-control-tower", "baseline", "snapshot", "--scenario", "<scenario>", "--name", name, "--reason", reason},
-			ContentPlaceholder: "<scenario>",
+			ID:                 "submit-references",
+			Kind:               NextActionAlternative,
+			Label:              "Submit references manually",
+			Reason:             "List the connected [CODE:]/[DOC:]/[REQ:] locators you are touching, one per line.",
+			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionReferences), "--content", "[CODE: path/to/file.go]"},
+			ContentPlaceholder: "[CODE: path/to/file.go]",
 		},
 		{
-			ID:                 "submit-fallback-anchor",
+			ID:                 "submit-no-code-refs",
 			Kind:               NextActionRecovery,
-			Label:              "Submit the structured fallback anchor block",
-			Reason:             "Use when git-control-tower cannot run at all; record an honest SHA/allowlist strategy instead of leaving the anchor blank.",
-			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionRegressionAnchor), "--content", RegressionAnchorFallbackTemplate(sess)},
-			ContentPlaceholder: RegressionAnchorFallbackTemplate(sess),
+			Label:              "Record NO_CODE_REFS fallback",
+			Reason:             "Use when suggestions found no targets and there are genuinely no connected code/doc/req references — record an honest reason instead of leaving references blank.",
+			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
+			ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
 		},
 	}
 }
 
-// RegressionAnchorFallbackTemplate returns the structured fallback anchor block
-// an agent can submit verbatim when autofill degrades. Its field keys match the
+// stepForReferenceCandidates is the guided step after SuggestReferences (mirrors
+// stepForContextDiscovery): review each suggested locator and accept or reject
+// it. Raw suggestions never satisfy the references gate — only accepted locators
+// (written into the references section) do.
+func stepForReferenceCandidates(sess Session) GuidedStep {
+	return GuidedStep{
+		StepKind:       "reference_candidates",
+		Title:          "Reference Candidates",
+		Summary:        "Review the search-hub reference suggestions and accept or reject each one. Suggestions do not enter the plan until accepted.",
+		Instructions:   []string{"Accept only locators the plan genuinely depends on or changes.", "Edit a locator's kind/target on accept if the suggestion is close but imprecise.", "Reject noisy or irrelevant suggestions with a short reason.", "If no suggestion fits and there are no connected references, record a NO_CODE_REFS reason instead."},
+		RequiredInputs: []string{"candidate decision (accept/reject) or NO_CODE_REFS reason"},
+		Examples:       []string{"author reference-accept " + sess.ID + " <candidate-id>", "author reference-reject " + sess.ID + " <candidate-id> --reason 'unrelated subsystem'"},
+		CommonMistakes: []string{"Accepting every suggestion without judgment.", "Treating a raw suggestion as if it already satisfied the references gate."},
+		NextActions: []NextAction{
+			{
+				ID:     "list-reference-candidates",
+				Kind:   NextActionRecommended,
+				Label:  "List reference candidates",
+				Reason: "Review the suggested locators before accepting or rejecting.",
+				Argv:   []string{"author", "reference-list", sess.ID},
+			},
+			{
+				ID:                 "submit-no-code-refs",
+				Kind:               NextActionRecovery,
+				Label:              "Record NO_CODE_REFS fallback",
+				Reason:             "Use when no suggestion fits and there are genuinely no connected references.",
+				Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionReferences), "--content", "NO_CODE_REFS: <reason there are no connected references>"},
+				ContentPlaceholder: "NO_CODE_REFS: <reason there are no connected references>",
+			},
+		},
+	}
+}
+
+// regressionAnchorRecoveryActions are the concrete actions surfaced for the
+// anchor section. Deriving the typed intent mechanically is recommended; the
+// alternative is to confirm/adjust the derived intent block by hand. There is no
+// "capture a baseline snapshot" action here — that moved to execution start,
+// where the "before" is actually true.
+func regressionAnchorRecoveryActions(sess Session) []NextAction {
+	template := RegressionAnchorIntentTemplate(sess.Title, sess.Slug)
+	return []NextAction{
+		{
+			ID:     "autofill-anchor",
+			Kind:   NextActionRecommended,
+			Label:  "Derive the regression anchor intent",
+			Reason: "Fill the typed anchor intent (strategy, scenario, allowlist, diff command) mechanically — no snapshot, never stale.",
+			Argv:   []string{"author", "autofill", sess.ID, "--sources", "regression_anchor"},
+		},
+		{
+			ID:                 "submit-anchor-intent",
+			Kind:               NextActionAlternative,
+			Label:              "Confirm/adjust the anchor intent block",
+			Reason:             "Submit the typed intent yourself, replacing the <scenario> placeholder with the real target scenario.",
+			Argv:               []string{"author", "section-submit", sess.ID, "--section", string(SectionRegressionAnchor), "--content", template},
+			ContentPlaceholder: template,
+		},
+	}
+}
+
+// RegressionAnchorIntentTemplate returns the structured regression-anchor intent
+// block — the primary authoring output for the anchor. Its field keys match the
 // plans-domain anchor parser (Strategy / Scenario baseline / Baseline name /
-// HEAD sha / Allowlist / Diff command), so a fallback anchor parses into typed
-// fields rather than degrading to legacy prose.
-func RegressionAnchorFallbackTemplate(sess Session) string {
-	name := anchorBaselineName(sess)
+// HEAD sha / Allowlist / Diff command), so it parses into typed fields. It
+// records INTENT only (the HEAD sha is a placeholder); the executor captures the
+// real snapshot at execution start.
+func RegressionAnchorIntentTemplate(title, slug string) string {
+	name := anchorBaselineName(title, slug)
 	return strings.Join([]string{
 		"Strategy: scenario-baseline",
 		"Scenario baseline: <scenario>",
 		"Baseline name: " + name,
-		"HEAD sha: <output of `git rev-parse HEAD`>",
+		"HEAD sha: <captured at execution start>",
 		"Allowlist: scenarios/<scenario>/**",
 		"`git-control-tower baseline diff --scenario <scenario> --name " + name + " --branch <branch> --wait`",
 	}, "\n")
 }
 
-func anchorBaselineName(sess Session) string {
-	base := firstNonEmpty(sess.Slug, sess.Title, "plan")
+func anchorBaselineName(title, slug string) string {
+	base := firstNonEmpty(slug, title, "plan")
 	base = strings.ToLower(strings.TrimSpace(base))
 	base = strings.ReplaceAll(base, " ", "-")
 	return base + "-baseline"

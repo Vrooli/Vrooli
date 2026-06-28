@@ -8,9 +8,9 @@
 //
 // Layering mirrors the canonical domain pattern:
 //
-//	handler → Service → {SessionStore, PlanWriter, AnchorAutofiller,
+//	handler → Service → {SessionStore, PlanWriter, AnchorIntentDeriver,
 //	            ↑            ↑ owned store    ↑ plans domain   ContextDiscoverer,
-//	        (proto edge)   (faked in tests)                   ReferenceExtractor}
+//	        (proto edge)   (faked in tests)                   ReferenceSuggester}
 //	                                                          ↑ all behind seams,
 //	                                                            all degrade gracefully
 //
@@ -149,19 +149,20 @@ type PhaseDraft struct {
 // CLI calls via the SessionStore. The plan it produces is owned by the plans
 // domain (PlanID is set after Finalize).
 type Session struct {
-	ID                string
-	Title             string
-	Slug              string
-	Sections          []Section
-	CurrentSectionKey SectionKey
-	PhaseDrafts       []PhaseDraft
-	CurrentPhaseID    string
-	RelevantContext   []planmodel.RelevantContextItem
-	ContextCandidates []ContextCandidate
-	Finalized         bool
-	PlanID            string
-	CreatedAt         string
-	UpdatedAt         string
+	ID                  string
+	Title               string
+	Slug                string
+	Sections            []Section
+	CurrentSectionKey   SectionKey
+	PhaseDrafts         []PhaseDraft
+	CurrentPhaseID      string
+	RelevantContext     []planmodel.RelevantContextItem
+	ContextCandidates   []ContextCandidate
+	ReferenceCandidates []ReferenceCandidate
+	Finalized           bool
+	PlanID              string
+	CreatedAt           string
+	UpdatedAt           string
 }
 
 // StructureViolation is one structure/authoring-gate failure (an empty mandatory
@@ -193,15 +194,14 @@ type CommandIssue struct {
 	Message string
 }
 
-// AutofillSource names one mechanical-section autofill source. Required-reading
-// is retained as an explicit legacy migration source but is not part of default
-// autofill; new setup context flows through context discovery/acceptance.
+// AutofillSource names one mechanical-section autofill source. The regression
+// anchor is the only mechanical autofill: references are discovered as reviewable
+// candidates (SuggestReferences) and setup context flows through context
+// discovery/acceptance.
 type AutofillSource string
 
 const (
 	AutofillRegressionAnchor AutofillSource = "regression_anchor"
-	AutofillRequiredReading  AutofillSource = "required_reading"
-	AutofillReferences       AutofillSource = "references"
 )
 
 // AutofillResult reports the outcome of one autofill source. Degraded=true means
@@ -235,6 +235,32 @@ type ContextCandidate struct {
 	RejectionReason string
 }
 
+// ReferenceCandidateStatus mirrors ContextCandidateStatus for the reference
+// review lifecycle.
+type ReferenceCandidateStatus string
+
+const (
+	ReferenceCandidatePending  ReferenceCandidateStatus = "pending"
+	ReferenceCandidateAccepted ReferenceCandidateStatus = "accepted"
+	ReferenceCandidateRejected ReferenceCandidateStatus = "rejected"
+)
+
+// ReferenceCandidate is a discovered code/doc/req locator awaiting author
+// judgment. The suggester proposes it from search-hub's Answer projection
+// (routed by locator shape); only accepted candidates finalize into the
+// references section. Mirrors ContextCandidate so the two discovery sources share
+// one curate-pattern.
+type ReferenceCandidate struct {
+	ID              string
+	Reference       planmodel.Reference
+	Source          string
+	Confidence      float64
+	Degraded        bool
+	Detail          string
+	Status          ReferenceCandidateStatus
+	RejectionReason string
+}
+
 // sectionSpec is the seed shape for one section in the default skeleton.
 type sectionSpec struct {
 	Key       SectionKey
@@ -244,9 +270,10 @@ type sectionSpec struct {
 
 // defaultSkeleton is the ordered section skeleton StartSession seeds. The
 // mandatory sections gate Finalize; the optional ones (constraints, non_goals,
-// references, relevant_context) may be left empty. The autofillable mechanical
-// sections (regression_anchor, references) carry prose only when an autofill
-// source supplies it. phases is mandatory so a plan always has work.
+// relevant_context) may be left empty. The regression-anchor section carries
+// typed intent only when the anchor autofill supplies it; references carry only
+// reviewed (accepted) search-hub suggestions or a NO_CODE_REFS reason. phases is
+// mandatory so a plan always has work.
 var defaultSkeleton = []sectionSpec{
 	{Key: SectionPurpose, Label: "Purpose", Mandatory: true},
 	{Key: SectionProblemStatement, Label: "Problem / Need", Mandatory: true},

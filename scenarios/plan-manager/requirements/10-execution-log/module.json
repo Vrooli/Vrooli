@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "PM-LOG — the execution-log ledger: one durable home for typed decisions/findings/bug reports/records/notes, with internal downstream forwarding.",
-    "last_validated_at": "2026-06-27T00:00:00-04:00",
+    "last_validated_at": "2026-06-28T12:36:23-04:00",
     "module": "execution-log",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -15,7 +15,11 @@
       "prd_ref": "OT-P1-001",
       "category": "log",
       "description": "Decisions, candidate findings, bug reports, reusable records, and notes are typed entries in one durable ledger owned by the log domain. Findings (unvalidated), bug reports (filed defects), and records (reusable learning) are distinct concepts and never conflated. Findings file as CANDIDATE and are never auto-promoted.",
-      "tags": ["log", "ledger", "findings"],
+      "tags": [
+        "log",
+        "ledger",
+        "findings"
+      ],
       "validation": [
         {
           "type": "test",
@@ -40,7 +44,11 @@
       "prd_ref": "OT-P1-001",
       "category": "log",
       "description": "Plan Manager forwards bug reports (scenario-qa) and records (swarm-manager) through internal seams/adapters. Agents are never instructed to run external scenario CLIs from the plan workflow.",
-      "tags": ["log", "downstream", "seams"],
+      "tags": [
+        "log",
+        "downstream",
+        "seams"
+      ],
       "validation": [
         {
           "type": "test",
@@ -58,7 +66,11 @@
       "prd_ref": "OT-P1-001",
       "category": "log",
       "description": "When a downstream system is unavailable or rejects a write, the local entry stays durable with a sync status of pending or sync_failed; failure is never fatal to plan execution, and the agent retries explicitly via log sync.",
-      "tags": ["log", "graceful-degradation", "sync"],
+      "tags": [
+        "log",
+        "graceful-degradation",
+        "sync"
+      ],
       "validation": [
         {
           "type": "test",
@@ -83,7 +95,11 @@
       "prd_ref": "OT-P1-001",
       "category": "log",
       "description": "Retries with the same idempotency key (or attribution run id + title) return the existing entry instead of duplicating. Promoting a finding to a bug report or record preserves the original finding (marked promoted) and links the new entry back to it.",
-      "tags": ["log", "idempotency", "promotion"],
+      "tags": [
+        "log",
+        "idempotency",
+        "promotion"
+      ],
       "validation": [
         {
           "type": "test",

@@ -7,10 +7,16 @@ import {
   type AutofillResult,
   type ContextCandidate,
   type PhaseDraft,
+  type ReferenceCandidate,
   type Section,
   type StructureViolation,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
-import { type GuidedStep, type Plan, type RelevantContextItem } from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
+import {
+  type GuidedStep,
+  type Plan,
+  type Reference,
+  type RelevantContextItem,
+} from "@vrooli/proto-types/plan-manager/v1/shared/model_pb";
 
 import { transport } from "./client";
 
@@ -187,6 +193,56 @@ export async function rejectContextCandidate(
   step: GuidedStep | undefined;
 }> {
   const resp = await authoringClient.rejectContextCandidate({ sessionId, candidateId, reason });
+  return { candidate: resp.candidate, progress: resp.progress, step: resp.step };
+}
+
+export async function suggestReferences(sessionId: string): Promise<{
+  candidates: ReferenceCandidate[];
+  progress: AuthoringProgress | undefined;
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.suggestReferences({ sessionId });
+  return { candidates: resp.candidates, progress: resp.progress, step: resp.step };
+}
+
+export async function listReferenceCandidates(
+  sessionId: string,
+): Promise<{ candidates: ReferenceCandidate[]; step: GuidedStep | undefined }> {
+  const resp = await authoringClient.listReferenceCandidates({ sessionId });
+  return { candidates: resp.candidates, step: resp.step };
+}
+
+export async function acceptReferenceCandidate(
+  sessionId: string,
+  candidateId: string,
+  reference?: Reference,
+): Promise<{
+  candidate: ReferenceCandidate | undefined;
+  summary: AuthoringMutationSummary | undefined;
+  progress: AuthoringProgress | undefined;
+  violations: StructureViolation[];
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.acceptReferenceCandidate({ sessionId, candidateId, reference });
+  return {
+    candidate: resp.candidate,
+    summary: resp.summary,
+    progress: resp.progress,
+    violations: resp.violations,
+    step: resp.step,
+  };
+}
+
+export async function rejectReferenceCandidate(
+  sessionId: string,
+  candidateId: string,
+  reason: string,
+): Promise<{
+  candidate: ReferenceCandidate | undefined;
+  progress: AuthoringProgress | undefined;
+  step: GuidedStep | undefined;
+}> {
+  const resp = await authoringClient.rejectReferenceCandidate({ sessionId, candidateId, reason });
   return { candidate: resp.candidate, progress: resp.progress, step: resp.step };
 }
 

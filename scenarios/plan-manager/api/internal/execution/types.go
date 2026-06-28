@@ -40,15 +40,31 @@ const (
 )
 
 // Execution is a run↔plan linkage with the runner's current-phase pointer.
+// InputsFreshenedAt/FreshenStatus/FreshenDetail record the one-time
+// execution-start "freshen inputs" step (baseline snapshot capture + reference
+// staleness recompute, delegated to the validation domain). They stay empty until
+// the first start/resume freshens; a degraded attempt is re-tried on the next
+// start/resume (status != "captured"), never on the per-poll status/next path.
 type Execution struct {
-	ID             string
-	PlanID         string
-	RunID          string
-	CurrentPhaseID string
-	Complete       bool
-	StartedAt      string
-	UpdatedAt      string
+	ID                string
+	PlanID            string
+	RunID             string
+	CurrentPhaseID    string
+	Complete          bool
+	StartedAt         string
+	UpdatedAt         string
+	InputsFreshenedAt string
+	FreshenStatus     string
+	FreshenDetail     string
 }
+
+// Freshen status values recorded on an Execution after the execution-start
+// freshen step. "captured" is terminal (never re-run); "degraded" is re-attempted
+// on the next start/resume.
+const (
+	FreshenStatusCaptured = "captured"
+	FreshenStatusDegraded = "degraded"
+)
 
 // PhaseTransitionInputs are the typed controls for a phase-status transition.
 // ValidationOverrideReason is required only for done transitions that do not
@@ -126,6 +142,12 @@ type PhaseContext struct {
 	// LogSummary is a compact roll-up of the execution's log ledger so a resumed
 	// agent sees decisions/findings/bugs/records without reading every entry.
 	LogSummary planmodel.LogSummary
+	// InputsFreshened/FreshenStatus/FreshenDetail surface the one-time
+	// execution-start freshen step (baseline snapshot + staleness recompute) so the
+	// agent sees whether the "before" anchor was captured fresh, or why it degraded.
+	InputsFreshened bool
+	FreshenStatus   string
+	FreshenDetail   string
 }
 
 // CompletionNudge is one item in the thin guided completion process. Kinds are

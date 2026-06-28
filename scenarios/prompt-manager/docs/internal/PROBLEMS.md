@@ -219,6 +219,7 @@ _No open wiring gaps._
 
 | Item | Reason | Priority |
 |------|--------|----------|
+| Full proto/Connect adoption | prompt-manager is now **L3 for the `graph` domain only**: `GraphService.GetHealthScores` is served over Connect (proto-typed) alongside the kept legacy REST routes, because meta-optimization-manager consumes it as a typed numerator client (see [SEAMS.md](SEAMS.md#graph-connect-handler)). The remaining domains stay hand-rolled gorilla/mux REST (L0–L1), and prompt-manager has **no** `internal/module`/`registry.go` template machinery or `gen-endpoints`/`endpoints.json` drift gate. Migrating the other domains to proto/Connect and adopting the drift gate is a dedicated follow-up plan — not started. | Medium |
 | Graph `recent-activity` scoring unwired | `RecentActivityScoreFromTimestamp` is implemented in [CODE: api/graph/scoring.go:RecentActivityScoreFromTimestamp] but `Node` lacks a timestamp field to feed it, so `recentActivityScore` returns a neutral 0.5. Wire it when nodes gain `updatedAt` metadata. | Medium |
 | Qdrant integration | Optional feature, not core | Low |
 | CLI shell completion | Nice-to-have | Low |

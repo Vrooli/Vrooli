@@ -13,8 +13,9 @@ re-implementing it, and every dependency is soft and degrades gracefully.
 | Dependency | Kind | Purpose | Hard/Soft |
 |---|---|---|---|
 | `~/.vrooli` home store (SQLite) | Resource | Durable plan persistence (server-independent) | Required |
-| `code-facts` | Scenario | Resolve `[CODE:]`/`[REQ:]` references where its current surface can provide evidence | Soft |
-| `git-control-tower` | Scenario | Regression anchor (baseline snapshot/diff) | Soft |
+| `search-hub` | Scenario | Reference **discovery** at authoring — the Answer projection; hits routed by locator shape into reviewable `[CODE:]/[DOC:]/[REQ:]` candidates | Soft |
+| `code-facts` | Scenario | Resolve `[CODE:]`/`[REQ:]` references at **validation** where its current surface can provide evidence | Soft |
+| `git-control-tower` | Scenario | Regression anchor baseline snapshot (captured at **execution start**) + diff (validation/DoD) | Soft |
 | `cli-health` | Scenario | Validate authored `cli:` command references in plans without executing them | Soft |
 | git / freshness engine | Platform | Per-reference drift is git-sourced today; freshness engine remains scenario-artifact scoped | Soft |
 | `test-genie` / `scenario-validation` | Scenario | Validation results consumed (not owned) | Soft |
@@ -40,11 +41,26 @@ reverse): `swarm-manager` `phased-plan-drain`, project hygiene plan checks, the
 All soft; each is reached through a seam and degrades to a marked gap rather than
 failing the flow:
 
-- **code-facts** — resolves reference evidence where its current surface can
-  express the locator. If down: references remain recorded; validation falls back
-  to filesystem resolution for CODE/DOC refs and marks unresolved gaps honestly.
-- **git-control-tower** — captures/diffs the regression anchor. If down: anchor
-  autofill is skipped and flagged; DoD verification reports anchor-unavailable.
+- **search-hub** — the reference **discovery** source at authoring (read-only
+  `query --json`, the Answer projection). The wizard sends the rich
+  title+scope+approach query, routes the hits by locator shape, and offers the
+  `[CODE:]/[DOC:]/[REQ:]` hits as **reviewable** candidates the author accepts or
+  rejects. Plan Manager consumes whatever search-hub federates today and improves
+  automatically as more Answer-projection providers register; it never builds those
+  providers. If down/empty: no candidates — the references step falls back to
+  manual locator entry or a `NO_CODE_REFS:` reason (never a fabricated reference).
+- **code-facts** — resolves reference evidence at validation where its current
+  surface can express the locator. If down: references remain recorded; validation
+  falls back to filesystem resolution for CODE/DOC refs and marks unresolved gaps
+  honestly.
+- **git-control-tower** — captures the regression-anchor baseline snapshot at
+  **execution start** (relocated from authoring: a plan is durable across the
+  authoring→execution gap, so the "before" is only true immediately before edits
+  begin) and diffs it for validation/DoD. Authoring records typed anchor **intent**
+  only and never shells git-control-tower. The capture is delegated to the
+  validation domain through execution's `InputFreshener` seam, runs once per start,
+  and degrades honestly (recorded + surfaced, non-blocking, retried on resume); DoD
+  verification reports anchor-unavailable when the diff cannot run.
 - **cli-health** — validates authored `cli:` marked references in plan/phase
   text. If down: command validation reports UNKNOWN and never fabricates a pass.
   Plan Manager owns plan policy and authoring feedback; CLI Health owns command
@@ -58,10 +74,11 @@ failing the flow:
 - **test-genie / scenario-validation** — validation results consumed for plan
   health. plan-manager never re-implements project-level validation; it reads.
 - **prompt-manager** — relevant-context skill/action discovery for authoring and
-  setup guidance. Authoring stores discovered setup as pending candidates; the
-  author must accept useful candidates or reject noisy ones before finalization.
-  If down: context candidates are marked degraded or left for the author to
-  supply explicitly.
+  setup guidance (the Guide projection, distinct from the search-hub Answer
+  projection that feeds references). Authoring stores discovered setup as pending
+  candidates; the author must accept useful candidates or reject noisy ones before
+  finalization. If down: context candidates are marked degraded or left for the
+  author to supply explicitly.
 - **meta-optimization-manager** — velocity sink. If down: velocity is retained
   locally and emit is retried/skipped; no flow blocks.
 - **agent-manager** — provides the run-id attribution contract

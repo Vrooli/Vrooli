@@ -226,10 +226,19 @@
           "internal": true
         }
       ]
+    },
+    {
+      "id": "spaces",
+      "title": "Coverage Spaces",
+      "icon": "grid",
+      "description": "Coverage-space definitions (denominators) for federated answer projections",
+      "documents": [
+        { "path": "spaces/guide-space.md", "title": "Guide Space — SWE Task & Skill Coverage", "description": "The Guide projection's denominator: the SWE task space an agent must handle, mapped to guiding skills and empirical-gate status. Live skill health comes from prompt-manager graph health." }
+      ]
     }
   ],
   "navigation": {
     "primary": ["getting-started", "concepts", "guides", "perf", "plans", "reference"],
-    "secondary": ["internal"]
+    "secondary": ["internal", "spaces"]
   }
 }

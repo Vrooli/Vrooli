@@ -42,12 +42,13 @@ var _ SessionStore = (*sqliteStore)(nil)
 // sections[] and the current-section pointer live here because they round-trip
 // with the session and are never queried across sessions.
 type sessionDocument struct {
-	Sections          []Section                       `json:"sections"`
-	CurrentSectionKey SectionKey                      `json:"current_section_key"`
-	PhaseDrafts       []PhaseDraft                    `json:"phase_drafts,omitempty"`
-	CurrentPhaseID    string                          `json:"current_phase_id,omitempty"`
-	RelevantContext   []planmodel.RelevantContextItem `json:"relevant_context,omitempty"`
-	ContextCandidates []ContextCandidate              `json:"context_candidates,omitempty"`
+	Sections            []Section                       `json:"sections"`
+	CurrentSectionKey   SectionKey                      `json:"current_section_key"`
+	PhaseDrafts         []PhaseDraft                    `json:"phase_drafts,omitempty"`
+	CurrentPhaseID      string                          `json:"current_phase_id,omitempty"`
+	RelevantContext     []planmodel.RelevantContextItem `json:"relevant_context,omitempty"`
+	ContextCandidates   []ContextCandidate              `json:"context_candidates,omitempty"`
+	ReferenceCandidates []ReferenceCandidate            `json:"reference_candidates,omitempty"`
 }
 
 const (
@@ -69,12 +70,13 @@ FROM authoring_sessions WHERE id = ? LIMIT 1`
 
 func (r *sqliteStore) Save(ctx context.Context, s Session) error {
 	doc := sessionDocument{
-		Sections:          s.Sections,
-		CurrentSectionKey: s.CurrentSectionKey,
-		PhaseDrafts:       s.PhaseDrafts,
-		CurrentPhaseID:    s.CurrentPhaseID,
-		RelevantContext:   s.RelevantContext,
-		ContextCandidates: s.ContextCandidates,
+		Sections:            s.Sections,
+		CurrentSectionKey:   s.CurrentSectionKey,
+		PhaseDrafts:         s.PhaseDrafts,
+		CurrentPhaseID:      s.CurrentPhaseID,
+		RelevantContext:     s.RelevantContext,
+		ContextCandidates:   s.ContextCandidates,
+		ReferenceCandidates: s.ReferenceCandidates,
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {
@@ -136,5 +138,6 @@ func scanSession(sc rowScanner) (Session, error) {
 	s.CurrentPhaseID = doc.CurrentPhaseID
 	s.RelevantContext = doc.RelevantContext
 	s.ContextCandidates = doc.ContextCandidates
+	s.ReferenceCandidates = doc.ReferenceCandidates
 	return s, nil
 }

@@ -5,6 +5,7 @@ package execution
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -70,6 +71,10 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Validator: validatorAdapter{svc: validationSvc},
 		Log:       logLedgerAdapter{svc: logSvc},
 		Velocity:  internalexecution.DefaultVelocitySink(), // stub; no MoM wire (v1)
+		// The execution-start freshen step delegates baseline capture + staleness
+		// recompute to the SAME validation Service (which owns git-control-tower);
+		// execution never imports git-control-tower directly.
+		Freshener: inputFreshenerAdapter{svc: validationSvc},
 		Clock:     clk,
 	})
 
@@ -142,6 +147,60 @@ func (a validatorAdapter) LastValidation(ctx context.Context, planID, phaseID st
 		Detail:      res.Detail,
 		RanAt:       res.RanAt,
 	}, true, nil
+}
+
+// inputFreshenerAdapter adapts the validation domain Service to execution's
+// InputFreshener seam. At execution start it captures the regression-anchor's
+// baseline snapshot fresh (CaptureBaseline) and recomputes reference staleness
+// (ComputeStaleness) — both owned by validation (which owns git-control-tower) —
+// so execution never imports git-control-tower directly. Degradation is honest:
+// an incomplete anchor or an absent git-control-tower yields BaselineCaptured=false
+// with a Detail, never a fabricated capture.
+type inputFreshenerAdapter struct{ svc internalvalidation.Service }
+
+func (a inputFreshenerAdapter) FreshenInputs(ctx context.Context, planID string) (internalexecution.FreshenResult, error) {
+	capture, err := a.svc.CaptureBaseline(ctx, planID)
+	if err != nil {
+		return internalexecution.FreshenResult{}, err
+	}
+	res := internalexecution.FreshenResult{
+		BaselineCaptured: capture.Captured,
+		BaselineName:     capture.BaselineName,
+		Detail:           capture.Detail,
+	}
+	// Reference staleness is REPORTED, never written back to the authored plan.
+	// A staleness recompute failure is non-fatal — the baseline capture is the
+	// primary freshen action; staleness is advisory.
+	if report, stErr := a.svc.ComputeStaleness(ctx, planID, ""); stErr == nil {
+		res.StalenessSummary = summarizeStaleness(report)
+	}
+	return res, nil
+}
+
+// summarizeStaleness renders a short human roll-up of the recomputed reference
+// staleness (reported only — authored references are never mutated).
+func summarizeStaleness(report internalvalidation.ReferenceReport) string {
+	if len(report.References) == 0 {
+		return ""
+	}
+	counts := map[planmodel.StalenessTier]int{}
+	for _, ref := range report.References {
+		counts[ref.Staleness]++
+	}
+	overall := report.Overall
+	if overall == "" {
+		overall = planmodel.StalenessUnknown
+	}
+	return fmt.Sprintf("staleness: %d reference(s), overall=%s (fresh=%d, lightly_stale=%d, definitely_stale=%d)",
+		len(report.References), orStalenessUnknown(overall),
+		counts[planmodel.StalenessFresh], counts[planmodel.StalenessLightlyStale], counts[planmodel.StalenessDefinitelyStale])
+}
+
+func orStalenessUnknown(tier planmodel.StalenessTier) string {
+	if strings.TrimSpace(string(tier)) == "" {
+		return "unknown"
+	}
+	return string(tier)
 }
 
 // repoRoot resolves the repository root so the validation Service's filesystem

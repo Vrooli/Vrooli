@@ -80,21 +80,24 @@ type handoffDocument struct {
 
 const (
 	upsertExecutionSQL = `
-INSERT INTO executions (id, plan_id, run_id, current_phase_id, complete, started_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO executions (id, plan_id, run_id, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   plan_id=excluded.plan_id,
   run_id=excluded.run_id,
   current_phase_id=excluded.current_phase_id,
   complete=excluded.complete,
-  updated_at=excluded.updated_at`
+  updated_at=excluded.updated_at,
+  inputs_freshened_at=excluded.inputs_freshened_at,
+  freshen_status=excluded.freshen_status,
+  freshen_detail=excluded.freshen_detail`
 
 	getExecutionSQL = `
-SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at
+SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
 FROM executions WHERE id = ? LIMIT 1`
 
 	latestExecutionForPlanSQL = `
-SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at
+SELECT id, plan_id, run_id, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
 FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC LIMIT 1`
 
 	upsertHandoffSQL = `
@@ -131,6 +134,7 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 	}
 	if _, err := r.db.ExecContext(ctx, upsertExecutionSQL,
 		e.ID, e.PlanID, e.RunID, e.CurrentPhaseID, boolToInt(e.Complete), started, updated,
+		e.InputsFreshenedAt, e.FreshenStatus, e.FreshenDetail,
 	); err != nil {
 		return fmt.Errorf("upsert execution %q: %w", e.ID, err)
 	}
@@ -144,6 +148,7 @@ func (r *sqliteRepository) GetExecution(ctx context.Context, id string) (Executi
 	)
 	err := r.db.QueryRowContext(ctx, getExecutionSQL, id).Scan(
 		&e.ID, &e.PlanID, &e.RunID, &e.CurrentPhaseID, &complete, &e.StartedAt, &e.UpdatedAt,
+		&e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Execution{}, false, nil
@@ -162,6 +167,7 @@ func (r *sqliteRepository) LatestExecutionForPlan(ctx context.Context, planID st
 	)
 	err := r.db.QueryRowContext(ctx, latestExecutionForPlanSQL, planID).Scan(
 		&e.ID, &e.PlanID, &e.RunID, &e.CurrentPhaseID, &complete, &e.StartedAt, &e.UpdatedAt,
+		&e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Execution{}, false, nil

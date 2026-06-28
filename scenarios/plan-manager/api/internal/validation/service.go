@@ -21,6 +21,13 @@ type Service interface {
 	ResolveReferences(ctx context.Context, planID, phaseID string) (ReferenceReport, error)
 	ComputeStaleness(ctx context.Context, planID, phaseID string) (ReferenceReport, error)
 	DeriveBaselineScope(ctx context.Context, planID, phaseID string) (BaselineScope, error)
+	// CaptureBaseline captures the regression-anchor's baseline snapshot for a plan
+	// from its typed anchor intent (scenario + baseline name), shelling
+	// git-control-tower through the command-runner seam. This is the execution-start
+	// "capture the before when before is true" action; it degrades honestly
+	// (Captured=false + Detail) when the anchor intent is incomplete or
+	// git-control-tower is unavailable — never a fabricated capture.
+	CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error)
 	RunValidation(ctx context.Context, planID, phaseID string) (Result, error)
 	// LastValidation returns the most recent STORED validation result for a
 	// plan/phase (the cheap read path the execution context server uses). ok=false
@@ -252,6 +259,40 @@ func (s *service) DeriveBaselineScope(ctx context.Context, planID, phaseID strin
 		return BaselineScope{}, err
 	}
 	return deriveScope(p, refs), nil
+}
+
+func (s *service) CaptureBaseline(ctx context.Context, planID string) (BaselineCapture, error) {
+	p, err := s.plans.GetPlan(ctx, planID)
+	if err != nil {
+		return BaselineCapture{}, err
+	}
+	anchor := p.RegressionAnchor
+	scenario := strings.TrimSpace(anchor.Scenario)
+	name := strings.TrimSpace(anchor.BaselineName)
+	// An unconfirmed authoring placeholder (e.g. "<scenario>") is not a real
+	// target — degrade honestly so the agent confirms the anchor intent.
+	if scenario == "" || strings.ContainsAny(scenario, "<>") {
+		return BaselineCapture{BaselineName: name, Detail: "regression-anchor scenario is unset or still a placeholder; confirm the anchor intent before execution"}, nil
+	}
+	if name == "" {
+		name = scenario + "-baseline"
+	}
+	if s.runner == nil {
+		return BaselineCapture{Scenario: scenario, BaselineName: name, Detail: "no command runner configured (git-control-tower unavailable)"}, nil
+	}
+	reason := "execution-start baseline for plan " + planIdentifier(p)
+	if _, err := s.runner(ctx, "git-control-tower", "baseline", "snapshot", "--scenario", scenario, "--name", name, "--reason", reason); err != nil {
+		return BaselineCapture{Scenario: scenario, BaselineName: name, Detail: "baseline snapshot failed: " + err.Error()}, nil
+	}
+	return BaselineCapture{Captured: true, Scenario: scenario, BaselineName: name, Detail: "captured baseline " + name + " for " + scenario}, nil
+}
+
+// planIdentifier prefers the human slug for log/reason text, falling back to id.
+func planIdentifier(p planmodel.Plan) string {
+	if s := strings.TrimSpace(p.Slug); s != "" {
+		return s
+	}
+	return strings.TrimSpace(p.ID)
 }
 
 func (s *service) RunValidation(ctx context.Context, planID, phaseID string) (Result, error) {

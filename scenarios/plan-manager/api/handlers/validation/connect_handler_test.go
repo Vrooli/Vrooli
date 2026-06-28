@@ -50,6 +50,11 @@ func (f *fakeValidationService) RunValidation(_ context.Context, planID, phaseID
 	return f.result, f.err
 }
 
+func (f *fakeValidationService) CaptureBaseline(_ context.Context, planID string) (internalvalidation.BaselineCapture, error) {
+	f.gotPlanID = planID
+	return internalvalidation.BaselineCapture{}, f.err
+}
+
 func (f *fakeValidationService) LastValidation(_ context.Context, planID, phaseID string) (internalvalidation.Result, bool, error) {
 	f.gotPlanID, f.gotPhaseID = planID, phaseID
 	return f.result, false, f.err

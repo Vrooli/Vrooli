@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -32,31 +31,28 @@ type PlanRenderer interface {
 	Render(p planmodel.Plan) string
 }
 
-// AnchorAutofiller captures the regression anchor for a plan-in-progress. The
-// production impl shells git-control-tower (LookPath-guarded, timeout-bounded);
-// a nil seam or an error degrades the regression-anchor section to "left for the
-// author" (AutofillResult.Degraded=true) — never a fabricated anchor.
-type AnchorAutofiller interface {
-	// Anchor returns the prose to fill the regression-anchor section for the
-	// given plan title/slug. An error degrades that section honestly.
-	Anchor(ctx context.Context, title, slug string) (string, error)
+// AnchorIntentDeriver derives the typed regression-anchor INTENT for a
+// plan-in-progress — the "before" the executor will snapshot. It is pure and
+// deterministic (title/slug → typed intent fields), needs no git-control-tower,
+// and never goes stale: the actual baseline snapshot is captured fresh at
+// execution start (see the execution InputFreshener seam), however many days
+// later. Production wires the default deriver; tests inject a fake.
+type AnchorIntentDeriver interface {
+	// DeriveAnchorIntent returns the structured regression-anchor intent block
+	// for the given plan title/slug. It always succeeds — intent is cheap,
+	// deterministic, and never stale (no snapshot, no dependency).
+	DeriveAnchorIntent(ctx context.Context, title, slug string) string
 }
 
-// RequiredReadingSource is retained for explicit legacy migration input. New
-// setup guidance is discovered through ContextDiscoverer and accepted as typed
-// relevant context.
-type RequiredReadingSource interface {
-	// RequiredReading returns legacy lines that can be migrated into structured
-	// relevant context when explicitly requested.
-	RequiredReading(ctx context.Context, title string) (string, error)
-}
-
-// ReferenceExtractor extracts code references via code-facts. A nil seam or an
-// error degrades the references section honestly.
-type ReferenceExtractor interface {
-	// References returns the prose to fill the references section for the given
-	// plan title/scope. An error degrades that section honestly.
-	References(ctx context.Context, title, scope string) (string, error)
+// ReferenceSuggester discovers reviewable code/doc/req reference candidates from
+// search-hub's Answer projection. Production shells `search-hub query --json`
+// through the CommandRunner seam and routes the hits by locator shape; a nil seam
+// or an error degrades honestly to no candidates (never a fabricated reference).
+type ReferenceSuggester interface {
+	// Suggest returns reference candidates discovered for the given query (the
+	// session's title + scope + technical approach). An error degrades to no
+	// candidates honestly.
+	Suggest(ctx context.Context, query string) ([]ReferenceCandidate, error)
 }
 
 // ContextDiscoverer proposes relevant-context setup items from decomposed
@@ -66,18 +62,19 @@ type ContextDiscoverer interface {
 	DiscoverContext(ctx context.Context, title string, concepts []string, complexity string) ([]ContextCandidate, error)
 }
 
-// CommandRunner is the exec seam shared by the production autofill sources (the
-// live dispatch path to git-control-tower / prompt-manager / code-facts).
-// Production wires execRunner (LookPath-guarded, timeout-bounded); tests inject a
-// fake. A nil runner means "no live dispatch" — the source degrades honestly.
+// CommandRunner is the exec seam shared by the production discovery sources (the
+// live dispatch path to search-hub for reference suggestions and to
+// prompt-manager / cli-health for context discovery). Production wires execRunner
+// (LookPath-guarded, timeout-bounded); tests inject a fake. A nil runner means
+// "no live dispatch" — the source degrades honestly.
 type CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 
 // DefaultRunner returns the production CommandRunner (LookPath-guarded,
 // timeout-bounded). Wired in the handler module; tests inject a fake instead.
 func DefaultRunner() CommandRunner { return execRunner }
 
-// autofillTimeout bounds a single autofill dispatch. Generous (a discovery or
-// anchor capture can shell out) but finite so a hung command cannot block the
+// autofillTimeout bounds a single context-discovery dispatch. Generous (a
+// discovery probe can shell out) but finite so a hung command cannot block the
 // wizard forever.
 const autofillTimeout = 2 * time.Minute
 
@@ -98,118 +95,179 @@ func execRunner(ctx context.Context, name string, args ...string) ([]byte, error
 	return out, nil
 }
 
-// --- production autofill sources (CommandRunner-backed, all degradable) ---
+// --- production discovery sources ---
 
-// cmdAnchorAutofiller captures the regression anchor by shelling git-control-tower
-// through the CommandRunner seam. A nil runner or a command failure degrades.
-type cmdAnchorAutofiller struct{ run CommandRunner }
+// defaultAnchorIntentDeriver is the production AnchorIntentDeriver: a pure,
+// deterministic derivation of the typed regression-anchor intent block (no
+// git-control-tower, no snapshot). It promotes the structured intent template to
+// the primary authoring output.
+type defaultAnchorIntentDeriver struct{}
 
-// NewCommandAnchorAutofiller wires the production AnchorAutofiller over the given
-// CommandRunner (git-control-tower). A nil runner yields a source that always
-// degrades (honest, never a false fill).
-func NewCommandAnchorAutofiller(run CommandRunner) AnchorAutofiller {
-	return cmdAnchorAutofiller{run: run}
+// DefaultAnchorIntentDeriver returns the production AnchorIntentDeriver. Wired in
+// the handler module; tests inject a fake instead.
+func DefaultAnchorIntentDeriver() AnchorIntentDeriver { return defaultAnchorIntentDeriver{} }
+
+func (defaultAnchorIntentDeriver) DeriveAnchorIntent(_ context.Context, title, slug string) string {
+	return RegressionAnchorIntentTemplate(title, slug)
 }
 
-func (a cmdAnchorAutofiller) Anchor(ctx context.Context, title, slug string) (string, error) {
-	if a.run == nil {
-		return "", fmt.Errorf("git-control-tower unavailable")
-	}
-	scenario, name := anchorScenarioAndName(title, slug)
-	if scenario == "" || name == "" {
-		return "", fmt.Errorf("scenario and baseline name are required")
-	}
-	out, err := a.run(ctx, "git-control-tower", "baseline", "snapshot", "status", "--scenario", scenario, "--name", name, "--json")
-	if err != nil {
-		return "", err
-	}
-	captured, err := parseSnapshotStatusBaselineName(out)
-	if err != nil {
-		return "", err
-	}
-	return captured, nil
+// cmdReferenceSuggester discovers reviewable reference candidates from
+// search-hub's Answer projection through the CommandRunner seam. It sends the
+// rich query broad (let search-hub federate/rank), parses the typed
+// QueryResponse, and routes the hits by locator shape — keeping only hits that
+// resolve to a [CODE:]/[DOC:]/[REQ:] locator. A nil runner / error / empty
+// result degrades honestly to no candidates.
+type cmdReferenceSuggester struct{ run CommandRunner }
+
+// NewCommandReferenceSuggester wires the production ReferenceSuggester over the
+// given CommandRunner (search-hub). A nil runner always degrades to no
+// candidates.
+func NewCommandReferenceSuggester(run CommandRunner) ReferenceSuggester {
+	return cmdReferenceSuggester{run: run}
 }
 
-func parseSnapshotStatusBaselineName(out []byte) (string, error) {
-	var status struct {
-		Status   string `json:"status"`
-		Name     string `json:"name"`
-		Baseline struct {
-			Name string `json:"name"`
-		} `json:"baseline"`
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal(out, &status); err != nil {
-		return "", fmt.Errorf("parse git-control-tower snapshot status: %w", err)
-	}
-	if strings.TrimSpace(status.Status) != "ready" {
-		if msg := strings.TrimSpace(status.Error); msg != "" {
-			return "", fmt.Errorf("baseline snapshot not ready: status=%s: %s", status.Status, msg)
-		}
-		return "", fmt.Errorf("baseline snapshot not ready: status=%s", status.Status)
-	}
-	name := strings.TrimSpace(status.Baseline.Name)
-	if name == "" {
-		name = strings.TrimSpace(status.Name)
-	}
-	if name == "" {
-		return "", fmt.Errorf("git-control-tower snapshot status returned no baseline name")
-	}
-	return name, nil
-}
+// referenceSuggestTimeout bounds the author-initiated search-hub query. Tighter
+// than the generic autofill timeout because it is on the wizard's interactive
+// path; a slow/hung search-hub degrades to no candidates rather than hanging.
+const referenceSuggestTimeout = 15 * time.Second
 
-// cmdRequiredReadingSource discovers legacy migration input via the live
-// prompt-manager discover surface through the CommandRunner seam.
-type cmdRequiredReadingSource struct{ run CommandRunner }
-
-// NewCommandRequiredReadingSource wires the legacy RequiredReadingSource over the
-// given CommandRunner (prompt-manager). A nil runner always degrades.
-func NewCommandRequiredReadingSource(run CommandRunner) RequiredReadingSource {
-	return cmdRequiredReadingSource{run: run}
-}
-
-func (s cmdRequiredReadingSource) RequiredReading(ctx context.Context, title string) (string, error) {
-	if s.run == nil {
-		return "", fmt.Errorf("prompt-manager unavailable")
-	}
-	out, err := s.run(ctx, "prompt-manager", "discover", title, "--type", "skill,doc")
-	if err != nil {
-		return "", err
-	}
-	discovered := strings.TrimSpace(string(out))
-	if discovered == "" {
-		return "", fmt.Errorf("prompt-manager returned no required reading")
-	}
-	return discovered, nil
-}
-
-// cmdReferenceExtractor extracts code references via code-facts through the
-// CommandRunner seam.
-type cmdReferenceExtractor struct{ run CommandRunner }
-
-// NewCommandReferenceExtractor wires the production ReferenceExtractor over the
-// given CommandRunner (code-facts). A nil runner always degrades.
-func NewCommandReferenceExtractor(run CommandRunner) ReferenceExtractor {
-	return cmdReferenceExtractor{run: run}
-}
-
-func (e cmdReferenceExtractor) References(ctx context.Context, title, scope string) (string, error) {
+func (e cmdReferenceSuggester) Suggest(ctx context.Context, query string) ([]ReferenceCandidate, error) {
 	if e.run == nil {
-		return "", fmt.Errorf("code-facts unavailable")
+		return nil, fmt.Errorf("search-hub unavailable")
 	}
-	refs := extractCodeReferenceTargets(title + " " + scope)
-	if len(refs) == 0 {
-		return "", fmt.Errorf("no code reference targets found")
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, fmt.Errorf("no query text for reference suggestion")
 	}
-	target := codeFactsDescribeTarget(refs[0])
-	if _, err := e.run(ctx, "code-facts", "facts", "describe", target, "--include", "surfaces,parse_units", "--json"); err != nil {
-		return "", err
+	ctx, cancel := context.WithTimeout(ctx, referenceSuggestTimeout)
+	defer cancel()
+	out, err := e.run(ctx, "search-hub", "query", query, "--json")
+	if err != nil {
+		return nil, err
 	}
-	lines := make([]string, 0, len(refs))
-	for _, ref := range refs {
-		lines = append(lines, "[CODE: "+ref+"]")
+	return parseReferenceSuggestions(out), nil
+}
+
+// searchHubQueryResponse is the subset of search-hub's QueryResponse (protojson)
+// the suggester reads. protojson emits camelCase field names; the json tags match
+// the wire keys (providerId, rerankScore, …).
+type searchHubQueryResponse struct {
+	Ranked []searchHubHit `json:"ranked"`
+	Groups []struct {
+		Hits []searchHubHit `json:"hits"`
+	} `json:"groups"`
+}
+
+type searchHubHit struct {
+	ProviderID  string  `json:"providerId"`
+	Type        string  `json:"type"`
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Path        string  `json:"path"`
+	Score       float64 `json:"score"`
+	RerankScore float64 `json:"rerankScore"`
+}
+
+// parseReferenceSuggestions parses a search-hub QueryResponse and routes the hits
+// by locator shape into reference candidates. The unified ranked list is
+// preferred when present (post-rerank); otherwise the per-provider groups are
+// flattened. A hit that does not resolve to a [CODE:]/[DOC:]/[REQ:] locator is
+// dropped — the output locator shape IS the Answer-projection filter. Duplicate
+// targets are kept once (highest-scored first). A parse failure yields no
+// candidates (honest degradation, never a fabricated reference).
+func parseReferenceSuggestions(out []byte) []ReferenceCandidate {
+	var resp searchHubQueryResponse
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return nil
 	}
-	return strings.Join(lines, "\n"), nil
+	hits := resp.Ranked
+	if len(hits) == 0 {
+		for _, g := range resp.Groups {
+			hits = append(hits, g.Hits...)
+		}
+	}
+	var out2 []ReferenceCandidate
+	seen := map[string]bool{}
+	for _, hit := range hits {
+		kind, target, ok := referenceLocatorFromHit(hit)
+		if !ok {
+			continue
+		}
+		key := string(kind) + "\x00" + target
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		score := hit.RerankScore
+		if score == 0 {
+			score = hit.Score
+		}
+		out2 = append(out2, ReferenceCandidate{
+			ID:         uuid.NewString(),
+			Reference:  planmodel.Reference{ID: uuid.NewString(), Kind: kind, Target: target},
+			Source:     strings.TrimSpace(hit.ProviderID),
+			Confidence: score,
+			Status:     ReferenceCandidatePending,
+		})
+	}
+	return out2
+}
+
+// referenceLocatorFromHit routes one search hit to a [CODE:]/[DOC:]/[REQ:]
+// locator by shape, or reports ok=false when the hit is not a code-location
+// answer (it is dropped, or could be offered to relevant_context elsewhere).
+// Order matters: an explicit req type is honored first, then doc/code path
+// routing (so a docs path like PLAN-MODEL.md is never mis-detected as a
+// requirement id by the uppercase-dash token it happens to contain), and only a
+// bare id-shaped value with no usable path falls back to [REQ:].
+func referenceLocatorFromHit(hit searchHubHit) (planmodel.ReferenceKind, string, bool) {
+	path := strings.TrimSpace(hit.Path)
+	typ := strings.ToLower(strings.TrimSpace(hit.Type))
+	if typ == "req" || typ == "requirement" {
+		if id := firstRequirementID(hit.ID, path); id != "" {
+			return planmodel.ReferenceReq, id, true
+		}
+	}
+	if path != "" {
+		if isDocReferencePath(path) && !isCodeReferencePath(path) {
+			return planmodel.ReferenceDoc, path, true
+		}
+		if isCodeReferencePath(path) {
+			return planmodel.ReferenceCode, path, true
+		}
+	}
+	// A bare requirement id with no usable code/doc path (e.g. id "PM-AUTHOR-002",
+	// path empty). The whole value must BE a requirement id — not merely contain
+	// an uppercase-dash token inside a longer path.
+	if path == "" && isRequirementID(hit.ID) {
+		return planmodel.ReferenceReq, strings.TrimSpace(hit.ID), true
+	}
+	return "", "", false
+}
+
+// requirementIDPattern matches a requirement id like OT-P0-001 or PM-AUTHOR-002:
+// an uppercase prefix followed by one or more dash-separated alphanumeric groups.
+var requirementIDPattern = regexp.MustCompile(`\b[A-Z]{2,}(?:-[A-Z0-9]+)+\b`)
+
+// fullRequirementIDPattern anchors the same shape so a whole value can be tested
+// as "is exactly a requirement id" (vs. merely containing one).
+var fullRequirementIDPattern = regexp.MustCompile(`^[A-Z]{2,}(?:-[A-Z0-9]+)+$`)
+
+func isRequirementID(v string) bool {
+	return fullRequirementIDPattern.MatchString(strings.TrimSpace(v))
+}
+
+func firstRequirementID(values ...string) string {
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if m := requirementIDPattern.FindString(v); m != "" {
+			return m
+		}
+	}
+	return ""
 }
 
 type cmdContextDiscoverer struct{ run CommandRunner }
@@ -303,63 +361,4 @@ func shellQuote(arg string) string {
 		return arg
 	}
 	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
-}
-
-func anchorScenarioAndName(title, slug string) (string, string) {
-	if s := sanitizeIdentifier(slug); s != "" {
-		return s, s
-	}
-	s := sanitizeIdentifier(title)
-	return s, s
-}
-
-func sanitizeIdentifier(v string) string {
-	v = strings.TrimSpace(strings.ToLower(v))
-	v = strings.ReplaceAll(v, "_", "-")
-	fields := strings.FieldsFunc(v, func(r rune) bool {
-		return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-')
-	})
-	return strings.Trim(strings.Join(fields, "-"), "-")
-}
-
-var scenarioPathPattern = regexp.MustCompile(`(?:^|[\s\[\]()"'])((?:\./)?scenarios/[A-Za-z0-9._-]+/[^\s\[\]()"',]+)`)
-
-func extractCodeReferenceTargets(text string) []string {
-	matches := scenarioPathPattern.FindAllStringSubmatch(text, -1)
-	seen := map[string]bool{}
-	out := make([]string, 0, len(matches))
-	for _, m := range matches {
-		if len(m) < 2 {
-			continue
-		}
-		target := strings.TrimPrefix(strings.TrimSpace(m[1]), "./")
-		target = strings.TrimRight(target, ".,;:")
-		if target == "" || seen[target] {
-			continue
-		}
-		seen[target] = true
-		out = append(out, target)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func codeFactsDescribeTarget(path string) string {
-	if name := scenarioFromPath(path); name != "" {
-		return "scenario:" + name
-	}
-	return path
-}
-
-func scenarioFromPath(path string) string {
-	path = strings.TrimPrefix(path, "./")
-	const prefix = "scenarios/"
-	if !strings.HasPrefix(path, prefix) {
-		return ""
-	}
-	rest := strings.TrimPrefix(path, prefix)
-	if i := strings.IndexByte(rest, '/'); i > 0 {
-		return rest[:i]
-	}
-	return rest
 }

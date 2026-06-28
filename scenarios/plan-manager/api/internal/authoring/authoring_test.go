@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"plan-manager/internal/authoring"
+	planmodel "plan-manager/internal/planmodel"
 	internalplans "plan-manager/internal/plans"
 	"plan-manager/internal/testutil/db"
 	"plan-manager/internal/testutil/mocks"
@@ -185,33 +186,30 @@ func (w *fakePlanWriter) CreatePlan(_ context.Context, p internalplans.Plan) (in
 	return p, nil
 }
 
-// fakeAnchor / fakeReading / fakeRefs are autofill seams whose behavior the test
-// dials between "fills" and "errors" to exercise graceful degradation.
+// fakeAnchor is an AnchorIntentDeriver whose returned intent block the test
+// dials. Derivation is deterministic (no dependency), so there is no error path.
 type fakeAnchor struct {
 	out string
-	err error
 }
 
-func (f fakeAnchor) Anchor(_ context.Context, _, _ string) (string, error) {
-	return f.out, f.err
+func (f fakeAnchor) DeriveAnchorIntent(_ context.Context, _, _ string) string {
+	return f.out
 }
 
-type fakeReading struct {
-	out string
-	err error
+// fakeSuggester is a ReferenceSuggester whose returned candidates / error the
+// test dials to exercise the reference review lifecycle and honest degradation.
+type fakeSuggester struct {
+	candidates []authoring.ReferenceCandidate
+	err        error
+	gotQuery   string
 }
 
-func (f fakeReading) RequiredReading(_ context.Context, _ string) (string, error) {
-	return f.out, f.err
-}
-
-type fakeRefs struct {
-	out string
-	err error
-}
-
-func (f fakeRefs) References(_ context.Context, _, _ string) (string, error) {
-	return f.out, f.err
+func (f *fakeSuggester) Suggest(_ context.Context, query string) ([]authoring.ReferenceCandidate, error) {
+	f.gotQuery = query
+	if f.err != nil {
+		return nil, f.err
+	}
+	return append([]authoring.ReferenceCandidate(nil), f.candidates...), nil
 }
 
 type fakeContextDiscoverer struct {
@@ -561,74 +559,81 @@ func TestFinalizeRejectsInvalidCLIReferences(t *testing.T) {
 // [REQ:PM-AUTHOR-002]
 func TestAutofillFillsWhenSeamsHealthy(t *testing.T) {
 	svc := newService(t, authoring.Deps{
-		Writer:       &fakePlanWriter{},
-		Anchor:       fakeAnchor{out: "captured anchor"},
-		RequiredRead: fakeReading{out: "docs/TESTING.md"},
-		References:   fakeRefs{out: "[CODE: internal/widget/core.go]"},
+		Writer: &fakePlanWriter{},
+		Anchor: fakeAnchor{out: "captured anchor"},
 	})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
-	updated, results, _, err := svc.Autofill(ctx, sess.ID, nil) // nil => all sources
-	require.NoError(t, err)
-	require.Len(t, results, 2)
-	for _, r := range results {
-		require.True(t, r.Filled, "source %s should fill", r.Source)
-		require.False(t, r.Degraded)
-	}
-	// The autofilled sections carry content + the autofilled marker.
-	for _, key := range []authoring.SectionKey{
-		authoring.SectionRegressionAnchor, authoring.SectionReferences,
-	} {
-		idx := -1
-		for i := range updated.Sections {
-			if updated.Sections[i].Key == key {
-				idx = i
-			}
-		}
-		require.GreaterOrEqual(t, idx, 0)
-		require.True(t, updated.Sections[idx].Filled)
-		require.True(t, updated.Sections[idx].Autofilled)
-		require.NotEmpty(t, updated.Sections[idx].Content)
-	}
-}
-
-func TestLegacyRequiredReadingAutofillIsExplicitOnly(t *testing.T) {
-	svc := newService(t, authoring.Deps{
-		Writer:       &fakePlanWriter{},
-		RequiredRead: fakeReading{out: "docs/TESTING.md"},
-	})
-	ctx := context.Background()
-	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
-	require.NoError(t, err)
-
-	updated, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillRequiredReading})
+	updated, results, _, err := svc.Autofill(ctx, sess.ID, nil) // nil => all sources (regression_anchor only)
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	require.True(t, results[0].Degraded)
-	require.False(t, results[0].Filled)
-	require.Contains(t, results[0].Detail, "section not present")
-
-	_, _, _, err = svc.SubmitSection(ctx, updated.ID, authoring.SectionRequiredReading, "prompt-manager skill read plan-skill-discovery")
-	require.Error(t, err)
+	require.True(t, results[0].Filled, "regression anchor should fill")
+	require.False(t, results[0].Degraded)
+	// The autofilled section carries content + the autofilled marker.
+	idx := -1
+	for i := range updated.Sections {
+		if updated.Sections[i].Key == authoring.SectionRegressionAnchor {
+			idx = i
+		}
+	}
+	require.GreaterOrEqual(t, idx, 0)
+	require.True(t, updated.Sections[idx].Filled)
+	require.True(t, updated.Sections[idx].Autofilled)
+	require.NotEmpty(t, updated.Sections[idx].Content)
 }
 
-// [REQ:PM-AUTHOR-002]
-func TestAutofilledReferencesSurviveFinalize(t *testing.T) {
+// TestSuggestReferencesIsReviewedNotAutofilled proves a suggestion never writes
+// the references section: only an accepted candidate does, and the references
+// gate (in nextGuidedStep/sessionViolations) stays unsatisfied until then.
+func TestSuggestReferencesIsReviewedNotAutofilled(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}, Source: "code-symbol", Confidence: 0.9},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+
+	_, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+	require.Equal(t, authoring.ReferenceCandidatePending, candidates[0].Status)
+
+	// Raw suggestion must NOT have written the references section.
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Empty(t, got.Content, "a raw suggestion must not satisfy the references gate")
+
+	// Accepting finalizes the locator into the section.
+	_, accepted, violations, _, err := svc.AcceptReferenceCandidate(ctx, sess.ID, candidates[0].ID, nil)
+	require.NoError(t, err)
+	require.Empty(t, violations)
+	require.Equal(t, authoring.ReferenceCandidateAccepted, accepted.Status)
+	got, _, err = svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Contains(t, got.Content, "[CODE: internal/widget/core.go]")
+}
+
+// TestSuggestedReferencesSurviveFinalize proves an accepted suggestion parses
+// into the structured references[] at finalize.
+func TestSuggestedReferencesSurviveFinalize(t *testing.T) {
 	writer := &fakePlanWriter{}
-	svc := newService(t, authoring.Deps{
-		Writer:     writer,
-		References: fakeRefs{out: "[CODE: scenarios/plan-manager/api/internal/validation/service.go]"},
-	})
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "scenarios/plan-manager/api/internal/validation/service.go"}},
+	}}
+	svc := newService(t, authoring.Deps{Writer: writer, Suggester: suggester})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Improve validation", "improve-validation", "")
 	require.NoError(t, err)
 
-	_, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillReferences})
+	_, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
 	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.True(t, results[0].Filled)
+	require.Len(t, candidates, 1)
+	_, _, violations, _, err := svc.AcceptReferenceCandidate(ctx, sess.ID, candidates[0].ID, nil)
+	require.NoError(t, err)
+	require.Empty(t, violations)
 
 	fillMandatory(t, svc, sess.ID)
 	_, _, err = svc.Finalize(ctx, sess.ID)
@@ -637,46 +642,109 @@ func TestAutofilledReferencesSurviveFinalize(t *testing.T) {
 	require.Equal(t, "scenarios/plan-manager/api/internal/validation/service.go", writer.created.References[0].Target)
 }
 
+// TestSuggestReferencesDegradesHonestly proves a nil/erroring suggester yields
+// no candidates and never fabricates a reference.
+func TestSuggestReferencesDegradesHonestly(t *testing.T) {
+	ctx := context.Background()
+	// Nil suggester.
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+	_, candidates, step, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Empty(t, candidates)
+	require.Equal(t, "reference_candidates", step.StepKind)
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Empty(t, got.Content)
+
+	// Erroring suggester degrades the same way.
+	svc2 := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: &fakeSuggester{err: errors.New("search-hub down")}})
+	sess2, _, err := svc2.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+	_, candidates2, _, err := svc2.SuggestReferences(ctx, sess2.ID)
+	require.NoError(t, err)
+	require.Empty(t, candidates2)
+}
+
+// TestRejectReferenceCandidateNeverEntersSection proves a rejected suggestion
+// stays an audit trail and never writes the references section.
+func TestRejectReferenceCandidateNeverEntersSection(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+	_, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+	require.Len(t, candidates, 1)
+
+	_, rejected, _, err := svc.RejectReferenceCandidate(ctx, sess.ID, candidates[0].ID, "unrelated subsystem")
+	require.NoError(t, err)
+	require.Equal(t, authoring.ReferenceCandidateRejected, rejected.Status)
+	require.Equal(t, "unrelated subsystem", rejected.RejectionReason)
+
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Empty(t, got.Content)
+
+	// A rejected candidate cannot be accepted afterwards.
+	_, _, _, _, err = svc.AcceptReferenceCandidate(ctx, sess.ID, candidates[0].ID, nil)
+	require.Error(t, err)
+}
+
+// TestAcceptReferenceCandidateRejectsKindMismatch proves an inline edit that
+// mislabels a docs path as [CODE:] is rejected before it enters the section.
+func TestAcceptReferenceCandidateRejectsKindMismatch(t *testing.T) {
+	suggester := &fakeSuggester{candidates: []authoring.ReferenceCandidate{
+		{Reference: planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "internal/widget/core.go"}},
+	}}
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Suggester: suggester})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
+	require.NoError(t, err)
+	_, candidates, _, err := svc.SuggestReferences(ctx, sess.ID)
+	require.NoError(t, err)
+
+	edit := &planmodel.Reference{Kind: planmodel.ReferenceCode, Target: "docs/concepts/PLAN-MODEL.md"}
+	_, _, violations, _, err := svc.AcceptReferenceCandidate(ctx, sess.ID, candidates[0].ID, edit)
+	require.NoError(t, err)
+	require.NotEmpty(t, violations)
+	require.Contains(t, violations[0].Message, "[DOC:]")
+
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionReferences)
+	require.NoError(t, err)
+	require.Empty(t, got.Content, "a kind-mismatched locator must not enter the references section")
+}
+
 func TestAutofillDegradesPerSourceNeverFalseFill(t *testing.T) {
 	ctx := context.Background()
 
-	// Nil anchor seam, erroring reading seam, healthy refs seam.
+	// Nil anchor seam must degrade, not panic / fabricate.
 	svc := newService(t, authoring.Deps{
-		Writer:       &fakePlanWriter{},
-		Anchor:       nil, // nil seam must degrade, not panic / fabricate
-		RequiredRead: fakeReading{err: errors.New("prompt-manager down")},
-		References:   fakeRefs{out: "[CODE: internal/widget/core.go]"},
+		Writer: &fakePlanWriter{},
+		Anchor: nil,
 	})
 	sess, _, err := svc.StartSession(ctx, "Improve widget", "", "")
 	require.NoError(t, err)
 
-	updated, results, _, err := svc.Autofill(ctx, sess.ID, nil)
+	_, results, _, err := svc.Autofill(ctx, sess.ID, nil)
 	require.NoError(t, err)
-	require.Len(t, results, 2)
-
-	byKey := map[authoring.SectionKey]authoring.AutofillResult{}
-	for _, r := range results {
-		byKey[r.SectionKey] = r
-	}
+	require.Len(t, results, 1)
 
 	// Anchor: nil seam => degraded, section left unfilled (NEVER a false fill).
-	anchorRes := byKey[authoring.SectionRegressionAnchor]
+	anchorRes := results[0]
+	require.Equal(t, authoring.SectionRegressionAnchor, anchorRes.SectionKey)
 	require.True(t, anchorRes.Degraded)
 	require.False(t, anchorRes.Filled)
 
-	// References: healthy => filled.
-	refsRes := byKey[authoring.SectionReferences]
-	require.True(t, refsRes.Filled)
-	require.False(t, refsRes.Degraded)
-
-	// The degraded sections are genuinely empty in the persisted session.
-	for _, key := range []authoring.SectionKey{authoring.SectionRegressionAnchor} {
-		got, _, err := svc.GetSection(ctx, sess.ID, key)
-		require.NoError(t, err)
-		require.Empty(t, got.Content, "degraded section %s must be left for the author", key)
-		require.False(t, got.Filled)
-		_ = updated
-	}
+	// The degraded section is genuinely empty in the persisted session.
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionRegressionAnchor)
+	require.NoError(t, err)
+	require.Empty(t, got.Content, "degraded section must be left for the author")
+	require.False(t, got.Filled)
 }
 
 func TestAutofillEmptyOutputDegrades(t *testing.T) {
@@ -982,27 +1050,80 @@ func TestPhaseContextGateRequiresContextOrExplicitNoContextReason(t *testing.T) 
 	require.Empty(t, violations)
 }
 
-func TestCommandAnchorAutofillerUsesVerifiedGCTShape(t *testing.T) {
-	runner := &recordingRunner{out: []byte(`{"status":"ready","scenario":"plan-manager","name":"plan-manager","baseline":{"name":"impl"}}`)}
-	got, err := authoring.NewCommandAnchorAutofiller(runner.Run).Anchor(context.Background(), "Ignored Title", "plan-manager")
-	require.NoError(t, err)
-	require.Equal(t, "impl", got)
-	require.Equal(t, "git-control-tower", runner.name)
-	require.Equal(t, []string{"baseline", "snapshot", "status", "--scenario", "plan-manager", "--name", "plan-manager", "--json"}, runner.args)
+// TestAnchorIntentDerivesTypedIntentNoSnapshot proves authoring derives the typed
+// anchor INTENT deterministically — no git-control-tower call, no snapshot — and
+// that the derived block parses into typed regression-anchor fields rather than
+// degrading to legacy prose.
+func TestAnchorIntentDerivesTypedIntentNoSnapshot(t *testing.T) {
+	ctx := context.Background()
+	// No CommandRunner is involved at all; the default deriver is pure.
+	got := authoring.DefaultAnchorIntentDeriver().DeriveAnchorIntent(ctx, "Improve validation", "improve-validation")
+	require.Contains(t, got, "Strategy: scenario-baseline")
+	require.Contains(t, got, "Baseline name: improve-validation-baseline")
+	require.Contains(t, got, "Allowlist: scenarios/<scenario>/**")
+	require.NotContains(t, got, "snapshot status", "intent must not depend on a captured snapshot")
+
+	anchor := planmodel.ParseRegressionAnchorBlock(got)
+	require.Equal(t, "scenario-baseline", anchor.Strategy)
+	require.Equal(t, "improve-validation-baseline", anchor.BaselineName)
 }
 
-func TestCommandReferenceExtractorEmitsParseableCodeRefs(t *testing.T) {
-	runner := &recordingRunner{out: []byte(`{"target":"scenario:plan-manager"}`)}
-	got, err := authoring.NewCommandReferenceExtractor(runner.Run).References(
-		context.Background(),
-		"Improve validation",
-		"Touch scenarios/plan-manager/api/internal/validation/service.go and scenarios/plan-manager/api/handlers/validation/module.go.",
-	)
+// TestAnchorAutofillDerivesIntentEndToEnd proves the autofill regression_anchor
+// source fills the section with the derived typed intent via the live default
+// deriver (no git-control-tower).
+func TestAnchorAutofillDerivesIntentEndToEnd(t *testing.T) {
+	svc := newService(t, authoring.Deps{
+		Writer: &fakePlanWriter{},
+		Anchor: authoring.DefaultAnchorIntentDeriver(),
+	})
+	ctx := context.Background()
+	sess, _, err := svc.StartSession(ctx, "Improve validation", "improve-validation", "")
 	require.NoError(t, err)
-	require.Equal(t, "code-facts", runner.name)
-	require.Equal(t, []string{"facts", "describe", "scenario:plan-manager", "--include", "surfaces,parse_units", "--json"}, runner.args)
-	require.Contains(t, got, "[CODE: scenarios/plan-manager/api/internal/validation/service.go]")
-	require.Contains(t, got, "[CODE: scenarios/plan-manager/api/handlers/validation/module.go]")
+
+	_, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillRegressionAnchor})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.True(t, results[0].Filled)
+	require.False(t, results[0].Degraded)
+
+	got, _, err := svc.GetSection(ctx, sess.ID, authoring.SectionRegressionAnchor)
+	require.NoError(t, err)
+	require.Contains(t, got.Content, "Baseline name: improve-validation-baseline")
+}
+
+func TestCommandReferenceSuggesterRoutesHitsByLocatorShape(t *testing.T) {
+	// A search-hub QueryResponse (protojson, camelCase) mixing locator-shaped hits
+	// (code/doc/req) with a non-locator hit that must be dropped.
+	resp := `{
+	  "ranked": [
+	    {"providerId":"code-symbol","type":"code","path":"scenarios/plan-manager/api/internal/validation/service.go","score":0.91},
+	    {"providerId":"docs","type":"doc","path":"docs/concepts/PLAN-MODEL.md","score":0.7},
+	    {"providerId":"requirements","type":"req","id":"PM-AUTHOR-002","score":0.6},
+	    {"providerId":"records","type":"record","title":"some prior record","path":"rec-123","score":0.5}
+	  ]
+	}`
+	runner := &recordingRunner{out: []byte(resp)}
+	got, err := authoring.NewCommandReferenceSuggester(runner.Run).Suggest(context.Background(), "improve validation references")
+	require.NoError(t, err)
+	require.Equal(t, "search-hub", runner.name)
+	require.Equal(t, []string{"query", "improve validation references", "--json"}, runner.args)
+	require.Len(t, got, 3, "only the three locator-shaped hits are kept; the record hit is dropped")
+
+	byTarget := map[string]authoring.ReferenceCandidate{}
+	for _, c := range got {
+		byTarget[c.Reference.Target] = c
+	}
+	require.Equal(t, planmodel.ReferenceCode, byTarget["scenarios/plan-manager/api/internal/validation/service.go"].Reference.Kind)
+	require.Equal(t, planmodel.ReferenceDoc, byTarget["docs/concepts/PLAN-MODEL.md"].Reference.Kind)
+	require.Equal(t, planmodel.ReferenceReq, byTarget["PM-AUTHOR-002"].Reference.Kind)
+	require.Equal(t, "code-symbol", byTarget["scenarios/plan-manager/api/internal/validation/service.go"].Source)
+}
+
+func TestCommandReferenceSuggesterDegradesOnBadJSON(t *testing.T) {
+	runner := &recordingRunner{out: []byte("not json")}
+	got, err := authoring.NewCommandReferenceSuggester(runner.Run).Suggest(context.Background(), "anything")
+	require.NoError(t, err)
+	require.Empty(t, got, "an unparseable response degrades to no candidates, never a fabricated reference")
 }
 
 func TestFinalizeWritesThroughWriterWhenStructureValid(t *testing.T) {
@@ -1243,35 +1364,30 @@ func TestPhaseFreeFormContextStaysNoteNotCommand(t *testing.T) {
 	require.Empty(t, items[0].Command, "a note must not carry a command")
 }
 
-// TestRegressionAnchorStepOffersRecovery proves a degraded anchor autofill leaves
-// the agent a concrete recovery path: the regression-anchor guided step carries a
-// baseline-snapshot recovery action and a structured fallback block.
-func TestRegressionAnchorStepOffersRecovery(t *testing.T) {
-	// A nil anchor seam degrades the regression_anchor source honestly (the
-	// dependency is "down"), exactly the friction-run condition.
-	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}})
+// TestRegressionAnchorStepOffersIntentNotSnapshot proves the anchor guided step
+// guides the agent to derive/confirm the typed INTENT and NEVER offers a
+// capture-a-snapshot action at authoring time (snapshot capture moved to
+// execution start).
+func TestRegressionAnchorStepOffersIntentNotSnapshot(t *testing.T) {
+	svc := newService(t, authoring.Deps{Writer: &fakePlanWriter{}, Anchor: authoring.DefaultAnchorIntentDeriver()})
 	ctx := context.Background()
 	sess, _, err := svc.StartSession(ctx, "Anchor recovery", "anchor-recovery", "")
 	require.NoError(t, err)
 
-	_, results, _, err := svc.Autofill(ctx, sess.ID, []authoring.AutofillSource{authoring.AutofillRegressionAnchor})
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	require.True(t, results[0].Degraded, "anchor autofill degrades honestly")
-
 	_, step, err := svc.GetSection(ctx, sess.ID, authoring.SectionRegressionAnchor)
 	require.NoError(t, err)
-	var hasSnapshot, hasFallback bool
+	var hasDerive, hasConfirm bool
 	for _, a := range step.NextActions {
-		if a.ID == "capture-baseline-snapshot" {
-			hasSnapshot = true
-			require.Contains(t, strings.Join(a.Argv, " "), "git-control-tower baseline snapshot")
+		require.NotEqual(t, "capture-baseline-snapshot", a.ID, "authoring must NOT offer a baseline-snapshot capture action")
+		require.NotContains(t, strings.Join(a.Argv, " "), "git-control-tower baseline snapshot", "authoring must not shell git-control-tower")
+		if a.ID == "autofill-anchor" {
+			hasDerive = true
 		}
-		if a.ID == "submit-fallback-anchor" {
-			hasFallback = true
+		if a.ID == "submit-anchor-intent" {
+			hasConfirm = true
 			require.Contains(t, a.ContentPlaceholder, "Scenario baseline:")
 		}
 	}
-	require.True(t, hasSnapshot, "anchor step must offer a baseline-snapshot recovery action")
-	require.True(t, hasFallback, "anchor step must offer a structured fallback block")
+	require.True(t, hasDerive, "anchor step must offer a derive-intent action")
+	require.True(t, hasConfirm, "anchor step must offer a confirm/adjust-intent action")
 }

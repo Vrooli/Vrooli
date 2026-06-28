@@ -38,6 +38,7 @@ import (
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
 
+	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
@@ -505,6 +506,13 @@ func main() {
 	v1.HandleFunc("/graph/health-config", graphHandlers.PutHealthConfig).Methods("PUT")
 	v1.HandleFunc("/graph/nodes/{id}", graphHandlers.GetNode).Methods("GET")
 	v1.HandleFunc("/graph/nodes/{id}/edges", graphHandlers.GetNodeEdges).Methods("GET")
+
+	// Graph Connect-RPC surface (additive — the REST routes above stay live).
+	// prompt-manager's first proto/Connect contract: GraphService.GetHealthScores,
+	// consumed by meta-optimization-manager's Guide numerator over a typed client.
+	// See docs/internal/SEAMS.md#graph-connect-handler.
+	graphConnectPath, graphConnectHandler := graph.NewConnectMount(graphIndex)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: graphConnectPath, Handler: graphConnectHandler})
 
 	// Usage tracking routes (part of skills domain)
 	v1.HandleFunc("/skills/{id}/use", skillHandlers.RecordUsage).Methods("POST")

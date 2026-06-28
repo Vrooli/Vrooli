@@ -14,6 +14,7 @@ import {
   AuthoringSessionSchema,
   AutofillResultSchema,
   ContextCandidateSchema,
+  ReferenceCandidateSchema,
   SectionSchema,
   StructureViolationSchema,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
@@ -40,6 +41,9 @@ const removeRelevantContextItem = vi.fn();
 const discoverContextCandidates = vi.fn();
 const acceptContextCandidate = vi.fn();
 const rejectContextCandidate = vi.fn();
+const suggestReferences = vi.fn();
+const acceptReferenceCandidate = vi.fn();
+const rejectReferenceCandidate = vi.fn();
 const finalize = vi.fn();
 
 vi.mock("../../api/authoring", () => ({
@@ -57,6 +61,9 @@ vi.mock("../../api/authoring", () => ({
   discoverContextCandidates: (...a: unknown[]) => discoverContextCandidates(...a),
   acceptContextCandidate: (...a: unknown[]) => acceptContextCandidate(...a),
   rejectContextCandidate: (...a: unknown[]) => rejectContextCandidate(...a),
+  suggestReferences: (...a: unknown[]) => suggestReferences(...a),
+  acceptReferenceCandidate: (...a: unknown[]) => acceptReferenceCandidate(...a),
+  rejectReferenceCandidate: (...a: unknown[]) => rejectReferenceCandidate(...a),
   listRelevantContext: vi.fn(),
   finalize: (...a: unknown[]) => finalize(...a),
   getSection: vi.fn(),
@@ -112,6 +119,7 @@ const sessionWithPhase = {
   relevantContext: [],
   phaseDrafts: [phase],
   contextCandidates: [],
+  referenceCandidates: [],
 };
 
 const candidateItem = create(RelevantContextItemSchema, {
@@ -133,6 +141,14 @@ const candidate = create(ContextCandidateSchema, {
   item: candidateItem,
   concept: "plan-manager context",
   source: "search-hub",
+  status: "pending",
+});
+
+const referenceCandidate = create(ReferenceCandidateSchema, {
+  id: "ref-cand-1",
+  reference: { id: "r1", kind: ReferenceKind.CODE, target: "api/internal/authoring/service.go" },
+  source: "code-symbol",
+  confidence: 0.9,
   status: "pending",
 });
 
@@ -474,6 +490,101 @@ describe("AuthoringWizard", () => {
     await waitFor(() => {
       expect(rejectContextCandidate).toHaveBeenCalledWith("sess-1", "cand-1", "duplicate");
       expect(screen.getByTestId(selectors.authoring.contextCandidates)).toHaveTextContent("duplicate");
+    });
+  });
+
+  it("suggests references from search-hub and accepts a reviewed candidate", async () => {
+    const user = userEvent.setup();
+    const sessionWithRefCandidate = { ...sessionWithPhase, referenceCandidates: [referenceCandidate] };
+    const acceptedRef = create(ReferenceCandidateSchema, { ...referenceCandidate, status: "accepted" });
+    startSession.mockResolvedValue({ session: sessionWithPhase, step });
+    getSession.mockResolvedValue({ session: sessionWithRefCandidate, step });
+    suggestReferences.mockResolvedValue({ candidates: [referenceCandidate], progress: { sessionId: "sess-1" }, step });
+    acceptReferenceCandidate.mockResolvedValue({
+      candidate: acceptedRef,
+      progress: { sessionId: "sess-1" },
+      violations: [],
+      step,
+    });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await user.click(screen.getByTestId(selectors.authoring.referenceSuggestButton));
+    await waitFor(() => {
+      expect(suggestReferences).toHaveBeenCalledWith("sess-1");
+      expect(screen.getByTestId(selectors.authoring.referenceCandidates)).toHaveTextContent(
+        "api/internal/authoring/service.go",
+      );
+    });
+
+    // Re-hydrate with the accepted candidate so the post-accept render reflects it.
+    getSession.mockResolvedValue({
+      session: { ...sessionWithPhase, referenceCandidates: [acceptedRef] },
+      step,
+    });
+    await user.click(screen.getByTestId(selectors.authoring.referenceCandidateAcceptButton));
+    await waitFor(() => {
+      expect(acceptReferenceCandidate).toHaveBeenCalledWith("sess-1", "ref-cand-1");
+    });
+  });
+
+  it("renders degraded, doc, and req reference candidates with provenance", async () => {
+    const user = userEvent.setup();
+    const docCandidate = create(ReferenceCandidateSchema, {
+      id: "ref-doc",
+      reference: { id: "rd", kind: ReferenceKind.DOC, target: "docs/concepts/PLAN-MODEL.md" },
+      source: "docs",
+      status: "pending",
+      detail: "matched the references concept",
+    });
+    const reqCandidate = create(ReferenceCandidateSchema, {
+      id: "ref-req",
+      reference: { id: "rq", kind: ReferenceKind.REQ, target: "PM-AUTHOR-002" },
+      source: "requirements",
+      degraded: true,
+      detail: "provider degraded",
+      status: "pending",
+    });
+    const sessionWithRefs = { ...sessionWithPhase, referenceCandidates: [docCandidate, reqCandidate] };
+    startSession.mockResolvedValue({ session: sessionWithRefs, step });
+    getSession.mockResolvedValue({ session: sessionWithRefs, step });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    const list = await screen.findByTestId(selectors.authoring.referenceCandidates);
+    expect(list).toHaveTextContent("[DOC: docs/concepts/PLAN-MODEL.md]");
+    expect(list).toHaveTextContent("[REQ: PM-AUTHOR-002]");
+    expect(list).toHaveTextContent("requirements");
+    expect(list).toHaveTextContent("provider degraded");
+  });
+
+  it("rejects a suggested reference candidate with a reason", async () => {
+    const user = userEvent.setup();
+    const sessionWithRefCandidate = { ...sessionWithPhase, referenceCandidates: [referenceCandidate] };
+    const rejectedRef = create(ReferenceCandidateSchema, {
+      ...referenceCandidate,
+      status: "rejected",
+      rejectionReason: "unrelated subsystem",
+    });
+    startSession.mockResolvedValue({ session: sessionWithRefCandidate, step });
+    getSession.mockResolvedValue({ session: { ...sessionWithPhase, referenceCandidates: [rejectedRef] }, step });
+    rejectReferenceCandidate.mockResolvedValue({ candidate: rejectedRef, progress: { sessionId: "sess-1" }, step });
+
+    renderWithProviders(<AuthoringWizard />);
+    await user.type(screen.getByTestId(selectors.authoring.titleInput), "New plan");
+    await user.click(screen.getByTestId(selectors.authoring.startButton));
+
+    await screen.findByTestId(selectors.authoring.referenceRejectReasonInput);
+    await user.type(screen.getByTestId(selectors.authoring.referenceRejectReasonInput), "unrelated subsystem");
+    await user.click(screen.getByTestId(selectors.authoring.referenceCandidateRejectButton));
+
+    await waitFor(() => {
+      expect(rejectReferenceCandidate).toHaveBeenCalledWith("sess-1", "ref-cand-1", "unrelated subsystem");
+      expect(screen.getByTestId(selectors.authoring.referenceCandidates)).toHaveTextContent("unrelated subsystem");
     });
   });
 

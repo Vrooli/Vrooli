@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P1-001 — thin guided completion + canonical structured handoff assembled from in-flow state.",
-    "last_validated_at": "2026-06-27T13:35:10-04:00",
+    "last_validated_at": "2026-06-28T12:36:23-04:00",
     "module": "handoff-finalizer",
     "prd_ref": "PRD.md",
     "priority": "P1",

@@ -325,6 +325,38 @@
       "category": "authoring"
     },
     {
+      "id": "authoring_suggest_references",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/SuggestReferences",
+      "method": "POST",
+      "summary": "Suggest references",
+      "description": "Queries search-hub's Answer projection from the session title/scope/approach and stores reviewable reference candidates (routed by locator shape). Degrades to no candidates, never a fabricated reference.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_list_reference_candidates",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/ListReferenceCandidates",
+      "method": "POST",
+      "summary": "List reference candidates",
+      "description": "Returns the session's reference candidates without changing wizard position.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_accept_reference_candidate",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/AcceptReferenceCandidate",
+      "method": "POST",
+      "summary": "Accept reference candidate",
+      "description": "Promotes one pending reference candidate (with optional inline edit) into the references section; only accepted locators satisfy the references gate.",
+      "category": "authoring"
+    },
+    {
+      "id": "authoring_reject_reference_candidate",
+      "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/RejectReferenceCandidate",
+      "method": "POST",
+      "summary": "Reject reference candidate",
+      "description": "Records why a suggested reference is not relevant.",
+      "category": "authoring"
+    },
+    {
       "id": "authoring_add_phase",
       "path": "/vrooli.plan_manager.v1.authoring.AuthoringService/AddPhase",
       "method": "POST",

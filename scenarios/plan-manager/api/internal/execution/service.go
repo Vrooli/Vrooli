@@ -38,6 +38,7 @@ type service struct {
 	validator Validator
 	log       LogLedger
 	velocity  VelocitySink
+	freshener InputFreshener
 	clock     clock.Clock
 }
 
@@ -45,13 +46,15 @@ type service struct {
 // optional (nil => last_validation/staleness degrade to UNKNOWN, never a false
 // pass). LogLedger is optional (nil => empty log summaries; the handoff still
 // assembles). VelocitySink is optional (nil => the no-op default; velocity is
-// still persisted locally regardless).
+// still persisted locally regardless). InputFreshener is optional (nil => the
+// execution-start freshen step is skipped silently; phase work never blocks).
 type Deps struct {
 	Repo      Repository
 	Plans     PlanStore
 	Validator Validator
 	Log       LogLedger
 	Velocity  VelocitySink
+	Freshener InputFreshener
 	Clock     clock.Clock
 }
 
@@ -71,6 +74,7 @@ func NewService(d Deps) Service {
 		validator: d.Validator,
 		log:       d.Log,
 		velocity:  sink,
+		freshener: d.Freshener,
 		clock:     clk,
 	}
 }
@@ -111,7 +115,9 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	s.freshenInputs(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, mode)
+	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForStarted(e), nil
 }
 
@@ -134,7 +140,9 @@ func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
+	s.freshenInputs(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeResume)
+	s.applyFreshenContext(&pctx, e)
 	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
 }
 
@@ -373,6 +381,58 @@ func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoi
 }
 
 // --- helpers ---
+
+// freshenInputs runs the one-time execution-start freshen step: it captures the
+// regression-anchor's baseline snapshot fresh and recomputes reference staleness,
+// delegated to the validation domain through the InputFreshener seam. It runs at
+// most once successfully per execution (recorded on the Execution record) and is
+// re-attempted on a later start/resume only while it has not yet succeeded — so a
+// transient git-control-tower outage is retryable but a captured baseline is not
+// re-captured. It NEVER blocks phase work: a nil seam or an error is recorded as a
+// degraded freshen status and surfaced, not returned.
+func (s *service) freshenInputs(ctx context.Context, e *Execution, plan planmodel.Plan) {
+	if e.FreshenStatus == FreshenStatusCaptured {
+		return // already captured; never re-run (the "before" is pinned)
+	}
+	if s.freshener == nil {
+		return // not configured; skip silently (no fabricated capture)
+	}
+	now := s.now()
+	res, err := s.freshener.FreshenInputs(ctx, plan.ID)
+	e.InputsFreshenedAt = now
+	if err != nil {
+		e.FreshenStatus = FreshenStatusDegraded
+		e.FreshenDetail = err.Error()
+	} else if res.BaselineCaptured {
+		e.FreshenStatus = FreshenStatusCaptured
+		e.FreshenDetail = strings.TrimSpace(strings.Join(nonEmpty(res.Detail, res.StalenessSummary), "; "))
+	} else {
+		e.FreshenStatus = FreshenStatusDegraded
+		e.FreshenDetail = strings.TrimSpace(strings.Join(nonEmpty(res.Detail, res.StalenessSummary), "; "))
+	}
+	// Best-effort persist of the freshen marker — a write failure must not block
+	// the start/resume the agent asked for (the freshen retries next resume).
+	_ = s.repo.SaveExecution(ctx, *e)
+}
+
+// applyFreshenContext surfaces the recorded freshen status into the phase context
+// so the agent sees whether the "before" anchor was captured fresh (or why not).
+func (s *service) applyFreshenContext(pctx *PhaseContext, e Execution) {
+	pctx.InputsFreshened = e.InputsFreshenedAt != ""
+	pctx.FreshenStatus = e.FreshenStatus
+	pctx.FreshenDetail = e.FreshenDetail
+}
+
+// nonEmpty returns the non-blank values among its args, preserving order.
+func nonEmpty(values ...string) []string {
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			out = append(out, strings.TrimSpace(v))
+		}
+	}
+	return out
+}
 
 func (s *service) getExecution(ctx context.Context, executionID string) (Execution, error) {
 	e, ok, err := s.repo.GetExecution(ctx, strings.TrimSpace(executionID))

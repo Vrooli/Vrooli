@@ -358,6 +358,15 @@ func TestAuthoringRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			name: "context-submit without --repeat sends UNSPECIFIED so the server picks the scope default", cmd: "context-submit",
+			argv: []string{"sess-1", "--phase", "ph1", "--kind", "skill", "--label", "Steer", "--reason", "phase setup", "--instruction", "load it", "--target", "api-steer"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*authoringv1.SubmitRelevantContextItemRequest)
+				require.Equal(t, sharedv1.RelevantContextRepeatPolicy_RELEVANT_CONTEXT_REPEAT_POLICY_UNSPECIFIED, m.GetItem().GetRepeatPolicy(),
+					"an unset --repeat must not hard-code once_per_execution; the server applies the scope-appropriate default")
+			},
+		},
+		{
 			name: "context-list maps session and phase", cmd: "context-list",
 			argv: []string{"sess-1", "--phase", "ph1"},
 			assert: func(t *testing.T, req proto.Message) {

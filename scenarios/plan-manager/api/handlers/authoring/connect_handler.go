@@ -219,6 +219,55 @@ func (h *connectHandler) RejectContextCandidate(ctx context.Context, req *connec
 	}), nil
 }
 
+func (h *connectHandler) SuggestReferences(ctx context.Context, req *connect.Request[authoringv1.SuggestReferencesRequest]) (*connect.Response[authoringv1.SuggestReferencesResponse], error) {
+	sess, candidates, step, err := h.deps.Service.SuggestReferences(ctx, req.Msg.GetSessionId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.SuggestReferencesResponse{
+		Candidates: referenceCandidatesToProto(candidates),
+		Progress:   progressOf(sess),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) ListReferenceCandidates(ctx context.Context, req *connect.Request[authoringv1.ListReferenceCandidatesRequest]) (*connect.Response[authoringv1.ListReferenceCandidatesResponse], error) {
+	candidates, step, err := h.deps.Service.ListReferenceCandidates(ctx, req.Msg.GetSessionId())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.ListReferenceCandidatesResponse{
+		Candidates: referenceCandidatesToProto(candidates),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) AcceptReferenceCandidate(ctx context.Context, req *connect.Request[authoringv1.AcceptReferenceCandidateRequest]) (*connect.Response[authoringv1.AcceptReferenceCandidateResponse], error) {
+	sess, candidate, violations, step, err := h.deps.Service.AcceptReferenceCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), referenceEditFromProto(req.Msg.GetReference()))
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.AcceptReferenceCandidateResponse{
+		Candidate:  referenceCandidateToProto(candidate),
+		Summary:    mutationSummary("reference_candidate", candidate.ID, "", "accepted "+internalauthoring.ReferenceCandidateSummary(candidate)),
+		Progress:   progressOf(sess),
+		Violations: violationsToProto(violations),
+		Step:       guidedStepToProto(step),
+	}), nil
+}
+
+func (h *connectHandler) RejectReferenceCandidate(ctx context.Context, req *connect.Request[authoringv1.RejectReferenceCandidateRequest]) (*connect.Response[authoringv1.RejectReferenceCandidateResponse], error) {
+	sess, candidate, step, err := h.deps.Service.RejectReferenceCandidate(ctx, req.Msg.GetSessionId(), req.Msg.GetCandidateId(), req.Msg.GetReason())
+	if err != nil {
+		return nil, internalauthoring.ToConnectError(err)
+	}
+	return connect.NewResponse(&authoringv1.RejectReferenceCandidateResponse{
+		Candidate: referenceCandidateToProto(candidate),
+		Progress:  progressOf(sess),
+		Step:      guidedStepToProto(step),
+	}), nil
+}
+
 func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[authoringv1.AddPhaseRequest]) (*connect.Response[authoringv1.AddPhaseResponse], error) {
 	sess, phase, violations, step, err := h.deps.Service.AddPhase(ctx, req.Msg.GetSessionId(), req.Msg.GetTitle(), req.Msg.GetIntent())
 	if err != nil {
@@ -226,7 +275,7 @@ func (h *connectHandler) AddPhase(ctx context.Context, req *connect.Request[auth
 	}
 	return connect.NewResponse(&authoringv1.AddPhaseResponse{
 		Phase:      phaseDraftToProto(phase),
-		Summary:    mutationSummary("phase", phase.ID, "", internalauthoring.PhaseFieldSummary(internalauthoring.PhaseFieldTitle, phase)),
+		Summary:    mutationSummary("phase", phase.ID, "", internalauthoring.PhaseAddSummary(phase)),
 		Progress:   progressOf(sess),
 		Violations: violationsToProto(violations),
 		Step:       guidedStepToProto(step),

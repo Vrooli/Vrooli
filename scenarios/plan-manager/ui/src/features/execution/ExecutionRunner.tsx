@@ -506,6 +506,18 @@ export function ExecutionRunner() {
                   t(strings.common.none)
                 )}
               </MetaRow>
+              <MetaRow term={t(strings.pages.execution.inputsFreshenedHeading)}>
+                <span data-testid={selectors.execution.freshenStatus}>
+                  {context?.inputsFreshened
+                    ? context.freshenStatus || t(strings.pages.execution.freshenStatusHeading)
+                    : t(strings.pages.execution.freshenPending)}
+                </span>
+              </MetaRow>
+              {context?.inputsFreshened && context.freshenDetail ? (
+                <MetaRow term={t(strings.pages.execution.freshenStatusHeading)}>
+                  <span className="text-xs text-app-muted-foreground">{context.freshenDetail}</span>
+                </MetaRow>
+              ) : null}
             </dl>
           </Card>
 

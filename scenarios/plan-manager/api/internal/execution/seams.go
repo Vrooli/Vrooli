@@ -50,6 +50,37 @@ type LogLedger interface {
 	Summarize(ctx context.Context, executionID string) (planmodel.LogSummary, []planmodel.LogEntry, error)
 }
 
+// InputFreshener captures the regression-anchor's baseline snapshot fresh at
+// execution start and recomputes reference staleness against current HEAD,
+// delegated to the validation domain (which owns git-control-tower) so execution
+// never imports git-control-tower directly. Production wraps the validation
+// Service; tests inject a fake. A nil freshener (or one returning an error)
+// degrades honestly — the freshen status is recorded and surfaced, never blocks
+// phase work, and the agent can retry by resuming.
+//
+// This runs ONCE per execution start/resume (recorded on the Execution record),
+// never on the per-poll status/next path: capturing the "before" is only valid
+// immediately before edits begin, and shelling git-control-tower on every poll
+// would defeat the cheap-context goal.
+type InputFreshener interface {
+	// FreshenInputs captures the baseline snapshot from the plan's anchor intent
+	// and recomputes reference staleness. It reports the outcome; it never mutates
+	// the authored plan/references (staleness is reported, not written back).
+	FreshenInputs(ctx context.Context, planID string) (FreshenResult, error)
+}
+
+// FreshenResult reports the outcome of the execution-start freshen step.
+// BaselineCaptured=false with a Detail is honest degradation (git-control-tower
+// down or anchor intent still a placeholder) — never a fabricated capture.
+type FreshenResult struct {
+	BaselineCaptured bool
+	BaselineName     string
+	// StalenessSummary is a short human roll-up of the recomputed reference
+	// staleness (reported only — authored references are never mutated).
+	StalenessSummary string
+	Detail           string
+}
+
 // VelocitySink is the future meta-optimization-manager emit seam. v1 captures
 // velocity LOCAL ONLY (persisted regardless via the repository); this seam exists
 // so the eventual remote emit lands behind an interface rather than a hard wire.

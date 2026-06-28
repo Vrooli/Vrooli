@@ -29,6 +29,8 @@ type fakeAuthoringService struct {
 	contextItems    []internalplans.RelevantContextItem
 	candidate       internalauthoring.ContextCandidate
 	candidates      []internalauthoring.ContextCandidate
+	refCandidate    internalauthoring.ReferenceCandidate
+	refCandidates   []internalauthoring.ReferenceCandidate
 	step            internalauthoring.GuidedStep
 	valid           bool
 	complete        bool
@@ -126,6 +128,26 @@ func (f *fakeAuthoringService) AcceptContextCandidate(_ context.Context, session
 func (f *fakeAuthoringService) RejectContextCandidate(_ context.Context, sessionID, candidateID, reason string) (internalauthoring.Session, internalauthoring.ContextCandidate, internalauthoring.GuidedStep, error) {
 	f.gotSessionID, f.gotCandidateID, f.gotReason = sessionID, candidateID, reason
 	return f.session, f.candidate, f.step, f.err
+}
+
+func (f *fakeAuthoringService) SuggestReferences(_ context.Context, sessionID string) (internalauthoring.Session, []internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
+	f.gotSessionID = sessionID
+	return f.session, f.refCandidates, f.step, f.err
+}
+
+func (f *fakeAuthoringService) ListReferenceCandidates(_ context.Context, sessionID string) ([]internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
+	f.gotSessionID = sessionID
+	return f.refCandidates, f.step, f.err
+}
+
+func (f *fakeAuthoringService) AcceptReferenceCandidate(_ context.Context, sessionID, candidateID string, edit *internalplans.Reference) (internalauthoring.Session, internalauthoring.ReferenceCandidate, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotCandidateID = sessionID, candidateID
+	return f.session, f.refCandidate, f.violations, f.step, f.err
+}
+
+func (f *fakeAuthoringService) RejectReferenceCandidate(_ context.Context, sessionID, candidateID, reason string) (internalauthoring.Session, internalauthoring.ReferenceCandidate, internalauthoring.GuidedStep, error) {
+	f.gotSessionID, f.gotCandidateID, f.gotReason = sessionID, candidateID, reason
+	return f.session, f.refCandidate, f.step, f.err
 }
 
 func (f *fakeAuthoringService) AddPhase(_ context.Context, sessionID string, title, intent string) (internalauthoring.Session, internalauthoring.PhaseDraft, []internalauthoring.StructureViolation, internalauthoring.GuidedStep, error) {
@@ -518,19 +540,64 @@ func TestAutofillSuccess(t *testing.T) {
 	svc := &fakeAuthoringService{
 		session: internalauthoring.Session{ID: "s1"},
 		results: []internalauthoring.AutofillResult{
-			{Source: internalauthoring.AutofillReferences, SectionKey: internalauthoring.SectionReferences, Degraded: true, Detail: "down"},
+			{Source: internalauthoring.AutofillRegressionAnchor, SectionKey: internalauthoring.SectionRegressionAnchor, Degraded: true, Detail: "down"},
 		},
 	}
 	h := newAuthoringHandler(svc)
 
 	resp, err := h.Autofill(context.Background(), connect.NewRequest(&authoringv1.AutofillRequest{
 		SessionId: "s1",
-		Sources:   []string{"references"},
+		Sources:   []string{"regression_anchor"},
 	}))
 	require.NoError(t, err)
 	require.Len(t, resp.Msg.GetResults(), 1)
 	require.True(t, resp.Msg.GetResults()[0].GetDegraded())
-	require.Equal(t, []internalauthoring.AutofillSource{internalauthoring.AutofillReferences}, svc.gotSources)
+	require.Equal(t, []internalauthoring.AutofillSource{internalauthoring.AutofillRegressionAnchor}, svc.gotSources)
+}
+
+func TestSuggestReferencesSuccess(t *testing.T) {
+	svc := &fakeAuthoringService{
+		session: internalauthoring.Session{ID: "s1"},
+		refCandidates: []internalauthoring.ReferenceCandidate{
+			{ID: "rc1", Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"}, Source: "code-symbol", Confidence: 0.9, Status: internalauthoring.ReferenceCandidatePending},
+		},
+		step: internalauthoring.GuidedStep{StepKind: "reference_candidates"},
+	}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.SuggestReferences(context.Background(), connect.NewRequest(&authoringv1.SuggestReferencesRequest{SessionId: "s1"}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.GetCandidates(), 1)
+	require.Equal(t, "x.go", resp.Msg.GetCandidates()[0].GetReference().GetTarget())
+	require.Equal(t, "code-symbol", resp.Msg.GetCandidates()[0].GetSource())
+	require.Equal(t, "reference_candidates", resp.Msg.GetStep().GetStepKind())
+}
+
+func TestAcceptReferenceCandidateSuccess(t *testing.T) {
+	svc := &fakeAuthoringService{
+		session:      internalauthoring.Session{ID: "s1"},
+		refCandidate: internalauthoring.ReferenceCandidate{ID: "rc1", Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"}, Status: internalauthoring.ReferenceCandidateAccepted},
+	}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.AcceptReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.AcceptReferenceCandidateRequest{SessionId: "s1", CandidateId: "rc1"}))
+	require.NoError(t, err)
+	require.Equal(t, "accepted", resp.Msg.GetCandidate().GetStatus())
+	require.Equal(t, "rc1", svc.gotCandidateID)
+	require.Equal(t, "reference_candidate", resp.Msg.GetSummary().GetObjectKind())
+}
+
+func TestRejectReferenceCandidateSuccess(t *testing.T) {
+	svc := &fakeAuthoringService{
+		session:      internalauthoring.Session{ID: "s1"},
+		refCandidate: internalauthoring.ReferenceCandidate{ID: "rc1", Status: internalauthoring.ReferenceCandidateRejected, RejectionReason: "noise"},
+	}
+	h := newAuthoringHandler(svc)
+
+	resp, err := h.RejectReferenceCandidate(context.Background(), connect.NewRequest(&authoringv1.RejectReferenceCandidateRequest{SessionId: "s1", CandidateId: "rc1", Reason: "noise"}))
+	require.NoError(t, err)
+	require.Equal(t, "rejected", resp.Msg.GetCandidate().GetStatus())
+	require.Equal(t, "noise", svc.gotReason)
 }
 
 func TestFinalizeSuccess(t *testing.T) {

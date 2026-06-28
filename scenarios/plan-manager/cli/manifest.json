@@ -885,7 +885,7 @@
         },
         {
           "name": "autofill",
-          "description": "Autofill mechanical sections behind seams (regression anchor / references)",
+          "description": "Autofill the mechanical regression-anchor intent behind a seam",
           "positionals": [
             {
               "name": "session",
@@ -896,13 +896,136 @@
           "flags": [
             {
               "name": "sources",
-              "description": "Comma-separated autofill source(s) to run; omit to run default sources (regression_anchor, references). required_reading is legacy migration-only and must be requested explicitly."
+              "description": "Comma-separated autofill source(s) to run; omit to run the default source (regression_anchor). References are discovered via `author suggest-references`, not autofill."
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "AuthoringService",
             "method": "Autofill"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "suggest-references",
+          "description": "Discover reviewable code/doc/req reference candidates from search-hub's Answer projection (routed by locator shape)",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "SuggestReferences"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-list",
+          "description": "List the session's discovered reference candidates (pending/accepted/rejected)",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "ListReferenceCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-accept",
+          "description": "Accept a suggested reference candidate into the references section (with an optional inline locator edit)",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Reference candidate id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Optional inline edit: locator kind (code, doc, req)"
+            },
+            {
+              "name": "target",
+              "description": "Optional inline edit: locator target (path or requirement id)"
+            },
+            {
+              "name": "future",
+              "description": "Mark the locator as proposed (not-yet-existing) code",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "AcceptReferenceCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reference-reject",
+          "description": "Reject a suggested reference candidate with a reason",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            },
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Reference candidate id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "Why this suggestion is not relevant"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuthoringService",
+            "method": "RejectReferenceCandidate"
           },
           "governance": {
             "effect": "write",

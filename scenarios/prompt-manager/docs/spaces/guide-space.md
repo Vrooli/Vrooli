@@ -1,8 +1,8 @@
 # Guide Space — SWE Task & Skill Coverage
 
 > **Model & terminology** — the projection model, status legend, and how coverage (the numerator)
-> is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`
-> _(planned)_. This document is the *Guide* denominator only.
+> is computed are defined once in `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md`.
+> This document is the *Guide* denominator only.
 
 ## Purpose
 
@@ -23,7 +23,7 @@ deliberately out of the local-coding-readiness scope.
 | Owner | `prompt-manager` (owns the skill graph this extends) |
 | Denominator confidence | `SKETCH` — the SWE-task taxonomy is a first cut (judgment-defined), and the skill inventory was not exhaustively enumerated; full population deferred to the initiative. |
 | Sibling spaces | `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md` |
-| Legend | `COVERED` a skill guides it · `PARTIAL` scattered/partial skills · `MISSING` no skill · Empirical gate: `—` none yet (built in the empirical-gate phase). |
+| Legend | `COVERED` a skill **or a graduated pointer-to-a-validator** guides it · `PARTIAL` scattered/partial skills · `MISSING` no skill · Empirical gate: `—` none yet (built in the empirical-gate phase). |
 
 ## Coverage Grid
 
@@ -71,12 +71,13 @@ deliberately out of the local-coding-readiness scope.
 | **Candidate gaps (`SKETCH`)** | | | | | |
 | G31 | Concurrency / race hardening | _(adjacent: `idempotency-replay-safety-hardening`)_ | MISSING | — | No dedicated skill; adjacent to G19. |
 | G32 | Observability / telemetry wiring | _(none)_ | MISSING | — | Pairs with Validate V18. |
-| G33 | Internationalization (i18n) | _(partial: `react-coherence`)_ | PARTIAL | — | No dedicated skill. |
+| G33 | Internationalization (i18n) | _(adjacent: `react-coherence`)_ | MISSING | — | No dedicated i18n skill; adjacent to `react-coherence`. Candidate gap (see below). |
 
 ## Known Gaps & Approaches
 
 - **Empirical gates** — the `Gate` column is uniformly `—`: no task category yet has a local-model empirical gate. Closing this column *is* the empirical-gate phase (tasks generated from these rows, run via agent-manager + workspace-sandbox). "% of tasks with a gate" is the recursive Guide-coverage metric.
 - **Skill efficiency** — `Status: COVERED` only means a skill exists; whether it is *programmatic* (command-backed) vs prose-heavy is the live `prompt-manager graph health` numerator + the `--programmatic-home` graduation tracking. Prose-heavy skills are the prose→programmatic backlog (`PROMOTION_LADDER`).
+- **Graduated pointer-skills count as `COVERED`, never `MISSING`.** The promotion end-state (`PROMOTION_LADDER.md` step 5, *collapse or retire prose*) replaces a prose skill with a thin pointer to the Validate phase + Answer provider that now carry the concern — the **success** state of the Guide→Validate→Answer gradient (`COVERAGE-MODEL.md`), not a regression. So a row whose guidance has delegated to a programmatic home stays `COVERED` (treat it as graduated/mature), and the `--programmatic-home` flag — *not* prose length — is what `graph health` should reward. Scoring Guide coverage by prose richness would penalize exactly the delegation the meta-loop produces. This is the inverse-failure for the base-doc-integrity check (`meta-optimization-manager validate-docs`, OT-P0-004): a concern with a live Validate phase / Answer provider but a `MISSING` Guide row is an *un-graduated pointer*, not merely a missing skill.
 - **Candidate gaps (G31–G33)** — judgment-heavy; the initiative owns whether they get dedicated skills.
 
 ## Sources Of Truth
@@ -88,5 +89,5 @@ deliberately out of the local-coding-readiness scope.
 
 ## Cross-References
 
-- `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` — canonical model + legend _(planned)_.
+- `meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md` — canonical model + legend (incl. the Guide→Validate→Answer maturation gradient this denominator's pointer-skill rule follows).
 - `search-hub/docs/spaces/answer-space.md`, `test-genie/docs/spaces/validate-space.md` — sibling denominators.

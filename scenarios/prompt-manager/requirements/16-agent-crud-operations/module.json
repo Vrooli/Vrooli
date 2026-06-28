@@ -1,73 +1,63 @@
 {
-  "description": "Full CRUD operations for agent entities including appearance, SOUL.md, capabilities, connectors, and heartbeat configuration.",
-  "module_id": "MOD-P0-016",
-  "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-25T17:32:58-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-006"],
-      "description": "Implement REST API endpoints for creating, reading, updating and deleting agents with JSON payload support",
       "id": "REQ-P0-016",
-      "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
-      "status": "complete",
       "title": "REST API for Agent CRUD",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
+      "category": "api",
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting agents with JSON payload support",
       "validation": [
         {
-          "notes": "All agent CRUD endpoints return correct HTTP status codes",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "All agent CRUD endpoints return correct HTTP status codes"
         },
         {
-          "notes": "Agent appearance, SOUL.md, capabilities validation",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "Agent appearance, SOUL.md, capabilities validation"
         },
         {
-          "notes": "Agent stored in file-based store (store/agents/)",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Agent stored in file-based store (store/agents/)"
         },
         {
-          "notes": "Agent API response time under 100ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Agent API response time under 100ms"
         }
       ]
     },
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-016"],
-      "description": "Agent appearance configuration with body, head, and accent colors for 3D visualization",
       "id": "REQ-P0-017",
-      "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
-      "status": "complete",
       "title": "Agent Appearance Configuration",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-agent-crud-operations-via-api",
+      "category": "api",
+      "description": "Agent appearance configuration with body, head, and accent colors for 3D visualization",
       "validation": [
         {
-          "notes": "Appearance colors stored and retrieved correctly",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "Appearance colors stored and retrieved correctly"
         },
         {
-          "notes": "Hex color validation for appearance fields",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "Hex color validation for appearance fields"
         }
       ]
     }
-  ],
-  "title": "Agent CRUD operations via API"
+  ]
 }

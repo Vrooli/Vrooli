@@ -286,6 +286,52 @@ func TestRunValidationVerdicts(t *testing.T) {
 	require.Equal(t, validation.VerdictUnknown, res.Verdict)
 }
 
+// TestCaptureBaselineShellsGCTFromAnchorIntent proves CaptureBaseline derives the
+// snapshot command from the typed anchor intent and degrades honestly when the
+// intent is a placeholder or git-control-tower is absent.
+func TestCaptureBaselineShellsGCTFromAnchorIntent(t *testing.T) {
+	ctx := context.Background()
+
+	// Healthy: anchor scenario + name set, runner present → captured.
+	plan := planWith(nil, nil)
+	plan.RegressionAnchor = internalplans.RegressionAnchor{Scenario: "plan-manager", BaselineName: "impl-baseline"}
+	var gotName string
+	var gotArgs []string
+	captured := validation.NewService(validation.Deps{
+		Plans: fakePlans{plan: plan},
+		Runner: func(_ context.Context, name string, args ...string) ([]byte, error) {
+			gotName, gotArgs = name, args
+			return []byte("snapshot started"), nil
+		},
+	})
+	cap1, err := captured.CaptureBaseline(ctx, "p1")
+	require.NoError(t, err)
+	require.True(t, cap1.Captured)
+	require.Equal(t, "plan-manager", cap1.Scenario)
+	require.Equal(t, "impl-baseline", cap1.BaselineName)
+	require.Equal(t, "git-control-tower", gotName)
+	require.Contains(t, strings.Join(gotArgs, " "), "baseline snapshot --scenario plan-manager --name impl-baseline")
+
+	// Placeholder scenario → honest degradation, never a fabricated capture.
+	placeholder := planWith(nil, nil)
+	placeholder.RegressionAnchor = internalplans.RegressionAnchor{Scenario: "<scenario>", BaselineName: "x"}
+	deg := validation.NewService(validation.Deps{
+		Plans:  fakePlans{plan: placeholder},
+		Runner: func(_ context.Context, _ string, _ ...string) ([]byte, error) { return nil, nil },
+	})
+	cap2, err := deg.CaptureBaseline(ctx, "p1")
+	require.NoError(t, err)
+	require.False(t, cap2.Captured)
+	require.Contains(t, cap2.Detail, "placeholder")
+
+	// No runner configured → honest degradation (git-control-tower unavailable).
+	noRunner := validation.NewService(validation.Deps{Plans: fakePlans{plan: plan}})
+	cap3, err := noRunner.CaptureBaseline(ctx, "p1")
+	require.NoError(t, err)
+	require.False(t, cap3.Captured)
+	require.Contains(t, cap3.Detail, "git-control-tower unavailable")
+}
+
 func TestRunValidationIncludesCommandReferenceFindings(t *testing.T) {
 	plan := planWith(nil, []internalplans.Phase{{
 		ID: "ph1",

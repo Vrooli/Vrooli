@@ -391,7 +391,7 @@ func TestSmallAgentContinueLoopsAuthorAndExecute(t *testing.T) {
 		case "phase_relevant_context":
 			require.Equal(t, "submit-phase-relevant_context", step.NextActions[0].ID)
 			session, _, violations, _, err = authoringSvc.SubmitRelevantContextItem(ctx, session.ID, phase.ID, internalplans.RelevantContextItem{
-				Kind:         internalplans.RelevantContextDoc,
+				Kind:         internalplans.RelevantContextCodeRef,
 				Label:        "Integration fixture",
 				Reason:       "The phase changes the cross-domain proof itself.",
 				Instruction:  "Read the integration test before changing the guided loop.",

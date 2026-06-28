@@ -5,6 +5,7 @@ import { CheckCircle2, Sparkles, Wand2 } from "lucide-react";
 
 import {
   acceptContextCandidate,
+  acceptReferenceCandidate,
   addPhase,
   autofill,
   discoverContextCandidates,
@@ -12,11 +13,13 @@ import {
   getSession,
   nextPhase,
   rejectContextCandidate,
+  rejectReferenceCandidate,
   removeRelevantContextItem,
   startSession,
   submitRelevantContextItem,
   submitPhaseField,
   submitSection,
+  suggestReferences,
   validateStructure,
 } from "../../api/authoring";
 import { SectionPanel } from "../../components/Surfaces";
@@ -33,10 +36,12 @@ import type {
   AutofillResult,
   ContextCandidate,
   PhaseDraft,
+  ReferenceCandidate,
   Section,
   StructureViolation,
 } from "@vrooli/proto-types/plan-manager/v1/authoring/authoring_pb";
 import {
+  ReferenceKind,
   RelevantContextItemSchema,
   RelevantContextKind,
   RelevantContextRepeatPolicy,
@@ -225,6 +230,98 @@ function ContextCandidateList({
   );
 }
 
+function referenceMarker(kind: ReferenceKind): string {
+  switch (kind) {
+    case ReferenceKind.REQ:
+      return "REQ";
+    case ReferenceKind.DOC:
+      return "DOC";
+    default:
+      return "CODE";
+  }
+}
+
+function referenceLocatorLabel(candidate: ReferenceCandidate): string {
+  const ref = candidate.reference;
+  if (!ref) return candidate.id;
+  return `[${referenceMarker(ref.kind)}: ${ref.target}]`;
+}
+
+// ReferenceCandidateList mirrors ContextCandidateList: search-hub reference
+// suggestions are reviewable — only accepted candidates enter the references
+// section. A raw suggestion never satisfies the references gate.
+function ReferenceCandidateList({
+  candidates,
+  onAccept,
+  onReject,
+  busy,
+}: {
+  candidates: readonly ReferenceCandidate[];
+  onAccept: (candidateId: string) => void;
+  onReject: (candidateId: string) => void;
+  busy: boolean;
+}) {
+  const { t } = useTranslation();
+  if (candidates.length === 0) {
+    return <p className="text-sm text-app-muted-foreground">{t(strings.pages.authoring.referenceCandidatesEmpty)}</p>;
+  }
+  return (
+    <ul data-testid={selectors.authoring.referenceCandidates} className="flex flex-col gap-1.5">
+      {candidates.map((candidate) => {
+        const pending = candidate.status === "" || candidate.status === "pending";
+        return (
+          <li
+            key={candidate.id}
+            className="rounded-control border border-app-border bg-app-surface-muted px-3 py-2 text-sm"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="break-all font-mono text-xs text-app-foreground">{referenceLocatorLabel(candidate)}</code>
+              <span className="rounded-pill bg-app-info/15 px-2 py-0.5 text-xs text-app-info">
+                {candidate.status || "pending"}
+              </span>
+              {candidate.degraded ? (
+                <span className="rounded-pill bg-app-warning/15 px-2 py-0.5 text-xs text-app-warning">
+                  {t(strings.common.degradedBadge)}
+                </span>
+              ) : null}
+            </div>
+            {candidate.source ? (
+              <p className="mt-1 text-xs text-app-muted-foreground">{candidate.source}</p>
+            ) : null}
+            {candidate.detail ? <p className="mt-1 text-xs text-app-muted-foreground">{candidate.detail}</p> : null}
+            {candidate.rejectionReason ? (
+              <p className="mt-1 text-xs text-app-danger">{candidate.rejectionReason}</p>
+            ) : null}
+            {pending ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  data-testid={selectors.authoring.referenceCandidateAcceptButton}
+                  disabled={busy}
+                  onClick={() => onAccept(candidate.id)}
+                >
+                  {t(strings.pages.authoring.referenceAccept)}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  data-testid={selectors.authoring.referenceCandidateRejectButton}
+                  disabled={busy}
+                  onClick={() => onReject(candidate.id)}
+                >
+                  {t(strings.pages.authoring.referenceReject)}
+                </Button>
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function SectionRow({
   section,
   active,
@@ -368,6 +465,7 @@ export function AuthoringWizard() {
   const [contextConcepts, setContextConcepts] = useState("");
   const [contextComplexity, setContextComplexity] = useState("architectural");
   const [contextRejectReason, setContextRejectReason] = useState("");
+  const [referenceRejectReason, setReferenceRejectReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -484,6 +582,35 @@ export function AuthoringWizard() {
       const res = await autofill(session.id);
       await hydrate(res);
       setState((prev) => ({ ...prev, autofillResults: res.results }));
+    });
+  };
+
+  const handleSuggestReferences = () => {
+    if (!session) return;
+    void run(async () => {
+      const res = await suggestReferences(session.id);
+      await hydrate(res);
+    });
+  };
+
+  const handleAcceptReference = (candidateId: string) => {
+    if (!session) return;
+    void run(async () => {
+      const res = await acceptReferenceCandidate(session.id, candidateId);
+      await hydrate(res);
+    });
+  };
+
+  const handleRejectReference = (candidateId: string) => {
+    if (!session) return;
+    void run(async () => {
+      const res = await rejectReferenceCandidate(
+        session.id,
+        candidateId,
+        referenceRejectReason.trim() || "not relevant",
+      );
+      await hydrate(res);
+      setReferenceRejectReason("");
     });
   };
 
@@ -873,6 +1000,43 @@ export function AuthoringWizard() {
               ))}
             </ul>
           )}
+        </SectionPanel>
+
+        <SectionPanel
+          title={t(strings.pages.authoring.referencesHeading)}
+          headingId="authoring-references-heading"
+          actions={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              data-testid={selectors.authoring.referenceSuggestButton}
+              disabled={busy}
+              onClick={handleSuggestReferences}
+            >
+              <Sparkles aria-hidden="true" className="me-2 h-4 w-4" />
+              {t(strings.pages.authoring.referenceSuggest)}
+            </Button>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <Input
+              data-testid={selectors.authoring.referenceRejectReasonInput}
+              value={referenceRejectReason}
+              onChange={(e) => setReferenceRejectReason(e.target.value)}
+              placeholder={t(strings.pages.authoring.referenceRejectReasonPlaceholder)}
+              aria-label={t(strings.pages.authoring.referenceRejectReasonLabel)}
+            />
+            <p className="text-xs font-medium uppercase tracking-wide text-app-muted-foreground">
+              {t(strings.pages.authoring.referenceCandidates)}
+            </p>
+            <ReferenceCandidateList
+              candidates={session.referenceCandidates}
+              onAccept={handleAcceptReference}
+              onReject={handleRejectReference}
+              busy={busy}
+            />
+          </div>
         </SectionPanel>
 
         <SectionPanel title={t(strings.pages.authoring.contextHeading)} headingId="authoring-context-heading">

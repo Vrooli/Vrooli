@@ -70,25 +70,35 @@ func TestViolationsToProto(t *testing.T) {
 func TestAutofillResultsToProto(t *testing.T) {
 	got := autofillResultsToProto([]internalauthoring.AutofillResult{
 		{Source: internalauthoring.AutofillRegressionAnchor, SectionKey: internalauthoring.SectionRegressionAnchor, Filled: true, Degraded: false, Detail: "autofilled"},
-		{Source: internalauthoring.AutofillReferences, SectionKey: internalauthoring.SectionReferences, Filled: false, Degraded: true, Detail: "code-facts unavailable"},
+		{Source: internalauthoring.AutofillRegressionAnchor, SectionKey: internalauthoring.SectionRegressionAnchor, Filled: false, Degraded: true, Detail: "git-control-tower unavailable"},
 	})
 	require.Len(t, got, 2)
 	require.Equal(t, "regression_anchor", got[0].GetSource())
 	require.Equal(t, "regression_anchor", got[0].GetSectionKey())
 	require.True(t, got[0].GetFilled())
 	require.False(t, got[0].GetDegraded())
-	require.Equal(t, "references", got[1].GetSource())
 	require.True(t, got[1].GetDegraded())
-	require.Equal(t, "code-facts unavailable", got[1].GetDetail())
+	require.Equal(t, "git-control-tower unavailable", got[1].GetDetail())
+}
+
+func TestReferenceCandidatesToProto(t *testing.T) {
+	got := referenceCandidatesToProto([]internalauthoring.ReferenceCandidate{
+		{ID: "rc1", Reference: internalplans.Reference{Kind: internalplans.ReferenceCode, Target: "x.go"}, Source: "code-symbol", Confidence: 0.8, Status: internalauthoring.ReferenceCandidatePending},
+	})
+	require.Len(t, got, 1)
+	require.Equal(t, "rc1", got[0].GetId())
+	require.Equal(t, "x.go", got[0].GetReference().GetTarget())
+	require.Equal(t, "code-symbol", got[0].GetSource())
+	require.Equal(t, "pending", got[0].GetStatus())
+	require.InEpsilon(t, 0.8, got[0].GetConfidence(), 0.0001)
 }
 
 func TestAutofillSourcesFromProto(t *testing.T) {
 	require.Nil(t, autofillSourcesFromProto(nil), "no sources must map to nil (service then defaults to all)")
 	require.Nil(t, autofillSourcesFromProto([]string{}), "empty sources must map to nil")
-	got := autofillSourcesFromProto([]string{"regression_anchor", "references"})
+	got := autofillSourcesFromProto([]string{"regression_anchor"})
 	require.Equal(t, []internalauthoring.AutofillSource{
 		internalauthoring.AutofillRegressionAnchor,
-		internalauthoring.AutofillReferences,
 	}, got)
 }
 

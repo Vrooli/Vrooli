@@ -156,6 +156,21 @@ func PhaseFieldSummary(field PhaseField, phase PhaseDraft) string {
 	}
 }
 
+// PhaseAddSummary describes an add-phase mutation. AddPhase submits both the
+// title and the intent, so the summary names both material fields instead of
+// reporting only the title (the underreported-summary friction).
+func PhaseAddSummary(phase PhaseDraft) string {
+	title := strings.TrimSpace(phase.Title)
+	if title == "" {
+		title = "(untitled)"
+	}
+	intent := strings.TrimSpace(phase.Intent)
+	if intent == "" {
+		return fmt.Sprintf("added phase %d titled %q (intent pending)", phase.Order, title)
+	}
+	return fmt.Sprintf("added phase %d titled %q with intent %q", phase.Order, title, intent)
+}
+
 // FindPhaseDraft resolves a phase draft by id or authored order number. It lets
 // the handler edge echo the single changed phase in a mutation acknowledgement
 // without re-loading or exposing the unexported lookup.
@@ -167,4 +182,9 @@ func FindPhaseDraft(sess Session, phaseID string) (PhaseDraft, bool) {
 func ContextItemSummary(item planmodel.RelevantContextItem) string {
 	label := firstNonEmpty(item.Label, item.Target, item.Command, item.Instruction, string(item.Kind))
 	return fmt.Sprintf("%s context %q", item.Kind, label)
+}
+
+// ReferenceCandidateSummary describes a reference-candidate mutation.
+func ReferenceCandidateSummary(candidate ReferenceCandidate) string {
+	return fmt.Sprintf("[%s: %s]", referenceMarker(candidate.Reference.Kind), candidate.Reference.Target)
 }

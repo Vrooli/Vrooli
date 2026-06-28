@@ -84,7 +84,13 @@ never has to carry the whole session graph:
    changed object (the item/phase/candidate that was touched), any structure
    violations the change surfaced, and the next `GuidedStep`. `ready_to_finalize`
    is a *structurally ready* hint only — the command-reference seam still runs at
-   Finalize and may surface late issues.
+   Finalize and may surface late issues. The `GuidedStep` returned by a mutation
+   resolves the **true** next step in the same order the continue loop uses (first
+   unfilled mandatory section → global relevant-context checkpoint → first
+   incomplete phase → outstanding violation → final review). It never reports
+   `final_review` while global context is unresolved or a phase is incomplete — a
+   mutation that happens to fill the last mandatory *section* does not jump to
+   review.
 2. **Continue / resume orientation.** `author continue` (`ContinueAuthoring`)
    returns the single current work item — exactly one of section *or* phase
    (both empty at the review/finalize step) — plus progress, violations, and the

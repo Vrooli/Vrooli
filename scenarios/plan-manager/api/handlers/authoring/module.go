@@ -21,9 +21,9 @@ import (
 
 // Module returns the authoring domain's contribution to the API: the generated
 // AuthoringService Connect-RPC handler, backed by the owned SQLite session store,
-// the production autofill seams (each a LookPath-guarded CommandRunner shelling
-// git-control-tower / prompt-manager / code-facts, degrading gracefully when the
-// dependency is absent), and a PlanWriter adapter that writes the produced plan
+// the production discovery seams (each a LookPath-guarded CommandRunner shelling
+// git-control-tower / search-hub, degrading gracefully when the dependency is
+// absent), and a PlanWriter adapter that writes the produced plan
 // THROUGH the plans domain. All wired here at the production edge; never imported
 // into internal/authoring.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
@@ -35,16 +35,15 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	})
 	runner := internalauthoring.DefaultRunner()
 	svc := internalauthoring.NewService(internalauthoring.Deps{
-		Store:        internalauthoring.NewSQLiteStore(db, clk),
-		Writer:       planWriter{svc: plansSvc},
-		Anchor:       internalauthoring.NewCommandAnchorAutofiller(runner),
-		RequiredRead: internalauthoring.NewCommandRequiredReadingSource(runner),
-		References:   internalauthoring.NewCommandReferenceExtractor(runner),
-		Context:      internalauthoring.NewCommandContextDiscoverer(runner),
-		Commands:     newCLIHealthCommandValidator(),
-		Renderer:     planRenderer{},
-		Posture:      posturePreparer{maturity: maturity},
-		Clock:        clk,
+		Store:     internalauthoring.NewSQLiteStore(db, clk),
+		Writer:    planWriter{svc: plansSvc},
+		Anchor:    internalauthoring.DefaultAnchorIntentDeriver(),
+		Suggester: internalauthoring.NewCommandReferenceSuggester(runner),
+		Context:   internalauthoring.NewCommandContextDiscoverer(runner),
+		Commands:  newCLIHealthCommandValidator(),
+		Renderer:  planRenderer{},
+		Posture:   posturePreparer{maturity: maturity},
+		Clock:     clk,
 	})
 	connectPath, connectHandler := authoringconnect.NewAuthoringServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
@@ -116,6 +115,10 @@ var Endpoints = []module.EndpointDescriptor{
 	endpoint("authoring_discover_context_candidates", authoringconnect.AuthoringServiceDiscoverContextCandidatesProcedure, "Discover context candidates", "Runs guided context discovery for decomposed concepts and stores pending candidates."),
 	endpoint("authoring_accept_context_candidate", authoringconnect.AuthoringServiceAcceptContextCandidateProcedure, "Accept context candidate", "Promotes a pending context candidate into global or phase-scoped relevant context."),
 	endpoint("authoring_reject_context_candidate", authoringconnect.AuthoringServiceRejectContextCandidateProcedure, "Reject context candidate", "Records why a discovered context candidate is not relevant."),
+	endpoint("authoring_suggest_references", authoringconnect.AuthoringServiceSuggestReferencesProcedure, "Suggest references", "Queries search-hub's Answer projection from the session title/scope/approach and stores reviewable reference candidates (routed by locator shape). Degrades to no candidates, never a fabricated reference."),
+	endpoint("authoring_list_reference_candidates", authoringconnect.AuthoringServiceListReferenceCandidatesProcedure, "List reference candidates", "Returns the session's reference candidates without changing wizard position."),
+	endpoint("authoring_accept_reference_candidate", authoringconnect.AuthoringServiceAcceptReferenceCandidateProcedure, "Accept reference candidate", "Promotes one pending reference candidate (with optional inline edit) into the references section; only accepted locators satisfy the references gate."),
+	endpoint("authoring_reject_reference_candidate", authoringconnect.AuthoringServiceRejectReferenceCandidateProcedure, "Reject reference candidate", "Records why a suggested reference is not relevant."),
 	endpoint("authoring_add_phase", authoringconnect.AuthoringServiceAddPhaseProcedure, "Add phase draft", "Appends one structured phase draft so agents do not submit all phases as a markdown blob."),
 	endpoint("authoring_get_phase", authoringconnect.AuthoringServiceGetPhaseProcedure, "Get phase draft", "Returns one structured phase draft plus the API-owned guided step for the next missing phase field."),
 	endpoint("authoring_submit_phase_field", authoringconnect.AuthoringServiceSubmitPhaseFieldProcedure, "Submit phase field", "Records one phase-native field and validates references/acceptance immediately."),

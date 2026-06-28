@@ -110,6 +110,9 @@ const context = create(PhaseContextSchema, {
     staleness: StalenessTier.FRESH,
   }),
   staleness: StalenessTier.FRESH,
+  inputsFreshened: true,
+  freshenStatus: "captured",
+  freshenDetail: "captured baseline plan-1-baseline; staleness: 2 reference(s), overall=fresh",
   logSummary: create(LogSummarySchema, {
     total: 3,
     decisions: 2,
@@ -155,6 +158,8 @@ describe("ExecutionRunner", () => {
     expect(screen.getByTestId(selectors.execution.guidedStep)).toHaveTextContent("exec transition exec-1 p1 --status done");
     // The phase context surfaces a compact log-ledger roll-up (counts + pending sync).
     expect(screen.getByTestId(selectors.execution.logSummary)).toHaveTextContent("Pending sync");
+    // The execution-start freshen status is surfaced (captured baseline + staleness).
+    expect(screen.getByTestId(selectors.execution.freshenStatus)).toHaveTextContent("captured");
   });
 
   it("renders start errors without leaving the start gate", async () => {

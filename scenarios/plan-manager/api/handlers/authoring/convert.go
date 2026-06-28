@@ -15,17 +15,18 @@ import (
 
 func sessionToProto(s internalauthoring.Session) *authoringv1.AuthoringSession {
 	return &authoringv1.AuthoringSession{
-		Id:                s.ID,
-		Title:             s.Title,
-		PlanSlug:          s.Slug,
-		Sections:          sectionsToProto(s.Sections),
-		CurrentSectionKey: string(s.CurrentSectionKey),
-		Finalized:         s.Finalized,
-		PlanId:            s.PlanID,
-		PhaseDrafts:       phaseDraftsToProto(s.PhaseDrafts),
-		CurrentPhaseId:    s.CurrentPhaseID,
-		RelevantContext:   planproto.RelevantContextItemsToProto(s.RelevantContext),
-		ContextCandidates: contextCandidatesToProto(s.ContextCandidates),
+		Id:                  s.ID,
+		Title:               s.Title,
+		PlanSlug:            s.Slug,
+		Sections:            sectionsToProto(s.Sections),
+		CurrentSectionKey:   string(s.CurrentSectionKey),
+		Finalized:           s.Finalized,
+		PlanId:              s.PlanID,
+		PhaseDrafts:         phaseDraftsToProto(s.PhaseDrafts),
+		CurrentPhaseId:      s.CurrentPhaseID,
+		RelevantContext:     planproto.RelevantContextItemsToProto(s.RelevantContext),
+		ContextCandidates:   contextCandidatesToProto(s.ContextCandidates),
+		ReferenceCandidates: referenceCandidatesToProto(s.ReferenceCandidates),
 	}
 }
 
@@ -103,6 +104,56 @@ func contextCandidatesToProto(candidates []internalauthoring.ContextCandidate) [
 		out = append(out, contextCandidateToProto(candidate))
 	}
 	return out
+}
+
+func referenceCandidateToProto(candidate internalauthoring.ReferenceCandidate) *authoringv1.ReferenceCandidate {
+	return &authoringv1.ReferenceCandidate{
+		Id:              candidate.ID,
+		Reference:       referenceToProto(candidate.Reference),
+		Source:          candidate.Source,
+		Confidence:      candidate.Confidence,
+		Status:          string(candidate.Status),
+		Degraded:        candidate.Degraded,
+		Detail:          candidate.Detail,
+		RejectionReason: candidate.RejectionReason,
+	}
+}
+
+func referenceCandidatesToProto(candidates []internalauthoring.ReferenceCandidate) []*authoringv1.ReferenceCandidate {
+	out := make([]*authoringv1.ReferenceCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, referenceCandidateToProto(candidate))
+	}
+	return out
+}
+
+// referenceEditFromProto maps an optional inline locator edit on
+// AcceptReferenceCandidate. A nil/empty proto reference means "no edit".
+func referenceEditFromProto(ref *sharedv1.Reference) *planmodel.Reference {
+	if ref == nil {
+		return nil
+	}
+	out := referenceFromProto(ref)
+	if out.Kind == "" && out.Target == "" && !out.Future {
+		return nil
+	}
+	return &out
+}
+
+func referenceFromProto(ref *sharedv1.Reference) planmodel.Reference {
+	refs := planproto.ReferencesFromProto([]*sharedv1.Reference{ref})
+	if len(refs) == 0 {
+		return planmodel.Reference{}
+	}
+	return refs[0]
+}
+
+func referenceToProto(ref planmodel.Reference) *sharedv1.Reference {
+	refs := planproto.ReferencesToProto([]planmodel.Reference{ref})
+	if len(refs) == 0 {
+		return nil
+	}
+	return refs[0]
 }
 
 func guidedStepToProto(g internalauthoring.GuidedStep) *sharedv1.GuidedStep {
