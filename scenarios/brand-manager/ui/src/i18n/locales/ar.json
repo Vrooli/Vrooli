@@ -130,7 +130,13 @@
     "availableLabel": "متاح",
     "unavailableLabel": "غير متاح",
     "summaryAvailable": "يتوفّر مزوّد ذكاء اصطناعي واحد على الأقل.",
-    "summaryUnavailable": "لا يتوفّر أي مزوّد ذكاء اصطناعي حاليًا."
+    "summaryUnavailable": "لا يتوفّر أي مزوّد ذكاء اصطناعي حاليًا.",
+    "imageTitle": "خلفية الصور (image-tools)",
+    "imageLoading": "جارٍ التحقق من جاهزية image-tools…",
+    "imageSummaryAvailable": "يمكن الوصول إلى image-tools.",
+    "imageSummaryUnavailable": "تعذّر الوصول إلى image-tools.",
+    "imageReadyLabel": "جاهز",
+    "imageNotReadyLabel": "غير جاهز"
   },
   "apply": {
     "title": "تطبيق العلامة",

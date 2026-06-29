@@ -9,13 +9,17 @@
  */
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
 import {
+  GetImageBackendStatusResponseSchema,
   GetProviderStatusResponseSchema,
+  ImageOperationStatusSchema,
   ProviderStatusSchema,
+  type GetImageBackendStatusResponse,
   type GetProviderStatusResponse,
+  type ImageOperationStatus,
   type ProviderStatus,
 } from "@vrooli/proto-types/brand-manager/v1/generation/generation_pb";
 
-export type { GetProviderStatusResponse, ProviderStatus };
+export type { GetImageBackendStatusResponse, GetProviderStatusResponse, ImageOperationStatus, ProviderStatus };
 
 export const makeProviderStatus = (
   overrides: MessageInitShape<typeof ProviderStatusSchema> = {},
@@ -27,5 +31,27 @@ export const makeProviderStatusResponse = (
   create(GetProviderStatusResponseSchema, {
     available: false,
     providers: [],
+    ...overrides,
+  });
+
+export const makeImageOperationStatus = (
+  overrides: MessageInitShape<typeof ImageOperationStatusSchema> = {},
+): ImageOperationStatus =>
+  create(ImageOperationStatusSchema, {
+    operation: "generate",
+    ready: true,
+    modelId: "sd-1.5",
+    tier: "local-gpu",
+    hint: "",
+    ...overrides,
+  });
+
+export const makeImageBackendStatusResponse = (
+  overrides: MessageInitShape<typeof GetImageBackendStatusResponseSchema> = {},
+): GetImageBackendStatusResponse =>
+  create(GetImageBackendStatusResponseSchema, {
+    available: false,
+    detail: "",
+    operations: [],
     ...overrides,
   });

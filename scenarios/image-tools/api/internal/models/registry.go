@@ -269,15 +269,21 @@ const (
 	// models on this backend run through the generic _diffusers runner and so
 	// must declare a registered, runnable runtime family (DoctorCatalog enforces).
 	BackendDiffusers = "diffusers"
+	// BackendOpenRouter is the BYOK cloud backend: image generation/editing
+	// served by OpenRouter image-capable models. It holds no local weights (the
+	// model lives on the provider), so it is always "installed"; runnability is
+	// gated instead by the cloud provider's Available() (a usable API key).
+	BackendOpenRouter = "openrouter"
 )
 
 // RequiresWeights reports whether a model needs downloaded artifacts on disk to
-// run. In-process deterministic/Go-library models have no weights and are
-// always considered installed; everything else must be fetched +
-// artifact-validated by the Installer before an AI op will launch.
+// run. In-process deterministic/Go-library models and the BYOK cloud backend
+// have no local weights and are always considered installed; everything else
+// must be fetched + artifact-validated by the Installer before an AI op will
+// launch.
 func (m Model) RequiresWeights() bool {
 	switch m.Backend {
-	case BackendBuiltin, BackendComputed, BackendLibraryGo:
+	case BackendBuiltin, BackendComputed, BackendLibraryGo, BackendOpenRouter:
 		return false
 	default:
 		return true

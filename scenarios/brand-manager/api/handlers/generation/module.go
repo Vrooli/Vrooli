@@ -25,6 +25,7 @@ import (
 	internalassets "brand-manager/internal/assets"
 	internalbrands "brand-manager/internal/brands"
 	internalgeneration "brand-manager/internal/generation"
+	internalimagetools "brand-manager/internal/imagetools"
 )
 
 // Module returns the generation domain's contribution to the API: the generated
@@ -46,8 +47,10 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, blobBase
 
 	svc := internalgeneration.NewService(
 		internalgeneration.NewChainFromEnv(),
+		internalimagetools.NewClient(),
 		brandStore{brands: brandsSvc},
 		assetStore{assets: assetsSvc},
+		nil,
 		logger,
 	)
 	connectPath, connectHandler := generationconnect.NewGenerationServiceHandler(NewConnectHandler(Deps{
@@ -149,6 +152,36 @@ func (s assetStore) Store(ctx context.Context, in internalgeneration.AssetUpload
 		MimeType: a.MimeType,
 		Size:     a.Size,
 	}, nil
+}
+
+func (s assetStore) Read(ctx context.Context, assetID string) (internalgeneration.AssetBytes, error) {
+	content, err := s.assets.Download(ctx, assetID)
+	if err != nil {
+		var notFound internalassets.ErrAssetNotFound
+		if errors.As(err, &notFound) {
+			return internalgeneration.AssetBytes{}, internalgeneration.ErrSourceAssetNotFound{ID: assetID}
+		}
+		return internalgeneration.AssetBytes{}, err
+	}
+	return internalgeneration.AssetBytes{
+		ID:       assetID,
+		Filename: content.Filename,
+		MimeType: content.MimeType,
+		Content:  content.Bytes,
+	}, nil
+}
+
+func (s assetStore) Exists(ctx context.Context, brandID, filename string) (bool, error) {
+	list, err := s.assets.List(ctx, brandID)
+	if err != nil {
+		return false, err
+	}
+	for _, a := range list {
+		if a.Filename == filename {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // assetBrandResolver adapts the brands repository onto the assets BrandResolver

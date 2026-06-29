@@ -111,16 +111,29 @@ const (
 	StatusUnsupported = "unsupported"
 )
 
-// ImageResult is the outcome of a GenerateBrandImage call.
+// ImageResult is the outcome of an image RPC (generate / edit / remove
+// background / one derived icon). It is the stored brand asset plus the
+// image-tools model/tier that produced it.
 type ImageResult struct {
-	BrandID  string
-	AssetID  string
-	Type     string
+	BrandID   string
+	AssetID   string
+	Kind      string // logo | favicon | logo-transparent | favicon-32 | apple-touch-icon | ...
+	Filename  string
+	MimeType  string
+	Size      int64
+	ModelID   string // image-tools model; empty for deterministic derivations
+	Tier      string // local-gpu | local-cpu | byok-cloud | deterministic
+	Canonical bool   // true when also written as the canonical asset for its kind
+	Warnings  []string
+}
+
+// AssetBytes is a brand asset's bytes + metadata, returned when the generator
+// loads a source image (for edits / background removal / icon derivation).
+type AssetBytes struct {
+	ID       string
 	Filename string
 	MimeType string
-	Size     int64
-	Provider string
-	Model    string
+	Content  []byte
 }
 
 // ErrBrandNotFound is the typed sentinel returned when the target brand does
@@ -145,11 +158,22 @@ func (e ErrInvalidGeneration) Error() string {
 	return fmt.Sprintf("%s: %s", e.Field, e.Reason)
 }
 
-// ErrProvidersUnavailable is the typed sentinel returned when no AI provider in
-// the chain is currently reachable. Handlers translate via errors.As into a
-// Connect Unavailable response, so callers can retry later.
+// ErrProvidersUnavailable is the typed sentinel returned when no text AI
+// provider in the chain is currently reachable. Handlers translate via errors.As
+// into a Connect Unavailable response, so callers can retry later.
 type ErrProvidersUnavailable struct{}
 
 func (ErrProvidersUnavailable) Error() string {
-	return "no AI providers are currently available"
+	return "no text AI providers are currently available"
+}
+
+// ErrSourceAssetNotFound is the typed sentinel returned when an image edit /
+// background removal / icon derivation references a source asset that does not
+// exist. Handlers translate via errors.As into a Connect NotFound response.
+type ErrSourceAssetNotFound struct {
+	ID string
+}
+
+func (e ErrSourceAssetNotFound) Error() string {
+	return fmt.Sprintf("source asset %q not found", e.ID)
 }

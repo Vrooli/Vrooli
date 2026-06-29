@@ -39,9 +39,9 @@ func TestPreview_PlansWithoutWriting(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, res.DryRun)
 	require.Equal(t, 3, res.BrandVersion)
-	// colors, typography, identity produce actions; favicon + logo are skipped
-	// (no assets seeded).
-	require.Len(t, res.Applied, 3)
+	// colors, typography, identity, and icons (manifest metadata from the brand
+	// colors) produce actions; favicon + logo are skipped (no assets seeded).
+	require.Len(t, res.Applied, 4)
 	require.Len(t, res.Skipped, 2)
 	// A preview writes nothing and records nothing.
 	require.Zero(t, ws.WriteCount())
@@ -58,17 +58,18 @@ func TestApply_WritesFilesAndRecordsAssignment(t *testing.T) {
 	res, err := svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console"})
 	require.NoError(t, err)
 	require.False(t, res.DryRun)
-	// colors + typography + identity + logo applied; favicon skipped.
-	require.Len(t, res.Applied, 4)
+	// colors + typography + identity + icons(manifest) + logo applied; favicon skipped.
+	require.Len(t, res.Applied, 5)
 
 	// brand.css carries both the colors block and the appended typography block.
 	css := string(ws.Written("web-console", "ui/src/styles/brand.css"))
 	require.Contains(t, css, "--brand-primary: #112233")
 	require.Contains(t, css, "--brand-heading-font: Inter")
-	// manifest.json carries the merged identity provenance.
+	// manifest.json carries the merged identity provenance + theme color.
 	manifest := string(ws.Written("web-console", "ui/public/manifest.json"))
 	require.Contains(t, manifest, "_brand_display_name")
 	require.Contains(t, manifest, "Acme")
+	require.Contains(t, manifest, "theme_color")
 	// logo bytes copied verbatim into ui/public.
 	require.Equal(t, []byte("PNGDATA"), ws.Written("web-console", "ui/public/logo.png"))
 
@@ -77,7 +78,37 @@ func TestApply_WritesFilesAndRecordsAssignment(t *testing.T) {
 	require.Len(t, recorded, 1)
 	require.Equal(t, "b1", recorded[0].BrandID)
 	require.Equal(t, "web-console", recorded[0].Scenario)
-	require.Equal(t, []string{"colors", "typography", "identity", "logo"}, recorded[0].Elements)
+	require.Equal(t, []string{"colors", "typography", "identity", "icons", "logo"}, recorded[0].Elements)
+}
+
+func TestApply_InstallsIconSetAndManifestIconsIdempotently(t *testing.T) {
+	brands, assets, recorder, ws := newDeps(t)
+	brands.Seed(fullBrand("b1", 2))
+	// A derived icon set: two favicons (transparent) + one maskable (solid).
+	assets.Seed("b1", "favicon-16", apply.AssetContent{Filename: "favicon-16.png", Bytes: []byte("F16")})
+	assets.Seed("b1", "favicon-32", apply.AssetContent{Filename: "favicon-32.png", Bytes: []byte("F32")})
+	assets.Seed("b1", "maskable-icon-192", apply.AssetContent{Filename: "maskable-icon-192.png", Bytes: []byte("M192")})
+	ws.SeedScenario("web-console")
+	svc := apply.NewService(brands, assets, recorder, ws, nil)
+
+	res, err := svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console", Elements: []string{"icons"}})
+	require.NoError(t, err)
+	// three icon file copies + one manifest write.
+	require.Len(t, res.Applied, 4)
+	require.Equal(t, []byte("F16"), ws.Written("web-console", "ui/public/favicon-16.png"))
+	require.Equal(t, []byte("M192"), ws.Written("web-console", "ui/public/maskable-icon-192.png"))
+
+	manifest := string(ws.Written("web-console", "ui/public/manifest.json"))
+	require.Contains(t, manifest, `"src": "/favicon-16.png"`)
+	require.Contains(t, manifest, `"sizes": "192x192"`)
+	require.Contains(t, manifest, `"purpose": "maskable"`)
+	require.Contains(t, manifest, "theme_color")
+
+	// Idempotent: a second apply produces a byte-identical manifest.
+	first := ws.Written("web-console", "ui/public/manifest.json")
+	_, err = svc.Apply(context.Background(), apply.Request{BrandID: "b1", Scenario: "web-console", Elements: []string{"icons"}})
+	require.NoError(t, err)
+	require.Equal(t, first, ws.Written("web-console", "ui/public/manifest.json"), "re-apply is byte-identical (no duplicate icon entries)")
 }
 
 func TestApply_PartialElementsSubset(t *testing.T) {

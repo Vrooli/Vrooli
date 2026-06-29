@@ -1,7 +1,7 @@
 {
   "_metadata": {
-    "description": "Programmatic application of brand elements into a target scenario (CSS markers, manifest _brand keys, asset copy) plus DESIGN.md export.",
-    "last_validated_at": "2026-06-28T10:26:24-04:00",
+    "description": "Programmatic application of brand elements into a target scenario (CSS markers, manifest _brand/icons/theme keys, asset + icon-set copy) plus DESIGN.md export.",
+    "last_validated_at": "2026-06-29T00:00:00-04:00",
     "module": "apply",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -91,6 +91,30 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Planned unit coverage at api/internal/apply/designdoc_test.go once DESIGN.md export is ported."
+        }
+      ]
+    },
+    {
+      "id": "APPLY-005",
+      "title": "Install the derived PWA/launcher icon set and manifest icon metadata",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "apply",
+      "criticality": "P0",
+      "description": "The 'icons' element copies whichever derived icon assets the brand has (favicon-16/32/196, apple-touch-icon, maskable-icon-192/512) into ui/public and merges the manifest icons array (with purpose 'maskable' where appropriate) plus theme_color/background_color from the brand colors. Each icon copy is a distinct action so a preview reports the full plan; the manifest icons array is rebuilt (never appended) so re-apply is byte-identical with no duplicate entries.",
+      "tags": [
+        "apply",
+        "icons",
+        "manifest",
+        "pwa",
+        "idempotency"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covered by api/internal/apply/service_test.go (TestApply_InstallsIconSetAndManifestIconsIdempotently)."
         }
       ]
     }

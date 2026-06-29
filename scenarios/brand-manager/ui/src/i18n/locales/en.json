@@ -130,7 +130,13 @@
     "availableLabel": "Available",
     "unavailableLabel": "Unavailable",
     "summaryAvailable": "At least one AI provider is available.",
-    "summaryUnavailable": "No AI providers are currently available."
+    "summaryUnavailable": "No AI providers are currently available.",
+    "imageTitle": "Image backend (image-tools)",
+    "imageLoading": "Checking image-tools readiness…",
+    "imageSummaryAvailable": "image-tools is reachable.",
+    "imageSummaryUnavailable": "image-tools is not reachable.",
+    "imageReadyLabel": "Ready",
+    "imageNotReadyLabel": "Not ready"
   },
   "apply": {
     "title": "Apply Brand",

@@ -95,15 +95,15 @@ func (s *service) run(ctx context.Context, in Request, write bool) (Result, erro
 	var appliedElements []string
 
 	for _, elem := range elements {
-		action, skip, err := s.applyElement(ctx, brand, scenario, elem, write)
+		actions, skip, err := s.applyElement(ctx, brand, scenario, elem, write)
 		if err != nil {
 			return Result{}, err
 		}
 		switch {
 		case skip != nil:
 			result.Skipped = append(result.Skipped, *skip)
-		case action != nil:
-			result.Applied = append(result.Applied, *action)
+		case len(actions) > 0:
+			result.Applied = append(result.Applied, actions...)
 			appliedElements = append(appliedElements, elem)
 		}
 	}
@@ -117,22 +117,33 @@ func (s *service) run(ctx context.Context, in Request, write bool) (Result, erro
 	return result, nil
 }
 
-// applyElement plans (and, when write, performs) a single element's write.
-// Returns exactly one of (action, skip) non-nil, or an error for a genuine
-// filesystem/IO failure (a missing facet/asset is a skip, not an error).
-func (s *service) applyElement(ctx context.Context, brand BrandView, scenario, element string, write bool) (*Action, *Skip, error) {
+// applyElement plans (and, when write, performs) a single element's writes.
+// Returns either a non-empty action list, a non-nil skip, or an error for a
+// genuine filesystem/IO failure (a missing facet/asset is a skip, not an error).
+// Most elements produce exactly one action; ElementIcons can produce several.
+func (s *service) applyElement(ctx context.Context, brand BrandView, scenario, element string, write bool) ([]Action, *Skip, error) {
 	switch element {
 	case ElementColors:
-		return s.applyColors(ctx, brand, scenario, write)
+		return one(s.applyColors(ctx, brand, scenario, write))
 	case ElementTypography:
-		return s.applyTypography(ctx, brand, scenario, write)
+		return one(s.applyTypography(ctx, brand, scenario, write))
 	case ElementIdentity:
-		return s.applyIdentity(ctx, brand, scenario, write)
+		return one(s.applyIdentity(ctx, brand, scenario, write))
+	case ElementIcons:
+		return s.applyIcons(ctx, brand, scenario, write)
 	case ElementFavicon, ElementLogo:
-		return s.applyAsset(ctx, brand, scenario, element, write)
+		return one(s.applyAsset(ctx, brand, scenario, element, write))
 	default:
 		return nil, &Skip{Element: element, Reason: "unknown element"}, nil
 	}
+}
+
+// one adapts a single-action element helper to the []Action shape.
+func one(action *Action, skip *Skip, err error) ([]Action, *Skip, error) {
+	if err != nil || skip != nil || action == nil {
+		return nil, skip, err
+	}
+	return []Action{*action}, nil, nil
 }
 
 func (s *service) applyColors(ctx context.Context, brand BrandView, scenario string, write bool) (*Action, *Skip, error) {

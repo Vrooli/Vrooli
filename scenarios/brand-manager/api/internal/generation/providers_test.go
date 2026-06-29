@@ -2,7 +2,6 @@ package generation
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,10 +22,6 @@ func (s stubProvider) GenerateText(context.Context, TextRequest) (TextResponse, 
 		return TextResponse{}, s.textErr
 	}
 	return TextResponse{Text: s.text, Provider: s.name}, nil
-}
-
-func (s stubProvider) GenerateImage(context.Context, ImageRequest) (ImageResponse, error) {
-	return ImageResponse{}, errors.New("no image")
 }
 
 func TestChain_SkipsUnavailableAndUsesFirstSuccess(t *testing.T) {

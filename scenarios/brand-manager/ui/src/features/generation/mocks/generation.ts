@@ -12,16 +12,18 @@
  */
 import { vi } from "vitest";
 
-import { makeProviderStatusResponse } from "./factories";
+import { makeImageBackendStatusResponse, makeProviderStatusResponse } from "./factories";
 
 export interface GenerationMocks {
   generationClient: {
     getProviderStatus: ReturnType<typeof vi.fn>;
+    getImageBackendStatus: ReturnType<typeof vi.fn>;
   };
 }
 
 export const makeGenerationMocks = (): GenerationMocks => ({
   generationClient: {
     getProviderStatus: vi.fn().mockResolvedValue(makeProviderStatusResponse()),
+    getImageBackendStatus: vi.fn().mockResolvedValue(makeImageBackendStatusResponse()),
   },
 });

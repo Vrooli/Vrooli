@@ -127,7 +127,13 @@
     "availableLabel": "利用可能",
     "unavailableLabel": "利用不可",
     "summaryAvailable": "少なくとも1つのAIプロバイダーが利用可能です。",
-    "summaryUnavailable": "現在利用可能なAIプロバイダーはありません。"
+    "summaryUnavailable": "現在利用可能なAIプロバイダーはありません。",
+    "imageTitle": "画像バックエンド (image-tools)",
+    "imageLoading": "image-tools の準備状況を確認中…",
+    "imageSummaryAvailable": "image-tools に接続できます。",
+    "imageSummaryUnavailable": "image-tools に接続できません。",
+    "imageReadyLabel": "準備完了",
+    "imageNotReadyLabel": "未準備"
   },
   "apply": {
     "title": "ブランドを適用",

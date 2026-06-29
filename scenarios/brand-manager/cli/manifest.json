@@ -493,15 +493,31 @@
     },
     {
       "name": "generation",
-      "description": "Generate brand text facets and images with the AI provider chain (Ollama → OpenRouter)",
+      "description": "Generate brand text facets (Ollama → OpenRouter) and brand images via image-tools",
       "commands": [
         {
           "name": "status",
-          "description": "Report which AI providers are currently available",
+          "description": "Report which text AI providers are currently available",
           "binding": {
             "kind": "connect-rpc",
             "service": "GenerationService",
             "method": "GetProviderStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "image-status",
+          "description": "Report image-tools readiness for logo/icon operations",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "GetImageBackendStatus"
           },
           "governance": {
             "effect": "read",
@@ -545,7 +561,7 @@
         },
         {
           "name": "image",
-          "description": "Generate a brand image (logo or favicon) and store it as a brand asset",
+          "description": "Generate a brand image (logo or favicon) via image-tools and store it as a brand asset",
           "flags": [
             {
               "name": "brand-id",
@@ -559,13 +575,163 @@
             },
             {
               "name": "model",
-              "description": "Provider model override (optional)"
+              "description": "image-tools model id override (optional)"
+            },
+            {
+              "name": "seed",
+              "description": "RNG seed for reproducibility (optional; 0 = random)"
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Permit metered BYOK cloud fallback when no local backend is available"
+            },
+            {
+              "name": "set-canonical",
+              "bool": true,
+              "description": "Also write the canonical logo.png/favicon.png asset"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "GenerationService",
             "method": "GenerateBrandImage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "edit-image",
+          "description": "Edit an existing brand image by instruction via image-tools (edit_instruct)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id the image belongs to"
+            },
+            {
+              "name": "source-asset-id",
+              "required": true,
+              "description": "Existing brand asset id to edit"
+            },
+            {
+              "name": "prompt",
+              "required": true,
+              "description": "Natural-language edit instruction"
+            },
+            {
+              "name": "model",
+              "description": "image-tools model id override (optional)"
+            },
+            {
+              "name": "seed",
+              "description": "RNG seed for reproducibility (optional; 0 = random)"
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Permit metered BYOK cloud fallback"
+            },
+            {
+              "name": "set-canonical",
+              "bool": true,
+              "description": "Also write the edited result as canonical logo.png"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "EditBrandImage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "remove-background",
+          "description": "Isolate the mark in a brand image via image-tools (background_removal)",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id the image belongs to"
+            },
+            {
+              "name": "source-asset-id",
+              "required": true,
+              "description": "Existing brand asset id to cut out"
+            },
+            {
+              "name": "model",
+              "description": "image-tools model id override (optional)"
+            },
+            {
+              "name": "byok",
+              "bool": true,
+              "description": "Permit metered BYOK cloud fallback"
+            },
+            {
+              "name": "set-canonical",
+              "bool": true,
+              "description": "Also write the result as canonical logo-transparent.png"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "RemoveBrandImageBackground"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "derive-icons",
+          "description": "Derive a deterministic platform icon set (favicons + apple-touch + maskable) from a source asset",
+          "flags": [
+            {
+              "name": "brand-id",
+              "required": true,
+              "description": "Brand id the source asset belongs to"
+            },
+            {
+              "name": "source-asset-id",
+              "required": true,
+              "description": "Source brand asset id (typically the transparent logo)"
+            },
+            {
+              "name": "favicon",
+              "bool": true,
+              "description": "Emit transparent favicon PNGs (16/32/196). If no include flag is set, all families are produced"
+            },
+            {
+              "name": "apple-touch",
+              "bool": true,
+              "description": "Emit an opaque Apple-touch icon (180)"
+            },
+            {
+              "name": "maskable",
+              "bool": true,
+              "description": "Emit maskable launcher icons (192/512, solid background)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GenerationService",
+            "method": "DeriveBrandIcons"
           },
           "governance": {
             "effect": "write",

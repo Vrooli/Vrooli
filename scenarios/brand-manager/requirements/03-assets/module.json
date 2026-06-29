@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Binary brand-asset storage (logos, favicons, icons) on the filesystem, tracked by metadata rows in SQLite.",
+    "description": "Binary brand-asset storage (logos, favicons, derived icon variants, transparent cutouts) on the filesystem, tracked by metadata rows in SQLite. Upsert-by-(brand_id, filename): exploratory AI generations land under unique filenames (preserved, never clobbered) while canonical/derived assets use stable names.",
     "last_validated_at": "2026-06-28T10:26:24-04:00",
     "module": "assets",
     "prd_ref": "PRD.md",

@@ -23,8 +23,8 @@
 ### 🔴 P0 – Must ship for viability
 - [x] OT-P0-001 | Brand CRUD + Versioning | Create, read, update, delete, and version brands with identity, visuals, colors, typography, voice, and notes via Connect-RPC API and CLI (optimistic concurrency + idempotency preserved)
 - [x] OT-P0-002 | SQLite Storage | Single SQLite DB (WAL) at `~/.vrooli/brand-manager/brand-manager.db` with tables for brands, brand_versions, assignments, and assets; asset files at `~/.vrooli/brand-manager/assets/{brand_id}/`
-- [x] OT-P0-003 | AI Generation | Ollama-first with OpenRouter fallback for text (palette, typography, copy) and image (logo, favicon, icon) generation using the AIProviderChain pattern
-- [x] OT-P0-004 | Programmatic Application | Apply brand elements to scenarios via CSS custom properties with `/* brand-manager:<element> */` markers, `manifest.json` `_brand` keys, favicon paths, and atomic static-asset copy
+- [x] OT-P0-003 | AI Generation | **Text** facets (palette, typography, voice) use the local LLM provider chain (Ollama-first, OpenRouter fallback). **Image** facets — logo/favicon generation, prompt-based logo editing, background removal, and derived icon variants — run through the **image-tools** scenario (the reusable image capability) via a narrow `ImageBackend` client seam: submit the AI op → wait once for the durable job → download the blob → store as a brand asset. image-tools owns model/backend/provider selection, local backends, and an opt-in BYOK cloud fallback; brand-manager owns brand semantics, prompt recipes, and asset/version policy.
+- [x] OT-P0-004 | Programmatic Application | Apply brand elements to scenarios via CSS custom properties with `/* brand-manager:<element> */` markers, `manifest.json` `_brand`/`icons`/`theme_color`/`background_color` keys, the derived favicon/apple-touch/maskable icon set, and atomic static-asset copy
 - [x] OT-P0-005 | DESIGN.md Export | Generate root-level `DESIGN.md` per scenario during apply from structured brand data + user notes
 - [x] OT-P0-006 | Branding Validation as a test-genie Phase | Branding validation is delivered as a first-class test-genie **delegated phase** via `ScenarioValidationService` (`ValidateScenario`/`PreviewFix`/`ApplyFix`). `vrooli scenario test <scenario>` surfaces severity-gated branding findings (has-display-name, has-logo, has-favicon, has-color-system, has-typography, wcag-aa-contrast, brand-markers-applied), returns a `MaturityAssessment` ladder, and offers deterministic auto-fixes. Findings flow on the `FINDING_SOURCE_BRANDING` channel.
 - [x] OT-P0-007 | Discovery Scanner | Scan existing scenario state (service.json, theme/token files, static assets, manifests, `DESIGN.md`) and auto-populate draft brands with confidence scores
@@ -53,12 +53,18 @@
   Lighthouse integration. No fleet-wide brand application in this rebuild.
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: SQLite (declared in `service.json`). Ollama / OpenRouter reached via
-  `OLLAMA_URL` / `OPENROUTER_API_KEY` env (generation degrades gracefully when absent).
-- Scenario dependencies: **none required**. Consumed BY test-genie (which depends on this scenario
-  as the `branding` phase provider). agent-manager is a future P2 dependency only.
-- Operational risks: AI provider availability for generation (degrade gracefully); deterministic
-  auto-fix must be idempotent (re-apply = no candidates).
+- Required resources: SQLite (declared in `service.json`). Text generation reaches Ollama /
+  OpenRouter via `OLLAMA_URL` / `OPENROUTER_API_KEY` env (degrades gracefully when absent).
+- Scenario dependencies: **image-tools** (the image capability) for all logo/favicon/icon image
+  work, reached over its public HTTP/Connect surface via api-core service discovery — brand-manager
+  never imports image-tools internals or shells its CLI. Image readiness degrades gracefully:
+  `GetImageBackendStatus` reports per-operation readiness, and image RPCs return actionable
+  dependency errors (unavailable / model-not-installed / BYOK-key-missing). Consumed BY test-genie
+  (which depends on this scenario as the `branding` phase provider). agent-manager is a future P2
+  dependency only.
+- Operational risks: text AI provider availability for facets (degrade gracefully); image-tools
+  reachability + model/backend readiness for images (surfaced as actionable errors, not crashes);
+  deterministic auto-fix and icon derivation must be idempotent (re-apply = byte-identical).
 - Launch sequencing: regen scaffold → docs → domain port (brands→…→design) → validation phase →
   detemplate/finalize. GA = `make test` green + `branding` phase contributing findings to other
   scenarios' comprehensive runs.

@@ -331,7 +331,25 @@ image-tools ai bg-removal photo.jpg --model u2netp --out cutout.png --wait
 ## BYOK cloud
 
 The selection ladder supports a bring-your-own-key cloud tier as the last resort
-when no local backend is available (opt-in with `--byok`, metered, cost-estimated
-up front). The ladder + refusal semantics exist; a concrete key-gated cloud
-provider is not yet registered (designed, deferred to a later phase). Until then,
-on a host with no local backend an only-BYOK op refuses cleanly with guidance.
+when no local backend is available (opt-in with `--byok`, metered). It is the
+**last** tier: a registered cloud provider is chosen only when `allow_byok` is set
+AND no local standalone backend can run the op, or when explicitly forced via
+`--model`. Local-first behaviour is never affected by the cloud provider's
+presence.
+
+The registered cloud provider is **`openrouter`** (backend `openrouter`, seed
+model `openrouter-image`). It serves `text_to_image`, `image_to_image`, and
+`edit_instruct` through OpenRouter's chat-completions **image output modality**
+(there is no DALL·E-style `/images/generations` endpoint on OpenRouter). It holds
+no local weights, so `RequiresWeights()` is false and it is always "installed";
+runnability is gated instead by `Available()` — a usable `OPENROUTER_API_KEY`.
+
+- **Key resolution:** `OPENROUTER_API_KEY` from the environment first (injected by
+  the scenario lifecycle from the vault SSOT via `service.json`), then a
+  best-effort `resource-vault secrets export openrouter|opencode`. A usable key
+  must look like `sk-or-…` (length floor). No key → the provider reports
+  unavailable and only-BYOK ops refuse cleanly with guidance.
+- **Model slug:** defaults to `google/gemini-2.5-flash-image-preview`; override
+  with `OPENROUTER_IMAGE_MODEL`.
+- **Costs + privacy:** every call is billed to your key and sends the prompt (and
+  any input image) to a third-party cloud — not for private/local-only data.

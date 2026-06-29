@@ -347,6 +347,11 @@ const literalSelectors = {
     list: "generation-list",
     providerName: "generation-provider-name",
     providerStatus: "generation-provider-status",
+    imageCard: "generation-image-card",
+    imageSummary: "generation-image-summary",
+    imageList: "generation-image-list",
+    imageOpName: "generation-image-op-name",
+    imageOpStatus: "generation-image-op-status",
   },
   apply: {
     card: "apply-card",

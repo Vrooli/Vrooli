@@ -143,6 +143,12 @@ export const strings = {
     unavailableLabel: "generation.unavailableLabel",
     summaryAvailable: "generation.summaryAvailable",
     summaryUnavailable: "generation.summaryUnavailable",
+    imageTitle: "generation.imageTitle",
+    imageLoading: "generation.imageLoading",
+    imageSummaryAvailable: "generation.imageSummaryAvailable",
+    imageSummaryUnavailable: "generation.imageSummaryUnavailable",
+    imageReadyLabel: "generation.imageReadyLabel",
+    imageNotReadyLabel: "generation.imageNotReadyLabel",
   },
   apply: {
     title: "apply.title",

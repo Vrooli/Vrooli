@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"image-tools/internal/backends"
+	"image-tools/internal/models"
 	"image-tools/internal/technique"
 )
 
@@ -815,6 +816,12 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 		if err := reg.Register(p); err != nil {
 			return fmt.Errorf("ai: register builtin provider %q: %w", p.Name(), err)
 		}
+	}
+	// BYOK cloud provider (last tier). Registered unconditionally; it reports
+	// unavailable until an OpenRouter key is configured, so it never affects the
+	// local-first path and only runs when allow_byok is set.
+	if err := reg.Register(newOpenRouterProvider()); err != nil {
+		return fmt.Errorf("ai: register provider %q: %w", models.BackendOpenRouter, err)
 	}
 	return nil
 }

@@ -962,6 +962,23 @@
       "capability_labels": {"nsfw_capable": false, "license": "N/A (deterministic, no model weights)", "commercial_use": "yes", "commercial_use_notes": "Pure deterministic image processing shipped in-repo; no third-party weights.", "base_model_lineage": "n/a (deterministic image processing)", "known_risks": "Not a generative restorer — adds texture/grain; cannot invent lost structure."},
       "source": {"download_url": "", "source_repo": "", "docs_url": "", "update_source": "", "checksum": {"algo": "", "value": "", "status": "n/a-builtin"}},
       "enabled": true
+    },
+    {
+      "id": "openrouter-image",
+      "name": "OpenRouter Image (BYOK cloud)",
+      "operations": ["text_to_image", "image_to_image", "edit_instruct"],
+      "default_for": [],
+      "tier": "nice-to-have",
+      "backend": "openrouter",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 0,
+      "quant_variants": [],
+      "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 0, "os_arch": ["linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "Runs remotely on OpenRouter; no local compute or weights. Latency depends on the upstream model + network. BYOK: opt-in (allow_byok) and metered."},
+      "io": {"native_resolution": "model-dependent", "notes": "Resolution/quality are set by the chosen OpenRouter image model (default google/gemini-2.5-flash-image-preview; override with OPENROUTER_IMAGE_MODEL). Selected only when allow_byok is set and no local backend is available, or when forced via model_override."},
+      "capability_labels": {"nsfw_capable": false, "license": "Provider terms (OpenRouter + upstream model)", "commercial_use": "yes", "commercial_use_notes": "Billed per OpenRouter pricing with your own key; commercial use governed by OpenRouter and the upstream model's terms.", "base_model_lineage": "OpenRouter-hosted image model (default Google Gemini 2.5 Flash Image)", "known_risks": "Sends prompts (and any input image) to a third-party cloud — not for private/local-only data. Each call costs real money. Availability depends on the upstream model staying listed on OpenRouter."},
+      "source": {"download_url": "https://openrouter.ai/docs", "source_repo": "", "docs_url": "https://openrouter.ai/docs", "update_source": "", "checksum": {"algo": "", "value": "", "status": "n/a-cloud"}},
+      "enabled": true
     }
   ],
 

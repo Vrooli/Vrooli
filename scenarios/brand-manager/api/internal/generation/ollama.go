@@ -69,11 +69,6 @@ func (o *OllamaProvider) GenerateText(ctx context.Context, req TextRequest) (Tex
 	}, nil
 }
 
-// GenerateImage is not supported by Ollama (text-only).
-func (o *OllamaProvider) GenerateImage(_ context.Context, _ ImageRequest) (ImageResponse, error) {
-	return ImageResponse{}, errors.New("ollama does not support image generation")
-}
-
 func (o *OllamaProvider) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
 	if o.Runner != nil {
 		return o.Runner(ctx, args, stdin)

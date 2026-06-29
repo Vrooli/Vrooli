@@ -20,24 +20,10 @@ type TextResponse struct {
 	Model    string
 }
 
-// ImageRequest describes an image generation request to a provider.
-type ImageRequest struct {
-	Prompt string
-	Model  string
-	Width  int
-	Height int
-}
-
-// ImageResponse holds the result of an image generation call.
-type ImageResponse struct {
-	Data     []byte
-	MimeType string
-	Provider string
-	Model    string
-}
-
-// Provider is the interface every AI backend implements. Ported from the old
-// aigen.Provider; the chain tries providers in order until one succeeds.
+// Provider is the interface every TEXT AI backend implements. The chain tries
+// providers in order until one succeeds. Image generation is NOT a provider
+// concern — images run through image-tools (the ImageBackend seam), never this
+// chain.
 type Provider interface {
 	// Name returns the provider identifier (e.g. "ollama", "openrouter").
 	Name() string
@@ -45,14 +31,12 @@ type Provider interface {
 	Available(ctx context.Context) bool
 	// GenerateText sends a prompt and returns the text response.
 	GenerateText(ctx context.Context, req TextRequest) (TextResponse, error)
-	// GenerateImage sends an image prompt and returns image bytes.
-	GenerateImage(ctx context.Context, req ImageRequest) (ImageResponse, error)
 }
 
-// Providers is the seam Service depends on for AI generation. The production
-// Chain satisfies it; service unit tests substitute a fake. Keeping the service
-// behind this interface (rather than *Chain) means tests never reach out to
-// Ollama or OpenRouter.
+// Providers is the seam Service depends on for TEXT facet generation. The
+// production Chain satisfies it; service unit tests substitute a fake. Keeping
+// the service behind this interface (rather than *Chain) means tests never reach
+// out to Ollama or OpenRouter.
 type Providers interface {
 	// Available reports whether at least one provider in the chain is reachable.
 	Available(ctx context.Context) bool
@@ -60,7 +44,6 @@ type Providers interface {
 	// order.
 	Statuses(ctx context.Context) []ProviderStatus
 	GenerateText(ctx context.Context, req TextRequest) (TextResponse, error)
-	GenerateImage(ctx context.Context, req ImageRequest) (ImageResponse, error)
 }
 
 // ProviderStatus is one provider's reported reachability.
@@ -82,14 +65,14 @@ func NewChain(providers ...Provider) *Chain {
 // Compile-time guarantee the chain satisfies the service seam.
 var _ Providers = (*Chain)(nil)
 
-// NewChainFromEnv builds the production provider chain from the environment:
+// NewChainFromEnv builds the production TEXT provider chain from the
+// environment:
 //
 //   - Ollama is always added (local, free, routed through the resource-ollama
 //     gateway CLI). Its role defaults to "chat.default" unless OLLAMA_ROLE is
 //     set.
-//   - OpenRouter is added only when OPENROUTER_API_KEY is set. Its text/image
-//     models default unless OPENROUTER_TEXT_MODEL / OPENROUTER_IMAGE_MODEL are
-//     set.
+//   - OpenRouter is added only when OPENROUTER_API_KEY is set. Its text model
+//     defaults unless OPENROUTER_TEXT_MODEL is set.
 //
 // The chain is never empty (Ollama is always present); whether it is *available*
 // depends on the resource-ollama daemon being reachable at call time.
@@ -99,7 +82,6 @@ func NewChainFromEnv() *Chain {
 		providers = append(providers, NewOpenRouterProvider(
 			key,
 			strings.TrimSpace(os.Getenv("OPENROUTER_TEXT_MODEL")),
-			strings.TrimSpace(os.Getenv("OPENROUTER_IMAGE_MODEL")),
 		))
 	}
 	return NewChain(providers...)
@@ -140,22 +122,4 @@ func (c *Chain) GenerateText(ctx context.Context, req TextRequest) (TextResponse
 		return resp, nil
 	}
 	return TextResponse{}, fmt.Errorf("all providers failed: %s", strings.Join(errs, "; "))
-}
-
-// GenerateImage tries each available provider in order for image generation.
-func (c *Chain) GenerateImage(ctx context.Context, req ImageRequest) (ImageResponse, error) {
-	var errs []string
-	for _, p := range c.providers {
-		if !p.Available(ctx) {
-			errs = append(errs, fmt.Sprintf("%s: unavailable", p.Name()))
-			continue
-		}
-		resp, err := p.GenerateImage(ctx, req)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("%s: %v", p.Name(), err))
-			continue
-		}
-		return resp, nil
-	}
-	return ImageResponse{}, fmt.Errorf("all providers failed: %s", strings.Join(errs, "; "))
 }

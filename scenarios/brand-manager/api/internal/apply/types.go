@@ -33,12 +33,16 @@ const (
 	ElementIdentity   = "identity"
 	ElementFavicon    = "favicon"
 	ElementLogo       = "logo"
+	// ElementIcons copies the derived PWA/launcher icon set into ui/public and
+	// writes the manifest icon metadata (icons array, theme/background color).
+	ElementIcons = "icons"
 )
 
 // AllElements is the canonical apply order when no subset is requested. Colors
 // writes the managed CSS file; typography appends to it; so colors must precede
-// typography for a deterministic combined file.
-var AllElements = []string{ElementColors, ElementTypography, ElementIdentity, ElementFavicon, ElementLogo}
+// typography for a deterministic combined file. Icons runs after identity so the
+// manifest already carries the brand name before the icon metadata is merged.
+var AllElements = []string{ElementColors, ElementTypography, ElementIdentity, ElementIcons, ElementFavicon, ElementLogo}
 
 // Action types — the kind of write an ApplyAction records.
 const (
