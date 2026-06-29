@@ -87,6 +87,8 @@ func NewProductionService(db ProductionDB, clk clock.Clock, opts ProductionOptio
 		Verifier:        NewCFVerifier(opts.Doer),
 		DNS:             resolvingDNSClient{store: store, doer: opts.Doer},
 		DNSLedger:       NewSQLiteDNSLedger(db, clk),
+		Access:          resolvingAccessClient{store: store, doer: opts.Doer},
+		AccessLedger:    NewSQLiteAccessLedger(db, clk),
 		Runner:          opts.Runner,
 		Clock:           clk,
 		LocalConfigPath: opts.LocalConfigPath,
@@ -214,6 +216,51 @@ func (c resolvingDNSClient) client(ctx context.Context) (DNSClient, error) {
 		return nil, fmt.Errorf("resolve Cloudflare credentials: %w", err)
 	}
 	client := NewCFDNSClient(c.doer, cfg)
+	if client == nil {
+		return nil, ErrRemoteUnavailable{}
+	}
+	return client, nil
+}
+
+// resolvingAccessClient resolves Cloudflare credentials per call and builds a
+// cfAccessClient over them, mirroring resolvingDNSClient so the config API and
+// exposure's reconcile share one credential-resolution path. It returns
+// ErrRemoteUnavailable when credentials are absent.
+type resolvingAccessClient struct {
+	store CredentialStore
+	doer  httpDoer
+}
+
+func (c resolvingAccessClient) EnsurePublicBypass(ctx context.Context, host string) (AccessResult, error) {
+	client, err := c.client(ctx)
+	if err != nil {
+		return AccessResult{}, err
+	}
+	return client.EnsurePublicBypass(ctx, host)
+}
+
+func (c resolvingAccessClient) RemovePublicBypass(ctx context.Context, host string) (bool, error) {
+	client, err := c.client(ctx)
+	if err != nil {
+		return false, err
+	}
+	return client.RemovePublicBypass(ctx, host)
+}
+
+func (c resolvingAccessClient) LookupPublicBypass(ctx context.Context, host string) (AccessApp, bool, error) {
+	client, err := c.client(ctx)
+	if err != nil {
+		return AccessApp{}, false, err
+	}
+	return client.LookupPublicBypass(ctx, host)
+}
+
+func (c resolvingAccessClient) client(ctx context.Context) (AccessClient, error) {
+	cfg, err := c.store.Resolve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Cloudflare credentials: %w", err)
+	}
+	client := NewCFAccessClient(c.doer, cfg)
 	if client == nil {
 		return nil, ErrRemoteUnavailable{}
 	}

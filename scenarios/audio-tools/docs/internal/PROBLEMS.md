@@ -236,6 +236,29 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `docs/reference/api-endpoints.md` "Transport exceptions" table.
 
+### 2026-06-29 — Dictation Studio BAS cannot prove physical microphone capture
+
+**Symptom:** The deterministic BAS flow can validate Dictation Studio's scripted
+bench UI, but it cannot prove the browser is receiving real microphone audio or
+that a physical recording can be saved and replayed through Eval.
+
+**Root cause:** The shared BAS toolchain does not yet provide mic-permission
+grants, deterministic media-stream fixtures, or fake audio-device routing for
+the physical capture path.
+
+**Workaround:** Run manual operator validation: select a built-in script, record
+with a real mic, confirm the audio meter moves, stop into transcribing,
+correct/save the clip, confirm it appears in Corpus, then run Eval.
+
+**Real fix:** Add BAS media-stream fixtures/fake audio routing, then promote a
+Dictation Studio real record -> save -> eval workflow from observer coverage to
+requirement-bound playbook coverage.
+
+**Owner:** unassigned.
+
+**Refs:** `scenarios/audio-tools/bas/flows/audio-tools-dictation-studio-scripted-bench.json`,
+`scenarios/audio-tools/docs/reference/eval-harness.md`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

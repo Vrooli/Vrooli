@@ -234,7 +234,7 @@ func TestTemplateResidueFixerRoundTrip(t *testing.T) {
 
 func TestManifestCompletenessFixerRoundTrip(t *testing.T) {
 	root := fullyBrandedScenario(t)
-	writeFile(t, root, "ui/public/site.webmanifest", `{
+	writeFile(t, root, "ui/public/public/site.webmanifest", `{
   "theme_color": "#1d4ed8", "background_color": "#ffffff",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},

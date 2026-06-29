@@ -148,7 +148,14 @@
     "reconcileHeading": "再調整とドリフト",
     "reconcileNow": "今すぐ再調整（追加）",
     "reconcileResult": "再調整により {{added}} 件追加、{{removed}} 件削除されました。",
-    "reviewDrift": "ドリフトを確認"
+    "reviewDrift": "ドリフトを確認",
+    "publicExposureHeading": "公開アセットの公開設定",
+    "publicExposureBody": "オンにすると、Tunnel Manager は公開している各ホストの /public パスに対して限定的な Cloudflare Access バイパスを作成し、ブランディングや PWA のアセットをログインなしで取得できるようにします。/public 以外はすべて保護されたままです。既定はオフで、ルートごとの上書きで強制的にオン／オフにできます。",
+    "publicExposureOn": "公開設定: オン",
+    "publicExposureOff": "公開設定: オフ",
+    "publicExposureEnable": "公開設定を有効にする",
+    "publicExposureDisable": "公開設定を無効にする",
+    "publicExposureViewStatus": "Access ステータスを表示"
   },
   "exposure": {
     "heading": "公開中のシナリオ",
@@ -431,12 +438,53 @@
     "colSubdomain": "サブドメイン",
     "colTarget": "ターゲット",
     "colSource": "ソース",
+    "colPublicExposure": "公開設定",
     "colUrl": "公開 URL",
     "colActions": "操作",
     "source": {
       "scenario": "シナリオ",
       "external": "外部",
       "unknown": "—"
+    },
+    "publicExposure": {
+      "label": "公開設定",
+      "rowLabel": "このルートの公開設定を変更",
+      "help": "公開設定はこのルートの /public Access バイパスを制御します。継承はグローバルスイッチに従い、有効はバイパスを強制的にオン、無効はオフにします。",
+      "error": "公開設定を更新できませんでした。再試行してください。",
+      "option": {
+        "inherit": "継承（グローバル）",
+        "enabled": "有効",
+        "disabled": "無効"
+      }
     }
+  },
+  "access": {
+    "heading": "公開 Access バイパス",
+    "description": "/public Access バイパスの読み取りモデル: グローバルスイッチ、Cloudflare Access クライアントの状態、ホストごとの判定、ドライランの計画。",
+    "note": "これは読み取り専用のステータス表示です。再調整が行う内容を報告するだけで、単独で Cloudflare Access を変更することはありません。",
+    "loading": "Access ステータスを読み込み中…",
+    "error": "Access ステータスを読み込めませんでした。",
+    "empty": "Access ステータスを報告できる公開ホストはまだありません。",
+    "globalEnabled": "グローバル: 有効",
+    "globalDisabled": "グローバル: 無効",
+    "configured": "Access クライアント構成済み",
+    "notConfigured": "Access クライアント未構成",
+    "planCreateHeading": "バイパスを作成する対象",
+    "planRemoveHeading": "バイパスを削除する対象",
+    "planNone": "なし",
+    "colHost": "ホスト",
+    "colOverride": "上書き",
+    "colEffective": "実効バイパス",
+    "colManaged": "管理状態",
+    "colAppId": "アプリ ID",
+    "override": {
+      "inherit": "継承",
+      "enabled": "有効",
+      "disabled": "無効"
+    },
+    "bypassOn": "オン",
+    "bypassOff": "オフ",
+    "managedYes": "管理対象",
+    "managedNo": "非管理"
   }
 }

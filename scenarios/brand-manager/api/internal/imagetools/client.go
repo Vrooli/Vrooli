@@ -103,6 +103,10 @@ func (c *Client) Generate(ctx context.Context, req generation.ImageGenerateReque
 		Seed:           req.Seed,
 		ModelOverride:  req.ModelOverride,
 		AllowByok:      req.AllowBYOK,
+		QualityPolicy:  req.QualityPolicy,
+		FallbackPolicy: req.FallbackPolicy,
+		Priority:       req.Priority,
+		AllowReclaim:   &req.AllowReclaim,
 	}
 	return c.submitAndWait(ctx, opTextToImage, nil, params)
 }
@@ -110,10 +114,14 @@ func (c *Client) Generate(ctx context.Context, req generation.ImageGenerateReque
 // Edit runs edit_instruct over the source image.
 func (c *Client) Edit(ctx context.Context, req generation.ImageEditRequest) (generation.ImageOutput, error) {
 	params := &aiv1.AIParams{
-		Prompt:        req.Instruction,
-		Seed:          req.Seed,
-		ModelOverride: req.ModelOverride,
-		AllowByok:     req.AllowBYOK,
+		Prompt:         req.Instruction,
+		Seed:           req.Seed,
+		ModelOverride:  req.ModelOverride,
+		AllowByok:      req.AllowBYOK,
+		QualityPolicy:  req.QualityPolicy,
+		FallbackPolicy: req.FallbackPolicy,
+		Priority:       req.Priority,
+		AllowReclaim:   &req.AllowReclaim,
 	}
 	return c.submitAndWait(ctx, opEditInstruct, req.Source, params)
 }

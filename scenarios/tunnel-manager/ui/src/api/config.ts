@@ -18,6 +18,10 @@ import {
   type AdoptIngressResponse,
   type IgnoreIngressResponse,
   type PruneIngressResponse,
+  type AccessStatus,
+  type AccessHostState,
+  type SetPublicExposureResponse,
+  type GetAccessStatusResponse,
 } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { transport } from "./client";
@@ -79,6 +83,25 @@ export async function getCredentialStatus(): Promise<GetCredentialStatusResponse
   return configClient.getCredentialStatus({});
 }
 
+/**
+ * setPublicExposure flips the global /public Access-bypass switch. When off
+ * (the default) no per-host bypass apps are reconciled regardless of per-route
+ * overrides set to `inherit`. Returns the persisted config after the flip.
+ */
+export async function setPublicExposure(enabled: boolean): Promise<SetPublicExposureResponse> {
+  return configClient.setPublicExposure({ enabled });
+}
+
+/**
+ * getAccessStatus returns the /public Access-bypass read model: the global
+ * switch, whether the Cloudflare Access client is configured, the per-host
+ * effective decisions, and the dry-run plan (to-create / to-remove). This is a
+ * pure read — it never mutates Cloudflare.
+ */
+export async function getAccessStatus(): Promise<GetAccessStatusResponse> {
+  return configClient.getAccessStatus({});
+}
+
 export async function setCloudflareCredentials(values: {
   accountId?: string;
   tunnelId?: string;
@@ -107,4 +130,8 @@ export type {
   AdoptIngressResponse,
   IgnoreIngressResponse,
   PruneIngressResponse,
+  AccessStatus,
+  AccessHostState,
+  SetPublicExposureResponse,
+  GetAccessStatusResponse,
 };

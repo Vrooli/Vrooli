@@ -246,7 +246,7 @@ func ruleHasTypography(c *scanContext) (Finding, bool) {
 
 func ruleHasLogo(c *scanContext) (Finding, bool) {
 	if _, ok := anyFileMatches(c.root,
-		[]string{"ui/public", "ui/src/assets", "public", "assets", "ui/public/brand"},
+		[]string{"ui/public", "ui/public/public", "ui/src/assets", "public", "assets", "ui/public/brand"},
 		[]string{"logo.*", "logo-*.*", "*-logo.*"},
 	); ok {
 		return Finding{}, false

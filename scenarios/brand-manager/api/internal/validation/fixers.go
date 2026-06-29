@@ -154,7 +154,7 @@ func fixFavicon(root string, apply bool) (Candidate, bool, error) {
 		return Candidate{}, false, nil
 	}
 	logoRel, ok := anyFileMatches(root,
-		[]string{"ui/public", "ui/src/assets", "public", "assets", "ui/public/brand"},
+		[]string{"ui/public", "ui/public/public", "ui/src/assets", "public", "assets", "ui/public/brand"},
 		[]string{"logo.*", "logo-*.*", "*-logo.*"},
 	)
 	if !ok {

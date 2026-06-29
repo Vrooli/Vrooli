@@ -12,6 +12,8 @@ import {
   IngressSource,
   SyncResponseSchema,
   TunnelConfigSchema,
+  AccessStatusSchema,
+  GetAccessStatusResponseSchema,
   type ConfigReadiness,
   type CredentialStatus,
   type GetConfigResponse,
@@ -19,6 +21,8 @@ import {
   type IngressEntry,
   type SyncResponse,
   type TunnelConfig,
+  type AccessStatus,
+  type GetAccessStatusResponse,
 } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 export const makeTunnelConfig = (
@@ -111,6 +115,34 @@ export const makeDriftResponse = (
     ...overrides,
   });
 
+export const makeAccessStatus = (
+  overrides: MessageInitShape<typeof AccessStatusSchema> = {},
+): AccessStatus =>
+  create(AccessStatusSchema, {
+    enabled: false,
+    configured: false,
+    hosts: [
+      {
+        host: "web-console.itsagitime.com",
+        override: "inherit",
+        effectiveBypass: false,
+        managed: false,
+        appId: "",
+      },
+    ],
+    toCreate: [],
+    toRemove: [],
+    ...overrides,
+  });
+
+export const makeAccessStatusResponse = (
+  overrides: MessageInitShape<typeof GetAccessStatusResponseSchema> = {},
+): GetAccessStatusResponse =>
+  create(GetAccessStatusResponseSchema, {
+    status: makeAccessStatus(),
+    ...overrides,
+  });
+
 export const makeConfigMocks = () => ({
   configClient: {
     getConfig: vi.fn().mockResolvedValue(makeConfigResponse()),
@@ -126,6 +158,8 @@ export const makeConfigMocks = () => ({
     adoptIngress: vi.fn().mockResolvedValue({ entry: makeIngressEntry({ state: OwnershipState.MANAGED }) }),
     ignoreIngress: vi.fn().mockResolvedValue({ entry: makeIngressEntry({ state: OwnershipState.IGNORED }) }),
     pruneIngress: vi.fn().mockResolvedValue({ pruned: true }),
+    setPublicExposure: vi.fn().mockResolvedValue({ config: makeTunnelConfig({ publicExposureEnabled: true }) }),
+    getAccessStatus: vi.fn().mockResolvedValue(makeAccessStatusResponse()),
   },
   getConfigState: vi.fn().mockResolvedValue(makeConfigResponse()),
   getConfig: vi.fn().mockResolvedValue(makeTunnelConfig()),

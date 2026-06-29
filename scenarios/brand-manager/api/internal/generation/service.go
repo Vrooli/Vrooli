@@ -110,23 +110,31 @@ type Service interface {
 
 // GenerateImageInput is the GenerateImage request in domain terms.
 type GenerateImageInput struct {
-	BrandID       string
-	Type          string // logo | favicon
-	ModelOverride string
-	AllowBYOK     bool
-	Seed          int64
-	SetCanonical  bool
+	BrandID        string
+	Type           string // logo | favicon
+	ModelOverride  string
+	AllowBYOK      bool
+	QualityPolicy  string
+	FallbackPolicy string
+	Priority       string
+	AllowReclaim   *bool
+	Seed           int64
+	SetCanonical   bool
 }
 
 // EditImageInput is the EditImage request in domain terms.
 type EditImageInput struct {
-	BrandID       string
-	SourceAssetID string
-	Instruction   string
-	ModelOverride string
-	AllowBYOK     bool
-	Seed          int64
-	SetCanonical  bool
+	BrandID        string
+	SourceAssetID  string
+	Instruction    string
+	ModelOverride  string
+	AllowBYOK      bool
+	QualityPolicy  string
+	FallbackPolicy string
+	Priority       string
+	AllowReclaim   *bool
+	Seed           int64
+	SetCanonical   bool
 }
 
 // RemoveBackgroundInput is the RemoveBackground request in domain terms.
@@ -288,7 +296,11 @@ func (s *service) GenerateImage(ctx context.Context, in GenerateImageInput) (Ima
 		Width:          spec.width,
 		Height:         spec.height,
 		ModelOverride:  in.ModelOverride,
-		AllowBYOK:      in.AllowBYOK,
+		AllowBYOK:      brandImageAllowBYOK(in.AllowBYOK, in.FallbackPolicy),
+		QualityPolicy:  brandImageQualityPolicy(in.QualityPolicy),
+		FallbackPolicy: brandImageFallbackPolicy(in.FallbackPolicy),
+		Priority:       brandImagePriority(in.Priority),
+		AllowReclaim:   brandImageAllowReclaim(in.AllowReclaim),
 		Seed:           in.Seed,
 	})
 	if err != nil {
@@ -312,16 +324,61 @@ func (s *service) EditImage(ctx context.Context, in EditImageInput) (ImageResult
 	}
 
 	out, err := s.images.Edit(ctx, ImageEditRequest{
-		Source:        src.Content,
-		Instruction:   instruction,
-		ModelOverride: in.ModelOverride,
-		AllowBYOK:     in.AllowBYOK,
-		Seed:          in.Seed,
+		Source:         src.Content,
+		Instruction:    instruction,
+		ModelOverride:  in.ModelOverride,
+		AllowBYOK:      brandImageAllowBYOK(in.AllowBYOK, in.FallbackPolicy),
+		QualityPolicy:  brandImageQualityPolicy(in.QualityPolicy),
+		FallbackPolicy: brandImageFallbackPolicy(in.FallbackPolicy),
+		Priority:       brandImagePriority(in.Priority),
+		AllowReclaim:   brandImageAllowReclaim(in.AllowReclaim),
+		Seed:           in.Seed,
 	})
 	if err != nil {
 		return ImageResult{}, err
 	}
 	return s.storeImage(ctx, brandID, kindLogo, out, in.SetCanonical)
+}
+
+func brandImageAllowBYOK(_ bool, fallbackPolicy string) bool {
+	if strings.EqualFold(strings.TrimSpace(fallbackPolicy), "local_only") {
+		return false
+	}
+	return true
+}
+
+func brandImageQualityPolicy(policy string) string {
+	switch strings.ToLower(strings.TrimSpace(policy)) {
+	case "fast", "balanced":
+		return strings.ToLower(strings.TrimSpace(policy))
+	default:
+		return "quality"
+	}
+}
+
+func brandImageFallbackPolicy(policy string) string {
+	switch strings.ToLower(strings.TrimSpace(policy)) {
+	case "local_only", "cloud_allowed":
+		return strings.ToLower(strings.TrimSpace(policy))
+	default:
+		return "any"
+	}
+}
+
+func brandImagePriority(priority string) string {
+	switch strings.ToLower(strings.TrimSpace(priority)) {
+	case "batch", "interactive":
+		return strings.ToLower(strings.TrimSpace(priority))
+	default:
+		return "service"
+	}
+}
+
+func brandImageAllowReclaim(allow *bool) bool {
+	if allow == nil {
+		return true
+	}
+	return *allow
 }
 
 func (s *service) RemoveBackground(ctx context.Context, in RemoveBackgroundInput) (ImageResult, error) {

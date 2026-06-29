@@ -148,7 +148,14 @@
     "reconcileHeading": "Reconcile & drift",
     "reconcileNow": "Reconcile now (additive)",
     "reconcileResult": "Reconcile added {{added}} and removed {{removed}} hostnames.",
-    "reviewDrift": "Review drift"
+    "reviewDrift": "Review drift",
+    "publicExposureHeading": "Public asset exposure",
+    "publicExposureBody": "When on, Tunnel Manager creates a narrow Cloudflare Access bypass for the /public path of each exposed host, so branding and PWA assets are fetchable without a login. Everything outside /public stays gated. Default is off; per-route overrides can force it on or off.",
+    "publicExposureOn": "Public exposure on",
+    "publicExposureOff": "Public exposure off",
+    "publicExposureEnable": "Enable public exposure",
+    "publicExposureDisable": "Disable public exposure",
+    "publicExposureViewStatus": "View Access status"
   },
   "exposure": {
     "heading": "Exposed scenarios",
@@ -393,13 +400,54 @@
     "colSubdomain": "Subdomain",
     "colTarget": "Target",
     "colSource": "Source",
+    "colPublicExposure": "Public exposure",
     "colUrl": "Public URL",
     "colActions": "Actions",
     "source": {
       "scenario": "Scenario",
       "external": "External",
       "unknown": "—"
+    },
+    "publicExposure": {
+      "label": "Public exposure",
+      "rowLabel": "Change public exposure for this route",
+      "help": "Public exposure controls the /public Access bypass for this route. Inherit follows the global switch; enabled forces the bypass on; disabled forces it off.",
+      "error": "Could not update public exposure. Please retry.",
+      "option": {
+        "inherit": "Inherit (global)",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      }
     }
+  },
+  "access": {
+    "heading": "Public Access bypass",
+    "description": "The /public Access-bypass read model: the global switch, Cloudflare Access client status, per-host decisions, and the dry-run plan.",
+    "note": "This is a read-only status view. It reports what a reconcile would do and never changes Cloudflare Access by itself.",
+    "loading": "Loading Access status…",
+    "error": "Unable to load Access status.",
+    "empty": "No exposed hosts to report Access status for yet.",
+    "globalEnabled": "Global: enabled",
+    "globalDisabled": "Global: disabled",
+    "configured": "Access client configured",
+    "notConfigured": "Access client not configured",
+    "planCreateHeading": "Would create bypass for",
+    "planRemoveHeading": "Would remove bypass for",
+    "planNone": "None",
+    "colHost": "Host",
+    "colOverride": "Override",
+    "colEffective": "Effective bypass",
+    "colManaged": "Managed",
+    "colAppId": "App ID",
+    "override": {
+      "inherit": "Inherit",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "bypassOn": "On",
+    "bypassOff": "Off",
+    "managedYes": "Managed",
+    "managedNo": "Unmanaged"
   },
   "health": {
     "title": "API Health",

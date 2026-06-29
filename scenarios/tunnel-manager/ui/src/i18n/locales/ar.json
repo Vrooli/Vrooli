@@ -148,7 +148,14 @@
     "reconcileHeading": "إعادة التوفيق والانحراف",
     "reconcileNow": "إعادة التوفيق الآن (إضافي)",
     "reconcileResult": "أضافت إعادة التوفيق {{added}} وأزالت {{removed}} مضيفًا.",
-    "reviewDrift": "مراجعة الانحراف"
+    "reviewDrift": "مراجعة الانحراف",
+    "publicExposureHeading": "كشف الأصول العامة",
+    "publicExposureBody": "عند التفعيل، ينشئ Tunnel Manager تجاوزًا ضيقًا لـ Cloudflare Access على مسار /public لكل مضيف مكشوف، بحيث يمكن جلب أصول العلامة التجارية وتطبيق الويب التقدمي دون تسجيل دخول. يبقى كل ما هو خارج /public محميًا. الوضع الافتراضي معطّل، ويمكن للتجاوزات لكل مسار فرض التفعيل أو التعطيل.",
+    "publicExposureOn": "الكشف العام: مفعّل",
+    "publicExposureOff": "الكشف العام: معطّل",
+    "publicExposureEnable": "تفعيل الكشف العام",
+    "publicExposureDisable": "تعطيل الكشف العام",
+    "publicExposureViewStatus": "عرض حالة Access"
   },
   "exposure": {
     "heading": "السيناريوهات المُتاحة",
@@ -435,12 +442,53 @@
     "colSubdomain": "النطاق الفرعي",
     "colTarget": "الهدف",
     "colSource": "المصدر",
+    "colPublicExposure": "الكشف العام",
     "colUrl": "العنوان العام",
     "colActions": "الإجراءات",
     "source": {
       "scenario": "سيناريو",
       "external": "خارجي",
       "unknown": "—"
+    },
+    "publicExposure": {
+      "label": "الكشف العام",
+      "rowLabel": "تغيير الكشف العام لهذا المسار",
+      "help": "يتحكم الكشف العام في تجاوز Access لمسار /public لهذا المسار. الوراثة تتبع المفتاح العام؛ التفعيل يفرض التجاوز؛ التعطيل يوقفه.",
+      "error": "تعذّر تحديث الكشف العام. يرجى إعادة المحاولة.",
+      "option": {
+        "inherit": "وراثة (عام)",
+        "enabled": "مفعّل",
+        "disabled": "معطّل"
+      }
     }
+  },
+  "access": {
+    "heading": "تجاوز Access العام",
+    "description": "نموذج قراءة تجاوز Access لمسار /public: المفتاح العام، وحالة عميل Cloudflare Access، والقرارات لكل مضيف، وخطة التشغيل التجريبي.",
+    "note": "هذه عرض للحالة للقراءة فقط. تُبلّغ بما ستفعله إعادة التوفيق ولا تغيّر Cloudflare Access بنفسها أبدًا.",
+    "loading": "جارٍ تحميل حالة Access…",
+    "error": "تعذّر تحميل حالة Access.",
+    "empty": "لا توجد مضيفات مكشوفة للإبلاغ عن حالة Access بعد.",
+    "globalEnabled": "عام: مفعّل",
+    "globalDisabled": "عام: معطّل",
+    "configured": "عميل Access مُهيّأ",
+    "notConfigured": "عميل Access غير مُهيّأ",
+    "planCreateHeading": "سيُنشئ تجاوزًا لـ",
+    "planRemoveHeading": "سيُزيل التجاوز لـ",
+    "planNone": "لا شيء",
+    "colHost": "المضيف",
+    "colOverride": "التجاوز",
+    "colEffective": "التجاوز الفعلي",
+    "colManaged": "مُدار",
+    "colAppId": "معرّف التطبيق",
+    "override": {
+      "inherit": "وراثة",
+      "enabled": "مفعّل",
+      "disabled": "معطّل"
+    },
+    "bypassOn": "مفعّل",
+    "bypassOff": "معطّل",
+    "managedYes": "مُدار",
+    "managedNo": "غير مُدار"
   }
 }

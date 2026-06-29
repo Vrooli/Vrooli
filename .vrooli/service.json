@@ -10,6 +10,11 @@
         "enabled": false,
         "required": false
       },
+      "antigravity": {
+        "description": "Google Antigravity coding CLI (optional external-cli; sudo-free install, conversation/permission state backed up; NOT yet an agent-manager runner)",
+        "enabled": true,
+        "required": false
+      },
       "browserless": {
         "enabled": true,
         "healthCheck": {

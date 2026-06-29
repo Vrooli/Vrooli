@@ -11,7 +11,13 @@ CREATE TABLE IF NOT EXISTS tunnel_config (
   tunnel_id     TEXT NOT NULL DEFAULT '',
   account_id    TEXT NOT NULL DEFAULT '',
   cred_ref      TEXT NOT NULL DEFAULT '',
-  prom_endpoint TEXT NOT NULL DEFAULT '127.0.0.1:20241'
+  prom_endpoint TEXT NOT NULL DEFAULT '127.0.0.1:20241',
+  -- Global switch for the /public Access-bypass capability (the public-asset
+  -- convention; see docs/concepts/PUBLIC_ASSETS.md). 0 = off (default): TM
+  -- creates no Bypass apps regardless of per-route overrides set to inherit.
+  -- Declared here so fresh DBs get it; a pre-existing DB needs a one-shot
+  -- ALTER TABLE ... ADD COLUMN (the EnsureSchemas drift check guides this).
+  public_exposure_enabled INTEGER NOT NULL DEFAULT 0
 );
 
 -- Ingress ownership ledger — owned by internal/config/. The authoritative
@@ -45,5 +51,24 @@ CREATE TABLE IF NOT EXISTS ingress_ownership (
 CREATE TABLE IF NOT EXISTS dns_ownership (
   hostname    TEXT PRIMARY KEY,
   record_id   TEXT NOT NULL DEFAULT '',
+  created_at  TEXT NOT NULL DEFAULT ''
+);
+
+-- Access ownership ledger — owned by internal/config/. The analogue of
+-- dns_ownership for the /public Access-bypass convention: the authoritative
+-- record of which Cloudflare Access apps Tunnel Manager itself created (one
+-- self_hosted Bypass-Everyone app scoped to <host>/public per active exposed
+-- host), so revoke/prune deletes ONLY apps TM created and never an Access app
+-- an operator configured out-of-band. Absence of a row means "TM did not
+-- create this host's bypass app" (the safe default: never delete it). app_id
+-- and policy_id are the Cloudflare ids (kept for audit; RemovePublicBypass
+-- re-resolves by the <host>/public domain + TM name marker). Times are
+-- RFC3339Nano strings matching the round-trip in access_ledger_sqlite.go. Use
+-- CREATE TABLE IF NOT EXISTS so re-runs are no-ops; add columns with
+-- ALTER TABLE ... ADD COLUMN (migrate, never recreate).
+CREATE TABLE IF NOT EXISTS access_ownership (
+  host        TEXT PRIMARY KEY,
+  app_id      TEXT NOT NULL DEFAULT '',
+  policy_id   TEXT NOT NULL DEFAULT '',
   created_at  TEXT NOT NULL DEFAULT ''
 );

@@ -37,9 +37,9 @@ const compliantIndexHTML = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/apple-icon-180.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/public/favicon.svg" />
+    <link rel="apple-touch-icon" href="/public/apple-icon-180.png" />
+    <link rel="manifest" href="/public/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Buy widgets fast." />
     <meta name="theme-color" content="#1d4ed8" />
@@ -67,8 +67,8 @@ const compliantManifest = `{
   "theme_color": "#1d4ed8",
   "background_color": "#ffffff",
   "display": "standalone",
-  "start_url": ".",
-  "scope": ".",
+  "start_url": "/",
+  "scope": "/",
   "id": "/",
   "icons": [
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
@@ -83,14 +83,16 @@ func fullyBrandedScenario(t *testing.T) string {
 	writeFile(t, root, ".vrooli/service.json", `{"service":{"name":"widget-shop","displayName":"Widget Shop","description":"Buy widgets fast."}}`)
 	writeFile(t, root, "ui/src/design-tokens.css", compliantTokens)
 	writeFile(t, root, "ui/index.html", compliantIndexHTML)
-	writeFile(t, root, "ui/public/site.webmanifest", compliantManifest)
-	writeFile(t, root, "ui/public/logo.svg", "<svg/>")
-	writeFile(t, root, "ui/public/favicon.svg", "<svg/>")
-	writeFile(t, root, "ui/public/apple-icon-180.png", "PNGDATAOPAQUE")
+	// Branding/PWA/OG assets live under the /public/ convention (ui/public/public
+	// → URL /public/) so they are anonymously fetchable behind an Access-gated app.
+	writeFile(t, root, "ui/public/public/site.webmanifest", compliantManifest)
+	writeFile(t, root, "ui/public/public/logo.svg", "<svg/>")
+	writeFile(t, root, "ui/public/public/favicon.svg", "<svg/>")
+	writeFile(t, root, "ui/public/public/apple-icon-180.png", "PNGDATAOPAQUE")
 	// The manifest declares these icons; a fully-branded scenario ships the files
 	// (non-decodable stub bytes keep the dimension check best-effort/silent).
-	writeFile(t, root, "ui/public/icon-192.png", "PNGDATA-192")
-	writeFile(t, root, "ui/public/icon-512.png", "PNGDATA-512")
+	writeFile(t, root, "ui/public/public/icon-192.png", "PNGDATA-192")
+	writeFile(t, root, "ui/public/public/icon-512.png", "PNGDATA-512")
 	writeFile(t, root, "ui/src/app.css", "/* brand-manager:primary */ .a{color:red}")
 	return root
 }
@@ -189,9 +191,9 @@ func TestTypographyMissingFires(t *testing.T) {
 
 func TestLogoAndFaviconMissingFire(t *testing.T) {
 	root := fullyBrandedScenario(t)
-	_ = os.Remove(filepath.Join(root, "ui/public/logo.svg"))
-	_ = os.Remove(filepath.Join(root, "ui/public/favicon.svg"))
-	_ = os.Remove(filepath.Join(root, "ui/public/apple-icon-180.png"))
+	_ = os.Remove(filepath.Join(root, "ui/public/public/logo.svg"))
+	_ = os.Remove(filepath.Join(root, "ui/public/public/favicon.svg"))
+	_ = os.Remove(filepath.Join(root, "ui/public/public/apple-icon-180.png"))
 	writeFile(t, root, "ui/index.html", "<html><head></head></html>")
 	mustFire(t, root, "has-logo")
 	mustFire(t, root, "has-favicon")
@@ -199,7 +201,7 @@ func TestLogoAndFaviconMissingFire(t *testing.T) {
 
 func TestFaviconViaIndexHTMLLinkPasses(t *testing.T) {
 	root := fullyBrandedScenario(t)
-	_ = os.Remove(filepath.Join(root, "ui/public/favicon.svg"))
+	_ = os.Remove(filepath.Join(root, "ui/public/public/favicon.svg"))
 	mustNotFire(t, root, "has-favicon") // apple-touch-icon link still references an icon
 }
 
@@ -344,7 +346,7 @@ func TestIOSStatusBarSafeAreaFires(t *testing.T) {
 
 func TestManifestCompletenessFires(t *testing.T) {
 	root := fullyBrandedScenario(t)
-	writeFile(t, root, "ui/public/site.webmanifest", `{"name":"Widget Shop"}`)
+	writeFile(t, root, "ui/public/public/site.webmanifest", `{"name":"Widget Shop"}`)
 	f := mustFire(t, root, "manifest-completeness")
 	if f.Evidence["missing"] == nil {
 		t.Fatalf("expected missing-keys evidence, got %+v", f.Evidence)
@@ -369,10 +371,10 @@ func TestTwitterCardFires(t *testing.T) {
 
 func TestAssetValidityMaskableMissingFires(t *testing.T) {
 	root := fullyBrandedScenario(t)
-	writeFile(t, root, "ui/public/site.webmanifest", `{
+	writeFile(t, root, "ui/public/public/site.webmanifest", `{
   "name": "Widget Shop", "short_name": "Widget Shop", "description": "Buy widgets fast.",
   "theme_color": "#1d4ed8", "background_color": "#ffffff", "display": "standalone",
-  "start_url": ".", "id": "/",
+  "start_url": "/", "id": "/",
   "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"}]
 }`)
 	f := mustFire(t, root, "asset-validity")

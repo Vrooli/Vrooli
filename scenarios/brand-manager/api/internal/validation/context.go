@@ -24,8 +24,13 @@ const (
 const indexHTMLRel = "ui/index.html"
 
 // webManifestCandidates are the manifest paths a scenario may ship, in priority
-// order. The first that exists is the active manifest.
+// order. The first that exists is the active manifest. The /public/-convention
+// locations (ui/public/public/...) rank first so a scenario that has adopted the
+// convention resolves its relocated manifest, not a stale root copy.
 var webManifestCandidates = []string{
+	"ui/public/public/site.webmanifest",
+	"ui/public/public/manifest.json",
+	"ui/public/public/manifest.webmanifest",
 	"ui/public/site.webmanifest",
 	"ui/public/manifest.json",
 	"ui/public/manifest.webmanifest",

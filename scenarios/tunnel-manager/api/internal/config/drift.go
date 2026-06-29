@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 	"time"
+
+	"tunnel-manager/internal/manifest"
 )
 
 // OwnershipState classifies one ingress hostname after reconciling the
@@ -75,6 +77,9 @@ type DesiredEntry struct {
 	Source   RouteSource
 	Scenario string
 	LeaseID  string
+	// PublicExposure is the route's per-route override for the /public
+	// Access-bypass convention (inherit|enabled|disabled). Empty = inherit.
+	PublicExposure manifest.PublicExposure
 }
 
 // LedgerEntry is one persisted ownership record, keyed by full hostname.

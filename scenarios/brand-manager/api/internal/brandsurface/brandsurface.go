@@ -17,6 +17,7 @@ package brandsurface
 
 import (
 	"encoding/json"
+	"path"
 	"strings"
 )
 
@@ -123,6 +124,76 @@ func (s Surface) ManifestScalars() map[string]string {
 		"scope":       ".",
 		"id":          "/",
 	}
+}
+
+// --- /public/ asset convention (SSOT) --------------------------------------
+
+// The fleet "/public/*" convention: anything served under the URL path prefix
+// /public/ is publicly fetchable by anonymous clients (iOS Add-to-Home-Screen,
+// link unfurlers, Open Graph crawlers). The contract is the URL prefix, NOT any
+// framework's source-dir name. For a Vite scenario the publicDir (ui/public)
+// serves at URL "/", so nesting a "public" directory inside it
+// (ui/public/public) serves those files under "/public/". An edge Cloudflare
+// Access bypass scoped to <host>/public can then serve a scenario's branding/
+// PWA/OG assets to anonymous fetchers without weakening Access on the rest of
+// the app. Both the convention rule and its fixer read these definitions, so
+// "what is a public asset" and "where it belongs" have exactly one source.
+const (
+	// PublicURLPrefix is the canonical public URL path prefix (with trailing
+	// slash) under which assets are publicly fetchable by convention.
+	PublicURLPrefix = "/public/"
+	// RootAssetSourceDir is the Vite publicDir whose files serve at URL root "/".
+	RootAssetSourceDir = "ui/public"
+	// PublicAssetSourceDir is the directory inside the publicDir whose files
+	// serve under PublicURLPrefix (the intentional ui/public/public nesting).
+	PublicAssetSourceDir = "ui/public/public"
+)
+
+// publicBrandingAssetGlobs are the filename globs for the branding/PWA/OG assets
+// that anonymous fetchers load (favicon, apple-touch-icon, PWA icons, the web
+// manifest, social-preview images) plus the brand logo — i.e. everything that
+// belongs under the /public/ convention so it stays world-readable behind an
+// Access-gated app. Matched against a lower-cased basename.
+var publicBrandingAssetGlobs = []string{
+	"favicon.ico", "favicon.svg", "favicon-*.png", "favicon-*.svg", "favicon.png",
+	"logo.svg", "logo.png", "logo-*.svg", "logo-*.png", "*-logo.svg", "*-logo.png",
+	"apple-touch-icon.png", "apple-touch-icon-*.png", "apple-icon-*.png",
+	"icon-*.png", "icon-*.svg", "manifest-icon-*.png", "maskable-*.png", "maskable.png",
+	"site.webmanifest", "manifest.json", "manifest.webmanifest",
+	"og-image.*", "og-*.png", "og.png", "*-og.png",
+	"twitter-image.*", "twitter-*.png",
+}
+
+// IsPublicBrandingAsset reports whether base (a file basename) is a branding/PWA/
+// OG asset that belongs under the /public/ convention.
+func IsPublicBrandingAsset(base string) bool {
+	base = strings.ToLower(strings.TrimSpace(base))
+	if base == "" {
+		return false
+	}
+	for _, g := range publicBrandingAssetGlobs {
+		if ok, _ := path.Match(g, base); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// IsUnderPublicPrefix reports whether a root-absolute URL path is served under
+// the public convention prefix.
+func IsUnderPublicPrefix(urlPath string) bool {
+	return strings.HasPrefix(strings.TrimSpace(urlPath), PublicURLPrefix)
+}
+
+// PublicURLForRootRef rewrites a root-absolute asset URL ("/favicon.svg") to its
+// /public/ equivalent ("/public/favicon.svg"). A path already under the prefix is
+// returned unchanged.
+func PublicURLForRootRef(urlPath string) string {
+	urlPath = strings.TrimSpace(urlPath)
+	if IsUnderPublicPrefix(urlPath) {
+		return urlPath
+	}
+	return PublicURLPrefix + strings.TrimPrefix(urlPath, "/")
 }
 
 // RequiredManifestKeys are the manifest fields a complete, installable manifest

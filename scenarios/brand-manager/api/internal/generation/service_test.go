@@ -147,6 +147,11 @@ func TestGenerateImage_RoutesThroughImageToolsAndAutoPromotesFirstCanonical(t *t
 			require.Contains(t, req.Prompt, "Acme")
 			require.Equal(t, 512, req.Width)
 			require.NotEmpty(t, req.NegativePrompt)
+			require.True(t, req.AllowBYOK, "brand image generation defaults to quality-capable BYOK fallback")
+			require.Equal(t, "quality", req.QualityPolicy)
+			require.Equal(t, "any", req.FallbackPolicy)
+			require.Equal(t, "service", req.Priority)
+			require.True(t, req.AllowReclaim)
 			return generation.ImageOutput{Data: []byte("\x89PNGlogo"), MimeType: "image/png", ModelID: "sd-1.5", Tier: "local-gpu"}, nil
 		},
 	}
@@ -165,6 +170,33 @@ func TestGenerateImage_RoutesThroughImageToolsAndAutoPromotesFirstCanonical(t *t
 	require.Len(t, stored, 2, "one exploratory asset + the auto-promoted canonical")
 	require.Equal(t, "logo-u1.png", stored[0].Filename)
 	require.Equal(t, "logo.png", stored[1].Filename)
+}
+
+func TestGenerateImage_LocalOnlyEscapeHatchDisablesBYOKAndReclaim(t *testing.T) {
+	brands := &mocks.FakeBrandStore{}
+	brands.Seed(generation.BrandView{ID: "b1", Name: "Acme"})
+	allowReclaim := false
+	images := &mocks.FakeImageBackend{
+		GenerateResponder: func(req generation.ImageGenerateRequest) (generation.ImageOutput, error) {
+			require.False(t, req.AllowBYOK)
+			require.Equal(t, "fast", req.QualityPolicy)
+			require.Equal(t, "local_only", req.FallbackPolicy)
+			require.Equal(t, "batch", req.Priority)
+			require.False(t, req.AllowReclaim)
+			return generation.ImageOutput{Data: []byte("\x89PNGlogo"), MimeType: "image/png", ModelID: "sd-1.5", Tier: "local-gpu"}, nil
+		},
+	}
+	svc := newService(t, &mocks.FakeProviders{}, images, brands, &mocks.FakeAssetStore{})
+
+	_, err := svc.GenerateImage(context.Background(), generation.GenerateImageInput{
+		BrandID:        "b1",
+		Type:           "logo",
+		QualityPolicy:  "fast",
+		FallbackPolicy: "local_only",
+		Priority:       "batch",
+		AllowReclaim:   &allowReclaim,
+	})
+	require.NoError(t, err)
 }
 
 func TestGenerateImage_DoesNotOverwriteExistingCanonicalUnlessRequested(t *testing.T) {
@@ -237,6 +269,11 @@ func TestEditImage_LoadsSourceAndStoresNewAsset(t *testing.T) {
 		EditResponder: func(req generation.ImageEditRequest) (generation.ImageOutput, error) {
 			require.Equal(t, []byte("source-bytes"), req.Source)
 			require.Equal(t, "make it navy", req.Instruction)
+			require.True(t, req.AllowBYOK, "brand image editing defaults to quality-capable BYOK fallback")
+			require.Equal(t, "quality", req.QualityPolicy)
+			require.Equal(t, "any", req.FallbackPolicy)
+			require.Equal(t, "service", req.Priority)
+			require.True(t, req.AllowReclaim)
 			return generation.ImageOutput{Data: []byte("edited"), MimeType: "image/png", ModelID: "ip2p", Tier: "local-gpu"}, nil
 		},
 	}

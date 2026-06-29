@@ -33,27 +33,29 @@ func NewSQLiteRepository(db SQLExecutor) ConfigRepository {
 var _ ConfigRepository = (*sqliteRepository)(nil)
 
 const (
-	configColumns = `mode, tunnel_id, account_id, cred_ref, prom_endpoint`
+	configColumns = `mode, tunnel_id, account_id, cred_ref, prom_endpoint, public_exposure_enabled`
 
 	upsertConfigSQL = `
-INSERT INTO tunnel_config (id, mode, tunnel_id, account_id, cred_ref, prom_endpoint)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO tunnel_config (id, mode, tunnel_id, account_id, cred_ref, prom_endpoint, public_exposure_enabled)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   mode = excluded.mode,
   tunnel_id = excluded.tunnel_id,
   account_id = excluded.account_id,
   cred_ref = excluded.cred_ref,
-  prom_endpoint = excluded.prom_endpoint
+  prom_endpoint = excluded.prom_endpoint,
+  public_exposure_enabled = excluded.public_exposure_enabled
 `
 )
 
 func (s *sqliteRepository) Get(ctx context.Context) (TunnelConfig, error) {
 	row := s.db.QueryRowContext(ctx, "SELECT "+configColumns+" FROM tunnel_config WHERE id = ?", singletonID)
 	var (
-		cfg     TunnelConfig
-		modeRaw string
+		cfg         TunnelConfig
+		modeRaw     string
+		exposureRaw int
 	)
-	err := row.Scan(&modeRaw, &cfg.TunnelID, &cfg.AccountID, &cfg.CredRef, &cfg.PromEndpoint)
+	err := row.Scan(&modeRaw, &cfg.TunnelID, &cfg.AccountID, &cfg.CredRef, &cfg.PromEndpoint, &exposureRaw)
 	if errors.Is(err, sql.ErrNoRows) {
 		// No config persisted yet: return domain defaults. There is always
 		// exactly one logical config.
@@ -63,7 +65,15 @@ func (s *sqliteRepository) Get(ctx context.Context) (TunnelConfig, error) {
 		return TunnelConfig{}, fmt.Errorf("get config: %w", err)
 	}
 	cfg.Mode = Mode(modeRaw)
+	cfg.PublicExposureEnabled = exposureRaw != 0
 	return cfg, nil
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func (s *sqliteRepository) Upsert(ctx context.Context, cfg TunnelConfig) (TunnelConfig, error) {
@@ -74,7 +84,7 @@ func (s *sqliteRepository) Upsert(ctx context.Context, cfg TunnelConfig) (Tunnel
 		cfg.PromEndpoint = DefaultPromEndpoint
 	}
 	_, err := s.db.ExecContext(ctx, upsertConfigSQL,
-		singletonID, string(cfg.Mode), cfg.TunnelID, cfg.AccountID, cfg.CredRef, cfg.PromEndpoint,
+		singletonID, string(cfg.Mode), cfg.TunnelID, cfg.AccountID, cfg.CredRef, cfg.PromEndpoint, boolToInt(cfg.PublicExposureEnabled),
 	)
 	if err != nil {
 		return TunnelConfig{}, fmt.Errorf("upsert config: %w", err)

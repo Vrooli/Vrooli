@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { RouteSource } from "@vrooli/proto-types/tunnel-manager/v1/routes/routes_pb";
+import { RouteSource, PublicExposure } from "@vrooli/proto-types/tunnel-manager/v1/routes/routes_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import { makeRoutesMocks, makeRoute, makeExternalRoute } from "../../test-utils/mocks/routes";
@@ -66,7 +66,51 @@ describe("ExternalRoutesPanel", () => {
         serviceTarget: "http://127.0.0.1:7000",
         domain: "",
         source: RouteSource.EXTERNAL,
+        publicExposure: PublicExposure.INHERIT,
       });
+    });
+  });
+
+  it("creates an external route with an explicit public-exposure override", async () => {
+    const { routesClient } = await import("../../api/routes");
+    const user = userEvent.setup();
+    renderWithProviders(<ExternalRoutesPanel />);
+
+    await user.type(await screen.findByTestId(selectors.routes.subdomainInput), "billing");
+    await user.type(screen.getByTestId(selectors.routes.targetInput), "http://127.0.0.1:7000");
+    await user.selectOptions(
+      screen.getByTestId(selectors.routes.publicExposureSelect),
+      String(PublicExposure.ENABLED),
+    );
+    await user.click(screen.getByTestId(selectors.routes.addButton));
+
+    await waitFor(() => {
+      expect(routesClient.createRoute).toHaveBeenCalledWith({
+        subdomain: "billing",
+        serviceTarget: "http://127.0.0.1:7000",
+        domain: "",
+        source: RouteSource.EXTERNAL,
+        publicExposure: PublicExposure.ENABLED,
+      });
+    });
+  });
+
+  it("updates a route's public-exposure override via the per-row select", async () => {
+    const { routesClient } = await import("../../api/routes");
+    const user = userEvent.setup();
+    renderWithProviders(<ExternalRoutesPanel />);
+
+    const route = makeExternalRoute();
+    await waitFor(() => expect(screen.getByTestId(selectors.routes.table)).toBeInTheDocument());
+    await user.selectOptions(
+      screen.getByTestId(selectors.routes.publicExposureRowSelect({ id: route.id })),
+      String(PublicExposure.DISABLED),
+    );
+
+    await waitFor(() => {
+      expect(routesClient.updateRoute).toHaveBeenCalledWith(
+        expect.objectContaining({ id: route.id, publicExposure: PublicExposure.DISABLED }),
+      );
     });
   });
 

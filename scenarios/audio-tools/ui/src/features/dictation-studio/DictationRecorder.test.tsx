@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -14,10 +14,15 @@ interface FakeProvider {
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
+  getStream: () => MediaStream | null;
   getLastTurnAudio: () => FakeProvider["lastTurn"];
 }
 
 const constructed: FakeProvider[] = [];
+let fakeStream: MediaStream | null = null;
+const originalAudioContext = window.AudioContext;
+const originalRequestAnimationFrame = window.requestAnimationFrame;
+const originalCancelAnimationFrame = window.cancelAnimationFrame;
 
 vi.mock("../../audio-integration", () => ({
   VoiceStreamProvider: class {
@@ -28,6 +33,7 @@ vi.mock("../../audio-integration", () => ({
     start = vi.fn().mockResolvedValue(undefined);
     stop = vi.fn();
     dispose = vi.fn();
+    getStream = vi.fn(() => fakeStream);
     getLastTurnAudio() {
       return this.lastTurn;
     }
@@ -51,10 +57,15 @@ import { DictationRecorder } from "./DictationRecorder";
 
 beforeEach(() => {
   constructed.length = 0;
+  fakeStream = null;
 });
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.useRealTimers();
+  Object.defineProperty(window, "AudioContext", { configurable: true, value: originalAudioContext });
+  Object.defineProperty(window, "requestAnimationFrame", { configurable: true, value: originalRequestAnimationFrame });
+  Object.defineProperty(window, "cancelAnimationFrame", { configurable: true, value: originalCancelAnimationFrame });
 });
 
 describe("DictationRecorder", () => {
@@ -66,6 +77,36 @@ describe("DictationRecorder", () => {
       expect(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") })).toBeInTheDocument(),
     );
     expect(constructed[0]!.start).toHaveBeenCalledTimes(1);
+  });
+
+  it("stop transitions immediately to transcribing while waiting for the final result", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") })).toBeInTheDocument(),
+    );
+
+    await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") }));
+
+    expect(constructed[0]!.stop).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(strings.dictationStudio.transcribing)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.recordCancel)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.recordStart)).toBeDisabled();
+  });
+
+  it("cancels a stuck transcription and releases the provider", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") }));
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordCancel));
+
+    expect(constructed[0]!.dispose).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(strings.dictationStudio.cancelled)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.recordStart)).not.toBeDisabled();
   });
 
   it("on result: extracts the retained PCM and reports the captured clip", async () => {
@@ -109,6 +150,38 @@ describe("DictationRecorder", () => {
 
     expect(await screen.findByText(strings.dictationStudio.captureMissing)).toBeInTheDocument();
     expect(onCaptured).not.toHaveBeenCalled();
+  });
+
+  it("warns when the input stream never produces an audible level", async () => {
+    vi.useFakeTimers();
+    const disconnect = vi.fn();
+    class SilentAudioContext {
+      resume = vi.fn().mockResolvedValue(undefined);
+      createMediaStreamSource = vi.fn(() => ({ connect: vi.fn(), disconnect }));
+      createAnalyser = vi.fn(() => ({
+        fftSize: 0,
+        frequencyBinCount: 4,
+        getByteTimeDomainData: (data: Uint8Array) => data.fill(128),
+        disconnect,
+      }));
+    }
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: SilentAudioContext });
+    Object.defineProperty(window, "requestAnimationFrame", { configurable: true, value: vi.fn(() => 1) });
+    Object.defineProperty(window, "cancelAnimationFrame", { configurable: true, value: vi.fn() });
+
+    fakeStream = {} as MediaStream;
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    fireEvent.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(constructed[0]).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(2_000);
+    });
+
+    expect(screen.getByText(strings.dictationStudio.noAudioDetected)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") })).toBeInTheDocument();
   });
 
   it("surfaces provider errors", async () => {

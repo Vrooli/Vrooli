@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   RouteSource,
+  PublicExposure,
   type Route,
 } from "@vrooli/proto-types/tunnel-manager/v1/routes/routes_pb";
 
@@ -13,6 +14,12 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { routesClient } from "../../api/routes";
+import {
+  PUBLIC_EXPOSURE_OPTIONS,
+  normalizeExposure,
+  publicExposureLabel,
+  publicExposureTone,
+} from "./labels";
 
 const ROUTES_QUERY_KEY = ["routes"] as const;
 
@@ -50,6 +57,7 @@ export function ExternalRoutesPanel() {
   const [subdomain, setSubdomain] = useState("");
   const [target, setTarget] = useState("");
   const [domain, setDomain] = useState("");
+  const [publicExposure, setPublicExposure] = useState<PublicExposure>(PublicExposure.INHERIT);
 
   const routesQuery = useQuery({ queryKey: ROUTES_QUERY_KEY, queryFn: () => routesClient.listRoutes({}) });
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ROUTES_QUERY_KEY });
@@ -61,13 +69,36 @@ export function ExternalRoutesPanel() {
         serviceTarget: target.trim(),
         domain: domain.trim(),
         source: RouteSource.EXTERNAL,
+        publicExposure,
       }),
     onSuccess: () => {
       setSubdomain("");
       setTarget("");
       setDomain("");
+      setPublicExposure(PublicExposure.INHERIT);
       invalidate();
     },
+  });
+
+  // UpdateRoute is a full replace, so changing only the per-route /public
+  // override re-sends the route's current identity + routing fields alongside
+  // the new public_exposure value.
+  const exposureMutation = useMutation({
+    mutationFn: ({ route, value }: { route: Route; value: PublicExposure }) =>
+      routesClient.updateRoute({
+        id: route.id,
+        subdomain: route.subdomain,
+        scenario: route.scenario,
+        domain: route.domain,
+        localPort: route.localPort,
+        tier: route.tier,
+        healthPath: route.healthPath,
+        enabled: route.enabled,
+        source: route.source,
+        serviceTarget: route.serviceTarget,
+        publicExposure: value,
+      }),
+    onSuccess: invalidate,
   });
 
   const deleteMutation = useMutation({
@@ -93,7 +124,7 @@ export function ExternalRoutesPanel() {
       <form
         data-testid={selectors.routes.addForm}
         onSubmit={handleAdd}
-        className="grid gap-3 rounded-panel border border-app-border bg-app-surface p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)_auto] sm:items-end"
+        className="grid gap-3 rounded-panel border border-app-border bg-app-surface p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
       >
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">{t(strings.routes.subdomainLabel)}</span>
@@ -125,10 +156,27 @@ export function ExternalRoutesPanel() {
             aria-label={t(strings.routes.domainLabel)}
           />
         </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">{t(strings.routes.publicExposure.label)}</span>
+          <select
+            data-testid={selectors.routes.publicExposureSelect}
+            value={publicExposure}
+            onChange={(e) => setPublicExposure(Number(e.target.value))}
+            aria-label={t(strings.routes.publicExposure.label)}
+            className="h-11 rounded-control border border-app-border bg-app-surface px-3 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+          >
+            {PUBLIC_EXPOSURE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {t(publicExposureLabel(option))}
+              </option>
+            ))}
+          </select>
+        </label>
         <Button type="submit" data-testid={selectors.routes.addButton} disabled={!canSubmit}>
           {t(strings.routes.addButton)}
         </Button>
       </form>
+      <p className="text-xs text-app-muted-foreground">{t(strings.routes.publicExposure.help)}</p>
       {addMutation.error && (
         <p data-testid={selectors.routes.addError} role="alert" className="text-sm text-app-danger">
           {t(strings.routes.addError)}
@@ -137,6 +185,11 @@ export function ExternalRoutesPanel() {
       {deleteMutation.error && (
         <p data-testid={selectors.routes.deleteError} role="alert" className="text-sm text-app-danger">
           {t(strings.routes.deleteError)}
+        </p>
+      )}
+      {exposureMutation.error && (
+        <p data-testid={selectors.routes.publicExposureError} role="alert" className="text-sm text-app-danger">
+          {t(strings.routes.publicExposure.error)}
         </p>
       )}
 
@@ -155,6 +208,7 @@ export function ExternalRoutesPanel() {
                 <th className="px-3 py-2">{t(strings.routes.colSubdomain)}</th>
                 <th className="px-3 py-2">{t(strings.routes.colTarget)}</th>
                 <th className="px-3 py-2">{t(strings.routes.colSource)}</th>
+                <th className="px-3 py-2">{t(strings.routes.colPublicExposure)}</th>
                 <th className="px-3 py-2">{t(strings.routes.colUrl)}</th>
                 <th className="px-3 py-2">{t(strings.routes.colActions)}</th>
               </tr>
@@ -172,6 +226,35 @@ export function ExternalRoutesPanel() {
                     <StatusBadge tone={sourceTone(route.source)} data-testid={selectors.routes.sourceBadge}>
                       {t(sourceLabel(route.source))}
                     </StatusBadge>
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge
+                        tone={publicExposureTone(normalizeExposure(route.publicExposure))}
+                        data-testid={selectors.routes.publicExposureBadge}
+                      >
+                        {t(publicExposureLabel(normalizeExposure(route.publicExposure)))}
+                      </StatusBadge>
+                      <select
+                        data-testid={selectors.routes.publicExposureRowSelect({ id: route.id })}
+                        value={normalizeExposure(route.publicExposure)}
+                        disabled={exposureMutation.isPending}
+                        aria-label={t(strings.routes.publicExposure.rowLabel)}
+                        onChange={(e) =>
+                          exposureMutation.mutate({
+                            route,
+                            value: Number(e.target.value),
+                          })
+                        }
+                        className="h-9 rounded-control border border-app-border bg-app-surface px-2 text-sm text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+                      >
+                        {PUBLIC_EXPOSURE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {t(publicExposureLabel(option))}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     <a

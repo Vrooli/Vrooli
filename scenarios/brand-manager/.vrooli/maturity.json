@@ -285,6 +285,16 @@
       "fix_class": "manual",
       "reason": "The API/OpenAPI title (service.description) is human-authored product copy.",
       "recommended_skill_ids": ["branding"]
+    },
+    "public-asset-convention": {
+      "local_level_impact": "L6",
+      "global_impact": "hardening_gap",
+      "dimension": "branding",
+      "severity_default": "SEVERITY_WARNING",
+      "fix_class": "auto",
+      "fixer_status": "implemented",
+      "reason": "Branding/PWA/OG assets and their references are deterministically relocated under /public/ (ui/public/public) and repointed, so an edge Access bypass can serve them to anonymous fetchers.",
+      "recommended_skill_ids": ["branding"]
     }
   },
   "fallback": {

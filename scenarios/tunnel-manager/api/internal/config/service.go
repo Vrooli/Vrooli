@@ -83,6 +83,17 @@ type Service interface {
 	// ownership ledger — the only path that removes a specific entry. Returns
 	// false when the hostname was neither live nor tracked.
 	PruneIngress(ctx context.Context, hostname string) (bool, error)
+
+	// SetPublicExposure flips the global /public Access-bypass switch and
+	// persists it. It is PURE: it never writes to Cloudflare — the next Sync
+	// reconciles the live Access apps. Returns the updated config.
+	SetPublicExposure(ctx context.Context, enabled bool) (TunnelConfig, error)
+
+	// GetAccessStatus returns the read model for the /public Access-bypass
+	// capability: the global switch, whether the Access client is configured,
+	// the per-host effective decisions, and the dry-run plan (apps a reconcile
+	// would create/remove). Pure — no mutation, no live Cloudflare calls.
+	GetAccessStatus(ctx context.Context) (AccessStatus, error)
 }
 
 // Deps wires the seams the config service depends on. IngressClient is nil
@@ -107,7 +118,16 @@ type Deps struct {
 	// DNSLedger tracks which DNS records TM created so prune/revoke only ever
 	// deletes TM-created CNAMEs. Nil disables DNS removal (records are still
 	// created, but never auto-deleted — the safe direction).
-	DNSLedger        DNSLedger
+	DNSLedger DNSLedger
+	// Access creates/removes the <host>/public Cloudflare Access Bypass apps
+	// that make public assets fetchable by anonymous clients (the /public
+	// convention). Nil disables the capability entirely (the default — no
+	// Access app is ever touched).
+	Access AccessClient
+	// AccessLedger tracks which Access apps TM created so prune only ever
+	// deletes TM-created apps. Nil disables Access removal (apps are still
+	// created, but never auto-deleted — the safe direction).
+	AccessLedger     AccessLedger
 	CF               CFConfig
 	CredentialStatus CredentialStatus
 	Runner           cmdrunner.Runner
@@ -169,7 +189,13 @@ func (s *service) VerifyCredentials(ctx context.Context) (CredentialVerification
 	if err != nil {
 		return CredentialVerification{}, err
 	}
-	return s.deps.Verifier.Verify(ctx, cfg, s.routeApexes(ctx))
+	// The Access-scope check is required for readiness only when the global
+	// public-exposure capability is enabled (otherwise it stays informational).
+	accessRequired := false
+	if persisted, err := s.deps.Repo.Get(ctx); err == nil {
+		accessRequired = persisted.PublicExposureEnabled
+	}
+	return s.deps.Verifier.Verify(ctx, cfg, s.routeApexes(ctx), accessRequired)
 }
 
 // resolveCFConfig returns the resolvable Cloudflare credentials (token in
@@ -300,6 +326,13 @@ func (s *service) Sync(ctx context.Context, dryRun, prune bool) (SyncResult, err
 			}
 		}
 		if err := s.reconcileDNS(ctx, desired, ignored, nil); err != nil {
+			return SyncResult{}, err
+		}
+		// Independent Access pass too: a host published before the capability
+		// was enabled (or whose bypass app was deleted out of band) still needs
+		// its <host>/public bypass, and the ingress-diff short-circuit would
+		// skip it forever. Idempotent + ledger-guarded, so this never clobbers.
+		if err := s.reconcileAccess(ctx, desired, ignored, nil, cfg.PublicExposureEnabled); err != nil {
 			return SyncResult{}, err
 		}
 	}
@@ -475,11 +508,12 @@ func (s *service) desiredEntries(ctx context.Context) ([]DesiredEntry, error) {
 			continue
 		}
 		out = append(out, DesiredEntry{
-			Hostname: extractHostname(r.PublicURL()),
-			Service:  routeServiceTarget(r),
-			Source:   routeSource(r),
-			Scenario: r.Scenario,
-			LeaseID:  r.LeaseID,
+			Hostname:       extractHostname(r.PublicURL()),
+			Service:        routeServiceTarget(r),
+			Source:         routeSource(r),
+			Scenario:       r.Scenario,
+			LeaseID:        r.LeaseID,
+			PublicExposure: manifest.NormalizePublicExposure(r.PublicExposure),
 		})
 	}
 	return out, nil
@@ -594,6 +628,12 @@ func (s *service) applyAdditive(ctx context.Context, cfg TunnelConfig, desired [
 		if err := s.reconcileDNS(ctx, desired, ignored, pruneByHost); err != nil {
 			return err
 		}
+		// Access bypass for the /public convention rides the same remote path:
+		// a no-op unless the capability is enabled (global switch or a route
+		// override), and ownership-guarded so it never touches a foreign app.
+		if err := s.reconcileAccess(ctx, desired, ignored, pruneByHost, cfg.PublicExposureEnabled); err != nil {
+			return err
+		}
 	}
 
 	s.recordOwnership(ctx, desired, ignored, pruneByHost)
@@ -647,6 +687,223 @@ func (s *service) removeManagedDNS(ctx context.Context, hostname string) {
 		return // leave the ledger row so a later prune retries the delete.
 	}
 	_, _ = s.deps.DNSLedger.Delete(ctx, hostname)
+}
+
+// effectiveExposure resolves a route's per-route override against the global
+// switch into a single decision: should this host have a /public Access bypass?
+// enabled/disabled win outright; inherit defers to the global switch.
+func effectiveExposure(routeOverride manifest.PublicExposure, globalEnabled bool) bool {
+	switch manifest.NormalizePublicExposure(routeOverride) {
+	case manifest.PublicExposureEnabled:
+		return true
+	case manifest.PublicExposureDisabled:
+		return false
+	default: // inherit
+		return globalEnabled
+	}
+}
+
+// accessPlan is the pure desired-state computation for the /public bypass:
+// the hosts that should have a bypass app (Ensure) and the ledgered hosts whose
+// bypass should be removed (Remove). It is the single source of truth shared by
+// reconcileAccess (apply) and GetAccessStatus (preview), so dry-run shows
+// exactly what apply would do.
+type accessPlan struct {
+	Ensure []string
+	Remove []string
+}
+
+// planAccess computes the access plan from the desired routes, the ignore/prune
+// sets, the hosts currently in the access ledger, and the global switch. A host
+// is ensured when its effective decision is on and it is not ignored/pruned;
+// every ledgered host NOT ensured is removed (covering off, disabled, ignored,
+// pruned, and orphaned in one rule). Deterministic ordering for stable output.
+func planAccess(desired []DesiredEntry, ignored, prune map[string]bool, ledgerHosts []string, globalEnabled bool) accessPlan {
+	ensureSet := make(map[string]bool)
+	var ensure []string
+	for _, d := range desired {
+		if d.Hostname == "" || ignored[d.Hostname] || prune[d.Hostname] {
+			continue
+		}
+		if !effectiveExposure(d.PublicExposure, globalEnabled) {
+			continue
+		}
+		if !ensureSet[d.Hostname] {
+			ensureSet[d.Hostname] = true
+			ensure = append(ensure, d.Hostname)
+		}
+	}
+	var remove []string
+	seenRemove := make(map[string]bool)
+	for _, h := range ledgerHosts {
+		if h == "" || ensureSet[h] || seenRemove[h] {
+			continue
+		}
+		seenRemove[h] = true
+		remove = append(remove, h)
+	}
+	sort.Strings(ensure)
+	sort.Strings(remove)
+	return accessPlan{Ensure: ensure, Remove: remove}
+}
+
+// reconcileAccess ensures/removes the <host>/public Cloudflare Access Bypass
+// apps that implement the public-asset convention. It is additive and
+// ownership-guarded, mirroring reconcileDNS: an app TM did not create is never
+// deleted (the access ledger gates removal), EnsurePublicBypass never modifies
+// an existing TM app, and the AccessClient itself refuses any path other than
+// /public or any non-bypass decision. A nil AccessClient makes this a no-op
+// (capability disabled). EnsurePublicBypass failures propagate so an
+// enabled-but-unscoped token surfaces here (the regression guard, mirroring
+// DNS) rather than silently leaving assets gated.
+func (s *service) reconcileAccess(ctx context.Context, desired []DesiredEntry, ignored, prune map[string]bool, globalEnabled bool) error {
+	if s.deps.Access == nil {
+		return nil
+	}
+	var ledgerHosts []string
+	if s.deps.AccessLedger != nil {
+		entries, err := s.deps.AccessLedger.List(ctx)
+		if err != nil {
+			return fmt.Errorf("list access ledger: %w", err)
+		}
+		for _, e := range entries {
+			ledgerHosts = append(ledgerHosts, e.Host)
+		}
+	}
+	plan := planAccess(desired, ignored, prune, ledgerHosts, globalEnabled)
+	for _, host := range plan.Ensure {
+		res, err := s.deps.Access.EnsurePublicBypass(ctx, host)
+		if err != nil {
+			return fmt.Errorf("ensure public bypass for %q: %w", host, err)
+		}
+		if res.Created && s.deps.AccessLedger != nil {
+			// Best-effort: tracking failure must not fail an applied bypass.
+			_ = s.deps.AccessLedger.Put(ctx, AccessAppEntry{Host: host, AppID: res.AppID, PolicyID: res.PolicyID})
+		}
+	}
+	for _, host := range plan.Remove {
+		s.removeManagedAccess(ctx, host)
+	}
+	return nil
+}
+
+// removeManagedAccess deletes the <host>/public bypass app only when the access
+// ledger attributes it to TM, then clears the ledger row. With no ledger wired
+// it is a no-op (removal disabled — the safe direction). Removal is best-effort:
+// a transient Cloudflare failure must not fail the whole reconcile (the app
+// stays ledgered so a later reconcile retries the delete).
+func (s *service) removeManagedAccess(ctx context.Context, host string) {
+	if s.deps.AccessLedger == nil {
+		return
+	}
+	_, found, err := s.deps.AccessLedger.Get(ctx, host)
+	if err != nil || !found {
+		return
+	}
+	if _, err := s.deps.Access.RemovePublicBypass(ctx, host); err != nil {
+		return // leave the ledger row so a later reconcile retries the delete.
+	}
+	_, _ = s.deps.AccessLedger.Delete(ctx, host)
+}
+
+// SetPublicExposure flips the global /public Access-bypass switch and persists
+// it. Pure: the next Sync reconciles the live Access apps.
+func (s *service) SetPublicExposure(ctx context.Context, enabled bool) (TunnelConfig, error) {
+	cfg, err := s.deps.Repo.Get(ctx)
+	if err != nil {
+		return TunnelConfig{}, fmt.Errorf("read config: %w", err)
+	}
+	cfg.PublicExposureEnabled = enabled
+	updated, err := s.deps.Repo.Upsert(ctx, cfg)
+	if err != nil {
+		return TunnelConfig{}, fmt.Errorf("persist public exposure: %w", err)
+	}
+	return updated, nil
+}
+
+// GetAccessStatus computes the /public Access-bypass read model + dry-run plan
+// from (config, desired routes, access ledger) with no mutation and no live
+// Cloudflare calls, so the preview matches what the next Sync would apply.
+func (s *service) GetAccessStatus(ctx context.Context) (AccessStatus, error) {
+	cfg, err := s.deps.Repo.Get(ctx)
+	if err != nil {
+		return AccessStatus{}, fmt.Errorf("read config: %w", err)
+	}
+	desired, err := s.desiredEntries(ctx)
+	if err != nil {
+		return AccessStatus{}, err
+	}
+	ignored := make(map[string]bool)
+	if ledger, err := s.ledgerEntries(ctx); err == nil {
+		for _, l := range ledger {
+			if l.Owner == OwnerIgnored {
+				ignored[l.Hostname] = true
+			}
+		}
+	}
+
+	var ledgerHosts []string
+	managed := make(map[string]AccessAppEntry)
+	if s.deps.AccessLedger != nil {
+		entries, err := s.deps.AccessLedger.List(ctx)
+		if err != nil {
+			return AccessStatus{}, fmt.Errorf("list access ledger: %w", err)
+		}
+		for _, e := range entries {
+			ledgerHosts = append(ledgerHosts, e.Host)
+			managed[e.Host] = e
+		}
+	}
+
+	plan := planAccess(desired, ignored, nil, ledgerHosts, cfg.PublicExposureEnabled)
+
+	seen := make(map[string]bool)
+	var hosts []AccessHostState
+	for _, d := range desired {
+		if d.Hostname == "" || seen[d.Hostname] {
+			continue
+		}
+		seen[d.Hostname] = true
+		entry, isManaged := managed[d.Hostname]
+		hosts = append(hosts, AccessHostState{
+			Host:            d.Hostname,
+			Override:        manifest.NormalizePublicExposure(d.PublicExposure),
+			EffectiveBypass: !ignored[d.Hostname] && effectiveExposure(d.PublicExposure, cfg.PublicExposureEnabled),
+			Managed:         isManaged,
+			AppID:           entry.AppID,
+		})
+	}
+	// Orphaned ledger hosts (TM created a bypass, the route is gone): surface
+	// them so the operator sees a prune candidate.
+	for _, h := range ledgerHosts {
+		if seen[h] {
+			continue
+		}
+		seen[h] = true
+		hosts = append(hosts, AccessHostState{
+			Host:            h,
+			Override:        manifest.PublicExposureInherit,
+			EffectiveBypass: false,
+			Managed:         true,
+			AppID:           managed[h].AppID,
+		})
+	}
+	sort.Slice(hosts, func(i, j int) bool { return hosts[i].Host < hosts[j].Host })
+
+	var toCreate []string
+	for _, h := range plan.Ensure {
+		if _, ok := managed[h]; !ok {
+			toCreate = append(toCreate, h)
+		}
+	}
+
+	return AccessStatus{
+		Enabled:    cfg.PublicExposureEnabled,
+		Configured: s.deps.Access != nil,
+		Hosts:      hosts,
+		ToCreate:   toCreate,
+		ToRemove:   plan.Remove,
+	}, nil
 }
 
 // mergeIngress computes the additive union to publish: start from current live

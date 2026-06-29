@@ -3,9 +3,11 @@ import {
   RoutesService,
   RouteSource,
   Tier,
+  PublicExposure,
   type Route,
   type ListRoutesResponse,
   type CreateRouteResponse,
+  type UpdateRouteResponse,
   type DeleteRouteResponse,
 } from "@vrooli/proto-types/tunnel-manager/v1/routes/routes_pb";
 
@@ -33,12 +35,14 @@ export async function createExternalRoute(values: {
   subdomain: string;
   serviceTarget: string;
   domain?: string;
+  publicExposure?: PublicExposure;
 }): Promise<CreateRouteResponse> {
   return routesClient.createRoute({
     subdomain: values.subdomain,
     serviceTarget: values.serviceTarget,
     domain: values.domain ?? "",
     source: RouteSource.EXTERNAL,
+    publicExposure: values.publicExposure ?? PublicExposure.INHERIT,
   });
 }
 
@@ -47,5 +51,5 @@ export async function deleteRoute(id: string): Promise<DeleteRouteResponse> {
   return routesClient.deleteRoute({ id });
 }
 
-export { Tier, RouteSource };
-export type { Route, ListRoutesResponse, CreateRouteResponse, DeleteRouteResponse };
+export { Tier, RouteSource, PublicExposure };
+export type { Route, ListRoutesResponse, CreateRouteResponse, UpdateRouteResponse, DeleteRouteResponse };

@@ -195,3 +195,27 @@ func (h *connectHandler) PruneIngress(ctx context.Context, req *connect.Request[
 	}
 	return connect.NewResponse(&configv1.PruneIngressResponse{Pruned: pruned}), nil
 }
+
+func (h *connectHandler) SetPublicExposure(ctx context.Context, req *connect.Request[configv1.SetPublicExposureRequest]) (*connect.Response[configv1.SetPublicExposureResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
+	cfg, err := h.deps.Service.SetPublicExposure(ctx, req.Msg.Enabled)
+	if err != nil {
+		connectErr := internalconfig.ToConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("config.SetPublicExposure: %v", err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(&configv1.SetPublicExposureResponse{Config: domainConfigToProto(cfg)}), nil
+}
+
+func (h *connectHandler) GetAccessStatus(ctx context.Context, _ *connect.Request[configv1.GetAccessStatusRequest]) (*connect.Response[configv1.GetAccessStatusResponse], error) {
+	status, err := h.deps.Service.GetAccessStatus(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("config.GetAccessStatus: %v", err)
+		return nil, internalconfig.ToConnectError(err)
+	}
+	return connect.NewResponse(&configv1.GetAccessStatusResponse{Status: accessStatusToProto(status)}), nil
+}

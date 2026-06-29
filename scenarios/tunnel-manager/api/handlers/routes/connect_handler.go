@@ -63,15 +63,16 @@ func (h *connectHandler) CreateRoute(ctx context.Context, req *connect.Request[r
 		return nil, authz.ToConnectError(err)
 	}
 	in := routes.CreateInput{
-		Subdomain:     req.Msg.Subdomain,
-		Scenario:      req.Msg.Scenario,
-		Domain:        req.Msg.Domain,
-		LocalPort:     int(req.Msg.LocalPort),
-		Tier:          tierFromProto(req.Msg.Tier),
-		LeaseID:       req.Msg.LeaseId,
-		HealthPath:    req.Msg.HealthPath,
-		Source:        sourceFromProto(req.Msg.Source),
-		ServiceTarget: req.Msg.ServiceTarget,
+		Subdomain:      req.Msg.Subdomain,
+		Scenario:       req.Msg.Scenario,
+		Domain:         req.Msg.Domain,
+		LocalPort:      int(req.Msg.LocalPort),
+		Tier:           tierFromProto(req.Msg.Tier),
+		LeaseID:        req.Msg.LeaseId,
+		HealthPath:     req.Msg.HealthPath,
+		Source:         sourceFromProto(req.Msg.Source),
+		ServiceTarget:  req.Msg.ServiceTarget,
+		PublicExposure: publicExposureFromProto(req.Msg.PublicExposure),
 	}
 	if req.Msg.Enabled != nil {
 		in.Enabled = req.Msg.Enabled
@@ -92,14 +93,15 @@ func (h *connectHandler) UpdateRoute(ctx context.Context, req *connect.Request[r
 		return nil, authz.ToConnectError(err)
 	}
 	in := routes.UpdateInput{
-		Subdomain:     req.Msg.Subdomain,
-		Scenario:      req.Msg.Scenario,
-		Domain:        req.Msg.Domain,
-		LocalPort:     int(req.Msg.LocalPort),
-		Tier:          tierFromProto(req.Msg.Tier),
-		HealthPath:    req.Msg.HealthPath,
-		Source:        sourceFromProto(req.Msg.Source),
-		ServiceTarget: req.Msg.ServiceTarget,
+		Subdomain:      req.Msg.Subdomain,
+		Scenario:       req.Msg.Scenario,
+		Domain:         req.Msg.Domain,
+		LocalPort:      int(req.Msg.LocalPort),
+		Tier:           tierFromProto(req.Msg.Tier),
+		HealthPath:     req.Msg.HealthPath,
+		Source:         sourceFromProto(req.Msg.Source),
+		ServiceTarget:  req.Msg.ServiceTarget,
+		PublicExposure: publicExposureFromProto(req.Msg.PublicExposure),
 	}
 	if req.Msg.Enabled != nil {
 		in.Enabled = req.Msg.Enabled

@@ -62,6 +62,15 @@ type fakeService struct {
 	pruneErr   error
 	pruneCalls int
 	pruneHost  string
+
+	setExposureOut   internalconfig.TunnelConfig
+	setExposureErr   error
+	setExposureCalls int
+	setExposureArg   bool
+
+	accessStatusOut   internalconfig.AccessStatus
+	accessStatusErr   error
+	accessStatusCalls int
 }
 
 func (f *fakeService) GetConfig(context.Context) (internalconfig.TunnelConfig, error) {
@@ -126,6 +135,17 @@ func (f *fakeService) PruneIngress(_ context.Context, hostname string) (bool, er
 	f.pruneCalls++
 	f.pruneHost = hostname
 	return f.pruneOut, f.pruneErr
+}
+
+func (f *fakeService) SetPublicExposure(_ context.Context, enabled bool) (internalconfig.TunnelConfig, error) {
+	f.setExposureCalls++
+	f.setExposureArg = enabled
+	return f.setExposureOut, f.setExposureErr
+}
+
+func (f *fakeService) GetAccessStatus(context.Context) (internalconfig.AccessStatus, error) {
+	f.accessStatusCalls++
+	return f.accessStatusOut, f.accessStatusErr
 }
 
 func newClient(t *testing.T, svc internalconfig.Service) configconnect.ConfigServiceClient {

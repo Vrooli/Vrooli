@@ -584,7 +584,24 @@
             {
               "name": "byok",
               "bool": true,
-              "description": "Permit metered BYOK cloud fallback when no local backend is available"
+              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only"
+            },
+            {
+              "name": "quality-policy",
+              "description": "Image quality policy: quality, balanced, or fast (default: quality)"
+            },
+            {
+              "name": "fallback-policy",
+              "description": "Provider fallback policy: any, cloud_allowed, or local_only (default: any)"
+            },
+            {
+              "name": "priority",
+              "description": "Capacity priority: service, interactive, or batch (default: service)"
+            },
+            {
+              "name": "no-reclaim",
+              "bool": true,
+              "description": "Do not reclaim cold-idle local resources for this generation"
             },
             {
               "name": "set-canonical",
@@ -635,7 +652,24 @@
             {
               "name": "byok",
               "bool": true,
-              "description": "Permit metered BYOK cloud fallback"
+              "description": "Permit metered BYOK cloud fallback; defaults on unless fallback-policy=local_only"
+            },
+            {
+              "name": "quality-policy",
+              "description": "Image quality policy: quality, balanced, or fast (default: quality)"
+            },
+            {
+              "name": "fallback-policy",
+              "description": "Provider fallback policy: any, cloud_allowed, or local_only (default: any)"
+            },
+            {
+              "name": "priority",
+              "description": "Capacity priority: service, interactive, or batch (default: service)"
+            },
+            {
+              "name": "no-reclaim",
+              "bool": true,
+              "description": "Do not reclaim cold-idle local resources for this edit"
             },
             {
               "name": "set-canonical",

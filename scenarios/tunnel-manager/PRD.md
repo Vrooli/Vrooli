@@ -43,6 +43,7 @@
 - [x] OT-P1-005 | Recovery event log | Persist recovery attempts with timestamps, actions, and outcomes for post-incident review
 - [x] OT-P1-006 | Degraded-mode detection | Detect HA connections < 4 or RTT spikes and report degraded status before full failure
 - [x] OT-P1-007 | Exposure-query API for app-monitor | `is-<scenario>-exposed?` + create-lease-and-return-tunnel-URL, consumed by app-monitor's "open in new tab" feature (the app-monitor-side change is a separate task)
+- [x] OT-P1-008 | Public-asset Access bypass (`/public/*` convention) | A guard-railed Cloudflare Access **Bypass-Everyone** reconciler scoped to `<host>/public` per active exposed host, so branding/PWA/OG assets are fetchable by anonymous system fetchers (iOS A2HS, OG crawlers) without weakening Access elsewhere. Default-off global switch × per-route `inherit/enabled/disabled` override; ownership ledger; dry-run; hard scope ceiling (only `/public`, only Bypass, never the primary app). Compound-value seam for the fleet (see [`docs/concepts/PUBLIC_ASSETS.md`](../../docs/concepts/PUBLIC_ASSETS.md))
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Hostname-budget management | Track exposed-hostname count vs the Cloudflare cap; warn near cap; evict LRU expired/idle leased routes to make room

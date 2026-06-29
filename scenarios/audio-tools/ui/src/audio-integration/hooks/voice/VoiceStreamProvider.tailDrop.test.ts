@@ -11,15 +11,22 @@
  */
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
+import { transcribeAudioWithRetry } from "../../api/voice";
 import { VoiceStreamProvider } from "./VoiceStreamProvider";
 import type { PcmCapture, PcmCaptureFactory } from "./pcmCapture";
+
+vi.mock("../../api/voice", () => ({
+  buildVoiceStreamWsUrl: vi.fn(() => "ws://audio-tools.test/api/v1/voice/stream?format=pcm_s16le"),
+  transcribeAudioWithRetry: vi.fn(),
+}));
 
 class FakeWebSocket {
   static OPEN = 1;
   static CLOSED = 3;
   static CONNECTING = 0;
   static instances: FakeWebSocket[] = [];
-  readyState = FakeWebSocket.OPEN;
+  static autoOpen = true;
+  readyState = FakeWebSocket.CONNECTING;
   url: string;
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
@@ -33,10 +40,12 @@ class FakeWebSocket {
     this.url = url;
     FakeWebSocket.instances.push(this);
     // Open synchronously to match the prod fast-path
-    queueMicrotask(() => {
-      this.readyState = FakeWebSocket.OPEN;
-      this.onopen?.();
-    });
+    if (FakeWebSocket.autoOpen) queueMicrotask(() => this.open());
+  }
+
+  open(): void {
+    this.readyState = FakeWebSocket.OPEN;
+    this.onopen?.();
   }
 }
 
@@ -68,9 +77,11 @@ function fakeStream(): MediaStream {
 describe("VoiceStreamProvider tail-drop", () => {
   let provider: VoiceStreamProvider;
   let infoSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     FakeWebSocket.instances = [];
+    FakeWebSocket.autoOpen = true;
     currentOnFrame = null;
     captureStops = 0;
     (globalThis as unknown as { WebSocket: typeof FakeWebSocket }).WebSocket = FakeWebSocket;
@@ -81,6 +92,7 @@ describe("VoiceStreamProvider tail-drop", () => {
     // console.info is allowed by test-setup; silence it here so the
     // tail-drop log line doesn't clutter test output.
     infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     provider = new VoiceStreamProvider();
     provider.captureFactory = fakeCaptureFactory;
   });
@@ -88,6 +100,8 @@ describe("VoiceStreamProvider tail-drop", () => {
   afterEach(() => {
     provider.dispose();
     infoSpy.mockRestore();
+    warnSpy.mockRestore();
+    vi.mocked(transcribeAudioWithRetry).mockReset();
   });
 
   async function startAndOpenWs(): Promise<FakeWebSocket> {
@@ -139,6 +153,24 @@ describe("VoiceStreamProvider tail-drop", () => {
     expect(provider.getLastTurnAudio()).toBeNull();
   });
 
+  it("sends buffered PCM followed by done when stop happens before WebSocket open", async () => {
+    FakeWebSocket.autoOpen = false;
+    await provider.start();
+    const ws = FakeWebSocket.instances.at(-1)!;
+    expect(ws.readyState).toBe(FakeWebSocket.CONNECTING);
+
+    pushFrame();
+    provider.stop();
+    expect(ws.send).not.toHaveBeenCalled();
+
+    ws.open();
+
+    const payloads = ws.send.mock.calls.map((args) => args[0]);
+    expect(ArrayBuffer.isView(payloads[0])).toBe(true);
+    expect(payloads[1]).toBe(JSON.stringify({ type: "done" }));
+    expect(payloads.filter((payload) => payload === JSON.stringify({ type: "done" })).length).toBe(1);
+  });
+
   it("retains the turn audio as a WAV blob when not armed", async () => {
     const ws = await startAndOpenWs();
     pushFrame();
@@ -167,5 +199,62 @@ describe("VoiceStreamProvider tail-drop", () => {
     const before = captureStops;
     provider.stop();
     expect(captureStops).toBe(before + 1);
+  });
+
+  it("falls back to HTTP transcription when audio streamed but no final arrives", async () => {
+    vi.useFakeTimers();
+    try {
+      const onError = vi.fn();
+      const onResult = vi.fn();
+      provider.onError = onError;
+      provider.onResult = onResult;
+      vi.mocked(transcribeAudioWithRetry).mockResolvedValue("timeout fallback transcript");
+      await startAndOpenWs();
+      pushFrame();
+      provider.stop();
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await Promise.resolve();
+
+      expect(transcribeAudioWithRetry).toHaveBeenCalledWith(expect.any(Blob), 2, "en");
+      expect(onResult).toHaveBeenCalledWith("timeout fallback transcript");
+      expect(onError).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("falls back to HTTP transcription after WebSocket reconnects are exhausted", async () => {
+    vi.useFakeTimers();
+    try {
+      const onResult = vi.fn();
+      provider.onResult = onResult;
+      vi.mocked(transcribeAudioWithRetry).mockResolvedValue("fallback transcript");
+      const first = await startAndOpenWs();
+      pushFrame();
+
+      first.readyState = FakeWebSocket.CLOSED;
+      first.onclose?.();
+      await vi.advanceTimersByTimeAsync(1_000);
+      const second = FakeWebSocket.instances.at(-1)!;
+      await Promise.resolve();
+      pushFrame();
+
+      second.readyState = FakeWebSocket.CLOSED;
+      second.onclose?.();
+      await vi.advanceTimersByTimeAsync(3_000);
+      const third = FakeWebSocket.instances.at(-1)!;
+      await Promise.resolve();
+
+      third.readyState = FakeWebSocket.CLOSED;
+      third.onclose?.();
+      await Promise.resolve();
+
+      expect(transcribeAudioWithRetry).toHaveBeenCalledWith(expect.any(Blob), 2, "en");
+      await expect(vi.mocked(transcribeAudioWithRetry).mock.results[0]!.value).resolves.toBe("fallback transcript");
+      expect(onResult).toHaveBeenCalledWith("fallback transcript");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

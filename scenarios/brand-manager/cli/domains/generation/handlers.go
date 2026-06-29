@@ -126,12 +126,16 @@ func (h *handlers) elements(ctx cliapp.RunContext) error {
 
 func (h *handlers) image(ctx cliapp.RunContext) error {
 	resp, err := h.client.GenerateBrandImage(context.Background(), connect.NewRequest(&generationv1.GenerateBrandImageRequest{
-		BrandId:       ctx.Flag("brand-id"),
-		Type:          ctx.Flag("type"),
-		ModelOverride: ctx.Flag("model"),
-		AllowByok:     ctx.BoolFlag("byok"),
-		Seed:          parseSeed(ctx.Flag("seed")),
-		SetCanonical:  ctx.BoolFlag("set-canonical"),
+		BrandId:        ctx.Flag("brand-id"),
+		Type:           ctx.Flag("type"),
+		ModelOverride:  ctx.Flag("model"),
+		AllowByok:      ctx.BoolFlag("byok"),
+		QualityPolicy:  ctx.Flag("quality-policy"),
+		FallbackPolicy: ctx.Flag("fallback-policy"),
+		Priority:       ctx.Flag("priority"),
+		AllowReclaim:   optionalReclaim(ctx),
+		Seed:           parseSeed(ctx.Flag("seed")),
+		SetCanonical:   ctx.BoolFlag("set-canonical"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("generate brand image", err, nil)
@@ -144,13 +148,17 @@ func (h *handlers) image(ctx cliapp.RunContext) error {
 
 func (h *handlers) editImage(ctx cliapp.RunContext) error {
 	resp, err := h.client.EditBrandImage(context.Background(), connect.NewRequest(&generationv1.EditBrandImageRequest{
-		BrandId:       ctx.Flag("brand-id"),
-		SourceAssetId: ctx.Flag("source-asset-id"),
-		Instruction:   ctx.Flag("prompt"),
-		ModelOverride: ctx.Flag("model"),
-		AllowByok:     ctx.BoolFlag("byok"),
-		Seed:          parseSeed(ctx.Flag("seed")),
-		SetCanonical:  ctx.BoolFlag("set-canonical"),
+		BrandId:        ctx.Flag("brand-id"),
+		SourceAssetId:  ctx.Flag("source-asset-id"),
+		Instruction:    ctx.Flag("prompt"),
+		ModelOverride:  ctx.Flag("model"),
+		AllowByok:      ctx.BoolFlag("byok"),
+		QualityPolicy:  ctx.Flag("quality-policy"),
+		FallbackPolicy: ctx.Flag("fallback-policy"),
+		Priority:       ctx.Flag("priority"),
+		AllowReclaim:   optionalReclaim(ctx),
+		Seed:           parseSeed(ctx.Flag("seed")),
+		SetCanonical:   ctx.BoolFlag("set-canonical"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("edit brand image", err, nil)
@@ -254,6 +262,14 @@ func availabilityReady(ok bool) string {
 func parseSeed(raw string) int64 {
 	n, _ := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
 	return n
+}
+
+func optionalReclaim(ctx cliapp.RunContext) *bool {
+	if ctx.FlagDeclared("no-reclaim") && ctx.BoolFlag("no-reclaim") {
+		v := false
+		return &v
+	}
+	return nil
 }
 
 // splitElements parses a comma-separated --elements value into a trimmed,

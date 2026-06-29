@@ -60,6 +60,11 @@ type TunnelConfig struct {
 	CredRef string
 	// PromEndpoint is the Prometheus metrics endpoint exposed by cloudflared.
 	PromEndpoint string
+	// PublicExposureEnabled is the global switch for the /public Access-bypass
+	// convention (see docs/concepts/PUBLIC_ASSETS.md). Default false: TM creates
+	// no Bypass apps. When true, every active host whose route's PublicExposure
+	// is inherit (or enabled) gets a <host>/public Bypass-Everyone Access app.
+	PublicExposureEnabled bool
 }
 
 // ConfigState combines the persisted config with process-level readiness.
@@ -133,6 +138,10 @@ const (
 	CheckNameTunnel     = credentialKeyTunnelID
 	CheckNameDNSScope   = "cloudflare.zone_dns_edit"
 	CheckNameZoneLookup = "cloudflare.zone_lookup"
+	// CheckNameAccessScope probes Access: Apps and Policies: Edit — the scope
+	// the /public Access-bypass capability needs. Informational unless the
+	// capability is enabled (so it never breaks readiness for non-users).
+	CheckNameAccessScope = "cloudflare.access_apps_edit"
 )
 
 // CheckNameToken mirrors the API-token store key (which is built from parts, not
@@ -166,7 +175,7 @@ type CredentialVerification struct {
 // account state. Verify is the only method; the apexes argument is the set of
 // route apex domains whose Zone:DNS:Edit scope should be probed.
 type CredentialVerifier interface {
-	Verify(ctx context.Context, cfg CFConfig, apexes []string) (CredentialVerification, error)
+	Verify(ctx context.Context, cfg CFConfig, apexes []string, accessRequired bool) (CredentialVerification, error)
 }
 
 // CredentialUpdate is the write-only input accepted by CredentialStore.Save.
@@ -265,6 +274,104 @@ type DNSLedger interface {
 	Get(ctx context.Context, hostname string) (entry DNSRecordEntry, found bool, err error)
 	Put(ctx context.Context, entry DNSRecordEntry) error
 	Delete(ctx context.Context, hostname string) (bool, error)
+}
+
+// AccessResult reports the outcome of an EnsurePublicBypass call. Created is
+// true only when TM actually created the Access app this call (so the caller
+// records ownership and a later prune knows it is safe to delete). AppID and
+// PolicyID are the Cloudflare ids, set whether the app was created or
+// pre-existing.
+type AccessResult struct {
+	AppID    string
+	PolicyID string
+	Created  bool
+}
+
+// AccessApp is one TM-owned Cloudflare Access application discovered by a
+// lookup — the read shape behind idempotency and dry-run preview.
+type AccessApp struct {
+	AppID    string
+	PolicyID string
+	Domain   string
+}
+
+// AccessClient is the seam over the Cloudflare API v4 Access apps/policies
+// surface — NARROWLY scoped to the /public bypass convention (see
+// docs/concepts/PUBLIC_ASSETS.md). It is the piece that makes <host>/public
+// publicly fetchable by anonymous clients without weakening Access on the rest
+// of the app. Declared at the consumer per seam-discovery: production wires
+// cfAccessClient (httpc.Doer + resolved creds incl. account id); tests fake it
+// (or fake the Doer). All operations are idempotent and additive:
+// EnsurePublicBypass never modifies an app TM did not create, and the service
+// only calls RemovePublicBypass for hosts its access ledger attributes to TM.
+//
+// HARD SCOPE CEILING (enforced in the impl + tested): every app it creates is
+// type=self_hosted, domain=<host>/public exactly, with a single
+// Bypass-Everyone policy. It refuses any other path (empty/`/`/`/*`/non-public)
+// and any non-bypass decision. It is a public-exemption manager, NOT a general
+// Access manager.
+type AccessClient interface {
+	// EnsurePublicBypass idempotently ensures a self_hosted Bypass-Everyone
+	// Access app scoped to <host>/public. A pre-existing TM-owned app is left
+	// untouched (Created=false); an absent one is created (Created=true).
+	EnsurePublicBypass(ctx context.Context, host string) (AccessResult, error)
+	// RemovePublicBypass deletes the <host>/public Access app TM created
+	// (resolved by domain + the TM name marker). Idempotent: a missing app
+	// returns removed=false, nil. The service calls it only for hosts its
+	// access ledger attributes to TM, so it never deletes an app created
+	// out-of-band.
+	RemovePublicBypass(ctx context.Context, host string) (removed bool, err error)
+	// LookupPublicBypass returns the existing TM-owned app for host (for
+	// idempotency and dry-run preview). found=false when none exists.
+	LookupPublicBypass(ctx context.Context, host string) (app AccessApp, found bool, err error)
+}
+
+// AccessHostState is one host's /public Access-bypass status for the
+// status/preview read model.
+type AccessHostState struct {
+	Host string
+	// Override is the route's per-route exposure decision (inherit|enabled|
+	// disabled).
+	Override manifest.PublicExposure
+	// EffectiveBypass is whether this host would have a /public bypass under
+	// the current global switch + override.
+	EffectiveBypass bool
+	// Managed is true when the access ledger attributes a bypass app to TM.
+	Managed bool
+	// AppID is the Cloudflare app id when Managed.
+	AppID string
+}
+
+// AccessStatus is the read model for the /public Access-bypass capability: the
+// global switch, whether the Access client is configured (creds present), the
+// per-host effective decisions, and the dry-run plan (what a reconcile would
+// create or remove). Pure — computed from (config, desired, ledger) with no
+// mutation, so the `access dry-run` preview matches what apply will do.
+type AccessStatus struct {
+	Enabled    bool
+	Configured bool
+	Hosts      []AccessHostState
+	ToCreate   []string
+	ToRemove   []string
+}
+
+// AccessAppEntry is one TM-created Access app tracked in the access ownership
+// ledger, mirroring the DNS ledger so prune only ever deletes apps TM created.
+type AccessAppEntry struct {
+	Host      string
+	AppID     string
+	PolicyID  string
+	CreatedAt time.Time
+}
+
+// AccessLedger is the persistence seam over the access_ownership table — the
+// Access analogue of DNSLedger. Absence of a row means "TM did not create this
+// host's bypass app" (the safe default: never delete it).
+type AccessLedger interface {
+	List(ctx context.Context) ([]AccessAppEntry, error)
+	Get(ctx context.Context, host string) (entry AccessAppEntry, found bool, err error)
+	Put(ctx context.Context, entry AccessAppEntry) error
+	Delete(ctx context.Context, host string) (bool, error)
 }
 
 // IngressClient is the seam over the Cloudflare API v4 ingress surface.

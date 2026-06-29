@@ -6,6 +6,7 @@ import { renderWithProviders } from "../../test-utils";
 import { expectNoA11yViolations } from "../../test-utils/a11y";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
+import { DICTATION_SCRIPTS } from "./scripts";
 
 // Stub the recorder so the page test never touches VoiceStreamProvider; the
 // button hands the page a fixed captured clip.
@@ -109,6 +110,32 @@ describe("DictationStudioPage", () => {
     await waitFor(() =>
       expect(createClip).toHaveBeenCalledWith(
         expect.objectContaining({ referenceText: "read this aloud", source: 2 }),
+      ),
+    );
+  });
+
+  it("selects a built-in script, pre-fills prompt text, and applies recommended tags", async () => {
+    const user = userEvent.setup();
+    const script = DICTATION_SCRIPTS[0]!;
+    renderWithProviders(<DictationStudioPage />);
+
+    await user.click(screen.getByRole("button", { name: strings.dictationStudio.modeScripted }));
+    await user.selectOptions(screen.getByTestId(selectors.dictationStudio.scriptPicker), script.id);
+
+    expect(screen.getByTestId(selectors.dictationStudio.promptInput)).toHaveValue(script.text);
+    for (const tag of script.tags) {
+      expect(screen.getByText(tag)).toBeInTheDocument();
+    }
+
+    await user.click(screen.getByTestId("mock-capture"));
+    await waitFor(() =>
+      expect(screen.getByTestId(selectors.dictationStudio.transcriptEditor)).toHaveValue(script.text),
+    );
+    await user.click(screen.getByTestId(selectors.dictationStudio.saveClip));
+
+    await waitFor(() =>
+      expect(createClip).toHaveBeenCalledWith(
+        expect.objectContaining({ referenceText: script.text, tags: script.tags, source: 2 }),
       ),
     );
   });

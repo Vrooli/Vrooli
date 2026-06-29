@@ -1,0 +1,174 @@
+{
+  "metadata": {
+    "name": "audio-tools-dictation-studio-scripted-bench",
+    "description": "Deterministic Dictation Studio browser flow: opens the record bench, switches to scripted mode, selects a built-in script, verifies prompt/tag prefill and recorder affordances, then checks Corpus and Eval tabs render their empty/loading surfaces. This intentionally does not synthesize microphone input or claim physical mic validation.",
+    "labels": {
+      "intent": "functional",
+      "reset": "none"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-dictation",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "audio-tools",
+          "scenario_path": "/dictation-studio",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to Dictation Studio" }
+      }
+    },
+    {
+      "id": "wait-record-mode",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dictationStudio.modeScripted",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Wait for the recording mode controls" }
+      }
+    },
+    {
+      "id": "click-scripted-mode",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/dictationStudio.modeScripted"
+        },
+        "metadata": { "label": "Switch to scripted mode" }
+      }
+    },
+    {
+      "id": "wait-script-picker",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/dictationStudio.scriptPicker",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Wait for the built-in script picker" }
+      }
+    },
+    {
+      "id": "select-first-script",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const picker = document.querySelector('[data-testid=\"dictation-script-picker\"]'); const option = picker && Array.from(picker.options).find((o) => o.value !== 'custom'); if (!picker || !option) return false; picker.value = option.value; picker.dispatchEvent(new Event('change', { bubbles: true })); return true; })()",
+          "expected_value": true
+        },
+        "metadata": { "label": "Select the first built-in script" }
+      }
+    },
+    {
+      "id": "assert-script-prefill",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const prompt = document.querySelector('[data-testid=\"dictation-prompt-input\"]'); const tags = document.body.innerText; return Boolean(prompt && prompt.value.includes('Invoice 3087') && tags.includes('script:numbers') && tags.includes('condition:clean')); })()",
+          "expected_value": true
+        },
+        "metadata": { "label": "Assert the selected script filled prompt text and tags" }
+      }
+    },
+    {
+      "id": "assert-recorder-ready",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/dictationStudio.audioMeter",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000
+        },
+        "metadata": { "label": "Assert the recorder exposes an audio meter" }
+      }
+    },
+    {
+      "id": "click-corpus-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "#tab-corpus"
+        },
+        "metadata": { "label": "Open the Corpus tab" }
+      }
+    },
+    {
+      "id": "wait-corpus-state",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 1500
+        },
+        "metadata": { "label": "Let the corpus query settle" }
+      }
+    },
+    {
+      "id": "assert-corpus-surface",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const text = document.body.innerText; return Boolean(document.querySelector('[data-testid=\"dictation-corpus-list\"]') || text.includes('No clips yet') || text.includes('Could not load the corpus')); })()",
+          "expected_value": true
+        },
+        "metadata": { "label": "Assert the Corpus tab renders a clear state" }
+      }
+    },
+    {
+      "id": "click-report-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "#tab-report"
+        },
+        "metadata": { "label": "Open the Eval Report tab" }
+      }
+    },
+    {
+      "id": "assert-eval-empty",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const text = document.body.innerText; return Boolean(document.querySelector('[data-testid=\"dictation-run-eval\"]') && text.includes('Run an eval')); })()",
+          "expected_value": true
+        },
+        "metadata": { "label": "Assert the Eval tab shows its empty state and run control" }
+      }
+    },
+    {
+      "id": "capture-dictation-studio",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": { "full_page": true },
+        "metadata": { "label": "Capture the Dictation Studio scripted bench" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-dictation", "target": "wait-record-mode", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-record-mode", "target": "click-scripted-mode", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "click-scripted-mode", "target": "wait-script-picker", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "wait-script-picker", "target": "select-first-script", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "select-first-script", "target": "assert-script-prefill", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "assert-script-prefill", "target": "assert-recorder-ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "assert-recorder-ready", "target": "click-corpus-tab", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "click-corpus-tab", "target": "wait-corpus-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "wait-corpus-state", "target": "assert-corpus-surface", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "assert-corpus-surface", "target": "click-report-tab", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "click-report-tab", "target": "assert-eval-empty", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e12", "source": "assert-eval-empty", "target": "capture-dictation-studio", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

@@ -28,6 +28,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ConfigService.ClearCloudflareCredentials": h.credentialsClear,
 		"ConfigService.Sync":                       h.sync,
 		"ConfigService.SwitchMode":                 h.mode,
+		"ConfigService.SetPublicExposure":          h.publicExposure,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

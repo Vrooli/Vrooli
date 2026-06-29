@@ -64,13 +64,14 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Route, error) {
 	}
 
 	r := Route{
-		Subdomain:  subdomain,
-		Domain:     orDefault(in.Domain, DefaultDomain),
-		Tier:       in.Tier,
-		LeaseID:    strings.TrimSpace(in.LeaseID),
-		HealthPath: orDefault(in.HealthPath, DefaultHealthPath),
-		Source:     in.Source,
-		Enabled:    true,
+		Subdomain:      subdomain,
+		Domain:         orDefault(in.Domain, DefaultDomain),
+		Tier:           in.Tier,
+		LeaseID:        strings.TrimSpace(in.LeaseID),
+		HealthPath:     orDefault(in.HealthPath, DefaultHealthPath),
+		Source:         in.Source,
+		PublicExposure: NormalizePublicExposure(in.PublicExposure),
+		Enabled:        true,
 	}
 	if r.Source == "" {
 		r.Source = SourceScenario
@@ -160,6 +161,9 @@ func (s *service) Update(ctx context.Context, id string, in UpdateInput) (Route,
 	}
 	if existing.Source == SourceExternal && !validServiceTarget(existing.ServiceTarget) {
 		return Route{}, ErrInvalidRoute{Field: "service_target", Reason: "external routes require an absolute http(s) URL target"}
+	}
+	if in.PublicExposure != "" {
+		existing.PublicExposure = NormalizePublicExposure(in.PublicExposure)
 	}
 	if in.Enabled != nil {
 		existing.Enabled = *in.Enabled

@@ -49,16 +49,24 @@ type ImageGenerateRequest struct {
 	Height         int
 	ModelOverride  string
 	AllowBYOK      bool
+	QualityPolicy  string
+	FallbackPolicy string
+	Priority       string
+	AllowReclaim   bool
 	Seed           int64
 }
 
 // ImageEditRequest is an edit_instruct request: edit Source by Instruction.
 type ImageEditRequest struct {
-	Source        []byte
-	Instruction   string
-	ModelOverride string
-	AllowBYOK     bool
-	Seed          int64
+	Source         []byte
+	Instruction    string
+	ModelOverride  string
+	AllowBYOK      bool
+	QualityPolicy  string
+	FallbackPolicy string
+	Priority       string
+	AllowReclaim   bool
+	Seed           int64
 }
 
 // ImageRemoveBackgroundRequest is a background_removal request over Source.

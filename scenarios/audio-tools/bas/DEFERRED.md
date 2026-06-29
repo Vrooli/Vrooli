@@ -17,6 +17,11 @@ longer a deliberate empty-pass: real flows exist and exercise the live surface.
   providers, then waits for and asserts the last-run summary. This is the
   regression guard for "Summarize broke" / "Transcode broke": clicking Run here
   surfaces it instead of a user. Non-media (text + embedded fixtures only).
+- `flows/audio-tools-dictation-studio-scripted-bench.json` — opens
+  `/dictation-studio`, switches to scripted mode, selects a built-in script,
+  verifies prompt/tag prefill plus recorder affordances, then checks the Corpus
+  and Eval tab surfaces. Deterministic; it does not synthesize microphone input
+  or save a physical recording.
 
 Both are `execution_mode: observer` flows in `flows/` (perf/visual-capture home),
 runnable via `performance-health` / visual capture. They are **not yet** bound as
@@ -43,7 +48,9 @@ functional `cases/` playbooks — see below.
    streaming still cannot be driven deterministically without mic-permission grants
    + deterministic media-stream fixtures + fake audio device routing in the shared
    BAS toolchain. When those land, add `flows/stt-streaming.json` and a
-   Dictation-Studio record→save→eval case. **Not faked here** — explicitly deferred.
+   Dictation-Studio real record→save→eval case. The scripted-bench flow covers
+   the non-mic UI path only. **Physical mic capture is not faked here** —
+   explicitly deferred.
 
 ## Activation criteria (unchanged triggers for more coverage)
 

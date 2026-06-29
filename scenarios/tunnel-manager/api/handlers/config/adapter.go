@@ -11,11 +11,34 @@ import (
 // — the conversion is mechanical and only used at the transport edge.
 func domainConfigToProto(c internalconfig.TunnelConfig) *configv1.TunnelConfig {
 	return &configv1.TunnelConfig{
-		Mode:         modeToProto(c.Mode),
-		TunnelId:     c.TunnelID,
-		AccountId:    c.AccountID,
-		CredRef:      c.CredRef,
-		PromEndpoint: c.PromEndpoint,
+		Mode:                  modeToProto(c.Mode),
+		TunnelId:              c.TunnelID,
+		AccountId:             c.AccountID,
+		CredRef:               c.CredRef,
+		PromEndpoint:          c.PromEndpoint,
+		PublicExposureEnabled: c.PublicExposureEnabled,
+	}
+}
+
+// accessStatusToProto converts the internal /public Access-bypass read model
+// into its wire shape.
+func accessStatusToProto(s internalconfig.AccessStatus) *configv1.AccessStatus {
+	hosts := make([]*configv1.AccessHostState, 0, len(s.Hosts))
+	for _, h := range s.Hosts {
+		hosts = append(hosts, &configv1.AccessHostState{
+			Host:            h.Host,
+			Override:        string(h.Override),
+			EffectiveBypass: h.EffectiveBypass,
+			Managed:         h.Managed,
+			AppId:           h.AppID,
+		})
+	}
+	return &configv1.AccessStatus{
+		Enabled:    s.Enabled,
+		Configured: s.Configured,
+		Hosts:      hosts,
+		ToCreate:   s.ToCreate,
+		ToRemove:   s.ToRemove,
 	}
 }
 

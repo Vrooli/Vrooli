@@ -17,6 +17,7 @@ import { TagInput } from "./TagInput";
 import { PromptPlayback } from "./PromptPlayback";
 import { CorpusListView } from "./CorpusListView";
 import { EvalReportView } from "./EvalReportView";
+import { CUSTOM_SCRIPT_ID, DICTATION_SCRIPTS, findDictationScript } from "./scripts";
 
 type Mode = "free" | "scripted";
 
@@ -25,6 +26,7 @@ export function DictationStudioPage() {
   const qc = useQueryClient();
 
   const [mode, setMode] = useState<Mode>("free");
+  const [selectedScriptId, setSelectedScriptId] = useState(CUSTOM_SCRIPT_ID);
   const [scriptedPrompt, setScriptedPrompt] = useState("");
   const [captured, setCaptured] = useState<CapturedClip | null>(null);
   const [transcript, setTranscript] = useState("");
@@ -57,6 +59,16 @@ export function DictationStudioPage() {
     setTranscript(mode === "scripted" ? scriptedPrompt : clip.transcript);
   };
 
+  const onScriptChange = (scriptId: string) => {
+    setSelectedScriptId(scriptId);
+    const script = findDictationScript(scriptId);
+    if (!script) return;
+    setScriptedPrompt(script.text);
+    setTags(script.tags);
+  };
+
+  const selectedScript = findDictationScript(selectedScriptId);
+
   const canSave = captured !== null && transcript.trim() !== "";
 
   const tabs = [
@@ -80,6 +92,7 @@ export function DictationStudioPage() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
+                    data-testid={selectors.dictationStudio.modeFree}
                     variant={mode === "free" ? "default" : "outline"}
                     aria-pressed={mode === "free"}
                     onClick={() => setMode("free")}
@@ -88,6 +101,7 @@ export function DictationStudioPage() {
                   </Button>
                   <Button
                     type="button"
+                    data-testid={selectors.dictationStudio.modeScripted}
                     variant={mode === "scripted" ? "default" : "outline"}
                     aria-pressed={mode === "scripted"}
                     onClick={() => setMode("scripted")}
@@ -99,6 +113,40 @@ export function DictationStudioPage() {
 
               {mode === "scripted" ? (
                 <Panel title={t(strings.dictationStudio.scriptedPromptTitle)}>
+                  <div className="mb-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
+                    <label className="flex flex-col gap-1 text-sm font-medium text-app-foreground">
+                      {t(strings.dictationStudio.scriptPickerLabel)}
+                      <select
+                        className="rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm"
+                        value={selectedScriptId}
+                        onChange={(event) => onScriptChange(event.currentTarget.value)}
+                        data-testid={selectors.dictationStudio.scriptPicker}
+                      >
+                        <option value={CUSTOM_SCRIPT_ID}>{t(strings.dictationStudio.customScript)}</option>
+                        {DICTATION_SCRIPTS.map((script) => (
+                          <option key={script.id} value={script.id}>
+                            {script.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div
+                      className="rounded-control border border-app-border bg-app-surface-muted/60 p-3 text-sm"
+                      data-testid={selectors.dictationStudio.scriptDetails}
+                    >
+                      <p className="font-medium text-app-foreground">
+                        {selectedScript?.title ?? t(strings.dictationStudio.customScript)}
+                      </p>
+                      <p className="mt-1 text-app-muted-foreground">
+                        {selectedScript?.purpose ?? t(strings.dictationStudio.customScriptHint)}
+                      </p>
+                      {selectedScript ? (
+                        <p className="mt-2 text-xs text-app-muted-foreground">
+                          {selectedScript.tags.join(", ")}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
                   <PromptPlayback prompt={scriptedPrompt} onChange={setScriptedPrompt} />
                 </Panel>
               ) : null}

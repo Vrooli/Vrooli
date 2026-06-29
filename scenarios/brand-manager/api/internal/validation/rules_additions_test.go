@@ -11,7 +11,7 @@ import (
 func TestReferencedAssetsExistFiresOnMissingManifestIcon(t *testing.T) {
 	root := fullyBrandedScenario(t)
 	// The manifest declares icon-512.png; remove the file so the reference dangles.
-	if err := os.Remove(filepath.Join(root, "ui/public/icon-512.png")); err != nil {
+	if err := os.Remove(filepath.Join(root, "ui/public/public/icon-512.png")); err != nil {
 		t.Fatalf("remove icon: %v", err)
 	}
 	f := mustFire(t, root, "referenced-assets-exist")
@@ -40,7 +40,7 @@ func TestReferencedAssetsExistFiresOnMissingOGImage(t *testing.T) {
 
 func TestReferencedAssetsExistFiresOnEmptyManifestIcon(t *testing.T) {
 	root := fullyBrandedScenario(t)
-	writeFile(t, root, "ui/public/icon-512.png", "") // present but zero bytes
+	writeFile(t, root, "ui/public/public/icon-512.png", "") // present but zero bytes
 	f := mustFire(t, root, "referenced-assets-exist")
 	issues, _ := f.Evidence["issues"].(map[string]any)
 	if issues["manifest:icon-512.png"] != "empty" {
@@ -59,7 +59,7 @@ func TestReferencedAssetsExistSkipsRemoteRefs(t *testing.T) {
 func TestReferencedAssetsExistDimensionMismatch(t *testing.T) {
 	root := fullyBrandedScenario(t)
 	// A real 1x1 PNG declared as 512x512 in the manifest is a provable mismatch.
-	writeRawFile(t, root, "ui/public/icon-512.png", onePixelPNG())
+	writeRawFile(t, root, "ui/public/public/icon-512.png", onePixelPNG())
 	f := mustFire(t, root, "referenced-assets-exist")
 	issues, _ := f.Evidence["issues"].(map[string]any)
 	got, _ := issues["manifest:icon-512.png"].(string)

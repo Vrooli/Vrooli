@@ -150,6 +150,25 @@ describe("SettingsPage", () => {
     expect(screen.getByTestId(selectors.settingsPage.reviewDriftLink)).toHaveAttribute("href", "/drift");
   });
 
+  it("toggles the global public-exposure switch and reflects the persisted state", async () => {
+    const { configClient } = await import("../api/config");
+    vi.mocked(configClient.getConfig).mockResolvedValueOnce(
+      makeConfigResponse({ config: makeTunnelConfig({ publicExposureEnabled: false }) }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+
+    const toggle = await screen.findByTestId(selectors.settingsPage.publicExposureToggle);
+    expect(screen.getByTestId(selectors.settingsPage.publicExposureState)).toHaveTextContent("off");
+    await user.click(toggle);
+
+    await waitFor(() => {
+      expect(configClient.setPublicExposure).toHaveBeenCalledWith({ enabled: true });
+    });
+    expect(screen.getByTestId(selectors.settingsPage.publicExposureStatusLink)).toHaveAttribute("href", "/drift");
+  });
+
   it("reconciles additively via sync({}) and shows the result", async () => {
     const { configClient } = await import("../api/config");
     vi.mocked(configClient.sync).mockResolvedValueOnce(

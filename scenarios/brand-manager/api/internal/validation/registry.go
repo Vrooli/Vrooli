@@ -72,6 +72,10 @@ var specs = []ruleSpec{
 	// Phase 6 — CLI / API branding (detect-only; surface-conditional).
 	{id: "cli-branding", surfaces: []surface{surfaceCLI}, eval: ruleCLIBranding},
 	{id: "api-branding", eval: ruleAPIBranding},
+
+	// Phase 7 — public-asset edge convention (assets served under /public/ so an
+	// Access bypass can serve them to anonymous fetchers; see PUBLIC_ASSETS.md).
+	{id: "public-asset-convention", surfaces: []surface{surfaceUI}, eval: rulePublicAssetConvention},
 }
 
 // fixerByID maps a rule id to its deterministic fixer. Only rules listed here
@@ -91,6 +95,7 @@ var fixerByID = map[string]fixerFunc{
 	"open-graph":              fixOpenGraph,
 	"twitter-card":            fixTwitterCard,
 	"reduced-motion-support":  fixReducedMotion,
+	"public-asset-convention": fixPublicAssetConvention,
 }
 
 // fixableRuleIDs is the registry-ordered list of rules that have a deterministic

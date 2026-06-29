@@ -42,6 +42,20 @@ const (
 	SourceExternal = manifest.SourceExternal
 )
 
+// PublicExposure is the per-route override for the /public Access-bypass
+// convention. Aliased from the manifest type so the routes domain owns its
+// validation while other domains share one shape.
+type PublicExposure = manifest.PublicExposure
+
+const (
+	PublicExposureInherit  = manifest.PublicExposureInherit
+	PublicExposureEnabled  = manifest.PublicExposureEnabled
+	PublicExposureDisabled = manifest.PublicExposureDisabled
+)
+
+// NormalizePublicExposure maps an empty or unrecognized value to Inherit.
+var NormalizePublicExposure = manifest.NormalizePublicExposure
+
 // DefaultDomain is the apex domain a subdomain hangs off when a route is
 // created without one. It is a field, never a hardcoded constant baked
 // into URLs — the old scenario hardcoded ".vrooli.com"; the live tunnel

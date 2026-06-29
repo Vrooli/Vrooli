@@ -86,12 +86,17 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		external = true
 	}
 
+	exposure, err := publicExposureFlag(ctx.Flag("public-exposure"))
+	if err != nil {
+		return err
+	}
 	req := &routesv1.CreateRouteRequest{
-		Subdomain:  ctx.Flag("subdomain"),
-		Scenario:   ctx.Flag("scenario"),
-		Domain:     ctx.Flag("domain"),
-		Tier:       tier,
-		HealthPath: ctx.Flag("health-path"),
+		Subdomain:      ctx.Flag("subdomain"),
+		Scenario:       ctx.Flag("scenario"),
+		Domain:         ctx.Flag("domain"),
+		Tier:           tier,
+		HealthPath:     ctx.Flag("health-path"),
+		PublicExposure: exposure,
 	}
 	if external {
 		if target == "" {
@@ -144,6 +149,11 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		return err
 	}
 	req.Tier = tier
+	exposure, err := publicExposureFlag(ctx.Flag("public-exposure"))
+	if err != nil {
+		return err
+	}
+	req.PublicExposure = exposure
 	if v := strings.TrimSpace(ctx.Flag("enabled")); v != "" {
 		enabled, err := strconv.ParseBool(v)
 		if err != nil {
@@ -197,6 +207,38 @@ func tierFlag(v string) (routesv1.Tier, error) {
 	}
 }
 
+// publicExposureFlag maps a --public-exposure value (inherit|enabled|disabled|"")
+// to the proto enum. Empty returns PUBLIC_EXPOSURE_UNSPECIFIED: on create the
+// server treats it as the default (inherit); on update it leaves the route's
+// existing override unchanged.
+func publicExposureFlag(v string) (routesv1.PublicExposure, error) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "":
+		return routesv1.PublicExposure_PUBLIC_EXPOSURE_UNSPECIFIED, nil
+	case "inherit":
+		return routesv1.PublicExposure_PUBLIC_EXPOSURE_INHERIT, nil
+	case "enabled":
+		return routesv1.PublicExposure_PUBLIC_EXPOSURE_ENABLED, nil
+	case "disabled":
+		return routesv1.PublicExposure_PUBLIC_EXPOSURE_DISABLED, nil
+	default:
+		return routesv1.PublicExposure_PUBLIC_EXPOSURE_UNSPECIFIED, fmt.Errorf("unknown public-exposure %q (use inherit, enabled, or disabled)", v)
+	}
+}
+
+// publicExposureLabel renders a route's PublicExposure for display, omitting
+// the noise of the unspecified/inherit default.
+func publicExposureLabel(e routesv1.PublicExposure) string {
+	switch e {
+	case routesv1.PublicExposure_PUBLIC_EXPOSURE_ENABLED:
+		return "enabled"
+	case routesv1.PublicExposure_PUBLIC_EXPOSURE_DISABLED:
+		return "disabled"
+	default:
+		return "inherit"
+	}
+}
+
 func formatRoute(r *routesv1.Route) string {
 	if r == nil {
 		return "(nil)"
@@ -205,10 +247,11 @@ func formatRoute(r *routesv1.Route) string {
 	if !r.Enabled {
 		state = "disabled"
 	}
+	pub := "public=" + publicExposureLabel(r.PublicExposure)
 	if r.Source == routesv1.RouteSource_ROUTE_SOURCE_EXTERNAL {
-		return fmt.Sprintf("%s — external → %s [%s, %s, id=%s]",
-			r.Subdomain, r.PublicUrl, r.ServiceTarget, state, r.Id)
+		return fmt.Sprintf("%s — external → %s [%s, %s, %s, id=%s]",
+			r.Subdomain, r.PublicUrl, r.ServiceTarget, state, pub, r.Id)
 	}
-	return fmt.Sprintf("%s — %s → %s :%d [%s, %s, id=%s]",
-		r.Subdomain, r.Scenario, r.PublicUrl, r.LocalPort, strings.ToLower(r.Tier.String()), state, r.Id)
+	return fmt.Sprintf("%s — %s → %s :%d [%s, %s, %s, id=%s]",
+		r.Subdomain, r.Scenario, r.PublicUrl, r.LocalPort, strings.ToLower(r.Tier.String()), state, pub, r.Id)
 }

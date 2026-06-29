@@ -88,6 +88,10 @@
             {
               "name": "target",
               "description": "External service target URL (e.g. http://127.0.0.1:9000); required with --external"
+            },
+            {
+              "name": "public-exposure",
+              "description": "Per-route /public Access-bypass override: inherit (default), enabled, or disabled"
             }
           ],
           "binding": {
@@ -145,6 +149,10 @@
             {
               "name": "target",
               "description": "New external service target URL"
+            },
+            {
+              "name": "public-exposure",
+              "description": "Per-route /public Access-bypass override: inherit, enabled, or disabled (unset leaves unchanged)"
             }
           ],
           "binding": {
@@ -351,6 +359,63 @@
             "run_eligible": false,
             "permissions": [
               "network:external"
+            ]
+          }
+        },
+        {
+          "name": "public-exposure",
+          "description": "Flip the global /public Access-bypass switch (use --on or --off)",
+          "flags": [
+            {
+              "name": "on",
+              "bool": true,
+              "description": "Enable global /public Access bypass"
+            },
+            {
+              "name": "off",
+              "bool": true,
+              "description": "Disable global /public Access bypass"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "SetPublicExposure"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "access",
+      "description": "Inspect the /public Cloudflare Access-bypass state (global switch + per-host effective bypass). Read-only; the global toggle lives on `config public-exposure`.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show the global /public exposure switch and the per-host effective-bypass table (use --dry-run to preview the pending create/remove diff)",
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Render the pending Bypass-app create/remove diff (to_create/to_remove) instead of the per-host table; mutates nothing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetAccessStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
             ]
           }
         }

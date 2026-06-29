@@ -52,12 +52,16 @@ func (h *connectHandler) GenerateBrandElements(ctx context.Context, req *connect
 
 func (h *connectHandler) GenerateBrandImage(ctx context.Context, req *connect.Request[generationv1.GenerateBrandImageRequest]) (*connect.Response[generationv1.BrandImageAsset], error) {
 	result, err := h.deps.Service.GenerateImage(ctx, generation.GenerateImageInput{
-		BrandID:       req.Msg.GetBrandId(),
-		Type:          req.Msg.GetType(),
-		ModelOverride: req.Msg.GetModelOverride(),
-		AllowBYOK:     req.Msg.GetAllowByok(),
-		Seed:          req.Msg.GetSeed(),
-		SetCanonical:  req.Msg.GetSetCanonical(),
+		BrandID:        req.Msg.GetBrandId(),
+		Type:           req.Msg.GetType(),
+		ModelOverride:  req.Msg.GetModelOverride(),
+		AllowBYOK:      req.Msg.GetAllowByok(),
+		QualityPolicy:  req.Msg.GetQualityPolicy(),
+		FallbackPolicy: req.Msg.GetFallbackPolicy(),
+		Priority:       req.Msg.GetPriority(),
+		AllowReclaim:   req.Msg.AllowReclaim,
+		Seed:           req.Msg.GetSeed(),
+		SetCanonical:   req.Msg.GetSetCanonical(),
 	})
 	if err != nil {
 		return nil, h.translate("generation.GenerateBrandImage", err)
@@ -67,13 +71,17 @@ func (h *connectHandler) GenerateBrandImage(ctx context.Context, req *connect.Re
 
 func (h *connectHandler) EditBrandImage(ctx context.Context, req *connect.Request[generationv1.EditBrandImageRequest]) (*connect.Response[generationv1.BrandImageAsset], error) {
 	result, err := h.deps.Service.EditImage(ctx, generation.EditImageInput{
-		BrandID:       req.Msg.GetBrandId(),
-		SourceAssetID: req.Msg.GetSourceAssetId(),
-		Instruction:   req.Msg.GetInstruction(),
-		ModelOverride: req.Msg.GetModelOverride(),
-		AllowBYOK:     req.Msg.GetAllowByok(),
-		Seed:          req.Msg.GetSeed(),
-		SetCanonical:  req.Msg.GetSetCanonical(),
+		BrandID:        req.Msg.GetBrandId(),
+		SourceAssetID:  req.Msg.GetSourceAssetId(),
+		Instruction:    req.Msg.GetInstruction(),
+		ModelOverride:  req.Msg.GetModelOverride(),
+		AllowBYOK:      req.Msg.GetAllowByok(),
+		QualityPolicy:  req.Msg.GetQualityPolicy(),
+		FallbackPolicy: req.Msg.GetFallbackPolicy(),
+		Priority:       req.Msg.GetPriority(),
+		AllowReclaim:   req.Msg.AllowReclaim,
+		Seed:           req.Msg.GetSeed(),
+		SetCanonical:   req.Msg.GetSetCanonical(),
 	})
 	if err != nil {
 		return nil, h.translate("generation.EditBrandImage", err)

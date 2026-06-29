@@ -40,16 +40,16 @@ const (
 	// RFC3339Nano matches the wire format and the round-trip in scanRoute.
 	routeTimeFormat = time.RFC3339Nano
 
-	routeColumns = `id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, source, service_target, created_at, updated_at`
+	routeColumns = `id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, source, service_target, public_exposure, created_at, updated_at`
 
 	insertRouteSQL = `
-INSERT INTO routes (id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, source, service_target, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO routes (id, subdomain, scenario, domain, local_port, tier, lease_id, enabled, health_path, source, service_target, public_exposure, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	updateRouteSQL = `
 UPDATE routes
-SET subdomain = ?, scenario = ?, domain = ?, local_port = ?, tier = ?, lease_id = ?, enabled = ?, health_path = ?, source = ?, service_target = ?, updated_at = ?
+SET subdomain = ?, scenario = ?, domain = ?, local_port = ?, tier = ?, lease_id = ?, enabled = ?, health_path = ?, source = ?, service_target = ?, public_exposure = ?, updated_at = ?
 WHERE id = ?
 `
 )
@@ -68,10 +68,11 @@ func (s *sqliteRepository) Create(ctx context.Context, r Route) (Route, error) {
 	if r.Source == "" {
 		r.Source = SourceScenario
 	}
+	r.PublicExposure = NormalizePublicExposure(r.PublicExposure)
 	_, err := s.db.ExecContext(ctx, insertRouteSQL,
 		r.ID, r.Subdomain, r.Scenario, r.Domain, r.LocalPort,
 		string(r.Tier), r.LeaseID, boolToInt(r.Enabled), r.HealthPath,
-		string(r.Source), r.ServiceTarget,
+		string(r.Source), r.ServiceTarget, string(r.PublicExposure),
 		r.CreatedAt.Format(routeTimeFormat), r.UpdatedAt.Format(routeTimeFormat),
 	)
 	if err != nil {
@@ -141,10 +142,11 @@ func (s *sqliteRepository) Update(ctx context.Context, r Route) (Route, error) {
 	if r.Source == "" {
 		r.Source = SourceScenario
 	}
+	r.PublicExposure = NormalizePublicExposure(r.PublicExposure)
 	res, err := s.db.ExecContext(ctx, updateRouteSQL,
 		r.Subdomain, r.Scenario, r.Domain, r.LocalPort,
 		string(r.Tier), r.LeaseID, boolToInt(r.Enabled), r.HealthPath,
-		string(r.Source), r.ServiceTarget,
+		string(r.Source), r.ServiceTarget, string(r.PublicExposure),
 		r.UpdatedAt.Format(routeTimeFormat), r.ID,
 	)
 	if err != nil {
@@ -183,15 +185,16 @@ type rowScanner interface {
 
 func scanRoute(sc rowScanner) (Route, error) {
 	var (
-		r          Route
-		tierRaw    string
-		enabledRaw int
-		sourceRaw  string
-		createdRaw string
-		updatedRaw string
+		r           Route
+		tierRaw     string
+		enabledRaw  int
+		sourceRaw   string
+		exposureRaw string
+		createdRaw  string
+		updatedRaw  string
 	)
 	if err := sc.Scan(&r.ID, &r.Subdomain, &r.Scenario, &r.Domain, &r.LocalPort,
-		&tierRaw, &r.LeaseID, &enabledRaw, &r.HealthPath, &sourceRaw, &r.ServiceTarget, &createdRaw, &updatedRaw); err != nil {
+		&tierRaw, &r.LeaseID, &enabledRaw, &r.HealthPath, &sourceRaw, &r.ServiceTarget, &exposureRaw, &createdRaw, &updatedRaw); err != nil {
 		return Route{}, err
 	}
 	r.Tier = Tier(tierRaw)
@@ -200,6 +203,7 @@ func scanRoute(sc rowScanner) (Route, error) {
 	if r.Source == "" {
 		r.Source = SourceScenario
 	}
+	r.PublicExposure = NormalizePublicExposure(PublicExposure(exposureRaw))
 	created, err := time.Parse(routeTimeFormat, createdRaw)
 	if err != nil {
 		return Route{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)

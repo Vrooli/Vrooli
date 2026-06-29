@@ -311,7 +311,12 @@ const literalSelectors = {
     saveOverlap: "stream-config-save-overlap",
   },
   dictationStudio: {
+    modeFree: "dictation-mode-free",
+    modeScripted: "dictation-mode-scripted",
     recordStart: "dictation-record-start",
+    recordCancel: "dictation-record-cancel",
+    recordState: "dictation-record-state",
+    audioMeter: "dictation-audio-meter",
     transcriptEditor: "dictation-transcript-editor",
     tagInput: "dictation-tag-input",
     saveClip: "dictation-save-clip",
@@ -320,6 +325,8 @@ const literalSelectors = {
     repeatsInput: "dictation-repeats-input",
     evalTable: "dictation-eval-table",
     promptInput: "dictation-prompt-input",
+    scriptPicker: "dictation-script-picker",
+    scriptDetails: "dictation-script-details",
   },
   wakeWord: {
     label: "wake-word-label",

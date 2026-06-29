@@ -27,25 +27,28 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Web Console" />
 
-    <!-- Icons + manifest (generated from public/logo.svg via brand-manager). -->
-    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <!-- Icons + manifest. Generated from public/public/logo.svg via brand-manager.
+         Assets are served under the URL prefix /public/* (the world-readable
+         convention — see docs/concepts/PUBLIC_ASSETS.md). The crossorigin on the
+         manifest is intentional: desktop Chromium installs DO carry the cookie. -->
+    <link rel="icon" type="image/svg+xml" href="/public/logo.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/public/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/public/apple-touch-icon.png" />
+    <link rel="manifest" href="/public/site.webmanifest" crossorigin="use-credentials" />
 
     <!-- Open Graph / Twitter link-preview cards. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Web Console" />
     <meta property="og:title" content="Web Console" />
     <meta property="og:description" content="Browser-based terminal with pane workspaces, durable sessions, AI command generation, and mobile toolbar." />
-    <meta property="og:image" content="./og-image.png" />
+    <meta property="og:image" content="/public/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Web Console" />
     <meta name="twitter:description" content="Browser-based terminal with pane workspaces, durable sessions, AI command generation, and mobile toolbar." />
-    <meta name="twitter:image" content="./og-image.png" />
+    <meta name="twitter:image" content="/public/og-image.png" />
 
     <title>Web Console</title>
   </head>

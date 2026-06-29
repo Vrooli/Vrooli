@@ -35,6 +35,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   private wsUrl = "";
   private reconnectAttempt = 0;
   private intentionallyStopped = false;
+  private doneSent = false;
   private recordingStartTime = 0;
   /** Timestamp when stop() was called -- used to measure stop-to-final latency. */
   private stopTime = 0;
@@ -196,6 +197,19 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     };
   }
 
+  private flushPendingChunks(ws: WebSocket): void {
+    for (const chunk of this.pendingChunks) {
+      if (ws.readyState === WebSocket.OPEN) ws.send(chunk);
+    }
+    this.pendingChunks = [];
+  }
+
+  private sendDoneIfStopped(ws: WebSocket): void {
+    if (!this.intentionallyStopped || this.doneSent || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "done" }));
+    this.doneSent = true;
+  }
+
   private setupWsHandlers(ws: WebSocket): void {
     ws.onmessage = (event) => {
       try {
@@ -297,10 +311,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
             this.ws = newWs;
             this.setupWsHandlers(newWs);
             // Flush chunks buffered during reconnection
-            for (const chunk of this.pendingChunks) {
-              if (newWs.readyState === WebSocket.OPEN) newWs.send(chunk);
-            }
-            this.pendingChunks = [];
+            this.flushPendingChunks(newWs);
+            this.sendDoneIfStopped(newWs);
           };
           newWs.onerror = () => {
             clearTimeout(connTimeout);
@@ -329,11 +341,10 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     const httpFallbackStart = Date.now();
     transcribeAudioWithRetry(blob, 2, this.language)
       .then((text) => {
-        console.info("[voice] HTTP fallback transcription took %dms, %d chars", Date.now() - httpFallbackStart, text.trim().length);
-        if (text.trim()) {
-          this.finalReceived = true;
-          this.onResult?.(text.trim());
-        }
+        const transcript = text.trim();
+        console.info("[voice] HTTP fallback transcription took %dms, %d chars", Date.now() - httpFallbackStart, transcript.length);
+        this.finalReceived = true;
+        this.onResult?.(transcript);
       })
       .catch(() => {
         console.warn("[voice] HTTP fallback failed after %dms", Date.now() - httpFallbackStart);
@@ -444,6 +455,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.firstPartialLogged = false;
     this.reconnectAttempt = 0;
     this.intentionallyStopped = false;
+    this.doneSent = false;
     this.recordingStartTime = Date.now();
     this.stopTime = 0;
     this.pendingChunks = [];
@@ -464,23 +476,29 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     // Otherwise open a new one. Either way, install recording-session handlers.
     if (hasPreConnectedWs && this.ws) {
       console.info("[voice] Reusing pre-connected WebSocket");
-      // Flush any buffered chunks from the pre-connect phase
-      for (const chunk of this.pendingChunks) {
-        if (this.ws.readyState === WebSocket.OPEN) this.ws.send(chunk);
-      }
-      this.pendingChunks = [];
       // Replace the lightweight pre-connect handlers with full recording handlers
       this.setupWsHandlers(this.ws);
+      this.ws.onopen = () => {
+        console.info("[voice] Pre-connected WebSocket opened during recording, flushing %d buffered chunks", this.pendingChunks.length);
+        if (this.ws) {
+          this.flushPendingChunks(this.ws);
+          this.sendDoneIfStopped(this.ws);
+        }
+      };
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.flushPendingChunks(this.ws);
+        this.sendDoneIfStopped(this.ws);
+      }
     } else {
       const wsConnStart = Date.now();
       this.ws = new WebSocket(this.wsUrl);
       this.ws.onopen = () => {
         console.info("[voice] WebSocket connected in %dms, flushing %d buffered chunks", Date.now() - wsConnStart, this.pendingChunks.length);
         // Flush chunks that were buffered before the WebSocket connected
-        for (const chunk of this.pendingChunks) {
-          if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(chunk);
+        if (this.ws) {
+          this.flushPendingChunks(this.ws);
+          this.sendDoneIfStopped(this.ws);
         }
-        this.pendingChunks = [];
       };
       this.setupWsHandlers(this.ws);
     }
@@ -505,9 +523,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       this.stream = null;
     }
 
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: "done" }));
-    }
+    if (this.ws?.readyState === WebSocket.OPEN) this.sendDoneIfStopped(this.ws);
 
     // Tail-drop path: the server already declared end-of-utterance, so skip
     // tail retention. Otherwise retain the turn's audio for a possible
@@ -534,9 +550,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
           // "audio streamed but no transcript came back" (likely the local
           // provider declining streaming) from "no audio reached the server".
           if (sentBytes > 0) {
-            this.onError?.(
-              "No transcript received from the streaming backend — audio streamed but no final result returned (the local provider may have declined streaming).",
-            );
+            console.warn("[voice] Streaming backend produced no final after %dms; falling back to HTTP transcription", timeout);
+            this.attemptHttpFallback();
           } else {
             this.onError?.(
               "Streaming transcription timed out — no audio reached the server (check the microphone and the /api/v1/voice/stream connection).",

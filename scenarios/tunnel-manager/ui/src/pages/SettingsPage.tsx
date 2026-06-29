@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, GitCompareArrows, KeyRound, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
+import { CheckCircle2, GitCompareArrows, Globe, KeyRound, RefreshCw, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { Mode, type ConfigReadiness, type CredentialFieldStatus } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { Button } from "../components/ui/button";
@@ -102,6 +102,10 @@ export function SettingsPage() {
       void refreshConfig();
     },
   });
+  const publicExposureMutation = useMutation({
+    mutationFn: (enabled: boolean) => configClient.setPublicExposure({ enabled }),
+    onSuccess: () => void refreshConfig(),
+  });
 
   const config = configQuery.data?.config;
   const readiness = configQuery.data?.readiness;
@@ -115,14 +119,16 @@ export function SettingsPage() {
     switchModeMutation.error ??
     reconcileMutation.error ??
     saveCredentialsMutation.error ??
-    clearCredentialsMutation.error;
+    clearCredentialsMutation.error ??
+    publicExposureMutation.error;
   const actionPending =
     dryRunMutation.isPending ||
     syncMutation.isPending ||
     switchModeMutation.isPending ||
     reconcileMutation.isPending ||
     saveCredentialsMutation.isPending ||
-    clearCredentialsMutation.isPending;
+    clearCredentialsMutation.isPending ||
+    publicExposureMutation.isPending;
   const reconcileResult = reconcileMutation.data;
 
   return (
@@ -369,6 +375,46 @@ export function SettingsPage() {
                     })}
                   </p>
                 )}
+              </div>
+
+              <div
+                data-testid={selectors.settingsPage.publicExposurePanel}
+                className="flex flex-col gap-3 border-t border-app-border pt-4"
+              >
+                <div className="flex flex-col gap-1">
+                  <h4 className="text-sm font-semibold">{t(strings.config.publicExposureHeading)}</h4>
+                  <p className="text-sm text-app-muted-foreground">{t(strings.config.publicExposureBody)}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <StatusBadge
+                    tone={config.publicExposureEnabled ? "success" : "neutral"}
+                    data-testid={selectors.settingsPage.publicExposureState}
+                  >
+                    {config.publicExposureEnabled
+                      ? t(strings.config.publicExposureOn)
+                      : t(strings.config.publicExposureOff)}
+                  </StatusBadge>
+                  <Button
+                    type="button"
+                    variant={config.publicExposureEnabled ? "outline" : "default"}
+                    disabled={actionPending}
+                    data-testid={selectors.settingsPage.publicExposureToggle}
+                    onClick={() => publicExposureMutation.mutate(!config.publicExposureEnabled)}
+                  >
+                    <Globe aria-hidden="true" className="mr-2 h-4 w-4" />
+                    {config.publicExposureEnabled
+                      ? t(strings.config.publicExposureDisable)
+                      : t(strings.config.publicExposureEnable)}
+                  </Button>
+                  <Link
+                    to="/drift"
+                    data-testid={selectors.settingsPage.publicExposureStatusLink}
+                    className="inline-flex items-center gap-2 text-sm text-app-primary underline-offset-2 hover:underline"
+                  >
+                    <GitCompareArrows aria-hidden="true" className="h-4 w-4" />
+                    {t(strings.config.publicExposureViewStatus)}
+                  </Link>
+                </div>
               </div>
 
               {credentialMutationResult && (

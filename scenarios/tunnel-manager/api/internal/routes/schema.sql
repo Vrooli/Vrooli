@@ -21,6 +21,13 @@ CREATE TABLE IF NOT EXISTS routes (
   -- of deriving http://localhost:<local_port>.
   source         TEXT NOT NULL DEFAULT 'scenario',
   service_target TEXT NOT NULL DEFAULT '',
+  -- Per-route override for the /public Access-bypass convention (see
+  -- docs/concepts/PUBLIC_ASSETS.md). One of inherit|enabled|disabled; empty or
+  -- legacy rows = inherit (defer to the global public_exposure_enabled switch).
+  -- Declared here so fresh DBs get it; a pre-existing DB needs a one-shot
+  -- ALTER TABLE ... ADD COLUMN (the EnsureSchemas drift check guides this). No
+  -- index: low-cardinality column on a tiny table (matches source above).
+  public_exposure TEXT NOT NULL DEFAULT 'inherit',
   created_at     TEXT NOT NULL,
   updated_at     TEXT NOT NULL
 );

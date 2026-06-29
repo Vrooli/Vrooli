@@ -40,8 +40,8 @@ func NewCFVerifier(doer httpc.Doer) CredentialVerifier {
 
 var _ CredentialVerifier = (*cfVerifier)(nil)
 
-func (v *cfVerifier) Verify(ctx context.Context, cfg CFConfig, apexes []string) (CredentialVerification, error) {
-	checks := make([]CredentialCheck, 0, 4+2*len(apexes))
+func (v *cfVerifier) Verify(ctx context.Context, cfg CFConfig, apexes []string, accessRequired bool) (CredentialVerification, error) {
+	checks := make([]CredentialCheck, 0, 5+2*len(apexes))
 
 	// 1. Token present + authenticates.
 	tokenCheck := v.checkToken(ctx, cfg.APIToken)
@@ -59,14 +59,50 @@ func (v *cfVerifier) Verify(ctx context.Context, cfg CFConfig, apexes []string) 
 		checks = append(checks, v.checkZoneDNS(ctx, cfg.APIToken, apex, tokenUsable)...)
 	}
 
+	// 5. Access: Apps and Policies: Edit scope — needed only by the /public
+	// Access-bypass capability. Always probed (so the operator can see it
+	// before enabling), but it counts toward Ready ONLY when the capability is
+	// enabled, so a token without Access scope never breaks readiness for the
+	// vast majority of installs that do not use public exposure.
+	access := v.checkAccessScope(ctx, cfg, tokenUsable)
+	checks = append(checks, access)
+
 	ready := true
 	for _, c := range checks {
+		if c.Name == CheckNameAccessScope && !accessRequired {
+			continue // informational unless the capability is enabled
+		}
 		if c.State != CheckOK {
 			ready = false
 			break
 		}
 	}
 	return CredentialVerification{Checks: checks, Ready: ready}, nil
+}
+
+// checkAccessScope probes the account-scoped Access apps list as a non-mutating
+// proxy for Access: Apps and Policies: Edit. A 403/401 surfaces as
+// insufficient_scope with the exact remediation the operator needs before
+// turning on public exposure; a 200 proves the token can reach the Access
+// surface the reconcile will write to.
+func (v *cfVerifier) checkAccessScope(ctx context.Context, cfg CFConfig, tokenUsable bool) CredentialCheck {
+	c := CredentialCheck{Name: CheckNameAccessScope}
+	if strings.TrimSpace(cfg.AccountID) == "" {
+		c.State = CheckMissing
+		c.Remediation = "Set the account id via `config credentials-set --account-id <id>`."
+		return c
+	}
+	if !tokenUsable {
+		c.State = CheckUnspecified
+		c.Detail = "skipped: token not usable"
+		return c
+	}
+	u := fmt.Sprintf("%s/accounts/%s/access/apps?per_page=1", v.baseURL, url.PathEscape(cfg.AccountID))
+	status, _, err := v.get(ctx, cfg.APIToken, u)
+	return classifyResourceCheck(c, status, err,
+		"access apps read failed",
+		"Add Access: Apps and Policies: Edit to the token and re-issue it so TM can manage the /public bypass.",
+		"Access apps endpoint not found for this account.")
 }
 
 func (v *cfVerifier) checkToken(ctx context.Context, token string) CredentialCheck {

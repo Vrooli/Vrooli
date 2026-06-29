@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createExternalRoute, deleteRoute, listRoutes, RouteSource, routesClient } from "./routes";
+import { createExternalRoute, deleteRoute, listRoutes, PublicExposure, RouteSource, routesClient } from "./routes";
 import { makeExternalRoute, makeRoute } from "../test-utils/mocks/routes";
 
 describe("routes API helpers", () => {
@@ -22,6 +22,25 @@ describe("routes API helpers", () => {
       serviceTarget: "http://127.0.0.1:7000",
       domain: "",
       source: RouteSource.EXTERNAL,
+      publicExposure: PublicExposure.INHERIT,
+    });
+  });
+
+  it("forwards an explicit public-exposure override", async () => {
+    const route = makeExternalRoute();
+    const spy = vi.spyOn(routesClient, "createRoute").mockResolvedValueOnce({ route } as never);
+
+    await createExternalRoute({
+      subdomain: "billing",
+      serviceTarget: "http://127.0.0.1:7000",
+      publicExposure: PublicExposure.ENABLED,
+    });
+    expect(spy).toHaveBeenCalledWith({
+      subdomain: "billing",
+      serviceTarget: "http://127.0.0.1:7000",
+      domain: "",
+      source: RouteSource.EXTERNAL,
+      publicExposure: PublicExposure.ENABLED,
     });
   });
 
@@ -35,6 +54,7 @@ describe("routes API helpers", () => {
       serviceTarget: "http://127.0.0.1:7000",
       domain: "example.com",
       source: RouteSource.EXTERNAL,
+      publicExposure: PublicExposure.INHERIT,
     });
   });
 

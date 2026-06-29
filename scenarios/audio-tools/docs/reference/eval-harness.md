@@ -50,8 +50,9 @@ repeated runs — never gated on a single sample.
 ## Workflow
 
 ```bash
-# 1. Record clips (preferred: the Dictation Studio UI — record → batch-
-#    transcribe → correct the transcript to exact words → tag → save), or
+# 1. Record clips (preferred: the Dictation Studio UI — select a built-in
+#    scripted prompt or write a custom/free-form prompt → record → stop into
+#    transcribing → correct the transcript to exact words → tag → save), or
 #    import an s16le-mono-PCM file + reference from disk:
 audio-tools corpus import clip.pcm --reference "the quick brown fox" --tags news,clean
 audio-tools corpus list
@@ -72,6 +73,13 @@ fast CI). The deterministic fake-provider unit tests in
 `api/internal/eval/harness_test.go` carry the default-suite coverage; the
 real-Whisper integration test (`harness_integration_test.go`) is
 build-tagged (`-tags whisper_integration`) and skipped without a backend.
+
+Dictation Studio's scripted prompt pack is the intended fast-start corpus
+builder for local evaluation. The recorder exposes the operator-visible state
+sequence `preparing → recording → transcribing → captured` and includes a live
+audio-level meter; a stopped turn remains cancellable while waiting for the
+terminal transcript. If the meter never moves, treat the resulting no-audio
+warning as a capture problem and retry before saving the clip.
 
 ## The stall-fallback lever this harness exists to tune
 

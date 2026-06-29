@@ -2,6 +2,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { DriftPanel } from "../features/drift/DriftPanel";
+import { AccessPanel } from "../features/access/AccessPanel";
 import { Page } from "./Page";
 
 /** Drift surface — live ingress classified against the manifest and ledger. */
@@ -15,6 +16,7 @@ export function DriftPage() {
       description={t(strings.pages.drift.description)}
     >
       <DriftPanel />
+      <AccessPanel />
     </Page>
   );
 }

@@ -384,4 +384,51 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Prune hostname", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/PruneIngress -H 'Content-Type: application/json' -d '{\"hostname\":\"legacy.itsagitime.com\"}'"},
 		},
 	},
+	{
+		ID:          "config_set_public_exposure",
+		Path:        configconnect.ConfigServiceSetPublicExposureProcedure,
+		Method:      "POST",
+		Summary:     "Toggle the global /public Access-bypass switch",
+		Description: "Flips the global public-exposure capability (the /public-asset convention). PURE: persists the flag and performs zero Cloudflare writes — the next Sync reconciles the live Access apps.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"enabled": "bool (new global state)"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"config": "TunnelConfig (persisted)"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Operator token required when authz is enforced"},
+			{Status: 500, Code: "internal", Description: "Config persist failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Enable public exposure", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/SetPublicExposure -H 'Content-Type: application/json' -d '{\"enabled\":true}'"},
+		},
+	},
+	{
+		ID:          "config_get_access_status",
+		Path:        configconnect.ConfigServiceGetAccessStatusProcedure,
+		Method:      "POST",
+		Summary:     "Get /public Access-bypass status + dry-run plan",
+		Description: "Returns the public-exposure read model: the global switch, whether the Access client is configured, per-host effective decisions, and the dry-run plan (apps a reconcile would create/remove). Read-only — no Cloudflare calls.",
+		Category:    "config",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"status": "AccessStatus (enabled, configured, hosts[], to_create[], to_remove[])",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 500, Code: "internal", Description: "Config or ledger read failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Get access status", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.config.ConfigService/GetAccessStatus -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
 }

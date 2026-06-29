@@ -71,7 +71,7 @@ func resolvePublicAsset(root, href string) (string, bool) {
 		return "", false
 	}
 	rel := strings.TrimPrefix(href, "/")
-	for _, base := range []string{"ui/public", "public", "ui"} {
+	for _, base := range []string{"ui/public", "ui/public/public", "public", "ui"} {
 		abs := filepath.Join(root, filepath.FromSlash(base), filepath.FromSlash(rel))
 		if info, err := os.Stat(abs); err == nil && !info.IsDir() {
 			return abs, true

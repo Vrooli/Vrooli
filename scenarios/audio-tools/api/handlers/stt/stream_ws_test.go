@@ -15,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
+	sttmocks "audio-tools/internal/ai/sttchain/mocks"
+	"audio-tools/internal/byok/envelope"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/testutil/mocks"
 )
@@ -85,6 +87,11 @@ func newNoProviderDeps(t *testing.T) Deps {
 	}
 }
 
+type staticStreamConfig struct{ raw string }
+
+func (s staticStreamConfig) Get(context.Context) (string, bool, error) { return s.raw, true, nil }
+func (s staticStreamConfig) Set(context.Context, string) error         { return nil }
+
 // TestStreamWS_HandshakeAndTerminalDone confirms that:
 //   - upgrade succeeds when Chain+Selector are wired
 //   - the no-provider Segmenter path emits a terminal error+final+done
@@ -127,6 +134,84 @@ func TestStreamWS_HandshakeAndTerminalDone(t *testing.T) {
 	require.True(t, sawError, "expected an error frame from no-provider chain")
 	require.True(t, sawFinal, "expected a final frame before done")
 	require.True(t, sawDone, "expected a terminal done frame")
+}
+
+func TestStreamWS_BinaryPCMAndDoneProducePromptSegmentFinal(t *testing.T) {
+	audio := []byte{0x01, 0x00, 0x02, 0x00, 0x03, 0x00}
+	captured := make(chan sttchain.Request, 1)
+	adapter := &sttmocks.FakeBYOK{
+		IDStr:     "fake",
+		Available: true,
+		TranscribeFn: func(_ context.Context, _ string, req sttchain.Request) (*sttchain.Result, error) {
+			captured <- req
+			return &sttchain.Result{
+				Text:       "scripted transcript",
+				Tier:       sttchain.TierBYOK,
+				ProviderID: "fake",
+				ModelID:    "fake-model",
+				Latency:    time.Millisecond,
+			}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{
+		BYOK:       sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}),
+		EnableBYOK: true,
+	})
+	deps := Deps{
+		Chain:        chain,
+		Selector:     sttpkg.NewSelector(chain),
+		Logger:       &mocks.FakeLogger{},
+		StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+	}
+
+	r := mux.NewRouter()
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le")
+	wsURL.Scheme = "ws"
+	h := http.Header{}
+	h.Set(envelope.HeaderProvider, "fake")
+	h.Set(envelope.HeaderKey, "secret")
+	c, resp, err := websocket.DefaultDialer.Dial(wsURL.String(), h)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+	t.Cleanup(func() { _ = c.Close() })
+
+	require.NoError(t, c.WriteMessage(websocket.BinaryMessage, audio))
+	require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+
+	_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	sawSegment, sawFinal, sawDone := false, false, false
+	for !sawDone {
+		_, raw, err := c.ReadMessage()
+		require.NoError(t, err)
+		var m wsMessage
+		require.NoError(t, json.Unmarshal(raw, &m))
+		switch m.Type {
+		case wsMsgError:
+			t.Fatalf("unexpected ws error frame: %s", m.Text)
+		case wsMsgSegmentFinal:
+			require.Equal(t, "scripted transcript", m.Text)
+			sawSegment = true
+		case wsMsgFinal:
+			sawFinal = true
+		case wsMsgDone:
+			sawDone = true
+		}
+	}
+	require.True(t, sawSegment, "expected segment-final transcript")
+	require.True(t, sawFinal, "expected final transition frame before done")
+
+	select {
+	case req := <-captured:
+		require.Equal(t, audio, req.Audio)
+		require.Equal(t, "pcm_s16le", req.Format)
+		require.Equal(t, "en", req.Language)
+	case <-time.After(time.Second):
+		t.Fatal("fake BYOK adapter was not called")
+	}
 }
 
 // TestStreamWS_AbruptClientCloseDrainsServer drops the connection mid-stream

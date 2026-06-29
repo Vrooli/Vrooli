@@ -217,6 +217,39 @@ func (h *handlers) mode(ctx cliapp.RunContext) error {
 	})
 }
 
+// publicExposure flips the global /public Access-bypass switch. Exactly one
+// of --on/--off must be supplied; the resulting global state is rendered.
+func (h *handlers) publicExposure(ctx cliapp.RunContext) error {
+	on := ctx.BoolFlag("on")
+	off := ctx.BoolFlag("off")
+	switch {
+	case on && off:
+		return fmt.Errorf("--on and --off are mutually exclusive")
+	case !on && !off:
+		return fmt.Errorf("one of --on or --off is required")
+	}
+	enabled := on
+	resp, err := h.client.SetPublicExposure(context.Background(), connect.NewRequest(&configv1.SetPublicExposureRequest{Enabled: enabled}))
+	if err != nil {
+		return cliapp.WrapAPIError("set public exposure", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Config == nil {
+		return fmt.Errorf("server returned no config")
+	}
+	state := "disabled"
+	if resp.Msg.Config.PublicExposureEnabled {
+		state = "enabled"
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Global /public Access-bypass exposure is now %s.", state)},
+		Changes: []string{formatConfig(resp.Msg.Config)},
+		NextCommand: []string{
+			"`access status --dry-run` — preview the Bypass apps that would be created/removed",
+			"`access status` — show effective per-host bypass state",
+		},
+	})
+}
+
 // modeFlag maps a --target value (remote|local) to the proto enum.
 func modeFlag(v string) (configv1.Mode, error) {
 	switch strings.ToLower(strings.TrimSpace(v)) {
@@ -235,8 +268,8 @@ func formatConfig(c *configv1.TunnelConfig) string {
 	if c == nil {
 		return "(nil)"
 	}
-	return fmt.Sprintf("mode=%s tunnel_id=%s account_id=%s cred_ref=%s prom=%s",
-		strings.ToLower(c.Mode.String()), c.TunnelId, c.AccountId, c.CredRef, c.PromEndpoint)
+	return fmt.Sprintf("mode=%s tunnel_id=%s account_id=%s cred_ref=%s prom=%s public_exposure=%t",
+		strings.ToLower(c.Mode.String()), c.TunnelId, c.AccountId, c.CredRef, c.PromEndpoint, c.PublicExposureEnabled)
 }
 
 func formatReadiness(r *configv1.ConfigReadiness) string {

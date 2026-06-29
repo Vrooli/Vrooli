@@ -56,7 +56,7 @@ map):
 |---|---|---|
 | `routes` | `routes` table | Exposure manifest (SSOT): subdomain, scenario, domain, local port, tier, lease, enabled. |
 | `exposure` | `leases` table | Tiered broker: CORE reconciliation + LEASED request/extend/revoke/reap; ensure-running delegation; exposure-query for app-monitor. |
-| `config` | `tunnel_config` | Cloudflare API ingress (remote), local `config.yml` generation (fallback), mode switching, sync. |
+| `config` | `tunnel_config`, `dns_ownership`, `access_ownership` | Cloudflare API ingress (remote), local `config.yml` generation (fallback), proxied-CNAME DNS automation, the **/public Access-bypass** reconciler (the public-asset convention — see [`docs/concepts/PUBLIC_ASSETS.md`](../../docs/concepts/PUBLIC_ASSETS.md)), mode switching, sync. |
 | `audit` | (computed) | Port-compliance auditor: exposed scenarios must declare a fixed UI port in `service.json` matching the manifest. |
 | `tunnel` | `metrics` table | Tunnel health (systemd + `/ready`), Prometheus scraping, degraded-mode detection. |
 | `probes` | `probes` table | Internal + external liveness probing, scheduling, failure classification. |
@@ -77,7 +77,28 @@ tunnel-manager audit run              # port-compliance findings
 tunnel-manager recovery state|events|run       # inspect / trigger recovery
 tunnel-manager config credentials-status|credentials-set|credentials-clear
 tunnel-manager config sync|mode       # reconcile ingress / switch remote<->local
+tunnel-manager config public-exposure --on|--off   # global /public Access-bypass switch (default off)
+tunnel-manager access status|dry-run  # per-host /public bypass state + what a sync would create/remove
 ```
+
+### Public-asset Access bypass (the `/public/*` convention)
+
+Tunnel Manager's served interface grows from "ingress + DNS reconciler" to
+"ingress + DNS + **public-exemption** reconciler". When the global
+`public-exposure` switch (or a per-route `--public-exposure enabled` override)
+is on, TM ensures exactly one Cloudflare Access **Bypass-Everyone** app scoped to
+`<host>/public` per active exposed host — making anything a scenario serves under
+the `/public/*` URL prefix fetchable by **anonymous** system fetchers (iOS
+Add-to-Home-Screen, OG crawlers) while every other path stays gated by the
+operator's primary Access application. This is a **compound-value seam**: any
+scenario that adopts the `/public/` convention (see
+[`docs/concepts/PUBLIC_ASSETS.md`](../../docs/concepts/PUBLIC_ASSETS.md)) gets
+edge-level public exposure for free, with zero per-scenario Cloudflare wiring.
+
+The capability is **default-off, opt-in, and hard-guardrailed**: TM may only ever
+create Bypass-Everyone apps on the `/public` path (never a bare host/`/`/`/*`,
+never a non-bypass decision), never modifies the primary Access app, and removes
+only apps its own ownership ledger attributes to it. It is **remote-mode only**.
 
 ## Architecture
 
@@ -112,6 +133,11 @@ tunnel-manager config sync|mode       # reconcile ingress / switch remote<->loca
   remote-mode credentials through Settings or
   `tunnel-manager config credentials-set`; environment variables are
   read-only runtime overrides, not the primary setup path.
+  - The base token scopes are Account read, Account:Cloudflare Tunnel,
+    Zone:Read, Zone:DNS:Edit. The **/public Access-bypass** capability
+    additionally needs **Access: Apps and Policies: Edit** — the verifier
+    reports `insufficient_scope` (with remediation) when the capability is
+    enabled but the token lacks it; it stays informational for everyone else.
 
 ## Relationship To Other Scenarios
 

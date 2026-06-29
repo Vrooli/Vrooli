@@ -34,6 +34,30 @@ const (
 	DefaultHealthPath = "/health"
 )
 
+// PublicExposure is a route's per-route override for the /public Access-bypass
+// convention (see docs/concepts/PUBLIC_ASSETS.md). It is orthogonal to Tier
+// and Source. Tri-state: Inherit defers to the global switch
+// (config.public_exposure_enabled), Enabled forces the bypass on for this
+// host, Disabled forces it off. Empty/legacy rows are treated as Inherit.
+type PublicExposure string
+
+const (
+	PublicExposureInherit  PublicExposure = "inherit"
+	PublicExposureEnabled  PublicExposure = "enabled"
+	PublicExposureDisabled PublicExposure = "disabled"
+)
+
+// NormalizePublicExposure maps an empty or unrecognized value to Inherit (the
+// safe default: defer to the global switch).
+func NormalizePublicExposure(v PublicExposure) PublicExposure {
+	switch v {
+	case PublicExposureEnabled, PublicExposureDisabled:
+		return v
+	default:
+		return PublicExposureInherit
+	}
+}
+
 // Route is the shared manifest record read by monitoring, audit, exposure,
 // and ingress reconciliation domains. The routes domain owns persistence and
 // validation for this shape.
@@ -55,8 +79,11 @@ type Route struct {
 	// forwards to (e.g. http://127.0.0.1:9000). Empty for scenario routes,
 	// which derive http://localhost:<local_port>.
 	ServiceTarget string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// PublicExposure is the per-route override for the /public Access-bypass
+	// convention. Empty is treated as Inherit (defer to the global switch).
+	PublicExposure PublicExposure
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 func (r Route) PublicURL() string {
@@ -64,28 +91,30 @@ func (r Route) PublicURL() string {
 }
 
 type CreateInput struct {
-	Subdomain     string
-	Scenario      string
-	Domain        string
-	LocalPort     int
-	Tier          Tier
-	LeaseID       string
-	HealthPath    string
-	Enabled       *bool
-	Source        RouteSource
-	ServiceTarget string
+	Subdomain      string
+	Scenario       string
+	Domain         string
+	LocalPort      int
+	Tier           Tier
+	LeaseID        string
+	HealthPath     string
+	Enabled        *bool
+	Source         RouteSource
+	ServiceTarget  string
+	PublicExposure PublicExposure
 }
 
 type UpdateInput struct {
-	Subdomain     string
-	Scenario      string
-	Domain        string
-	LocalPort     int
-	Tier          Tier
-	HealthPath    string
-	Enabled       *bool
-	Source        RouteSource
-	ServiceTarget string
+	Subdomain      string
+	Scenario       string
+	Domain         string
+	LocalPort      int
+	Tier           Tier
+	HealthPath     string
+	Enabled        *bool
+	Source         RouteSource
+	ServiceTarget  string
+	PublicExposure PublicExposure
 }
 
 type Reader interface {
