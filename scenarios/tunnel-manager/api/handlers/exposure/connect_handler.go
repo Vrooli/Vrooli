@@ -38,7 +38,7 @@ func (h *connectHandler) Expose(ctx context.Context, req *connect.Request[exposu
 	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationExposureExpose, req.Header()); err != nil {
 		return nil, authz.ToConnectError(err)
 	}
-	lease, url, err := h.deps.Service.Expose(ctx, exposure.ExposeInput{
+	lease, url, localPort, portAssigned, err := h.deps.Service.Expose(ctx, exposure.ExposeInput{
 		Scenario:    req.Msg.Scenario,
 		TTL:         time.Duration(req.Msg.TtlSeconds) * time.Second,
 		RequestedBy: req.Msg.RequestedBy,
@@ -50,7 +50,12 @@ func (h *connectHandler) Expose(ctx context.Context, req *connect.Request[exposu
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(&exposurev1.ExposeResponse{Lease: leaseToProto(lease), PublicUrl: url}), nil
+	return connect.NewResponse(&exposurev1.ExposeResponse{
+		Lease:        leaseToProto(lease),
+		PublicUrl:    url,
+		LocalPort:    int32(localPort),
+		PortAssigned: portAssigned,
+	}), nil
 }
 
 func (h *connectHandler) ExtendLease(ctx context.Context, req *connect.Request[exposurev1.ExtendLeaseRequest]) (*connect.Response[exposurev1.ExtendLeaseResponse], error) {

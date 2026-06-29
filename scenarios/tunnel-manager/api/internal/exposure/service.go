@@ -48,7 +48,7 @@ type CoreSetProvider func() []string
 
 // Service is the exposure broker surface the handlers depend on.
 type Service interface {
-	Expose(ctx context.Context, in ExposeInput) (Lease, string, error)
+	Expose(ctx context.Context, in ExposeInput) (Lease, string, int, bool, error)
 	ExtendLease(ctx context.Context, leaseID string, ttl time.Duration) (Lease, error)
 	RevokeLease(ctx context.Context, leaseID string) (retracted bool, err error)
 	Unexpose(ctx context.Context, scenario string) (retracted bool, leaseID string, err error)
@@ -126,10 +126,10 @@ func NewService(repo Repository, manifest Manifest, ingress Ingress, runner Runn
 
 var _ Service = (*service)(nil)
 
-func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, error) {
+func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, int, bool, error) {
 	scenario := strings.TrimSpace(in.Scenario)
 	if scenario == "" {
-		return Lease{}, "", ErrInvalidExposure{Field: "scenario", Reason: "required"}
+		return Lease{}, "", 0, false, ErrInvalidExposure{Field: "scenario", Reason: "required"}
 	}
 	ttl := in.TTL
 	if ttl <= 0 {
@@ -141,7 +141,7 @@ func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, er
 	// assigner is down but the scenario already has a fixed port, ensureRoute
 	// still resolves it; only a genuinely-ranged-and-unassignable scenario fails
 	// (with the existing ErrPortUnresolved from the resolver).
-	s.ensureFixedPort(ctx, scenario)
+	assigned := s.ensureFixedPort(ctx, scenario)
 
 	// Ensure a route exists for the scenario (idempotent — reuse any
 	// existing route, only create a LEASED one when absent). Creating the
@@ -149,15 +149,18 @@ func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, er
 	// orphan route, which Reconcile reaps (failure-topography).
 	route, err := s.ensureRoute(ctx, scenario)
 	if err != nil {
-		return Lease{}, "", err
+		return Lease{}, "", 0, false, err
 	}
 
 	// Ensure the scenario process is up, then publish ingress.
+	// When we just pinned a new fixed port, EnsureRunning will force a
+	// stop+start cycle (see CLIRunner) so the process binds the port from
+	// the updated service.json.
 	if err := s.runner.EnsureRunning(ctx, scenario); err != nil {
-		return Lease{}, "", err
+		return Lease{}, "", 0, false, err
 	}
 	if err := s.ingress.Reconcile(ctx); err != nil {
-		return Lease{}, "", err
+		return Lease{}, "", 0, false, err
 	}
 
 	now := s.clock.Now().UTC()
@@ -173,13 +176,13 @@ func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, er
 		}
 		updated, uerr := s.repo.Update(ctx, existing)
 		if uerr != nil {
-			return Lease{}, "", uerr
+			return Lease{}, "", 0, false, uerr
 		}
-		return updated, route.PublicURL(), nil
+		return updated, route.PublicURL(), route.LocalPort, assigned, nil
 	case errors.As(err, &ErrLeaseNotFound{}):
 		// fall through to create
 	default:
-		return Lease{}, "", err
+		return Lease{}, "", 0, false, err
 	}
 
 	lease, err := s.repo.Create(ctx, Lease{
@@ -189,9 +192,9 @@ func (s *service) Expose(ctx context.Context, in ExposeInput) (Lease, string, er
 		Status:      LeaseActive,
 	})
 	if err != nil {
-		return Lease{}, "", err
+		return Lease{}, "", 0, false, err
 	}
-	return lease, route.PublicURL(), nil
+	return lease, route.PublicURL(), route.LocalPort, assigned, nil
 }
 
 func (s *service) ExtendLease(ctx context.Context, leaseID string, ttl time.Duration) (Lease, error) {
@@ -395,17 +398,20 @@ func (s *service) Reconcile(ctx context.Context) (int, int, error) {
 // (assigner down, structure-health unreachable) is swallowed so an
 // already-fixed scenario still exposes; a genuinely-ranged scenario then fails
 // downstream at the port resolver with a clear ErrPortUnresolved.
-func (s *service) ensureFixedPort(ctx context.Context, scenario string) {
+//
+// Returns true if a port was newly assigned by TM on this call.
+func (s *service) ensureFixedPort(ctx context.Context, scenario string) bool {
 	if s.assigner == nil {
-		return
+		return false
 	}
 	assignedByTM, err := s.assigner.EnsureFixed(ctx, scenario)
 	if err != nil || !assignedByTM {
-		return
+		return false
 	}
 	if s.portOwner != nil {
 		_ = s.portOwner.Record(ctx, scenario)
 	}
+	return true
 }
 
 // releaseAssignedPort reverts a fixed port back to a range, but only for

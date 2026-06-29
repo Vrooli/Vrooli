@@ -70,7 +70,7 @@ Commands emit proto-typed `--json`:
 ```bash
 tunnel-manager tunnel status          # tunnel health overview
 tunnel-manager routes list            # list the exposure manifest
-tunnel-manager exposure expose <scenario>      # request exposure (leased)
+tunnel-manager exposure expose <scenario>      # request leased exposure (pins fixed port + route + lease + ingress; cycles process for ranged scenarios)
 tunnel-manager exposure leases|extend|revoke
 tunnel-manager probes run             # run internal + external liveness probes
 tunnel-manager audit run              # port-compliance findings

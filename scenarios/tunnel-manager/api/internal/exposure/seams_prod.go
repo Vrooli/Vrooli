@@ -55,13 +55,14 @@ func (r *FilePortResolver) UIPort(_ context.Context, scenario string) (int, erro
 // start <scenario>` through the cmdrunner seam. It is the production
 // Runner; tests use a fake.
 //
-// Latency fast-path: `vrooli scenario start` is idempotent but SLOW (the live
-// test saw 22–35s because it ran on EVERY expose call, even for an
-// already-running scenario, which blew past the client deadline and surfaced a
-// confusing `unexpected EOF`). When a Ports resolver is wired, EnsureRunning
-// first does a cheap TCP dial to the scenario's fixed UI port; a successful
-// dial means the process is already serving, so it skips the start shell
-// entirely and returns immediately. Only a cold scenario pays the start cost.
+// Latency fast-path: `vrooli scenario start` is idempotent but SLOW. When a
+// Ports resolver is wired, EnsureRunning first does a cheap TCP dial to the
+// scenario's *current* fixed UI port (from service.json). A successful dial
+// means the process is already serving on the right port, so it skips.
+// If the dial fails (e.g. first expose after TM pinned a fixed port for a
+// previously ranged scenario, or stale registry port), it forces stop+start
+// so the lifecycle binds the declared port. Only cold or port-changed cases pay
+// the (necessary) start cost.
 type CLIRunner struct {
 	Runner cmdrunner.Runner
 	// Ports resolves the scenario's fixed UI port for the already-running
@@ -85,6 +86,13 @@ func (r *CLIRunner) EnsureRunning(ctx context.Context, scenario string) error {
 	if r.alreadyRunning(ctx, scenario) {
 		return nil
 	}
+	// The target fixed port (from service.json after any recent TM pin) is not
+	// listening. Force a clean stop+start cycle. This ensures lifecycle
+	// re-reads the (possibly just updated) service.json and binds the correct
+	// fixed port. Common on first `exposure expose` for ranged scenarios.
+	// Stop is always safe (idempotent). We only pay this cost when the dial
+	// fast-path fails.
+	_, _ = r.Runner(ctx, "vrooli", "scenario", "stop", scenario)
 	if _, err := r.Runner(ctx, "vrooli", "scenario", "start", scenario); err != nil {
 		return fmt.Errorf("ensure %q running: %w", scenario, err)
 	}

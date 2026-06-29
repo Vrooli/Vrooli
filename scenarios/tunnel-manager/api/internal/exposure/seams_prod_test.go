@@ -40,12 +40,19 @@ func TestEnsureRunning_StartsWhenNotListening(t *testing.T) {
 	if err := runner.EnsureRunning(context.Background(), "react-component-library"); err != nil {
 		t.Fatalf("EnsureRunning: %v", err)
 	}
-	if cmd.CallCount() != 1 {
-		t.Fatalf("expected one `scenario start` shell for a cold scenario, got %d", cmd.CallCount())
+	// When not listening on the pinned port we force stop+start to heal port pins etc.
+	if cmd.CallCount() != 2 {
+		t.Fatalf("expected stop+start (2 calls) when port not listening, got %d", cmd.CallCount())
 	}
-	got := cmd.Calls[0]
+	// Last call should be the start
+	got := cmd.Calls[1]
 	if got.Name != "vrooli" || len(got.Args) < 3 || got.Args[0] != "scenario" || got.Args[1] != "start" {
-		t.Fatalf("unexpected argv: %s %v", got.Name, got.Args)
+		t.Fatalf("unexpected argv for start: %s %v", got.Name, got.Args)
+	}
+	// First call should be the stop
+	stopCall := cmd.Calls[0]
+	if stopCall.Name != "vrooli" || len(stopCall.Args) < 3 || stopCall.Args[0] != "scenario" || stopCall.Args[1] != "stop" {
+		t.Fatalf("expected first call to be stop, got %v", stopCall.Args)
 	}
 }
 
@@ -61,7 +68,8 @@ func TestEnsureRunning_RangedScenarioFallsBackToStart(t *testing.T) {
 	if err := runner.EnsureRunning(context.Background(), "ranged"); err != nil {
 		t.Fatalf("EnsureRunning: %v", err)
 	}
-	if cmd.CallCount() != 1 {
-		t.Fatalf("expected fallback start, got %d calls", cmd.CallCount())
+	// For unresolved port we still force stop+start (best effort heal); no dial happened.
+	if cmd.CallCount() != 2 {
+		t.Fatalf("expected stop+start for unresolved port case, got %d calls", cmd.CallCount())
 	}
 }

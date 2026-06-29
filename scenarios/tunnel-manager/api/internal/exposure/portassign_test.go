@@ -60,8 +60,10 @@ func TestExpose_AssignsFixedPortForRangedScenario(t *testing.T) {
 	owner := newMemOwnership()
 
 	svc, _ := svcWithAssigner(t, m, repo, &fakeIngress{}, ports, assigner, owner)
-	_, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "ranged-scn"})
+	_, _, localPort, assigned, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "ranged-scn"})
 	require.NoError(t, err)
+	require.Equal(t, 21242, localPort)
+	require.True(t, assigned, "expose should report that it assigned the port")
 	require.Equal(t, []string{"ranged-scn"}, assigner.ensured, "expose ensured a fixed port")
 	require.True(t, owner.owned["ranged-scn"], "TM-assigned port recorded as owned")
 }

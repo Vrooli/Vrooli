@@ -48,17 +48,31 @@ func (h *handlers) expose(ctx cliapp.RunContext) error {
 	// above if the token lacks DNS scope), so a success here means ingress AND
 	// DNS are configured. Cloudflare edge propagation is near-instant for a
 	// proxied record but can take a few seconds on first publish.
+	result := fmt.Sprintf("✓ Exposed %s — live at %s (ingress + proxied DNS configured).", req.Scenario, resp.Msg.PublicUrl)
+	changes := []string{
+		formatLease(resp.Msg.Lease),
+		"DNS: proxied CNAME → <tunnel>.cfargotunnel.com (created if absent).",
+	}
+	next := []string{
+		fmt.Sprintf("`exposure check %s` — confirm public reachability", req.Scenario),
+		fmt.Sprintf("`exposure unexpose %s` — retract ingress + DNS", req.Scenario),
+		"`config credentials-status --verify` — if the URL is unreachable, re-check DNS scope",
+	}
+
+	if resp.Msg.LocalPort != 0 {
+		changes = append(changes, fmt.Sprintf("Local port: %d (the fixed UI port used by the tunnel).", resp.Msg.LocalPort))
+	}
+	if resp.Msg.PortAssigned {
+		changes = append(changes, "Assigned a fixed UI port (the scenario previously declared a range in service.json).")
+		// The runner forces a cycle in this case, so mention it.
+		result += " Scenario cycled to bind the new port."
+		next = append([]string{fmt.Sprintf("`vrooli scenario status %s` — verify it is now on the pinned port", req.Scenario)}, next...)
+	}
+
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("✓ Exposed %s — live at %s (ingress + proxied DNS configured).", req.Scenario, resp.Msg.PublicUrl)},
-		Changes: []string{
-			formatLease(resp.Msg.Lease),
-			"DNS: proxied CNAME → <tunnel>.cfargotunnel.com (created if absent).",
-		},
-		NextCommand: []string{
-			fmt.Sprintf("`exposure check %s` — confirm public reachability", req.Scenario),
-			fmt.Sprintf("`exposure unexpose %s` — retract ingress + DNS", req.Scenario),
-			"`config credentials-status --verify` — if the URL is unreachable, re-check DNS scope",
-		},
+		Result:      []string{result},
+		Changes:     changes,
+		NextCommand: next,
 	})
 }
 

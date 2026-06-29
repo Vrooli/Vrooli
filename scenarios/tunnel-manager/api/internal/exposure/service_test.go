@@ -180,9 +180,11 @@ func TestExpose_CreatesRouteRunsAndLeases(t *testing.T) {
 	run := &fakeRunner{}
 	svc, clk := newSvc(t, m, repo, ing, run, &fakePorts{port: 21233}, nil)
 
-	lease, url, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "web-console", RequestedBy: "tester"})
+	lease, url, localPort, portAssigned, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "web-console", RequestedBy: "tester"})
 	require.NoError(t, err)
 	require.Equal(t, "https://web-console.itsagitime.com", url)
+	require.Equal(t, 21233, localPort)
+	require.False(t, portAssigned, "pre-fixed scenario should not report assignment on expose")
 	require.Equal(t, exposure.LeaseActive, lease.Status)
 	require.Equal(t, clk.Now().UTC().Add(exposure.DefaultTTL), lease.ExpiresAt)
 	require.Equal(t, []string{"web-console"}, run.started, "ensured running")
@@ -195,9 +197,9 @@ func TestExpose_IdempotentExtendsExistingLease(t *testing.T) {
 	repo := newFakeRepo()
 	svc, _ := newSvc(t, m, repo, &fakeIngress{}, &fakeRunner{}, &fakePorts{port: 3000}, nil)
 
-	first, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "svc"})
+	first, _, _, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "svc"})
 	require.NoError(t, err)
-	second, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "svc"})
+	second, _, _, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "svc"})
 	require.NoError(t, err)
 
 	require.Equal(t, first.ID, second.ID, "same lease reused")
@@ -213,7 +215,7 @@ func TestExpose_PortUnresolvedFailsBeforeLease(t *testing.T) {
 	run := &fakeRunner{}
 	svc, _ := newSvc(t, m, repo, &fakeIngress{}, run, &fakePorts{err: exposure.ErrPortUnresolved{Scenario: "x", Reason: "ranged"}}, nil)
 
-	_, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "x"})
+	_, _, _, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "x"})
 	var portErr exposure.ErrPortUnresolved
 	require.ErrorAs(t, err, &portErr)
 	require.Empty(t, run.started, "did not start before route resolved")
@@ -330,6 +332,6 @@ func TestExtendLease_NotFound(t *testing.T) {
 
 func TestExpose_IngressFailurePropagates(t *testing.T) {
 	svc, _ := newSvc(t, newFakeManifest(), newFakeRepo(), &fakeIngress{err: errors.New("cf down")}, &fakeRunner{}, &fakePorts{port: 1}, nil)
-	_, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "x"})
+	_, _, _, _, err := svc.Expose(context.Background(), exposure.ExposeInput{Scenario: "x"})
 	require.Error(t, err)
 }

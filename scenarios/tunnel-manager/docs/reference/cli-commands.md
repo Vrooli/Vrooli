@@ -119,9 +119,15 @@ port, tier, lease, enabled. Data-retrieval contract.
 
 ### `tunnel-manager exposure expose <scenario>`
 
-Request **leased** exposure of a scenario. Ensures a route, ensures the
-scenario is running (delegated to `internal/lifecycle`), and requests
-ingress. Mutation contract.
+Request **leased** exposure of a scenario. Ensures a route (using the scenario
+name as the subdomain), ensures the scenario is running on a *fixed* UI port
+(delegated to `internal/lifecycle` via a stop+start cycle if needed), pins a
+fixed port via structure-health if the scenario only declared a range, and
+requests ingress + DNS. Mutation contract.
+
+If the scenario used a port *range*, `expose` will assign a concrete fixed port,
+update its `service.json`, and cycle the process so the tunnel target is stable.
+The success report will say `port_assigned` and suggest verification.
 
 | Flag | Purpose |
 |---|---|

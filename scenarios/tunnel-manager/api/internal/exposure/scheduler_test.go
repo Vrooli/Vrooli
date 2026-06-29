@@ -29,7 +29,7 @@ func newSchedulerService() *schedulerService {
 	return &schedulerService{called: make(chan int, 8)}
 }
 
-func (s *schedulerService) Expose(context.Context, exposure.ExposeInput) (exposure.Lease, string, error) {
+func (s *schedulerService) Expose(context.Context, exposure.ExposeInput) (exposure.Lease, string, int, bool, error) {
 	panic("unused")
 }
 
