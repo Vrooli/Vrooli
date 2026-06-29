@@ -32,7 +32,6 @@ import { cn } from "../lib/classnames";
 import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
-import MessagesSearchDrawer from "./MessagesSearchDrawer";
 import MessageJumpList from "./MessageJumpList";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
@@ -302,7 +301,7 @@ const MessageRow = memo(function MessageRow({
                   <div className="absolute inset-0 bg-wc-backdrop" onClick={() => setOpenPopoverId(null)} />
                   <div
                     data-testid={`audio-popover-${event.id}`}
-                    className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
+                    className="wc-stable-theme absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
                   >
                     <div className="mb-3 flex justify-center">
                       <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
@@ -349,7 +348,7 @@ const MessageRow = memo(function MessageRow({
                   <div className="fixed inset-0 z-[60]" onClick={() => setOpenPopoverId(null)} />
                   <div
                     data-testid={`audio-popover-${event.id}`}
-                    className="z-[61] w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
+                    className="wc-stable-theme z-[61] w-56 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
                     style={getPopoverStyle()}
                   >
                     <AudioSettingsContent
@@ -493,12 +492,23 @@ export default function MessagesPane({
   }, []);
 
   // --- Search & navigation ---
-  const [searchOpen, setSearchOpen] = useState(false);
+  // The navigator panel owns search editing, but the query is lifted here so
+  // the message list keeps dimming non-matches and the toolbar match-stepping
+  // arrows keep working while (and after) the navigator is open.
   const [searchQuery, setSearchQuery] = useState("");
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
 
-  // --- Jump list ---
-  const [jumpListOpen, setJumpListOpen] = useState(false);
+  // --- Navigator panel ---
+  const [navOpen, setNavOpen] = useState(false);
+  const [navInitialFocus, setNavInitialFocus] = useState<"search" | "list">("list");
+  const openNavigator = useCallback((focus: "search" | "list") => {
+    setNavInitialFocus(focus);
+    setNavOpen(true);
+  }, []);
+  const handleNavQueryChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    setFocusedEventId(null);
+  }, []);
 
   // --- Collapse ---
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -798,12 +808,6 @@ export default function MessagesPane({
     if (targetId) focusAndScroll(targetId);
   }, [navIds, focusedNavIndex, focusAndScroll]);
 
-  const handleCloseSearch = useCallback(() => {
-    setSearchOpen(false);
-    setSearchQuery("");
-    setFocusedEventId(null);
-  }, []);
-
   // --- Current message position for jump trigger ---
   const focusedEventIndex = focusedEventId ? (eventIndexById.get(focusedEventId) ?? -1) : -1;
   const jumpLabel = focusedEventIndex >= 0
@@ -885,8 +889,12 @@ export default function MessagesPane({
       >
         <button
           data-testid="messages-search-btn"
-          onClick={() => setSearchOpen(true)}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
+          onClick={() => openNavigator("search")}
+          aria-pressed={!!searchQuery}
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm",
+            searchQuery && "ring-1 ring-wc-accent/50 text-wc-text-primary",
+          )}
           title={t(strings.messagesPane.searchMessagesTitle)}
           type="button"
         >
@@ -895,7 +903,7 @@ export default function MessagesPane({
 
         <button
           data-testid="msg-jump-trigger"
-          onClick={() => setJumpListOpen((v) => !v)}
+          onClick={() => (navOpen ? setNavOpen(false) : openNavigator("list"))}
           disabled={events.length === 0}
           className="flex h-8 items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2.5 text-xs text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
           title={t(strings.messagesPane.jumpToMessageTitle)}
@@ -937,26 +945,16 @@ export default function MessagesPane({
         </button>
       </div>
 
-      <MessagesSearchDrawer
-        open={searchOpen}
-        onClose={handleCloseSearch}
-        query={searchQuery}
-        onQueryChange={(q) => {
-          setSearchQuery(q);
-          setFocusedEventId(null);
-        }}
-        matchCount={searchMatchIds.length}
-        currentMatchIndex={currentMatchIndex}
-        onPrevMatch={handleNavUp}
-        onNextMatch={handleNavDown}
-      />
-
-      {jumpListOpen && (
+      {navOpen && (
         <MessageJumpList
           events={events}
           focusedEventId={focusedEventId}
           onSelect={focusAndScroll}
-          onClose={() => setJumpListOpen(false)}
+          onClose={() => setNavOpen(false)}
+          mode="jump"
+          initialFocus={navInitialFocus}
+          query={searchQuery}
+          onQueryChange={handleNavQueryChange}
         />
       )}
 

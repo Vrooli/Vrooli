@@ -36,6 +36,10 @@
       "testId": "workspace-sidebar-active-title",
       "selector": "[data-testid=\"workspace-sidebar-active-title\"]"
     },
+    "workspace.toggleView": {
+      "testId": "workspace-toggle-view",
+      "selector": "[data-testid=\"workspace-toggle-view\"]"
+    },
     "terminal.pane": {
       "testId": "terminal-pane",
       "selector": "[data-testid=\"terminal-pane\"]"
@@ -127,6 +131,50 @@
     "locale.switcher": {
       "testId": "locale-switcher",
       "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "messages.searchTrigger": {
+      "testId": "messages-search-btn",
+      "selector": "[data-testid=\"messages-search-btn\"]"
+    },
+    "messages.navTrigger": {
+      "testId": "msg-jump-trigger",
+      "selector": "[data-testid=\"msg-jump-trigger\"]"
+    },
+    "messages.navPanel": {
+      "testId": "msg-jump-list",
+      "selector": "[data-testid=\"msg-jump-list\"]"
+    },
+    "messages.navScroll": {
+      "testId": "msg-jump-scroll",
+      "selector": "[data-testid=\"msg-jump-scroll\"]"
+    },
+    "messages.searchInput": {
+      "testId": "msg-nav-search",
+      "selector": "[data-testid=\"msg-nav-search\"]"
+    },
+    "messages.clearSearch": {
+      "testId": "msg-nav-clear",
+      "selector": "[data-testid=\"msg-nav-clear\"]"
+    },
+    "messages.resultCount": {
+      "testId": "msg-nav-count",
+      "selector": "[data-testid=\"msg-nav-count\"]"
+    },
+    "messages.moreFilters": {
+      "testId": "msg-nav-more",
+      "selector": "[data-testid=\"msg-nav-more\"]"
+    },
+    "messages.advancedPanel": {
+      "testId": "msg-nav-advanced",
+      "selector": "[data-testid=\"msg-nav-advanced\"]"
+    },
+    "messages.emptyState": {
+      "testId": "msg-nav-empty",
+      "selector": "[data-testid=\"msg-nav-empty\"]"
+    },
+    "messages.chipUser": {
+      "testId": "msg-nav-chip-user",
+      "selector": "[data-testid=\"msg-nav-chip-user\"]"
     }
   },
   "dynamicSelectors": {
@@ -419,6 +467,119 @@
         {
           "name": "eventId",
           "type": "string"
+        }
+      ]
+    },
+    "messages.navResultRow": {
+      "description": "Message navigator result row by event ID",
+      "selectorPattern": "[data-testid=\"msg-jump-item-${eventId}\"]",
+      "testIdPattern": "msg-jump-item-${eventId}",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    },
+    "messages.navChip": {
+      "description": "Message navigator primary filter chip",
+      "selectorPattern": "[data-testid=\"msg-nav-chip-${id}\"]",
+      "testIdPattern": "msg-nav-chip-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "enum",
+          "values": [
+            "all",
+            "user",
+            "assistant",
+            "failed",
+            "unheard"
+          ]
+        }
+      ]
+    },
+    "messages.navSourceOption": {
+      "description": "Message navigator source filter option",
+      "selectorPattern": "[data-testid=\"msg-nav-source-${source}\"]",
+      "testIdPattern": "msg-nav-source-${source}",
+      "params": [
+        {
+          "name": "source",
+          "type": "enum",
+          "values": [
+            "claude",
+            "codex",
+            "opencode",
+            "grok"
+          ]
+        }
+      ]
+    },
+    "messages.navStatusOption": {
+      "description": "Message navigator status filter option",
+      "selectorPattern": "[data-testid=\"msg-nav-status-${status}\"]",
+      "testIdPattern": "msg-nav-status-${status}",
+      "params": [
+        {
+          "name": "status",
+          "type": "enum",
+          "values": [
+            "all",
+            "unheard",
+            "played",
+            "failed",
+            "summarized"
+          ]
+        }
+      ]
+    },
+    "messages.navContentOption": {
+      "description": "Message navigator content filter option",
+      "selectorPattern": "[data-testid=\"msg-nav-content-${content}\"]",
+      "testIdPattern": "msg-nav-content-${content}",
+      "params": [
+        {
+          "name": "content",
+          "type": "enum",
+          "values": [
+            "all",
+            "code",
+            "fileReference",
+            "long"
+          ]
+        }
+      ]
+    },
+    "messages.navSortOption": {
+      "description": "Message navigator sort option",
+      "selectorPattern": "[data-testid=\"msg-nav-sort-${mode}\"]",
+      "testIdPattern": "msg-nav-sort-${mode}",
+      "params": [
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "oldest",
+            "newest",
+            "relevance"
+          ]
+        }
+      ]
+    },
+    "messages.navGroupOption": {
+      "description": "Message navigator grouping option",
+      "selectorPattern": "[data-testid=\"msg-nav-group-${mode}\"]",
+      "testIdPattern": "msg-nav-group-${mode}",
+      "params": [
+        {
+          "name": "mode",
+          "type": "enum",
+          "values": [
+            "turn",
+            "flat",
+            "role"
+          ]
         }
       ]
     }

@@ -442,6 +442,8 @@ describe("AudioPlayerBar", () => {
     fireEvent.click(screen.getByTestId("tts-current-message"));
 
     expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
+    // The selector opens in playback-select mode, not jump mode.
+    expect(screen.getByText(strings.messageJumpList.titlePlayback)).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("msg-jump-item-e2"));
     expect(props.onSelectMessage).toHaveBeenCalledWith("e2");
     expect(props.onJumpToCurrentMessage).not.toHaveBeenCalled();

@@ -135,7 +135,7 @@ export default function TerminalLauncher({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="mx-4 w-full max-w-md rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl">
+      <div className="wc-stable-theme mx-4 w-full max-w-md rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl">
         <div className="flex items-center justify-between border-b border-wc-default px-4 py-3">
           <h2 className="text-lg font-semibold text-wc-text-primary">
             {t(strings.terminalLauncher.newTerminal)}

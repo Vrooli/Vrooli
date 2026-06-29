@@ -92,7 +92,7 @@ function ErrorTooltip({ anchor, text, onDismiss }: { anchor: HTMLElement; text: 
   return createPortal(
     <div
       ref={tooltipRef}
-      className="z-[9999] flex w-52 items-start gap-1.5 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg"
+      className="wc-stable-theme z-[9999] flex w-52 items-start gap-1.5 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg"
       style={style}
       role="status"
     >

@@ -32,7 +32,7 @@ const TabUnreadBadge = memo(function TabUnreadBadge({
   );
   if (unreadCount <= 0) return null;
   return (
-    <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+    <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
       {unreadCount}
     </span>
   );
@@ -312,7 +312,7 @@ function TabBar({
   return (
     <div
       data-testid="tab-bar"
-      className="flex items-stretch h-9 border-b border-wc-default bg-wc-surface-header shrink-0 ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]"
+      className="wc-chrome-surface flex items-stretch h-9 border-b border-wc-default shrink-0 ps-[var(--wc-safe-left,0px)] pe-[var(--wc-safe-right,0px)]"
       role="tablist"
     >
       <div

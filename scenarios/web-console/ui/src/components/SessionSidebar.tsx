@@ -423,7 +423,7 @@ export default function SessionSidebar({
                     </span>
                   )}
                   {unreadCount > 0 && (
-                    <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+                    <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
                       {unreadCount}
                     </span>
                   )}
@@ -538,7 +538,7 @@ export default function SessionSidebar({
           ref={sidebarRef}
           data-testid="workspace-sidebar-shell"
           className={cn(
-            "relative hidden shrink-0 flex-col border-e border-wc-default bg-wc-surface-header ps-[var(--wc-safe-left,0px)] md:flex",
+            "wc-chrome-surface wc-chrome-fg relative hidden shrink-0 flex-col border-e border-wc-default ps-[var(--wc-safe-left,0px)] md:flex",
             isResizing && "select-none",
           )}
           style={{ width: size }}
@@ -564,7 +564,7 @@ export default function SessionSidebar({
           />
           <aside
             data-testid="workspace-sidebar-shell"
-            className="absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default bg-wc-surface-header pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)] shadow-xl"
+            className="wc-chrome-surface wc-chrome-fg absolute inset-y-0 start-0 flex w-[min(22rem,calc(100vw-2rem))] flex-col border-e border-wc-default pt-[var(--wc-safe-top,0px)] ps-[var(--wc-safe-left,0px)] shadow-xl"
           >
             {sidebarContent}
           </aside>

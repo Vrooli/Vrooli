@@ -60,7 +60,7 @@ export default function ContextMenuBase({ position, onClose, children, "data-tes
       <div
         ref={menuRef}
         data-testid={testId}
-        className="fixed z-50 min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
+        className="wc-stable-theme fixed z-50 min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
         style={
           clamped
             ? { left: clamped.x, top: clamped.y }

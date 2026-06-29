@@ -130,7 +130,7 @@ export default function TerminalHeader({
       )}
 
       {unreadCount > 0 && (
-        <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+        <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
           {unreadCount}
         </span>
       )}

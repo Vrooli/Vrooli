@@ -142,7 +142,7 @@ export function PlaybackModeControl({
           <div
             data-testid={`${testIdPrefix}-mode-menu`}
             role="menu"
-            className="z-[61] rounded-xl border border-wc-default bg-wc-surface-raised p-1 shadow-lg"
+            className="wc-stable-theme z-[61] rounded-xl border border-wc-default bg-wc-surface-raised p-1 shadow-lg"
             style={getMenuStyle()}
           >
             {hasOriginalVersion && (

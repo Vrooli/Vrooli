@@ -206,6 +206,7 @@ export default function AudioPlayerBar({
         <MessageJumpList
           events={messageSelectorEvents}
           focusedEventId={currentMessageId}
+          mode="playback-select"
           onSelect={(eventId) => {
             onSelectMessage(eventId);
             setShowMessageSelector(false);
@@ -292,7 +293,7 @@ export default function AudioPlayerBar({
             />
             <div
               data-testid="audio-popover"
-              className="absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
+              className="wc-stable-theme absolute bottom-0 left-0 right-0 z-[61] rounded-t-[20px] border-t border-wc-default bg-wc-surface-raised p-4 pb-[max(1rem,var(--wc-safe-bottom))] ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] shadow-2xl"
             >
               <div className="mb-3 flex justify-center">
                 <div className="h-1 w-8 rounded-full bg-wc-text-muted/40" />
@@ -326,7 +327,7 @@ export default function AudioPlayerBar({
             />
             <div
               data-testid="audio-popover"
-              className="z-[61] w-60 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
+              className="wc-stable-theme z-[61] w-60 rounded-xl border border-wc-default bg-wc-surface-raised p-3 shadow-lg"
               style={getPopoverStyle()}
             >
               <AudioSettingsContent

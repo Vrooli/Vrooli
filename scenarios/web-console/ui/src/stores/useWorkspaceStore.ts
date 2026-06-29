@@ -3,6 +3,10 @@ import { persist } from "zustand/middleware";
 import { clampFontSize } from "../lib/fontSizeUtils";
 import { DEFAULT_THEME_ID, TERMINAL_FONT_SIZE } from "../consts/config";
 import { DEFAULT_WAKE_WORD_THRESHOLD } from "../audio-integration/hooks/voice/wakeword/types";
+// Auto-stop / segment silence defaults come from the audio-integration package
+// so the store can never carry a value that disagrees with the client VAD
+// fallback (or, transitively, the audio-tools server). See vad.ts.
+import { VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGMENT_SILENCE_MS } from "../audio-integration/hooks/voice/vad";
 import type { ModifierState } from "../consts/toolbar-keys";
 
 export interface PaneMetadata {
@@ -84,6 +88,9 @@ interface WorkspaceState {
   recentHeaderColors: string[];
   /** Sidebar session ordering mode. View-only except "manual". */
   sidebarSortMode: SidebarSortMode;
+  /** Tint the app chrome (status bar, top bar, toolbar, sidebar) to match the
+   *  focused terminal's background in single-focus (tabs/sidebar) modes. */
+  adaptiveChrome: boolean;
   /** Mobile toolbar modifier key toggles (Ctrl/Alt/Shift). Not persisted. */
   modifiers: ModifierState;
   groups: TabGroupMeta[];
@@ -145,6 +152,7 @@ interface WorkspaceActions {
   /** Record an explicitly-picked header color into recents (dedup, cap 6). */
   addRecentHeaderColor: (color: string) => void;
   setSidebarSortMode: (mode: SidebarSortMode) => void;
+  setAdaptiveChrome: (enabled: boolean) => void;
   toggleModifier: (key: keyof ModifierState) => void;
   clearModifiers: () => void;
   setGroups: (groups: TabGroupMeta[]) => void;
@@ -185,12 +193,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       voiceEnabled: true,
       voiceShortcut: "Ctrl+Shift+Space",
       vadAutoStop: true,
-      vadSilenceTimeoutMs: 2000,
+      vadSilenceTimeoutMs: VAD_FALLBACK_SILENCE_TIMEOUT_MS,
       voiceLanguage: "en-US",
       persistentMode: false,
       wakeWordEnabled: false,
       wakeWordThreshold: DEFAULT_WAKE_WORD_THRESHOLD,
-      segmentSilenceMs: 1500,
+      segmentSilenceMs: VAD_FALLBACK_SEGMENT_SILENCE_MS,
       ttsVoice: "",
       ttsRate: 1.0,
       ttsPitch: 1.0,
@@ -206,6 +214,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       recentCombos: [],
       recentHeaderColors: [],
       sidebarSortMode: "manual",
+      adaptiveChrome: true,
       modifiers: { ctrl: false, alt: false, shift: false },
       pendingInputDrafts: {},
       groups: [],
@@ -228,6 +237,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }),
 
       setSidebarSortMode: (mode) => set({ sidebarSortMode: mode }),
+      setAdaptiveChrome: (enabled) => set({ adaptiveChrome: enabled }),
 
       addPane: (sessionId, name, activate, supportsMessagesView = false) =>
         set((state) => {
@@ -416,7 +426,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 15,
+      version: 16,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -485,6 +495,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           state.recentHeaderColors ??= [];
           state.sidebarSortMode ??= "manual";
         }
+        if (version < 16) {
+          state.adaptiveChrome ??= true;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -518,6 +531,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         recentCombos: state.recentCombos,
         recentHeaderColors: state.recentHeaderColors,
         sidebarSortMode: state.sidebarSortMode,
+        adaptiveChrome: state.adaptiveChrome,
         keepScreenAwake: state.keepScreenAwake,
         lowLatencyVoice: state.lowLatencyVoice,
       }),

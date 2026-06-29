@@ -57,7 +57,7 @@ export default function LocaleSwitcher() {
             className={cn(
               "rounded-md px-2 py-1 text-xs font-medium transition-colors",
               isActive
-                ? "bg-wc-accent text-black"
+                ? "bg-wc-accent text-wc-accent-fg"
                 : "text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary",
             )}
           >

@@ -316,6 +316,15 @@
           "audience": ["developers", "operators"],
           "maturity": "active",
           "completion": "optional"
+        },
+        {
+          "path": "guides/ADAPTIVE_CHROME.md",
+          "docType": "guide",
+          "title": "Adaptive App Chrome",
+          "description": "Tinting the status bar, top bar, toolbar, and sidebar to the focused terminal background; detection via xterm buffer + OSC 11; performance contract; iOS limitation",
+          "audience": ["developers", "operators"],
+          "maturity": "active",
+          "completion": "optional"
         }
       ]
     },

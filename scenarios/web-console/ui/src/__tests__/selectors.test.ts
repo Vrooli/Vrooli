@@ -63,4 +63,37 @@ describe("selectors registry", () => {
     expect(dynamic["workspace.paneContainerBySession"]?.selectorPattern).toContain("terminal-pane-container");
     expect(dynamic["workspace.closeButtonBySession"]?.testIdPattern).toBe("terminal-close-${sessionId}");
   });
+
+  // Message navigator surface — BAS workflows must reference these, not raw
+  // data-testid literals.
+  it("exposes literal message navigator selectors", () => {
+    expect(sel.messages?.navPanel).toBe("msg-jump-list");
+    expect(sel.messages?.searchTrigger).toBe("messages-search-btn");
+    expect(sel.messages?.navTrigger).toBe("msg-jump-trigger");
+    expect(sel.messages?.searchInput).toBe("msg-nav-search");
+    expect(sel.messages?.clearSearch).toBe("msg-nav-clear");
+    expect(sel.messages?.resultCount).toBe("msg-nav-count");
+    expect(sel.messages?.moreFilters).toBe("msg-nav-more");
+    expect(sel.messages?.advancedPanel).toBe("msg-nav-advanced");
+    expect(sel.messages?.emptyState).toBe("msg-nav-empty");
+  });
+
+  it("manifest contains message navigator literal selectors", () => {
+    const keys = Object.keys(selectorsManifest.selectors);
+    expect(keys).toContain("messages.navPanel");
+    expect(keys).toContain("messages.searchInput");
+    expect(keys).toContain("messages.advancedPanel");
+  });
+
+  it("exposes dynamic message navigator selectors with enum params", () => {
+    const dynamic = selectorsManifest.dynamicSelectors;
+    expect(dynamic["messages.navResultRow"]?.testIdPattern).toBe("msg-jump-item-${eventId}");
+    expect(dynamic["messages.navChip"]?.testIdPattern).toBe("msg-nav-chip-${id}");
+    expect(dynamic["messages.navChip"]?.params[0]?.values).toContain("user");
+    expect(dynamic["messages.navSourceOption"]?.params[0]?.values).toContain("grok");
+    expect(dynamic["messages.navStatusOption"]?.params[0]?.values).toContain("summarized");
+    expect(dynamic["messages.navContentOption"]?.params[0]?.values).toContain("fileReference");
+    expect(dynamic["messages.navSortOption"]?.params[0]?.values).toContain("relevance");
+    expect(dynamic["messages.navGroupOption"]?.params[0]?.values).toContain("turn");
+  });
 });

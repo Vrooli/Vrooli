@@ -131,7 +131,7 @@ export default function TabContextMenu({
             <div
               ref={groupSubmenuRef}
               data-testid="tab-ctx-group-submenu"
-              className="fixed z-[60] min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
+              className="wc-stable-theme fixed z-[60] min-w-[140px] rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl py-1"
               style={
                 groupSubmenuPosition
                   ? { left: groupSubmenuPosition.x, top: groupSubmenuPosition.y }

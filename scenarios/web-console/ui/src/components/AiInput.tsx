@@ -140,7 +140,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
       <div
         ref={(node) => { elementRef.current = node; }}
         data-testid="ai-input"
-        className="fixed left-0 top-0 z-50 w-[25rem] max-w-[calc(100vw-24px)] rounded-lg border border-wc-default bg-wc-surface-raised shadow-2xl flex flex-col"
+        className="wc-stable-theme fixed left-0 top-0 z-50 w-[25rem] max-w-[calc(100vw-24px)] rounded-lg border border-wc-default bg-wc-surface-raised shadow-2xl flex flex-col"
         style={floatingStyle}
         onPointerDown={(e) => {
           const target = e.target as HTMLElement | null;

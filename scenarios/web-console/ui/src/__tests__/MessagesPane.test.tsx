@@ -263,7 +263,7 @@ describe("MessagesPane", () => {
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("messages-search-btn"));
-    fireEvent.change(screen.getByTestId("messages-search-input"), {
+    fireEvent.change(screen.getByTestId("msg-nav-search"), {
       target: { value: "world" },
     });
 
@@ -345,13 +345,14 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("messages-nav-down")).toBeInTheDocument();
   });
 
-  it("clicking search button opens the search drawer", () => {
+  it("clicking search button opens the navigator focused on search", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
-    expect(screen.queryByTestId("messages-search-panel")).toBeNull();
+    expect(screen.queryByTestId("msg-jump-list")).toBeNull();
     fireEvent.click(screen.getByTestId("messages-search-btn"));
-    expect(screen.getByTestId("messages-search-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-nav-search")).toBeInTheDocument();
   });
 
   it("disables nav chevrons when no events exist", () => {
@@ -394,30 +395,32 @@ describe("MessagesPane", () => {
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("messages-search-btn"));
-    fireEvent.change(screen.getByTestId("messages-search-input"), {
+    fireEvent.change(screen.getByTestId("msg-nav-search"), {
       target: { value: "Hello" },
     });
 
-    // e1 matches, e2 does not
+    // e1 matches, e2 does not — dimming applies to the message cards behind
+    // the navigator overlay.
     expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40");
     expect(screen.getByTestId("msg-card-e1").className).not.toContain("opacity-40");
   });
 
-  it("closing search clears search state", () => {
-    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world" })]);
+  it("clearing the navigator search removes message dimming", () => {
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "Hello world" }),
+      makeEvent({ id: "e2", sequence: 2, text: "Goodbye" }),
+    ]);
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("messages-search-btn"));
-    fireEvent.change(screen.getByTestId("messages-search-input"), {
-      target: { value: "world" },
+    fireEvent.change(screen.getByTestId("msg-nav-search"), {
+      target: { value: "Hello" },
     });
+    expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40");
 
-    fireEvent.click(screen.getByTestId("messages-search-close"));
-
-    // Search panel should be gone
-    expect(screen.queryByTestId("messages-search-panel")).toBeNull();
-    // Messages should not be dimmed
-    expect(screen.getByTestId("msg-card-e1").className).not.toContain("opacity-40");
+    // The navigator's clear button resets the lifted query.
+    fireEvent.click(screen.getByTestId("msg-nav-clear"));
+    expect(screen.getByTestId("msg-card-e2").className).not.toContain("opacity-40");
   });
 
   // --- Jump list ---

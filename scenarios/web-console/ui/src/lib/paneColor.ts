@@ -34,6 +34,60 @@ export function isHexColor(value: string): boolean {
 }
 
 /**
+ * Parse a 3- or 6-digit hex color into 0–255 RGB channels. Returns `null` for
+ * anything that is not a valid hex color so callers can fall back safely.
+ */
+export function hexToRgb(value: string | null | undefined): { r: number; g: number; b: number } | null {
+  if (!value || !HEX_COLOR.test(value)) return null;
+  let hex = value.slice(1);
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((ch) => ch + ch)
+      .join("");
+  }
+  const n = parseInt(hex, 16);
+  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+}
+
+/**
+ * WCAG relative luminance (0 = black, 1 = white) of a hex color. Used to pick a
+ * contrast-correct foreground for a tinted surface. Invalid input returns 0
+ * (treated as dark) so the brighter foreground is chosen by default.
+ */
+export function relativeLuminance(value: string | null | undefined): number {
+  const rgb = hexToRgb(value);
+  if (!rgb) return 0;
+  return relativeLuminanceRgb(rgb);
+}
+
+/** WCAG relative luminance (0 = black, 1 = white) of RGB channels. */
+export function relativeLuminanceRgb(rgb: { r: number; g: number; b: number }): number {
+  const channel = (c: number): number => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
+}
+
+/** WCAG contrast ratio between two RGB colors. */
+export function contrastRatioRgb(
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+): number {
+  const l1 = relativeLuminanceRgb(a);
+  const l2 = relativeLuminanceRgb(b);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/** True when a color is light enough that dark foreground text reads better. */
+export function isLightColor(value: string | null | undefined): boolean {
+  return relativeLuminance(value) > 0.5;
+}
+
+/**
  * Parse a stored `headerColor` string into its component colors. Malformed
  * input (anything with no valid hex part) degrades safely to transparent.
  */

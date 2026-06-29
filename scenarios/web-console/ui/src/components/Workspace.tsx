@@ -6,7 +6,8 @@ import { Loader2, Menu, MessageSquareText, Plus, Settings, TerminalSquare } from
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
-import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
+import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX, TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
+import { chromeTheme } from "../lib/chromeTheme";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useGlobalEventStream } from "../hooks/useGlobalEventStream";
 import { useConversationHydration } from "../hooks/useConversationHydration";
@@ -132,6 +133,7 @@ export default function Workspace() {
     vadAutoStop: state.vadAutoStop,
     groups: state.groups,
     sidebarSortMode: state.sidebarSortMode,
+    adaptiveChrome: state.adaptiveChrome,
     plusButtonBehavior: state.plusButtonBehavior,
     defaultHeaderColor: state.defaultHeaderColor,
     defaultThemeId: state.defaultThemeId,
@@ -225,6 +227,29 @@ export default function Workspace() {
   }, [setActiveWorkspacePane, syncActivePane, workspacePanes]);
 
   const isTabLikeMode = isTabLikeDisplayMode(workspace.displayMode);
+
+  // Adaptive app-chrome: tell the imperative chrome controller which pane owns
+  // the chrome (the focused pane in single-focus modes), whether tinting is
+  // active, and the owner's configured theme background (the detection
+  // fallback). The per-pane detector feeds detected colors straight to the
+  // controller; this effect only carries the low-frequency config, so it never
+  // re-renders on color changes. See lib/chromeTheme.ts.
+  const activeChromeThemeId = workspace.panes.find(
+    (p) => p.sessionId === workspace.activePane,
+  )?.themeId;
+  useEffect(() => {
+    const enabled = workspace.adaptiveChrome && isTabLikeMode && !!workspace.activePane;
+    const fallbackColor = enabled
+      ? (TERMINAL_THEMES[activeChromeThemeId ?? DEFAULT_THEME_ID]?.colors.background
+        ?? TERMINAL_THEMES[DEFAULT_THEME_ID]?.colors.background
+        ?? null)
+      : null;
+    chromeTheme.setConfig({
+      enabled,
+      ownerSessionId: enabled ? workspace.activePane : null,
+      fallbackColor,
+    });
+  }, [workspace.adaptiveChrome, isTabLikeMode, workspace.activePane, activeChromeThemeId]);
 
   // --- Mobile single-column layout ---
   const [isMobile, setIsMobile] = useState(
@@ -1233,7 +1258,7 @@ export default function Workspace() {
 
       {/* Voice fallback notice */}
       {voiceInput.fallbackNotice && (
-        <div className="py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
+        <div className="wc-stable-theme py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300 bg-amber-500/10 border-b border-amber-500/30">
           {voiceInput.fallbackNotice}
         </div>
       )}
@@ -1305,7 +1330,7 @@ export default function Workspace() {
       {workspace.displayMode === "sidebar" && (
         <div
           data-testid="workspace-sidebar-topbar"
-          className="flex h-[calc(2.5rem+var(--wc-safe-top,0px))] shrink-0 items-center gap-2 border-b border-wc-default bg-wc-surface-header pt-[var(--wc-safe-top,0px)] ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] md:hidden"
+          className="wc-chrome-surface wc-chrome-fg flex h-[calc(2.5rem+var(--wc-safe-top,0px))] shrink-0 items-center gap-2 border-b border-wc-default pt-[var(--wc-safe-top,0px)] ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] md:hidden"
         >
           <Button
             data-testid="workspace-sidebar-toggle"
@@ -1319,7 +1344,7 @@ export default function Workspace() {
             {sidebarUnreadCount > 0 && (
               <span
                 data-testid="workspace-sidebar-toggle-unread"
-                className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-black"
+                className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-wc-accent-fg"
               >
                 {sidebarUnreadCount > 99 ? "99+" : sidebarUnreadCount}
               </span>
@@ -1336,7 +1361,7 @@ export default function Workspace() {
             {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
           </div>
           {activeSidebarPane && activeSidebarPane.unreadCount > 0 && (
-            <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-black">
+            <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
               {activeSidebarPane.unreadCount}
             </span>
           )}
@@ -1401,6 +1426,8 @@ export default function Workspace() {
           {workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
             <div className="absolute end-[max(0.75rem,var(--wc-safe-right,0px))] top-[max(0.75rem,var(--wc-safe-top,0px))] z-20">
               <button
+                data-testid="workspace-toggle-view"
+                data-view-mode={activeViewMode}
                 className="flex items-center justify-center h-8 w-8 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
                 onClick={() => {
                   if (workspace.activePane) {

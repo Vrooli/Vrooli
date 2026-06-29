@@ -108,8 +108,8 @@ export default function SettingsModal({
   const close = () => setSettingsModalOpen(false);
 
   const shellClassName = isMobile
-    ? "fixed inset-x-0 bottom-0 top-4 z-50 flex flex-col overflow-hidden rounded-t-[28px] border border-wc-default bg-wc-surface-raised shadow-2xl"
-    : "fixed left-0 top-0 z-50 flex h-[min(84vh,760px)] w-[min(96vw,1040px)] flex-col overflow-hidden rounded-[28px] border border-wc-default bg-wc-surface-raised shadow-2xl";
+    ? "wc-stable-theme fixed inset-x-0 bottom-0 top-4 z-50 flex flex-col overflow-hidden rounded-t-[28px] border border-wc-default bg-wc-surface-raised shadow-2xl"
+    : "wc-stable-theme fixed left-0 top-0 z-50 flex h-[min(84vh,760px)] w-[min(96vw,1040px)] flex-col overflow-hidden rounded-[28px] border border-wc-default bg-wc-surface-raised shadow-2xl";
 
   const shellStyle = isMobile ? undefined : floatingStyle;
 

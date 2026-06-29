@@ -8,6 +8,9 @@ import "@xterm/xterm/css/xterm.css";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
+import { useTerminalBackgroundDetector } from "../hooks/terminal/useTerminalBackgroundDetector";
+import { chromeTheme } from "../lib/chromeTheme";
+import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import type { GateResult, InputSource } from "./terminal/inputGate";
 import { TERMINAL_SCROLLBACK_LINES } from "../lib/terminalConfig";
 import { useTerminalTouch } from "../hooks/useTerminalTouch";
@@ -224,6 +227,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [ttsSpeaking]);
 
     const activePane = useWorkspaceStore((s) => s.activePane);
+    const displayMode = useWorkspaceStore((s) => s.displayMode);
+    const adaptiveChrome = useWorkspaceStore((s) => s.adaptiveChrome);
     const { persistCursor } = useConversationSession(sessionId);
     const conversationSession = useConversationStore((state) => state.sessions[sessionId]);
     const conversationEvents = conversationSession?.events ?? EMPTY_CONVERSATION_EVENTS;
@@ -621,6 +626,19 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       if (!terminal) return;
       terminal.options.theme = paneTheme;
     }, [paneTheme, terminal]);
+
+    // Adaptive app-chrome: detect the rendered terminal background for the
+    // focused pane in single-focus modes and feed it to the imperative chrome
+    // applier. Disabled in grid mode, when this pane isn't focused, or when the
+    // adaptive setting is off — so only one detector runs at a time and the
+    // heavy terminal subtree never re-renders on color changes.
+    const chromeDetectorEnabled =
+      adaptiveChrome && isTabLikeDisplayMode(displayMode) && activePane === sessionId;
+    useTerminalBackgroundDetector(terminal, {
+      enabled: chromeDetectorEnabled,
+      defaultBackground: paneTheme.background,
+      onColor: useCallback((hex: string | null) => chromeTheme.setDetected(sessionId, hex), [sessionId]),
+    });
 
     // Intercept configurable voice shortcut via capture-phase DOM listener.
     // attachCustomKeyEventHandler fires too late — the browser processes

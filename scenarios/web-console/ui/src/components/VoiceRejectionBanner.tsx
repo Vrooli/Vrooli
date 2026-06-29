@@ -58,7 +58,7 @@ export default function VoiceRejectionBanner({
       <div
         data-testid="voice-rejection-banner"
         data-kind="explanatory"
-        className="flex items-start gap-2 border-b border-sky-500/30 bg-sky-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-sky-200"
+        className="wc-stable-theme flex items-start gap-2 border-b border-sky-500/30 bg-sky-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-sky-200"
         role="status"
       >
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -115,7 +115,7 @@ export default function VoiceRejectionBanner({
       data-kind="retryable"
       data-cause={rejection.cause}
       data-status={rejection.status}
-      className="flex items-start gap-2 border-b border-sky-500/30 bg-sky-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-sky-200"
+      className="wc-stable-theme flex items-start gap-2 border-b border-sky-500/30 bg-sky-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-sky-200"
       role="status"
     >
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

@@ -74,4 +74,63 @@ if ! create_seed_session; then
   exit 0
 fi
 
+# ---------------------------------------------------------------------------
+# Message navigator seed — provisions one deterministic conversation so the
+# message-navigator BAS case has user / assistant / file-reference landmarks to
+# search, filter, and jump to. Conversation events are only writable through the
+# token-authenticated agent hooks, so we read the hook token from scenario state
+# (host-readable) and post a user prompt + an assistant reply. A Stop-hook
+# assistant event also flips the session's agent_type to "claude", which is what
+# enables the Messages view toggle in the UI. Entirely best-effort: a missing
+# token or endpoint must never fail the seed.
+resolve_hook_token() {
+  local candidates=(
+    "${XDG_STATE_HOME:-$HOME/.local/state}/vrooli/web-console/hook-token.txt"
+    "$HOME/.vrooli/state/vrooli/web-console/hook-token.txt"
+  )
+  local path
+  for path in "${candidates[@]}"; do
+    if [[ -f "${path}" ]]; then
+      tr -d '[:space:]' < "${path}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+seed_message_navigator_conversation() {
+  local token
+  token="$(resolve_hook_token || true)"
+  if [[ -z "${token}" ]]; then
+    echo "[seed] hook token not found; skipping message-navigator conversation seed." >&2
+    return 0
+  fi
+
+  local session_id
+  session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/sessions" \
+    -H "Content-Type: application/json" \
+    -d '{"shell":"/bin/bash","cols":120,"rows":40}' \
+    | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  if [[ -z "${session_id}" ]]; then
+    echo "[seed] could not create message-navigator session; skipping." >&2
+    return 0
+  fi
+
+  # User prompt — a unique marker keeps the navigator search deterministic.
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/prompt-submit" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"userPrompt\":\"NAVIGATOR_SEED deploy the release pipeline\",\"webConsoleSessionId\":\"${session_id}\"}" \
+    -o /dev/null || true
+
+  # Assistant reply (also marks the session agent_type=claude → Messages view).
+  curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/stop" \
+    -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
+    -d "{\"last_assistant_message\":\"NAVIGATOR_SEED deploying now — see src/pipeline.ts for the steps.\",\"session_id\":\"seed-agent-uuid\",\"web_console_session_id\":\"${session_id}\"}" \
+    -o /dev/null || true
+
+  echo "[seed] message-navigator conversation seeded for session ${session_id}."
+}
+
+seed_message_navigator_conversation || true
+
 echo "[seed] Seeding complete."

@@ -286,6 +286,7 @@ const literalSelectors: LiteralSelectorTree = {
     sidebarResizeHandle: 'workspace-sidebar-resize-handle',
     sidebarTopbar: 'workspace-sidebar-topbar',
     sidebarActiveTitle: 'workspace-sidebar-active-title',
+    toggleView: 'workspace-toggle-view',
   },
   terminal: {
     pane: 'terminal-pane',
@@ -329,6 +330,21 @@ const literalSelectors: LiteralSelectorTree = {
   },
   locale: {
     switcher: 'locale-switcher',
+  },
+  messages: {
+    searchTrigger: 'messages-search-btn',
+    navTrigger: 'msg-jump-trigger',
+    navPanel: 'msg-jump-list',
+    navScroll: 'msg-jump-scroll',
+    searchInput: 'msg-nav-search',
+    clearSearch: 'msg-nav-clear',
+    resultCount: 'msg-nav-count',
+    moreFilters: 'msg-nav-more',
+    advancedPanel: 'msg-nav-advanced',
+    emptyState: 'msg-nav-empty',
+    // Convenience literal for the most common BAS chip; the full chip family
+    // is modeled by the dynamic `messages.navChip` selector below.
+    chipUser: 'msg-nav-chip-user',
   },
 };
 
@@ -487,6 +503,41 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
       description: 'Read this message button on a message card',
       testIdPattern: 'msg-speak-one-${eventId}',
       params: { eventId: { type: 'string' } },
+    }),
+    navResultRow: defineDynamicSelector({
+      description: 'Message navigator result row by event ID',
+      testIdPattern: 'msg-jump-item-${eventId}',
+      params: { eventId: { type: 'string' } },
+    }),
+    navChip: defineDynamicSelector({
+      description: 'Message navigator primary filter chip',
+      testIdPattern: 'msg-nav-chip-${id}',
+      params: { id: { type: 'enum', values: ['all', 'user', 'assistant', 'failed', 'unheard'] } },
+    }),
+    navSourceOption: defineDynamicSelector({
+      description: 'Message navigator source filter option',
+      testIdPattern: 'msg-nav-source-${source}',
+      params: { source: { type: 'enum', values: ['claude', 'codex', 'opencode', 'grok'] } },
+    }),
+    navStatusOption: defineDynamicSelector({
+      description: 'Message navigator status filter option',
+      testIdPattern: 'msg-nav-status-${status}',
+      params: { status: { type: 'enum', values: ['all', 'unheard', 'played', 'failed', 'summarized'] } },
+    }),
+    navContentOption: defineDynamicSelector({
+      description: 'Message navigator content filter option',
+      testIdPattern: 'msg-nav-content-${content}',
+      params: { content: { type: 'enum', values: ['all', 'code', 'fileReference', 'long'] } },
+    }),
+    navSortOption: defineDynamicSelector({
+      description: 'Message navigator sort option',
+      testIdPattern: 'msg-nav-sort-${mode}',
+      params: { mode: { type: 'enum', values: ['oldest', 'newest', 'relevance'] } },
+    }),
+    navGroupOption: defineDynamicSelector({
+      description: 'Message navigator grouping option',
+      testIdPattern: 'msg-nav-group-${mode}',
+      params: { mode: { type: 'enum', values: ['turn', 'flat', 'role'] } },
     }),
   },
 };

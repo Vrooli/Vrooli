@@ -212,10 +212,10 @@ func (gt *GrokTailer) tailFile(path, sessionID string) {
 				continue
 			}
 			if turn.User != "" {
-				gt.server.AppendUser(turn.User, sessionID, grokSource)
+				logGrokAppend("user", sessionID, gt.server.AppendUser(turn.User, sessionID, grokSource))
 			}
 			if turn.Assistant != "" {
-				gt.server.AppendAssistant(turn.Assistant, sessionID, grokSource)
+				logGrokAppend("assistant", sessionID, gt.server.AppendAssistant(turn.Assistant, sessionID, grokSource))
 			}
 			boundaryOffset = currentOffset
 			gt.saveCheckpoint(path, sessionID, boundaryOffset)
@@ -258,6 +258,19 @@ func (gt *GrokTailer) tailFile(path, sessionID string) {
 			}
 		}
 	}
+}
+
+// logGrokAppend surfaces the outcome of routing a grok turn into the
+// conversation log. TEMPORARY INSTRUMENTATION (RCA: opencode/grok ingestion):
+// a dropped append — e.g. the owning pane is no longer live in s.sessions, so
+// AppendUser/AppendAssistant returns conversation_target_missing — is otherwise
+// invisible because the tailer advances its byte checkpoint regardless.
+func logGrokAppend(role, sessionID string, res ConversationAppendResult) {
+	if res.Appended {
+		log.Printf("grok-tailer: appended %s message for session %s (seq=%d)", role, sessionID, res.Sequence)
+		return
+	}
+	log.Printf("grok-tailer: DROPPED %s message for session %s: code=%s reason=%q", role, sessionID, res.Code, res.Reason)
 }
 
 // captureAgentInfo reads the session summary.json sibling of updates.jsonl and

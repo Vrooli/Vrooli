@@ -28,6 +28,7 @@
 
   /* Accent */
   --wc-accent: 34 211 238;             /* cyan-400 */
+  --wc-accent-fg: 15 23 42;            /* slate-900 */
   --wc-accent-border: 6 182 212 / 0.4; /* cyan-500/40 */
   --wc-accent-active: 14 116 144 / 0.4; /* cyan-700/40 */
 
@@ -73,13 +74,80 @@ html {
 }
 
 body {
-  background: rgb(var(--wc-surface-header));
+  /* Backs the iOS notch / status-bar region (which has no element of its own).
+   * --wc-chrome-color is set imperatively by lib/chromeTheme.ts when adaptive
+   * chrome is active; otherwise it falls back to the slate header surface. */
+  background: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+  transition: background-color 200ms ease;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
   position: fixed;
   inset: 0;
+}
+
+/* ── Adaptive app chrome ──
+ * Surfaces that tint to the focused terminal background (status bar, top bar,
+ * bottom toolbar, desktop sidebar) in single-focus display modes. Each falls
+ * back to its normal slate design token when --wc-chrome-color is unset (grid
+ * mode or adaptive chrome disabled), so the default appearance is unchanged.
+ * The color is applied imperatively (see lib/chromeTheme.ts) — never through
+ * React state — so a busy TUI repaint never re-renders the terminal subtree. */
+.wc-chrome-surface {
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+  transition: background-color 200ms ease;
+}
+.wc-chrome-surface-raised {
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-raised)));
+  transition: background-color 200ms ease;
+}
+/* Contrast-correct foreground for inherited text on a tinted surface. Children
+ * with their own explicit text-* token keep it; this only adapts inheritors. */
+.wc-chrome-fg {
+  color: var(--wc-chrome-fg, inherit);
+}
+
+.wc-ios-tint-edge {
+  position: fixed;
+  display: none;
+  left: 0;
+  right: 0;
+  z-index: 2147483647;
+  height: 4px;
+  width: 100%;
+  pointer-events: none;
+  background-color: var(--wc-chrome-color, rgb(var(--wc-surface-header)));
+}
+
+html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
+  display: block;
+}
+
+.wc-ios-tint-edge-top {
+  top: 0;
+}
+
+.wc-ios-tint-edge-bottom {
+  bottom: 0;
+}
+
+.wc-stable-theme {
+  color-scheme: dark;
+  --wc-surface-base: 2 6 23;
+  --wc-surface-raised: 15 23 42;
+  --wc-surface-input: 30 41 59;
+  --wc-surface-header: var(--wc-surface-raised);
+  --wc-text-primary: 248 250 252;
+  --wc-text-secondary: 226 232 240;
+  --wc-text-muted: 148 163 184;
+  --wc-text-faint: 100 116 139;
+  --wc-border-default: 255 255 255 / 0.1;
+  --wc-border-hover: 255 255 255 / 0.3;
+  --wc-accent: 34 211 238;
+  --wc-accent-fg: 15 23 42;
+  --wc-accent-border: 6 182 212 / 0.4;
+  --wc-accent-active: 14 116 144 / 0.4;
 }
 
 /* ── Tab bar: prevent text selection ──

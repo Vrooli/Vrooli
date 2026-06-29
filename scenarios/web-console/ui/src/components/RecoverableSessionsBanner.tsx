@@ -81,7 +81,7 @@ export default function RecoverableSessionsBanner(props: RecoverableSessionsBann
   return (
     <div
       data-testid="recoverable-sessions-banner"
-      className="border-b border-amber-700/40 bg-amber-900/20 text-sm text-amber-100"
+      className="wc-stable-theme border-b border-amber-700/40 bg-amber-900/20 text-sm text-amber-100"
     >
       <div className="py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] font-medium">
         {t(strings.recoverableSessions.heading, { count: rows.length })}

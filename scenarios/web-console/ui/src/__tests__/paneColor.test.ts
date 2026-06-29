@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  hexToRgb,
+  relativeLuminance,
+  isLightColor,
   isHexColor,
   parsePaneColor,
   serializePaneColor,
@@ -127,5 +130,39 @@ describe("isHexColor", () => {
     expect(isHexColor("transparent")).toBe(false);
     expect(isHexColor("ff6b6b")).toBe(false);
     expect(isHexColor("#ff6b6b|#4dabf7")).toBe(false);
+  });
+});
+
+describe("hexToRgb", () => {
+  it("parses 6-digit hex", () => {
+    expect(hexToRgb("#ff8800")).toEqual({ r: 255, g: 136, b: 0 });
+  });
+  it("expands 3-digit hex", () => {
+    expect(hexToRgb("#abc")).toEqual({ r: 170, g: 187, b: 204 });
+  });
+  it("returns null for invalid input", () => {
+    expect(hexToRgb("transparent")).toBeNull();
+    expect(hexToRgb(null)).toBeNull();
+  });
+});
+
+describe("relativeLuminance / isLightColor", () => {
+  it("black is dark, white is light", () => {
+    expect(relativeLuminance("#000000")).toBeCloseTo(0, 5);
+    expect(relativeLuminance("#ffffff")).toBeCloseTo(1, 5);
+    expect(isLightColor("#000000")).toBe(false);
+    expect(isLightColor("#ffffff")).toBe(true);
+  });
+  it("classifies dark terminal backgrounds as dark", () => {
+    // All built-in theme backgrounds want a light foreground.
+    for (const bg of ["#0f172a", "#282a36", "#002b36", "#272822", "#2e3440", "#0d1117"]) {
+      expect(isLightColor(bg)).toBe(false);
+    }
+  });
+  it("classifies a near-white TUI background as light", () => {
+    expect(isLightColor("#f5f5f5")).toBe(true);
+  });
+  it("treats invalid input as dark (0 luminance)", () => {
+    expect(relativeLuminance("nope")).toBe(0);
   });
 });

@@ -39,11 +39,14 @@ export default function App() {
 
   return (
     <ErrorBoundary region="app">
+      <div className="wc-ios-tint-edge wc-ios-tint-edge-top" aria-hidden="true" />
+      <div className="wc-ios-tint-edge wc-ios-tint-edge-bottom" aria-hidden="true" />
+
       {/* Connection banner — shown above workspace when API is unreachable */}
       {showBanner && (
         <div
           data-testid="connection-banner"
-          className="flex items-center gap-2 bg-wc-error-surface border-b border-wc-error py-2 ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] text-sm text-wc-error-text"
+          className="wc-stable-theme flex items-center gap-2 bg-wc-error-surface border-b border-wc-error py-2 ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] text-sm text-wc-error-text"
         >
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="flex-1">

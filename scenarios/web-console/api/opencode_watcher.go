@@ -324,14 +324,27 @@ func (w *OpenCodeWatcher) reconcileSession(ctx context.Context, client opencode.
 	for _, e := range emissions {
 		switch e.Role {
 		case "user":
-			w.server.AppendUser(e.Text, wcID, opencodeSource)
+			logOpencodeAppend("user", wcID, w.server.AppendUser(e.Text, wcID, opencodeSource))
 		case "assistant":
-			w.server.AppendAssistant(e.Text, wcID, opencodeSource)
+			logOpencodeAppend("assistant", wcID, w.server.AppendAssistant(e.Text, wcID, opencodeSource))
 		}
 	}
 	if next != cur {
 		w.saveCursor(ocID, wcID, next)
 	}
+}
+
+// logOpencodeAppend surfaces the outcome of routing an opencode message into
+// the conversation log. TEMPORARY INSTRUMENTATION (RCA: opencode/grok
+// ingestion): a dropped append — e.g. the claimed pane is no longer live in
+// s.sessions, so AppendUser/AppendAssistant returns conversation_target_missing
+// — is otherwise invisible because the watcher advances its cursor regardless.
+func logOpencodeAppend(role, wcID string, res ConversationAppendResult) {
+	if res.Appended {
+		log.Printf("opencode-watcher: appended %s message for pane %s (seq=%d)", role, wcID, res.Sequence)
+		return
+	}
+	log.Printf("opencode-watcher: DROPPED %s message for pane %s: code=%s reason=%q", role, wcID, res.Code, res.Reason)
 }
 
 func (w *OpenCodeWatcher) loadCursor(ocID string) opencode.Cursor {

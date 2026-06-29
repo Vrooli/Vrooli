@@ -42,7 +42,7 @@ export default function ConfirmCloseDialog({
       onClick={onCancel}
     >
       <div
-        className="mx-4 w-full max-w-sm rounded-lg border border-wc-default bg-wc-surface-raised p-5 shadow-xl"
+        className="wc-stable-theme mx-4 w-full max-w-sm rounded-lg border border-wc-default bg-wc-surface-raised p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-2 text-sm font-semibold text-wc-text-primary">

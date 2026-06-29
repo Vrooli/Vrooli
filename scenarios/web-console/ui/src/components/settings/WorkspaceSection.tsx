@@ -31,6 +31,8 @@ export default function WorkspaceSection() {
   const setToolbarLayout = useWorkspaceStore((state) => state.setToolbarLayout);
   const keepScreenAwake = useWorkspaceStore((state) => state.keepScreenAwake);
   const setKeepScreenAwake = useWorkspaceStore((state) => state.setKeepScreenAwake);
+  const adaptiveChrome = useWorkspaceStore((state) => state.adaptiveChrome);
+  const setAdaptiveChrome = useWorkspaceStore((state) => state.setAdaptiveChrome);
   const wakeLockStatus = useWakeLockStatus((s) => s.status);
 
   const defaultHintKey = strings.settings.workspaceSection.wakeLockDefault;
@@ -129,6 +131,17 @@ export default function WorkspaceSection() {
             )}
           />
         )}
+        <SettingsRow
+          label={t(strings.settings.workspaceSection.adaptiveChromeLabel)}
+          hint={t(strings.settings.workspaceSection.adaptiveChromeHint)}
+          control={(
+            <SettingsToggle
+              testId="adaptive-chrome-toggle"
+              checked={adaptiveChrome}
+              onClick={() => setAdaptiveChrome(!adaptiveChrome)}
+            />
+          )}
+        />
         <SettingsRow
           label={t(strings.settings.workspaceSection.localeLabel)}
           hint={t(strings.settings.workspaceSection.localeHint)}

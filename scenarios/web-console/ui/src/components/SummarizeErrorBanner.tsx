@@ -46,7 +46,7 @@ export default function SummarizeErrorBanner({
       data-testid="summarize-error-banner"
       data-source={state.source}
       data-status={state.status}
-      className="flex items-start gap-2 border-b border-amber-500/30 bg-amber-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-200"
+      className="wc-stable-theme flex items-start gap-2 border-b border-amber-500/30 bg-amber-500/10 py-2 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-200"
       role="status"
     >
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

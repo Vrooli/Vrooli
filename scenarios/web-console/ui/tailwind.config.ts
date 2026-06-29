@@ -22,6 +22,7 @@ export default {
           "text-muted": "rgb(var(--wc-text-muted) / <alpha-value>)",
           "text-faint": "rgb(var(--wc-text-faint) / <alpha-value>)",
           accent: "rgb(var(--wc-accent) / <alpha-value>)",
+          "accent-fg": "rgb(var(--wc-accent-fg) / <alpha-value>)",
           "error-text": "rgb(var(--wc-error-text) / <alpha-value>)",
           "error-detail": "rgb(var(--wc-error-detail) / <alpha-value>)",
         },

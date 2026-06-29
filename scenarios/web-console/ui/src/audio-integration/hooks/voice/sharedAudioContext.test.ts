@@ -47,7 +47,7 @@ describe("ensureRunningSharedAudioContext", () => {
     const first = await ensureRunningSharedAudioContext();
     expect(FakeAudioContext.instances.length).toBeGreaterThanOrEqual(2);
     // The wedged one was closed and discarded.
-    expect(FakeAudioContext.instances[0]!.close).toHaveBeenCalled();
+    expect(FakeAudioContext.instances[0]?.close).toHaveBeenCalled();
     // Returned context is the freshly-built one, not the wedged original.
     expect(first).toBe(FakeAudioContext.instances[FakeAudioContext.instances.length - 1]);
   });
