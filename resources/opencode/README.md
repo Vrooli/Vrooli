@@ -122,6 +122,19 @@ resource-opencode status
 - Do not reintroduce a `resource-opencode run` passthrough — the contract is
   raw-binary invocation.
 
+### web-console conversation capture
+
+When `opencode` runs inside a [web-console](../../scenarios/web-console) terminal
+pane, web-console captures its conversation into the semantic messages feed
+(search, TTS, replay). It does this over the HTTP API — web-console owns a
+single loopback-only `opencode serve` instance, subscribes to its `/event` SSE
+stream, and reconciles transcripts via `GET /session/{id}/message`. It does not
+parse the OpenCode SQLite store and reads no provider credentials. Because
+OpenCode shares one global storage dir across processes, a pane's session is
+attributed to it only when the match is unambiguous (directory + creation time +
+uniqueness); concurrent `opencode` panes in the same directory are skipped rather
+than misrouted. See `scenarios/web-console/docs/guides/CONVERSATION_TRACKING.md`.
+
 ## References
 
 - [OpenCode](https://opencode.ai)

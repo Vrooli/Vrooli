@@ -23,7 +23,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 | 15 | [Security](security/README.md) | 3m | Yes | No | validation-provider | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. |
 | 16 | [Measures](measures/README.md) | 3m | Yes | No | validation-provider | Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension. |
 | 17 | [Proto](proto/README.md) | 2m | Yes | No | validation-provider | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. |
-| 18 | [Branding](branding/README.md) | 2m | Yes | No | validation-provider | Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, color-system, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension. |
+| 18 | [Branding](branding/README.md) | 2m | Yes | No | validation-provider | Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, canonical design-token contract, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension. |
 
 ## Static Phases
 
@@ -41,7 +41,7 @@ Test Genie phases are declared in the catalog at [`api/internal/orchestrator/pha
 - [Security](security/README.md) - Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung.
 - [Measures](measures/README.md) - Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension.
 - [Proto](proto/README.md) - Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension.
-- [Branding](branding/README.md) - Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, color-system, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension.
+- [Branding](branding/README.md) - Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, canonical design-token contract, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension.
 
 ## Runtime Phases
 

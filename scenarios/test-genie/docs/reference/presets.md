@@ -85,7 +85,7 @@ test-genie execute my-scenario --preset comprehensive
 | Security | Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung. | 3m |
 | Measures | Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension. | 3m |
 | Proto | Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension. | 2m |
-| Branding | Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, color-system, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension. | 2m |
+| Branding | Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, canonical design-token contract, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension. | 2m |
 
 ## Preset Comparison
 

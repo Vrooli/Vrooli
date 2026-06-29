@@ -173,6 +173,9 @@ type ConformanceScanner struct {
 	// Target is the fixture scenario each provider validates (DefaultScanTarget
 	// when empty).
 	Target string
+	// Subject optionally narrows the scan to one delegated phase or provider.
+	// Empty scans every delegated provider.
+	Subject string
 	// Timeout is the default per-provider probe timeout (a delegated phase's own
 	// timeout overrides it when larger).
 	Timeout time.Duration
@@ -188,6 +191,7 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 	if target == "" {
 		target = DefaultScanTarget
 	}
+	subject := catalog.NormalizeKey(s.Subject)
 	probe := s.Probe
 	if probe == nil {
 		probe = defaultConformanceProbe
@@ -203,6 +207,11 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 		if spec.Delegated == nil {
 			continue
 		}
+		phase := spec.Name.String()
+		provider := spec.Delegated.ProviderScenario
+		if subject != "" && subject != phase && subject != catalog.NormalizeKey(provider) {
+			continue
+		}
 		timeout := s.Timeout
 		if timeout <= 0 {
 			timeout = defaultConformanceTimeout
@@ -210,7 +219,7 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 		if spec.Delegated.Timeout > timeout {
 			timeout = spec.Delegated.Timeout
 		}
-		jobs = append(jobs, job{phase: spec.Name.String(), provider: spec.Delegated.ProviderScenario, timeout: timeout})
+		jobs = append(jobs, job{phase: phase, provider: provider, timeout: timeout})
 	}
 
 	results := make([]ProviderConformance, len(jobs))

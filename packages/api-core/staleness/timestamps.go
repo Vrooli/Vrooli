@@ -1,6 +1,7 @@
-// Package staleness provides timestamp-based staleness detection for Go API binaries.
-// When an API starts, it can check if its source files have changed since compilation
-// and automatically rebuild/restart itself if stale.
+// Package staleness provides startup freshness checks for Go API binaries.
+// Lifecycle-managed APIs verify the lifecycle freshness manifest and leave
+// rebuilds to the supervisor. Unmanaged APIs fall back to timestamp-based source
+// checks and can automatically rebuild/restart themselves if stale.
 package staleness
 
 import (

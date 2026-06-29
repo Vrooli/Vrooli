@@ -36,6 +36,7 @@ collect the evidence so the next person can re-verify.
 | **Claude Code** | `CLAUDECODE=1` (presence; corroborating: `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_EXECPATH`) | Live self-inspection 2026-05-21 inside an active Claude Code session: vars present in tool-shell env, absent from the `claude` runtime's parent env. |
 | **Codex CLI** | `CODEX_CI=1` AND `CODEX_THREAD_ID` non-empty | Agent-manager run `da1ab31b-13fe-44d1-910e-cde0f8d8fb26` (2026-05-21). The two-var AND rule rules out CI shells that happen to set `CODEX_CI=1` for unrelated reasons. |
 | **Opencode** | `OPENCODE_PID` set, AND the value must match a PID in the calling process's ancestor chain (`/proc/<pid>/status` PPid walk). Corroborating: `OPENCODE_RUN_ID`, `OPENCODE_PROCESS_ROLE`. | Static analysis of `/home/matthalloran8/.local/share/vrooli/resources/opencode/bin/opencode` 2026-05-21 (grep for `process.env.OPENCODE_*=` and `??=`). Observational re-confirmation in a real opencode-launched process is deferred — agent-manager's opencode runner shells to claude internally as of 2026-05-21. The PID-match rule is the anti-spoofing guard: a stale `OPENCODE_PID` env var that doesn't match any real ancestor will not classify. |
+| **Grok CLI** | `GROK_AGENT` equals the exact value `1`. Match on the value, NOT mere presence — see the value-override note. | Live `/proc` env-diff 2026-06-28 (standalone `grok 0.2.72`, launched headless `--always-approve`, asked to run a terminal command that walks its own process-ancestor chain). `GROK_AGENT=1` was present in the bash tool shells grok spawned (ancestor depths 0–1) and **absent** from the `grok` runtime's own env (the parent of those shells) and every ancestor above it (incl. the launching `claude` shell). **Value-override proof:** a second run launched with `GROK_AGENT=vrooli-probe-customvalue` preset showed grok's own env keeping that custom value while the tool shell still received the fixed sentinel `GROK_AGENT=1` — so grok deterministically rewrites it for subprocesses regardless of the user's custom-agent config. Matching the exact `1` therefore detects every grok tool shell (no false negative for custom-agent users) without classifying a human who exported `GROK_AGENT=<agent-name>` in their rc (a non-`1` value). |
 
 ## Deferred runtimes
 
@@ -43,7 +44,13 @@ collect the evidence so the next person can re-verify.
 |---|---|
 | **Cursor (background agent)** | No Cursor runner exists in agent-manager today. Same verification path applies once a harness is available. |
 | **Gemini CLI** | No Gemini CLI runner in agent-manager. Defer until one ships. |
-| **Grok CLI** | Released and wired as a resource (`resources/grok`) on 2026-06-28, with a `permissions` command gated by this detector. The external-agent *self*-signal is still unconfirmed: the gate currently classifies grok via the Vrooli-spawned signals (sandbox / agent-manager / swarm-manager) and the `VROOLI_CALLER=agent` override, which covers grok run under Vrooli. To add a standalone-grok row, capture the signal with the env-diff method below and document the run. Candidate vars to test (must appear in a grok *tool* shell and be ABSENT from the `grok` runtime's own env): `GROK_SESSION_ID` / `GROK_WORKSPACE_ROOT` are injected for **hook** processes only (per `~/.grok/docs/user-guide/10-hooks.md`) — verify whether grok also sets a stable marker on general `run_terminal_command` subprocesses before trusting one. Do NOT add an unverified row. |
+
+> **Grok CLI** graduated to the reliable table above on 2026-06-28 once the
+> `GROK_AGENT=1` self-signal was confirmed by `/proc` env-diff. The earlier
+> hook-only candidates (`GROK_SESSION_ID` / `GROK_WORKSPACE_ROOT`, injected for
+> **hook** processes only per `~/.grok/docs/user-guide/10-hooks.md`) were
+> correctly NOT used — they are absent from general `run_terminal_command`
+> subprocesses, so they would have missed the gated case.
 
 ## Excluded signals (do NOT use)
 

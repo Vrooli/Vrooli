@@ -10,6 +10,7 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 
+	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
@@ -126,6 +127,9 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 
 	report.Findings = findings
 	report.Metrics = execMetrics
+	if provider.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
+		report.FindingSource = findingid.SourceToken(provider.FindingSource)
+	}
 	writePhasePointer(env, provider.Phase, report, map[string]any{"summary": summary}, logWriter)
 	logPhaseStep(logWriter, "%s summary: %s", provider.Phase, summary.String())
 	return report

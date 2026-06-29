@@ -32,10 +32,11 @@ and an upstream update-check.
   — sudo-free, honoring `resource.json upstream_cli.version_pinned`, and without
   mutating the operator's shell rc.
 
-> **Not yet wired as an agent-manager runner.** This resource deliberately stops
-> at install + update + backup + command-permission parity with the other coding
-> agents. Registering Grok as an `agent-manager` runner is a separate, later
-> phase — see `docs/OPERATIONS.md`.
+> **Wired as an agent-manager runner.** Beyond install + update + backup +
+> command-permission parity, Grok is registered as an `agent-manager` runner
+> (`RUNNER_TYPE_GROK`); agent-manager invokes the raw `grok` binary headlessly
+> via its codec. See `docs/OPERATIONS.md` and
+> `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md`.
 
 ## Install / update / uninstall
 
@@ -104,11 +105,12 @@ cannot disarm its own gate. A human re-runs with `--i-was-explicitly-authorized`
 (`Bash(git *)`, `Read(src/**)`, `Grep`, …). See
 `~/.grok/docs/user-guide/22-permissions-and-safety.md` for Grok's native model.
 
-> **Agent self-detection caveat.** The gate classifies grok-as-caller via the
-> Vrooli-spawned signals (sandbox / agent-manager / swarm-manager) and the
-> `VROOLI_CALLER=agent` override. A standalone-grok self-signal row is still
-> pending live `/proc` env-diff verification — see
-> `packages/cli-core/docs/reference/agent-detection-signals.md`.
+The detector recognises **standalone grok** via the `GROK_AGENT=1` sentinel grok
+injects into its tool subprocesses (confirmed by `/proc` env-diff 2026-06-28), in
+addition to the Vrooli-spawned signals (sandbox / agent-manager / swarm-manager)
+and the `VROOLI_CALLER=agent` override. So a grok session — under Vrooli or run
+directly — that tries to weaken its own permission rules is refused. See
+`packages/cli-core/docs/reference/agent-detection-signals.md` for the evidence.
 
 ## Data locations (declared for backup)
 
@@ -147,6 +149,18 @@ on the `codex` and `opencode` resources.
 - Do not grow `cli/main.go` into a second operator framework.
 - Do not add a `resource-grok run` passthrough — when a runner is wired later,
   the contract is raw-binary invocation (mirroring opencode/codex).
+
+### web-console conversation capture
+
+When `grok` runs inside a [web-console](../../scenarios/web-console) terminal pane,
+web-console captures its conversation into the semantic messages feed (search,
+TTS, replay). It does this by injecting a per-pane `GROK_HOME` and tailing the
+session's `updates.jsonl` ACP stream — it never scrapes terminal output. The
+operator's real `~/.grok` auth/config is symlinked into each per-pane home, so
+login keeps working; only the `sessions/` subtree is isolated. Capture is
+read-only: web-console stores natural-language user/assistant text only (not
+thought chunks or tool arguments) and reads no auth material. See
+`scenarios/web-console/docs/guides/CONVERSATION_TRACKING.md`.
 
 ## References
 

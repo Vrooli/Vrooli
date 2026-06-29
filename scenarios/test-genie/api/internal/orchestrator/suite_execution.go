@@ -1163,6 +1163,8 @@ func (o *SuiteOrchestrator) completePhaseRun(
 	// this run covered — even when the phase produced zero findings.
 	if run.definition.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
 		result.FindingSource = findingid.SourceToken(run.definition.FindingSource)
+	} else if report.FindingSource != "" {
+		result.FindingSource = report.FindingSource
 	}
 	if len(preObservations) > 0 {
 		result.Observations = append(preObservations, result.Observations...)

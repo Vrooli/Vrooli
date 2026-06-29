@@ -40,6 +40,9 @@ func writePhasePointer(env workspace.Environment, phaseName string, report RunRe
 		// contract as ExecutionResult.Findings: enums marshal as proto ints.
 		payload["findings"] = report.Findings
 	}
+	if report.FindingSource != "" {
+		payload["findingSource"] = report.FindingSource
+	}
 	for k, v := range extras {
 		if v != nil {
 			payload[k] = v

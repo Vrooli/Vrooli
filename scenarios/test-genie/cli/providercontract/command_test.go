@@ -25,6 +25,16 @@ func TestParseArgs(t *testing.T) {
 	}
 }
 
+func TestParseScanArgsRestart(t *testing.T) {
+	got, err := ParseScanArgs([]string{"scan", "branding", "--restart", "--json", "--target", "brand-manager"})
+	if err != nil {
+		t.Fatalf("ParseScanArgs returned error: %v", err)
+	}
+	if !got.Restart || !got.JSON || got.Target != "brand-manager" || got.Subject != "branding" {
+		t.Fatalf("unexpected scan args: %#v", got)
+	}
+}
+
 func TestResolveProbeAcceptsPhaseAndProvider(t *testing.T) {
 	byPhase, err := ResolveProbe("contracts")
 	if err != nil {
@@ -241,6 +251,45 @@ func TestCheckReportsRestartFailure(t *testing.T) {
 	_, err = Check(context.Background(), Args{Target: "demo", Restart: true, Timeout: time.Second}, probe)
 	if err == nil || !strings.Contains(err.Error(), "restart provider cli-health via lifecycle") {
 		t.Fatalf("expected restart failure, got %v", err)
+	}
+}
+
+func TestRestartScanProvidersRestartsEachProviderOnce(t *testing.T) {
+	var calls []string
+	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
+		calls = append(calls, name+" "+strings.Join(args, " "))
+		return []byte("ok"), nil
+	})
+	defer restore()
+
+	restartScanProviders(context.Background(), time.Second, "")
+
+	seen := map[string]int{}
+	for _, call := range calls {
+		if !strings.HasPrefix(call, "vrooli scenario restart ") {
+			t.Fatalf("unexpected restart command: %s", call)
+		}
+		seen[strings.TrimPrefix(call, "vrooli scenario restart ")]++
+	}
+	for _, probe := range Probes() {
+		if got := seen[probe.Provider]; got != 1 {
+			t.Fatalf("provider %s restarted %d times, want once", probe.Provider, got)
+		}
+	}
+}
+
+func TestRestartScanProvidersHonorsSubject(t *testing.T) {
+	var calls []string
+	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
+		calls = append(calls, name+" "+strings.Join(args, " "))
+		return []byte("ok"), nil
+	})
+	defer restore()
+
+	restartScanProviders(context.Background(), time.Second, "branding")
+
+	if len(calls) != 1 || calls[0] != "vrooli scenario restart brand-manager" {
+		t.Fatalf("restart calls = %#v", calls)
 	}
 }
 

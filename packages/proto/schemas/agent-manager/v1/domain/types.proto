@@ -54,6 +54,11 @@ enum RunnerType {
   // Open-source multi-model CLI supporting various providers.
   // Supports: OpenRouter, Anthropic, OpenAI, Google, DeepSeek.
   RUNNER_TYPE_OPENCODE = 3;
+
+  // Grok Build CLI (resource-grok).
+  // xAI's Grok-based coding assistant CLI.
+  // Supports: streaming (streaming-json), continuation (--resume).
+  RUNNER_TYPE_GROK = 4;
 }
 
 // =============================================================================

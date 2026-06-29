@@ -178,6 +178,10 @@ type RunReport struct {
 	// nil for non-delegated phases and for providers that have not adopted the
 	// metrics contract.
 	Metrics *commonv1.ExecutionMetrics
+	// FindingSource is the lower-case source token for the phase's finding
+	// channel. This mirrors ExecutionResult.FindingSource and lets phase pointer
+	// artifacts retain covered-source information.
+	FindingSource string
 }
 
 // Runner is the function signature every Go-native phase must satisfy.

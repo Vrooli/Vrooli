@@ -41,8 +41,7 @@
         "locations_field": "paths",
         "weak_field": "weak",
         "regime_field": "regime",
-        "confidence_field": "confidence",
-        "score_scale": "SCORE_SCALE_COSINE_0_1"
+        "score_scale": "SCORE_SCALE_RAW"
       },
       "reindex_endpoint": {
         "http_json": {
@@ -86,126 +85,211 @@
       },
       "tests": {
         "name": "architecture-cartographer domain-map — primary golden corpus",
-        "description": "RANK-CENTRIC golden corpus for the cross-fleet domain-map index. Positive cases assert expect_ids (the '<scenario>/<domain>' leaf, e.g. 'plan-manager/authoring') landing within expect_within_top_k. The corpus is deliberately TERM-AGNOSTIC: queries describe what a domain DOES (its responsibility/purpose prose) without naming the domain, since the headline value of this provider is answering natural-language intent from a caller who does not know Vrooli's vocabulary. NO absolute expect_min_score is set on positives by design (the sweep compares arms across dense-cosine / cross-encoder / RRF-blend regimes). Difficulty: strong (intended leaf at rank 1-3), weak-real (contested by sibling domains or generic inventory intent). Gibberish negatives feed the junk-rejection constraint, never the recall objective.",
+        "description": "RANK-CENTRIC golden corpus for the cross-fleet domain-map index. Positive cases assert expect_ids (the '\u003cscenario\u003e/\u003cdomain\u003e' leaf, e.g. 'plan-manager/authoring') landing within expect_within_top_k. The corpus is deliberately TERM-AGNOSTIC: queries describe what a domain DOES (its responsibility/purpose prose) without naming the domain, since the headline value of this provider is answering natural-language intent from a caller who does not know Vrooli's vocabulary. NO absolute expect_min_score is set on positives by design (the sweep compares arms across dense-cosine / cross-encoder / RRF-blend regimes). Difficulty: strong (intended leaf at rank 1-3), weak-real (contested by sibling domains or generic inventory intent). Gibberish negatives feed the junk-rejection constraint, never the recall objective.",
         "cases": [
           {
             "id": "authoring-in-plan-manager",
             "query": "how does authoring work in plan-manager",
-            "tags": ["strong", "term-agnostic", "headline"],
-            "expect_ids": ["plan-manager/authoring"],
+            "tags": [
+              "strong",
+              "term-agnostic",
+              "headline"
+            ],
+            "expect_ids": [
+              "plan-manager/authoring"
+            ],
             "expect_within_top_k": 3,
             "note": "The headline validation of this whole effort: term-agnostic NL intent → the authoring domain, matched on responsibility prose."
           },
           {
             "id": "domains-of-plan-manager",
             "query": "what are the domains in plan-manager",
-            "tags": ["weak-real", "inventory"],
-            "expect_ids": ["plan-manager/plans", "plan-manager/authoring", "plan-manager/execution"],
+            "tags": [
+              "weak-real",
+              "inventory"
+            ],
+            "expect_ids": [
+              "plan-manager/plans",
+              "plan-manager/authoring",
+              "plan-manager/execution"
+            ],
             "expect_within_top_k": 5,
             "note": "Inventory intent: any genuine plan-manager domain landing in top-5 counts."
           },
           {
             "id": "owns-plan-validation",
             "query": "which domain owns plan validation and staleness checks",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["plan-manager/validation"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "plan-manager/validation"
+            ],
             "expect_within_top_k": 5
           },
           {
             "id": "plan-execution-runner",
             "query": "where does step-by-step plan execution and phase transitions happen",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["plan-manager/execution"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "plan-manager/execution"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "execution-log-ledger",
             "query": "a durable ledger for typed work like decisions and findings",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["plan-manager/log"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "plan-manager/log"
+            ],
             "expect_within_top_k": 5
           },
           {
             "id": "classify-and-route-query",
             "query": "classify a free-text query and fan it out to providers",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["search-hub/routing"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/routing"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "search-quality-baselines",
             "query": "per-provider search quality baselines and A/B evaluation",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["search-hub/eval"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/eval"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "fuse-shortlists-ranked",
             "query": "fuse multiple result shortlists into one ranked list",
-            "tags": ["weak-real", "term-agnostic"],
-            "expect_ids": ["search-hub/rerank"],
+            "tags": [
+              "weak-real",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/rerank"
+            ],
             "expect_within_top_k": 5
           },
           {
             "id": "store-provider-descriptors",
             "query": "persist provider descriptors and serve registration",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["search-hub/registry"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "search-hub/registry"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "semantic-command-search",
             "query": "semantic and text search for CLI commands across scenarios",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["cli-health/search"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "cli-health/search"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "infer-domain-archetype",
             "query": "infer a domain's archetype role from structural code evidence",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["architecture-cartographer/archetype"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "architecture-cartographer/archetype"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "detect-graph-domain-drift",
             "query": "detect drift between the actual code graph and the intended domain map",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["architecture-cartographer/conflicts"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "architecture-cartographer/conflicts"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "vertical-slice-walker",
             "query": "trace a domain end to end from proto to handler to cli",
-            "tags": ["weak-real", "term-agnostic"],
-            "expect_ids": ["architecture-cartographer/slice"],
+            "tags": [
+              "weak-real",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "architecture-cartographer/slice"
+            ],
             "expect_within_top_k": 5
           },
           {
             "id": "apply-brand-to-scenario",
             "query": "apply a brand's CSS custom properties to a target scenario",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["brand-manager/apply"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "brand-manager/apply"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "ai-generate-brand",
             "query": "generate a brand palette typography and images with AI",
-            "tags": ["strong", "term-agnostic"],
-            "expect_ids": ["brand-manager/generation"],
+            "tags": [
+              "strong",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "brand-manager/generation"
+            ],
             "expect_within_top_k": 3
           },
           {
             "id": "color-contrast-accessibility",
             "query": "compute WCAG color contrast ratios for accessibility",
-            "tags": ["weak-real", "term-agnostic"],
-            "expect_ids": ["brand-manager/contrast"],
+            "tags": [
+              "weak-real",
+              "term-agnostic"
+            ],
+            "expect_ids": [
+              "brand-manager/contrast"
+            ],
             "expect_within_top_k": 5
           },
           {
             "id": "gibberish-1",
             "query": "asdfqwer zxcvbnm qwertyuiop florbnax",
-            "tags": ["gibberish"],
+            "tags": [
+              "gibberish"
+            ],
             "expect_max_score": 0.3,
             "expect_no_strong_hit": true,
             "note": "Junk rejection: no domain should surface as a confident hit for nonsense."
@@ -213,7 +297,9 @@
           {
             "id": "gibberish-2",
             "query": "wibble snorp gleurgh ffffzzzz plover",
-            "tags": ["gibberish"],
+            "tags": [
+              "gibberish"
+            ],
             "expect_max_score": 0.3,
             "expect_no_strong_hit": true
           }

@@ -275,3 +275,19 @@ func TestConformanceScannerScansCatalog(t *testing.T) {
 		}
 	}
 }
+
+func TestConformanceScannerFiltersBySubject(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "brand-manager", "branding")
+	report := ConformanceScanner{
+		RepoRoot: repo,
+		Subject:  "branding",
+		Probe:    probeFn(validProbeResponse("brand-manager", "branding", true), nil),
+	}.Scan(context.Background())
+	if len(report.Providers) != 1 {
+		t.Fatalf("providers = %d, want 1: %+v", len(report.Providers), report.Providers)
+	}
+	if got := report.Providers[0]; got.Phase != "branding" || got.Provider != "brand-manager" {
+		t.Fatalf("unexpected provider: %+v", got)
+	}
+}

@@ -45,6 +45,10 @@ const (
 	// Open-source multi-model CLI supporting various providers.
 	// Supports: OpenRouter, Anthropic, OpenAI, Google, DeepSeek.
 	RunnerType_RUNNER_TYPE_OPENCODE RunnerType = 3
+	// Grok Build CLI (resource-grok).
+	// xAI's Grok-based coding assistant CLI.
+	// Supports: streaming (streaming-json), continuation (--resume).
+	RunnerType_RUNNER_TYPE_GROK RunnerType = 4
 )
 
 // Enum value maps for RunnerType.
@@ -54,12 +58,14 @@ var (
 		1: "RUNNER_TYPE_CLAUDE_CODE",
 		2: "RUNNER_TYPE_CODEX",
 		3: "RUNNER_TYPE_OPENCODE",
+		4: "RUNNER_TYPE_GROK",
 	}
 	RunnerType_value = map[string]int32{
 		"RUNNER_TYPE_UNSPECIFIED": 0,
 		"RUNNER_TYPE_CLAUDE_CODE": 1,
 		"RUNNER_TYPE_CODEX":       2,
 		"RUNNER_TYPE_OPENCODE":    3,
+		"RUNNER_TYPE_GROK":        4,
 	}
 )
 
@@ -1688,13 +1694,14 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\fFeatureFlags\x12%\n" +
 	"\x0eenable_browser\x18\x01 \x01(\bR\renableBrowser\"%\n" +
 	"\rExtraFlagList\x12\x14\n" +
-	"\x05flags\x18\x01 \x03(\tR\x05flags*w\n" +
+	"\x05flags\x18\x01 \x03(\tR\x05flags*\x8d\x01\n" +
 	"\n" +
 	"RunnerType\x12\x1b\n" +
 	"\x17RUNNER_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17RUNNER_TYPE_CLAUDE_CODE\x10\x01\x12\x15\n" +
 	"\x11RUNNER_TYPE_CODEX\x10\x02\x12\x18\n" +
-	"\x14RUNNER_TYPE_OPENCODE\x10\x03*r\n" +
+	"\x14RUNNER_TYPE_OPENCODE\x10\x03\x12\x14\n" +
+	"\x10RUNNER_TYPE_GROK\x10\x04*r\n" +
 	"\vModelPreset\x12\x1c\n" +
 	"\x18MODEL_PRESET_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11MODEL_PRESET_FAST\x10\x01\x12\x16\n" +

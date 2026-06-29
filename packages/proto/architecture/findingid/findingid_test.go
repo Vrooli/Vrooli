@@ -93,6 +93,12 @@ func TestNoCollisions(t *testing.T) {
 	}
 }
 
+func TestSourceTokenIncludesBranding(t *testing.T) {
+	if got := SourceToken(architecturev1.FindingSource_FINDING_SOURCE_BRANDING); got != "branding" {
+		t.Fatalf("branding source token = %q, want branding", got)
+	}
+}
+
 // TestLineShiftInvariant: the line/column suffix on an extension-bearing
 // file path is NOT part of identity — fixing one finding shifts later
 // findings' lines, and the ID must survive that drift.

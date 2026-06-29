@@ -16,6 +16,7 @@ class RunnerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUNNER_TYPE_CLAUDE_CODE: _ClassVar[RunnerType]
     RUNNER_TYPE_CODEX: _ClassVar[RunnerType]
     RUNNER_TYPE_OPENCODE: _ClassVar[RunnerType]
+    RUNNER_TYPE_GROK: _ClassVar[RunnerType]
 
 class ModelPreset(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -173,6 +174,7 @@ RUNNER_TYPE_UNSPECIFIED: RunnerType
 RUNNER_TYPE_CLAUDE_CODE: RunnerType
 RUNNER_TYPE_CODEX: RunnerType
 RUNNER_TYPE_OPENCODE: RunnerType
+RUNNER_TYPE_GROK: RunnerType
 MODEL_PRESET_UNSPECIFIED: ModelPreset
 MODEL_PRESET_FAST: ModelPreset
 MODEL_PRESET_CHEAP: ModelPreset

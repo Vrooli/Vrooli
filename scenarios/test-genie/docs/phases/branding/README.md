@@ -34,7 +34,7 @@ positives. The branding maturity ladder (L0–L6) evaluates, per scenario:
 | Rule | Surface | What it checks | Default severity | Auto-fix |
 |---|---|---|---|---|
 | `has-display-name` | any | `service.json` declares a non-placeholder display name | error | no |
-| `has-color-system` | ui | design tokens define the core color tokens | warning | yes (create-only baseline when none) |
+| `has-color-system` | ui | canonical `ui/src/design-tokens.css` defines the core color tokens | warning | yes (create-only baseline when none) |
 | `has-typography` | ui | heading + body font tokens are defined | info | no |
 | `has-logo` | ui | a logo asset is present | warning | no (image generation is non-deterministic) |
 | `has-favicon` | ui | a favicon is present / referenced | warning | yes (derive from logo; else guidance-only) |

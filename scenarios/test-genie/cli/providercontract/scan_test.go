@@ -29,11 +29,11 @@ func TestParseScanArgsDefaults(t *testing.T) {
 }
 
 func TestParseScanArgsOverrides(t *testing.T) {
-	args, err := ParseScanArgs([]string{"scan", "--json", "--target", "proto-health", "--timeout", "5s"})
+	args, err := ParseScanArgs([]string{"scan", "branding", "--json", "--target", "proto-health", "--timeout", "5s"})
 	if err != nil {
 		t.Fatalf("ParseScanArgs: %v", err)
 	}
-	if !args.JSON || args.Target != "proto-health" || args.Timeout != 5*time.Second {
+	if !args.JSON || args.Target != "proto-health" || args.Timeout != 5*time.Second || args.Subject != "branding" {
 		t.Fatalf("unexpected parsed args: %+v", args)
 	}
 }
@@ -41,6 +41,18 @@ func TestParseScanArgsOverrides(t *testing.T) {
 func TestParseScanArgsRejectsNonScan(t *testing.T) {
 	if _, err := ParseScanArgs([]string{"check"}); err == nil {
 		t.Fatal("expected error for non-scan subcommand")
+	}
+}
+
+func TestParseScanArgsRejectsUnknownSubject(t *testing.T) {
+	if _, err := ParseScanArgs([]string{"scan", "not-a-phase"}); err == nil {
+		t.Fatal("expected error for unknown scan subject")
+	}
+}
+
+func TestParseScanArgsRejectsExtraSubjects(t *testing.T) {
+	if _, err := ParseScanArgs([]string{"scan", "branding", "contracts"}); err == nil {
+		t.Fatal("expected error for extra scan subjects")
 	}
 }
 

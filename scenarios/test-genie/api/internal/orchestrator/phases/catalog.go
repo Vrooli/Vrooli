@@ -250,10 +250,10 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		ProviderScenario: "brand-manager",
 		FindingSource:    architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
 		Emoji:            "🎨",
-		DetailCommand:    "brand-manager validate {{scenario}}",
+		DetailCommand:    "test-genie execute {{scenario}} branding --wait",
 		Optional:         true,
 		Timeout:          120 * time.Second,
-		Description:      "Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, color-system, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension.",
+		Description:      "Delegates brand-identity validation to brand-manager through ScenarioValidationService (display-name, canonical design-token contract, typography, logo, favicon, WCAG-AA contrast, applied brand markers) and maps findings into the FINDING_SOURCE_BRANDING channel that feeds the ecosystem-manager soft `branding` ladder dimension.",
 	}))
 	return catalog
 }

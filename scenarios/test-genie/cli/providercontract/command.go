@@ -24,7 +24,7 @@ import (
 	catalog "test-genie/internal/orchestrator/phases"
 )
 
-const usage = "usage: provider-contract <check|scan> ...\n  check <phase|provider> <target-scenario> [--no-restart] [--json]\n  scan [--json] [--target <fixture-scenario>] [--timeout <dur>]"
+const usage = "usage: provider-contract <check|scan> ...\n  check <phase|provider> <target-scenario> [--no-restart] [--json]\n  scan [<phase-or-provider>] [--json] [--target <fixture-scenario>] [--timeout <dur>] [--restart]"
 
 var (
 	commandRunner          = runCommand

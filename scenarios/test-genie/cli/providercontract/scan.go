@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	catalog "test-genie/internal/orchestrator/phases"
 	"test-genie/internal/selfhealth"
 )
 
-const scanUsage = "usage: provider-contract scan [--json] [--target <fixture-scenario>] [--timeout <dur>]"
+const scanUsage = "usage: provider-contract scan [<phase-or-provider>] [--json] [--target <fixture-scenario>] [--timeout <dur>] [--restart]"
 
 // scanResolveRepoRoot is a test seam for the repository root resolver.
 var scanResolveRepoRoot = cliutil.ResolveRepoRoot
@@ -22,8 +23,10 @@ var scanResolveRepoRoot = cliutil.ResolveRepoRoot
 // ScanArgs holds parsed `provider-contract scan` flags.
 type ScanArgs struct {
 	Target  string
+	Subject string
 	JSON    bool
 	Timeout time.Duration
+	Restart bool
 }
 
 // ProviderReport is one provider's adoption scorecard. The snake_case JSON shape
@@ -104,8 +107,20 @@ func ParseScanArgs(args []string) (ScanArgs, error) {
 	fs.BoolVar(&out.JSON, "json", false, "Output JSON")
 	fs.StringVar(&out.Target, "target", out.Target, "Fixture scenario each provider validates")
 	fs.DurationVar(&out.Timeout, "timeout", out.Timeout, "Default per-provider probe timeout")
+	fs.BoolVar(&out.Restart, "restart", false, "Restart delegated provider scenarios before scanning")
 	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return ScanArgs{}, err
+	}
+	remaining := fs.Args()
+	switch len(remaining) {
+	case 0:
+	case 1:
+		out.Subject = catalog.NormalizeKey(remaining[0])
+		if _, err := ResolveProbe(out.Subject); err != nil {
+			return ScanArgs{}, err
+		}
+	default:
+		return ScanArgs{}, errors.New(scanUsage)
 	}
 	out.Target = strings.TrimSpace(out.Target)
 	if out.Target == "" {
@@ -117,9 +132,13 @@ func ParseScanArgs(args []string) (ScanArgs, error) {
 // Scan runs the shared conformance core and maps the result to the CLI report
 // shape.
 func Scan(ctx context.Context, args ScanArgs) ScanReport {
+	if args.Restart {
+		restartScanProviders(ctx, args.Timeout, args.Subject)
+	}
 	report := selfhealth.ConformanceScanner{
 		RepoRoot: scanResolveRepoRoot(),
 		Target:   args.Target,
+		Subject:  args.Subject,
 		Timeout:  args.Timeout,
 	}.Scan(ctx)
 
@@ -148,6 +167,21 @@ func Scan(ctx context.Context, args ScanArgs) ScanReport {
 		})
 	}
 	return out
+}
+
+func restartScanProviders(ctx context.Context, timeout time.Duration, subject string) {
+	subject = catalog.NormalizeKey(subject)
+	seen := map[string]bool{}
+	for _, probe := range Probes() {
+		if subject != "" && subject != probe.Phase && subject != catalog.NormalizeKey(probe.Provider) {
+			continue
+		}
+		if probe.Provider == "" || seen[probe.Provider] {
+			continue
+		}
+		seen[probe.Provider] = true
+		_, _ = commandRunner(ctx, timeout, "", "vrooli", "scenario", "restart", probe.Provider)
+	}
 }
 
 func printScanReport(report ScanReport) {
